@@ -2,7 +2,10 @@
 //
 // 说明：
 // - 这里承载 core task 的普通 Scoop 实现；
-// - runtime 只继续提供 continuation / GC / thread / sync substrate。
+// - runtime 只继续提供 continuation / GC / thread / sync substrate；
+// - 当前文件仍是 `T4016T3` 时点的过渡实现：内部继续用 per-task `Mutex` 串行化状态迁移；
+// - 稳定公开合同已经收口为 single-driver / trap-on-contention：`Pending` 只表示真实等待，
+//   并发 / reentrant `step()` 不属于合法使用方式；后续任务会把这里的过渡实现对齐到该合同。
 
 package scoop.core
 

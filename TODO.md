@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4016T4 -> T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -540,7 +540,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T4 [TODO] 收口 core `Task.step()` 的 single-driver / trap-on-contention 合同，并先同步设计文档
+### T4016T4 [DONE] 收口 core `Task.step()` 的 single-driver / trap-on-contention 合同，并先同步设计文档
 - 范围：
   - 明确公开 `Task` 合同：`Task` 不是可共享并发 drive 的 thread-safe object；结构化并发中的 task 保持树状层级，不支持“多个父 task 共享同一个子 task”这类语义。
   - 把 `Task.step()` 的公开行为收口为：同一时刻只允许一个 driver；public `step()` 观察到 `Running`、或并发 / reentrant `step()` 竞争，均视为 executor / driver 的严重错误并直接 trap，而不是返回 `Pending` 或抛出 `Raise<RuntimeError>`。
@@ -550,6 +550,16 @@
   - 设计文档能明确回答 shared subtask、cross-thread sequential handoff、public `step()` 观察到 `Running`、以及并发 / reentrant `step()` 的合同。
   - 仓库内不再把 `Pending` 解释为 drive contention，也不再把 concurrent `step()` 误用定义成 `Raise<RuntimeError>`。
 - 依赖：T4016T3
+- 已完成：
+  - `SCOOP_TASK.md` 已把 core `Task` 设计主线改写为 single-driver contract：明确 shared subtask / multiple parents 不属于 core、cross-thread 只允许顺序 handoff、`Pending` 只表示真实 not-ready、public `step()` 的并发 / reentrant 误用直接 trap。
+  - `SCOOP_TASK.md` 的 step algorithm / synchronization design 已从“per-task mutex + contention returns Pending”改写为“exclusive drive ownership + trap-on-contention”的目标合同，同时保留当前 `Mutex` 只是 `T4016T3` checkpoint 细节的说明，为 `T4016T5~T4016T7` 的 claim-bit 实装清障。
+  - `SCOOP_FULL_SPEC.md` 与 `SCOOP_RUNTIME.md` 已补最小规格草案：`Task<T>` 是 single-driver core abstraction，cross-thread 只支持顺序 handoff；`Pending` 不再承载 contention；public `step()` 观察到 `Running` / race / reentrant misuse 必须 trap，而不是 `Pending` 或 `Raise<RuntimeError>`。
+  - `sysroot/core.scoop` 与 `sysroot/task.scoop` 注释已同步到同一叙事：当前 per-task `Mutex` 只是过渡实现细节，不是稳定 public contract。
+- 已复验：
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T5 [TODO] 补齐 internal atomic intrinsic 对对象字段 lvalue 的编译器主线，作为 claim-bit 实现 blocker
 - 范围：

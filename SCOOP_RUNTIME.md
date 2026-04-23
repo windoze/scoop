@@ -367,24 +367,34 @@ The runtime layer only provides generic substrate used by that Scoop-level
 driver:
 
 - GC-managed class / enum allocation and tracing;
-- generic sync primitives (`Mutex`) used to serialize task drive attempts;
+- generic sync / atomic primitives used to implement exclusive drive ownership
+  and state publication;
 - generic thread primitives (`yield`) used by the internal join helper;
 - the shared continuation ABI (`scoop_continuation_resume_with(...)` and the
   standardized state-machine frame transport) used when a waiting task resumes a
   captured continuation.
 
-Minimal synchronization contract:
+Stable synchronization contract:
 
-- each task owns a single mutex guarding `__state`;
-- `step()` locks only long enough to inspect state and, when needed, change it
-  to `Running`;
-- no lock is held while running user code or while calling
-  `Continuation.resume(...)`;
-- publishing the next `Completed(...)` / `Waiting(...)` state reacquires the
-  task mutex before the state write becomes visible to other threads.
+- each task may have at most one active public driver at a time;
+- different threads may drive the same task sequentially, but only after the
+  previous drive attempt has published the next state and released ownership;
+- `Pending` means genuine suspension / not-ready state, never drive contention;
+- if `step()` races another active `step()` call, reenters the same task, or
+  observes the task already in `Running`, the task layer traps immediately
+  rather than returning `Pending` or raising `RuntimeError`;
+- no synchronization primitive or ownership claim is held while running user
+  code or while calling `Continuation.resume(...)`;
+- publishing the next `Completed(...)` / `Waiting(...)` state establishes the
+  visibility required for later cross-thread sequential handoff.
 
 Implementation note:
 
+- `sysroot/task.scoop` still uses a per-task `Mutex` as the current checkpoint
+  implementation detail for state inspection / publication.
+- That mutex is transitional rather than part of the stable public contract; the
+  remaining core-task cleanup work will replace it with a lighter exclusive
+  claim without introducing a task-specific runtime ABI.
 - The private `__TaskStepResult<T>` carrier is not part of the public language
   surface.
 - A suspended task is just an ordinary task object plus a private raw

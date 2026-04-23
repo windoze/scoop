@@ -22,7 +22,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2` 与 `T4016T3` 均已完成；但 core `Task` 还需按 `T4016T4 -> T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R` 收口“去掉 per-task lock / 轻量 claim / single-driver trap”主线。
+1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3` 与 `T4016T4` 均已完成；但 core `Task` 还需按 `T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R` 收口“去掉 per-task lock / 轻量 claim / single-driver trap”主线。
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4016T4R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -252,8 +252,12 @@
     - `Task` 不是 thread-safe shared object；结构化并发中的 task 保持树状层级，不支持 shared subtask / multiple parents。
     - `Pending` 不再承担 drive contention 语义；public `step()` 观察到 `Running` 或 claim 竞争一律视为 executor bug 并直接 trap。
     - 最终目标不是“纯文档约束版无锁 Task”，而是“轻量 claim bit 版”。
-  - 因此新增后续顺序为：
-    - `T4016T4`：先把 single-driver / trap-on-contention / `Pending` 语义收口到设计文档与规格草案。
+  - `T4016T4` 已完成：
+    - `SCOOP_TASK.md` 已把 task design、step algorithm 与 synchronization design 全部改写到 single-driver / trap-on-contention 合同，并明确 shared subtask / multiple parents 仍不在 core 范围内。
+    - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop` 与 `sysroot/task.scoop` 已同步最小规格草案与实现注释：`Pending` 只表示真实 not-ready，cross-thread 只允许顺序 handoff，public `step()` 观察到 `Running` / concurrent / reentrant misuse 必须 trap。
+    - 同时保留了“当前 per-task `Mutex` 只是 `T4016T3` checkpoint 细节”的说明，为后续 claim-bit 实装清障，而不再把旧的 contention-as-`Pending` 语义写成稳定 contract。
+    - 已复验 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test`（`fixtures: ok (1160)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+  - 因此当前剩余顺序为：
     - `T4016T5`：补齐 object-field atomic intrinsic 的编译器 blocker，保证 claim bit 可以作为普通 `Task` 字段承载。
     - `T4016T6`：把 `Task` object model 从 per-task `Mutex` 改为 atomic claim field。
     - `T4016T7`：重写 `Task.step()` 为 claim-bit 驱动，并把 concurrent/reentrant `step()` 误用收口为 trap。
@@ -261,7 +265,7 @@
     - `T4016T9`：全量同步设计文档、规范、sysroot 注释与实现说明。
     - `T4016T4R`：review 全链路，确认无锁 single-driver 合同、trap 语义与回归一致。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T4 -> T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

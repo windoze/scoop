@@ -480,18 +480,22 @@ fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, 
 // - 当前阶段不提供公开 executor/task-adapter package；
 // - `step()` 是手动驱动 task 的唯一公开 surface；raw continuation 仅作为内部 suspended-state
 //   carrier 存在；
-// - 当前实现里，suspended task 可以直接理解为“ordinary object + 私有 step-result
-//   continuation”的薄封装：task 自身只保存一个普通 `scoop.sync.Mutex` 和普通 Scoop
-//   定义的 `__TaskState<T>`；
-// - `step()` 的最小同步合同是“同一时刻至多一个线程拥有 drive attempt”：
-//   竞争线程若观察到 `Running`，会直接返回 `Pending`；
-// - runtime 继续只提供 generic continuation / GC / thread / sync substrate。
+// - `Task<T>` 的稳定公开合同是 single-driver：它不是可被多个父 task / 多个线程共享并发
+//   drive 的 thread-safe shared object；跨线程只允许顺序 handoff；
+// - `Pending` 只表示 task 尚未完成且当前无法继续推进；它不再承担 drive contention 的语义；
+// - public `step()` 若观察到 `Running`，或发生并发 / reentrant drive，视为 executor/driver
+//   误用并直接 trap；
+// - 当前实现仍可理解为“ordinary object + 私有 step-result continuation”的薄封装：
+//   task 自身暂时保存一个普通 `scoop.sync.Mutex` 与普通 Scoop 定义的 `__TaskState<T>`；
+//   该 `Mutex` 只是过渡实现细节，不是稳定 contract 的一部分；
+// - runtime 继续只提供 generic continuation / GC / thread / sync/atomic substrate。
 enum TaskStep<T> {
     Pending,
     Ready(val value: T),
 }
 
 class Task<T>(
+    // 过渡实现细节：后续会被更轻量的 exclusive-drive claim 取代。
     val __lock: scoop.sync.Mutex,
     var __state: __TaskState<T>,
 )

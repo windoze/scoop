@@ -17,6 +17,7 @@ The target model is:
 - raw `Continuation<Resume, Answer, eff E>` remains the advanced control-flow API;
 - core owns only the language-specific async surface and a tiny manually-drivable
   task abstraction;
+- core `Task` is a single-driver object rather than a shared-subtask primitive;
 - schedulers, run queues, wakeup registration, callback adapters, and reactor
   integration belong to stdlib rather than to `scoop.core`.
 
@@ -27,6 +28,7 @@ This document does not define:
 - a public executor interface;
 - a public wakeup / waker registration API;
 - public `spawn` / `join` / structured concurrency;
+- shared subtasks / multiple-parent task graphs in core;
 - a reactor or async I/O callback framework;
 - a new task-specific continuation ABI;
 - a requirement that `Task` become fully lock-free.
@@ -76,24 +78,43 @@ Because these layers are different, a general `Task.step(arg)` API is the wrong
 The payload belongs to the suspended continuation or to the awaited source that
   eventually produces the payload, not to the task-driver API.
 
-### 4. Spurious drive attempts are allowed
+### 4. Spurious sequential drive attempts are allowed
 
 An executor should try to drive tasks only when they are likely to make
-progress, but an unnecessary drive attempt is not a semantic error.
+progress, but an unnecessary sequential drive attempt is not a semantic error.
 
 If a task cannot make progress yet, `step()` should simply return `Pending`.
 
 This is inefficient, but it is not forbidden.
 
-### 5. Cross-thread driving should be supported
+What this does **not** mean:
 
-If one thread creates a task and another thread later drives it, that should be
-valid.
+- `Pending` is not a signal that another thread currently owns the task;
+- `Pending` is not a recovery path for contention or reentrant driving;
+- a public `step()` that races another active `step()` is executor misuse and
+  should trap.
+
+### 5. Cross-thread sequential handoff should be supported
+
+If one thread creates a task and another thread later drives it **after the
+previous drive attempt has finished publishing state and released ownership**,
+that should be valid.
 
 The existing continuation contract already supports cross-thread resume by
 reinstalling the captured handler stack on the resuming thread. The task layer
 only needs enough synchronization to ensure that at most one thread owns a drive
-attempt for a given task at a time.
+attempt for a given task at a time, and that later threads can observe the
+published state.
+
+### 6. Core `Task` is not a shared-subtask primitive
+
+The intended core contract is tree-shaped structured concurrency:
+
+- a task may be handed off between drivers over time;
+- core does not define multiple parents sharing one child task;
+- core does not define multiple threads driving the same task concurrently;
+- task-level misuse should fail fast rather than being absorbed into
+  `Pending`.
 
 ## Proposed Core Surface
 
@@ -171,7 +192,13 @@ intrinsics or LLVM special cases.
 
 ## Internal Scoop-Level Task Model
 
-The current internal model is:
+The stable public contract is already **single-driver + trap-on-contention**,
+but the current checkpoint after `T4016T3` still uses a per-task mutex as a
+transitional implementation detail. The remaining `T4016T4 -> T4016T7` work
+will replace that detail with a lighter exclusive-drive claim without changing
+the public surface.
+
+Current checkpoint:
 
 ### Internal drive result
 
@@ -222,8 +249,14 @@ class Task<T>(
 )
 ```
 
-The important point is that the authoritative task state is now a normal
-Scoop-level object model rather than a private C runtime struct.
+The important points are:
+
+- the authoritative task state is now a normal Scoop-level object model rather
+  than a private C runtime struct;
+- `__lock` is an internal checkpoint detail, not a promise that the stable task
+  contract is mutex-based;
+- the stable public meaning of `Pending` is "not completed and cannot make
+  progress yet", not "some other driver currently owns the task".
 
 ## Step Algorithm
 
@@ -235,34 +268,47 @@ fun <T> Task<T>.step(): TaskStep<T>
 
 The intended algorithm is:
 
-1. Lock the task.
-2. Read current state.
-3. If state is `Completed(value)`, unlock and return `Ready(value)`.
-4. If state is `Running`, unlock and return `Pending`.
-5. If state is `Created(start)`, replace state with `Running`, detach `start`,
-   unlock, run `start()`, then publish the resulting next state.
-6. If state is `Waiting(awaited, continuation)`, replace state with `Running`,
-   detach both values, unlock, drive `awaited.step()`, and:
-   - if awaited returns `Pending`, restore `Waiting(awaited, continuation)` and
+1. Acquire exclusive drive ownership for the task.
+2. If another active driver already owns the task, trap immediately.
+   `Pending` is not used to encode contention.
+3. Read current state.
+4. If state is `Completed(value)`, release ownership bookkeeping and return
+   `Ready(value)`.
+5. If state is `Running`, trap. After successful exclusive claim, public
+   `step()` must not treat `Running` as a recoverable outcome.
+6. If state is `Created(start)`, replace state with `Running`, detach `start`,
+   release ownership bookkeeping that must not be held across user code, run
+   `start()`, then publish the resulting next state.
+7. If state is `Waiting(awaited, continuation)`, replace state with `Running`,
+   detach both values, release ownership bookkeeping, drive `awaited.step()`,
+   and:
+   - if awaited returns `Pending`, publish `Waiting(awaited, continuation)` and
      return `Pending`;
    - if awaited returns `Ready(valueTransport)`, call
      `continuation.resume(valueTransport)`, obtain the next private
      `__TaskStepResult<T>`, and publish it.
-7. Publishing a private driver step means:
+8. Publishing a private driver step means:
    - `Ready(value)` -> set task state to `Completed(value)`;
    - `Pending(awaited2, continuation2)` -> set task state to
      `Waiting(awaited2, continuation2)`.
-8. After publishing:
+9. After publishing:
    - if task became `Completed(value)`, return `Ready(value)`;
    - if task became `Waiting(...)`, return `Pending`.
 
+The exact ownership mechanism is intentionally left to the follow-up
+implementation tasks. The contract above only fixes the observable semantics.
+
 Important invariants:
 
-- no lock is held while running user code or while resuming a continuation;
-- only the thread that changed the state to `Running` owns the detached closure /
-  continuation for that drive attempt;
+- no synchronization primitive or ownership claim is held while running user
+  code or while resuming a continuation;
+- only the thread that changed the state to `Running` owns the detached closure
+  / continuation for that drive attempt;
 - `Completed` is sticky and cached;
 - a task must never duplicate or re-use a consumed continuation.
+- `Pending` means genuine "not ready yet", not drive contention;
+- cross-thread handoff is valid only after the previous driver has published the
+  next state and released ownership.
 
 ## Why `step()` Takes No Argument
 
@@ -290,24 +336,37 @@ Therefore:
 
 ## Synchronization Design
 
-To support cross-thread task driving, the task object needs synchronization even
-if executor / wake / reactor remain deferred.
+To support cross-thread sequential task handoff, the task object needs
+synchronization even if executor / wake / reactor remain deferred.
 
 ### Required guarantees
 
 The task layer should guarantee:
 
-- multiple threads may call `step()` on the same task;
+- core `Task` is not a thread-safe shared-subtask object; shared child tasks /
+  multiple parents are out of scope;
+- multiple threads may own sequential `step()` attempts on the same task over
+  time;
 - at most one thread may actively drive a given task at a time;
-- if a thread finds the task already being driven, it gets `Pending` rather than
-  blocking or corrupting state;
-- if a task is already completed, any thread may read the cached result;
+- if public `step()` races another active `step()` call, reenters the same
+  task, or otherwise observes the task already running, that is executor misuse
+  and must trap rather than returning `Pending` or raising `RuntimeError`;
+- if a task is already completed, any thread may read the cached result after a
+  valid handoff;
 - if a waiting task is driven on a different thread, the captured continuation is
   resumed on that new thread.
 
 ### Minimal synchronization substrate
 
-The minimal substrate is a per-task mutex.
+The stable contract only needs:
+
+- an exclusive drive-ownership mechanism;
+- synchronized publication of `Created` / `Running` / `Waiting` / `Completed`
+  state so later threads can hand off safely.
+
+The current checkpoint still uses a per-task mutex, but that is a transitional
+implementation detail rather than the intended public task model. Follow-up
+tasks switch this to a lighter claim field.
 
 `CondVar` is **not** required for the core task API:
 
@@ -322,11 +381,12 @@ adapters.
 
 Preferred direction:
 
-- reuse the existing sync runtime surface already backing `scoop.sync`
-  (`Mutex`, later `CondVar` when needed);
+- reuse generic sync / atomic substrate already backing `scoop.sync` and related
+  internals;
 - do **not** add a new task-specific lock runtime.
 
-The current implementation directly reuses `scoop.sync.Mutex`; there is no
+The current implementation directly reuses `scoop.sync.Mutex` as a checkpoint;
+later work should replace that with a lighter claim field rather than with a
 separate task-only lock type.
 
 ## Cross-Thread Resume and GC
@@ -405,6 +465,14 @@ the core `Task` API.
 - Remove task-only runtime symbols and `runtime/c/scoop_task.c`.
 - Keep only generic continuation, GC, thread, and sync runtime layers.
 
+### Phase 3.5: Tighten the core task drive contract
+
+- State explicitly that core `Task` is single-driver.
+- Remove any "contention becomes `Pending`" contract text.
+- Treat concurrent / reentrant public `step()` as a trap.
+- Replace the transitional mutex serialization detail with a lighter
+  exclusive-drive claim field.
+
 ### Phase 4: Later stdlib work
 
 - design executor traits / APIs;
@@ -420,7 +488,9 @@ The intended end state is:
 - compiler special handling is limited to async sugar and private lowering glue;
 - runtime special handling is limited to generic continuation / GC / thread /
   sync infrastructure;
-- the public core task API is small: `Task<T>`, `TaskStep<T>`, `step()`, and
-  `Async.await`;
+- the public core task API is small and single-driver: `Task<T>`,
+  `TaskStep<T>`, `step()`, and `Async.await`;
+- `Pending` means genuine suspension / not-ready state rather than contention,
+  and concurrent / reentrant drive is executor misuse that traps;
 - executor / wake / reactor stay out of `scoop.core` and are designed later in
   stdlib.
