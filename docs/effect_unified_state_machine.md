@@ -3,6 +3,7 @@
 > 状态：设计定稿  
 > 适用范围：`T2003u1` 的架构收口基线；后续实现任务为 `T2003u2`～`T2003u7`。
 > 非目标：本文不定义新的语言语义，也不承诺 runtime 符号名稳定；它只定义 effect lowering 的统一内部模型与实现边界。
+> `T4017` 对齐说明：本文描述的是 lowering / state-machine 结构约束；effect propagation 的语义 source of truth 已转向显式 `EffectCtx` / `EffectOutcome`。文中若提到 TLS handler stack / perform slot，只表示当前过渡 transport，不表示最终权威模型。
 
 ## 1. 背景与问题
 
@@ -253,7 +254,7 @@ effect payload、resume value、callee suspend result 都统一走同一套逻�
 
 - 最近匹配 handler 优先；
 - arm body 执行时，按 `detach_policy` 明确哪些 sibling frame 不在当前动态 handler 栈里；
-- escape continuation 恢复时，安装的是捕获到的 handler stack 快照，而不是“当前线程碰巧还在”的 TLS 状态。
+- escape continuation 恢复时，恢复的是捕获到的动态 effect context；当前实现物理上可以体现为 handler stack 快照或等价表示，但不能再以“当前线程碰巧还在”的 TLS 状态作为语义前提。
 
 ### 4.8 One-shot 语义唯一
 
@@ -303,8 +304,8 @@ effect payload、resume value、callee suspend result 都统一走同一套逻�
 
 化简规则：
 
-- continuation 对象持有 heap frame、当前 `pc/state`、lifted locals、captured handler stack、one-shot 状态；
-- `resume(value)` 安装 captured handler stack，写入统一 payload transport，然后驱动 step 函数从 `resume_target` 对应的 state 继续执行；
+- continuation 对象持有 heap frame、当前 `pc/state`、lifted locals、captured effect context（当前实现可具体化为 handler stack 快照）、one-shot 状态；
+- `resume(value)` 恢复 captured effect context，写入统一 payload transport，然后驱动 step 函数从 `resume_target` 对应的 state 继续执行；
 - step 函数与 immediate-resume 的“恢复后执行哪段代码”共享同一份 state plan，只是一个走同步折返，一个走外部驱动。
 
 ### 5.4 Mixed-arm handle
@@ -315,9 +316,9 @@ effect payload、resume value、callee suspend result 都统一走同一套逻�
 - dispatch 后按命中的 `ArmPlan.resume_mode` 选择化简/物化策略；
 - mixed-arm 的 sibling detach/restore、cleanup、dispatch order 都来自同一份 plan，而不是 `mixed.rs` 特有规则。
 
-## 6. 与现有 runtime ABI 的对接
+## 6. 与现有 runtime ABI / `T4017` 迁移合同的对接
 
-本文不引入新的语言 ABI，只要求统一 pass 与现有 runtime 语义严格对齐。
+本文不引入新的语言 ABI，只要求统一 pass 与现有 runtime 语义以及 `T4017` 的 staged migration contract 严格对齐。
 
 ### 6.1 Payload transport
 
@@ -338,15 +339,16 @@ AbiPayloadTransport
 
 统一 pass 只决定“哪个逻辑值进入哪个 transport 槽位”，不改变 runtime 已经接受的 `word + gc_ref` 形状。
 
-### 6.2 Handler stack 与 TLS 状态
+### 6.2 动态 effect 上下文与过渡 transport
 
-继续沿用现有 TLS handler stack / perform slot 模型：
+统一 pass 必须把 dispatch / resume 的语义表达成显式动态 effect 上下文与显式传播结果；当前实现仍可能借助 TLS handler stack / perform slot 作为过渡 transport：
 
-- non-resuming perform 通过 TLS slot + flag 传播；
-- escape continuation 在恢复前把 captured handler stack 安装到当前线程的 TLS 中；
-- arm body / cleanup 运行前，必须先按现有约定 capture-and-clear perform slot，避免用户代码在脏 flag 状态下运行。
+- non-resuming perform 当前仍可能通过 TLS slot + flag 承载传播桥接；
+- escape continuation 恢复当前仍可能把 captured context 物理上映射为 handler stack snapshot + TLS swap；
+- arm body / cleanup 运行前，仍必须先按现有约定 capture-and-clear 过渡期 transport，避免用户代码在脏状态下运行；
+- 但任何新的 lowering 路径都不能再把 ambient TLS 当成 effect 语义的 source of truth。
 
-统一 pass 的职责是把这些边界显式编码进 `dispatch_plan` 与 `cleanup_scopes[]`，而不是重新定义 runtime 行为。
+统一 pass 的职责是把这些边界显式编码进 `dispatch_plan`、`cleanup_scopes[]` 以及后续 `EffectCtx` / `EffectOutcome` contract，而不是重新定义 runtime 行为。
 
 ### 6.3 Continuation one-shot
 

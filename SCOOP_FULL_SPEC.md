@@ -759,9 +759,9 @@ Operations:
 
 Resumption context:
 
-- `Continuation<Resume, Answer, eff E>` captures the dynamic effect context (the active handler stack; Appendix A) and the nearest delimiter boundary at the suspension point.
-- Calling `k.resume(...)` resumes the computation under that captured handler stack, even if `resume` is invoked from a different OS thread.
-- Implementations typically realize this by storing the captured handler stack pointer in the continuation object and installing it into the current thread’s TLS effect state for the duration of the resumed step, then restoring the previous TLS state on return.
+- `Continuation<Resume, Answer, eff E>` captures the dynamic effect context (conceptually, an `EffectCtx`; Appendix A) and the nearest delimiter boundary at the suspension point.
+- Calling `k.resume(...)` resumes the computation under that captured effect context, even if `resume` is invoked from a different OS thread.
+- Implementations may realize this with handler-stack snapshots, thread-local scratch state, explicit context objects, or equivalent runtime-private machinery. Such details are implementation-defined and do not change the semantic rule that the resumed computation runs under the continuation's captured dynamic context rather than the resuming thread's ambient state.
 - `Continuation<Resume, Answer, eff E>` belongs to the language's **advanced API surface**. Typical async code should interact with `Task<T>`; runtimes and advanced libraries may store continuations internally and replace them with a fresh continuation after each suspension.
 
 ### 5.6 Compilation Strategy
@@ -775,10 +775,11 @@ Implementation details:
 
 Note: the runtime symbol names used in this section (e.g., `__scoop_effect_active`, `scoop_perform_*`, `scoop_continuation_resume`) are illustrative only and do **not** constitute a stable ABI. The exact runtime entrypoints, task-poll hooks, and symbol names are implementation-defined and may change.
 
-- **Per-thread runtime state**: effect dispatch/unwinding state is maintained in thread-local storage (TLS), including the active handler stack pointer and the current "perform slot" used by flag-based unwinding.
-- **Cross-thread resume**: when a continuation is resumed, its captured handler stack is installed into the resuming thread’s TLS effect state. This makes the effect context conceptually fiber-local whether the continuation is resumed manually or by some future executor/scheduler framework.
+- **Dynamic effect context**: internally, effectful execution is defined relative to a logical dynamic effect context (`EffectCtx`) containing the active handler/delimiter chain. `handle` establishes a derived context; a continuation captures the context visible at its suspension point.
+- **Eager effect outcome**: an effectful internal step can be understood as either `Complete(result)` or `Propagate(signal)`. Implementations may encode this with flags/slots, tagged returns, out-params, or other equivalent internal ABI shapes.
+- **Cross-thread resume**: when a continuation is resumed, the resumed computation must run under the continuation's captured dynamic effect context, not under whatever ambient effect state the resuming thread already had.
 - **Continuation answer channel**: a resuming state machine must preserve a transport path for the delimiter answer so that `k.resume(...)` yields `Answer` rather than `Unit`. The exact transport slots / helper APIs are implementation-defined.
-- **Flag-based unwinding**: `__scoop_effect_active` is a thread-local flag. `scoop_perform_*` functions write the operation tag and arguments into the thread-local perform slot, set the flag, and return; callers check the flag and propagate. Before running any user code during propagation (handler arm bodies, `finally` blocks), the runtime/compiled code must capture the slot and clear the flag; if the effect is still unhandled at that boundary, it is re-raised after cleanup.
+- **Flag-based unwinding / transitional transport**: current implementations may still use thread-local flags and perform slots as a transitional transport for some propagation paths. Any such TLS cells are implementation-defined bridge machinery rather than the language-level source of truth.
 - **Resumable state machine**: Implementations may realize `, k ->` with stack-local, heap-backed, or mixed state machines, provided they preserve one-shot deep continuation semantics, answer-returning `k.resume(...)`, cleanup / `finally`, and fresh-continuation-on-re-suspend behavior.
 - **One-shot only**: Each suspension point resumes at most once. Multi-shot continuations are not supported.
 
@@ -3080,7 +3081,7 @@ handle {
 
 - This appendix does **not** introduce new user-facing syntax.
 - This appendix does **not** change the surface forms of effect declaration, `perform`, or `handle`.
-- This appendix does **not** specify scheduling, synchronization, or a memory model. Concurrency behavior remains out of scope beyond the rule that dispatch follows the current computation’s active handler stack (which is restored when a continuation is resumed; §5.5).
+- This appendix does **not** specify scheduling, synchronization, or a memory model. Concurrency behavior remains out of scope beyond the rule that dispatch follows the current computation’s dynamic effect context (which is captured and restored with a continuation; §5.5).
 
 ## Appendix B: Kotlin Semantics Adopted by Scoop (Expanded)
 

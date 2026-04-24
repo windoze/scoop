@@ -761,7 +761,7 @@
   - continuation capture / resume 的 authoritative state 可解释为 `frame + captured ctx (+ signal/resume token)`，而不是 resuming thread 当前 TLS。
 - 依赖：T4016T4R
 
-### T4017a [TODO] 文档更新：将 `CONTINUATION.md`、spec 与 runtime 设计文档收口到显式 `EffectCtx` / `EffectOutcome`
+### T4017a [DONE] 文档更新：将 `CONTINUATION.md`、spec 与 runtime 设计文档收口到显式 `EffectCtx` / `EffectOutcome`
 - 范围：
   - 更新 `CONTINUATION.md`，把当前草案补成实现导向的设计文档：明确 `EffectCtx`、`EffectSignal`、`EffectOutcome`、frame、continuation 的职责边界，以及 staged rollout 的迁移顺序。
   - 同步 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`docs/effect_unified_state_machine.md` 与必要的编译器 / runtime / sysroot 注释，去掉仍把 effect propagation 写成 TLS side channel source-of-truth 的叙事，改成与新设计一致的规范与实现说明。
@@ -769,6 +769,10 @@
 - 验收：
   - 仓库文档可以一致回答：为什么 `EffectCtx` 不是 frame，为什么 `EffectOutcome` 是 eager step result，为什么 continuation 捕获 `frame + ctx`，以及为什么本项目最终删除 effect TLS 的语义路径。
   - `CONTINUATION.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `docs/effect_unified_state_machine.md` 不再互相冲突。
+- 完成情况：
+  - 已将 `CONTINUATION.md` 收口为 `T4017` 实施基线，并把 staged rollout 细化到 `T4017a -> T4017f`。
+  - 已同步更新 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`docs/effect_unified_state_machine.md` 与 `runtime/c/scoop_runtime.c` 注释，明确 `EffectCtx + EffectOutcome` 才是权威语义模型，TLS 仅是过渡 transport / scratch。
+  - 已验证 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017
 
 ### T4017b [TODO] 接入 `declared_effectful` / `body_may_outward_effect` / `needs_resumable_frame` 分层，只在真正可能 outward-effect 的调用点保留 TLS 检查

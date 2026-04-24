@@ -1,11 +1,15 @@
-# Continuation / EffectCtx / EffectOutcome 设计草案
+# Continuation / EffectCtx / EffectOutcome 设计（T4017 实施基线）
+
+> 状态：`T4017a` 文档收口基线  
+> 目标：把 effect / continuation 运行时从“TLS side channel + 若干隐式桥接状态”迁到“显式 `EffectCtx` + 显式 `EffectOutcome`”  
+> 边界：本文定义的是后续 `T4017b -> T4017f` 要落地的内部语义、职责分层与迁移顺序；当前代码里仍存在的 TLS 桥接字段只是过渡 transport / scratch，不再被视为权威语义模型。
 
 ## 1. 背景
 
 当前实现把 continuation / effect 运行时拆成了两部分：
 
 - 局部控制流状态放进 state machine frame / continuation 对象；
-- 动态 effect 上下文与传播槽位放进 TLS。
+- 动态 effect 上下文与传播槽位主要通过 TLS side channel 承载。
 
 这条路线能工作，但有两个明显问题：
 
@@ -214,6 +218,24 @@ Continuation {
 - 记住当前 computation 的局部状态；
 - 记住当前 computation 所处的动态 effect 环境。
 
+### 4.7 语义权威边界与过渡 transport
+
+`EffectCtx` / `EffectOutcome` / `EffectSignal` 是后续 compiler/runtime contract 的权威语义模型；它们回答的是：
+
+- 当前 computation 的动态 effect 环境是什么；
+- 这一步 eager 执行是已经完成，还是需要继续向外传播；
+- 若需要传播，外层究竟要处理什么 signal，以及如何恢复剩余计算。
+
+与之相对，当前实现里仍存在的一些 TLS 字段和 helper 只是过渡 transport / scratch：
+
+- `handler stack top`
+- `effect_active + perform_slot`
+- `callee_suspend_state`
+- `pending_continuation`
+- `continuation_resume_active`
+
+这些运行时细节在迁移期间仍可继续存在，但它们不再是“effect 语义的 source of truth”。后续任何新路径都不能再把“当前线程 TLS 里碰巧是什么值”当成 continuation / effect 语义定义本身。
+
 ## 5. 统一执行模型
 
 ### 5.1 ordinary effectful function
@@ -416,39 +438,44 @@ uint32_t f(
 
 只有第 2 层及以上，才应进入 effectful internal ABI。
 
-## 11. 迁移路径
+## 11. 迁移路径（对应 `T4017a -> T4017f`）
 
-建议分阶段落地，而不是一次性重写：
+迁移按固定顺序推进，不做长期双轨桥接：
 
-### 阶段 1：先消掉不必要的 TLS 检查
+### 阶段 1：`T4017a` 文档收口
 
-- 保留当前 runtime 语义；
+- 先统一 `CONTINUATION.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `docs/effect_unified_state_machine.md`；
+- 明确 effect propagation 的权威叙事已经转向 `EffectCtx + EffectOutcome`；
+- 保证后续实现任务不再以“TLS 是最终语义”作为出发点。
+
+### 阶段 2：`T4017b` 分析分层与 fast path 边界
+
 - 把现有 whole-function `may_suspend` / `known_fun_effects` 分析提升成普通 codegen 可消费的事实；
-- direct / vtable / closure / funptr / itable call 只在 `body_may_outward_effect = true` 时插 TLS propagation check；
-- 先获得性能收益，再推进更深的 ABI 改造。
+- 明确区分 `declared_effectful`、`body_may_outward_effect`、`needs_resumable_frame`；
+- 让 direct / vtable / closure / funptr / itable call 只在 `body_may_outward_effect = true` 时保留传播检查。
 
-### 阶段 2：引入显式 `EffectCtx` / `EffectOutcome`
+### 阶段 3：`T4017c` 引入显式内部抽象
 
-- 先在内部 IR / codegen contract 中引入这两个抽象；
+- 在内部 IR / codegen contract 中引入 `EffectCtx` / `EffectOutcome` / `EffectSignal`；
 - 从这一阶段开始，不再新增任何依赖 effect TLS 作为 source of truth 的路径；
-- 迁移可以分批落地，但目标是直接切向新协议，而不是长期保留新旧双轨桥接。
+- 新增路径直接面向新协议，而不是延续 TLS-only 设计。
 
-### 阶段 3：ordinary effectful call 切到新 ABI
+### 阶段 4：`T4017d` ordinary effectful call 切到新 ABI
 
 - direct call、closure call、funptr call 先切；
-- 再逐步扩到 vtable / itable / object init / top-level init 等路径；
-- 让 ordinary effect propagation 不再依赖“call 后查 TLS active”。
+- 让 ordinary effect propagation 不再依赖“call 后查 TLS active/perform slot”；
+- 把显式 `ctx + outcome` 变成普通 call-like path 的内部 ABI 主线。
 
-### 阶段 4：把 continuation replay / callee suspend state 迁出 TLS
+### 阶段 5：`T4017e` continuation replay / resume 状态迁移
 
 - `Continuation.resume(...)` 改为显式消费 `EffectOutcome`；
 - `pending continuation`、`callee suspend state`、`resume replay state` 迁移到显式 signal / frame / continuation metadata；
 - cross-thread resume 完全建立在 captured ctx + captured frame 上，而不是 resuming thread 的 effect TLS。
 
-### 阶段 5：收尾删除 effect TLS 的主语义职责
+### 阶段 6：`T4017f` 收尾删除 effect TLS 的主语义职责
 
-- handler stack / perform slot 不再是主语义载体；
-- effect TLS 若仍保留，只能用于调试；
+- 把 vtable / itable / object init / top-level init / extern thunk 等剩余边界接到新协议；
+- handler stack / perform slot 若仍保留，只能作为调试或局部 transport 实现细节；
 - 最终把“effect propagation 的 source of truth”统一到 `ctx + outcome`。
 
 ## 12. 非目标

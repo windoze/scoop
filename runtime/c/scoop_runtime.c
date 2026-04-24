@@ -319,6 +319,8 @@ static inline void *scoop_gc_immix_nursery_alloc_locked(ScoopGcImmixState *state
 // - 本阶段只提供 flag + 单个 perform slot 的 TLS 骨架；不实现 dispatch；
 // - codegen/lowering 会在后续任务（T0613+）接入对这些 TLS 符号的读写；
 // - 这些符号名用于仓库内部实现/测试，并不承诺稳定 ABI（见 spec 备注）。
+// - 这些 TLS 字段当前只承担过渡期 transport / scratch 职责；`T4017` 收口后，
+//   effect/continuation 的权威语义模型将转为显式 `EffectCtx` / `EffectOutcome`。
 // perform slot：flag-based unwinding 的“effect 载荷寄存器”（每线程）。
 //
 // 设计目标（TODO T0630）：
@@ -355,7 +357,8 @@ typedef struct ScoopEffectPerformSlot {
 //
 // 说明（TODO T1411c）：
 // - 该结构用于在 `perform/raise` 发生时记录一个稳定的 call-site（line/col），并可选采样 backtrace；
-// - 该数据结构是“诊断/调试辅助”，不参与语义判定：effect 的语义仍由 active flag + perform slot 决定；
+// - 该数据结构是“诊断/调试辅助”，不参与语义判定；当前实现里 active flag +
+//   perform slot 仍承载部分过渡 transport，但它们不是设计上的最终 source of truth；
 // - 为保证 fixtures 的可断言性：
 //   - 默认不采样 backtrace（避免地址不稳定）；仅记录 line/col；
 //   - 若设置环境变量 `SCOOP_EFFECT_CAPTURE_UNWIND=1`，则额外采样当前线程的 instruction pointers。
@@ -1303,8 +1306,9 @@ static void scoop_effect_raise_runtime_error_variant(uint64_t variant_tag) {
 //
 // 语义（spec §5.5）：
 // - one-shot：同一个 continuation 只能成功 resume 一次；第二次为运行期错误（exit(3)）。
-// - fiber-local：resume 时需要恢复其捕获的 handler stack（Appendix A），允许在另一线程执行；
-//   并在 step_fn 返回后恢复调用方原 TLS handler stack。
+// - fiber-local：resume 时需要恢复其捕获的动态 effect 上下文（当前实现物理上体现为
+//   captured handler stack + TLS swap），允许在另一线程执行；并在 step_fn 返回后恢复
+//   调用方原 TLS handler stack。
 // - 本 helper 只负责“驱动 resumed computation 向前走”；若 resumed computation 正常到达
 //   delimiter，则由 `scoop_continuation_resume_into(...)` 在外层把标准化 frame transport
 //   提升成 continuation ABI 的显式 answer channel。

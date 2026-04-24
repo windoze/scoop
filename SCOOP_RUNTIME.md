@@ -325,12 +325,16 @@ Runtime type tests (`is/as/as?`) are expected to follow these rules once impleme
 
 ## 10. Effect / Continuation Lowering Contract
 
-This section records the continuation contract that the current compiler/runtime implementation uses after the `T4016` alignment work.
+This section records the continuation/effect contract after the `T4016` alignment work and the `T4017a` documentation alignment. The public language surface is unchanged, but the implementation-facing model is now described in terms of explicit dynamic context plus explicit eager outcome rather than TLS side channels as the semantic source of truth.
 
 - Language-level continuation model: `Continuation<Resume, Answer, eff E = Pure>`.
   - `Resume` is the handled operation's result type.
   - `Answer` is the nearest `handle` delimiter's result type.
   - `E` is the required effect row of the resumed computation.
+- Internal semantic model:
+  - `EffectCtx` represents the dynamic handler/delimiter environment visible to the current computation. It is distinct from a state-machine frame or continuation object; the frame holds local continuation state, while `EffectCtx` describes the surrounding effect environment.
+  - `EffectOutcome<R>` is the eager step result of an effectful computation: either `Complete(R)` or `Propagate(EffectSignal)`.
+  - `EffectSignal` is the outward-propagated control/effect event carrying the operation/effect-instance identity, payload transport, and any resume token needed to continue the suspended computation.
 - `k.resume(payload...): Answer / (E + Raise<RuntimeError>)`.
   - Payload surface continues to follow the resume payload shape:
     - `Continuation<Unit, Answer>.resume()` is accepted.
@@ -341,10 +345,14 @@ This section records the continuation contract that the current compiler/runtime
   - Legacy `-> resume` syntax is removed from the language surface.
   - If the compiler recognizes tail-position `k.resume(...)` and lowers it more directly, that is an internal optimization class rather than a distinct surface form.
 - Resuming continuations remain one-shot and deep:
-  - The continuation captures the handler stack active at the suspension point.
-  - Resuming from another OS thread reinstalls that captured handler stack for the duration of the resumed computation.
+  - The continuation captures both the suspended computation's local continuation state and the dynamic effect context active at the suspension point.
+  - Resuming from another OS thread runs under that captured effect context rather than the resuming thread's ambient effect state.
   - If the resumed computation suspends again, that suspension exposes a fresh continuation; `k.resume(...)` itself still exposes only the eventual delimiter answer or a raised error.
 - Current runtime transport still uses `(resume_word, resume_gc_ref)` for resume payload movement, and `scoop_continuation_resume_with(...)` now packages “write payload + drive resume + read delimiter answer” through the generic continuation ABI. `scoop_continuation_resume_into(...)` remains the lower-level entry for cases where payload has already been staged on the continuation object. Expression-position `k.resume(...)` and `Task.step()` now both consume that same shared payload+answer path rather than relying on a second task-specific resume contract.
+- Transitional implementation note:
+  - The runtime still contains handler-stack snapshots, perform-slot TLS, `callee_suspend_state`, pending-continuation replay state, and related scratch state while the staged `T4017b -> T4017f` migration lands.
+  - Those TLS cells are now treated as bridge machinery for the current implementation, not as the authoritative semantic model.
+  - The remaining `T4017` work migrates fast-path analysis, ordinary call ABI, replay state, and residual boundaries so that compiler/runtime source-of-truth becomes explicit `ctx + outcome`.
 
 ## 11. Task Stepping Layer Contract
 
