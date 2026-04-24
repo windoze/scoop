@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -724,13 +724,26 @@
   - `cargo run -p scoop -- test`（`fixtures: ok (1169)`）
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T4R [TODO] Review：确认 core `Task` 已收口为无锁、轻量 claim、single-driver 合同
+### T4016T4R [DONE] Review：确认 core `Task` 已收口为无锁、轻量 claim、single-driver 合同
 - 重点：
   - 不允许 `Task` 继续内建 per-task `Mutex` 或其他等价 heavyweight sync object。
   - 不允许 public `step()` 再把 `Running` / contention 暴露为 `Pending`；并发 / reentrant 误用必须稳定 trap，且不引入 `Raise<RuntimeError>` 污染。
   - object-field atomic intrinsic 支持必须走 ordinary compiler/runtime 主线，而不是为 `Task` 单独开 special-case。
   - 跨线程语义只允许顺序 handoff；不允许回到“共享子 task / 多父 task / 多 driver 并发 step”旧模型。
   - `SCOOP_TASK.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/*` 注释与回归必须和最终实现一致。
+- 结论：
+  - `sysroot/task.scoop` / `sysroot/core.scoop` 已确认 `Task<T>` 只保留私有 `__claim: scoop.unsafe.__AtomicInt` 与 `__state`；claim 失败或成功 claim 后观察到 `Running` 都直接 `exit(3)`，`Pending` 只表示真实未就绪。
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 已确认 task-aware lowering 只剩 erased payload transport；对象字段原子操作统一经 `scoop.unsafe.__atomicInt*` + ordinary lvalue/addressable-place 主线 lowering，不存在 task-only atomic special-case。
+  - `SCOOP_TASK.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md` 与 `sysroot/*` 注释已和实现对齐：core `Task` 是 single-driver object，只允许顺序跨线程 handoff；shared subtask / multi-parent / contention-as-`Pending` 旧叙事已清理。
+- 已复验：
+  - `cargo test -p scoopc --features llvm task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (17)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (24)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (392)`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1169)`）
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4016T9
 
 ## T4017：将 effect / continuation 运行时从 TLS side channel 收口为显式 `EffectCtx` / `EffectOutcome`

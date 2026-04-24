@@ -22,7 +22,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8` 与 `T4016T9` 均已完成；当前 core `Task` 主线进入 `T4016T4R`，做最终 review 收口。
+1. 前置 blockers、continuation review 与 core `Task` 无锁 single-driver review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9` 与 `T4016T4R` 均已完成；当前主线转入 `T4017a`。
 2. `CONTINUATION.md` 已形成显式 `EffectCtx` / `EffectOutcome` 设计草案；后续按 `T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R` 分阶段把 effect / continuation runtime 从 TLS side channel 迁到显式上下文 + 显式 outcome。
 3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4017R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
@@ -296,10 +296,15 @@
     - `crates/scoopc/src/llvm/codegen/mod.rs` 注释现已明确：task-aware lowering 仅剩 erased payload transport；`runtime/c/scoop_thread.c` 注释也已同步到“cross-thread task handoff 仅依赖通用 thread substrate、无 task-specific scheduler ABI” 的实现说明。
     - 在复扫文档时还顺手清理了一处既有过期表述：`SCOOP_RUNTIME.md` 第 10 节不再把 continuation/runtime 合同写成“正在向 T4016 收口”的进行时。
     - 已复验 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过。
+  - `T4016T4R` 已完成：
+    - 复扫 `sysroot/task.scoop` / `sysroot/core.scoop` 后，已再次确认 `Task<T>` 只保留私有 `__claim: scoop.unsafe.__AtomicInt` 与 `__state`，不再内建 per-task `Mutex`；claim 失败和成功 claim 后观察到 `Running` 都直接 trap，`Pending` 不再承担 contention 语义。
+    - 复扫 `crates/scoopc/src/llvm/codegen/mod.rs` 后，已确认 task-aware lowering 只剩 erased payload transport；对象字段 atomic intrinsic 统一经 `scoop.unsafe.__atomicInt*` 与 ordinary addressable-place 主线 lowering，不存在 task-only atomic special-case。
+    - 复扫 `SCOOP_TASK.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md` 与 `sysroot/*` 注释后，已确认“single-driver + sequential cross-thread handoff + misuse trap” 叙事与实现一致；shared subtask / multi-parent / contention-as-`Pending` 旧模型未再残留于生产主线。
+    - 已复验 `cargo test -p scoopc --features llvm task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (17)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (24)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (392)`）、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，均未暴露新的前置 blocker。
   - 因此当前剩余顺序为：
-    - `T4016T4R`：review 全链路，确认无锁 single-driver 合同、trap 语义与回归一致。
+    - `T4017a`：先更新 `CONTINUATION.md`、spec 与 runtime 设计文档，收口显式 `EffectCtx` / `EffectOutcome` 叙事。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P1.6. continuation / effect runtime 显式上下文化（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`）
 
@@ -317,7 +322,7 @@
   - `T4017e`：把 continuation replay、`callee_suspend_state`、`pending_continuation` 等恢复路径迁出 TLS，收口到 `frame + ctx + signal/resume token`。
   - `T4017f`：补齐 vtable / itable / object init / top-level init / extern thunk 等剩余边界，并删除 effect TLS 的主语义职责；若还有 TLS 残留，只能留作调试。
   - `T4017R`：review 全链路，确认 effect propagation 的 source of truth 已转成显式 `ctx + outcome`，而不是 TLS side channel。
-- 当前状态：依赖 `T4016T4R`；完成后再回到 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T4R` 已完成；下一步从 `T4017a` 开始，完成后再回到 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
