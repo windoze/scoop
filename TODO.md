@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4017e2 -> T4017e3 -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4017e3 -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -847,13 +847,21 @@
   - 已验证 `cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017e
 
-### T4017e2 [TODO] 将 `Continuation.resume(...)` replay token 接入显式 outcome / state-machine，不再通过 TLS replay-state 取回 inner continuation
+### T4017e2 [DONE] 将 `Continuation.resume(...)` replay token 接入显式 outcome / state-machine，不再通过 TLS replay-state 取回 inner continuation
 - 范围：
   - `Continuation.resume(...)` 的 fresh / replay path 改为显式消费 `EffectOutcome` / `EffectSignal.resume_token`；outer replay 不再把 inner continuation 包成 TLS replay-state 再让 codegen 取回。
   - unified state machine suspend/replay、answer-return path 与 `Continuation.resume` builtin 统一走显式 replay token。
   - 补 LLVM / run-pass 回归，锁定 replay path 不再通过 `scoop_callee_suspend_state_get()` 读取 continuation-resume replay-state。
 - 验收：
   - `Continuation.resume(...)` replay path 的 authoritative pending continuation / replay token 不再来自 TLS callee-state 槽位。
+  - `Continuation.resume(...)` 相关 IR / runtime 回归明确验证 state-machine frame 使用显式 `continuation_resume_replay_token`，而不是 `continuation_resume_replay_state_raw` TLS 桥接槽位。
+- 完成记录：
+  - `runtime/c/scoop_runtime.c` 中的 `scoop_continuation_resume_with(...)` 已增加 `ScoopEffectOutcome *outcome` 参数；当 continuation resume 以 propagation 结束时，runtime 会显式写入 `outcome->signal.resume_token = pending_continuation`，不再要求 caller 事后从 TLS replay-state 取回 inner continuation。
+  - `scoop_continuation_resume()` / `scoop_continuation_resume_u64()` 与 `resume_with(..., outcome = NULL)` 仍保留兼容回退逻辑：未迁移调用方继续通过 legacy TLS replay-state 安装路径工作，但 `Continuation.resume(...)` 新主线已不再依赖该 source of truth。
+  - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 与 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 已将 `Continuation.resume(...)` 的 fresh / replay path 切到显式 outcome + frame replay-token 槽位：fresh path 调用 `scoop_continuation_resume_with(..., outcome_slot)`，replay path 则从当前 unified state-machine frame 上读取 `continuation_resume_replay_token` 与 payload。
+  - unified state machine 只为 `Continuation.resume` suspend-site 分配 replay-token 槽位；`SuspendCall` 捕获 propagation outcome 后会把 `effect_outcome.signal.resume_token` 写入 frame，resume replay 时再读出并清空，避免 inner continuation 再经 TLS `continuation_resume_replay_state_raw` 回传。
+  - `crates/scoop_runtime/tests/continuation_one_shot.rs`、LLVM IR 测试与 run-pass fixture 已覆盖“resume_token 经显式 outcome 传播”“nested handle replay 使用 frame token 槽位”“replay path 不再读取 TLS continuation resume replay-state”等关键边界；为通过 `cargo clippy --all-targets -- -D warnings`，continuation resume helper 的三个输出槽位已收口为单个结构体参数，但语义未变。
+  - 已验证 `cargo fmt`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）、`cargo clippy --all-targets -- -D warnings`、`cargo test -p scoop_runtime --test continuation_one_shot -- --test-threads=1`、`cargo test -p scoopc --features llvm continuation_resume -- --nocapture`、`cargo test -p scoopc --features llvm async_task_resume_replay_ir_terminates_step_fn_on_active_effect -- --nocapture`、`cargo test -p scoopc --features llvm when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume -- --nocapture`，以及构建/运行 `tests/fixtures/run-pass/continuation_resume_answer_replay_basic.scoop` 并比对 stdout，均通过。
 - 依赖：T4017e1
 
 ### T4017e3 [TODO] 将 ordinary indirect callee `callee_suspend_state` 迁入显式 frame / resume-token metadata，并去掉 TLS resume 入口

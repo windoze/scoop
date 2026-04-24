@@ -520,6 +520,10 @@ typedef struct ScoopContinuationResumeScope {
 static SCOOP_THREAD_LOCAL ScoopContinuationResumeScope
     *__scoop_continuation_resume_scope = 0;
 
+typedef struct ScoopContinuationResumeCommonResult {
+  void *pending_continuation;
+} ScoopContinuationResumeCommonResult;
+
 static void scoop_effect_perform_slot_drop_gc_ref(void) {
   if (__scoop_effect_perform_slot.payload_gc_ref != 0) {
     scoop_unpin(__scoop_effect_perform_slot.payload_gc_ref);
@@ -1128,8 +1132,9 @@ void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
 // 当前 C runtime 结构体里显式记录的仍只有 resume payload transport；delimiter answer
 // 继续复用标准化 state-machine 结果槽。
 // `scoop_continuation_resume_with(...)` 作为共享 helper，把“写 payload + 驱动 resume +
-// 读取 delimiter answer”收口为一条 continuation ABI；`scoop_continuation_resume_into(...)`
-// 则保留为“payload 已经写好后只消费 answer channel”的更低层入口。
+// 读取 delimiter answer + 显式 propagation outcome”收口为一条 continuation ABI；
+// `scoop_continuation_resume_into(...)` 则保留为“payload 已经写好后只消费 answer channel”
+// 的更低层入口。
 // expression-position `resume(...): Answer` 与 `Task.step()` 现在都走同一条
 // continuation payload+answer 通道；task 只是把该 answer 解释为私有 step result。
 //
@@ -1454,6 +1459,21 @@ static int scoop_is_continuation_resume_replay_state(void *state) {
   return hdr->type_desc == &SCOOP_CONTINUATION_RESUME_REPLAY_STATE_TYPE_DESC;
 }
 
+static void scoop_continuation_resume_install_legacy_replay_state(
+    void *pending_continuation) {
+  if (pending_continuation == 0) {
+    return;
+  }
+
+  void *restored_callee_suspend_state = __scoop_callee_suspend_state;
+  ScoopContinuationResumeReplayState *replay_state =
+      scoop_continuation_resume_replay_state_alloc(
+          pending_continuation, restored_callee_suspend_state);
+  __scoop_callee_suspend_state = replay_state != 0
+                                     ? (void *)replay_state
+                                     : restored_callee_suspend_state;
+}
+
 // Runtime-originated `Raise<RuntimeError>` 必须与编译器侧
 // `encode_effect_transport_value()` 保持同一套 perform-slot 合同：
 // unit enum variant 作为单 word tag 传输，`gc_ref` 置空。
@@ -1482,7 +1502,8 @@ static void scoop_effect_raise_runtime_error_variant(uint64_t variant_tag) {
 //
 // T1607：resume payload 由调用方预先写入 `k->resume_word` / `k->resume_gc_ref`；
 // runtime 在调用 step_fn 时把两个槽位都传入。
-static void scoop_continuation_resume_common(void *continuation) {
+static ScoopContinuationResumeCommonResult
+scoop_continuation_resume_common(void *continuation) {
   ScoopContinuation *k = (ScoopContinuation *)continuation;
   scoop_pin(continuation);
   ScoopEffectCtx captured_ctx = scoop_effect_ctx_make(k->captured_handler_stack_top);
@@ -1530,15 +1551,7 @@ static void scoop_continuation_resume_common(void *continuation) {
 
   void *pending_continuation = resume_scope.pending_continuation;
   __scoop_continuation_resume_scope = resume_scope.prev;
-  if (pending_continuation != 0) {
-    ScoopContinuationResumeReplayState *replay_state =
-        scoop_continuation_resume_replay_state_alloc(pending_continuation,
-                                                     restored_callee_suspend_state);
-    __scoop_callee_suspend_state =
-        replay_state != 0 ? (void *)replay_state : restored_callee_suspend_state;
-  } else {
-    __scoop_callee_suspend_state = restored_callee_suspend_state;
-  }
+  __scoop_callee_suspend_state = restored_callee_suspend_state;
   if (captured_callee_suspend_state != 0) {
     scoop_unpin(captured_callee_suspend_state);
   }
@@ -1546,6 +1559,9 @@ static void scoop_continuation_resume_common(void *continuation) {
   scoop_effect_handler_stack_snapshot_free(captured_ctx.handler_top);
   k->captured_handler_stack_top = 0;
   scoop_unpin(continuation);
+  ScoopContinuationResumeCommonResult result;
+  result.pending_continuation = pending_continuation;
+  return result;
 }
 
 // one-shot 检查 + Raise 的公共入口：返回 1 表示可以继续 resume，0 表示已触发 Raise。
@@ -1614,10 +1630,31 @@ static void scoop_continuation_store_resume_payload(void *continuation,
 
 static uint32_t scoop_continuation_resume_after_try(void *continuation,
                                                     uint64_t *out_word,
-                                                    void **out_gc_ref) {
-  scoop_continuation_resume_common(continuation);
+                                                    void **out_gc_ref,
+                                                    ScoopEffectOutcome *outcome) {
+  ScoopContinuationResumeCommonResult result =
+      scoop_continuation_resume_common(continuation);
   if (__scoop_effect_active != 0) {
+    if (outcome != 0) {
+      scoop_effect_outcome_consume_current(outcome);
+      if (outcome->tag == SCOOP_EFFECT_OUTCOME_PROPAGATE) {
+        outcome->signal.resume_token = result.pending_continuation;
+      }
+      return 0;
+    }
+
+    scoop_continuation_resume_install_legacy_replay_state(
+        result.pending_continuation);
     return 0;
+  }
+
+  if (outcome != 0) {
+    *outcome = scoop_effect_outcome_make_complete();
+  }
+
+  if (outcome == 0 && result.pending_continuation != 0) {
+    scoop_continuation_resume_install_legacy_replay_state(
+        result.pending_continuation);
   }
 
   return scoop_continuation_read_answer_transport(continuation, out_word, out_gc_ref);
@@ -1645,30 +1682,42 @@ uint32_t scoop_continuation_resume_into(void *continuation,
     return 0;
   }
 
-  return scoop_continuation_resume_after_try(continuation, out_word, out_gc_ref);
+  return scoop_continuation_resume_after_try(continuation, out_word, out_gc_ref,
+                                             0);
 }
 
 // 共享 continuation payload+answer helper。
 //
 // 调用方通过参数提供 resume payload；helper 负责把 payload 写入 continuation，
 // 然后执行 one-shot 检查、resume，并在最近 delimiter 正常完成时回填 answer transport。
+// 若调用方提供 `outcome`，propagation 路径还会把当前 signal 显式物化出来；其中
+// `signal.resume_token` 承载“本次 `Continuation.resume(...)` outward-suspend 后待继续的
+// inner continuation”。
 uint32_t scoop_continuation_resume_with(void *continuation,
                                         uint64_t resume_word,
                                         void *resume_gc_ref,
                                         uint64_t *out_word,
-                                        void **out_gc_ref) {
+                                        void **out_gc_ref,
+                                        ScoopEffectOutcome *outcome) {
   if (out_word != 0) {
     *out_word = 0;
   }
   if (out_gc_ref != 0) {
     *out_gc_ref = 0;
   }
+  if (outcome != 0) {
+    *outcome = scoop_effect_outcome_make_complete();
+  }
   if (!scoop_continuation_resume_try(continuation)) {
+    if (outcome != 0 && __scoop_effect_active != 0) {
+      scoop_effect_outcome_consume_current(outcome);
+    }
     return 0;
   }
 
   scoop_continuation_store_resume_payload(continuation, resume_word, resume_gc_ref);
-  return scoop_continuation_resume_after_try(continuation, out_word, out_gc_ref);
+  return scoop_continuation_resume_after_try(continuation, out_word, out_gc_ref,
+                                             outcome);
 }
 
 // 兼容入口：保留旧 ABI 形状，仅负责驱动 resume；不要求 caller 消费 answer transport。
@@ -1676,7 +1725,10 @@ void scoop_continuation_resume(void *continuation) {
   if (!scoop_continuation_resume_try(continuation)) {
     return;
   }
-  scoop_continuation_resume_common(continuation);
+  ScoopContinuationResumeCommonResult result =
+      scoop_continuation_resume_common(continuation);
+  scoop_continuation_resume_install_legacy_replay_state(
+      result.pending_continuation);
 }
 
 // 旧 ABI 兼容：将 u64 payload 写入 resume_word 后调用新路径。
@@ -1685,7 +1737,10 @@ void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
     return;
   }
   scoop_continuation_store_resume_payload(continuation, resume_value, 0);
-  scoop_continuation_resume_common(continuation);
+  ScoopContinuationResumeCommonResult result =
+      scoop_continuation_resume_common(continuation);
+  scoop_continuation_resume_install_legacy_replay_state(
+      result.pending_continuation);
 }
 
 // --- Continuation 跨线程 resume（spec §5.5 / TODO T0618） ---

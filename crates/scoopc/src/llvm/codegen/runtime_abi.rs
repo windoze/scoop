@@ -1379,20 +1379,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    /// continuation payload+answer ABI：调用方提供 payload，并通过同一入口接收 answer transport。
+    /// continuation payload+answer ABI：调用方提供 payload，并通过同一入口接收
+    /// answer transport 与显式 effect outcome。
     pub(super) fn declare_runtime_continuation_resume_with(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME_WITH;
         if let Some(existing) = self.module.get_function(NAME) {
             return existing;
         }
 
-        // `uint32_t scoop_continuation_resume_with(void* k, uint64_t resume_word, void* resume_gc_ref, uint64_t* out_word, void** out_gc_ref)`
+        // `uint32_t scoop_continuation_resume_with(void* k, uint64_t resume_word, void* resume_gc_ref, uint64_t* out_word, void** out_gc_ref, ScoopEffectOutcome* out_effect_outcome)`
         let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let slot_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 5] = [
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 6] = [
             i8_ptr_ty.into(),
             self.context.i64_type().into(),
             i8_ptr_ty.into(),
+            slot_ptr_ty.into(),
             slot_ptr_ty.into(),
             slot_ptr_ty.into(),
         ];
@@ -1401,8 +1403,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// `Continuation.resume(...)` 的 resumed body 若再次 suspend outward，
-    /// 会先把“当前待继续的 inner continuation”暂存到 runtime TLS；outer
-    /// call-boundary replay 再从 TLS 恢复并继续该 inner continuation。
+    /// runtime 会把“当前待继续的 inner continuation”发布到 active resume scope：
+    /// - 显式 outcome 路径由 `scoop_continuation_resume_with(...)` 消费并转成
+    ///   `EffectSignal.resume_token`；
+    /// - legacy 无 outcome 调用方仍保留 TLS replay-state 兼容 transport。
     pub(super) fn declare_runtime_continuation_resume_publish_pending_continuation(
         &self,
     ) -> FunctionValue<'ctx> {

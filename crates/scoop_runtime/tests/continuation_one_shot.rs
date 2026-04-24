@@ -47,10 +47,34 @@ struct ScoopEffectFrameResultPrefix {
     resume_gc_ref: *mut c_void,
 }
 
+#[repr(C)]
+struct ScoopValueTransport {
+    word: u64,
+    gc_ref: *mut c_void,
+}
+
+#[repr(C)]
+struct ScoopEffectSignal {
+    op_tag: u32,
+    effect_instance_key: u32,
+    payload: ScoopValueTransport,
+    resume_token: *mut c_void,
+}
+
+#[repr(C)]
+struct ScoopEffectOutcome {
+    tag: u32,
+    reserved_u32: u32,
+    complete: ScoopValueTransport,
+    signal: ScoopEffectSignal,
+}
+
 type ScoopContinuationStepFn =
     Option<extern "C" fn(state: *mut c_void, resume_word: u64, resume_gc_ref: *mut c_void)>;
 
 const SCOOP_EFFECT_FRAME_STATE_TAG_HANDLE_RETURNED: u32 = 0xFFFF_FFFE;
+const SCOOP_EFFECT_OUTCOME_COMPLETE: u32 = 0;
+const SCOOP_EFFECT_OUTCOME_PROPAGATE: u32 = 1;
 
 static OBSERVED_CALLEE_SUSPEND_STATE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
 static CONTINUATION_TEST_LOCK: Mutex<()> = Mutex::new(());
@@ -77,6 +101,8 @@ unsafe extern "C" {
 
     fn scoop_effect_is_active() -> u32;
     fn scoop_effect_clear();
+    fn scoop_effect_set_active();
+    fn scoop_effect_perform_slot_write_u64(op_tag: u32, effect_instance_key: u32, value: u64);
     fn scoop_effect_perform_slot_read_op_tag() -> u32;
     fn scoop_effect_perform_slot_read_effect_instance_key() -> u32;
     fn scoop_effect_perform_slot_read_len_words() -> u32;
@@ -108,6 +134,7 @@ unsafe extern "C" {
         resume_gc_ref: *mut c_void,
         out_word: *mut u64,
         out_gc_ref: *mut *mut c_void,
+        out_effect_outcome: *mut ScoopEffectOutcome,
     ) -> u32;
 
     fn scoop_sync_once_create() -> *mut c_void;
@@ -158,6 +185,18 @@ extern "C" fn publish_pending_continuation_step(
 ) {
     unsafe {
         scoop_continuation_resume_publish_pending_continuation(state);
+    }
+}
+
+extern "C" fn publish_pending_continuation_with_active_effect_step(
+    state: *mut c_void,
+    _resume_word: u64,
+    _resume_gc_ref: *mut c_void,
+) {
+    unsafe {
+        scoop_continuation_resume_publish_pending_continuation(state);
+        scoop_effect_perform_slot_write_u64(17, 29, 77);
+        scoop_effect_set_active();
     }
 }
 
@@ -337,13 +376,42 @@ fn continuation_resume_with_returns_answer_transport_and_clears_outputs_on_failu
 
         let mut out_word = u64::MAX;
         let mut out_gc_ref = frame as *mut c_void;
+        let mut outcome = ScoopEffectOutcome {
+            tag: u32::MAX,
+            reserved_u32: 0,
+            complete: ScoopValueTransport {
+                word: 0,
+                gc_ref: ptr::null_mut(),
+            },
+            signal: ScoopEffectSignal {
+                op_tag: 0,
+                effect_instance_key: 0,
+                payload: ScoopValueTransport {
+                    word: 0,
+                    gc_ref: ptr::null_mut(),
+                },
+                resume_token: ptr::null_mut(),
+            },
+        };
         assert_eq!(
-            scoop_continuation_resume_with(k, 77, expected_gc_ref, &mut out_word, &mut out_gc_ref),
+            scoop_continuation_resume_with(
+                k,
+                77,
+                expected_gc_ref,
+                &mut out_word,
+                &mut out_gc_ref,
+                &mut outcome,
+            ),
             1,
             "resume_with must report a delimiter answer when the resumed step finishes normally"
         );
         assert_eq!(out_word, 77);
         assert_eq!(out_gc_ref, expected_gc_ref);
+        assert_eq!(outcome.tag, SCOOP_EFFECT_OUTCOME_COMPLETE);
+        assert!(
+            outcome.signal.resume_token.is_null(),
+            "successful resume_with must not synthesize a replay token"
+        );
         assert_eq!(
             scoop_effect_is_active(),
             0,
@@ -352,8 +420,17 @@ fn continuation_resume_with_returns_answer_transport_and_clears_outputs_on_failu
 
         out_word = 999;
         out_gc_ref = expected_gc_ref;
+        outcome.tag = u32::MAX;
+        outcome.signal.resume_token = expected_gc_ref;
         assert_eq!(
-            scoop_continuation_resume_with(k, 123, ptr::null_mut(), &mut out_word, &mut out_gc_ref),
+            scoop_continuation_resume_with(
+                k,
+                123,
+                ptr::null_mut(),
+                &mut out_word,
+                &mut out_gc_ref,
+                &mut outcome,
+            ),
             0,
             "double resume should report that no delimiter answer was produced"
         );
@@ -367,12 +444,104 @@ fn continuation_resume_with_returns_answer_transport_and_clears_outputs_on_failu
             "failed resume_with must clear the gc_ref out slot"
         );
         assert_eq!(
+            outcome.tag, SCOOP_EFFECT_OUTCOME_PROPAGATE,
+            "failed resume_with must surface RuntimeError through explicit effect outcome"
+        );
+        assert_eq!(outcome.signal.op_tag, 1);
+        assert_eq!(outcome.signal.effect_instance_key, u32::MAX);
+        assert_eq!(outcome.signal.payload.word, 2);
+        assert!(
+            outcome.signal.payload.gc_ref.is_null(),
+            "RuntimeError unit variant transport should still carry no gc_ref"
+        );
+        assert!(
+            outcome.signal.resume_token.is_null(),
+            "double resume does not publish a replay token"
+        );
+        assert_eq!(
             scoop_effect_is_active(),
-            1,
-            "failed resume_with must still surface RuntimeError through the shared effect transport"
+            0,
+            "explicit outcome path should consume the runtime error instead of leaving TLS active"
         );
 
         scoop_effect_clear();
+        scoop_thread_unregister();
+    }
+}
+
+#[test]
+fn continuation_resume_with_surfaces_pending_continuation_via_effect_outcome_resume_token() {
+    let _guard = continuation_test_guard();
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+        scoop_effect_clear();
+        scoop_callee_suspend_state_clear();
+
+        let pending = scoop_continuation_alloc(ptr::null_mut(), Some(noop_step));
+        assert!(
+            !pending.is_null(),
+            "pending continuation sentinel must be allocated"
+        );
+
+        let outer = scoop_continuation_alloc(
+            pending,
+            Some(publish_pending_continuation_with_active_effect_step),
+        );
+        assert!(!outer.is_null(), "outer continuation must be allocated");
+
+        let mut out_word = u64::MAX;
+        let mut out_gc_ref = pending;
+        let mut outcome = ScoopEffectOutcome {
+            tag: u32::MAX,
+            reserved_u32: 0,
+            complete: ScoopValueTransport {
+                word: 0,
+                gc_ref: ptr::null_mut(),
+            },
+            signal: ScoopEffectSignal {
+                op_tag: 0,
+                effect_instance_key: 0,
+                payload: ScoopValueTransport {
+                    word: 0,
+                    gc_ref: ptr::null_mut(),
+                },
+                resume_token: ptr::null_mut(),
+            },
+        };
+
+        assert_eq!(
+            scoop_continuation_resume_with(
+                outer,
+                11,
+                ptr::null_mut(),
+                &mut out_word,
+                &mut out_gc_ref,
+                &mut outcome,
+            ),
+            0,
+            "propagating resume_with should report that no delimiter answer was produced"
+        );
+        assert_eq!(out_word, 0);
+        assert_eq!(out_gc_ref, ptr::null_mut());
+        assert_eq!(outcome.tag, SCOOP_EFFECT_OUTCOME_PROPAGATE);
+        assert_eq!(outcome.signal.op_tag, 17);
+        assert_eq!(outcome.signal.effect_instance_key, 29);
+        assert_eq!(outcome.signal.payload.word, 77);
+        assert_eq!(
+            outcome.signal.resume_token, pending,
+            "pending inner continuation must travel through EffectSignal.resume_token"
+        );
+        assert_eq!(
+            scoop_effect_is_active(),
+            0,
+            "explicit outcome path should consume the temporary TLS propagation state"
+        );
+        assert!(
+            scoop_callee_suspend_state_get().is_null(),
+            "resume_with outcome path must not package pending continuation into callee_suspend_state replay-state"
+        );
+
         scoop_thread_unregister();
     }
 }

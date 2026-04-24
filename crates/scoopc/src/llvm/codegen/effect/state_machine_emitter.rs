@@ -165,6 +165,7 @@ pub(super) struct FrameLayout<'ctx> {
     completion_tag_index: Option<u32>,
     continuation_index: u32,
     outer_scope_storage_indices: HashMap<hir::SymbolId, u32>,
+    continuation_resume_replay_token_indices: HashMap<u32, u32>,
 }
 
 impl<'ctx> FrameLayout<'ctx> {
@@ -194,6 +195,12 @@ impl<'ctx> FrameLayout<'ctx> {
 
     pub(super) fn outer_scope_storage_index(&self, slot_id: hir::SymbolId) -> Option<u32> {
         self.outer_scope_storage_indices.get(&slot_id).copied()
+    }
+
+    pub(super) fn continuation_resume_replay_token_index(&self, site_id: u32) -> Option<u32> {
+        self.continuation_resume_replay_token_indices
+            .get(&site_id)
+            .copied()
     }
 
     /// Return the LLVM struct field index for a user slot given its
@@ -326,6 +333,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             outer_scope_storage_indices.insert(slot_id, storage_index);
         }
 
+        let mut continuation_resume_replay_token_indices = HashMap::new();
+        let mut continuation_resume_site_ids = Vec::new();
+        for site in contract.suspend_sites() {
+            let Some(call_expr) = self.lookup_suspend_call_expr(contract, site.id()) else {
+                continue;
+            };
+            let call_site = self.current_call_site(call_expr.span)?;
+            if self.continuation_resume_call_sites.contains(&call_site) {
+                continuation_resume_site_ids.push(site.id());
+            }
+        }
+        continuation_resume_site_ids.sort_unstable();
+        for site_id in continuation_resume_site_ids {
+            let token_index = field_types.len() as u32;
+            field_types.push(gc_ptr_ty.into());
+            continuation_resume_replay_token_indices.insert(site_id, token_index);
+        }
+
         // Keep the suspended continuation in a dedicated runtime-only slot
         // after the schema fields so `user_slot_llvm_index` stays aligned with
         // `UnifiedFrameSchema::field_index()`.
@@ -343,6 +368,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             completion_tag_index,
             continuation_index,
             outer_scope_storage_indices,
+            continuation_resume_replay_token_indices,
         })
     }
 
@@ -1243,12 +1269,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // --- Suspending call: evaluate call expression normally ---
                 HandleStateOp::SuspendCall { site_id, expr } => {
-                    self.seed_replayed_callee_resume_payload_if_present(
-                        *site_id,
-                        expr.span,
-                        state_ptr,
-                        frame_layout,
-                    )?;
+                    if !self.suspend_call_is_continuation_resume(contract, *site_id)? {
+                        self.seed_replayed_callee_resume_payload_if_present(
+                            *site_id,
+                            expr.span,
+                            state_ptr,
+                            frame_layout,
+                        )?;
+                    }
                     let saved_outcome_capture = self.active_suspend_site_effect_outcome_capture;
                     self.active_suspend_site_effect_outcome_capture =
                         Some(ActiveSuspendSiteEffectOutcomeCapture {
@@ -1601,6 +1629,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn suspend_call_is_continuation_resume(
+        &self,
+        contract: &UnifiedHandleLoweringContract,
+        site_id: u32,
+    ) -> Result<bool, LlvmEmitError> {
+        let Some(call_expr) = self.lookup_suspend_call_expr(contract, site_id) else {
+            return Ok(false);
+        };
+        Ok(self
+            .continuation_resume_call_sites
+            .contains(&self.current_call_site(call_expr.span)?))
+    }
+
     fn seed_replayed_callee_resume_payload_if_present(
         &mut self,
         site_id: u32,
@@ -1655,16 +1696,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let call_expr = self.lookup_suspend_call_expr(contract, site_id).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "resume.after.call source expression",
+                at: source_span.into(),
+            },
+        )?;
+        let is_continuation_resume_call = self
+            .continuation_resume_call_sites
+            .contains(&self.current_call_site(call_expr.span)?);
         let step_fn = self.current_codegen_function(source_span)?;
-        let current_callee_state = self.current_callee_suspend_state_ptr(
-            source_span,
-            &format!("site{site_id}_callee_suspend_state"),
-        )?;
-        let has_callee_state = self.ptr_is_non_null(
-            source_span,
-            current_callee_state,
-            &format!("site{site_id}_has_callee_suspend_state"),
-        )?;
         let replay_bb = self
             .context
             .append_basic_block(step_fn, &format!("site{site_id}_resume_replay"));
@@ -1674,8 +1715,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let merge_bb = self
             .context
             .append_basic_block(step_fn, &format!("site{site_id}_resume_merge"));
-        self.builder
-            .build_conditional_branch(has_callee_state, replay_bb, inactive_bb)?;
+
+        let replay_token_slot = if is_continuation_resume_call {
+            let token_index = frame_layout
+                .continuation_resume_replay_token_index(site_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Continuation.resume replay token slot",
+                    at: source_span.into(),
+                })?;
+            let token_slot = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                state_ptr,
+                token_index,
+                &format!("site{site_id}_continuation_resume_replay_token_ptr"),
+            )?;
+            let replay_token = self
+                .builder
+                .build_load(
+                    self.llvm_gc_i8_ptr_type(),
+                    token_slot,
+                    &format!("site{site_id}_continuation_resume_replay_token"),
+                )?
+                .into_pointer_value();
+            let has_token = self.ptr_is_non_null(
+                source_span,
+                replay_token,
+                &format!("site{site_id}_has_continuation_resume_replay_token"),
+            )?;
+            self.builder
+                .build_conditional_branch(has_token, replay_bb, inactive_bb)?;
+            Some((token_slot, replay_token))
+        } else {
+            let current_callee_state = self.current_callee_suspend_state_ptr(
+                source_span,
+                &format!("site{site_id}_callee_suspend_state"),
+            )?;
+            let has_callee_state = self.ptr_is_non_null(
+                source_span,
+                current_callee_state,
+                &format!("site{site_id}_has_callee_suspend_state"),
+            )?;
+            self.builder
+                .build_conditional_branch(has_callee_state, replay_bb, inactive_bb)?;
+            None
+        };
 
         self.builder.position_at_end(inactive_bb);
         self.emit_resume_value_to_frame_slot(
@@ -1694,21 +1777,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "callee_resume_word",
             "callee_resume_gc_ref",
         )?;
+        if let Some((replay_token_slot, replay_token)) = replay_token_slot {
+            self.builder
+                .build_store(replay_token_slot, self.llvm_gc_i8_ptr_type().const_null())?;
+            let saved_replay_ctx = self.current_continuation_resume_replay_context;
+            self.current_continuation_resume_replay_context =
+                Some(ContinuationResumeReplayContext {
+                    token: replay_token,
+                    resume_word,
+                    resume_gc_ref,
+                });
+            let saved_return_ctx = self.return_context.take();
+            let saved_return_ty = self.current_fun_return_ty.take();
+            self.current_fun_return_ty = Some(CgTy::Never);
+            let saved_replay_mode = self.current_continuation_resume_replay;
+            self.current_continuation_resume_replay = true;
+            let call_result = self.codegen_expr_in_expected_context(call_expr, None);
+            self.current_continuation_resume_replay = saved_replay_mode;
+            self.current_continuation_resume_replay_context = saved_replay_ctx;
+            self.current_fun_return_ty = saved_return_ty;
+            self.return_context = saved_return_ctx;
+            let call_result = call_result?;
+            self.store_value_to_frame_slot(
+                source_span,
+                resume_slot,
+                call_result,
+                state_ptr,
+                frame_layout,
+                contract,
+            )?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+
+            self.builder.position_at_end(merge_bb);
+            return self.emit_read_local_from_frame(
+                resume_slot.id(),
+                source_span,
+                state_ptr,
+                frame_layout,
+                contract,
+            );
+        }
+
+        let current_callee_state = self.current_callee_suspend_state_ptr(
+            source_span,
+            &format!("site{site_id}_callee_suspend_state"),
+        )?;
         self.emit_resume_payload_into_callee_suspend_state(
             source_span,
             current_callee_state,
             resume_word,
             resume_gc_ref,
         )?;
-        let call_expr = self.lookup_suspend_call_expr(contract, site_id).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "resume.after.call source expression",
-                at: source_span.into(),
-            },
-        )?;
-        let is_continuation_resume_call = self
-            .continuation_resume_call_sites
-            .contains(&self.current_call_site(call_expr.span)?);
         let saved_return_ctx = self.return_context.take();
         let saved_return_ty = self.current_fun_return_ty.take();
         // replay 的 SuspendCall 仍在 step function 里重放一个完整 call tree；
@@ -1716,7 +1835,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // dispatch/continuation 重新接管，而不是继续把 `0/null` 占位答案写回 frame。
         self.current_fun_return_ty = Some(CgTy::Never);
         let saved_replay_mode = self.current_continuation_resume_replay;
-        self.current_continuation_resume_replay = is_continuation_resume_call;
+        self.current_continuation_resume_replay = false;
         let call_result = self.codegen_expr_in_expected_context(call_expr, None);
         self.current_continuation_resume_replay = saved_replay_mode;
         self.current_fun_return_ty = saved_return_ty;
@@ -2052,11 +2171,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                     self.builder.position_at_end(active_suspend_bb);
                     if let Some(outcome_slot) = explicit_outcome_slot {
+                        if let Some(token_index) =
+                            frame_layout.continuation_resume_replay_token_index(*site_id)
+                        {
+                            let resume_token = self.effect_outcome_resume_token(
+                                span,
+                                outcome_slot,
+                                &format!("site{site_id}_effect_outcome"),
+                            )?;
+                            let token_slot = self.builder.build_struct_gep(
+                                frame_layout.frame_type,
+                                state_ptr,
+                                token_index,
+                                &format!("site{site_id}_continuation_resume_replay_token_ptr"),
+                            )?;
+                            self.builder.build_store(token_slot, resume_token)?;
+                        }
                         self.publish_effect_outcome_from_slot(
                             span,
                             outcome_slot,
                             &format!("site{site_id}_effect_outcome"),
                         )?;
+                    } else if frame_layout
+                        .continuation_resume_replay_token_index(*site_id)
+                        .is_some()
+                    {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "Continuation.resume suspend outcome slot",
+                            at: span.into(),
+                        });
                     }
                 }
 
@@ -2245,13 +2388,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_pointer_value();
 
                 let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
+                let tail_resume_slots = ContinuationResumeResultSlots {
+                    out_word_slot: null_slot,
+                    out_gc_ref_slot: null_slot,
+                    outcome_slot: null_slot,
+                };
                 if let Some(val) = last_value {
                     self.resume_continuation_with_payload(
                         span,
                         cont_ptr,
                         val,
-                        null_slot,
-                        null_slot,
+                        tail_resume_slots,
                         "continuation_resume_tail",
                     )?;
                 } else {
@@ -2259,8 +2406,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         cont_ptr,
                         self.context.i64_type().const_zero(),
                         self.llvm_gc_i8_ptr_type().const_null(),
-                        null_slot,
-                        null_slot,
+                        tail_resume_slots,
                         "continuation_resume_tail",
                     )?;
                 }
@@ -4890,6 +5036,14 @@ fun main(): Int {
         assert!(
             ir.contains("call i32 @scoop_continuation_resume_with"),
             "outer when-arm try/catch should lower Continuation.resume via the shared payload+answer runtime entry"
+        );
+        assert!(
+            ir.contains("continuation_resume_replay_token"),
+            "Continuation.resume replay should persist the explicit resume_token on the frame instead of relying on callee-state replay bookkeeping"
+        );
+        assert!(
+            !ir.contains("continuation_resume_replay_state_raw"),
+            "Continuation.resume replay should no longer materialize the legacy TLS replay-state reader"
         );
     }
 

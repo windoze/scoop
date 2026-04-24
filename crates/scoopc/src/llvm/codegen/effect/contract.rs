@@ -209,6 +209,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(is_propagating)
     }
 
+    pub(in crate::llvm::codegen) fn effect_outcome_resume_token(
+        &mut self,
+        at: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let signal_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_outcome_struct_type(),
+            outcome_slot,
+            3,
+            &format!("{label}_effect_outcome_signal_ptr"),
+        )?;
+        let resume_token_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_signal_struct_type(),
+            signal_ptr,
+            3,
+            &format!("{label}_effect_signal_resume_token_ptr"),
+        )?;
+        let resume_token = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                resume_token_ptr,
+                &format!("{label}_effect_signal_resume_token"),
+            )?
+            .into_pointer_value();
+        let _ = at;
+        Ok(resume_token)
+    }
+
     pub(super) fn null_effect_resume_token(&self) -> PointerValue<'ctx> {
         self.llvm_gc_i8_ptr_type().const_null()
     }

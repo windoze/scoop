@@ -435,13 +435,17 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     ///
     /// 说明：
     /// - fresh path 直接对原 receiver continuation 调用 runtime resume；
-    /// - replay path 则从 runtime TLS 取回“上一次 suspend outward 时挂起的 inner continuation”，
-    ///   再把新的 resume payload 送回该 inner continuation，最后继续执行原 call site 之后的外层状态。
+    /// - replay path 则从当前 state-machine frame 显式读出“上一次 suspend outward 时
+    ///   记录的 `EffectSignal.resume_token`”，再把新的 resume payload 送回该 inner
+    ///   continuation，最后继续执行原 call site 之后的外层状态。
     current_continuation_resume_replay: bool,
+    /// 当前 `Continuation.resume(...)` replay call 绑定的显式 replay token + payload。
+    current_continuation_resume_replay_context: Option<ContinuationResumeReplayContext<'ctx>>,
     /// 当前 `SuspendCall` fresh path 正在捕获的显式 outcome 边界。
     ///
-    /// 仅 direct / closure / funptr ordinary call 会写入这份捕获状态；
-    /// state-machine terminator 读取后即可改用显式 outcome，而不是再次 probing TLS active。
+    /// direct / closure / funptr ordinary call 与 `Continuation.resume(...)` builtin
+    /// 都会写入这份捕获状态；state-machine terminator 读取后即可改用显式 outcome，
+    /// 而不是再次 probing TLS active。
     active_suspend_site_effect_outcome_capture: Option<ActiveSuspendSiteEffectOutcomeCapture>,
     /// 已由当前 step function 某个 `SuspendCall` 捕获到的显式 outcome slot。
     suspend_site_explicit_effect_outcomes: HashMap<u32, PointerValue<'ctx>>,
@@ -468,6 +472,13 @@ struct ReturnContext<'ctx> {
 struct ActiveSuspendSiteEffectOutcomeCapture {
     site_id: u32,
     call_span: crate::span::Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ContinuationResumeReplayContext<'ctx> {
+    token: PointerValue<'ctx>,
+    resume_word: IntValue<'ctx>,
+    resume_gc_ref: PointerValue<'ctx>,
 }
 
 /// 统一 state-machine runtime function 内部的 early-return 桥接上下文。
@@ -665,6 +676,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current_sret_return_ptr: None,
             current_callee_suspend_plan: None,
             current_continuation_resume_replay: false,
+            current_continuation_resume_replay_context: None,
             active_suspend_site_effect_outcome_capture: None,
             suspend_site_explicit_effect_outcomes: HashMap::new(),
             top_level_const_eval_stack: Vec::new(),
