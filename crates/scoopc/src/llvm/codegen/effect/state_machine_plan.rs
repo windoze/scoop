@@ -1633,11 +1633,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         if !hir_ty_is_function_value(self.types, decl.ty) {
             return;
         }
-        let may_suspend = function_ty_may_suspend(self.types, decl.ty)
-            || decl
-                .init
-                .as_ref()
-                .is_some_and(|expr| self.local_function_value_may_suspend_when_called(expr));
+        let may_suspend = decl.init.as_ref().map_or_else(
+            || function_ty_declared_effectful(self.types, decl.ty),
+            |expr| self.local_function_value_may_suspend_when_called(expr),
+        );
         self.known_local_fun_effects.insert(id, may_suspend);
     }
 
@@ -1651,8 +1650,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         {
             return;
         }
-        let may_suspend = function_ty_may_suspend(self.types, rhs.ty)
-            || self.local_function_value_may_suspend_when_called(rhs);
+        let may_suspend = self.local_function_value_may_suspend_when_called(rhs);
         let entry = self.known_local_fun_effects.entry(*id).or_insert(false);
         *entry |= may_suspend;
     }
@@ -6673,11 +6671,15 @@ fn collect_known_local_metadata_in_expr(
     }
 }
 
-fn function_ty_may_suspend(types: &TypeStore, ty: TypeId) -> bool {
+fn function_ty_declared_effectful(types: &TypeStore, ty: TypeId) -> bool {
     matches!(
         types.kind(ty),
         TypeKind::Ref(RefTypeKind::Function(fun_ty)) if !fun_ty.effects.is_pure()
     )
+}
+
+fn function_ty_may_suspend(types: &TypeStore, ty: TypeId) -> bool {
+    function_ty_declared_effectful(types, ty)
 }
 
 fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
@@ -6944,10 +6946,10 @@ impl<'a> SuspendCallAnalysis<'a> {
                 if let Some(id) = decl.id
                     && hir_ty_is_function_value(self.types, decl.ty)
                 {
-                    let may_suspend = function_ty_may_suspend(self.types, decl.ty)
-                        || decl.init.as_ref().is_some_and(|expr| {
-                            self.function_value_may_suspend_when_called(expr, out)
-                        });
+                    let may_suspend = decl.init.as_ref().map_or_else(
+                        || function_ty_declared_effectful(self.types, decl.ty),
+                        |expr| self.function_value_may_suspend_when_called(expr, out),
+                    );
                     out.insert(id, may_suspend);
                 }
             }
@@ -6959,8 +6961,7 @@ impl<'a> SuspendCallAnalysis<'a> {
                         || hir_ty_is_function_value(self.types, rhs.ty)
                         || out.contains_key(id))
                 {
-                    let may_suspend = function_ty_may_suspend(self.types, rhs.ty)
-                        || self.function_value_may_suspend_when_called(rhs, out);
+                    let may_suspend = self.function_value_may_suspend_when_called(rhs, out);
                     let entry = out.entry(*id).or_insert(false);
                     *entry |= may_suspend;
                 }
@@ -7206,18 +7207,46 @@ impl<'a> SuspendCallAnalysis<'a> {
                     })
             }
             hir::ExprKind::Perform { .. } => true,
-            hir::ExprKind::Handle(handle) => {
-                self.block_may_suspend(&handle.body, known_locals)
-                    || handle
-                        .arms
-                        .iter()
-                        .any(|arm| self.expr_may_suspend(&arm.body, known_locals))
-                    || handle
-                        .finally
-                        .as_ref()
-                        .is_some_and(|finally| self.block_may_suspend(finally, known_locals))
-            }
+            hir::ExprKind::Handle(handle) => self.handle_may_suspend_outward(handle, known_locals),
         }
+    }
+
+    fn handle_may_suspend_outward(
+        &self,
+        handle: &hir::HandleExpr,
+        known_locals: &HashMap<hir::SymbolId, bool>,
+    ) -> bool {
+        let mut known_local_metadata = self.known_local_metadata.clone();
+        collect_known_local_metadata_in_handle(handle, &mut known_local_metadata);
+        let next_synthetic_symbol_raw = next_synthetic_symbol_seed(handle, &known_local_metadata);
+        let context = HandlePlanContext {
+            known_fun_effects: self.known_fun_effects.clone(),
+            known_local_fun_effects: known_locals.clone(),
+            known_local_metadata,
+            next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
+            current_source_path: self.current_source_path.to_path_buf(),
+            ctor_call_targets: self.program_facts.ctor_call_targets.clone(),
+            continuation_resume_call_sites: self.program_facts.continuation_resume_call_sites.clone(),
+            non_pure_continuation_resume_call_sites: self
+                .program_facts
+                .non_pure_continuation_resume_call_sites
+                .clone(),
+            top_level_value_tys: self.program_facts.top_level_value_tys.clone(),
+            fun_return_tys: self.program_facts.fun_return_tys.clone(),
+            object_property_tys: self.program_facts.object_property_tys.clone(),
+            struct_field_tys: self.program_facts.struct_field_tys.clone(),
+            class_field_tys: self.program_facts.class_field_tys.clone(),
+            class_super_keys: self.program_facts.class_super_keys.clone(),
+            object_value_fqns: self.program_facts.object_value_fqns.clone(),
+            object_property_fqns: self.program_facts.object_property_fqns.clone(),
+            top_level_immutable_value_fqns: self
+                .program_facts
+                .top_level_immutable_value_fqns
+                .clone(),
+        };
+
+        HandleStateMachinePlan::build_with_context(self.types, handle, &context)
+            .may_suspend_outward()
     }
 
     fn function_value_may_suspend_when_called(
@@ -7225,30 +7254,36 @@ impl<'a> SuspendCallAnalysis<'a> {
         expr: &hir::Expr,
         known_locals: &HashMap<hir::SymbolId, bool>,
     ) -> bool {
-        if self
+        let declared_effectful = self
             .resolve_expr_concrete_type(expr)
-            .is_some_and(|ty| function_ty_may_suspend(self.types, ty))
-        {
-            return true;
-        }
+            .is_some_and(|ty| function_ty_declared_effectful(self.types, ty));
         match &expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.known_fun_effects.get(fqn).copied().unwrap_or(false)
+                self.known_fun_effects
+                    .get(fqn)
+                    .copied()
+                    .unwrap_or(declared_effectful)
             }
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
-                known_locals.get(id).copied().unwrap_or(false)
+                known_locals.get(id).copied().unwrap_or(declared_effectful)
             }
             hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref() {
                 Some(hir::MemberRef::Fun { fqn, .. })
                 | Some(hir::MemberRef::ExtensionFun { fqn, .. }) => {
-                    self.known_fun_effects.get(fqn).copied().unwrap_or(false)
+                    self.known_fun_effects
+                        .get(fqn)
+                        .copied()
+                        .unwrap_or(declared_effectful)
                 }
-                _ => false,
+                _ => declared_effectful,
             },
             hir::ExprKind::Closure(closure) => {
                 let mut seed_locals = known_locals.clone();
                 for param in &closure.params {
-                    seed_locals.insert(param.id, function_ty_may_suspend(self.types, param.ty));
+                    seed_locals.insert(
+                        param.id,
+                        function_ty_declared_effectful(self.types, param.ty),
+                    );
                 }
                 self.expr_may_suspend(&closure.body, &seed_locals)
             }
@@ -7273,7 +7308,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             hir::ExprKind::When { arms, .. } => arms.iter().any(|arm| {
                 self.function_value_may_suspend_when_called(&arm.body, known_locals)
             }),
-            _ => false,
+            _ => declared_effectful,
         }
     }
 }
@@ -7285,7 +7320,12 @@ fn collect_known_fun_call_suspendability(
 ) -> HashMap<String, bool> {
     let mut known_fun_effects = fun_index
         .iter()
-        .map(|(fqn, fun)| (fqn.clone(), function_ty_may_suspend(types, fun.ty)))
+        .map(|(fqn, fun)| {
+            (
+                fqn.clone(),
+                fun.body.is_none() && function_ty_declared_effectful(types, fun.ty),
+            )
+        })
         .collect::<HashMap<_, _>>();
 
     loop {
@@ -7311,7 +7351,7 @@ fn collect_known_fun_call_suspendability(
             let seed_locals = fun
                 .params
                 .iter()
-                .map(|param| (param.id, function_ty_may_suspend(types, param.ty)))
+                .map(|param| (param.id, function_ty_declared_effectful(types, param.ty)))
                 .collect::<HashMap<_, _>>();
             if analysis.block_may_suspend(body, &seed_locals) {
                 newly_effectful.push(fqn.clone());
@@ -7339,7 +7379,12 @@ fn collect_known_local_fun_call_suspendability_in_fun(
     let seed_locals = fun
         .params
         .iter()
-        .map(|param| (param.id, function_ty_may_suspend(analysis.types, param.ty)))
+        .map(|param| {
+            (
+                param.id,
+                function_ty_declared_effectful(analysis.types, param.ty),
+            )
+        })
         .collect::<HashMap<_, _>>();
     fun.body
         .as_ref()
@@ -8170,7 +8215,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn ensure_known_fun_call_suspend_cache(&self) {
+    fn ensure_known_fun_body_may_outward_effect_cache(&self) {
         if self.known_fun_call_suspend_cache.borrow().is_some() {
             return;
         }
@@ -8277,26 +8322,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         *self.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);
     }
 
-    fn known_fun_call_suspendability_map(&self) -> Ref<'_, HashMap<String, bool>> {
-        self.ensure_known_fun_call_suspend_cache();
+    fn ensure_known_fun_call_suspend_cache(&self) {
+        self.ensure_known_fun_body_may_outward_effect_cache();
+    }
+
+    fn known_fun_body_may_outward_effect_map(&self) -> Ref<'_, HashMap<String, bool>> {
+        self.ensure_known_fun_body_may_outward_effect_cache();
         Ref::map(self.known_fun_call_suspend_cache.borrow(), |cache| {
             cache.as_ref()
-                .expect("known fun suspend cache should be initialized")
+                .expect("known fun outward-effect cache should be initialized")
         })
+    }
+
+    fn known_fun_call_suspendability_map(&self) -> Ref<'_, HashMap<String, bool>> {
+        self.known_fun_body_may_outward_effect_map()
+    }
+
+    pub(in crate::llvm::codegen) fn known_fun_body_may_outward_effect(
+        &self,
+        fqn: &str,
+        declared_fun_ty: TypeId,
+    ) -> bool {
+        let known_fun_effects = self.known_fun_body_may_outward_effect_map();
+        known_fun_effects
+            .get(fqn)
+            .copied()
+            .unwrap_or_else(|| function_ty_declared_effectful(self.types, declared_fun_ty))
+    }
+
+    pub(in crate::llvm::codegen) fn hir_ty_declared_effectful(
+        &self,
+        hir_ty: Option<TypeId>,
+    ) -> bool {
+        hir_ty.is_some_and(|ty| function_ty_declared_effectful(self.types, ty))
     }
 
     pub(in crate::llvm::codegen) fn local_call_may_suspend_from_hir_ty(
         &self,
         hir_ty: Option<TypeId>,
     ) -> bool {
-        hir_ty.is_some_and(|ty| function_ty_may_suspend(self.types, ty))
+        self.hir_ty_declared_effectful(hir_ty)
     }
 
-    pub(in crate::llvm::codegen) fn function_value_expr_may_suspend_when_called_for_local(
+    pub(in crate::llvm::codegen) fn function_value_expr_body_may_outward_effect_when_called_for_local(
         &self,
         expr: &hir::Expr,
     ) -> bool {
-        let known_fun_effects = self.known_fun_call_suspendability_map();
+        let known_fun_effects = self.known_fun_body_may_outward_effect_map();
         let mut known_locals = HashMap::new();
         let mut known_local_metadata = HashMap::new();
         for scope in &self.env.scopes {
@@ -8422,6 +8494,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         }
         .function_value_may_suspend_when_called(expr, &known_locals)
+    }
+
+    pub(in crate::llvm::codegen) fn function_value_expr_may_suspend_when_called_for_local(
+        &self,
+        expr: &hir::Expr,
+    ) -> bool {
+        self.function_value_expr_body_may_outward_effect_when_called_for_local(expr)
     }
 
     /// Build the unified lowering contract for a `handle` expression.

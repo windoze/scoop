@@ -168,6 +168,15 @@ struct BoundCallArgsSpec {
     abi_mode: CallArgAbiMode,
 }
 
+#[derive(Clone, Copy)]
+struct CallableValueCallSpec<'a> {
+    span: crate::span::Span,
+    callee_span: crate::span::Span,
+    call_may_suspend: bool,
+    fun_ty: &'a crate::ty::FunctionType,
+    args: &'a [hir::CallArg],
+}
+
 /// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
 ///
 /// 当前阶段（T0809）统一用栈分配（`alloca`）承载 locals，并用 `load/store` 实现读写。
@@ -2293,6 +2302,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
+        // `Some(plan)` 表示该 ordinary body 的 `needs_resumable_frame = true`：
+        // 它确实存在向外传播后还需要恢复局部状态继续执行的路径。
         self.build_ordinary_callee_suspend_plan_from_unified_contract(
             fun.body.as_ref()?,
             fun.return_ty,
@@ -2304,6 +2315,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         closure: &hir::ClosureExpr,
         return_ty: TypeId,
     ) -> Option<CalleeSuspendPlan> {
+        // 对 closure 也沿用同一分层：签名层 `declared_effectful` 不足以要求 frame；
+        // 只有这里返回 `Some(_)` 时，才说明 `needs_resumable_frame = true`。
         let hir::ExprKind::Block(block) = &closure.body.kind else {
             return None;
         };
@@ -2606,6 +2619,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(callable_callee) = callable_callee {
             match callable_callee {
                 CallableCallee::FunctionValue(fun_ty) => {
+                    let call_may_suspend = self
+                        .function_value_expr_body_may_outward_effect_when_called_for_local(callee);
                     let callee_value = self.codegen_expr(callee)?;
                     let callee_v = self.coerce_value(callee.span, callee_value, CgTy::Ref)?;
                     let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_v.value else {
@@ -2615,14 +2630,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         });
                     };
                     return self.codegen_function_value_call_from_closure_obj(
-                        span,
-                        callee.span,
                         closure_obj_i8,
-                        &fun_ty,
-                        args,
+                        CallableValueCallSpec {
+                            span,
+                            callee_span: callee.span,
+                            call_may_suspend,
+                            fun_ty: &fun_ty,
+                            args,
+                        },
                     );
                 }
                 CallableCallee::FunPtr(fun_ty) => {
+                    let call_may_suspend = !fun_ty.effects.is_pure();
                     let callee_v = self.codegen_expr(callee)?;
                     let (funptr_addr, funptr_int_ty) =
                         callee_v
@@ -2632,12 +2651,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 at: callee.span.into(),
                             })?;
                     return self.codegen_funptr_value_call(
-                        span,
-                        callee.span,
                         funptr_addr,
                         funptr_int_ty,
-                        &fun_ty,
-                        args,
+                        CallableValueCallSpec {
+                            span,
+                            callee_span: callee.span,
+                            call_may_suspend,
+                            fun_ty: &fun_ty,
+                            args,
+                        },
                     );
                 }
             }
@@ -2661,11 +2683,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(hir_ty) = local.hir_ty {
                 if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(hir_ty) {
                     return self.codegen_function_value_call(
-                        span,
-                        callee.span,
                         &local,
-                        fun_ty,
-                        args,
+                        CallableValueCallSpec {
+                            span,
+                            callee_span: callee.span,
+                            call_may_suspend: local.call_may_suspend,
+                            fun_ty,
+                            args,
+                        },
                     );
                 }
 
@@ -2705,12 +2730,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .into_int_value();
 
                     return self.codegen_funptr_value_call(
-                        span,
-                        callee.span,
                         loaded,
                         int_ty,
-                        fun_ty,
-                        args,
+                        CallableValueCallSpec {
+                            span,
+                            callee_span: callee.span,
+                            call_may_suspend: local.call_may_suspend,
+                            fun_ty,
+                            args,
+                        },
                     );
                 }
             }
@@ -3043,6 +3071,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(callee_hir_ty) = self.top_level_value_ty(fqn) {
                 if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee_hir_ty)
                 {
+                    let call_may_suspend = self
+                        .function_value_expr_body_may_outward_effect_when_called_for_local(callee);
                     let callee_value = self.codegen_top_level_value_ref(callee.span, fqn)?;
                     let CgValue {
                         ty: CgTy::Ref,
@@ -3055,11 +3085,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         });
                     };
                     return self.codegen_function_value_call_from_closure_obj(
-                        span,
-                        callee.span,
                         closure_obj_i8,
-                        fun_ty,
-                        args,
+                        CallableValueCallSpec {
+                            span,
+                            callee_span: callee.span,
+                            call_may_suspend,
+                            fun_ty,
+                            args,
+                        },
                     );
                 }
 
@@ -3090,12 +3123,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 at: callee.span.into(),
                             })?;
                     return self.codegen_funptr_value_call(
-                        span,
-                        callee.span,
                         funptr_addr,
                         funptr_int_ty,
-                        fun_ty,
-                        args,
+                        CallableValueCallSpec {
+                            span,
+                            callee_span: callee.span,
+                            call_may_suspend: !fun_ty.effects.is_pure(),
+                            fun_ty,
+                            args,
+                        },
                     );
                 }
             }
@@ -3359,7 +3395,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?
             .into_int_value();
 
-        self.codegen_funptr_value_call(span, callee_span, loaded, int_ty, fun_ty, call_args)
+        self.codegen_funptr_value_call(
+            loaded,
+            int_ty,
+            CallableValueCallSpec {
+                span,
+                callee_span,
+                call_may_suspend: !fun_ty.effects.is_pure(),
+                fun_ty,
+                args: call_args,
+            },
+        )
     }
 
     fn codegen_sysroot_funptr_to_uintptr(
@@ -9910,6 +9956,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "call callee type",
                     at: callee_span.into(),
                 })?;
+        let call_may_suspend = self.known_fun_body_may_outward_effect(fqn, sig_fun.ty);
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -9991,7 +10038,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             Vec::new()
         };
-        self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
+        if call_may_suspend {
+            self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
+        }
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -10180,6 +10229,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "vtable call callee type",
                     at: callee_span.into(),
                 })?;
+        let call_may_suspend = self.hir_ty_declared_effectful(Some(sig_fun.ty));
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -10279,7 +10329,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             Vec::new()
         };
-        self.emit_ordinary_call_effect_propagation_check(span, "vtable_call_effect")?;
+        if call_may_suspend {
+            self.emit_ordinary_call_effect_propagation_check(span, "vtable_call_effect")?;
+        }
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -10401,6 +10453,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "itable call callee type",
                     at: callee_span.into(),
                 })?;
+        let call_may_suspend = self.hir_ty_declared_effectful(Some(sig_fun.ty));
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -10534,7 +10587,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             Vec::new()
         };
-        self.emit_ordinary_call_effect_propagation_check(span, "itable_call_effect")?;
+        if call_may_suspend {
+            self.emit_ordinary_call_effect_propagation_check(span, "itable_call_effect")?;
+        }
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -10879,13 +10934,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn codegen_funptr_value_call(
         &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
         funptr_addr: inkwell::values::IntValue<'ctx>,
         funptr_int_ty: IntTy,
-        fun_ty: &crate::ty::FunctionType,
-        args: &[hir::CallArg],
+        call: CallableValueCallSpec<'_>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let CallableValueCallSpec {
+            span,
+            callee_span,
+            call_may_suspend,
+            fun_ty,
+            args,
+        } = call;
         let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
         if args.len() != expected_arity {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -10984,7 +11043,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        self.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
+        if call_may_suspend {
+            self.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
+        }
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -11255,12 +11316,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn codegen_function_value_call(
         &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
         local: &CgLocal<'ctx>,
-        fun_ty: &crate::ty::FunctionType,
-        args: &[hir::CallArg],
+        call: CallableValueCallSpec<'_>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let callee_span = call.callee_span;
         let CgTy::Ref = local.ty else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "function value local type",
@@ -11275,23 +11334,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(llvm_local_ty, local_ptr, "load_closure_obj")?
             .into_pointer_value();
 
-        self.codegen_function_value_call_from_closure_obj(
-            span,
-            callee_span,
-            closure_obj_i8,
-            fun_ty,
-            args,
-        )
+        self.codegen_function_value_call_from_closure_obj(closure_obj_i8, call)
     }
 
     fn codegen_function_value_call_from_closure_obj(
         &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
         closure_obj_i8: PointerValue<'ctx>,
-        fun_ty: &crate::ty::FunctionType,
-        args: &[hir::CallArg],
+        call: CallableValueCallSpec<'_>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let CallableValueCallSpec {
+            span,
+            callee_span,
+            call_may_suspend,
+            fun_ty,
+            args,
+        } = call;
         let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
         if args.len() != expected_arity {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -11411,7 +11468,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        self.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
+        if call_may_suspend {
+            self.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
+        }
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),

@@ -2458,6 +2458,177 @@ fun main(): Int {
     }
 
     #[test]
+    fn direct_effectful_signature_without_outward_effect_skips_tls_check() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun hidden(): Int / (Ask) {
+    return handle {
+        Ask.ask(41)
+    } with {
+        Ask.ask(seed) -> seed + 1
+    }
+}
+
+fun entry(): Int / (Ask) {
+    return hidden()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let entry_ir = function_ir_named(&ir, "a.entry");
+
+        assert!(
+            !entry_ir.contains("direct_call_effect_active"),
+            "签名 effectful 但 body 不会 outward-effect 的直调用不应再保留 TLS active 分流:\n{entry_ir}"
+        );
+    }
+
+    #[test]
+    fn direct_call_with_uncalled_effectful_higher_order_param_skips_tls_check() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun latent(thunk: () -> Int / (Ask)): Int / (Ask) {
+    7
+}
+
+fun entry(): Int / (Ask) {
+    return latent({ Ask.ask(5) })
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let entry_ir = function_ir_named(&ir, "a.entry");
+
+        assert!(
+            !entry_ir.contains("direct_call_effect_active"),
+            "未调用的 higher-order effect 参数不应让外层 ordinary 直调用保留 TLS 分流:\n{entry_ir}"
+        );
+    }
+
+    #[test]
+    fn closure_call_without_outward_effect_skips_tls_check() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun entry(): Int / (Ask) {
+    val thunk: () -> Int / (Ask) = {
+        handle {
+            Ask.ask(41)
+        } with {
+            Ask.ask(seed) -> seed + 1
+        }
+    }
+    return thunk()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let entry_ir = function_ir_named(&ir, "a.entry");
+
+        assert!(
+            !entry_ir.contains("closure_call_effect_active"),
+            "body 不会 outward-effect 的 closure 调用不应再保留 TLS active 分流:\n{entry_ir}"
+        );
+    }
+
+    #[test]
+    fn direct_call_with_real_outward_effect_keeps_tls_check() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun outward(): Int / (Ask) {
+    Ask.ask(41)
+}
+
+fun entry(): Int / (Ask) {
+    return outward()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let entry_ir = function_ir_named(&ir, "a.entry");
+
+        assert!(
+            entry_ir.contains("direct_call_effect_active"),
+            "真正可能 outward-effect 的 ordinary 直调用仍必须保留 TLS active 分流:\n{entry_ir}"
+        );
+    }
+
+    #[test]
     fn async_task_ir_uses_ordinary_scoop_task_helpers_not_legacy_runtime_abi() {
         let source = SourceFile::new_virtual(
             "<mem>",
@@ -3273,5 +3444,17 @@ fun main(): Int {
         assert!(size > 0, "assembly 文件不应为空");
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
+        for chunk in ir.split("\ndefine ").skip(1) {
+            let end = chunk.find("\n}").expect("expected end of function body") + 2;
+            let function = &chunk[..end];
+            let header = function.lines().next().expect("expected function header");
+            if header.contains(name_fragment) {
+                return function;
+            }
+        }
+        panic!("expected function containing {name_fragment}");
     }
 }

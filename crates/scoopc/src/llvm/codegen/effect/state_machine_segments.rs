@@ -2503,6 +2503,49 @@ fun demo(mode: Mode): Int {
     }
 
     #[test]
+    fn segment_dump_skips_locally_handled_helper_and_uncalled_effectful_higher_order_param() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun hidden(): Int / (Ask) {
+    return handle {
+        Ask.ask(1)
+    } with {
+        Ask.ask(seed) -> seed + 1
+    }
+}
+
+fun latent(thunk: () -> Int / (Ask)): Int / (Ask) {
+    7
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        hidden() + latent({ Ask.ask(2) })
+    } with {
+        Ask.ask(seed), k -> {
+            k.resume(seed + 10)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(!dump.contains("detail=a.hidden"), "{dump}");
+        assert!(!dump.contains("detail=a.latent"), "{dump}");
+        assert!(!dump.contains("kind=call-state-machine-callee"), "{dump}");
+        assert!(!dump.contains("kind=call-may-suspend"), "{dump}");
+    }
+
+    #[test]
     fn segment_dump_records_nested_while_source_path() {
         let dump = build_segment_dump(
             r#"

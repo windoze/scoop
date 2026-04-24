@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -775,7 +775,7 @@
   - 已验证 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017
 
-### T4017b [TODO] 接入 `declared_effectful` / `body_may_outward_effect` / `needs_resumable_frame` 分层，只在真正可能 outward-effect 的调用点保留 TLS 检查
+### T4017b [DONE] 接入 `declared_effectful` / `body_may_outward_effect` / `needs_resumable_frame` 分层，只在真正可能 outward-effect 的调用点保留 TLS 检查
 - 范围：
   - 将 `CONTINUATION.md` 中区分出的三层事实接入编译器主线：`declared_effectful` 只保留静态签名语义，`body_may_outward_effect` 决定 ordinary call 是否需要 effect propagation 分流，`needs_resumable_frame` 决定是否真正物化 continuation/state-machine frame。
   - 让 ordinary codegen、state-machine planner、callable-value path 与现有 `may_suspend`/`known_fun_effects` 分析统一消费 `body_may_outward_effect`，只在真正可能 outward-effect 的 call-like site 上保留 TLS propagation check。
@@ -783,6 +783,12 @@
 - 验收：
   - 生产代码不再在所有 ordinary 调用点后一律读取 effect TLS 决定分流。
   - 现有 effect / continuation / async 回归语义不变，同时为后续 ABI 迁移清出明确 fast-path 边界。
+- 完成情况：
+  - `state_machine_plan` 已把“签名 effectful”与“函数体会向外传播 effect”拆开：`known_fun_effects` fixpoint 改为追踪 `body_may_outward_effect`，closure/local function value/`handle` 路径也改为按 outward-effect 语义判断，而不是见到 non-`Pure` row 就直接视为需要传播。
+  - ordinary direct call、closure/function-value call 与 `FunPtr` call 已只在 `body_may_outward_effect == true` 时发射 TLS propagation check；`vtable` / `itable` 调用暂时保持按 `declared_effectful` 保守决策，避免在 override / 动态分派目标未知时做不 sound 的去分流。
+  - 已新增 regression，覆盖“签名 effectful 但 body 不 outward-effect”“未调用的 higher-order effectful 参数”“局部 `handle` 吃掉 helper effect”“真实 outward-effect 仍保留 TLS 检查”等边界。
+  - 为满足 `clippy -D warnings`，callable-value / funptr 调用元数据已统一收口到 `CallableValueCallSpec`，消除新增 `call_may_suspend` 参数带来的 `too_many_arguments` lint，同时不改变调用语义。
+  - 已验证 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017a
 
 ### T4017c [TODO] 在 compiler / runtime contract 中引入显式 `EffectCtx` / `EffectOutcome` / `EffectSignal` 抽象，并停止新增任何依赖 effect TLS 语义的路径
