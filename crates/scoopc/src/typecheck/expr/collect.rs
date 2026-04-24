@@ -25,6 +25,10 @@ struct TopLevelValueCollectionFile<'a> {
     strict: bool,
 }
 
+fn is_annotation_class_decl(decl: &ast::TypeDecl) -> bool {
+    decl.kind == ast::TypeKind::Class && decl.modifiers.contains(&ast::Modifier::Annotation)
+}
+
 /// 收集“当前编译单元内”的顶层 `val/var` 声明类型（FQN → TypeId）。
 ///
 /// 说明：
@@ -731,7 +735,7 @@ fn collect_member_mutabilities_in_type_decl(
         }
     }
 
-    if matches!(decl.kind, ast::TypeKind::Class) {
+    if matches!(decl.kind, ast::TypeKind::Class) && !is_annotation_class_decl(decl) {
         // class ctor `val/var` 参数声明同名字段/属性；裸参数不应进入 member 表。
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
@@ -928,6 +932,13 @@ pub(super) fn collect_struct_field_types(
             if lower.env().type_param_count(type_fqn).unwrap_or(0) > 0 {
                 continue;
             }
+            if lower
+                .env()
+                .type_symbol(type_fqn)
+                .is_some_and(|sym| sym.is_annotation_class)
+            {
+                continue;
+            }
             for ctor in ctors {
                 if ctor.kind != crate::resolve::ConstructorKind::Primary {
                     continue;
@@ -1061,7 +1072,7 @@ fn collect_struct_field_types_in_foreign_type_decl(
         }
     }
 
-    if matches!(decl.kind, ast::TypeKind::Class) {
+    if matches!(decl.kind, ast::TypeKind::Class) && !is_annotation_class_decl(decl) {
         if let Some(primary_ctor) = &decl.primary_ctor {
             for param in &primary_ctor.params {
                 if param.kind.is_none() {
@@ -1263,7 +1274,7 @@ fn collect_struct_field_types_in_type_decl(
         lower.pop_type_params(&decl.type_params);
     }
 
-    if matches!(decl.kind, ast::TypeKind::Class) {
+    if matches!(decl.kind, ast::TypeKind::Class) && !is_annotation_class_decl(decl) {
         // T0125: push type params so generic field types (e.g. `T`) resolve correctly.
         lower.push_type_params(&decl.type_params);
 

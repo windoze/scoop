@@ -555,6 +555,8 @@ fn check_class_member_fun_bodies_in_type_decl(
         .as_ref()
         .map(|c| c.params.as_slice())
         .unwrap_or(&[]);
+    let is_annotation_class =
+        decl.kind == ast::TypeKind::Class && decl.modifiers.contains(&ast::Modifier::Annotation);
 
     if matches!(decl.kind, ast::TypeKind::Class | ast::TypeKind::Struct) {
         lower.push_type_params(&decl.type_params);
@@ -574,7 +576,7 @@ fn check_class_member_fun_bodies_in_type_decl(
                 check_struct_direct_field_initializer_exprs(shared, decl, ctor_params, lower)?;
             }
 
-            if matches!(decl.kind, ast::TypeKind::Class) {
+            if matches!(decl.kind, ast::TypeKind::Class) && !is_annotation_class {
                 let this_ty_args = decl
                     .type_params
                     .iter()
@@ -640,7 +642,7 @@ fn check_class_member_fun_bodies_in_type_decl(
     }
 
     // 递归处理 nested types（可能存在 nested class）。
-    if let Some(body) = &decl.body {
+    if !is_annotation_class && let Some(body) = &decl.body {
         for member in &body.members {
             let ast::TypeMember::Type(nested) = member else {
                 continue;
@@ -662,13 +664,19 @@ fn check_primary_ctor_default_exprs(
     let Some(primary_ctor) = &decl.primary_ctor else {
         return Ok(());
     };
+    let annotation_payload_context =
+        decl.kind == ast::TypeKind::Class && decl.modifiers.contains(&ast::Modifier::Annotation);
 
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
     for p in &primary_ctor.params {
         let Some(ty_ref) = &p.ty else {
             continue;
         };
-        let ty = lower.lower_type_ref(ty_ref)?;
+        let ty = if annotation_payload_context {
+            lower.with_annotation_types_allowed(|lower| lower.lower_type_ref(ty_ref))?
+        } else {
+            lower.lower_type_ref(ty_ref)?
+        };
         locals.insert(p.name.span, ty);
 
         let Some(default_value) = &p.default_value else {

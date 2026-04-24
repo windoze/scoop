@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：annotation payload 类型仍可引用其它 annotation class；compile-time-only 门禁不应误伤合法 payload 声明。
+
+package fixtures.typecheck
+
+annotation class Inner(val text: String)
+
+annotation class Outer(val inner: Inner)
+
+class Demo

@@ -1,44 +1,81 @@
-# 执行计划与进度记录
+# 本轮执行计划（审计版）
 
-## 说明
+说明：
+- 按要求，先把本轮执行计划写入此文件，再开始任何命令检查或代码执行。
+- 这里记录的是可审计的执行思路、判断依据摘要与步骤计划，不展开内部推理细节。
 
-- 按要求先建立本文件，再开始仓库检查与任务执行。
-- 这里记录可审计的执行计划、关键判断依据摘要、已完成步骤和计划变更。
-- 不写入私有推理细节，但会持续更新足够详细的行动计划与进度。
+## 当前目标判断
 
-## 初始计划
+- 依据上一次执行留下的交接信息，本轮主任务应为收口 `T4012R`，而不是继续推进 `T4013`。
+- 上一轮已经完成了实质代码修复与测试，尚未完成的工作主要是：
+  - 更新 `TODO.md`
+  - 更新 `PLAN.md`
+  - 更新 `ISSUES.md`
+  - 更新本文件的状态
+  - 提交 git commit
+- 仍需先核对最新提交、当前工作树以及任务排序，确保没有最新提交里提到的既有问题需要优先修复，也确保 `T4012R` 仍然是 `TODO.md` 中第一个未完成任务。
 
-1. 检查最新一次 Git 提交，确认提交信息里是否提到需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，理解当前项目分解和依赖关系。
-4. 如首个未完成任务过大，则先把任务拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行新的第一个子任务。
-5. 为当前目标任务收集上下文：定位相关模块、测试、规范或历史实现。
-6. 实现任务，过程中若发现既有缺陷、规格不匹配、回避式实现边界或阻塞问题，优先修复；若无法在本轮直接修复，则把它插入 `TODO.md` 作为前置任务，更新 `PLAN.md` 后停止。
-7. 运行与该任务相关的测试；若改动影响范围较大，则补充运行更广泛校验。
-8. 额外执行质量检查，至少覆盖格式化、相关测试，以及在可行范围内执行 `cargo clippy --all-targets -- -D warnings`。
-9. 更新文档与计划：在 `TODO.md` 标记任务完成，在 `PLAN.md` 记录状态和任何调整，并回写本文件的进度。
-10. 提交 Git 提交信息，然后停止，不继续处理下一个任务。
+## 执行步骤
+
+1. 检查最新提交信息与当前工作树状态。
+   - 查看最新 commit message 与必要上下文，确认是否提到尚未修复的既有问题。
+   - 查看 `git status`，确认当前未提交改动范围，避免误动无关文件。
+
+2. 核对任务与计划文档。
+   - 读取 `TODO.md`，确认第一个未完成任务。
+   - 读取 `PLAN.md`、`ISSUES.md`，定位需要更新的位置。
+   - 若发现交接摘要与仓库现状不一致，以仓库现状为准并修正计划。
+
+3. 如无新的更高优先级既有问题，完成 `T4012R` 的文档收口。
+   - 在 `TODO.md` 中将 `T4012` / `T4012R` 标为完成，并记录 review 期间修复的 annotation class runtime 泄漏问题与已验证命令。
+   - 在 `PLAN.md` 中把当前主线切换到 `T4013`，并更新 annotation 区段状态。
+   - 在 `ISSUES.md` 中更新 annotation 相关 issue 的剩余范围，只保留 `@Inline` 交叉项。
+
+4. 更新本文件进度。
+   - 把已完成步骤与待完成步骤同步到本文件，保证过程可检查。
+
+5. 做最小必要验证。
+   - 若仅文档更新，优先复核已有测试结果是否足以支撑本轮结论。
+   - 如需最小重验，运行与本轮改动最相关的 fixture 测试。
+
+6. 提交并停止。
+   - 使用与 `T4012R` 对应的清晰提交信息。
+   - 提交后停止，不进入 `T4013`。
+
+## 已知约束
+
+- 全程使用中文。
+- 只完成 `TODO.md` 中第一个未完成任务，然后停止。
+- 不回退或覆盖无关改动，尤其是不处理无关的 `run_agent.sh` 改动。
+- 若检查中发现新的既有问题且其优先级更高，必须先修复该问题，或把它作为前置任务插入 `TODO.md` 后再停止。
+
+## 进度更新
+
+- 已检查最新提交：
+  - 最新提交为 `[T4012c] Add @Experimental feature-gate marker`，提交标题未暴露新的前置既有 issue 需要先于本轮处理。
+- 已检查工作树：
+  - 未提交改动与交接摘要一致，主要包含 annotation runtime misuse 修复、3 个新增 typecheck fixtures、当前文件，以及无关的 `run_agent.sh` 用户改动。
+  - `run_agent.sh` 不属于本轮任务，保持不动。
+- 已核对任务顺序：
+  - `TODO.md` 中第一个未完成任务确认为 `T4012R`。
+  - 结合当前未提交代码与交接摘要，本轮应完成 `T4012R` 收口、更新文档并提交，不进入 `T4013`。
+- 已完成文档更新：
+  - 已把 `TODO.md` 中 `T4012` / `T4012R` 标记为完成，并写入 review 期间修复的 annotation class runtime 泄漏问题与本轮复验命令。
+  - 已把 `PLAN.md` 主线切换到 `T4013`，并补入 `T4012R` 完成说明。
+  - 已把 `ISSUES.md` 第 9 条更新为：annotation declaration model 已收口，annotation class runtime nominal/type position 泄漏已修复，当前只剩 `@Inline` 交叉项。
+- 已完成复验：
+  - `cargo fmt --all`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck` -> `fixtures: ok (392)`
+  - `cargo run -p scoop -- test` -> `fixtures: ok (1194)`
+  - `cargo test --all` -> 通过
+  - `cargo clippy --all-targets -- -D warnings` -> 通过
 
 ## 当前状态
 
-- 已完成：创建计划记录文件。
-- 已完成：检查最新 Git 提交；提交信息仅为 `[T4012b3] Implement @Suppress warning-code surface`，未额外声明需要优先修复的既有问题。
-- 已完成：检查 `TODO.md` / `PLAN.md`；当前顺序已进入 `T4012c`，其内容是加入 built-in `@Experimental(val feature = "...")` annotation。
-- 已确认：工作区存在用户侧未提交改动 `run_agent.sh`，后续不触碰也不回退。
-- 已完成：检查 annotation / built-in annotation 现状。结论是 parser 已能把 `@Experimental(feature = "...")` 解析成 annotation 实参中的赋值表达式，因此无需改通用 annotation 语法；本轮只需补 built-in 识别、参数校验、文档与 fixture。
-- 已完成：实现 `@Experimental` built-in surface，补入编译器识别、target/参数校验、`sysroot/core.scoop` 声明、`SCOOP_FULL_SPEC.md` 与 `ISSUES.md` 说明，以及新的 parse/typecheck fixtures。
-- 已完成：`cargo fmt`、`cargo run -p scoop -- dump-ast tests/fixtures/parse/experimental_annotation_feature_gate_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/parse`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck` 通过。
-- 已完成：更大范围回归通过，包括 `cargo run -p scoop -- test`、`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check` 与 `cargo clippy --all-targets -- -D warnings`。
-- 已完成：回写 `TODO.md` / `PLAN.md`，将 `T4012c` 标记为完成，并顺手修正 `T4012b` 这个子任务已完成但父条目状态未同步的既有记录问题。
-- 进行中：检查工作区并准备 Git 提交。
-
-## 本轮目标（锁定）
-
-### T4012c [TODO] 加入 built-in `@Experimental(val feature = "...")` annotation，作为保留的 feature-gate marker
-
-- 当前判断：任务规模可控，先直接实现，不需要再拆子任务。
-- 预期改动面：
-  - built-in annotation 元数据与 typecheck 参数校验；
-  - `sysroot/core.scoop` 中的 built-in annotation 声明；
-  - `SCOOP_FULL_SPEC.md` / 相关文档说明；
-  - parse/typecheck/必要 run-pass fixture。
+- [x] 先写入本计划文件
+- [x] 检查最新提交与工作树
+- [x] 核对 `TODO.md` / `PLAN.md` / `ISSUES.md`
+- [x] 更新任务与计划文档
+- [x] 更新本文件进度
+- [x] 完成必要验证
+- [ ] 提交改动并停止

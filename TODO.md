@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：annotation markers（下一步 `T4012c`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`inline`（下一步 `T4013`） -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -918,7 +918,7 @@
 
 ## T4012：annotation markers、built-in annotations 与 `@Experimental` feature-gate marker
 
-### T4012 [TODO] 收口 compile-time marker annotations 与 non-inline built-in annotations（拆分执行）
+### T4012 [DONE] 收口 compile-time marker annotations 与 non-inline built-in annotations（拆分执行）
 - 说明：
   - annotation 的方向修正为“compile-time markers only”，不再把它们推进成复杂 nominal / runtime feature。
   - 因此本组任务的目标不是“增强 annotation class 语义”，而是把 annotation surface 收口为最小、清晰、可诊断的编译期标记模型，并补齐 non-inline built-ins。
@@ -927,6 +927,9 @@
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 9 条至少收窄到与 `@Inline` 交叉的剩余项，或被完全关闭。
 - 依赖：T4017R
+- 已完成：
+  - `T4012a/T4012b/T4012c/T4012R` 已全部完成；annotation system 已收口为 compile-time markers only，annotation 相关剩余工作现已明确只剩与 `@Inline` / legacy `inline` 清理耦合的 `T4013`。
+  - review 期间额外修复了一个既有缺陷：annotation class 过去仍会泄漏到普通 nominal/runtime class 路径，导致它可以出现在普通 ctor call 与普通 type position；现已统一拒绝这类 runtime 使用。
 
 ### T4012a [DONE] 将 annotation 收口为 compile-time markers only，并拒绝复杂 nominal 语义
 - 范围：
@@ -1043,12 +1046,23 @@
   - `cargo run -p scoop_tools -- spec-fixtures check`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4012R [TODO] Review：确认 annotation system 已收口为 compile-time markers，而不是新的复杂 nominal feature
+### T4012R [DONE] Review：确认 annotation system 已收口为 compile-time markers，而不是新的复杂 nominal feature
 - 重点：
   - 不允许借 built-in annotation 之名重新引入复杂 nominal / runtime 语义。
   - `@Experimental(feature = "...")` 当前只能是 compile-time marker / reserved gate surface，不能偷偷演变为运行时 feature object、隐式 capability 或半成品 feature-flag framework。
   - `@Inline` 的剩余交叉项必须明确移交给 `T4013`，不能在本条 review 里含混带过。
 - 依赖：T4012c
+- 已完成：
+  - 复扫 annotation declaration model、built-in marker surface、annotation use-site 与普通 type/expr lowering 路径后，已确认 annotation system 保持 compile-time markers only，不再重新引入复杂 nominal/runtime 语义。
+  - `@Experimental(feature = "...")` 仍只保留 reserved compile-time marker surface；本轮没有把它扩成运行时 feature object、隐式 capability 或 feature-flag framework。
+  - review 期间修复了 annotation class 可被当作普通 nominal/runtime class 使用的既有缺陷：普通 ctor call、函数签名、属性类型与其他 runtime type position 现在都会稳定报错；annotation class 仅允许用于 `@Name(...)` use-site 与其他 annotation class 的 payload 类型。
+  - `@Inline` 的剩余交叉项已明确移交给 `T4013`，不在本条 review 中混入处理。
+- 已复验：
+  - `cargo fmt --all`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ## T4013：删除 `inline` 关键字与 legacy non-local return 语义残留
 

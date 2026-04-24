@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_type_runtime_use_not_allowed
+// EXPECT-ERROR: 不能作为普通类型使用，也不能在运行期构造实例
+
+package fixtures.typecheck
+
+annotation class Marker(val message: String = "")
+
+fun main() {
+    val x = Marker("oops")
+}

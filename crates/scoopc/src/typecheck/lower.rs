@@ -59,6 +59,16 @@ pub enum TypeLowerError {
     },
 
     #[error(
+        "注解类 `{name}` 只允许用于注解位置（`@Name(...)`）或其它 annotation class 的 payload 类型，不能作为普通类型使用，也不能在运行期构造实例"
+    )]
+    #[diagnostic(code(scoop::typecheck::annotation_type_runtime_use_not_allowed))]
+    AnnotationTypeRuntimeUseNotAllowed {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
         "legacy `Continuation<Resume, eff E>` 简写已移除；请显式写出 answer type：`Continuation<Resume, Answer, eff E>`"
     )]
     #[diagnostic(code(scoop::typecheck::continuation_legacy_effect_shorthand_removed))]
@@ -555,6 +565,13 @@ pub(crate) struct TypeLowering<'a> {
     ///   当接收者类型为 `TypeKind::Param` 时，查找该 param 的 bound 接口方法集合。
     /// - 与 `type_param_scopes` 对齐地 push/pop。
     where_bound_scopes: Vec<Vec<WhereBoundEntry>>,
+    /// annotation class 类型 lowering 许可深度。
+    ///
+    /// 说明：
+    /// - 默认禁止：annotation class 不应进入普通运行期类型系统；
+    /// - 仅在 annotation payload type 这类 compile-time-only 语境中临时开启；
+    /// - 使用深度而非 bool，便于嵌套 helper 共享同一上下文控制。
+    annotation_type_usage_depth: usize,
     /// 具体 nominal `TypeId` 的 direct supertypes（已完成 type param substitution）。
     concrete_direct_supertypes: HashMap<TypeId, Vec<TypeId>>,
 }
@@ -634,6 +651,7 @@ impl<'a> TypeLowering<'a> {
             nogc_context_depth: 0,
             const_context_depth: 0,
             where_bound_scopes: Vec::new(),
+            annotation_type_usage_depth: 0,
             concrete_direct_supertypes: HashMap::new(),
         }
     }
@@ -672,6 +690,17 @@ impl<'a> TypeLowering<'a> {
         self.concrete_direct_supertypes
             .get(&ty)
             .map(|v| v.as_slice())
+    }
+
+    pub(crate) fn with_annotation_types_allowed<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        self.annotation_type_usage_depth += 1;
+        let out = f(self);
+        self.annotation_type_usage_depth = self.annotation_type_usage_depth.saturating_sub(1);
+        out
+    }
+
+    fn annotation_types_allowed(&self) -> bool {
+        self.annotation_type_usage_depth > 0
     }
 
     /// 计算并返回给定具体 nominal 类型的 direct supertypes（已完成 type/effect 实参 substitution）。
@@ -954,6 +983,7 @@ impl<'a> TypeLowering<'a> {
             pkg_prefix,
             imports,
         );
+        ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
         ctx.lower_type_ref(ty)
     }
 
@@ -984,6 +1014,7 @@ impl<'a> TypeLowering<'a> {
             pkg_prefix,
             imports,
         );
+        ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
 
         // 为每个 type param name 创建一个 fresh TypeKind::Param。
         let mut scope: HashMap<String, TypeId> = HashMap::new();
@@ -1028,6 +1059,7 @@ impl<'a> TypeLowering<'a> {
             pkg_prefix,
             imports,
         );
+        ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
         ctx.push_type_param_bindings(bindings);
         let out = ctx.lower_type_ref(ty);
         ctx.pop_type_param_bindings();
@@ -1149,6 +1181,7 @@ impl<'a> TypeLowering<'a> {
             pkg_prefix,
             imports,
         );
+        ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
 
         ctx.push_type_param_bindings(type_bindings);
         let mut pushed_eff = 0usize;
@@ -2015,6 +2048,13 @@ impl<'a> TypeLowering<'a> {
             });
         };
 
+        if sym.is_annotation_class && !self.annotation_types_allowed() {
+            return Err(TypeLowerError::AnnotationTypeRuntimeUseNotAllowed {
+                name: fqn,
+                span: span.into(),
+            });
+        }
+
         match sym.kind {
             TypeSymbolKind::TypeAlias => {
                 if explicit_eff.is_some() {
@@ -2592,6 +2632,13 @@ impl<'a> TypeLowering<'a> {
             });
         };
 
+        if sym.is_annotation_class && !self.annotation_types_allowed() {
+            return Err(TypeLowerError::AnnotationTypeRuntimeUseNotAllowed {
+                name: fqn,
+                span: path.span.into(),
+            });
+        }
+
         let args = type_args
             .iter()
             .map(|a| self.lower_type_ref(a))
@@ -2856,9 +2903,17 @@ impl<'a> TypeLowering<'a> {
 
         // 主构造头参数类型
         if let Some(primary_ctor) = &ty.primary_ctor {
+            let annotation_payload_context = ty.kind == ast::TypeKind::Class
+                && ty.modifiers.contains(&ast::Modifier::Annotation);
             for p in &primary_ctor.params {
-                if let Some(ty) = &p.ty {
-                    let _ = self.lower_type_ref(ty)?;
+                if let Some(param_ty_ref) = &p.ty {
+                    if annotation_payload_context {
+                        let _ = self.with_annotation_types_allowed(|lower| {
+                            lower.lower_type_ref(param_ty_ref)
+                        })?;
+                    } else {
+                        let _ = self.lower_type_ref(param_ty_ref)?;
+                    }
                 }
             }
         }

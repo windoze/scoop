@@ -1487,7 +1487,9 @@ fn check_annotation_args(
             continue;
         };
 
-        let expected_ty = match lower.lower_type_ref_in_decl_file(&sym.decl_file, &params[idx].ty) {
+        let expected_ty = match lower.with_annotation_types_allowed(|lower| {
+            lower.lower_type_ref_in_decl_file(&sym.decl_file, &params[idx].ty)
+        }) {
             Ok(ty) => ty,
             Err(_e) => {
                 // 更精确的类型诊断由 `check_file_type_refs`/`TypeLowerError` 给出；

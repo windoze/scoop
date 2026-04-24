@@ -153,6 +153,8 @@ fn collect_type_decl(
 ) -> Result<(), OverloadDeclError> {
     let name = source.slice(ty.name.span).to_string();
     let type_fqn = join_prefix(prefix, &name);
+    let is_annotation_class =
+        ty.kind == ast::TypeKind::Class && ty.modifiers.contains(&ast::Modifier::Annotation);
 
     // class/type 的 type params 进入作用域，供 ctor/member signatures lowering。
     lower.push_type_params(&ty.type_params);
@@ -168,7 +170,7 @@ fn collect_type_decl(
         false
     };
 
-    if let Some(primary) = &ty.primary_ctor {
+    if !is_annotation_class && let Some(primary) = &ty.primary_ctor {
         collect_ctor_decl(
             source,
             &type_fqn,
@@ -186,6 +188,9 @@ fn collect_type_decl(
                 ast::TypeMember::Property(_p) => {}
                 ast::TypeMember::InitBlock(_b) => {}
                 ast::TypeMember::SecondaryCtor(ctor) => {
+                    if is_annotation_class {
+                        continue;
+                    }
                     collect_ctor_decl(
                         source,
                         &type_fqn,
@@ -196,6 +201,9 @@ fn collect_type_decl(
                     )?;
                 }
                 ast::TypeMember::Fun(fun) => {
+                    if is_annotation_class {
+                        continue;
+                    }
                     collect_fun_decl(source, fun, &type_fqn, lower, funs_by_fqn)?
                 }
                 ast::TypeMember::Type(nested) => {
