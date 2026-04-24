@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -705,7 +705,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4016T7a
 
-### T4016T9 [TODO] 全量同步 core Task 无锁 single-driver 合同的文档、规格与源码注释
+### T4016T9 [DONE] 全量同步 core Task 无锁 single-driver 合同的文档、规格与源码注释
 - 范围：
   - 更新 `SCOOP_TASK.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md`、`sysroot/core.scoop`、`sysroot/task.scoop`、`sysroot/unsafe.scoop` 及相关编译器 / runtime 注释，统一去掉 per-task mutex / shared drive / contention-is-pending 旧叙事。
   - 把 core `Task` 的最终公开合同写清：轻量 claim bit、single-driver、cross-thread 只允许顺序 handoff、public `step()` 上的 `Running` 与并发 / reentrant 误用直接 trap。
@@ -714,6 +714,15 @@
   - 仓库内所有相关文档 / 注释对 core `Task` 合同形成统一叙事，不再自相矛盾。
   - 设计文档、语言规范、运行时规范与 sysroot 注释可以直接回答“为什么 `Task` 无锁且不是共享 thread-safe object”。
 - 依赖：T4016T8
+- 已完成：
+  - 已同步 `SCOOP_TASK.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md`、`sysroot/core.scoop`、`sysroot/task.scoop`、`sysroot/unsafe.scoop`，统一到 “ordinary Scoop state + atomic claim-bit + single-driver + sequential cross-thread handoff + misuse trap” 叙事。
+  - 已补齐相关实现说明：`crates/scoopc/src/llvm/codegen/mod.rs` 注释明确 task-aware lowering 仅剩 erased payload transport；`runtime/c/scoop_thread.c` 注释明确 cross-thread task handoff 只依赖通用 thread substrate，不存在 task-specific scheduler / handoff ABI。
+  - 已修掉 `SCOOP_RUNTIME.md` 中一处过期的 “正在向 T4016 收口” 时态说明，避免 continuation/runtime 文档继续保留已完成任务的进行时叙事。
+- 已复验：
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1169)`）
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T4R [TODO] Review：确认 core `Task` 已收口为无锁、轻量 claim、single-driver 合同
 - 重点：

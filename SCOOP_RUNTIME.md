@@ -325,7 +325,7 @@ Runtime type tests (`is/as/as?`) are expected to follow these rules once impleme
 
 ## 10. Effect / Continuation Lowering Contract
 
-This section records the continuation contract that the implementation is converging on during `T4016`; follow-up tasks finish the compiler/runtime alignment.
+This section records the continuation contract that the current compiler/runtime implementation uses after the `T4016` alignment work.
 
 - Language-level continuation model: `Continuation<Resume, Answer, eff E = Pure>`.
   - `Resume` is the handled operation's result type.
@@ -390,11 +390,17 @@ Stable synchronization contract:
 
 Implementation note:
 
-- `sysroot/task.scoop` still uses a per-task `Mutex` as the current checkpoint
-  implementation detail for state inspection / publication.
-- That mutex is transitional rather than part of the stable public contract; the
-  remaining core-task cleanup work will replace it with a lighter exclusive
-  claim without introducing a task-specific runtime ABI.
+- `sysroot/task.scoop` now uses a per-task `__claim: scoop.unsafe.__AtomicInt`
+  field as the only ownership bookkeeping for public drive attempts.
+- The current claim protocol is a SeqCst `cmpxchg(__claim, 0, 1)` on acquire and
+  a SeqCst `store(__claim, 0)` on release. That is sufficient for the intended
+  contract: one active public driver at a time plus synchronized state
+  publication for sequential cross-thread handoff.
+- Claim failure is fatal driver misuse, not a recoverable result: the task layer
+  does not spin, yield, block, or translate contention into `Pending`.
+- The claim is intentionally an implementation detail rather than a user-visible
+  synchronization API; it exists only to protect short state inspection /
+  publication windows.
 - The private `__TaskStepResult<T>` carrier is not part of the public language
   surface.
 - A suspended task is just an ordinary task object plus a private raw

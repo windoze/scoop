@@ -22,7 +22,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a` 与 `T4016T8` 均已完成；当前 core `Task` 主线按 `T4016T9 -> T4016T4R` 继续收口“去掉 per-task lock / 轻量 claim / single-driver trap”。
+1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8` 与 `T4016T9` 均已完成；当前 core `Task` 主线进入 `T4016T4R`，做最终 review 收口。
 2. `CONTINUATION.md` 已形成显式 `EffectCtx` / `EffectOutcome` 设计草案；后续按 `T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R` 分阶段把 effect / continuation runtime 从 TLS side channel 迁到显式上下文 + 显式 outcome。
 3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4017R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
@@ -102,7 +102,7 @@
     - 为 variant pattern 的隐藏 binder 恢复真实字段类型；
     - 将 `synth_raise_null_assertion_failed()` 的隐藏 `Perform` 收口为 `Nothing` 类型，并避免与外层合成 `when` 共用完全相同的 span；
     - 新增 boxed multi-field enum function payload run-pass 回归，并同步相关 HIR golden。
-  - 当前顺序调整为：`T4016T9 -> T4016T4R -> T4017 -> T4012 -> T4013 -> T4014 -> T4015`。
+  - 当前顺序调整为：`T4016T4R -> T4017 -> T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -291,11 +291,15 @@
     - 新增 LLVM 单测 `thread_join_statepoint_preserves_live_gc_locals`，直接锁定 `@scoop_thread_join` 的 statepoint `gc-live` roots 里包含 `inner / outer / worker` keepalive，且返回后会把 relocated roots 写回真实局部槽位。
     - 在全量验收中还收口了一个既有 fixtures runner 缺口：`crates/scoop/src/fixtures/mod.rs` 现在支持把 `tests/fixtures/run_pass_cone` 根目录或单个 `tests/fixtures/run_pass_cone/<case>` 目录直接作为 `--fixtures` 输入，不再误把 cone case 名识别为未实现 phase。
     - 已复验 `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (24)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`（`fixtures: ok (19)`）、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
+  - `T4016T9` 已完成：
+    - `SCOOP_TASK.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md`、`sysroot/core.scoop`、`sysroot/task.scoop` 与 `sysroot/unsafe.scoop` 已统一切到 “ordinary Scoop state + atomic claim-bit + single-driver + sequential handoff + misuse trap” 叙事，不再保留 per-task mutex / shared drive / contention-as-`Pending` 的旧说明。
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 注释现已明确：task-aware lowering 仅剩 erased payload transport；`runtime/c/scoop_thread.c` 注释也已同步到“cross-thread task handoff 仅依赖通用 thread substrate、无 task-specific scheduler ABI” 的实现说明。
+    - 在复扫文档时还顺手清理了一处既有过期表述：`SCOOP_RUNTIME.md` 第 10 节不再把 continuation/runtime 合同写成“正在向 T4016 收口”的进行时。
+    - 已复验 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过。
   - 因此当前剩余顺序为：
-    - `T4016T9`：全量同步设计文档、规范、sysroot 注释与实现说明。
     - `T4016T4R`：review 全链路，确认无锁 single-driver 合同、trap 语义与回归一致。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P1.6. continuation / effect runtime 显式上下文化（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`）
 

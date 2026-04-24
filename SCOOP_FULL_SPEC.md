@@ -898,6 +898,8 @@ Key semantics:
 - Different threads may drive the same task sequentially. A later `step()` on another thread is valid only after the previous drive attempt has published its next state and returned.
 - `Pending` means the task has not completed and cannot make further progress yet, typically because it suspended awaiting another task. `Pending` is **not** a contention signal.
 - If a public `step()` call races another `step()` call, reenters the same task, or otherwise observes the task already in its internal `Running` state, that is executor / driver misuse and must trap. It is not represented as `Pending` or `Raise<RuntimeError>`.
+- One conforming implementation strategy is to keep a private exclusive-drive claim together with private task state. That claim is an implementation detail, but it must guarantee at most one active public driver and synchronized state publication for sequential cross-thread handoff.
+- That ownership bookkeeping must not remain held while running user code, calling `awaited.step()`, or executing `Continuation.resume(...)`; synchronization is only required around short state-inspection and state-publication windows.
 - If a resumed task suspends again through an escape-continuation handler, that handler captures a fresh continuation and stores it back into the task's private state. The previous continuation remains consumed (one-shot).
 - Direct access to those internal continuations is not part of the common task API.
 - The exact executor or wakeup mechanism, if any, is intentionally out of scope for this stage.

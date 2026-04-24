@@ -29,7 +29,7 @@
 | `Option<T>` (nullable `T?`) | P0 | pure_scoop_ok | DONE | `sysroot/core.scoop` | 多个 run-pass | `Some`/`None` + pattern match |
 | `RuntimeError` + `Raise<E>` | P0 | pure_scoop_ok | DONE | `sysroot/core.scoop` | `try_catch_raise_runtime_error_basic` 等 | 效果系统核心 |
 | `Continuation<T>` | P0 | pure_scoop_ok | DONE | `sysroot/core.scoop` | 多个 T17xx fixtures | 多 perform/GC/多线程已验证 |
-| `Task<T>` / `TaskStep<T>` / `Async` effect | P1 | pure_scoop_ok | DONE | `sysroot/core.scoop` + `sysroot/task.scoop` + generic continuation/sync/thread runtime | `async_await_minimal_int_basic`、`async_await_string_basic`、`task_step_manual_basic` | 公开 surface 已收口为 `Task<T>` / `TaskStep<T>` / `step()` / `Async.await`；task-only C ABI 已删除，只依赖通用 continuation/sync/thread substrate |
+| `Task<T>` / `TaskStep<T>` / `Async` effect | P1 | pure_scoop_ok | DONE | `sysroot/core.scoop` + `sysroot/task.scoop` + generic continuation/atomic/thread runtime | `async_await_minimal_int_basic`、`async_await_string_basic`、`task_step_manual_basic` | 公开 surface 已收口为 `Task<T>` / `TaskStep<T>` / `step()` / `Async.await`；内部为 ordinary Scoop state + atomic claim-bit 的 single-driver 合同；task-only C ABI 已删除 |
 | `Platform` / `getPlatform()` | P2 | pure_scoop_ok | DONE | `sysroot/core.scoop` | comptime fixtures | intrinsic |
 | Compile-time metadata (`TypeMeta` 等) | P2 | pure_scoop_ok | DONE | `sysroot/core.scoop` | 多个 comptime fixtures | `fieldsOf`/`variantsOf` 等 intrinsic |
 | Annotations (`@TailRec` 等) | P2 | pure_scoop_ok | DONE | `sysroot/core.scoop` | typecheck fixtures | 内建注解集合 |
@@ -215,8 +215,8 @@
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| Lazy `Task<T>` create/join core | P1 | needs_runtime_lib | DONE | `sysroot/core.scoop` + `sysroot/task.scoop` + generic continuation/sync/thread runtime | `async_fun_task_runtime_basic` / `async_await_string_basic` | 仅保留内部 `__task_*` helper；无公开 executor surface，task-only C ABI 已删除 |
-| `Task.step()` / `TaskStep<T>` | P1 | pure_scoop_ok | DONE | `sysroot/core.scoop` + `sysroot/task.scoop` + generic continuation/sync runtime | `task_step_manual_basic` | 公开 manual-drive surface 已收口；`Task.step()` 走 ordinary Scoop 定义，不再依赖 `scoop_task_poll` |
+| Lazy `Task<T>` create/join core | P1 | needs_runtime_lib | DONE | `sysroot/core.scoop` + `sysroot/task.scoop` + generic continuation/atomic/thread runtime | `async_fun_task_runtime_basic` / `async_await_string_basic` | 仅保留内部 `__task_*` helper；无公开 executor surface；single-driver task 以私有 claim-bit 做顺序 handoff；task-only C ABI 已删除 |
+| `Task.step()` / `TaskStep<T>` | P1 | pure_scoop_ok | DONE | `sysroot/core.scoop` + `sysroot/task.scoop` + generic continuation/atomic runtime | `task_step_manual_basic` | 公开 manual-drive surface 已收口；`Task.step()` 走 ordinary Scoop 定义，不再依赖 `scoop_task_poll`；claim 冲突/`Running` 观察直接 trap，`Pending` 只表示真实未就绪 |
 | Structured concurrency / `spawn` 最终语义 | P2 | pure_scoop_ok | TODO | — | — | 当前 `spawn/join` 仍是过渡期 helper，最终模型待 `T4009c` |
 
 ---

@@ -2994,9 +2994,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.channels.close" {
                 return self.codegen_sysroot_channels_close(span, callee.span, args);
             }
-            // T4016T3：task 相关的 task-only runtime ABI / codegen special-case 已删除；
-            // async sugar 与 `Task.step()` 现在都走 ordinary Scoop `__task_*` / `step()`
-            // 定义，这里只保留 transport intrinsic。
+            // task 相关的 task-only runtime ABI / codegen special-case 已删除；
+            // core `Task` 的 single-driver + atomic-claim 合同完全由 ordinary Scoop
+            // `__task_*` / `step()` 定义表达；这里唯一残留的 task-aware lowering 只剩
+            // erased payload transport intrinsic。
             if fqn == "scoop.core.__task_transport_pack"
                 || fqn == "scoop.core.__task_transport_unpack"
             {

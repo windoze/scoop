@@ -489,6 +489,9 @@ fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, 
 //   task 自身现在保存一个最小 atomic claim 字段与普通 Scoop 定义的 `__TaskState<T>`；
 //   claim 字段承担最小独占 drive ownership；claim 竞争与 `Running` 观察都直接 trap，
 //   不再通过 `Pending` 暴露给调用方；
+// - 该 claim 只在读取/发布 `__TaskState<T>` 的短窗口内持有；执行 `start()`、`awaited.step()`
+//   与 `Continuation.resume(...)` 前必须释放，因此 task 不是共享驱动对象，而是仅支持顺序 handoff
+//   的单 driver abstraction；
 // - runtime 继续只提供 generic continuation / GC / thread / atomic substrate。
 enum TaskStep<T> {
     Pending,
@@ -496,7 +499,7 @@ enum TaskStep<T> {
 }
 
 class Task<T>(
-    // 内部实现细节：最小 atomic 独占 claim；public `step()` 用它表达 single-driver 合同。
+    // 内部实现细节：最小 atomic 独占 claim（0 = idle, 1 = owned；按 SeqCst 访问）。
     var __claim: scoop.unsafe.__AtomicInt,
     var __state: __TaskState<T>,
 )

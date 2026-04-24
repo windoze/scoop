@@ -18,6 +18,8 @@ The target model is:
 - core owns only the language-specific async surface and a tiny manually-drivable
   task abstraction;
 - core `Task` is a single-driver object rather than a shared-subtask primitive;
+- the current core implementation enforces that contract with a lightweight
+  atomic claim bit rather than a per-task mutex or scheduler-owned lock;
 - schedulers, run queues, wakeup registration, callback adapters, and reactor
   integration belong to stdlib rather than to `scoop.core`.
 
@@ -192,13 +194,11 @@ intrinsics or LLVM special cases.
 
 ## Internal Scoop-Level Task Model
 
-The stable public contract is already **single-driver + trap-on-contention**,
-but the current checkpoint after `T4016T3` still uses a per-task mutex as a
-transitional implementation detail. The remaining `T4016T4 -> T4016T7` work
-will replace that detail with a lighter exclusive-drive claim without changing
-the public surface.
+The stable public contract and the current implementation are now aligned:
+core `Task` is **single-driver + trap-on-contention**, backed by an ordinary
+Scoop object plus a lightweight atomic claim field.
 
-Current checkpoint:
+Current implementation:
 
 ### Internal drive result
 
@@ -244,7 +244,7 @@ enum __TaskState<T> {
 package scoop.core
 
 class Task<T>(
-    val __lock: Mutex,
+    var __claim: scoop.unsafe.__AtomicInt,
     var __state: __TaskState<T>
 )
 ```
@@ -253,8 +253,12 @@ The important points are:
 
 - the authoritative task state is now a normal Scoop-level object model rather
   than a private C runtime struct;
-- `__lock` is an internal checkpoint detail, not a promise that the stable task
-  contract is mutex-based;
+- `__claim` is a private 0/1 exclusive-drive bit, acquired with SeqCst
+  `cmpxchg` and released with SeqCst `store`;
+- claim failure or observing `Running` after a successful claim is fatal
+  executor / driver misuse, not a recoverable `Pending` result;
+- no claim is held while running user code, calling `awaited.step()`, or
+  resuming a captured continuation;
 - the stable public meaning of `Pending` is "not completed and cannot make
   progress yet", not "some other driver currently owns the task".
 
@@ -268,7 +272,7 @@ fun <T> Task<T>.step(): TaskStep<T>
 
 The intended algorithm is:
 
-1. Acquire exclusive drive ownership for the task.
+1. Acquire the task's exclusive drive claim.
 2. If another active driver already owns the task, trap immediately.
    `Pending` is not used to encode contention.
 3. Read current state.
@@ -295,8 +299,11 @@ The intended algorithm is:
    - if task became `Completed(value)`, return `Ready(value)`;
    - if task became `Waiting(...)`, return `Pending`.
 
-The exact ownership mechanism is intentionally left to the follow-up
-implementation tasks. The contract above only fixes the observable semantics.
+The current implementation realizes that claim with a private
+`scoop.unsafe.__AtomicInt` field. Any alternative implementation must preserve
+the same observable semantics: one active public driver at a time, fail-fast
+misuse on concurrent / reentrant drive, and synchronized state publication for
+sequential cross-thread handoff.
 
 Important invariants:
 
@@ -360,13 +367,20 @@ The task layer should guarantee:
 
 The stable contract only needs:
 
-- an exclusive drive-ownership mechanism;
+- a private exclusive drive-ownership claim;
 - synchronized publication of `Created` / `Running` / `Waiting` / `Completed`
   state so later threads can hand off safely.
 
-The current checkpoint still uses a per-task mutex, but that is a transitional
-implementation detail rather than the intended public task model. Follow-up
-tasks switch this to a lighter claim field.
+The current implementation uses `Task.__claim: scoop.unsafe.__AtomicInt` for
+that purpose:
+
+- `step()` acquires ownership with SeqCst `cmpxchg(__claim, 0, 1)`;
+- after publishing `Completed(...)` or `Waiting(...)`, it releases ownership
+  with SeqCst `store(__claim, 0)`;
+- claim failure is not retried with `yield()` and is not surfaced as `Pending`;
+  it is fatal driver misuse;
+- the claim is deliberately smaller than a mutex: no wait queue, no fairness
+  guarantee, and no blocking lock handoff contract.
 
 `CondVar` is **not** required for the core task API:
 
@@ -381,13 +395,18 @@ adapters.
 
 Preferred direction:
 
-- reuse generic sync / atomic substrate already backing `scoop.sync` and related
-  internals;
+- reuse generic thread / atomic substrate already backing the rest of the
+  runtime;
 - do **not** add a new task-specific lock runtime.
 
-The current implementation directly reuses `scoop.sync.Mutex` as a checkpoint;
-later work should replace that with a lighter claim field rather than with a
-separate task-only lock type.
+The current implementation already follows that direction:
+
+- `Task.__claim` lowers to ordinary atomic instructions through
+  `scoop.unsafe.__AtomicInt`;
+- `__task_join(...)` uses generic `yield()` only after a legitimate public
+  `Pending`, not as a contention spin loop;
+- there is no separate task-only lock type, mutex path, or scheduler ABI in the
+  runtime.
 
 ## Cross-Thread Resume and GC
 
@@ -441,39 +460,24 @@ round-tripped through native registration state.
 That wake token belongs to stdlib-level scheduling / registration logic, not to
 the core `Task` API.
 
-## Recommended Migration Plan
+## Rollout Status
 
-### Phase 1: Surface cleanup
+### Completed core phases
 
-- This phase defines the current public `scoop.core` task surface.
-- Rename `Poll<T>` to `TaskStep<T>`.
-- Remove `poll()` and keep `step()` as the only public drive operation.
-- Update docs, sysroot surface, lowering targets, and tests to use the renamed
-  surface directly.
+- Phase 1: surface cleanup completed. The public core task API is
+  `Task<T>` / `TaskStep<T>` / `Task.step()` / `Async.await`; legacy
+  `poll()` / `Poll<T>` naming is gone.
+- Phase 2: internal driver model moved into Scoop. Task state, private
+  step-result carrier, create/from-result/join helpers, and `step()` are all
+  ordinary Scoop definitions.
+- Phase 3: task-specific runtime / codegen ABI deleted. There is no
+  `scoop_task_*` runtime path anymore; only the generic continuation / GC /
+  thread / atomic substrate remains.
+- Phase 3.5: core task drive contract tightened. The implementation now uses a
+  lightweight atomic claim field, `Pending` no longer encodes contention, and
+  concurrent / reentrant public drive traps immediately.
 
-### Phase 2: Move internal driver model into Scoop
-
-- Re-express task state and private driver result as ordinary Scoop types.
-- Re-express task creation / step-ready / step-pending as ordinary Scoop helper
-  code or direct constructors.
-- Keep the compiler's `async` / `await` lowering, but retarget it to ordinary
-  Scoop helper definitions instead of runtime intrinsics.
-
-### Phase 3: Delete task-specific runtime / codegen ABI
-
-- Remove task-only codegen branches.
-- Remove task-only runtime symbols and `runtime/c/scoop_task.c`.
-- Keep only generic continuation, GC, thread, and sync runtime layers.
-
-### Phase 3.5: Tighten the core task drive contract
-
-- State explicitly that core `Task` is single-driver.
-- Remove any "contention becomes `Pending`" contract text.
-- Treat concurrent / reentrant public `step()` as a trap.
-- Replace the transitional mutex serialization detail with a lighter
-  exclusive-drive claim field.
-
-### Phase 4: Later stdlib work
+### Deferred stdlib phase
 
 - design executor traits / APIs;
 - design wakeup / enqueue contracts;
@@ -487,10 +491,11 @@ The intended end state is:
 - `Task` is mostly implemented in Scoop;
 - compiler special handling is limited to async sugar and private lowering glue;
 - runtime special handling is limited to generic continuation / GC / thread /
-  sync infrastructure;
+  atomic infrastructure;
 - the public core task API is small and single-driver: `Task<T>`,
   `TaskStep<T>`, `step()`, and `Async.await`;
 - `Pending` means genuine suspension / not-ready state rather than contention,
-  and concurrent / reentrant drive is executor misuse that traps;
+  concurrent / reentrant drive is executor misuse that traps, and cross-thread
+  driving is limited to sequential handoff after state publication;
 - executor / wake / reactor stay out of `scoop.core` and are designed later in
   stdlib.

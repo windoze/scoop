@@ -5,6 +5,8 @@
 // - runtime 只继续提供 continuation / GC / thread / atomic substrate；
 // - task 对象模型已从 per-task `Mutex` 收口为最小 atomic claim 字段；
 // - public `step()` 对 claim 冲突、重入 drive 与 `Running` 观察统一按 fatal misuse trap 处理。
+// - claim 只覆盖状态检查/发布的短窗口；真正执行用户代码、`awaited.step()` 与
+//   `Continuation.resume(...)` 前都必须释放，因此跨线程只允许顺序 handoff。
 
 package scoop.core
 
@@ -26,6 +28,7 @@ fun <T> __task_claim_acquire(task: Task<T>): Unit {
 }
 
 fun <T> __task_claim_release(task: Task<T>): Unit {
+    // SeqCst store 同时承担“释放独占 claim”与“发布刚写入的 Waiting/Completed 状态”。
     @Unsafe do { __atomicIntStore(task.__claim, 0) }
 }
 
@@ -84,6 +87,7 @@ fun <T> __task_drive_created(
     task: Task<T>,
     start: () -> __TaskStepResult<T>,
 ): TaskStep<T> {
+    // 进入用户代码前 claim 已释放；single-driver 合同只约束状态发布窗口。
     val step: __TaskStepResult<T> = start()
     return __task_apply_step(task, step)
 }
@@ -93,6 +97,7 @@ fun <T> __task_drive_waiting(
     awaited: Task<(Int, Any)>,
     continuation: Continuation<(Int, Any), __TaskStepResult<T>>,
 ): TaskStep<T> {
+    // 这里继续沿用同一规则：awaited.step() 与 continuation.resume(...) 都发生在无 claim 状态下。
     val awaited_step: TaskStep<(Int, Any)> = awaited.step()
     return when (awaited_step) {
         Pending -> __task_restore_waiting(task, awaited, continuation)

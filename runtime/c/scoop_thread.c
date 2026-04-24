@@ -10,6 +10,8 @@
 //   （以 `ScoopGcObjectHeader` 开头，并通过 `scoop_alloc` 分配）。
 // - 为避免在 early stage 引入更多资源管理语义：不提供 detach/destroy；调用方应显式 `join()`。
 // - 线程入口会调用 `scoop_thread_register/unregister`，避免 GC 的线程枚举残留已退出线程的 TLS 槽位。
+// - core `Task` 的顺序跨线程 handoff / join 也只依赖这里导出的通用 thread substrate；
+//   runtime 不提供 task-specific scheduler 或 handoff ABI。
 
 #include <stdbool.h>
 #include <stdint.h>
