@@ -2219,7 +2219,7 @@ This approach handles subtyping, bounded polymorphism, and overload resolution i
 
 ### 15.1 Overview
 
-Annotations attach **compile-time metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@Intrinsic`, `@Extern`, `@Inline`, `@Deprecated`, `@Suppress`) and by user code for compile-time metaprogramming via `comptime` (§6).
+Annotations attach **compile-time metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@Intrinsic`, `@Extern`, `@Inline`, `@Deprecated`, `@Suppress`, `@Experimental`) and by user code for compile-time metaprogramming via `comptime` (§6).
 
 Annotations are declared with `annotation class`, but this is **not** a general nominal-class feature. Annotation declarations exist only to define a marker name plus optional compile-time payload. Annotation values exist only at compile time; they have no runtime representation and do not introduce extra control-flow semantics.
 
@@ -2233,6 +2233,7 @@ annotation class Deprecated(
 
 annotation class Inline
 annotation class Extern(val lib: String = "", val name: String = "")
+annotation class Experimental(val feature: String)
 annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
 annotation class ThreadLocal
 annotation class Global
@@ -2337,6 +2338,7 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 | `@TailRec` | Functions | Asserts tail-call optimization; compiler error if not tail-recursive |
 | `@AllowIntrinsic` | Modules/files | Permits `@Intrinsic` declarations in user code |
 | `@Suppress(warnings...)` | Expressions, declarations, files | Suppresses specific compiler warnings |
+| `@Experimental(feature = "...")` | Functions, types, properties, modules/files | Reserved compile-time feature-gate marker; current compilers only validate its surface |
 | `@CLayout(aligned?, packed?)` | Structs | Forces C-compatible field layout for FFI and optionally customizes alignment/packing (see §15.5.2) |
 | `@ThreadLocal` | Global variables | Declares a mutable global GC-free variable as thread-local storage (TLS) (see §15.5.3) |
 | `@Global` | Global variables | Declares a mutable global GC-free variable as process-global storage (see §15.5.3) |
@@ -2366,6 +2368,12 @@ annotation class Column(val name: String)
 - Declaration and local declaration `@Suppress(...)` suppress matching warnings emitted within that declaration's span.
 - Expression `@Suppress(...) expr` suppresses matching warnings emitted while checking that expression.
 - Current stable warning codes are `deprecated`, `enum-size-disparity`, and `redundant-when-else`.
+
+`@Experimental` is a reserved built-in compile-time feature-gate marker. Current contract:
+
+- Allowed targets are functions, types, properties, and modules/files (`@file:Experimental(feature = "...")`).
+- The use-site shape is fixed to `@Experimental(feature = "...")`; `feature` must be a string literal.
+- Current compilers only recognize and validate this marker surface. No experimental language feature is enabled or disabled by it yet.
 
 #### 15.5.1 `@Extern` (External Symbols and Libraries)
 

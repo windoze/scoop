@@ -1,0 +1,7 @@
+// EXPECT: pass
+// EXPECT-AST: experimental_annotation_feature_gate_basic.ast
+
+package fixtures.parse
+
+@Experimental(feature = "async-await-v2")
+fun main() {}

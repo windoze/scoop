@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::experimental_annotation_invalid_arg_shape
+// EXPECT-ERROR: `@Experimental` 只支持固定形状 `@Experimental(feature = "some_feature")`
+
+package fixtures.typecheck
+
+@Experimental("async-await-v2")
+fun main() {}

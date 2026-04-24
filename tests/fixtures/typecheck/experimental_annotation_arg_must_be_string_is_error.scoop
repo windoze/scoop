@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::experimental_annotation_arg_must_be_string
+// EXPECT-ERROR: `@Experimental` 的 `feature` 参数必须是字符串字面量
+
+package fixtures.typecheck
+
+@Experimental(feature = 1)
+fun main() {}

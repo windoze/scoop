@@ -1,0 +1,70 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 79..101,
+            path: [
+                Ident {
+                    span: 87..95,
+                },
+                Ident {
+                    span: 96..101,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 103..158,
+                annotations: [
+                    AnnotationUse {
+                        span: 103..144,
+                        path: [
+                            Ident {
+                                span: 104..116,
+                            },
+                        ],
+                        args: [
+                            AnnotationArg {
+                                span: 117..143,
+                                value: Expr {
+                                    span: 117..143,
+                                    kind: Assign {
+                                        lhs: Expr {
+                                            span: 117..124,
+                                            kind: Ident(
+                                                Ident {
+                                                    span: 117..124,
+                                                },
+                                            ),
+                                        },
+                                        eq_span: 125..126,
+                                        rhs: Expr {
+                                            span: 127..143,
+                                            kind: StringLit,
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ],
+                receiver: None,
+                name: Ident {
+                    span: 149..153,
+                },
+                type_params: [],
+                params_span: 153..155,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 156..158,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

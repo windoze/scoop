@@ -31,7 +31,7 @@ use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use super::assignable::is_type_assignable;
 use super::builtin_annotations::{
     BuiltinAnnotationFlags, BuiltinAnnotationKind, builtin_annotation_kind, file_allows_intrinsic,
-    parse_suppress_annotation,
+    parse_experimental_annotation, parse_suppress_annotation,
 };
 use super::lower::TypeLowering;
 use super::{AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv};
@@ -433,6 +433,20 @@ pub enum AnnotationError {
     UnknownSuppressWarningCode {
         code: String,
         #[label("这里的 warning code 不受支持")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Experimental` 只支持固定形状 `@Experimental(feature = \"some_feature\")`")]
+    #[diagnostic(code(scoop::typecheck::experimental_annotation_invalid_arg_shape))]
+    ExperimentalAnnotationInvalidArgShape {
+        #[label("这里需要写成 `feature = \"...\"`")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Experimental` 的 `feature` 参数必须是字符串字面量")]
+    #[diagnostic(code(scoop::typecheck::experimental_annotation_arg_must_be_string))]
+    ExperimentalAnnotationArgMustBeString {
+        #[label("这里需要字符串字面量")]
         span: miette::SourceSpan,
     },
 
@@ -1102,6 +1116,9 @@ fn check_one_annotation_use(
             BuiltinAnnotationKind::Suppress => {
                 check_builtin_suppress_annotation(ctx.source, ann, site)
             }
+            BuiltinAnnotationKind::Experimental => {
+                check_builtin_experimental_annotation(ctx.source, ann, site)
+            }
             _ => Ok(()),
         };
     }
@@ -1293,6 +1310,54 @@ fn check_builtin_suppress_annotation(
                 code,
                 span: span.into(),
             },
+        })
+}
+
+fn check_builtin_experimental_annotation(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+    site: AnnotationSite,
+) -> Result<(), AnnotationError> {
+    let effective_target = effective_annotation_target(source, ann, site.primary_target);
+    if !matches!(
+        effective_target,
+        AnnotationTargetKind::Function
+            | AnnotationTargetKind::Type
+            | AnnotationTargetKind::Property
+            | AnnotationTargetKind::Module
+    ) {
+        let (_, name_span) = annotation_name_and_span(source, ann);
+        return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+            annotation: "@Experimental".to_string(),
+            allowed: BuiltinAnnotationKind::Experimental.allowed_targets_hint(),
+            found: effective_target.as_str(),
+            span: name_span.into(),
+        });
+    }
+
+    parse_experimental_annotation(source, ann)
+        .map(|_| ())
+        .map_err(|err| match err {
+            super::builtin_annotations::ExperimentalAnnotationParseError::MissingFeature {
+                span,
+            } => AnnotationError::AnnotationArgMissingRequired {
+                annotation: "@Experimental".to_string(),
+                param: "feature".to_string(),
+                span: span.into(),
+            },
+            super::builtin_annotations::ExperimentalAnnotationParseError::InvalidArgShape {
+                span,
+            } => AnnotationError::ExperimentalAnnotationInvalidArgShape { span: span.into() },
+            super::builtin_annotations::ExperimentalAnnotationParseError::DuplicateFeature {
+                span,
+            } => AnnotationError::AnnotationArgDuplicate {
+                annotation: "@Experimental".to_string(),
+                param: "feature".to_string(),
+                span: span.into(),
+            },
+            super::builtin_annotations::ExperimentalAnnotationParseError::ArgMustBeString {
+                span,
+            } => AnnotationError::ExperimentalAnnotationArgMustBeString { span: span.into() },
         })
 }
 
@@ -1871,6 +1936,17 @@ fn reject_builtin_annotations_on_target(
         {
             continue;
         }
+        if kind == BuiltinAnnotationKind::Experimental
+            && matches!(
+                effective_annotation_target(source, ann, primary_target),
+                AnnotationTargetKind::Function
+                    | AnnotationTargetKind::Type
+                    | AnnotationTargetKind::Property
+                    | AnnotationTargetKind::Module
+            )
+        {
+            continue;
+        }
         let (_, name_span) = annotation_name_and_span(source, ann);
         return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
             annotation: format!("@{}", kind.name()),
@@ -1900,7 +1976,9 @@ fn check_builtin_annotations_on_file(
                     });
                 }
             }
-            BuiltinAnnotationKind::Deprecated | BuiltinAnnotationKind::Suppress => {}
+            BuiltinAnnotationKind::Deprecated
+            | BuiltinAnnotationKind::Suppress
+            | BuiltinAnnotationKind::Experimental => {}
             _ => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
@@ -1964,7 +2042,9 @@ fn check_builtin_annotations_on_fun_decl(
                     });
                 }
             }
-            BuiltinAnnotationKind::Deprecated | BuiltinAnnotationKind::Suppress => {}
+            BuiltinAnnotationKind::Deprecated
+            | BuiltinAnnotationKind::Suppress
+            | BuiltinAnnotationKind::Experimental => {}
         }
     }
 
@@ -2062,7 +2142,9 @@ fn check_builtin_annotations_on_type_alias_decl(
             BuiltinAnnotationKind::CallingConvention => {
                 check_calling_convention_builtin_annotation_args(source, ann)?;
             }
-            BuiltinAnnotationKind::Deprecated | BuiltinAnnotationKind::Suppress => {}
+            BuiltinAnnotationKind::Deprecated
+            | BuiltinAnnotationKind::Suppress
+            | BuiltinAnnotationKind::Experimental => {}
             _ => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
@@ -2090,7 +2172,9 @@ fn check_builtin_annotations_on_top_level_val_decl(
         };
         match kind {
             BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
-            BuiltinAnnotationKind::Deprecated | BuiltinAnnotationKind::Suppress => {}
+            BuiltinAnnotationKind::Deprecated
+            | BuiltinAnnotationKind::Suppress
+            | BuiltinAnnotationKind::Experimental => {}
             _ => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
@@ -2562,7 +2646,9 @@ fn check_builtin_annotations_on_type_decl(
                     });
                 }
             }
-            BuiltinAnnotationKind::Deprecated | BuiltinAnnotationKind::Suppress => {}
+            BuiltinAnnotationKind::Deprecated
+            | BuiltinAnnotationKind::Suppress
+            | BuiltinAnnotationKind::Experimental => {}
             _ => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
@@ -2635,7 +2721,9 @@ fn check_builtin_annotations_on_object_decl(
         };
         match kind {
             BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
-            BuiltinAnnotationKind::Deprecated | BuiltinAnnotationKind::Suppress => {}
+            BuiltinAnnotationKind::Deprecated
+            | BuiltinAnnotationKind::Suppress
+            | BuiltinAnnotationKind::Experimental => {}
             _ => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {

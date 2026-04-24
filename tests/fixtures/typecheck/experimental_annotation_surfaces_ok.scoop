@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：T4012c `@Experimental(feature = "...")` 可用于 file / function / type / property surface。
+
+@file:Experimental(feature = "file-gate")
+
+package fixtures.typecheck
+
+@Experimental(feature = "type-gate")
+class ExperimentalType
+
+@Experimental(feature = "property-gate")
+val currentValue: Int = 1
+
+@Experimental(feature = "fun-gate")
+fun currentAdd(x: Int, y: Int): Int {
+    return x + y + currentValue
+}

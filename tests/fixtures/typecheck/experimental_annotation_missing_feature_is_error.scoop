@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_arg_missing_required
+// EXPECT-ERROR: 注解 `@Experimental` 缺少必填参数 `feature`
+
+package fixtures.typecheck
+
+@Experimental
+fun main() {}

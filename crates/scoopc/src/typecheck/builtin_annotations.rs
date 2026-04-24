@@ -3,10 +3,10 @@
 //! 说明：
 //! - 这些注解由编译器“硬编码识别”，不依赖用户代码中存在对应的 `annotation class` 声明；
 //! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic/@AllowIntrinsic/@Deprecated`
-//!   的最小语义；
+//!   / `@Suppress` / `@Experimental` 的最小语义；
 //! - annotation 整体仍是 compile-time marker surface；只有少数 built-in annotation
 //!   会在编译器中附带额外语义；
-//! - 更完整的 `@Deprecated/@Suppress/...` 规则留给后续任务（见 TODO）。
+//! - feature gating framework 仍未接入；`@Experimental` 当前只保留 surface 与参数校验。
 
 use crate::ast;
 use crate::source::SourceFile;
@@ -24,6 +24,7 @@ pub(crate) enum BuiltinAnnotationKind {
     AllowIntrinsic,
     Deprecated,
     Suppress,
+    Experimental,
     CallingConvention,
 }
 
@@ -38,6 +39,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::AllowIntrinsic => "AllowIntrinsic",
             BuiltinAnnotationKind::Deprecated => "Deprecated",
             BuiltinAnnotationKind::Suppress => "Suppress",
+            BuiltinAnnotationKind::Experimental => "Experimental",
             BuiltinAnnotationKind::CallingConvention => "CallingConvention",
         }
     }
@@ -52,6 +54,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::AllowIntrinsic => "文件 / 模块",
             BuiltinAnnotationKind::Deprecated => "函数 / 类型 / 属性",
             BuiltinAnnotationKind::Suppress => "表达式 / 声明 / 文件",
+            BuiltinAnnotationKind::Experimental => "函数 / 类型 / 属性 / 文件",
             BuiltinAnnotationKind::CallingConvention => "函数 / typealias",
         }
     }
@@ -81,6 +84,14 @@ pub(crate) enum SuppressAnnotationParseError {
     UnknownWarningCode { code: String, span: Span },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ExperimentalAnnotationParseError {
+    MissingFeature { span: Span },
+    InvalidArgShape { span: Span },
+    DuplicateFeature { span: Span },
+    ArgMustBeString { span: Span },
+}
+
 /// 判断一个 `@Name(...)` 是否为内建注解。
 ///
 /// 当前阶段的识别规则（尽量保守）：
@@ -106,6 +117,9 @@ pub(crate) fn builtin_annotation_kind(
         }
         ["Deprecated"] | ["scoop", "core", "Deprecated"] => Some(BuiltinAnnotationKind::Deprecated),
         ["Suppress"] | ["scoop", "core", "Suppress"] => Some(BuiltinAnnotationKind::Suppress),
+        ["Experimental"] | ["scoop", "core", "Experimental"] => {
+            Some(BuiltinAnnotationKind::Experimental)
+        }
         ["CallingConvention"] | ["scoop", "core", "CallingConvention"] => {
             Some(BuiltinAnnotationKind::CallingConvention)
         }
@@ -147,6 +161,7 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::AllowIntrinsic) => {}
                 Some(BuiltinAnnotationKind::Deprecated) => {}
                 Some(BuiltinAnnotationKind::Suppress) => {}
+                Some(BuiltinAnnotationKind::Experimental) => {}
                 Some(BuiltinAnnotationKind::CallingConvention) => {}
                 None => {}
             }
@@ -158,6 +173,63 @@ impl BuiltinAnnotationFlags {
         }
 
         out
+    }
+}
+
+pub(crate) fn parse_experimental_annotation(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<String, ExperimentalAnnotationParseError> {
+    let mut feature: Option<String> = None;
+
+    for arg in &ann.args {
+        let (key_span, value) = match (&arg.name, &arg.value.kind) {
+            // `@Experimental(feature = "...")`：固定 `name = value` 形态。
+            (None, ast::ExprKind::Assign { lhs, rhs, .. }) => {
+                let ast::ExprKind::Ident(id) = &lhs.kind else {
+                    return Err(ExperimentalAnnotationParseError::InvalidArgShape {
+                        span: lhs.span,
+                    });
+                };
+                if source.slice(id.span) != "feature" {
+                    return Err(ExperimentalAnnotationParseError::InvalidArgShape {
+                        span: id.span,
+                    });
+                }
+                (id.span, rhs.as_ref())
+            }
+            _ => {
+                return Err(ExperimentalAnnotationParseError::InvalidArgShape { span: arg.span });
+            }
+        };
+
+        if feature.is_some() {
+            return Err(ExperimentalAnnotationParseError::DuplicateFeature { span: key_span });
+        }
+
+        feature = Some(extract_experimental_string_arg(source, value)?);
+    }
+
+    feature.ok_or(ExperimentalAnnotationParseError::MissingFeature { span: ann.span })
+}
+
+fn extract_experimental_string_arg(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Result<String, ExperimentalAnnotationParseError> {
+    match expr.kind {
+        ast::ExprKind::StringLit => {
+            let raw = source.slice(expr.span);
+            match parse_string_literal_utf8(raw) {
+                Ok(text) => Ok(text),
+                Err(StringLiteralParseError::Invalid)
+                | Err(StringLiteralParseError::InvalidUtf8)
+                | Err(StringLiteralParseError::Interpolated) => {
+                    Err(ExperimentalAnnotationParseError::ArgMustBeString { span: expr.span })
+                }
+            }
+        }
+        _ => Err(ExperimentalAnnotationParseError::ArgMustBeString { span: expr.span }),
     }
 }
 

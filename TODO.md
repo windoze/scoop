@@ -948,7 +948,7 @@
   - `cargo run -p scoop_tools -- spec-fixtures check`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4012b [TODO] 补齐 non-inline built-in annotations 的编译器语义（拆分执行）
+### T4012b [DONE] 补齐 non-inline built-in annotations 的编译器语义（拆分执行）
 - 说明：
   - 当前条目同时混合了三类复杂度明显不同的工作：`@AllowIntrinsic` 的文件级 gate、`@Deprecated` 的 warning-on-use 合同，以及 `@Suppress` 所需的 warning-code / suppression / expression-annotation surface。
   - 现有前端虽然已具备注解 declaration / use-site 基础，但还没有“声明注解元数据沿调用路径传播 + 结构化 warning / suppression”这一整条主线；若不拆开，`@AllowIntrinsic` 这类局部 gate 很容易被 `@Deprecated/@Suppress` 的 warning 基础设施拖住。
@@ -956,6 +956,8 @@
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 9 条中除 `@Inline` 外的 built-in annotation behavior 缺口收窄或关闭。
 - 依赖：T4012a
+- 已完成：
+  - `T4012b1/T4012b2/T4012b3` 已全部完成，non-inline built-in annotation 主线现已覆盖 `@AllowIntrinsic` gate、`@Deprecated` warning-on-use 与 `@Suppress` warning-code / suppression surface。
 
 ### T4012b1 [DONE] 将 `@AllowIntrinsic` 收口为 file/module built-in gate，并禁止未授权的用户态 `@Intrinsic` 声明
 - 范围：
@@ -1018,7 +1020,7 @@
   - `cargo clippy --all-targets -- -D warnings`
   - `cargo run -p scoop_tools -- spec-fixtures check`
 
-### T4012c [TODO] 加入 built-in `@Experimental(val feature = "...")` annotation，作为保留的 feature-gate marker
+### T4012c [DONE] 加入 built-in `@Experimental(val feature = "...")` annotation，作为保留的 feature-gate marker
 - 范围：
   - 将 `@Experimental` 加入 built-in annotation surface，形状固定为带 `feature` 命名参数的 compile-time marker；默认方向是 `@Experimental(feature = "some_feature")`，并允许文档中保留 `val feature: String` 的声明叙事。
   - parser / resolver / typecheck / docs 需要统一其最小合同：它是 built-in annotation，会被编译器识别；参数形状需可校验；错误用法应有明确 diagnostics。
@@ -1028,6 +1030,18 @@
   - `@Experimental(feature = "...")` 已成为编译器识别的 built-in annotation，可作为未来 feature gate 的标准 marker。
   - 文档明确说明：当前只引入 annotation surface 与参数校验，不代表任何实验特性已经开始由它控制。
 - 依赖：T4012b3
+- 已完成：
+  - `BuiltinAnnotationKind` 已补入 `Experimental`，typecheck 现会把它识别为内建 compile-time marker，并把合法 target 收口为函数 / 类型 / 属性 / 文件。
+  - `@Experimental` 的 use-site 形状已固定为 `@Experimental(feature = "...")`；编译器会校验缺少 `feature`、参数非字符串字面量、非法 arg shape 与非法 target，并给出稳定 diagnostics。
+  - `sysroot/core.scoop`、`SCOOP_FULL_SPEC.md` 与 `ISSUES.md` 已同步更新，明确 `@Experimental` 当前只保留 built-in marker 与参数校验，不接入任何实际 feature-flag framework。
+  - 已新增 parse/typecheck fixtures，覆盖固定 `feature = "..."` surface、合法 file/function/type/property use-site，以及缺参、错误参数类型、非法形状与非法 target。
+- 已复验：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/parse`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4012R [TODO] Review：确认 annotation system 已收口为 compile-time markers，而不是新的复杂 nominal feature
 - 重点：

@@ -135,6 +135,12 @@ annotation class Deprecated(val message: String = "", val replaceWith: String = 
 // - 支持 expression / declaration / `@file:...` 三类 surface；
 // - 当前稳定 warning code：`deprecated` / `enum-size-disparity` / `redundant-when-else`。
 annotation class Suppress(vararg val warnings: String)
+// `@Experimental(feature = "...")`：保留的 feature-gate marker surface。
+//
+// 说明：
+// - 当前只保留 built-in marker 与参数校验，不接入任何具体 experimental feature；
+// - 规范 use-site 形状固定为 `@Experimental(feature = "...")`。
+annotation class Experimental(val feature: String)
 // `@CLayout(aligned?, packed?)`（spec §15.5.2）：
 // - `aligned`：可选的结构体整体对齐（0 表示未指定）
 // - `packed`：可选的 pack 值（0 表示未指定；v0 仅支持 packed = 1）

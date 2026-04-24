@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::builtin_annotation_invalid_target
+// EXPECT-ERROR: 内建注解 `@Experimental` 只能用于 函数 / 类型 / 属性 / 文件
+
+package fixtures.typecheck
+
+fun main(): Int {
+    return @Experimental(feature = "expr-gate") 1
+}

@@ -62,10 +62,10 @@
 - 影响：当前真正低风险、低改动的方向应是优先支持“无 binder 的 payload or-pattern”。若未来要放开 binder-sharing，则至少需要要求“各分支 binder 集合一致且每个 binder 精确同型”，不能把 `A(x) | C(x)` 这类情况宽松合流成 `Any`。另外，暂不应把 bare `A | C` 扩成“忽略 payload”的语法糖，因为 parser 当前把大写裸名解释为 0-arg variant。
 - 证据：`crates/scoopc/src/typecheck/when_pat.rs:89-103`；`crates/scoopc/src/typecheck/when_pat.rs:193-206`；`crates/scoopc/src/resolve/scopes.rs:940-950`；`crates/scoopc/src/parser/expr.rs:2077-2085`。
 
-## 9. annotation 的 declaration model 已收口为 compile-time markers only，但多项 built-in behavior 仍未兑现
+## 9. annotation 的 declaration model 已收口为 compile-time markers only，剩余问题主要是 `@Inline` 的独立收口
 
-- 现状：annotation class 已明确不是一般 nominal type / class 能力的延伸；实现与规范都已收口到“主构造 `val` 参数承载编译期 marker payload”的 data-only 子集，并拒绝 supertypes、type body、type/effect params 与 `where`。当前剩余缺口主要收窄为 built-in annotation behavior：编译器已硬编码识别 `Unsafe / Safe / NoGC / Extern / Intrinsic / AllowIntrinsic / CallingConvention`，并把 `@AllowIntrinsic` 收口为 file/module gate；spec 里写到的 `@Deprecated`、`@Inline`、`@Suppress` 等编译器语义仍未完全落地。
-- 影响：注解声明模型、use-site target 与 `@Target/@Retention` contract 已经统一；剩余 issue 不再是“annotation 要不要做成复杂 nominal feature”，而是 built-in annotations 的具体编译器行为仍不完整。
+- 现状：annotation class 已明确不是一般 nominal type / class 能力的延伸；实现与规范都已收口到“主构造 `val` 参数承载编译期 marker payload”的 data-only 子集，并拒绝 supertypes、type body、type/effect params 与 `where`。编译器现已硬编码识别 `Unsafe / Safe / NoGC / Extern / Intrinsic / AllowIntrinsic / Deprecated / Suppress / Experimental / CallingConvention`，`@AllowIntrinsic` 已收口为 file/module gate，`@Deprecated`/`@Suppress`/`@Experimental` 的最小 surface 也已落地。当前真正剩余的交叉项主要集中在 `@Inline` 与 legacy `inline` 关键字/控制流语义残留。
+- 影响：注解声明模型、use-site target 与 `@Target/@Retention` contract 已经统一；剩余 issue 不再是“annotation 要不要做成复杂 nominal feature”，而是需要把 `@Inline` 从 legacy inline 语义中彻底剥离，并单独收口到纯 compile-time marker。
 - 证据：`crates/scoopc/src/typecheck/annotations.rs`；`crates/scoopc/src/typecheck/builtin_annotations.rs`；`crates/scoopc/src/resolve/mod.rs`；`SCOOP_FULL_SPEC.md` 第 15 节。
 
 ## 10. 应先删除 legacy `inline` / non-local return 语义残留；新设计另议
