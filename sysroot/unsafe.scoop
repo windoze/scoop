@@ -129,6 +129,8 @@ fun <T, A, B, R> FunPtr<T.(A, B) -> R>.invoke(receiver: T, a0: A, a1: B): R
 // - raw pointers（`Ptr<T>`）的完整规范 API 已在本文件上方提供（`addressOf/stackAlloc/load/store/...`）；
 // - 但原子操作仍采用“第一个实参必须是可寻址变量槽（lvalue）”的约束，由编译器在 codegen 阶段直接对该变量
 //   的存储位置生成 atomic load/store/cmpxchg（避免引入新的原子内存布局或额外指针门禁点）。
+// - 当前 memory order 固定为 SeqCst；core `Task` 的 claim-bit cross-thread handoff 直接依赖它
+//   发布 `Waiting/Completed` 状态，因此不能在不更新 substrate contract 的前提下静默放宽。
 
 /// word-sized atomic integer. Same layout as `Int`.
 typealias __AtomicInt = Int

@@ -118,6 +118,11 @@ pub fn run_all(
         return run_typecheck_multi_case(&session, fixtures_root, fixtures_root)
             .wrap_err_with(|| format!("typecheck_multi case 失败：{}", fixtures_root.display()));
     }
+    if is_run_pass_cone_case_root(fixtures_root) {
+        let run_pass_cone_root = fixtures_root.parent().unwrap_or(fixtures_root);
+        return run_run_pass_cone_case(run_pass_cone_root, fixtures_root, opt_level, run_pass_env)
+            .wrap_err_with(|| format!("run_pass_cone case 失败：{}", fixtures_root.display()));
+    }
 
     // T0307：`resolve_multi/<case>/` 采用“目录作为编译单元”的形式，因此需要把这些 `.scoop`
     // 从单文件扫描里排除，并由专门的 case 运行器以“多文件 + 单一 index”方式执行。
@@ -133,7 +138,7 @@ pub fn run_all(
     let typecheck_cone_archive_root = fixtures_root.join("typecheck_cone_archive");
     let typecheck_cone_archive_cases =
         collect_typecheck_cone_archive_cases(&typecheck_cone_archive_root)?;
-    let run_pass_cone_root = fixtures_root.join("run_pass_cone");
+    let run_pass_cone_root = run_pass_cone_root(fixtures_root);
     let run_pass_cone_cases = collect_run_pass_cone_cases(&run_pass_cone_root)?;
 
     let mut files = Vec::new();
@@ -220,6 +225,27 @@ fn is_typecheck_multi_case_root(fixtures_root: &Path) -> bool {
             .parent()
             .and_then(Path::file_name)
             .is_some_and(|name| name == "typecheck_multi")
+}
+
+fn is_run_pass_cone_case_root(fixtures_root: &Path) -> bool {
+    fixtures_root.is_dir()
+        && fixtures_root
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == "run_pass_cone")
+        && fixtures_root.join("Cone.toml").is_file()
+        && fixtures_root.join("src").join("main.scoop").is_file()
+}
+
+fn run_pass_cone_root(fixtures_root: &Path) -> PathBuf {
+    if fixtures_root
+        .file_name()
+        .is_some_and(|name| name == std::ffi::OsStr::new("run_pass_cone"))
+    {
+        fixtures_root.to_path_buf()
+    } else {
+        fixtures_root.join("run_pass_cone")
+    }
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -2749,7 +2775,10 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use super::{RunPassEnvOverrides, phase_name, run_all, strip_deleted_exe_suffix};
+    use super::{
+        RunPassEnvOverrides, is_run_pass_cone_case_root, phase_name, run_all, run_pass_cone_root,
+        strip_deleted_exe_suffix,
+    };
 
     #[test]
     fn phase_name_uses_relative_phase_dir_when_present() {
@@ -2786,6 +2815,28 @@ mod tests {
         let deleted = Path::new("/tmp/target/debug/scoop (deleted)");
         let stripped = strip_deleted_exe_suffix(deleted).unwrap();
         assert_eq!(stripped, Path::new("/tmp/target/debug/scoop"));
+    }
+
+    #[test]
+    fn run_pass_cone_root_uses_subset_root_directly() {
+        let subset_root = Path::new("tests/fixtures/run_pass_cone");
+        assert_eq!(run_pass_cone_root(subset_root), subset_root);
+    }
+
+    #[test]
+    fn is_run_pass_cone_case_root_detects_cone_case_dir() {
+        let dir = tempdir().unwrap();
+        let case_dir = dir.path().join("run_pass_cone").join("cone_case");
+        let src_dir = case_dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+        fs::write(case_dir.join("Cone.toml"), "[cone]\nname = \"cone-case\"\n").unwrap();
+        fs::write(
+            src_dir.join("main.scoop"),
+            "// EXPECT: pass\npackage fixtures.run_pass_cone.case\npublic fun main() / Pure! {}",
+        )
+        .unwrap();
+
+        assert!(is_run_pass_cone_case_root(&case_dir));
     }
 
     #[test]

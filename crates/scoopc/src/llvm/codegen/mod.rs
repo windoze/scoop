@@ -7631,9 +7631,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_pointer_cast(fn_ptr_raw, start_fn_ptr_ty, "thread_fn_typed")?;
 
         let rt = self.declare_runtime_thread_spawn();
-        let call =
-            self.builder
-                .build_call(rt, &[env_ptr.into(), start_fn_ptr.into()], "thread_spawn")?;
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt,
+            &[env_ptr.into(), start_fn_ptr.into()],
+            "thread_spawn",
+        )?;
         let raw = call
             .try_as_basic_value()
             .basic()
@@ -7690,9 +7693,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let rt = self.declare_runtime_thread_join();
-        let _ = self
-            .builder
-            .build_call(rt, &[recv_ptr.into()], "thread_join")?;
+        let _ =
+            self.build_call_preserving_gc_local_roots(span, rt, &[recv_ptr.into()], "thread_join")?;
         Ok(CgValue::unit())
     }
 
@@ -7734,9 +7736,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ms_i64 = self.cast_int(ms_raw, ms_from, ms_to)?;
 
         let rt = self.declare_runtime_thread_sleep_millis();
-        let _ = self
-            .builder
-            .build_call(rt, &[ms_i64.into()], "thread_sleep_millis")?;
+        let _ = self.build_call_preserving_gc_local_roots(
+            span,
+            rt,
+            &[ms_i64.into()],
+            "thread_sleep_millis",
+        )?;
         Ok(CgValue::unit())
     }
 
@@ -7754,7 +7759,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let rt = self.declare_runtime_thread_yield();
-        let _ = self.builder.build_call(rt, &[], "thread_yield")?;
+        let _ = self.build_call_preserving_gc_local_roots(span, rt, &[], "thread_yield")?;
         Ok(CgValue::unit())
     }
 

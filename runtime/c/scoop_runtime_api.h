@@ -187,6 +187,10 @@
   X(scoop_test_sync_mutex_destroy_count) \
   X(scoop_test_sync_once_destroy_count) \
   X(scoop_test_stackmap_statepoint_smoke) \
+  X(scoop_test_thread_spawn_gate_enable) \
+  X(scoop_test_thread_spawn_gate_entered) \
+  X(scoop_test_thread_spawn_gate_release) \
+  X(scoop_test_thread_spawn_gate_reset) \
   X(scoop_test_unwind_capture_ips) \
   X(scoop_test_unwind_dump_frames_and_stackmap_hits) \
   X(scoop_thread_current_id) \

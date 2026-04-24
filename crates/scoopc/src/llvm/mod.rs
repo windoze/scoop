@@ -2587,6 +2587,104 @@ fun main(): Int {
     }
 
     #[test]
+    fn task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async { 41 }
+    return when (task.step()) {
+        TaskStep.Pending -> 0
+        TaskStep.Ready(value) -> value
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("cmpxchg ptr addrspace(1) %class_field_gep, i64 0, i64 1 seq_cst seq_cst"),
+            "Task.step() 的 claim acquire 必须保持 seq_cst cmpxchg，以支撑 cross-thread sequential handoff"
+        );
+        assert!(
+            ir.contains("store atomic i64 0, ptr addrspace(1) %class_field_gep seq_cst"),
+            "Task.step() 的 claim release 必须保持 seq_cst store，以发布 Waiting/Completed 状态"
+        );
+        assert!(
+            ir.contains("@scoop_process_exit"),
+            "claim 冲突或 Running 观察的 single-driver 误用应继续降到 fatal trap"
+        );
+        assert!(
+            !ir.contains("@scoop_sync_mutex_create")
+                && !ir.contains("@scoop_sync_mutex_lock")
+                && !ir.contains("@scoop_sync_mutex_unlock")
+                && !ir.contains("@scoop_sync_mutex_destroy"),
+            "Task.step() 不应再回退到 per-task mutex 实现"
+        );
+        assert!(
+            !ir.contains("@scoop_thread_yield"),
+            "claim 冲突不应回退到自旋 yield；应直接 trap"
+        );
+    }
+
+    #[test]
+    fn thread_join_statepoint_preserves_live_gc_locals() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop"
+            )),
+        );
+
+        let session = Session::new().unwrap();
+        let context = Context::create();
+        let module = build_minimal_main_module(&session, &source, &context).unwrap();
+        let (target_machine, _target_info) =
+            target::host_target_machine_with_opt_level(OptLevel::O0).unwrap();
+        run_pass_pipeline(&module, &target_machine, OptLevel::O0).unwrap();
+        let ir = module.print_to_string().to_string();
+
+        let join_idx = ir
+            .find("@scoop_thread_join")
+            .expect("IR 应包含 `scoop_thread_join` 调用");
+        let join_window_start = join_idx.saturating_sub(400);
+        let join_window_end = std::cmp::min(join_idx + 1400, ir.len());
+        let join_window = &ir[join_window_start..join_window_end];
+
+        assert!(
+            join_window.contains("%inner"),
+            "thread.join statepoint 应保留仍在当前 frame 里的 `inner` root\n{join_window}"
+        );
+        assert!(
+            join_window.contains("%outer"),
+            "thread.join statepoint 应保留仍在当前 frame 里的 `outer` root\n{join_window}"
+        );
+        assert!(
+            join_window.contains("%worker"),
+            "thread.join statepoint 应保留 `worker` root 并在返回后写回槽位\n{join_window}"
+        );
+        assert!(
+            join_window.matches("gc_root_keepalive_").count() >= 3,
+            "thread.join statepoint 应显式 spill 至少三个 GC local keepalive，而不是只保留 receiver 参数\n{join_window}"
+        );
+        assert!(
+            join_window.contains(r#"[ "gc-live"("#),
+            "thread.join 调用点应继续走 LLVM statepoint `gc-live` roots 合同\n{join_window}"
+        );
+        assert!(
+            join_window.contains("store ptr addrspace(1) %gc_root_keepalive_"),
+            "thread.join 返回后应把 relocated keepalive 写回真实 local root 槽位\n{join_window}"
+        );
+    }
+
+    #[test]
     fn single_file_minimal_ir_includes_compilable_sysroot_string_helpers() {
         let source = SourceFile::new_virtual(
             "<mem>",

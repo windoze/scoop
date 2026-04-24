@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -678,7 +678,7 @@
   - `cargo clippy --all-targets -- -D warnings`
   - `cargo run -p scoop -- test`（`fixtures: ok (1168)`）
 
-### T4016T8 [TODO] 收口编译器 / runtime / substrate 对无锁 Task 的 handoff 与 trap 合同
+### T4016T8 [DONE] 收口编译器 / runtime / substrate 对无锁 Task 的 handoff 与 trap 合同
 - 范围：
   - 清理 async lowering、LLVM/runtime 注释与任何剩余实现分支中“contention 可能返回 `Pending`”或“Task 依赖 mutex serialization”的假设，统一到 single-driver + claim-bit contract。
   - 明确并实现 cross-thread sequential handoff 所需的 atomic / memory-order 最小合同，确认不同线程顺序 drive 同一 `Task` 时 continuation / GC / thread registration 路径仍然正确。
@@ -687,6 +687,22 @@
 - 验收：
   - 生产代码中不再残留“竞争失败返回 `Pending`”或“Task 依赖 per-task mutex”的旁路。
   - 无锁 `Task` 在顺序跨线程 handoff 场景下可稳定工作，runtime / compiler / sysroot 合同一致。
+- 已完成：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 中 `threadSpawn` / `Thread.join` / `sleepMillis` / `yield` 现统一走 `build_call_preserving_gc_local_roots(...)`，不再把 blocking/safepoint 线程调用当作普通 leaf call。
+  - 修复了 `worker.join()` 期间 moving GC 不会更新 caller frame `inner` / `outer` / `worker` roots 的 compiler 缺口；`tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop` 已能稳定覆盖 spawn pin、cross-thread handoff、join 后继续 collect/step 的整条路径。
+  - 新增 LLVM 单测 `thread_join_statepoint_preserves_live_gc_locals`，直接锁定 `@scoop_thread_join` 的 statepoint `gc-live` 里包含 `inner / outer / worker` keepalive，且调用后把 relocated roots 写回真实局部槽位。
+  - 在全量验收中还顺手收口了一个既有 fixtures runner 缺口：`crates/scoop/src/fixtures/mod.rs` 现在正确支持 `--fixtures tests/fixtures/run_pass_cone` 与 `--fixtures tests/fixtures/run_pass_cone/<case>`，不再把 cone case 名误识别成 phase 名。
+- 已复验：
+  - `cargo test -p scoopc --features llvm thread_join_statepoint_preserves_live_gc_locals -- --nocapture`
+  - `cargo test -p scoopc --features llvm task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex -- --nocapture`
+  - `env SCOOP_GC_MOVE=1 /tmp/task_step_cross_thread_sequential_handoff_gc_stress.out`
+  - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 /tmp/task_step_cross_thread_sequential_handoff_gc_stress.out`
+  - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 /tmp/task_step_cross_thread_sequential_handoff_gc_stress.out`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (24)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone`（`fixtures: ok (19)`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1169)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4016T7a
 
 ### T4016T9 [TODO] 全量同步 core Task 无锁 single-driver 合同的文档、规格与源码注释
