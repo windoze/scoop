@@ -22,10 +22,10 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R` 与 `T4013` 均已完成；当前主线转入 `T4013R`。
+1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013` 与 `T4013R` 均已完成；当前主线转入 `T4014a`。
 2. `CONTINUATION.md` 已收口为显式 `EffectCtx` / `EffectOutcome` 的实施基线，且 `T4017R` 已确认 ordinary boundary、continuation resume 与文档叙事均不再把 ambient effect TLS 当成 source of truth。
 3. `ISSUES.md` 第 9 条：`@Inline` 交叉项已随 `T4013` 收口，不再构成 annotation blocker
-4. `ISSUES.md` 第 10 条：legacy `inline` 关键字与 non-local return 语义残留已移除；下一步执行 `T4013R`
+4. `ISSUES.md` 第 10 条：legacy `inline` 关键字与 non-local return 语义残留已由 `T4013R` review 确认关闭；下一步执行 `T4014a`
 5. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
 6. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
 
@@ -304,7 +304,7 @@
   - 因此当前剩余顺序为：
     - `T4017a`：先更新 `CONTINUATION.md`、spec 与 runtime 设计文档，收口显式 `EffectCtx` / `EffectOutcome` 叙事。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4017R`、`T4012b3`、`T4012c`、`T4012R` 与 `T4013` 已完成；后续顺序为 `T4013R -> T4014a -> T4014b -> T4014R`。
+- 当前状态：`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013` 与 `T4013R` 已完成；后续顺序为 `T4014a -> T4014b -> T4014R`。
 
 ### P1.6. continuation / effect runtime 显式上下文化（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e1 -> T4017e2 -> T4017e3 -> T4017f -> T4017R`）
 
@@ -368,7 +368,7 @@
     - continuation resume 的权威恢复状态已收口为 captured handler context、continuation/frame metadata 与显式 resume token；`scoop_callee_suspend_state_get()` 不再被生产 codegen 当作恢复入口。
     - `state_machine_emitter` 中保留的 TLS handler-stack / perform-slot / active 读取与 `CONTINUATION.md`、`docs/effect_unified_state_machine.md` 的叙事一致，只承担 direct `perform` / hidden-suspend / arm-cleanup 的局部 transport，不再把 ambient TLS 当成语义 source of truth。
     - 已复验 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-- 当前状态：`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R` 与 `T4013` 已完成，`T4017e` 已整体收口。下一步执行 `T4013R`。
+- 当前状态：`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013` 与 `T4013R` 已完成，`T4017e` 已整体收口。下一步执行 `T4014a`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
@@ -410,12 +410,17 @@
   - typecheck 已删除 inline-specific 的 lambda non-local return 例外，`return` 在 lambda 中统一报 `scoop::typecheck::return_not_in_function_body`。
   - `@Inline` 已纳入 built-in annotation 识别，并收口为“仅函数目标、无参数”的 compile-time marker；`sysroot/core.scoop` 与 `SCOOP_FULL_SPEC.md` 已同步切到 `@Inline` surface。
   - 已新增 `inline_modifier_removed.scoop`、`inline_annotation_fun_ok.scoop`、`inline_annotation_invalid_target_is_error.scoop` 与 `return_in_inline_annotation_lambda_arg_is_error.scoop` 等回归，并复验 `cargo run -p scoop -- test --fixtures tests/fixtures/parse`（`fixtures: ok (123)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (394)`）、`cargo run -p scoop -- test`（`fixtures: ok (1197)`）、`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-- 当前状态：annotation marker / inline keyword cleanup 主线已收口，`T4012R` 与 `T4013` 已完成；本组剩余顺序为 `T4013R`。
+- `T4013R` 已完成：
+  - 复扫 parser / lexer / AST 后，已确认 `Keyword::Inline` 仅作为 removed-syntax 诊断入口保留；生产声明主线不会再接受 `inline` modifier，也不存在写回旧 modifier 语义的旁路。
+  - 复扫 annotation / typecheck / lowering / codegen 后，已确认 `@Inline` 只参与 built-in annotation 识别与 target/参数校验；表达式、局部绑定等非函数目标会稳定报错，生产 lowering/runtime 中不存在 `@Inline` 控制流或 ABI special-case。
+  - 复扫 `return` 规则与文档后，已确认 lambda 中的 `return` 统一只允许离开立即包裹它的命名函数体；`SCOOP_FULL_SPEC.md`、`sysroot/core.scoop` 与 `ISSUES.md` 叙事一致，若未来要重引 non-local control，只能另立 deferred 设计任务。
+  - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/parse`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop_tools -- spec-fixtures check` 通过。
+- 当前状态：annotation marker / inline keyword cleanup 主线已收口，`T4012R`、`T4013` 与 `T4013R` 已完成；下一步进入 `T4014a`。
 
 ### P3. FFI / ABI 边界收口
 
 - 聚焦普通 `@Extern` 的 effect-impermeable 边界，以及 stable handle / `Pinned` 的职责分离：stable handle 负责 long-lived identity / wake token，`Pinned` 只负责短时裸地址借出。
-- 当前状态：`T4014a -> T4014b -> T4014R` 待开始；依赖 `T4013R`。
+- 当前状态：`T4014a -> T4014b -> T4014R` 待开始；下一步执行 `T4014a`。
 
 ### P4. const / comptime 扩展
 

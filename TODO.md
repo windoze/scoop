@@ -3,12 +3,12 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），`T4017` 的显式 `EffectCtx` / `EffectOutcome` 收口与 `T4013` 的 annotation / `inline` 清理现已完成，接下来先做 `T4013R` review，再进入 FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），`T4017` 的显式 `EffectCtx` / `EffectOutcome` 收口、`T4013` 的 annotation / `inline` 清理以及 `T4013R` review 现已完成，接下来进入 FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4013R` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -1081,11 +1081,22 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4012R
 
-### T4013R [TODO] Review：确认 `inline` 已移除，且 `@Inline` 不再参与控制流语义
+### T4013R [DONE] Review：确认 `inline` 已移除，且 `@Inline` 不再参与控制流语义
 - 重点：
   - 不允许把旧的 non-local return 规则换个入口继续保留。
   - 不允许保留“关键字负责语法，annotation 负责语义”的双轨 inline surface；若仍存在兼容诊断，也只能作为明确的 removed-syntax 指引。
   - 若未来还要重新引入相关能力，也只能作为显式 deferred design item 留下。
+- 已完成：
+  - 复扫 parser / lexer / AST 后，已确认 `Keyword::Inline` 仅为 removed-syntax 诊断保留；`parse_decl_prefix(...)` 遇到 `inline` 只记录 `scoop::parse::inline_modifier_removed`，不会再把它写入任何声明 modifier 或生产 AST 语义路径。
+  - 复扫 annotation / typecheck / lowering / codegen 后，已确认 `@Inline` 只参与 built-in annotation 识别与“仅函数目标、无参数”的静态校验；表达式、局部绑定等非函数位置会通过 `check_inline_annotation_uses(...)` 稳定拒绝，生产 lowering/runtime 中不存在 `@Inline` special-case。
+  - 复扫 `return` 规则与文档叙事后，已确认 lambda 中 `return` 统一使用 `scoop::typecheck::return_not_in_function_body`；`SCOOP_FULL_SPEC.md`、`sysroot/core.scoop`、`ISSUES.md`、`PLAN.md` 与 `TODO.md` 现都把 `@Inline` 表述为纯 compile-time marker / 优化提示。若未来要重新设计 non-local control，只能另立 deferred task，不再回挂到 `@Inline`。
+- 已复验：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/parse`（`fixtures: ok (123)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (394)`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1197)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
 - 依赖：T4013
 
 ## T4014：FFI / ABI 边界与 stable handle / pin 职责分离
