@@ -2,6 +2,28 @@
 use scoop_runtime as _;
 use std::ffi::c_void;
 
+#[repr(C)]
+struct ScoopValueTransport {
+    word: u64,
+    gc_ref: *mut c_void,
+}
+
+#[repr(C)]
+struct ScoopEffectSignal {
+    op_tag: u32,
+    effect_instance_key: u32,
+    payload: ScoopValueTransport,
+    resume_token: *mut c_void,
+}
+
+#[repr(C)]
+struct ScoopEffectOutcome {
+    tag: u32,
+    reserved_u32: u32,
+    complete: ScoopValueTransport,
+    signal: ScoopEffectSignal,
+}
+
 unsafe extern "C" {
     fn scoop_runtime_init();
 
@@ -9,6 +31,8 @@ unsafe extern "C" {
     fn scoop_thread_unregister();
 
     fn scoop_effect_is_active() -> u32;
+    fn scoop_effect_outcome_consume_current(outcome: *mut ScoopEffectOutcome);
+    fn scoop_effect_outcome_publish(outcome: *const ScoopEffectOutcome);
     fn scoop_effect_set_active();
     fn scoop_effect_clear();
 
@@ -201,5 +225,86 @@ fn effect_tls_callee_suspend_state_clear_and_unregister_are_observable() {
             scoop_callee_suspend_state_get().is_null(),
             "thread unregister should clear any stale callee suspend TLS state"
         );
+    }
+}
+
+#[test]
+fn effect_outcome_roundtrip_consumes_and_republishes_current_tls_signal() {
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+
+        scoop_effect_clear();
+
+        let once = scoop_sync_once_create();
+        assert!(!once.is_null(), "sync once object must be allocated");
+
+        scoop_effect_perform_slot_write_u64_with_gc_ref(31, 47, 99, once);
+        scoop_effect_set_active();
+        assert_eq!(scoop_effect_is_active(), 1);
+
+        let mut outcome = ScoopEffectOutcome {
+            tag: u32::MAX,
+            reserved_u32: u32::MAX,
+            complete: ScoopValueTransport {
+                word: u64::MAX,
+                gc_ref: once,
+            },
+            signal: ScoopEffectSignal {
+                op_tag: u32::MAX,
+                effect_instance_key: u32::MAX,
+                payload: ScoopValueTransport {
+                    word: u64::MAX,
+                    gc_ref: once,
+                },
+                resume_token: once,
+            },
+        };
+
+        scoop_effect_outcome_consume_current(&mut outcome);
+        assert_eq!(outcome.tag, 1, "active TLS signal should become Propagate");
+        assert_eq!(outcome.signal.op_tag, 31);
+        assert_eq!(outcome.signal.effect_instance_key, 47);
+        assert_eq!(outcome.signal.payload.word, 99);
+        assert_eq!(outcome.signal.payload.gc_ref, once);
+        assert!(
+            outcome.signal.resume_token.is_null(),
+            "current TLS signal does not yet carry a resume token"
+        );
+        assert_eq!(
+            scoop_effect_is_active(),
+            0,
+            "consume should clear the active flag from TLS"
+        );
+        assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
+
+        scoop_effect_outcome_publish(&outcome);
+        assert_eq!(
+            scoop_effect_is_active(),
+            1,
+            "publish should restore the active flag"
+        );
+        assert_eq!(scoop_effect_perform_slot_read_op_tag(), 31);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 47);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 99);
+        assert_eq!(scoop_effect_perform_slot_read_gc_ref(), once);
+
+        outcome.tag = 0;
+        outcome.signal.op_tag = 0;
+        outcome.signal.effect_instance_key = 0;
+        outcome.signal.payload.word = 0;
+        outcome.signal.payload.gc_ref = std::ptr::null_mut();
+        scoop_effect_outcome_publish(&outcome);
+        assert_eq!(scoop_effect_is_active(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
+
+        scoop_thread_unregister();
     }
 }

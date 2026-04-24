@@ -29,6 +29,186 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self.llvm_effect_outcome_struct_type();
     }
 
+    pub(in crate::llvm::codegen) fn alloc_effect_ctx_slot(
+        &mut self,
+        at: crate::span::Span,
+        label: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.register_effect_contract_types();
+        self.create_entry_alloca_raw(
+            at,
+            &format!("{label}_effect_ctx"),
+            self.llvm_effect_ctx_struct_type().into(),
+        )
+    }
+
+    pub(in crate::llvm::codegen) fn alloc_effect_outcome_slot(
+        &mut self,
+        at: crate::span::Span,
+        label: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.register_effect_contract_types();
+        self.create_entry_alloca_raw(
+            at,
+            &format!("{label}_effect_outcome"),
+            self.llvm_effect_outcome_struct_type().into(),
+        )
+    }
+
+    pub(in crate::llvm::codegen) fn prepare_current_effect_call_contract(
+        &mut self,
+        at: crate::span::Span,
+        label: &str,
+    ) -> Result<(PointerValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
+        let ctx_slot = self.alloc_effect_ctx_slot(at, label)?;
+        self.capture_current_effect_ctx_into_slot(at, ctx_slot, label)?;
+        let outcome_slot = self.alloc_effect_outcome_slot(at, label)?;
+        Ok((ctx_slot, outcome_slot))
+    }
+
+    pub(in crate::llvm::codegen) fn capture_current_effect_ctx_into_slot(
+        &mut self,
+        at: crate::span::Span,
+        ctx_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let get_top = self.declare_runtime_effect_handler_stack_top();
+        let top = self
+            .build_call_preserving_gc_local_roots(at, get_top, &[], &format!("{label}_ctx_top"))?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect_handler_stack_top return",
+                at: at.into(),
+            })?
+            .into_pointer_value();
+        let field_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_ctx_struct_type(),
+            ctx_slot,
+            0,
+            &format!("{label}_ctx_handler_top_ptr"),
+        )?;
+        self.builder.build_store(field_ptr, top)?;
+        Ok(())
+    }
+
+    pub(in crate::llvm::codegen) fn load_effect_ctx_handler_top_from_slot(
+        &mut self,
+        at: crate::span::Span,
+        ctx_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let field_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_ctx_struct_type(),
+            ctx_slot,
+            0,
+            &format!("{label}_ctx_handler_top_ptr"),
+        )?;
+        let loaded = self.builder.build_load(
+            self.llvm_i8_ptr_type(),
+            field_ptr,
+            &format!("{label}_ctx_handler_top"),
+        )?;
+        let BasicValueEnum::PointerValue(ptr) = loaded else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect ctx handler_top value",
+                at: at.into(),
+            });
+        };
+        Ok(ptr)
+    }
+
+    pub(in crate::llvm::codegen) fn swap_effect_handler_stack_top(
+        &mut self,
+        at: crate::span::Span,
+        new_top: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let swap = self.declare_runtime_effect_handler_stack_swap_top();
+        let saved_top = self
+            .build_call_preserving_gc_local_roots(
+                at,
+                swap,
+                &[new_top.into()],
+                &format!("{label}_swap_handler_top"),
+            )?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect_handler_stack_swap_top return",
+                at: at.into(),
+            })?
+            .into_pointer_value();
+        Ok(saved_top)
+    }
+
+    pub(in crate::llvm::codegen) fn consume_current_effect_outcome_into(
+        &mut self,
+        at: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let consume = self.declare_runtime_effect_outcome_consume_current();
+        let _ = self.build_call_preserving_gc_local_roots(
+            at,
+            consume,
+            &[outcome_slot.into()],
+            &format!("{label}_consume_outcome"),
+        )?;
+        Ok(())
+    }
+
+    pub(in crate::llvm::codegen) fn publish_effect_outcome_from_slot(
+        &mut self,
+        at: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let publish = self.declare_runtime_effect_outcome_publish();
+        let _ = self.build_call_preserving_gc_local_roots(
+            at,
+            publish,
+            &[outcome_slot.into()],
+            &format!("{label}_publish_outcome"),
+        )?;
+        Ok(())
+    }
+
+    pub(in crate::llvm::codegen) fn effect_outcome_is_propagating(
+        &mut self,
+        at: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let tag_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_outcome_struct_type(),
+            outcome_slot,
+            0,
+            &format!("{label}_effect_outcome_tag_ptr"),
+        )?;
+        let tag = self
+            .builder
+            .build_load(
+                self.context.i32_type(),
+                tag_ptr,
+                &format!("{label}_effect_outcome_tag"),
+            )?
+            .into_int_value();
+        let is_propagating = self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            tag,
+            self.context.i32_type().const_zero(),
+            &format!("{label}_effect_outcome_is_propagating"),
+        )?;
+        if tag.get_type() != self.context.i32_type() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect outcome tag type",
+                at: at.into(),
+            });
+        }
+        Ok(is_propagating)
+    }
+
     pub(super) fn null_effect_resume_token(&self) -> PointerValue<'ctx> {
         self.llvm_gc_i8_ptr_type().const_null()
     }

@@ -438,6 +438,13 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - replay path 则从 runtime TLS 取回“上一次 suspend outward 时挂起的 inner continuation”，
     ///   再把新的 resume payload 送回该 inner continuation，最后继续执行原 call site 之后的外层状态。
     current_continuation_resume_replay: bool,
+    /// 当前 `SuspendCall` fresh path 正在捕获的显式 outcome 边界。
+    ///
+    /// 仅 direct / closure / funptr ordinary call 会写入这份捕获状态；
+    /// state-machine terminator 读取后即可改用显式 outcome，而不是再次 probing TLS active。
+    active_suspend_site_effect_outcome_capture: Option<ActiveSuspendSiteEffectOutcomeCapture>,
+    /// 已由当前 step function 某个 `SuspendCall` 捕获到的显式 outcome slot。
+    suspend_site_explicit_effect_outcomes: HashMap<u32, PointerValue<'ctx>>,
     /// 当前正在展开的顶层 `const val` 栈；用于避免递归引用导致无限 codegen。
     top_level_const_eval_stack: Vec<String>,
 }
@@ -455,6 +462,12 @@ struct ReturnContext<'ctx> {
     return_bb: inkwell::basic_block::BasicBlock<'ctx>,
     /// Alloca for storing the return value (None for Unit return type).
     return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ActiveSuspendSiteEffectOutcomeCapture {
+    site_id: u32,
+    call_span: crate::span::Span,
 }
 
 /// 统一 state-machine runtime function 内部的 early-return 桥接上下文。
@@ -652,6 +665,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current_sret_return_ptr: None,
             current_callee_suspend_plan: None,
             current_continuation_resume_replay: false,
+            active_suspend_site_effect_outcome_capture: None,
+            suspend_site_explicit_effect_outcomes: HashMap::new(),
             top_level_const_eval_stack: Vec::new(),
         }
     }
@@ -1176,6 +1191,210 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.mark_gc_leaf_function(llvm_fun);
         }
         Ok(llvm_fun)
+    }
+
+    fn declare_top_level_fun_effect_call_wrapper(
+        &mut self,
+        fun: &hir::FunDecl,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let wrapper_name = top_level_effect_call_wrapper_fn_name(&fun.fqn);
+        if let Some(existing) = self.module.get_function(&wrapper_name) {
+            return Ok(existing);
+        }
+
+        let return_cg = self
+            .cg_ty_of(fun.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect call wrapper return type",
+                at: fun.span.into(),
+            })?;
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(fun.span, return_cg)?;
+        let ptr_ty = self.context.ptr_type(AddressSpace::default());
+
+        let mut llvm_params =
+            Vec::with_capacity(fun.params.len() + 2 + usize::from(hidden_sret_result_ty.is_some()));
+        if hidden_sret_result_ty.is_some() {
+            llvm_params.push(ptr_ty.into());
+        }
+        llvm_params.push(ptr_ty.into()); // EffectCtx*
+        llvm_params.push(ptr_ty.into()); // EffectOutcome*
+        for param in &fun.params {
+            llvm_params.push(
+                self.ordinary_param_abi(param.span, param.ty)?
+                    .llvm_param_ty(),
+            );
+        }
+
+        let fn_ty = match (hidden_sret_result_ty, return_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_params, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(fun.span, other)?
+                .fn_type(&llvm_params, false),
+        };
+
+        let wrapper = self.module.add_function(&wrapper_name, fn_ty, None);
+        wrapper.set_call_conventions(0);
+        wrapper.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_function(wrapper, 0, result_ty);
+        }
+        Ok(wrapper)
+    }
+
+    fn ensure_top_level_fun_effect_call_wrapper_defined(
+        &mut self,
+        fun: &hir::FunDecl,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let wrapper = self.declare_top_level_fun_effect_call_wrapper(fun)?;
+        if wrapper.get_first_basic_block().is_some() {
+            return Ok(wrapper);
+        }
+
+        let legacy_fun = self.declare_top_level_fun(fun)?;
+        let saved_block = self.builder.get_insert_block();
+        let mut wrapper_codegen = MainCodegen::new(MainCodegenInputs {
+            context: self.context,
+            module: self.module,
+            builder: self.builder,
+            target_data: self.target_data,
+            host: self.host,
+            source_map: self.source_map,
+            entry_source_id: self.entry_source_id,
+            types: self.types,
+            struct_layouts: self.struct_layouts,
+            enum_layouts: self.enum_layouts,
+            top_level_vars: self.top_level_vars,
+            top_level_consts: self.top_level_consts,
+            top_level_immutable_values: self.top_level_immutable_values,
+            object_inits: self.object_inits,
+            class_inits: self.class_inits,
+            class_vtables: self.class_vtables,
+            interfaces: self.interfaces,
+            class_itables: self.class_itables,
+            ctor_call_sites: self.ctor_call_sites,
+            effect_op_call_sites: self.effect_op_call_sites,
+            handle_payload_tuple_tys: self.handle_payload_tuple_tys,
+            continuation_resume_call_sites: self.continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites: self.non_pure_continuation_resume_call_sites,
+            when_pat_binding_tys: self.when_pat_binding_tys,
+            nominal_kinds: self.nominal_kinds,
+            nominal_variances: self.nominal_variances,
+            direct_supertypes: self.direct_supertypes,
+            builtins: self.builtins,
+            extern_funs: self.extern_funs,
+            fun_index: self.fun_index,
+            effect_op_tags: Rc::clone(&self.effect_op_tags),
+        });
+        wrapper_codegen.codegen_top_level_fun_effect_call_wrapper(fun, legacy_fun, wrapper)?;
+
+        if let Some(bb) = saved_block {
+            self.builder.position_at_end(bb);
+        }
+        Ok(wrapper)
+    }
+
+    fn codegen_top_level_fun_effect_call_wrapper(
+        &mut self,
+        fun: &hir::FunDecl,
+        legacy_fun: FunctionValue<'ctx>,
+        wrapper_fun: FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let entry = self.context.append_basic_block(wrapper_fun, "entry");
+        self.builder.position_at_end(entry);
+
+        let return_cg = self
+            .cg_ty_of(fun.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect call wrapper return type",
+                at: fun.span.into(),
+            })?;
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(fun.span, return_cg)?;
+        let mut param_index = 0u32;
+
+        let sret_param = if hidden_sret_result_ty.is_some() {
+            let value = wrapper_fun
+                .get_nth_param(param_index)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect call wrapper sret param",
+                    at: fun.span.into(),
+                })?
+                .into_pointer_value();
+            param_index += 1;
+            Some(value)
+        } else {
+            None
+        };
+
+        let ctx_param = wrapper_fun
+            .get_nth_param(param_index)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect call wrapper ctx param",
+                at: fun.span.into(),
+            })?
+            .into_pointer_value();
+        param_index += 1;
+        let outcome_param = wrapper_fun
+            .get_nth_param(param_index)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect call wrapper outcome param",
+                at: fun.span.into(),
+            })?
+            .into_pointer_value();
+        param_index += 1;
+
+        let installed_top =
+            self.load_effect_ctx_handler_top_from_slot(fun.span, ctx_param, "effect_wrapper")?;
+        let saved_top =
+            self.swap_effect_handler_stack_top(fun.span, installed_top, "effect_wrapper_install")?;
+
+        let mut legacy_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(fun.params.len() + usize::from(sret_param.is_some()));
+        if let Some(sret_ptr) = sret_param {
+            legacy_args.push(sret_ptr.into());
+        }
+        for offset in 0..fun.params.len() {
+            let arg = wrapper_fun
+                .get_nth_param(param_index + offset as u32)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect call wrapper arg",
+                    at: fun.span.into(),
+                })?;
+            legacy_args.push(arg.into());
+        }
+
+        let call_site = self
+            .builder
+            .build_call(legacy_fun, &legacy_args, "call_effect_legacy")?;
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_call(call_site, 0, result_ty);
+        }
+        call_site.set_call_convention(self.llvm_call_convention_for_fqn(&fun.fqn));
+
+        self.consume_current_effect_outcome_into(fun.span, outcome_param, "effect_wrapper")?;
+        let _ =
+            self.swap_effect_handler_stack_top(fun.span, saved_top, "effect_wrapper_restore")?;
+
+        match return_cg {
+            CgTy::Unit | CgTy::Never => {
+                self.builder.build_return(None)?;
+            }
+            _ if sret_param.is_some() => {
+                self.builder.build_return(None)?;
+            }
+            other => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect call wrapper return value",
+                        at: fun.span.into(),
+                    },
+                )?;
+                let _ = other;
+                self.builder.build_return(Some(&raw))?;
+            }
+        }
+        Ok(())
     }
 
     pub(super) fn mark_gc_leaf_function(&self, function: FunctionValue<'ctx>) {
@@ -9930,6 +10149,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         None
     }
 
+    fn maybe_record_active_suspend_site_effect_outcome(
+        &mut self,
+        call_span: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+    ) {
+        if let Some(capture) = self.active_suspend_site_effect_outcome_capture
+            && capture.call_span == call_span
+        {
+            self.suspend_site_explicit_effect_outcomes
+                .insert(capture.site_id, outcome_slot);
+        }
+    }
+
     fn codegen_top_level_fun_call(
         &mut self,
         span: crate::span::Span,
@@ -9957,6 +10189,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: callee_span.into(),
                 })?;
         let call_may_suspend = self.known_fun_body_may_outward_effect(fqn, sig_fun.ty);
+        let explicit_effect_call = call_may_suspend && !is_extern;
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -9997,8 +10230,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &param_tys,
             args,
         )?;
-        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let (effect_ctx_slot, effect_outcome_slot): (
+            Option<PointerValue<'ctx>>,
+            Option<PointerValue<'ctx>>,
+        ) = if explicit_effect_call {
+            let (ctx_slot, outcome_slot) =
+                self.prepare_current_effect_call_contract(span, "direct_call")?;
+            (Some(ctx_slot), Some(outcome_slot))
+        } else {
+            (None, None)
+        };
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
+            evaluated_args.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(explicit_effect_call) * 2,
+        );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(callee_span, "call_sret", ret_cg)?;
             llvm_args.push(slot.into());
@@ -10006,6 +10252,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        if let (Some(ctx_slot), Some(outcome_slot)) = (effect_ctx_slot, effect_outcome_slot) {
+            llvm_args.push(ctx_slot.into());
+            llvm_args.push(outcome_slot.into());
+        }
         llvm_args.extend(evaluated_args.iter().map(|slot| slot.value));
 
         let llvm_name = self
@@ -10014,9 +10264,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|e| e.symbol.as_str())
             .unwrap_or(fqn);
 
-        let llvm_fun = match self.module.get_function(llvm_name) {
-            Some(f) => f,
-            None => self.declare_top_level_fun(sig_fun)?,
+        let llvm_fun = if explicit_effect_call {
+            self.ensure_top_level_fun_effect_call_wrapper_defined(sig_fun)?
+        } else {
+            match self.module.get_function(llvm_name) {
+                Some(f) => f,
+                None => self.declare_top_level_fun(sig_fun)?,
+            }
         };
 
         let call_site_result = if is_extern {
@@ -10038,7 +10292,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             Vec::new()
         };
-        if call_may_suspend {
+        if let Some(outcome_slot) = effect_outcome_slot {
+            self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
+            self.emit_ordinary_call_effect_propagation_check_from_outcome(
+                span,
+                outcome_slot,
+                "direct_call_effect",
+            )?;
+        } else if call_may_suspend {
             self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
         }
 
@@ -11028,6 +11289,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_args.push(arg.value);
         }
 
+        let effect_boundary = if call_may_suspend {
+            let (ctx_slot, outcome_slot) =
+                self.prepare_current_effect_call_contract(span, "funptr_call")?;
+            let installed_top =
+                self.load_effect_ctx_handler_top_from_slot(span, ctx_slot, "funptr_call")?;
+            let saved_top =
+                self.swap_effect_handler_stack_top(span, installed_top, "funptr_call")?;
+            Some((outcome_slot, saved_top))
+        } else {
+            None
+        };
+
         let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
             let call_site = cg.builder.build_indirect_call(
                 llvm_fun_ty,
@@ -11043,7 +11316,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        if call_may_suspend {
+        if let Some((outcome_slot, saved_top)) = effect_boundary {
+            self.consume_current_effect_outcome_into(span, outcome_slot, "funptr_call")?;
+            let _ = self.swap_effect_handler_stack_top(span, saved_top, "funptr_call_restore")?;
+            self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
+            self.emit_ordinary_call_effect_propagation_check_from_outcome(
+                span,
+                outcome_slot,
+                "funptr_call_effect",
+            )?;
+        } else if call_may_suspend {
             self.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
         }
 
@@ -11454,6 +11736,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_args.push(arg.value);
         }
 
+        let effect_boundary = if call_may_suspend {
+            let (ctx_slot, outcome_slot) =
+                self.prepare_current_effect_call_contract(span, "closure_call")?;
+            let installed_top =
+                self.load_effect_ctx_handler_top_from_slot(span, ctx_slot, "closure_call")?;
+            let saved_top =
+                self.swap_effect_handler_stack_top(span, installed_top, "closure_call")?;
+            Some((outcome_slot, saved_top))
+        } else {
+            None
+        };
+
         let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
             let call_site = cg.builder.build_indirect_call(
                 llvm_fun_ty,
@@ -11468,7 +11762,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        if call_may_suspend {
+        if let Some((outcome_slot, saved_top)) = effect_boundary {
+            self.consume_current_effect_outcome_into(span, outcome_slot, "closure_call")?;
+            let _ = self.swap_effect_handler_stack_top(span, saved_top, "closure_call_restore")?;
+            self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
+            self.emit_ordinary_call_effect_propagation_check_from_outcome(
+                span,
+                outcome_slot,
+                "closure_call_effect",
+            )?;
+        } else if call_may_suspend {
             self.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
         }
 
@@ -16780,6 +17083,10 @@ fn string_literal_parse_reason(err: StringLiteralParseError) -> &'static str {
 
 fn object_init_fn_name(object_fqn: &str) -> String {
     format!("__scoop_object_init__{object_fqn}")
+}
+
+fn top_level_effect_call_wrapper_fn_name(fun_fqn: &str) -> String {
+    format!("__scoop_effect_call_wrapper__{fun_fqn}")
 }
 
 fn object_guard_global_name(object_fqn: &str) -> String {

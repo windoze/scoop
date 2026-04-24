@@ -22,8 +22,8 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers、continuation review 与 core `Task` 无锁 single-driver review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a` 与 `T4017b` 均已完成；当前主线转入 `T4017c`。
-2. `CONTINUATION.md` 已收口为显式 `EffectCtx` / `EffectOutcome` 的实施基线；后续按 `T4017d -> T4017e -> T4017f -> T4017R` 分阶段把 effect / continuation runtime 从 TLS side channel 迁到显式上下文 + 显式 outcome。
+1. 前置 blockers、continuation review 与 core `Task` 无锁 single-driver review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c` 与 `T4017d` 均已完成；当前主线转入 `T4017e`。
+2. `CONTINUATION.md` 已收口为显式 `EffectCtx` / `EffectOutcome` 的实施基线；后续按 `T4017e -> T4017f -> T4017R` 分阶段把 effect / continuation runtime 从 TLS side channel 迁到显式上下文 + 显式 outcome。
 3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4017R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 5. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -304,7 +304,7 @@
   - 因此当前剩余顺序为：
     - `T4017a`：先更新 `CONTINUATION.md`、spec 与 runtime 设计文档，收口显式 `EffectCtx` / `EffectOutcome` 叙事。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4017d -> T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P1.6. continuation / effect runtime 显式上下文化（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`）
 
@@ -330,6 +330,12 @@
   - `runtime/c/scoop_runtime.c` 已新增同名内部结构与 helper；runtime-originated propagate/clear path 现经由 `ScoopEffectOutcome` helper 收口，continuation alloc/resume 也改为围绕显式 `ScoopEffectCtx` 组织 captured/restored handler context 叙事。
   - 已新增 LLVM 回归 `effect_contract_struct_types_are_registered_for_effect_codegen`，并同步更新因为 contract 命名收口而变化的 state-machine / ordinary-call LLVM 单测断言。
   - 已复验 `cargo fmt --check`、`cargo test -p scoopc --features llvm effect_contract_struct_types_are_registered_for_effect_codegen`、`cargo test -p scoop_runtime --test effect_tls`、`cargo test -p scoop_runtime --test continuation_one_shot continuation_double_resume_uses_shared_runtime_error_transport_contract`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+- `T4017d` 已完成：
+  - ordinary direct / closure / funptr outward-effect call 已统一切到显式 `EffectCtx + EffectOutcome` boundary；direct top-level callee 通过 `__scoop_effect_call_wrapper__*` 安装 caller ctx、调用 legacy body、consume 当前 outcome，再由 caller 读取 outcome tag 决定继续 / 传播。
+  - runtime / ABI helper 已补齐 `scoop_effect_handler_stack_top`、`scoop_effect_handler_stack_swap_top`、`scoop_effect_outcome_consume_current`、`scoop_effect_outcome_publish`，ordinary boundary 现可在显式 outcome 与 legacy TLS transport 之间显式往返。
+  - state-machine `SuspendCall` fresh path 已同步切到显式 outcome：`state_machine_emitter` 现在会捕获当前 site 的 outcome slot，terminator 读取 outcome tag 判断 active/inactive，并在 active 分支先 publish 回 TLS 再沿既有 suspend / dispatch 主线继续。
+  - 已新增/更新 runtime、LLVM 与 state-machine 回归，覆盖 direct / closure / funptr ordinary call 的显式 outcome boundary，以及 state-machine fresh/replay path 不再回退到 post-call TLS probing。
+  - 已复验 `cargo fmt --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 具体顺序固定为：
   - `T4017a`：先做文档更新，收口 `CONTINUATION.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `docs/effect_unified_state_machine.md` 的叙事。
   - `T4017b`：把 `declared_effectful` / `body_may_outward_effect` / `needs_resumable_frame` 的区分接入编译器主线，只在真正可能 outward-effect 的调用点保留 TLS propagation check。
@@ -338,7 +344,7 @@
   - `T4017e`：把 continuation replay、`callee_suspend_state`、`pending_continuation` 等恢复路径迁出 TLS，收口到 `frame + ctx + signal/resume token`。
   - `T4017f`：补齐 vtable / itable / object init / top-level init / extern thunk 等剩余边界，并删除 effect TLS 的主语义职责；若还有 TLS 残留，只能留作调试。
   - `T4017R`：review 全链路，确认 effect propagation 的 source of truth 已转成显式 `ctx + outcome`，而不是 TLS side channel。
-- 当前状态：`T4017a`、`T4017b` 与 `T4017c` 已完成；下一步执行 `T4017d`，之后继续 `T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4017a`、`T4017b`、`T4017c` 与 `T4017d` 已完成；下一步执行 `T4017e`，之后继续 `T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

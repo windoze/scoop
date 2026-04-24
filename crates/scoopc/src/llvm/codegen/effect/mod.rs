@@ -1155,6 +1155,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    /// 显式 outcome 版 ordinary call boundary：
+    ///
+    /// - callee/wrapper 已把当前 boundary 的完成/传播结果写入 `outcome_slot`；
+    /// - 若结果为 `Propagate`，当前 legacy ordinary function 仍需把该 outcome 回写到 TLS，
+    ///   再沿现有“默认返回值 + 交由更外层 caller/wrapper 继续处理”的路径退出；
+    /// - 若结果为 `Complete`，后续 IR 只在 continue block 上继续生成。
+    pub(super) fn emit_ordinary_call_effect_propagation_check_from_outcome(
+        &mut self,
+        at: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        if !self.ordinary_effect_propagation_enabled() {
+            return Ok(());
+        }
+
+        let current_fn = self.current_codegen_function(at)?;
+        let return_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_return"));
+        let continue_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_continue"));
+
+        let is_propagating = self.effect_outcome_is_propagating(at, outcome_slot, label)?;
+
+        self.builder
+            .build_conditional_branch(is_propagating, return_bb, continue_bb)?;
+
+        self.builder.position_at_end(return_bb);
+        self.publish_effect_outcome_from_slot(at, outcome_slot, label)?;
+        self.emit_effect_propagation_return(at)?;
+
+        self.builder.position_at_end(continue_bb);
+        Ok(())
+    }
+
     /// Lower the builtin `Continuation.resume(...)` call.
     ///
     /// The authoritative semantic marker is `continuation_resume_call_sites`;

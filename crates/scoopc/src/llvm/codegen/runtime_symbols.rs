@@ -29,7 +29,12 @@ pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";
 pub(super) const SCOOP_EFFECT_CLEAR_ACTIVE: &str = "scoop_effect_clear_active";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_POP: &str = "scoop_effect_handler_stack_pop";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_PUSH: &str = "scoop_effect_handler_stack_push";
+pub(super) const SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP: &str = "scoop_effect_handler_stack_swap_top";
+pub(super) const SCOOP_EFFECT_HANDLER_STACK_TOP: &str = "scoop_effect_handler_stack_top";
 pub(super) const SCOOP_EFFECT_IS_ACTIVE: &str = "scoop_effect_is_active";
+pub(super) const SCOOP_EFFECT_OUTCOME_CONSUME_CURRENT: &str =
+    "scoop_effect_outcome_consume_current";
+pub(super) const SCOOP_EFFECT_OUTCOME_PUBLISH: &str = "scoop_effect_outcome_publish";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_LEN_WORDS: &str =
     "scoop_effect_perform_slot_read_len_words";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_OP_TAG: &str =

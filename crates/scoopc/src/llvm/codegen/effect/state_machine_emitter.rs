@@ -1249,7 +1249,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         state_ptr,
                         frame_layout,
                     )?;
-                    let val = self.codegen_expr_in_expected_context(expr, None)?;
+                    let saved_outcome_capture = self.active_suspend_site_effect_outcome_capture;
+                    self.active_suspend_site_effect_outcome_capture =
+                        Some(ActiveSuspendSiteEffectOutcomeCapture {
+                            site_id: *site_id,
+                            call_span: expr.span,
+                        });
+                    self.suspend_site_explicit_effect_outcomes.remove(site_id);
+                    let val = self.codegen_expr_in_expected_context(expr, None);
+                    self.active_suspend_site_effect_outcome_capture = saved_outcome_capture;
+                    let val = val?;
                     last_value = Some(val);
                     // If the callee performed, the TLS active flag is set.
                     // The Suspend terminator handles the rest.
@@ -2015,8 +2024,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let active_suspend_bb = self
                         .context
                         .append_basic_block(step_fn, &format!("site{site_id}_active"));
-                    let is_active =
-                        self.emit_effect_is_active_i1(span, &format!("site{site_id}_is_active"))?;
+                    let explicit_outcome_slot =
+                        self.suspend_site_explicit_effect_outcomes.remove(site_id);
+                    let is_active = if let Some(outcome_slot) = explicit_outcome_slot {
+                        self.effect_outcome_is_propagating(
+                            span,
+                            outcome_slot,
+                            &format!("site{site_id}_effect_outcome"),
+                        )?
+                    } else {
+                        self.emit_effect_is_active_i1(span, &format!("site{site_id}_is_active"))?
+                    };
 
                     self.builder.build_conditional_branch(
                         is_active,
@@ -2033,6 +2051,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder.build_unconditional_branch(resume_bb)?;
 
                     self.builder.position_at_end(active_suspend_bb);
+                    if let Some(outcome_slot) = explicit_outcome_slot {
+                        self.publish_effect_outcome_from_slot(
+                            span,
+                            outcome_slot,
+                            &format!("site{site_id}_effect_outcome"),
+                        )?;
+                    }
                 }
 
                 // Save the resume state_tag so step_fn re-enters at the
@@ -4282,18 +4307,69 @@ fun main(): Int {
         let entry_source_id = source_map.add_source_clone(&source);
         let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
             .expect("llvm ir");
+        let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
+        let fresh_call_block = find_block_ir(step_ir, "site0_after_callee_seed");
+        let active_block = find_block_ir(step_ir, "site0_active");
 
         assert!(
-            ir.contains("site0_is_active"),
-            "outer handle should still check TLS active around the indirect if-branch callee call"
+            fresh_call_block.contains("site0_effect_outcome_effect_outcome_tag")
+                && !fresh_call_block.contains("@scoop_effect_is_active"),
+            "outer handle should branch on the explicit outcome produced by the indirect if-branch callee call instead of probing TLS active again:\n{fresh_call_block}"
         );
         assert!(
-            ir.contains("site0_active"),
-            "outer handle should preserve the active-dispatch path for the indirect if-branch callee call"
+            active_block.contains("@scoop_effect_outcome_publish"),
+            "outer handle should still preserve the active-dispatch path for the indirect if-branch callee call by publishing the captured outcome back to TLS:\n{active_block}"
         );
         assert!(
             ir.contains("callee_suspend_entry_is_resume"),
             "ordinary if-branch callee should still build a fresh/resume dual-entry contract"
+        );
+    }
+
+    #[test]
+    fn direct_suspend_call_fresh_path_uses_explicit_outcome_instead_of_tls_probe() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun helper(): Int / (Ask) {
+    Ask.ask(41)
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        helper()
+    } with {
+        Ask.ask(seed), k -> {
+            seed + 1
+        }
+    }
+    return result
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+        let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
+        let fresh_call_block = find_block_ir(step_ir, "site0_after_callee_seed");
+        let active_block = find_block_ir(step_ir, "site0_active");
+
+        assert!(
+            fresh_call_block.contains("@__scoop_effect_call_wrapper__a.helper")
+                && fresh_call_block.contains("site0_effect_outcome_effect_outcome_tag")
+                && !fresh_call_block.contains("@scoop_effect_is_active"),
+            "state-machine fresh suspend-call path should branch on the explicit outcome tag produced by the wrapper instead of probing TLS active again:\n{fresh_call_block}"
+        );
+        assert!(
+            active_block.contains("@scoop_effect_outcome_publish"),
+            "state-machine active suspend branch must publish the explicit outcome back to TLS before dispatching handlers:\n{active_block}"
         );
     }
 
@@ -4736,10 +4812,10 @@ fun main(): Int {
         let continue_block = find_block_ir(&async_closure_ir, "direct_call_effect_continue");
 
         assert!(
-            replay_block.contains(
-                "br i1 %direct_call_effect_propagates, label %direct_call_effect_return, label %direct_call_effect_continue"
-            ),
-            "replayed Continuation.resume inside async task should branch directly on active effect instead of materializing a fallback answer:\n{async_closure_ir}"
+            replay_block.contains("direct_call_effect_effect_outcome_tag")
+                && replay_block.contains("direct_call_effect_effect_outcome_is_propagating")
+                && !replay_block.contains("@scoop_effect_is_active"),
+            "replayed Continuation.resume inside async task should branch directly on the explicit outcome instead of probing TLS active or materializing a fallback answer:\n{async_closure_ir}"
         );
         assert!(
             active_return_block.contains("ret void"),

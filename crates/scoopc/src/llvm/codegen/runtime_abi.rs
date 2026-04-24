@@ -1266,6 +1266,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_effect_handler_stack_top(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_TOP;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
+        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_effect_handler_stack_swap_top(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_effect_outcome_consume_current(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_OUTCOME_CONSUME_CURRENT;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let ptr_ty = self.context.ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_effect_outcome_publish(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_OUTCOME_PUBLISH;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let ptr_ty = self.context.ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     /// 发布当前 ordinary indirect-callee 的 suspend state 到 runtime TLS。
     ///
     /// 语义上该 state 始终是 GC-managed 对象；编译器 fresh path 保存完 locals/captures

@@ -687,6 +687,18 @@ static void scoop_effect_publish_outcome(const ScoopEffectOutcome *outcome,
   scoop_effect_perform_slot_reset();
 }
 
+static void scoop_effect_publish_outcome_without_trace(
+    const ScoopEffectOutcome *outcome) {
+  if (outcome->tag == SCOOP_EFFECT_OUTCOME_PROPAGATE) {
+    scoop_effect_write_signal_to_tls(&outcome->signal);
+    __scoop_effect_active = 1;
+    return;
+  }
+
+  __scoop_effect_active = 0;
+  scoop_effect_perform_slot_reset();
+}
+
 uint32_t scoop_thread_is_registered(void) {
   return scoop_tls.registered;
 }
@@ -828,6 +840,47 @@ void scoop_effect_clear(void) {
 
 void scoop_effect_clear_active(void) {
   __scoop_effect_active = 0;
+}
+
+void scoop_effect_outcome_consume_current(ScoopEffectOutcome *outcome) {
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  if (outcome == 0) {
+    scoop_effect_perform_slot_reset();
+    __scoop_effect_active = 0;
+    return;
+  }
+
+  ScoopEffectOutcome next = scoop_effect_outcome_make_complete();
+  if (__scoop_effect_active != 0) {
+    ScoopEffectSignal signal = scoop_effect_signal_make(
+        __scoop_effect_perform_slot.op_tag,
+        __scoop_effect_perform_slot.effect_instance_key,
+        scoop_value_transport_make(__scoop_effect_perform_slot.payload_words[0],
+                                   __scoop_effect_perform_slot.payload_gc_ref),
+        0);
+    next = scoop_effect_outcome_make_propagate(signal);
+  }
+
+  *outcome = next;
+  __scoop_effect_active = 0;
+  scoop_effect_perform_slot_reset();
+}
+
+void scoop_effect_outcome_publish(const ScoopEffectOutcome *outcome) {
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  if (outcome == 0) {
+    __scoop_effect_active = 0;
+    scoop_effect_perform_slot_reset();
+    return;
+  }
+
+  scoop_effect_publish_outcome_without_trace(outcome);
 }
 
 // T1606f-2：callee suspend state 访问器。

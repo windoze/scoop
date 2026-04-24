@@ -2655,7 +2655,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn direct_call_with_real_outward_effect_keeps_tls_check() {
+    fn direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome() {
         let source = SourceFile::new_virtual(
             "<mem>",
             r#"
@@ -2688,13 +2688,104 @@ fun main(): Int {
         let session = Session::new().unwrap();
         let ir = emit_minimal_main_ir(&session, &source).unwrap();
         let entry_ir = function_ir_named(&ir, "a.entry");
+        let wrapper_ir = function_ir_named(&ir, "__scoop_effect_call_wrapper__a.outward");
 
         assert!(
-            entry_ir.contains("@scoop_effect_is_active")
-                && entry_ir.contains(
-                    "br i1 %direct_call_effect_propagates, label %direct_call_effect_return, label %direct_call_effect_continue"
-                ),
-            "真正可能 outward-effect 的 ordinary 直调用仍必须保留 TLS active 分流:\n{entry_ir}"
+            entry_ir.contains("@__scoop_effect_call_wrapper__a.outward")
+                && entry_ir.contains("@scoop_effect_outcome_publish")
+                && !entry_ir.contains("@scoop_effect_is_active"),
+            "ordinary direct outward-effect call 应改走显式 wrapper + outcome，而不是 post-call TLS active probing:\n{entry_ir}"
+        );
+        assert!(
+            wrapper_ir.contains("@scoop_effect_handler_stack_swap_top")
+                && wrapper_ir.contains("@scoop_effect_outcome_consume_current"),
+            "direct-call wrapper 应负责安装 ctx 并把 legacy TLS signal 收口到显式 outcome:\n{wrapper_ir}"
+        );
+    }
+
+    #[test]
+    fn closure_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun entry(): Int / (Ask) {
+    val thunk: () -> Int / (Ask) = {
+        Ask.ask(41)
+    }
+    return thunk()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let entry_ir = function_ir_named(&ir, "a.entry");
+
+        assert!(
+            entry_ir.contains("@scoop_effect_outcome_consume_current")
+                && entry_ir.contains("@scoop_effect_outcome_publish")
+                && !entry_ir.contains("@scoop_effect_is_active"),
+            "outward-effect closure call 应在 higher-order boundary 上显式 consume/publish outcome，而不是 post-call TLS probing:\n{entry_ir}"
+        );
+    }
+
+    #[test]
+    fn effectful_funptr_call_uses_explicit_outcome_boundary() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+import scoop.unsafe.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+@Extern("scoop_test_get_effectful_funptr")
+fun get_effectful_funptr(): FunPtr<() -> Int / (Ask)>
+
+fun entry(): Int / (Ask) {
+    val fp: FunPtr<() -> Int / (Ask)> = @Unsafe do { get_effectful_funptr() }
+    return @Unsafe do { fp() }
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let entry_ir = function_ir_named(&ir, "a.entry");
+
+        assert!(
+            entry_ir.contains("@scoop_effect_outcome_consume_current")
+                && entry_ir.contains("@scoop_effect_outcome_publish")
+                && !entry_ir.contains("@scoop_effect_is_active"),
+            "effectful funptr call 应在 boundary 上显式 consume/publish outcome，而不是继续依赖 TLS active probing:\n{entry_ir}"
         );
     }
 

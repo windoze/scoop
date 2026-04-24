@@ -1,99 +1,83 @@
-# 本轮执行计划（初始）
+# 当前执行计划（2026-04-24）
 
-## 目标
+## 任务背景
 
-按仓库约定执行一次最小完整迭代：
+- 本轮目标仍然是完成 `TODO.md` 中首个未完成任务 `T4017d`：将 ordinary direct / closure / funptr effectful call 切换到显式 `ctx + outcome` internal ABI，然后停止。
+- 已检查上一轮结论：最新提交 `710db77 [T4017c] Introduce explicit effect contract abstractions` 没有在提交信息中声明一个必须先修的既有 issue，因此继续推进 `T4017d` 本身。
+- 已有实现已经把 ordinary non-state-machine call path 的 direct / closure / funptr 边界部分迁到显式 `ctx/outcome`；但全量 fixture 暴露出真实回归，说明当前任务尚未完成。
 
-1. 检查最新提交是否提到已有问题；若提到，优先修复。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 判断该任务是否需要拆分；若需要，先更新 `PLAN.md` 与 `TODO.md`。
-4. 只完成当前应执行的第一个任务。
-5. 运行相关验证，修复执行过程中发现的已有问题。
-6. 更新 `TODO.md` / `PLAN.md` / 本文件。
-7. 提交 Git commit，然后停止。
+## 已确认的回归与根因
 
-## 决策依据摘要
+- `cargo run -p scoop -- test` 触发 `tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop` 失败。
+- 失败表现：`try/catch` 没有捕获到 helper 内部构造函数抛出的 outward effect，调用点后续路径错误地继续沿 inactive 分支执行。
+- 根因不是 helper 自身没有提前返回；而是 state-machine emitter 的 ordinary call suspend-site fresh path 仍然使用 TLS `scoop_effect_is_active` 作为 suspend 判断来源。
+- 现在 direct wrapper 会在返回前把 TLS 中的 outward signal consume 到显式 `ScoopEffectOutcome`，因此 fresh path 再读 TLS 会错误地看到 inactive。
+- 结论：`T4017d` 不仅要覆盖 ordinary 非状态机 caller，还必须把 state-machine emitter 中 ordinary direct / closure / funptr call 的 fresh suspend path 一起切换到显式 outcome。
 
-- 必须先处理“最新提交中提到的已有问题”。
-- 任何在检查、测试、实现过程中发现的既有缺陷，都属于当前范围，不能绕过。
-- 不能一次做多个任务；若当前任务被前置问题阻塞，必须先把阻塞问题写回 `TODO.md`/`PLAN.md`，提交后停止。
-- 需要在执行过程中持续维护本文件，记录计划变化与关键进展。
+## 这轮执行步骤
 
-## 具体步骤
+1. 阅读并定位 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中 ordinary call suspend-site fresh path 的实现，确认 direct / closure / funptr 分支当前如何判断 active/inactive。
+2. 设计并实现统一修复：
+   - 对已经迁移到显式 outcome contract 的 ordinary direct / closure / funptr call，fresh path 改为读取 outcome/tag，而不是再读 TLS active。
+   - 对仍未迁移的 suspend 边界保持原有 TLS 逻辑，避免误改 `T4017f` 范围。
+3. 用最小但完整的方式补测试：
+   - 先复现并验证 `class_init_hidden_raise_helper_try_catch_basic.scoop`。
+   - 如有必要，给 LLVM 单测补充 state-machine fresh path 使用显式 outcome 的断言。
+4. 跑验证：
+   - 相关 targeted tests
+   - `cargo run -p scoop -- test`
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+5. 若验证通过，更新 `TODO.md`、`PLAN.md`、本文件，标记 `T4017d` 完成，并提交一次 git commit，然后停止。
 
-1. 查看最新一次提交信息与改动摘要，确认是否存在显式提及的待修复问题。
-2. 查看工作区状态，避免误覆盖用户已有修改。
-3. 读取 `TODO.md` 与 `PLAN.md`，确认第一个未完成任务及其上下文。
-4. 若任务过大：
-   - 拆成更小子任务；
-   - 更新 `PLAN.md`；
-   - 在 `TODO.md` 中重排并把当前可执行的第一个子任务置顶到未完成位置。
-5. 阅读相关代码与测试，定位实现点。
-6. 修改代码并补充/更新测试。
-7. 运行最小充分验证；如果该改动影响面明确，再扩展到相关测试与质量检查。
-8. 更新 `TODO.md`、`PLAN.md`、`memory/claude_plan.md` 记录完成情况。
-9. 使用清晰提交信息创建一次 commit。
-10. 停止，不继续下一个任务。
+## 当前约束与判断
 
-## 风险检查点
+- 这不是新的前置任务，而是 `T4017d` 既有实现未覆盖完整调用路径导致的真实回归，因此应直接修复，不应把任务拆出去另起一个 TODO。
+- 不允许通过缩窄 fixture、绕开 state machine path、保留 TLS probing workaround 来继续推进。
+- 需要持续更新本文件，记录关键实现点、验证结果和是否完成任务。
 
-- 若发现规格不匹配、实现边界缺失、已有回避性实现或测试依赖 workaround，立即转为前置任务处理。
-- 若 `PROMPT.md` 在过程中发生变化，需要随提交一并纳入。
-- 不回退或覆盖与当前任务无关的现有修改。
+## 已完成的关键实现（进行中）
 
-## 当前轮次定位
+- 已在 `crates/scoopc/src/llvm/codegen/mod.rs` 增加 state-machine suspend-call outcome 捕获通道：
+  - `active_suspend_site_effect_outcome_capture`
+  - `suspend_site_explicit_effect_outcomes`
+- ordinary direct / closure / funptr call 在生成显式 outcome boundary 后，会把当前 `SuspendCall` 对应的 `outcome_slot` 记录下来，供 state-machine terminator 使用。
+- 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 修复 fresh path：
+  - `HandleStateOp::SuspendCall` 在求值期间安装当前 site 的 outcome capture 上下文。
+  - `UnifiedStateTerminator::Suspend` 若发现该 site 有显式 outcome slot，则改为读取 outcome tag 判定 propagating，而不是调用 `scoop_effect_is_active`。
+  - active 分支会先 `publish_effect_outcome_from_slot(...)`，把 wrapper/边界 consume 过的 signal 回写到 TLS，再继续原 suspend / handler-dispatch 主线。
 
-- 已检查最新提交：`e5998551 [T4017b] Gate ordinary TLS checks by outward-effect analysis`。
-- 该提交标题未显式声明仍待修复的既有 issue；当前未发现必须先于 `TODO.md` 顺序处理的新前置项。
-- 已定位 `TODO.md` 首个未完成条目为 `T4017c`：在 compiler/runtime contract 中引入显式 `EffectCtx` / `EffectOutcome` / `EffectSignal` 抽象，并停止新增任何依赖 effect TLS 语义的路径。
+## 当前验证结果
 
-## T4017c 执行计划
+- `cargo fmt --all` 已通过。
+- `tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop` 已恢复 golden 输出：
+  - `main_before_call`
+  - `helper_before_ctor`
+  - `boom.init`
+  - `caught`
+  - `10`
+  - `done`
+- 已新增 state-machine IR 测试 `direct_suspend_call_fresh_path_uses_explicit_outcome_instead_of_tls_probe`，锁定：
+  - fresh path 读取 outcome tag
+  - active 分支 publish outcome 回 TLS
+- 已同步更新既有测试 `indirect_if_branch_callee_keeps_handle_call_site_active_dispatch` 的断言，使其检查新的 outcome-based contract。
 
-1. 阅读 `CONTINUATION.md`、`PLAN.md`、`TODO.md` 与实现中 effect/continuation 相关模块，确认当前 TLS 语义边界与现有分析/ABI 接口。
-2. 检查是否已有可复用的 `EffectCtx` / `EffectOutcome` / `EffectSignal` / `ValueTransport` 表示；如果缺失，则先在编译器与 runtime 合同层引入最小抽象，不直接跨越到完整 ABI 迁移。
-3. 在不提前实现 `T4017d/e/f` 的前提下，让新的主线代码和注释统一消费这些抽象，并避免继续扩散“TLS 是唯一 source of truth”的表达。
-4. 为 `T4017c` 增补或更新定向测试/回归，优先覆盖：
-   - effect contract 抽象已经进入主线；
-   - 新路径不再以 TLS 语义命名内部协议；
-   - 后续 `T4017d/e` 所需入口已稳定存在。
-5. 运行最小充分测试；若过程中暴露既有问题，优先修复或写回前置任务。
-6. 完成后更新 `TODO.md`、`PLAN.md` 与本文件，并创建本轮 commit。
+## 剩余步骤
 
-## 当前进展
+1. 更新 `TODO.md` / `PLAN.md` / 本文件，把 `T4017d` 标记为完成、把下一步切到 `T4017e`。
+2. 检查 git diff，确认只包含本轮 `T4017d` 实现与测试/计划文件更新。
+3. 提交 `T4017d` 完成 commit，然后停止。
 
-- 已完成：初始计划写入、最新提交检查、工作区检查、`TODO.md` / `PLAN.md` 首轮读取、`T4017c` 范围确认、实现、回归修复、状态文件更新准备。
+## 最终验证结论
 
-## T4017c 实际完成内容
+- `cargo run -p scoop -- test`：通过，`fixtures: ok (1169)`。
+- `cargo test --all`：通过。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+- 期间额外修复并同步更新了一条既有 state-machine LLVM 单测：
+  - `async_task_resume_replay_ir_terminates_step_fn_on_active_effect`
+  - 原断言仍锁旧的 TLS-probing 变量名；现已改为 outcome-based 断言，并与新实现一致。
 
-1. 编译器 contract 层：
-   - 新增 `crates/scoopc/src/llvm/codegen/effect/contract.rs`。
-   - 将 `ValueTransport` / `EffectSignal` / `EffectOutcome` 明确成 effect codegen helper。
-   - ordinary propagation check、`perform` lowering、`Continuation.resume(...)` active fallback、handler dispatch 改为经由这层 helper 读写 current effect outcome/signal。
-2. LLVM runtime ABI glue：
-   - 在 `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 中补 `ScoopEffectCtx` / `ScoopValueTransport` / `ScoopEffectSignal` / `ScoopEffectOutcome` 的 struct type。
-   - continuation 注释同步改成“captured handler stack top 在语义上代表 captured `EffectCtx.handler_top`”。
-3. C runtime 内部表示：
-   - 在 `runtime/c/scoop_runtime.c` 中补同名内部结构与 helper。
-   - runtime-originated propagate/clear path 改经由 `ScoopEffectOutcome` helper。
-   - continuation alloc/resume 改为围绕显式 `ScoopEffectCtx` 组织 captured/restored handler context 的叙事。
-4. 回归测试：
-   - 新增 LLVM 回归 `effect_contract_struct_types_are_registered_for_effect_codegen`。
-   - 同步修正 3 处因 contract 命名收口导致的 LLVM 单测断言。
+## 任务状态
 
-## 验证结果
-
-- `cargo fmt --check`
-- `cargo test -p scoopc --features llvm effect_contract_struct_types_are_registered_for_effect_codegen`
-- `cargo test -p scoop_runtime --test effect_tls`
-- `cargo test -p scoop_runtime --test continuation_one_shot continuation_double_resume_uses_shared_runtime_error_transport_contract`
-- `cargo run -p scoop -- test`
-- `cargo test --all`
-- `cargo clippy --all-targets -- -D warnings`
-
-以上均已通过。
-
-## 收尾状态
-
-- `T4017c` 可直接标记完成。
-- 未发现需要前插到 `TODO.md` 的新 blocker。
-- 下一轮应从 `T4017d` 开始。
+- `T4017d` 已完成。
+- 下一轮首个未完成任务应为 `T4017e`：把 continuation replay、`callee_suspend_state` 与 `pending_continuation` 迁出 TLS，收口到 `frame + ctx + signal/resume token`。

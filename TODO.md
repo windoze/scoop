@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -807,7 +807,7 @@
   - 已验证 `cargo fmt --check`、`cargo test -p scoopc --features llvm effect_contract_struct_types_are_registered_for_effect_codegen`、`cargo test -p scoop_runtime --test effect_tls`、`cargo test -p scoop_runtime --test continuation_one_shot continuation_double_resume_uses_shared_runtime_error_transport_contract`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017b
 
-### T4017d [TODO] 将 ordinary direct / closure / funptr effectful call 切到显式 `ctx + outcome` internal ABI
+### T4017d [DONE] 将 ordinary direct / closure / funptr effectful call 切到显式 `ctx + outcome` internal ABI
 - 范围：
   - 先把 direct call、closure call、function pointer call 切到显式 `EffectCtx*` hidden arg + `EffectOutcome` 结果协议；caller 通过 outcome tag / out slots（或等价 lowering）判断 `Complete` / `Propagate`，不再依赖“call 后查 TLS active”。
   - 同步处理 payload / answer transport、resume value、ordinary callee outward propagate 与 local handle dispatch 的 lowering，保证 direct 与 higher-order 普通调用共享同一内部 ABI 语义。
@@ -815,6 +815,12 @@
 - 验收：
   - 已迁移的 ordinary call 路径不再依赖 post-call TLS probing 决定 effect propagation。
   - direct / closure / funptr 调用的 effectful internal ABI 与 `CONTINUATION.md` 约定一致。
+- 完成记录：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 已把 ordinary direct / closure / funptr outward-effect call 统一接到显式 `EffectCtx + EffectOutcome` boundary；direct top-level call 通过新 wrapper `__scoop_effect_call_wrapper__*` 安装 caller ctx、调用 legacy body、consume 当前 outcome，再由 caller 按 outcome tag 决定继续/传播。
+  - `runtime/c/scoop_runtime.c` / `runtime/c/scoop_runtime_api.h` / `crates/scoopc/src/llvm/codegen/runtime_{abi,symbols}.rs` 已补 `scoop_effect_handler_stack_top`、`scoop_effect_handler_stack_swap_top`、`scoop_effect_outcome_consume_current`、`scoop_effect_outcome_publish` 等桥接 helper，使 ordinary boundary 可在显式 outcome 与 legacy TLS transport 之间往返。
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 已同步修复 `SuspendCall` fresh path：对 direct / closure / funptr ordinary call，不再重新 probing TLS active，而是读取该 site 捕获到的显式 outcome tag，并在 active 分支先 publish 回 TLS 再进入既有 suspend / dispatch 主线。
+  - 已新增 runtime / LLVM / state-machine regression：`effect_outcome_roundtrip_consumes_and_republishes_current_tls_signal`、`direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome`、`closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`effectful_funptr_call_uses_explicit_outcome_boundary`、`direct_suspend_call_fresh_path_uses_explicit_outcome_instead_of_tls_probe`，并同步更新受旧 TLS-probing 断言影响的 state-machine IR 测试。
+  - 已验证 `cargo fmt --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017c
 
 ### T4017e [TODO] 将 continuation replay、`callee_suspend_state` 与 `pending_continuation` 迁出 TLS，收口到 `frame + ctx + signal/resume token`
