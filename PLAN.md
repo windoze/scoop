@@ -22,9 +22,9 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers、continuation review 与 core `Task` 无锁 single-driver review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3` 与 `T4017f` 均已完成；当前主线转入 `T4017R`。
-2. `CONTINUATION.md` 已收口为显式 `EffectCtx` / `EffectOutcome` 的实施基线；后续仅剩 `T4017R` 对 effect / continuation runtime 从 TLS side channel 迁到显式上下文 + 显式 outcome 的收口结果做 review。
-3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4017R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
+1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f` 与 `T4017R` 均已完成；当前主线回到 `T4012b3`。
+2. `CONTINUATION.md` 已收口为显式 `EffectCtx` / `EffectOutcome` 的实施基线，且 `T4017R` 已确认 ordinary boundary、continuation resume 与文档叙事均不再把 ambient effect TLS 当成 source of truth。
+3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（当前剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 5. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
 6. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
@@ -363,8 +363,12 @@
     - LLVM IR 回归与 run-pass fixtures 已覆盖 virtual call、interface call、object value init、top-level immutable init 与 extern/native boundary 的显式 outcome 行为，并锁定这些路径不再依赖 `@scoop_effect_is_active`。
     - 已同步补 runtime test-only native helper `scoop_test_raise_null_assertion_failed_in_native` 与 allowlist，用于端到端验证 extern/native effect boundary outward propagation。
     - 复验通过：`cargo fmt --all`、`cargo test -p scoopc --features llvm explicit_outcome_boundary -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (397)`）、`cargo run -p scoop -- test`（`fixtures: ok (1174)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
-  - `T4017R`：review 全链路，确认 effect propagation 的 source of truth 已转成显式 `ctx + outcome`，而不是 TLS side channel。
-- 当前状态：`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3` 与 `T4017f` 已完成，`T4017e` 已整体收口。下一步执行 `T4017R`，之后继续 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+  - `T4017R` 已完成：
+    - 代码搜索与 review 已确认：ordinary direct / closure / funptr / vtable / itable / object init / top-level init / extern-native boundary 统一走显式 `EffectCtx + EffectOutcome` contract，production IR 不再在这些 boundary 后 probing `@scoop_effect_is_active`。
+    - continuation resume 的权威恢复状态已收口为 captured handler context、continuation/frame metadata 与显式 resume token；`scoop_callee_suspend_state_get()` 不再被生产 codegen 当作恢复入口。
+    - `state_machine_emitter` 中保留的 TLS handler-stack / perform-slot / active 读取与 `CONTINUATION.md`、`docs/effect_unified_state_machine.md` 的叙事一致，只承担 direct `perform` / hidden-suspend / arm-cleanup 的局部 transport，不再把 ambient TLS 当成语义 source of truth。
+    - 已复验 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+- 当前状态：`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f` 与 `T4017R` 已完成，`T4017e` 已整体收口。下一步执行 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
@@ -388,7 +392,7 @@
   - `T4012b3`：最后为 `@Suppress` 建立 warning-code 与 suppression surface。由于 spec 还举了 expression annotation 例子，这一步需要连同表达式注解语义一起收口，不能只做声明头占位。
 - 在 `T4012b*` 收口后，再补入 `@Experimental(feature = "...")` 这一保留的 built-in feature-gate marker；具体 feature gating wiring 后续再做。
 - 再删除 `inline` 关键字与 legacy non-local return 语义残留；若未来仍需内联提示，统一由 `@Inline` 作为纯优化 marker 承担。
-- 当前状态：依赖 `T4017R`；回到本组后的顺序为 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4017R` 依赖已满足；本组剩余顺序为 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P3. FFI / ABI 边界收口
 

@@ -3,12 +3,12 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后按 `CONTINUATION.md` 推进显式 `EffectCtx` / `EffectOutcome` 收口（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`），最后再回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），`T4017` 的显式 `EffectCtx` / `EffectOutcome` 收口现已完成，接下来回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -748,7 +748,7 @@
 
 ## T4017：将 effect / continuation 运行时从 TLS side channel 收口为显式 `EffectCtx` / `EffectOutcome`
 
-### T4017 [TODO] 按 `CONTINUATION.md` 将 effect / continuation 内部语义、ABI 与 runtime 从 TLS side channel 迁到显式上下文 / 显式 outcome（拆分执行）
+### T4017 [DONE] 按 `CONTINUATION.md` 将 effect / continuation 内部语义、ABI 与 runtime 从 TLS side channel 迁到显式上下文 / 显式 outcome（拆分执行）
 - 说明：
   - 当前实现虽已完成 one-shot deep continuation 与 `Task` 去 hack，但 effect / continuation 主语义仍拆在 state machine frame 与 TLS side channel 之间：`handler stack`、`active + perform_slot`、`callee_suspend_state`、`pending_continuation`、`continuation_resume_active` 仍分别承担传播、恢复与 replay 桥接职责。
   - `CONTINUATION.md` 已给出新的内部模型：`EffectCtx*` 表示运行时动态 effect 环境，`EffectOutcome<R>` 表示一次 eager 执行是 `Complete` 还是 `Propagate(signal)`；continuation 捕获的是 `frame + captured ctx`，而不是 resuming thread 当前 TLS 上碰巧残留的 effect 状态。
@@ -899,12 +899,21 @@
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc --features llvm explicit_outcome_boundary -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (397)`）、`cargo run -p scoop -- test`（`fixtures: ok (1174)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017e3
 
-### T4017R [TODO] Review：确认 effect / continuation 运行时已从 TLS side channel 收口为显式 `EffectCtx` / `EffectOutcome`
+### T4017R [DONE] Review：确认 effect / continuation 运行时已从 TLS side channel 收口为显式 `EffectCtx` / `EffectOutcome`
 - 重点：
   - 不允许新实现表面上引入了 `EffectCtx` / `EffectOutcome`，但生产路径仍继续以 `TLS active + perform slot` 作为真正的 source of truth。
   - 不允许 ordinary pure / latent-effect fast path 继续无差别支付 effect TLS 检查成本。
   - 不允许 continuation capture / resume 继续依赖 resuming thread 当前 TLS 来恢复核心语义状态；若保留 TLS，只能是调试辅助。
   - `CONTINUATION.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`docs/effect_unified_state_machine.md`、sysroot 注释与生产实现必须对 `EffectCtx` / `EffectOutcome` / continuation capture model 保持同一叙事。
+- 结论：
+  - ordinary direct / closure / funptr / vtable / itable / object init / top-level init / extern-native boundary 已统一走显式 `EffectCtx + EffectOutcome` contract；对应 LLVM IR 回归锁定这些路径不再在 boundary 后 probing `@scoop_effect_is_active`。
+  - 生产 codegen 已不再使用 `scoop_callee_suspend_state_get()` 作为恢复入口；continuation resume 的权威状态收口为 captured handler context、continuation/frame metadata 与显式 resume token，TLS 只剩局部 transport / scope bookkeeping。
+  - `state_machine_emitter` 中保留的 handler-stack / perform-slot / active 读取与 `CONTINUATION.md`、`docs/effect_unified_state_machine.md` 的叙事一致：它们只承担 direct `perform`、hidden-suspend 与 arm/cleanup 的局部 transport，不再把 ambient TLS 当成 effect 语义定义本身。
+  - `CONTINUATION.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`docs/effect_unified_state_machine.md` 与生产实现对 `EffectCtx` / `EffectOutcome` / continuation capture model 的叙事已对齐。
+- 已复验：
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4017f
 
 ## T4012：annotation markers、built-in annotations 与 `@Experimental` feature-gate marker
