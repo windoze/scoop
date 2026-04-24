@@ -1368,14 +1368,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // --- Object init access boundary: evaluate expression ---
-                HandleStateOp::ObjectInitAccessBoundary { expr, .. } => {
-                    let val = self.codegen_expr_in_expected_context(expr, None)?;
+                HandleStateOp::ObjectInitAccessBoundary { site_id, expr } => {
+                    let saved_outcome_capture = self.active_suspend_site_effect_outcome_capture;
+                    self.active_suspend_site_effect_outcome_capture =
+                        Some(ActiveSuspendSiteEffectOutcomeCapture {
+                            site_id: *site_id,
+                            call_span: expr.span,
+                        });
+                    self.suspend_site_explicit_effect_outcomes.remove(site_id);
+                    let val = self.codegen_expr_in_expected_context(expr, None);
+                    self.active_suspend_site_effect_outcome_capture = saved_outcome_capture;
+                    let val = val?;
                     last_value = Some(val);
                 }
 
                 // --- Runtime raise boundary: evaluate expression ---
-                HandleStateOp::RuntimeRaiseBoundary { expr, .. } => {
-                    let val = self.codegen_expr_in_expected_context(expr, None)?;
+                HandleStateOp::RuntimeRaiseBoundary { site_id, expr } => {
+                    let saved_outcome_capture = self.active_suspend_site_effect_outcome_capture;
+                    self.active_suspend_site_effect_outcome_capture =
+                        Some(ActiveSuspendSiteEffectOutcomeCapture {
+                            site_id: *site_id,
+                            call_span: expr.span,
+                        });
+                    self.suspend_site_explicit_effect_outcomes.remove(site_id);
+                    let val = self.codegen_expr_in_expected_context(expr, None);
+                    self.active_suspend_site_effect_outcome_capture = saved_outcome_capture;
+                    let val = val?;
                     last_value = Some(val);
                 }
 

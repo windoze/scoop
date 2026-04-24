@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: top_level_immutable_init_raise_helper_try_catch_basic.stdout
+//
+// T4017f：ordinary helper 内的 hidden-suspend top-level immutable init access。
+// - helper 首次读取 top-level immutable value 时，会先执行隐藏的 once-init；
+// - init 内触发 Raise.raise(RuntimeError.*) 后，helper 自身必须立刻终止；
+// - outer try/catch 仍需命中，caller tail 也不能继续执行。
+
+import scoop.core.*
+
+val Broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
+
+fun helper(): Int {
+    println("helper_before_access")
+    val value: Int = Broken
+    println("helper_unreachable")
+    return value
+}
+
+fun main(): Int {
+    val code: Int = try {
+        println("main_before_call")
+        val value: Int = helper()
+        println("main_unreachable")
+        value
+    } catch (e: RuntimeError) {
+        println("caught")
+        when (e) {
+            NullAssertionFailed -> 10
+            ClassCastFailed -> 20
+            ContinuationAlreadyResumed -> 30
+        }
+    }
+
+    println(code)
+    println("done")
+    return 0
+}

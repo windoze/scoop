@@ -1,115 +1,119 @@
-## 当前目标
+# 执行计划
 
-本轮只处理 `TODO.md` 中第一个未完成任务；但在开始任务前，先检查最新提交是否提到任何既有问题，并按要求优先修复。若执行过程中发现任何已存在的缺陷、规格不匹配、实现边界缺口或测试/运行回归，也必须先处理，或将其作为前置任务插入 `TODO.md` 后停止。
+## 目标
 
-## 初始执行计划
+本轮只完成 `TODO.md` 中第一个未完成任务；如果在检查最新提交、阅读任务、运行测试或实现过程中发现任何既有问题，则先修复这些问题，或在确认其为前置依赖后把它们插入 `TODO.md` 的当前任务之前，并更新 `PLAN.md` 后停止。
 
-1. 检查仓库当前状态，确认是否存在用户未提交改动，避免误覆盖。
-2. 查看最新一次提交的提交信息与改动，判断是否明确提到需要优先处理的既有问题。
-3. 阅读 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并核对当前计划是否需要细化。
-4. 如果该任务过大或存在前置依赖缺口：
-   - 细化任务为更小子任务；
+## 初始步骤
+
+1. 检查最新一次 Git 提交信息，确认其中是否提到尚未修复的问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，理解现有计划、依赖和任务编号。
+4. 结合任务复杂度判断是否需要把第一个未完成任务拆分为更小的子任务。
+5. 如需拆分：
    - 更新 `PLAN.md`；
-   - 更新 `TODO.md` 的依赖顺序；
-   - 本轮只执行细化后的第一个子任务，或在前置问题阻塞时仅提交计划调整。
-5. 实施目标任务所需改动，过程中持续检查是否暴露出既有缺陷。
-6. 运行与改动相关的测试；若任务涉及广泛编译/质量约束，则补充运行格式化、测试、`clippy` 等必要验证。
-7. 更新文档与任务状态：
-   - 在 `TODO.md` 标记本轮任务完成，或在阻塞时重排任务；
-   - 在 `PLAN.md` 反映最新状态；
-   - 在本文件记录关键进展与计划变更。
-8. 检查 `git diff`，确认改动范围正确后提交一次清晰的 Git commit，然后停止。
+   - 更新 `TODO.md`，把拆分后的子任务插入正确顺序；
+   - 选择第一个子任务作为本轮执行目标。
+6. 实现目标任务时，先阅读相关代码与测试，确认实现边界。
+7. 运行相关测试、必要的完整测试，以及 `cargo clippy --all-targets -- -D warnings`。
+8. 修复执行过程中暴露的所有既有问题，不以规避方式推进。
+9. 完成后更新 `TODO.md` 与 `PLAN.md`，记录实际进展和剩余任务。
+10. 提交 Git commit，然后停止，不继续下一个任务。
 
-## 进度记录
+## 约束
 
-- 已创建本计划文件。
-- 已检查工作区状态：当前存在我新增的 `memory/claude_plan.md` 修改，以及一个未跟踪文件 `OPTIMIZATION.md`；后续改动需避免干扰这些既有/用户态内容。
-- 已查看最新提交 `389a5aba25c8340eea9997cd95c833f8a3bd543c`（`[T4017e2] Route continuation replay tokens through explicit outcome`）；提交信息未额外点名需要先修复的既有问题。
-- 已读取 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务是 `T4017e3`：将 ordinary indirect callee 的 `callee_suspend_state` 迁入显式 frame / resume-token metadata，并去掉 TLS resume 入口。
+- 不接受绕过、fixture 特判、降级实现或缩小范围来“完成”任务。
+- 若被前置缺陷阻塞，必须先把缺陷修复任务插入 `TODO.md` 的正确位置，并在 `PLAN.md` 说明原因。
+- 在执行过程中如果计划变化或关键步骤完成，需要持续更新本文件。
 
-## 当前细化计划（T4017e3）
+## 当前状态
 
-1. 全局搜索 `callee_suspend_state`、`scoop_callee_suspend_state_get`、ordinary indirect callee resume 相关路径，定位仍依赖 TLS 的生产代码与测试。
-2. 结合 `T4017d/e1/e2` 最近改动，确认当前 state-machine / runtime / ABI 中已有的显式 `EffectOutcome`、resume token、frame metadata 能否直接承载 ordinary callee resume 状态。
-3. 已确定实现路径，无需先拆前置任务：
-   - 保留 ordinary callee fresh path 的 state save，但把该 state 通过显式 `EffectOutcome.signal.resume_token` / frame metadata 传播，而不是作为 resume 入口长期留在 TLS。
-   - 为 ordinary top-level fun / closure 生成显式 callee-resume thunk；replay 时直接调用 thunk，不再靠 ordinary 函数入口读取 TLS 判定 fresh/resume。
-   - 调整 state-machine frame layout，为 ordinary call-like suspend site 持有显式 callee resume token；suspend/replay 都围绕该 token 运作。
-   - 清理生产路径里对 `scoop_callee_suspend_state_get()/clear()` 的入口依赖；TLS 若仍保留，只允许承担 fresh call -> immediate caller boundary 的短暂 transport/scratch。
-4. 若实现中发现新的既有缺口或前置依赖未完成，则按要求把该缺口转成 `TODO.md` 前置任务，更新 `PLAN.md` 和本文件后停止。
-5. 完成实现后，运行定向测试，再跑全量 `cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --all-targets -- -D warnings`（如时间/变更面允许），最后更新 `TODO.md` / `PLAN.md` 并提交。
+- 已创建初始计划文件。
+- 已检查最新提交：最新提交仅更新计划文档，提交说明未声明待修的既有缺陷。
+- 已读取 `TODO.md` / `PLAN.md`，确认当前主线顺序一致。
+- 已确认第一个未完成任务为 `T4017f`：补齐 vtable / itable / object init / top-level init / extern thunk 等剩余边界，并删除 effect TLS 的主语义职责。
 
-## 当前实现决策
+## 针对 T4017f 的当前执行计划
 
-- 不修改所有 ordinary function 的公开/内部调用 ABI，也不把 vtable / itable / object init 一并提前收进本轮；这些仍留在后续 `T4017f`。
-- 通过“显式 resume thunk + 显式 resume token”消除 ordinary callee 入口对 TLS 的依赖，范围控制在 `T4017e3` 约定的 top-level fun / closure / relevant call-like boundary。
+1. 读取 `TODO.md` / `PLAN.md` 中 `T4017f` 及其前置 `T4017a-e3` 的上下文，明确验收口径。
+2. 搜索 effect TLS、`EffectCtx`、`EffectOutcome`、vtable/itable、object init、top-level init、extern thunk 相关实现，定位仍依赖 TLS side channel 的剩余边界。
+3. 评估 `T4017f` 是否仍过大：
+   - 如果可以在本轮内完成，则直接实现。
+   - 如果存在明确且不可在本轮安全收口的前置 blocker，则按要求先在 `TODO.md` / `PLAN.md` 中插入前置任务并停止。
+4. 修改实现并补回归测试，重点覆盖剩余边界路径不再以 effect TLS 为主语义来源。
+5. 运行相关测试、全量测试与 `clippy`。
+6. 完成后更新 `TODO.md`、`PLAN.md` 与本文件，提交 commit，并停止。
 
-## 约束与执行原则
+## 已完成的上下文确认
 
-- 不通过缩小规格、替换表示方式、弱化测试、局部特殊分支或其他变通方式推进任务。
-- 若发现现有实现与规格不符，必须先修复，或显式加入 `TODO.md` 作为前置任务。
-- 不回退或覆盖非本人改动；若发现冲突性脏改动，先评估并在必要时停止询问。
-- 本轮目标是“一次只完成一个任务并提交”，不继续处理后续任务。
-# 2026-04-24 当前轮执行计划补充
+- 已确认当前尚未迁移到显式 `ctx + outcome` 的剩余 boundary 主要是：
+  - vtable dispatch；
+  - itable dispatch；
+  - object init access（object value / object property）；
+  - top-level immutable value init access；
+  - direct `@Extern` / native call 边界。
+- 已确认 direct / closure / funptr 路径已经具备可复用的显式 boundary helper 模式：
+  - 先捕获当前 `EffectCtx`；
+  - 在 boundary 上安装 handler stack top；
+  - 调用 legacy callee；
+  - 立即把 TLS 中的 legacy signal `consume` 到显式 `EffectOutcome`；
+  - 恢复 handler stack top；
+  - 再按 outcome 决定继续或向外传播。
+- 已确认现有回归对 object-property/class-init 隐式 suspend 已有部分覆盖，但对 vtable / itable / top-level init / object value access / effectful extern boundary 仍缺少显式 outcome 形状或端到端覆盖。
 
-## 当前任务
+## 接下来的具体改动
 
-- 继续完成 `TODO.md` 中首个未完成任务 `T4017e3`。
-- 本轮目标仅限于完成 `T4017e3`、验证、更新计划文件、提交，然后停止。
-
-## 已知前置检查
-
-- 已检查最新提交 `389a5aba25c8340eea9997cd95c833f8a3bd543c`，提交信息为 `[T4017e2] Route continuation replay tokens through explicit outcome`。
-- 该提交未在提交信息中指出必须先修复的既有问题。
-- 当前工作区存在未跟踪文件 `OPTIMIZATION.md`，不属于本轮改动范围，不得改动或回退。
-
-## 已有实现状态摘要
-
-- `T4017e3` 的核心实现已经落地，采用“显式 ordinary-callee resume token + 显式 resume thunk”的方案。
-- top-level ordinary function 与 closure 已拆分 fresh path 和独立 callee resume thunk。
-- callee suspend state 已新增 resume thunk 指针字段，并通过 `EffectOutcome.signal.resume_token` 显式传播。
-- state machine frame 已为 ordinary call-like suspend site 分配显式 `callee_resume_token` 槽位。
-- runtime 中 TLS `__scoop_callee_suspend_state` 已降级为 propagation 边界内的 scratch transport，不再承担恢复入口职责。
-- 相关局部测试已通过，剩余问题集中在 3 个 LLVM 单测断言尚未同步新 IR 结构。
-
-## 外显执行计划
-
-1. 先定位并修正剩余 3 个失败 LLVM 单测的断言，使其匹配新的 IR 结构。
-2. 运行对应单测确认修正有效。
-3. 运行 `cargo test --all` 检查是否还存在真正的既有实现问题。
-4. 若全量测试通过，再运行：
-   - `cargo run -p scoop -- test`
-   - `cargo clippy --all-targets -- -D warnings`
-5. 若验证全部通过：
-   - 更新 `TODO.md`，将 `T4017e3` 标记完成；
-   - 更新 `PLAN.md`，推进到后续任务；
-   - 更新本文件，记录完成状态和验证结果。
-6. 检查工作区改动，确认未误触 `OPTIMIZATION.md`。
-7. 提交一次 git commit，提交信息预期为 `[T4017e3] Route ordinary callee resume through explicit frame tokens`，随后停止。
-
-## 已知风险与处理原则
-
-- 如果在全量测试、fixture 测试或 clippy 中暴露新的既有 bug、回归、spec mismatch 或未完成实现边界，则必须先修复该问题，再决定是否能完成 `T4017e3`。
-- 不允许通过缩小断言覆盖面、改窄 fixture 形状、引入特判工作绕过实现缺陷。
-- 如果发现必须先完成新的前置任务，需按要求更新 `TODO.md` / `PLAN.md` / 本文件，并在提交后停止。
-
-## 当前进展更新
-
-- 已修正剩余 3 个 LLVM 单测断言，使其匹配新的显式 ordinary-callee resume token / resume thunk IR。
-- `cargo test --all` 已通过。
-- `cargo run -p scoop -- test` 发现真实回归：`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop` 的 stdout 与 golden 不一致。
-- 当前计划已切换为：先复现并定位该 fixture 回归，修复后重新运行 fixture 套件与 `clippy`，然后再更新 `TODO.md` / `PLAN.md` 并提交。
-
+1. 在 effect contract / codegen 中抽取或复用统一的 legacy-call boundary helper。
+2. 将 vtable / itable / object init / top-level init / extern 调用点接入该 helper，并删除这些路径上的 post-call TLS active probing。
+3. 补 LLVM IR 测试，锁定相关函数体中出现 `scoop_effect_outcome_consume_current` / `publish`，且不再出现 `scoop_effect_is_active`。
+4. 补 run-pass fixture，覆盖 virtual dispatch、interface dispatch、top-level init access，以及 object value access 的 outward-effect 行为。
 ## 2026-04-24 收尾更新
 
-- 上述 fixture 回归已在后续实现中修复；`T4017e3` 的代码与测试状态已经收口完成。
-- 已确认本轮实现验证结果：
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`
+### 当前目标
+- 本轮只完成 `TODO.md` 中第一个未完成任务 `T4017f`，不推进后续任务。
+
+### 已知状态
+- 先前实现已经把剩余 legacy effect boundary 迁移到 explicit outcome 模式，并补齐了相关 LLVM 单测与 run-pass fixtures。
+- 先前验证记录显示以下命令已经通过：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc --features llvm explicit_outcome_boundary -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
   - `cargo run -p scoop -- test`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-  - `cargo fmt`
-- 已按 `PROMPT.md` 收尾要求更新任务文档：
-  - `TODO.md` 已将 `T4017e3` 标记为 `[DONE]`，并同步将父条目 `T4017e` 收口为 `[DONE]`；
-  - `PLAN.md` 已将主线推进为 `T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
-- 本轮提交只包含 `T4017e3` 相关实现、计划文档与本进度记录；保留未跟踪文件 `OPTIMIZATION.md` 不纳入提交。
+
+### 收尾执行计划
+1. 检查当前工作树与 `TODO.md` / `PLAN.md` / `memory/claude_plan.md` 状态，确认待收尾内容。
+2. 更新 `TODO.md`，将 `T4017f` 标记为完成，并同步当前剩余实现顺序与验证记录。
+3. 更新 `PLAN.md`，记录 `T4017f` 已完成并把主线切换到下一个未完成任务。
+4. 回写 `memory/claude_plan.md`，记录关键步骤完成情况。
+5. 复查差异后提交 git，提交信息使用 `[T4017f] ...` 形式。
+6. 提交后停止，不继续处理后续任务。
+
+### 约束
+- 不回退用户已有修改。
+- 若收尾过程中发现新的既有问题，先修复该问题或按要求把前置任务插入 `TODO.md`，然后再决定是否提交停止。
+
+### 已完成的关键步骤
+- 已检查 `git log -1 --stat --oneline`，最新提交 `d240395a` 仅更新计划文档，未声明需要先修的既有缺陷。
+- 已检查工作树与 `TODO.md` / `PLAN.md` 当前内容，确认本轮剩余工作只差任务状态落档与提交。
+- 已更新 `TODO.md`：
+  - 将 `T4017f` 标记为 `[DONE]`。
+  - 补充 explicit outcome boundary 收口、hidden-suspend 修复、LLVM/run-pass 覆盖与验证命令记录。
+  - 将顶部“当前剩余实现顺序”切换为从 `T4017R` 开始。
+- 已更新 `PLAN.md`：
+  - 顺序总览改为 `T4017f` 已完成、当前主线转入 `T4017R`。
+  - 在 P1.6 中补写 `T4017f` 的完成记录、测试覆盖与验证结果。
+  - 将阶段性“当前状态”改为 `T4017R -> T4012b3 -> ...`。
+- 已复查本轮 diff，确认实现文件、fixture、新增 native test helper 与计划文档变更都对应 `T4017f` 收口范围。
+- 已重新执行并确认通过：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc --features llvm explicit_outcome_boundary -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (397)`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1174)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+
+### 剩余动作
+1. 提交 git commit：`[T4017f] Migrate remaining effect boundaries to explicit outcome`。
+2. 提交后停止。

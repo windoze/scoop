@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -881,7 +881,7 @@
   - 已同步更新相关 LLVM / state-machine IR 断言，并复验 `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo fmt` 通过。
 - 依赖：T4017e2
 
-### T4017f [TODO] 补齐 vtable / itable / object init / top-level init / extern thunk 等剩余边界，并删除 effect TLS 的主语义职责
+### T4017f [DONE] 补齐 vtable / itable / object init / top-level init / extern thunk 等剩余边界，并删除 effect TLS 的主语义职责
 - 范围：
   - 将 vtable / itable dispatch、object init、top-level init、必要的 extern/native thunk 与其余 call-like boundary 统一迁到显式 `ctx + outcome` internal ABI；需要边界转换时，也应显式通过 thunk 完成，而不是继续保留隐式 TLS 分流。
   - 删除 effect TLS 的主语义职责：`handler stack` 迁入 `EffectCtx`，`active + perform_slot` 不再是传播 source of truth；TLS 若仍保留，只能承担调试职责。
@@ -889,6 +889,14 @@
 - 验收：
   - 仓库内剩余 effect TLS 不再承担“当前计算是否 outward-propagate”的主语义职责。
   - polymorphic / initialization / boundary paths 与 direct / closure / funptr 路径使用同一套内部 propagation contract，不再各走一套旁路。
+- 完成记录：
+  - `crates/scoopc/src/llvm/codegen/effect/contract.rs` / `crates/scoopc/src/llvm/codegen/mod.rs` 已新增并接入统一的 `LegacyEffectBoundary` helper，把 legacy callee boundary 固定为“捕获当前 `EffectCtx` -> 安装 handler stack top -> 调用 legacy callee -> `scoop_effect_outcome_consume_current(...)` -> 恢复 handler stack top -> 按显式 outcome 决定继续 / outward propagate”的单一路径。
+  - vtable / itable dispatch、object value init access、top-level immutable init access 与 extern/native effect boundary 已全部切到该显式 outcome contract；这些路径的 post-call `scoop_effect_is_active()` probing 已移除，不再把 effect TLS active flag 当作 source of truth。
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 已为 hidden-suspend boundary 补上显式 outcome 捕获；`ObjectInitAccessBoundary` / `RuntimeRaiseBoundary` 现在会把 propagation outcome 正确写回 unified state-machine，而不是吞掉 active path。
+  - `runtime/c/scoop_runtime_api.h` / `runtime/c/scoop_test.c` 已补 test-only native helper `scoop_test_raise_null_assertion_failed_in_native` 及 allowlist，用于覆盖 effectful extern/native boundary 的 outward propagation。
+  - LLVM IR 回归已锁定 virtual call、interface call、object init access、top-level immutable init access 与 extern/native boundary 使用显式 outcome，且不再引用 `@scoop_effect_is_active`；run-pass fixtures 也已新增覆盖这些边界的端到端 outward-effect 行为。
+  - 旧回归 `tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop` 暴露的 hidden-suspend active path 丢失问题已一并修复；此前错误行为会继续执行 `active_unreachable` 并输出 `1`，现已恢复正确传播。
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc --features llvm explicit_outcome_boundary -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (397)`）、`cargo run -p scoop -- test`（`fixtures: ok (1174)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017e3
 
 ### T4017R [TODO] Review：确认 effect / continuation 运行时已从 TLS side channel 收口为显式 `EffectCtx` / `EffectOutcome`

@@ -1,0 +1,46 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_handle_hidden_suspend_virtual_helper_basic.stdout
+//
+// T4017f：ordinary helper 内的 outward-effect vtable dispatch 应走显式 outcome boundary。
+// - helper() 自身是 ordinary effectful callee，内部通过 virtual dispatch 调用 effectful override；
+// - outward-effect 后 `helper_unreachable` 不能执行；
+// - outer handle 仍需命中并得到正确结果。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+open class Base() {
+    open fun ping(): Int / (Ask) {
+        Ask.ask(1)
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int / (Ask) {
+        println("derived")
+        Ask.ask(41)
+    }
+}
+
+fun helper(base: Base): Int / (Ask) {
+    println("helper_before")
+    val value: Int = base.ping()
+    println("helper_unreachable")
+    return value
+}
+
+fun main(): Int {
+    val base: Base = Derived()
+    val result: Int = handle {
+        helper(base)
+    } with {
+        Ask.ask(seed) -> seed + 1
+    }
+
+    println(result)
+    println("done")
+    return 0
+}

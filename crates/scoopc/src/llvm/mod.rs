@@ -2790,6 +2790,226 @@ fun main(): Int {
     }
 
     #[test]
+    fn virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+open class Base() {
+    open fun ping(): Int / (Ask) {
+        Ask.ask(1)
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int / (Ask) {
+        Ask.ask(41)
+    }
+}
+
+fun helper(base: Base): Int / (Ask) {
+    return base.ping()
+}
+
+fun main(): Int {
+    return handle {
+        helper(Derived())
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let helper_ir = function_ir_named(&ir, "a.helper");
+
+        assert!(
+            helper_ir.contains("@scoop_effect_outcome_consume_current")
+                && helper_ir.contains("@scoop_effect_outcome_publish")
+                && !helper_ir.contains("@scoop_effect_is_active"),
+            "outward-effect vtable call 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+        );
+    }
+
+    #[test]
+    fn interface_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+interface IFace {
+    fun ping(): Int / (Ask)
+}
+
+class Impl() : IFace {
+    fun ping(): Int / (Ask) {
+        Ask.ask(52)
+    }
+}
+
+fun helper(face: IFace): Int / (Ask) {
+    return face.ping()
+}
+
+fun main(): Int {
+    return handle {
+        helper(Impl())
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let helper_ir = function_ir_named(&ir, "a.helper");
+
+        assert!(
+            helper_ir.contains("@scoop_effect_outcome_consume_current")
+                && helper_ir.contains("@scoop_effect_outcome_publish")
+                && !helper_ir.contains("@scoop_effect_is_active"),
+            "outward-effect itable call 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+        );
+    }
+
+    #[test]
+    fn object_value_init_with_real_outward_effect_uses_explicit_outcome_boundary() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val marker: Int = 1
+}
+
+fun helper(): Int / Raise<RuntimeError> {
+    val _obj = BoomObject
+    return 7
+}
+
+fun main(): Int {
+    return try {
+        helper()
+    } catch (e: RuntimeError) {
+        11
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let helper_ir = function_ir_named(&ir, "a.helper");
+
+        assert!(
+            helper_ir.contains("@scoop_effect_outcome_consume_current")
+                && helper_ir.contains("@scoop_effect_outcome_publish")
+                && !helper_ir.contains("@scoop_effect_is_active"),
+            "object value init access 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+        );
+    }
+
+    #[test]
+    fn top_level_immutable_init_with_real_outward_effect_uses_explicit_outcome_boundary() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+val Broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
+
+fun helper(): Int / Raise<RuntimeError> {
+    return Broken
+}
+
+fun main(): Int {
+    return try {
+        helper()
+    } catch (e: RuntimeError) {
+        11
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let helper_ir = function_ir_named(&ir, "a.helper");
+
+        assert!(
+            helper_ir.contains("@scoop_effect_outcome_consume_current")
+                && helper_ir.contains("@scoop_effect_outcome_publish")
+                && !helper_ir.contains("@scoop_effect_is_active"),
+            "top-level immutable init access 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+        );
+    }
+
+    #[test]
+    fn extern_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+@Extern("scoop_test_raise_null_assertion_failed_in_native")
+fun nativeBoom(): Int / Raise<RuntimeError>
+
+fun helper(): Int / Raise<RuntimeError> {
+    return @Unsafe do { nativeBoom() }
+}
+
+fun main(): Int {
+    return try {
+        helper()
+    } catch (e: RuntimeError) {
+        11
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+        let helper_ir = function_ir_named(&ir, "a.helper");
+
+        assert!(
+            helper_ir.contains("@scoop_effect_handler_stack_swap_top")
+                && helper_ir.contains("@scoop_effect_outcome_consume_current")
+                && helper_ir.contains("@scoop_effect_outcome_publish")
+                && !helper_ir.contains("@scoop_effect_is_active"),
+            "effectful extern/native boundary 应显式安装 ctx 并 consume/publish outcome，而不是继续依赖 TLS active probing:\n{helper_ir}"
+        );
+    }
+
+    #[test]
     fn async_task_ir_uses_ordinary_scoop_task_helpers_not_legacy_runtime_abi() {
         let source = SourceFile::new_virtual(
             "<mem>",

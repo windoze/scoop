@@ -15,6 +15,10 @@
 
 // 运行时 GC helper（由具体 backend 提供实现）。
 void scoop_gc_collect(void);
+void scoop_effect_perform_slot_write_u64(uint32_t op_tag,
+                                         uint32_t effect_instance_key,
+                                         uint64_t value);
+void scoop_effect_set_active(void);
 
 typedef struct ScoopTestUnwindDumpFramesState {
   uint32_t frame_index;
@@ -203,6 +207,25 @@ __attribute__((noinline)) intptr_t scoop_test_stackmap_statepoint_smoke(void) {
 // - 这样当 `scoop_gc_collect()` 运行时，即使当前线程处于 InNative，GC 仍可通过 native_roots
 //   扫描/保活 call-site 上的对象引用（避免误回收）。
 void scoop_test_gc_collect_in_native(void) { scoop_gc_collect(); }
+
+// `@Extern` + effect/native boundary smoke：在 native helper 内直接发布
+// `Raise.raise(RuntimeError.NullAssertionFailed)`。
+//
+// 说明：
+// - helper 本身不负责 unwinding；它只把 `Raise<RuntimeError>` 的 legacy TLS transport
+//   写好后返回；
+// - 外层 ordinary / explicit effect boundary 需要在 native 返回后立即 consume 当前 outcome，
+//   再决定向外传播；
+// - RuntimeError enum 顺序当前由 `sysroot/core.scoop` 定义为：
+//   `NullAssertionFailed(0) / ClassCastFailed(1) / ContinuationAlreadyResumed(2)`。
+void scoop_test_raise_null_assertion_failed_in_native(void) {
+  const uint32_t op_tag_raise = 1u;
+  const uint32_t raise_runtime_error_instance_key = UINT32_MAX;
+  const uint64_t null_assertion_failed_tag = 0u;
+  scoop_effect_perform_slot_write_u64(
+      op_tag_raise, raise_runtime_error_instance_key, null_assertion_failed_tag);
+  scoop_effect_set_active();
+}
 
 // 最小 stable-handle token slot：模拟 reactor / completion callback / future executor
 // 在 native 状态里长期保存 `GcHandle.raw`，并在稍后把该 token 回传给 Scoop。

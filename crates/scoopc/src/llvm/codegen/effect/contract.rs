@@ -21,6 +21,12 @@ pub(super) struct EffectOutcome<'ctx> {
     pub(super) signal: EffectSignal<'ctx>,
 }
 
+#[derive(Clone, Copy)]
+pub(in crate::llvm::codegen) struct LegacyEffectBoundary<'ctx> {
+    outcome_slot: PointerValue<'ctx>,
+    saved_handler_top: PointerValue<'ctx>,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn register_effect_contract_types(&self) {
         let _ = self.llvm_effect_ctx_struct_type();
@@ -64,6 +70,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.capture_current_effect_ctx_into_slot(at, ctx_slot, label)?;
         let outcome_slot = self.alloc_effect_outcome_slot(at, label)?;
         Ok((ctx_slot, outcome_slot))
+    }
+
+    pub(in crate::llvm::codegen) fn begin_legacy_effect_boundary(
+        &mut self,
+        at: crate::span::Span,
+        label: &str,
+    ) -> Result<LegacyEffectBoundary<'ctx>, LlvmEmitError> {
+        let (ctx_slot, outcome_slot) = self.prepare_current_effect_call_contract(at, label)?;
+        let installed_top = self.load_effect_ctx_handler_top_from_slot(at, ctx_slot, label)?;
+        let saved_handler_top =
+            self.swap_effect_handler_stack_top(at, installed_top, &format!("{label}_install"))?;
+        Ok(LegacyEffectBoundary {
+            outcome_slot,
+            saved_handler_top,
+        })
+    }
+
+    pub(in crate::llvm::codegen) fn finish_legacy_effect_boundary(
+        &mut self,
+        at: crate::span::Span,
+        boundary: LegacyEffectBoundary<'ctx>,
+        label: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.consume_current_effect_outcome_into(at, boundary.outcome_slot, label)?;
+        let _ = self.swap_effect_handler_stack_top(
+            at,
+            boundary.saved_handler_top,
+            &format!("{label}_restore"),
+        )?;
+        Ok(boundary.outcome_slot)
     }
 
     pub(in crate::llvm::codegen) fn capture_current_effect_ctx_into_slot(

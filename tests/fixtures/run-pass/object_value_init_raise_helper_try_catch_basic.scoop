@@ -1,0 +1,45 @@
+// EXPECT: pass
+// RUN-STDOUT: object_value_init_raise_helper_try_catch_basic.stdout
+//
+// T4017f：ordinary helper 内的 hidden-suspend object value access。
+// - helper 读取 object 单例值本身（不是属性），访问前会先执行 object init；
+// - init 内触发 Raise.raise(RuntimeError.*) 后，helper 自身必须立刻终止；
+// - outer try/catch 仍需命中，caller tail 也不能继续执行。
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        println("boom.init")
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val marker: Int = 1
+}
+
+fun helper(): Int {
+    println("helper_before_access")
+    val _obj = BoomObject
+    println("helper_unreachable")
+    return 0
+}
+
+fun main(): Int {
+    val code: Int = try {
+        println("main_before_call")
+        val value: Int = helper()
+        println("main_unreachable")
+        value
+    } catch (e: RuntimeError) {
+        println("caught")
+        when (e) {
+            NullAssertionFailed -> 10
+            ClassCastFailed -> 20
+            ContinuationAlreadyResumed -> 30
+        }
+    }
+
+    println(code)
+    println("done")
+    return 0
+}
