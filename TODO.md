@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4017e2 -> T4017e3 -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -754,7 +754,7 @@
   - `CONTINUATION.md` 已给出新的内部模型：`EffectCtx*` 表示运行时动态 effect 环境，`EffectOutcome<R>` 表示一次 eager 执行是 `Complete` 还是 `Propagate(signal)`；continuation 捕获的是 `frame + captured ctx`，而不是 resuming thread 当前 TLS 上碰巧残留的 effect 状态。
   - 本组任务不改公开语言 surface；目标是先把文档/spec、分析分层与 compiler/runtime contract 收口到这套模型，再分阶段迁出 TLS 的主语义职责。
   - 当前项目没有为了兼容而保留 effect TLS 的需求；TLS 若在最终实现中仍有残留，只能承担调试职责。
-  - 固定顺序为 `T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`：先文档更新，再做 fast-path 分层、显式抽象接入、ordinary call ABI 迁移、continuation/runtime 状态迁移、剩余边界与 TLS 清理，最后 review。
+  - 固定顺序为 `T4017a -> T4017b -> T4017c -> T4017d -> T4017e1 -> T4017e2 -> T4017e3 -> T4017f -> T4017R`：先文档更新，再做 fast-path 分层、显式抽象接入、ordinary call ABI 迁移、resume-driver bookkeeping 收口、replay token 迁移、ordinary callee resume 状态迁移、剩余边界与 TLS 清理，最后 review。
 - 验收：
   - effect propagation 的 source of truth 不再是 `TLS active + perform slot`；普通 effectful call、`perform`、`handle` 与 `Continuation.resume(...)` 在内部合同上都可统一解释为 `ctx + outcome`。
   - ordinary call sites 若静态证明不会 outward-effect，不再无差别支付 effect TLS 分流成本。
@@ -823,15 +823,47 @@
   - 已验证 `cargo fmt --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017c
 
-### T4017e [TODO] 将 continuation replay、`callee_suspend_state` 与 `pending_continuation` 迁出 TLS，收口到 `frame + ctx + signal/resume token`
-- 范围：
-  - 把 `Continuation.resume(...)`、ordinary indirect callee replay、`callee_suspend_state`、`pending_continuation`、`continuation_resume_active` 等当前依赖 TLS bridge 的恢复路径，迁到显式 frame / continuation / signal / resume-token metadata。
-  - 让 continuation capture 显式捕获 `captured_ctx` 与必要的 callee/replay 状态；cross-thread resume 恢复时只依赖 continuation 自身捕获的数据，而不是当前线程 TLS 的偶然残留。
-  - 补 runtime / LLVM / run-pass / stress regression，覆盖 fresh continuation on re-suspend、cross-thread resume、cleanup / `finally`、以及 ordinary indirect callee suspend/resume。
+### T4017e [TODO] 将 continuation replay、`callee_suspend_state` 与 `pending_continuation` 迁出 TLS，收口到 `frame + ctx + signal/resume token`（拆分执行）
+- 说明：
+  - 当前条目同时覆盖 runtime resume-driver bookkeeping、`Continuation.resume(...)` replay token、ordinary indirect callee resume 入口、以及 cross-thread / cleanup 回归，实际改动横跨 runtime、ordinary ABI、unified state machine 与测试基线，一次性实现面过大。
+  - 因此拆成 `T4017e1 -> T4017e2 -> T4017e3`：先收口 resume-driver 内部 bookkeeping，再把 replay token 接入显式 outcome / state-machine，最后迁掉 ordinary callee `callee_suspend_state` 的 TLS 入口。
 - 验收：
-  - continuation replay 与 ordinary indirect callee 恢复路径的 authoritative state 不再由 TLS 承担。
-  - `Continuation.resume(...)`、fresh continuation、replay state 与 cross-thread 语义继续保持既有合同，但内部 source of truth 已切到显式 captured state。
+  - 子任务完成后，continuation replay、ordinary indirect callee resume 与 cross-thread resume 的 authoritative state 不再由 TLS 承担。
 - 依赖：T4017d
+
+### T4017e1 [DONE] runtime：把 `pending_continuation` 与 `continuation_resume_active` 收口到显式 resume-driver scope
+- 范围：
+  - `scoop_continuation_resume_common()` 引入显式 resume-driver scope / bookkeeping，对应当前一次 `Continuation.resume(...)` 驱动的动态范围。
+  - `pending_continuation` 的 authoritative state 迁到该 scope，而不是 `__scoop_continuation_resume_pending_continuation` 这类裸 TLS 槽位；嵌套 resume 时要按 scope 链正确隔离。
+  - `continuation_resume_active` 不再保留为独立语义 TLS 计数器；若 runtime 仍需“当前 active resume scope”指针，只能作为局部化的 driver bookkeeping。
+  - 现阶段允许 `callee_suspend_state` 继续作为 bridge helper 留在 TLS，`T4017e2/e3` 再迁掉；但 `publish_pending_continuation` 不能继续依赖裸 TLS continuation 临时槽位作为 source of truth。
+- 验收：
+  - runtime 中不再有 `__scoop_continuation_resume_pending_continuation` / `__scoop_continuation_resume_active` 这两个原始 TLS source-of-truth 槽位。
+  - 相关 runtime tests 覆盖“仅 active resume scope 可发布 pending continuation”与“resume 结束后不会把上一层 pending bookkeeping resurrect 回外层 scope”。
+- 完成记录：
+  - `runtime/c/scoop_runtime.c` 已引入 `ScoopContinuationResumeScope`，并删除 `__scoop_continuation_resume_pending_continuation` / `__scoop_continuation_resume_active` 两个原始 TLS 槽位；当前线程只保留一个 active resume-scope 指针作为局部 bookkeeping。
+  - `scoop_continuation_resume_publish_pending_continuation()` 现在只向当前 active scope 写入 pending continuation；`scoop_continuation_resume_common()` 通过 scope 链隔离 nested resume。
+  - `crates/scoop_runtime/tests/continuation_one_shot.rs` 已新增 `continuation_publish_pending_continuation_is_scoped_to_active_resume_driver`，锁定“scope 外 publish 为 no-op，scope 内 publish 会被包装成 replay-state，而不是泄漏 raw continuation 指针”。
+  - 已验证 `cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）与 `cargo clippy --all-targets -- -D warnings` 通过。
+- 依赖：T4017e
+
+### T4017e2 [TODO] 将 `Continuation.resume(...)` replay token 接入显式 outcome / state-machine，不再通过 TLS replay-state 取回 inner continuation
+- 范围：
+  - `Continuation.resume(...)` 的 fresh / replay path 改为显式消费 `EffectOutcome` / `EffectSignal.resume_token`；outer replay 不再把 inner continuation 包成 TLS replay-state 再让 codegen 取回。
+  - unified state machine suspend/replay、answer-return path 与 `Continuation.resume` builtin 统一走显式 replay token。
+  - 补 LLVM / run-pass 回归，锁定 replay path 不再通过 `scoop_callee_suspend_state_get()` 读取 continuation-resume replay-state。
+- 验收：
+  - `Continuation.resume(...)` replay path 的 authoritative pending continuation / replay token 不再来自 TLS callee-state 槽位。
+- 依赖：T4017e1
+
+### T4017e3 [TODO] 将 ordinary indirect callee `callee_suspend_state` 迁入显式 frame / resume-token metadata，并去掉 TLS resume 入口
+- 范围：
+  - ordinary top-level fun / closure / relevant call-like boundary 的 callee resume 入口不再通过 `scoop_callee_suspend_state_get()` 判断 resume / fresh。
+  - `callee_suspend_state` 改为显式跟随 frame / continuation / resume token 传播，cross-thread resume 只依赖 continuation 自身捕获状态。
+  - 清理剩余 runtime bridge helper / 测试叙事，使 `callee_suspend_state` TLS 不再承担语义职责。
+- 验收：
+  - ordinary indirect callee resume 的 authoritative state 不再由 TLS 承担。
+- 依赖：T4017e2
 
 ### T4017f [TODO] 补齐 vtable / itable / object init / top-level init / extern thunk 等剩余边界，并删除 effect TLS 的主语义职责
 - 范围：
@@ -841,7 +873,7 @@
 - 验收：
   - 仓库内剩余 effect TLS 不再承担“当前计算是否 outward-propagate”的主语义职责。
   - polymorphic / initialization / boundary paths 与 direct / closure / funptr 路径使用同一套内部 propagation contract，不再各走一套旁路。
-- 依赖：T4017e
+- 依赖：T4017e3
 
 ### T4017R [TODO] Review：确认 effect / continuation 运行时已从 TLS side channel 收口为显式 `EffectCtx` / `EffectOutcome`
 - 重点：

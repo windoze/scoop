@@ -84,10 +84,12 @@ unsafe extern "C" {
     fn scoop_effect_perform_slot_read_u64() -> u64;
 
     fn scoop_callee_suspend_state_get() -> *mut c_void;
+    fn scoop_callee_suspend_state_clear();
     fn scoop_test_callee_suspend_state_set(state: *mut c_void);
     fn scoop_test_continuation_resume_replay_state_create(
         prev_callee_suspend_state: *mut c_void,
     ) -> *mut c_void;
+    fn scoop_continuation_resume_publish_pending_continuation(continuation: *mut c_void);
 
     fn scoop_effect_handler_stack_push(frame: *mut ScoopEffectHandlerFrame, op_tag: u32);
     fn scoop_effect_handler_stack_pop(frame: *mut ScoopEffectHandlerFrame);
@@ -146,6 +148,16 @@ extern "C" fn replace_callee_suspend_state_step(
     unsafe {
         OBSERVED_CALLEE_SUSPEND_STATE.store(scoop_callee_suspend_state_get(), Ordering::SeqCst);
         scoop_test_callee_suspend_state_set(state);
+    }
+}
+
+extern "C" fn publish_pending_continuation_step(
+    state: *mut c_void,
+    _resume_word: u64,
+    _resume_gc_ref: *mut c_void,
+) {
+    unsafe {
+        scoop_continuation_resume_publish_pending_continuation(state);
     }
 }
 
@@ -562,6 +574,45 @@ fn continuation_resume_does_not_resurrect_saved_replay_state_tls() {
             scoop_callee_suspend_state_get(),
             ptr::null_mut(),
             "resume_common must treat saved continuation-resume replay-state as one-shot bookkeeping instead of restoring it into TLS after the child continuation finishes"
+        );
+
+        scoop_thread_unregister();
+    }
+}
+
+#[test]
+fn continuation_publish_pending_continuation_is_scoped_to_active_resume_driver() {
+    let _guard = continuation_test_guard();
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+        scoop_callee_suspend_state_clear();
+
+        let pending = scoop_continuation_alloc(ptr::null_mut(), Some(noop_step));
+        assert!(
+            !pending.is_null(),
+            "pending continuation sentinel must be allocated"
+        );
+
+        scoop_continuation_resume_publish_pending_continuation(pending);
+        assert!(
+            scoop_callee_suspend_state_get().is_null(),
+            "publishing pending continuation outside an active resume scope must stay a no-op"
+        );
+
+        let outer = scoop_continuation_alloc(pending, Some(publish_pending_continuation_step));
+        assert!(!outer.is_null(), "outer continuation must be allocated");
+
+        scoop_continuation_resume(outer);
+
+        let replay_state = scoop_callee_suspend_state_get();
+        assert!(
+            !replay_state.is_null(),
+            "active resume scope should package the published pending continuation into replay state"
+        );
+        assert_ne!(
+            replay_state, pending,
+            "resume driver must not leak the raw pending continuation pointer as TLS source of truth"
         );
 
         scoop_thread_unregister();

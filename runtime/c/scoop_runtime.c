@@ -505,14 +505,20 @@ SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
 // - 不参与 GC root 扫描——对象通过 pin 保持存活，handler 取回后由 ContState 追踪。
 static SCOOP_THREAD_LOCAL void *__scoop_callee_suspend_state = 0;
 
-// `Continuation.resume(...)` 的 resumed body 若再次 suspend outward，
-// 需要把“当前待继续的 inner continuation”先暂存在 TLS，等 runtime 从 step_fn
-// 返回后再包装成 replay-state 暴露给 outer call-boundary。
-static SCOOP_THREAD_LOCAL void *__scoop_continuation_resume_pending_continuation = 0;
+// `Continuation.resume(...)` 的 runtime driver bookkeeping。
+//
+// 说明：
+// - `pending_continuation` 不再以“裸 TLS continuation 槽位”作为 source of truth；
+// - 当前 active driver 只通过 TLS 持有一个 scope 指针，真正的 pending 状态保存在
+//   scope 本身，nested resume 则通过 `prev` 链正确隔离；
+// - 原来的 `continuation_resume_active` 计数语义也折叠到“是否安装了 active scope”。
+typedef struct ScoopContinuationResumeScope {
+  struct ScoopContinuationResumeScope *prev;
+  void *pending_continuation;
+} ScoopContinuationResumeScope;
 
-// 动态范围标记：当前线程是否正运行在 `scoop_continuation_resume(...)` 驱动的
-// resumed body 内。Suspend terminator 会据此决定是否向上发布 pending continuation。
-static SCOOP_THREAD_LOCAL uint32_t __scoop_continuation_resume_active = 0;
+static SCOOP_THREAD_LOCAL ScoopContinuationResumeScope
+    *__scoop_continuation_resume_scope = 0;
 
 static void scoop_effect_perform_slot_drop_gc_ref(void) {
   if (__scoop_effect_perform_slot.payload_gc_ref != 0) {
@@ -799,8 +805,7 @@ void scoop_thread_unregister(void) {
   __scoop_effect_active = 0;
   __scoop_effect_handler_stack_top = 0;
   __scoop_callee_suspend_state = 0;
-  __scoop_continuation_resume_pending_continuation = 0;
-  __scoop_continuation_resume_active = 0;
+  __scoop_continuation_resume_scope = 0;
   scoop_effect_perform_slot_reset();
   scoop_effect_trace_reset(0, 0);
 
@@ -901,7 +906,8 @@ void scoop_callee_suspend_state_clear(void) {
 }
 
 void scoop_continuation_resume_publish_pending_continuation(void *continuation) {
-  if (continuation == 0 || __scoop_continuation_resume_active == 0) {
+  ScoopContinuationResumeScope *scope = __scoop_continuation_resume_scope;
+  if (continuation == 0 || scope == 0) {
     return;
   }
 
@@ -909,7 +915,7 @@ void scoop_continuation_resume_publish_pending_continuation(void *continuation) 
     scoop_thread_register();
   }
 
-  __scoop_continuation_resume_pending_continuation = continuation;
+  scope->pending_continuation = continuation;
 }
 
 // test-only helper：允许 runtime 集成测试显式种入一个“调用方原 TLS”哨兵值，
@@ -1482,13 +1488,13 @@ static void scoop_continuation_resume_common(void *continuation) {
   ScoopEffectCtx captured_ctx = scoop_effect_ctx_make(k->captured_handler_stack_top);
   ScoopEffectCtx saved_ctx = scoop_effect_ctx_make(
       scoop_effect_handler_stack_swap_top(captured_ctx.handler_top));
+  ScoopContinuationResumeScope resume_scope = {
+      .prev = __scoop_continuation_resume_scope,
+      .pending_continuation = 0,
+  };
   void *saved_callee_suspend_state = __scoop_callee_suspend_state;
-  void *saved_pending_continuation =
-      __scoop_continuation_resume_pending_continuation;
-  uint32_t saved_resume_active = __scoop_continuation_resume_active;
   void *captured_callee_suspend_state = k->captured_callee_suspend_state;
-  __scoop_continuation_resume_pending_continuation = 0;
-  __scoop_continuation_resume_active = saved_resume_active + 1u;
+  __scoop_continuation_resume_scope = &resume_scope;
 
   // T3009b2a：TLS 只承担“当前 resumed body 正在消费哪个 callee state”的临时职责；
   // continuation 自己才是持久化 owner。为了避免 moving GC 在 TLS raw 指针尚未被
@@ -1522,9 +1528,8 @@ static void scoop_continuation_resume_common(void *continuation) {
     restored_callee_suspend_state = saved_callee_suspend_state;
   }
 
-  void *pending_continuation = __scoop_continuation_resume_pending_continuation;
-  __scoop_continuation_resume_pending_continuation = saved_pending_continuation;
-  __scoop_continuation_resume_active = saved_resume_active;
+  void *pending_continuation = resume_scope.pending_continuation;
+  __scoop_continuation_resume_scope = resume_scope.prev;
   if (pending_continuation != 0) {
     ScoopContinuationResumeReplayState *replay_state =
         scoop_continuation_resume_replay_state_alloc(pending_continuation,
