@@ -61,6 +61,7 @@ pub(super) fn visibility_from_modifiers(modifiers: &[ast::Modifier]) -> Visibili
 pub(super) fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
     match kind {
         ast::ExprKind::Missing => "missing",
+        ast::ExprKind::Annotated { .. } => "annotated expression",
         ast::ExprKind::Ident(_) => "ident",
         ast::ExprKind::IntLit => "int literal",
         ast::ExprKind::FloatLit => "float literal",

@@ -1,0 +1,32 @@
+// EXPECT: pass
+// 目标：T4012b3 `@Suppress` 的 file / declaration / local declaration / expression surface 可通过 typecheck。
+
+@file:Suppress("deprecated", "redundant-when-else")
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Deprecated("use newAdd", replaceWith: "newAdd")
+fun oldAdd(x: Int, y: Int): Int {
+    return x + y
+}
+
+@Suppress("deprecated")
+fun via_decl(): Int {
+    @Suppress("deprecated")
+    val local = oldAdd(1, 2)
+    return local
+}
+
+fun via_expr(): Int {
+    return @Suppress("deprecated") oldAdd(3, 4)
+}
+
+fun redundant(flag: Bool): Int {
+    return when (flag) {
+        true -> via_decl()
+        false -> via_expr()
+        else -> 0
+    }
+}

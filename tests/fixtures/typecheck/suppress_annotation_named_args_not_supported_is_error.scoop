@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::suppress_annotation_named_args_not_supported
+// 目标：T4012b3 `@Suppress` 不支持命名参数。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Suppress(warning: "deprecated")
+fun bad() {}

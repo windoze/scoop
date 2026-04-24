@@ -269,6 +269,10 @@ impl<'a> Parser<'a> {
             }
         }
 
+        if self.peek_symbol(Symbol::At) && self.peek_n(1).kind == TokenKind::Ident {
+            return Ok(Some(self.parse_generic_annotated_expr()?));
+        }
+
         // spec §5.7：`spawn { ... }`（为后续 structured concurrency 保留的语法壳）。
         //
         // 说明：
@@ -361,6 +365,30 @@ impl<'a> Parser<'a> {
                 expr: Box::new(expr),
             },
         }))
+    }
+
+    fn parse_generic_annotated_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let mut annotations = Vec::new();
+        let start = self.peek().span.start;
+
+        while self.peek_symbol(Symbol::At) && self.peek_n(1).kind == TokenKind::Ident {
+            annotations.push(self.parse_annotation_use()?);
+        }
+
+        let tok = *self.peek();
+        let expr = self.try_parse_expr_prefix()?.ok_or(ParseError::Expected {
+            expected: "表达式（注解之后）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })?;
+
+        Ok(ast::Expr {
+            span: Span::new(start, expr.span.end),
+            kind: ast::ExprKind::Annotated {
+                annotations,
+                expr: Box::new(expr),
+            },
+        })
     }
 
     fn parse_unsafe_block_expr(&mut self) -> Result<ast::Expr, ParseError> {

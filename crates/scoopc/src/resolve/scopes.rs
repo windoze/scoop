@@ -734,6 +734,7 @@ impl<'a> BlockScopeChecker<'a> {
             | ast::ExprKind::StringLit
             | ast::ExprKind::UnitLit
             | ast::ExprKind::ClassLit { .. } => {}
+            ast::ExprKind::Annotated { expr: inner, .. } => self.check_expr(inner.as_mut())?,
             ast::ExprKind::TupleLit { elements } => {
                 for e in elements {
                     self.check_expr(e)?;

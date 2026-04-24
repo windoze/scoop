@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::suppress_annotation_arg_must_be_string
+// 目标：T4012b3 `@Suppress` 参数必须是字符串字面量。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Suppress(1)
+fun bad() {}

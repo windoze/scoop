@@ -29,8 +29,10 @@ use super::{ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, Progr
 use super::super::TypeEnv;
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
+use super::super::builtin_annotations::collect_file_warning_suppressions;
 use super::super::lower::{TypeInstantiationKey, TypeLowering, WhereBoundEntry};
 use super::super::val_pat;
+use crate::warnings;
 
 #[derive(Clone, Copy)]
 struct CheckFileExprsRequest<'a> {
@@ -281,6 +283,8 @@ fn check_file_exprs_pass(
     let source = request.source;
     let file = request.file;
     let builtins = request.builtins;
+    let _warning_suppressions =
+        warnings::install_suppressions(collect_file_warning_suppressions(source, file));
 
     // 这里单独拷贝一份 package 前缀，避免在借用 `lower` 的同时再借用其字段导致借用冲突。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -576,11 +580,9 @@ fn check_class_member_fun_bodies_in_type_decl(
                     .iter()
                     .map(|p| lower.ty_param_from_decl(p))
                     .collect::<Vec<_>>();
-                let this_ty = lower.lower_type_fqn_with_args(
-                    type_fqn.clone(),
-                    this_ty_args,
-                    decl.name.span,
-                )?;
+                let this_ty = lower.with_warning_emission_suspended(|lower| {
+                    lower.lower_type_fqn_with_args(type_fqn.clone(), this_ty_args, decl.name.span)
+                })?;
 
                 let superclass_fqn = decl
                     .supertypes

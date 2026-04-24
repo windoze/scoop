@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unknown_suppress_warning_code
+// 目标：T4012b3 未知 warning code 会报稳定诊断。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Suppress("unchecked")
+fun bad() {}

@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：annotation markers（下一步 `T4012c`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -997,7 +997,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4012b3 [TODO] 为 `@Suppress` 建立 warning-code 与 expression/declaration/file suppression surface
+### T4012b3 [DONE] 为 `@Suppress` 建立 warning-code 与 expression/declaration/file suppression surface
 - 范围：
   - 将 `@Suppress(warnings...)` 纳入 built-in annotation surface，校验参数形状并与 warning code 命名形成统一 contract。
   - 接通 declaration / file-level suppression；若 expression annotation 仍缺语法面或 AST 支撑，需要在本任务中一并补齐，而不是继续把 spec 示例停留在文档层。
@@ -1005,6 +1005,18 @@
 - 验收：
   - `@Suppress` 不再只是被 parser 接受的普通 annotation use；其 warning suppression 行为与 spec 中的 expression/declaration/file surface 形成统一叙事。
 - 依赖：T4012b2
+- 已完成：
+  - `warnings.rs` 已建立结构化 warning code / suppression 基础设施，`deprecated`、`enum-size-disparity` 与 `redundant-when-else` 均通过统一 warning code 发射并支持按 span 抑制。
+  - built-in `@Suppress` 已接入 annotation typecheck 主线：要求至少一个字符串位置参数，拒绝 named args，并对未知 warning code 给出稳定诊断。
+  - parser / AST 已补齐 expression annotation surface 与 annotated local declaration 解析，`@Suppress("deprecated") expr`、`@Suppress(...) val x = ...`、文件级与声明级 suppression 均可生效。
+  - file/declaration/expression suppression 收集已接通到 warning emission；同时修复了 class self-type 与 `@CLayout` 内部 lowering 错误发出 deprecated use-site warning 的既有问题，避免 declaration 内部辅助路径污染 stderr。
+  - `sysroot/core.scoop`、`SCOOP_FULL_SPEC.md` 与新增 parse/typecheck/run-pass fixtures 已同步更新，覆盖合法 suppression、参数错误、未知 warning code 以及对 deprecation / lint warning 的真实抑制效果。
+- 已复验：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/suppress_deprecated_declaration_basic.scoop`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
 
 ### T4012c [TODO] 加入 built-in `@Experimental(val feature = "...")` annotation，作为保留的 feature-gate marker
 - 范围：

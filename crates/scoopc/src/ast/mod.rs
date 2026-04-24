@@ -1446,6 +1446,16 @@ pub enum ResolvedMemberRef {
 pub enum ExprKind {
     /// 解析失败或尚未实现时的占位节点（保持 span 以便诊断/回归）。
     Missing,
+    /// 通用表达式注解前缀：`@Ann expr` / `@A @B expr`（spec §15.3）。
+    ///
+    /// 说明：
+    /// - 该节点只承载“注解前缀 + 内层表达式”的语法关系；
+    /// - `@Unsafe do { ... }` / `@Safe ...` 这类已有执行语义的内建注解仍使用专门节点；
+    /// - 其余 annotation 在表达式位置的语义由 typecheck / warning suppression 等后续阶段决定。
+    Annotated {
+        annotations: Vec<AnnotationUse>,
+        expr: Box<Expr>,
+    },
     Ident(ValueIdent),
     IntLit,
     FloatLit,

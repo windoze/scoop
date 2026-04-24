@@ -129,7 +129,12 @@ annotation class TailRec
 // - 用户源码若确实需要声明 intrinsic surface，必须先通过 `@file:AllowIntrinsic` 显式开门。
 annotation class AllowIntrinsic
 annotation class Deprecated(val message: String = "", val replaceWith: String = "")
-annotation class Suppress(val warning: String)
+// `@Suppress`：warning suppression surface。
+//
+// 说明：
+// - 支持 expression / declaration / `@file:...` 三类 surface；
+// - 当前稳定 warning code：`deprecated` / `enum-size-disparity` / `redundant-when-else`。
+annotation class Suppress(vararg val warnings: String)
 // `@CLayout(aligned?, packed?)`（spec §15.5.2）：
 // - `aligned`：可选的结构体整体对齐（0 表示未指定）
 // - `packed`：可选的 pack 值（0 表示未指定；v0 仅支持 packed = 1）

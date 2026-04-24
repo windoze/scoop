@@ -33,9 +33,11 @@ use super::lower_type_ref_with_enum_subst;
 use super::{ASYNC_EFFECT_FQN, EnumTypeSubstContext, ExprInferInputs, ExprTypeError, TASK_FQN};
 
 use super::super::TypeSymbolKind;
+use super::super::annotations::check_inline_annotation_uses;
 use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
 use super::super::branch_merge;
 use super::super::lower::TypeLowering;
+use super::super::type_env::AnnotationTargetKind;
 use super::super::type_env::EnumVariantInfo;
 use super::super::when_exhaustiveness;
 use super::super::when_pat;
@@ -47,6 +49,15 @@ pub(super) fn infer_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     let source = inputs.source;
     let builtins = inputs.builtins;
+
+    if let ast::ExprKind::Annotated {
+        annotations,
+        expr: inner,
+    } = &expr.kind
+    {
+        check_inline_annotation_uses(source, annotations, AnnotationTargetKind::Expression)?;
+        return inputs.infer(lower, inner);
+    }
 
     match &expr.kind {
         ast::ExprKind::IntLit => Ok(builtins.int),
@@ -1845,6 +1856,15 @@ pub(super) fn infer_expr_type_in_expected_context(
 ) -> Result<TypeId, ExprTypeError> {
     let source = inputs.source;
     let builtins = inputs.builtins;
+
+    if let ast::ExprKind::Annotated {
+        annotations,
+        expr: inner,
+    } = &expr.kind
+    {
+        check_inline_annotation_uses(source, annotations, AnnotationTargetKind::Expression)?;
+        return inputs.infer_in_expected(lower, inner, expected_ty, expected_from);
+    }
 
     if matches!(expr.kind, ast::ExprKind::IntLit | ast::ExprKind::FloatLit)
         && literal_absorbs_to_expected(expr, expected_ty, source, lower, builtins)

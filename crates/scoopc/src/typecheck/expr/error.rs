@@ -1,6 +1,7 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
+use super::super::AnnotationError;
 use super::super::lower::TypeLowerError;
 
 #[derive(Debug, Error, Diagnostic)]
@@ -8,6 +9,10 @@ pub enum ExprTypeError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     TypeLowering(#[from] TypeLowerError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Annotation(#[from] AnnotationError),
 
     #[error("暂不支持的表达式类型检查：{kind}")]
     #[diagnostic(code(scoop::typecheck::unsupported_expr))]

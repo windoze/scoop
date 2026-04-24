@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: suppress_deprecated_declaration_basic.stdout
+// RUN-STDERR: stderr_empty_ok.stderr
+//
+// 目标：T4012b3 declaration-level `@Suppress` 应覆盖声明头与函数体内的 deprecated warning。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+@Deprecated("use BetterBox", replaceWith: "BetterBox")
+class LegacyBox(val value: Int)
+
+class BetterBox(val value: Int)
+
+@Suppress("deprecated")
+fun make(): LegacyBox {
+    return LegacyBox(41)
+}
+
+fun main() {
+    val box = make()
+    println(box.value)
+}

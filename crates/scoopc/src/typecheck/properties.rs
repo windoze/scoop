@@ -892,6 +892,9 @@ fn field_use_span_in_expr(
         | ast::ExprKind::StringLit
         | ast::ExprKind::UnitLit
         | ast::ExprKind::ClassLit { .. } => None,
+        ast::ExprKind::Annotated { expr, .. } => {
+            field_use_span_in_expr(source, backing_field_decl_span, expr)
+        }
         ast::ExprKind::TupleLit { elements } => elements
             .iter()
             .find_map(|e| field_use_span_in_expr(source, backing_field_decl_span, e)),

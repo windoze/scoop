@@ -455,6 +455,27 @@ fn unsafe_do_block() {
 }
 
 #[test]
+fn annotated_local_val_decl_basic() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "fun f() { @Suppress(\"deprecated\") val x = oldAdd() }",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Fun(f) = &file.items[0] else {
+        panic!("期望函数声明");
+    };
+    let ast::FunBody::Block(body) = &f.body else {
+        panic!("期望函数体为 block");
+    };
+    let ast::StmtKind::Val(val) = &body.stmts[0].kind else {
+        panic!("期望第一条语句为局部 val 声明");
+    };
+    assert_eq!(val.annotations.len(), 1);
+    assert_eq!(src.slice(val.annotations[0].path[0].span), "Suppress");
+}
+
+#[test]
 fn parse_top_level_val_var() {
     let src = SourceFile::new_virtual(
         "<mem>",

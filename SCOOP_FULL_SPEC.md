@@ -2219,7 +2219,7 @@ This approach handles subtyping, bounded polymorphism, and overload resolution i
 
 ### 15.1 Overview
 
-Annotations attach **compile-time metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@intrinsic`, `@extern`, `@inline`, `@deprecated`) and by user code for compile-time metaprogramming via `comptime` (§6).
+Annotations attach **compile-time metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@Intrinsic`, `@Extern`, `@Inline`, `@Deprecated`, `@Suppress`) and by user code for compile-time metaprogramming via `comptime` (§6).
 
 Annotations are declared with `annotation class`, but this is **not** a general nominal-class feature. Annotation declarations exist only to define a marker name plus optional compile-time payload. Annotation values exist only at compile time; they have no runtime representation and do not introduce extra control-flow semantics.
 
@@ -2282,7 +2282,7 @@ fun fastPath(x: Int): Int = x * 2
 - **Function parameters** (including receiver parameters)
 - **Type parameters** (generic type variables)
 - **Local variables** (`val`/`var` inside function bodies)
-- **Expressions** (e.g., `@Suppress("unchecked") value as T`)
+- **Expressions** (e.g., `@Suppress("deprecated") oldAdd()`)
 - **Modules / files** (file-level annotations like `@AllowIntrinsic`)
 - **Annotation classes** themselves (meta-annotations like `@Target`, `@Retention`)
 - **Enum variants** (individual cases of an enum)
@@ -2332,11 +2332,11 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 |---|---|---|
 | `@Intrinsic` | Functions, types | Implementation provided by the compiler/runtime |
 | `@Extern(lib?, name?)` | Functions, global variables | Links to an external symbol (function or variable), optionally specifying the library and symbol name (see §15.5.1). Treated as `@NoGC` and requires an unsafe context to call/access (see §15.8 and §15.9) |
-| `@Deprecated(message, replaceWith)` | Any | Marks declaration as deprecated; compiler emits warning on use |
+| `@Deprecated(message, replaceWith)` | Functions, types, properties | Marks declaration as deprecated; compiler emits warning on use |
 | `@Inline` | Functions | Hint to inline the function body at call sites |
 | `@TailRec` | Functions | Asserts tail-call optimization; compiler error if not tail-recursive |
 | `@AllowIntrinsic` | Modules/files | Permits `@Intrinsic` declarations in user code |
-| `@Suppress(warnings...)` | Any | Suppresses specific compiler warnings |
+| `@Suppress(warnings...)` | Expressions, declarations, files | Suppresses specific compiler warnings |
 | `@CLayout(aligned?, packed?)` | Structs | Forces C-compatible field layout for FFI and optionally customizes alignment/packing (see §15.5.2) |
 | `@ThreadLocal` | Global variables | Declares a mutable global GC-free variable as thread-local storage (TLS) (see §15.5.3) |
 | `@Global` | Global variables | Declares a mutable global GC-free variable as process-global storage (see §15.5.3) |
@@ -2358,6 +2358,14 @@ enum AnnotationTarget {
 @Target(AnnotationTarget.Field, AnnotationTarget.Property)
 annotation class Column(val name: String)
 ```
+
+`@Suppress` is a built-in compile-time warning suppression marker. Current contract:
+
+- Arguments must be one or more positional string literals; named arguments are not supported.
+- `@file:Suppress(...)` suppresses matching warnings for the whole file.
+- Declaration and local declaration `@Suppress(...)` suppress matching warnings emitted within that declaration's span.
+- Expression `@Suppress(...) expr` suppresses matching warnings emitted while checking that expression.
+- Current stable warning codes are `deprecated`, `enum-size-disparity`, and `redundant-when-else`.
 
 #### 15.5.1 `@Extern` (External Symbols and Libraries)
 

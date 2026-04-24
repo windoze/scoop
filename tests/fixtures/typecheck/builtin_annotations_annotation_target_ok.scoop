@@ -21,7 +21,7 @@ fun compilerProvided(x: Int): Int
 @Intrinsic
 struct NativeToken
 
-@Suppress("unchecked")
+@Suppress("deprecated")
 fun g() {}
 
 @CLayout

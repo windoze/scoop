@@ -12,6 +12,7 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
+use crate::warnings::{WarningSuppression, is_known_warning_code};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum BuiltinAnnotationKind {
@@ -22,6 +23,7 @@ pub(crate) enum BuiltinAnnotationKind {
     Intrinsic,
     AllowIntrinsic,
     Deprecated,
+    Suppress,
     CallingConvention,
 }
 
@@ -35,6 +37,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::Intrinsic => "Intrinsic",
             BuiltinAnnotationKind::AllowIntrinsic => "AllowIntrinsic",
             BuiltinAnnotationKind::Deprecated => "Deprecated",
+            BuiltinAnnotationKind::Suppress => "Suppress",
             BuiltinAnnotationKind::CallingConvention => "CallingConvention",
         }
     }
@@ -48,6 +51,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::Intrinsic => "函数或类型",
             BuiltinAnnotationKind::AllowIntrinsic => "文件 / 模块",
             BuiltinAnnotationKind::Deprecated => "函数 / 类型 / 属性",
+            BuiltinAnnotationKind::Suppress => "表达式 / 声明 / 文件",
             BuiltinAnnotationKind::CallingConvention => "函数 / typealias",
         }
     }
@@ -67,6 +71,14 @@ pub(crate) enum DeprecatedAnnotationParseError {
     UnknownParam { name: String, span: Span },
     DuplicateParam { param: &'static str, span: Span },
     ArgMustBeString { param: &'static str, span: Span },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum SuppressAnnotationParseError {
+    MissingWarningCodes { span: Span },
+    NamedArgsNotSupported { span: Span },
+    ArgMustBeString { span: Span },
+    UnknownWarningCode { code: String, span: Span },
 }
 
 /// 判断一个 `@Name(...)` 是否为内建注解。
@@ -93,6 +105,7 @@ pub(crate) fn builtin_annotation_kind(
             Some(BuiltinAnnotationKind::AllowIntrinsic)
         }
         ["Deprecated"] | ["scoop", "core", "Deprecated"] => Some(BuiltinAnnotationKind::Deprecated),
+        ["Suppress"] | ["scoop", "core", "Suppress"] => Some(BuiltinAnnotationKind::Suppress),
         ["CallingConvention"] | ["scoop", "core", "CallingConvention"] => {
             Some(BuiltinAnnotationKind::CallingConvention)
         }
@@ -133,6 +146,7 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::Intrinsic) => out.is_intrinsic = true,
                 Some(BuiltinAnnotationKind::AllowIntrinsic) => {}
                 Some(BuiltinAnnotationKind::Deprecated) => {}
+                Some(BuiltinAnnotationKind::Suppress) => {}
                 Some(BuiltinAnnotationKind::CallingConvention) => {}
                 None => {}
             }
@@ -251,5 +265,590 @@ fn extract_deprecated_string_arg(
             param,
             span: expr.span,
         }),
+    }
+}
+
+pub(crate) fn parse_suppress_annotation(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<Vec<String>, SuppressAnnotationParseError> {
+    if ann.args.is_empty() {
+        return Err(SuppressAnnotationParseError::MissingWarningCodes { span: ann.span });
+    }
+
+    let mut codes = Vec::with_capacity(ann.args.len());
+    for arg in &ann.args {
+        if arg.name.is_some() {
+            return Err(SuppressAnnotationParseError::NamedArgsNotSupported { span: arg.span });
+        }
+        let code = extract_suppress_string_arg(source, &arg.value)?;
+        if !is_known_warning_code(code.as_str()) {
+            return Err(SuppressAnnotationParseError::UnknownWarningCode {
+                code,
+                span: arg.value.span,
+            });
+        }
+        codes.push(code);
+    }
+
+    codes.sort();
+    codes.dedup();
+    Ok(codes)
+}
+
+fn extract_suppress_string_arg(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Result<String, SuppressAnnotationParseError> {
+    match expr.kind {
+        ast::ExprKind::StringLit => {
+            let raw = source.slice(expr.span);
+            match parse_string_literal_utf8(raw) {
+                Ok(text) => Ok(text),
+                Err(StringLiteralParseError::Invalid)
+                | Err(StringLiteralParseError::InvalidUtf8)
+                | Err(StringLiteralParseError::Interpolated) => {
+                    Err(SuppressAnnotationParseError::ArgMustBeString { span: expr.span })
+                }
+            }
+        }
+        _ => Err(SuppressAnnotationParseError::ArgMustBeString { span: expr.span }),
+    }
+}
+
+pub(crate) fn collect_file_warning_suppressions(
+    source: &SourceFile,
+    file: &ast::File,
+) -> Vec<WarningSuppression> {
+    let mut out = Vec::new();
+    collect_warning_suppressions_from_annotations(
+        source,
+        &file.file_annotations,
+        source.path(),
+        None,
+        &mut out,
+    );
+    for item in &file.items {
+        collect_item_warning_suppressions(source, item, source.path(), &mut out);
+    }
+    out
+}
+
+fn collect_item_warning_suppressions(
+    source: &SourceFile,
+    item: &ast::Item,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    match item {
+        ast::Item::TypeAlias(decl) => {
+            collect_warning_suppressions_from_annotations(
+                source,
+                &decl.annotations,
+                file,
+                Some(decl.span),
+                out,
+            );
+        }
+        ast::Item::Fun(fun) => {
+            collect_warning_suppressions_from_annotations(
+                source,
+                &fun.annotations,
+                file,
+                Some(fun.span),
+                out,
+            );
+            collect_fun_body_warning_suppressions(source, &fun.body, file, out);
+        }
+        ast::Item::ExtensionProperty(prop) => {
+            collect_warning_suppressions_from_annotations(
+                source,
+                &prop.annotations,
+                file,
+                Some(prop.span),
+                out,
+            );
+            if let Some(init) = &prop.init {
+                collect_expr_warning_suppressions(source, init, file, out);
+            }
+            collect_accessor_warning_suppressions(source, prop.getter.as_ref(), file, out);
+            collect_accessor_warning_suppressions(source, prop.setter.as_ref(), file, out);
+        }
+        ast::Item::Val(val) => {
+            collect_val_decl_warning_suppressions(source, val, file, out);
+        }
+        ast::Item::Type(decl) => collect_type_decl_warning_suppressions(source, decl, file, out),
+        ast::Item::Object(obj) => collect_object_decl_warning_suppressions(source, obj, file, out),
+        ast::Item::ComptimeIf(ci) => {
+            collect_comptime_if_item_warning_suppressions(source, ci, file, out)
+        }
+    }
+}
+
+fn collect_type_decl_warning_suppressions(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    collect_warning_suppressions_from_annotations(
+        source,
+        &decl.annotations,
+        file,
+        Some(decl.span),
+        out,
+    );
+
+    if let Some(primary_ctor) = &decl.primary_ctor {
+        for param in &primary_ctor.params {
+            if let Some(default_value) = &param.default_value {
+                collect_expr_warning_suppressions(source, default_value, file, out);
+            }
+        }
+    }
+
+    for supertype in &decl.supertypes {
+        for arg in &supertype.ctor_args {
+            collect_expr_warning_suppressions(source, arg, file, out);
+        }
+    }
+
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            collect_type_member_warning_suppressions(source, member, file, out);
+        }
+    }
+}
+
+fn collect_object_decl_warning_suppressions(
+    source: &SourceFile,
+    decl: &ast::ObjectDecl,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    collect_warning_suppressions_from_annotations(
+        source,
+        &decl.annotations,
+        file,
+        Some(decl.span),
+        out,
+    );
+
+    for supertype in &decl.supertypes {
+        for arg in &supertype.ctor_args {
+            collect_expr_warning_suppressions(source, arg, file, out);
+        }
+    }
+
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            collect_type_member_warning_suppressions(source, member, file, out);
+        }
+    }
+}
+
+fn collect_type_member_warning_suppressions(
+    source: &SourceFile,
+    member: &ast::TypeMember,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    match member {
+        ast::TypeMember::EnumVariant(variant) => {
+            collect_warning_suppressions_from_annotations(
+                source,
+                &variant.annotations,
+                file,
+                Some(variant.span),
+                out,
+            );
+            for param in &variant.params {
+                if let Some(default_value) = &param.default_value {
+                    collect_expr_warning_suppressions(source, default_value, file, out);
+                }
+            }
+            if let Some(discriminant) = &variant.discriminant {
+                collect_expr_warning_suppressions(source, discriminant, file, out);
+            }
+        }
+        ast::TypeMember::Property(prop) => {
+            collect_warning_suppressions_from_annotations(
+                source,
+                &prop.annotations,
+                file,
+                Some(prop.span),
+                out,
+            );
+            if let Some(init) = &prop.init {
+                collect_expr_warning_suppressions(source, init, file, out);
+            }
+            if let Some(delegate) = &prop.delegate {
+                collect_expr_warning_suppressions(source, delegate, file, out);
+            }
+            collect_accessor_warning_suppressions(source, prop.getter.as_ref(), file, out);
+            collect_accessor_warning_suppressions(source, prop.setter.as_ref(), file, out);
+        }
+        ast::TypeMember::InitBlock(init) => {
+            collect_block_warning_suppressions(source, &init.body, file, out);
+        }
+        ast::TypeMember::SecondaryCtor(ctor) => {
+            collect_warning_suppressions_from_annotations(
+                source,
+                &ctor.annotations,
+                file,
+                Some(ctor.span),
+                out,
+            );
+            if let Some(call) = &ctor.delegation_call {
+                for arg in &call.args {
+                    collect_expr_warning_suppressions(source, arg, file, out);
+                }
+            }
+            collect_block_warning_suppressions(source, &ctor.body, file, out);
+        }
+        ast::TypeMember::Fun(fun) => {
+            collect_warning_suppressions_from_annotations(
+                source,
+                &fun.annotations,
+                file,
+                Some(fun.span),
+                out,
+            );
+            collect_fun_body_warning_suppressions(source, &fun.body, file, out);
+        }
+        ast::TypeMember::Type(decl) => {
+            collect_type_decl_warning_suppressions(source, decl, file, out)
+        }
+        ast::TypeMember::Object(obj) => {
+            collect_object_decl_warning_suppressions(source, obj, file, out)
+        }
+    }
+}
+
+fn collect_fun_body_warning_suppressions(
+    source: &SourceFile,
+    body: &ast::FunBody,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    if let ast::FunBody::Block(block) = body {
+        collect_block_warning_suppressions(source, block, file, out);
+    }
+}
+
+fn collect_accessor_warning_suppressions(
+    source: &SourceFile,
+    accessor: Option<&ast::AccessorDecl>,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    let Some(accessor) = accessor else {
+        return;
+    };
+    match &accessor.body {
+        ast::AccessorBody::Block(block) => {
+            collect_block_warning_suppressions(source, block, file, out)
+        }
+        ast::AccessorBody::Expr(expr) => collect_expr_warning_suppressions(source, expr, file, out),
+        ast::AccessorBody::Missing => {}
+    }
+}
+
+fn collect_block_warning_suppressions(
+    source: &SourceFile,
+    block: &ast::Block,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    for stmt in &block.stmts {
+        collect_stmt_warning_suppressions(source, stmt, file, out);
+    }
+}
+
+fn collect_stmt_warning_suppressions(
+    source: &SourceFile,
+    stmt: &ast::Stmt,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    match &stmt.kind {
+        ast::StmtKind::Empty
+        | ast::StmtKind::Break { .. }
+        | ast::StmtKind::Continue { .. }
+        | ast::StmtKind::Missing => {}
+        ast::StmtKind::Expr(expr) => collect_expr_warning_suppressions(source, expr, file, out),
+        ast::StmtKind::Val(decl) => collect_val_decl_warning_suppressions(source, decl, file, out),
+        ast::StmtKind::Return { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_warning_suppressions(source, value, file, out);
+            }
+        }
+        ast::StmtKind::While { cond, body, .. } => {
+            collect_expr_warning_suppressions(source, cond, file, out);
+            collect_block_warning_suppressions(source, body, file, out);
+        }
+        ast::StmtKind::For(for_stmt) => {
+            collect_for_stmt_warning_suppressions(source, for_stmt, file, out)
+        }
+        ast::StmtKind::ComptimeBlock { body, .. } => {
+            collect_block_warning_suppressions(source, body, file, out)
+        }
+        ast::StmtKind::ComptimeIf(ci) => {
+            collect_comptime_if_warning_suppressions(source, ci, file, out)
+        }
+        ast::StmtKind::ComptimeFor(cf) => {
+            collect_comptime_for_warning_suppressions(source, cf, file, out)
+        }
+    }
+}
+
+fn collect_val_decl_warning_suppressions(
+    source: &SourceFile,
+    decl: &ast::ValDecl,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    collect_warning_suppressions_from_annotations(
+        source,
+        &decl.annotations,
+        file,
+        Some(decl.span),
+        out,
+    );
+    if let Some(init) = &decl.init {
+        collect_expr_warning_suppressions(source, init, file, out);
+    }
+}
+
+fn collect_for_stmt_warning_suppressions(
+    source: &SourceFile,
+    for_stmt: &ast::ForStmt,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    collect_expr_warning_suppressions(source, &for_stmt.iter, file, out);
+    collect_block_warning_suppressions(source, &for_stmt.body, file, out);
+}
+
+fn collect_comptime_if_item_warning_suppressions(
+    source: &SourceFile,
+    comptime_if: &ast::ComptimeIfItem,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    collect_expr_warning_suppressions(source, &comptime_if.cond, file, out);
+    for item in &comptime_if.then_branch.items {
+        collect_item_warning_suppressions(source, item, file, out);
+    }
+    if let Some(else_branch) = &comptime_if.else_branch {
+        collect_comptime_if_item_else_warning_suppressions(source, else_branch, file, out);
+    }
+}
+
+fn collect_comptime_if_item_else_warning_suppressions(
+    source: &SourceFile,
+    else_branch: &ast::ComptimeIfItemElse,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    match else_branch {
+        ast::ComptimeIfItemElse::Block(block) => {
+            for item in &block.items {
+                collect_item_warning_suppressions(source, item, file, out);
+            }
+        }
+        ast::ComptimeIfItemElse::If(ci) => {
+            collect_comptime_if_item_warning_suppressions(source, ci, file, out)
+        }
+    }
+}
+
+fn collect_comptime_if_warning_suppressions(
+    source: &SourceFile,
+    comptime_if: &ast::ComptimeIf,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    collect_expr_warning_suppressions(source, &comptime_if.cond, file, out);
+    collect_block_warning_suppressions(source, &comptime_if.then_branch, file, out);
+    if let Some(else_branch) = &comptime_if.else_branch {
+        collect_comptime_else_warning_suppressions(source, else_branch, file, out);
+    }
+}
+
+fn collect_comptime_else_warning_suppressions(
+    source: &SourceFile,
+    else_branch: &ast::ComptimeIfElse,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    match else_branch {
+        ast::ComptimeIfElse::Block(block) => {
+            collect_block_warning_suppressions(source, block, file, out)
+        }
+        ast::ComptimeIfElse::If(ci) => {
+            collect_comptime_if_warning_suppressions(source, ci, file, out)
+        }
+    }
+}
+
+fn collect_comptime_for_warning_suppressions(
+    source: &SourceFile,
+    comptime_for: &ast::ComptimeFor,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    collect_expr_warning_suppressions(source, &comptime_for.iter, file, out);
+    collect_block_warning_suppressions(source, &comptime_for.body, file, out);
+}
+
+fn collect_expr_warning_suppressions(
+    source: &SourceFile,
+    expr: &ast::Expr,
+    file: &std::path::Path,
+    out: &mut Vec<WarningSuppression>,
+) {
+    match &expr.kind {
+        ast::ExprKind::Missing
+        | ast::ExprKind::Ident(_)
+        | ast::ExprKind::IntLit
+        | ast::ExprKind::FloatLit
+        | ast::ExprKind::CharLit
+        | ast::ExprKind::StringLit
+        | ast::ExprKind::UnitLit
+        | ast::ExprKind::ClassLit { .. } => {}
+        ast::ExprKind::Annotated {
+            annotations,
+            expr: inner,
+        } => {
+            collect_warning_suppressions_from_annotations(
+                source,
+                annotations,
+                file,
+                Some(expr.span),
+                out,
+            );
+            collect_expr_warning_suppressions(source, inner, file, out);
+        }
+        ast::ExprKind::TupleLit { elements } | ast::ExprKind::ArrayLit { elements } => {
+            for element in elements {
+                collect_expr_warning_suppressions(source, element, file, out);
+            }
+        }
+        ast::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let ast::InterpolatedStringPart::Expr { expr: inner } = part {
+                    collect_expr_warning_suppressions(source, inner, file, out);
+                }
+            }
+        }
+        ast::ExprKind::Block(block)
+        | ast::ExprKind::DoBlock { body: block, .. }
+        | ast::ExprKind::UnsafeBlock { body: block, .. }
+        | ast::ExprKind::SafeBlock { body: block, .. }
+        | ast::ExprKind::Async { body: block }
+        | ast::ExprKind::Spawn { body: block } => {
+            collect_block_warning_suppressions(source, block, file, out)
+        }
+        ast::ExprKind::Lambda(lambda) => {
+            collect_expr_warning_suppressions(source, &lambda.body, file, out)
+        }
+        ast::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_expr_warning_suppressions(source, &field.value, file, out);
+            }
+        }
+        ast::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_expr_warning_suppressions(source, cond, file, out);
+            collect_expr_warning_suppressions(source, then_branch, file, out);
+            if let Some(else_branch) = else_branch {
+                collect_expr_warning_suppressions(source, else_branch, file, out);
+            }
+        }
+        ast::ExprKind::When { subject, arms } => {
+            collect_expr_warning_suppressions(source, subject, file, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_warning_suppressions(source, guard, file, out);
+                }
+                collect_expr_warning_suppressions(source, &arm.body, file, out);
+            }
+        }
+        ast::ExprKind::Handle {
+            body,
+            arms,
+            finally,
+        } => {
+            collect_block_warning_suppressions(source, body, file, out);
+            for arm in arms {
+                collect_expr_warning_suppressions(source, &arm.body, file, out);
+            }
+            if let Some(finally) = finally {
+                collect_block_warning_suppressions(source, finally, file, out);
+            }
+        }
+        ast::ExprKind::Await { expr: inner, .. }
+        | ast::ExprKind::Join { expr: inner, .. }
+        | ast::ExprKind::SpliceField {
+            receiver: inner, ..
+        }
+        | ast::ExprKind::NotNullAssert { expr: inner, .. }
+        | ast::ExprKind::Unary { expr: inner, .. }
+        | ast::ExprKind::TypeCheck { expr: inner, .. }
+        | ast::ExprKind::Cast { expr: inner, .. } => {
+            collect_expr_warning_suppressions(source, inner, file, out);
+        }
+        ast::ExprKind::MemberAccess { receiver, .. }
+        | ast::ExprKind::SafeMemberAccess { receiver, .. }
+        | ast::ExprKind::TypeApply {
+            callee: receiver, ..
+        } => {
+            collect_expr_warning_suppressions(source, receiver, file, out);
+        }
+        ast::ExprKind::Call { callee, args } => {
+            collect_expr_warning_suppressions(source, callee, file, out);
+            for arg in args {
+                collect_expr_warning_suppressions(source, arg, file, out);
+            }
+        }
+        ast::ExprKind::SpreadArg { expr: inner, .. }
+        | ast::ExprKind::NamedArg { value: inner, .. } => {
+            collect_expr_warning_suppressions(source, inner, file, out);
+        }
+        ast::ExprKind::Binary { lhs, rhs, .. } | ast::ExprKind::Assign { lhs, rhs, .. } => {
+            collect_expr_warning_suppressions(source, lhs, file, out);
+            collect_expr_warning_suppressions(source, rhs, file, out);
+        }
+        ast::ExprKind::WithUpdate { base, updates, .. } => {
+            collect_expr_warning_suppressions(source, base, file, out);
+            for update in updates {
+                collect_expr_warning_suppressions(source, &update.value, file, out);
+            }
+        }
+    }
+}
+
+fn collect_warning_suppressions_from_annotations(
+    source: &SourceFile,
+    annotations: &[ast::AnnotationUse],
+    file: &std::path::Path,
+    span: Option<Span>,
+    out: &mut Vec<WarningSuppression>,
+) {
+    for ann in annotations {
+        if builtin_annotation_kind(source, ann) != Some(BuiltinAnnotationKind::Suppress) {
+            continue;
+        }
+        let Ok(codes) = parse_suppress_annotation(source, ann) else {
+            continue;
+        };
+        out.push(match span {
+            Some(span) => WarningSuppression::for_span(file, span, codes),
+            None => WarningSuppression::for_file(file, codes),
+        });
     }
 }

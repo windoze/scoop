@@ -1,0 +1,8 @@
+// EXPECT: pass
+// EXPECT-AST: annotation_expr_suppress_basic.ast
+
+package fixtures.parse
+
+fun main() {
+    val value = @Suppress("deprecated") oldAdd()
+}

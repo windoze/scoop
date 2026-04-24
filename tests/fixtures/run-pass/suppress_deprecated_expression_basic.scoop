@@ -1,0 +1,19 @@
+// EXPECT: pass
+// RUN-STDOUT: suppress_deprecated_expression_basic.stdout
+// RUN-STDERR: stderr_empty_ok.stderr
+//
+// 目标：T4012b3 expression-level `@Suppress` 应覆盖单个 deprecated use-site warning。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+@Deprecated("use newAdd", replaceWith: "newAdd")
+fun oldAdd(x: Int, y: Int): Int {
+    return x + y
+}
+
+fun main() {
+    val sum = @Suppress("deprecated") oldAdd(20, 22)
+    println(sum)
+}

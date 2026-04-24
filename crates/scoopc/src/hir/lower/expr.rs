@@ -38,6 +38,9 @@ impl<'a> HirLowering<'a> {
     ) -> Expr {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
+            ast::ExprKind::Annotated { expr, .. } => {
+                return self.lower_expr_with_expected(pkg_prefix, expr, expected);
+            }
             ast::ExprKind::IntLit => {
                 let ty = self
                     .typechecked_expr_ty(e.span)

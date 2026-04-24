@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 use miette::Diagnostic;
 use thiserror::Error;
-use tracing::{debug, warn};
+use tracing::debug;
 
 use crate::ast;
 use crate::resolve::Index;
@@ -21,7 +21,9 @@ use crate::ty::layout::{
     TypeLayout,
 };
 use crate::ty::{BuiltinTypes, NominalType, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::warnings::{self, CompileWarning};
 
+use super::builtin_annotations::collect_file_warning_suppressions;
 use super::lower::{TypeLowerError, TypeLowering};
 use super::{TypeEnv, TypeSymbolKind};
 
@@ -68,6 +70,13 @@ pub fn check_file_type_layouts(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<(), LayoutError> {
+    let all_suppressions = env
+        .files()
+        .filter_map(|(path, file)| env.source(path).map(|source| (source, file)))
+        .flat_map(|(source, file)| collect_file_warning_suppressions(source, file))
+        .collect();
+    let _warning_suppressions = warnings::install_suppressions(all_suppressions);
+
     let mut cx = LayoutComputer::new(index, env, types, builtins);
 
     // 计算所有已出现类型的 layout，以确保：
@@ -480,14 +489,18 @@ impl<'a> LayoutComputer<'a> {
                 }
             }
 
-            if !boxed_names.is_empty() {
-                warn!(
-                    enum_fqn = %nominal.fqn,
+            if !boxed_names.is_empty()
+                && let Some(type_sym) = self.env.type_symbol(&nominal.fqn)
+                && let Some(source) = self.env.source(&type_sym.decl_file)
+            {
+                warnings::emit(CompileWarning::enum_size_disparity(
+                    source,
+                    type_sym.span,
+                    &nominal.fqn,
+                    &boxed_names,
                     max_size,
                     second_size,
-                    boxed = %boxed_names.join(", "),
-                    "enum variant size disparity is significant; boxing oversized variant(s)"
-                );
+                ));
             }
         }
 

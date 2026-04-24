@@ -113,6 +113,9 @@ fn collect_explicit_top_level_value_types_in_file(
         types,
         builtins,
     );
+    if !file_info.strict {
+        lower.set_warning_emission_enabled(false);
+    }
     let struct_field_types =
         collect_struct_field_types(file_info.source, &file_info.file, &mut lower)?;
 
@@ -189,6 +192,9 @@ fn infer_top_level_pattern_value_types_in_file(
         types,
         builtins,
     );
+    if !file_info.strict {
+        lower.set_warning_emission_enabled(false);
+    }
     let struct_field_types =
         collect_struct_field_types(file_info.source, &file_info.file, &mut lower)?;
     let top_level_funs =
@@ -887,14 +893,17 @@ pub(super) fn collect_struct_field_types(
         .collect::<Vec<_>>();
     foreign_files.sort_by(|(lhs, _, _), (rhs, _, _)| lhs.cmp(rhs));
 
-    for (_, foreign_source, foreign_file) in foreign_files {
-        collect_struct_field_types_in_foreign_file(
-            &foreign_source,
-            &foreign_file,
-            lower,
-            &mut map,
-        )?;
-    }
+    lower.with_warning_emission_suspended(|lower| {
+        for (_, foreign_source, foreign_file) in foreign_files {
+            collect_struct_field_types_in_foreign_file(
+                &foreign_source,
+                &foreign_file,
+                lower,
+                &mut map,
+            )?;
+        }
+        Ok::<(), ExprTypeError>(())
+    })?;
 
     // 额外补全“没有 AST 上下文的跨文件 ctor 字段”：
     //
@@ -912,37 +921,40 @@ pub(super) fn collect_struct_field_types(
     // NOTE: 这里需要在循环内对 `lower` 做可变借用（lowering field type ref），因此先把 constructors
     // 拷贝出来，避免同时持有 `lower.index()` 的不可变借用导致 borrow checker 冲突。
     let constructors = lower.index().constructors.clone();
-    for (type_fqn, ctors) in &constructors {
-        // T0124: skip generic types — their field types contain unresolved type params
-        // that cannot be lowered without concrete instantiation arguments.
-        if lower.env().type_param_count(type_fqn).unwrap_or(0) > 0 {
-            continue;
-        }
-        for ctor in ctors {
-            if ctor.kind != crate::resolve::ConstructorKind::Primary {
+    lower.with_warning_emission_suspended(|lower| {
+        for (type_fqn, ctors) in &constructors {
+            // T0124: skip generic types — their field types contain unresolved type params
+            // that cannot be lowered without concrete instantiation arguments.
+            if lower.env().type_param_count(type_fqn).unwrap_or(0) > 0 {
                 continue;
             }
-            for p in &ctor.params {
-                let Some(ty_ref) = &p.ty else {
-                    continue;
-                };
-                let field_fqn = format!("{type_fqn}.{}", p.name);
-                let has_value_symbol = lower
-                    .index()
-                    .by_fqn
-                    .get(&field_fqn)
-                    .is_some_and(|syms| syms.value.is_some());
-                if !has_value_symbol {
+            for ctor in ctors {
+                if ctor.kind != crate::resolve::ConstructorKind::Primary {
                     continue;
                 }
-                if map.contains_key(&field_fqn) {
-                    continue;
+                for p in &ctor.params {
+                    let Some(ty_ref) = &p.ty else {
+                        continue;
+                    };
+                    let field_fqn = format!("{type_fqn}.{}", p.name);
+                    let has_value_symbol = lower
+                        .index()
+                        .by_fqn
+                        .get(&field_fqn)
+                        .is_some_and(|syms| syms.value.is_some());
+                    if !has_value_symbol {
+                        continue;
+                    }
+                    if map.contains_key(&field_fqn) {
+                        continue;
+                    }
+                    let field_ty = lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?;
+                    map.insert(field_fqn, field_ty);
                 }
-                let field_ty = lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?;
-                map.insert(field_fqn, field_ty);
             }
         }
-    }
+        Ok::<(), ExprTypeError>(())
+    })?;
 
     Ok(map)
 }

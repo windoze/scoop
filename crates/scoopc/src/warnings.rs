@@ -15,6 +15,60 @@ use crate::source::SourceFile;
 use crate::span::Span;
 
 pub const DEPRECATED_WARNING_CODE: &str = "deprecated";
+pub const ENUM_SIZE_DISPARITY_WARNING_CODE: &str = "enum-size-disparity";
+pub const REDUNDANT_WHEN_ELSE_WARNING_CODE: &str = "redundant-when-else";
+
+pub fn is_known_warning_code(code: &str) -> bool {
+    matches!(
+        code,
+        DEPRECATED_WARNING_CODE
+            | ENUM_SIZE_DISPARITY_WARNING_CODE
+            | REDUNDANT_WHEN_ELSE_WARNING_CODE
+    )
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WarningSuppression {
+    file: PathBuf,
+    span: Option<Span>,
+    codes: Vec<String>,
+}
+
+impl WarningSuppression {
+    pub fn for_file(file: &Path, codes: Vec<String>) -> Self {
+        Self::new(file, None, codes)
+    }
+
+    pub fn for_span(file: &Path, span: Span, codes: Vec<String>) -> Self {
+        Self::new(file, Some(span), codes)
+    }
+
+    fn new(file: &Path, span: Option<Span>, mut codes: Vec<String>) -> Self {
+        codes.sort();
+        codes.dedup();
+        Self {
+            file: file.to_path_buf(),
+            span,
+            codes,
+        }
+    }
+
+    fn suppresses(&self, warning: &CompileWarning) -> bool {
+        if self.file != warning.file {
+            return false;
+        }
+        if !self.codes.iter().any(|code| code == warning.code) {
+            return false;
+        }
+        match self.span {
+            None => true,
+            Some(scope) => {
+                scope.start <= warning.span.start
+                    && warning.span.end <= scope.end.max(warning.span.start)
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CompileWarning {
@@ -53,6 +107,38 @@ impl CompileWarning {
         }
     }
 
+    pub fn enum_size_disparity(
+        source: &SourceFile,
+        span: Span,
+        enum_fqn: &str,
+        boxed_variants: &[String],
+        max_size: u64,
+        second_size: u64,
+    ) -> Self {
+        let rendered = format!(
+            "warn[{ENUM_SIZE_DISPARITY_WARNING_CODE}]: enum `{enum_fqn}` 的 variant payload 尺寸差异显著；已对 oversized variant 做 boxing（boxed={}; max_size={max_size}; second_size={second_size}）",
+            boxed_variants.join(", ")
+        );
+
+        Self {
+            code: ENUM_SIZE_DISPARITY_WARNING_CODE,
+            file: source.path().to_path_buf(),
+            span,
+            rendered,
+        }
+    }
+
+    pub fn redundant_when_else(source: &SourceFile, span: Span) -> Self {
+        Self {
+            code: REDUNDANT_WHEN_ELSE_WARNING_CODE,
+            file: source.path().to_path_buf(),
+            span,
+            rendered: format!(
+                "warn[{REDUNDANT_WHEN_ELSE_WARNING_CODE}]: `when` 已经穷尽；`else` 分支是冗余的"
+            ),
+        }
+    }
+
     pub fn code(&self) -> &'static str {
         self.code
     }
@@ -78,10 +164,16 @@ struct WarningBuffer {
 
 thread_local! {
     static ACTIVE_WARNINGS: RefCell<Option<WarningBuffer>> = const { RefCell::new(None) };
+    static ACTIVE_SUPPRESSIONS: RefCell<Vec<WarningSuppression>> = const { RefCell::new(Vec::new()) };
 }
 
 pub struct WarningCaptureGuard {
     previous: Option<WarningBuffer>,
+    finished: bool,
+}
+
+pub struct WarningSuppressionGuard {
+    previous: Vec<WarningSuppression>,
     finished: bool,
 }
 
@@ -124,7 +216,55 @@ impl Drop for WarningCaptureGuard {
     }
 }
 
+pub fn install_suppressions(suppressions: Vec<WarningSuppression>) -> WarningSuppressionGuard {
+    let previous = ACTIVE_SUPPRESSIONS.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        let previous = slot.clone();
+        if !suppressions.is_empty() {
+            slot.extend(suppressions);
+        }
+        previous
+    });
+
+    WarningSuppressionGuard {
+        previous,
+        finished: false,
+    }
+}
+
+impl WarningSuppressionGuard {
+    pub fn finish(mut self) {
+        self.finished = true;
+        ACTIVE_SUPPRESSIONS.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            *slot = self.previous.clone();
+        });
+    }
+}
+
+impl Drop for WarningSuppressionGuard {
+    fn drop(&mut self) {
+        if self.finished {
+            return;
+        }
+
+        ACTIVE_SUPPRESSIONS.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            *slot = self.previous.clone();
+        });
+    }
+}
+
 pub fn emit(warning: CompileWarning) {
+    let suppressed = ACTIVE_SUPPRESSIONS.with(|slot| {
+        slot.borrow()
+            .iter()
+            .any(|suppression| suppression.suppresses(&warning))
+    });
+    if suppressed {
+        return;
+    }
+
     ACTIVE_WARNINGS.with(|slot| {
         let mut slot = slot.borrow_mut();
         let Some(active) = slot.as_mut() else {
@@ -166,5 +306,62 @@ mod tests {
         let warnings = guard.finish();
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].code(), DEPRECATED_WARNING_CODE);
+    }
+
+    #[test]
+    fn suppression_filters_matching_warning_by_span() {
+        let source = SourceFile::new_virtual("<mem>", "fun main() {}\n");
+        let capture = begin_capture();
+        let suppressions = install_suppressions(vec![WarningSuppression::for_span(
+            source.path(),
+            Span::new(0, 12),
+            vec![DEPRECATED_WARNING_CODE.to_string()],
+        )]);
+
+        emit(CompileWarning::deprecated_use(
+            &source,
+            Span::new(4, 8),
+            "函数",
+            "a.old",
+            "",
+            None,
+        ));
+        emit(CompileWarning::redundant_when_else(
+            &source,
+            Span::new(4, 8),
+        ));
+
+        suppressions.finish();
+        let warnings = capture.finish();
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code(), REDUNDANT_WHEN_ELSE_WARNING_CODE);
+    }
+
+    #[test]
+    fn file_suppression_filters_matching_warning_code() {
+        let source = SourceFile::new_virtual("<mem>", "fun main() {}\n");
+        let capture = begin_capture();
+        let suppressions = install_suppressions(vec![WarningSuppression::for_file(
+            source.path(),
+            vec![ENUM_SIZE_DISPARITY_WARNING_CODE.to_string()],
+        )]);
+
+        emit(CompileWarning::enum_size_disparity(
+            &source,
+            Span::new(0, 4),
+            "demo.Big",
+            &["Huge".to_string()],
+            128,
+            8,
+        ));
+        emit(CompileWarning::redundant_when_else(
+            &source,
+            Span::new(0, 4),
+        ));
+
+        suppressions.finish();
+        let warnings = capture.finish();
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code(), REDUNDANT_WHEN_ELSE_WARNING_CODE);
     }
 }

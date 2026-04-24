@@ -26,9 +26,11 @@ use super::{
     ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind, TASK_FQN,
 };
 
+use super::super::annotations::check_inline_annotation_uses;
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::lower::{TypeLowering, WhereBoundEntry};
+use super::super::type_env::AnnotationTargetKind;
 use super::super::{val_pat, when_exhaustiveness, when_pat};
 
 #[derive(Debug, Clone, Copy)]
@@ -1135,6 +1137,12 @@ pub(super) fn check_local_val_decl_exprs(
     state: &mut StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
+    check_inline_annotation_uses(
+        shared.source,
+        &v.annotations,
+        AnnotationTargetKind::LocalVariable,
+    )?;
+
     let declared_ty = match &v.ty {
         Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
         None => None,
@@ -1268,6 +1276,17 @@ fn check_expr_stmt_with_mode(
     // 其他表达式语句（例如单独的调用）暂不强制 typecheck，以避免在未实现更多 ExprKind
     // 的阶段引入大量不相关的回归失败。
     match &expr.kind {
+        ast::ExprKind::Annotated {
+            annotations,
+            expr: inner,
+        } => {
+            check_inline_annotation_uses(
+                shared.source,
+                annotations,
+                AnnotationTargetKind::Expression,
+            )?;
+            check_expr_stmt_with_mode(shared, inner, lower, state, flow, call_mode)
+        }
         ast::ExprKind::Block(b) | ast::ExprKind::DoBlock { body: b, .. } => {
             check_block_exprs_with_mode(shared, b, lower, state, flow, call_mode)
         }

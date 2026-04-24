@@ -22,10 +22,10 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeKind, ValueTypeKind};
+use crate::warnings::{self, CompileWarning};
 
 use super::expr::{EnumTypeSubstContext, ExprTypeError, lower_type_ref_with_enum_subst};
 use super::lower::TypeLowering;
-use tracing::warn;
 
 /// 例子模式（example pattern）：用于描述“仍未被覆盖的一类值”。
 ///
@@ -144,7 +144,7 @@ pub(super) fn check_when_exhaustiveness(
                         .any(|pat| pat_covers_example(source, pat, &ex))
                 });
                 if redundant {
-                    warn!("`when` 已经穷尽；`else` 分支是冗余的");
+                    warnings::emit(CompileWarning::redundant_when_else(source, when_expr.span));
                 }
             }
         }

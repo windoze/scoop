@@ -1,8 +1,10 @@
 // EXPECT: pass
 // RUN-STDOUT: enum_oversized_variant_boxing_basic.stdout
-// RUN-STDERR-CONTAINS: warn[enum-size-disparity]: enum `fixtures.run_pass.Big` 的 variant payload 尺寸差异显著；已对 oversized variant 做 boxing
+// RUN-STDERR: stderr_empty_ok.stderr
 //
-// 目标：T0826 oversized variant boxing + size disparity lint（warning）。
+// 目标：T4012b3 file-level `@Suppress` 应覆盖 `enum-size-disparity` warning。
+
+@file:Suppress("enum-size-disparity")
 
 package fixtures.run_pass
 

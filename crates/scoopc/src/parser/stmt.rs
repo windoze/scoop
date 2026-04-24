@@ -80,7 +80,10 @@ impl<'a> Parser<'a> {
         //
         // 注意：此处不能直接复用顶层的 `parse_val_decl`，因为顶层的 initializer 边界规则会假设
         // “下一个 token 必须是顶层 item start/`;`/EOF”，在 block 语境下会误把后续语句吞进 initializer。
-        if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
+        if self.peek_keyword(Keyword::Val)
+            || self.peek_keyword(Keyword::Var)
+            || self.looks_like_annotated_local_val_decl()
+        {
             let decl = self.parse_local_val_decl()?;
             let mut span = decl.span;
             let mut has_trailing_semi = false;
@@ -302,6 +305,25 @@ impl<'a> Parser<'a> {
         Ok(self.parse_missing_stmt())
     }
 
+    fn looks_like_annotated_local_val_decl(&self) -> bool {
+        if !self.peek_symbol(Symbol::At) {
+            return false;
+        }
+
+        let mut idx = self.i;
+        while matches!(
+            self.tokens.get(idx).map(|tok| tok.kind),
+            Some(TokenKind::Symbol(Symbol::At))
+        ) {
+            idx = self.skip_one_annotation_idx(idx);
+        }
+
+        matches!(
+            self.tokens.get(idx).map(|tok| tok.kind),
+            Some(TokenKind::Keyword(Keyword::Val | Keyword::Var))
+        )
+    }
+
     fn parse_comptime_stmt(&mut self) -> Result<ast::Stmt, ParseError> {
         let comptime_tok = self.expect_keyword(Keyword::Comptime)?;
         let comptime_span = comptime_tok.span;
@@ -484,6 +506,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_local_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
+        let mut annotations = Vec::new();
+        while self.peek_symbol(Symbol::At) {
+            annotations.push(self.parse_annotation_use()?);
+        }
+
         let kw = self.bump_val_or_var_keyword()?;
 
         let kind = match kw.kind {
@@ -579,7 +606,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::ValDecl {
             span: Span::new(kw.span.start, last_end),
-            annotations: Vec::new(),
+            annotations,
             modifiers: Vec::new(),
             kind,
             binding,

@@ -253,7 +253,7 @@ impl<'a> Parser<'a> {
     /// - `@Name`
     /// - `@Namespace.Name(args)`
     /// - `@property:Name(args)`（use-site target）
-    fn skip_one_annotation_idx(&self, mut idx: usize) -> usize {
+    pub(super) fn skip_one_annotation_idx(&self, mut idx: usize) -> usize {
         // consume `@`
         idx = idx.saturating_add(1);
 

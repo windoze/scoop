@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::suppress_annotation_requires_warning_codes
+// 目标：T4012b3 `@Suppress` 至少需要一个 warning code。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Suppress
+fun bad() {}

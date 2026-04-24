@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-STDOUT: suppress_deprecated_file_basic.stdout
+// RUN-STDERR: stderr_empty_ok.stderr
+//
+// 目标：T4012b3 file-level `@Suppress` 应覆盖整个文件的 deprecated warning。
+
+@file:Suppress("deprecated")
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+@Deprecated("use currentValue", replaceWith: "currentValue")
+val oldValue: Int = 5
+
+fun main() {
+    println(oldValue)
+}

@@ -24,6 +24,7 @@ use crate::ty::{
 use crate::warnings::{self, CompileWarning};
 
 use super::assignable::is_type_assignable;
+use super::builtin_annotations::collect_file_warning_suppressions;
 use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 const PTR_FQN: &str = "scoop.unsafe.Ptr";
@@ -425,6 +426,13 @@ pub(crate) struct TypeLowering<'a> {
     ///
     /// 说明：只在检查函数体时启用；其它 typecheck phase 默认关闭，避免改变现有行为。
     effect_collection_enabled: bool,
+    /// 是否允许发出 user-visible warning。
+    ///
+    /// 说明：
+    /// - 默认开启：真实 use-site / declaration lowering 会保留 warning；
+    /// - 跨文件辅助收集（例如为当前文件构建其它文件的签名/字段 side tables）会临时关闭，
+    ///   避免 unrelated warnings 污染当前文件的诊断输出。
+    warning_emission_enabled: bool,
     /// effect 收集的“抑制深度”：
     /// - 进入 lambda body 时会暂时抑制（lambda 的 effect 属于函数值本身，而非外层函数立即执行的效果）。
     /// - 未来若引入更多“非立即执行”的语境（例如 `const`/comptime），同样可复用该机制。
@@ -606,6 +614,7 @@ impl<'a> TypeLowering<'a> {
             type_alias_stack: Vec::new(),
             type_alias_cache: HashMap::new(),
             effect_collection_enabled: false,
+            warning_emission_enabled: true,
             effect_collection_suspend_depth: 0,
             performed_effects: Vec::new(),
             inferred_expr_tys: HashMap::new(),
@@ -638,6 +647,21 @@ impl<'a> TypeLowering<'a> {
             .get(fqn)
             .copied()
             .unwrap_or(false)
+    }
+
+    pub(super) fn set_warning_emission_enabled(&mut self, enabled: bool) {
+        self.warning_emission_enabled = enabled;
+    }
+
+    pub(super) fn with_warning_emission_suspended<R>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let saved = self.warning_emission_enabled;
+        self.warning_emission_enabled = false;
+        let out = f(self);
+        self.warning_emission_enabled = saved;
+        out
     }
 
     pub(crate) fn env(&self) -> &TypeEnv {
@@ -1422,9 +1446,13 @@ impl<'a> TypeLowering<'a> {
     }
 
     pub(super) fn emit_deprecated_type_use(&self, fqn: &str, span: Span) {
+        if !self.warning_emission_enabled {
+            return;
+        }
         let Some(info) = self.env.deprecated_type(fqn) else {
             return;
         };
+        let _warning_suppressions = self.install_warning_suppressions_for_current_source();
         warnings::emit(CompileWarning::deprecated_use(
             self.source,
             span,
@@ -1441,9 +1469,13 @@ impl<'a> TypeLowering<'a> {
         span: Span,
         subject_kind: &'static str,
     ) {
+        if !self.warning_emission_enabled {
+            return;
+        }
         let Some(info) = self.env.deprecated_value(fqn) else {
             return;
         };
+        let _warning_suppressions = self.install_warning_suppressions_for_current_source();
         warnings::emit(CompileWarning::deprecated_use(
             self.source,
             span,
@@ -1461,9 +1493,13 @@ impl<'a> TypeLowering<'a> {
         decl_span: Span,
         use_span: Span,
     ) {
+        if !self.warning_emission_enabled {
+            return;
+        }
         let Some(info) = self.env.deprecated_fun(decl_file, decl_span) else {
             return;
         };
+        let _warning_suppressions = self.install_warning_suppressions_for_current_source();
         warnings::emit(CompileWarning::deprecated_use(
             self.source,
             use_span,
@@ -1472,6 +1508,15 @@ impl<'a> TypeLowering<'a> {
             &info.message,
             info.replace_with.as_deref(),
         ));
+    }
+
+    fn install_warning_suppressions_for_current_source(&self) -> warnings::WarningSuppressionGuard {
+        let suppressions = self
+            .env
+            .file_ast(self.source.path())
+            .map(|file| collect_file_warning_suppressions(self.source, file))
+            .unwrap_or_default();
+        warnings::install_suppressions(suppressions)
     }
 
     pub(super) fn record_continuation_resume_call_site(&mut self, call_span: Span, non_pure: bool) {

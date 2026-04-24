@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-STDOUT: redundant_when_else_warning_basic.stdout
+// RUN-STDERR-CONTAINS: warn[redundant-when-else]: `when` 已经穷尽；`else` 分支是冗余的
+//
+// 目标：T4012b3 为 `redundant-when-else` 建立稳定 warning code，供 `@Suppress` 使用。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+fun main() {
+    val value = when (true) {
+        true -> 1
+        false -> 2
+        else -> 3
+    }
+    println(value)
+}
