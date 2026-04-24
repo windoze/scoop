@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4017e3 -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -823,12 +823,15 @@
   - 已验证 `cargo fmt --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017c
 
-### T4017e [TODO] 将 continuation replay、`callee_suspend_state` 与 `pending_continuation` 迁出 TLS，收口到 `frame + ctx + signal/resume token`（拆分执行）
+### T4017e [DONE] 将 continuation replay、`callee_suspend_state` 与 `pending_continuation` 迁出 TLS，收口到 `frame + ctx + signal/resume token`（拆分执行）
 - 说明：
   - 当前条目同时覆盖 runtime resume-driver bookkeeping、`Continuation.resume(...)` replay token、ordinary indirect callee resume 入口、以及 cross-thread / cleanup 回归，实际改动横跨 runtime、ordinary ABI、unified state machine 与测试基线，一次性实现面过大。
   - 因此拆成 `T4017e1 -> T4017e2 -> T4017e3`：先收口 resume-driver 内部 bookkeeping，再把 replay token 接入显式 outcome / state-machine，最后迁掉 ordinary callee `callee_suspend_state` 的 TLS 入口。
 - 验收：
   - 子任务完成后，continuation replay、ordinary indirect callee resume 与 cross-thread resume 的 authoritative state 不再由 TLS 承担。
+- 完成记录：
+  - `T4017e1` / `T4017e2` / `T4017e3` 已依次完成；resume-driver bookkeeping、`Continuation.resume(...)` replay token 与 ordinary indirect callee resume state 均已迁出 TLS source-of-truth。
+  - 当前 runtime 中若仍保留 `callee_suspend_state` TLS，只承担 ordinary fresh-call 边界内的短暂 scratch / transport；ordinary callee resume 的 authoritative state 已收口到 `frame + continuation + resume token metadata`。
 - 依赖：T4017d
 
 ### T4017e1 [DONE] runtime：把 `pending_continuation` 与 `continuation_resume_active` 收口到显式 resume-driver scope
@@ -864,13 +867,18 @@
   - 已验证 `cargo fmt`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1169)`）、`cargo clippy --all-targets -- -D warnings`、`cargo test -p scoop_runtime --test continuation_one_shot -- --test-threads=1`、`cargo test -p scoopc --features llvm continuation_resume -- --nocapture`、`cargo test -p scoopc --features llvm async_task_resume_replay_ir_terminates_step_fn_on_active_effect -- --nocapture`、`cargo test -p scoopc --features llvm when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume -- --nocapture`，以及构建/运行 `tests/fixtures/run-pass/continuation_resume_answer_replay_basic.scoop` 并比对 stdout，均通过。
 - 依赖：T4017e1
 
-### T4017e3 [TODO] 将 ordinary indirect callee `callee_suspend_state` 迁入显式 frame / resume-token metadata，并去掉 TLS resume 入口
+### T4017e3 [DONE] 将 ordinary indirect callee `callee_suspend_state` 迁入显式 frame / resume-token metadata，并去掉 TLS resume 入口
 - 范围：
   - ordinary top-level fun / closure / relevant call-like boundary 的 callee resume 入口不再通过 `scoop_callee_suspend_state_get()` 判断 resume / fresh。
   - `callee_suspend_state` 改为显式跟随 frame / continuation / resume token 传播，cross-thread resume 只依赖 continuation 自身捕获状态。
   - 清理剩余 runtime bridge helper / 测试叙事，使 `callee_suspend_state` TLS 不再承担语义职责。
 - 验收：
   - ordinary indirect callee resume 的 authoritative state 不再由 TLS 承担。
+- 完成记录：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 `HandleStateOp::SuspendCall` 现会优先检查 frame 上捕获的 ordinary-callee `resume_token`；若 token 已存在，则显式走 replay，而不是重新 fresh 调用 ordinary callee。
+  - state machine 已新增 ordinary-callee replay 路径：从 frame token 槽位取回 callee token，恢复 callee suspend state 的 `resume_word` / `resume_gc_ref` 与保存的 resume thunk，执行 replay 后再把结果写回 caller resume slot，并在完成后清空 fresh-path explicit outcome tag，避免 suspend terminator 误读未初始化 outcome。
+  - fresh continuation materialization 现会把 ordinary callee token 捕获到 continuation metadata；ordinary indirect callee resume 的 authoritative state 不再依赖 `scoop_callee_suspend_state_get()` 这类 TLS 入口。
+  - 已同步更新相关 LLVM / state-machine IR 断言，并复验 `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo fmt` 通过。
 - 依赖：T4017e2
 
 ### T4017f [TODO] 补齐 vtable / itable / object init / top-level init / extern thunk 等剩余边界，并删除 effect TLS 的主语义职责

@@ -37,7 +37,6 @@ enum EffectTransportKind {
 const CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX: u32 = 1;
 const CALLEE_SUSPEND_STATE_RESUME_GC_REF_INDEX: u32 = 2;
 const CALLEE_SUSPEND_STATE_SITE_TAG_INDEX: u32 = 3;
-const CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX: u32 = 4;
 
 #[derive(Clone, Copy)]
 pub(super) struct CalleeSuspendResumeState<'ctx> {
@@ -478,23 +477,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?)
     }
 
-    pub(super) fn current_callee_suspend_state_ptr(
-        &mut self,
-        at: crate::span::Span,
-        name: &str,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let get_state = self.declare_runtime_callee_suspend_state_get();
-        self.builder
-            .build_call(get_state, &[], name)?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "callee_suspend_state_get return value",
-                at: at.into(),
-            })
-            .map(BasicValueEnum::into_pointer_value)
-    }
-
     fn llvm_callee_suspend_state_prefix_type(&self) -> StructType<'ctx> {
         const NAME: &str = "scoop.runtime.CalleeSuspendStatePrefix";
         if let Some(existing) = self.context.get_struct_type(NAME) {
@@ -508,6 +490,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.context.i64_type().into(),
                 self.llvm_gc_i8_ptr_type().into(),
                 self.context.i32_type().into(),
+                self.llvm_i8_ptr_type().into(),
             ],
             false,
         );
@@ -543,6 +526,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.i64_type().into(),
             self.llvm_gc_i8_ptr_type().into(),
             self.context.i32_type().into(),
+            self.llvm_i8_ptr_type().into(),
         ];
         for local in &plan.saved_locals {
             let cg_ty = self
@@ -671,6 +655,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .i32_type()
             .const_int(site.site_tag() as u64, false);
         self.builder.build_store(site_tag_gep, site_tag)?;
+        let resume_entry_fn =
+            self.current_callee_resume_entry_fn
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "callee suspend resume entry fn",
+                    at: at.into(),
+                })?;
+        let resume_entry_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX,
+            "callee_suspend_resume_entry_fn",
+        )?;
+        let resume_entry_ptr = self.builder.build_pointer_cast(
+            resume_entry_fn.as_global_value().as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "callee_suspend_resume_entry_fn_i8",
+        )?;
+        self.builder
+            .build_store(resume_entry_gep, resume_entry_ptr)?;
 
         let active_locals = site
             .saved_locals
@@ -748,18 +751,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         plan: &CalleeSuspendPlan,
+        state_raw: PointerValue<'ctx>,
     ) -> Result<CalleeSuspendResumeState<'ctx>, LlvmEmitError> {
         let state_ty = self.get_or_create_current_callee_suspend_state_type(at, plan)?;
-        let state_raw = self.current_callee_suspend_state_ptr(at, "callee_suspend_resume_state")?;
         let state_ptr = self.builder.build_pointer_cast(
             state_raw,
             self.llvm_ptr_type(self.gc_address_space()),
             "callee_suspend_resume_ptr",
         )?;
-
-        let clear = self.declare_runtime_callee_suspend_state_clear();
-        self.builder
-            .build_call(clear, &[], "clear_callee_suspend_state")?;
 
         let resume_word_gep = self.builder.build_struct_gep(
             state_ty,
@@ -812,6 +811,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             resume_gc_ref,
             site_tag,
         })
+    }
+
+    pub(super) fn load_callee_suspend_resume_entry_fn_ptr(
+        &mut self,
+        state_raw: PointerValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let prefix_ty = self.llvm_callee_suspend_state_prefix_type();
+        let prefix_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "callee_suspend_resume_prefix_ptr",
+        )?;
+        let resume_entry_gep = self.builder.build_struct_gep(
+            prefix_ty,
+            prefix_ptr,
+            CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX,
+            "callee_suspend_resume_entry_fn_ptr",
+        )?;
+        Ok(self
+            .builder
+            .build_load(
+                self.llvm_i8_ptr_type(),
+                resume_entry_gep,
+                "callee_suspend_resume_entry_fn",
+            )?
+            .into_pointer_value())
     }
 
     pub(super) fn emit_callee_suspend_resume_site_prologue(

@@ -498,11 +498,11 @@ SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
 // T1606f-2：callee suspend state（间接 perform 的被调函数状态指针）。
 //
 // 说明：
-// - 当一个函数内部 perform 了 escape continuation effect 并通过 flag propagation 返回时，
-//   该函数需要保存自身的 post-perform locals 到 GC heap 上的 CalleeSuspendState 对象，
-//   并将指针存入此 TLS 变量，以便 handle body 的 dispatch trampoline 取回并保存到 ContState。
-// - 存入前该对象应已被 PIN（避免 GC 搬迁），handler 侧取回后负责 unpin。
-// - 不参与 GC root 扫描——对象通过 pin 保持存活，handler 取回后由 ContState 追踪。
+// - ordinary indirect callee fresh path 会把自身的 suspend-state 暂存到这里；
+// - 最近的 call boundary / state-machine terminator 会立刻通过
+//   `scoop_effect_outcome_consume_current()` 把它提升成显式 `EffectSignal.resume_token`；
+// - 因此它只承担“当前线程、当前 propagation 边界”的短暂 transport / scratch，
+//   不再是 ordinary callee resume 的权威恢复入口。
 static SCOOP_THREAD_LOCAL void *__scoop_callee_suspend_state = 0;
 
 // `Continuation.resume(...)` 的 runtime driver bookkeeping。
@@ -584,6 +584,7 @@ static void scoop_effect_write_signal_to_tls(const ScoopEffectSignal *signal) {
   __scoop_effect_perform_slot.op_tag = signal->op_tag;
   __scoop_effect_perform_slot.payload_len_words = 1;
   __scoop_effect_perform_slot.effect_instance_key = signal->effect_instance_key;
+  __scoop_callee_suspend_state = signal->resume_token;
   __scoop_effect_perform_slot.payload_words[0] = signal->payload.word;
   for (uint32_t i = 1; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
     __scoop_effect_perform_slot.payload_words[i] = 0;
@@ -693,6 +694,7 @@ static void scoop_effect_publish_outcome(const ScoopEffectOutcome *outcome,
     return;
   }
 
+  __scoop_callee_suspend_state = 0;
   __scoop_effect_active = 0;
   scoop_effect_perform_slot_reset();
 }
@@ -705,6 +707,7 @@ static void scoop_effect_publish_outcome_without_trace(
     return;
   }
 
+  __scoop_callee_suspend_state = 0;
   __scoop_effect_active = 0;
   scoop_effect_perform_slot_reset();
 }
@@ -857,6 +860,7 @@ void scoop_effect_outcome_consume_current(ScoopEffectOutcome *outcome) {
   }
 
   if (outcome == 0) {
+    __scoop_callee_suspend_state = 0;
     scoop_effect_perform_slot_reset();
     __scoop_effect_active = 0;
     return;
@@ -864,16 +868,18 @@ void scoop_effect_outcome_consume_current(ScoopEffectOutcome *outcome) {
 
   ScoopEffectOutcome next = scoop_effect_outcome_make_complete();
   if (__scoop_effect_active != 0) {
+    void *resume_token = __scoop_callee_suspend_state;
     ScoopEffectSignal signal = scoop_effect_signal_make(
         __scoop_effect_perform_slot.op_tag,
         __scoop_effect_perform_slot.effect_instance_key,
         scoop_value_transport_make(__scoop_effect_perform_slot.payload_words[0],
                                    __scoop_effect_perform_slot.payload_gc_ref),
-        0);
+        resume_token);
     next = scoop_effect_outcome_make_propagate(signal);
   }
 
   *outcome = next;
+  __scoop_callee_suspend_state = 0;
   __scoop_effect_active = 0;
   scoop_effect_perform_slot_reset();
 }
@@ -884,19 +890,24 @@ void scoop_effect_outcome_publish(const ScoopEffectOutcome *outcome) {
   }
 
   if (outcome == 0) {
+    __scoop_callee_suspend_state = 0;
     __scoop_effect_active = 0;
     scoop_effect_perform_slot_reset();
     return;
   }
 
   scoop_effect_publish_outcome_without_trace(outcome);
+  if (outcome->tag != SCOOP_EFFECT_OUTCOME_PROPAGATE) {
+    __scoop_callee_suspend_state = 0;
+  }
 }
 
-// T1606f-2：callee suspend state 访问器。
+// T1606f-2 / T4017e3：callee suspend state scratch 访问器。
 //
 // ordinary indirect callee fresh path 先把 post-suspend locals/captures 保存成
-// GC-managed state object，再通过 publish 把它暂存到当前线程 TLS；outer unified
-// `Suspend` terminator 会立刻把这个值提升进 continuation 并清空 TLS。
+// GC-managed state object，再通过 publish 把它暂存到当前线程 TLS；最近的 ordinary
+// boundary 会通过 `scoop_effect_outcome_consume_current()` 立刻把该值挪进显式
+// `EffectSignal.resume_token`，后续 replay 不再依赖这里作为恢复入口。
 void scoop_callee_suspend_state_publish(void *state) {
   __scoop_callee_suspend_state = state;
 }

@@ -240,6 +240,7 @@ fn effect_outcome_roundtrip_consumes_and_republishes_current_tls_signal() {
         assert!(!once.is_null(), "sync once object must be allocated");
 
         scoop_effect_perform_slot_write_u64_with_gc_ref(31, 47, 99, once);
+        scoop_test_callee_suspend_state_set(once);
         scoop_effect_set_active();
         assert_eq!(scoop_effect_is_active(), 1);
 
@@ -267,14 +268,18 @@ fn effect_outcome_roundtrip_consumes_and_republishes_current_tls_signal() {
         assert_eq!(outcome.signal.effect_instance_key, 47);
         assert_eq!(outcome.signal.payload.word, 99);
         assert_eq!(outcome.signal.payload.gc_ref, once);
-        assert!(
-            outcome.signal.resume_token.is_null(),
-            "current TLS signal does not yet carry a resume token"
+        assert_eq!(
+            outcome.signal.resume_token, once,
+            "consume_current should surface the current ordinary callee scratch state as EffectSignal.resume_token"
         );
         assert_eq!(
             scoop_effect_is_active(),
             0,
             "consume should clear the active flag from TLS"
+        );
+        assert!(
+            scoop_callee_suspend_state_get().is_null(),
+            "consume_current should clear the callee-resume scratch TLS after lifting it into the explicit outcome"
         );
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
         assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
@@ -292,13 +297,51 @@ fn effect_outcome_roundtrip_consumes_and_republishes_current_tls_signal() {
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 99);
         assert_eq!(scoop_effect_perform_slot_read_gc_ref(), once);
+        assert_eq!(
+            scoop_callee_suspend_state_get(),
+            once,
+            "publishing an explicit outcome back to TLS should restore resume_token scratch so the next outer boundary can lift it again"
+        );
 
-        outcome.tag = 0;
-        outcome.signal.op_tag = 0;
-        outcome.signal.effect_instance_key = 0;
-        outcome.signal.payload.word = 0;
-        outcome.signal.payload.gc_ref = std::ptr::null_mut();
-        scoop_effect_outcome_publish(&outcome);
+        let mut republished = ScoopEffectOutcome {
+            tag: u32::MAX,
+            reserved_u32: u32::MAX,
+            complete: ScoopValueTransport {
+                word: u64::MAX,
+                gc_ref: once,
+            },
+            signal: ScoopEffectSignal {
+                op_tag: u32::MAX,
+                effect_instance_key: u32::MAX,
+                payload: ScoopValueTransport {
+                    word: u64::MAX,
+                    gc_ref: once,
+                },
+                resume_token: std::ptr::null_mut(),
+            },
+        };
+        scoop_effect_outcome_consume_current(&mut republished);
+        assert_eq!(republished.tag, 1);
+        assert_eq!(republished.signal.op_tag, 31);
+        assert_eq!(republished.signal.effect_instance_key, 47);
+        assert_eq!(republished.signal.payload.word, 99);
+        assert_eq!(republished.signal.payload.gc_ref, once);
+        assert_eq!(
+            republished.signal.resume_token, once,
+            "republished TLS signal must preserve resume_token across multiple ordinary boundaries"
+        );
+        assert!(
+            scoop_callee_suspend_state_get().is_null(),
+            "re-consuming the republished signal should clear the temporary resume-token scratch"
+        );
+
+        republished.tag = 0;
+        republished.signal.op_tag = 0;
+        republished.signal.effect_instance_key = 0;
+        republished.signal.payload.word = 0;
+        republished.signal.payload.gc_ref = std::ptr::null_mut();
+        republished.signal.resume_token = std::ptr::null_mut();
+        scoop_effect_outcome_publish(&republished);
         assert_eq!(scoop_effect_is_active(), 0);
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
         assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);

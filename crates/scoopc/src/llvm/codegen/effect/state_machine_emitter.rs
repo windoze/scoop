@@ -165,6 +165,7 @@ pub(super) struct FrameLayout<'ctx> {
     completion_tag_index: Option<u32>,
     continuation_index: u32,
     outer_scope_storage_indices: HashMap<hir::SymbolId, u32>,
+    ordinary_callee_resume_token_indices: HashMap<u32, u32>,
     continuation_resume_replay_token_indices: HashMap<u32, u32>,
 }
 
@@ -195,6 +196,12 @@ impl<'ctx> FrameLayout<'ctx> {
 
     pub(super) fn outer_scope_storage_index(&self, slot_id: hir::SymbolId) -> Option<u32> {
         self.outer_scope_storage_indices.get(&slot_id).copied()
+    }
+
+    pub(super) fn ordinary_callee_resume_token_index(&self, site_id: u32) -> Option<u32> {
+        self.ordinary_callee_resume_token_indices
+            .get(&site_id)
+            .copied()
     }
 
     pub(super) fn continuation_resume_replay_token_index(&self, site_id: u32) -> Option<u32> {
@@ -333,7 +340,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             outer_scope_storage_indices.insert(slot_id, storage_index);
         }
 
-        let mut continuation_resume_replay_token_indices = HashMap::new();
+        let mut ordinary_callee_resume_token_indices = HashMap::new();
+        let mut ordinary_callee_resume_site_ids = Vec::new();
         let mut continuation_resume_site_ids = Vec::new();
         for site in contract.suspend_sites() {
             let Some(call_expr) = self.lookup_suspend_call_expr(contract, site.id()) else {
@@ -342,8 +350,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let call_site = self.current_call_site(call_expr.span)?;
             if self.continuation_resume_call_sites.contains(&call_site) {
                 continuation_resume_site_ids.push(site.id());
+            } else {
+                ordinary_callee_resume_site_ids.push(site.id());
             }
         }
+        ordinary_callee_resume_site_ids.sort_unstable();
+        for site_id in ordinary_callee_resume_site_ids {
+            let token_index = field_types.len() as u32;
+            field_types.push(gc_ptr_ty.into());
+            ordinary_callee_resume_token_indices.insert(site_id, token_index);
+        }
+
+        let mut continuation_resume_replay_token_indices = HashMap::new();
         continuation_resume_site_ids.sort_unstable();
         for site_id in continuation_resume_site_ids {
             let token_index = field_types.len() as u32;
@@ -368,6 +386,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             completion_tag_index,
             continuation_index,
             outer_scope_storage_indices,
+            ordinary_callee_resume_token_indices,
             continuation_resume_replay_token_indices,
         })
     }
@@ -1269,24 +1288,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // --- Suspending call: evaluate call expression normally ---
                 HandleStateOp::SuspendCall { site_id, expr } => {
-                    if !self.suspend_call_is_continuation_resume(contract, *site_id)? {
-                        self.seed_replayed_callee_resume_payload_if_present(
+                    let val = if frame_layout
+                        .ordinary_callee_resume_token_index(*site_id)
+                        .is_some()
+                    {
+                        self.emit_suspend_call_with_ordinary_callee_replay(
                             *site_id,
+                            expr,
                             expr.span,
                             state_ptr,
                             frame_layout,
-                        )?;
-                    }
-                    let saved_outcome_capture = self.active_suspend_site_effect_outcome_capture;
-                    self.active_suspend_site_effect_outcome_capture =
-                        Some(ActiveSuspendSiteEffectOutcomeCapture {
-                            site_id: *site_id,
-                            call_span: expr.span,
-                        });
-                    self.suspend_site_explicit_effect_outcomes.remove(site_id);
-                    let val = self.codegen_expr_in_expected_context(expr, None);
-                    self.active_suspend_site_effect_outcome_capture = saved_outcome_capture;
-                    let val = val?;
+                            contract,
+                        )?
+                    } else {
+                        let saved_outcome_capture = self.active_suspend_site_effect_outcome_capture;
+                        self.active_suspend_site_effect_outcome_capture =
+                            Some(ActiveSuspendSiteEffectOutcomeCapture {
+                                site_id: *site_id,
+                                call_span: expr.span,
+                            });
+                        self.suspend_site_explicit_effect_outcomes.remove(site_id);
+                        let val = self.codegen_expr_in_expected_context(expr, None);
+                        self.active_suspend_site_effect_outcome_capture = saved_outcome_capture;
+                        val?
+                    };
                     last_value = Some(val);
                     // If the callee performed, the TLS active flag is set.
                     // The Suspend terminator handles the rest.
@@ -1629,62 +1654,183 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn suspend_call_is_continuation_resume(
+    fn lookup_suspend_resume_slot(
         &self,
         contract: &UnifiedHandleLoweringContract,
         site_id: u32,
-    ) -> Result<bool, LlvmEmitError> {
-        let Some(call_expr) = self.lookup_suspend_call_expr(contract, site_id) else {
-            return Ok(false);
-        };
-        Ok(self
-            .continuation_resume_call_sites
-            .contains(&self.current_call_site(call_expr.span)?))
+    ) -> Option<FrameSlot> {
+        contract.states().iter().find_map(|state| {
+            state.ops().iter().find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    site_id: resume_site_id,
+                    resume_slot: Some(slot),
+                    ..
+                } if *resume_site_id == site_id => Some(slot.clone()),
+                _ => None,
+            })
+        })
     }
 
-    fn seed_replayed_callee_resume_payload_if_present(
+    fn emit_suspend_call_with_ordinary_callee_replay(
         &mut self,
         site_id: u32,
-        span: crate::span::Span,
+        call_expr: &hir::Expr,
+        source_span: crate::span::Span,
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
-        let step_fn = self.current_codegen_function(span)?;
-        let current_callee_state = self.current_callee_suspend_state_ptr(
-            span,
-            &format!("site{site_id}_callee_replay_state"),
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let token_index = frame_layout
+            .ordinary_callee_resume_token_index(site_id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "ordinary callee replay token slot",
+                at: source_span.into(),
+            })?;
+        let resume_slot = self.lookup_suspend_resume_slot(contract, site_id).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "ordinary callee replay resume slot",
+                at: source_span.into(),
+            },
         )?;
-        let has_callee_state = self.ptr_is_non_null(
-            span,
-            current_callee_state,
-            &format!("site{site_id}_has_callee_replay_state"),
-        )?;
-        let seed_bb = self
+        let step_fn = self.current_codegen_function(source_span)?;
+        let replay_bb = self
             .context
-            .append_basic_block(step_fn, &format!("site{site_id}_seed_callee_resume"));
-        let continue_bb = self
+            .append_basic_block(step_fn, &format!("site{site_id}_suspend_call_replay"));
+        let fresh_bb = self
             .context
-            .append_basic_block(step_fn, &format!("site{site_id}_after_callee_seed"));
-        self.builder
-            .build_conditional_branch(has_callee_state, seed_bb, continue_bb)?;
+            .append_basic_block(step_fn, &format!("site{site_id}_suspend_call_fresh"));
+        let merge_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_suspend_call_merge"));
 
-        self.builder.position_at_end(seed_bb);
+        let token_slot = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            token_index,
+            &format!("site{site_id}_suspend_call_callee_resume_token_ptr"),
+        )?;
+        let replay_token = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                token_slot,
+                &format!("site{site_id}_suspend_call_callee_resume_token"),
+            )?
+            .into_pointer_value();
+        let has_replay_token = self.ptr_is_non_null(
+            source_span,
+            replay_token,
+            &format!("site{site_id}_suspend_call_has_callee_resume_token"),
+        )?;
+        self.builder
+            .build_conditional_branch(has_replay_token, replay_bb, fresh_bb)?;
+
+        self.builder.position_at_end(fresh_bb);
+        let saved_outcome_capture = self.active_suspend_site_effect_outcome_capture;
+        self.active_suspend_site_effect_outcome_capture =
+            Some(ActiveSuspendSiteEffectOutcomeCapture {
+                site_id,
+                call_span: call_expr.span,
+            });
+        self.suspend_site_explicit_effect_outcomes.remove(&site_id);
+        let fresh_result = self.codegen_expr_in_expected_context(call_expr, None);
+        self.active_suspend_site_effect_outcome_capture = saved_outcome_capture;
+        let fresh_result = fresh_result?;
+        self.store_value_to_frame_slot(
+            source_span,
+            &resume_slot,
+            fresh_result,
+            state_ptr,
+            frame_layout,
+            contract,
+        )?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+        let explicit_outcome_slot = self
+            .suspend_site_explicit_effect_outcomes
+            .get(&site_id)
+            .copied();
+
+        self.builder.position_at_end(replay_bb);
         let (resume_word, resume_gc_ref) = self.read_frame_resume_payload(
             state_ptr,
             frame_layout,
-            "replay_callee_resume_word",
-            "replay_callee_resume_gc_ref",
+            "suspend_call_resume_word",
+            "suspend_call_resume_gc_ref",
         )?;
         self.emit_resume_payload_into_callee_suspend_state(
-            span,
-            current_callee_state,
+            source_span,
+            replay_token,
             resume_word,
             resume_gc_ref,
         )?;
-        self.builder.build_unconditional_branch(continue_bb)?;
+        self.builder
+            .build_store(token_slot, self.llvm_gc_i8_ptr_type().const_null())?;
+        let outcome_slot = self.alloc_effect_outcome_slot(
+            source_span,
+            &format!("site{site_id}_suspend_call_callee_resume"),
+        )?;
+        let result_cg =
+            self.cg_ty_of(resume_slot.ty())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "ordinary suspend-call replay slot type",
+                    at: source_span.into(),
+                })?;
+        let saved_return_ctx = self.return_context.take();
+        let saved_return_ty = self.current_fun_return_ty.take();
+        self.current_fun_return_ty = Some(CgTy::Never);
+        let call_result = self.call_callee_resume_entry_from_state(
+            source_span,
+            replay_token,
+            result_cg,
+            &format!("site{site_id}_suspend_call_callee_resume"),
+        );
+        self.consume_current_effect_outcome_into(
+            source_span,
+            outcome_slot,
+            &format!("site{site_id}_suspend_call_callee_resume"),
+        )?;
+        let replay_resume_token = self.effect_outcome_resume_token(
+            source_span,
+            outcome_slot,
+            &format!("site{site_id}_suspend_call_callee_resume"),
+        )?;
+        self.builder.build_store(token_slot, replay_resume_token)?;
+        self.emit_ordinary_call_effect_propagation_check_from_outcome(
+            source_span,
+            outcome_slot,
+            &format!("site{site_id}_suspend_call_callee_resume"),
+        )?;
+        self.current_fun_return_ty = saved_return_ty;
+        self.return_context = saved_return_ctx;
+        let call_result = call_result?;
+        self.store_value_to_frame_slot(
+            source_span,
+            &resume_slot,
+            call_result,
+            state_ptr,
+            frame_layout,
+            contract,
+        )?;
+        if let Some(outcome_slot) = explicit_outcome_slot {
+            let outcome_tag_ptr = self.builder.build_struct_gep(
+                self.llvm_effect_outcome_struct_type(),
+                outcome_slot,
+                0,
+                &format!("site{site_id}_suspend_call_outcome_tag_ptr"),
+            )?;
+            self.builder
+                .build_store(outcome_tag_ptr, self.context.i32_type().const_zero())?;
+        }
+        self.builder.build_unconditional_branch(merge_bb)?;
 
-        self.builder.position_at_end(continue_bb);
-        Ok(())
+        self.builder.position_at_end(merge_bb);
+        self.emit_read_local_from_frame(
+            resume_slot.id(),
+            source_span,
+            state_ptr,
+            frame_layout,
+            contract,
+        )
     }
 
     fn emit_resume_after_call_site(
@@ -1744,20 +1890,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             self.builder
                 .build_conditional_branch(has_token, replay_bb, inactive_bb)?;
-            Some((token_slot, replay_token))
+            token_slot
         } else {
-            let current_callee_state = self.current_callee_suspend_state_ptr(
-                source_span,
-                &format!("site{site_id}_callee_suspend_state"),
+            let token_index = frame_layout
+                .ordinary_callee_resume_token_index(site_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "ordinary callee resume token slot",
+                    at: source_span.into(),
+                })?;
+            let token_slot = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                state_ptr,
+                token_index,
+                &format!("site{site_id}_callee_resume_token_ptr"),
             )?;
-            let has_callee_state = self.ptr_is_non_null(
+            let callee_resume_token = self
+                .builder
+                .build_load(
+                    self.llvm_gc_i8_ptr_type(),
+                    token_slot,
+                    &format!("site{site_id}_callee_resume_token"),
+                )?
+                .into_pointer_value();
+            let has_callee_resume_token = self.ptr_is_non_null(
                 source_span,
-                current_callee_state,
-                &format!("site{site_id}_has_callee_suspend_state"),
+                callee_resume_token,
+                &format!("site{site_id}_has_callee_resume_token"),
             )?;
-            self.builder
-                .build_conditional_branch(has_callee_state, replay_bb, inactive_bb)?;
-            None
+            self.builder.build_conditional_branch(
+                has_callee_resume_token,
+                replay_bb,
+                inactive_bb,
+            )?;
+            token_slot
         };
 
         self.builder.position_at_end(inactive_bb);
@@ -1777,7 +1942,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "callee_resume_word",
             "callee_resume_gc_ref",
         )?;
-        if let Some((replay_token_slot, replay_token)) = replay_token_slot {
+        let replay_token = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                replay_token_slot,
+                &format!("site{site_id}_replay_token"),
+            )?
+            .into_pointer_value();
+        if is_continuation_resume_call {
             self.builder
                 .build_store(replay_token_slot, self.llvm_gc_i8_ptr_type().const_null())?;
             let saved_replay_ctx = self.current_continuation_resume_replay_context;
@@ -1818,26 +1991,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let current_callee_state = self.current_callee_suspend_state_ptr(
-            source_span,
-            &format!("site{site_id}_callee_suspend_state"),
-        )?;
         self.emit_resume_payload_into_callee_suspend_state(
             source_span,
-            current_callee_state,
+            replay_token,
             resume_word,
             resume_gc_ref,
         )?;
+        self.builder
+            .build_store(replay_token_slot, self.llvm_gc_i8_ptr_type().const_null())?;
+        let outcome_slot =
+            self.alloc_effect_outcome_slot(source_span, &format!("site{site_id}_callee_resume"))?;
+        let result_cg =
+            self.cg_ty_of(resume_slot.ty())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "ordinary callee resume slot type",
+                    at: source_span.into(),
+                })?;
         let saved_return_ctx = self.return_context.take();
         let saved_return_ty = self.current_fun_return_ty.take();
-        // replay 的 SuspendCall 仍在 step function 里重放一个完整 call tree；
-        // 若它再次把 TLS active 置起，当前 frame 必须立刻 `ret void` 让更外层
-        // dispatch/continuation 重新接管，而不是继续把 `0/null` 占位答案写回 frame。
         self.current_fun_return_ty = Some(CgTy::Never);
-        let saved_replay_mode = self.current_continuation_resume_replay;
-        self.current_continuation_resume_replay = false;
-        let call_result = self.codegen_expr_in_expected_context(call_expr, None);
-        self.current_continuation_resume_replay = saved_replay_mode;
+        let call_result = self.call_callee_resume_entry_from_state(
+            source_span,
+            replay_token,
+            result_cg,
+            &format!("site{site_id}_call_callee_resume"),
+        );
+        self.consume_current_effect_outcome_into(
+            source_span,
+            outcome_slot,
+            &format!("site{site_id}_callee_resume"),
+        )?;
+        let replay_resume_token = self.effect_outcome_resume_token(
+            source_span,
+            outcome_slot,
+            &format!("site{site_id}_callee_resume"),
+        )?;
+        self.builder
+            .build_store(replay_token_slot, replay_resume_token)?;
+        self.emit_ordinary_call_effect_propagation_check_from_outcome(
+            source_span,
+            outcome_slot,
+            &format!("site{site_id}_callee_resume"),
+        )?;
         self.current_fun_return_ty = saved_return_ty;
         self.return_context = saved_return_ctx;
         let call_result = call_result?;
@@ -2145,7 +2340,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .append_basic_block(step_fn, &format!("site{site_id}_active"));
                     let explicit_outcome_slot =
                         self.suspend_site_explicit_effect_outcomes.remove(site_id);
-                    let is_active = if let Some(outcome_slot) = explicit_outcome_slot {
+                    let needs_resume_token = frame_layout
+                        .ordinary_callee_resume_token_index(*site_id)
+                        .is_some()
+                        || frame_layout
+                            .continuation_resume_replay_token_index(*site_id)
+                            .is_some();
+                    let materialized_outcome_slot =
+                        if explicit_outcome_slot.is_none() && needs_resume_token {
+                            let outcome_slot = self.alloc_effect_outcome_slot(
+                                span,
+                                &format!("site{site_id}_tls_effect_outcome"),
+                            )?;
+                            self.consume_current_effect_outcome_into(
+                                span,
+                                outcome_slot,
+                                &format!("site{site_id}_tls_effect_outcome"),
+                            )?;
+                            Some(outcome_slot)
+                        } else {
+                            None
+                        };
+                    let outcome_slot = explicit_outcome_slot.or(materialized_outcome_slot);
+                    let is_active = if let Some(outcome_slot) = outcome_slot {
                         self.effect_outcome_is_propagating(
                             span,
                             outcome_slot,
@@ -2170,7 +2387,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder.build_unconditional_branch(resume_bb)?;
 
                     self.builder.position_at_end(active_suspend_bb);
-                    if let Some(outcome_slot) = explicit_outcome_slot {
+                    if let Some(outcome_slot) = outcome_slot {
+                        if let Some(token_index) =
+                            frame_layout.ordinary_callee_resume_token_index(*site_id)
+                        {
+                            let resume_token = self.effect_outcome_resume_token(
+                                span,
+                                outcome_slot,
+                                &format!("site{site_id}_effect_outcome"),
+                            )?;
+                            let token_slot = self.builder.build_struct_gep(
+                                frame_layout.frame_type,
+                                state_ptr,
+                                token_index,
+                                &format!("site{site_id}_callee_resume_token_ptr"),
+                            )?;
+                            self.builder.build_store(token_slot, resume_token)?;
+                        }
                         if let Some(token_index) =
                             frame_layout.continuation_resume_replay_token_index(*site_id)
                         {
@@ -2192,12 +2425,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             outcome_slot,
                             &format!("site{site_id}_effect_outcome"),
                         )?;
-                    } else if frame_layout
-                        .continuation_resume_replay_token_index(*site_id)
-                        .is_some()
-                    {
+                    } else if needs_resume_token {
                         return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "Continuation.resume suspend outcome slot",
+                            kind: "suspend outcome slot for replay token capture",
                             at: span.into(),
                         });
                     }
@@ -2248,40 +2478,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .const_int(*resume_state as u64, false);
                 self.builder
                     .build_store(cont_resume_state_gep, resume_state_val)?;
-
-                // Lift any currently outstanding ordinary indirect-callee
-                // suspend state into the continuation itself. From this point
-                // on the continuation, not thread-local TLS, is the
-                // authoritative owner across handle exit / cross-thread resume.
-                let get_callee_state = self.declare_runtime_callee_suspend_state_get();
-                let captured_callee_state = self
-                    .builder
-                    .build_call(get_callee_state, &[], "captured_callee_suspend_state")?
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "callee_suspend_state_get return value",
-                        at: span.into(),
-                    })?
-                    .into_pointer_value();
-                let cont_callee_state_gep = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont,
-                    8, // captured_callee_suspend_state
-                    "cont_callee_suspend_state",
-                )?;
-                self.builder
-                    .build_store(cont_callee_state_gep, captured_callee_state)?;
-
-                let clear_callee_state = self.declare_runtime_callee_suspend_state_clear();
-                self.builder
-                    .build_call(clear_callee_state, &[], "clear_callee_suspend_state")?;
-                let unpin_callee_state = self.declare_runtime_gc_unpin();
-                self.builder.build_call(
-                    unpin_callee_state,
-                    &[captured_callee_state.into()],
-                    "unpin_callee_suspend_state_after_capture",
-                )?;
+                if let Some(token_index) = frame_layout.ordinary_callee_resume_token_index(*site_id)
+                {
+                    let cont_callee_suspend_state_gep = self.builder.build_struct_gep(
+                        cont_ty,
+                        cont,
+                        8, // captured_callee_suspend_state
+                        "cont_captured_callee_suspend_state",
+                    )?;
+                    let token_slot = self.builder.build_struct_gep(
+                        frame_layout.frame_type,
+                        state_ptr,
+                        token_index,
+                        &format!("site{site_id}_captured_callee_resume_token_ptr"),
+                    )?;
+                    let captured_callee_suspend_state = self
+                        .builder
+                        .build_load(
+                            self.llvm_gc_i8_ptr_type(),
+                            token_slot,
+                            &format!("site{site_id}_captured_callee_resume_token"),
+                        )?
+                        .into_pointer_value();
+                    self.builder.build_store(
+                        cont_callee_suspend_state_gep,
+                        captured_callee_suspend_state,
+                    )?;
+                }
 
                 // Store the continuation pointer into the dedicated runtime
                 // slot so later step_fn re-entry cannot overwrite it by
@@ -4075,7 +4298,7 @@ fun main() {
     }
 
     #[test]
-    fn suspend_ir_captures_callee_suspend_state_into_continuation() {
+    fn suspend_ir_stores_callee_resume_token_on_frame_and_replays_via_resume_thunk() {
         let (source, lowered) = lower_typed_single_source_with_source(
             r#"
 package a
@@ -4111,20 +4334,24 @@ fun main(): Int {
             .expect("llvm ir");
 
         assert!(
-            ir.contains("@scoop_callee_suspend_state_get"),
-            "suspend path should read any outstanding callee suspend state from runtime TLS"
+            ir.contains("site0_callee_resume_token_ptr"),
+            "suspend path should materialize a dedicated frame slot for the ordinary callee resume token"
         );
         assert!(
-            ir.contains("@scoop_callee_suspend_state_clear"),
-            "suspend path should clear the runtime TLS callee suspend state after capture"
+            ir.contains("site0_effect_outcome_effect_signal_resume_token"),
+            "active suspend path should pull the ordinary callee resume token out of the explicit effect outcome"
         );
         assert!(
-            ir.contains("cont_callee_suspend_state"),
-            "continuation layout should materialize a dedicated field GEP for captured callee suspend state"
+            ir.contains("@__scoop_callee_resume__a.callIt"),
+            "ordinary callee should materialize a dedicated resume thunk instead of relying on TLS entry probing"
         );
         assert!(
-            ir.contains("captured_callee_suspend_state"),
-            "IR should name the captured callee suspend state value flowing into the continuation"
+            ir.contains("site0_call_callee_resume"),
+            "resume replay path should call the stored resume thunk directly from the explicit frame token"
+        );
+        assert!(
+            ir.contains("cont_captured_callee_suspend_state"),
+            "fresh continuation materialization should capture the ordinary callee resume token so escaped continuation resume does not fall back to TLS"
         );
     }
 
@@ -4454,21 +4681,38 @@ fun main(): Int {
         let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
             .expect("llvm ir");
         let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
-        let fresh_call_block = find_block_ir(step_ir, "site0_after_callee_seed");
+        let entry_block = find_block_ir(step_ir, "state_0");
+        let fresh_call_block = find_block_ir(step_ir, "site0_suspend_call_fresh");
+        let merge_block = find_block_ir(step_ir, "site0_suspend_call_merge");
         let active_block = find_block_ir(step_ir, "site0_active");
 
         assert!(
-            fresh_call_block.contains("site0_effect_outcome_effect_outcome_tag")
-                && !fresh_call_block.contains("@scoop_effect_is_active"),
-            "outer handle should branch on the explicit outcome produced by the indirect if-branch callee call instead of probing TLS active again:\n{fresh_call_block}"
+            entry_block.contains("site0_suspend_call_has_callee_resume_token")
+                && entry_block.contains("site0_suspend_call_replay")
+                && entry_block.contains("site0_suspend_call_fresh"),
+            "outer handle should first branch between explicit callee replay and fresh call paths at the suspend site entry:\n{entry_block}"
+        );
+        assert!(
+            fresh_call_block.contains("@__scoop_effect_call_wrapper__a.viaIf")
+                && merge_block.contains("site0_effect_outcome_effect_outcome_tag")
+                && !merge_block.contains("@scoop_effect_is_active"),
+            "outer handle should route the fresh indirect call through the wrapper and then branch on the explicit outcome tag instead of probing TLS active again:\n{merge_block}"
+        );
+        assert!(
+            !fresh_call_block.contains("@scoop_effect_is_active"),
+            "fresh indirect call block itself must not reintroduce TLS active probing before the explicit outcome merge:\n{fresh_call_block}"
+        );
+        assert!(
+            merge_block.contains("site0_effect_outcome_effect_outcome_is_propagating"),
+            "outer handle merge path should branch on the explicit outcome produced by the indirect if-branch callee call:\n{merge_block}"
         );
         assert!(
             active_block.contains("@scoop_effect_outcome_publish"),
             "outer handle should still preserve the active-dispatch path for the indirect if-branch callee call by publishing the captured outcome back to TLS:\n{active_block}"
         );
         assert!(
-            ir.contains("callee_suspend_entry_is_resume"),
-            "ordinary if-branch callee should still build a fresh/resume dual-entry contract"
+            ir.contains("@__scoop_callee_resume__a.viaIf"),
+            "ordinary if-branch callee should now expose a dedicated resume thunk instead of a TLS-switched dual entry"
         );
     }
 
@@ -4504,18 +4748,35 @@ fun main(): Int {
         let session = Session::new().expect("session");
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
         let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
-        let fresh_call_block = find_block_ir(step_ir, "site0_after_callee_seed");
+        let entry_block = find_block_ir(step_ir, "state_0");
+        let fresh_call_block = find_block_ir(step_ir, "site0_suspend_call_fresh");
+        let merge_block = find_block_ir(step_ir, "site0_suspend_call_merge");
         let active_block = find_block_ir(step_ir, "site0_active");
 
         assert!(
+            entry_block.contains("site0_suspend_call_has_callee_resume_token")
+                && entry_block.contains("site0_suspend_call_replay")
+                && entry_block.contains("site0_suspend_call_fresh"),
+            "state-machine suspend-call entry should branch between explicit ordinary replay and fresh wrapper evaluation:\n{entry_block}"
+        );
+        assert!(
             fresh_call_block.contains("@__scoop_effect_call_wrapper__a.helper")
-                && fresh_call_block.contains("site0_effect_outcome_effect_outcome_tag")
                 && !fresh_call_block.contains("@scoop_effect_is_active"),
-            "state-machine fresh suspend-call path should branch on the explicit outcome tag produced by the wrapper instead of probing TLS active again:\n{fresh_call_block}"
+            "state-machine fresh suspend-call block should route through the wrapper without probing TLS active directly:\n{fresh_call_block}"
+        );
+        assert!(
+            merge_block.contains("site0_effect_outcome_effect_outcome_tag")
+                && !merge_block.contains("@scoop_effect_is_active"),
+            "state-machine suspend-call merge should branch on the explicit outcome tag produced by the wrapper instead of probing TLS active again:\n{merge_block}"
         );
         assert!(
             active_block.contains("@scoop_effect_outcome_publish"),
             "state-machine active suspend branch must publish the explicit outcome back to TLS before dispatching handlers:\n{active_block}"
+        );
+        assert!(
+            ir.contains("@__scoop_callee_resume__a.helper")
+                && ir.contains("site0_call_callee_resume"),
+            "ordinary callee replay should now route through the explicit helper resume thunk and frame token path"
         );
     }
 
@@ -4687,7 +4948,7 @@ fun main(): Int {
         let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
             .expect("llvm ir");
 
-        let helper_ir = find_function_ir(&ir, "define i64 @a.helper");
+        let helper_ir = find_function_ir(&ir, "define i64 @__scoop_callee_resume__a.helper");
         let resume_site_ir = find_block_ir(helper_ir, "resume_site0");
         let (_, after_return) = resume_site_ir
             .split_once("br label %return")
@@ -4951,17 +5212,17 @@ fun main(): Int {
             .and_then(|tail| tail.split("site0_resume_inactive:").next())
             .expect("expected resume replay block in async task closure IR");
         let active_return_block = async_closure_ir
-            .split("direct_call_effect_return:")
+            .split("site0_callee_resume_return:")
             .nth(1)
-            .and_then(|tail| tail.split("direct_call_effect_continue:").next())
+            .and_then(|tail| tail.split("site0_callee_resume_continue:").next())
             .expect("expected active-effect early return block in async task closure IR");
-        let continue_block = find_block_ir(&async_closure_ir, "direct_call_effect_continue");
+        let continue_block = find_block_ir(&async_closure_ir, "site0_callee_resume_continue");
 
         assert!(
-            replay_block.contains("direct_call_effect_effect_outcome_tag")
-                && replay_block.contains("direct_call_effect_effect_outcome_is_propagating")
+            replay_block.contains("site0_callee_resume_effect_outcome_tag")
+                && replay_block.contains("site0_callee_resume_effect_outcome_is_propagating")
                 && !replay_block.contains("@scoop_effect_is_active"),
-            "replayed Continuation.resume inside async task should branch directly on the explicit outcome instead of probing TLS active or materializing a fallback answer:\n{async_closure_ir}"
+            "replayed ordinary callee inside async task should branch directly on the explicit outcome instead of probing TLS active or materializing a fallback answer:\n{async_closure_ir}"
         );
         assert!(
             active_return_block.contains("ret void"),
@@ -4970,7 +5231,7 @@ fun main(): Int {
         assert!(
             continue_block.contains("resume_slot_")
                 && continue_block.contains("@scoop_gc_write_barrier")
-                && continue_block.contains("ptr addrspace(1) %call")
+                && continue_block.contains("ptr addrspace(1) %site0_call_callee_resume")
                 && continue_block.contains("br label %site0_resume_merge"),
             "inactive resume replay path should stash the replayed answer into the synthetic resume slot before rejoining the state machine:\n{async_closure_ir}"
         );

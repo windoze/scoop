@@ -1330,37 +1330,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    /// 读取当前线程暂存的 indirect callee suspend state。
-    ///
-    /// 该值在 runtime 中以 `void*` 暴露，但语义上始终指向 GC-managed 的
-    /// callee suspend object，因此 LLVM 侧将其视为 `ptr addrspace(1)`。
-    pub(super) fn declare_runtime_callee_suspend_state_get(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CALLEE_SUSPEND_STATE_GET;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void* scoop_callee_suspend_state_get(void)`
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    /// 清空当前线程暂存的 indirect callee suspend state。
-    ///
-    /// continuation 在 suspend 时会把该 state 提升为 continuation 的正式字段；
-    /// clear 之后，TLS 只承担运行期临时寄存职责，不再承担持久化语义。
-    pub(super) fn declare_runtime_callee_suspend_state_clear(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CALLEE_SUSPEND_STATE_CLEAR;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_callee_suspend_state_clear(void)`
-        let fn_ty = self.context.void_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
     pub(super) fn declare_runtime_continuation_alloc(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_ALLOC;
         if let Some(existing) = self.module.get_function(NAME) {
