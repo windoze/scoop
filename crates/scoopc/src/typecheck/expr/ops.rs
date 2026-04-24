@@ -330,10 +330,6 @@ pub(super) fn collect_member_method_signatures_from_index(
             type_params.push(ty);
         }
 
-        // NOTE: `Index::Symbol` 的 `ModifierSet` 当前只保留 override/继承语义所需的少量标记（T0439），
-        // 不包含 `inline`。跨文件 member method 调用暂按 `inline = false` 处理即可。
-        let is_inline = false;
-
         let mut param_names: Vec<String> = Vec::with_capacity(o.sig.params.len() + 1);
         let mut param_has_defaults: Vec<bool> = Vec::with_capacity(o.sig.params.len() + 1);
         let mut params: Vec<TypeId> = Vec::with_capacity(o.sig.params.len() + 1);
@@ -400,7 +396,6 @@ pub(super) fn collect_member_method_signatures_from_index(
             decl_span: o.symbol.span,
             decl_file: o.symbol.decl_file.clone(),
             is_extension: false,
-            is_inline,
             is_const: o.sig.is_const,
             is_unsafe: o.sig.builtin_flags.is_unsafe,
             is_nogc: o.sig.builtin_flags.is_nogc,

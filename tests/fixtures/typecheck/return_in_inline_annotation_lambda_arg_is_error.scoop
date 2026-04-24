@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::return_not_in_function_body
+// EXPECT-ERROR: 命名函数体内
+// 目标：T4013 `@Inline` 不再给 lambda 实参带来 non-local return 例外。
+
+package fixtures.typecheck
+
+@Inline
+fun run(block: () -> Unit) { }
+
+fun f(): Int {
+    run { return 1 }
+}

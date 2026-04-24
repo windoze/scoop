@@ -92,6 +92,16 @@ pub enum ParseError {
         #[label("这里的 `resume` 不再作为 handler arm 语法关键字")]
         span: miette::SourceSpan,
     },
+
+    #[error("语法错误：`inline` 关键字已移除")]
+    #[diagnostic(
+        code(scoop::parse::inline_modifier_removed),
+        help("将 `inline fun ...` 改写为 `@Inline fun ...`")
+    )]
+    InlineModifierRemoved {
+        #[label("这里的 `inline` 不再作为声明修饰符解析")]
+        span: miette::SourceSpan,
+    },
 }
 
 pub fn parse_file(source: &SourceFile) -> Result<ast::File, ParseError> {
@@ -164,6 +174,7 @@ impl ParseError {
             ParseError::ClassLiteralReceiverInvalid { span } => Some(*span),
             ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
             ParseError::HandleImmediateResumeRemoved { span } => Some(*span),
+            ParseError::InlineModifierRemoved { span } => Some(*span),
         }
     }
 }

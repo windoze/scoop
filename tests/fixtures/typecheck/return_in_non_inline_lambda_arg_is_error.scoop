@@ -1,8 +1,8 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::return_not_in_function_body
-// EXPECT-ERROR: 只能出现在普通函数体内
+// EXPECT-ERROR: 命名函数体内
 // EXPECT-ERROR-AT: 14:20
-// 目标：T0444 非 inline 调用的 lambda 实参不允许 non-local return。
+// 目标：T4013 lambda 实参中的 `return` 仍然不支持 non-local return。
 
 package fixtures.typecheck
 
@@ -13,4 +13,3 @@ fun runNotInline(block: () -> Unit) { }
 fun f() {
     runNotInline { return 1 }
 }
-

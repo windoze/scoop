@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::inline_modifier_removed
+// EXPECT-ERROR: `inline` 关键字已移除
+// EXPECT-ERROR-AT: 8:1
+
+package fixtures.parse
+
+inline fun fastPath(x: Int): Int {
+    return x
+}

@@ -1,81 +1,49 @@
-# 本轮执行计划（审计版）
+# 本轮执行计划
 
-说明：
-- 按要求，先把本轮执行计划写入此文件，再开始任何命令检查或代码执行。
-- 这里记录的是可审计的执行思路、判断依据摘要与步骤计划，不展开内部推理细节。
+## 目标
 
-## 当前目标判断
+完成 `TODO.md` 中首个未完成任务 `T4013`：删除 `inline` 关键字，并把 `@Inline` 收口为唯一的内联提示 surface；如果在实现或验证过程中暴露已有问题，则先修复该问题，或把它整理成阻塞前置任务后停止。
 
-- 依据上一次执行留下的交接信息，本轮主任务应为收口 `T4012R`，而不是继续推进 `T4013`。
-- 上一轮已经完成了实质代码修复与测试，尚未完成的工作主要是：
-  - 更新 `TODO.md`
-  - 更新 `PLAN.md`
-  - 更新 `ISSUES.md`
-  - 更新本文件的状态
-  - 提交 git commit
-- 仍需先核对最新提交、当前工作树以及任务排序，确保没有最新提交里提到的既有问题需要优先修复，也确保 `T4012R` 仍然是 `TODO.md` 中第一个未完成任务。
+## 最终结论
 
-## 执行步骤
+- 最新提交 `8af63361196264a6b9fab71c95ac3fa683c45bd0` 没有留下新的需先修遗留问题。
+- `TODO.md` 中首个未完成条目 `T4013` 已在本轮完成。
+- 当前 `TODO.md` 的下一个未完成条目已更新为 `T4013R`。
 
-1. 检查最新提交信息与当前工作树状态。
-   - 查看最新 commit message 与必要上下文，确认是否提到尚未修复的既有问题。
-   - 查看 `git status`，确认当前未提交改动范围，避免误动无关文件。
+## 已完成工作
 
-2. 核对任务与计划文档。
-   - 读取 `TODO.md`，确认第一个未完成任务。
-   - 读取 `PLAN.md`、`ISSUES.md`，定位需要更新的位置。
-   - 若发现交接摘要与仓库现状不一致，以仓库现状为准并修正计划。
+1. parser / AST / typecheck：
+   - 删除了 `Modifier::Inline` 与 `FunSigOwned.is_inline`。
+   - parser 对旧 `inline` modifier 现在发出 `scoop::parse::inline_modifier_removed`，并给出迁移到 `@Inline` 的提示。
+   - lambda 内 `return` 已统一回到“只能离开立即包裹的命名函数体内”的规则，不再存在 inline 例外。
+2. `@Inline` surface：
+   - 编译器 built-in annotation 识别已补上 `@Inline`。
+   - `@Inline` 当前只允许用于函数、且不接受参数。
+   - `sysroot/core.scoop` 已补齐 `@Target(AnnotationTarget.Function) annotation class Inline`。
+3. 文档与任务状态：
+   - `SCOOP_FULL_SPEC.md` 第 7.2 节已切换为 `@Inline`。
+   - `TODO.md` 已把 `T4013` 标记为完成，并把下一步更新为 `T4013R`。
+   - `PLAN.md`、`ISSUES.md` 已同步到“`@Inline` 交叉项与 legacy inline 残留均已收口”的状态。
+4. fixtures / regression：
+   - parse fixture 已新增 removed-syntax 回归并更新 `modifiers_basic` AST golden。
+   - typecheck fixture 已新增 `@Inline` 正向 / 负向回归，以及“`@Inline` 不再放宽 lambda return”的回归。
 
-3. 如无新的更高优先级既有问题，完成 `T4012R` 的文档收口。
-   - 在 `TODO.md` 中将 `T4012` / `T4012R` 标为完成，并记录 review 期间修复的 annotation class runtime 泄漏问题与已验证命令。
-   - 在 `PLAN.md` 中把当前主线切换到 `T4013`，并更新 annotation 区段状态。
-   - 在 `ISSUES.md` 中更新 annotation 相关 issue 的剩余范围，只保留 `@Inline` 交叉项。
+## 验证结果
 
-4. 更新本文件进度。
-   - 把已完成步骤与待完成步骤同步到本文件，保证过程可检查。
+- `cargo check -p scoopc`
+- `cargo run -p scoop -- test --fixtures tests/fixtures/parse`，结果 `fixtures: ok (123)`
+- `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`，结果 `fixtures: ok (394)`
+- `cargo run -p scoop -- test`，结果 `fixtures: ok (1197)`
+- `cargo test --all`
+- `cargo run -p scoop_tools -- spec-fixtures check`
+- `cargo clippy --all-targets -- -D warnings`
 
-5. 做最小必要验证。
-   - 若仅文档更新，优先复核已有测试结果是否足以支撑本轮结论。
-   - 如需最小重验，运行与本轮改动最相关的 fixture 测试。
+## 提交注意事项
 
-6. 提交并停止。
-   - 使用与 `T4012R` 对应的清晰提交信息。
-   - 提交后停止，不进入 `T4013`。
+- 提交时排除当前工作区里与本任务无关的 `run_agent.sh` 改动。
+- 本轮提交完成后立即停止，不继续执行 `T4013R`。
 
-## 已知约束
+## 进度记录
 
-- 全程使用中文。
-- 只完成 `TODO.md` 中第一个未完成任务，然后停止。
-- 不回退或覆盖无关改动，尤其是不处理无关的 `run_agent.sh` 改动。
-- 若检查中发现新的既有问题且其优先级更高，必须先修复该问题，或把它作为前置任务插入 `TODO.md` 后再停止。
-
-## 进度更新
-
-- 已检查最新提交：
-  - 最新提交为 `[T4012c] Add @Experimental feature-gate marker`，提交标题未暴露新的前置既有 issue 需要先于本轮处理。
-- 已检查工作树：
-  - 未提交改动与交接摘要一致，主要包含 annotation runtime misuse 修复、3 个新增 typecheck fixtures、当前文件，以及无关的 `run_agent.sh` 用户改动。
-  - `run_agent.sh` 不属于本轮任务，保持不动。
-- 已核对任务顺序：
-  - `TODO.md` 中第一个未完成任务确认为 `T4012R`。
-  - 结合当前未提交代码与交接摘要，本轮应完成 `T4012R` 收口、更新文档并提交，不进入 `T4013`。
-- 已完成文档更新：
-  - 已把 `TODO.md` 中 `T4012` / `T4012R` 标记为完成，并写入 review 期间修复的 annotation class runtime 泄漏问题与本轮复验命令。
-  - 已把 `PLAN.md` 主线切换到 `T4013`，并补入 `T4012R` 完成说明。
-  - 已把 `ISSUES.md` 第 9 条更新为：annotation declaration model 已收口，annotation class runtime nominal/type position 泄漏已修复，当前只剩 `@Inline` 交叉项。
-- 已完成复验：
-  - `cargo fmt --all`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck` -> `fixtures: ok (392)`
-  - `cargo run -p scoop -- test` -> `fixtures: ok (1194)`
-  - `cargo test --all` -> 通过
-  - `cargo clippy --all-targets -- -D warnings` -> 通过
-
-## 当前状态
-
-- [x] 先写入本计划文件
-- [x] 检查最新提交与工作树
-- [x] 核对 `TODO.md` / `PLAN.md` / `ISSUES.md`
-- [x] 更新任务与计划文档
-- [x] 更新本文件进度
-- [x] 完成必要验证
-- [ ] 提交改动并停止
+- 已完成：实现、文档同步、全量验证。
+- 下一步：提交本轮变更并停止。

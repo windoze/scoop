@@ -1302,9 +1302,6 @@ fn collect_top_level_fun_signatures_from_index(
         // `FunSigOwned` 要求"扩展函数 receiver 降糖为第一个参数"；这里与
         // `collect_top_level_fun_signatures` 的约定保持一致。
         let is_extension = o.sig.receiver.is_some();
-        // NOTE: `Index::Symbol` 的 `ModifierSet` 当前只保留 override/继承语义所需的少量标记（T0439），
-        // 不包含 `inline`。跨文件顶层函数调用暂按 `inline = false` 处理即可（对 println 这类 sysroot API 足够）。
-        let is_inline = false;
 
         let mut type_params: Vec<TypeId> = Vec::with_capacity(o.sig.type_params.len());
         for p in &o.sig.type_params {
@@ -1466,7 +1463,6 @@ fn collect_top_level_fun_signatures_from_index(
             decl_span: o.symbol.span,
             decl_file: o.symbol.decl_file.clone(),
             is_extension,
-            is_inline,
             is_const: o.sig.is_const,
             is_unsafe: o.sig.builtin_flags.is_unsafe,
             is_nogc: o.sig.builtin_flags.is_nogc,
@@ -4409,7 +4405,6 @@ pub(super) fn lower_effect_op_signature(
         decl_span: op.symbol.span,
         decl_file: op.symbol.decl_file.clone(),
         is_extension: false,
-        is_inline: false,
         is_const: false,
         is_unsafe: false,
         is_nogc: false,

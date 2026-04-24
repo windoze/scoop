@@ -2,8 +2,8 @@
 //!
 //! 说明：
 //! - 这些注解由编译器“硬编码识别”，不依赖用户代码中存在对应的 `annotation class` 声明；
-//! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic/@AllowIntrinsic/@Deprecated`
-//!   / `@Suppress` / `@Experimental` 的最小语义；
+//! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic/@Inline/@AllowIntrinsic`
+//!   / `@Deprecated` / `@Suppress` / `@Experimental` 的最小语义；
 //! - annotation 整体仍是 compile-time marker surface；只有少数 built-in annotation
 //!   会在编译器中附带额外语义；
 //! - feature gating framework 仍未接入；`@Experimental` 当前只保留 surface 与参数校验。
@@ -21,6 +21,7 @@ pub(crate) enum BuiltinAnnotationKind {
     NoGC,
     Extern,
     Intrinsic,
+    Inline,
     AllowIntrinsic,
     Deprecated,
     Suppress,
@@ -36,6 +37,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::NoGC => "NoGC",
             BuiltinAnnotationKind::Extern => "Extern",
             BuiltinAnnotationKind::Intrinsic => "Intrinsic",
+            BuiltinAnnotationKind::Inline => "Inline",
             BuiltinAnnotationKind::AllowIntrinsic => "AllowIntrinsic",
             BuiltinAnnotationKind::Deprecated => "Deprecated",
             BuiltinAnnotationKind::Suppress => "Suppress",
@@ -51,6 +53,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::NoGC => "函数",
             BuiltinAnnotationKind::Extern => "函数 / 顶层 val/var / object",
             BuiltinAnnotationKind::Intrinsic => "函数或类型",
+            BuiltinAnnotationKind::Inline => "函数",
             BuiltinAnnotationKind::AllowIntrinsic => "文件 / 模块",
             BuiltinAnnotationKind::Deprecated => "函数 / 类型 / 属性",
             BuiltinAnnotationKind::Suppress => "表达式 / 声明 / 文件",
@@ -95,7 +98,7 @@ pub(crate) enum ExperimentalAnnotationParseError {
 /// 判断一个 `@Name(...)` 是否为内建注解。
 ///
 /// 当前阶段的识别规则（尽量保守）：
-/// - 允许未限定名：`@Unsafe` / `@NoGC` / `@Extern` / `@Intrinsic`
+/// - 允许未限定名：`@Unsafe` / `@NoGC` / `@Extern` / `@Intrinsic` / `@Inline`
 /// - 允许完整限定名：`@scoop.core.Unsafe` / `@scoop.core.NoGC` / ...
 pub(crate) fn builtin_annotation_kind(
     source: &SourceFile,
@@ -112,6 +115,7 @@ pub(crate) fn builtin_annotation_kind(
         ["NoGC"] | ["scoop", "core", "NoGC"] => Some(BuiltinAnnotationKind::NoGC),
         ["Extern"] | ["scoop", "core", "Extern"] => Some(BuiltinAnnotationKind::Extern),
         ["Intrinsic"] | ["scoop", "core", "Intrinsic"] => Some(BuiltinAnnotationKind::Intrinsic),
+        ["Inline"] | ["scoop", "core", "Inline"] => Some(BuiltinAnnotationKind::Inline),
         ["AllowIntrinsic"] | ["scoop", "core", "AllowIntrinsic"] => {
             Some(BuiltinAnnotationKind::AllowIntrinsic)
         }
@@ -158,6 +162,7 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::NoGC) => out.is_nogc = true,
                 Some(BuiltinAnnotationKind::Extern) => out.is_extern = true,
                 Some(BuiltinAnnotationKind::Intrinsic) => out.is_intrinsic = true,
+                Some(BuiltinAnnotationKind::Inline) => {}
                 Some(BuiltinAnnotationKind::AllowIntrinsic) => {}
                 Some(BuiltinAnnotationKind::Deprecated) => {}
                 Some(BuiltinAnnotationKind::Suppress) => {}

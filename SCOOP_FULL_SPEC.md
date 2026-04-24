@@ -1369,12 +1369,13 @@ fun greet(name: String): String {
 
 Function syntax follows Kotlin.
 
-### 7.2 `inline`
+### 7.2 `@Inline`
 
-`inline` is an optimization hint only. The compiler may choose to inline or not. It has **no semantic effect** — there is no non-local return, and no special treatment of lambda parameters.
+`@Inline` is an optimization hint only. The compiler may choose to inline or not. It has **no semantic effect** — there is no non-local return, and no special treatment of lambda parameters. The legacy `inline` keyword is removed; use `@Inline` on the function declaration instead.
 
 ```kotlin
-inline fun <T> measure(block: () -> T): T {
+@Inline
+fun <T> measure(block: () -> T): T {
     val start = now()
     val result = block()
     println(f"took {now() - start}ms")
@@ -2231,6 +2232,7 @@ annotation class Deprecated(
     val replaceWith: String = ""
 )
 
+@Target(AnnotationTarget.Function)
 annotation class Inline
 annotation class Extern(val lib: String = "", val name: String = "")
 annotation class Experimental(val feature: String)

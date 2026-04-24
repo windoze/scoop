@@ -1068,7 +1068,6 @@ fn modifier_name(modifier: ast::Modifier) -> &'static str {
         ast::Modifier::Abstract => "abstract",
         ast::Modifier::Sealed => "sealed",
         ast::Modifier::Async => "async",
-        ast::Modifier::Inline => "inline",
         ast::Modifier::Override => "override",
         ast::Modifier::Const => "const",
         ast::Modifier::Annotation => "annotation",
@@ -1110,6 +1109,7 @@ fn check_one_annotation_use(
     // 不要求存在对应的 `annotation class` 声明。
     if let Some(kind) = builtin_annotation_kind(ctx.source, ann) {
         return match kind {
+            BuiltinAnnotationKind::Inline => check_builtin_inline_annotation(ctx.source, ann, site),
             BuiltinAnnotationKind::Deprecated => {
                 check_builtin_deprecated_annotation(ctx, lower, builtins, ann, site)
             }
@@ -1228,6 +1228,33 @@ fn check_builtin_deprecated_annotation(
         });
     };
     check_annotation_args(ctx, lower, builtins, "scoop.core.Deprecated", sym, ann)
+}
+
+fn check_builtin_inline_annotation(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+    site: AnnotationSite,
+) -> Result<(), AnnotationError> {
+    let effective_target = effective_annotation_target(source, ann, site.primary_target);
+    if !matches!(effective_target, AnnotationTargetKind::Function) {
+        let (_, name_span) = annotation_name_and_span(source, ann);
+        return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+            annotation: "@Inline".to_string(),
+            allowed: BuiltinAnnotationKind::Inline.allowed_targets_hint(),
+            found: effective_target.as_str(),
+            span: name_span.into(),
+        });
+    }
+
+    if !ann.args.is_empty() {
+        let (_, name_span) = annotation_name_and_span(source, ann);
+        return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
+            annotation: "@Inline".to_string(),
+            span: name_span.into(),
+        });
+    }
+
+    Ok(())
 }
 
 fn check_builtin_deprecated_arg_surface(
@@ -2026,7 +2053,8 @@ fn check_builtin_annotations_on_fun_decl(
             BuiltinAnnotationKind::Unsafe
             | BuiltinAnnotationKind::Safe
             | BuiltinAnnotationKind::NoGC
-            | BuiltinAnnotationKind::Intrinsic => {
+            | BuiltinAnnotationKind::Intrinsic
+            | BuiltinAnnotationKind::Inline => {
                 if kind == BuiltinAnnotationKind::Intrinsic {
                     check_intrinsic_builtin_annotation_gate(
                         source,

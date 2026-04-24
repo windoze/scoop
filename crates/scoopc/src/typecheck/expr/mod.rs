@@ -90,11 +90,6 @@ struct FunSigOwned {
     /// - 该标记仅用于限制语法层的可调用性：扩展函数不能以 `f(args...)` 形式直接调用，
     ///   只能通过 `receiver.f(args...)` / `receiver?.f(args...)` 调用（当前阶段最小子集）。
     is_extension: bool,
-    /// 是否为 `inline` 函数（spec §7.2/§7.3；TODO T0444）。
-    ///
-    /// 说明：当前阶段不做任何 inlining 优化，该标记仅用于：
-    /// - lambda non-local return 的静态门禁（只有 inline lambda 实参允许 `return`）
-    is_inline: bool,
     /// 是否为 `const fun`（spec §6.2）。
     ///
     /// 用途：

@@ -33,13 +33,6 @@ use super::super::lower::{TypeLowering, WhereBoundEntry};
 use super::super::type_env::AnnotationTargetKind;
 use super::super::{val_pat, when_exhaustiveness, when_pat};
 
-#[derive(Debug, Clone, Copy)]
-struct CallTargetSig<'a> {
-    sig: &'a FunSigOwned,
-    /// `args[i]` 对应到 `sig.params[i + arg_param_offset]`。
-    arg_param_offset: usize,
-}
-
 #[derive(Clone, Copy)]
 pub(super) struct StmtExprShared<'a> {
     pub(super) source: &'a SourceFile,
@@ -127,90 +120,19 @@ where
     }
 }
 
-fn is_function_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
-    matches!(lower.type_kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
-}
-
-fn resolve_call_target_for_expr_stmt<'a>(
-    source: &SourceFile,
-    callee: &ast::Expr,
-    lower: &TypeLowering<'_>,
-    top_level_funs: &'a HashMap<String, Vec<FunSigOwned>>,
-) -> Option<CallTargetSig<'a>> {
-    match &callee.kind {
-        ast::ExprKind::Ident(id) => {
-            let resolved = id.resolved.as_ref()?;
-            let ast::ResolvedValueRef::TopLevel { fqn } = resolved else {
-                return None;
-            };
-
-            let sigs = top_level_funs.get(fqn)?;
-
-            // 扩展函数不能以 `f(args...)` 的形式被直接调用：这里只考虑普通顶层函数候选。
-            let mut direct_call_candidates = sigs.iter().filter(|s| !s.is_extension);
-            let sig = direct_call_candidates.next()?;
-            if direct_call_candidates.next().is_some() {
-                return None;
-            }
-
-            Some(CallTargetSig {
-                sig,
-                arg_param_offset: 0,
-            })
-        }
-        ast::ExprKind::MemberAccess { member, .. }
-        | ast::ExprKind::SafeMemberAccess { member, .. } => {
-            let callee_fqn = match member.resolved.as_ref() {
-                Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => fqn.clone(),
-                Some(ast::ResolvedMemberRef::Fun { .. })
-                | Some(ast::ResolvedMemberRef::Value { .. })
-                | Some(ast::ResolvedMemberRef::ExtensionValue { .. }) => return None,
-                None => {
-                    let name = source.slice(member.span);
-                    if lower.pkg_prefix().is_empty() {
-                        name.to_string()
-                    } else {
-                        format!("{}.{}", lower.pkg_prefix(), name)
-                    }
-                }
-            };
-
-            let sigs = top_level_funs.get(&callee_fqn)?;
-            let mut ext_candidates = sigs.iter().filter(|s| s.is_extension);
-            let sig = ext_candidates.next()?;
-            if ext_candidates.next().is_some() {
-                return None;
-            }
-
-            Some(CallTargetSig {
-                sig,
-                // 扩展调用：`receiver.member(args...)` 的第一个参数是 receiver。
-                arg_param_offset: 1,
-            })
-        }
-        _ => None,
-    }
-}
-
 fn check_lambda_expr_stmt_body(
     shared: StmtExprShared<'_>,
     lam: &ast::LambdaExpr,
-    allow_non_local_return: bool,
     lower: &mut TypeLowering<'_>,
     state: &StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     // 说明：当前阶段 lambda 仍未完整 typecheck；这里仅复用现有的“语句层递归”逻辑来：
-    // - 捕获非法 `return`（non-local return 门禁，T0444）
+    // - 捕获非法 `return`（`return` 只能离开立即包裹的命名函数）
     // - 避免 lambda 内的局部声明污染外层作用域（clone 快照）
     let mut lambda_locals = state.locals.clone();
     let mut lambda_stable = state.stable_bindings.clone();
     let mut lambda_mutable = state.mutable_bindings.clone();
-    let nested_expected_return_ty = if allow_non_local_return {
-        flow.expected_return_ty
-    } else {
-        None
-    };
 
     // required effects（T0604）：lambda body 的 effect 属于该函数值，不计入外层函数立即执行的 effects。
     lower.with_effect_collection_suspended(|lower| {
@@ -229,7 +151,7 @@ fn check_lambda_expr_stmt_body(
                     &mut lambda_state,
                     StmtExprFlow {
                         loop_depth: 0,
-                        expected_return_ty: nested_expected_return_ty,
+                        expected_return_ty: None,
                         lambda_this_decl_span: flow.lambda_this_decl_span,
                     },
                     ExprStmtCallMode::StructuralOnly,
@@ -247,26 +169,12 @@ fn check_call_expr_stmt_lambda_args(
     state: &StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
-    let target =
-        resolve_call_target_for_expr_stmt(shared.source, callee, lower, shared.top_level_funs);
-
-    for (idx, arg) in args.iter().enumerate() {
+    let _ = callee;
+    for arg in args {
         let ast::ExprKind::Lambda(lam) = &arg.kind else {
             continue;
         };
-
-        let allow_non_local_return = match target {
-            Some(t) if t.sig.is_inline => {
-                let param_idx = idx + t.arg_param_offset;
-                match t.sig.params.get(param_idx).copied() {
-                    Some(ty) => is_function_type(ty, lower),
-                    None => false,
-                }
-            }
-            _ => false,
-        };
-
-        check_lambda_expr_stmt_body(shared, lam, allow_non_local_return, lower, state, flow)?;
+        check_lambda_expr_stmt_body(shared, lam, lower, state, flow)?;
     }
 
     Ok(())
@@ -1420,11 +1328,7 @@ fn check_expr_stmt_with_mode(
             }
         }
         ast::ExprKind::Call { callee, args } => {
-            // T0444：`inline` 与 non-local return 的最小语义门禁：
-            // - 默认：lambda body 内出现 `return` 一律报错
-            // - 例外：当该 lambda 是 inline 函数的“lambda 参数实参”时，允许 non-local return
-            //
-            // 先单独检查 lambda 实参，继续保留 statement 语境下的 non-local return 规则。
+            // 先单独检查 lambda 实参，确保其中的 `return` 仍按“只能离开立即包裹的命名函数”处理。
             check_call_expr_stmt_lambda_args(shared, callee, args, lower, state, flow)?;
 
             // 然后复用 value-position 的统一调用 typecheck，但暂停普通调用的 required-effects 收集。
@@ -1453,10 +1357,7 @@ fn check_expr_stmt_with_mode(
             )
         }
         ast::ExprKind::Lambda(lam) => {
-            // spec §7.3：默认不允许 lambda non-local return。
-            //
-            // 例外：当 lambda 作为 inline 函数调用的 lambda 实参时允许（见 `ExprKind::Call` 分支）。
-            check_lambda_expr_stmt_body(shared, lam, false, lower, state, flow)
+            check_lambda_expr_stmt_body(shared, lam, lower, state, flow)
         }
         ast::ExprKind::Assign { lhs, rhs, .. } => {
             check_assign_expr_stmt(shared, lhs, rhs, lower, state, flow)

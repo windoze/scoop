@@ -1138,9 +1138,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error(
-        "`return` 只能出现在普通函数体内（lambda 的 non-local return 仅允许出现在 inline 函数的 lambda 实参中）"
-    )]
+    #[error("`return` 只能出现在立即包裹它的命名函数体内；lambda 中不支持 non-local return")]
     #[diagnostic(code(scoop::typecheck::return_not_in_function_body))]
     ReturnNotInFunctionBody {
         #[label("这里")]

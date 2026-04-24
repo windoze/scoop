@@ -16,7 +16,7 @@ File {
     items: [
         Type(
             TypeDecl {
-                span: 76..191,
+                span: 76..184,
                 modifiers: [
                     Public,
                     Abstract,
@@ -29,33 +29,32 @@ File {
                 type_params: [],
                 body: Some(
                     TypeBody {
-                        span: 107..191,
+                        span: 107..184,
                         members: [
                             Fun(
                                 FunDecl {
-                                    span: 113..153,
+                                    span: 113..146,
                                     modifiers: [
                                         Internal,
-                                        Inline,
                                     ],
                                     receiver: None,
                                     name: Ident {
-                                        span: 133..134,
+                                        span: 126..127,
                                     },
                                     type_params: [],
-                                    params_span: 134..142,
+                                    params_span: 127..135,
                                     params: [
                                         Param {
                                             name: Ident {
-                                                span: 135..136,
+                                                span: 128..129,
                                             },
                                             ty: Some(
                                                 Path(
                                                     TypePath {
-                                                        span: 138..141,
+                                                        span: 131..134,
                                                         segments: [
                                                             Ident {
-                                                                span: 138..141,
+                                                                span: 131..134,
                                                             },
                                                         ],
                                                         args: [],
@@ -67,10 +66,10 @@ File {
                                     return_ty: Some(
                                         Path(
                                             TypePath {
-                                                span: 144..147,
+                                                span: 137..140,
                                                 segments: [
                                                     Ident {
-                                                        span: 144..147,
+                                                        span: 137..140,
                                                     },
                                                 ],
                                                 args: [],
@@ -79,13 +78,13 @@ File {
                                     ),
                                     body: Block(
                                         Block {
-                                            span: 148..153,
+                                            span: 141..146,
                                             stmts: [
                                                 Stmt {
-                                                    span: 150..151,
+                                                    span: 143..144,
                                                     kind: Expr(
                                                         Expr {
-                                                            span: 150..151,
+                                                            span: 143..144,
                                                             kind: IntLit,
                                                         },
                                                     ),
@@ -98,22 +97,22 @@ File {
                             ),
                             Property(
                                 PropertyDecl {
-                                    span: 158..189,
+                                    span: 151..182,
                                     modifiers: [
                                         Private,
                                         Override,
                                     ],
                                     kind: Val,
                                     name: Ident {
-                                        span: 179..180,
+                                        span: 172..173,
                                     },
                                     ty: Some(
                                         Path(
                                             TypePath {
-                                                span: 182..185,
+                                                span: 175..178,
                                                 segments: [
                                                     Ident {
-                                                        span: 182..185,
+                                                        span: 175..178,
                                                     },
                                                 ],
                                                 args: [],
@@ -122,7 +121,7 @@ File {
                                     ),
                                     init: Some(
                                         Expr {
-                                            span: 188..189,
+                                            span: 181..182,
                                             kind: IntLit,
                                         },
                                     ),
@@ -137,21 +136,21 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 193..213,
+                span: 186..206,
                 modifiers: [
                     Public,
                 ],
                 receiver: None,
                 name: Ident {
-                    span: 204..207,
+                    span: 197..200,
                 },
                 type_params: [],
-                params_span: 207..209,
+                params_span: 200..202,
                 params: [],
                 return_ty: None,
                 body: Block(
                     Block {
-                        span: 210..213,
+                        span: 203..206,
                         stmts: [],
                     },
                 ),

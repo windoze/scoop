@@ -62,17 +62,17 @@
 - 影响：当前真正低风险、低改动的方向应是优先支持“无 binder 的 payload or-pattern”。若未来要放开 binder-sharing，则至少需要要求“各分支 binder 集合一致且每个 binder 精确同型”，不能把 `A(x) | C(x)` 这类情况宽松合流成 `Any`。另外，暂不应把 bare `A | C` 扩成“忽略 payload”的语法糖，因为 parser 当前把大写裸名解释为 0-arg variant。
 - 证据：`crates/scoopc/src/typecheck/when_pat.rs:89-103`；`crates/scoopc/src/typecheck/when_pat.rs:193-206`；`crates/scoopc/src/resolve/scopes.rs:940-950`；`crates/scoopc/src/parser/expr.rs:2077-2085`。
 
-## 9. annotation 的 declaration model 已收口为 compile-time markers only；当前只剩 `@Inline` 的独立收口
+## 9. `@Inline` 交叉项已收口，不再计为 annotation issue
 
-- 现状：annotation class 已明确不是一般 nominal type / class 能力的延伸；实现与规范都已收口到“主构造 `val` 参数承载编译期 marker payload”的 data-only 子集，并拒绝 supertypes、type body、type/effect params 与 `where`。本轮 review 还额外修复了 annotation class 泄漏到 runtime nominal/type position 的既有缺陷：它不再能作为普通 ctor call 或普通 type annotation/签名/属性类型使用。编译器现已硬编码识别 `Unsafe / Safe / NoGC / Extern / Intrinsic / AllowIntrinsic / Deprecated / Suppress / Experimental / CallingConvention`，`@AllowIntrinsic` 已收口为 file/module gate，`@Deprecated`/`@Suppress`/`@Experimental` 的最小 surface 也已落地。当前真正剩余的交叉项只集中在 `@Inline` 与 legacy `inline` 关键字/控制流语义残留。
-- 影响：注解声明模型、use-site target 与 `@Target/@Retention` contract 已经统一；剩余 issue 不再是“annotation 要不要做成复杂 nominal feature”，而是需要把 `@Inline` 从 legacy inline 语义中彻底剥离，并单独收口到纯 compile-time marker。
-- 证据：`crates/scoopc/src/typecheck/annotations.rs`；`crates/scoopc/src/typecheck/builtin_annotations.rs`；`crates/scoopc/src/resolve/mod.rs`；`SCOOP_FULL_SPEC.md` 第 15 节。
+- 现状：annotation class 仍保持 compile-time markers only；`@Inline` 现已被编译器识别为 built-in annotation，并明确收口为“仅函数目标、无参数”的 compile-time marker。`sysroot/core.scoop` 与 `SCOOP_FULL_SPEC.md` 已同步到同一叙事：`@Inline` 只是内联提示，不承担任何控制流语义。
+- 影响：annotation 相关剩余缺口不再包含 `@Inline`；`@Target/@Retention` contract 与 built-in marker surface 在这一交叉点上已对齐。
+- 证据：`crates/scoopc/src/typecheck/builtin_annotations.rs`；`crates/scoopc/src/typecheck/annotations.rs`；`sysroot/core.scoop`；`tests/fixtures/typecheck/inline_annotation_fun_ok.scoop`；`tests/fixtures/typecheck/inline_annotation_invalid_target_is_error.scoop`。
 
-## 10. 应先删除 legacy `inline` / non-local return 语义残留；新设计另议
+## 10. legacy `inline` 关键字与 non-local return 语义残留已移除
 
-- 现状：spec §7.2 明确写的是“`inline` 只是优化提示，没有语义效果，也不存在 non-local return”；但当前 typecheck 仍把 `inline` 当成控制流语义的一部分，允许 inline 函数的 lambda 实参里出现 non-local return，错误文案和 fixture 也仍沿用这套 legacy 模型。
-- 影响：当前仓库对 `inline` 的语言模型仍然分裂。更稳的方向不是继续修补这套 legacy 规则，而是先把相关 wording / gate / fixture 从现有语言模型中移除；若以后要重新引入 non-local return / break / continue，更适合基于 effect / handler 重新设计，而不是继续绑定在 `inline` 上。
-- 证据：`SCOOP_FULL_SPEC.md:1341-1348`；`crates/scoopc/src/typecheck/expr/stmt.rs:190-264`；`crates/scoopc/src/typecheck/expr/error.rs:1093-1100`；`crates/scoopc/src/typecheck/expr/mod.rs:93-97`；`tests/fixtures/typecheck/return_in_inline_lambda_ok.scoop:1-12`；`tests/fixtures/typecheck/return_in_non_inline_lambda_arg_is_error.scoop:1-15`。
+- 现状：parser 不再接受 `inline` modifier，并会通过 `scoop::parse::inline_modifier_removed` 把旧写法引导到 `@Inline fun ...`；typecheck 也已删除 inline-specific 的 lambda non-local return 例外，`return` 统一只能离开立即包裹它的命名函数体。
+- 影响：当前仓库不再保留“关键字负责语法、annotation 负责语义”或“inline 放宽控制流规则”的双轨模型。若未来重新设计 non-local return / break / continue，应作为新的 effect/handler 设计任务处理，而不是回挂到 `@Inline`。
+- 证据：`crates/scoopc/src/parser/mod.rs`；`crates/scoopc/src/parser/decls.rs`；`crates/scoopc/src/typecheck/expr/stmt.rs`；`crates/scoopc/src/typecheck/expr/error.rs`；`tests/fixtures/parse/inline_modifier_removed.scoop`；`tests/fixtures/typecheck/return_in_inline_annotation_lambda_arg_is_error.scoop`。
 
 ## 11. FFI / ABI 仍缺少明确的 effect-impermeable 边界与 pinned token 模型
 

@@ -99,10 +99,16 @@ impl<'a> Parser<'a> {
                 TokenKind::Keyword(Keyword::Abstract) => ast::Modifier::Abstract,
                 TokenKind::Keyword(Keyword::Sealed) => ast::Modifier::Sealed,
                 TokenKind::Keyword(Keyword::Async) => ast::Modifier::Async,
-                TokenKind::Keyword(Keyword::Inline) => ast::Modifier::Inline,
                 TokenKind::Keyword(Keyword::Override) => ast::Modifier::Override,
                 TokenKind::Keyword(Keyword::Const) => ast::Modifier::Const,
                 TokenKind::Keyword(Keyword::Annotation) => ast::Modifier::Annotation,
+                TokenKind::Keyword(Keyword::Inline) => {
+                    let tok = self.bump();
+                    self.record_error(ParseError::InlineModifierRemoved {
+                        span: tok.span.into(),
+                    });
+                    continue;
+                }
                 _ => break,
             };
 

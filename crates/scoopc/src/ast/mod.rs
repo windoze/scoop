@@ -384,7 +384,6 @@ pub enum Modifier {
     ///
     /// 说明：当前阶段仅做语法层解析与存储；语义（签名降糖、Task 模型）由 typecheck/lowering 负责。
     Async,
-    Inline,
     Override,
     /// 编译期可求值/可用于编译期执行的标记（spec §6）。
     ///
