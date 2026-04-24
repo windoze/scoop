@@ -333,6 +333,8 @@ static inline void *scoop_gc_immix_nursery_alloc_locked(ScoopGcImmixState *state
 // - `payload_len_words` 表示有效 word 数量；当 slot 被 clear 时，它必须为 0。
 #define SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS 8u
 
+typedef struct ScoopEffectHandlerFrame ScoopEffectHandlerFrame;
+
 typedef struct ScoopEffectPerformSlot {
   // operation tag（由 lowering 写入；当前阶段用于区分不同 effect op）。
   uint32_t op_tag;
@@ -352,6 +354,40 @@ typedef struct ScoopEffectPerformSlot {
   // - 该槽位在 slot 生命周期内由 runtime 负责 pin/unpin，避免 TLS 裸指针成为 roots hole。
   void *payload_gc_ref;
 } ScoopEffectPerformSlot;
+
+// T4017c：显式 internal effect contract 的最小运行时表示。
+//
+// 说明：
+// - `ScoopEffectCtx` 只描述动态 handler/delimiter 环境；
+// - `ScoopValueTransport` / `ScoopEffectSignal` / `ScoopEffectOutcome` 负责表达完成/传播协议；
+// - 当前物理实现仍可落在 TLS slot/flag 上，但新代码从这组抽象而不是 TLS 字段名出发。
+typedef struct ScoopEffectCtx {
+  ScoopEffectHandlerFrame *handler_top;
+} ScoopEffectCtx;
+
+typedef struct ScoopValueTransport {
+  uint64_t word;
+  void *gc_ref;
+} ScoopValueTransport;
+
+typedef struct ScoopEffectSignal {
+  uint32_t op_tag;
+  uint32_t effect_instance_key;
+  ScoopValueTransport payload;
+  void *resume_token;
+} ScoopEffectSignal;
+
+typedef enum ScoopEffectOutcomeTag {
+  SCOOP_EFFECT_OUTCOME_COMPLETE = 0,
+  SCOOP_EFFECT_OUTCOME_PROPAGATE = 1,
+} ScoopEffectOutcomeTag;
+
+typedef struct ScoopEffectOutcome {
+  uint32_t tag;
+  uint32_t _reserved_u32;
+  ScoopValueTransport complete;
+  ScoopEffectSignal signal;
+} ScoopEffectOutcome;
 
 // non-resuming effect（flag-based unwinding）的“最小诊断信息”TLS。
 //
@@ -393,6 +429,15 @@ _Static_assert(
     offsetof(ScoopEffectPerformSlot, payload_gc_ref) ==
         (16u + 8u * SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS),
     "ScoopEffectPerformSlot.payload_gc_ref offset must follow payload_words");
+_Static_assert(
+    offsetof(ScoopEffectCtx, handler_top) == 0,
+    "ScoopEffectCtx.handler_top offset must be 0");
+_Static_assert(
+    offsetof(ScoopValueTransport, word) == 0,
+    "ScoopValueTransport.word offset must be 0");
+_Static_assert(
+    offsetof(ScoopValueTransport, gc_ref) == 8,
+    "ScoopValueTransport.gc_ref offset must be 8");
 #endif
 
 // --- effect runtime：handler stack（TODO T0913 / Appendix A） ---
@@ -408,11 +453,11 @@ _Static_assert(
 // 关键语义（Appendix A.4）：
 // - 进入 arm body 期间，触发该 arm 的 handler instance 必须被视为 inactive；
 // - arm body 内再次 perform 同一 op，应命中外层 handler（若存在），而不是自捕获。
-typedef struct ScoopEffectHandlerFrame {
+struct ScoopEffectHandlerFrame {
   struct ScoopEffectHandlerFrame *prev;
   uint32_t op_tag;
   uint32_t active;
-} ScoopEffectHandlerFrame;
+};
 
 // continuation 捕获的 handler stack 快照。
 //
@@ -479,6 +524,66 @@ static void scoop_effect_perform_slot_drop_gc_ref(void) {
 static void scoop_effect_perform_slot_reset(void) {
   scoop_effect_perform_slot_drop_gc_ref();
   (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
+}
+
+static ScoopEffectCtx scoop_effect_ctx_make(ScoopEffectHandlerFrame *handler_top) {
+  ScoopEffectCtx ctx;
+  ctx.handler_top = handler_top;
+  return ctx;
+}
+
+static ScoopValueTransport scoop_value_transport_make(uint64_t word, void *gc_ref) {
+  ScoopValueTransport transport;
+  transport.word = word;
+  transport.gc_ref = gc_ref;
+  return transport;
+}
+
+static ScoopEffectSignal scoop_effect_signal_make(uint32_t op_tag,
+                                                  uint32_t effect_instance_key,
+                                                  ScoopValueTransport payload,
+                                                  void *resume_token) {
+  ScoopEffectSignal signal;
+  signal.op_tag = op_tag;
+  signal.effect_instance_key = effect_instance_key;
+  signal.payload = payload;
+  signal.resume_token = resume_token;
+  return signal;
+}
+
+static ScoopEffectOutcome scoop_effect_outcome_make_complete(void) {
+  ScoopEffectOutcome outcome;
+  outcome.tag = SCOOP_EFFECT_OUTCOME_COMPLETE;
+  outcome._reserved_u32 = 0;
+  outcome.complete = scoop_value_transport_make(0, 0);
+  outcome.signal = scoop_effect_signal_make(0, 0, scoop_value_transport_make(0, 0), 0);
+  return outcome;
+}
+
+static ScoopEffectOutcome scoop_effect_outcome_make_propagate(ScoopEffectSignal signal) {
+  ScoopEffectOutcome outcome;
+  outcome.tag = SCOOP_EFFECT_OUTCOME_PROPAGATE;
+  outcome._reserved_u32 = 0;
+  outcome.complete = scoop_value_transport_make(0, 0);
+  outcome.signal = signal;
+  return outcome;
+}
+
+static void scoop_effect_write_signal_to_tls(const ScoopEffectSignal *signal) {
+  scoop_effect_perform_slot_drop_gc_ref();
+  __scoop_effect_perform_slot.op_tag = signal->op_tag;
+  __scoop_effect_perform_slot.payload_len_words = 1;
+  __scoop_effect_perform_slot.effect_instance_key = signal->effect_instance_key;
+  __scoop_effect_perform_slot.payload_words[0] = signal->payload.word;
+  for (uint32_t i = 1; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
+    __scoop_effect_perform_slot.payload_words[i] = 0;
+  }
+  if (signal->payload.gc_ref != 0) {
+    scoop_pin(signal->payload.gc_ref);
+    __scoop_effect_perform_slot.payload_gc_ref = signal->payload.gc_ref;
+  } else {
+    __scoop_effect_perform_slot.payload_gc_ref = 0;
+  }
 }
 
 // 克隆当前 handler stack 链，生成可脱离原始 TLS frame 生命周期的独立快照。
@@ -566,6 +671,20 @@ static inline void scoop_effect_trace_on_set_active(uint32_t src_line, uint32_t 
   uint32_t n = scoop_platform_unwind_capture_ips(
       scoop_effect_trace.unwind_ips, SCOOP_EFFECT_TRACE_MAX_IPS, skip_frames);
   scoop_effect_trace.unwind_len = n;
+}
+
+static void scoop_effect_publish_outcome(const ScoopEffectOutcome *outcome,
+                                         uint32_t src_line,
+                                         uint32_t src_col) {
+  if (outcome->tag == SCOOP_EFFECT_OUTCOME_PROPAGATE) {
+    scoop_effect_write_signal_to_tls(&outcome->signal);
+    __scoop_effect_active = 1;
+    scoop_effect_trace_on_set_active(src_line, src_col);
+    return;
+  }
+
+  __scoop_effect_active = 0;
+  scoop_effect_perform_slot_reset();
 }
 
 uint32_t scoop_thread_is_registered(void) {
@@ -703,8 +822,8 @@ void scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col) {
 }
 
 void scoop_effect_clear(void) {
-  __scoop_effect_active = 0;
-  scoop_effect_perform_slot_reset();
+  ScoopEffectOutcome outcome = scoop_effect_outcome_make_complete();
+  scoop_effect_publish_outcome(&outcome, 0, 0);
 }
 
 void scoop_effect_clear_active(void) {
@@ -771,37 +890,24 @@ uintptr_t scoop_effect_trace_unwind_len(void) {
 void scoop_effect_perform_slot_write_u64(uint32_t op_tag,
                                          uint32_t effect_instance_key,
                                          uint64_t value) {
-  scoop_effect_perform_slot_drop_gc_ref();
-  __scoop_effect_perform_slot.op_tag = op_tag;
-  __scoop_effect_perform_slot.payload_len_words = 1;
-  __scoop_effect_perform_slot.effect_instance_key = effect_instance_key;
-  __scoop_effect_perform_slot.payload_words[0] = value;
-  // 清理剩余 words，避免测试/调试读取到“上一次”的脏数据。
-  for (uint32_t i = 1; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
-    __scoop_effect_perform_slot.payload_words[i] = 0;
-  }
+  ScoopEffectSignal signal =
+      scoop_effect_signal_make(op_tag,
+                               effect_instance_key,
+                               scoop_value_transport_make(value, 0),
+                               0);
+  scoop_effect_write_signal_to_tls(&signal);
 }
 
 void scoop_effect_perform_slot_write_u64_with_gc_ref(uint32_t op_tag,
                                                      uint32_t effect_instance_key,
                                                      uint64_t word0,
                                                      void *gc_ref) {
-  scoop_effect_perform_slot_drop_gc_ref();
-
-  __scoop_effect_perform_slot.op_tag = op_tag;
-  __scoop_effect_perform_slot.payload_len_words = 1;
-  __scoop_effect_perform_slot.effect_instance_key = effect_instance_key;
-  __scoop_effect_perform_slot.payload_words[0] = word0;
-  for (uint32_t i = 1; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
-    __scoop_effect_perform_slot.payload_words[i] = 0;
-  }
-
-  if (gc_ref != 0) {
-    scoop_pin(gc_ref);
-    __scoop_effect_perform_slot.payload_gc_ref = gc_ref;
-  } else {
-    __scoop_effect_perform_slot.payload_gc_ref = 0;
-  }
+  ScoopEffectSignal signal =
+      scoop_effect_signal_make(op_tag,
+                               effect_instance_key,
+                               scoop_value_transport_make(word0, gc_ref),
+                               0);
+  scoop_effect_write_signal_to_tls(&signal);
 }
 
 void scoop_effect_perform_slot_write_u64_2(uint32_t op_tag,
@@ -1139,9 +1245,10 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
     scoop_pin(state);
   }
 
-  ScoopEffectHandlerFrame *captured_handler_stack_top =
-      scoop_effect_handler_stack_snapshot_clone(__scoop_effect_handler_stack_top);
-  if (__scoop_effect_handler_stack_top != 0 && captured_handler_stack_top == 0) {
+  ScoopEffectCtx current_ctx = scoop_effect_ctx_make(__scoop_effect_handler_stack_top);
+  ScoopEffectCtx captured_ctx = scoop_effect_ctx_make(
+      scoop_effect_handler_stack_snapshot_clone(current_ctx.handler_top));
+  if (current_ctx.handler_top != 0 && captured_ctx.handler_top == 0) {
     if (state != 0) {
       scoop_unpin(state);
     }
@@ -1151,7 +1258,7 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   ScoopContinuation *k =
       (ScoopContinuation *)scoop_alloc((uint64_t)sizeof(ScoopContinuation));
   if (k == 0) {
-    scoop_effect_handler_stack_snapshot_free(captured_handler_stack_top);
+    scoop_effect_handler_stack_snapshot_free(captured_ctx.handler_top);
     if (state != 0) {
       scoop_unpin(state);
     }
@@ -1165,7 +1272,7 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   // 默认 continuation 只承载“step(state, payload)”语义；只有编译器生成的
   // effect frame continuation 会在 suspend 时显式写入 body resume state。
   k->resume_state_tag = SCOOP_CONTINUATION_RESUME_STATE_UNSET;
-  k->captured_handler_stack_top = captured_handler_stack_top;
+  k->captured_handler_stack_top = captured_ctx.handler_top;
   k->state = state;
   k->step_fn = step_fn;
   k->resume_word = 0;
@@ -1294,12 +1401,13 @@ static int scoop_is_continuation_resume_replay_state(void *state) {
 static void scoop_effect_raise_runtime_error_variant(uint64_t variant_tag) {
   const uint32_t OP_TAG_RAISE = 1u;
   const uint32_t EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR = UINT32_MAX;
-  scoop_effect_perform_slot_write_u64_with_gc_ref(
-      OP_TAG_RAISE,
-      EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR,
-      variant_tag,
-      0);
-  scoop_effect_set_active();
+  ScoopEffectSignal signal =
+      scoop_effect_signal_make(OP_TAG_RAISE,
+                               EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR,
+                               scoop_value_transport_make(variant_tag, 0),
+                               0);
+  ScoopEffectOutcome outcome = scoop_effect_outcome_make_propagate(signal);
+  scoop_effect_publish_outcome(&outcome, 0, 0);
 }
 
 // 执行 continuation 的一步推进（由编译器生成的 step_fn 实现状态机推进）。
@@ -1318,10 +1426,9 @@ static void scoop_effect_raise_runtime_error_variant(uint64_t variant_tag) {
 static void scoop_continuation_resume_common(void *continuation) {
   ScoopContinuation *k = (ScoopContinuation *)continuation;
   scoop_pin(continuation);
-  ScoopEffectHandlerFrame *captured_handler_stack_top =
-      k->captured_handler_stack_top;
-  ScoopEffectHandlerFrame *saved =
-      scoop_effect_handler_stack_swap_top(captured_handler_stack_top);
+  ScoopEffectCtx captured_ctx = scoop_effect_ctx_make(k->captured_handler_stack_top);
+  ScoopEffectCtx saved_ctx = scoop_effect_ctx_make(
+      scoop_effect_handler_stack_swap_top(captured_ctx.handler_top));
   void *saved_callee_suspend_state = __scoop_callee_suspend_state;
   void *saved_pending_continuation =
       __scoop_continuation_resume_pending_continuation;
@@ -1377,8 +1484,8 @@ static void scoop_continuation_resume_common(void *continuation) {
   if (captured_callee_suspend_state != 0) {
     scoop_unpin(captured_callee_suspend_state);
   }
-  (void)scoop_effect_handler_stack_swap_top(saved);
-  scoop_effect_handler_stack_snapshot_free(captured_handler_stack_top);
+  (void)scoop_effect_handler_stack_swap_top(saved_ctx.handler_top);
+  scoop_effect_handler_stack_snapshot_free(captured_ctx.handler_top);
   k->captured_handler_stack_top = 0;
   scoop_unpin(continuation);
 }

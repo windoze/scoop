@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -791,7 +791,7 @@
   - 已验证 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017a
 
-### T4017c [TODO] 在 compiler / runtime contract 中引入显式 `EffectCtx` / `EffectOutcome` / `EffectSignal` 抽象，并停止新增任何依赖 effect TLS 语义的路径
+### T4017c [DONE] 在 compiler / runtime contract 中引入显式 `EffectCtx` / `EffectOutcome` / `EffectSignal` 抽象，并停止新增任何依赖 effect TLS 语义的路径
 - 范围：
   - 在内部 IR、state-machine contract、LLVM emitter 与 runtime helper 中引入显式 `EffectCtx`、`EffectOutcome`、`EffectSignal`、`ValueTransport` 抽象，明确“完成”与“向外传播”是结果协议而不是 TLS side effect。
   - 从这一层开始，新的 compiler/runtime 主线不再新增任何依赖 effect TLS 作为 source of truth 的路径；迁移可以分批落地，但不以新旧双轨桥接为目标。
@@ -799,6 +799,12 @@
 - 验收：
   - 新代码路径不再把 `TLS active + perform slot` 当成唯一传播表示；显式 `ctx + outcome` 已成为 compiler/runtime 可消费的一等内部抽象。
   - 后续 ordinary call ABI 与 continuation runtime 迁移都能建立在同一套内部模型上，而不再各自发明私有旁路。
+- 完成情况：
+  - 已新增 `crates/scoopc/src/llvm/codegen/effect/contract.rs`，把 `ValueTransport` / `EffectSignal` / `EffectOutcome` 收口为 effect codegen 的显式 contract helper；ordinary propagation check、`perform` lowering、`Continuation.resume(...)` active fallback 与 handler dispatch 不再各自散落手写 TLS 读写。
+  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 已新增 `ScoopEffectCtx` / `ScoopValueTransport` / `ScoopEffectSignal` / `ScoopEffectOutcome` 的 LLVM 结构类型，并让 continuation/runtime comment 明确“captured handler stack top”在语义上代表 `captured EffectCtx.handler_top`。
+  - `runtime/c/scoop_runtime.c` 已新增同名内部结构与 helper；runtime-originated propagate/clear path 现在通过 `ScoopEffectOutcome` helper 收口，continuation alloc/resume 也改为围绕显式 `ScoopEffectCtx` 组织 captured/restored handler context 叙事，而不是继续把 TLS 字段名当作抽象边界。
+  - 已新增 LLVM 回归 `effect_contract_struct_types_are_registered_for_effect_codegen`，并同步更新受命名变化影响的 state-machine / ordinary-call LLVM 单测断言，锁定新的 contract 命名已经进入主线。
+  - 已验证 `cargo fmt --check`、`cargo test -p scoopc --features llvm effect_contract_struct_types_are_registered_for_effect_codegen`、`cargo test -p scoop_runtime --test effect_tls`、`cargo test -p scoop_runtime --test continuation_one_shot continuation_double_resume_uses_shared_runtime_error_transport_contract`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017b
 
 ### T4017d [TODO] 将 ordinary direct / closure / funptr effectful call 切到显式 `ctx + outcome` internal ABI

@@ -806,33 +806,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
 
             self.builder.position_at_end(dispatch_arm_bb);
-            let read_op_tag_fn = self.declare_runtime_effect_perform_slot_read_op_tag();
-            let op_tag_raw = self
-                .builder
-                .build_call(read_op_tag_fn, &[], "performed_op_tag")?
-                .try_as_basic_value()
-                .basic()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "perform_slot_read_op_tag return",
-                    at: span.into(),
-                })?
-                .into_int_value();
-            let read_effect_instance_key_fn =
-                self.declare_runtime_effect_perform_slot_read_effect_instance_key();
-            let effect_instance_key_raw = self
-                .builder
-                .build_call(
-                    read_effect_instance_key_fn,
-                    &[],
-                    "performed_effect_instance_key",
-                )?
-                .try_as_basic_value()
-                .basic()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "perform_slot_read_effect_instance_key return",
-                    at: span.into(),
-                })?
-                .into_int_value();
+            let performed_signal =
+                self.read_current_effect_signal(span, "handle_dispatch_signal")?;
+            let op_tag_raw = performed_signal.op_tag;
+            let effect_instance_key_raw = performed_signal.effect_instance_key;
 
             if contract.dispatch_entries().is_empty() {
                 self.builder.build_unconditional_branch(outward_target_bb)?;
@@ -2709,22 +2686,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         name: &str,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let is_active_fn = self.declare_runtime_effect_is_active();
-        let active_raw = self
-            .build_call_preserving_gc_local_roots(at, is_active_fn, &[], name)?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect is_active return",
-                at: at.into(),
-            })?
-            .into_int_value();
-        Ok(self.builder.build_int_compare(
-            inkwell::IntPredicate::NE,
-            active_raw,
-            self.context.i32_type().const_int(0, false),
-            &format!("{name}_bool"),
-        )?)
+        let outcome = self.read_current_effect_outcome_status(at, name)?;
+        Ok(outcome.is_propagating)
     }
 
     fn suspend_site_uses_inactive_continue_path(kind: &SuspendSiteKind) -> bool {
@@ -4267,7 +4230,7 @@ fun main(): Int {
             "escape-arm GC-ref binders should lower into traced effect-frame slots when the unified contract materializes a frame field"
         );
         assert!(
-            step_ir.contains("binder_gc_ref"),
+            step_ir.contains("binder_transport_gc_ref"),
             "escape-arm binder root contract should still read the GC-ref payload from the runtime perform slot before storing it into the frame"
         );
     }
@@ -4774,7 +4737,7 @@ fun main(): Int {
 
         assert!(
             replay_block.contains(
-                "br i1 %direct_call_effect_active, label %direct_call_effect_return, label %direct_call_effect_continue"
+                "br i1 %direct_call_effect_propagates, label %direct_call_effect_return, label %direct_call_effect_continue"
             ),
             "replayed Continuation.resume inside async task should branch directly on active effect instead of materializing a fallback answer:\n{async_closure_ir}"
         );

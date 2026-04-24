@@ -29,6 +29,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
+    pub(super) fn llvm_effect_ctx_struct_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopEffectCtx";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        ty.set_body(&[self.llvm_i8_ptr_type().into()], false);
+        ty
+    }
+
+    pub(super) fn llvm_value_transport_struct_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopValueTransport";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        ty.set_body(
+            &[
+                self.context.i64_type().into(),
+                self.llvm_gc_i8_ptr_type().into(),
+            ],
+            false,
+        );
+        ty
+    }
+
+    pub(super) fn llvm_effect_signal_struct_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopEffectSignal";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        ty.set_body(
+            &[
+                self.context.i32_type().into(),
+                self.context.i32_type().into(),
+                self.llvm_value_transport_struct_type().into(),
+                self.llvm_gc_i8_ptr_type().into(),
+            ],
+            false,
+        );
+        ty
+    }
+
+    pub(super) fn llvm_effect_outcome_struct_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopEffectOutcome";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        ty.set_body(
+            &[
+                self.context.i32_type().into(),
+                self.context.i32_type().into(),
+                self.llvm_value_transport_struct_type().into(),
+                self.llvm_effect_signal_struct_type().into(),
+            ],
+            false,
+        );
+        ty
+    }
+
     pub(super) fn declare_runtime_print_like(&self, name: &str) -> FunctionValue<'ctx> {
         if let Some(existing) = self.module.get_function(name) {
             return existing;
@@ -1316,6 +1382,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {
             return existing;
         }
+        // Stage T4017c：field #3 仍物理上存放 `captured_handler_stack_top` 指针，
+        // 但语义上它已经代表 `captured EffectCtx.handler_top`。
+        let _ = self.llvm_effect_ctx_struct_type();
         let ty = self.context.opaque_struct_type(TY_NAME);
         let header_ty = self.llvm_gc_object_header_type();
         let i32_ty = self.context.i32_type();

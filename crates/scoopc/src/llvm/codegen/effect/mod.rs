@@ -6,6 +6,9 @@
 
 use super::*;
 
+mod contract;
+use contract::EffectOutcome;
+
 // State machine LLVM emitter：从 UnifiedHandleLoweringContract 生成
 // LLVM IR（frame type、step function、handle 入口）。
 mod state_machine_emitter;
@@ -393,42 +396,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_expr_in_expected_context(expr, None)
     }
 
-    pub(super) fn read_encoded_perform_slot(
-        &mut self,
-        at: crate::span::Span,
-    ) -> Result<(IntValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
-        let read_word_fn = self.declare_runtime_effect_perform_slot_read_u64();
-        let word = self
-            .builder
-            .build_call(read_word_fn, &[], "binder_word")?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_u64 return",
-                at: at.into(),
-            })?
-            .into_int_value();
-        let read_gc_ref_fn = self.declare_runtime_effect_perform_slot_read_gc_ref();
-        let gc_ref = self
-            .builder
-            .build_call(read_gc_ref_fn, &[], "binder_gc_ref")?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_gc_ref return",
-                at: at.into(),
-            })?
-            .into_pointer_value();
-        Ok((word, gc_ref))
-    }
-
     pub(super) fn read_perform_slot_payload(
         &mut self,
         at: crate::span::Span,
         target: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let (word, gc_ref) = self.read_encoded_perform_slot(at)?;
-        self.decode_effect_transport_value(at, word, gc_ref, target)
+        let transport = self.read_current_effect_payload_transport(at, "binder_transport")?;
+        self.decode_effect_transport_value(at, transport.word, transport.gc_ref, target)
     }
 
     pub(super) fn extract_tuple_payload_element(
@@ -1168,30 +1142,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .append_basic_block(current_fn, &format!("{label}_continue"));
 
-        let is_active_fn = self.declare_runtime_effect_is_active();
-        let active_raw = self
-            .build_call_preserving_gc_local_roots(
-                at,
-                is_active_fn,
-                &[],
-                &format!("{label}_is_active"),
-            )?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect is_active return",
-                at: at.into(),
-            })?
-            .into_int_value();
-        let is_active = self.builder.build_int_compare(
-            inkwell::IntPredicate::NE,
-            active_raw,
-            self.context.i32_type().const_int(0, false),
-            &format!("{label}_active"),
-        )?;
+        let EffectOutcome { is_propagating, .. } =
+            self.read_current_effect_outcome_status(at, label)?;
 
         self.builder
-            .build_conditional_branch(is_active, return_bb, continue_bb)?;
+            .build_conditional_branch(is_propagating, return_bb, continue_bb)?;
 
         self.builder.position_at_end(return_bb);
         self.emit_effect_propagation_return(at)?;
@@ -1492,29 +1447,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .append_basic_block(current_fn, &format!("continuation_resume_{suffix}_merge"));
 
-        let is_active_fn = self.declare_runtime_effect_is_active();
-        let active_raw = self
-            .build_call_preserving_gc_local_roots(
-                span,
-                is_active_fn,
-                &[],
-                &format!("continuation_resume_{suffix}_is_active"),
-            )?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "continuation resume effect is_active return",
-                at: span.into(),
-            })?
-            .into_int_value();
-        let is_active = self.builder.build_int_compare(
-            inkwell::IntPredicate::NE,
-            active_raw,
-            self.context.i32_type().const_int(0, false),
-            &format!("continuation_resume_{suffix}_active_bool"),
-        )?;
+        let EffectOutcome { is_propagating, .. } = self
+            .read_current_effect_outcome_status(span, &format!("continuation_resume_{suffix}"))?;
         self.builder
-            .build_conditional_branch(is_active, active_bb, inactive_bb)?;
+            .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
 
         let result_basic_ty = self.llvm_basic_type_of(span, answer_cg_ty)?;
         let result_slot = self.create_entry_alloca_raw(
@@ -1588,21 +1524,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Shared effect transport: word / direct GC ref / boxed composite all
         // collapse to the runtime's `(word0, gc_ref)` perform-slot ABI.
         let (word, gc_ref) = self.encode_effect_transport_value(span, payload_val)?;
-        let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
-        self.builder.build_call(
-            write_fn,
-            &[
-                op_tag_val.into(),
-                effect_instance_key_val.into(),
-                word.into(),
-                gc_ref.into(),
-            ],
-            "",
-        )?;
-
+        let payload = self.build_value_transport(word, gc_ref);
+        let signal = self.build_effect_signal(
+            op_tag_val,
+            effect_instance_key_val,
+            payload,
+            self.null_effect_resume_token(),
+        );
         // Record the originating perform-site before propagation so outer
         // call-boundary suspend sites can preserve the original trace.
-        self.emit_effect_set_active_with_trace(span, "effect_set_active_with_trace")?;
+        self.emit_current_effect_propagation_with_trace(
+            span,
+            signal,
+            "effect_set_active_with_trace",
+        )?;
 
         if self.ordinary_effect_propagation_enabled() {
             if let Some(plan) = self.current_callee_suspend_plan.clone() {
@@ -1668,19 +1603,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
         let (word, gc_ref) = self.encode_effect_transport_value(span, payload)?;
-        let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
-        self.builder.build_call(
-            write_fn,
-            &[
-                op_tag_val.into(),
-                effect_instance_key_val.into(),
-                word.into(),
-                gc_ref.into(),
-            ],
-            "",
+        let signal = self.build_effect_signal(
+            op_tag_val,
+            effect_instance_key_val,
+            self.build_value_transport(word, gc_ref),
+            self.null_effect_resume_token(),
+        );
+        self.emit_current_effect_propagation_with_trace(
+            span,
+            signal,
+            "raise_set_active_with_trace",
         )?;
-
-        self.emit_effect_set_active_with_trace(span, "raise_set_active_with_trace")?;
 
         Ok(())
     }

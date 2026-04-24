@@ -2218,6 +2218,73 @@ fun main(): Int {
     }
 
     #[test]
+    fn effect_contract_struct_types_are_registered_for_effect_codegen() {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/effect_contract_types.scoop",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ping {
+    fun pong(value: Int): Int
+}
+
+fun go(): Int / Ping {
+    return Ping.pong(7)
+}
+
+fun main(): Int {
+    return handle {
+        go()
+    } with {
+        Ping.pong(value: Int) -> value
+    }
+}
+"#,
+        );
+
+        let context = Context::create();
+        let _module = build_minimal_main_module(&session, &source, &context).unwrap();
+
+        let effect_ctx = context
+            .get_struct_type("scoop.runtime.ScoopEffectCtx")
+            .expect("effect codegen 应注册 ScoopEffectCtx");
+        assert_eq!(effect_ctx.count_fields(), 1);
+
+        let value_transport = context
+            .get_struct_type("scoop.runtime.ScoopValueTransport")
+            .expect("effect codegen 应注册 ScoopValueTransport");
+        assert_eq!(value_transport.count_fields(), 2);
+
+        let effect_signal = context
+            .get_struct_type("scoop.runtime.ScoopEffectSignal")
+            .expect("effect codegen 应注册 ScoopEffectSignal");
+        assert_eq!(effect_signal.count_fields(), 4);
+        assert_eq!(
+            effect_signal.get_field_types()[2].into_struct_type(),
+            value_transport,
+            "EffectSignal.payload 应继续复用共享的 ValueTransport contract"
+        );
+
+        let effect_outcome = context
+            .get_struct_type("scoop.runtime.ScoopEffectOutcome")
+            .expect("effect codegen 应注册 ScoopEffectOutcome");
+        assert_eq!(effect_outcome.count_fields(), 4);
+        assert_eq!(
+            effect_outcome.get_field_types()[2].into_struct_type(),
+            value_transport,
+            "EffectOutcome.complete 应继续走 ValueTransport contract"
+        );
+        assert_eq!(
+            effect_outcome.get_field_types()[3].into_struct_type(),
+            effect_signal,
+            "EffectOutcome.propagate 分支应显式承载 EffectSignal"
+        );
+    }
+
+    #[test]
     fn indirect_multi_payload_perform_boxes_and_unboxes_tuple_transport() {
         let source = SourceFile::new_virtual(
             "main.scoop",
@@ -2497,7 +2564,7 @@ fun main(): Int {
         let entry_ir = function_ir_named(&ir, "a.entry");
 
         assert!(
-            !entry_ir.contains("direct_call_effect_active"),
+            !entry_ir.contains("@scoop_effect_is_active"),
             "签名 effectful 但 body 不会 outward-effect 的直调用不应再保留 TLS active 分流:\n{entry_ir}"
         );
     }
@@ -2538,7 +2605,7 @@ fun main(): Int {
         let entry_ir = function_ir_named(&ir, "a.entry");
 
         assert!(
-            !entry_ir.contains("direct_call_effect_active"),
+            !entry_ir.contains("@scoop_effect_is_active"),
             "未调用的 higher-order effect 参数不应让外层 ordinary 直调用保留 TLS 分流:\n{entry_ir}"
         );
     }
@@ -2582,7 +2649,7 @@ fun main(): Int {
         let entry_ir = function_ir_named(&ir, "a.entry");
 
         assert!(
-            !entry_ir.contains("closure_call_effect_active"),
+            !entry_ir.contains("@scoop_effect_is_active"),
             "body 不会 outward-effect 的 closure 调用不应再保留 TLS active 分流:\n{entry_ir}"
         );
     }
@@ -2623,7 +2690,10 @@ fun main(): Int {
         let entry_ir = function_ir_named(&ir, "a.entry");
 
         assert!(
-            entry_ir.contains("direct_call_effect_active"),
+            entry_ir.contains("@scoop_effect_is_active")
+                && entry_ir.contains(
+                    "br i1 %direct_call_effect_propagates, label %direct_call_effect_return, label %direct_call_effect_continue"
+                ),
             "真正可能 outward-effect 的 ordinary 直调用仍必须保留 TLS active 分流:\n{entry_ir}"
         );
     }
