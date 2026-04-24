@@ -2971,27 +2971,21 @@ fun main(): Int {
     }
 
     #[test]
-    fn extern_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
+    fn pure_extern_call_does_not_install_effect_boundary() {
         let source = SourceFile::new_virtual(
             "<mem>",
             r#"
 package a
 
-import scoop.core.*
+@Extern("scoop_test_add_int")
+fun nativeAdd(a: Int, b: Int): Int
 
-@Extern("scoop_test_raise_null_assertion_failed_in_native")
-fun nativeBoom(): Int / Raise<RuntimeError>
-
-fun helper(): Int / Raise<RuntimeError> {
-    return @Unsafe do { nativeBoom() }
+fun helper(): Int {
+    return @Unsafe do { nativeAdd(1, 2) }
 }
 
 fun main(): Int {
-    return try {
-        helper()
-    } catch (e: RuntimeError) {
-        11
-    }
+    return helper()
 }
 "#,
         );
@@ -3001,11 +2995,11 @@ fun main(): Int {
         let helper_ir = function_ir_named(&ir, "a.helper");
 
         assert!(
-            helper_ir.contains("@scoop_effect_handler_stack_swap_top")
-                && helper_ir.contains("@scoop_effect_outcome_consume_current")
-                && helper_ir.contains("@scoop_effect_outcome_publish")
+            !helper_ir.contains("@scoop_effect_handler_stack_swap_top")
+                && !helper_ir.contains("@scoop_effect_outcome_consume_current")
+                && !helper_ir.contains("@scoop_effect_outcome_publish")
                 && !helper_ir.contains("@scoop_effect_is_active"),
-            "effectful extern/native boundary 应显式安装 ctx 并 consume/publish outcome，而不是继续依赖 TLS active probing:\n{helper_ir}"
+            "ordinary `@Extern` 调用不应再安装任何 effect boundary 或 TLS probing:\n{helper_ir}"
         );
     }
 

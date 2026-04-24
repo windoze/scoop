@@ -238,6 +238,20 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("`@Extern` 函数不允许声明非 Pure 的 effect row")]
+    #[diagnostic(code(scoop::typecheck::extern_fun_effects_not_allowed))]
+    ExternFunEffectsNotAllowed {
+        #[label("普通 `@Extern` ABI 必须是 Pure（或省略 effect row）")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Extern` 函数不允许声明 effect row 参数")]
+    #[diagnostic(code(scoop::typecheck::extern_fun_eff_param_not_allowed))]
+    ExternFunEffParamNotAllowed {
+        #[label("普通 `@Extern` ABI 不能依赖 effect 多态")]
+        span: miette::SourceSpan,
+    },
+
     #[error("顶层 `var` 必须显式标注 `@ThreadLocal` 或 `@Global`：{var_name}")]
     #[diagnostic(code(scoop::typecheck::top_level_var_requires_threadlocal_or_global))]
     TopLevelVarRequiresThreadLocalOrGlobal {
@@ -2096,13 +2110,42 @@ fn check_builtin_annotations_on_fun_decl(
         });
     }
 
-    // 3) `@Extern`：C ABI 边界禁止直接透传 GC 引用类型（addrspace(1) ref 指针）。
+    // 3) `@Extern`：ordinary FFI boundary 必须是 effect-impermeable。
+    //
+    // 说明：
+    // - ordinary `@Extern` 调用只负责“进入 native -> 返回普通 ABI 结果”；
+    // - outward effect / continuation / non-local control 不得通过该边界传播；
+    // - 若 native 需要交还 effectful/deferred capability，应显式桥接成 `FunPtr<F>` /
+    //   `UIntPtr` / stable handle 等 token，再由后续 unsafe bridge 单独驱动。
+    if flags.is_extern {
+        check_extern_fun_effect_contract(fun)?;
+    }
+
+    // 4) `@Extern`：C ABI 边界禁止直接透传 GC 引用类型（addrspace(1) ref 指针）。
     //
     // 说明：
     // - 这里采用保守判定：签名中的 receiver/参数/返回值都必须是 GC-free 值类型；
     // - 允许通过 `Ptr<T>` / `UIntPtr` 等显式桥接；`Ptr<T>` 的 pointee GC-free 门禁由 TypeLowering 负责。
     if flags.is_extern {
         check_extern_fun_signature_is_gc_free(source, fun, lower)?;
+    }
+
+    Ok(())
+}
+
+fn check_extern_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), AnnotationError> {
+    if let Some(eff_param) = &fun.eff_param {
+        return Err(AnnotationError::ExternFunEffParamNotAllowed {
+            span: eff_param.span.into(),
+        });
+    }
+
+    if let Some(effects) = &fun.effects
+        && !effects.terms.is_empty()
+    {
+        return Err(AnnotationError::ExternFunEffectsNotAllowed {
+            span: effects.span.into(),
+        });
     }
 
     Ok(())

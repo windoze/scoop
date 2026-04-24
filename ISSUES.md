@@ -74,11 +74,11 @@
 - 影响：当前仓库不再保留“关键字负责语法、annotation 负责语义”或“inline 放宽控制流规则”的双轨模型。若未来重新设计 non-local return / break / continue，应作为新的 effect/handler 设计任务处理，而不是回挂到 `@Inline`。
 - 证据：`crates/scoopc/src/parser/mod.rs`；`crates/scoopc/src/parser/decls.rs`；`crates/scoopc/src/typecheck/expr/stmt.rs`；`crates/scoopc/src/typecheck/expr/error.rs`；`tests/fixtures/parse/inline_modifier_removed.scoop`；`tests/fixtures/typecheck/return_in_inline_annotation_lambda_arg_is_error.scoop`。
 
-## 11. FFI / ABI 仍缺少明确的 effect-impermeable 边界与 pinned token 模型
+## 11. stable handle / `Pinned` token 模型仍待最终收口
 
-- 现状：`@CallingConvention` 仍只覆盖最小 C ABI；`@Extern` 仍要求 ABI 签名为 GC-free 值类型，并鼓励通过 `Ptr<T>` / `UIntPtr` / handle 显式桥接。这个方向本身没问题，但普通 FFI 边界在规范与实现意图上仍缺少两条更明确的约束：其一，effect / continuation / non-local control 不应穿越普通 `@Extern` ABI；其二，当前 `Pinned` 仍是 `struct Pinned(val value: Any)`，不是像 `FunPtr<F>` 那样可直接出现在 ABI 上的 word-sized opaque token，因此“pin 后直接声明 extern 参数”的模型仍未定型。
-- 影响：如果没有清晰的边界契约，FFI 只能继续依赖 `UIntPtr` / `Ptr<T>` 的手工协议，类型系统看不见“这是 pinned token”；同时也难以把 `@NoGC` 收敛成“普通 FFI 接口不暴露 GC / effect 语义”的更清楚模型。
-- 证据：`crates/scoopc/src/typecheck/annotations.rs:184-191`；`crates/scoopc/src/typecheck/annotations.rs:1435-1441`；`SCOOP_FULL_SPEC.md:2804-2812`；`SCOOP_FULL_SPEC.md:2846-2847`；`sysroot/core.scoop:212-223`；`sysroot/unsafe.scoop:16-22`；`sysroot/unsafe.scoop:92-98`；`crates/scoopc/src/llvm/codegen/ty.rs:86-96`。
+- 现状：`T4014a` 已把 ordinary `@Extern` 收口为 effect-impermeable boundary：`@Extern` 函数现在要求 Pure（或省略 effect row）、禁止 `eff` 参数，并继续要求 ABI 签名为 GC-free 值类型；若 native 需要把 effectful/deferred capability 交还给 Scoop，只能通过 `FunPtr<F>` / `UIntPtr` / `GcHandle.raw` 之类的显式 bridge token。当前剩余问题收窄为 pin/stable-handle 职责分离仍未彻底定型：`Pinned` 依旧是 `struct Pinned(val value: Any)`，不是像 `FunPtr<F>` 那样可直接出现在 ABI 上的 word-sized opaque token，因此“pin 后直接声明 extern 参数”的模型仍未最终确定。
+- 影响：普通 FFI 边界的 GC / effect 语义不再含混，但长期 token / reactor wake-token / callback round-trip 的最终 surface 仍需要继续收口，否则类型系统仍看不见“这是短时裸地址借出”与“这是长期 stable identity”的明确差异。
+- 证据：`crates/scoopc/src/typecheck/annotations.rs`；`crates/scoopc/src/llvm/codegen/mod.rs`；`SCOOP_FULL_SPEC.md` §15.5.1 / §15.8.3 / §15.9.4；`SCOOP_RUNTIME.md` §4.3-§4.4；`sysroot/core.scoop:224-256`；`sysroot/unsafe.scoop:14-123`。
 
 ## 12. const / comptime 仍然只覆盖很窄的纯计算子集
 

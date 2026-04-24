@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_eff_param_not_allowed
+// EXPECT-ERROR: `@Extern` 函数不允许声明 effect row 参数
+// EXPECT-ERROR-AT: 12:6
+// 目标：T4014a ordinary `@Extern` ABI 不允许通过 `eff` 参数把 effect 多态暴露给 native。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("native_poly")
+fun <eff E = Pure> nativePoly(): Int / E

@@ -184,7 +184,6 @@
   X(scoop_test_handle_token_slot_store) \
   X(scoop_test_handle_token_slot_take) \
   X(scoop_test_handle_get_object_addr) \
-  X(scoop_test_raise_null_assertion_failed_in_native) \
   X(scoop_test_sync_condvar_destroy_count) \
   X(scoop_test_sync_destroy_counts_reset) \
   X(scoop_test_sync_mutex_destroy_count) \

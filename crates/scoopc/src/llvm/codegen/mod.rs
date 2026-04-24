@@ -10394,11 +10394,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             (None, None)
         };
-        let extern_effect_boundary = if is_extern && call_may_suspend {
-            Some(self.begin_legacy_effect_boundary(span, "extern_call")?)
-        } else {
-            None
-        };
         let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
             evaluated_args.len()
                 + usize::from(hidden_sret_result_ty.is_some())
@@ -10451,22 +10446,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             Vec::new()
         };
-        if let Some(boundary) = extern_effect_boundary {
-            let outcome_slot = self.finish_legacy_effect_boundary(span, boundary, "extern_call")?;
-            self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
-            self.emit_ordinary_call_effect_propagation_check_from_outcome(
-                span,
-                outcome_slot,
-                "extern_call_effect",
-            )?;
-        } else if let Some(outcome_slot) = effect_outcome_slot {
+        if let Some(outcome_slot) = effect_outcome_slot {
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
                 span,
                 outcome_slot,
                 "direct_call_effect",
             )?;
-        } else if call_may_suspend {
+        } else if call_may_suspend && !is_extern {
+            // `T4014a`：ordinary `@Extern` ABI 明确保持 effect-impermeable。
+            // 即便 native 代码误用 runtime 内部 helper 发布 outward effect，这里也不会再为它
+            // 安装/消费 effect boundary；该行为属于越过普通 FFI 合同的未定义误用。
             self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
         }
 

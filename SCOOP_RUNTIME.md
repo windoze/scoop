@@ -117,6 +117,22 @@ Operational contract:
 - If native code needs a raw pointer after `handleGet`, it must separately pin for that short borrowing window. `Pinned` is not the long-lived identity object.
 - The low-level runtime ABI may report stale / unknown handle lookup as `NULL` / `0`; the language-level `GC.handleGet` / `GC.handleDrop` surface may then trap. In practice this means late callbacks after cancellation must treat the old token as invalid rather than trying to resurrect it.
 
+### 4.4 Ordinary `@Extern` boundary is effect-impermeable
+
+The lowering/runtime contract for an ordinary `@Extern` call is deliberately narrow:
+
+- the compiler exposes managed roots via `scoop_enter_native(root_slots, len)`,
+- performs the native leaf call using the platform C ABI, and then
+- restores managed mode with `scoop_leave_native()`.
+
+This boundary does **not** install an `EffectCtx` / `EffectOutcome` propagation contract. Native code must not treat an ordinary `@Extern` return as a channel for:
+
+- outward effect propagation,
+- continuation resumption/replay, or
+- longjmp-like non-local control unwinding through Scoop frames.
+
+If native code needs to hand effectful or deferred work back to Scoop, it must do so through an explicit bridge token such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw`. The later unsafe bridge call/lookup establishes the next boundary; the original `@Extern` call itself remains Pure/effect-impermeable.
+
 ## 5. Pointer ↔ integer casts
 
 Casting between pointers and integers is inherently unsafe and must only be permitted in an unsafe context (`@Unsafe` function body or `@Unsafe do { ... }` block).

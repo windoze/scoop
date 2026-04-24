@@ -891,10 +891,10 @@
   - polymorphic / initialization / boundary paths 与 direct / closure / funptr 路径使用同一套内部 propagation contract，不再各走一套旁路。
 - 完成记录：
   - `crates/scoopc/src/llvm/codegen/effect/contract.rs` / `crates/scoopc/src/llvm/codegen/mod.rs` 已新增并接入统一的 `LegacyEffectBoundary` helper，把 legacy callee boundary 固定为“捕获当前 `EffectCtx` -> 安装 handler stack top -> 调用 legacy callee -> `scoop_effect_outcome_consume_current(...)` -> 恢复 handler stack top -> 按显式 outcome 决定继续 / outward propagate”的单一路径。
-  - vtable / itable dispatch、object value init access、top-level immutable init access 与 extern/native effect boundary 已全部切到该显式 outcome contract；这些路径的 post-call `scoop_effect_is_active()` probing 已移除，不再把 effect TLS active flag 当作 source of truth。
+  - vtable / itable dispatch、object value init access、top-level immutable init access 已全部切到该显式 outcome contract；这些路径的 post-call `scoop_effect_is_active()` probing 已移除，不再把 effect TLS active flag 当作 source of truth。其间曾临时把 extern/native boundary 也接到同一路径，但该部分后续已在 `T4014a` 随 ordinary `@Extern` effect-impermeable 合同一并删除。
   - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 已为 hidden-suspend boundary 补上显式 outcome 捕获；`ObjectInitAccessBoundary` / `RuntimeRaiseBoundary` 现在会把 propagation outcome 正确写回 unified state-machine，而不是吞掉 active path。
-  - `runtime/c/scoop_runtime_api.h` / `runtime/c/scoop_test.c` 已补 test-only native helper `scoop_test_raise_null_assertion_failed_in_native` 及 allowlist，用于覆盖 effectful extern/native boundary 的 outward propagation。
-  - LLVM IR 回归已锁定 virtual call、interface call、object init access、top-level immutable init access 与 extern/native boundary 使用显式 outcome，且不再引用 `@scoop_effect_is_active`；run-pass fixtures 也已新增覆盖这些边界的端到端 outward-effect 行为。
+  - 当时为覆盖 effectful extern/native outward propagation 临时补入的 `runtime/c/scoop_runtime_api.h` / `runtime/c/scoop_test.c` test-only helper 与 allowlist，现已在 `T4014a` 随 contract 反转删除。
+  - LLVM IR 回归已锁定 virtual call、interface call、object init access、top-level immutable init access 使用显式 outcome，且不再引用 `@scoop_effect_is_active`；当时新增的 extern/native outward-effect 行为回归现已由 `T4014a` 删除。
   - 旧回归 `tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop` 暴露的 hidden-suspend active path 丢失问题已一并修复；此前错误行为会继续执行 `active_unreachable` 并输出 `1`，现已恢复正确传播。
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc --features llvm explicit_outcome_boundary -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (397)`）、`cargo run -p scoop -- test`（`fixtures: ok (1174)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4017e3
@@ -1110,13 +1110,20 @@
   - 子任务全部完成后，`ISSUES.md` 第 11 条收窄或关闭。
 - 依赖：T4013R
 
-### T4014a [TODO] 明确普通 `@Extern` 不能穿透 effect / continuation / non-local control
+### T4014a [DONE] 明确普通 `@Extern` 不能穿透 effect / continuation / non-local control
 - 范围：
   - 普通 `@Extern` ABI 的 typecheck / lowering / runtime contract 明确禁止 effect、continuation 与 non-local control 穿越边界。
   - `@NoGC`、`Ptr<T>` / `UIntPtr` / stable handle 桥接与普通 FFI 约束之间的关系要形成统一叙事，而不是继续依赖隐含约定。
   - 补充 typecheck / docs / regression，覆盖违规签名、违规调用与允许的显式桥接路径。
 - 验收：
   - 普通 FFI 接口不再暴露隐藏的 GC / effect 语义；边界契约在诊断与文档上都可见。
+- 完成记录：
+  - `crates/scoopc/src/typecheck/annotations.rs` 已新增 `extern_fun_effects_not_allowed` / `extern_fun_eff_param_not_allowed` 门禁；ordinary `@Extern` 现在会拒绝 non-Pure effect row 与 `eff` 参数。
+  - `@Extern` ABI 继续要求 GC-free 值类型，因此 `Continuation<...>` 这类 GC-managed 控制流对象仍会经 `extern_fun_signature_must_be_gc_free` 被拒绝；相关 fixture 已补成显式回归。
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 已删除 extern-native outward-effect boundary 支持；ordinary `@Extern` 不再安装/消费 `EffectCtx + EffectOutcome` contract，只保留 `enter_native(root_slots, len) -> native leaf call -> leave_native()` 语义。
+  - `crates/scoopc/src/llvm/mod.rs` 的 LLVM 单测已改为锁定 “pure extern call 不安装 effect boundary”；旧的 `extern_native_effect_boundary_raise_try_catch_basic` run-pass 与 runtime test-only helper / allowlist 已删除。
+  - 新增 typecheck fixtures：`extern_fun_effects_not_allowed_is_error`、`extern_fun_eff_param_not_allowed_is_error`、`extern_fun_signature_with_continuation_is_error`、`extern_fun_effectful_funptr_bridge_ok`；其中 `FunPtr<F>` 明确保留为 effectful/deferred native capability 的显式 unsafe bridge。
+  - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`ISSUES.md`、`sysroot/unsafe.scoop` 已同步到同一叙事：ordinary `@Extern` 保持 effect-impermeable，若 native 需要把 effectful/deferred 工作交还给 Scoop，必须先转成显式 bridge token（如 `FunPtr<F>` / `UIntPtr` / `GcHandle.raw`）。
 - 依赖：T4014
 
 ### T4014b [TODO] 完善 stable handle 的 FFI / reactor 合同，并把 `Pinned` 收口为短时裸地址借出

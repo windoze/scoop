@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_signature_must_be_gc_free
+// EXPECT-ERROR: GC-free 值类型
+// EXPECT-ERROR: GC.pin/unpin
+// 目标：T4014a ordinary `@Extern` ABI 继续禁止直接透传 `Continuation` 这类 GC-managed 控制流对象。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("native_resume")
+fun nativeResume(k: Continuation<Int, Int, eff Pure>): Int

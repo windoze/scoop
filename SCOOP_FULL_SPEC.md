@@ -2404,6 +2404,12 @@ Rules:
 - An `@Extern` variable declaration must not have an initializer (it is a declaration, not a definition).
 - Accessing an `@Extern` variable requires an unsafe context (see §15.9.1).
 - `@Extern` may be combined with `@ThreadLocal` to refer to an externally-defined TLS variable.
+- Ordinary `@Extern` function declarations are **effect-impermeable**:
+  - they must not declare effect-row parameters (`<eff E = ...>`),
+  - their effect row must be omitted or explicitly `Pure` / `Pure!`, and
+  - they communicate only through ordinary ABI argument/result slots.
+- The receiver, parameters, and return type of an ordinary `@Extern` function must be **GC-free value types**. This excludes `Continuation<...>` and other GC-managed control objects from the ordinary C ABI surface.
+- Effects, continuation resumption, and longjmp-like non-local control must not unwind through an ordinary `@Extern` call. If native code needs to hand deferred/effectful work back to Scoop, it must do so via an explicit bridge token such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw`, and the later unsafe bridge call/lookup establishes the next control-flow boundary.
 
 #### 15.5.2 `@CLayout` (C-compatible Struct Layout)
 
@@ -2673,6 +2679,14 @@ If an external function needs to interact with GC-managed objects, it must do so
 
 External code must not retain raw object addresses across safepoints (moving/compacting GCs may relocate objects). The toolchain/runtime defines the concrete native ABI surface for these operations (see `SCOOP_RUNTIME.md`).
 
+Ordinary `@Extern` declarations are also effect-impermeable:
+
+- they must not declare effect-row parameters,
+- their effect row must be omitted or `Pure` / `Pure!`, and
+- they must not rely on effect propagation, continuation resume, or other non-local control crossing the native call boundary.
+
+If native code needs to re-enter effectful/deferred Scoop computation, it must first hand back an explicit bridge token (for example `FunPtr<F>`, `UIntPtr`, or a stable handle-backed callback registration). The later unsafe bridge operation establishes a new boundary; the ordinary `@Extern` call itself does not.
+
 #### 15.8.4 Example
 
 ```kotlin
@@ -2804,6 +2818,7 @@ Function pointers:
 - If `F` is a receiver function type `T.(A1, ..., An) -> R`, the receiver is passed as the first explicit argument when invoking the pointer (for example, `fp(receiver, a1, ..., an)` or `fp.invoke(receiver, a1, ..., an)`).
 - Calling a function pointer is unsafe and must require an unsafe context.
 - `@CallingConvention(...)` may be used to specify the calling convention of a `FunPtr` alias.
+- Returning or accepting `FunPtr<F>` via `@Extern` is the explicit way to model deferred/effectful native callbacks. The effect row belongs to the later unsafe `fp(...)` / `fp.invoke(...)` call, not to the ordinary `@Extern` call itself.
 
 Example:
 

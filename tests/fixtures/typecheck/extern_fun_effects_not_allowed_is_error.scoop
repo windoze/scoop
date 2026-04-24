@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_effects_not_allowed
+// EXPECT-ERROR: `@Extern` 函数不允许声明非 Pure 的 effect row
+// EXPECT-ERROR-AT: 12:25
+// 目标：T4014a ordinary `@Extern` ABI 不再允许 outward effect 直接穿越 native 边界。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("native_boom")
+fun nativeBoom(): Int / Raise<RuntimeError>
+
+fun helper(): Int {
+    return @Unsafe do { nativeBoom() }
+}
