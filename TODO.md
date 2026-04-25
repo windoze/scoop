@@ -59,14 +59,56 @@
   - 已补记 `crates/scoopc/src/effect_step_summary.rs` 对 `llvm/codegen/effect/state_machine_plan.rs` 的 `include!` 复用，确认这是现有 effect middle-end / shared facts 边界泄漏的一部分，而不是新的前置缺陷任务；
   - review 结论：baseline 足以支撑“先 codegen refactoring，再 early MIR”的顺序，下一条可直接进入 `T5000b`。
 
-### [TODO] T5000b 清理 LLVM codegen 边界，拆分 `MainCodegen` 与巨型模块
+### [TODO] T5000b1 拆分 `llvm/mod.rs` 的 emit API / pipeline / reachability / tests
 - 范围：
-  - 拆出 `MainCodegen` 的层次边界，至少区分：
-    - module 级上下文；
-    - function/body 级上下文；
-    - shared analysis/layout cache；
-    - effect/state-machine emitter 专用上下文。
-  - 从 `llvm/codegen/mod.rs` 中拆出独立主题：
+  - 把当前 `crates/scoopc/src/llvm/mod.rs` 中的几类职责拆分到独立模块：
+    - emit API / module build；
+    - LLVM pass pipeline；
+    - reachability；
+    - tests。
+  - `llvm/mod.rs` 根模块只保留：
+    - LLVM 后端公共入口 re-export；
+    - 错误类型 / 常量；
+    - 子模块声明与少量桥接。
+  - 不改变公开行为与优化语义；只做边界收口与可维护性整理。
+- 验收：
+  - `llvm/mod.rs` 不再同时承载 emit API、module build、reachability、pipeline 与大体量测试；
+  - 现有 `emit_minimal_main_*` API、`build_main_module_from_lowered_hir`、`run_pass_pipeline` 的调用点保持工作；
+  - 测试仍能覆盖拆分后的模块边界。
+- 依赖：T5000aR
+
+### [TODO] T5000b1R Review：确认 `llvm/mod.rs` 已收口为根模块而非实现巨型文件
+- 重点：
+  - 根模块是否只保留后端入口、错误边界与必要 re-export；
+  - emit / pipeline / reachability / tests 是否已形成稳定的独立文件边界；
+  - 拆分后是否给后续 `MainCodegen` / codegen 主题拆分留下清晰入口。
+- 验收：
+  - 可以明确指出 `llvm/mod.rs` 根模块的职责上界，不再把新的实现细节继续堆回去。
+- 依赖：T5000b1
+
+### [TODO] T5000b2 提炼 `MainCodegen` 共享编译单元上下文与 child-codegen 构造路径
+- 范围：
+  - 先从 `MainCodegen` 中抽出稳定的共享只读输入与 child-codegen 工厂路径；
+  - 消除 `llvm/mod.rs` 与 `llvm/codegen/mod.rs` 内部多处重复拼装 `MainCodegenInputs` 的模式；
+  - 为后续 module / function / cache / effect emitter 分层准备稳定入口。
+- 验收：
+  - `MainCodegen::new` 的主要重复构造点显著收敛；
+  - child/nested codegen 不再每次手写整套编译单元输入拼装；
+  - 后续拆 cache / effect emitter 上下文时不需要再先做一轮大范围构造点清理。
+- 依赖：T5000b1R
+
+### [TODO] T5000b2R Review：确认 `MainCodegen` 构造边界已开始从“巨型输入包”收口
+- 重点：
+  - 共享编译单元输入是否已和函数级运行时状态分开；
+  - 是否仍有大量重复 `MainCodegenInputs { ... }` 手写构造残留；
+  - 这一步是否真的降低了后续分层改动的耦合面。
+- 验收：
+  - 下一步可以在不反复搬运构造样板的前提下继续拆 `MainCodegen` 与 `codegen/mod.rs`。
+- 依赖：T5000b2
+
+### [TODO] T5000b3 按主题拆分 `llvm/codegen/mod.rs` 的独立 lowering 模块
+- 范围：
+  - 从 `llvm/codegen/mod.rs` 中优先拆出稳定主题模块：
     - `call/`
     - `intrinsics/`
     - `closure/`
@@ -76,17 +118,42 @@
     - `gc/*`
     - `runtime_abi/*`
     - `control_flow/*`
-  - 从 `llvm/mod.rs` 中拆出：
-    - emit API
-    - module build / pipeline
-    - reachability
-    - tests
-  - 本任务只做边界整理；不引入新的优化语义。
+  - 保持语义不变；只整理 lowering 主题边界。
 - 验收：
   - `codegen/mod.rs` 不再继续承担调用分发、builtin/sysroot、closure、object/enum、GC、RTTI、coercion 等全部主题；
+  - 新文件边界能对应稳定主题，而不是把一个巨型文件机械拆成多个同样混杂的文件。
+- 依赖：T5000b2R
+
+### [TODO] T5000b3R Review：确认 `llvm/codegen/mod.rs` 的主题拆分是真正的边界整理
+- 重点：
+  - 是否只是把大文件切碎，还是确实按 lowering 主题形成了清晰边界；
+  - 是否仍有明显的跨主题 helper 继续倒灌回 `codegen/mod.rs`；
+  - 后续 `MainCodegen` 分层是否已有更清晰的落点。
+- 验收：
+  - 可以明确说出每个主题模块的职责上界，以及哪些共享逻辑仍待进一步抽象。
+- 依赖：T5000b3
+
+### [TODO] T5000b4 继续拆分 `MainCodegen` 为 module / function / cache / effect emitter 上下文
+- 范围：
+  - 在前两步构造路径与主题模块拆分基础上，进一步把 `MainCodegen` 至少区分为：
+    - module 级上下文；
+    - function/body 级上下文；
+    - shared analysis/layout cache；
+    - effect/state-machine emitter 专用上下文。
+  - 保证 backend-agnostic 分析不再继续直接挂回 `llvm/codegen/` 主上下文。
+- 验收：
   - `MainCodegen` 不再同时承担 module / function / cache / effect emitter 四类职责；
-  - 新的 backend-agnostic 分析不再直接挂回 `llvm/codegen/`。
-- 依赖：T5000aR
+  - effect/state-machine emitter 拥有清晰专用上下文，而不是继续依附整个 `MainCodegen`。
+- 依赖：T5000b3R
+
+### [TODO] T5000b4R Review：确认 `MainCodegen` 的上下文分层已经成立
+- 重点：
+  - module / function / cache / effect emitter 四类职责是否已有稳定边界；
+  - 是否仍有明显的中端分析继续依附在 backend 主上下文上；
+  - 这一步是否已经为 `ProgramFacts` 抽离提供清楚入口。
+- 验收：
+  - 可以明确指出“哪些部分仍属于 backend”“哪些共享事实下一步应迁到 backend 之外”。
+- 依赖：T5000b4
 
 ### [TODO] T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向
 - 重点：
@@ -95,7 +162,7 @@
   - 拆分后是否为后续 `ProgramFacts` 抽离和 MIR 迁移留出了清晰入口。
 - 验收：
   - 可以明确指出“哪些部分仍属于 backend”“哪些部分下一步要迁出”，且边界比改动前更清楚。
-- 依赖：T5000b
+- 依赖：T5000b4R
 
 ### [TODO] T5000c 抽离 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables
 - 范围：

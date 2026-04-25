@@ -37,8 +37,14 @@
   - 已抽样核对 `MainCodegen::new` 调用点、`llvm/mod.rs` 中的 reachability / eager inclusion、`-O0` pass pipeline、以及 `HandlePlanContext::from_codegen` 的依赖方向；
   - 已补充确认 `crates/scoopc/src/effect_step_summary.rs` 通过 `include!` 复用 `state_machine_plan.rs`，说明 effect summary 已有 backend 外消费者；
   - review 结论是：这条 `include!` 耦合属于既有 effect middle-end / shared facts 边界问题，不需要在 `T5000b` 前额外插入独立前置任务。
-- 下一条待执行任务切换为 `T5000b 清理 LLVM codegen 边界，拆分 MainCodegen 与巨型模块`。
-- baseline review 后，仍未发现需要插入到 `T5000b` 之前的新前置缺陷任务。
+- 2026-04-25：`T5000b 清理 LLVM codegen 边界，拆分 MainCodegen 与巨型模块` 已判定为单轮过大任务，已拆成 `T5000b1`～`T5000b4` 四个实现子任务与对应 review。
+  - 拆分顺序：
+    - `T5000b1`：先拆 `llvm/mod.rs` 的 emit API / pipeline / reachability / tests；
+    - `T5000b2`：再提炼 `MainCodegen` 共享编译单元上下文与 child-codegen 构造路径；
+    - `T5000b3`：按主题拆 `llvm/codegen/mod.rs`；
+    - `T5000b4`：最后把 `MainCodegen` 进一步分成 module / function / cache / effect emitter 上下文。
+- 下一条待执行任务切换为 `T5000b1 拆分 llvm/mod.rs 的 emit API / pipeline / reachability / tests`。
+- baseline review 后，仍未发现需要插入到 `T5000b1` 之前的新前置缺陷任务。
 
 ## 1. 当前判断
 
@@ -58,7 +64,7 @@
 ## 2. 顺序总览
 
 1. 建立当前编译器性能与 codegen 边界基线。
-2. 清理 LLVM codegen 边界，拆分 `MainCodegen` 与巨型模块。
+2. 先拆 `llvm/mod.rs`，再拆 `MainCodegen` 构造边界与 `llvm/codegen/mod.rs` 主题模块，最终完成 `MainCodegen` 上下文分层。
 3. 抽离 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables。
 4. 扩展现有 MIR，形成最小 generic early MIR / ANF template。
 5. 在 MIR 层实现 monomorphization / instance materialization。
@@ -82,12 +88,11 @@
 
 ### P1. LLVM codegen 分层收口
 
-- 拆分 `MainCodegen`：
-  - `ModuleCodegenCx`
-  - `FnCodegenCx`
-  - `SharedAnalysisCache`
-  - `EffectCodegenCx`
-- 从 `codegen/mod.rs` 拆出独立主题：
+- P1-1：先拆 `llvm/mod.rs`，把 emit API / module build、pipeline、reachability、tests 分开。
+  - 目标：先让 `llvm/mod.rs` 根模块退回“入口 + 错误边界 + re-export”角色，避免后续所有改动继续堆回单一根文件。
+- P1-2：提炼 `MainCodegen` 的共享编译单元输入与 child-codegen 构造路径。
+  - 目标：先消除多处重复 `MainCodegenInputs { ... }` 拼装，为真正的上下文分层扫清构造层噪音。
+- P1-3：从 `codegen/mod.rs` 拆出独立主题：
   - `call/`
   - `intrinsics/`
   - `closure/`
@@ -97,7 +102,11 @@
   - `gc/*`
   - `runtime_abi/*`
   - `control_flow/*`
-- 拆 `llvm/mod.rs`，把 emit API / pipeline / reachability / tests 分开。
+- P1-4：继续拆分 `MainCodegen`：
+  - `ModuleCodegenCx`
+  - `FnCodegenCx`
+  - `SharedAnalysisCache`
+  - `EffectCodegenCx`
 
 ### P2. Program facts 与中端分析解耦
 
