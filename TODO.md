@@ -624,7 +624,7 @@
   - 已新增 `tests/fixtures/mir/direct_and_fun_value_call.{scoop,mir}`，并更新 `closure_non_capture.mir`、`closure_capture_val.mir`、`closure_capture_var.mir`，确认 direct / closure / fun-value 三类调用都能在 MIR golden 中显式出现。
   - 已验证 `cargo fmt --all`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000d1R Review：确认普通调用主线已从 HIR 语法形状收口为显式 MIR call kind
+### [DONE] T5000d1R Review：确认普通调用主线已从 HIR 语法形状收口为显式 MIR call kind
 - 重点：
   - `DirectCall / ClosureCall / FunValueCall` 是否已经在 MIR 上显式区分；
   - callable value provenance 是否足以支撑后续 closure / higher-order 分析，而不要求再回到 HIR 语法猜测；
@@ -632,6 +632,12 @@
 - 验收：
   - 后续 `VirtualCall / InterfaceCall / Resume` 可直接建立在统一调用节点之上，而不是再改一套平行表示。
 - 依赖：T5000d1
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/hir/lower/expr.rs` 与相关 MIR fixtures，确认 `CallArg`、`CallKind::{Direct, Closure, FunValue}`、`Rvalue::Call` 已构成统一的普通调用表示；`DirectCall / ClosureCall / FunValueCall` 在 MIR golden 中已显式区分，不再依赖 HIR `Call` / `Closure` 语法形状回猜。
+  - 已确认 callable provenance 现由 `callable_value_origins` 基线跟踪：`MakeClosure` 经 local 传播后仍能在 `closure_non_capture.mir`、`closure_capture_val.mir`、`closure_capture_var.mir` 中稳定保持为 `ClosureCall`；而无法恢复为唯一 closure 目标的函数值调用则保守落为 `FunValueCall`，符合后续 higher-order 分析可消费的最小结构事实。
+  - 已确认普通调用主线保持 backend-agnostic：`crates/scoopc/src/mir/*` 未依赖 `crate::llvm` / `inkwell`，MIR `CallKind` 只表达语言级 direct/closure/fun-value 语义；当前残留的 `Todo(...)` 分支仅针对 `T5000d2` 之后才会接入的 member dispatch / ctor / 非函数 callee guardrail，不再是这三类普通调用的通用占位。
+  - review 结论：普通调用主线已经从 HIR 语法形状收口为显式 MIR call kind，后续 `T5000d2` 可直接在同一调用节点层级上补 `VirtualCall / InterfaceCall / Resume`，无需再引入平行表示。
+  - 已验证 `cargo fmt --all --check`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000d2 在 MIR 中显式表达 `VirtualCall / InterfaceCall / Resume`
 - 范围：

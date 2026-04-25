@@ -576,6 +576,18 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000d1R Review：确认普通调用主线已从 HIR 语法形状收口为显式 MIR call kind`。
+- 2026-04-26：`T5000d1R Review：确认普通调用主线已从 HIR 语法形状收口为显式 MIR call kind` 已完成。
+  - review 结论：
+    - `crates/scoopc/src/mir/mod.rs` 中的 `CallArg`、`CallKind::{Direct, Closure, FunValue}` 与 `Rvalue::Call` 已形成统一普通调用层级，MIR fixtures 现可直接区分 `DirectCall / ClosureCall / FunValueCall`；
+    - `crates/scoopc/src/mir/lower.rs` 中 `callable_value_origins` 已足以保留最小 callable provenance：closure 值经 local 传播后仍能稳定落为 `ClosureCall`，其余无法恢复唯一 closure 目标的函数值调用则保守落为 `FunValueCall`；
+    - `crates/scoopc/src/mir/*` 继续只表达语言级调用语义，不依赖 LLVM builder / module / vtable / itable / statepoint 等 backend 细节；现存 `Todo(...)` 仅剩 `T5000d2+` 的 member dispatch / ctor / guardrail 分支。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000d2 在 MIR 中显式表达 VirtualCall / InterfaceCall / Resume`。
 
 ## 1. 当前判断
 
