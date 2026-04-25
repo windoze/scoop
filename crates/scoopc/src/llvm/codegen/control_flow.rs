@@ -485,7 +485,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
 
-                // 注意：避免持有 `cg_enum_layout(...)` 的借用跨越后续 builder 调用。
+                // 注意：先从共享 cache 取出 enum layout，再抽取后续 builder 真正需要的信息。
                 let (repr, variants) = {
                     let cg_layout = self.cg_enum_layout(span, enum_ty)?;
                     (cg_layout.repr, cg_layout.variants.clone())
@@ -1531,7 +1531,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         pat: &hir::WhenPat,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        // 注意：避免持有 `cg_enum_layout(...)` 的借用跨越后续 builder 调用。
+        // 注意：先从共享 cache 取出 enum layout，再抽取后续 builder 真正需要的信息。
         let (repr, variants) = {
             let cg_layout = self.cg_enum_layout(at, enum_ty)?;
             (cg_layout.repr, cg_layout.variants.clone())

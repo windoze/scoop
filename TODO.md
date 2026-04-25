@@ -272,18 +272,91 @@
   - review 结论：本轮拆分不是机械切碎，`llvm/codegen/mod.rs` 已真实收口到共享上下文、generic lowering 与跨主题桥接；后续 `T5000b4` 的明确落点已经收敛为继续拆分 `CompilationUnitCodegenCx` / `MainCodegen` 的 module / function / cache / effect emitter 职责边界；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b4 继续拆分 `MainCodegen` 为 module / function / cache / effect emitter 上下文
+### T5000b4 继续拆分 `MainCodegen` 为 module / function / cache / effect emitter 上下文
+- 说明：
+  - 经核对，`T5000b4` 当前同时包含 shared cache 收口、function/body 级状态拆分、effect/state-machine emitter 专用上下文抽离三类改动，单轮过大；
+  - 现按稳定职责拆成以下子任务，保持语义不变，先整理上下文边界，再进入 `ProgramFacts` 抽离。
+
+### [DONE] T5000b4a 抽出编译单元级共享 layout / suspend-analysis cache
 - 范围：
-  - 在前两步构造路径与主题模块拆分基础上，进一步把 `MainCodegen` 至少区分为：
-    - module 级上下文；
-    - function/body 级上下文；
-    - shared analysis/layout cache；
-    - effect/state-machine emitter 专用上下文。
-  - 保证 backend-agnostic 分析不再继续直接挂回 `llvm/codegen/` 主上下文。
+  - 将当前仍挂在 `MainCodegen` 或 `CompilationUnitCodegenCx` 零散字段上的共享 cache 收口为明确的编译单元级 cache 上下文，至少覆盖：
+    - `known_fun_call_suspend_cache`
+    - `type_layout_cache`
+    - `option_niche_cache`
+    - `enum_cg_layout_cache`
+    - `class_init_layout_cache`
+    - `pack_field_indices`
+  - 更新 `layout.rs`、`ty.rs`、`effect/state_machine_plan.rs` 与相关调用面，确保顶层函数 / child-codegen / nested lowering 复用同一套共享 cache，而不是继续把 cache 作为 `MainCodegen` 的函数级字段。
 - 验收：
-  - `MainCodegen` 不再同时承担 module / function / cache / effect emitter 四类职责；
-  - effect/state-machine emitter 拥有清晰专用上下文，而不是继续依附整个 `MainCodegen`。
+  - `MainCodegen` 不再直接持有上述 layout / analysis cache；
+  - `CompilationUnitCodegenCx` 拥有清晰的共享 cache 边界，`fresh_main_codegen()` / `fresh_child_codegen()` 进入的新实例会稳定复用同一套缓存状态；
+  - 不改变当前 lowering 语义与诊断边界。
 - 依赖：T5000b3R
+- 完成记录（2026-04-25）：
+  - 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `SharedCodegenCaches`，将 `known_fun_call_suspend_cache`、`type_layout_cache`、`option_niche_cache`、`enum_cg_layout_cache`、`class_init_layout_cache` 与 `pack_field_indices` 收口为 `CompilationUnitCodegenCx` 持有的编译单元级共享 cache；
+  - `MainCodegen` 已删除上述 layout / analysis cache 字段，`fresh_main_codegen()` / `fresh_child_codegen()` 进入的新实例不再重建这些缓存，而是统一复用编译单元级 `shared_caches`；
+  - `crates/scoopc/src/llvm/codegen/layout.rs`、`ty.rs`、`effect/state_machine_plan.rs` 与 `codegen/mod.rs` 的相关调用面均已改为经由共享 cache 访问；其中 `cg_enum_layout(...)` 现返回从共享 cache 克隆出的 `CgEnumLayout`，避免 `RefCell` 借用穿透到后续 lowering；
+  - 已同步更新 `enum_lowering.rs`、`control_flow.rs`、`ty.rs` 中围绕 enum layout 的注释口径，确保文档与新的共享 cache 行为一致；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+
+### [TODO] T5000b4aR Review：确认共享 cache 已脱离 `MainCodegen` 的函数级状态
+- 重点：
+  - layout / suspend-analysis cache 是否都已收口到编译单元级共享上下文；
+  - 是否还残留“每个 `MainCodegen` 各自维护一份 cache”的路径；
+  - 这一步是否降低了后续 function / effect emitter 上下文拆分的耦合面。
+- 验收：
+  - 后续 `T5000b4b` / `T5000b4c` 可以不再同时搬运 layout / analysis cache 的字段。
+- 依赖：T5000b4a
+
+### [TODO] T5000b4b 拆出 `MainCodegen` 的 function/body 级上下文
+- 范围：
+  - 在共享 cache 脱离后，继续把 `MainCodegen` 内部明显属于单个函数 / body lowering 生命周期的状态收口到独立上下文，至少覆盖：
+    - `env`
+    - `extra_gc_root_slots` / `next_extra_gc_root_slot_id`
+    - `loop_context_stack`
+    - `return_context`
+    - `current_fun_return_ty`
+    - `current_sret_return_ptr`
+    - `top_level_const_eval_stack`
+  - 让通用 lowering helper 消费明确的 function/body 上下文，而不是继续直接读写 `MainCodegen` 上的混合字段。
+- 验收：
+  - `MainCodegen` 不再混放 module 级输入与 function/body 级运行时状态；
+  - child-codegen / nested lowering 在保存与重建函数级状态时边界更明确。
+- 依赖：T5000b4aR
+
+### [TODO] T5000b4bR Review：确认 function/body 级上下文边界成立
+- 重点：
+  - function/body 生命周期字段是否已集中；
+  - 是否仍有明显应属于函数级状态的字段残留在外层主上下文；
+  - 这一步是否让 effect emitter 上下文的保存/恢复面继续收窄。
+- 验收：
+  - effect emitter 后续只需处理真正的 effect 专属状态，而不是再夹带普通函数级状态。
+- 依赖：T5000b4b
+
+### [TODO] T5000b4c 抽出 effect/state-machine emitter 专用上下文
+- 范围：
+  - 将 `effect/mod.rs` 与 `effect/state_machine_emitter.rs` 当前依赖的 effect 专属 lowering 状态收口为独立上下文，至少覆盖：
+    - `effect_function_return_context`
+    - `current_callee_suspend_plan`
+    - `current_callee_resume_entry_fn`
+    - `current_continuation_resume_replay`
+    - `current_continuation_resume_replay_context`
+    - `active_suspend_site_effect_outcome_capture`
+    - `suspend_site_explicit_effect_outcomes`
+  - 消除 state-machine emitter 中成片的“手动保存/恢复一串 `MainCodegen` 字段”模式。
+- 验收：
+  - effect/state-machine emitter 拥有清晰专用上下文；
+  - `MainCodegen` 不再直接承载 effect emitter 的主要运行态。
+- 依赖：T5000b4bR
+
+### [TODO] T5000b4cR Review：确认 effect/state-machine emitter 上下文边界成立
+- 重点：
+  - effect emitter 专属状态是否已集中；
+  - state-machine emitter 是否仍大量直接操作外层主上下文；
+  - 这一步是否已经为 `T5000b4R` 的 backend 边界 review 留出清晰结论。
+- 验收：
+  - 可以明确指出哪些状态仍属于 backend 的 generic lowering，哪些已是 effect emitter 自己的上下文。
+- 依赖：T5000b4c
 
 ### [TODO] T5000b4R Review：确认 `MainCodegen` 的上下文分层已经成立
 - 重点：
@@ -292,7 +365,7 @@
   - 这一步是否已经为 `ProgramFacts` 抽离提供清楚入口。
 - 验收：
   - 可以明确指出“哪些部分仍属于 backend”“哪些共享事实下一步应迁到 backend 之外”。
-- 依赖：T5000b4
+- 依赖：T5000b4cR
 
 ### [TODO] T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向
 - 重点：

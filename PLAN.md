@@ -243,7 +243,30 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b4 继续拆分 MainCodegen 为 module / function / cache / effect emitter 上下文`。
+- 2026-04-25：`T5000b4 继续拆分 MainCodegen 为 module / function / cache / effect emitter 上下文` 已判定为单轮过大任务，现拆成 `T5000b4a`～`T5000b4c` 三个实现子任务与对应 review。
+  - 拆分依据：
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 仍有 7185 行；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 仍有 5923 行，且存在多处手动保存/恢复 `MainCodegen` 字段；
+    - `layout.rs` / `ty.rs` 仍独占多类 layout cache，适合作为首先收口的共享 cache 上下文。
+  - 拆分顺序：
+    - `T5000b4a`：先抽出编译单元级共享 layout / suspend-analysis cache；
+    - `T5000b4b`：再拆 `MainCodegen` 的 function/body 级上下文；
+    - `T5000b4c`：最后抽出 effect/state-machine emitter 专用上下文。
+- 2026-04-25：`T5000b4a 抽出编译单元级共享 layout / suspend-analysis cache` 已完成。
+  - 实现结果：
+    - 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `SharedCodegenCaches`，把 `known_fun_call_suspend_cache`、`type_layout_cache`、`option_niche_cache`、`enum_cg_layout_cache`、`class_init_layout_cache` 与 `pack_field_indices` 统一收口到 `CompilationUnitCodegenCx` 的编译单元级共享 cache；
+    - `MainCodegen` 当前已删除上述 layout / analysis cache 字段，`fresh_main_codegen()` / `fresh_child_codegen()` 构造的新实例统一复用 `shared_caches`，不再为每个函数级 codegen 重新携带一份 cache 容器；
+    - `crates/scoopc/src/llvm/codegen/layout.rs`、`ty.rs`、`effect/state_machine_plan.rs` 与 `codegen/mod.rs` 的相关访问路径已统一改为经由共享 cache 读写；
+    - `cg_enum_layout(...)` 现改为返回从共享 cache 克隆出的 `CgEnumLayout`，从而避免在 `RefCell` 化之后把 cache 借用继续带入后续 lowering 路径。
+  - 文档/注释收尾：
+    - 已同步更新 `enum_lowering.rs`、`control_flow.rs`、`ty.rs` 中关于 enum layout 获取方式的注释，确保口径与“共享 cache + clone layout”的新行为一致。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b4aR Review：确认共享 cache 已脱离 MainCodegen 的函数级状态`。
 
 ## 1. 当前判断
 
@@ -298,10 +321,14 @@
   - P1-3d：`enum_lowering.rs` + `object_init.rs`
   - 已存在的 `gc.rs` / `runtime_abi.rs` / `control_flow.rs` 继续保持独立主题边界；若后续需要继续细分，再在 `T5000b4` 之前单独评估，不与本轮从 `mod.rs` 迁出的主题混做一次性搬家。
 - P1-4：继续拆分 `MainCodegen`：
-  - `ModuleCodegenCx`
-  - `FnCodegenCx`
-  - `SharedAnalysisCache`
-  - `EffectCodegenCx`
+  - P1-4a：先收口编译单元级共享 layout / suspend-analysis cache；
+  - P1-4b：再拆 function/body 级上下文；
+  - P1-4c：最后抽出 effect/state-machine emitter 专用上下文；
+  - 目标边界最终仍是：
+    - `ModuleCodegenCx`
+    - `FnCodegenCx`
+    - `SharedAnalysisCache`
+    - `EffectCodegenCx`
 
 ### P2. Program facts 与中端分析解耦
 

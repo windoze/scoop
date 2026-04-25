@@ -35,7 +35,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         class_fqn: &str,
         visiting: &mut HashSet<String>,
     ) -> Result<hir::ClassInit, LlvmEmitError> {
-        if let Some(cached) = self.class_init_layout_cache.get(class_fqn).cloned() {
+        if let Some(cached) = self
+            .shared_caches
+            .class_init_layout_cache
+            .borrow()
+            .get(class_fqn)
+            .cloned()
+        {
             return Ok(cached);
         }
 
@@ -85,7 +91,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let _ = visiting.remove(class_fqn);
-        self.class_init_layout_cache
+        self.shared_caches
+            .class_init_layout_cache
+            .borrow_mut()
             .insert(class_fqn.to_string(), layouted.clone());
         Ok(layouted)
     }
@@ -201,7 +209,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T0119: For `@CLayout(packed = N)` with N > 1, the LLVM struct has padding
         // elements inserted, so the logical field index differs from the LLVM element index.
         let llvm_idx = self
+            .shared_caches
             .pack_field_indices
+            .borrow()
             .get(&key)
             .map_or(idx as u32, |indices| indices[idx]);
 
@@ -291,7 +301,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(super) fn type_layout(&mut self, ty: TypeId) -> TypeLayout {
-        if let Some(layout) = self.type_layout_cache.get(&ty).copied() {
+        if let Some(layout) = self
+            .shared_caches
+            .type_layout_cache
+            .borrow()
+            .get(&ty)
+            .copied()
+        {
             return layout;
         }
 
@@ -336,17 +352,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         };
 
-        self.type_layout_cache.insert(ty, layout);
+        self.shared_caches
+            .type_layout_cache
+            .borrow_mut()
+            .insert(ty, layout);
         layout
     }
 
     fn option_type_layout(&mut self, option_ty: TypeId, inner: TypeId) -> TypeLayout {
         // 注意：该函数只负责“niche 传播”与 `None` 编码缓存（供后续 codegen 使用）。
-        if self.option_niche_cache.contains_key(&option_ty) {
-            return *self
+        if self
+            .shared_caches
+            .option_niche_cache
+            .borrow()
+            .contains_key(&option_ty)
+        {
+            return self
+                .shared_caches
                 .type_layout_cache
+                .borrow()
                 .get(&option_ty)
-                .unwrap_or(&TypeLayout::new(
+                .copied()
+                .unwrap_or(TypeLayout::new(
                     self.target_layout().pointer_size,
                     self.target_layout().pointer_align,
                 ));
@@ -371,16 +398,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 domain.next = domain.end;
             }
 
-            self.option_niche_cache
+            self.shared_caches
+                .option_niche_cache
+                .borrow_mut()
                 .insert(option_ty, Some((storage, none_value)));
 
             let layout = TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
-            self.type_layout_cache.insert(option_ty, layout);
+            self.shared_caches
+                .type_layout_cache
+                .borrow_mut()
+                .insert(option_ty, layout);
             return layout;
         }
 
         // tagged union fallback：不携带 niche。
-        self.option_niche_cache.insert(option_ty, None);
+        self.shared_caches
+            .option_niche_cache
+            .borrow_mut()
+            .insert(option_ty, None);
 
         // 说明：当前 codegen 的 enum 表示仍采用 `{ tag: i32, payload: word }`，因此这里返回一个
         // “足够大”的布局即可；精确大小与 tag type 选择后续任务再统一。
@@ -392,7 +427,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let align = payload_align.max(tag_align);
         let size = align_to(payload_offset + payload_size, align);
         let layout = TypeLayout::new(size, align);
-        self.type_layout_cache.insert(option_ty, layout);
+        self.shared_caches
+            .type_layout_cache
+            .borrow_mut()
+            .insert(option_ty, layout);
         layout
     }
 
@@ -413,14 +451,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         enum_ty: TypeId,
-    ) -> Result<&CgEnumLayout, LlvmEmitError> {
-        if !self.enum_cg_layout_cache.contains_key(&enum_ty) {
+    ) -> Result<CgEnumLayout, LlvmEmitError> {
+        if !self
+            .shared_caches
+            .enum_cg_layout_cache
+            .borrow()
+            .contains_key(&enum_ty)
+        {
             let computed = self.compute_cg_enum_layout(at, enum_ty)?;
-            self.enum_cg_layout_cache.insert(enum_ty, computed);
+            self.shared_caches
+                .enum_cg_layout_cache
+                .borrow_mut()
+                .insert(enum_ty, computed);
         }
         Ok(self
+            .shared_caches
             .enum_cg_layout_cache
+            .borrow()
             .get(&enum_ty)
+            .cloned()
             .expect("just inserted"))
     }
 
@@ -433,7 +482,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
                 // 确保 option niche 缓存已被填充（用于 nested niche）。
                 let _ = self.type_layout(enum_ty);
-                let repr = match self.option_niche_cache.get(&enum_ty).copied().flatten() {
+                let repr = match self
+                    .shared_caches
+                    .option_niche_cache
+                    .borrow()
+                    .get(&enum_ty)
+                    .copied()
+                    .flatten()
+                {
                     Some((storage, none_value)) => CgEnumRepr::Niche {
                         storage,
                         none_value,

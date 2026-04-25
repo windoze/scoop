@@ -315,12 +315,30 @@ impl CalleeSuspendPlan {
     }
 }
 
+/// 单个编译单元内可跨多个 `MainCodegen` 复用的共享 cache。
+///
+/// 当前先收口两类内容：
+/// - suspend / outward-effect 相关分析缓存；
+/// - layout / enum / class init / packed-field 索引缓存。
+///
+/// 这些缓存都不属于“单个函数体 lowering 的临时状态”，因此不应继续挂在
+/// `MainCodegen` 上随着 `fresh_main_codegen()` / `fresh_child_codegen()` 重建。
+#[derive(Default)]
+struct SharedCodegenCaches {
+    known_fun_call_suspend_cache: RefCell<Option<HashMap<String, bool>>>,
+    type_layout_cache: RefCell<HashMap<TypeId, TypeLayout>>,
+    option_niche_cache: RefCell<HashMap<TypeId, Option<(NicheStorage, u64)>>>,
+    enum_cg_layout_cache: RefCell<HashMap<TypeId, CgEnumLayout>>,
+    class_init_layout_cache: RefCell<HashMap<String, hir::ClassInit>>,
+    pack_field_indices: RefCell<HashMap<String, Vec<u32>>>,
+}
+
 /// 单个编译单元内可跨多个 `MainCodegen` 复用的稳定输入与共享状态。
 ///
 /// 这一层先只承接：
 /// - module 级只读输入；
 /// - 编译单元级共享事实；
-/// - child-codegen 之间必须一致的共享状态。
+/// - child-codegen 之间必须一致的共享状态与共享 cache。
 ///
 /// 函数级 builder/env/临时状态仍保留在 `MainCodegen`，留待后续任务继续拆层。
 pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
@@ -354,8 +372,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
-    /// 顶层/member 函数“调用时是否可能成为 suspend boundary”的惰性缓存。
-    known_fun_call_suspend_cache: RefCell<Option<HashMap<String, bool>>>,
+    /// 编译单元级共享 analysis/layout cache。
+    shared_caches: SharedCodegenCaches,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
     ///
     /// 说明：
@@ -380,34 +398,12 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     env: Env<'ctx>,
     extra_gc_root_slots: Vec<ExtraGcRootSlot<'ctx>>,
     next_extra_gc_root_slot_id: u32,
-    /// `TypeId -> TypeLayout`（仅用于 codegen 侧的 niche 决策；不追求覆盖所有类型语法）。
-    type_layout_cache: HashMap<TypeId, TypeLayout>,
-    /// `Option<T>` niche 表示的 `None` 编码（用于 nested niche，例如 `Option<Option<Bool>>`）。
-    ///
-    /// 注意：对 GC-managed ref（Pointer niche）仅允许 `None = NULL`，并禁止剩余 domain 继续传播；
-    /// 因此 `Option<Option<Ref>>` 外层会回退 tagged union（T1518；spec §2.3.2）。
-    option_niche_cache: HashMap<TypeId, Option<(NicheStorage, u64)>>,
-    /// `enum/Option` 的 codegen 表示选择与 boxing 决策缓存。
-    enum_cg_layout_cache: HashMap<TypeId, CgEnumLayout>,
-    /// `class FQN -> 继承链已展开的字段布局` 缓存。
-    ///
-    /// 说明：
-    /// - 对于 `class Derived : Base()`，`Derived` 的对象 payload 需要以前缀形式包含 `Base` 的字段；
-    /// - codegen 侧会把该布局"按继承链展开"，并把字段索引写回到 `field_indices`，以便 field GEP 正确。
-    class_init_layout_cache: HashMap<String, hir::ClassInit>,
     /// 当前正在生成的函数返回类型。
     ///
     /// 说明：
     /// - 用于 `codegen_return_stmt` 确定返回值类型与 coercion 目标。
     /// - state machine emitter 在生成 step function 时保存/恢复此字段。
     current_fun_return_ty: Option<CgTy>,
-    /// T0119: `@CLayout(packed = N)` で N > 1 の場合、LLVM struct に挿入した padding 要素を
-    /// 考慮して、「論理フィールド番号 → LLVM struct 要素番号」のマッピングを保持するキャッシュ。
-    ///
-    /// - `packed = 1`：LLVM ネイティブ packed struct、identity mapping → エントリなし。
-    /// - `packed = N > 1`：explicit padding bytes を挿入するため index がずれる → エントリあり。
-    /// - unpacked：identity mapping → エントリなし。
-    pack_field_indices: HashMap<String, Vec<u32>>,
     /// T0141: Loop context stack for break/continue support.
     /// Each entry holds the break target (loop-after BB) and continue target (loop-head BB).
     loop_context_stack: Vec<LoopContext<'ctx>>,
@@ -670,7 +666,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             direct_supertypes,
             builtins,
             fun_index,
-            known_fun_call_suspend_cache: RefCell::new(None),
+            shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
             known_effect_instances_by_effect_fqn,
         }
@@ -700,12 +696,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             env: Env::default(),
             extra_gc_root_slots: Vec::new(),
             next_extra_gc_root_slot_id: 0,
-            type_layout_cache: HashMap::new(),
-            option_niche_cache: HashMap::new(),
-            enum_cg_layout_cache: HashMap::new(),
-            class_init_layout_cache: HashMap::new(),
             current_fun_return_ty: None,
-            pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
             return_context: None,
             effect_function_return_context: None,
@@ -4467,7 +4458,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // T0119: For `@CLayout(packed = N)` with N > 1, use the remapped LLVM element index.
             let llvm_idx = self
+                .shared_caches
                 .pack_field_indices
+                .borrow()
                 .get(&layout_key)
                 .map_or(idx as u32, |indices| indices[idx]);
             deferred_fields.push((llvm_idx, field.name.clone(), init.value.span, deferred));

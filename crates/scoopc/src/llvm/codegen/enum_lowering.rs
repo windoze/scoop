@@ -433,8 +433,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         tag: u64,
         payload: CgEnumPayload<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // 注意：`cg_enum_layout(...)` 返回的是对缓存表的引用；为了避免与后续 `&mut self` 调用产生借用冲突，
-        // 这里先把需要的字段拷贝出来再继续。
+        // 注意：`cg_enum_layout(...)` 当前会返回一份从共享 cache 克隆出来的 layout；
+        // 这里仍先提取出后续需要的字段，避免把整份 layout 在长分支里来回搬运。
         let (repr, some_field) = {
             let layout = self.cg_enum_layout(at, enum_ty)?;
             let repr = layout.repr;

@@ -8216,7 +8216,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn ensure_known_fun_body_may_outward_effect_cache(&self) {
-        if self.known_fun_call_suspend_cache.borrow().is_some() {
+        if self
+            .shared_caches
+            .known_fun_call_suspend_cache
+            .borrow()
+            .is_some()
+        {
             return;
         }
 
@@ -8319,7 +8324,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.fun_index,
             program_facts,
         );
-        *self.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);
+        *self
+            .shared_caches
+            .known_fun_call_suspend_cache
+            .borrow_mut() = Some(known_fun_effects);
     }
 
     fn ensure_known_fun_call_suspend_cache(&self) {
@@ -8328,10 +8336,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn known_fun_body_may_outward_effect_map(&self) -> Ref<'_, HashMap<String, bool>> {
         self.ensure_known_fun_body_may_outward_effect_cache();
-        Ref::map(self.known_fun_call_suspend_cache.borrow(), |cache| {
-            cache.as_ref()
-                .expect("known fun outward-effect cache should be initialized")
-        })
+        Ref::map(
+            self.shared_caches.known_fun_call_suspend_cache.borrow(),
+            |cache| {
+                cache.as_ref()
+                    .expect("known fun outward-effect cache should be initialized")
+            },
+        )
     }
 
     fn known_fun_call_suspendability_map(&self) -> Ref<'_, HashMap<String, bool>> {

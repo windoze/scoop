@@ -393,14 +393,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
-            // T0119: Each top-level function gets a fresh MainCodegen instance, so
-            // pack_field_indices may have been populated by a previous (now-dropped)
-            // instance. Re-derive the mapping when the LLVM type already exists but
-            // our local cache is empty.
+            // T0119: LLVM struct 可能已由更早的 lowering 路径创建，而共享 packed-field cache
+            // 仍未为该类型补齐“逻辑字段索引 -> LLVM 元素索引”映射；此时需要按现有 LLVM type
+            // 重新推导一次，再写回编译单元级共享 cache。
             let pack_value = layout.c_layout.as_ref().and_then(|c| c.packed);
             if let Some(n) = pack_value
                 && n > 1
-                && !self.pack_field_indices.contains_key(&layout.fqn)
+                && !self
+                    .shared_caches
+                    .pack_field_indices
+                    .borrow()
+                    .contains_key(&layout.fqn)
             {
                 let mut user_fields: Vec<BasicTypeEnum<'ctx>> =
                     Vec::with_capacity(layout.fields.len());
@@ -425,7 +428,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     off = aligned_offset + self.target_data.get_store_size(field_ty);
                 }
 
-                self.pack_field_indices.insert(layout.fqn.clone(), indices);
+                self.shared_caches
+                    .pack_field_indices
+                    .borrow_mut()
+                    .insert(layout.fqn.clone(), indices);
             }
             return Ok(existing);
         }
@@ -474,7 +480,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 struct_ty.set_body(&packed_fields, true);
-                self.pack_field_indices
+                self.shared_caches
+                    .pack_field_indices
+                    .borrow_mut()
                     .insert(layout.fqn.clone(), field_element_indices);
             }
             _ => {
@@ -563,7 +571,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         ty: TypeId,
     ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
-        // 注意：避免持有 `cg_enum_layout(...)` 返回的引用跨越后续 `&mut self` 调用。
+        // 注意：先从共享 cache 取出 enum layout，再抽取后续 lowering 真正需要的信息。
         let (repr, some_field) = {
             let cg_layout = self.cg_enum_layout(at, ty)?;
             let repr = cg_layout.repr;
