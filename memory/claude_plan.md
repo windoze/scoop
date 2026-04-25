@@ -60,8 +60,8 @@
 - 已将 `TODO.md` 中 `T5000e1b` 标记为完成，并补充完成记录与验证结果。
 - 已更新 `PLAN.md`，记录 effect-row 实参闭环已完成，并把下一条待执行任务切换为 `T5000e1bR`。
 
-## 收尾步骤
+## 收尾结果
 
-1. 检查工作区 diff 与文档更新是否一致。
-2. 提交 git commit，提交信息使用 `[T5000e1b] ...` 风格。
-3. 停止，不继续下一条任务。
+1. 已检查工作区 diff 与文档更新一致。
+2. 已提交 git commit：`ebb106f4`，提交信息为 `[T5000e1b] Carry effect-row args through dump-ir materializer`。
+3. 本轮到此停止，不继续下一条任务。
