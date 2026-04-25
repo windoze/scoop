@@ -1,73 +1,92 @@
-# 执行计划
+# 执行计划与进度记录
 
-## 约束说明
+## 说明
 
-- 按要求先记录执行计划，再执行仓库检查与命令。
-- 详细的内部推理不写入仓库文件；此处仅保留可审阅的执行计划、关键判断和进度更新。
-- 本次调用只处理 `TODO.md` 中第一个未完成任务；若发现阻塞该任务的既有问题，则先修复问题或把问题作为前置任务插入 `TODO.md` 后停止。
+按要求在执行任何仓库检查命令前先建立本文件。出于安全限制，这里不会记录逐字内部推理，但会持续维护：
 
-## 初始步骤
+- 当前目标
+- 分步执行计划
+- 关键决策依据
+- 已完成步骤与结果
+- 若计划变化时的调整说明
 
-1. 查看最新一次 Git 提交信息，确认是否明确提到需要先修复的遗留问题。
-2. 读取 `TODO.md`、`PLAN.md`、必要时读取 `PROMPT.md` 与相关说明，定位第一个未完成任务。
-3. 判断该任务是否需要拆分；若需要，先更新 `PLAN.md` 和 `TODO.md`，提交后停止，等待下次调用执行第一个新子任务。
-4. 若无需拆分，则检查实现上下文与相关代码、测试、规范，确认是否存在阻塞任务的既有问题。
+## 当前目标
 
-## 执行步骤
+完成 `TODO.md` 中第一个未完成任务，并在完成后停止。本轮开始前还需要先检查最新提交是否提到已有问题；若提到，则优先修复该问题。
 
-1. 实现当前目标任务，必要时同步补充注释或整理模块边界，但不做无关重构。
-2. 运行与改动直接相关的测试；若任务影响范围较大，则扩大到必要的集成测试。
-3. 运行格式化与质量检查，至少覆盖：
-   - `cargo fmt --check`（如失败则先 `cargo fmt`）
+## 初始执行计划
+
+1. 检查最新一次 git 提交的提交信息与变更说明，确认是否显式提到需先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对现有计划与任务依赖关系。
+4. 判断该任务是否过大：
+   - 如果可直接完成，则进入实现。
+   - 如果过大，则先拆解任务，更新 `PLAN.md` 与 `TODO.md`，并把第一个子任务作为当前执行目标。
+5. 实现当前目标，同时在探查、测试、审阅过程中留意任何既有缺陷、回归、规格不匹配或临时绕过；若发现，会先修复，或将其作为前置任务加入 `TODO.md` 并调整顺序。
+6. 运行与该任务相关的测试，并补充必要测试。
+7. 运行质量检查，至少包括：
    - `cargo test --all`
    - `cargo clippy --all-targets -- -D warnings`
-4. 若测试或检查暴露既有问题：
-   - 先判断是否为当前任务引入的问题；
-   - 若为仓库中已存在且阻塞当前任务的问题，优先修复，或者把它作为前置任务写入 `TODO.md` / `PLAN.md` 后停止。
-
-## 收尾步骤
-
-1. 更新 `TODO.md`，将本次完成的任务标记为已完成；若任务被拆分或重排，确保依赖顺序正确。
-2. 更新 `PLAN.md`，反映当前状态、关键决策、遗留依赖与下一步。
-3. 更新本文件，记录完成情况、测试结果和任何计划变更。
-4. 使用清晰的 Git 提交信息提交本次修改。
-5. 停止，不继续处理下一个任务。
+   - 如任务相关，还会运行更小范围或更针对性的命令以提高定位效率。
+8. 更新文档与计划：
+   - 在 `TODO.md` 中将当前完成任务标记为完成。
+   - 在 `PLAN.md` 中反映当前状态、依赖变化和后续影响。
+   - 持续更新本文件记录关键进展。
+9. 检查工作区变更，确认不误改无关文件。
+10. 提交本轮变更，提交信息使用任务编号或明确描述。
+11. 停止，不继续处理下一个任务。
 
 ## 进度日志
 
-- 已创建本计划文件。
-- 已检查最新提交 `42d41463622b80f3fd2ff40d42d4f8188da186e2`（`[T4014a] Make ordinary @Extern effect-impermeable`）。提交本身未额外声明需要先于 `TODO.md` 处理的新遗留缺陷，但 `ISSUES.md` / `TODO.md` 已明确当前主线从 `T4014a` 转入 `T4014b`。
-- 已读取 `TODO.md`、`PLAN.md`、`ISSUES.md`、`PROMPT.md`。当前第一个未完成任务为 `T4014b`：完善 stable handle 的 FFI / reactor 合同，并把 `Pinned` 收口为短时裸地址借出。
-- 已初步审阅 `sysroot/core.scoop`、`sysroot/unsafe.scoop`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`typecheck` / `LLVM` / `runtime GC` 中 `GcHandle` / `Pinned` 相关实现。
-- 当前判断：
-  - `GcHandle` 已具备 `raw: UIntPtr` 的稳定 token 表示，runtime 也已有 `scoop_handle_new/get/drop`；
-  - `Pinned` 仍是 `struct Pinned(val value: Any)`，本质上不能作为 ordinary `@Extern` ABI token；这与“仅短时裸地址借出”的目标一致；
-  - 已有 runtime 回归覆盖 stable token round-trip 与 stale token error，但尚未看到针对 ordinary `@Extern` signature 的正反两向回归：例如 `GcHandle` / `UIntPtr` 可经 ABI 往返，而 `Pinned` 不可作为 ABI surface。
-- 下一步：
-  1. 运行与 `GcHandle` / `Pinned` / ordinary `@Extern` ABI 直接相关的定向测试，确认当前缺口是否已经体现在回归里。
-  2. 若缺口仅在文档/回归层，则补齐文档与 fixture。
-  3. 若测试暴露真实实现缺陷，则优先修复该缺陷，并把变更限定在 `T4014b` 范围内。
-- 已实施中的改动：
-  - 把 `@Extern` GC-free 诊断文案改为显式区分两条桥接路径：长期 opaque token 使用 `GcHandle.raw: UIntPtr`，短时裸地址借出使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`；
-  - 修正文案里过时的 `Pinned<引用类型>` 说法为 `Pinned` handle；
-  - 更新 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`、`ISSUES.md`，把 stable handle / `Pinned` 的职责分离写成统一叙事；
-  - 新增 typecheck 回归：
-    - `tests/fixtures/typecheck/extern_fun_gc_handle_raw_token_roundtrip_ok.scoop`
-    - `tests/fixtures/typecheck/extern_fun_signature_with_pinned_is_error.scoop`
-- 已验证：
-  - 新增/相关 typecheck 定向 fixtures：`fixtures: ok (4)`；
-  - 相关 runtime GC 定向 fixtures：`fixtures: ok (3)`；
-  - `cargo fmt --check` 初次执行暴露仓库既有未格式化代码，已通过 `cargo fmt` 收口，随后 `cargo fmt --check` 通过；
-  - `cargo run -p scoop_tools -- spec-fixtures check` 通过。
-- 正在执行：
-  - 无
-- 待执行：
-  - 无
-- 最终结果：
-  - `target/debug/scoop test` 通过，结果为 `fixtures: ok (1202)`；
-  - `cargo test --all` 通过；
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-- 额外说明：
-  - 首次执行 `cargo run -p scoop -- test` 时，我在其运行中并行启动了 `cargo test --all`，随后看到一次 `run_pass_cone/float_multi_file_literal_basic` 的 transient 失败；
-  - 该 case 单独复现通过，随后在无并行 Cargo 重负载干扰的情况下重跑全量 `target/debug/scoop test`，结果全绿；
-  - 因此该信号判定为执行时干扰，不是稳定可复现的仓库回归。
+- 已创建计划文件，准备开始检查最新提交与任务列表。
+- 已检查最新提交 `f9bdbf575b3a25e7d1f4c0486beadc33031df90d`（`[T4014b] Finalize stable handle FFI contract`）以及其前一提交 `42d41463`；提交信息本身未显式提出必须先修的新既有问题，因此继续按 `TODO.md` 顺序推进。
+- 已读取 `TODO.md`、`PLAN.md` 与 `ISSUES.md`，确认第一项未完成任务为 `T4014R`：复审普通 `@Extern` 边界是否仍隐含 GC / effect 语义，并确认 stable handle / `Pinned` 的职责分离已在实现、类型系统、ABI surface 与文档中一致成立。
+
+## 当前执行步骤（T4014R）
+
+1. 复审文档与 sysroot：
+   - 检查 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`、`sysroot/unsafe.scoop`、`ISSUES.md` 是否仍保留“普通 `@Extern` 可穿透 effect/continuation”或“`Pinned` 可作为长期 token”这类旧叙事。
+2. 复审编译器与 runtime 边界：
+   - 检查 `crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/typecheck/expr/error.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、相关 LLVM/fixture 测试，确认 ordinary `@Extern` 仍然：
+     - 只允许 GC-free 签名；
+     - 拒绝非 `Pure` effect row 与 `eff` 参数；
+     - 不安装 outward-effect / continuation 边界；
+     - 要求长期 identity 走 `GcHandle.raw: UIntPtr`，短时裸地址借出才走 `Pinned`。
+3. 运行验证：
+   - 先跑 `T4014` 相关定向 tests / spec-fixtures。
+   - 再跑 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+4. 根据结果收口：
+   - 若 review 暴露既有缺口，则先修复，或在 `TODO.md` / `PLAN.md` 前插 blocker 任务并停止。
+   - 若未发现缺口，则把 `T4014R` 标记完成，更新 `PLAN.md` / `TODO.md` / `ISSUES.md` / 本文件并提交。
+
+## T4014R 复审结果
+
+- 静态复审结论：未发现新的 blocker。
+- 具体结论：
+  - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`、`sysroot/unsafe.scoop` 与 `ISSUES.md` 对 ordinary `@Extern` 的叙事一致：普通 FFI 边界仅承担 `enter_native -> native leaf call -> leave_native`，不再隐含 `EffectCtx` / `EffectOutcome`、continuation replay 或 non-local control 传播。
+  - `crates/scoopc/src/typecheck/annotations.rs` 中 ordinary `@Extern` 的类型系统门禁一致成立：非 `Pure` effect row、`eff` 参数与 GC-managed 签名（包括 `Continuation<...>`、`Pinned`）都会被拒绝；长期 token 的推荐桥接路径保持为 `GcHandle.raw: UIntPtr`。
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/mod.rs` 的 lowering / LLVM 单测一致表明：pure extern call 不再安装 effect boundary，也不再做 TLS active probing；ordinary extern path 只保留 native-roots 暴露与 leaf call。
+  - runtime / fixture 注释与回归一致表明：长期 identity / callback token 走 stable handle；`Pinned` 仍只承担 Scoop 侧短时裸地址借出与保活，不再被描述为 ordinary `@Extern` ABI token。
+
+## 已完成验证
+
+- `cargo run -p scoop_tools -- spec-fixtures check`
+- `cargo test -p scoopc pure_extern_call_does_not_install_effect_boundary --features llvm`
+- `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+- `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+- `cargo run -p scoop -- test`
+- `cargo test --all`
+- `cargo clippy --all-targets -- -D warnings`
+
+## 下一步
+
+- 更新 `TODO.md` / `PLAN.md`，将 `T4014R` 标记完成并把主线推进到 `T4015a`。
+- 检查变更集，仅包含本轮 review 收口所需文件后提交。
+
+## 最新进展
+
+- 已完成 `TODO.md`、`PLAN.md` 与 `ISSUES.md` 的状态同步：
+  - `T4014` / `T4014R` 已标记完成；
+  - `PLAN.md` 的当前主线已推进到 `T4015a`；
+  - `ISSUES.md` 第 11 条现明确把 ordinary `@Extern` 的 effect-impermeable 边界与 stable handle / `Pinned` token 模型一并记为已收口。
+- 当前只剩最后一步：检查工作区、仅暂存本轮相关文件并提交。

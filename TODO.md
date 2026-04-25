@@ -1101,7 +1101,7 @@
 
 ## T4014：FFI / ABI 边界与 stable handle / pin 职责分离
 
-### T4014 [TODO] 收口普通 `@Extern` 的 effect-impermeable 边界与 stable handle / pin 合同（拆分执行）
+### T4014 [DONE] 收口普通 `@Extern` 的 effect-impermeable 边界与 stable handle / pin 合同（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 11 条当前可收口为两条：普通 FFI 边界仍缺少“effect / continuation / non-local control 不可穿透”的明确契约；long-lived GC object identity 也仍需要以 stable opaque handle 而不是 pin 来跨越 ABI / reactor 边界。
   - `Pinned` 在本阶段的定位应收窄为“短时裸地址借出”；它不再承担 wake token、long-lived identity 或长期注册语义。
@@ -1109,6 +1109,8 @@
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 11 条收窄或关闭。
 - 依赖：T4013R
+- 已完成：
+  - `T4014a`、`T4014b` 与 `T4014R` 已全部完成；ordinary `@Extern` 的 effect-impermeable 边界、stable handle 的长期 token 合同，以及 `Pinned` 的短时裸地址借出语义已在 typecheck、LLVM lowering、runtime 文档、sysroot surface 与回归中形成统一叙事。
 
 ### T4014a [DONE] 明确普通 `@Extern` 不能穿透 effect / continuation / non-local control
 - 范围：
@@ -1141,11 +1143,23 @@
   - 已复验 `cargo fmt --check`、`cargo run -p scoop_tools -- spec-fixtures check`、`target/debug/scoop test`（`fixtures: ok (1202)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4014a
 
-### T4014R [TODO] Review：确认普通 FFI 边界不再隐含 GC / effect 语义
+### T4014R [DONE] Review：确认普通 FFI 边界不再隐含 GC / effect 语义
 - 重点：
   - 不允许普通 `@Extern` ABI 继续默许 effect / continuation 穿越。
   - stable handle 必须成为 long-lived identity / wake token 的统一合同；`Pinned` 只能停留在短时裸地址借出语义。
   - handle / pin 的边界不能只是文档口头概念；必须与 ABI surface 和类型系统叙事对齐。
+- 结论：
+  - 复扫 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`、`sysroot/unsafe.scoop` 与 `ISSUES.md` 后，ordinary `@Extern` 的合同已统一收口为 effect-impermeable native leaf boundary：编译器仅暴露 `enter_native(root_slots, len)` / `leave_native()` 与普通 ABI 参数返回，不再隐含 `EffectCtx` / `EffectOutcome`、continuation replay 或 non-local control 传播。
+  - 复扫 `crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/typecheck/expr/error.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/mod.rs` 后，ordinary `@Extern` 的实现门禁与 lowering 已一致成立：non-`Pure` effect row、`eff` 参数与 GC-managed 签名（包括 `Continuation<...>`、`Pinned`）都会被拒绝；pure extern IR 也不会再安装 effect boundary 或 TLS probing。
+  - stable handle / `Pinned` 的职责分离已在类型系统、ABI surface 与回归中闭环：长期 opaque token 统一走 `GcHandle.raw: UIntPtr` round-trip，`Pinned` 仅用于 Scoop 侧短时 pin/unpin 保活与借址，不再被视为 ordinary `@Extern` token。
+- 已复验：
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo test -p scoopc pure_extern_call_does_not_install_effect_boundary --features llvm`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4014b
 
 ## T4015：const / comptime 扩展
