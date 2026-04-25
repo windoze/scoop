@@ -27,9 +27,7 @@ pub use lower::{
     HirLowerError, LoweredHir, lower_for_compilation_unit, lower_for_compilation_unit_multi_files,
     lower_for_compilation_unit_multi_files_with_type_env, lower_for_dump, lower_typed_for_dump,
 };
-pub(crate) use lower::{
-    LoweringInputs, lower_fun_with_type_bindings, lower_fun_with_type_bindings_and_side_tables,
-};
+pub(crate) use lower::{LoweringInputs, lower_fun_with_type_bindings};
 
 /// HIR 中引用一个“已解析的符号”的稳定标识。
 ///

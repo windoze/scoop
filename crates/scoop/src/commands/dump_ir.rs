@@ -1,14 +1,15 @@
 //! `scoop dump-ir` 子命令。
 //!
-//! 当前阶段（TODO T0712）：输出“单态化实例”的 MIR Debug 视图，用于验证：
-//! - 泛型函数调用点是否能收集到正确的 `MonomorphKey`
-//! - 同一个泛型函数在不同 type args 下是否会生成不同实例
+//! 当前阶段：输出“monomorphic MIR instances”的 Debug 视图，用于验证：
+//! - `InstanceKey` 是否独立于最终 backend 符号名；
+//! - generic MIR template 是否在 MIR 层 materialize 成稳定实例；
+//! - direct-call fixed-point / nested closure family 重写是否成立。
 
 use std::path::PathBuf;
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
 
-/// 读取输入文件并打印 IR（当前阶段：monomorphized MIR 的 Debug 输出）。
+/// 读取输入文件并打印实例化后的 MIR Debug 输出。
 pub fn run(input: PathBuf) -> Result<()> {
     let input = input
         .canonicalize()
@@ -17,8 +18,8 @@ pub fn run(input: PathBuf) -> Result<()> {
     let file = scoopc::source::SourceFile::load(&input)?;
 
     let session = scoopc::session::Session::new()?;
-    let lowered = scoopc::monomorph::lower_for_dump(&session, &file)
+    let lowered = scoopc::mir::materialize_for_dump(&session, &file)
         .map_err(|err| miette::Report::from(*err))?;
-    println!("{:#?}", lowered.file);
+    println!("{:#?}", lowered);
     Ok(())
 }

@@ -17,6 +17,7 @@
 //! 避免在边界收口阶段退回到 panic/隐式后端推断。
 
 mod lower;
+mod materialize;
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -27,6 +28,9 @@ use crate::ty::TypeId;
 
 pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
+pub use materialize::{
+    InstanceKey, MaterializedMir, MirMaterializeError, TemplateKey, materialize_for_dump,
+};
 
 /// 一个源文件 lowering 后的 MIR（当前阶段主要用于 dump/fixtures）。
 #[derive(Debug, Clone)]

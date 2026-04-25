@@ -1,8 +1,10 @@
-//! 单态化（monomorphization）相关的数据结构（早期阶段）。
+//! 单态化（monomorphization）相关的数据结构与兼容包装。
 //!
-//! 当前阶段（TODO T0704）仅落地“缓存键”：
-//! - 用于把“同一个泛型函数在不同 type args / effect row args 下的实例”区分开；
-//! - 为后续 monomorph pass/LLVM codegen 的实例缓存做准备。
+//! 当前边界：
+//! - `MonomorphKey` 保留“typecheck 收集到的实例请求”语义；
+//! - 真正的 backend-agnostic `InstanceKey` 与 generic MIR template → monomorphic instance
+//!   materialization 已迁到 `crate::mir::materialize`；
+//! - 本模块继续提供旧 `dump-ir` / 测试入口的兼容导出，避免一次性打断调用面。
 
 mod lower;
 
@@ -41,10 +43,11 @@ impl fmt::Debug for MonomorphSymbol {
     }
 }
 
-/// 单态化缓存键：`Symbol + type args + effect row args`。
+/// 单态化请求键：`Symbol + type args + effect row args`。
 ///
 /// 说明：
-/// - `type_args`：类型参数的实例（`TypeId`）；其语义与布局在后续 monomorph pass 决定；
+/// - 这里承载的是“调用点请求了哪个实例”的前端事实，而不是后续中端/后端共享的最终实例身份；
+/// - `type_args`：类型参数的实例（`TypeId`）；其语义与布局在后续 MIR materialization 决定；
 /// - `eff_args`：effect row 参数的实例（`EffectRow`），用于区分 `fun <eff E>` 下的不同调用形态。
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct MonomorphKey {

@@ -722,28 +722,72 @@
   - review 结论：generic early MIR / ANF template 的语义边界现已清楚可答复，即“负责 backend-agnostic 的语言/运行时抽象事实模板，不负责实例身份物化与 backend 落地细节”；下一条可进入 `T5000e`。
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000e 在 MIR 层实现 monomorphization / instance materialization
-- 范围：
-  - 引入 `InstanceKey` 作为 backend-agnostic 的实例身份，而不是让 mangled symbol name 承担语义身份。
-  - 实现：
-    - reachable-driven instance collection；
-    - on-demand monomorphization；
-    - per-`InstanceKey` cache；
-    - generic template 到 monomorphic MIR instance 的稳定映射。
-  - 消除当前 LLVM codegen 中对 monomorphized target 的主要解析职责。
-- 验收：
-  - devirt / inline / effect planning 消费的是 monomorphic MIR instances，而不是 generic template；
-  - codegen 不再以“现场根据 mangled FQN 重定向目标”为主路径来承担 monomorphization。
-- 依赖：T5000dR
+### T5000e 在 MIR 层实现 monomorphization / instance materialization
 
-### [TODO] T5000eR Review：确认 monomorphization 已成为 MIR 内部独立阶段
+### [DONE] T5000e1 引入 `InstanceKey`，并把 `dump-ir` 路径迁到真正的 MIR template → instance materialization
+- 范围：
+  - 引入 backend-agnostic 的 `InstanceKey`，明确区分“typecheck 收集到的实例请求”与“实例本身的稳定身份”；
+  - 在 MIR 侧实现单文件/调试路径可用的 generic template → monomorphic instance materializer，而不是继续对每个实例回到 HIR 重新 lowering；
+  - 支持最小可用的 reachable-driven / on-demand fixed-point：至少覆盖 standalone generic direct call、实例内继续发现的 direct generic call，以及 nested closure family 的实例物化；
+  - 建立 per-`InstanceKey` cache，保证同一实例只 materialize 一次。
+- 验收：
+  - `dump-ir` 输出的 monomorphic MIR instances 具有独立于 mangled symbol name 的 `InstanceKey`；
+  - materialized instance body 内的 generic `DirectCall` 会改写为对应实例，而不是保留 generic template callee；
+  - 现有 `monomorph` 调试回归改为验证“基于 generic MIR template 的实例化”，而不是“再做一次 HIR lowering”。
+- 依赖：T5000dR
+- 完成记录（2026-04-26）：
+  - 新增 `crates/scoopc/src/mir/materialize.rs`，在 MIR 层引入 `TemplateKey` / `InstanceKey` / `MaterializedMir` 与 `materialize_for_dump(...)`，并基于 generic MIR template 实现单文件 dump 路径的 instance materialization；
+  - `crates/scoopc/src/monomorph/lower.rs` 已收口为兼容薄包装；`crates/scoop/src/commands/dump_ir.rs` 改为直接打印新的 `MaterializedMir` Debug 视图，从而暴露实例键与实例文件；
+  - 新 materializer 已覆盖 standalone generic direct-call fixed-point、nested closure family FQN/fn_ptr 重写、以及 per-`InstanceKey` cache；`MonomorphKey` 现明确退回为“typecheck 收集到的实例请求”语义；
+  - 已新增/更新回归测试：`monomorph_collects_two_instances_for_id`、`monomorph_discovers_direct_call_fixed_point_in_mir_instances`、`monomorph_rewrites_nested_closure_family_fn_ptrs`、`monomorph_preserves_virtual_call_kind_in_instantiated_body`、`monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body`；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+
+### [TODO] T5000e1R Review：确认 `InstanceKey` 与 dump-ir materializer 的边界正确
+- 重点：
+  - `InstanceKey` 是否已与旧的 `MonomorphKey` 请求键语义分离；
+  - `dump-ir` 是否已经改为消费 generic MIR template，而不是继续把 HIR 重新 lower 成实例；
+  - per-`InstanceKey` cache 与 fixed-point 发现策略是否足够稳定，可作为编译单元接线前的基础。
+- 验收：
+  - 单文件/调试路径上的实例身份、模板索引与实例缓存已经明确落在 MIR 层，而不是旧 `monomorph` HIR 调试路径。
+- 依赖：T5000e1
+
+### [TODO] T5000e2 把编译单元 frontend/build 路径的 instance collection / materialization 迁到 MIR 层
+- 范围：
+  - 为多文件 compilation unit 建立稳定的 template catalog / template identity（含跨文件来源信息）；
+  - 把 build / single-file LLVM frontend 当前依赖的 `MonomorphKey` + HIR `collect_generic_fun_instantiations(...)` 主路径迁移为 MIR instance collection / materialization；
+  - 收口 standalone generic fun 与需要 owner/nominal specialization 的 instance collection，不再让 HIR lowering 继续承担主要实例化职责。
+- 验收：
+  - 编译单元级 monomorphic instance 集合已由 MIR 层生成并缓存；
+  - HIR lowering 不再作为 standalone generic fun 实例生成的主入口。
+- 依赖：T5000e1R
+
+### [TODO] T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization
+- 重点：
+  - 是否仍有大块单态化逻辑残留在 HIR lowering；
+  - 跨文件 template identity / cache key 是否稳定；
+  - 实例收集是否仍保持 reachable-driven / on-demand，而不是退回全量 eager clone。
+- 验收：
+  - 编译单元主路径上的实例身份、收集与物化已经归属于 MIR 层。
+- 依赖：T5000e2
+
+### [TODO] T5000e3 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径
+- 范围：
+  - 移除/收口 LLVM codegen 中按 mangled FQN 现场重定向 generic callee 的主职责；
+  - 让 codegen 通过已实例化的 callee 事实 / instance identity 进入目标，而不是继续做 `try_resolve_monomorphized_*` 式推断；
+  - 确保后续 summary / devirt / inline / effect planning 消费的是 monomorphic MIR instances。
+- 验收：
+  - LLVM codegen 不再以“现场根据 mangled FQN 重定向目标”为主路径承担 monomorphization；
+  - 后续中端优化面向的主要输入已经是 monomorphic MIR instances。
+- 依赖：T5000e2R
+
+### [TODO] T5000e3R Review：确认 monomorphization 已成为 MIR 内部独立阶段
 - 重点：
   - `InstanceKey` 是否真正独立于 backend 符号名；
   - 是否仍有大量单态化职责遗留在 LLVM codegen；
   - 实例收集 / 缓存策略是否已经考虑 `-O0` / debug build 成本。
 - 验收：
   - monomorphization 的主语义与主数据结构已经明确属于 MIR，而不是 HIR 或 LLVM codegen。
-- 依赖：T5000e
+- 依赖：T5000e3
 
 ### [TODO] T5000f 建立 per-instance summary 基础设施
 - 范围：
@@ -759,7 +803,7 @@
 - 验收：
   - 后续 devirt / inline / escape analysis 都能共享同一套 per-instance summary；
   - higher-order function value 的 `DirectCallOnly` / `Escapes` 等判断不再由 codegen 现场重复现算。
-- 依赖：T5000eR
+- 依赖：T5000e3R
 
 ### [TODO] T5000fR Review：确认 summary 已按单态实例而不是按函数名工作
 - 重点：

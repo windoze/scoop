@@ -682,6 +682,43 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - review 结论：generic early MIR / ANF template 的语义边界已经清楚可答复，且 review 中暴露的既有边界泄漏已修复；下一条待执行任务切换为 `T5000e 在 MIR 层实现 monomorphization / instance materialization`。
+- 2026-04-26：`T5000e 在 MIR 层实现 monomorphization / instance materialization` 已判定为单轮过大任务，现拆成 `T5000e1`～`T5000e3` 三个实现子任务与对应 review。
+  - 拆分依据：
+    - `crates/scoopc/src/monomorph/` 仍是“typecheck 收集实例请求 + dump-only 调试入口”的早期路径，还没有提供后续 summary / call graph / codegen 可共享的稳定 `InstanceKey`；
+    - `crates/scoopc/src/hir/lower/mod.rs` 的多文件 lowering 仍通过 `collect_generic_fun_instantiations(...)` 直接在 HIR 层 materialize standalone generic fun instances；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留 `try_resolve_monomorphized_member_fqn` / `try_resolve_monomorphized_standalone_fun_fqn`，说明 LLVM codegen 还在现场承担 monomorphized target 解析职责；
+    - 另外，现有 `MonomorphKey` 的语义更接近“typecheck 收集到的实例请求”，并不是后续中端/后端应长期依赖的最终实例身份。
+  - 拆分顺序：
+    - `T5000e1`：先引入 `InstanceKey`，并把 `dump-ir` 路径迁到真正的 MIR template → instance materialization；
+    - `T5000e2`：再把编译单元 frontend/build 的 instance collection / materialization 主路径迁到 MIR；
+    - `T5000e3`：最后移除 LLVM codegen 现场猜测 monomorphized target 的主路径，让 backend 改为消费已实例化 target identity。
+- 2026-04-26：`T5000e1 引入 InstanceKey，并把 dump-ir 路径迁到真正的 MIR template → instance materialization` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/mir/materialize.rs`，在 MIR 层引入 `TemplateKey`、`InstanceKey`、`MaterializedMir` 与 `materialize_for_dump(...)`；
+    - dump 路径现改为：
+      - 先收集 typecheck 侧 `MonomorphKey` 请求；
+      - 再生成 generic MIR template；
+      - 最后在 MIR 层按 `InstanceKey` 做 reachable-driven / on-demand instance materialization，而不是回到 HIR 对每个实例重新 lowering；
+    - 新 materializer 当前已覆盖 standalone generic direct-call fixed-point、nested closure family FQN/fn_ptr 重写与 per-`InstanceKey` cache；
+    - `crates/scoopc/src/monomorph/lower.rs` 已收口为兼容薄包装，`crates/scoop/src/commands/dump_ir.rs` 已改为直接打印新的 `MaterializedMir` Debug 视图。
+  - 结构收口：
+    - `crates/scoopc/src/monomorph/mod.rs` 现明确把 `MonomorphKey` 定位为“typecheck 收集到的实例请求”，不再暗示它是后续中端/后端共享的最终实例身份；
+    - `crates/scoopc/src/hir/lower/mod.rs` 中已移除失去消费者的 `LoweredFunWithSideTables` 包装与对应 helper，消除了 e1 迁移后留下的无效 side-table 中间接口。
+  - 回归覆盖：
+    - `monomorph_collects_two_instances_for_id`
+    - `monomorph_discovers_direct_call_fixed_point_in_mir_instances`
+    - `monomorph_rewrites_nested_closure_family_fn_ptrs`
+    - `monomorph_preserves_virtual_call_kind_in_instantiated_body`
+    - `monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body`
+    - 以及 `mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization`
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e1R Review：确认 InstanceKey 与 dump-ir materializer 的边界正确`。
 
 ## 1. 当前判断
 
@@ -772,6 +809,10 @@
   - on-demand monomorphization；
   - per-`InstanceKey` 缓存。
 - 让后续 summary / devirt / inline / effect planning 都消费 monomorphic instances，而不是 generic template，也不是 codegen 现场猜出来的目标。
+- 分阶段接线顺序：
+  - P4-1：先在 `dump-ir` / 调试路径落地 `InstanceKey` 与 generic MIR template → monomorphic instance materializer，验证实例身份、fixed-point 发现与缓存边界；
+  - P4-2：再把 compilation unit frontend/build 的 instance collection / materialization 主路径迁到 MIR；
+  - P4-3：最后让 LLVM codegen 改为消费已实例化 target identity，删除现场 mangled-FQN 猜测主路径。
 
 ### P5. per-instance summary
 
