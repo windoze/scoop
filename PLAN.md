@@ -33,8 +33,12 @@
     - `MainCodegen::new` 的重复构造点在哪里；
     - `-O0` / debug build 的固定成本主要来自哪些路径；
     - reachability / eager inclusion / codegen 查询的重复工作主要在哪里。
-- 下一条待执行任务切换为 `T5000aR Review：确认 baseline 已足够支撑后续实现顺序`。
-- 在建立 baseline 的过程中，没有发现需要插入到 `T5000aR` 之前的新前置缺陷任务。
+- 2026-04-25：`T5000aR Review：确认 baseline 已足够支撑后续实现顺序` 已完成。
+  - 已抽样核对 `MainCodegen::new` 调用点、`llvm/mod.rs` 中的 reachability / eager inclusion、`-O0` pass pipeline、以及 `HandlePlanContext::from_codegen` 的依赖方向；
+  - 已补充确认 `crates/scoopc/src/effect_step_summary.rs` 通过 `include!` 复用 `state_machine_plan.rs`，说明 effect summary 已有 backend 外消费者；
+  - review 结论是：这条 `include!` 耦合属于既有 effect middle-end / shared facts 边界问题，不需要在 `T5000b` 前额外插入独立前置任务。
+- 下一条待执行任务切换为 `T5000b 清理 LLVM codegen 边界，拆分 MainCodegen 与巨型模块`。
+- baseline review 后，仍未发现需要插入到 `T5000b` 之前的新前置缺陷任务。
 
 ## 1. 当前判断
 

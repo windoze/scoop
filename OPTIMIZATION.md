@@ -115,14 +115,41 @@
    - `ensure_known_fun_body_may_outward_effect_cache` 会收集多组 `HashMap` / `HashSet` 构成 `SuspendCallProgramFacts`；
    - `HandlePlanContext::from_codegen(self)` 说明 effect/state-machine planning 仍直接依赖 LLVM codegen 上下文；
    - `build_unified_lowering_contract` 仍是 codegen 查询路径上的即时分析，而不是稳定的 backend-agnostic 产物。
+4. 已有 backend 外消费者仍通过源码级复用反向依赖 LLVM effect planner。
+   - `crates/scoopc/src/effect_step_summary.rs` 直接 `include!("llvm/codegen/effect/state_machine_plan.rs")`，以复用 `compute_escape_continuation_direct_step_effect_rows_for_handle_in_program`；
+   - 这说明 resumed-step / direct-step effect summary 已经不是 LLVM emitter 私有逻辑，只是当前仍靠“共享同一份源文件”维持语义一致；
+   - 因此后续抽离不能靠复制一份近似实现解决，而必须把共享分析与 LLVM emitter 合同正式拆层。
 
 这部分的 guardrail 很直接：
 
 - reachability 与 eager inclusion 不能继续依赖“backend 才知道真正 callee”这一前提；
 - monomorphization 不能继续以 mangled symbol name + codegen 猜目标作为主路径；
 - effect/state-machine planning 所需事实必须变成稳定 side tables / `ProgramFacts`，而不是从 `MainCodegen` 现场回捞。
+- 非 LLVM feature 的 effect summary 消费者不能继续通过 `include!` backend 源文件来共享语义；共享分析需要有独立、后端无关的归属层。
 
-### 0.6 后续任务的最小验收护栏
+### 0.6 `T5000aR` Review 结论
+
+`T5000aR` 的 review 结论是：当前 baseline 已经足够支撑“先 codegen refactoring，再 early MIR”的顺序，不需要在 `T5000b` 之前额外插入新的前置任务。
+
+理由有三点：
+
+1. 四类关键热点都已经被同一份 baseline 覆盖。
+   - `MainCodegen` 的职责混放与重复构造点已在第 0.2、0.3 节定位；
+   - effect middle-end 的体量与 `HandlePlanContext::from_codegen` 依赖方向已在第 0.2、0.5 节定位；
+   - reachability / eager inclusion / monomorphized callee resolution 的重复工作已在第 0.5 节定位；
+   - `-O0` / debug build 固定成本已在第 0.4 节定位。
+2. `effect_step_summary.rs` 的 `include!` 复用暴露的是同一类边界泄漏，而不是新的独立前置缺陷。
+   - 它进一步证明 effect summary 已经有 backend 外消费者；
+   - 但它并没有改变本轮顺序判断：仍应先收口 `llvm/codegen` 边界，再抽离 shared facts / effect analysis。
+3. 当前还没有发现比 `T5000b` 更靠前、且不先解决就会阻塞后续顺序判断的结构性热点。
+   - 换言之，下一步最有价值的工作仍然是拆 `MainCodegen` 与巨型模块，而不是再回到 baseline 调查层继续加一轮盘点。
+
+因此，`T5000b` / `T5000c` 的直接 guardrail 应补充为：
+
+- `T5000b` 要先把 `MainCodegen`、effect emitter 与 module/pipeline 边界拉直；
+- `T5000c` 要把 `effect_step_summary.rs` 这类 backend 外消费者真正接到独立 shared facts / effect analysis 层，而不是继续靠 `include!` 共享 `state_machine_plan.rs`。
+
+### 0.7 后续任务的最小验收护栏
 
 从 `T5000b` 开始，每个后续任务都至少要满足下面这些护栏之一，否则说明它没有真正改善当前 baseline：
 

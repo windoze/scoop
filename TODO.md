@@ -46,7 +46,7 @@
   - baseline 已统一固化到 `OPTIMIZATION.md` 第 0、10、11 节；
   - 已记录巨型模块/职责簇、`MainCodegen::new` 重复构造点、`-O0` / debug build 固定成本、reachability / eager inclusion / codegen 查询重复工作及其 guardrail。
 
-### T5000aR Review：确认 baseline 已足够支撑后续实现顺序
+### [x] T5000aR Review：确认 baseline 已足够支撑后续实现顺序
 - 重点：
   - baseline 是否覆盖了 `MainCodegen`、effect middle-end、reachability、O0 cost 这四类关键热点；
   - 是否已经能支持“先 codegen refactoring，再 early MIR”的顺序判断；
@@ -54,6 +54,10 @@
 - 验收：
   - baseline 可作为后续 `T5000b+` 的统一前提，不再需要反复回到“从哪里开始”这个问题。
 - 依赖：T5000a
+- 完成记录（2026-04-25）：
+  - 已核对 `MainCodegen::new` 调用点、`llvm/mod.rs` 中的 reachability / eager inclusion、`run_pass_pipeline` / `llvm_pass_pipeline_for_opt_level`、以及 `HandlePlanContext::from_codegen` 等关键证据；
+  - 已补记 `crates/scoopc/src/effect_step_summary.rs` 对 `llvm/codegen/effect/state_machine_plan.rs` 的 `include!` 复用，确认这是现有 effect middle-end / shared facts 边界泄漏的一部分，而不是新的前置缺陷任务；
+  - review 结论：baseline 足以支撑“先 codegen refactoring，再 early MIR”的顺序，下一条可直接进入 `T5000b`。
 
 ### T5000b 清理 LLVM codegen 边界，拆分 `MainCodegen` 与巨型模块
 - 范围：
