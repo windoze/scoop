@@ -17,6 +17,7 @@ use inkwell::targets::{FileType, TargetData};
 
 use crate::hir;
 use crate::opt::OptLevel;
+use crate::program_facts::ProgramFacts;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
 
@@ -480,6 +481,7 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
         .chain(lowered.member_funs.iter())
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
+    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
 
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
@@ -509,8 +511,6 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
             effect_op_call_sites: &lowered.effect_op_call_sites,
             handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
             continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites: &lowered
-                .non_pure_continuation_resume_call_sites,
             when_pat_binding_tys: &lowered.when_pat_binding_tys,
             nominal_kinds: &lowered.nominal_kinds,
             nominal_variances: &lowered.nominal_variances,
@@ -518,6 +518,7 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
             builtins: lowered.builtins,
             extern_funs: &lowered.extern_funs,
             fun_index: &fun_index,
+            program_facts: Rc::clone(&program_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
     let mut declare = unit_codegen.fresh_main_codegen();

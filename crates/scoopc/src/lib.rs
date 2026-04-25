@@ -20,6 +20,7 @@ pub mod mir;
 pub mod monomorph;
 pub mod opt;
 pub mod parser;
+pub(crate) mod program_facts;
 pub mod resolve;
 pub mod rtti;
 pub mod session;

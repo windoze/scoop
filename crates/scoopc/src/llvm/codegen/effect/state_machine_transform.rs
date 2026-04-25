@@ -4839,109 +4839,12 @@ fun demo(flag: Bool): Int {
             .chain(lowered.member_funs.iter().map(|fun| (fun.fqn.clone(), fun)))
             .collect::<HashMap<_, _>>();
 
-        let ctor_call_targets = lowered.ctor_call_sites.clone();
-        let top_level_value_tys: HashMap<String, crate::ty::TypeId> = lowered
-            .top_level_vars
-            .iter()
-            .map(|(fqn, var)| (fqn.clone(), var.ty))
-            .chain(
-                lowered
-                    .top_level_consts
-                    .iter()
-                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
-            )
-            .chain(
-                lowered
-                    .top_level_immutable_values
-                    .iter()
-                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
-            )
-            .collect();
-        let fun_return_tys: HashMap<String, crate::ty::TypeId> = fun_index
-            .iter()
-            .map(|(fqn, fun)| (fqn.clone(), fun.return_ty))
-            .collect();
-        let object_property_tys: HashMap<String, crate::ty::TypeId> = lowered
-            .object_inits
-            .iter()
-            .flat_map(|(owner_fqn, object_init)| {
-                object_init
-                    .properties
-                    .iter()
-                    .map(move |(name, property)| (format!("{owner_fqn}.{name}"), property.ty))
-                    .collect::<Vec<_>>()
-            })
-            .collect();
-        let struct_field_tys: HashMap<String, HashMap<String, crate::ty::TypeId>> = lowered
-            .struct_layouts
-            .iter()
-            .map(|(layout_key, layout)| {
-                let fields = layout
-                    .fields
-                    .iter()
-                    .filter_map(|field| field.ty.map(|ty| (field.fqn.clone(), ty)))
-                    .collect::<HashMap<_, _>>();
-                (layout_key.clone(), fields)
-            })
-            .collect();
-        let class_field_tys: HashMap<String, HashMap<String, crate::ty::TypeId>> = lowered
-            .class_inits
-            .iter()
-            .map(|(layout_key, class)| {
-                let fields = class
-                    .fields
-                    .iter()
-                    .map(|field| (field.fqn.clone(), field.ty))
-                    .collect::<HashMap<_, _>>();
-                (layout_key.clone(), fields)
-            })
-            .collect();
-        let class_super_keys: HashMap<String, String> = lowered
-            .class_inits
-            .iter()
-            .filter_map(|(layout_key, class)| {
-                class
-                    .super_class_fqn
-                    .clone()
-                    .map(|super_key| (layout_key.clone(), super_key))
-            })
-            .collect();
-        let object_value_fqns: HashSet<String> = lowered.object_inits.keys().cloned().collect();
-        let object_property_fqns: HashSet<String> = lowered
-            .object_inits
-            .iter()
-            .flat_map(|(owner_fqn, object_init)| {
-                object_init
-                    .properties
-                    .keys()
-                    .map(|name| format!("{owner_fqn}.{name}"))
-                    .collect::<Vec<_>>()
-            })
-            .collect();
-        let top_level_immutable_value_fqns: HashSet<String> = lowered
-            .top_level_immutable_values
-            .keys()
-            .cloned()
-            .collect();
-        let program_facts = SuspendCallProgramFacts {
-            ctor_call_targets: &ctor_call_targets,
-            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites: &lowered
-                .non_pure_continuation_resume_call_sites,
-            top_level_value_tys: &top_level_value_tys,
-            fun_return_tys: &fun_return_tys,
-            object_property_tys: &object_property_tys,
-            struct_field_tys: &struct_field_tys,
-            class_field_tys: &class_field_tys,
-            class_super_keys: &class_super_keys,
-            object_value_fqns: &object_value_fqns,
-            object_property_fqns: &object_property_fqns,
-            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
-        };
+        let program_facts =
+            std::rc::Rc::new(crate::program_facts::ProgramFacts::from_lowered(lowered));
         let known_fun_effects = collect_known_fun_call_suspendability(
             &lowered.types,
             &fun_index,
-            program_facts,
+            program_facts.as_ref(),
         );
 
         let mut known_local_metadata = HashMap::new();
@@ -4951,7 +4854,7 @@ fun demo(flag: Bool): Int {
             known_fun_effects: &known_fun_effects,
             known_local_metadata: &known_local_metadata,
             current_source_path: owner_fun.source_path.as_path(),
-            program_facts,
+            program_facts: program_facts.as_ref(),
         };
         let known_local_fun_effects =
             collect_known_local_fun_call_suspendability_in_fun(owner_fun, &analysis);
@@ -4969,20 +4872,7 @@ fun demo(flag: Bool): Int {
             known_local_metadata,
             next_synthetic_symbol_raw: std::cell::Cell::new(next_synthetic_symbol_raw),
             current_source_path: owner_fun.source_path.clone(),
-            ctor_call_targets,
-            continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
-            non_pure_continuation_resume_call_sites: lowered
-                .non_pure_continuation_resume_call_sites
-                .clone(),
-            top_level_value_tys,
-            fun_return_tys,
-            object_property_tys,
-            struct_field_tys,
-            class_field_tys,
-            class_super_keys,
-            object_value_fqns,
-            object_property_fqns,
-            top_level_immutable_value_fqns,
+            program_facts,
         }
     }
 }

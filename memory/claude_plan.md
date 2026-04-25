@@ -1,57 +1,69 @@
-# 本轮执行计划
+# 执行计划（初始）
 
-## 约束说明
+## 约束与执行原则
 
-- 按用户要求，本文件先记录可公开的执行计划、决策依据摘要与后续进度。
-- 不记录逐字内部推理；仅记录足以审计执行过程的步骤、依据和结论。
+- 本次只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在推进计划任务前，先检查最新一次 Git 提交是否提到已知问题；若提到，则该问题优先处理。
+- 在执行、测试、审查过程中发现的任何既有缺陷、规约不匹配、回归、不完整实现边界或临时绕过，都视为立即在范围内的问题，必须先修复，或在 `TODO.md` 中插入为前置任务后停止。
+- 不接受绕过实现、不接受缩小规格、不接受仅为夹具或测试定制的特判。
+- 所有进展、关键决策、计划调整都需要同步更新本文件。
 
-## 初始步骤
+## 初始步骤计划
 
-1. 检查最新一次 Git 提交，确认提交说明里是否提到已知问题、临时修复或后续待修事项。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，确认该任务的上下文、依赖和拆分状态。
-4. 若第一个未完成任务过大，则先把它拆成更小的子任务，并同步更新 `TODO.md` 与 `PLAN.md`；本轮仅执行拆分后的第一个子任务。
-5. 若在检查、测试、实现过程中发现任何既有问题、规范不匹配、缺失特性、回归或不完整边界，则优先修复；若无法在本轮直接修复，则把它作为前置任务插入 `TODO.md` 当前任务之前，并更新 `PLAN.md` 后停止。
-6. 对本轮目标任务进行实现。
-7. 运行相关测试，并补充必要测试；同时运行格式化、静态检查和无告警检查。
-8. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞关系。
-9. 提交 Git commit，然后停止，不继续下一个任务。
+1. 查看最新 Git 提交信息，确认是否显式提到需要优先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认当前总计划、依赖关系与任务上下文。
+4. 判断该任务是否过大：
+   - 若过大，则拆分为更小子任务；
+   - 更新 `PLAN.md`；
+   - 更新 `TODO.md`，将拆分后的子任务放到正确依赖顺序中；
+   - 选择新的第一个子任务作为本次执行目标。
+5. 阅读并理解与目标任务相关的代码、规格、测试与最近变更。
+6. 实施任务；若过程中发现既有问题，则优先修复或将其作为前置任务加入 `TODO.md`。
+7. 运行相关验证：
+   - 最小相关测试；
+   - 必要的更广泛测试；
+   - `cargo fmt`；
+   - `cargo clippy --all-targets -- -D warnings`；
+   - 与任务直接相关的命令。
+8. 更新文档与计划：
+   - 在 `TODO.md` 标记任务完成，或在阻塞时重排任务顺序；
+   - 更新 `PLAN.md`；
+   - 更新本文件记录实际执行情况与偏差。
+9. 查看工作区差异，确认仅包含本次应提交内容。
+10. 提交 Git commit，提交信息清晰描述本次任务。
+11. 停止，不继续处理下一个任务。
 
-## 当前状态
+## 决策记录
 
-- 已创建执行记录文件。
-- 已检查最新提交：`dba3a3b9 [T5000b4R] Review MainCodegen context layering`，提交说明未额外声明待修缺陷。
-- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务是 `T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向`。
+- 已检查最新提交 `8442091c [T5000bR] Review LLVM codegen backend boundary`。
+  - 提交标题与变更内容未引入新的待修既有缺陷；提交中提到的注释错配已在该提交内修复。
+- 已读取 `TODO.md` 与 `PLAN.md`，确认当前第一条未完成任务是 `T5000c 抽离 backend-agnostic 的 ProgramFacts / EffectAnalysisCtx / shared side tables`。
+- 已完成 `T5000c` 定界：
+  - `state_machine_plan.rs` 同时在 `HandlePlanContext::from_codegen(...)`、`ensure_known_fun_body_may_outward_effect_cache(...)` 与多个测试 helper 中重复拼装 `SuspendCallProgramFacts`；
+  - `effect_step_summary.rs` 仍通过 `include!` 直接复用 backend 源文件；
+  - 因此 `T5000c` 单轮过大，已拆成 `T5000c1`～`T5000c3`。
+- 当前本轮唯一执行目标已切换为 `T5000c1 抽出 backend-agnostic 的 ProgramFacts 数据结构与统一 builder`。
+- `T5000c1` 已完成实现与验证：
+  - 新增 `crates/scoopc/src/program_facts.rs`，定义 backend-agnostic `ProgramFacts`，并通过 `ProgramFacts::from_lowered(&hir::LoweredHir)` 从 lowering side tables 统一构造；
+  - `crates/scoopc/src/llvm/emit.rs` / `crates/scoopc/src/llvm/codegen/mod.rs` 现会在进入 backend 前构造并持有共享 `Rc<ProgramFacts>`；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 删除了临时 `SuspendCallProgramFacts` 拼装结构，`HandlePlanContext`、known-fun suspendability cache 与 higher-order function-value suspendability 查询现统一复用同一份 `ProgramFacts`；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs` 与 `state_machine_transform.rs` 的测试 helper 也改为从 `LoweredHir` 统一构造 `ProgramFacts`；
+  - 本轮同时修复了一个既有无告警构建问题：`crates/scoopc/src/effect_step_summary.rs` 在 `--no-default-features` 路径下因 `include!` 整个 `state_machine_plan.rs` 而暴露大量 intentional dead-code / unused-import warnings；现已把告警边界收口在 `effect_step_summary.rs` 自身。
+- 当前下一条任务已切换为 `T5000c1R Review：确认 ProgramFacts 已成为 backend-agnostic 的共享 side table`，本轮不继续执行。
 
-## 当前公开结论摘要
+## 进度状态
 
-- `MainCodegen` 的 module / function / cache / effect emitter 分层已经形成，`CompilationUnitCodegenCx`、`SharedCodegenCaches`、`FunctionBodyCodegenCx`、`EffectLoweringCodegenCx` 的结构边界可直接审计。
-- 仍明显滞留在 LLVM backend 内、且下一步应迁出的 shared facts 包括：
-  - `HandlePlanContext::from_codegen(...)` 直接从 `MainCodegen` 采集分析输入；
-  - `known_fun_body_may_outward_effect_*` 缓存仍在 codegen 内构造 higher-order suspendability 事实；
-  - `resolve_expr_concrete_type` 等 concrete-type / field-type 恢复逻辑在 backend 与 effect planning 侧重复出现；
-  - `effect_step_summary.rs` 通过 `include!` 直接复用 `state_machine_plan.rs`，说明该分析已有 backend 外消费者。
-- 在 review 取证过程中发现一个既有文档错配：
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 顶部模块注释仍写“下一步 T5000b4”，但该任务已完成；
-  - 这属于当前 review 范围内应顺手修正的注释问题。
+- [x] 已创建初始计划文件。
+- [x] 已检查最新提交。
+- [x] 已读取 `TODO.md` 与 `PLAN.md`。
+- [x] 已确定当前顶层未完成任务是 `T5000c`。
+- [x] 已评估并拆分 `T5000c`。
+- [x] 已完成 `T5000c1` 的实现与验证。
+- [ ] 待更新任务状态并提交。
 
-## 接下来
+## 当前执行计划
 
-1. 记录最终结果并提交 commit。
-
-## 已完成事项
-
-- 已修正 `crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释中过期的“下一步 T5000b4”指向，改为准确说明下一步是 `T5000c` 的 shared-facts 抽离。
-- 已将 `T5000bR` 的 review 结论回写到 `TODO.md` 与 `PLAN.md`，并把下一条待执行任务切换为 `T5000c`。
-- 已完成验证：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc llvm::`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - 结果：全部通过。
-
-## 本轮结论
-
-- 本轮任务 `T5000bR` 可判定为完成。
-- 当前未发现需要插到 `T5000c` 之前的新前置缺陷任务。
-- 本轮完成后应提交一次单独 commit 并停止，不进入 `T5000c`。
+1. 检查工作区差异，确认仅包含 `T5000c1` 与本轮顺手修复的无告警构建问题。
+2. 提交 commit。
+3. 停止，不进入 `T5000c1R`。

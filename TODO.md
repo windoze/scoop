@@ -424,19 +424,81 @@
   - review 过程中顺手修复了一个既有文档错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释此前仍写“下一步 T5000b4”，现已改为准确指向 `T5000c` 的 shared-facts 抽离入口；
   - review 结论：LLVM codegen 已明显朝“只做 backend lowering”的方向收口，backend 主题边界比改动前更清楚；当前剩余问题已明确收敛到 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables 抽离，没有发现需要插到 `T5000c` 之前的新前置缺陷任务。
 
-### [TODO] T5000c 抽离 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables
+### T5000c 抽离 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables
+- 说明：
+  - 经核对，`T5000c` 当前同时覆盖 shared facts 数据结构抽离、effect analysis 上下文收口、以及 planning / direct-step summary 消费面的迁移，单轮过大；
+  - 现按稳定边界拆成以下子任务，先收口 `ProgramFacts`，再抽 `EffectAnalysisCtx`，最后迁移共享分析消费者并清理 `include!` 耦合。
+
+### [DONE] T5000c1 抽出 backend-agnostic 的 `ProgramFacts` 数据结构与统一 builder
 - 范围：
-  - 把当前已经像中端分析的共享事实从 LLVM codegen 依赖中解耦出来，至少覆盖：
-    - callee target resolution 所需事实；
-    - receiver exactness / target-set shrinking 所需事实；
-    - type / field / nominal specialization 相关事实；
-    - higher-order provenance 与 suspendability summary 输入；
-    - effect/state-machine planning 所需事实。
-  - 替换当前“分析从 `MainCodegen` 反取信息”的模式，使 LLVM codegen 和 future MIR pass 依赖同一份 backend-agnostic facts / side tables。
+  - 新增独立于 LLVM backend 的 `ProgramFacts` 数据结构，至少统一承接：
+    - ctor / continuation resume call-site facts；
+    - top-level value / function return / object property / struct field / class field type facts；
+    - class super-key、object / property / top-level immutable value FQN sets。
+  - 从 HIR lowering 产物统一构造 `ProgramFacts`，供 LLVM codegen 共享上下文、effect/state-machine planner 与测试 helper 复用；
+  - 消除 `HandlePlanContext::from_codegen(...)`、`ensure_known_fun_body_may_outward_effect_cache(...)`、`state_machine_segments.rs` / `state_machine_transform.rs` 测试 helper 对 `SuspendCallProgramFacts` 的重复现场拼装。
+- 验收：
+  - `CompilationUnitCodegenCx` 持有由 HIR lowering 统一构造的 `ProgramFacts`，而不是在 LLVM codegen 内重建同类 side tables；
+  - `HandlePlanContext` 与 known-fun suspendability cache 已改为复用同一份 `ProgramFacts`；
+  - 行为与诊断边界保持不变。
+- 依赖：T5000bR
+- 完成记录（2026-04-25）：
+  - 新增 `crates/scoopc/src/program_facts.rs` 与 `lib.rs` 模块入口，定义 backend-agnostic `ProgramFacts`，统一承接 ctor / continuation resume call-site、top-level value / function return / object property / struct/class field type、class super-key、object/property/top-level immutable value 集合等共享 facts，并由 `ProgramFacts::from_lowered(&hir::LoweredHir)` 一次性构造；
+  - `crates/scoopc/src/llvm/emit.rs` 现会在进入 LLVM backend 前基于 lowering 结果构造共享 `Rc<ProgramFacts>`，`crates/scoopc/src/llvm/codegen/mod.rs` 中的 `CompilationUnitCodegenCx` 现持有该 shared facts，而不是继续保存一组只为 effect analysis 服务的 backend 专有 side tables；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中的 `HandlePlanContext`、`SuspendCallAnalysis`、`ensure_known_fun_body_may_outward_effect_cache(...)` 与 higher-order function-value suspendability 查询，现已统一复用同一份 `ProgramFacts`；原 `SuspendCallProgramFacts` 临时拼装结构已删除；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs` 与 `state_machine_transform.rs` 的测试 helper 也已改为从 `LoweredHir` 统一构造 `ProgramFacts`，不再各自复制一份 facts 拼装逻辑；
+  - 本轮同时修复了一个既有无告警构建问题：`crates/scoopc/src/effect_step_summary.rs` 在 `--no-default-features` 路径下直接 `include!` 整个 `state_machine_plan.rs` 会暴露大量 intentional dead-code / unused-import warnings；现已把告警边界收口在 `effect_step_summary.rs` 自身，保持当前共享语义不变并恢复无告警构建。
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+
+### [TODO] T5000c1R Review：确认 `ProgramFacts` 已成为 backend-agnostic 的共享 side table
+- 重点：
+  - `ProgramFacts` 是否已脱离 LLVM builder / module / GC ABI 依赖；
+  - 是否还残留多处重复拼装 program facts 的路径；
+  - 这一步是否为后续 `EffectAnalysisCtx` 抽离提供了稳定输入边界。
+- 验收：
+  - 后续 `T5000c2` 可直接在 `ProgramFacts` 之上继续收口 analysis context，而不再先清理 facts 来源。
+- 依赖：T5000c1
+
+### [TODO] T5000c2 抽出 backend-agnostic 的 `EffectAnalysisCtx` 与 shared local metadata
+- 范围：
+  - 将当前 `HandlePlanContext` 中与 effect/state-machine 分析相关、但不应继续依赖 `MainCodegen` 的上下文收口为独立 `EffectAnalysisCtx`，至少覆盖：
+    - known fun/local effect facts；
+    - known local metadata；
+    - synthetic symbol allocator 状态；
+    - source-path / call-site 关联上下文。
+  - 替换当前“分析从 `MainCodegen` 反取 env/local metadata”的主路径，使 planning / summary 可在 backend 外复用同一份 analysis context。
 - 验收：
   - `HandlePlanContext::from_codegen` 这类由 backend 上下文直接喂给中端分析的路径开始消失；
-  - monomorphized callee resolution、concrete type 恢复、receiver exactness 等所需数据不再必须从 LLVM codegen 现场拼装。
-- 依赖：T5000bR
+  - planning / suspendability summary 进入统一 `EffectAnalysisCtx + ProgramFacts` 输入形态。
+- 依赖：T5000c1R
+
+### [TODO] T5000c2R Review：确认 `EffectAnalysisCtx` 已脱离 LLVM backend 现场取数
+- 重点：
+  - `EffectAnalysisCtx` 是否真的 backend-agnostic；
+  - 是否还残留“必须通过 `MainCodegen` 才能做分析”的强耦合路径；
+  - local metadata / synthetic symbol / source-path 上下文是否已形成稳定输入边界。
+- 验收：
+  - 后续共享分析消费者迁移时，不再需要继续从 backend 主上下文回捞 analysis state。
+- 依赖：T5000c2
+
+### [TODO] T5000c3 迁移 effect/state-machine planning 与 direct-step summary 到 shared facts / analysis 层
+- 范围：
+  - 让 effect/state-machine planning、higher-order suspendability summary 与 direct-step effect summary 统一依赖 `ProgramFacts` / `EffectAnalysisCtx`；
+  - 清理 `effect_step_summary.rs` 对 `llvm/codegen/effect/state_machine_plan.rs` 的 `include!` 复用，把共享分析放到独立归属层；
+  - 收口 concrete-type / field-type / receiver exactness 等共享 helper 的消费方向，使后续 MIR / summary 可复用同一层事实。
+- 验收：
+  - `effect_step_summary.rs` 不再通过 `include!` 直接依赖 LLVM backend 源文件；
+  - effect/state-machine planning 与 direct-step summary 已可在 backend 外复用同一份 shared facts / analysis 层。
+- 依赖：T5000c2R
+
+### [TODO] T5000c3R Review：确认共享分析消费者已脱离 LLVM backend 源文件依赖
+- 重点：
+  - shared facts / analysis 层是否已经覆盖 planning 与 direct-step summary 的共同输入；
+  - 是否还残留对 `state_machine_plan.rs` 文本级复用或 backend helper 的强耦合；
+  - concrete type / receiver exactness / field specialization 相关 helper 的依赖方向是否已经拉直。
+- 验收：
+  - `T5000cR` 可以基于清晰的 backend-agnostic facts / analysis 边界做总复核。
+- 依赖：T5000c3
 
 ### [TODO] T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向
 - 重点：
@@ -445,7 +507,7 @@
   - 该层是否已经足够支撑 MIR、summary 与 effect planning 的共同消费。
 - 验收：
   - 后续 MIR 任务可以在不依赖 LLVM builder / module / GC ABI 细节的前提下推进。
-- 依赖：T5000c
+- 依赖：T5000c3R
 
 ### [TODO] T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template
 - 范围：

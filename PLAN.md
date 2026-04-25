@@ -367,6 +367,33 @@
     - review 过程中顺手修复了一个既有注释错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部模块注释此前仍写“下一步 T5000b4”，现已改为准确指向下一条 `T5000c` 的 shared-facts 抽离工作；
     - review 结论：LLVM codegen 的主题拆分与上下文分层已经把边界拉直到“backend lowering 与 shared facts 的分界线”可清晰审计；下一步应进入 `T5000c`，抽离 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables，而不是继续在 backend 内扩张分析逻辑。当前未发现需要插到 `T5000c` 之前的新前置缺陷任务。
   - 下一条待执行任务切换为 `T5000c 抽离 backend-agnostic 的 ProgramFacts / EffectAnalysisCtx / shared side tables`。
+- 2026-04-25：`T5000c 抽离 backend-agnostic 的 ProgramFacts / EffectAnalysisCtx / shared side tables` 已判定为单轮过大任务，现拆成 `T5000c1`～`T5000c3` 三个实现子任务与对应 review。
+  - 拆分依据：
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中同时存在 `HandlePlanContext::from_codegen(...)`、`ensure_known_fun_body_may_outward_effect_cache(...)` 与 `SuspendCallProgramFacts` 现场拼装，shared facts 来源仍混在 backend codegen / effect planning / suspendability cache 里；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs` 与 `state_machine_transform.rs` 的测试 helper 也各自重复构造同类 facts，说明 `ProgramFacts` 尚未形成统一边界；
+    - `crates/scoopc/src/effect_step_summary.rs` 仍通过 `include!(\"llvm/codegen/effect/state_machine_plan.rs\")` 复用纯分析实现，说明迁移 shared facts 后还需要单独收口 effect analysis context 与共享消费者。
+  - 拆分顺序：
+    - `T5000c1`：先抽出 backend-agnostic `ProgramFacts` 数据结构与统一 builder，消除 `SuspendCallProgramFacts` 的重复拼装；
+    - `T5000c2`：再抽出 `EffectAnalysisCtx` 与 shared local metadata / synthetic symbol / source-path 上下文；
+    - `T5000c3`：最后迁移 planning / direct-step summary 等共享分析消费者，并清理 `include!` backend 源文件耦合。
+  - 下一条待执行任务切换为 `T5000c1 抽出 backend-agnostic 的 ProgramFacts 数据结构与统一 builder`。
+- 2026-04-25：`T5000c1 抽出 backend-agnostic 的 ProgramFacts 数据结构与统一 builder` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/program_facts.rs` 与 `lib.rs` 模块入口，定义 backend-agnostic `ProgramFacts`，统一承接 ctor / continuation resume call-site、top-level value / function return / object property / struct/class field type、class super-key、object/property/top-level immutable value 集合等共享 facts；
+    - `ProgramFacts::from_lowered(&hir::LoweredHir)` 现作为单一构造入口，从 lowering side tables 一次性生产 shared facts；
+    - `crates/scoopc/src/llvm/emit.rs` 现会在进入 LLVM backend 前构造共享 `Rc<ProgramFacts>`，`crates/scoopc/src/llvm/codegen/mod.rs` 的 `CompilationUnitCodegenCx` 现持有该 shared facts，从而不再继续保存一组仅供 effect analysis 重建使用的 backend 专有 side tables；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中的 `HandlePlanContext`、`SuspendCallAnalysis`、`ensure_known_fun_body_may_outward_effect_cache(...)` 与 higher-order function-value suspendability 查询，现已统一复用同一份 `ProgramFacts`，原 `SuspendCallProgramFacts` 临时拼装结构已删除；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs` 与 `state_machine_transform.rs` 的测试 helper 也已改为从 `LoweredHir` 统一构造 `ProgramFacts`，不再各自复制一份 facts 拼装逻辑。
+  - 收尾修复：
+    - 为满足“无告警构建”约束，本轮顺手修复了 `crates/scoopc/src/effect_step_summary.rs` 在 `--no-default-features` 路径下因直接 `include!` 整个 `state_machine_plan.rs` 而暴露的大量 intentional dead-code / unused-import warnings；当前已把告警边界收口在 `effect_step_summary.rs` 自身，保持共享语义不变并恢复无告警构建。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000c1R Review：确认 ProgramFacts 已成为 backend-agnostic 的共享 side table`。
 
 ## 1. 当前判断
 

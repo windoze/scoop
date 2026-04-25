@@ -52,6 +52,7 @@ use sha2::{Digest as _, Sha256};
 use crate::ast;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
+use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
@@ -366,13 +367,14 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     handle_payload_tuple_tys: &'a hir::HandlePayloadTupleSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
-    non_pure_continuation_resume_call_sites: &'a hir::NonPureContinuationResumeCallSiteIndex,
     when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     nominal_kinds: &'a hir::NominalKindIndex,
     nominal_variances: &'a hir::NominalVarianceIndex,
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    /// backend-agnostic 的共享程序事实。
+    program_facts: Rc<ProgramFacts>,
     /// 编译单元级共享 analysis/layout cache。
     shared_caches: SharedCodegenCaches,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
@@ -577,8 +579,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     pub(super) handle_payload_tuple_tys: &'a hir::HandlePayloadTupleSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
-    pub(super) non_pure_continuation_resume_call_sites:
-        &'a hir::NonPureContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
     pub(super) nominal_variances: &'a hir::NominalVarianceIndex,
@@ -586,6 +586,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) builtins: BuiltinTypes,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    pub(super) program_facts: Rc<ProgramFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
 
@@ -625,7 +626,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             effect_op_call_sites,
             handle_payload_tuple_tys,
             continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
             nominal_variances,
@@ -633,6 +633,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             builtins,
             extern_funs,
             fun_index,
+            program_facts,
             effect_op_tags,
         } = inputs;
         let known_effect_instances_by_effect_fqn =
@@ -661,13 +662,13 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             effect_op_call_sites,
             handle_payload_tuple_tys,
             continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
             nominal_variances,
             direct_supertypes,
             builtins,
             fun_index,
+            program_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
             known_effect_instances_by_effect_fqn,

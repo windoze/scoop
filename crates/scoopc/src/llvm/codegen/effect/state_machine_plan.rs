@@ -2,8 +2,10 @@ use crate::ast;
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use crate::hir;
+use crate::program_facts::ProgramFacts;
 use crate::span::Span;
 use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
 
@@ -19,18 +21,7 @@ struct HandlePlanContext {
     known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
     next_synthetic_symbol_raw: Cell<u32>,
     current_source_path: PathBuf,
-    ctor_call_targets: hir::CtorCallSiteIndex,
-    continuation_resume_call_sites: hir::ContinuationResumeCallSiteIndex,
-    non_pure_continuation_resume_call_sites: hir::NonPureContinuationResumeCallSiteIndex,
-    top_level_value_tys: HashMap<String, TypeId>,
-    fun_return_tys: HashMap<String, TypeId>,
-    object_property_tys: HashMap<String, TypeId>,
-    struct_field_tys: HashMap<String, HashMap<String, TypeId>>,
-    class_field_tys: HashMap<String, HashMap<String, TypeId>>,
-    class_super_keys: HashMap<String, String>,
-    object_value_fqns: HashSet<String>,
-    object_property_fqns: HashSet<String>,
-    top_level_immutable_value_fqns: HashSet<String>,
+    program_facts: Rc<ProgramFacts>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1606,22 +1597,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             known_fun_effects: &self.context.known_fun_effects,
             known_local_metadata: &self.context.known_local_metadata,
             current_source_path: self.context.current_source_path.as_path(),
-            program_facts: SuspendCallProgramFacts {
-                ctor_call_targets: &self.context.ctor_call_targets,
-                continuation_resume_call_sites: &self.context.continuation_resume_call_sites,
-                non_pure_continuation_resume_call_sites: &self
-                    .context
-                    .non_pure_continuation_resume_call_sites,
-                top_level_value_tys: &self.context.top_level_value_tys,
-                fun_return_tys: &self.context.fun_return_tys,
-                object_property_tys: &self.context.object_property_tys,
-                struct_field_tys: &self.context.struct_field_tys,
-                class_field_tys: &self.context.class_field_tys,
-                class_super_keys: &self.context.class_super_keys,
-                object_value_fqns: &self.context.object_value_fqns,
-                object_property_fqns: &self.context.object_property_fqns,
-                top_level_immutable_value_fqns: &self.context.top_level_immutable_value_fqns,
-            },
+            program_facts: self.context.program_facts.as_ref(),
         }
         .function_value_may_suspend_when_called(expr, &self.known_local_fun_effects)
     }
@@ -2686,6 +2662,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         if let Some(target) = self
             .context
+            .program_facts
             .ctor_call_targets
             .get(&self.context.call_site(expr.span))
         {
@@ -2736,6 +2713,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let call_site = self.context.call_site(call_span);
         if !self
             .context
+            .program_facts
             .continuation_resume_call_sites
             .contains(&call_site)
         {
@@ -2744,6 +2722,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         if self
             .context
+            .program_facts
             .non_pure_continuation_resume_call_sites
             .contains(&call_site)
         {
@@ -2764,11 +2743,16 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let hir::ValueRef::TopLevel { fqn, .. } = value_ref else {
             return None;
         };
-        if self.context.object_value_fqns.contains(fqn) {
+        if self.context.program_facts.object_value_fqns.contains(fqn) {
             Some(SuspendSiteKind::ObjectInitAccess {
                 target: fqn.clone(),
             })
-        } else if self.context.top_level_immutable_value_fqns.contains(fqn) {
+        } else if self
+            .context
+            .program_facts
+            .top_level_immutable_value_fqns
+            .contains(fqn)
+        {
             Some(SuspendSiteKind::TopLevelValueInitAccess {
                 target: fqn.clone(),
             })
@@ -2784,8 +2768,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let hir::MemberRef::Value { fqn, .. } = member.resolved.as_ref()? else {
             return None;
         };
-        (self.context.object_value_fqns.contains(fqn)
-            || self.context.object_property_fqns.contains(fqn))
+        (self.context.program_facts.object_value_fqns.contains(fqn)
+            || self.context.program_facts.object_property_fqns.contains(fqn))
         .then(|| SuspendSiteKind::ObjectInitAccess {
             target: fqn.clone(),
         })
@@ -6232,7 +6216,7 @@ fn resolve_plan_expr_concrete_type(
             known_local_metadata.get(id).map(|metadata| metadata.ty)
         }
         hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-            context.top_level_value_tys.get(fqn).copied()
+            context.program_facts.top_level_value_tys.get(fqn).copied()
         }
         hir::ExprKind::MemberAccess { receiver, member } => {
             resolve_plan_member_access_concrete_type(
@@ -6314,10 +6298,10 @@ fn resolve_plan_member_access_concrete_type(
         _ => return None,
     };
 
-    if let Some(ty) = context.top_level_value_tys.get(field_fqn).copied() {
+    if let Some(ty) = context.program_facts.top_level_value_tys.get(field_fqn).copied() {
         return Some(ty);
     }
-    if let Some(ty) = context.object_property_tys.get(field_fqn).copied() {
+    if let Some(ty) = context.program_facts.object_property_tys.get(field_fqn).copied() {
         return Some(ty);
     }
 
@@ -6339,6 +6323,7 @@ fn resolve_plan_struct_field_concrete_type(
     };
     let layout_key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
     context
+        .program_facts
         .struct_field_tys
         .get(&layout_key)
         .and_then(|fields| fields.get(field_fqn).copied())
@@ -6346,6 +6331,7 @@ fn resolve_plan_struct_field_concrete_type(
             (layout_key != nominal.fqn)
                 .then(|| {
                     context
+                        .program_facts
                         .struct_field_tys
                         .get(&nominal.fqn)
                         .and_then(|fields| fields.get(field_fqn).copied())
@@ -6379,6 +6365,7 @@ fn lookup_plan_class_field_concrete_type_by_key(
     field_fqn: &str,
 ) -> Option<TypeId> {
     if let Some(ty) = context
+        .program_facts
         .class_field_tys
         .get(class_key)
         .and_then(|fields| fields.get(field_fqn).copied())
@@ -6386,6 +6373,7 @@ fn lookup_plan_class_field_concrete_type_by_key(
         return Some(ty);
     }
     context
+        .program_facts
         .class_super_keys
         .get(class_key)
         .and_then(|super_key| lookup_plan_class_field_concrete_type_by_key(context, super_key, field_fqn))
@@ -6417,7 +6405,7 @@ fn resolve_plan_call_result_type(
         _ => None,
     }?;
 
-    if let Some(return_ty) = context.fun_return_tys.get(fqn).copied()
+    if let Some(return_ty) = context.program_facts.fun_return_tys.get(fqn).copied()
         && hir_ty_is_precise(types, return_ty)
     {
         return Some(return_ty);
@@ -6691,23 +6679,7 @@ struct SuspendCallAnalysis<'a> {
     known_fun_effects: &'a HashMap<String, bool>,
     known_local_metadata: &'a HashMap<hir::SymbolId, KnownLocalMetadata>,
     current_source_path: &'a Path,
-    program_facts: SuspendCallProgramFacts<'a>,
-}
-
-#[derive(Clone, Copy)]
-struct SuspendCallProgramFacts<'a> {
-    ctor_call_targets: &'a hir::CtorCallSiteIndex,
-    continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
-    non_pure_continuation_resume_call_sites: &'a hir::NonPureContinuationResumeCallSiteIndex,
-    top_level_value_tys: &'a HashMap<String, TypeId>,
-    fun_return_tys: &'a HashMap<String, TypeId>,
-    object_property_tys: &'a HashMap<String, TypeId>,
-    struct_field_tys: &'a HashMap<String, HashMap<String, TypeId>>,
-    class_field_tys: &'a HashMap<String, HashMap<String, TypeId>>,
-    class_super_keys: &'a HashMap<String, String>,
-    object_value_fqns: &'a HashSet<String>,
-    object_property_fqns: &'a HashSet<String>,
-    top_level_immutable_value_fqns: &'a HashSet<String>,
+    program_facts: &'a ProgramFacts,
 }
 
 impl<'a> SuspendCallAnalysis<'a> {
@@ -7225,24 +7197,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             known_local_metadata,
             next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             current_source_path: self.current_source_path.to_path_buf(),
-            ctor_call_targets: self.program_facts.ctor_call_targets.clone(),
-            continuation_resume_call_sites: self.program_facts.continuation_resume_call_sites.clone(),
-            non_pure_continuation_resume_call_sites: self
-                .program_facts
-                .non_pure_continuation_resume_call_sites
-                .clone(),
-            top_level_value_tys: self.program_facts.top_level_value_tys.clone(),
-            fun_return_tys: self.program_facts.fun_return_tys.clone(),
-            object_property_tys: self.program_facts.object_property_tys.clone(),
-            struct_field_tys: self.program_facts.struct_field_tys.clone(),
-            class_field_tys: self.program_facts.class_field_tys.clone(),
-            class_super_keys: self.program_facts.class_super_keys.clone(),
-            object_value_fqns: self.program_facts.object_value_fqns.clone(),
-            object_property_fqns: self.program_facts.object_property_fqns.clone(),
-            top_level_immutable_value_fqns: self
-                .program_facts
-                .top_level_immutable_value_fqns
-                .clone(),
+            program_facts: Rc::new(self.program_facts.clone()),
         };
 
         HandleStateMachinePlan::build_with_context(self.types, handle, &context)
@@ -7316,7 +7271,7 @@ impl<'a> SuspendCallAnalysis<'a> {
 fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
-    program_facts: SuspendCallProgramFacts<'_>,
+    program_facts: &ProgramFacts,
 ) -> HashMap<String, bool> {
     let mut known_fun_effects = fun_index
         .iter()
@@ -7979,80 +7934,6 @@ impl HandlePlanContext {
 
     #[cfg(feature = "llvm")]
     fn from_codegen<'a, 'ctx>(cg: &MainCodegen<'a, 'ctx>) -> Self {
-        let ctor_call_targets = cg.ctor_call_sites.clone();
-        let top_level_value_tys = cg
-            .top_level_vars
-            .iter()
-            .map(|(fqn, var)| (fqn.clone(), var.ty))
-            .chain(cg.top_level_consts.iter().map(|(fqn, value)| (fqn.clone(), value.ty)))
-            .chain(
-                cg.top_level_immutable_values
-                    .iter()
-                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
-            )
-            .collect();
-        let fun_return_tys = cg
-            .fun_index
-            .iter()
-            .map(|(fqn, fun)| (fqn.clone(), fun.return_ty))
-            .collect();
-        let object_property_tys = cg
-            .object_inits
-            .iter()
-            .flat_map(|(owner_fqn, object_init)| {
-                object_init.properties.iter().map(move |(name, property)| {
-                    (format!("{owner_fqn}.{name}"), property.ty)
-                })
-            })
-            .collect();
-        let struct_field_tys = cg
-            .struct_layouts
-            .iter()
-            .map(|(layout_key, layout)| {
-                let fields = layout
-                    .fields
-                    .iter()
-                    .filter_map(|field| field.ty.map(|ty| (field.fqn.clone(), ty)))
-                    .collect::<HashMap<_, _>>();
-                (layout_key.clone(), fields)
-            })
-            .collect();
-        let class_field_tys = cg
-            .class_inits
-            .iter()
-            .map(|(layout_key, class)| {
-                let fields = class
-                    .fields
-                    .iter()
-                    .map(|field| (field.fqn.clone(), field.ty))
-                    .collect::<HashMap<_, _>>();
-                (layout_key.clone(), fields)
-            })
-            .collect();
-        let class_super_keys = cg
-            .class_inits
-            .iter()
-            .filter_map(|(layout_key, class)| {
-                class
-                    .super_class_fqn
-                    .clone()
-                    .map(|super_key| (layout_key.clone(), super_key))
-            })
-            .collect();
-        let object_value_fqns = cg.object_inits.keys().cloned().collect();
-        let object_property_fqns = cg
-            .object_inits
-            .iter()
-            .flat_map(|(owner_fqn, object_init)| {
-                object_init
-                    .properties
-                    .keys()
-                    .map(|name| format!("{owner_fqn}.{name}"))
-                    .collect::<Vec<_>>()
-            })
-            .collect();
-        let top_level_immutable_value_fqns =
-            cg.top_level_immutable_values.keys().cloned().collect();
         let known_fun_effects = cg.known_fun_call_suspendability_map().clone();
 
         let mut known_local_fun_effects = HashMap::new();
@@ -8093,20 +7974,7 @@ impl HandlePlanContext {
             known_local_metadata,
             next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             current_source_path,
-            ctor_call_targets,
-            continuation_resume_call_sites: cg.continuation_resume_call_sites.clone(),
-            non_pure_continuation_resume_call_sites: cg
-                .non_pure_continuation_resume_call_sites
-                .clone(),
-            top_level_value_tys,
-            fun_return_tys,
-            object_property_tys,
-            struct_field_tys,
-            class_field_tys,
-            class_super_keys,
-            object_value_fqns,
-            object_property_fqns,
-            top_level_immutable_value_fqns,
+            program_facts: Rc::clone(&cg.shared.program_facts),
         }
     }
 
@@ -8225,104 +8093,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return;
         }
 
-        let ctor_call_targets = self.ctor_call_sites.clone();
-        let object_value_fqns = self.object_inits.keys().cloned().collect::<HashSet<_>>();
-        let object_property_fqns = self
-            .object_inits
-            .iter()
-            .flat_map(|(owner_fqn, object_init)| {
-                object_init
-                    .properties
-                    .keys()
-                    .map(|name| format!("{owner_fqn}.{name}"))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<HashSet<_>>();
-        let top_level_immutable_value_fqns = self
-            .top_level_immutable_values
-            .keys()
-            .cloned()
-            .collect::<HashSet<_>>();
-        let top_level_value_tys = self
-            .top_level_vars
-            .iter()
-            .map(|(fqn, var)| (fqn.clone(), var.ty))
-            .chain(self.top_level_consts.iter().map(|(fqn, value)| (fqn.clone(), value.ty)))
-            .chain(
-                self.top_level_immutable_values
-                    .iter()
-                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
-            )
-            .collect::<HashMap<_, _>>();
-        let fun_return_tys = self
-            .fun_index
-            .iter()
-            .map(|(fqn, fun)| (fqn.clone(), fun.return_ty))
-            .collect::<HashMap<_, _>>();
-        let object_property_tys = self
-            .object_inits
-            .iter()
-            .flat_map(|(owner_fqn, object_init)| {
-                object_init
-                    .properties
-                    .iter()
-                    .map(|(name, property)| (format!("{owner_fqn}.{name}"), property.ty))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<HashMap<_, _>>();
-        let struct_field_tys = self
-            .struct_layouts
-            .iter()
-            .map(|(layout_key, layout)| {
-                let fields = layout
-                    .fields
-                    .iter()
-                    .filter_map(|field| field.ty.map(|ty| (field.fqn.clone(), ty)))
-                    .collect::<HashMap<_, _>>();
-                (layout_key.clone(), fields)
-            })
-            .collect::<HashMap<_, _>>();
-        let class_field_tys = self
-            .class_inits
-            .iter()
-            .map(|(layout_key, class)| {
-                let fields = class
-                    .fields
-                    .iter()
-                    .map(|field| (field.fqn.clone(), field.ty))
-                    .collect::<HashMap<_, _>>();
-                (layout_key.clone(), fields)
-            })
-            .collect::<HashMap<_, _>>();
-        let class_super_keys = self
-            .class_inits
-            .iter()
-            .filter_map(|(layout_key, class)| {
-                class
-                    .super_class_fqn
-                    .clone()
-                    .map(|super_key| (layout_key.clone(), super_key))
-            })
-            .collect::<HashMap<_, _>>();
-        let program_facts = SuspendCallProgramFacts {
-            ctor_call_targets: &ctor_call_targets,
-            continuation_resume_call_sites: self.continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites: self
-                .non_pure_continuation_resume_call_sites,
-            top_level_value_tys: &top_level_value_tys,
-            fun_return_tys: &fun_return_tys,
-            object_property_tys: &object_property_tys,
-            struct_field_tys: &struct_field_tys,
-            class_field_tys: &class_field_tys,
-            class_super_keys: &class_super_keys,
-            object_value_fqns: &object_value_fqns,
-            object_property_fqns: &object_property_fqns,
-            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
-        };
         let known_fun_effects = collect_known_fun_call_suspendability(
             self.types,
             self.fun_index,
-            program_facts,
+            self.shared.program_facts.as_ref(),
         );
         *self
             .shared_caches
@@ -8400,86 +8174,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let ctor_call_targets = self.ctor_call_sites.clone();
-        let object_value_fqns = self.object_inits.keys().cloned().collect::<HashSet<_>>();
-        let object_property_fqns = self
-            .object_inits
-            .iter()
-            .flat_map(|(owner_fqn, object_init)| {
-                object_init
-                    .properties
-                    .keys()
-                    .map(|name| format!("{owner_fqn}.{name}"))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<HashSet<_>>();
-        let top_level_immutable_value_fqns = self
-            .top_level_immutable_values
-            .keys()
-            .cloned()
-            .collect::<HashSet<_>>();
-        let top_level_value_tys = self
-            .top_level_vars
-            .iter()
-            .map(|(fqn, var)| (fqn.clone(), var.ty))
-            .chain(self.top_level_consts.iter().map(|(fqn, value)| (fqn.clone(), value.ty)))
-            .chain(
-                self.top_level_immutable_values
-                    .iter()
-                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
-            )
-            .collect::<HashMap<_, _>>();
-        let fun_return_tys = self
-            .fun_index
-            .iter()
-            .map(|(fqn, fun)| (fqn.clone(), fun.return_ty))
-            .collect::<HashMap<_, _>>();
-        let object_property_tys = self
-            .object_inits
-            .iter()
-            .flat_map(|(owner_fqn, object_init)| {
-                object_init
-                    .properties
-                    .iter()
-                    .map(|(name, property)| (format!("{owner_fqn}.{name}"), property.ty))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<HashMap<_, _>>();
-        let struct_field_tys = self
-            .struct_layouts
-            .iter()
-            .map(|(layout_key, layout)| {
-                let fields = layout
-                    .fields
-                    .iter()
-                    .filter_map(|field| field.ty.map(|ty| (field.fqn.clone(), ty)))
-                    .collect::<HashMap<_, _>>();
-                (layout_key.clone(), fields)
-            })
-            .collect::<HashMap<_, _>>();
-        let class_field_tys = self
-            .class_inits
-            .iter()
-            .map(|(layout_key, class)| {
-                let fields = class
-                    .fields
-                    .iter()
-                    .map(|field| (field.fqn.clone(), field.ty))
-                    .collect::<HashMap<_, _>>();
-                (layout_key.clone(), fields)
-            })
-            .collect::<HashMap<_, _>>();
-        let class_super_keys = self
-            .class_inits
-            .iter()
-            .filter_map(|(layout_key, class)| {
-                class
-                    .super_class_fqn
-                    .clone()
-                    .map(|super_key| (layout_key.clone(), super_key))
-            })
-            .collect::<HashMap<_, _>>();
-
         SuspendCallAnalysis {
             types: self.types,
             known_fun_effects: &known_fun_effects,
@@ -8488,21 +8182,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .current_source()
                 .expect("codegen context should always have a current source")
                 .path(),
-            program_facts: SuspendCallProgramFacts {
-                ctor_call_targets: &ctor_call_targets,
-                continuation_resume_call_sites: self.continuation_resume_call_sites,
-                non_pure_continuation_resume_call_sites: self
-                    .non_pure_continuation_resume_call_sites,
-                top_level_value_tys: &top_level_value_tys,
-                fun_return_tys: &fun_return_tys,
-                object_property_tys: &object_property_tys,
-                struct_field_tys: &struct_field_tys,
-                class_field_tys: &class_field_tys,
-                class_super_keys: &class_super_keys,
-                object_value_fqns: &object_value_fqns,
-                object_property_fqns: &object_property_fqns,
-                top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
-            },
+            program_facts: self.shared.program_facts.as_ref(),
         }
         .function_value_may_suspend_when_called(expr, &known_locals)
     }
@@ -8743,18 +8423,7 @@ fn direct_step_analysis_context_for_handle(handle: &hir::HandleExpr) -> HandlePl
         known_local_metadata,
         next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
         current_source_path: PathBuf::from("<t4008b1a>"),
-        ctor_call_targets: HashMap::new(),
-        continuation_resume_call_sites: HashSet::new(),
-        non_pure_continuation_resume_call_sites: HashSet::new(),
-        top_level_value_tys: HashMap::new(),
-        fun_return_tys: HashMap::new(),
-        object_property_tys: HashMap::new(),
-        struct_field_tys: HashMap::new(),
-        class_field_tys: HashMap::new(),
-        class_super_keys: HashMap::new(),
-        object_value_fqns: HashSet::new(),
-        object_property_fqns: HashSet::new(),
-        top_level_immutable_value_fqns: HashSet::new(),
+        program_facts: Rc::new(ProgramFacts::default()),
     }
 }
 
