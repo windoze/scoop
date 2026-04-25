@@ -30,9 +30,9 @@ const val EW1: Bool = "hello".endsWith("llo")
 const val EW2: Bool = "hello".endsWith("xyz")
 
 // --- split ---
-const val SP1: (String, String, String) = "a,b,c".split(",")
-const val SP2: (String) = "hello".split(",")
-const val SP3: (String, String) = "a::b".split("::")
+const val SP1: Array<String> = "a,b,c".split(",")
+const val SP2: Array<String> = "hello".split(",")
+const val SP3: Array<String> = "a::b".split("::")
 
 // --- trim / trimStart / trimEnd ---
 const val T1: String = "  hello  ".trim()

@@ -102,6 +102,7 @@ struct CheckFileExprsPassResult {
     continuation_resume_call_sites: HashSet<Span>,
     non_pure_continuation_resume_call_sites: HashSet<Span>,
     top_level_fun_value_refs: HashMap<Span, ast::TopLevelFunValueRef>,
+    top_level_fun_call_bindings: HashMap<Span, ast::TopLevelFunCallBinding>,
     typechecked_effect_op_call_bindings: HashMap<Span, ast::EffectOpCallBinding>,
     typechecked_ctor_call_bindings: HashMap<Span, ast::CtorCallBinding>,
     monomorph_keys: Vec<MonomorphKey>,
@@ -250,6 +251,7 @@ fn reset_file_expr_side_tables(file: &ast::File) {
     file.replace_continuation_resume_call_sites(HashSet::new());
     file.replace_non_pure_continuation_resume_call_sites(HashSet::new());
     file.replace_top_level_fun_value_refs(HashMap::new());
+    file.replace_top_level_fun_call_bindings(HashMap::new());
     file.replace_typechecked_effect_op_call_bindings(HashMap::new());
     file.replace_typechecked_ctor_call_bindings(HashMap::new());
 }
@@ -266,6 +268,7 @@ fn apply_check_file_exprs_pass_result(file: &ast::File, result: &CheckFileExprsP
         result.non_pure_continuation_resume_call_sites.clone(),
     );
     file.replace_top_level_fun_value_refs(result.top_level_fun_value_refs.clone());
+    file.replace_top_level_fun_call_bindings(result.top_level_fun_call_bindings.clone());
     file.replace_typechecked_effect_op_call_bindings(
         result.typechecked_effect_op_call_bindings.clone(),
     );
@@ -414,6 +417,7 @@ fn check_file_exprs_pass(
         non_pure_continuation_resume_call_sites: lower
             .take_non_pure_continuation_resume_call_sites(),
         top_level_fun_value_refs: lower.take_top_level_fun_value_refs(),
+        top_level_fun_call_bindings: lower.take_top_level_fun_call_bindings(),
         typechecked_effect_op_call_bindings: lower.take_typechecked_effect_op_call_bindings(),
         typechecked_ctor_call_bindings: lower.take_typechecked_ctor_call_bindings(),
         monomorph_keys,

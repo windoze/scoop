@@ -82,9 +82,9 @@
 
 ## 12. const / comptime 仍然只覆盖很窄的纯计算子集
 
-- 现状：声明头检查仍会直接拒绝 `const fun` 上的非 `Pure` effect row 与任何 `eff` 参数；常量 evaluator 仍只覆盖字面量与一元/二元运算，不支持函数外的控制流 / effects / 循环；`const fun` 解释器当前也仍只支持同文件、按“函数名 + 参数个数”的最小选择。
-- 影响：编译期执行链路已经不是空壳，但仍停留在最保守的纯函数 / 常量折叠模型，离更完整的 comptime 语义还有明显距离。
-- 证据：`crates/scoopc/src/typecheck/headers.rs:34-49`；`crates/scoopc/src/typecheck/headers.rs:94-116`；`crates/scoopc/src/comptime/eval.rs:295-650`；`crates/scoopc/src/comptime/interpreter.rs:412-442`；`crates/scoopc/src/comptime/interpreter.rs:1169-1242`。
+- 现状：non-generic 顶层 `const fun` 调用现已接入 compilation-unit 的 resolve/typecheck 绑定，跨文件 / import / overload 会复用普通调用主线的最终选择；但 generic `const fun` 的实例化 / type-substitution 仍未接通。与此同时，声明头检查仍会直接拒绝 `const fun` 上的非 `Pure` effect row 与任何 `eff` 参数；常量 evaluator / interpreter 虽已覆盖 `const fun`、局部声明、`comptime if/for`、字符串 builtin 等一批常见路径，但整体仍停留在较窄的纯计算子集，离更完整的 comptime 语义还有明显距离。
+- 影响：编译期执行链路已经具备跨文件 non-generic 调用能力，但 generic `const fun`、更宽的纯计算结构与更细粒度的 header-phase const 规则仍然是后续收口重点。
+- 证据：`crates/scoopc/src/typecheck/headers.rs`；`crates/scoopc/src/typecheck/expr/call.rs`；`crates/scoopc/src/comptime/eval.rs`；`crates/scoopc/src/comptime/interpreter.rs`；`crates/scoopc/src/comptime/tests.rs`；`tests/fixtures/comptime/const_fun_string_methods.scoop`。
 
 ## 13. Elvis `?:` 已有静态规则，但仍未进入可执行 lowering / codegen
 

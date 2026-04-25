@@ -162,12 +162,11 @@ pub(super) fn infer_splice_field_expr_type(
     //
     // v0 语义（与 TODO T1204 的 fieldsOf v0 保持一致）：
     // - 当 `field` 为字符串字面量时：等价于普通成员访问 `receiver.<name>` 并返回该字段类型；
-    // - 其它情况（例如未来的 FieldMeta / comptime for binder）：当前阶段先保守退化为 `Any`，
-    //   留给后续 comptime 展开/元数据补齐后再做更精确的约束与推导。
+    // - 当 `field` 为“包含 `name: String` 的 struct 描述符”时：
+    //   - 若 `name` 是字符串字面量，同样可恢复精确字段类型；
+    //   - 否则先保守退化为 `Any`，留给后续 comptime 展开/元数据补齐后再做更精确推导；
+    // - 其它情况（例如未来的 comptime for binder）：当前阶段保守退化为 `Any`。
     let receiver_ty = inputs.infer(lower, receiver)?;
-
-    // 仍然递归 typecheck `field`，保证其中的表达式错误不会被“跳过”吞掉。
-    let _ = inputs.infer(lower, field)?;
 
     let field_name: Option<String> = match &field.kind {
         ast::ExprKind::StringLit => {
@@ -184,7 +183,14 @@ pub(super) fn infer_splice_field_expr_type(
                 }
             }
         }
-        _ => None,
+        ast::ExprKind::StructLit { fields, .. } => {
+            infer_splice_field_descriptor_name(inputs, field, fields, lower)?
+        }
+        _ => {
+            // 仍然递归 typecheck `field`，保证其中的表达式错误不会被“跳过”吞掉。
+            let _ = inputs.infer(lower, field)?;
+            None
+        }
     };
 
     let Some(field_name) = field_name else {
@@ -218,6 +224,74 @@ pub(super) fn infer_splice_field_expr_type(
             fqn: field_fqn,
             span: field.span.into(),
         })
+}
+
+fn infer_splice_field_descriptor_name(
+    inputs: ExprInferInputs<'_>,
+    field_expr: &ast::Expr,
+    fields: &[ast::StructLitField],
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<String>, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+    let mut seen_fields: HashSet<String> = HashSet::new();
+    let mut saw_name = false;
+    let mut literal_name = None;
+
+    for field in fields {
+        let field_name = source.slice(field.name.span).to_string();
+        if !seen_fields.insert(field_name.clone()) {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "splice field access（struct 描述符字段重复）",
+                span: field.name.span.into(),
+            });
+        }
+
+        if field_name == "name" {
+            saw_name = true;
+            let found_ty = inputs.infer_in_expected(
+                lower,
+                &field.value,
+                builtins.string,
+                ExpectedTypeFrom::new("splice field access 描述符的 `name` 字段"),
+            )?;
+            if !is_type_assignable(found_ty, builtins.string, lower, builtins) {
+                return Err(ExprTypeError::StructLitFieldTypeMismatch {
+                    struct_name: "splice field descriptor".to_string(),
+                    field: "name".to_string(),
+                    expected: lower.fmt_type(builtins.string),
+                    found: lower.fmt_type(found_ty),
+                    span: field.value.span.into(),
+                });
+            }
+
+            if matches!(field.value.kind, ast::ExprKind::StringLit) {
+                let raw = source.slice(field.value.span);
+                literal_name = Some(match parse_string_literal_utf8(raw) {
+                    Ok(s) => s,
+                    Err(StringLiteralParseError::Invalid)
+                    | Err(StringLiteralParseError::InvalidUtf8)
+                    | Err(StringLiteralParseError::Interpolated) => {
+                        return Err(ExprTypeError::UnsupportedExpr {
+                            kind: "splice field access（非法字符串字面量）",
+                            span: field.value.span.into(),
+                        });
+                    }
+                });
+            }
+        } else {
+            let _ = inputs.infer(lower, &field.value)?;
+        }
+    }
+
+    if !saw_name {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "splice field access（struct 描述符缺少 `name` 字段）",
+            span: field_expr.span.into(),
+        });
+    }
+
+    Ok(literal_name)
 }
 
 pub(super) fn infer_member_access_expr_type(
@@ -300,16 +374,10 @@ fn infer_member_access_with_receiver_ty(
             //
             // 说明：
             // - tuple 并非名义类型，因此 resolver 阶段无法像 `Point.x` 一样写回成员 FQN；
-            // - 这里在 typecheck 阶段通过 receiver 的推导类型来支持最小 tuple 元素访问语义。
+            // - `ComptimeList<T>` 也没有普通成员声明，但 reflection/comptime surface 会把
+            //   `_0/_1/...` 用作最小索引语法；这里同样按 receiver 的推导类型给出元素类型，
+            //   具体越界检查留给后续常量求值。
             let Some(receiver_ty) = receiver_ty else {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "member access（未 resolve）",
-                    span: member.span.into(),
-                });
-            };
-
-            let TypeKind::Value(ValueTypeKind::Tuple(elements)) = lower.type_kind(receiver_ty)
-            else {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "member access（未 resolve）",
                     span: member.span.into(),
@@ -318,6 +386,22 @@ fn infer_member_access_with_receiver_ty(
 
             let member_name = inputs.source.slice(member.span);
             let Some(idx) = parse_tuple_member_index(member_name) else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "member access（未 resolve）",
+                    span: member.span.into(),
+                });
+            };
+
+            if let Some(elem_ty) = comptime_list_element_type(receiver_ty, lower) {
+                let _ = idx;
+                return Ok(MemberAccessInference {
+                    ty: elem_ty,
+                    resolved: None,
+                });
+            }
+
+            let TypeKind::Value(ValueTypeKind::Tuple(elements)) = lower.type_kind(receiver_ty)
+            else {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "member access（未 resolve）",
                     span: member.span.into(),
@@ -598,6 +682,18 @@ fn find_extension_property_candidate(
     candidates.sort();
     candidates.dedup();
     candidates.into_iter().next()
+}
+
+fn comptime_list_element_type(receiver_ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {
+    match lower.type_kind(receiver_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(nominal))
+        | TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            if nominal.fqn == "scoop.core.ComptimeList" =>
+        {
+            nominal.args.first().copied()
+        }
+        _ => None,
+    }
 }
 
 fn parse_tuple_member_index(text: &str) -> Option<usize> {

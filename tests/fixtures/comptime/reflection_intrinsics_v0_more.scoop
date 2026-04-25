@@ -11,18 +11,18 @@ package fixtures.comptime_
 
 import scoop.core.*
 
-annotation class Deprecated(val msg: String)
+annotation class Anno(val msg: String)
 
 interface I {}
 
-@Deprecated("x")
+@Anno("x")
 class C() : I {}
 
 enum Color { Red, Blue }
 
 enum E { A(val x: Int, val y: String), B }
 
-fun add(a: Int, b: String): Int { return 0 }
+fun sampleAdd(a: Int, b: String): Int { return 0 }
 
 const val A: Int = alignOf<Int32>()
 const val ST = superTypesOf<C>()
@@ -31,8 +31,8 @@ const val VS = variantsOf<Color>()
 const val V0: String = variantsOf<Color>()._0.name
 const val EV = variantsOf<E>()
 const val EV0F0: String = variantsOf<E>()._0.fields._0.name
-const val P = paramsOf(FunctionMeta { name: "add" })
-const val P0N: String = paramsOf(FunctionMeta { name: "add" })._0.name
-const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
+const val P = paramsOf(FunctionMeta { name: "sampleAdd" })
+const val P0N: String = paramsOf(FunctionMeta { name: "sampleAdd" })._0.name
+const val P1T: String = paramsOf(FunctionMeta { name: "sampleAdd" })._1.type.name
 const val AN = annotationsOf<C>()
 const val AN0N: String = annotationsOf<C>()._0.name

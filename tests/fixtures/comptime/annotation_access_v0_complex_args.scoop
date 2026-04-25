@@ -17,7 +17,6 @@ annotation class Anno(val a: Int, val colors: Array<Color>, val cls: String)
 struct Foo(val x: Int)
 
 const val A = annotationsOf<Foo>()
-const val V0: Int = annotationsOf<Foo>()._0.args._0.value
+const val V0 = annotationsOf<Foo>()._0.args._0.value
 const val V1 = annotationsOf<Foo>()._0.args._1.value
-const val V2: String = annotationsOf<Foo>()._0.args._2.value
-
+const val V2 = annotationsOf<Foo>()._0.args._2.value

@@ -506,6 +506,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - 记录 `foo` / `foo<T>` 在值位置被视作函数值时的精确目标；
     /// - HIR lowering 读取后把它们合成为 closure object，而不是误走顶层值读取路径。
     top_level_fun_value_refs: HashMap<Span, ast::TopLevelFunValueRef>,
+    /// typecheck 选中的“顶层函数调用”绑定信息。
+    ///
+    /// 用途：
+    /// - 记录普通顶层函数调用在 overload resolution / 泛型实例化之后的最终声明目标；
+    /// - 供 const/comptime 等后续阶段按 typecheck 最终决议重放调用，而不是重新按名字/arity 猜测。
+    top_level_fun_call_bindings: HashMap<Span, ast::TopLevelFunCallBinding>,
     /// typecheck 选中的 effect-op 调用绑定信息。
     ///
     /// 用途：
@@ -643,6 +649,7 @@ impl<'a> TypeLowering<'a> {
             continuation_resume_call_sites: HashSet::new(),
             non_pure_continuation_resume_call_sites: HashSet::new(),
             top_level_fun_value_refs: HashMap::new(),
+            top_level_fun_call_bindings: HashMap::new(),
             typechecked_effect_op_call_bindings: HashMap::new(),
             typechecked_ctor_call_bindings: HashMap::new(),
             monomorph_requests: None,
@@ -1603,6 +1610,27 @@ impl<'a> TypeLowering<'a> {
             .insert(expr_span, ast::TopLevelFunValueRef { fqn, type_args });
     }
 
+    pub(super) fn record_top_level_fun_call_binding(
+        &mut self,
+        call_span: Span,
+        fqn: String,
+        decl_file: std::path::PathBuf,
+        decl_span: Span,
+        is_intrinsic: bool,
+        type_args: Vec<TypeId>,
+    ) {
+        self.top_level_fun_call_bindings.insert(
+            call_span,
+            ast::TopLevelFunCallBinding {
+                fqn,
+                decl_file,
+                decl_span,
+                is_intrinsic,
+                type_args,
+            },
+        );
+    }
+
     pub(super) fn record_typechecked_effect_op_call_binding(
         &mut self,
         call_span: Span,
@@ -1669,6 +1697,12 @@ impl<'a> TypeLowering<'a> {
         &mut self,
     ) -> HashMap<Span, ast::TopLevelFunValueRef> {
         std::mem::take(&mut self.top_level_fun_value_refs)
+    }
+
+    pub(super) fn take_top_level_fun_call_bindings(
+        &mut self,
+    ) -> HashMap<Span, ast::TopLevelFunCallBinding> {
+        std::mem::take(&mut self.top_level_fun_call_bindings)
     }
 
     pub(super) fn take_typechecked_effect_op_call_bindings(

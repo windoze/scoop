@@ -17,7 +17,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 
 use super::eval::{ConstEvalHost, eval_const_expr, eval_const_expr_with_host, value_kind};
-use super::{ConstEvalCtx, ConstEvalError, ConstFloatTy, ConstValue};
+use super::{ConstEvalCtx, ConstEvalError, ConstFloatTy, ConstIntTy, ConstValue};
 
 /// const 解释器配置项（v0）。
 #[derive(Debug, Clone, Copy)]
@@ -45,15 +45,232 @@ pub struct ConstBinding {
 ///
 /// 说明：
 /// - 该函数不做 parse；调用方需先通过 parser 拿到 AST；
-/// - 当前仅支持同一文件内的 `const fun` 调用（按 name+arity 最小选择）。
+/// - 调用会在“当前文件 + 传入 sysroot”的 compilation-unit 上下文中执行 resolve/typecheck，
+///   再按普通调用主线选中的绑定执行 const/comptime 解释。
 pub fn eval_const_bindings_in_file<'a>(
+    sysroot: &'a crate::sysroot::Sysroot,
     source: &'a SourceFile,
     file: &'a ast::File,
 ) -> Result<Vec<ConstBinding>, ConstEvalError> {
-    let mut interp =
-        ConstInterpreter::with_options(ConstEvalCtx::new(source), ConstEvalOptions::default());
-    interp.register_file(file);
-    interp.eval_const_bindings(file)
+    eval_const_bindings_in_compilation_unit(sysroot, &[(source, file)], 0)
+}
+
+/// 在一个多文件 compilation-unit 中执行目标文件的 `const val` initializer。
+///
+/// 说明：
+/// - `files` 仅包含当前编译单元的用户源文件；sysroot 由 `sysroot` 单独注入。
+/// - `target_file_idx` 指定要导出哪一个文件的顶层 `const val` 结果。
+pub fn eval_const_bindings_in_compilation_unit<'a>(
+    sysroot: &'a crate::sysroot::Sysroot,
+    files: &[(&'a SourceFile, &'a ast::File)],
+    target_file_idx: usize,
+) -> Result<Vec<ConstBinding>, ConstEvalError> {
+    assert!(
+        target_file_idx < files.len(),
+        "target_file_idx must point at an input file"
+    );
+
+    #[derive(Clone)]
+    struct PreparedConstEvalFile<'a> {
+        source: &'a SourceFile,
+        ast: ast::File,
+    }
+
+    #[derive(Clone)]
+    struct OwnedPreparedConstEvalFile {
+        source: SourceFile,
+        ast: ast::File,
+    }
+
+    let mut prepared_sysroot: Vec<PreparedConstEvalFile<'a>> =
+        Vec::with_capacity(sysroot.files.len());
+    for f in &sysroot.files {
+        let mut ast = f.ast.clone();
+        trim_package_level_comptime_ifs(&f.source, &mut ast)?;
+        prepared_sysroot.push(PreparedConstEvalFile {
+            source: &f.source,
+            ast,
+        });
+    }
+
+    let stdlib_source_paths = load_stdlib_source_paths()?;
+    let mut prepared_stdlib: Vec<OwnedPreparedConstEvalFile> =
+        Vec::with_capacity(stdlib_source_paths.len());
+    for path in stdlib_source_paths {
+        let source = SourceFile::load(&path).map_err(|err| frontend_message(err.to_string()))?;
+        let mut ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
+        trim_package_level_comptime_ifs(&source, &mut ast)?;
+        prepared_stdlib.push(OwnedPreparedConstEvalFile { source, ast });
+    }
+
+    let mut compilable_sysroot_paths = sysroot.compilable_source_paths.clone();
+    compilable_sysroot_paths.sort();
+
+    let mut prepared_compilable_sysroot: Vec<OwnedPreparedConstEvalFile> =
+        Vec::with_capacity(compilable_sysroot_paths.len());
+    for path in compilable_sysroot_paths {
+        let source = SourceFile::load(&path).map_err(|err| frontend_message(err.to_string()))?;
+        let mut ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
+        trim_package_level_comptime_ifs(&source, &mut ast)?;
+        prepared_compilable_sysroot.push(OwnedPreparedConstEvalFile { source, ast });
+    }
+
+    let mut prepared: Vec<PreparedConstEvalFile<'a>> = Vec::with_capacity(files.len());
+    for (source, file) in files.iter().copied() {
+        let mut ast = file.clone();
+        trim_package_level_comptime_ifs(source, &mut ast)?;
+        prepared.push(PreparedConstEvalFile { source, ast });
+    }
+
+    let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::with_capacity(
+        prepared_sysroot.len()
+            + prepared_stdlib.len()
+            + prepared_compilable_sysroot.len()
+            + prepared.len(),
+    );
+    for f in &prepared_sysroot {
+        pairs.push((f.source, &f.ast));
+    }
+    for f in &prepared_stdlib {
+        pairs.push((&f.source, &f.ast));
+    }
+    for f in &prepared_compilable_sysroot {
+        pairs.push((&f.source, &f.ast));
+    }
+    for f in &prepared {
+        pairs.push((f.source, &f.ast));
+    }
+
+    let index = crate::resolve::Index::build(&pairs).map_err(frontend_diagnostic)?;
+    let mut env =
+        crate::typecheck::TypeEnv::from_sysroot(sysroot, &index).map_err(frontend_diagnostic)?;
+    for f in &prepared_stdlib {
+        env.extend_from_file(&f.source, &f.ast, &index)
+            .map_err(frontend_diagnostic)?;
+    }
+    for f in &prepared_compilable_sysroot {
+        env.extend_from_file(&f.source, &f.ast, &index)
+            .map_err(frontend_diagnostic)?;
+    }
+    for f in &prepared {
+        env.extend_from_file(f.source, &f.ast, &index)
+            .map_err(frontend_diagnostic)?;
+    }
+
+    let mut types = crate::ty::TypeStore::new();
+    let builtins = types.intern_builtins();
+
+    let mut run_frontend_pipeline =
+        |source: &SourceFile, ast: &mut ast::File| -> Result<(), ConstEvalError> {
+            crate::typecheck::check_file_struct_decls(source, ast).map_err(frontend_diagnostic)?;
+
+            let headers = crate::resolve::check_file_headers(source, ast, &index)
+                .map_err(frontend_diagnostic)?;
+            crate::resolve::check_file_bodies(source, ast, &index, &headers)
+                .map_err(frontend_diagnostic)?;
+
+            crate::typecheck::check_file_annotations(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_properties(source, ast, &index, &env)
+                .map_err(|err| frontend_boxed_diagnostic(err))?;
+            crate::typecheck::check_file_inheritance(source, ast, &index)
+                .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_interfaces(source, ast, &index, &env)
+                .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_override_effects(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(|err| frontend_boxed_diagnostic(err))?;
+            crate::typecheck::check_file_type_refs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_where_clauses(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_overload_conflicts(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_exprs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            Ok(())
+        };
+
+    for f in &mut prepared_sysroot {
+        run_frontend_pipeline(f.source, &mut f.ast)?;
+    }
+    for f in &mut prepared_stdlib {
+        run_frontend_pipeline(&f.source, &mut f.ast)?;
+    }
+    for f in &mut prepared_compilable_sysroot {
+        run_frontend_pipeline(&f.source, &mut f.ast)?;
+    }
+    for f in &mut prepared {
+        run_frontend_pipeline(f.source, &mut f.ast)?;
+    }
+
+    let target = &prepared[target_file_idx];
+    let mut interp = ConstInterpreter::with_options(
+        ConstEvalCtx::new(target.source),
+        &target.ast,
+        ConstEvalOptions::default(),
+    );
+    for f in &prepared_sysroot {
+        interp.register_file(f.source, &f.ast);
+    }
+    for f in &prepared_stdlib {
+        interp.register_file(&f.source, &f.ast);
+    }
+    for f in &prepared_compilable_sysroot {
+        interp.register_file(&f.source, &f.ast);
+    }
+    for f in &prepared {
+        interp.register_file(f.source, &f.ast);
+    }
+
+    interp.eval_const_bindings_for_file(target.source, &target.ast)
 }
 
 /// 在 resolver/index 之前裁剪 package-level `comptime if`（TODO T1220b）。
@@ -84,9 +301,12 @@ pub fn trim_package_level_comptime_ifs(
         // 以避免 “解释器内部持有对 AST 节点的引用” 与 “移动 items” 之间的冲突。
         let file_ref: &ast::File = &*file;
 
-        let mut interp =
-            ConstInterpreter::with_options(ConstEvalCtx::new(source), ConstEvalOptions::default());
-        interp.register_file(file_ref);
+        let mut interp = ConstInterpreter::with_options(
+            ConstEvalCtx::new(source),
+            file_ref,
+            ConstEvalOptions::default(),
+        );
+        interp.register_file(source, file_ref);
 
         let mut out: Vec<ast::Item> = Vec::new();
         trim_package_level_items(&mut interp, &file_ref.items, &mut out, PreRegisterDecls::No)?;
@@ -101,6 +321,20 @@ pub fn trim_package_level_comptime_ifs(
 enum PreRegisterDecls {
     No,
     Yes,
+}
+
+#[derive(Clone, Copy)]
+struct RegisteredFun<'a> {
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    fun: &'a ast::FunDecl,
+}
+
+#[derive(Clone, Copy)]
+struct RegisteredType<'a> {
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    decl: &'a ast::TypeDecl,
 }
 
 fn trim_package_level_items<'a>(
@@ -133,41 +367,175 @@ fn trim_package_level_items<'a>(
     Ok(())
 }
 
+fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {
+    package
+        .map(|pkg| {
+            pkg.path
+                .iter()
+                .map(|id| id.text(source))
+                .collect::<Vec<_>>()
+                .join(".")
+        })
+        .unwrap_or_default()
+}
+
+fn top_level_fqn(pkg_prefix: &str, local: &str) -> String {
+    if pkg_prefix.is_empty() {
+        local.to_string()
+    } else {
+        format!("{pkg_prefix}.{local}")
+    }
+}
+
+fn frontend_diagnostic<E>(error: E) -> ConstEvalError
+where
+    E: miette::Diagnostic + Send + Sync + 'static,
+{
+    ConstEvalError::Frontend(Box::new(error))
+}
+
+fn frontend_boxed_diagnostic(error: Box<dyn miette::Diagnostic + Send + Sync>) -> ConstEvalError {
+    ConstEvalError::Frontend(error)
+}
+
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+#[error("{message}")]
+struct FrontendMessageDiagnostic {
+    message: String,
+}
+
+fn frontend_message(message: String) -> ConstEvalError {
+    frontend_boxed_diagnostic(Box::new(FrontendMessageDiagnostic { message }))
+}
+
+fn load_stdlib_source_paths() -> Result<Vec<std::path::PathBuf>, ConstEvalError> {
+    let root = default_stdlib_path()
+        .canonicalize()
+        .map_err(|err| frontend_message(format!("无法定位 stdlib 目录：{err}")))?;
+    let mut paths = Vec::new();
+    collect_scoop_files_recursively(&root, &mut paths)?;
+    paths.sort();
+    Ok(paths)
+}
+
+fn default_stdlib_path() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
+}
+
+fn collect_scoop_files_recursively(
+    dir: &std::path::Path,
+    out: &mut Vec<std::path::PathBuf>,
+) -> Result<(), ConstEvalError> {
+    let entries = std::fs::read_dir(dir)
+        .map_err(|err| frontend_message(format!("无法读取目录：{}: {err}", dir.display())))?;
+    for entry in entries {
+        let entry = entry
+            .map_err(|err| frontend_message(format!("无法读取目录项：{}: {err}", dir.display())))?;
+        let path = entry.path();
+        let ty = entry.file_type().map_err(|err| {
+            frontend_message(format!("无法读取文件类型：{}: {err}", path.display()))
+        })?;
+        if ty.is_dir() {
+            collect_scoop_files_recursively(&path, out)?;
+            continue;
+        }
+        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
 /// `const fun` 调用与局部求值的解释器状态。
 struct ConstInterpreter<'a> {
-    ctx: ConstEvalCtx<'a>,
+    default_int_ty: ConstIntTy,
     options: ConstEvalOptions,
     call_depth: usize,
     /// 作用域栈（后进先出）：局部 val/参数/顶层 const val 都放在这里。
     scopes: Vec<HashMap<String, ConstValue>>,
-    /// 该文件中所有顶层函数（按名称聚合；用于判断“存在但非 const”）。
-    funs_by_name: HashMap<String, Vec<&'a ast::FunDecl>>,
-    /// 该文件中所有顶层类型声明（按名称聚合；用于反射 intrinsics v0）。
-    types_by_name: HashMap<String, Vec<&'a ast::TypeDecl>>,
+    /// 当前求值栈上的 source/file 上下文。
+    current_sources: Vec<&'a SourceFile>,
+    current_files: Vec<&'a ast::File>,
+    /// 顶层函数注册表（simple name → 声明集合）。
+    funs_by_name: HashMap<String, Vec<RegisteredFun<'a>>>,
+    /// 顶层函数注册表（FQN → overload set）。
+    funs_by_fqn: HashMap<String, Vec<RegisteredFun<'a>>>,
+    /// 顶层类型声明（按 simple name 聚合；用于反射 intrinsics v0）。
+    types_by_name: HashMap<String, Vec<RegisteredType<'a>>>,
 }
 
 impl<'a> ConstInterpreter<'a> {
-    fn with_options(ctx: ConstEvalCtx<'a>, options: ConstEvalOptions) -> Self {
+    fn with_options(ctx: ConstEvalCtx<'a>, file: &'a ast::File, options: ConstEvalOptions) -> Self {
         Self {
-            ctx,
+            default_int_ty: ctx.default_int_ty,
             options,
             call_depth: 0,
             scopes: vec![HashMap::new()],
+            current_sources: vec![ctx.source],
+            current_files: vec![file],
             funs_by_name: HashMap::new(),
+            funs_by_fqn: HashMap::new(),
             types_by_name: HashMap::new(),
         }
     }
 
-    fn register_file(&mut self, file: &'a ast::File) {
+    fn current_source(&self) -> &'a SourceFile {
+        self.current_sources
+            .last()
+            .copied()
+            .expect("const interpreter must always have a current source")
+    }
+
+    fn current_file(&self) -> &'a ast::File {
+        self.current_files
+            .last()
+            .copied()
+            .expect("const interpreter must always have a current file")
+    }
+
+    fn current_ctx(&self) -> ConstEvalCtx<'a> {
+        ConstEvalCtx {
+            source: self.current_source(),
+            default_int_ty: self.default_int_ty,
+        }
+    }
+
+    fn push_eval_frame(&mut self, source: &'a SourceFile, file: &'a ast::File) {
+        self.current_sources.push(source);
+        self.current_files.push(file);
+    }
+
+    fn pop_eval_frame(&mut self) {
+        let _ = self.current_sources.pop();
+        let _ = self.current_files.pop();
+    }
+
+    fn register_file(&mut self, source: &'a SourceFile, file: &'a ast::File) {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             match item {
                 ast::Item::Fun(fun) => {
-                    let name = fun.name.text(self.ctx.source).to_string();
-                    self.funs_by_name.entry(name).or_default().push(fun);
+                    let local = fun.name.text(source).to_string();
+                    let entry = RegisteredFun { source, file, fun };
+                    self.funs_by_name
+                        .entry(local.clone())
+                        .or_default()
+                        .push(entry);
+                    self.funs_by_fqn
+                        .entry(top_level_fqn(&pkg_prefix, &local))
+                        .or_default()
+                        .push(entry);
                 }
                 ast::Item::Type(ty) => {
-                    let name = ty.name.text(self.ctx.source).to_string();
-                    self.types_by_name.entry(name).or_default().push(ty);
+                    let name = ty.name.text(source).to_string();
+                    self.types_by_name
+                        .entry(name)
+                        .or_default()
+                        .push(RegisteredType {
+                            source,
+                            file,
+                            decl: ty,
+                        });
                 }
                 ast::Item::TypeAlias(_)
                 | ast::Item::ExtensionProperty(_)
@@ -179,15 +547,33 @@ impl<'a> ConstInterpreter<'a> {
     }
 
     fn register_item_decls(&mut self, items: &'a [ast::Item]) {
+        let source = self.current_source();
+        let file = self.current_file();
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in items {
             match item {
                 ast::Item::Fun(fun) => {
-                    let name = fun.name.text(self.ctx.source).to_string();
-                    self.funs_by_name.entry(name).or_default().push(fun);
+                    let local = fun.name.text(source).to_string();
+                    let entry = RegisteredFun { source, file, fun };
+                    self.funs_by_name
+                        .entry(local.clone())
+                        .or_default()
+                        .push(entry);
+                    self.funs_by_fqn
+                        .entry(top_level_fqn(&pkg_prefix, &local))
+                        .or_default()
+                        .push(entry);
                 }
                 ast::Item::Type(ty) => {
-                    let name = ty.name.text(self.ctx.source).to_string();
-                    self.types_by_name.entry(name).or_default().push(ty);
+                    let name = ty.name.text(source).to_string();
+                    self.types_by_name
+                        .entry(name)
+                        .or_default()
+                        .push(RegisteredType {
+                            source,
+                            file,
+                            decl: ty,
+                        });
                 }
                 // 只预注册“直接出现的”声明；`comptime if` 的分支选择应发生在裁剪时，
                 // 因此这里刻意跳过它，避免把未选中分支的声明引入环境。
@@ -198,6 +584,17 @@ impl<'a> ConstInterpreter<'a> {
                 | ast::Item::Val(_) => {}
             }
         }
+    }
+
+    fn eval_const_bindings_for_file(
+        &mut self,
+        source: &'a SourceFile,
+        file: &'a ast::File,
+    ) -> Result<Vec<ConstBinding>, ConstEvalError> {
+        self.push_eval_frame(source, file);
+        let result = self.eval_const_bindings(file);
+        self.pop_eval_frame();
+        result
     }
 
     fn maybe_eval_top_level_const_val(&mut self, item: &ast::Item) -> Result<(), ConstEvalError> {
@@ -228,10 +625,12 @@ impl<'a> ConstInterpreter<'a> {
             });
         };
 
-        let name = name_ident.text(self.ctx.source).to_string();
+        let ctx = self.current_ctx();
+        let source = ctx.source;
+        let name = name_ident.text(source).to_string();
         let value = coerce_value_to_declared_type(
-            self.ctx.source,
-            eval_const_expr_with_host(self.ctx, self, init)?,
+            source,
+            eval_const_expr_with_host(ctx, self, init)?,
             v.ty.as_ref(),
         );
 
@@ -243,7 +642,7 @@ impl<'a> ConstInterpreter<'a> {
         &mut self,
         ci: &'b ast::ComptimeIfItem,
     ) -> Result<Option<&'b ast::ItemBlock>, ConstEvalError> {
-        let cond_v = eval_const_expr_with_host(self.ctx, self, &ci.cond)?;
+        let cond_v = eval_const_expr_with_host(self.current_ctx(), self, &ci.cond)?;
         let ConstValue::Bool(cond_b) = cond_v else {
             return Err(ConstEvalError::OperandTypeMismatch {
                 expected: "Bool",
@@ -297,10 +696,12 @@ impl<'a> ConstInterpreter<'a> {
                 });
             };
 
-            let name = name_ident.text(self.ctx.source).to_string();
+            let ctx = self.current_ctx();
+            let source = ctx.source;
+            let name = name_ident.text(source).to_string();
             let value = coerce_value_to_declared_type(
-                self.ctx.source,
-                eval_const_expr_with_host(self.ctx, self, init)?,
+                source,
+                eval_const_expr_with_host(ctx, self, init)?,
                 v.ty.as_ref(),
             );
 
@@ -334,6 +735,42 @@ impl<'a> ConstInterpreter<'a> {
         None
     }
 
+    fn find_registered_fun_by_binding(
+        &self,
+        binding: &ast::TopLevelFunCallBinding,
+    ) -> Option<RegisteredFun<'a>> {
+        self.funs_by_fqn.get(&binding.fqn).and_then(|candidates| {
+            candidates.iter().copied().find(|entry| {
+                entry.source.path() == binding.decl_file.as_path()
+                    && entry.fun.name.span == binding.decl_span
+            })
+        })
+    }
+
+    fn call_bound_const_fun(
+        &mut self,
+        call_span: Span,
+        binding: &ast::TopLevelFunCallBinding,
+        fallback_name: &str,
+        args: Vec<ConstValue>,
+    ) -> Result<ConstValue, ConstEvalError> {
+        let Some(fun) = self.find_registered_fun_by_binding(binding) else {
+            return Err(ConstEvalError::UnknownConstFun {
+                name: binding.fqn.clone(),
+                span: call_span.into(),
+            });
+        };
+
+        if !fun.fun.modifiers.contains(&ast::Modifier::Const) {
+            return Err(ConstEvalError::CalleeNotConstFun {
+                name: fallback_name.to_string(),
+                span: call_span.into(),
+            });
+        }
+
+        self.eval_fun_call(call_span, fun, args)
+    }
+
     fn call_const_fun(
         &mut self,
         call_span: Span,
@@ -351,7 +788,7 @@ impl<'a> ConstInterpreter<'a> {
         let const_candidates = candidates
             .iter()
             .copied()
-            .filter(|f| f.modifiers.contains(&ast::Modifier::Const))
+            .filter(|f| f.fun.modifiers.contains(&ast::Modifier::Const))
             .collect::<Vec<_>>();
         if const_candidates.is_empty() {
             return Err(ConstEvalError::CalleeNotConstFun {
@@ -363,7 +800,7 @@ impl<'a> ConstInterpreter<'a> {
         let arity = args.len();
         let arity_matches = const_candidates
             .into_iter()
-            .filter(|f| f.params.len() == arity)
+            .filter(|f| f.fun.params.len() == arity)
             .collect::<Vec<_>>();
 
         let fun = match arity_matches.as_slice() {
@@ -371,8 +808,8 @@ impl<'a> ConstInterpreter<'a> {
                 // 早期阶段只按 arity 匹配；默认参数/命名参数/重载决议留给后续阶段。
                 let expected = candidates
                     .iter()
-                    .filter(|f| f.modifiers.contains(&ast::Modifier::Const))
-                    .map(|f| f.params.len())
+                    .filter(|f| f.fun.modifiers.contains(&ast::Modifier::Const))
+                    .map(|f| f.fun.params.len())
                     .min()
                     .unwrap_or(0);
                 return Err(ConstEvalError::ConstFunArityMismatch {
@@ -402,6 +839,8 @@ impl<'a> ConstInterpreter<'a> {
         type_args: Vec<ast::TypeRef>,
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError> {
+        let selected_binding = self.current_file().top_level_fun_call_binding(call_span);
+
         // T1219：平台反射 `getPlatform()`：既可在 comptime 求值，也可在运行期查询。
         //
         // 说明：
@@ -435,6 +874,12 @@ impl<'a> ConstInterpreter<'a> {
                 return self.call_params_of_intrinsic(call_span, type_args, args);
             }
             _ => {}
+        }
+
+        if let Some(binding) = selected_binding
+            && !binding.is_intrinsic
+        {
+            return self.call_bound_const_fun(call_span, &binding, callee_name, args);
         }
 
         // v0：解释器不支持泛型 const fun；显式 type args 只允许用于 intrinsics。
@@ -476,7 +921,7 @@ impl<'a> ConstInterpreter<'a> {
                     });
                 };
                 Ok(ConstValue::Int(super::ConstInt::new(
-                    self.ctx.default_int_ty,
+                    self.default_int_ty,
                     size as u128,
                 )))
             }
@@ -488,7 +933,7 @@ impl<'a> ConstInterpreter<'a> {
                     });
                 };
                 Ok(ConstValue::Int(super::ConstInt::new(
-                    self.ctx.default_int_ty,
+                    self.default_int_ty,
                     align as u128,
                 )))
             }
@@ -508,6 +953,9 @@ impl<'a> ConstInterpreter<'a> {
                         });
                     }
                 };
+                let decl_source = decl.source;
+                let decl_file = decl.file;
+                let decl = decl.decl;
                 if decl.kind != ast::TypeKind::Struct && decl.kind != ast::TypeKind::Class {
                     return Err(ConstEvalError::ReflectionUnsupportedTarget {
                         name: full_name.clone(),
@@ -515,63 +963,68 @@ impl<'a> ConstInterpreter<'a> {
                     });
                 }
 
-                let mut fields: Vec<ConstValue> = Vec::new();
-                let mut seen: std::collections::BTreeSet<String> =
-                    std::collections::BTreeSet::new();
+                self.push_eval_frame(decl_source, decl_file);
+                let result = (|| {
+                    let mut fields: Vec<ConstValue> = Vec::new();
+                    let mut seen: std::collections::BTreeSet<String> =
+                        std::collections::BTreeSet::new();
 
-                // 1) 主构造 `val/var` 参数声明的字段
-                if let Some(ctor) = decl.primary_ctor.as_ref() {
-                    for p in &ctor.params {
-                        if p.kind.is_none() {
-                            continue;
+                    // 1) 主构造 `val/var` 参数声明的字段
+                    if let Some(ctor) = decl.primary_ctor.as_ref() {
+                        for p in &ctor.params {
+                            if p.kind.is_none() {
+                                continue;
+                            }
+                            let fname = p.name.text(decl_source).to_string();
+                            if !seen.insert(fname.clone()) {
+                                return Err(ConstEvalError::ReflectionDuplicateField {
+                                    field: fname,
+                                    span: ty_span.into(),
+                                });
+                            }
+                            let index = fields.len();
+                            fields.push(self.mk_field_meta(
+                                fname,
+                                p.ty.as_ref(),
+                                index,
+                                &p.annotations,
+                            )?);
                         }
-                        let fname = p.name.text(self.ctx.source).to_string();
-                        if !seen.insert(fname.clone()) {
-                            return Err(ConstEvalError::ReflectionDuplicateField {
-                                field: fname,
-                                span: ty_span.into(),
-                            });
-                        }
-                        let index = fields.len();
-                        fields.push(self.mk_field_meta(
-                            fname,
-                            p.ty.as_ref(),
-                            index,
-                            &p.annotations,
-                        )?);
                     }
-                }
 
-                // 2) type body 里“看起来像 backing field 的属性声明”
-                if let Some(body) = decl.body.as_ref() {
-                    for m in &body.members {
-                        let ast::TypeMember::Property(p) = m else {
-                            continue;
-                        };
+                    // 2) type body 里“看起来像 backing field 的属性声明”
+                    if let Some(body) = decl.body.as_ref() {
+                        for m in &body.members {
+                            let ast::TypeMember::Property(p) = m else {
+                                continue;
+                            };
 
-                        // v0：只把“无 delegate、无自定义 getter/setter”的属性当作字段。
-                        if p.delegate.is_some() || p.getter.is_some() || p.setter.is_some() {
-                            continue;
+                            // v0：只把“无 delegate、无自定义 getter/setter”的属性当作字段。
+                            if p.delegate.is_some() || p.getter.is_some() || p.setter.is_some() {
+                                continue;
+                            }
+
+                            let fname = p.name.text(decl_source).to_string();
+                            if !seen.insert(fname.clone()) {
+                                return Err(ConstEvalError::ReflectionDuplicateField {
+                                    field: fname,
+                                    span: ty_span.into(),
+                                });
+                            }
+                            let index = fields.len();
+                            fields.push(self.mk_field_meta(
+                                fname,
+                                p.ty.as_ref(),
+                                index,
+                                &p.annotations,
+                            )?);
                         }
-
-                        let fname = p.name.text(self.ctx.source).to_string();
-                        if !seen.insert(fname.clone()) {
-                            return Err(ConstEvalError::ReflectionDuplicateField {
-                                field: fname,
-                                span: ty_span.into(),
-                            });
-                        }
-                        let index = fields.len();
-                        fields.push(self.mk_field_meta(
-                            fname,
-                            p.ty.as_ref(),
-                            index,
-                            &p.annotations,
-                        )?);
                     }
-                }
 
-                Ok(ConstValue::Tuple(fields))
+                    Ok(ConstValue::Tuple(fields))
+                })();
+                self.pop_eval_frame();
+                result
             }
             "variantsOf" => {
                 let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
@@ -589,6 +1042,9 @@ impl<'a> ConstInterpreter<'a> {
                         });
                     }
                 };
+                let decl_source = decl.source;
+                let decl_file = decl.file;
+                let decl = decl.decl;
                 if decl.kind != ast::TypeKind::Enum {
                     return Err(ConstEvalError::ReflectionVariantsOfUnsupportedTarget {
                         name: full_name.clone(),
@@ -596,17 +1052,22 @@ impl<'a> ConstInterpreter<'a> {
                     });
                 }
 
-                let mut variants: Vec<ConstValue> = Vec::new();
-                if let Some(body) = decl.body.as_ref() {
-                    for m in &body.members {
-                        let ast::TypeMember::EnumVariant(v) = m else {
-                            continue;
-                        };
-                        let index = variants.len();
-                        variants.push(self.mk_variant_meta(v, index)?);
+                self.push_eval_frame(decl_source, decl_file);
+                let result = (|| {
+                    let mut variants: Vec<ConstValue> = Vec::new();
+                    if let Some(body) = decl.body.as_ref() {
+                        for m in &body.members {
+                            let ast::TypeMember::EnumVariant(v) = m else {
+                                continue;
+                            };
+                            let index = variants.len();
+                            variants.push(self.mk_variant_meta(v, index)?);
+                        }
                     }
-                }
-                Ok(ConstValue::Tuple(variants))
+                    Ok(ConstValue::Tuple(variants))
+                })();
+                self.pop_eval_frame();
+                result
             }
             "superTypesOf" => {
                 let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
@@ -624,12 +1085,17 @@ impl<'a> ConstInterpreter<'a> {
                         });
                     }
                 };
-
-                let mut supers: Vec<ConstValue> = Vec::with_capacity(decl.supertypes.len());
-                for st in &decl.supertypes {
-                    supers.push(self.mk_type_meta(Some(&st.ty))?);
-                }
-                Ok(ConstValue::Tuple(supers))
+                self.push_eval_frame(decl.source, decl.file);
+                let result = (|| {
+                    let decl = decl.decl;
+                    let mut supers: Vec<ConstValue> = Vec::with_capacity(decl.supertypes.len());
+                    for st in &decl.supertypes {
+                        supers.push(self.mk_type_meta(Some(&st.ty))?);
+                    }
+                    Ok(ConstValue::Tuple(supers))
+                })();
+                self.pop_eval_frame();
+                result
             }
             "annotationsOf" => {
                 let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
@@ -647,16 +1113,21 @@ impl<'a> ConstInterpreter<'a> {
                         });
                     }
                 };
-
-                let mut anns: Vec<ConstValue> = Vec::new();
-                for a in &decl.annotations {
-                    // `annotationsOf<T>()` 只返回“类型本身”的注解：忽略 use-site target。
-                    if a.use_site_target.is_some() {
-                        continue;
+                self.push_eval_frame(decl.source, decl.file);
+                let result = (|| {
+                    let decl = decl.decl;
+                    let mut anns: Vec<ConstValue> = Vec::new();
+                    for a in &decl.annotations {
+                        // `annotationsOf<T>()` 只返回“类型本身”的注解：忽略 use-site target。
+                        if a.use_site_target.is_some() {
+                            continue;
+                        }
+                        anns.push(self.mk_annotation_meta(a)?);
                     }
-                    anns.push(self.mk_annotation_meta(a)?);
-                }
-                Ok(ConstValue::Tuple(anns))
+                    Ok(ConstValue::Tuple(anns))
+                })();
+                self.pop_eval_frame();
+                result
             }
             _ => Err(ConstEvalError::ReflectionBadCall {
                 name: name.to_string(),
@@ -720,10 +1191,12 @@ impl<'a> ConstInterpreter<'a> {
             }
         };
 
-        let mut params: Vec<ConstValue> = Vec::with_capacity(fun.params.len());
-        for (idx, p) in fun.params.iter().enumerate() {
+        self.push_eval_frame(fun.source, fun.file);
+        let mut params: Vec<ConstValue> = Vec::with_capacity(fun.fun.params.len());
+        for (idx, p) in fun.fun.params.iter().enumerate() {
             params.push(self.mk_param_meta(p, idx)?);
         }
+        self.pop_eval_frame();
         Ok(ConstValue::Tuple(params))
     }
 
@@ -750,7 +1223,7 @@ impl<'a> ConstInterpreter<'a> {
         Ok(out)
     }
 
-    fn lookup_unique_type_decl(&self, simple_name: &str) -> Option<&'a ast::TypeDecl> {
+    fn lookup_unique_type_decl(&self, simple_name: &str) -> Option<RegisteredType<'a>> {
         let decls = self.types_by_name.get(simple_name)?;
         match decls.as_slice() {
             [one] => Some(*one),
@@ -765,7 +1238,7 @@ impl<'a> ConstInterpreter<'a> {
     ///   - `name`：基于 AST 的稳定 pretty string（不保证全限定名）；
     ///   - `kind/annotations`：仅当该类型在当前文件中有唯一声明时补齐；否则回退为 `Primitive` + 空注解；
     /// - 这保证了 fixtures 可以稳定读取 `field.type.name`，并把“精确元信息”留给后续任务（resolve/typecheck）补齐。
-    fn mk_type_meta(&self, ty: Option<&ast::TypeRef>) -> Result<ConstValue, ConstEvalError> {
+    fn mk_type_meta(&mut self, ty: Option<&ast::TypeRef>) -> Result<ConstValue, ConstEvalError> {
         let name = ty
             .and_then(|t| self.type_ref_to_string(t))
             .unwrap_or_else(|| "Any".to_string());
@@ -778,17 +1251,19 @@ impl<'a> ConstInterpreter<'a> {
                 let simple = p
                     .segments
                     .last()
-                    .map(|s| s.text(self.ctx.source))
+                    .map(|s| s.text(self.current_source()))
                     .unwrap_or("");
                 if let Some(decl) = self.lookup_unique_type_decl(simple) {
-                    let kind = match decl.kind {
+                    self.push_eval_frame(decl.source, decl.file);
+                    let kind = match decl.decl.kind {
                         ast::TypeKind::Struct => self.mk_type_kind("Struct"),
                         ast::TypeKind::Enum => self.mk_type_kind("Enum"),
                         ast::TypeKind::Class => self.mk_type_kind("Class"),
                         ast::TypeKind::Interface => self.mk_type_kind("Interface"),
                         ast::TypeKind::Effect => self.mk_type_kind("Effect"),
                     };
-                    let annotations = self.mk_annotation_list(&decl.annotations, true)?;
+                    let annotations = self.mk_annotation_list(&decl.decl.annotations, true)?;
+                    self.pop_eval_frame();
                     (kind, annotations)
                 } else {
                     (self.mk_type_kind("Primitive"), Vec::new())
@@ -809,7 +1284,7 @@ impl<'a> ConstInterpreter<'a> {
 
     /// 构造一个 FieldMeta 常量值（供 `fieldsOf<T>()` / `variantsOf<T>()` 返回）。
     fn mk_field_meta(
-        &self,
+        &mut self,
         name: String,
         ty: Option<&ast::TypeRef>,
         index: usize,
@@ -818,7 +1293,7 @@ impl<'a> ConstInterpreter<'a> {
         let mut fields = std::collections::BTreeMap::new();
         fields.insert(
             "index".to_string(),
-            ConstValue::Int(super::ConstInt::new(self.ctx.default_int_ty, index as u128)),
+            ConstValue::Int(super::ConstInt::new(self.default_int_ty, index as u128)),
         );
         fields.insert("name".to_string(), ConstValue::String(name));
         fields.insert("type".to_string(), self.mk_type_meta(ty)?);
@@ -832,13 +1307,17 @@ impl<'a> ConstInterpreter<'a> {
         }))
     }
 
-    fn mk_param_meta(&self, p: &ast::Param, index: usize) -> Result<ConstValue, ConstEvalError> {
-        let pname = p.name.text(self.ctx.source).to_string();
+    fn mk_param_meta(
+        &mut self,
+        p: &ast::Param,
+        index: usize,
+    ) -> Result<ConstValue, ConstEvalError> {
+        let pname = p.name.text(self.current_source()).to_string();
 
         let mut fields = std::collections::BTreeMap::new();
         fields.insert(
             "index".to_string(),
-            ConstValue::Int(super::ConstInt::new(self.ctx.default_int_ty, index as u128)),
+            ConstValue::Int(super::ConstInt::new(self.default_int_ty, index as u128)),
         );
         fields.insert("name".to_string(), ConstValue::String(pname));
         fields.insert("type".to_string(), self.mk_type_meta(p.ty.as_ref())?);
@@ -853,22 +1332,22 @@ impl<'a> ConstInterpreter<'a> {
     }
 
     fn mk_variant_meta(
-        &self,
+        &mut self,
         v: &ast::EnumVariantDecl,
         index: usize,
     ) -> Result<ConstValue, ConstEvalError> {
-        let vname = v.name.text(self.ctx.source).to_string();
+        let vname = v.name.text(self.current_source()).to_string();
 
         let mut field_metas: Vec<ConstValue> = Vec::with_capacity(v.params.len());
         for (idx, p) in v.params.iter().enumerate() {
-            let fname = p.name.text(self.ctx.source).to_string();
+            let fname = p.name.text(self.current_source()).to_string();
             field_metas.push(self.mk_field_meta(fname, p.ty.as_ref(), idx, &p.annotations)?);
         }
 
         let mut fields = std::collections::BTreeMap::new();
         fields.insert(
             "index".to_string(),
-            ConstValue::Int(super::ConstInt::new(self.ctx.default_int_ty, index as u128)),
+            ConstValue::Int(super::ConstInt::new(self.default_int_ty, index as u128)),
         );
         fields.insert("name".to_string(), ConstValue::String(vname));
         fields.insert("fields".to_string(), ConstValue::Tuple(field_metas));
@@ -886,13 +1365,13 @@ impl<'a> ConstInterpreter<'a> {
         let name = a
             .path
             .iter()
-            .map(|id| id.text(self.ctx.source))
+            .map(|id| id.text(self.current_source()))
             .collect::<Vec<_>>()
             .join(".");
         let simple = a
             .path
             .last()
-            .map(|id| id.text(self.ctx.source).to_string())
+            .map(|id| id.text(self.current_source()).to_string())
             .unwrap_or_default();
 
         // spec §15.6：`AnnotationMeta.args` 应当是“按参数名解析后的 arguments（含默认值）”。
@@ -908,11 +1387,11 @@ impl<'a> ConstInterpreter<'a> {
 
         for arg in &a.args {
             let arg_name = match arg.name {
-                Some(id) => id.text(self.ctx.source).to_string(),
+                Some(id) => id.text(self.current_source()).to_string(),
                 None => {
                     let name = ctor_params
                         .and_then(|ps| ps.get(positional_index))
-                        .map(|p| p.name.text(self.ctx.source).to_string())
+                        .map(|p| p.name.text(self.current_source()).to_string())
                         .unwrap_or_else(|| format!("_{positional_index}"));
                     positional_index += 1;
                     name
@@ -924,7 +1403,7 @@ impl<'a> ConstInterpreter<'a> {
             // - 数组字面量（v0 用 tuple 承载）
             // - enum unit variant（`Enum.Variant`）
             // - class literal（`TypeName::class`，v0 视为类型名字符串常量）
-            let value = eval_const_expr(self.ctx, &arg.value)?;
+            let value = eval_const_expr(self.current_ctx(), &arg.value)?;
             provided_by_name.insert(arg_name.clone(), value.clone());
             provided_order.push((arg_name, value));
         }
@@ -936,13 +1415,13 @@ impl<'a> ConstInterpreter<'a> {
 
                 // 1) 按 ctor 参数顺序输出（含默认值）。
                 for p in params {
-                    let pname = p.name.text(self.ctx.source).to_string();
+                    let pname = p.name.text(self.current_source()).to_string();
                     if let Some(v) = remaining.remove(&pname) {
                         out.push(self.mk_annotation_arg_meta_value(pname, v));
                         continue;
                     }
                     if let Some(default_value) = p.default_value.as_ref() {
-                        let v = eval_const_expr(self.ctx, default_value)?;
+                        let v = eval_const_expr(self.current_ctx(), default_value)?;
                         out.push(self.mk_annotation_arg_meta_value(pname, v));
                     }
                 }
@@ -987,10 +1466,10 @@ impl<'a> ConstInterpreter<'a> {
             [one] => *one,
             _ => return None,
         };
-        if !decl.modifiers.contains(&ast::Modifier::Annotation) {
+        if !decl.decl.modifiers.contains(&ast::Modifier::Annotation) {
             return None;
         }
-        let ctor = decl.primary_ctor.as_ref()?;
+        let ctor = decl.decl.primary_ctor.as_ref()?;
         Some(ctor.params.as_slice())
     }
 
@@ -1005,7 +1484,7 @@ impl<'a> ConstInterpreter<'a> {
                 let mut out = p
                     .segments
                     .iter()
-                    .map(|id| id.text(self.ctx.source))
+                    .map(|id| id.text(self.current_source()))
                     .collect::<Vec<_>>()
                     .join(".");
                 if !p.args.is_empty() {
@@ -1049,13 +1528,13 @@ impl<'a> ConstInterpreter<'a> {
             if idx > 0 {
                 full.push('.');
             }
-            full.push_str(seg.text(self.ctx.source));
+            full.push_str(seg.text(self.current_source()));
         }
 
         let simple = p
             .segments
             .last()
-            .map(|s| s.text(self.ctx.source).to_string())
+            .map(|s| s.text(self.current_source()).to_string())
             .unwrap_or_default();
 
         Ok((full, simple, p.span))
@@ -1064,71 +1543,83 @@ impl<'a> ConstInterpreter<'a> {
     fn eval_fun_call(
         &mut self,
         call_span: Span,
-        fun: &'a ast::FunDecl,
+        fun: RegisteredFun<'a>,
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError> {
+        let decl = fun.fun;
+        let decl_source = fun.source;
+        let decl_file = fun.file;
+        let fun_name = decl.name.text(decl_source).to_string();
         if self.call_depth >= self.options.recursion_limit {
             return Err(ConstEvalError::RecursionLimitExceeded {
-                name: fun.name.text(self.ctx.source).to_string(),
+                name: fun_name,
                 limit: self.options.recursion_limit,
                 span: call_span.into(),
             });
         }
 
         // 解释器入口做一次“最小签名门禁”，避免把复杂语义带入 v0。
-        if fun.receiver.is_some() {
+        if decl.receiver.is_some() {
             return Err(ConstEvalError::UnsupportedConstFunSignature {
                 reason: "extension receiver",
-                span: fun.span.into(),
+                span: decl.span.into(),
             });
         }
-        if !fun.type_params.is_empty() {
+        if !decl.type_params.is_empty() {
             return Err(ConstEvalError::UnsupportedConstFunSignature {
                 reason: "generic type params",
-                span: fun.span.into(),
+                span: decl.span.into(),
             });
         }
-        if fun.eff_param.is_some() {
+        if decl.eff_param.is_some() {
             return Err(ConstEvalError::UnsupportedConstFunSignature {
                 reason: "effect row param",
-                span: fun.span.into(),
+                span: decl.span.into(),
             });
         }
-        if fun.params.len() != args.len() {
+        if decl.params.len() != args.len() {
             return Err(ConstEvalError::ConstFunArityMismatch {
-                name: fun.name.text(self.ctx.source).to_string(),
-                expected: fun.params.len(),
+                name: decl.name.text(decl_source).to_string(),
+                expected: decl.params.len(),
                 found: args.len(),
                 span: call_span.into(),
             });
         }
 
         self.call_depth += 1;
+        self.push_eval_frame(decl_source, decl_file);
         self.push_scope();
 
-        // 参数绑定写入当前 frame scope。
-        for (param, arg) in fun.params.iter().zip(args) {
-            let name = param.name.text(self.ctx.source).to_string();
-            let value = coerce_value_to_declared_type(self.ctx.source, arg, param.ty.as_ref());
-            self.define_local(name, value);
-        }
-
-        let ret = match &fun.body {
-            ast::FunBody::Block(b) => match self.eval_block(b)? {
-                ControlFlow::Break(v) | ControlFlow::Continue(v) => v,
-            },
-            ast::FunBody::Missing => {
-                return Err(ConstEvalError::UnsupportedConstFunSignature {
-                    reason: "missing body",
-                    span: fun.span.into(),
-                });
+        let result = (|| {
+            // 参数绑定写入当前 frame scope。
+            for (param, arg) in decl.params.iter().zip(args) {
+                let name = param.name.text(decl_source).to_string();
+                let value = coerce_value_to_declared_type(decl_source, arg, param.ty.as_ref());
+                self.define_local(name, value);
             }
-        };
-        let ret = coerce_value_to_declared_type(self.ctx.source, ret, fun.return_ty.as_ref());
+
+            let ret = match &decl.body {
+                ast::FunBody::Block(b) => match self.eval_block(b)? {
+                    ControlFlow::Break(v) | ControlFlow::Continue(v) => v,
+                },
+                ast::FunBody::Missing => {
+                    return Err(ConstEvalError::UnsupportedConstFunSignature {
+                        reason: "missing body",
+                        span: decl.span.into(),
+                    });
+                }
+            };
+            Ok(coerce_value_to_declared_type(
+                decl_source,
+                ret,
+                decl.return_ty.as_ref(),
+            ))
+        })();
 
         self.pop_scope();
+        self.pop_eval_frame();
         self.call_depth -= 1;
-        Ok(ret)
+        result
     }
 
     fn eval_block(
@@ -1161,7 +1652,7 @@ impl<'a> ConstInterpreter<'a> {
         match &stmt.kind {
             ast::StmtKind::Empty => Ok(ControlFlow::Continue(None)),
             ast::StmtKind::Expr(e) => {
-                let v = eval_const_expr_with_host(self.ctx, self, e)?;
+                let v = eval_const_expr_with_host(self.current_ctx(), self, e)?;
                 Ok(ControlFlow::Continue(Some(v)))
             }
             ast::StmtKind::Val(v) => {
@@ -1184,17 +1675,18 @@ impl<'a> ConstInterpreter<'a> {
                     });
                 };
 
+                let ctx = self.current_ctx();
                 let value = coerce_value_to_declared_type(
-                    self.ctx.source,
-                    eval_const_expr_with_host(self.ctx, self, init)?,
+                    ctx.source,
+                    eval_const_expr_with_host(ctx, self, init)?,
                     v.ty.as_ref(),
                 );
-                self.define_local(name.text(self.ctx.source).to_string(), value);
+                self.define_local(name.text(ctx.source).to_string(), value);
                 Ok(ControlFlow::Continue(None))
             }
             ast::StmtKind::Return { value, .. } => {
                 let v = match value {
-                    Some(expr) => eval_const_expr_with_host(self.ctx, self, expr)?,
+                    Some(expr) => eval_const_expr_with_host(self.current_ctx(), self, expr)?,
                     None => ConstValue::Unit,
                 };
                 Ok(ControlFlow::Break(v))
@@ -1239,7 +1731,7 @@ impl<'a> ConstInterpreter<'a> {
         ci: &ast::ComptimeIf,
     ) -> Result<ControlFlow<ConstValue, ConstValue>, ConstEvalError> {
         // `comptime if`：在编译期求值条件，仅执行被选中的分支（未选中分支不求值）。
-        let cond_v = eval_const_expr_with_host(self.ctx, self, &ci.cond)?;
+        let cond_v = eval_const_expr_with_host(self.current_ctx(), self, &ci.cond)?;
         let ConstValue::Bool(cond_b) = cond_v else {
             return Err(ConstEvalError::OperandTypeMismatch {
                 expected: "Bool",
@@ -1269,7 +1761,7 @@ impl<'a> ConstInterpreter<'a> {
         // - 先在编译期求值 iter；
         // - 对可迭代对象进行“展开执行”，每次迭代把 binder 绑定到当前元素；
         // - v0：仅支持整数范围 `a..b` 与 tuple/array（以 ConstValue::Tuple 承载）。
-        let binder_name = cf.binder.text(self.ctx.source).to_string();
+        let binder_name = cf.binder.text(self.current_source()).to_string();
 
         // 1) 整数范围：`a..b`
         if let ast::ExprKind::Binary {
@@ -1279,7 +1771,7 @@ impl<'a> ConstInterpreter<'a> {
             ..
         } = &cf.iter.kind
         {
-            let lv = eval_const_expr_with_host(self.ctx, self, lhs)?;
+            let lv = eval_const_expr_with_host(self.current_ctx(), self, lhs)?;
             let li = match lv {
                 ConstValue::Int(i) => i,
                 other => {
@@ -1291,7 +1783,7 @@ impl<'a> ConstInterpreter<'a> {
                 }
             };
 
-            let rv = eval_const_expr_with_host(self.ctx, self, rhs)?;
+            let rv = eval_const_expr_with_host(self.current_ctx(), self, rhs)?;
             let ri = match rv {
                 ConstValue::Int(i) => i,
                 other => {
@@ -1368,7 +1860,7 @@ impl<'a> ConstInterpreter<'a> {
         }
 
         // 2) tuple/array（v0：统一用 Tuple 承载，见 comptime::eval）
-        let iter_v = eval_const_expr_with_host(self.ctx, self, &cf.iter)?;
+        let iter_v = eval_const_expr_with_host(self.current_ctx(), self, &cf.iter)?;
         let ConstValue::Tuple(items) = iter_v else {
             return Err(ConstEvalError::OperandTypeMismatch {
                 expected: "Tuple（可迭代）",

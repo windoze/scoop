@@ -89,6 +89,14 @@ pub struct File {
     /// - HIR lowering 读取它，把该表达式合成为零捕获 closure，而不是误当成普通顶层值读取；
     /// - `type_args` 保留 typecheck 阶段的具体实例化结果，供后续 monomorphized FQN 选择复用。
     pub(crate) top_level_fun_value_refs: RefCell<HashMap<Span, TopLevelFunValueRef>>,
+    /// typecheck 选中的“顶层函数调用”绑定信息（按调用 span 索引）。
+    ///
+    /// 说明：
+    /// - 记录普通顶层函数调用在 overload resolution / 泛型实例化之后最终选中的声明；
+    /// - 供后续需要“重放 typecheck 最终决议”的阶段复用（例如 const/comptime 解释器），
+    ///   避免重新按简单名字或 arity 猜测调用目标；
+    /// - `type_args` 保留调用点最终的实例化结果，便于后续 generic const fun 接线。
+    pub(crate) top_level_fun_call_bindings: RefCell<HashMap<Span, TopLevelFunCallBinding>>,
     /// typecheck 选中的 effect-op 调用绑定信息（按调用 span 索引）。
     ///
     /// 说明：
@@ -210,6 +218,20 @@ impl File {
         self.top_level_fun_value_refs.borrow().get(&span).cloned()
     }
 
+    pub fn replace_top_level_fun_call_bindings(
+        &self,
+        bindings: HashMap<Span, TopLevelFunCallBinding>,
+    ) {
+        *self.top_level_fun_call_bindings.borrow_mut() = bindings;
+    }
+
+    pub fn top_level_fun_call_binding(&self, span: Span) -> Option<TopLevelFunCallBinding> {
+        self.top_level_fun_call_bindings
+            .borrow()
+            .get(&span)
+            .cloned()
+    }
+
     pub fn replace_typechecked_effect_op_call_bindings(
         &self,
         bindings: HashMap<Span, EffectOpCallBinding>,
@@ -239,6 +261,15 @@ impl File {
 #[derive(Debug, Clone)]
 pub struct TopLevelFunValueRef {
     pub fqn: String,
+    pub type_args: Vec<TypeId>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TopLevelFunCallBinding {
+    pub fqn: String,
+    pub decl_file: std::path::PathBuf,
+    pub decl_span: Span,
+    pub is_intrinsic: bool,
     pub type_args: Vec<TypeId>,
 }
 

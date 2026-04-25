@@ -9,13 +9,12 @@ package fixtures.comptime_
 
 import scoop.core.*
 
-annotation class Deprecated(val msg: String)
+annotation class Anno(val msg: String)
 
-@Deprecated("x")
+@Anno("x")
 struct Foo(val x: Int)
 
 const val A = annotationsOf<Foo>()
 const val A0N: String = annotationsOf<Foo>()._0.name
 const val A0AN: String = annotationsOf<Foo>()._0.args._0.name
-const val A0AV: String = annotationsOf<Foo>()._0.args._0.value
-
+const val A0AV = annotationsOf<Foo>()._0.args._0.value

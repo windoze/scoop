@@ -88,7 +88,7 @@ pub(super) fn collect_top_level_value_types(
     while changed {
         changed = false;
         for file_info in &files {
-            if infer_top_level_pattern_value_types_in_file(
+            if infer_top_level_unannotated_value_types_in_file(
                 file_info, index, env, types, builtins, &mut map,
             )? {
                 changed = true;
@@ -178,7 +178,7 @@ fn collect_explicit_top_level_value_types_in_file(
     Ok(())
 }
 
-fn infer_top_level_pattern_value_types_in_file(
+fn infer_top_level_unannotated_value_types_in_file(
     file_info: &TopLevelValueCollectionFile<'_>,
     index: &Index,
     env: &TypeEnv,
@@ -208,9 +208,6 @@ fn infer_top_level_pattern_value_types_in_file(
 
     for item in &file_info.file.items {
         let ast::Item::Val(v) = item else {
-            continue;
-        };
-        let ast::ValBinding::Pattern(pattern) = &v.binding else {
             continue;
         };
         if v.ty.is_some() {
@@ -259,35 +256,50 @@ fn infer_top_level_pattern_value_types_in_file(
             }
         };
 
-        let bindings = match val_pat::infer_val_pat_bindings(
-            file_info.source,
-            pattern,
-            init_ty,
-            &mut lower,
-            builtins,
-            &struct_field_types,
-        ) {
-            Ok(bindings) => bindings,
-            Err(err) => {
-                if file_info.strict {
-                    return Err(err);
+        match &v.binding {
+            ast::ValBinding::Name(name) => {
+                let local_name = name.text(file_info.source);
+                let fqn = if pkg_prefix.is_empty() {
+                    local_name.to_string()
+                } else {
+                    format!("{pkg_prefix}.{local_name}")
+                };
+                if out.insert(fqn, init_ty).is_none() {
+                    changed = true;
                 }
-                continue;
             }
-        };
+            ast::ValBinding::Pattern(pattern) => {
+                let bindings = match val_pat::infer_val_pat_bindings(
+                    file_info.source,
+                    pattern,
+                    init_ty,
+                    &mut lower,
+                    builtins,
+                    &struct_field_types,
+                ) {
+                    Ok(bindings) => bindings,
+                    Err(err) => {
+                        if file_info.strict {
+                            return Err(err);
+                        }
+                        continue;
+                    }
+                };
 
-        for binder in v.binding.bound_idents() {
-            let Some(ty) = bindings.get(&binder.span).copied() else {
-                continue;
-            };
-            let local_name = binder.text(file_info.source);
-            let fqn = if pkg_prefix.is_empty() {
-                local_name.to_string()
-            } else {
-                format!("{pkg_prefix}.{local_name}")
-            };
-            if out.insert(fqn, ty).is_none() {
-                changed = true;
+                for binder in v.binding.bound_idents() {
+                    let Some(ty) = bindings.get(&binder.span).copied() else {
+                        continue;
+                    };
+                    let local_name = binder.text(file_info.source);
+                    let fqn = if pkg_prefix.is_empty() {
+                        local_name.to_string()
+                    } else {
+                        format!("{pkg_prefix}.{local_name}")
+                    };
+                    if out.insert(fqn, ty).is_none() {
+                        changed = true;
+                    }
+                }
             }
         }
     }

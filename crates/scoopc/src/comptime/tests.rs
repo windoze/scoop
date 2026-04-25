@@ -2,13 +2,16 @@ use std::collections::BTreeMap;
 
 use miette::Diagnostic;
 
-use crate::comptime::{ConstBinding, eval_const_bindings_in_file};
+use crate::comptime::{
+    ConstBinding, eval_const_bindings_in_compilation_unit, eval_const_bindings_in_file,
+};
 use crate::comptime::{
     ConstEnum, ConstEvalCtx, ConstFloat, ConstInt, ConstIntTy, ConstStruct, ConstValue,
     eval_const_expr,
 };
 use crate::parser;
 use crate::source::SourceFile;
+use crate::sysroot::Sysroot;
 
 fn eval_expr(expr_src: &str, default_int_ty: ConstIntTy) -> ConstValue {
     // 通过最小文件包装，复用 parser 生成 span，避免手写 AST/span。
@@ -77,6 +80,15 @@ fn mk_type_meta(name: &str, kind: &str) -> ConstValue {
     })
 }
 
+fn reflected_type_kind(name: &str) -> &'static str {
+    match name {
+        "String" => "Class",
+        "Bool" | "Char" | "Float32" | "Float64" | "Int" | "UInt" | "Int8" | "Int16" | "Int32"
+        | "Int64" | "UInt8" | "UInt16" | "UInt32" | "UInt64" => "Struct",
+        _ => "Primitive",
+    }
+}
+
 fn mk_field_meta(int_ty: ConstIntTy, name: &str, ty_name: &str, index: u128) -> ConstValue {
     ConstValue::Struct(ConstStruct {
         ty: "FieldMeta".to_string(),
@@ -84,7 +96,10 @@ fn mk_field_meta(int_ty: ConstIntTy, name: &str, ty_name: &str, index: u128) -> 
             ("annotations".to_string(), ConstValue::Tuple(Vec::new())),
             ("index".to_string(), mk_int(int_ty, index)),
             ("name".to_string(), ConstValue::String(name.to_string())),
-            ("type".to_string(), mk_type_meta(ty_name, "Primitive")),
+            (
+                "type".to_string(),
+                mk_type_meta(ty_name, reflected_type_kind(ty_name)),
+            ),
         ]),
     })
 }
@@ -96,7 +111,10 @@ fn mk_param_meta(int_ty: ConstIntTy, name: &str, ty_name: &str, index: u128) -> 
             ("annotations".to_string(), ConstValue::Tuple(Vec::new())),
             ("index".to_string(), mk_int(int_ty, index)),
             ("name".to_string(), ConstValue::String(name.to_string())),
-            ("type".to_string(), mk_type_meta(ty_name, "Primitive")),
+            (
+                "type".to_string(),
+                mk_type_meta(ty_name, reflected_type_kind(ty_name)),
+            ),
         ]),
     })
 }
@@ -151,10 +169,30 @@ fn mk_platform(triple: &str, arch: &str, vendor: &str, os: &str, env: &str) -> C
     })
 }
 
+fn load_sysroot() -> Sysroot {
+    Sysroot::load_from(Sysroot::default_path()).expect("load sysroot")
+}
+
 fn eval_file_consts(file_src: &str) -> Vec<ConstBinding> {
+    let sysroot = load_sysroot();
     let source = SourceFile::new_virtual("<mem>", file_src.to_string());
     let file = parser::parse_file(&source).expect("parse");
-    eval_const_bindings_in_file(&source, &file).expect("eval file consts")
+    eval_const_bindings_in_file(&sysroot, &source, &file).expect("eval file consts")
+}
+
+fn eval_unit_consts(files: &[(&str, &str)], target_file_idx: usize) -> Vec<ConstBinding> {
+    let sysroot = load_sysroot();
+    let sources = files
+        .iter()
+        .map(|(path, text)| SourceFile::new_virtual(*path, (*text).to_string()))
+        .collect::<Vec<_>>();
+    let asts = sources
+        .iter()
+        .map(|source| parser::parse_file(source).expect("parse"))
+        .collect::<Vec<_>>();
+    let pairs = sources.iter().zip(asts.iter()).collect::<Vec<_>>();
+    eval_const_bindings_in_compilation_unit(&sysroot, &pairs, target_file_idx)
+        .expect("eval compilation unit consts")
 }
 
 #[test]
@@ -449,7 +487,141 @@ const val B: Int = add3(10)
 }
 
 #[test]
+fn const_eval_compilation_unit_reuses_typechecked_binding_for_cross_file_overloads() {
+    let consts = eval_unit_consts(
+        &[
+            (
+                "/mem/lib.scoop",
+                r#"
+package fixtures.lib
+
+import scoop.core.*
+
+const fun describe(x: Int): String {
+    return "int"
+}
+
+const fun describe(x: String): String {
+    return "string"
+}
+
+const fun twice(x: Int): Int {
+    return x + x
+}
+"#,
+            ),
+            (
+                "/mem/main.scoop",
+                r#"
+package fixtures.main
+
+import scoop.core.*
+import fixtures.lib.*
+
+const val A: String = describe(1)
+const val B: String = describe("hi")
+const val C: Int = twice(21)
+"#,
+            ),
+        ],
+        1,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: ConstValue::String("int".to_string()),
+            },
+            ConstBinding {
+                name: "B".to_string(),
+                value: ConstValue::String("string".to_string()),
+            },
+            ConstBinding {
+                name: "C".to_string(),
+                value: mk_int(ConstIntTy::host_word(true), 42),
+            },
+        ]
+    );
+}
+
+#[test]
+fn const_eval_const_fun_string_methods_match_fixture_behavior() {
+    let sysroot = load_sysroot();
+    let path = format!(
+        "{}/../../tests/fixtures/comptime/const_fun_string_methods.scoop",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let source = SourceFile::new_virtual(
+        path,
+        include_str!("../../../../tests/fixtures/comptime/const_fun_string_methods.scoop"),
+    );
+    let file = parser::parse_file(&source).expect("parse");
+    let consts = eval_const_bindings_in_file(&sysroot, &source, &file).expect("eval fixture");
+    let domain = consts
+        .iter()
+        .find(|binding| binding.name == "DOMAIN")
+        .expect("DOMAIN binding");
+    assert_eq!(domain.value, ConstValue::String("example.com".to_string()));
+}
+
+#[test]
+fn const_eval_const_fun_string_ops_match_fixture_behavior() {
+    let sysroot = load_sysroot();
+    let path = format!(
+        "{}/../../tests/fixtures/comptime/const_fun_string_ops_basic.scoop",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let source = SourceFile::new_virtual(
+        path,
+        include_str!("../../../../tests/fixtures/comptime/const_fun_string_ops_basic.scoop"),
+    );
+    let file = parser::parse_file(&source).expect("parse");
+    let consts = eval_const_bindings_in_file(&sysroot, &source, &file).expect("eval fixture");
+    let hello = consts
+        .iter()
+        .find(|binding| binding.name == "HELLO")
+        .expect("HELLO binding");
+    let concat = consts
+        .iter()
+        .find(|binding| binding.name == "CONCAT")
+        .expect("CONCAT binding");
+
+    assert_eq!(hello.value, ConstValue::String("Hello, World".to_string()));
+    assert_eq!(concat.value, ConstValue::String("abcdef".to_string()));
+}
+
+#[test]
+fn const_eval_splice_field_access_fixture_reuses_inferred_top_level_value_type() {
+    let sysroot = load_sysroot();
+    let path = format!(
+        "{}/../../tests/fixtures/comptime/splice_field_access_v0_basic.scoop",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let source = SourceFile::new_virtual(
+        path,
+        include_str!("../../../../tests/fixtures/comptime/splice_field_access_v0_basic.scoop"),
+    );
+    let file = parser::parse_file(&source).expect("parse");
+    let consts = eval_const_bindings_in_file(&sysroot, &source, &file).expect("eval fixture");
+
+    let x = consts
+        .iter()
+        .find(|binding| binding.name == "X")
+        .expect("X binding");
+    let y = consts
+        .iter()
+        .find(|binding| binding.name == "Y")
+        .expect("Y binding");
+
+    assert_eq!(x.value, mk_int(ConstIntTy::host_word(true), 1));
+    assert_eq!(y.value, mk_int(ConstIntTy::host_word(true), 2));
+}
+
+#[test]
 fn const_eval_calling_non_const_fun_is_error() {
+    let sysroot = load_sysroot();
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -459,7 +631,7 @@ const val X: Int = add(1, 2)
         .to_string(),
     );
     let file = parser::parse_file(&source).expect("parse");
-    let err = eval_const_bindings_in_file(&source, &file).unwrap_err();
+    let err = eval_const_bindings_in_file(&sysroot, &source, &file).unwrap_err();
     assert_eq!(
         err.code().unwrap().to_string(),
         "scoop::comptime::callee_not_const_fun"
@@ -468,6 +640,7 @@ const val X: Int = add(1, 2)
 
 #[test]
 fn const_eval_recursion_limit_has_stable_code() {
+    let sysroot = load_sysroot();
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -477,7 +650,7 @@ const val X: Int = loop()
         .to_string(),
     );
     let file = parser::parse_file(&source).expect("parse");
-    let err = eval_const_bindings_in_file(&source, &file).unwrap_err();
+    let err = eval_const_bindings_in_file(&sysroot, &source, &file).unwrap_err();
     assert_eq!(
         err.code().unwrap().to_string(),
         "scoop::comptime::recursion_limit_exceeded"
@@ -557,6 +730,7 @@ const val C: Int = pick(2)
 
 #[test]
 fn const_eval_comptime_if_condition_must_be_bool() {
+    let sysroot = load_sysroot();
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -569,7 +743,7 @@ const val X: Int = bad()
         .to_string(),
     );
     let file = parser::parse_file(&source).expect("parse");
-    let err = eval_const_bindings_in_file(&source, &file).unwrap_err();
+    let err = eval_const_bindings_in_file(&sysroot, &source, &file).unwrap_err();
     assert_eq!(
         err.code().unwrap().to_string(),
         "scoop::comptime::operand_type_mismatch"
@@ -762,6 +936,8 @@ fn const_eval_reflection_intrinsics_v0_basic() {
 
     let consts = eval_file_consts(
         r#"
+import scoop.core.*
+
 struct Point(val x: Int, val y: Int) {
     val tag: String
     // 计算属性：v0 的 fieldsOf 不应把它当作字段。
@@ -813,6 +989,8 @@ fn const_eval_fields_of_supports_class_fields_v0() {
 
     let consts = eval_file_consts(
         r#"
+import scoop.core.*
+
 class C(val x: Int) {
     val y: String
     // 计算属性：fieldsOf 不应把它当作字段。
@@ -839,17 +1017,19 @@ const val F = fieldsOf<C>()
 fn const_eval_reflection_annotations_of_v0_basic() {
     let consts = eval_file_consts(
         r#"
-annotation class Deprecated(val msg: String)
+import scoop.core.*
 
-@Deprecated("x")
-@Deprecated(msg: "y")
+annotation class Anno(val msg: String)
+
+@Anno("x")
+@Anno(msg: "y")
 struct Foo(val x: Int)
 
 const val A = annotationsOf<Foo>()
 const val A0N: String = annotationsOf<Foo>()._0.name
 const val A0AN: String = annotationsOf<Foo>()._0.args._0.name
-const val A0AV: String = annotationsOf<Foo>()._0.args._0.value
-const val A1AV: String = annotationsOf<Foo>()._1.args._0.value
+const val A0AV = annotationsOf<Foo>()._0.args._0.value
+const val A1AV = annotationsOf<Foo>()._1.args._0.value
 "#,
     );
 
@@ -860,14 +1040,14 @@ const val A1AV: String = annotationsOf<Foo>()._1.args._0.value
                 name: "A".to_string(),
                 value: ConstValue::Tuple(vec![
                     mk_annotation_meta(
-                        "Deprecated",
+                        "Anno",
                         vec![mk_annotation_arg_meta(
                             "msg",
                             ConstValue::String("x".to_string()),
                         )],
                     ),
                     mk_annotation_meta(
-                        "Deprecated",
+                        "Anno",
                         vec![mk_annotation_arg_meta(
                             "msg",
                             ConstValue::String("y".to_string()),
@@ -877,7 +1057,7 @@ const val A1AV: String = annotationsOf<Foo>()._1.args._0.value
             },
             ConstBinding {
                 name: "A0N".to_string(),
-                value: ConstValue::String("Deprecated".to_string()),
+                value: ConstValue::String("Anno".to_string()),
             },
             ConstBinding {
                 name: "A0AN".to_string(),
@@ -901,6 +1081,8 @@ fn const_eval_reflection_annotations_of_v0_complex_args() {
 
     let consts = eval_file_consts(
         r#"
+import scoop.core.*
+
 annotation class Anno(val a: Int, val colors: Array<Color>, val cls: String)
 
 enum Color { Red, Blue }
@@ -909,9 +1091,9 @@ enum Color { Red, Blue }
 struct Foo(val x: Int)
 
 const val A = annotationsOf<Foo>()
-const val V0: Int = annotationsOf<Foo>()._0.args._0.value
+const val V0 = annotationsOf<Foo>()._0.args._0.value
 const val V1 = annotationsOf<Foo>()._0.args._1.value
-const val V2: String = annotationsOf<Foo>()._0.args._2.value
+const val V2 = annotationsOf<Foo>()._0.args._2.value
 "#,
     );
 
@@ -962,6 +1144,8 @@ fn const_eval_reflection_intrinsics_v0_more() {
 
     let consts = eval_file_consts(
         r#"
+import scoop.core.*
+
 interface I {}
 
 class C() : I {}
@@ -970,7 +1154,7 @@ enum Color { Red, Blue }
 
 enum E { A(val x: Int, val y: String), B }
 
-fun add(a: Int, b: String): Int { return 0 }
+fun sampleAdd(a: Int, b: String): Int { return 0 }
 
 const val A: Int = alignOf<Int32>()
 const val ST = superTypesOf<C>()
@@ -979,9 +1163,9 @@ const val VS = variantsOf<Color>()
 const val V0: String = variantsOf<Color>()._0.name
 const val EV = variantsOf<E>()
 const val EV0F0: String = variantsOf<E>()._0.fields._0.name
-const val P = paramsOf(FunctionMeta { name: "add" })
-const val P0N: String = paramsOf(FunctionMeta { name: "add" })._0.name
-const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
+const val P = paramsOf(FunctionMeta { name: "sampleAdd" })
+const val P0N: String = paramsOf(FunctionMeta { name: "sampleAdd" })._0.name
+const val P1T: String = paramsOf(FunctionMeta { name: "sampleAdd" })._1.type.name
 "#,
     );
 
@@ -1053,6 +1237,8 @@ const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
 fn const_eval_get_platform_intrinsic_v0() {
     let consts = eval_file_consts(
         r#"
+import scoop.core.*
+
 const val P = getPlatform()
 const val T: String = getPlatform().triple
 const val A: String = getPlatform().arch

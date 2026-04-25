@@ -844,13 +844,7 @@ fn check_object_decl_annotations(
         &obj.annotations,
         AnnotationSite::new(AnnotationTargetKind::Type),
     )?;
-    check_builtin_annotations_on_object_decl(ctx.source, obj)?;
 
-    let Some(body) = &obj.body else {
-        return Ok(());
-    };
-
-    // 为递归处理 nested type/object 计算容器前缀（与 TypeEnv 的收集规则对齐）。
     let local_name = match &obj.name {
         Some(name) => ctx.source.slice(name.span).to_string(),
         None => match obj.kind {
@@ -862,6 +856,13 @@ fn check_object_decl_annotations(
         },
     };
     let obj_fqn = join_prefix(prefix, &local_name);
+    check_builtin_annotations_on_object_decl(ctx.source, file_allows_intrinsic, obj, &obj_fqn)?;
+
+    let Some(body) = &obj.body else {
+        return Ok(());
+    };
+
+    // 为递归处理 nested type/object 计算容器前缀（与 TypeEnv 的收集规则对齐）。
 
     for member in &body.members {
         match member {
@@ -2786,7 +2787,9 @@ fn source_is_sysroot(source: &SourceFile) -> bool {
 
 fn check_builtin_annotations_on_object_decl(
     source: &SourceFile,
+    file_allows_intrinsic: bool,
     obj: &ast::ObjectDecl,
+    obj_fqn: &str,
 ) -> Result<(), AnnotationError> {
     for ann in &obj.annotations {
         let Some(kind) = builtin_annotation_kind(source, ann) else {
@@ -2794,6 +2797,22 @@ fn check_builtin_annotations_on_object_decl(
         };
         match kind {
             BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
+            BuiltinAnnotationKind::Intrinsic => {
+                check_intrinsic_builtin_annotation_gate(
+                    source,
+                    file_allows_intrinsic,
+                    ann,
+                    object_kind_name(obj.kind),
+                    obj_fqn,
+                )?;
+                if !ann.args.is_empty() {
+                    let (_, name_span) = annotation_name_and_span(source, ann);
+                    return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
+                        annotation: format!("@{}", kind.name()),
+                        span: name_span.into(),
+                    });
+                }
+            }
             BuiltinAnnotationKind::Deprecated
             | BuiltinAnnotationKind::Suppress
             | BuiltinAnnotationKind::Experimental => {}

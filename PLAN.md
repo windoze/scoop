@@ -22,12 +22,12 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b` 与 `T4014R` 均已完成；当前主线转入 `T4015a`。
+1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b`、`T4014R` 与 `T4015a1` 均已完成；`T4015a` 的主线现转入 `T4015a2`。
 2. `CONTINUATION.md` 已收口为显式 `EffectCtx` / `EffectOutcome` 的实施基线，且 `T4017R` 已确认 ordinary boundary、continuation resume 与文档叙事均不再把 ambient effect TLS 当成 source of truth。
 3. `ISSUES.md` 第 9 条：`@Inline` 交叉项已随 `T4013` 收口，不再构成 annotation blocker
 4. `ISSUES.md` 第 10 条：legacy `inline` 关键字与 non-local return 语义残留已由 `T4013R` review 确认关闭。
 5. `ISSUES.md` 第 11 条：ordinary `@Extern` 的 effect-impermeable 边界与 stable handle / `Pinned` 职责分离已由 `T4014R` 复审确认收口。
-6. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）；下一步执行 `T4015a`。
+6. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a2 -> T4015b -> T4015c -> T4015R`）；下一步执行 `T4015a2`。
 
 ## 2. 分阶段目标
 
@@ -429,12 +429,16 @@
 - `T4014R` 已完成：
   - 复扫 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`、`sysroot/unsafe.scoop`、`crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/typecheck/expr/error.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/mod.rs` 后，ordinary `@Extern` 的 effect-impermeable 边界、stable handle 的长期 token 合同以及 `Pinned` 的短时借址语义仍保持一致，不存在继续隐含 GC / effect 语义的生产旁路。
   - 复验 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo test -p scoopc pure_extern_call_does_not_install_effect_boundary --features llvm`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，均未暴露新的前置 blocker。
-- 当前状态：`T4014a`、`T4014b` 与 `T4014R` 已完成；下一步执行 `T4015a`。
+- 当前状态：`T4014a`、`T4014b`、`T4014R` 与 `T4015a1` 已完成；`T4015a` 还剩 `T4015a2`，下一步执行 `T4015a2`。
 
 ### P4. const / comptime 扩展
 
-- 在保持纯计算模型前提下，扩展 const/comptime 的解析、控制流与 effect-row 合同，避免继续停留在“同文件 + 名字/参数个数 + 字面量求值”的最小子集。
-- 当前状态：`T4014R` 已完成，当前主线转入 `T4015a`；后续顺序为 `T4015a -> T4015b -> T4015c -> T4015R`。
+- 在保持纯计算模型前提下，继续扩展 const/comptime 的 generic 调用、控制流与 effect-row 合同，避免继续停留在“仅 non-generic 调用已接通、纯计算子集仍偏窄”的早期状态。
+- 当前状态：`T4014R` 已完成；经代码核对，`T4015a` 需拆成两步：
+  - `T4015a1`：先让 const/comptime 接入 compilation-unit resolve/typecheck 绑定，并按 typechecked 目标执行跨文件 / overload 的 non-generic 顶层 `const fun` 调用；
+  - `T4015a2`：再支持 generic `const fun` 的实例化与 type-substitution，移除解释器对 `generic type params` 的剩余门禁。
+- 当前状态补充：`T4015a1` 已完成，期间还顺手收口了接入 compilation-unit 主线后暴露出的几条前端缺口：`const fun` 中的 sysroot String 扩展 const gate、`String + String`、无注解顶层值类型推导，以及 splice-field struct 描述符的 v0 前端检查。
+- 当前主线顺序更新为 `T4015a2 -> T4015b -> T4015c -> T4015R`。
 
 ## 3. 各阶段完成标准
 

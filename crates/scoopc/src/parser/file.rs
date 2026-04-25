@@ -166,6 +166,9 @@ impl<'a> Parser<'a> {
                 std::collections::HashSet::new(),
             ),
             top_level_fun_value_refs: std::cell::RefCell::new(std::collections::HashMap::new()),
+            top_level_fun_call_bindings: std::cell::RefCell::new(
+                std::collections::HashMap::new(),
+            ),
             typechecked_effect_op_call_bindings: std::cell::RefCell::new(
                 std::collections::HashMap::new(),
             ),

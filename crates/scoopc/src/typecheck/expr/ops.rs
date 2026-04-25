@@ -623,6 +623,26 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     let lhs_ty = inputs.infer(lower, lhs)?;
 
+    // T0123：String `+` 走内建字符串拼接规则，而不是用户态 operator overloading。
+    //
+    // 说明：
+    // - comptime evaluator 已支持 `ConstValue::String + ConstValue::String`；
+    // - 这里补齐前端静态类型规则，避免在 const fun / const val / 普通表达式里被误当成整数加法。
+    if op == ast::BinaryOp::Add && lhs_ty == inputs.builtins.string {
+        let rhs_ty = inputs.infer(lower, rhs)?;
+        if rhs_ty == inputs.builtins.string {
+            return Ok(inputs.builtins.string);
+        }
+
+        return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+            op: binary_op_text(op).to_string(),
+            expected: "rhs 为 String".to_string(),
+            lhs: lower.fmt_type(lhs_ty),
+            rhs: lower.fmt_type(rhs_ty),
+            span: op_span.into(),
+        });
+    }
+
     // Kotlin-like：对整数保留内建规则（避免要求 sysroot 的 Int/Int8/... 必须定义 `plus/and/shl/...`）。
     if is_integer_type(lhs_ty, lower, inputs.builtins) {
         let rhs_ty = inputs.infer(lower, rhs)?;

@@ -503,7 +503,7 @@ fn run_one(
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
         FixturePhase::Infer => infer_fixture(session, &source, &exp),
-        FixturePhase::Comptime => comptime_fixture(&source, path),
+        FixturePhase::Comptime => comptime_fixture(session, &source, path),
         FixturePhase::RunPass => run_pass::run_fixture(rel, path, opt_level, &exp, run_pass_env),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
@@ -1067,12 +1067,13 @@ fn parse_fixture(
 }
 
 fn comptime_fixture(
+    session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
-    let bindings =
-        scoopc::comptime::eval_const_bindings_in_file(source, &ast).map_err(box_diagnostic)?;
+    let bindings = scoopc::comptime::eval_const_bindings_in_file(session.sysroot(), source, &ast)
+        .map_err(box_diagnostic)?;
 
     let actual = normalize_newlines(&format_const_bindings_for_fixture(&bindings));
 

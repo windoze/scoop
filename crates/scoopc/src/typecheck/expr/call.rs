@@ -1922,7 +1922,12 @@ pub(super) fn check_const_fun_call_gate(
     // spec §6.2：`const fun` 允许调用：
     // - 其它 `const fun`
     // - 编译器 intrinsics（即便 sysroot 声明未显式标记为 const）
-    if sig.is_const || sig.is_intrinsic {
+    //
+    // 另外，部分 sysroot/stdlib API 虽然在源代码上是普通函数声明，
+    // 但 const/comptime 解释器会直接以内建逻辑执行，不会真的进入其函数体。
+    // 这些调用点在前端 const gate 上也必须视为“编译器 intrinsic”同类目标，
+    // 否则 compilation-unit 级 typecheck 会先把它们误拒绝。
+    if sig.is_const || sig.is_intrinsic || is_const_eval_builtin_fun(callee_fqn) {
         return Ok(());
     }
 
@@ -1930,6 +1935,21 @@ pub(super) fn check_const_fun_call_gate(
         callee: callee_fqn.to_string(),
         span: call_span.into(),
     })
+}
+
+fn is_const_eval_builtin_fun(callee_fqn: &str) -> bool {
+    matches!(
+        callee_fqn,
+        "scoop.core.substring"
+            | "scoop.core.indexOf"
+            | "scoop.core.contains"
+            | "scoop.core.startsWith"
+            | "scoop.core.endsWith"
+            | "scoop.core.split"
+            | "scoop.core.trimStart"
+            | "scoop.core.trimEnd"
+            | "scoop.core.trim"
+    )
 }
 
 fn emit_deprecated_call_warning(
@@ -2592,6 +2612,14 @@ pub(super) fn infer_call_expr_type(
                     sig.decl_span,
                     &instantiated.type_args,
                 );
+                lower.record_top_level_fun_call_binding(
+                    call_expr.span,
+                    callee_fqn.clone(),
+                    sig.decl_file.clone(),
+                    sig.decl_span,
+                    sig.is_intrinsic,
+                    instantiated.type_args.clone(),
+                );
 
                 return Ok(instantiated.return_ty);
             }
@@ -3075,6 +3103,20 @@ pub(super) fn infer_call_expr_type(
             for effect in call_effects.terms.iter().copied() {
                 lower.record_performed_effect(effect, call_expr.span);
             }
+
+            lower.record_monomorph_call(
+                callee_fqn.clone(),
+                chosen.sig.decl_span,
+                &chosen.instantiated.type_args,
+            );
+            lower.record_top_level_fun_call_binding(
+                call_expr.span,
+                callee_fqn.clone(),
+                chosen.sig.decl_file.clone(),
+                chosen.sig.decl_span,
+                chosen.sig.is_intrinsic,
+                chosen.instantiated.type_args.clone(),
+            );
 
             Ok(chosen.instantiated.return_ty)
         }

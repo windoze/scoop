@@ -41,6 +41,10 @@ impl<'a> ConstEvalCtx<'a> {
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ConstEvalError {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Frontend(#[from] Box<dyn miette::Diagnostic + Send + Sync>),
+
     #[error("暂不支持的常量表达式：{kind}")]
     #[diagnostic(code(scoop::comptime::unsupported_expr))]
     UnsupportedExpr {
@@ -550,7 +554,7 @@ pub(crate) fn eval_const_expr_with_host(
             // String 方法 intrinsics（T0123）：
             // 当 receiver 为编译期常量（ConstValue::String）时，在编译期执行并折叠。
             if let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind {
-                let member_name = ctx.source.slice(member.span);
+                let member_name = member_simple_name(ctx.source, member);
                 if let Some(result) = try_eval_string_method_intrinsic(
                     ctx,
                     host,
@@ -1138,7 +1142,7 @@ fn eval_member_access(
     member: &ast::MemberIdent,
     whole_expr_span: crate::span::Span,
 ) -> Result<ConstValue, ConstEvalError> {
-    let member_name = ctx.source.slice(member.span);
+    let member_name = member_simple_name(ctx.source, member);
 
     match receiver {
         ConstValue::Tuple(elements) => {
@@ -1228,7 +1232,7 @@ fn eval_enum_ctor_call(
                 });
             };
             let enum_name = ctx.source.slice(receiver_id.span);
-            let variant = ctx.source.slice(member.span);
+            let variant = member_simple_name(ctx.source, member);
             if !looks_like_type_name(enum_name) || !looks_like_type_name(variant) {
                 return Err(ConstEvalError::UnsupportedExpr {
                     kind: "call expression",
@@ -1360,6 +1364,11 @@ fn collect_simple_member_access_path<'a>(
         }
         _ => None,
     }
+}
+
+fn member_simple_name<'a>(source: &'a SourceFile, member: &ast::MemberIdent) -> &'a str {
+    let raw = source.slice(member.span);
+    raw.rsplit('.').next().unwrap_or(raw)
 }
 
 fn parse_tuple_member_index(text: &str) -> Option<usize> {

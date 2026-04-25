@@ -1166,20 +1166,43 @@
 
 ### T4015 [TODO] 将 const/comptime 从最小纯算术子集扩到可用的纯计算模型（拆分执行）
 - 说明：
-  - 最新 `ISSUES.md` 第 12 条把当前限制拆成三层：`const fun` 解析仍只支持同文件 + 名字/参数个数的最小选择；常量 evaluator / interpreter 仍只覆盖很窄的纯表达式子集；header phase 仍对 effect row / `eff` 参数采取一刀切早退。
+  - 最新 `ISSUES.md` 第 12 条把当前限制拆成三层：generic `const fun` 的实例化 / type-substitution 仍未接通；常量 evaluator / interpreter 仍只覆盖很窄的纯表达式子集；header phase 仍对 effect row / `eff` 参数采取一刀切早退。
   - 这三层依赖顺序不同，因此拆分为 `T4015a -> T4015b -> T4015c -> T4015R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 12 条收窄或关闭。
 - 依赖：T4014R
 
-### T4015a [TODO] 收口 `const fun` 的解析 / 选择 / 跨文件调用主线
-- 范围：
-  - `const fun` 解释器不再只按“同文件 + 函数名 + 参数个数”做最小选择；需要接入统一的声明处上下文、重载与跨文件解析主线。
-  - `const fun` 的 call-site 选择、generic 实例化与 declaration context 要与普通函数解析保持可解释的一致性，而不是继续依赖 comptime 私有旁路。
-  - 补充对应单测 / regression，覆盖跨文件 const 调用、重载选择与错误路径。
+### T4015a [TODO] 收口 `const fun` 的解析 / 选择 / 跨文件调用主线（拆分执行）
+- 说明：
+  - 当前条目同时包含三类改动：把 const/comptime 接回 compilation-unit 的 resolve/typecheck 上下文、让解释器按普通调用主线的最终选择执行跨文件/重载调用，以及支持 generic `const fun` 的实例化与 type-substitution。
+  - 这三者存在明确依赖顺序，且 generic `const fun` 仍需要额外处理反射 intrinsic / 类型参数替换，因此先拆成 `T4015a1 -> T4015a2` 两步。
 - 验收：
-  - `ISSUES.md` 第 12 条中“const fun 解释器当前只支持同文件、按函数名 + 参数个数的最小选择”的部分收窄或关闭。
+  - 子任务全部完成后，`const fun` 不再依赖“同文件 + 名字/参数个数”的私有选择旁路，跨文件/重载/generic 实例化都与普通调用主线保持可解释一致。
 - 依赖：T4015
+
+### T4015a1 [DONE] 接入 compilation-unit resolve/typecheck 绑定，让 non-generic `const fun` 调用脱离“同文件 + 名字/参数个数”旁路
+- 范围：
+  - `const/comptime` 解释器建立在 compilation-unit 的 resolve/typecheck 上下文之上，而不是只看当前文件的本地声明表。
+  - 为顶层 `const fun` 调用记录 typecheck 最终选中的目标绑定，并让解释器按该绑定执行跨文件 / import / 可见性 / overload 选择后的 non-generic 顶层 `const fun`。
+  - 解释器的函数/类型注册与执行上下文要能跨文件切换 source/AST，而不是默认“当前 caller 文件就是 callee 声明文件”。
+  - 补充单测 / regression，覆盖跨文件 const 调用、non-generic overload 选择与错误路径。
+- 验收：
+  - `ISSUES.md` 第 12 条中“`const fun` 解释器当前只支持同文件、按函数名 + 参数个数的最小选择”的描述被收窄到剩余的 generic `const fun` / evaluator 能力缺口。
+  - 新增回归可证明 imported / cross-file 的 non-generic 顶层 `const fun` 调用已走统一解析主线，不再由 comptime 私有 `name + arity` 规则决定目标。
+- 已完成：
+  - const/comptime compilation-unit 入口现已纳入 resolve/typecheck side table，non-generic 顶层 `const fun` 会复用 typechecked 绑定执行跨文件 / import / overload 调用。
+  - 补齐并验证了字符串扩展函数在 `const fun` 中的 const gate、`String + String` 的前端规则、无注解顶层值类型推导，以及 splice-field struct 描述符的 v0 前端检查，确保新的 compilation-unit 主线不会再被既有前端缺口阻断。
+  - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/comptime`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+- 依赖：T4015a
+
+### T4015a2 [TODO] 支持 generic `const fun` 的实例化与 type-substitution，并接到同一条调用绑定主线
+- 范围：
+  - 解释器不再用 `generic type params` 直接拒绝 generic `const fun`；需要消费 typecheck 选定的 type args，并把它们带入参数/返回类型、反射 intrinsic 与函数体中的类型引用。
+  - generic `const fun` 的显式 / 推断类型实参、declaration context 与跨文件调用要继续复用 `T4015a1` 已接好的绑定主线，而不是新增第二套 const-only 选择规则。
+  - 补充 regression，覆盖 generic const 调用、type-substitution 与错误路径。
+- 验收：
+  - `const fun` 的 generic 实例化不再是解释器的独立 blocker；`ISSUES.md` 第 12 条关于 call-site 选择的剩余描述进一步收窄。
+- 依赖：T4015a1
 
 ### T4015b [TODO] 扩展纯 comptime evaluator / interpreter 到控制流、局部声明与循环等常见结构
 - 范围：
@@ -1188,7 +1211,7 @@
   - 补充 regression，覆盖条件分支、局部绑定、循环与跨函数纯计算。
 - 验收：
   - `ISSUES.md` 第 12 条中“常量 evaluator 仍只覆盖很窄纯计算子集”的部分收窄或关闭。
-- 依赖：T4015a
+- 依赖：T4015a2
 
 ### T4015c [TODO] 重新收口 `const fun` 的 effect-row / `eff` 参数 contract
 - 范围：
