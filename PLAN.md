@@ -341,7 +341,22 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b4R Review：确认 MainCodegen 的上下文分层已经成立`。
+- 2026-04-25：`T5000b4R Review：确认 MainCodegen 的上下文分层已经成立` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/llvm/codegen/mod.rs` 中的 `CompilationUnitCodegenCx` / `SharedCodegenCaches` / `FunctionBodyCodegenCx` / `EffectLoweringCodegenCx` / `MainCodegen` 构造入口，确认编译单元级只读输入与共享 cache、函数体生命周期状态、effect emitter 专属运行态之间已形成稳定分层；共享 cache 不再随着 `fresh_main_codegen()` / `fresh_child_codegen()` 重建，effect 专属状态也已退出 `MainCodegen` 的平铺字段；
+    - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`call/resume.rs`、`closure/mod.rs` 与 `object_init.rs` 的 runtime-function / child-codegen 路径，确认 step/dispatch runtime function 通过 `take_*_cx()` / `restore_*_cx()` 成组切换上下文，ordinary callee resume entry 则只重置函数级上下文，没有新的 effect/runtime-function 状态越界回灌到 generic lowering；
+    - 已明确下一步 `ProgramFacts` 抽离的切入点：
+      - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中的 `HandlePlanContext::from_codegen(...)` 仍直接从 `MainCodegen` 采集 ctor/object/property/type/local metadata；
+      - 同文件中的 `ensure_known_fun_body_may_outward_effect_cache(...)` / `known_fun_body_may_outward_effect_map(...)` 仍在 LLVM backend 内构造 higher-order suspendability facts；
+      - `crates/scoopc/src/llvm/codegen/mod.rs` 与 `state_machine_plan.rs` 仍各自维护 concrete-type / field-type 恢复 helper，说明这部分 shared facts 尚未统一迁到 backend 外；
+      - `crates/scoopc/src/effect_step_summary.rs` 已直接复用 `state_machine_plan.rs` 的纯分析实现，进一步证明这些事实层已经有 backend 外消费者；
+    - review 结论：`MainCodegen` 的上下文分层已经成立，下一步要迁出的主要是 shared facts / analysis side tables，而不是继续在 backend 主上下文上拆更多 runtime 状态；未发现需要插入到 `T5000bR` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向`。
 
 ## 1. 当前判断
 

@@ -1,71 +1,67 @@
 # 本轮执行计划
 
-## 说明
+## 任务理解
 
-按要求先建立本文件，用于记录本轮的执行计划、关键决策、进度更新与测试结果。
-出于信息安全与协作可读性考虑，这里记录的是可审阅的执行方案、观察结论和状态变化，
-不写入冗长的私有推理原文。
+本轮目标是严格按照仓库流程推进一次最小闭环：
 
-## 初始步骤
+1. 先检查最新提交是否提到了尚未修复的问题；如果提到，优先修复该问题。
+2. 阅读 `TODO.md`，找到第一个未完成任务。
+3. 如果该任务过大，则先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
+4. 对当前要执行的任务完成实现、测试、文档更新与提交。
+5. 完成后立即停止，不继续做下一个任务。
 
-1. 检查最新一次 Git 提交，确认是否提到需要优先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 评估该任务是否足够小且边界清晰：
-   - 若可直接完成，则进入实现。
-   - 若过大，则先细化 `PLAN.md` 与 `TODO.md`，将首个子任务作为本轮执行目标。
-4. 在实现过程中，如果通过测试、审查或探查发现任何既有缺陷、规格不匹配或未完成边界：
-   - 立即优先修复；
-   - 若当前无法直接修复且它是前置依赖，则先更新 `TODO.md` / `PLAN.md` 记录前置任务，再停止。
-5. 完成目标后执行相关测试与质量检查。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况。
-7. 提交 Git commit，然后停止，不继续处理下一项任务。
+## 执行约束
 
-## 进度记录
+- 不接受规避实现边界的 workaround。
+- 在探查、测试、实现过程中遇到任何既有缺陷、规格不一致、回归或实现缺口，都必须立即纳入当前范围。
+- 如果发现阻塞当前任务的前置问题，必须先把该问题作为前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
+- 本轮必须维护 `memory/claude_plan.md`：在计划变化、发现关键问题、完成关键步骤时及时更新。
 
-- 状态：已完成最新提交、`TODO.md`、`PLAN.md` 的初步检查。
-- 结论：
-  - 最新提交说明未声明需要优先修复的既有问题。
-  - 本轮首个未完成任务已确认为 `T5000b4cR Review：确认 effect/state-machine emitter 上下文边界成立`。
-- 当前执行计划：
-  1. 审查 `crates/scoopc/src/llvm/codegen/mod.rs` 中新的 effect lowering 上下文定义与 helper。
-  2. 审查 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`effect/mod.rs`、`call/resume.rs`、`closure/mod.rs` 等调用点，确认 effect 专属状态是否已集中、是否仍存在大段直接操作外层主上下文的路径。
-  3. 若审查发现既有缺陷或边界泄漏，立即修复并补充验证。
-  4. 运行相关测试与质量检查。
-  5. 更新 `TODO.md`、`PLAN.md` 与本文件，记录 review 结论并提交。
-- 当前下一步：读取并核对 effect lowering 上下文与 state-machine emitter 的实现细节。
+## 当前分步计划
 
-## 审查中发现的问题
+1. 查看最新一次 Git 提交信息，确认是否提到待修复问题。
+2. 查看 `TODO.md`、`PLAN.md`、工作区状态，确认第一个未完成任务及其上下文。
+3. 评估该任务是否可在本轮完整闭环；若不可，则拆分并更新计划文件。
+4. 阅读相关代码与测试，定位实现点和潜在既有问题。
+5. 实施代码修改。
+6. 运行相关测试与必要的质量检查（至少覆盖受影响范围；如可行，补充 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`）。
+7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
+8. 生成一次清晰的 Git 提交，仅覆盖本轮完成的逻辑闭环。
 
-- `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 仍残留 4 处手工保存/恢复
-  `function_cx.return_context` 与 `function_cx.current_fun_return_ty` 的模式；
-- 这些位置中间夹着会通过 `?` 提前返回的调用，一旦出错就不会执行恢复逻辑；
-- 这既是 effect emitter 边界未完全收口的问题，也会让 `MainCodegen` 在错误路径上留下不一致的函数级状态。
+## 记录约定
 
-## 修复计划
+- 若发现“最新提交提到的问题”，会在本文件新增“最新提交问题”小节并记录处理状态。
+- 若发现任务需要拆分，会在本文件新增“任务拆分”小节，写明原因与新的执行顺序。
+- 若发现阻塞性既有缺陷，会在本文件新增“阻塞问题”小节，写明规格缺口、影响面、已更新的任务顺序和停止原因。
 
-1. 在 `MainCodegen` 中补一个统一 helper，负责临时安装“禁用普通 return context + `current_fun_return_ty = Never`”语义，并保证无论成功还是失败都恢复。
-2. 把 `state_machine_emitter.rs` 中 4 处手工保存/恢复改为该 helper。
-3. 重新审查剩余 effect emitter 调用点，确认 effect 专属状态与 generic function/body 状态边界已经清晰。
+## 当前进展（2026-04-25）
 
-## 当前结果
+- 已检查最新提交 `e5a7aee [T5000b4cR] Review effect emitter context boundary`。提交说明本身未声明新的未修复缺陷；当前仍需继续按 `TODO.md` 执行下一条未完成任务。
+- 已确认 `TODO.md` 的第一条未完成任务是 `T5000b4R Review：确认 MainCodegen 的上下文分层已经成立`，不需要再次拆分。
+- 已完成本轮 review 的第一轮证据收集：
+  - `CompilationUnitCodegenCx` 现集中持有编译单元级只读输入、共享 cache、`effect_op_tags` 与 `known_effect_instances_by_effect_fqn`；
+  - `FunctionBodyCodegenCx` 现集中持有 env、loop、return、sret、top-level const eval stack 等函数/函数体生命周期状态；
+  - `EffectLoweringCodegenCx` 现集中持有 effect return bridge、callee suspend/resume、continuation replay、suspend-site outcome capture 等 effect emitter 专属状态；
+  - `state_machine_emitter.rs` 已通过 `take_*_cx` / `restore_*_cx` 与 `with_*` helper 成组切换 effect/runtime-function 语境，没有继续直接读写 `effect_cx` 内部字段。
+- 当前未发现需要插入到 `T5000b4R` 之前的新前置缺陷任务。
 
-- 已完成代码修复：
-  - 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `with_local_never_return_semantics(...)`；
-  - 已将 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中 4 处手工保存/恢复
-    `function_cx.return_context` / `current_fun_return_ty` 的路径改为统一 helper。
-- 已完成复核结论：
-  - effect emitter 专属状态已集中在 `EffectLoweringCodegenCx` 及其子上下文中；
-  - `effect/mod.rs`、`call/resume.rs`、`closure/mod.rs` 与 `state_machine_emitter.rs`
-    对 effect 专属状态的访问均经 getter / `with_*` helper / `take+restore` 入口进行；
-  - 剩余 `FunctionBodyCodegenCx` 与 `current_source_id` 仍属于 backend 的 generic lowering /
-    function-body 上下文，不属于 effect emitter 专属状态。
-- 已完成验证：
-  - `cargo fmt --all`
+## Review 观察
+
+- 仍明显依附在 backend 主上下文上的“共享事实 / 中端分析”入口主要集中在：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中的 `HandlePlanContext::from_codegen(...)`；
+  - 同文件中的 `ensure_known_fun_body_may_outward_effect_cache(...)` / `known_fun_body_may_outward_effect_map(...)`；
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 与 `state_machine_plan.rs` 各自维护的一套 concrete-type / field-type 恢复 helper。
+- 这些泄漏点与 `T5000c` 已描述的 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables 抽离方向一致；目前没有发现比 `T5000c` 更早、但尚未在 `TODO.md` 中跟踪的独立阻塞项。
+- 下一步：运行本轮 review 所需验证命令；若通过，则回写 `TODO.md` / `PLAN.md` 并完成提交。
+
+## 验证结果（2026-04-25）
+
+- 已运行并通过：
   - `cargo test -p scoopc llvm::`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-  - 以上全部通过。
-- 文档状态：
-  - `TODO.md` 已将 `T5000b4cR` 标记为完成；
-  - `PLAN.md` 已补记 review 结论，并把下一条待执行任务推进到 `T5000b4R`。
-- 当前下一步：检查工作区差异并提交本轮更改，然后停止。
+- 已将 `T5000b4R` 标记为完成，并把结论回写到 `TODO.md` / `PLAN.md`。
+- 当前结论：
+  - `MainCodegen` 的 module / function / cache / effect emitter 分层已经成立；
+  - 下一条任务应切换到 `T5000bR Review`，重点扩大到整个 LLVM codegen 是否已经整体收口到 backend lowering；
+  - 暂未发现需要插入在 `T5000bR` 之前的新前置缺陷任务。

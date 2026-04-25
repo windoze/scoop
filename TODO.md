@@ -387,7 +387,7 @@
   - review 结论：effect emitter 自己的上下文现可明确界定为 `function_return_context`、callee suspend/resume lowering、continuation replay 与 suspend-site outcome 捕获；`current_source_id` 与 `FunctionBodyCodegenCx` 中的 env/loop/return/return-ty 等状态继续属于 backend 的 generic lowering / function-body 上下文，其中 `state_machine_emitter` 剩余的函数级返回语义覆写也已收口为统一 helper，而不再是 effect 专属字段成片手工保存/恢复；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b4R Review：确认 `MainCodegen` 的上下文分层已经成立
+### [DONE] T5000b4R Review：确认 `MainCodegen` 的上下文分层已经成立
 - 重点：
   - module / function / cache / effect emitter 四类职责是否已有稳定边界；
   - 是否仍有明显的中端分析继续依附在 backend 主上下文上；
@@ -395,6 +395,16 @@
 - 验收：
   - 可以明确指出“哪些部分仍属于 backend”“哪些共享事实下一步应迁到 backend 之外”。
 - 依赖：T5000b4cR
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/mod.rs` 中的 `CompilationUnitCodegenCx`、`SharedCodegenCaches`、`FunctionBodyCodegenCx`、`EffectLoweringCodegenCx` 与 `MainCodegen::{fresh_main_codegen,fresh_child_codegen}`，确认编译单元级只读输入/共享 cache、函数体生命周期状态与 effect emitter 专属运行态现已形成稳定分层：共享 cache 不再挂在 `MainCodegen` 上随 child-codegen 重建，effect 专属状态也不再平铺在主上下文字段里；
+  - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`call/resume.rs`、`closure/mod.rs` 与 `object_init.rs` 的 runtime-function / child-codegen 入口，确认 step/dispatch runtime function 通过 `take_function_body_cx()` / `restore_function_body_cx()` 与 `take_effect_lowering_cx()` / `restore_effect_lowering_cx()` 成组切换，ordinary callee resume entry 则只重置函数级上下文；当前没有发现新的 effect/runtime-function 状态越界回灌到 generic lowering；
+  - review 同时确认“仍附着在 backend 主上下文上的共享事实”已经清晰收敛到下一条 `T5000c` 的入口：
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中的 `HandlePlanContext::from_codegen(...)` 仍直接从 `MainCodegen` 抽取 ctor/object/property/type/local metadata；
+    - 同文件中的 `ensure_known_fun_body_may_outward_effect_cache(...)` / `known_fun_body_may_outward_effect_map(...)` 仍在 LLVM codegen 内构造 higher-order suspendability 事实；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 与 `state_machine_plan.rs` 仍各自维护一套 concrete-type / field-type 恢复 helper，说明这部分 shared facts 尚未 backend-agnostic；
+    - `crates/scoopc/src/effect_step_summary.rs` 已直接 `include!` 复用 `state_machine_plan.rs` 的纯分析实现，进一步说明这些事实层已经有 backend 外消费者；
+  - review 结论：`MainCodegen` 的 module / function / cache / effect emitter 四类职责边界已成立；下一步要迁出 backend 的不再是“更多 runtime lowering 状态”，而是 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables 这类分析事实。当前未发现需要插入到 `T5000bR` 之前的新前置缺陷任务；
+  - 已验证 `cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向
 - 重点：
