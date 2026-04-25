@@ -1167,7 +1167,7 @@
 ### T4015 [TODO] 将 const/comptime 从最小纯算术子集扩到可用的纯计算模型（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 12 条把当前限制拆成三层：generic `const fun` 的实例化 / type-substitution 仍未接通；常量 evaluator / interpreter 仍只覆盖很窄的纯表达式子集；header phase 仍对 effect row / `eff` 参数采取一刀切早退。
-  - 这三层依赖顺序不同，因此拆分为 `T4015a -> T4015b -> T4015c -> T4015R`。
+  - 这三层依赖顺序不同，因此拆分为 `T4015a -> T4015b -> T4015c -> T1220b -> T4015R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 12 条收窄或关闭。
 - 依赖：T4014R
@@ -1246,8 +1246,26 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4015b
 
+### T1220b [TODO] 让 package-level `comptime if` 条件复用 const/comptime 的 typechecked 调用绑定主线
+- 范围：
+  - 当前 `trim_package_level_comptime_ifs(source, file)` 在 index/resolve/typecheck 之前裁剪 AST；其内部 `ConstInterpreter` 只注册当前文件顶层声明，且条件表达式一旦拿不到 `TopLevelFunCallBinding`，就会回退到 `call_const_fun(...)` 的 simple-name + arity 选择。
+  - 这条 pre-trim 路径必须与 `T4015a1/T4015a2` 已收口的 const/comptime 主线对齐：package-level `comptime if` 条件里的 top-level `const fun` 调用也要支持 overload 选择、generic type args/type-substitution，以及 compilation-unit 级别的 import/cross-file 可见性，而不是继续停留在单文件本地注册表。
+  - 修复必须保持“未选中分支不进入 index/resolve/typecheck”的合同，不能靠推迟裁剪到更晚阶段或缩窄条件语法来规避问题。
+- 验收：
+  - 同文件 overloaded `const fun` 可作为 package-level `comptime if` 条件正常裁剪，不再报 `scoop::comptime::const_fun_ambiguous`。
+  - generic `const fun` 的显式类型实参可用于 package-level `comptime if` 条件，不再报 `scoop::comptime::unsupported_const_fun_signature`（`explicit type args`）。
+  - imported / cross-file `const fun` 也可在 package-level `comptime if` 条件中复用同一条调用绑定主线。
+- 已发现阻塞：
+  - 临时 probe `comptime if (describe(1)) { ... }` 在同文件定义 `describe(Int)` / `describe(String)` 时，`cargo run -p scoop -- build` 当前稳定报 `scoop::comptime::const_fun_ambiguous`，证明 pre-trim 条件求值仍在走 simple-name + arity fallback。
+  - 临时 probe `comptime if (truthy<Int>(1)) { ... }` 当前稳定报 `scoop::comptime::unsupported_const_fun_signature`（`explicit type args`），证明 generic const call 在 package-level 裁剪路径上还没接入 `T4015a2` 的 typechecked binding 主线。
+  - 现有实现签名 `trim_package_level_comptime_ifs(source, file)` 也意味着 imported / cross-file const 调用目前缺少可见性上下文，必须一并收口。
+- 依赖：T4015c
+
 ### T4015R [TODO] Review：确认 const/comptime 不再只靠“同文件 + 名字/参数个数 + 字面量求值”的最小旁路
+- 说明：
+  - 在开始本条 review 时，已通过 package-level `comptime if` probe 发现 pre-trim 条件求值仍会回退到旧的单文件 simple-name/arity 路径，因此先前插 `T1220b`。
+  - 本条改为在 `T1220b` 完成后，重新复审整个 const/comptime 主线是否还残留类似旧旁路。
 - 重点：
   - 不允许在 parser/typecheck 接受更多语法后，解释器仍偷偷回退到最小选择模型。
   - comptime 的“纯计算”边界必须由统一 contract 说明，而不是散落在多个早期 gate 里。
-- 依赖：T4015c
+- 依赖：T1220b

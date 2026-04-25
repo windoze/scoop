@@ -22,12 +22,12 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b`、`T4014R`、`T4015a1`、`T4015a2`、`T4015b` 与 `T4015c` 均已完成；下一步转入 `T4015R`。
+1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b`、`T4014R`、`T4015a1`、`T4015a2`、`T4015b` 与 `T4015c` 均已完成；在执行 `T4015R` 复审时发现 package-level `comptime if` 条件仍停留在旧的 pre-typecheck fallback，因此下一步前插 `T1220b`。
 2. `CONTINUATION.md` 已收口为显式 `EffectCtx` / `EffectOutcome` 的实施基线，且 `T4017R` 已确认 ordinary boundary、continuation resume 与文档叙事均不再把 ambient effect TLS 当成 source of truth。
 3. `ISSUES.md` 第 9 条：`@Inline` 交叉项已随 `T4013` 收口，不再构成 annotation blocker
 4. `ISSUES.md` 第 10 条：legacy `inline` 关键字与 non-local return 语义残留已由 `T4013R` review 确认关闭。
 5. `ISSUES.md` 第 11 条：ordinary `@Extern` 的 effect-impermeable 边界与 stable handle / `Pinned` 职责分离已由 `T4014R` 复审确认收口。
-6. `ISSUES.md` 第 12 条：const / comptime 的声明级 Pure/Pure! 合同也已收口；剩余顺序为 `T4015R`，下一步执行 `T4015R`。
+6. `ISSUES.md` 第 12 条：const / comptime 的声明级 Pure/Pure! 合同已收口，但 package-level `comptime if` 条件尚未接入同一条调用绑定主线；剩余顺序为 `T1220b -> T4015R`，下一步执行 `T1220b`。
 
 ## 2. 分阶段目标
 
@@ -429,7 +429,7 @@
 - `T4014R` 已完成：
   - 复扫 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`、`sysroot/unsafe.scoop`、`crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/typecheck/expr/error.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/mod.rs` 后，ordinary `@Extern` 的 effect-impermeable 边界、stable handle 的长期 token 合同以及 `Pinned` 的短时借址语义仍保持一致，不存在继续隐含 GC / effect 语义的生产旁路。
   - 复验 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo test -p scoopc pure_extern_call_does_not_install_effect_boundary --features llvm`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，均未暴露新的前置 blocker。
-- 当前状态：`T4014a`、`T4014b`、`T4014R`、`T4015a1`、`T4015a2`、`T4015b` 与 `T4015c` 已完成；`T4015` 现已完成调用绑定 / generic 实例化 / ordinary control flow / 声明级 effect contract 主线，下一步执行 `T4015R`。
+- 当前状态：`T4014a`、`T4014b`、`T4014R`、`T4015a1`、`T4015a2`、`T4015b` 与 `T4015c` 已完成；`T4015` 已完成调用绑定 / generic 实例化 / ordinary control flow / 声明级 effect contract 主线，但在 `T4015R` 复审 probe 中发现 package-level `comptime if` 条件仍存在旧 fallback，因而需先执行 `T1220b`。
 
 ### P4. const / comptime 扩展
 
@@ -441,7 +441,11 @@
   - `T4015a2` 已完成后，const/comptime 解释器现已复用 typecheck 选定的 generic type args、活动类型实参环境与 reflection/type-substitution 支撑；跨文件 generic const 调用、显式/推断类型实参，以及 nested generic const 调用现已统一复用 typechecked 绑定主线。
   - `T4015b` 已完成：ordinary `if` / block / `do`、局部 `val/var`、assignment、`while` / 普通 `for`、`break/continue` 与 const val initializer 中的 block 表达式现已可解释执行；同时默认递归门限已从 `64` 收紧到 `48`，恢复“先报 `recursion_limit_exceeded`、不先撞宿主线程栈”的稳定合同。
   - `T4015c` 已完成：`const fun` 的声明级 effect contract 现已在 typecheck / comptime 注释 / spec / README / `ISSUES.md` 中统一为“仅允许省略 effect row，或显式 `/ Pure` / `/ Pure!`，且不允许 `<eff ...>`”；新增 `const_fun_closed_pure_basic` 回归锁定显式 `/ Pure!` 仍能走 comptime 主线。
-- 当前主线顺序更新为 `T4015R`。
+  - 在执行 `T4015R` 复审时，已用最小 probe 确认 package-level `comptime if` 裁剪路径尚未跟随主线收口：
+    - 同文件 overloaded `describe(Int/String)` 条件 `comptime if (describe(1)) { ... }` 会在 `cargo run -p scoop -- build` 下报 `scoop::comptime::const_fun_ambiguous`；
+    - 同文件 generic `truthy<Int>(1)` 条件会报 `scoop::comptime::unsupported_const_fun_signature`（`explicit type args`）；
+    - 根因是 `trim_package_level_comptime_ifs(source, file)` 仍在 index/resolve/typecheck 前用单文件 `ConstInterpreter` 求值；一旦缺少 `TopLevelFunCallBinding`，条件调用就回退到 `call_const_fun(...)` 的 simple-name + arity 路径。
+  - 因此当前主线顺序更新为 `T1220b -> T4015R`；`T4015R` 需在 package-level `comptime if` 条件也复用同一条 const/comptime 调用绑定主线后再做结论性复审。
 
 ## 3. 各阶段完成标准
 
