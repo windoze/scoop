@@ -1,93 +1,52 @@
-# 当前执行计划
+# 本轮执行计划
 
-说明：按要求先记录执行计划；这里记录的是可审计的工作计划、决策依据摘要和进度更新，不包含冗长的内部推理草稿。后续只要计划变化、发现阻塞、完成关键步骤，都会继续更新本文件。
+## 约束说明
 
-## 初始目标
+- 按要求先记录计划，再执行命令或代码检查。
+- 思考与记录使用中文。
+- 本轮目标是：先处理最新提交里提到的既有问题；若无，则完成 `TODO.md` 中第一个未完成任务；完成后测试、更新文档、提交 git，然后停止。
 
-本轮只处理 `TODO.md` 中第一个未完成任务；如果在执行前或执行中发现已有缺陷、回归、规范不匹配或最新提交中提到的遗留问题，则先修复该问题，或在 `TODO.md` / `PLAN.md` 中插入其前置任务后停止。
+## 初始执行步骤
 
-## 初始步骤
-
-1. 检查最新一次 git 提交，确认是否提到需先修复的既有问题。
+1. 查看最新一次 git 提交信息，确认是否明确提到待修复的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划、任务依赖和可能的任务拆分空间。
-4. 如果首个未完成任务过大，先拆分任务并更新 `TODO.md` 与 `PLAN.md`，然后仅执行拆分后的第一个子任务。
-5. 阅读与该任务直接相关的代码、测试、规范和最近改动，确认现状及潜在既有问题。
-6. 实现任务；若中途发现既有缺陷或规范不匹配，优先修复或把前置修复任务插入 `TODO.md` 后停止。
-7. 运行相关测试，并补足必要测试；同时运行格式化、lint 或其他必要校验，确保没有新增告警。
-8. 更新 `TODO.md`、`PLAN.md`、本文件，记录完成情况或阻塞原因。
-9. 以清晰提交信息提交本轮变更，然后停止。
+3. 阅读 `PLAN.md`，核对当前计划、依赖关系和任务上下文。
+4. 结合代码与测试状态判断该任务是否可直接完成：
+   - 如果可以直接完成，进入实现。
+   - 如果任务过大，先把任务拆成更小的子任务，并更新 `TODO.md` 与 `PLAN.md`，然后只执行拆分后的第一个子任务。
+   - 如果发现阻塞该任务的既有缺陷、规格不匹配、缺失特性或回避性实现，则优先修复该问题；若本轮无法直接修复，则把它作为前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
 
-## 进度
+## 实施阶段计划
 
-- 已完成：写入初始执行计划。
-- 已完成：检查最新提交、`TODO.md`、`PLAN.md`。
-  - 最新提交 `e0a16af2 [T5000b2R] Review MainCodegen construction boundary` 只包含 review 结论，没有额外声明需先修的遗留问题。
-  - 当前首个未完成任务是 `T5000b3 按主题拆分 llvm/codegen/mod.rs 的独立 lowering 模块`。
-- 新发现：
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 当前仍有 17671 行。
-  - 已识别出至少四组稳定函数簇：
-    1. call dispatch / callable ABI / extern-native / vtable-itable / funptr / resume 边界；
-    2. sysroot / builtin intrinsics；
-    3. closure / class ctor；
-    4. enum lowering / object init。
-  - 原始 `T5000b3` 对单轮而言过大，应先拆成子任务，避免机械大搬家。
-- 计划调整：
-  1. 先把 `T5000b3` 拆成若干按主题排列的实现子任务和对应 review 任务，更新 `TODO.md` 与 `PLAN.md`。
-  2. 本轮只执行拆分后的第一个子任务，优先处理 `call/` lowering 边界。
-  3. 完成后运行相关测试、更新任务状态并提交。
-- 下一步：回写任务拆分，然后开始实现新的第一个子任务。
-# 2026-04-25 本轮续作计划（T5000b3a 收尾）
-
-## 当前已知状态
-
-- 最新提交 `e0a16af2 [T5000b2R] Review MainCodegen construction boundary` 的提交信息未声明需要先修的遗留问题。
-- `TODO.md` / `PLAN.md` 已经把原 `T5000b3` 拆成 `T5000b3a` 到 `T5000b3d`，本轮目标是第一个未完成子任务 `T5000b3a`。
-- `T5000b3a` 的主体代码已经完成：`crates/scoopc/src/llvm/codegen/mod.rs` 中的 call 主题逻辑已迁移到 `crates/scoopc/src/llvm/codegen/call/` 下的 `abi.rs`、`dispatch.rs`、`resume.rs`，`mod.rs` 中保留薄委托入口。
-- 已知中途修复过两个重构边界问题：
-  - `call/resume.rs` 缺少 `LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE` 导入。
-  - `*_impl` 可见性过宽触发 `private_interfaces` warning，已收紧为 `pub(in crate::llvm::codegen)`。
-- 已确认通过的验证：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc llvm::`
-- 尚未最终确认：
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-
-## 本轮执行计划
-
-1. 先检查当前工作树状态，确认前一轮改动仍在，且没有新的意外冲突。
-2. 运行完整验证：
+1. 阅读相关模块与现有测试，确认正确修改点。
+2. 实现任务，避免引入规避性逻辑或与规格不一致的临时方案。
+3. 补充或调整测试，覆盖修复路径和回归场景。
+4. 运行必要验证：
+   - 相关测试
    - `cargo test --all`
    - `cargo clippy --all-targets -- -D warnings`
-3. 如果验证暴露任何既有问题、warning 或回归，立即修复；修复后重新运行受影响验证，直到无 warning、无失败。
-4. 若验证全部通过，检查 `codegen/mod.rs` 与新 `call/` 模块边界，确认本轮任务确实完成的是 call 主题拆分，而非引入新的混杂边界。
-5. 更新项目记录：
-   - 在 `TODO.md` 将 `T5000b3a` 标记完成
-   - 在 `PLAN.md` 记录 `call/` 拆分完成与验证结果
-   - 在本文件记录关键步骤与最终结果
-6. 使用清晰提交信息提交本轮改动，然后停止，不继续处理 `T5000b3aR` 或后续任务。
+   - 如任务相关，再运行对应 fixture / 工具检查
+5. 若验证中暴露任何既有问题，立即转为本轮优先事项并修复，或按要求改写 `TODO.md` / `PLAN.md` 后停止。
 
-## 约束提醒
+## 收尾计划
 
-- 只能完成一个任务：`T5000b3a`。
-- 若遇到阻塞该任务的既有问题，必须先修复或把前置任务插入 `TODO.md` 后停止。
-- 不允许带 warning 提交；`cargo clippy --all-targets -- -D warnings` 必须通过。
+1. 更新 `TODO.md`，标记本轮完成的任务。
+2. 更新 `PLAN.md`，反映当前状态、依赖变化和后续顺序。
+3. 同步更新本文件，记录关键进展、计划变化和已完成步骤。
+4. 检查 git diff，确认只包含本轮需要提交的变更。
+5. 使用清晰的提交信息提交。
+6. 停止，不继续处理下一个任务。
 
-## 本轮执行进度更新
+## 进度记录
 
-- 已检查工作树状态：当前未提交改动与本轮 `T5000b3a` 相关，未发现新的意外冲突文件。
-- 已完成完整验证：
-  - `cargo test --all`：通过；
-  - `cargo clippy --all-targets -- -D warnings`：通过。
-- 已完成边界复核：
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 中保留 `codegen_call`、`codegen_top_level_fun_call`、`emit_extern_native_call`、`try_codegen_class_vtable_call`、`codegen_funptr_value_call`、`declare_callee_resume_entry_function`、`codegen_callee_resume_dispatch` 等原入口名，但主体实现已迁到 `call/dispatch.rs`、`call/abi.rs`、`call/resume.rs` 的 `*_impl`；
-  - `codegen/mod.rs` 当前降到 14972 行，`call/` 目录内部按 `dispatch` / `abi` / `resume` 三组职责分层，符合本轮的“按主题收口 call lowering 边界”目标。
-- 已完成文档回写：
-  - `TODO.md` 已将 `T5000b3a` 标记为 `[DONE]` 并补充完成记录；
-  - `PLAN.md` 已记录 `T5000b3a` 的实现结果、验证结果，并将下一条待执行任务切换为 `T5000b3aR`。
-
-## 待收尾步骤
-
-1. 生成本轮变更的 git 提交。
-2. 提交后停止，不继续处理 `T5000b3aR`。
+- 已完成：初始化计划文件。
+- 已完成：检查最新提交与任务列表，确认最新提交标题未声明新的待修复既有问题；`TODO.md` 首个未完成任务为 `T5000b3aR Review：确认 call/ 拆分形成稳定 lowering 边界`。
+- 已完成：核对 `crates/scoopc/src/llvm/codegen/call/{abi,dispatch,resume}.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 的函数定义分布。
+  - `codegen_call_impl`、`codegen_top_level_fun_call_impl`、vtable/itable dispatch、funptr/function-value call、call arg ABI、ordinary callee resume、top-level effect-call wrapper 等主体实现均已位于 `call/` 子模块；
+  - `codegen/mod.rs` 中对应入口现为薄委托，根模块仍保留少量共享数据结构与命名 helper；
+  - `call/dispatch.rs` 对 sysroot builtin、class ctor、interface/vtable helper 的依赖是单向委托，未发现新的双向主体耦合；
+  - closure/effect 主题只经 `declare_*callee_resume_entry`、`codegen_callee_resume_entry_function`、`call_callee_resume_entry_from_state` 等窄入口消费 call-resume 能力。
+- 结论：当前没有发现必须先修复或先插入 `TODO.md` 的新前置缺陷，可以直接完成 `T5000b3aR` 文档与验证收尾。
+- 已完成：执行验证命令，`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+- 已完成：更新 `TODO.md` 与 `PLAN.md`，将 `T5000b3aR` 标记为完成，并将下一条待执行任务切换为 `T5000b3b`。
+- 进行中：检查工作区变更并准备提交本轮结果。

@@ -116,7 +116,23 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b3aR Review：确认 call/ 拆分形成稳定 lowering 边界`。
+- 2026-04-25：`T5000b3aR Review：确认 call/ 拆分形成稳定 lowering 边界` 已完成。
+  - 已核对 `crates/scoopc/src/llvm/codegen/call/{dispatch,abi,resume}.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs`：
+    - `codegen_call_impl`、top-level/direct/virtual/interface/funptr/function-value call、call arg ABI、ordinary callee resume 与 top-level effect-call wrapper 等主体实现均已离开根模块，集中位于 `call/`；
+    - `codegen/mod.rs` 当前对这些入口只保留薄委托，以及少量共享 call 数据结构 / 命名 helper。
+  - 已确认交叉接口方向：
+    - `call/dispatch.rs` 对 `codegen_class_ctor_call`、`codegen_closure_expr`、各类 `codegen_sysroot_*` / `try_codegen_tostring_iface_builtin` helper 的依赖仍是单向委托；
+    - closure/effect 主题仅通过 `declare_*callee_resume_entry`、`codegen_callee_resume_entry_function`、`call_callee_resume_entry_from_state` 等 resume 入口消费 call 主题能力；
+    - 未发现 class ctor / closure / intrinsics 主题反向承载 call dispatch / ABI 主体实现的新双向耦合。
+  - review 结论：
+    - `call/` 的职责上界已明确为调用分派、调用点 ABI / 实参绑定、ordinary resume / wrapper lowering；
+    - builtin/sysroot、closure/class ctor、enum/object 主题仍主要位于 `codegen/mod.rs`，它们就是后续 `T5000b3b`～`T5000b3d` 的剩余拆分对象，不需要在此之前插入新的前置缺陷修复任务。
+  - 验证结果：
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b3b 拆出 intrinsics/ lowering 模块`。
 
 ## 1. 当前判断
 
