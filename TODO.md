@@ -336,7 +336,7 @@
   - 这一步保持了现有 lowering 语义与诊断边界不变，同时让后续 `T5000b4c` 可以只继续处理 effect emitter 专属状态，而无需再夹带普通函数级状态容器的拆分；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b4bR Review：确认 function/body 级上下文边界成立
+### [DONE] T5000b4bR Review：确认 function/body 级上下文边界成立
 - 重点：
   - function/body 生命周期字段是否已集中；
   - 是否仍有明显应属于函数级状态的字段残留在外层主上下文；
@@ -344,6 +344,12 @@
 - 验收：
   - effect emitter 后续只需处理真正的 effect 专属状态，而不是再夹带普通函数级状态。
 - 依赖：T5000b4b
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 `MainCodegen` 当前仅保留 `current_source_id`、`function_cx` 与 effect 专属状态；`env`、`extra_gc_root_slots` / `next_extra_gc_root_slot_id`、`loop_context_stack`、`return_context`、`current_fun_return_ty`、`current_sret_return_ptr` 与 `top_level_const_eval_stack` 已全部集中到 `FunctionBodyCodegenCx`，且未再发现 `self.env` / `self.return_context` / `self.current_fun_return_ty` 一类旧访问残留；
+  - 已复核 `crates/scoopc/src/llvm/codegen/call/resume.rs` 与 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`，确认跨函数 / 跨 runtime-function 的保存恢复入口现已收敛为 `take_function_body_cx()` / `restore_function_body_cx()`；effect emitter 中剩余对 `return_context` / `current_fun_return_ty` 的若干保存恢复，仅用于同一 runtime function 内的局部语义覆写，不再是成片手工搬运普通函数级上下文；
+  - 已确认 `effect_function_return_context`、`current_callee_suspend_plan`、`current_callee_resume_entry_fn`、`current_continuation_resume_replay`、`current_continuation_resume_replay_context`、`active_suspend_site_effect_outcome_capture` 与 `suspend_site_explicit_effect_outcomes` 继续准确对应下一条 `T5000b4c` 的 effect emitter 专属状态范围；`current_source_id` 则仍属 generic lowering / 诊断上下文，当前没有证据表明它是遗漏的函数局部运行态；
+  - review 结论：function/body 生命周期边界已成立，effect emitter 后续可以只聚焦 effect 专属状态收口；未发现需要插入到 `T5000b4c` 之前的新前置缺陷任务；
+  - 已验证 `cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b4c 抽出 effect/state-machine emitter 专用上下文
 - 范围：

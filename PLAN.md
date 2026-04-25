@@ -297,7 +297,20 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b4bR Review：确认 function/body 级上下文边界成立`。
+- 2026-04-25：`T5000b4bR Review：确认 function/body 级上下文边界成立` 已完成。
+  - 复核结果：
+    - 已确认 `MainCodegen` 当前只剩 `current_source_id`、`function_cx` 与 effect 专属状态；原任务列出的七类函数 / body 生命周期字段都已收口到 `FunctionBodyCodegenCx`，实现代码中也不再残留 `self.env`、`self.return_context`、`self.current_fun_return_ty` 等旧访问；
+    - 已确认 `call/resume.rs` 的 callee resume entry 发射，以及 `effect/state_machine_emitter.rs` 的 step / dispatch runtime function 发射入口，都已改为整组 `take_function_body_cx()` / `restore_function_body_cx()` 交换函数级状态；effect emitter 内剩余的 `return_context` / `current_fun_return_ty` 保存恢复仅用于同一 runtime function 内的局部语义覆写，不再构成“普通函数级状态成片手工保存/恢复”；
+    - 已确认 `effect_function_return_context`、`current_callee_suspend_plan`、`current_callee_resume_entry_fn`、`current_continuation_resume_replay`、`current_continuation_resume_replay_context`、`active_suspend_site_effect_outcome_capture` 与 `suspend_site_explicit_effect_outcomes` 现已清晰收敛为下一步 `T5000b4c` 的 effect emitter 专属上下文范围；`current_source_id` 继续保留为 generic lowering / 诊断上下文，没有暴露出必须先插入的新前置缺陷任务。
+  - review 结论：
+    - function/body 生命周期边界已经成立；
+    - `T5000b4c` 可以直接聚焦 effect/state-machine emitter 专属运行态，而不必再夹带普通函数级状态收口。
+  - 验证结果：
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b4c 抽出 effect/state-machine emitter 专用上下文`。
 
 ## 1. 当前判断
 
