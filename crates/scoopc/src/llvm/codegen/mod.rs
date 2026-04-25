@@ -13,8 +13,10 @@
 //! - `enum_lowering.rs` / `object_init.rs`：enum constructor/object singleton 相关 lowering；
 //! - `effect/`、`gc.rs`、`runtime_abi.rs` 等继续保持独立主题边界。
 //!
-//! 下一步 `T5000c` 会继续把 `ProgramFacts` / `EffectAnalysisCtx` 这类 shared facts
-//! 迁出 LLVM backend，让这里进一步收口为“只做 backend lowering”的边界。
+//! `T5000c` 已将 `ProgramFacts` / `EffectAnalysisCtx` / `ExprFactResolver` 这类 shared facts
+//! 抽离到 backend 外的共享层；这里当前只消费这些 backend-agnostic 输入，并继续朝
+//! “只做 backend lowering”的边界收口。后续 `T5000d+` 将让 early MIR / summary 直接复用
+//! 同一层共享事实，而不是回到 LLVM 现场拼装分析输入。
 
 use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};

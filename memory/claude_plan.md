@@ -1,51 +1,57 @@
-# 本轮执行计划
+## 当前执行计划（可验证摘要）
 
-## 约束说明
+说明：按要求先记录执行计划与决策摘要；这里保存的是可验证的步骤、假设与变更记录，不包含逐字内部推理。
 
-- 本轮目标：只完成 `TODO.md` 中第一个未完成任务，然后停止。
-- 必须先检查最新提交是否提到预存问题；若提到，先修复该问题，再处理计划任务。
-- 若在探查、测试、实现过程中发现任何既有问题、规约不匹配、缺失能力或依赖缺口，必须优先修复；如果当前轮次无法直接修复，则需要先在 `TODO.md` 中插入前置任务、更新 `PLAN.md`，提交后停止。
-- 在没有确认上下文之前，不假设任务规模、实现位置或测试范围。
+### 初始目标
 
-## 当前已知执行思路
+本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行前或执行中发现更早应修复的既有问题，则先修复该问题，或者把它整理为新的前置任务插入 `TODO.md`，更新 `PLAN.md` 后停止。
 
-1. 读取最新一次 Git 提交信息，检查是否显式提到需要先修复的遗留问题。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，理解当前计划与任务编号、依赖关系、已有拆分情况。
-4. 根据任务内容检查相关代码、测试与文档；必要时先运行最小范围验证，确认是否存在阻塞性的既有缺陷。
-5. 若任务过大，则先把任务拆分为更小子任务，并同步更新 `TODO.md` 与 `PLAN.md`；本轮只执行拆分后的第一个子任务。
-6. 实现当前目标任务。
-7. 运行与改动直接相关的测试，再补充必要的全量或更大范围校验；同时运行格式化/静态检查，至少覆盖本次改动影响面，并尽量满足 `cargo clippy --all-targets -- -D warnings`。
-8. 更新文档与计划状态：
-   - 在 `TODO.md` 中把本轮完成任务标记为已完成。
-   - 在 `PLAN.md` 中记录当前进展、后续依赖或拆分调整。
-   - 若执行过程中计划发生变化，实时更新本文件。
-9. 检查工作区改动，确保不误覆盖用户已有更改。
-10. 使用清晰的 Git 提交信息提交本轮成果，然后停止。
+### 执行步骤
 
-## 风险与检查点
+1. 检查最新一次 git 提交，确认提交说明里是否提到已知问题、待补修项或回归；若有，优先处理。
+2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务，以及是否需要拆分为更小子任务。
+3. 审查相关代码、测试与规范上下文，确认任务边界，并识别任何阻塞当前任务的既有缺陷或规格不匹配。
+4. 若任务可直接完成：
+   - 实现代码；
+   - 添加或更新测试；
+   - 运行相关验证，至少覆盖受影响范围，并尽量满足 `cargo clippy --all-targets -- -D warnings` 与相关测试要求。
+5. 若任务不可直接完成：
+   - 在 `TODO.md` 中插入前置修复任务并调整顺序；
+   - 在 `PLAN.md` 中记录阻塞原因与依赖关系；
+   - 提交变更后停止。
+6. 完成任务后：
+   - 更新 `TODO.md` 勾选状态；
+   - 更新 `PLAN.md` 当前状态；
+   - 在本文件补充结果摘要与验证记录；
+   - 提交 git，随后停止，不继续做下一项任务。
 
-- 若最新提交只“提到”问题但未说明范围，需要结合相关文件与测试确认是否仍然存在。
-- 若发现 `memory/`、`PLAN.md`、`TODO.md`、`README.md` 或测试基线本身存在不一致，需判断其是否构成当前任务的前置问题。
-- 若任务涉及语言特性、编译链路、运行时或标准库边界，必须验证真实链路，不接受仅靠夹具或局部绕过的“完成”。
+### 记录规则
 
-## 进度记录
+- 每当发现关键阻塞、调整计划、完成实现、完成测试或准备提交时，更新本文件。
+- 不通过规避缺陷的方式推进任务；遇到规格缺口时，先修复或先建前置任务。
 
-- 已完成：检查最新提交 `d7bfb1ab [T5000c3bR] Review shared concrete-type helper direction`；提交正文未额外提到需要优先修复的遗留问题。
-- 已完成：定位本轮首个未完成任务为 `T5000c3R Review：确认共享分析消费者已脱离 LLVM backend 源文件依赖`。
-- 已完成：审计 shared analysis / consumer 的依赖方向。
-  - `crates/scoopc/src/lib.rs` 只在 `#[cfg(not(feature = "llvm"))]` 下暴露 `effect_step_summary`；
-  - `crates/scoopc/src/effect_step_summary.rs` 当前直接 `include!("effect_state_machine_analysis.rs")`；
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 只保留 backend 薄包装；
-  - `crates/scoopc/src/program_facts.rs`、`crates/scoopc/src/effect_analysis.rs`、`crates/scoopc/src/expr_facts.rs` 已覆盖 planning 与 direct-step summary 的共同输入，且不依赖 `crate::llvm` / inkwell；
-  - `crates/scoopc/src/effect_state_machine_analysis.rs` 中剩余 `MainCodegen` 相关入口全部位于 `#[cfg(feature = "llvm")]` 下，仅作为 backend 调用 shared analysis 的接缝。
-- 已完成验证：
-  - `cargo check -p scoopc --lib`
+### 进度更新（2026-04-26）
+
+- 已检查最新提交 `95504b115175e836c7d41856b9a37e2de2ecd9f3`，提交说明为 `[T5000c3R] Review shared analysis consumer boundary`，未在提交说明中看到需要优先修复的额外既有问题。
+- 已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务为 `T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向`。
+- 本轮接下来将围绕 `ProgramFacts`、`EffectAnalysisCtx`、`ExprFactResolver`、`effect_state_machine_analysis.rs` 与相关 LLVM 接缝做总复核；若发现 shared 层仍持有 backend 依赖或只能通过 `MainCodegen` 才能工作的路径，将先修复该问题或把它登记为新的前置任务。
+- 审查过程中发现一个已存在的文档错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释仍写“下一步 T5000c”；该注释已更新为反映 `T5000c` 已完成 shared facts 抽离、后续转向 `T5000d+` 的真实状态。
+
+### 本轮结果（2026-04-26）
+
+- `T5000cR` 已完成并已在 `TODO.md` / `PLAN.md` 记录：
+  - `ProgramFacts`、`EffectAnalysisCtx`、`ExprFactResolver` 本身不依赖 LLVM backend 类型；
+  - `effect_state_machine_analysis.rs` 中剩余 `MainCodegen` 相关逻辑只存在于 `#[cfg(feature = "llvm")]` 的薄包装接缝；
+  - shared planning / direct-step summary 的入口可以在不构造 LLVM backend 上下文的前提下独立运行；
+  - backend 侧改为统一消费 `Rc<ProgramFacts>` 与 shared resolver，而不是现场拼装平行分析 side table。
+- 本轮顺手修复的既有问题：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释的任务状态描述过期，已更新。
+- 验证已完成并通过：
   - `cargo fmt --all --check`
+  - `cargo check -p scoopc --lib`
   - `cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`
   - `cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`
   - `cargo test -p scoopc --no-default-features`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 已完成：回写 `TODO.md` / `PLAN.md`，已将 `T5000c3R` 标记为完成，并把下一条待执行任务切换为 `T5000cR`。
-- 当前结论：未发现必须插入到 `T5000cR` 之前的新前置缺陷任务；下一步只剩提交本轮结果并停止。
+- 下一条待执行任务已切换为 `T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template`；本轮按要求在提交后停止。

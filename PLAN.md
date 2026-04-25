@@ -535,6 +535,23 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向`。
+- 2026-04-26：`T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向` 已完成。
+  - 复核结论：
+    - `crates/scoopc/src/program_facts.rs`、`crates/scoopc/src/effect_analysis.rs` 与 `crates/scoopc/src/expr_facts.rs` 当前都只依赖 lowered HIR / `TypeStore` / `ProgramFacts` / local metadata 等 shared 输入，不直接引用 `inkwell`、`crate::llvm`、`MainCodegen`、GC ABI 或 LLVM builder/module；`ProgramFacts::from_lowered(...)` 也继续只从 lowered HIR side tables 一次性构造共享事实，而不是从 backend emitter 现场回捞；
+    - `crates/scoopc/src/effect_state_machine_analysis.rs` 中唯一 `MainCodegen` 相关入口现位于 `#[cfg(feature = "llvm")] impl MainCodegen` 的薄包装接缝；handle planning / higher-order suspendability summary / direct-step summary 的主体继续基于 `EffectAnalysisCtx` / `ProgramFacts` / `ExprFactResolver` 运行，`collect_known_fun_call_suspendability(...)`、`direct_step_analysis_context_for_handle(...)` 与 `compute_escape_continuation_direct_step_effect_rows_for_handle_in_program(...)` 等 shared 分析入口都可以在不构造 LLVM backend 上下文的前提下独立工作；
+    - `crates/scoopc/src/llvm/emit.rs` 现统一在 lowering 后一次性构造 `Rc<ProgramFacts>` 并注入 `CompilationUnitCodegenCx`，而 `crates/scoopc/src/llvm/codegen/mod.rs` 中 generic lowering 对 concrete-type / field-type 的恢复也只经 `ExprFactResolver` 等 shared helper 消费共享事实；backend 已不再维护另一套平行分析 side table；
+    - review 过程中顺手修复了一个既有文档错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释此前仍写“下一步 T5000c”，现已改为准确描述 shared facts 已抽离到 backend 外、后续 `T5000d+` 将让 early MIR / summary 直接复用同一层共享事实；
+    - review 结论：共享事实层已经脱离 LLVM backend 依赖方向，后续 `T5000d` 可以在不依赖 LLVM builder / module / GC ABI 细节的前提下推进 generic early MIR / ANF template；未发现需要插入到 `T5000d` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo check -p scoopc --lib`
+    - `cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`
+    - `cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template`。
 
 ## 1. 当前判断
 

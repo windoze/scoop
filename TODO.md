@@ -581,7 +581,7 @@
   - review 结论：共享分析消费者已脱离 LLVM backend 源文件依赖，`T5000cR` 可以基于 backend-agnostic 的 facts / analysis 边界做总复核；当前未发现需要插入到 `T5000cR` 之前的新前置缺陷任务；
   - 已验证 `cargo check -p scoopc --lib`、`cargo fmt --all --check`、`cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`、`cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向
+### [DONE] T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向
 - 重点：
   - `ProgramFacts` / `EffectAnalysisCtx` 是否真的 backend-agnostic；
   - 是否还残留“必须通过 `MainCodegen` 才能做分析”的强耦合路径；
@@ -589,6 +589,13 @@
 - 验收：
   - 后续 MIR 任务可以在不依赖 LLVM builder / module / GC ABI 细节的前提下推进。
 - 依赖：T5000c3R
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/program_facts.rs`、`crates/scoopc/src/effect_analysis.rs` 与 `crates/scoopc/src/expr_facts.rs`，确认三者当前只依赖 HIR / `TypeStore` / `ProgramFacts` / 本地 metadata 等 shared 输入，不直接引用 `inkwell`、`crate::llvm`、`MainCodegen`、GC ABI 或 LLVM builder/module 细节；`ProgramFacts::from_lowered(...)` 也继续只从 lowered HIR side tables 一次性构造共享事实，而不是从 backend emitter 现场回捞。
+  - 已复核 `crates/scoopc/src/effect_state_machine_analysis.rs` 与 `crates/scoopc/src/effect_step_summary.rs`，确认 handle planning、higher-order suspendability summary 与 direct-step summary 的主体实现继续运行在 `EffectAnalysisCtx` / `ProgramFacts` / `ExprFactResolver` 之上；文件中唯一 `MainCodegen` 相关入口位于 `#[cfg(feature = "llvm")] impl MainCodegen` 的薄包装接缝，而 `collect_known_fun_call_suspendability(...)`、`direct_step_analysis_context_for_handle(...)`、`compute_escape_continuation_direct_step_effect_rows_for_handle_in_program(...)` 等 shared 分析入口均可在不构造 LLVM backend 上下文的前提下独立工作。
+  - 已复核 `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 backend 侧现统一在 lowering 后一次性构造 `Rc<ProgramFacts>` 并注入 `CompilationUnitCodegenCx`；generic lowering 对 concrete-type / field-type 的恢复也只经 `ExprFactResolver` 这类 shared helper 消费共享事实，而不是在 backend 现场重建平行 side tables。
+  - review 过程中顺手修复了一个既有文档错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释此前仍写“下一步 T5000c”，现已改为准确描述 `T5000c` 已完成 shared facts 抽离、后续转向 `T5000d+` 让 early MIR / summary 直接复用同一层共享事实。
+  - review 结论：共享事实层已经脱离 LLVM backend 依赖方向，后续 `T5000d` 可以在不依赖 LLVM builder / module / GC ABI 细节的前提下推进 generic early MIR / ANF template；当前未发现需要插入到 `T5000d` 之前的新前置缺陷任务。
+  - 已验证 `cargo fmt --all --check`、`cargo check -p scoopc --lib`、`cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`、`cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template
 - 范围：
