@@ -551,7 +551,7 @@
   - 阶段结论：planning / direct-step summary 与 backend generic lowering 已不再各自维护一套同类 helper，receiver exactness / field specialization 所需的 concrete-type 事实现统一由 shared `ProgramFacts` + `expr_facts` 层提供；
   - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`、`cargo test -p scoopc direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000c3bR Review：确认 concrete-type / receiver exactness helper 的依赖方向已拉直
+### [DONE] T5000c3bR Review：确认 concrete-type / receiver exactness helper 的依赖方向已拉直
 - 重点：
   - 是否还残留 planning / summary 与 backend generic lowering 各自维护一套同类 helper；
   - shared facts / analysis 层是否已经承接 concrete type / field type / receiver exactness 的共同输入；
@@ -559,6 +559,12 @@
 - 验收：
   - `T5000c3R` 可以基于统一 shared helper 边界做总复核。
 - 依赖：T5000c3b
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/expr_facts.rs` 为 concrete-type / field-type / call-result 解析的唯一主体实现；`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/effect_state_machine_analysis.rs` 中仅剩向 shared resolver 注入 local type lookup 的薄包装，不再各自维护平行 helper；
+  - 已复核 `crates/scoopc/src/program_facts.rs` 中的 `top_level_value_ty`、`object_property_ty`、`fun_return_ty` 与 `resolve_nominal_field_ty` 已覆盖 shared resolver 所需的共同输入，effect planning 与 backend generic lowering 现统一经 `ProgramFacts + ExprFactResolver` 读取 top-level/object/field/return 事实，而不是回到 LLVM backend 现场拼装；
+  - 已全文检索 `resolve_member_access_concrete_type`、`resolve_*_field_concrete_type`、`resolve_call_result_type` 等旧 helper 名称，确认主体实现只剩 `expr_facts.rs` 一处；effect planning 的 `resolve_plan_expr_concrete_type` 与 `SuspendCallAnalysis::resolve_expr_concrete_type` 仅保留为注入 `known_local_metadata` 的轻量桥接；
+  - review 同时确认 `MainCodegen::top_level_value_ty` 等剩余 backend 查询只服务于 lowering 期 top-level value/function-value 路径，不再承担 shared concrete-type / receiver exactness helper 的职责；当前未发现需要插入到 `T5000c3R` 之前的新前置缺陷任务；
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`、`cargo test -p scoopc direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000c3R Review：确认共享分析消费者已脱离 LLVM backend 源文件依赖
 - 重点：
