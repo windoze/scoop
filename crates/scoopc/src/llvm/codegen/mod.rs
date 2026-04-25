@@ -960,6 +960,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(bits as u64)
     }
 
+    fn int_literal_bits_from_text_for_ty(
+        &self,
+        span: crate::span::Span,
+        text: &str,
+        int_ty: IntTy,
+    ) -> Result<u64, LlvmEmitError> {
+        let source = self.current_source()?;
+        let raw = parse_int_literal_checked(text).map_err(|err| {
+            LlvmEmitError::invalid_literal(source, span, "integer literal", err.reason(), text)
+        })?;
+        let bits = checked_positive_int_literal_bits(raw, int_ty).ok_or_else(|| {
+            LlvmEmitError::invalid_literal(
+                source,
+                span,
+                "integer literal",
+                "超出目标整数类型可表示范围",
+                text,
+            )
+        })?;
+        Ok(bits as u64)
+    }
+
     fn negated_int_literal_bits_for_ty(
         &self,
         span: crate::span::Span,
@@ -3773,6 +3795,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let bytes = self.parse_current_string_literal_bytes(span)?;
         self.codegen_string_literal_from_bytes(span, &bytes)
+    }
+
+    fn codegen_string_literal_from_text(
+        &mut self,
+        span: crate::span::Span,
+        text: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_string_literal_from_bytes(span, text.as_bytes())
     }
 
     /// Emit LLVM IR for a string literal from already parsed bytes.

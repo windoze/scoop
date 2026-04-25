@@ -98,9 +98,12 @@ File {
                                         span: 64..78,
                                         kind: Assign {
                                             target: l2,
-                                            value: Todo(
-                                                "perform result pending",
-                                            ),
+                                            value: PerformResult {
+                                                op_fqn: "scoop.core.Raise.raise",
+                                                effect_ty: TypeId(
+                                                    11,
+                                                ),
+                                            },
                                         },
                                     },
                                 ],
@@ -108,6 +111,22 @@ File {
                                     span: 64..78,
                                     kind: Perform {
                                         op_fqn: "scoop.core.Raise.raise",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                11,
+                                            ),
+                                            payload_tuple_ty: None,
+                                        },
+                                        args: [
+                                            PerformArg {
+                                                span: 76..77,
+                                                source_arg_index: 0,
+                                                name: None,
+                                                value: Local(
+                                                    l1,
+                                                ),
+                                            },
+                                        ],
                                     },
                                     unwind: Todo(
                                         "perform unwind pending",

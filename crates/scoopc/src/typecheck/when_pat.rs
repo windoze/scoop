@@ -46,7 +46,7 @@ fn check_when_pat(
         ast::WhenPat::Else { .. } | ast::WhenPat::Wildcard { .. } | ast::WhenPat::Rest { .. } => {
             Ok(())
         }
-        ast::WhenPat::IntLit { span } => {
+        ast::WhenPat::IntLit { span, .. } => {
             if is_integer_pattern_subject(expected_ty, lower, builtins) {
                 Ok(())
             } else {
@@ -56,7 +56,7 @@ fn check_when_pat(
                 })
             }
         }
-        ast::WhenPat::StringLit { span } => {
+        ast::WhenPat::StringLit { span, .. } => {
             if is_string_pattern_subject(expected_ty, lower, builtins) {
                 Ok(())
             } else {

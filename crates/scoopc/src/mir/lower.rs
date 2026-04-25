@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use miette::Diagnostic;
 use thiserror::Error;
 
+use crate::ast;
 use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -18,8 +19,9 @@ use crate::ty::{BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeSt
 
 use super::{
     BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
-    HandlerArm, Item, LocalDecl, LocalId, Operand, Param, ResumeMetadata, Rvalue, Statement,
-    StatementKind, Terminator, TerminatorKind, UnwindAction,
+    HandlerArm, Item, LocalDecl, LocalId, MemberAccessMetadata, MemberTarget, Operand, Param,
+    Pattern, PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, Statement,
+    StatementKind, Terminator, TerminatorKind, TopLevelRef, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -32,6 +34,8 @@ pub(crate) struct MirLoweringFacts {
     dispatch_targets: HashMap<DispatchTargetKey, DispatchTargetKind>,
     continuation_resume_call_spans: HashSet<Span>,
     non_pure_continuation_resume_call_spans: HashSet<Span>,
+    effect_op_call_sites: HashMap<Span, PerformCallSiteInfo>,
+    when_pat_binding_tys: HashMap<Span, TypeId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -44,6 +48,12 @@ struct DispatchTargetKey {
 enum DispatchTargetKind {
     Virtual,
     Interface,
+}
+
+#[derive(Debug, Clone)]
+struct PerformCallSiteInfo {
+    arg_mapping: Vec<usize>,
+    payload_tuple_ty: Option<TypeId>,
 }
 
 impl MirLoweringFacts {
@@ -99,6 +109,29 @@ impl MirLoweringFacts {
                 .iter()
                 .map(|site| site.span),
         )
+        .with_hir_side_tables(&lowered.effect_op_call_sites, &lowered.when_pat_binding_tys)
+    }
+
+    pub(crate) fn with_hir_side_tables(
+        mut self,
+        effect_op_call_sites: &hir::EffectOpCallSiteIndex,
+        when_pat_binding_tys: &hir::WhenPatBindingTypeIndex,
+    ) -> Self {
+        for (site, info) in effect_op_call_sites {
+            self.effect_op_call_sites.insert(
+                site.span,
+                PerformCallSiteInfo {
+                    arg_mapping: info.arg_mapping.clone(),
+                    payload_tuple_ty: info.payload_tuple_ty,
+                },
+            );
+        }
+
+        for (site, ty) in when_pat_binding_tys {
+            self.when_pat_binding_tys.insert(site.decl_span, *ty);
+        }
+
+        self
     }
 
     fn dispatch_target_kind(
@@ -120,6 +153,14 @@ impl MirLoweringFacts {
 
     fn continuation_resume_suspends_outward(&self, span: Span) -> bool {
         self.non_pure_continuation_resume_call_spans.contains(&span)
+    }
+
+    fn perform_call_site_info(&self, span: Span) -> Option<&PerformCallSiteInfo> {
+        self.effect_op_call_sites.get(&span)
+    }
+
+    fn when_pat_binding_ty(&self, span: Span) -> Option<TypeId> {
+        self.when_pat_binding_tys.get(&span).copied()
     }
 }
 
@@ -240,11 +281,11 @@ struct FnLowering<'a> {
     current_bb: BasicBlockId,
     next_temp: u32,
     symbol_locals: HashMap<hir::SymbolId, LocalId>,
-    /// 函数值 local 的最小 provenance。
+    /// 值 local 的最小 provenance。
     ///
-    /// 当前阶段只跟踪“它是否稳定来自某个 closure fn_ptr”，用于把 local 传播后的调用
-    /// 继续保持为 `ClosureCall`；一旦出现多路径/多来源冲突，就保守退化为 `Unknown`。
-    callable_value_origins: HashMap<LocalId, CallableValueOrigin>,
+    /// 当前阶段主要为 call / member / unresolved callee / pattern canonicalization 保留最小来源信息；
+    /// 一旦出现多路径/多来源冲突，就保守退化为 `UnknownCallable`。
+    value_origins: HashMap<LocalId, ValueOrigin>,
     /// 当前函数内哪些 `SymbolId` 以 box 形式存储（用于 `var` 被 closure 捕获时的别名语义，T0714）。
     boxed_symbols: HashSet<hir::SymbolId>,
     loop_stack: Vec<LoopContext>,
@@ -258,11 +299,14 @@ struct LoopContext {
     continue_target: BasicBlockId,
 }
 
-/// 一个函数值 local 当前可观察到的 provenance。
+/// 一个 local 当前可观察到的最小 provenance。
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum CallableValueOrigin {
+enum ValueOrigin {
     Closure { fn_ptr: String },
-    Unknown,
+    TopLevelRef { fqn: String },
+    MemberAccess { member: MemberAccessMetadata },
+    UnresolvedName { name: String },
+    UnknownCallable,
 }
 
 /// 一个 closure 捕获的外部局部变量在 env tuple 中的布局信息（T0711）。
@@ -275,6 +319,15 @@ struct ClosureCaptureLayout {
     mutable: bool,
     /// 在“创建该 closure 的函数”中，对应被捕获值的 local。
     source_local: LocalId,
+}
+
+#[derive(Debug, Clone)]
+struct WhenPatternBinding {
+    id: hir::SymbolId,
+    span: Span,
+    name: String,
+    ty: TypeId,
+    path: Vec<PatternBindingStep>,
 }
 
 impl<'a> FnLowering<'a> {
@@ -294,7 +347,7 @@ impl<'a> FnLowering<'a> {
             current_bb: BasicBlockId(0),
             next_temp: 0,
             symbol_locals: HashMap::new(),
-            callable_value_origins: HashMap::new(),
+            value_origins: HashMap::new(),
             boxed_symbols: HashSet::new(),
             loop_stack: Vec::new(),
             nested_funs: Vec::new(),
@@ -416,7 +469,7 @@ impl<'a> FnLowering<'a> {
 
     /// 生成 `target = value` 赋值语句。
     fn assign(&mut self, span: Span, target: LocalId, value: Rvalue) {
-        self.record_callable_value_origin(target, &value);
+        self.record_value_origin(target, &value);
         self.push_stmt(span, StatementKind::Assign { target, value });
     }
 
@@ -424,64 +477,60 @@ impl<'a> FnLowering<'a> {
         matches!(self.types.kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
     }
 
-    fn callable_value_origin_from_operand(&self, operand: &Operand) -> Option<CallableValueOrigin> {
+    fn value_origin_from_operand(&self, operand: &Operand) -> Option<ValueOrigin> {
         match operand {
-            Operand::Local(local) => self.callable_value_origins.get(local).cloned(),
+            Operand::Local(local) => self.value_origins.get(local).cloned(),
             Operand::Const(_) => None,
         }
     }
 
-    fn classify_callable_assignment(
-        &self,
-        target: LocalId,
-        value: &Rvalue,
-    ) -> Option<CallableValueOrigin> {
+    fn classify_value_assignment(&self, target: LocalId, value: &Rvalue) -> Option<ValueOrigin> {
         let target_ty = self.body.locals[target.as_u32() as usize].ty;
         match value {
-            Rvalue::MakeClosure { fn_ptr, .. } => Some(CallableValueOrigin::Closure {
+            Rvalue::MakeClosure { fn_ptr, .. } => Some(ValueOrigin::Closure {
                 fn_ptr: fn_ptr.clone(),
             }),
-            Rvalue::Use(operand) => {
-                self.callable_value_origin_from_operand(operand)
-                    .or_else(|| {
-                        self.is_function_value_ty(target_ty)
-                            .then_some(CallableValueOrigin::Unknown)
-                    })
+            Rvalue::TopLevelRef(TopLevelRef { fqn }) => {
+                Some(ValueOrigin::TopLevelRef { fqn: fqn.clone() })
             }
+            Rvalue::MemberAccess { member, .. } => Some(ValueOrigin::MemberAccess {
+                member: member.clone(),
+            }),
+            Rvalue::UnresolvedName { name } => {
+                Some(ValueOrigin::UnresolvedName { name: name.clone() })
+            }
+            Rvalue::Use(operand) => self.value_origin_from_operand(operand).or_else(|| {
+                self.is_function_value_ty(target_ty)
+                    .then_some(ValueOrigin::UnknownCallable)
+            }),
             _ => self
                 .is_function_value_ty(target_ty)
-                .then_some(CallableValueOrigin::Unknown),
+                .then_some(ValueOrigin::UnknownCallable),
         }
     }
 
-    fn merge_callable_value_origin(
-        current: Option<CallableValueOrigin>,
-        next: Option<CallableValueOrigin>,
-    ) -> Option<CallableValueOrigin> {
+    fn merge_value_origin(
+        current: Option<ValueOrigin>,
+        next: Option<ValueOrigin>,
+    ) -> Option<ValueOrigin> {
         match (current, next) {
             (None, None) => None,
             (_, None) => None,
             (None, Some(origin)) => Some(origin),
-            (
-                Some(CallableValueOrigin::Closure { fn_ptr: left }),
-                Some(CallableValueOrigin::Closure { fn_ptr: right }),
-            ) if left == right => Some(CallableValueOrigin::Closure { fn_ptr: left }),
-            (Some(_), Some(_)) => Some(CallableValueOrigin::Unknown),
+            (Some(left), Some(right)) if left == right => Some(left),
+            (Some(_), Some(_)) => Some(ValueOrigin::UnknownCallable),
         }
     }
 
-    fn record_callable_value_origin(&mut self, target: LocalId, value: &Rvalue) {
-        let next = self.classify_callable_assignment(target, value);
-        let merged = Self::merge_callable_value_origin(
-            self.callable_value_origins.get(&target).cloned(),
-            next,
-        );
+    fn record_value_origin(&mut self, target: LocalId, value: &Rvalue) {
+        let next = self.classify_value_assignment(target, value);
+        let merged = Self::merge_value_origin(self.value_origins.get(&target).cloned(), next);
         match merged {
             Some(origin) => {
-                self.callable_value_origins.insert(target, origin);
+                self.value_origins.insert(target, origin);
             }
             None => {
-                self.callable_value_origins.remove(&target);
+                self.value_origins.remove(&target);
             }
         }
     }
@@ -711,8 +760,8 @@ impl<'a> FnLowering<'a> {
                 self.assign(expr.span, tmp, Rvalue::Todo("missing expr"));
                 tmp
             }
-            hir::ExprKind::UnresolvedIdent { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "unresolved ident")
+            hir::ExprKind::UnresolvedIdent { name } => {
+                self.lower_unresolved_ident(expr.span, expr.ty, name)
             }
             hir::ExprKind::Todo(kind) => {
                 let tmp = self.push_temp_local(expr.span, expr.ty);
@@ -730,24 +779,24 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::InterpolatedString { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "interpolated string lowering pending")
             }
-            hir::ExprKind::Unary { .. } => {
-                // 当前阶段 MIR 仍以 CFG 形态回归为主；一元表达式求值留给后续 codegen 任务补齐。
-                let tmp = self.push_temp_local(expr.span, expr.ty);
-                self.assign(expr.span, tmp, Rvalue::Todo("unary"));
-                tmp
+            hir::ExprKind::Unary {
+                op, expr: operand, ..
+            } => self.lower_unary_expr(expr.span, expr.ty, *op, operand),
+            hir::ExprKind::Binary { lhs, op, rhs, .. } => {
+                self.lower_binary_expr(expr.span, expr.ty, lhs, *op, rhs)
             }
-            hir::ExprKind::Binary { .. } => {
-                // 当前阶段 MIR 仍以 CFG 形态回归为主；二元表达式求值留给后续 codegen 任务补齐。
-                let tmp = self.push_temp_local(expr.span, expr.ty);
-                self.assign(expr.span, tmp, Rvalue::Todo("binary"));
-                tmp
-            }
-            hir::ExprKind::TypeCheck { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "type check lowering pending")
-            }
-            hir::ExprKind::Cast { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "cast lowering pending")
-            }
+            hir::ExprKind::TypeCheck {
+                expr: value,
+                op,
+                target_ty: test_ty,
+                ..
+            } => self.lower_type_check_expr(expr.span, expr.ty, value, *op, *test_ty),
+            hir::ExprKind::Cast {
+                expr: value,
+                op,
+                target_ty,
+                ..
+            } => self.lower_cast_expr(expr.span, expr.ty, value, *op, *target_ty),
             hir::ExprKind::Block(block) => self.lower_block_as_expr(block),
             hir::ExprKind::Closure(closure) => self.lower_closure_expr(expr.span, expr.ty, closure),
             hir::ExprKind::If {
@@ -764,17 +813,31 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::When { subject, arms } => {
                 self.lower_when_expr(expr.span, expr.ty, subject, arms)
             }
-            hir::ExprKind::MemberAccess { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "member access lowering pending")
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                self.lower_member_access_expr(expr.span, expr.ty, receiver, member)
             }
             hir::ExprKind::Call { callee, args } => {
                 self.lower_call_expr(expr.span, expr.ty, callee, args)
             }
-            hir::ExprKind::Perform { op, args, .. } => {
-                self.lower_perform_expr(expr.span, expr.ty, op, args)
-            }
+            hir::ExprKind::Perform {
+                effect_ty,
+                op,
+                args,
+            } => self.lower_perform_expr(expr.span, expr.ty, *effect_ty, op, args),
             hir::ExprKind::Handle(handle) => self.lower_handle_expr(expr.span, expr.ty, handle),
         }
+    }
+
+    fn lower_unresolved_ident(&mut self, span: Span, ty: TypeId, name: &str) -> LocalId {
+        let tmp = self.push_temp_local(span, ty);
+        self.assign(
+            span,
+            tmp,
+            Rvalue::UnresolvedName {
+                name: name.to_string(),
+            },
+        );
+        tmp
     }
 
     /// 生成一个 `Unit` 值，并返回其 local。
@@ -789,6 +852,215 @@ impl<'a> FnLowering<'a> {
         let tmp = self.push_temp_local(span, ty);
         self.assign(span, tmp, Rvalue::Todo(msg));
         tmp
+    }
+
+    fn lower_unary_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        op: ast::UnaryOp,
+        operand: &hir::Expr,
+    ) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+        let operand_local = self.lower_expr_to_local(operand);
+        if self.current_is_terminated() {
+            return result;
+        }
+        self.assign(
+            span,
+            result,
+            Rvalue::Unary {
+                op,
+                operand: Operand::Local(operand_local),
+            },
+        );
+        result
+    }
+
+    fn lower_binary_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        lhs: &hir::Expr,
+        op: ast::BinaryOp,
+        rhs: &hir::Expr,
+    ) -> LocalId {
+        match op {
+            ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
+                self.lower_short_circuit_binary_expr(span, ty, lhs, op, rhs)
+            }
+            _ => {
+                let result = self.push_temp_local(span, ty);
+                let lhs_local = self.lower_expr_to_local(lhs);
+                if self.current_is_terminated() {
+                    return result;
+                }
+                let rhs_local = self.lower_expr_to_local(rhs);
+                if self.current_is_terminated() {
+                    return result;
+                }
+                self.assign(
+                    span,
+                    result,
+                    Rvalue::Binary {
+                        lhs: Operand::Local(lhs_local),
+                        op,
+                        rhs: Operand::Local(rhs_local),
+                    },
+                );
+                result
+            }
+        }
+    }
+
+    fn lower_short_circuit_binary_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        lhs: &hir::Expr,
+        op: ast::BinaryOp,
+        rhs: &hir::Expr,
+    ) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+        let lhs_local = self.lower_expr_to_local(lhs);
+        if self.current_is_terminated() {
+            return result;
+        }
+
+        let rhs_bb = self.push_block(rhs.span);
+        let short_bb = self.push_block(span);
+        let merge_bb = self.push_block(span);
+        let parent = self.current_bb;
+
+        let (then_target, else_target, short_value) = match op {
+            ast::BinaryOp::LogAnd => (rhs_bb, short_bb, false),
+            ast::BinaryOp::LogOr => (short_bb, rhs_bb, true),
+            _ => unreachable!("caller guarantees short-circuit op"),
+        };
+
+        self.set_terminator(
+            parent,
+            span,
+            TerminatorKind::CondBr {
+                cond: Operand::Local(lhs_local),
+                then_target,
+                else_target,
+            },
+        );
+
+        self.current_bb = short_bb;
+        self.assign(
+            span,
+            result,
+            Rvalue::Use(Operand::Const(ConstValue::Bool(short_value))),
+        );
+        self.set_terminator(short_bb, span, TerminatorKind::Goto { target: merge_bb });
+
+        self.current_bb = rhs_bb;
+        let rhs_local = self.lower_expr_to_local(rhs);
+        if !self.current_is_terminated() {
+            self.assign(span, result, Rvalue::Use(Operand::Local(rhs_local)));
+            self.set_terminator(rhs_bb, span, TerminatorKind::Goto { target: merge_bb });
+        }
+
+        self.current_bb = merge_bb;
+        result
+    }
+
+    fn lower_type_check_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        value: &hir::Expr,
+        op: ast::TypeCheckOp,
+        test_ty: TypeId,
+    ) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+        let value_local = self.lower_expr_to_local(value);
+        if self.current_is_terminated() {
+            return result;
+        }
+        self.assign(
+            span,
+            result,
+            Rvalue::TypeCheck {
+                value: Operand::Local(value_local),
+                op,
+                test_ty,
+            },
+        );
+        result
+    }
+
+    fn lower_cast_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        value: &hir::Expr,
+        op: ast::CastOp,
+        target_ty: TypeId,
+    ) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+        let value_local = self.lower_expr_to_local(value);
+        if self.current_is_terminated() {
+            return result;
+        }
+        self.assign(
+            span,
+            result,
+            Rvalue::Cast {
+                value: Operand::Local(value_local),
+                op,
+                target_ty,
+            },
+        );
+        result
+    }
+
+    fn lower_member_access_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        receiver: &hir::Expr,
+        member: &hir::MemberAccess,
+    ) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+        let receiver_local = self.lower_expr_to_local(receiver);
+        if self.current_is_terminated() {
+            return result;
+        }
+        let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
+        self.assign(
+            span,
+            result,
+            Rvalue::MemberAccess {
+                receiver: Operand::Local(receiver_local),
+                member: self.lower_member_access_metadata(member, receiver_ty),
+            },
+        );
+        result
+    }
+
+    fn lower_member_access_metadata(
+        &self,
+        member: &hir::MemberAccess,
+        receiver_ty: TypeId,
+    ) -> MemberAccessMetadata {
+        let resolved = member.resolved.as_ref().map(|resolved| match resolved {
+            hir::MemberRef::Value { fqn, .. } => MemberTarget::Value { fqn: fqn.clone() },
+            hir::MemberRef::Fun { fqn, .. } => MemberTarget::Fun { fqn: fqn.clone() },
+            hir::MemberRef::ExtensionValue { fqn, .. } => {
+                MemberTarget::ExtensionValue { fqn: fqn.clone() }
+            }
+            hir::MemberRef::ExtensionFun { fqn, .. } => {
+                MemberTarget::ExtensionFun { fqn: fqn.clone() }
+            }
+        });
+        MemberAccessMetadata {
+            name: member.name.clone(),
+            receiver_ty,
+            resolved,
+        }
     }
 
     fn lower_call_args(&mut self, args: &[hir::CallArg]) -> Option<Vec<CallArg>> {
@@ -825,6 +1097,63 @@ impl<'a> FnLowering<'a> {
         Some(out)
     }
 
+    fn operand_ty(&self, operand: &Operand) -> TypeId {
+        match operand {
+            Operand::Local(local) => self.body.locals[local.as_u32() as usize].ty,
+            Operand::Const(ConstValue::Bool(_)) => self.builtins.bool_,
+            Operand::Const(ConstValue::Char) => self.builtins.char_,
+            Operand::Const(ConstValue::Unit) => self.builtins.unit,
+            Operand::Const(ConstValue::Int) => self.builtins.int,
+            Operand::Const(ConstValue::Float64) => self.builtins.float64,
+            Operand::Const(ConstValue::Float32) => self.builtins.float32,
+            Operand::Const(ConstValue::String) => self.builtins.string,
+        }
+    }
+
+    fn canonicalize_perform_args(
+        &mut self,
+        span: Span,
+        lowered_args: Vec<CallArg>,
+    ) -> (Vec<PerformArg>, PerformMetadata) {
+        let info = self.facts.perform_call_site_info(span);
+        let arg_mapping = info
+            .map(|site| site.arg_mapping.as_slice())
+            .filter(|mapping| mapping.iter().all(|idx| *idx < lowered_args.len()))
+            .map(|mapping| mapping.to_vec())
+            .unwrap_or_else(|| (0..lowered_args.len()).collect());
+
+        let perform_args = arg_mapping
+            .iter()
+            .copied()
+            .filter_map(|arg_idx| lowered_args.get(arg_idx).map(|arg| (arg_idx, arg)))
+            .map(|(source_arg_index, arg)| PerformArg {
+                span: arg.span,
+                source_arg_index,
+                name: arg.name.clone(),
+                value: arg.value.clone(),
+            })
+            .collect::<Vec<_>>();
+
+        let payload_tuple_ty = info.and_then(|site| site.payload_tuple_ty).or_else(|| {
+            (perform_args.len() > 1).then(|| {
+                self.types.ty_tuple(
+                    perform_args
+                        .iter()
+                        .map(|arg| self.operand_ty(&arg.value))
+                        .collect(),
+                )
+            })
+        });
+
+        (
+            perform_args,
+            PerformMetadata {
+                effect_ty: self.builtins.any,
+                payload_tuple_ty,
+            },
+        )
+    }
+
     fn lower_call_expr(
         &mut self,
         span: Span,
@@ -843,39 +1172,24 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
-        if matches!(callee.kind, hir::ExprKind::MemberAccess { .. }) {
-            self.assign(span, result, Rvalue::Todo("dispatch call lowering pending"));
-            return result;
-        }
-        if matches!(callee.kind, hir::ExprKind::UnresolvedIdent { .. }) {
-            self.assign(span, result, Rvalue::Todo("ctor call lowering pending"));
-            return result;
-        }
-
-        if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-            let Some(args) = self.lower_call_args(args) else {
-                return result;
-            };
-            self.assign(
-                span,
-                result,
-                Rvalue::Call {
-                    kind: CallKind::Direct {
-                        callee_fqn: fqn.clone(),
-                    },
-                    args,
-                },
-            );
-            return result;
-        }
-
         let callee_local = self.lower_expr_to_local(callee);
         if self.current_is_terminated() {
             return result;
         }
         let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
-        let callee_origin = self.callable_value_origins.get(&callee_local).cloned();
-        if !self.is_function_value_ty(callee_ty) && callee_origin.is_none() {
+        let callee_origin = self.value_origins.get(&callee_local).cloned();
+        let callee_can_lower = self.is_function_value_ty(callee_ty)
+            || matches!(
+                callee_origin,
+                Some(
+                    ValueOrigin::Closure { .. }
+                        | ValueOrigin::TopLevelRef { .. }
+                        | ValueOrigin::MemberAccess { .. }
+                        | ValueOrigin::UnknownCallable
+                        | ValueOrigin::UnresolvedName { .. }
+                )
+            );
+        if !callee_can_lower {
             self.assign(span, result, Rvalue::Todo("call callee lowering pending"));
             return result;
         }
@@ -885,13 +1199,22 @@ impl<'a> FnLowering<'a> {
         };
 
         let kind = match callee_origin.as_ref() {
-            Some(CallableValueOrigin::Closure { fn_ptr }) => CallKind::Closure {
+            Some(ValueOrigin::TopLevelRef { fqn }) => CallKind::Direct {
+                callee_fqn: fqn.clone(),
+            },
+            Some(ValueOrigin::Closure { fn_ptr }) => CallKind::Closure {
                 callee: Operand::Local(callee_local),
                 fn_ptr: fn_ptr.clone(),
             },
-            Some(CallableValueOrigin::Unknown) | None => CallKind::FunValue {
-                callee: Operand::Local(callee_local),
-            },
+            Some(ValueOrigin::UnresolvedName { .. }) => {
+                self.assign(span, result, Rvalue::Todo("ctor call lowering pending"));
+                return result;
+            }
+            Some(ValueOrigin::MemberAccess { .. }) | Some(ValueOrigin::UnknownCallable) | None => {
+                CallKind::FunValue {
+                    callee: Operand::Local(callee_local),
+                }
+            }
         };
 
         self.assign(span, result, Rvalue::Call { kind, args });
@@ -1025,43 +1348,47 @@ impl<'a> FnLowering<'a> {
     /// 降低一个 effect operation 调用（HIR `Perform`）到 MIR。
     ///
     /// 当前阶段（TODO T0713）先做“结构落地 + 不 panic”：
-    /// - 先按顺序 lowering 实参表达式（即便暂不把参数传入 MIR terminator）；
-    /// - 为该表达式分配一个临时结果 local（值本身用 `Todo` 占位）；
+    /// - 先按源码顺序 lowering 显式实参表达式；
+    /// - 再按 HIR/typecheck side table 把 payload 排序为 effect-op 形参顺序；
+    /// - 为该表达式分配一个临时结果 local，并显式保留“这是 perform 恢复结果”的 provenance；
     /// - 用 `TerminatorKind::Perform` 结束当前基本块，并标记该点“可能发生 unwinding”。
     fn lower_perform_expr(
         &mut self,
         span: Span,
         ty: TypeId,
+        effect_ty: TypeId,
         op: &hir::EffectOpRef,
         args: &[hir::CallArg],
     ) -> LocalId {
-        for arg in args {
-            if self.current_is_terminated() {
-                break;
-            }
-            match arg {
-                hir::CallArg::Positional(expr) => {
-                    let _ = self.lower_expr_to_local(expr);
-                }
-                hir::CallArg::Named { value, .. } => {
-                    let _ = self.lower_expr_to_local(value);
-                }
-            }
-        }
+        let Some(lowered_args) = self.lower_call_args(args) else {
+            return self.push_temp_local(span, ty);
+        };
 
         if self.current_is_terminated() {
             // 实参 lowering 提前终止了 CFG：该 perform 永远不会发生。
             return self.push_temp_local(span, ty);
         }
 
+        let (perform_args, mut metadata) = self.canonicalize_perform_args(span, lowered_args);
+        metadata.effect_ty = effect_ty;
+
         let result = self.push_temp_local(span, ty);
-        self.assign(span, result, Rvalue::Todo("perform result pending"));
+        self.assign(
+            span,
+            result,
+            Rvalue::PerformResult {
+                op_fqn: op.fqn.clone(),
+                effect_ty,
+            },
+        );
 
         self.set_terminator_with_unwind(
             self.current_bb,
             span,
             TerminatorKind::Perform {
                 op_fqn: op.fqn.clone(),
+                metadata,
+                args: perform_args,
             },
             UnwindAction::Todo("perform unwind pending"),
         );
@@ -1186,7 +1513,16 @@ impl<'a> FnLowering<'a> {
                 }
             }
             hir::ValueRef::TopLevel { .. } => {
-                self.emit_todo_value(span, ty, "top-level ref lowering pending")
+                let hir::ValueRef::TopLevel { fqn, .. } = v else {
+                    unreachable!("matched above");
+                };
+                let tmp = self.push_temp_local(span, ty);
+                self.assign(
+                    span,
+                    tmp,
+                    Rvalue::TopLevelRef(TopLevelRef { fqn: fqn.clone() }),
+                );
+                tmp
             }
         }
     }
@@ -1397,7 +1733,139 @@ impl<'a> FnLowering<'a> {
         result
     }
 
-    /// 降低 `when` 表达式：把每个 arm 降为一段 CFG（当前以“链式 CondBr”表达）。
+    fn lower_pattern(&self, pat: &hir::WhenPat) -> Pattern {
+        match pat {
+            hir::WhenPat::Else { .. } => Pattern::Else,
+            hir::WhenPat::Or { pats, .. } => Pattern::Or {
+                pats: pats.iter().map(|pat| self.lower_pattern(pat)).collect(),
+            },
+            hir::WhenPat::Wildcard { .. } => Pattern::Wildcard,
+            hir::WhenPat::Rest { .. } => Pattern::Rest,
+            hir::WhenPat::Is { ty, .. } => Pattern::Is { ty: *ty },
+            hir::WhenPat::Bind { span, name, .. } => Pattern::Bind {
+                name: name.clone(),
+                ty: self
+                    .facts
+                    .when_pat_binding_ty(*span)
+                    .unwrap_or(self.builtins.any),
+            },
+            hir::WhenPat::Tuple { elements, .. } => Pattern::Tuple {
+                elements: elements.iter().map(|pat| self.lower_pattern(pat)).collect(),
+            },
+            hir::WhenPat::Variant { name, args, .. } => Pattern::Variant {
+                name: name.clone(),
+                args: args.iter().map(|pat| self.lower_pattern(pat)).collect(),
+            },
+            hir::WhenPat::IntLit { raw, .. } => Pattern::IntLit { raw: raw.clone() },
+            hir::WhenPat::CharLit { value, .. } => Pattern::CharLit { value: *value },
+            hir::WhenPat::StringLit { value, .. } => Pattern::StringLit {
+                value: value.clone(),
+            },
+            hir::WhenPat::BoolLit { value, .. } => Pattern::BoolLit { value: *value },
+        }
+    }
+
+    fn when_pat_is_irrefutable(&self, pat: &hir::WhenPat) -> bool {
+        matches!(
+            pat,
+            hir::WhenPat::Else { .. } | hir::WhenPat::Wildcard { .. } | hir::WhenPat::Bind { .. }
+        )
+    }
+
+    fn collect_when_pattern_bindings(
+        &self,
+        pat: &hir::WhenPat,
+        path: &mut Vec<PatternBindingStep>,
+        out: &mut Vec<WhenPatternBinding>,
+    ) {
+        match pat {
+            hir::WhenPat::Bind { span, id, name } => {
+                out.push(WhenPatternBinding {
+                    id: *id,
+                    span: *span,
+                    name: name.clone(),
+                    ty: self
+                        .facts
+                        .when_pat_binding_ty(*span)
+                        .unwrap_or(self.builtins.any),
+                    path: path.clone(),
+                });
+            }
+            hir::WhenPat::Tuple { elements, .. } => {
+                for (index, element) in elements.iter().enumerate() {
+                    path.push(PatternBindingStep::TupleIndex(index));
+                    self.collect_when_pattern_bindings(element, path, out);
+                    let _ = path.pop();
+                }
+            }
+            hir::WhenPat::Variant { name, args, .. } => {
+                for (field_index, arg) in args.iter().enumerate() {
+                    if matches!(arg, hir::WhenPat::Rest { .. }) {
+                        continue;
+                    }
+                    path.push(PatternBindingStep::VariantField {
+                        variant: name.clone(),
+                        field_index,
+                    });
+                    self.collect_when_pattern_bindings(arg, path, out);
+                    let _ = path.pop();
+                }
+            }
+            hir::WhenPat::Or { pats, .. } => {
+                for pat in pats {
+                    self.collect_when_pattern_bindings(pat, path, out);
+                }
+            }
+            hir::WhenPat::Else { .. }
+            | hir::WhenPat::Wildcard { .. }
+            | hir::WhenPat::Rest { .. }
+            | hir::WhenPat::Is { .. }
+            | hir::WhenPat::IntLit { .. }
+            | hir::WhenPat::CharLit { .. }
+            | hir::WhenPat::StringLit { .. }
+            | hir::WhenPat::BoolLit { .. } => {}
+        }
+    }
+
+    fn bind_when_pattern_locals(
+        &mut self,
+        subject_local: LocalId,
+        pat: &hir::WhenPat,
+    ) -> Vec<(hir::SymbolId, Option<LocalId>)> {
+        let mut bindings = Vec::new();
+        self.collect_when_pattern_bindings(pat, &mut Vec::new(), &mut bindings);
+
+        let mut shadowed = Vec::with_capacity(bindings.len());
+        for binding in bindings {
+            let local = self.push_named_local(binding.span, &binding.name, binding.ty);
+            self.assign(
+                binding.span,
+                local,
+                Rvalue::PatternExtract {
+                    subject: Operand::Local(subject_local),
+                    path: binding.path,
+                },
+            );
+            let previous = self.symbol_locals.insert(binding.id, local);
+            shadowed.push((binding.id, previous));
+        }
+        shadowed
+    }
+
+    fn restore_shadowed_symbols(&mut self, shadowed: Vec<(hir::SymbolId, Option<LocalId>)>) {
+        for (id, previous) in shadowed.into_iter().rev() {
+            match previous {
+                Some(local) => {
+                    self.symbol_locals.insert(id, local);
+                }
+                None => {
+                    self.symbol_locals.remove(&id);
+                }
+            }
+        }
+    }
+
+    /// 降低 `when` 表达式：把每个 arm 降为显式 pattern test / binder extract / guard CFG。
     fn lower_when_expr(
         &mut self,
         span: Span,
@@ -1409,61 +1877,69 @@ impl<'a> FnLowering<'a> {
 
         // 1) 先在当前块求值 subject。
         let subject_local = self.lower_expr_to_local(subject);
+        if self.current_is_terminated() {
+            return result;
+        }
 
         // 2) 构造 merge block，并从当前块开始链式生成“匹配测试块”。
         let merge_bb = self.push_block(span);
         let mut test_bb = self.current_bb;
 
         for arm in arms {
-            let body_bb = self.push_block(arm.span);
+            let irrefutable = self.when_pat_is_irrefutable(&arm.pat);
+            let needs_next_test_bb = !irrefutable || arm.guard.is_some();
+            let body_bb = arm.guard.as_ref().map(|_| self.push_block(arm.span));
+            let next_test_bb = needs_next_test_bb.then(|| self.push_block(arm.span));
+            let match_bb = if irrefutable {
+                self.current_bb = test_bb;
+                let match_bb = self.push_block(arm.span);
+                self.set_terminator(test_bb, arm.span, TerminatorKind::Goto { target: match_bb });
+                match_bb
+            } else {
+                let match_bb = self.push_block(arm.span);
+                self.current_bb = test_bb;
+                let cond = self.push_temp_local(arm.span, self.builtins.bool_);
+                self.assign(
+                    arm.pat.span(),
+                    cond,
+                    Rvalue::PatternMatch {
+                        subject: Operand::Local(subject_local),
+                        pattern: self.lower_pattern(&arm.pat),
+                    },
+                );
+                self.set_terminator(
+                    test_bb,
+                    arm.span,
+                    TerminatorKind::CondBr {
+                        cond: Operand::Local(cond),
+                        then_target: match_bb,
+                        else_target: next_test_bb
+                            .expect("refutable when arm should allocate next test block"),
+                    },
+                );
+                match_bb
+            };
 
-            // else / wildcard 作为默认分支：直接跳转到 body，并结束 when 链。
-            if matches!(
-                &arm.pat,
-                hir::WhenPat::Else { .. } | hir::WhenPat::Wildcard { .. }
-            ) {
-                self.set_terminator(test_bb, arm.span, TerminatorKind::Goto { target: body_bb });
-                self.current_bb = body_bb;
-                let body_value = self.lower_expr_to_local(&arm.body);
+            self.current_bb = match_bb;
+            let shadowed = self.bind_when_pattern_locals(subject_local, &arm.pat);
+            if let Some(guard) = &arm.guard {
+                let guard_local = self.lower_expr_to_local(guard);
                 if !self.current_is_terminated() {
-                    self.assign(arm.span, result, Rvalue::Use(Operand::Local(body_value)));
                     self.set_terminator(
                         self.current_bb,
-                        arm.span,
-                        TerminatorKind::Goto { target: merge_bb },
+                        guard.span,
+                        TerminatorKind::CondBr {
+                            cond: Operand::Local(guard_local),
+                            then_target: body_bb
+                                .expect("guarded when arm should allocate body block"),
+                            else_target: next_test_bb
+                                .expect("guarded when arm should allocate next test block"),
+                        },
                     );
                 }
-                self.current_bb = merge_bb;
-                return result;
+                self.current_bb = body_bb.expect("guarded when arm should allocate body block");
             }
 
-            // 非默认分支：生成一个条件 local，并以 CondBr 结束当前测试块。
-            let next_test_bb = self.push_block(arm.span);
-            self.current_bb = test_bb;
-
-            // 当前阶段不实现真实 pattern/guard 匹配：用 `Todo` 占位一个 bool 值，
-            // 但保留 subject_local，便于后续替换为真正的判定逻辑。
-            let cond = self.push_temp_local(arm.span, self.builtins.bool_);
-            let _ = subject_local;
-            let cond_msg = if arm.guard.is_some() {
-                "when arm condition (pat+guard) pending"
-            } else {
-                "when arm condition (pat) pending"
-            };
-            self.assign(arm.span, cond, Rvalue::Todo(cond_msg));
-
-            self.set_terminator(
-                test_bb,
-                arm.span,
-                TerminatorKind::CondBr {
-                    cond: Operand::Local(cond),
-                    then_target: body_bb,
-                    else_target: next_test_bb,
-                },
-            );
-
-            // body 分支：lower 表达式并写回 result，然后跳到 merge。
-            self.current_bb = body_bb;
             let body_value = self.lower_expr_to_local(&arm.body);
             if !self.current_is_terminated() {
                 self.assign(arm.span, result, Rvalue::Use(Operand::Local(body_value)));
@@ -1473,13 +1949,19 @@ impl<'a> FnLowering<'a> {
                     TerminatorKind::Goto { target: merge_bb },
                 );
             }
+            self.restore_shadowed_symbols(shadowed);
 
             // 继续下一个 arm 的测试块。
-            test_bb = next_test_bb;
+            if irrefutable && arm.guard.is_none() {
+                self.current_bb = merge_bb;
+                return result;
+            }
+
+            test_bb = next_test_bb.expect("fallthrough when arm should allocate next test block");
             self.current_bb = test_bb;
         }
 
-        // 若没有 else/wildcard arm，当前阶段以 `unreachable` 收束。
+        // 若没有兜底 arm，当前阶段以 `unreachable` 收束。
         self.set_terminator(test_bb, span, TerminatorKind::Unreachable);
         self.current_bb = merge_bb;
         result

@@ -2579,6 +2579,12 @@ pub(crate) struct LoweringInputs<'a> {
     pub(crate) builtins: BuiltinTypes,
 }
 
+pub(crate) struct LoweredFunWithSideTables {
+    pub(crate) fun: FunDecl,
+    pub(crate) effect_op_call_sites: super::EffectOpCallSiteIndex,
+    pub(crate) when_pat_binding_tys: super::WhenPatBindingTypeIndex,
+}
+
 pub(super) struct BoundMemberFunLoweringTarget<'a> {
     pub(super) owner_fqn: &'a str,
     pub(super) this_decl_span: Span,
@@ -2603,6 +2609,14 @@ pub(crate) fn lower_fun_with_type_bindings(
     fun: &ast::FunDecl,
     type_bindings: impl IntoIterator<Item = (String, TypeId)>,
 ) -> FunDecl {
+    lower_fun_with_type_bindings_and_side_tables(inputs, fun, type_bindings).fun
+}
+
+pub(crate) fn lower_fun_with_type_bindings_and_side_tables(
+    inputs: LoweringInputs<'_>,
+    fun: &ast::FunDecl,
+    type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+) -> LoweredFunWithSideTables {
     let LoweringInputs {
         source,
         file,
@@ -2635,8 +2649,14 @@ pub(crate) fn lower_fun_with_type_bindings(
     );
     ctx.push_type_param_bindings(type_bindings);
     let out = ctx.lower_fun_decl_with_bound_type_params(&pkg_prefix, fun);
+    let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
+    let when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
     ctx.pop_type_params();
-    out
+    LoweredFunWithSideTables {
+        fun: out,
+        effect_op_call_sites,
+        when_pat_binding_tys,
+    }
 }
 
 /// T0126: 将泛型类的成员方法在”已绑定 owner type params”的语境下降低为 HIR。

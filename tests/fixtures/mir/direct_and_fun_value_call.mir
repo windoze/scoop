@@ -174,16 +174,16 @@ File {
                                 ),
                             },
                             LocalDecl {
-                                span: 110..111,
+                                span: 107..109,
                                 name: Some(
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                             },
                             LocalDecl {
-                                span: 115..127,
+                                span: 110..111,
                                 name: Some(
                                     "tmp2",
                                 ),
@@ -192,9 +192,27 @@ File {
                                 ),
                             },
                             LocalDecl {
-                                span: 121..123,
+                                span: 115..127,
                                 name: Some(
                                     "tmp3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 115..120,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 121..123,
+                                name: Some(
+                                    "tmp5",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -203,7 +221,7 @@ File {
                             LocalDecl {
                                 span: 125..126,
                                 name: Some(
-                                    "tmp4",
+                                    "tmp6",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -215,9 +233,20 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 110..111,
+                                        span: 107..109,
                                         kind: Assign {
                                             target: l1,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "a.id",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 110..111,
+                                        kind: Assign {
+                                            target: l2,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -238,7 +267,7 @@ File {
                                                         span: 110..111,
                                                         name: None,
                                                         value: Local(
-                                                            l1,
+                                                            l2,
                                                         ),
                                                     },
                                                 ],
@@ -246,9 +275,20 @@ File {
                                         },
                                     },
                                     Statement {
+                                        span: 115..120,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "a.apply",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
                                         span: 121..123,
                                         kind: Assign {
-                                            target: l3,
+                                            target: l5,
                                             value: MakeClosure {
                                                 env: Const(
                                                     Unit,
@@ -260,7 +300,7 @@ File {
                                     Statement {
                                         span: 125..126,
                                         kind: Assign {
-                                            target: l4,
+                                            target: l6,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -271,7 +311,7 @@ File {
                                     Statement {
                                         span: 115..127,
                                         kind: Assign {
-                                            target: l2,
+                                            target: l3,
                                             value: Call {
                                                 kind: Direct {
                                                     callee_fqn: "a.apply",
@@ -281,14 +321,14 @@ File {
                                                         span: 121..123,
                                                         name: None,
                                                         value: Local(
-                                                            l3,
+                                                            l5,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 125..126,
                                                         name: None,
                                                         value: Local(
-                                                            l4,
+                                                            l6,
                                                         ),
                                                     },
                                                 ],
@@ -367,11 +407,31 @@ File {
                                     5,
                                 ),
                             },
+                            LocalDecl {
+                                span: 121..123,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
                         ],
                         blocks: [
                             BasicBlock {
                                 is_cleanup: false,
                                 stmts: [
+                                    Statement {
+                                        span: 121..123,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "a.id",
+                                                },
+                                            ),
+                                        },
+                                    },
                                     Statement {
                                         span: 121..123,
                                         kind: Assign {

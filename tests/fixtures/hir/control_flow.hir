@@ -211,6 +211,7 @@ File {
                                                     span: 97..112,
                                                     pat: IntLit {
                                                         span: 97..98,
+                                                        raw: "0",
                                                     },
                                                     guard: Some(
                                                         Expr {

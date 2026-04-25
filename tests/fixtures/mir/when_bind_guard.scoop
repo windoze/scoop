@@ -1,0 +1,8 @@
+package a
+
+fun pick(opt: Int?): Int {
+  when (opt) {
+    Some(v) if v > 0 -> v
+    else -> 0
+  }
+}

@@ -16,6 +16,7 @@ mod lower;
 use std::collections::VecDeque;
 use std::fmt;
 
+use crate::ast;
 use crate::span::Span;
 use crate::ty::TypeId;
 
@@ -277,6 +278,29 @@ pub enum Operand {
     Const(ConstValue),
 }
 
+/// 顶层值/函数引用在 MIR 上保留的最小 provenance。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TopLevelRef {
+    pub fqn: String,
+}
+
+/// 成员访问在 MIR 上保留的最小语言级 metadata。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemberAccessMetadata {
+    pub name: String,
+    pub receiver_ty: TypeId,
+    pub resolved: Option<MemberTarget>,
+}
+
+/// 已解析成员在 MIR 上的稳定目标种类。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MemberTarget {
+    Value { fqn: String },
+    Fun { fqn: String },
+    ExtensionValue { fqn: String },
+    ExtensionFun { fqn: String },
+}
+
 /// 调用实参在 MIR 中的最小表示。
 ///
 /// 说明：
@@ -287,6 +311,27 @@ pub struct CallArg {
     pub span: Span,
     pub name: Option<String>,
     pub value: Operand,
+}
+
+/// `perform` payload 在 MIR 上的一个已排序参数槽位。
+///
+/// 说明：
+/// - `value` 仍按源码求值顺序先被 lower 为 operand/local；
+/// - `source_arg_index` 记录该 payload 来自调用点第几个显式实参，便于后续 pass 同时看到
+///   “按参数顺序归一化后的 payload 视图”和“原始调用点位置”。
+#[derive(Debug, Clone)]
+pub struct PerformArg {
+    pub span: Span,
+    pub source_arg_index: usize,
+    pub name: Option<String>,
+    pub value: Operand,
+}
+
+/// `perform` 调用点在 MIR 上保留的最小 metadata。
+#[derive(Debug, Clone)]
+pub struct PerformMetadata {
+    pub effect_ty: TypeId,
+    pub payload_tuple_ty: Option<TypeId>,
 }
 
 /// virtual / interface dispatch 在 MIR 上保留的最小语言级 metadata。
@@ -357,10 +402,61 @@ pub enum ConstValue {
     String,
 }
 
+/// `when` pattern 在 MIR 上的 backend-agnostic 表示。
+#[derive(Debug, Clone)]
+pub enum Pattern {
+    Else,
+    Or { pats: Vec<Pattern> },
+    Wildcard,
+    Rest,
+    Is { ty: TypeId },
+    Bind { name: String, ty: TypeId },
+    Tuple { elements: Vec<Pattern> },
+    Variant { name: String, args: Vec<Pattern> },
+    IntLit { raw: String },
+    CharLit { value: char },
+    StringLit { value: String },
+    BoolLit { value: bool },
+}
+
+/// 从一个已匹配 subject 中提取 binder 值时使用的投影路径。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PatternBindingStep {
+    TupleIndex(usize),
+    VariantField { variant: String, field_index: usize },
+}
+
 /// 右值（最小 rvalue 模型）。
 #[derive(Debug, Clone)]
 pub enum Rvalue {
     Use(Operand),
+    TopLevelRef(TopLevelRef),
+    UnresolvedName {
+        name: String,
+    },
+    Unary {
+        op: ast::UnaryOp,
+        operand: Operand,
+    },
+    Binary {
+        lhs: Operand,
+        op: ast::BinaryOp,
+        rhs: Operand,
+    },
+    TypeCheck {
+        value: Operand,
+        op: ast::TypeCheckOp,
+        test_ty: TypeId,
+    },
+    Cast {
+        value: Operand,
+        op: ast::CastOp,
+        target_ty: TypeId,
+    },
+    MemberAccess {
+        receiver: Operand,
+        member: MemberAccessMetadata,
+    },
     /// 一个显式普通调用节点。
     ///
     /// 当前阶段承载 direct / closure / fun-value / virtual / interface / resume 六类调用；
@@ -397,6 +493,16 @@ pub enum Rvalue {
         box_operand: Operand,
         value: Operand,
     },
+    /// 一个 `when` arm 的 pattern test（结果为 Bool）。
+    PatternMatch {
+        subject: Operand,
+        pattern: Pattern,
+    },
+    /// 从一个已经匹配成功的 subject 中提取 pattern binder 值。
+    PatternExtract {
+        subject: Operand,
+        path: Vec<PatternBindingStep>,
+    },
     /// 创建一个函数值（closure）：`{ env_struct, fn_ptr }`（T0710/T0711）。
     ///
     /// 当前阶段：
@@ -405,6 +511,11 @@ pub enum Rvalue {
     MakeClosure {
         env: Operand,
         fn_ptr: String,
+    },
+    /// `perform` 被 handler/resume 继续执行后，原表达式位置接收到的结果值 provenance。
+    PerformResult {
+        op_fqn: String,
+        effect_ty: TypeId,
     },
     Todo(&'static str),
 }
@@ -450,6 +561,8 @@ pub enum TerminatorKind {
     /// 由后续 effect lowering 任务（TODO T0713/T0707）决定。
     Perform {
         op_fqn: String,
+        metadata: PerformMetadata,
+        args: Vec<PerformArg>,
     },
     /// effect handler 区域（对应 HIR 的 `ExprKind::Handle`）。
     ///
@@ -604,6 +717,8 @@ mod tests {
         // 模拟一个“可能 unwind 的 terminator”：
         // - 正常路径不存在（Perform 目前作为占位 terminator）
         // - unwind 路径跳到 cleanup block，然后用 ResumeUnwind 继续传播
+        let mut types = TypeStore::default();
+        let builtins = types.intern_builtins();
         let mut body = Body::new_empty();
 
         let bb0 = body.push_block(BasicBlock {
@@ -613,6 +728,11 @@ mod tests {
                 span: Span::new(0, 0),
                 kind: TerminatorKind::Perform {
                     op_fqn: "scoop.core.Raise.raise".to_string(),
+                    metadata: PerformMetadata {
+                        effect_ty: builtins.unit,
+                        payload_tuple_ty: None,
+                    },
+                    args: Vec::new(),
                 },
                 unwind: UnwindAction::Cleanup {
                     target: BasicBlockId(1),

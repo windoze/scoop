@@ -263,7 +263,7 @@ pub fn lower_for_dump(
         &index,
         &class_vtables,
     )?;
-    let mir_facts = crate::mir::MirLoweringFacts::from_dispatch_tables_and_resume_spans(
+    let base_mir_facts = crate::mir::MirLoweringFacts::from_dispatch_tables_and_resume_spans(
         &class_vtables,
         &interfaces,
         file.continuation_resume_call_sites(),
@@ -321,7 +321,7 @@ pub fn lower_for_dump(
         }
 
         // 先降低到 HIR（type params 已绑定到具体类型），再走 MIR lowering。
-        let mut hir_fun = crate::hir::lower_fun_with_type_bindings(
+        let mut lowered_fun = crate::hir::lower_fun_with_type_bindings_and_side_tables(
             crate::hir::LoweringInputs {
                 source,
                 file: &file,
@@ -336,11 +336,15 @@ pub fn lower_for_dump(
         );
 
         let instance_fqn = monomorph_instance_fqn(&key.symbol.fqn, &key.type_args, &types);
-        hir_fun.fqn = instance_fqn.clone();
+        lowered_fun.fun.fqn = instance_fqn.clone();
 
         let hir_file = crate::hir::File {
-            items: vec![crate::hir::Item::Fun(hir_fun)],
+            items: vec![crate::hir::Item::Fun(lowered_fun.fun)],
         };
+        let mir_facts = base_mir_facts.clone().with_hir_side_tables(
+            &lowered_fun.effect_op_call_sites,
+            &lowered_fun.when_pat_binding_tys,
+        );
         let mir_file = crate::mir::lower_hir_file_for_dump_with_facts(
             builtins, &mut types, &hir_file, &mir_facts,
         );

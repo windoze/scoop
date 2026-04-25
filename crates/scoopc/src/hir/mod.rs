@@ -27,7 +27,9 @@ pub use lower::{
     HirLowerError, LoweredHir, lower_for_compilation_unit, lower_for_compilation_unit_multi_files,
     lower_for_compilation_unit_multi_files_with_type_env, lower_for_dump, lower_typed_for_dump,
 };
-pub(crate) use lower::{LoweringInputs, lower_fun_with_type_bindings};
+pub(crate) use lower::{
+    LoweringInputs, lower_fun_with_type_bindings, lower_fun_with_type_bindings_and_side_tables,
+};
 
 /// HIR 中引用一个“已解析的符号”的稳定标识。
 ///
@@ -942,6 +944,7 @@ pub enum WhenPat {
     },
     IntLit {
         span: Span,
+        raw: String,
     },
     CharLit {
         span: Span,
@@ -949,6 +952,7 @@ pub enum WhenPat {
     },
     StringLit {
         span: Span,
+        value: String,
     },
     BoolLit {
         span: Span,
@@ -969,7 +973,7 @@ impl WhenPat {
             WhenPat::Variant { span, .. } => *span,
             WhenPat::IntLit { span, .. } => *span,
             WhenPat::CharLit { span, .. } => *span,
-            WhenPat::StringLit { span } => *span,
+            WhenPat::StringLit { span, .. } => *span,
             WhenPat::BoolLit { span, .. } => *span,
         }
     }

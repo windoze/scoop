@@ -623,6 +623,29 @@
     - 全部通过。
   - review 结论：动态分派与 `Resume` 已成为 MIR 一等节点，没有发现需要插入到 `T5000d3` 之前的新阻塞任务。
   - 下一条待执行任务切换为 `T5000d3 收口 Perform / provenance / canonicalization 入口，为后续 pattern 与 operator materialization 提供正规化 MIR 形状`。
+- 2026-04-26：`T5000d3 收口 Perform / provenance / canonicalization 入口，为后续 pattern 与 operator materialization 提供正规化 MIR 形状` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/mir/mod.rs` 已补齐 `TopLevelRef`、`MemberAccessMetadata`、`PerformArg`、`PerformMetadata`、`Pattern`、`PatternBindingStep` 等结构，并把 `Rvalue` 扩展为 `TopLevelRef` / `UnresolvedName` / `Unary` / `Binary` / `TypeCheck` / `Cast` / `MemberAccess` / `PatternMatch` / `PatternExtract` / `PerformResult` 等一等节点；`TerminatorKind::Perform` 现在显式承载 `metadata + args`。
+    - `crates/scoopc/src/mir/lower.rs` 已把 provenance 从仅追踪 callable 来源扩展为通用 `value_origins`，并在 lowering 中统一收口顶层函数引用、member access、未解析 ctor 名、运算表达式、类型检查/转换、`when` pattern match/extract 与 `perform` payload canonicalization，不再要求下游 pass 或 LLVM codegen 现场重建这些形状。
+    - `crates/scoopc/src/hir/mod.rs`、`crates/scoopc/src/hir/lower/patterns.rs` 已让 `WhenPat::IntLit` / `WhenPat::StringLit` 直接携带 `raw` / `value`；`crates/scoopc/src/llvm/codegen/control_flow.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 已改为消费这些正规化字面量信息，去掉对 span 回查源码的依赖。
+    - `crates/scoopc/src/hir/lower/mod.rs` 与 `crates/scoopc/src/monomorph/lower.rs` 已补齐带 side table 的 typed lowering 透传，保证这些正规化 MIR 入口不仅在 dump 路径成立，也会进入 monomorph 实例化路径。
+  - 过程中优先修复的既有阻塞点：
+    - `when` lowering 对“无 guard 的兜底 arm”原本会预分配永远不会执行的 `next_test_bb`，在 MIR dump 中留下 `unterminated` / 多余 CFG 残块；现已改为按 arm 形状懒分配 fallthrough/body block，并让无 guard arm 直接在 match block 内继续 lowering。
+    - HIR golden `tests/fixtures/hir/control_flow.hir` 仍停留在旧的 `WhenPat::IntLit { span }` 形状，导致全量测试无法验证这次“去除源码反查依赖”的改动；现已同步为 `WhenPat::IntLit { span, raw }`。
+  - 覆盖与回归：
+    - 已更新 `tests/fixtures/mir/direct_and_fun_value_call.mir`，确认顶层函数引用 provenance 现在显式落为 `TopLevelRef`；
+    - 已更新 `tests/fixtures/mir/handle_perform.mir`，确认 `PerformResult` 与 `PerformMetadata/PerformArg` 进入 MIR；
+    - 已更新 `tests/fixtures/mir/if_when.mir`，确认 `PatternMatch` 进入 MIR 且 CFG 不再出现悬空 block；
+    - 已新增 `tests/fixtures/mir/when_bind_guard.{scoop,mir}`，覆盖 `PatternMatch + PatternExtract + guard Binary` 路径；
+    - 已更新 `tests/fixtures/hir/control_flow.hir` 以反映新的 HIR pattern 字面量承载方式。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型`。
 
 ## 1. 当前判断
 

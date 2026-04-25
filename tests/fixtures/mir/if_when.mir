@@ -210,12 +210,17 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 89..96,
+                                        span: 89..90,
                                         kind: Assign {
                                             target: l6,
-                                            value: Todo(
-                                                "when arm condition (pat) pending",
-                                            ),
+                                            value: PatternMatch {
+                                                subject: Local(
+                                                    l0,
+                                                ),
+                                                pattern: IntLit {
+                                                    raw: "0",
+                                                },
+                                            },
                                         },
                                     },
                                 ],
@@ -225,8 +230,8 @@ File {
                                         cond: Local(
                                             l6,
                                         ),
-                                        then_target: bb5,
-                                        else_target: bb6,
+                                        then_target: bb6,
+                                        else_target: bb5,
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -237,6 +242,17 @@ File {
                                 terminator: Terminator {
                                     span: 11..117,
                                     kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 101..111,
+                                    kind: Goto {
+                                        target: bb7,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -270,17 +286,6 @@ File {
                                     span: 89..96,
                                     kind: Goto {
                                         target: bb4,
-                                    },
-                                    unwind: NoUnwind,
-                                },
-                            },
-                            BasicBlock {
-                                is_cleanup: false,
-                                stmts: [],
-                                terminator: Terminator {
-                                    span: 101..111,
-                                    kind: Goto {
-                                        target: bb7,
                                     },
                                     unwind: NoUnwind,
                                 },

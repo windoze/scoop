@@ -1837,8 +1837,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::WhenPat::Else { .. }
             | hir::WhenPat::Wildcard { .. }
             | hir::WhenPat::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
-            hir::WhenPat::IntLit { .. } => {
-                let expected_raw = self.int_literal_bits_for_ty(pat.span(), int_ty)?;
+            hir::WhenPat::IntLit { raw, .. } => {
+                let expected_raw =
+                    self.int_literal_bits_from_text_for_ty(pat.span(), raw, int_ty)?;
                 let expected = self.int_type(int_ty).const_int(expected_raw, false);
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
@@ -1900,8 +1901,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::WhenPat::Else { .. }
             | hir::WhenPat::Wildcard { .. }
             | hir::WhenPat::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
-            hir::WhenPat::StringLit { span } => {
-                let expected = self.codegen_string_literal(*span)?;
+            hir::WhenPat::StringLit {
+                span,
+                value: expected_text,
+            } => {
+                let expected = self.codegen_string_literal_from_text(*span, expected_text)?;
                 let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "when string pattern literal value",
@@ -2101,7 +2105,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "when_tuple_bool_eq",
                 )?)
             }
-            hir::WhenPat::IntLit { .. } => {
+            hir::WhenPat::IntLit {
+                raw: expected_text, ..
+            } => {
                 let CgTy::Int(int_ty) = elem_ty else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "when tuple elem int pattern type",
@@ -2112,7 +2118,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .builder
                     .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
                     .into_int_value();
-                let value = self.int_literal_bits_for_ty(pat.span(), int_ty)?;
+                let value =
+                    self.int_literal_bits_from_text_for_ty(pat.span(), expected_text, int_ty)?;
                 let expected = self.int_type(int_ty).const_int(value, false);
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
@@ -2140,7 +2147,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "when_tuple_char_eq",
                 )?)
             }
-            hir::WhenPat::StringLit { span } => {
+            hir::WhenPat::StringLit { span, value } => {
                 let CgTy::String = elem_ty else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "when tuple elem string pattern type",
@@ -2151,7 +2158,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .builder
                     .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
                     .into_pointer_value();
-                self.codegen_when_pat_cond_for_string_with_value(*span, raw, pat)
+                let expected = self.codegen_string_literal_from_text(*span, value)?;
+                let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple elem string pattern literal value",
+                        at: (*span).into(),
+                    });
+                };
+                let fn_val = self.declare_runtime_string_equals();
+                let call = self.builder.build_call(
+                    fn_val,
+                    &[raw.into(), expected_ptr.into()],
+                    "when_tuple_str_eq",
+                )?;
+                let raw_result = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple string equals return value",
+                        at: (*span).into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(eq_i64) = raw_result else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple string equals return type",
+                        at: (*span).into(),
+                    });
+                };
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::NE,
+                    eq_i64,
+                    self.context.i64_type().const_zero(),
+                    "when_tuple_str_eq_bool",
+                )?)
             }
             hir::WhenPat::Tuple { elements, .. } => {
                 let CgTy::Tuple(nested_tuple_ty) = elem_ty else {

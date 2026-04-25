@@ -12,6 +12,7 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
+use crate::syntax::string_literal::parse_string_literal_utf8;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::HirLowering;
@@ -170,13 +171,20 @@ impl<'a> HirLowering<'a> {
                     args: args.iter().map(|a| self.lower_when_pat(a)).collect(),
                 }
             }
-            ast::WhenPat::IntLit { span } => WhenPat::IntLit { span: *span },
+            ast::WhenPat::IntLit { span } => WhenPat::IntLit {
+                span: *span,
+                raw: self.source.slice(*span).to_string(),
+            },
             ast::WhenPat::CharLit { span } => WhenPat::CharLit {
                 span: *span,
                 value: parse_char_literal(self.source.slice(*span))
                     .expect("lexer validated Char literal before HIR lowering"),
             },
-            ast::WhenPat::StringLit { span } => WhenPat::StringLit { span: *span },
+            ast::WhenPat::StringLit { span } => WhenPat::StringLit {
+                span: *span,
+                value: parse_string_literal_utf8(self.source.slice(*span))
+                    .expect("lexer validated String literal before HIR lowering"),
+            },
             ast::WhenPat::BoolLit { span } => {
                 let value = self.source.slice(*span) == "true";
                 WhenPat::BoolLit { span: *span, value }

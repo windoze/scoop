@@ -1,0 +1,273 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..98,
+                fqn: "a.pick",
+                name: "pick",
+                ty: TypeId(
+                    11,
+                ),
+                params: [
+                    Param {
+                        span: 20..23,
+                        name: "opt",
+                        ty: TypeId(
+                            10,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 20..23,
+                                name: Some(
+                                    "opt",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 40..96,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 57..78,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 62..63,
+                                name: Some(
+                                    "v",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 68..73,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 72..73,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 91..92,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 57..64,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: PatternMatch {
+                                                subject: Local(
+                                                    l0,
+                                                ),
+                                                pattern: Variant {
+                                                    name: "Some",
+                                                    args: [
+                                                        Bind {
+                                                            name: "v",
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 57..78,
+                                    kind: CondBr {
+                                        cond: Local(
+                                            l2,
+                                        ),
+                                        then_target: bb4,
+                                        else_target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 11..98,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 57..78,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Local(
+                                                    l3,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 57..78,
+                                    kind: Goto {
+                                        target: bb1,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 83..92,
+                                    kind: Goto {
+                                        target: bb5,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 62..63,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: PatternExtract {
+                                                subject: Local(
+                                                    l0,
+                                                ),
+                                                path: [
+                                                    VariantField {
+                                                        variant: "Some",
+                                                        field_index: 0,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 72..73,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 68..73,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l3,
+                                                ),
+                                                op: Gt,
+                                                rhs: Local(
+                                                    l5,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 68..73,
+                                    kind: CondBr {
+                                        cond: Local(
+                                            l4,
+                                        ),
+                                        then_target: bb2,
+                                        else_target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 91..92,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 83..92,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Local(
+                                                    l6,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 83..92,
+                                    kind: Goto {
+                                        target: bb1,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}

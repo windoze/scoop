@@ -672,7 +672,7 @@
   - review 结论：动态分派与 `Resume` 已成为 MIR 一等节点；后续 `T5000d3` 可直接在现有 `CallKind` / `Perform` / provenance 入口上继续收口 generic early MIR 形状，无需先插入新的前置缺陷任务。
   - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000d3 收口 `Perform` / provenance / canonicalization 入口，为后续 pattern 与 operator materialization 提供正规化 MIR 形状
+### [DONE] T5000d3 收口 `Perform` / provenance / canonicalization 入口，为后续 pattern 与 operator materialization 提供正规化 MIR 形状
 - 范围：
   - 将 `Perform` 扩展为显式承载已排序 payload / 调用点 metadata 的 MIR 节点；
   - 收口 early MIR 中与调用/控制转移相关的 provenance、control-flow 与 local-binding 形状，使其足以支撑后续 `when` / pattern lowering 与 operator-overload target materialization；
@@ -681,6 +681,14 @@
   - MIR 能稳定承载后续优化所需的调用形态与控制转移信息；
   - 后续 pass 不必再通过 HIR 语法形状或 LLVM codegen 现场推断来恢复这些信息。
 - 依赖：T5000d2R
+- 完成记录（2026-04-26）：
+  - `crates/scoopc/src/mir/mod.rs` 已补齐 `TopLevelRef`、`MemberAccessMetadata`、`PerformArg`、`PerformMetadata`、`Pattern`、`PatternBindingStep`，并把 `Rvalue` 扩展为 `TopLevelRef` / `UnresolvedName` / `Unary` / `Binary` / `TypeCheck` / `Cast` / `MemberAccess` / `PatternMatch` / `PatternExtract` / `PerformResult` 等一等节点；`TerminatorKind::Perform` 现在显式携带 `metadata + args`。
+  - `crates/scoopc/src/mir/lower.rs` 现已把 provenance 从“仅 callable”扩展为通用 `value_origins`，把顶层函数引用、member access、未解析 ctor 名、一元/二元运算、类型检查/转换、`when` pattern match/extract 与 `perform` payload canonicalization 全部在 early MIR 层落成结构化节点，不再依赖后续 pass 或 LLVM codegen 现场重建。
+  - `crates/scoopc/src/hir/mod.rs` 与 `crates/scoopc/src/hir/lower/patterns.rs` 现已让 `WhenPat::IntLit` / `WhenPat::StringLit` 直接携带 `raw` / `value`；`crates/scoopc/src/llvm/codegen/control_flow.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 已改为消费这些正规化 pattern 字面量，而不是继续通过 span 回查源码。
+  - `crates/scoopc/src/hir/lower/mod.rs` 与 `crates/scoopc/src/monomorph/lower.rs` 已补齐带 side table 的 typed lowering 透传，保证这些新 MIR 入口不仅在 `dump-mir` 路径可见，也能进入 monomorph 实例化路径。
+  - 过程中发现并优先修复了一个既有 lowering 缺口：`when` 对“无 guard 的兜底 arm”会预分配永远不会执行的 `next_test_bb`，在 MIR dump 中留下 `unterminated` / 多余 CFG 残块；现已改为按 arm 形状懒分配 block，并让无 guard arm 直接在 match block 内继续 lowering。
+  - 已更新 `tests/fixtures/mir/direct_and_fun_value_call.mir`、`tests/fixtures/mir/handle_perform.mir`、`tests/fixtures/mir/if_when.mir`，并新增 `tests/fixtures/mir/when_bind_guard.{scoop,mir}` 覆盖 `PatternMatch + PatternExtract + guard Binary` 路径；同时更新 `tests/fixtures/hir/control_flow.hir` 以匹配 `WhenPat::IntLit { raw }` 的新 HIR 形状。
+  - 已验证 `cargo fmt --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型
 - 重点：
