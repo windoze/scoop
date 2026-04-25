@@ -467,6 +467,23 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000c3aR Review：确认 shared planning / summary 源文件已脱离 backend 路径`。
+- 2026-04-26：`T5000c3aR Review：确认 shared planning / summary 源文件已脱离 backend 路径` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/effect_state_machine_analysis.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/effect_step_summary.rs` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs`，确认 handle planning、higher-order suspendability summary、direct-step summary 与相关测试主体当前统一归属到 crate 根 shared 源文件 `effect_state_machine_analysis.rs`；
+    - 已确认 backend 文件 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 当前只剩薄包装：文件内容仅负责把 `../../../effect_state_machine_analysis.rs` `include!` 回 `unified_state_machine_skeleton` 的局部作用域，不再直接承载 pure analysis 主体；
+    - 已搜索 `crates/scoopc/src` 中所有对 `state_machine_plan.rs` / `effect_state_machine_analysis.rs` 的文本级复用路径，确认 `effect_step_summary.rs` 当前直接复用 shared 源文件，仓库中已不存在 non-LLVM consumer 继续经由 backend 路径复用 shared analysis 源文件的残留。
+  - review 结论：
+    - shared planning / direct-step summary 源文件归属已稳定脱离 backend 路径；
+    - 后续 `T5000c3b` 可以只聚焦 concrete-type / field-type / receiver exactness helper 的消费方向，而不必再回头处理 shared source ownership；
+    - 未发现需要插入到 `T5000c3b` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000c3b 收口 concrete-type / field-type / receiver exactness 共享 helper 的消费方向`。
 
 ## 1. 当前判断
 
