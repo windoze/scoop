@@ -201,7 +201,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(entry);
         // object init 是一个内部 `void` 函数：设置 current_fun_return_ty 以便 codegen_return_stmt 使用正确的返回类型。
-        self.current_fun_return_ty = Some(CgTy::Unit);
+        self.function_cx.current_fun_return_ty = Some(CgTy::Unit);
 
         let guard = self.declare_object_init_guard(&obj.fqn);
         let once_begin = self.declare_runtime_once_begin();
@@ -247,7 +247,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_gc_i8_ptr_type().into(),
         )?;
 
-        self.env.push_scope();
+        self.function_cx.env.push_scope();
         for step in &obj.steps {
             match step {
                 hir::ObjectInitStep::PropertyInit { name, init } => {
@@ -296,7 +296,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
-        self.env.pop_scope();
+        self.function_cx.env.pop_scope();
 
         let once_end = self.declare_runtime_once_end();
         let _ =

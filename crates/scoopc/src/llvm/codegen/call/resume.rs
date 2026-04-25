@@ -288,7 +288,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for (index, bb) in resume_site_blocks {
             let site = &plan.resume_sites[index];
             self.builder.position_at_end(bb);
-            self.env = base_env.clone();
+            self.function_cx.env = base_env.clone();
             self.emit_callee_suspend_resume_site_prologue(at, plan, site, resume_state)?;
             let saved_resume_entry_fn = self.current_callee_resume_entry_fn;
             self.current_callee_suspend_plan = Some(plan.clone());
@@ -316,16 +316,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
 
-        let saved_env = std::mem::take(&mut self.env);
+        let saved_function_cx = self.take_function_body_cx();
         let result = (|| {
             let entry = self.context.append_basic_block(resume_fun, "entry");
             self.builder.position_at_end(entry);
 
-            self.current_fun_return_ty = Some(declared_return_cg);
+            self.function_cx.current_fun_return_ty = Some(declared_return_cg);
             let uses_hidden_sret = self
                 .hidden_sret_result_ty(at, declared_return_cg)?
                 .is_some();
-            self.current_sret_return_ptr = if uses_hidden_sret {
+            self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
                 Some(
                     resume_fun
                         .get_nth_param(0)
@@ -339,7 +339,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None
             };
 
-            self.env.push_scope();
+            self.function_cx.env.push_scope();
             let (return_bb, return_alloca) =
                 self.setup_function_return_context(at, resume_fun, declared_return_cg)?;
             let state_param = resume_fun
@@ -349,7 +349,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: at.into(),
                 })?
                 .into_pointer_value();
-            let base_env = self.env.clone();
+            let base_env = self.function_cx.env.clone();
 
             self.codegen_callee_resume_dispatch(
                 at,
@@ -361,11 +361,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
 
             self.emit_function_return_block(at, declared_return_cg, return_bb, return_alloca)?;
-            self.current_sret_return_ptr = None;
-            self.env.pop_scope();
+            self.function_cx.current_sret_return_ptr = None;
+            self.function_cx.env.pop_scope();
             Ok(())
         })();
-        self.env = saved_env;
+        self.restore_function_body_cx(saved_function_cx);
         result
     }
 

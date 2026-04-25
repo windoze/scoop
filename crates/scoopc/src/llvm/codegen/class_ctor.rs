@@ -313,7 +313,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             explicit_values[param_idx] = Some((expr.span, deferred));
         }
 
-        self.env.push_scope();
+        self.function_cx.env.push_scope();
 
         let result = (|| {
             // 先在“ctor 参数作用域”里绑定所有显式实参，再计算默认值。
@@ -384,7 +384,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .collect::<Result<Vec<_>, _>>()
         })();
 
-        self.env.pop_scope();
+        self.function_cx.env.pop_scope();
         result
     }
 
@@ -404,7 +404,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
         let stored = self.store_local_value(expr_span, ptr, param_cg, value)?;
-        self.env.insert(
+        self.function_cx.env.insert(
             param.id,
             CgLocal {
                 hir_ty: Some(param.ty),
@@ -501,13 +501,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: callee_span.into(),
                 });
             };
-            let local = self
-                .env
-                .get(param.id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor param local slot",
-                    at: callee_span.into(),
-                })?;
+            let local =
+                self.function_cx
+                    .env
+                    .get(param.id)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor param local slot",
+                        at: callee_span.into(),
+                    })?;
             let local_ptr =
                 self.local_ptr_for_use(span, local, &format!("class_ctor_param_{}", param.name))?;
             let loaded = self.builder.build_load(
@@ -618,12 +619,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_source_id =
             self.source_id_for_path(class.source_path.as_path(), callee_span)?;
         let result = (|| {
-            self.env.push_scope();
+            self.function_cx.env.push_scope();
 
             // this local（注意：每一层都有独立的 this SymbolId）。
             let this_ptr = self.create_entry_alloca(span, "this", CgTy::Ref)?;
             let _ = self.builder.build_store(this_ptr, obj_ptr)?;
-            self.env.insert(
+            self.function_cx.env.insert(
                 class.this_id,
                 CgLocal {
                     hir_ty: None,
@@ -652,7 +653,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
                 let _ =
                     self.store_local_value_exact(param.decl_span, param_ptr, param_cg, *arg_v)?;
-                self.env.insert(
+                self.function_cx.env.insert(
                     param.id,
                     CgLocal {
                         hir_ty: Some(param.ty),
@@ -706,7 +707,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let _ = self.codegen_block_value(body)?;
                         }
 
-                        self.env.pop_scope();
+                        self.function_cx.env.pop_scope();
                         return Ok(());
                     }
                     ast::CtorDelegationKind::Super => {
@@ -733,7 +734,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let _ = self.codegen_block_value(body)?;
                         }
 
-                        self.env.pop_scope();
+                        self.function_cx.env.pop_scope();
                         return Ok(());
                     }
                 }
@@ -759,7 +760,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.codegen_block_value(body)?;
             }
 
-            self.env.pop_scope();
+            self.function_cx.env.pop_scope();
             Ok(())
         })();
 

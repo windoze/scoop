@@ -151,7 +151,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
                 Vec::with_capacity(captures.len());
             for cap in &captures {
-                let Some(local) = self.env.get(cap.id) else {
+                let Some(local) = self.function_cx.env.get(cap.id) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "capture local not found",
                         at: cap.decl_span.into(),
@@ -253,7 +253,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
                 Vec::with_capacity(captures.len());
             for cap in &captures {
-                let Some(local) = self.env.get(cap.id) else {
+                let Some(local) = self.function_cx.env.get(cap.id) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "capture local not found",
                         at: cap.decl_span.into(),
@@ -307,7 +307,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
 
             for (idx, (id, name, ty_id)) in capture_bindings.iter().enumerate() {
-                let Some(local) = self.env.get(*id) else {
+                let Some(local) = self.function_cx.env.get(*id) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "capture local not found",
                         at: span.into(),
@@ -456,7 +456,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let saved_callee_suspend_plan = self.current_callee_suspend_plan.take();
         let saved_callee_resume_entry_fn = self.current_callee_resume_entry_fn;
-        self.env.push_scope();
+        self.function_cx.env.push_scope();
 
         // 入口的返回类型由期望函数类型决定（用于 Raise 的“早退默认值”）。
         let declared_return_cg =
@@ -465,11 +465,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "lambda return type",
                     at: closure.span.into(),
                 })?;
-        self.current_fun_return_ty = Some(declared_return_cg);
+        self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
             .hidden_sret_result_ty(closure.span, declared_return_cg)?
             .is_some();
-        self.current_sret_return_ptr = if uses_hidden_sret {
+        self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 spec.llvm_fun
                     .get_nth_param(0)
@@ -539,11 +539,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 let _stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
 
-                self.env.insert(
+                self.function_cx.env.insert(
                     *id,
                     CgLocal {
                         hir_ty: Some(*ty_id),
                         call_may_suspend: self
+                            .function_cx
                             .env
                             .get(*id)
                             .map(|local| local.call_may_suspend)
@@ -626,10 +627,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 declared_return_cg,
             )?;
         }
-        self.current_sret_return_ptr = None;
+        self.function_cx.current_sret_return_ptr = None;
         self.current_callee_suspend_plan = saved_callee_suspend_plan;
         self.current_callee_resume_entry_fn = saved_callee_resume_entry_fn;
-        self.env.pop_scope();
+        self.function_cx.env.pop_scope();
         Ok(())
     }
 

@@ -870,7 +870,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
     ) -> Result<Vec<(u32, PointerValue<'ctx>, PointerType<'ctx>)>, LlvmEmitError> {
         let mut locals = Vec::new();
-        for frame in &self.env.scopes {
+        for frame in &self.function_cx.env.scopes {
             for (id, local) in frame {
                 locals.push((id.as_u32(), *local));
             }
@@ -884,7 +884,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 slots.push((local_id, slot_ptr, value_ptr_ty));
             }
         }
-        for extra in &self.extra_gc_root_slots {
+        for extra in &self.function_cx.extra_gc_root_slots {
             slots.push((extra.id, extra.slot, extra.value_ptr_ty));
         }
         slots.sort_by_key(|(id, _, _)| *id);

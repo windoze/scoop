@@ -281,7 +281,23 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b4b 拆出 MainCodegen 的 function/body 级上下文`。
+- 2026-04-25：`T5000b4b 拆出 MainCodegen 的 function/body 级上下文` 已完成。
+  - 实现结果：
+    - 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `FunctionBodyCodegenCx`，把 `env`、`extra_gc_root_slots` / `next_extra_gc_root_slot_id`、`loop_context_stack`、`return_context`、`current_fun_return_ty`、`current_sret_return_ptr` 与 `top_level_const_eval_stack` 收口为独立的函数 / body 生命周期上下文；
+    - `MainCodegen` 当前改为持有 `function_cx: FunctionBodyCodegenCx<'ctx>`，并新增 `take_function_body_cx()` / `restore_function_body_cx()` 作为整组函数级状态的保存/恢复入口；
+    - `stmt.rs`、`control_flow.rs`、`gc.rs`、`class_ctor.rs`、`closure/mod.rs`、`object_init.rs`、`call/abi.rs`、`call/dispatch.rs`、`effect/mod.rs`、`effect/state_machine_plan.rs`、`effect/state_machine_emitter.rs`、`intrinsics/containers.rs`、`intrinsics/sysroot.rs` 与 `codegen/mod.rs` 的相关 lowering helper，现已统一经 `self.function_cx` 访问函数级状态，不再直接把这些字段平铺在 `MainCodegen` 上；
+    - `crates/scoopc/src/llvm/codegen/call/resume.rs` 的 callee resume entry 发射，以及 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 step/dispatch runtime function 发射入口，现已改为直接交换整组 `function_cx`，从而把 child / nested lowering 对函数级状态的保存/重建边界显式化，而不是继续手动搬运 `env + loop + return` 多个普通字段。
+  - 阶段结论：
+    - `MainCodegen` 与编译单元级共享输入之间的函数 / body 生命周期边界已经从字段层面显式分离；
+    - effect emitter 入口处的普通函数级保存/恢复面已经显著收窄，后续 `T5000b4c` 可以更集中地处理 effect 专属运行态；
+    - 本轮未发现需要插入到 `T5000b4bR` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b4bR Review：确认 function/body 级上下文边界成立`。
 
 ## 1. 当前判断
 

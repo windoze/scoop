@@ -56,7 +56,7 @@ pub(super) struct ContinuationResumeResultSlots<'ctx> {
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn ordinary_effect_propagation_enabled(&self) -> bool {
-        self.current_fun_return_ty.is_some()
+        self.function_cx.current_fun_return_ty.is_some()
     }
 
     fn effect_trace_line_col(&self, span: crate::span::Span) -> Result<(u32, u32), LlvmEmitError> {
@@ -696,13 +696,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: at.into(),
                 })?;
             let value = if active_locals.contains(&local_plan.id) {
-                let local =
-                    self.env
-                        .get(local_plan.id)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "callee suspend local not found",
-                            at: at.into(),
-                        })?;
+                let local = self.function_cx.env.get(local_plan.id).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "callee suspend local not found",
+                        at: at.into(),
+                    },
+                )?;
                 self.load_existing_local_value(at, local)?
             } else {
                 self.default_value(at, cg_ty)?
@@ -885,7 +884,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let ptr = self.create_entry_alloca(at, &name, cg_ty)?;
             self.store_local_value(at, ptr, cg_ty, restored)?;
-            self.env.insert(
+            self.function_cx.env.insert(
                 local_plan.id,
                 CgLocal {
                     hir_ty: Some(local_plan.ty),
@@ -916,7 +915,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let resume_slot_ptr = self.create_entry_alloca(at, &resume_slot_name, resume_slot_cg_ty)?;
         self.store_local_value(at, resume_slot_ptr, resume_slot_cg_ty, resume_slot_value)?;
-        self.env.insert(
+        self.function_cx.env.insert(
             site.resume_slot_id,
             CgLocal {
                 hir_ty: Some(site.resume_slot_ty),
@@ -941,12 +940,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
     ) -> Result<(), LlvmEmitError> {
-        let Some(declared_return_ty) = self.current_fun_return_ty else {
+        let Some(declared_return_ty) = self.function_cx.current_fun_return_ty else {
             return Ok(());
         };
 
         if declared_return_ty != CgTy::Never
-            && let Some(return_ctx) = self.return_context
+            && let Some(return_ctx) = self.function_cx.return_context
         {
             let default = self.default_value(at, declared_return_ty)?;
             if let Some(alloca) = return_ctx.return_alloca

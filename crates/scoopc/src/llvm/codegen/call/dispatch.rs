@@ -92,13 +92,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind {
-            let local = self
-                .env
-                .get(*id)
-                .ok_or_else(|| LlvmEmitError::UnsupportedMainBody {
+            let local = self.function_cx.env.get(*id).ok_or_else(|| {
+                LlvmEmitError::UnsupportedMainBody {
                     kind: "unknown local value",
                     at: callee.span.into(),
-                })?;
+                }
+            })?;
 
             if let Some(hir_ty) = local.hir_ty {
                 if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(hir_ty) {
@@ -506,6 +505,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if member.name == "toInt" {
                 let recv_ty = match &receiver.kind {
                     hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                        .function_cx
                         .env
                         .get(*id)
                         .and_then(|l| l.hir_ty)
@@ -548,6 +548,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if member.name == "hash" {
                 let recv_ty = match &receiver.kind {
                     hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                        .function_cx
                         .env
                         .get(*id)
                         .and_then(|l| l.hir_ty)
@@ -888,6 +889,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let devirt_receiver_ty = match &receiver_expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                .function_cx
                 .env
                 .get(*id)
                 .and_then(|l| l.hir_ty)

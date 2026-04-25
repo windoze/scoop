@@ -37,6 +37,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let local = self
+            .function_cx
             .env
             .get(*id)
             .ok_or(LlvmEmitError::UnsupportedMainBody {

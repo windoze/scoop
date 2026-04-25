@@ -22,7 +22,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => CgTy::Unit,
         };
 
-        self.env.push_scope();
+        self.function_cx.env.push_scope();
 
         for (idx, stmt) in block.stmts.iter().enumerate() {
             let is_last = idx + 1 == block.stmts.len();
@@ -59,7 +59,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         None => self.context.i32_type().const_int(0, false),
                     };
 
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     return Ok(exit);
                 }
                 // T0141: While loops in main body.
@@ -69,18 +69,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 // T0141: break/continue in main body (inside a loop).
                 hir::StmtKind::Break { break_span } => {
-                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "break outside loop",
                             at: (*break_span).into(),
                         },
                     )?;
                     self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     return Ok(self.context.i32_type().const_int(0, false));
                 }
                 hir::StmtKind::Continue { continue_span } => {
-                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "continue outside loop",
                             at: (*continue_span).into(),
@@ -88,7 +88,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?;
                     self.builder
                         .build_unconditional_branch(loop_ctx.continue_bb)?;
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     return Ok(self.context.i32_type().const_int(0, false));
                 }
                 hir::StmtKind::Todo(_) => {
@@ -110,7 +110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.i32_type().const_int(0, false)
         };
 
-        self.env.pop_scope();
+        self.function_cx.env.pop_scope();
         Ok(exit)
     }
 
@@ -351,7 +351,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // 先在 bind block 中完成 pattern binder + guard 判定，再决定是否进入 arm body。
                 self.builder.position_at_end(bind_bbs[idx]);
 
-                self.env.push_scope();
+                self.function_cx.env.push_scope();
                 self.bind_when_pat(span, subject_ty, &arm.pat, subject_ptr)?;
 
                 if let Some(guard) = &arm.guard {
@@ -388,7 +388,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .get_insert_block()
                     .is_none_or(|bb| bb.get_terminator().is_some());
                 if arm_terminated {
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     continue;
                 }
 
@@ -418,7 +418,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: arm.body.span.into(),
                         })?;
                 self.builder.build_unconditional_branch(merge_bb)?;
-                self.env.pop_scope();
+                self.function_cx.env.pop_scope();
 
                 incoming.push((tail_bb, v));
             }
@@ -778,7 +778,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for (idx, arm) in arms.iter().enumerate() {
             self.builder.position_at_end(arm_bbs[idx]);
 
-            self.env.push_scope();
+            self.function_cx.env.push_scope();
             self.bind_when_pat(span, subject_ty, &arm.pat, subject_ptr)?;
 
             let mut v = match expected_out_ty {
@@ -800,7 +800,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .get_insert_block()
                 .is_none_or(|bb| bb.get_terminator().is_some());
             if arm_terminated {
-                self.env.pop_scope();
+                self.function_cx.env.pop_scope();
                 continue;
             }
 
@@ -829,7 +829,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: arm.body.span.into(),
                     })?;
             self.builder.build_unconditional_branch(merge_bb)?;
-            self.env.pop_scope();
+            self.function_cx.env.pop_scope();
 
             incoming.push((tail_bb, v));
         }
@@ -1059,7 +1059,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let ptr = self.create_entry_alloca(at, name, elem_ty)?;
                             let _ = self.store_local_value(at, ptr, elem_ty, extracted_v)?;
                             let hir_ty = self.when_pat_binding_hir_ty(elem_pat.span())?;
-                            self.env.insert(
+                            self.function_cx.env.insert(
                                 *id,
                                 CgLocal {
                                     hir_ty,
@@ -1099,7 +1099,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ptr = self.create_entry_alloca(at, name, value_ty)?;
         let _ = self.store_local_value(at, ptr, value_ty, value)?;
         let hir_ty = self.when_pat_binding_hir_ty(bind_span)?;
-        self.env.insert(
+        self.function_cx.env.insert(
             id,
             CgLocal {
                 hir_ty,
@@ -2196,7 +2196,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let mut tail_value: Option<CgValue<'ctx>> = None;
 
-        self.env.push_scope();
+        self.function_cx.env.push_scope();
 
         for (idx, stmt) in block.stmts.iter().enumerate() {
             let is_last = idx + 1 == block.stmts.len();
@@ -2218,7 +2218,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     };
                     let v = self.codegen_expr_in_expected_context(expr, expected)?;
                     if v.ty == CgTy::Never {
-                        self.env.pop_scope();
+                        self.function_cx.env.pop_scope();
                         return Ok(CgValue::never());
                     }
                     tail_value = if is_last { Some(v) } else { None };
@@ -2226,9 +2226,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::StmtKind::Return { value } => {
                     // T0141: If we have a return context (early return from nested block),
                     // use it. Otherwise, fall back to old behavior (return value directly).
-                    if self.return_context.is_some() {
+                    if self.function_cx.return_context.is_some() {
                         self.codegen_early_return(stmt.span, value.as_ref())?;
-                        self.env.pop_scope();
+                        self.function_cx.env.pop_scope();
                         // After branch, return a dummy — the normal path won't use it.
                         return self.default_value(stmt.span, declared_return_ty);
                     }
@@ -2245,7 +2245,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         None => self.default_value(stmt.span, declared_return_ty)?,
                     };
 
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     return Ok(out);
                 }
                 hir::StmtKind::While { cond, body } => {
@@ -2254,18 +2254,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 // T0141: break/continue in function-level block (inside a loop).
                 hir::StmtKind::Break { break_span } => {
-                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "break outside loop",
                             at: (*break_span).into(),
                         },
                     )?;
                     self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     return self.default_value(*break_span, declared_return_ty);
                 }
                 hir::StmtKind::Continue { continue_span } => {
-                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "continue outside loop",
                             at: (*continue_span).into(),
@@ -2273,7 +2273,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?;
                     self.builder
                         .build_unconditional_branch(loop_ctx.continue_bb)?;
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     return self.default_value(*continue_span, declared_return_ty);
                 }
                 hir::StmtKind::Todo(_) => {
@@ -2295,7 +2295,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.default_value(block.span, declared_return_ty)?
         };
 
-        self.env.pop_scope();
+        self.function_cx.env.pop_scope();
         Ok(out)
     }
 
@@ -2328,13 +2328,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?),
         };
 
-        let saved_return_ctx = self.return_context;
-        let saved_return_ty = self.current_fun_return_ty;
-        self.return_context = Some(ReturnContext {
+        let saved_return_ctx = self.function_cx.return_context;
+        let saved_return_ty = self.function_cx.current_fun_return_ty;
+        self.function_cx.return_context = Some(ReturnContext {
             return_bb,
             return_alloca,
         });
-        self.current_fun_return_ty = Some(declared_return_ty);
+        self.function_cx.current_fun_return_ty = Some(declared_return_ty);
 
         let result = (|| -> Result<CgValue<'ctx>, LlvmEmitError> {
             let tail = self.codegen_block_as_return_value(block, declared_return_ty)?;
@@ -2375,8 +2375,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         })();
 
-        self.current_fun_return_ty = saved_return_ty;
-        self.return_context = saved_return_ctx;
+        self.function_cx.current_fun_return_ty = saved_return_ty;
+        self.function_cx.return_context = saved_return_ctx;
         result
     }
 
@@ -2392,7 +2392,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         block: &hir::Block,
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.env.push_scope();
+        self.function_cx.env.push_scope();
         let expected_block_ty = expected.or_else(|| {
             if matches!(
                 self.types.kind(block.ty),
@@ -2425,7 +2425,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     };
                     let v = self.codegen_expr_in_expected_context(expr, expected)?;
                     if v.ty == CgTy::Never {
-                        self.env.pop_scope();
+                        self.function_cx.env.pop_scope();
                         return Ok(CgValue::never());
                     }
                     value = if is_last { v } else { CgValue::unit() };
@@ -2436,9 +2436,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 // T0141: return inside block expression — use early return context.
                 hir::StmtKind::Return { value } => {
-                    if self.return_context.is_some() {
+                    if self.function_cx.return_context.is_some() {
                         self.codegen_early_return(stmt.span, value.as_ref())?;
-                        self.env.pop_scope();
+                        self.function_cx.env.pop_scope();
                         let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
                         return self.default_value(stmt.span, dead_path_ty);
                     }
@@ -2449,19 +2449,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 // T0141: break/continue inside block expression (must be inside a loop).
                 hir::StmtKind::Break { break_span } => {
-                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "break outside loop",
                             at: (*break_span).into(),
                         },
                     )?;
                     self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
                     return self.default_value(*break_span, dead_path_ty);
                 }
                 hir::StmtKind::Continue { continue_span } => {
-                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "continue outside loop",
                             at: (*continue_span).into(),
@@ -2469,7 +2469,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?;
                     self.builder
                         .build_unconditional_branch(loop_ctx.continue_bb)?;
-                    self.env.pop_scope();
+                    self.function_cx.env.pop_scope();
                     let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
                     return self.default_value(*continue_span, dead_path_ty);
                 }
@@ -2482,7 +2482,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        self.env.pop_scope();
+        self.function_cx.env.pop_scope();
         Ok(value)
     }
 }

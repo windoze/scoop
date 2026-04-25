@@ -463,15 +463,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Save caller's codegen context.
         let saved_block = self.builder.get_insert_block();
-        let saved_env = std::mem::take(&mut self.env);
-        let saved_return_ctx = self.return_context.take();
-        let saved_return_ty = self.current_fun_return_ty.take();
+        let saved_function_cx = self.take_function_body_cx();
         let saved_callee_suspend_plan = self.current_callee_suspend_plan.take();
-        let saved_loop_stack = std::mem::take(&mut self.loop_context_stack);
         let enclosing_return_ty = self
             .effect_function_return_context
             .map(|ctx| ctx.return_ty)
-            .or(saved_return_ty);
+            .or(saved_function_cx.current_fun_return_ty);
 
         // --- Generate step function body ---
         let step_result = self.emit_step_function_body(
@@ -484,11 +481,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         );
 
         // Restore caller's codegen context.
-        self.loop_context_stack = saved_loop_stack;
         self.current_callee_suspend_plan = saved_callee_suspend_plan;
-        self.current_fun_return_ty = saved_return_ty;
-        self.return_context = saved_return_ctx;
-        self.env = saved_env;
+        self.restore_function_body_cx(saved_function_cx);
         if let Some(saved) = saved_block {
             self.builder.position_at_end(saved);
         }
@@ -496,11 +490,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         step_result?;
 
         let saved_block = self.builder.get_insert_block();
-        let saved_env = std::mem::take(&mut self.env);
-        let saved_return_ctx = self.return_context.take();
-        let saved_return_ty = self.current_fun_return_ty.take();
+        let saved_function_cx = self.take_function_body_cx();
         let saved_callee_suspend_plan = self.current_callee_suspend_plan.take();
-        let saved_loop_stack = std::mem::take(&mut self.loop_context_stack);
         let dispatch_result = self.emit_dispatch_loop_body(
             span,
             contract,
@@ -510,11 +501,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             enclosing_return_ty,
         );
 
-        self.loop_context_stack = saved_loop_stack;
         self.current_callee_suspend_plan = saved_callee_suspend_plan;
-        self.current_fun_return_ty = saved_return_ty;
-        self.return_context = saved_return_ctx;
-        self.env = saved_env;
+        self.restore_function_body_cx(saved_function_cx);
 
         if let Some(saved) = saved_block {
             self.builder.position_at_end(saved);
@@ -649,7 +637,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.position_at_end(bb);
 
                 // Fresh env scope for this state's locals.
-                self.env.push_scope();
+                self.function_cx.env.push_scope();
 
                 if matches!(state.context(), UnifiedStateContext::Cleanup { .. }) {
                     self.write_cleanup_flag(state_ptr, frame_layout, true, "cleanup_entered")?;
@@ -676,7 +664,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     dispatch_loop_fn,
                 )?;
 
-                self.env.pop_scope();
+                self.function_cx.env.pop_scope();
             }
 
             if let Some(effect_ctx) = step_function_return_ctx {
@@ -1122,7 +1110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 llvm_index,
                 &format!("pre_slot_{}", id.as_u32()),
             )?;
-            self.env.insert(
+            self.function_cx.env.insert(
                 id,
                 CgLocal {
                     hir_ty: Some(type_id),
@@ -1509,7 +1497,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.store_local_value(decl.span, slot_ptr, target_ty, init_val)?;
 
         // Register in env so subsequent ops/exprs can reference this local.
-        self.env.insert(
+        self.function_cx.env.insert(
             id,
             CgLocal {
                 hir_ty: Some(decl.ty),
@@ -1570,7 +1558,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Register in env so subsequent ops can reference this local via
         // the standard `codegen_var_ref` → env lookup → load path.
-        self.env.insert(
+        self.function_cx.env.insert(
             id,
             CgLocal {
                 hir_ty: Some(type_id),
@@ -1618,7 +1606,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let value = self.coerce_value(at, value, cg_ty)?;
         self.store_local_value(at, slot_ptr, cg_ty, value)?;
-        self.env.insert(
+        self.function_cx.env.insert(
             resume_slot.id(),
             CgLocal {
                 hir_ty: Some(resume_slot.ty()),
@@ -1793,9 +1781,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "ordinary suspend-call replay slot type",
                     at: source_span.into(),
                 })?;
-        let saved_return_ctx = self.return_context.take();
-        let saved_return_ty = self.current_fun_return_ty.take();
-        self.current_fun_return_ty = Some(CgTy::Never);
+        let saved_return_ctx = self.function_cx.return_context.take();
+        let saved_return_ty = self.function_cx.current_fun_return_ty.take();
+        self.function_cx.current_fun_return_ty = Some(CgTy::Never);
         let call_result = self.call_callee_resume_entry_from_state(
             source_span,
             replay_token,
@@ -1818,8 +1806,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             outcome_slot,
             &format!("site{site_id}_suspend_call_callee_resume"),
         )?;
-        self.current_fun_return_ty = saved_return_ty;
-        self.return_context = saved_return_ctx;
+        self.function_cx.current_fun_return_ty = saved_return_ty;
+        self.function_cx.return_context = saved_return_ctx;
         let call_result = call_result?;
         self.store_value_to_frame_slot(
             source_span,
@@ -1978,16 +1966,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     resume_word,
                     resume_gc_ref,
                 });
-            let saved_return_ctx = self.return_context.take();
-            let saved_return_ty = self.current_fun_return_ty.take();
-            self.current_fun_return_ty = Some(CgTy::Never);
+            let saved_return_ctx = self.function_cx.return_context.take();
+            let saved_return_ty = self.function_cx.current_fun_return_ty.take();
+            self.function_cx.current_fun_return_ty = Some(CgTy::Never);
             let saved_replay_mode = self.current_continuation_resume_replay;
             self.current_continuation_resume_replay = true;
             let call_result = self.codegen_expr_in_expected_context(call_expr, None);
             self.current_continuation_resume_replay = saved_replay_mode;
             self.current_continuation_resume_replay_context = saved_replay_ctx;
-            self.current_fun_return_ty = saved_return_ty;
-            self.return_context = saved_return_ctx;
+            self.function_cx.current_fun_return_ty = saved_return_ty;
+            self.function_cx.return_context = saved_return_ctx;
             let call_result = call_result?;
             self.store_value_to_frame_slot(
                 source_span,
@@ -2025,9 +2013,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "ordinary callee resume slot type",
                     at: source_span.into(),
                 })?;
-        let saved_return_ctx = self.return_context.take();
-        let saved_return_ty = self.current_fun_return_ty.take();
-        self.current_fun_return_ty = Some(CgTy::Never);
+        let saved_return_ctx = self.function_cx.return_context.take();
+        let saved_return_ty = self.function_cx.current_fun_return_ty.take();
+        self.function_cx.current_fun_return_ty = Some(CgTy::Never);
         let call_result = self.call_callee_resume_entry_from_state(
             source_span,
             replay_token,
@@ -2051,8 +2039,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             outcome_slot,
             &format!("site{site_id}_callee_resume"),
         )?;
-        self.current_fun_return_ty = saved_return_ty;
-        self.return_context = saved_return_ctx;
+        self.function_cx.current_fun_return_ty = saved_return_ty;
+        self.function_cx.return_context = saved_return_ctx;
         let call_result = call_result?;
         self.store_value_to_frame_slot(
             source_span,
@@ -2086,13 +2074,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if slot.owner_arm().is_some() || !slot.seed_from_outer_scope() {
                 continue;
             }
-            let local = self
-                .env
-                .get(slot.id())
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "effect frame seed outer-scope local",
-                    at: at.into(),
-                })?;
+            let local =
+                self.function_cx
+                    .env
+                    .get(slot.id())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect frame seed outer-scope local",
+                        at: at.into(),
+                    })?;
 
             let target_cg_ty =
                 self.cg_ty_of(slot.ty())
@@ -3217,7 +3206,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn enclosing_function_return_ty(&self) -> Option<CgTy> {
         self.effect_function_return_context
             .map(|ctx| ctx.return_ty)
-            .or(self.current_fun_return_ty)
+            .or(self.function_cx.current_fun_return_ty)
     }
 
     fn finish_enclosing_function_return_path(
@@ -3781,7 +3770,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &format!("arm_binder_{}", binder.id.as_u32()),
                 )?;
                 self.store_local_value(binder.span, slot_ptr, binder_cg_ty, binder_val)?;
-                self.env.insert(
+                self.function_cx.env.insert(
                     binder.id,
                     CgLocal {
                         hir_ty: Some(binder.ty),
@@ -3800,7 +3789,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     binder_cg_ty,
                 )?;
                 self.store_local_value(binder.span, alloca, binder_cg_ty, binder_val)?;
-                self.env.insert(
+                self.function_cx.env.insert(
                     binder.id,
                     CgLocal {
                         hir_ty: Some(binder.ty),
@@ -3819,7 +3808,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::HandleArmKind::EscapeContinuation { continuation } => {
                 // Load the continuation pointer from the dedicated runtime
                 // continuation slot (where Suspend stored it).
-                let continuation_hir_ty = self.env.get(continuation).and_then(|local| local.hir_ty);
+                let continuation_hir_ty = self
+                    .function_cx
+                    .env
+                    .get(continuation)
+                    .and_then(|local| local.hir_ty);
                 let continuation_call_may_suspend =
                     self.local_call_may_suspend_from_hir_ty(continuation_hir_ty);
                 let cont_gep = self.builder.build_struct_gep(
@@ -3844,7 +3837,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "cont_slot",
                     )?;
                     self.builder.build_store(slot_ptr, cont_ptr)?;
-                    self.env.insert(
+                    self.function_cx.env.insert(
                         continuation,
                         CgLocal {
                             hir_ty: continuation_hir_ty,
@@ -3857,7 +3850,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 } else {
                     let alloca = self.create_entry_alloca(span, "cont_local", CgTy::Ref)?;
                     self.builder.build_store(alloca, cont_ptr)?;
-                    self.env.insert(
+                    self.function_cx.env.insert(
                         continuation,
                         CgLocal {
                             hir_ty: continuation_hir_ty,
@@ -3877,7 +3870,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Restore captured locals from the frame into the env so the arm
         // body can reference them.
         for &local_id in unified_arm.capture_locals() {
-            if self.env.get(local_id).is_some() {
+            if self.function_cx.env.get(local_id).is_some() {
                 continue; // Already in env from binder setup.
             }
             // Try to load from frame.
@@ -3897,7 +3890,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         llvm_index,
                         &format!("capture_{}", local_id.as_u32()),
                     )?;
-                    self.env.insert(
+                    self.function_cx.env.insert(
                         local_id,
                         CgLocal {
                             hir_ty: Some(type_id),
@@ -3922,9 +3915,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // rest of the arm body. Setting `current_fun_return_ty = Never` lets
         // the existing ordinary propagation helpers terminate the step
         // function immediately when arm-local code performs.
-        let saved_return_ctx = self.return_context.take();
-        let saved_return_ty = self.current_fun_return_ty.take();
-        self.current_fun_return_ty = Some(CgTy::Never);
+        let saved_return_ctx = self.function_cx.return_context.take();
+        let saved_return_ty = self.function_cx.current_fun_return_ty.take();
+        self.function_cx.current_fun_return_ty = Some(CgTy::Never);
 
         let tail_resume_rewritten = match arm.kind {
             hir::HandleArmKind::EscapeContinuation { continuation } => {
@@ -3946,8 +3939,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.codegen_expr_in_expected_context(&arm.body, None),
         };
 
-        self.current_fun_return_ty = saved_return_ty;
-        self.return_context = saved_return_ctx;
+        self.function_cx.current_fun_return_ty = saved_return_ty;
+        self.function_cx.return_context = saved_return_ctx;
         result
     }
 

@@ -120,7 +120,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ptr
         };
 
-        self.env.insert(
+        self.function_cx.env.insert(
             id,
             CgLocal {
                 hir_ty: Some(ty_id),

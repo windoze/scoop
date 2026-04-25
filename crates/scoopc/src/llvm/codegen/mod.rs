@@ -340,7 +340,8 @@ struct SharedCodegenCaches {
 /// - 编译单元级共享事实；
 /// - child-codegen 之间必须一致的共享状态与共享 cache。
 ///
-/// 函数级 builder/env/临时状态仍保留在 `MainCodegen`，留待后续任务继续拆层。
+/// 函数 / body 生命周期状态现已收口到 `FunctionBodyCodegenCx`，并由 `MainCodegen`
+/// 作为独立子上下文持有。
 pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     context: &'ctx Context,
     module: &'a Module<'ctx>,
@@ -392,24 +393,27 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     known_effect_instances_by_effect_fqn: HashMap<String, Vec<TypeId>>,
 }
 
-pub(crate) struct MainCodegen<'a, 'ctx> {
-    shared: &'a CompilationUnitCodegenCx<'a, 'ctx>,
-    current_source_id: SourceId,
+/// 单个函数 / body lowering 生命周期内的局部状态。
+///
+/// 这类状态不应混入编译单元级共享输入，因为：
+/// - `fresh_main_codegen()` / `fresh_child_codegen()` 进入新函数体时必须整体重置；
+/// - effect/state-machine emitter 进入 runtime function 时，也需要成组保存/恢复它。
+#[derive(Default)]
+struct FunctionBodyCodegenCx<'ctx> {
     env: Env<'ctx>,
     extra_gc_root_slots: Vec<ExtraGcRootSlot<'ctx>>,
     next_extra_gc_root_slot_id: u32,
-    /// 当前正在生成的函数返回类型。
-    ///
-    /// 说明：
-    /// - 用于 `codegen_return_stmt` 确定返回值类型与 coercion 目标。
-    /// - state machine emitter 在生成 step function 时保存/恢复此字段。
     current_fun_return_ty: Option<CgTy>,
-    /// T0141: Loop context stack for break/continue support.
-    /// Each entry holds the break target (loop-after BB) and continue target (loop-head BB).
     loop_context_stack: Vec<LoopContext<'ctx>>,
-    /// T0141: Function-level return context for early return support.
-    /// When set, `return` statements branch to `return_bb` after storing the value in `return_alloca`.
     return_context: Option<ReturnContext<'ctx>>,
+    current_sret_return_ptr: Option<PointerValue<'ctx>>,
+    top_level_const_eval_stack: Vec<String>,
+}
+
+pub(crate) struct MainCodegen<'a, 'ctx> {
+    shared: &'a CompilationUnitCodegenCx<'a, 'ctx>,
+    current_source_id: SourceId,
+    function_cx: FunctionBodyCodegenCx<'ctx>,
     /// 统一 state-machine 运行时函数内的“向外层函数返回”上下文。
     ///
     /// 说明：
@@ -419,11 +423,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 因此这里单独保存一个“先写回当前 handle frame，再跳到 runtime-function 本地 return block”
     ///   的桥接上下文，只供 state-machine emitter 消费。
     effect_function_return_context: Option<EffectFunctionReturnContext<'ctx>>,
-    /// 当前函数若采用 hidden sret ABI，则这里保存返回槽指针。
-    ///
-    /// 目前仅 higher-order 间接调用生成的 lambda 函数会设置该字段；
-    /// `emit_return` 会据此改为“store 到 sret + ret void”。
-    current_sret_return_ptr: Option<PointerValue<'ctx>>,
     /// 当前正在生成的 ordinary callee resumed-body 保存/恢复计划。
     ///
     /// 说明：
@@ -458,8 +457,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     active_suspend_site_effect_outcome_capture: Option<ActiveSuspendSiteEffectOutcomeCapture>,
     /// 已由当前 step function 某个 `SuspendCall` 捕获到的显式 outcome slot。
     suspend_site_explicit_effect_outcomes: HashMap<u32, PointerValue<'ctx>>,
-    /// 当前正在展开的顶层 `const val` 栈；用于避免递归引用导致无限 codegen。
-    top_level_const_eval_stack: Vec<String>,
 }
 
 /// T0141: Loop context for break/continue targets.
@@ -693,27 +690,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Self {
             shared,
             current_source_id: shared.entry_source_id,
-            env: Env::default(),
-            extra_gc_root_slots: Vec::new(),
-            next_extra_gc_root_slot_id: 0,
-            current_fun_return_ty: None,
-            loop_context_stack: Vec::new(),
-            return_context: None,
+            function_cx: FunctionBodyCodegenCx::default(),
             effect_function_return_context: None,
-            current_sret_return_ptr: None,
             current_callee_suspend_plan: None,
             current_callee_resume_entry_fn: None,
             current_continuation_resume_replay: false,
             current_continuation_resume_replay_context: None,
             active_suspend_site_effect_outcome_capture: None,
             suspend_site_explicit_effect_outcomes: HashMap::new(),
-            top_level_const_eval_stack: Vec::new(),
         }
     }
 
     /// 统一 nested/wrapper codegen 的构造路径，避免再次手写整套编译单元输入拼装。
     fn fresh_child_codegen(&self) -> Self {
         Self::new(self.shared)
+    }
+
+    fn take_function_body_cx(&mut self) -> FunctionBodyCodegenCx<'ctx> {
+        std::mem::take(&mut self.function_cx)
+    }
+
+    fn restore_function_body_cx(&mut self, function_cx: FunctionBodyCodegenCx<'ctx>) {
+        self.function_cx = function_cx;
     }
 
     fn when_pat_binding_hir_ty(
@@ -1670,9 +1668,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slot: PointerValue<'ctx>,
         value_ptr_ty: PointerType<'ctx>,
     ) -> u32 {
-        let id = 0x8000_0000u32 | self.next_extra_gc_root_slot_id;
-        self.next_extra_gc_root_slot_id = self.next_extra_gc_root_slot_id.wrapping_add(1);
-        self.extra_gc_root_slots.push(ExtraGcRootSlot {
+        let id = 0x8000_0000u32 | self.function_cx.next_extra_gc_root_slot_id;
+        self.function_cx.next_extra_gc_root_slot_id =
+            self.function_cx.next_extra_gc_root_slot_id.wrapping_add(1);
+        self.function_cx.extra_gc_root_slots.push(ExtraGcRootSlot {
             id,
             slot,
             value_ptr_ty,
@@ -1681,7 +1680,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn unregister_extra_gc_root_slot(&mut self, id: u32) {
-        self.extra_gc_root_slots.retain(|slot| slot.id != id);
+        self.function_cx
+            .extra_gc_root_slots
+            .retain(|slot| slot.id != id);
     }
 
     fn collect_gc_ptr_leaf_slots_in_spill(
@@ -1887,6 +1888,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         top_level_const: &hir::TopLevelConst,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if self
+            .function_cx
             .top_level_const_eval_stack
             .iter()
             .any(|current| current == &top_level_const.fqn)
@@ -1913,10 +1915,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let source_id = self.source_id_for_path(top_level_const.source_path.as_path(), span)?;
         let saved_source_id = self.current_source_id;
         self.current_source_id = source_id;
-        self.top_level_const_eval_stack
+        self.function_cx
+            .top_level_const_eval_stack
             .push(top_level_const.fqn.clone());
         let result = self.codegen_initializer_expr(init, target_ty, top_level_const.ty);
-        self.top_level_const_eval_stack.pop();
+        self.function_cx.top_level_const_eval_stack.pop();
         self.current_source_id = saved_source_id;
         result
     }
@@ -2071,7 +2074,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let done_bb = self.context.append_basic_block(llvm_fun, "done");
 
         self.builder.position_at_end(entry);
-        self.current_fun_return_ty = Some(CgTy::Unit);
+        self.function_cx.current_fun_return_ty = Some(CgTy::Unit);
 
         let guard = self.declare_top_level_immutable_value_guard(&value.fqn);
         let once_begin = self.declare_runtime_once_begin();
@@ -2382,7 +2385,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "return_val",
             )?),
         };
-        self.return_context = Some(ReturnContext {
+        self.function_cx.return_context = Some(ReturnContext {
             return_bb,
             return_alloca,
         });
@@ -2419,7 +2422,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.emit_return(at, declared_return_cg, ret_v)?;
             }
         }
-        self.return_context = None;
+        self.function_cx.return_context = None;
         Ok(())
     }
 
@@ -2437,7 +2440,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
 
-        if let Some(return_ctx) = self.return_context {
+        if let Some(return_ctx) = self.function_cx.return_context {
             if let Some(alloca) = return_ctx.return_alloca
                 && let Some(raw) = value.value
             {
@@ -2506,11 +2509,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: fun.span.into(),
             });
         };
-        self.current_fun_return_ty = Some(declared_return_cg);
+        self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
             .hidden_sret_result_ty(fun.span, declared_return_cg)?
             .is_some();
-        self.current_sret_return_ptr = if uses_hidden_sret {
+        self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 llvm_fun
                     .get_nth_param(0)
@@ -2524,7 +2527,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None
         };
 
-        self.env.push_scope();
+        self.function_cx.env.push_scope();
         self.codegen_fun_params(fun, llvm_fun, u32::from(uses_hidden_sret))?;
 
         // T0141: Set up function-level return context for early return support.
@@ -2564,8 +2567,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 declared_return_cg,
             )?;
         }
-        self.current_sret_return_ptr = None;
-        self.env.pop_scope();
+        self.function_cx.current_sret_return_ptr = None;
+        self.function_cx.env.pop_scope();
         Ok(())
     }
 
@@ -2574,19 +2577,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun: &hir::FunDecl,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         // 入口 `i32 @main()` 的返回类型固定为 i32；这里记录下来以便最小 Raise 传播时能"早退"。
-        self.current_fun_return_ty = Some(CgTy::Int(IntTy {
+        self.function_cx.current_fun_return_ty = Some(CgTy::Int(IntTy {
             bits: 32,
             signed: true,
         }));
 
-        self.env.push_scope();
+        self.function_cx.env.push_scope();
 
         let exit = match fun.body.as_ref() {
             Some(body) => self.codegen_block_as_exit_code(body, fun.return_ty)?,
             None => self.context.i32_type().const_int(0, false),
         };
 
-        self.env.pop_scope();
+        self.function_cx.env.pop_scope();
         Ok(exit)
     }
 
@@ -2611,13 +2614,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<AddressablePlace<'ctx>, LlvmEmitError> {
         match &expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
-                let local = self
-                    .env
-                    .get(*id)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt lvalue local",
-                        at: expr.span.into(),
-                    })?;
+                let local =
+                    self.function_cx
+                        .env
+                        .get(*id)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "atomicInt lvalue local",
+                            at: expr.span.into(),
+                        })?;
 
                 let ptr = self.local_ptr_for_use(expr.span, local, "atomic_int_slot")?;
                 Ok(AddressablePlace {
@@ -3102,7 +3106,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 对于 VarRef，尝试从 env 中获取 hir_ty
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind {
-            return self.env.get(*id).and_then(|local| local.hir_ty);
+            return self.function_cx.env.get(*id).and_then(|local| local.hir_ty);
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &expr.kind {
@@ -3665,13 +3669,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         value: Option<&hir::Expr>,
     ) -> Result<(), LlvmEmitError> {
-        let return_ctx = self
-            .return_context
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "return outside function with return context",
-                at: span.into(),
-            })?;
-        let declared_return_cg = self.current_fun_return_ty.unwrap_or(CgTy::Unit);
+        let return_ctx =
+            self.function_cx
+                .return_context
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "return outside function with return context",
+                    at: span.into(),
+                })?;
+        let declared_return_cg = self.function_cx.current_fun_return_ty.unwrap_or(CgTy::Unit);
 
         match value {
             Some(expr) => {
@@ -3721,7 +3726,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::Enum(_) => {
                 let Some(raw) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: if self.current_sret_return_ptr.is_some() {
+                        kind: if self.function_cx.current_sret_return_ptr.is_some() {
                             "sret return value"
                         } else {
                             "return value"
@@ -3729,7 +3734,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
-                if let Some(sret_ptr) = self.current_sret_return_ptr
+                if let Some(sret_ptr) = self.function_cx.current_sret_return_ptr
                     && matches!(
                         declared_return_ty,
                         CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)
@@ -4281,13 +4286,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match v {
             hir::ValueRef::TopLevel { fqn, .. } => self.codegen_top_level_value_ref(span, fqn),
             hir::ValueRef::Local { id, .. } => {
-                let local =
-                    self.env
-                        .get(*id)
-                        .ok_or_else(|| LlvmEmitError::UnsupportedMainBody {
-                            kind: "unknown local value",
-                            at: span.into(),
-                        })?;
+                let local = self.function_cx.env.get(*id).ok_or_else(|| {
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "unknown local value",
+                        at: span.into(),
+                    }
+                })?;
                 let local_ptr = self.local_ptr_for_use(span, local, "load_local_slot")?;
 
                 match local.ty {
@@ -4642,7 +4646,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // 优先路径：`localStruct.field` —— 用 GEP 从 alloca slot 取字段（更贴近后续可变字段语义）。
                 if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind
-                    && let Some(local) = self.env.get(*id)
+                    && let Some(local) = self.function_cx.env.get(*id)
                     && let CgTy::Struct(struct_ty) = local.ty
                 {
                     let (field_idx, field_ty) =
@@ -4724,7 +4728,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 优先路径：`localTuple._0` —— 用 GEP 从 alloca slot 取元素。
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind
-            && let Some(local) = self.env.get(*id)
+            && let Some(local) = self.function_cx.env.get(*id)
             && let CgTy::Tuple(tuple_ty) = local.ty
         {
             let elem_ty = self.lookup_tuple_element(tuple_ty, elem_idx, member.span)?;
@@ -4905,7 +4909,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Locals keep their exact lowered codegen type in the environment, so
         // prefer that before reconstructing from a TypeId.
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind
-            && let Some(local) = self.env.get(*id)
+            && let Some(local) = self.function_cx.env.get(*id)
         {
             return Some(local.ty);
         }

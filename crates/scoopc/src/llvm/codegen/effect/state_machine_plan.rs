@@ -8057,7 +8057,7 @@ impl HandlePlanContext {
 
         let mut known_local_fun_effects = HashMap::new();
         let mut known_local_metadata = HashMap::new();
-        for scope in &cg.env.scopes {
+        for scope in &cg.function_cx.env.scopes {
             for (&id, local) in scope {
                 let Some(hir_ty) = local.hir_ty else {
                     continue;
@@ -8382,7 +8382,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let known_fun_effects = self.known_fun_body_may_outward_effect_map();
         let mut known_locals = HashMap::new();
         let mut known_local_metadata = HashMap::new();
-        for scope in &self.env.scopes {
+        for scope in &self.function_cx.env.scopes {
             for (&id, local) in scope {
                 let Some(hir_ty) = local.hir_ty else {
                     continue;

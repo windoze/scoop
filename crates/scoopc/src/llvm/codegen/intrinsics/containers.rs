@@ -485,7 +485,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn infer_array_element_word_cg_ty(&self, receiver: &hir::Expr) -> Option<CgTy> {
         let receiver_ty = match &receiver.kind {
-            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self.env.get(*id)?.hir_ty?,
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                self.function_cx.env.get(*id)?.hir_ty?
+            }
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 self.top_level_value_ty(fqn)?
             }
