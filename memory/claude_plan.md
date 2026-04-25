@@ -1,52 +1,64 @@
-# 本轮执行计划
+## 当前轮执行计划（决策摘要）
 
-## 约束说明
+注意：这里记录的是可审查的执行计划、依据和进度摘要，不写入逐字内部推理。
 
-- 按要求先记录计划，再执行命令或代码检查。
-- 思考与记录使用中文。
-- 本轮目标是：先处理最新提交里提到的既有问题；若无，则完成 `TODO.md` 中第一个未完成任务；完成后测试、更新文档、提交 git，然后停止。
+### 初始目标
 
-## 初始执行步骤
+本轮只处理 `TODO.md` 中第一个未完成任务；如果在检查、实现或测试中发现已有缺陷、规格不匹配或前置依赖缺失，则优先修复，或将其作为新的前置任务插入 `TODO.md` 并停止。
 
-1. 查看最新一次 git 提交信息，确认是否明确提到待修复的既有问题。
+### 执行步骤
+
+1. 检查最新一次 git 提交的信息，确认是否明确提到已有问题需要先修。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划、依赖关系和任务上下文。
-4. 结合代码与测试状态判断该任务是否可直接完成：
-   - 如果可以直接完成，进入实现。
-   - 如果任务过大，先把任务拆成更小的子任务，并更新 `TODO.md` 与 `PLAN.md`，然后只执行拆分后的第一个子任务。
-   - 如果发现阻塞该任务的既有缺陷、规格不匹配、缺失特性或回避性实现，则优先修复该问题；若本轮无法直接修复，则把它作为前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
+3. 阅读 `PLAN.md`，确认该任务的上下文、依赖和已有拆分。
+4. 评估任务规模：
+   - 如果可在本轮完整交付，则直接实现。
+   - 如果过大，则先把它拆分成更小的子任务，并更新 `PLAN.md` 与 `TODO.md`，本轮只做新的第一个子任务。
+5. 实现任务时同时检查相关代码路径；任何现存 bug、回归、规格不匹配、未完成边界都视为本轮范围内问题。
+6. 运行相关测试，并补充必要测试；同时执行质量检查，至少包括与本次改动相关的测试，以及在可行时运行 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`。
+7. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞依赖。
+8. 提交一个清晰的 git commit，然后停止，不继续下一个任务。
 
-## 实施阶段计划
+### 当前已知约束
 
-1. 阅读相关模块与现有测试，确认正确修改点。
-2. 实现任务，避免引入规避性逻辑或与规格不一致的临时方案。
-3. 补充或调整测试，覆盖修复路径和回归场景。
-4. 运行必要验证：
-   - 相关测试
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 如任务相关，再运行对应 fixture / 工具检查
-5. 若验证中暴露任何既有问题，立即转为本轮优先事项并修复，或按要求改写 `TODO.md` / `PLAN.md` 后停止。
+- 必须优先处理已有问题，不能用规避方案推进任务。
+- 必须在修改前后持续更新本文件。
+- 本轮结束前需要有 git commit。
 
-## 收尾计划
+### 当前进度
 
-1. 更新 `TODO.md`，标记本轮完成的任务。
-2. 更新 `PLAN.md`，反映当前状态、依赖变化和后续顺序。
-3. 同步更新本文件，记录关键进展、计划变化和已完成步骤。
-4. 检查 git diff，确认只包含本轮需要提交的变更。
-5. 使用清晰的提交信息提交。
-6. 停止，不继续处理下一个任务。
-
-## 进度记录
-
-- 已完成：初始化计划文件。
-- 已完成：检查最新提交与任务列表，确认最新提交标题未声明新的待修复既有问题；`TODO.md` 首个未完成任务为 `T5000b3aR Review：确认 call/ 拆分形成稳定 lowering 边界`。
-- 已完成：核对 `crates/scoopc/src/llvm/codegen/call/{abi,dispatch,resume}.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 的函数定义分布。
-  - `codegen_call_impl`、`codegen_top_level_fun_call_impl`、vtable/itable dispatch、funptr/function-value call、call arg ABI、ordinary callee resume、top-level effect-call wrapper 等主体实现均已位于 `call/` 子模块；
-  - `codegen/mod.rs` 中对应入口现为薄委托，根模块仍保留少量共享数据结构与命名 helper；
-  - `call/dispatch.rs` 对 sysroot builtin、class ctor、interface/vtable helper 的依赖是单向委托，未发现新的双向主体耦合；
-  - closure/effect 主题只经 `declare_*callee_resume_entry`、`codegen_callee_resume_entry_function`、`call_callee_resume_entry_from_state` 等窄入口消费 call-resume 能力。
-- 结论：当前没有发现必须先修复或先插入 `TODO.md` 的新前置缺陷，可以直接完成 `T5000b3aR` 文档与验证收尾。
-- 已完成：执行验证命令，`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
-- 已完成：更新 `TODO.md` 与 `PLAN.md`，将 `T5000b3aR` 标记为完成，并将下一条待执行任务切换为 `T5000b3b`。
-- 进行中：检查工作区变更并准备提交本轮结果。
+- 已创建本计划文件。
+- 已检查最新提交、`TODO.md` 与 `PLAN.md`：
+  - 最新提交为 `[T5000b3aR] Review call lowering boundaries`；
+  - 提交说明本身未提出需要先修复的新旧缺陷；
+  - 当前首个未完成任务为 `T5000b3b 拆出 intrinsics/ lowering 模块`。
+- 当前判断：
+  - 本轮目标是把 builtin/sysroot lowering 从 `crates/scoopc/src/llvm/codegen/mod.rs` 迁到 `llvm/codegen/intrinsics/`；
+  - 这是边界整理任务，要求保持语义与错误边界不变；
+  - 在迁移过程中若发现现存 bug、规格不匹配或缺失前置能力，必须先修复或把它前移为 TODO 前置任务。
+- 已完成代码面梳理，并确定 `intrinsics/` 拆分形状：
+  - `builtin.rs`：标量内建 / `print` / `toString` / `toInt` / `hash` / `sizeOf`
+  - `sysroot.rs`：io/env/time/fs/process/path
+  - `sync.rs`：mutex / condvar / once / destroy
+  - `thread.rs`：thread / task transport / thread-specific intrinsics
+  - `channels.rs`：channel send/recv/close
+  - `containers.rs`：array builder / array get-set / array-like helper
+  - `atomic.rs`：atomic int intrinsics
+- 已开始实施：
+  - 已新增 `crates/scoopc/src/llvm/codegen/intrinsics/` 及上述子模块文件；
+  - 已在 `crates/scoopc/src/llvm/codegen/mod.rs` 注册 `mod intrinsics;`；
+  - 已从 `codegen/mod.rs` 删除 builtin/sysroot lowering 主体实现块，仅保留非 intrinsics 主题与通用 helper。
+- 进度校验：
+  - 已确认 `codegen/mod.rs` 中不再残留 `codegen_sysroot_*` 主体实现，只剩 `scoop.unsafe` 的 funptr helper；
+  - `cargo fmt --all` 已通过。
+- 第一轮验证结果：
+  - `cargo test -p scoopc llvm::` 已通过（148 tests passed）；
+  - 暴露并已修复 1 个整理后遗留问题：`crates/scoopc/src/llvm/codegen/mod.rs` 中 `inkwell::AtomicOrdering` 导入未使用。
+- 全量验证结果：
+  - `cargo test --all` 已通过；
+  - `cargo clippy --all-targets -- -D warnings` 已通过；
+  - 未发现需要前插到 `T5000b3bR` 之前的现存缺陷任务。
+- 文档状态：
+  - 已将 `TODO.md` 中 `T5000b3b` 标记为完成并补充完成记录；
+  - 已将 `PLAN.md` 补记 `T5000b3b` 的实现/验证结果，并将下一条待执行任务切换为 `T5000b3bR`。
+- 下一步：检查工作区、准备本轮提交，并在提交后停止。

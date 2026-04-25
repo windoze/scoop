@@ -165,7 +165,7 @@
   - review 结论：`call/` 的职责上界已可明确界定为调用分派、调用点 ABI / 实参绑定与 ordinary resume / wrapper lowering；剩余 builtin/sysroot、closure/class ctor、enum/object 主题仍主要留在 `codegen/mod.rs`，继续按 `T5000b3b`～`T5000b3d` 顺序拆分即可，无需先插入新的前置缺陷任务；
   - 已验证 `cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b3b 拆出 `intrinsics/` lowering 模块
+### [DONE] T5000b3b 拆出 `intrinsics/` lowering 模块
 - 范围：
   - 将 `llvm/codegen/mod.rs` 中的 string / char / int / float builtin lowering，以及 sysroot I/O、env、time、fs、process、path、sync、thread、channels、array、task transport、atomic int 等 lowering 迁入 `llvm/codegen/intrinsics/`；
   - 保持现有 builtin/sysroot 语义与错误边界不变，只按主题收口文件边界。
@@ -173,6 +173,12 @@
   - `codegen/mod.rs` 不再直接承载 builtin/sysroot intrinsics 主体实现；
   - `intrinsics/` 内部边界能区分标量内建、sysroot API、并发/容器 intrinsics，而不是新的混杂入口。
 - 依赖：T5000b3aR
+- 完成记录（2026-04-25）：
+  - 新增 `crates/scoopc/src/llvm/codegen/intrinsics/`，并按稳定主题拆成 `builtin.rs`、`sysroot.rs`、`sync.rs`、`thread.rs`、`channels.rs`、`containers.rs`、`atomic.rs` 7 个 lowering 子模块，由 `intrinsics/mod.rs` 统一声明；
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 已新增 `mod intrinsics;`，并删除原有 builtin/sysroot lowering 主体实现块；根模块中不再直接承载 `print`/`toString`/`sizeOf`、io/env/time/fs/process/path、sync/thread/channels、array/task transport/atomic int 等 intrinsics 主体实现；
+  - `crates/scoopc/src/llvm/codegen/call/dispatch.rs` 继续只负责按 FQN 做调用分派，具体 lowering 主体现由 `intrinsics/` 子模块承接，从而维持 call 主题与 intrinsics 主题的单向依赖；
+  - 迁移过程中暴露的唯一现存问题是 `crates/scoopc/src/llvm/codegen/mod.rs` 残留的 `inkwell::AtomicOrdering` 未使用导入，已在本轮一并修复；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b3bR Review：确认 `intrinsics/` 拆分没有把 builtin/sysroot 继续堆回根模块
 - 重点：

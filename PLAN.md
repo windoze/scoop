@@ -132,7 +132,28 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b3b 拆出 intrinsics/ lowering 模块`。
+- 2026-04-25：`T5000b3b 拆出 intrinsics/ lowering 模块` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/llvm/codegen/intrinsics/{mod,builtin,sysroot,sync,thread,channels,containers,atomic}.rs`；
+    - `intrinsics/` 已按稳定语义边界拆分：
+      - `builtin.rs`：标量 builtin、`print`/`println`、`toString`/`toInt`/`hash`、`sizeOf`
+      - `sysroot.rs`：io/env/time/fs/process/path
+      - `sync.rs`：mutex/condvar/once/destroy
+      - `thread.rs`：thread、task transport、thread-specific intrinsic
+      - `channels.rs`：channel send/recv/close
+      - `containers.rs`：array builder / array get-set 与 array-like helper
+      - `atomic.rs`：atomic int intrinsics
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 现仅保留 `mod intrinsics;` 声明与其它非 intrinsics 主题代码，不再直接承载 builtin/sysroot intrinsics 主体实现；
+    - `crates/scoopc/src/llvm/codegen/call/dispatch.rs` 保持为 FQN dispatch 层，具体 builtin/sysroot lowering 主体改由 `intrinsics/` 主题模块承接；
+  - 收尾修复：
+    - 清理了 `crates/scoopc/src/llvm/codegen/mod.rs` 中迁移后残留的 `inkwell::AtomicOrdering` 未使用导入；
+  - 验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b3bR Review：确认 intrinsics/ 拆分没有把 builtin/sysroot 继续堆回根模块`。
 
 ## 1. 当前判断
 
