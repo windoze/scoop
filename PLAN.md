@@ -440,7 +440,33 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-  - 下一条待执行任务切换为 `T5000c3 迁移 effect/state-machine planning 与 direct-step summary 到 shared facts / analysis 层`。
+-  - 下一条待执行任务切换为 `T5000c3 迁移 effect/state-machine planning 与 direct-step summary 到 shared facts / analysis 层`。
+- 2026-04-26：`T5000c3 迁移 effect/state-machine planning 与 direct-step summary 到 shared facts / analysis 层` 已判定为单轮过大任务，现拆成 `T5000c3a`～`T5000c3b` 两个实现子任务与对应 review。
+  - 拆分依据：
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 当前约 9800 行，其中除 `#[cfg(feature = "llvm")] impl MainCodegen` 薄 backend 入口外，大部分已是 pure analysis；shared planning / direct-step summary 源文件归属仍挂在 backend 路径上；
+    - `crates/scoopc/src/effect_step_summary.rs` 仍通过 `include!("llvm/codegen/effect/state_machine_plan.rs")` 文本级复用 backend 源文件，说明 shared analysis consumer 仍然依赖 backend 源文件所有权，而不是稳定的 shared 归属层；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 与 planning / summary 内部的 concrete-type / field-type / receiver exactness helper 仍存在平行实现，说明 helper 的消费方向尚未真正拉直到 shared facts / analysis 层。
+  - 拆分顺序：
+    - `T5000c3a`：先抽出共享 `effect_state_machine_analysis.rs` 源文件，并清理 `effect_step_summary.rs` 对 backend 文件的 `include!`；
+    - `T5000c3b`：再收口 concrete-type / field-type / receiver exactness helper 的消费方向；
+  - 下一条待执行任务切换为 `T5000c3a 抽出共享 effect_state_machine_analysis.rs 源文件并清理 backend include!`。
+- 2026-04-26：`T5000c3a 抽出共享 effect_state_machine_analysis.rs 源文件并清理 backend include!` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/effect_state_machine_analysis.rs`，承接原 `llvm/codegen/effect/state_machine_plan.rs` 的 pure analysis 主体，包括 handle planning、higher-order suspendability summary、direct-step summary 与相关测试；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现已收口为薄包装，只负责把 shared analysis 源文件重新 `include!` 到 backend `unified_state_machine_skeleton` 模块的本地可见性作用域，而不再充当 shared analysis 的归属路径；
+    - `crates/scoopc/src/effect_step_summary.rs` 已改为直接复用 `effect_state_machine_analysis.rs`，从而消除对 backend 路径 `llvm/codegen/effect/state_machine_plan.rs` 的文本级依赖；
+  - 阶段结论：
+    - shared planning / direct-step summary 源文件所有权已脱离 `llvm/codegen/effect/`；
+    - backend 与非 LLVM 消费者当前继续复用同一份源码，但 shared consumer 已不再依赖 backend 源文件路径；
+    - 本轮尚未处理 concrete-type / field-type / receiver exactness helper 的消费方向，这部分继续留给下一条 `T5000c3aR` / `T5000c3b`。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000c3aR Review：确认 shared planning / summary 源文件已脱离 backend 路径`。
 
 ## 1. 当前判断
 

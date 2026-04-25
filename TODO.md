@@ -500,15 +500,53 @@
   - review 未发现需要插入到 `T5000c3` 之前的新前置缺陷任务；`effect_step_summary.rs` 对 `state_machine_plan.rs` 的 `include!` 复用仍是已在 `T5000c3` 显式跟踪的下一步工作，但它当前已不需要通过 backend 主上下文回捞 analysis state；
   - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000c3 迁移 effect/state-machine planning 与 direct-step summary 到 shared facts / analysis 层
+### T5000c3 迁移 effect/state-machine planning 与 direct-step summary 到 shared facts / analysis 层
+- 说明：
+  - 经核对，当前 `T5000c3` 同时包含 shared analysis 源文件归属迁移、`effect_step_summary.rs` 的 backend `include!` 清理，以及 concrete-type / field-type / receiver exactness 共享 helper 的消费方向收口，单轮过大；
+  - 现按稳定边界拆成以下子任务，先迁 shared planning / summary 源文件，再继续拉直 concrete-type / receiver exactness 相关 helper 的依赖方向。
+
+### [DONE] T5000c3a 抽出共享 `effect_state_machine_analysis.rs` 源文件并清理 backend `include!`
 - 范围：
-  - 让 effect/state-machine planning、higher-order suspendability summary 与 direct-step effect summary 统一依赖 `ProgramFacts` / `EffectAnalysisCtx`；
-  - 清理 `effect_step_summary.rs` 对 `llvm/codegen/effect/state_machine_plan.rs` 的 `include!` 复用，把共享分析放到独立归属层；
-  - 收口 concrete-type / field-type / receiver exactness 等共享 helper 的消费方向，使后续 MIR / summary 可复用同一层事实。
+  - 将当前 `llvm/codegen/effect/state_machine_plan.rs` 中不依赖 LLVM builder / module 的 pure analysis 主体迁到 crate 根的共享源文件，供 backend planning 与 `effect_step_summary.rs` 共同复用；
+  - 让 `llvm/codegen/effect/state_machine_plan.rs` 退回 backend 壳层 / 薄入口，不再作为 shared analysis 的实际归属路径；
+  - 清理 `effect_step_summary.rs` 对 backend 源文件的 `include!` 复用。
 - 验收：
-  - `effect_step_summary.rs` 不再通过 `include!` 直接依赖 LLVM backend 源文件；
-  - effect/state-machine planning 与 direct-step summary 已可在 backend 外复用同一份 shared facts / analysis 层。
+  - shared planning / direct-step summary 源文件归属已脱离 `llvm/codegen/effect/`；
+  - `effect_step_summary.rs` 不再 `include!` LLVM backend 源文件；
+  - 现有 planning / direct-step summary 行为与测试保持一致。
 - 依赖：T5000c2R
+- 完成记录（2026-04-26）：
+  - 原 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 pure analysis 主体已迁到新的 crate 根共享源文件 `crates/scoopc/src/effect_state_machine_analysis.rs`；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现已收口为薄包装，仅负责把共享分析源码 `include!` 回 backend 的 `unified_state_machine_skeleton` 模块可见性作用域；
+  - `crates/scoopc/src/effect_step_summary.rs` 已改为直接复用 `effect_state_machine_analysis.rs`，不再依赖 backend 路径下的 `state_machine_plan.rs`；
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+
+### [TODO] T5000c3aR Review：确认 shared planning / summary 源文件已脱离 backend 路径
+- 重点：
+  - pure analysis 主体是否已经从 `llvm/codegen/effect/state_machine_plan.rs` 迁出；
+  - backend 当前是否只保留薄入口，而不是继续充当 shared analysis 的归属层；
+  - `effect_step_summary.rs` 是否已改为依赖 shared 源文件而非 backend 文件。
+- 验收：
+  - 后续 `T5000c3b` 可以只继续处理 concrete-type / receiver exactness helper 的消费方向，而不必再回头处理 shared source ownership。
+- 依赖：T5000c3a
+
+### [TODO] T5000c3b 收口 concrete-type / field-type / receiver exactness 共享 helper 的消费方向
+- 范围：
+  - 将 effect/state-machine planning 中的 concrete-type / field-type / receiver exactness 相关共享 helper 收口到 backend-agnostic 的 shared analysis / facts 归属层；
+  - 拉直 `llvm/codegen/mod.rs` 与 shared planning / summary 对这组 helper 的消费方向，为后续 MIR / summary 复用同一层事实做准备。
+- 验收：
+  - planning / direct-step summary 与 backend generic lowering 不再各自维护一套同类 helper；
+  - concrete type、receiver exactness 与 field specialization 相关事实已可由 shared 层统一提供。
+- 依赖：T5000c3aR
+
+### [TODO] T5000c3bR Review：确认 concrete-type / receiver exactness helper 的依赖方向已拉直
+- 重点：
+  - 是否还残留 planning / summary 与 backend generic lowering 各自维护一套同类 helper；
+  - shared facts / analysis 层是否已经承接 concrete type / field type / receiver exactness 的共同输入；
+  - 后续 MIR / summary 消费面是否可以直接复用这层事实，而不必重新从 backend 现场回捞。
+- 验收：
+  - `T5000c3R` 可以基于统一 shared helper 边界做总复核。
+- 依赖：T5000c3b
 
 ### [TODO] T5000c3R Review：确认共享分析消费者已脱离 LLVM backend 源文件依赖
 - 重点：
@@ -517,7 +555,7 @@
   - concrete type / receiver exactness / field specialization 相关 helper 的依赖方向是否已经拉直。
 - 验收：
   - `T5000cR` 可以基于清晰的 backend-agnostic facts / analysis 边界做总复核。
-- 依赖：T5000c3
+- 依赖：T5000c3bR
 
 ### [TODO] T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向
 - 重点：

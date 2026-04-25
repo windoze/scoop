@@ -1,69 +1,55 @@
-# 执行计划与进度记录
+# 本轮执行计划
 
-## 说明
+## 约束
 
-按要求，在执行任何命令前先建立本文件。出于安全与隐私限制，这里不记录完整的内部推理细节，而是记录可审计的执行计划、关键判断、实施步骤与进度更新。
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在推进计划任务前，先检查最新提交是否提到需要先修复的既有问题；若有，优先修复。
+- 任何在探查、测试、实现过程中发现的既有缺陷、规格不匹配、实现边界缺口，都必须立即纳入当前范围：要么直接修复，要么作为前置任务插入 `TODO.md` 并更新 `PLAN.md`，然后停止。
+- 不通过变更目标形状、缩窄测试、增加特判或其他规避方式绕过问题。
+- 代码修改后需要补充验证，更新 `TODO.md` / `PLAN.md`，并提交 git commit。
 
-## 初始执行计划
+## 执行步骤
 
-1. 检查最新一次 Git 提交，确认是否提到了需要优先修复的既有问题。
+1. 查看最新一次 git 提交信息，确认是否已经记录需要优先处理的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，理解当前计划与任务依赖关系。
-4. 结合代码与测试现状，判断该任务是否可以在本轮完整完成。
-5. 如果任务过大，先将其拆分为更小的前置子任务，并更新 `TODO.md` 与 `PLAN.md`，然后只执行第一个子任务。
-6. 如果在调查、测试或实现过程中发现任何既有缺陷、回归、规格不匹配、未完成边界或临时绕过逻辑，立即将其视为当前范围内问题，优先修复，或者作为前置任务插入 `TODO.md` 后停止继续推进。
-7. 实现当前目标任务。
-8. 运行相关检查与测试，至少覆盖：
-   - 受影响模块的定向测试
-   - 必要的工作区测试
-   - `cargo fmt --check`
-   - `cargo clippy --all-targets -- -D warnings`
-9. 更新 `TODO.md` 与 `PLAN.md`，记录完成状态或阻塞原因。
-10. 提交 Git commit，然后停止。
+3. 阅读 `PLAN.md`，核对该任务的上下文、依赖与当前整体计划。
+4. 判断该任务是否过大：
+   - 若可在本轮完整落地，则直接实施。
+   - 若过大，则把它拆成更小的前置子任务，更新 `PLAN.md` 与 `TODO.md`，并执行拆分后的第一个子任务。
+5. 为实施任务收集最小必要上下文：
+   - 定位相关源码、测试、规范或夹具。
+   - 若发现既有缺陷或前置能力缺失，先处理该问题或把它整理成新的前置任务。
+6. 实现当前目标任务，保持改动与规格一致。
+7. 运行相关验证：
+   - 至少执行与改动直接相关的测试。
+   - 若改动影响面较广，补充执行更高层级验证。
+   - 若环境允许，执行 `cargo fmt` 与 `cargo clippy --all-targets -- -D warnings`，确保无新增格式或 lint 问题。
+8. 更新文档状态：
+   - 在 `TODO.md` 中标记该任务完成，或在阻塞时调整任务顺序与前置依赖。
+   - 在 `PLAN.md` 中记录本轮完成情况、发现的问题与后续顺序调整。
+   - 按进展同步更新本文件。
+9. 检查工作区改动，确认只包含本轮需要的变更。
+10. 提交一次 git commit，提交信息与任务对应，然后停止。
 
-## 进度
+## 进度记录
 
-- 已创建计划文件，待开始仓库检查。
-- 已检查最新提交 `b8584c0be7cc9df3538c9b5f9be1fea7523169ed`，提交说明未声明需要优先修复的遗留问题。
-- 已读取 `TODO.md` / `PLAN.md`，当前首个未完成任务为 `T5000c2R Review：确认 EffectAnalysisCtx 已脱离 LLVM backend 现场取数`。
-
-## 当前任务：T5000c2R
-
-### Review 目标
-
-1. 确认 `EffectAnalysisCtx` 定义本身不依赖 LLVM backend 类型或 `MainCodegen` 状态。
-2. 确认 effect/state-machine 分析主路径不再要求通过 `MainCodegen` 现场取数。
-3. 确认 local metadata / synthetic symbol / source-path 上下文已作为稳定输入边界存在。
-4. 运行定向测试与质量检查；若审查中暴露既有问题，优先修复该问题，再决定是否能完成当前 review。
-
-### 当前已收集证据
-
-- `crates/scoopc/src/effect_analysis.rs` 中 `EffectAnalysisCtx` 目前只依赖 `hir`、`TypeId`、`ProgramFacts`、`PathBuf` 与标准库容器/内部可变性；
-- `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中 `HandlePlanContext` 已退化为 `type HandlePlanContext = EffectAnalysisCtx;`；
-- 仍需继续核对：
-  - 是否还存在分析逻辑必须从 `MainCodegen` 直接读取 state 的路径；
-  - `state_machine_segments.rs` / `state_machine_transform.rs` 测试 helper 是否已统一走共享 analysis context；
-  - 是否存在新的 backend 边界泄漏或 review 过程中暴露的既有缺陷。
-
-### Review 结论
-
-1. `EffectAnalysisCtx` 本体已满足 backend-agnostic 目标：
-   - 不依赖 LLVM backend 类型；
-   - 统一承接 known fun/local effects、known local metadata、synthetic symbol allocator、source-path / call-site 与 `ProgramFacts`。
-2. 未发现残留的“必须通过 `MainCodegen` 才能做分析”路径：
-   - `MainCodegen::effect_analysis_ctx()` 仅是 backend -> shared context 的单向投影；
-   - `state_machine_segments.rs` / `state_machine_transform.rs` 测试 helper 已统一通过 `collect_effect_analysis_context_for_fun(...)` 构造共享上下文。
-3. 未发现需要插入到 `T5000c3` 之前的新前置缺陷：
-   - `effect_step_summary.rs` 仍通过 `include!` 复用 `state_machine_plan.rs`，但这已经由 `T5000c3` 显式跟踪。
-
-### 已执行验证
-
-- `cargo fmt --all --check`
-- `cargo test -p scoopc llvm::`
-- `cargo test -p scoopc --no-default-features`
-- `cargo test --all`
-- `cargo clippy --all-targets -- -D warnings`
-
-### 当前状态
-
-- 已完成 `T5000c2R` 文档回写，下一条应为 `T5000c3`。
+- 已完成：创建本轮执行计划文件。
+- 已完成：检查最新提交 `c3c2bb4a2383f53889b036a107c04eb136186564`，提交主题为 `[T5000c2R] Review EffectAnalysisCtx backend boundary`，未发现提交说明里要求先修复的既有问题。
+- 已完成：读取 `TODO.md` 与 `PLAN.md`，确认首个未完成任务为 `T5000c3 迁移 effect/state-machine planning 与 direct-step summary 到 shared facts / analysis 层`，其前置 `T5000c2R` 已完成。
+- 已完成：检查 `state_machine_plan.rs`、`effect_step_summary.rs`、`effect_analysis.rs` 与 `program_facts.rs` 的边界；确认 `T5000c3` 仍然过大，已按稳定边界拆分为：
+  - `T5000c3a`：先抽出共享 `effect_state_machine_analysis.rs` 源文件，并清理 `effect_step_summary.rs` 对 backend 文件的 `include!`；
+  - `T5000c3b`：再收口 concrete-type / field-type / receiver exactness helper 的消费方向。
+- 已完成：更新 `TODO.md` 与 `PLAN.md`，当前本轮实际执行目标改为 `T5000c3a`。
+- 已完成：实施 `T5000c3a`。
+  - 原 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 pure analysis 主体已迁到新的共享源文件 `crates/scoopc/src/effect_state_machine_analysis.rs`；
+  - backend 侧 `state_machine_plan.rs` 已收口为薄包装；
+  - `crates/scoopc/src/effect_step_summary.rs` 已改为直接复用共享源文件，不再 `include!` backend 源文件。
+- 已完成：验证 `T5000c3a`。
+  - `cargo fmt --all --check`
+  - `cargo test -p scoopc llvm::`
+  - `cargo test -p scoopc --no-default-features`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 以上均通过。
+- 已完成：更新 `TODO.md` / `PLAN.md`，将 `T5000c3a` 标记完成并把下一条待执行任务切换为 `T5000c3aR`。
+- 下一步：检查工作区改动、整理提交信息并创建本轮 commit，然后停止。
