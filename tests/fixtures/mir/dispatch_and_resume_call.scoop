@@ -2,6 +2,10 @@ package fixtures.mir
 
 import scoop.core.*
 
+effect Boom {
+    fun next(): Int
+}
+
 open class Base() {
     open fun ping(): Int {
         return 1
@@ -21,5 +25,9 @@ fun callInterface(i: IFace): Int {
 }
 
 fun resumeOnce(k: Continuation<Int, Unit, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume(1)
+}
+
+fun resumeBoom(k: Continuation<Int, Unit, eff Boom>): Unit / (Raise<RuntimeError> + Boom) {
     k.resume(1)
 }

@@ -605,6 +605,24 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000d2R Review：确认动态分派与 Resume 已成为 MIR 一等节点`。
+- 2026-04-26：`T5000d2R Review：确认动态分派与 Resume 已成为 MIR 一等节点` 已完成。
+  - review 复核结果：
+    - `crates/scoopc/src/mir/mod.rs` 中 `DispatchMetadata` 仍只保留 `owner_fqn`、`member_name`、`receiver_ty` 三类语言级 dispatch 事实；`CallKind::{Virtual, Interface}` 未混入任何 vtable/itable slot、runtime thunk 或 LLVM 特有 metadata，backend-agnostic 边界保持不变。
+    - `crates/scoopc/src/mir/lower.rs` 中 `MirLoweringFacts` 只承担 lowering 输入角色；`lower_call_expr` 会优先把 typed/shared HIR side table 收口成显式 `CallKind::Resume { continuation, resume }`，因此 downstream pass 不再需要把 `Continuation.resume` 当成“普通调用 + side table”去恢复。
+    - `ResumeMetadata` 当前已稳定承载 `continuation_ty` 与 `suspends_outward`；其中 `suspends_outward` 由 `non_pure_continuation_resume_call_sites` 驱动，足以作为后续 escape analysis / effect planning 的最小结构事实。
+  - review 中补齐的既有缺口：
+    - 原 `tests/fixtures/mir/dispatch_and_resume_call.{scoop,mir}` 仅覆盖 Pure continuation 的 `ResumeMetadata.suspends_outward = false` 路径，尚未对 non-Pure continuation 的 outward-suspend 语义做 MIR 回归；
+    - 现已在该 fixture 中新增 `resumeBoom`，并确认 `scoop dump-mir` 稳定产出 `ResumeMetadata { suspends_outward: true }`。
+  - 额外复核：
+    - `crates/scoopc/src/monomorph/lower.rs` 继续通过 typed MIR lowering 保留 `Virtual` call kind，说明实例化路径无需回退到 HIR `MemberAccess` 或 LLVM codegen 现场重建动态分派形状。
+  - 验证结果：
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：动态分派与 `Resume` 已成为 MIR 一等节点，没有发现需要插入到 `T5000d3` 之前的新阻塞任务。
+  - 下一条待执行任务切换为 `T5000d3 收口 Perform / provenance / canonicalization 入口，为后续 pattern 与 operator materialization 提供正规化 MIR 形状`。
 
 ## 1. 当前判断
 

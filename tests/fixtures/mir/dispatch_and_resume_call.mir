@@ -1,16 +1,20 @@
 File {
     items: [
         Todo {
-            span: 43..114,
+            span: 43..78,
             kind: "type",
         },
         Todo {
-            span: 116..154,
+            span: 80..151,
+            kind: "type",
+        },
+        Todo {
+            span: 153..191,
             kind: "type",
         },
         Fun(
             FunDecl {
-                span: 156..209,
+                span: 193..246,
                 fqn: "fixtures.mir.callVirtual",
                 name: "callVirtual",
                 ty: TypeId(
@@ -18,7 +22,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 172..173,
+                        span: 209..210,
                         name: "b",
                         ty: TypeId(
                             10,
@@ -33,7 +37,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 172..173,
+                                span: 209..210,
                                 name: Some(
                                     "b",
                                 ),
@@ -42,7 +46,7 @@ File {
                                 ),
                             },
                             LocalDecl {
-                                span: 199..207,
+                                span: 236..244,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -56,7 +60,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 199..207,
+                                        span: 236..244,
                                         kind: Assign {
                                             target: l1,
                                             value: Call {
@@ -78,7 +82,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 192..207,
+                                    span: 229..244,
                                     kind: Return,
                                     unwind: NoUnwind,
                                 },
@@ -91,7 +95,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 211..266,
+                span: 248..303,
                 fqn: "fixtures.mir.callInterface",
                 name: "callInterface",
                 ty: TypeId(
@@ -99,7 +103,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 229..230,
+                        span: 266..267,
                         name: "i",
                         ty: TypeId(
                             12,
@@ -114,7 +118,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 229..230,
+                                span: 266..267,
                                 name: Some(
                                     "i",
                                 ),
@@ -123,7 +127,7 @@ File {
                                 ),
                             },
                             LocalDecl {
-                                span: 257..264,
+                                span: 294..301,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -137,7 +141,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 257..264,
+                                        span: 294..301,
                                         kind: Assign {
                                             target: l1,
                                             value: Call {
@@ -159,7 +163,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 250..264,
+                                    span: 287..301,
                                     kind: Return,
                                     unwind: NoUnwind,
                                 },
@@ -172,7 +176,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 268..368,
+                span: 305..405,
                 fqn: "fixtures.mir.resumeOnce",
                 name: "resumeOnce",
                 ty: TypeId(
@@ -180,7 +184,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 283..284,
+                        span: 320..321,
                         name: "k",
                         ty: TypeId(
                             14,
@@ -195,7 +199,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 283..284,
+                                span: 320..321,
                                 name: Some(
                                     "k",
                                 ),
@@ -204,7 +208,7 @@ File {
                                 ),
                             },
                             LocalDecl {
-                                span: 355..366,
+                                span: 392..403,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -213,7 +217,7 @@ File {
                                 ),
                             },
                             LocalDecl {
-                                span: 364..365,
+                                span: 401..402,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -227,7 +231,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 364..365,
+                                        span: 401..402,
                                         kind: Assign {
                                             target: l2,
                                             value: Use(
@@ -238,7 +242,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 355..366,
+                                        span: 392..403,
                                         kind: Assign {
                                             target: l1,
                                             value: Call {
@@ -255,7 +259,7 @@ File {
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 364..365,
+                                                        span: 401..402,
                                                         name: None,
                                                         value: Local(
                                                             l2,
@@ -267,7 +271,115 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 268..368,
+                                    span: 305..405,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 407..516,
+                fqn: "fixtures.mir.resumeBoom",
+                name: "resumeBoom",
+                ty: TypeId(
+                    20,
+                ),
+                params: [
+                    Param {
+                        span: 422..423,
+                        name: "k",
+                        ty: TypeId(
+                            19,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 422..423,
+                                name: Some(
+                                    "k",
+                                ),
+                                ty: TypeId(
+                                    19,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 503..514,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 512..513,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 512..513,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 503..514,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                kind: Resume {
+                                                    continuation: Local(
+                                                        l0,
+                                                    ),
+                                                    resume: ResumeMetadata {
+                                                        continuation_ty: TypeId(
+                                                            19,
+                                                        ),
+                                                        suspends_outward: true,
+                                                    },
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 512..513,
+                                                        name: None,
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 407..516,
                                     kind: Return,
                                     unwind: NoUnwind,
                                 },

@@ -656,7 +656,7 @@
   - 已修复新增 typed-lowering 错误变体导致的 `clippy::result_large_err`：`crates/scoopc/src/hir/lower/types.rs` 中相关 `HirLowerError` 变体已改为装箱并补齐 `From` 转换。
   - 已验证 `cargo fmt --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test -p scoopc monomorph::lower`、`cargo test -p scoop --test t1124_incremental_cone_run -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000d2R Review：确认动态分派与 `Resume` 已成为 MIR 一等节点
+### [DONE] T5000d2R Review：确认动态分派与 `Resume` 已成为 MIR 一等节点
 - 重点：
   - `VirtualCall / InterfaceCall` 是否仍保持 backend-agnostic，而非退化成 vtable / itable 细节；
   - `Resume` 是否已脱离“普通调用 + side table”的隐式表示；
@@ -664,6 +664,13 @@
 - 验收：
   - 后续 pass 不必再回到 HIR `MemberAccess` 或 LLVM codegen 现场恢复这些控制转移形态。
 - 依赖：T5000d2
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/mir/mod.rs` 与 `crates/scoopc/src/mir/lower.rs`，确认 `DispatchMetadata` 只保留 `owner_fqn`、`member_name`、`receiver_ty` 三类语言级事实；`CallKind::{Virtual, Interface}` 继续停留在 backend-agnostic 层，没有回退成 vtable slot / itable id / runtime thunk 等 LLVM 细节。
+  - 已确认 `Continuation.resume` 在 MIR 上不再依赖“普通调用 + side table”隐式恢复：`MirLoweringFacts` 只作为 lowering 输入收口 typed/shared HIR 事实，`lower_call_expr` 会优先显式产出 `CallKind::Resume { continuation, resume }`，其中 `ResumeMetadata` 稳定携带 `continuation_ty` 与 `suspends_outward`，供后续 escape analysis / effect planning 直接消费。
+  - review 过程中发现一个既有覆盖缺口：原有 `tests/fixtures/mir/dispatch_and_resume_call.{scoop,mir}` 只验证了 `ResumeMetadata.suspends_outward = false` 的 Pure continuation 场景，未覆盖 non-Pure continuation 的 outward-suspend 语义；本轮已补入 `resumeBoom` fixture，并确认 MIR dump 稳定产出 `suspends_outward: true`。
+  - 已复核 `crates/scoopc/src/monomorph/lower.rs` 的 typed MIR lowering 入口与现有单测，确认实例化路径继续保留 `Virtual` call kind，不需要后续 pass 回到 HIR `MemberAccess` 或 LLVM codegen 现场重建动态分派形状。
+  - review 结论：动态分派与 `Resume` 已成为 MIR 一等节点；后续 `T5000d3` 可直接在现有 `CallKind` / `Perform` / provenance 入口上继续收口 generic early MIR 形状，无需先插入新的前置缺陷任务。
+  - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000d3 收口 `Perform` / provenance / canonicalization 入口，为后续 pattern 与 operator materialization 提供正规化 MIR 形状
 - 范围：
