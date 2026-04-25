@@ -241,7 +241,7 @@
   - 迁移过程中发现 `object_init.rs` 需要显式从 `crate::llvm` 导入 `LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE`，已在本轮一并修复，未留下新的前置缺陷任务；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b3dR Review：确认 `codegen/mod.rs` 的主题拆分已收口到共享上下文与通用 helper
+### [DONE] T5000b3dR Review：确认 `codegen/mod.rs` 的主题拆分已收口到共享上下文与通用 helper
 - 重点：
   - enum / object lowering 是否已脱离根模块主体；
   - 根模块剩余内容是否确实以共享上下文、通用 helper、跨主题桥接为主；
@@ -249,6 +249,12 @@
 - 验收：
   - 可以明确说出 `codegen/mod.rs` 当前剩余职责上界，并证明主题拆分不是机械切碎。
 - 依赖：T5000b3d
+- 完成记录（2026-04-25）：
+  - review 首先发现并修复了一个既有边界泄漏：`crates/scoopc/src/llvm/codegen/mod.rs` 中仍残留 `codegen_sysroot_funptr_invoke`、`codegen_sysroot_funptr_to_uintptr`、`codegen_sysroot_uintptr_to_funptr` 三个 `scoop.unsafe.*` intrinsic lowering；这些实现现已整体迁入 `crates/scoopc/src/llvm/codegen/intrinsics/sysroot.rs`，`call/dispatch.rs` 继续只做 FQN 分派，具体 lowering 主体不再留在根模块；
+  - 复核后确认 enum / object lowering 主体已经稳定落在 `crates/scoopc/src/llvm/codegen/enum_lowering.rs` 与 `crates/scoopc/src/llvm/codegen/object_init.rs`；`expr.rs`、`call/dispatch.rs`、`effect/mod.rs` 以及 `codegen/mod.rs` 中的顶层值 / 成员访问路径只通过 `codegen_unresolved_ident`、`codegen_enum_variant_ctor_call`、`try_codegen_qualified_enum_unit_variant_value`、`codegen_object_value_access`、`codegen_object_property_access` 等窄接口消费这些主题；
+  - 已确认 `crates/scoopc/src/llvm/codegen/mod.rs` 当前剩余主体职责已收敛为共享上下文与通用 helper：`CompilationUnitCodegenCx` / `MainCodegen` 状态、顶层 const/immutable/var 访问与初始化、GC-sensitive spill/root/sret/return 上下文、`codegen_addressable_place` 这类通用 lvalue bridge、单态化/具体类型恢复 helper，以及字面量/聚合值/成员访问/运算符/类型转换/通用 coercion lowering；未再发现应立即优先抽离的 enum/object/sysroot/call/closure/class-ctor 主题主体实现；
+  - review 结论：`codegen/mod.rs` 的主题拆分已收口到共享上下文、通用 helper 与跨主题桥接，下一条可直接进入 `T5000b3R` 汇总 review；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b3R Review：确认 `llvm/codegen/mod.rs` 的主题拆分是真正的边界整理
 - 重点：

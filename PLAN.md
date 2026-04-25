@@ -207,7 +207,21 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b3dR Review：确认 codegen/mod.rs 的主题拆分已收口到共享上下文与通用 helper`。
+- 2026-04-25：`T5000b3dR Review：确认 codegen/mod.rs 的主题拆分已收口到共享上下文与通用 helper` 已完成。
+  - review 先暴露并修复了一个既有边界问题：
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 中仍残留 `codegen_sysroot_funptr_invoke`、`codegen_sysroot_funptr_to_uintptr`、`codegen_sysroot_uintptr_to_funptr` 三个 `scoop.unsafe.*` intrinsic lowering；
+    - 这些实现已在本轮迁入 `crates/scoopc/src/llvm/codegen/intrinsics/sysroot.rs`，从而把 `call/dispatch.rs` 对 `scoop.unsafe.*` 的分派重新收口为“根模块外的 intrinsics 主题实现”。
+  - 复核结论：
+    - `enum_lowering.rs` 与 `object_init.rs` 已稳定承接 enum ctor/payload/enum 常量，以及 object singleton/property/init-body lowering；`expr.rs`、`call/dispatch.rs`、`effect/mod.rs` 和 `codegen/mod.rs` 中的顶层值/成员访问路径只通过窄 helper 接口进入这两个主题；
+    - `codegen/mod.rs` 当前剩余职责已收敛为共享编译单元/函数上下文、顶层 const/immutable/var 初始化与访问、GC-sensitive spill/root/sret/return helper、通用 lvalue bridge、单态化/具体类型恢复 helper，以及字面量/聚合值/成员访问/运算符/类型转换/通用 coercion lowering；
+    - 未再发现需要在 `T5000b3R` 之前追加的 enum/object/sysroot 主题前置缺陷任务；剩余更深层的上下文/cache/effect emitter 分层仍属于后续 `T5000b4`。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b3R Review：确认 llvm/codegen/mod.rs 的主题拆分是真正的边界整理`。
 
 ## 1. 当前判断
 
