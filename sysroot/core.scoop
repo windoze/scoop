@@ -221,7 +221,7 @@ fun __scoop_stackmap_statepoint_smoke(): Int
 // 说明：
 // - 该 API 用于把某个 heap 对象标记为 pinned，供把对象地址交给外部系统（FFI/异步 I/O）时使用；
 // - v0（非移动 mark-sweep）阶段 pin 的主要效果是：把对象视为额外 roots，避免在无 shadow stack 引用时被 sweep；
-// - `Pinned<T>` 是值类型 handle：丢弃 handle 不会自动 unpin（资源泄漏）；每次 pin 必须配对一次 unpin。
+// - `Pinned` 是 Scoop 侧 pin handle，不是 ordinary `@Extern` 的长期 token surface；丢弃 handle 不会自动 unpin（资源泄漏）；每次 pin 必须配对一次 unpin。
 @Intrinsic
 object GC {
     // Stable GC handles（spec §15.10.1）。
@@ -231,6 +231,8 @@ object GC {
     // - `GcHandle.raw` 可作为 `UIntPtr` 经 `@Extern` 往返 native state；复制 `GcHandle` / `.raw`
     //   不会克隆底层 handle record，因此每次 `handleNew` 仍只允许一次 `handleDrop`；
     // - stale handle 的 runtime lookup 会失败；语言级 `handleGet` / `handleDrop` 会把它视为错误；
+    // - ordinary `@Extern` / reactor / callback 的长期 round-trip 应通过 `GcHandle.raw`
+    //   （word-sized `UIntPtr` token）；需要时再在 Scoop 侧重建 `GcHandle`；
     // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
     @Unsafe
     fun handleNew(obj: Any): GcHandle
@@ -252,7 +254,7 @@ object GC {
 struct GcHandle(val raw: UIntPtr)
 
 // Value type handle. Exact fields are implementation-defined (spec §15.10).
-// 仅用于短时裸地址借出；不承担 reactor / callback 的长期 wake-token 语义。
+// 仅用于短时裸地址借出；不承担 reactor / callback 的长期 wake-token 语义，也不能直接作为 ordinary `@Extern` ABI token。
 struct Pinned(val value: Any)
 
 // Effect runtime（测试辅助）。

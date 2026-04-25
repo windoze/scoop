@@ -1126,7 +1126,7 @@
   - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`ISSUES.md`、`sysroot/unsafe.scoop` 已同步到同一叙事：ordinary `@Extern` 保持 effect-impermeable，若 native 需要把 effectful/deferred 工作交还给 Scoop，必须先转成显式 bridge token（如 `FunPtr<F>` / `UIntPtr` / `GcHandle.raw`）。
 - 依赖：T4014
 
-### T4014b [TODO] 完善 stable handle 的 FFI / reactor 合同，并把 `Pinned` 收口为短时裸地址借出
+### T4014b [DONE] 完善 stable handle 的 FFI / reactor 合同，并把 `Pinned` 收口为短时裸地址借出
 - 范围：
   - stable handle（`GcHandle` / `raw: UIntPtr`）要形成统一的 FFI / reactor / callback round-trip 合同，作为 long-lived object identity / wake token 的标准 opaque surface。
   - handle 的创建、保活、drop、stale token / cancelled registration / lookup failure 边界要在语言文档、runtime 文档与 ABI 叙事中一致；不能再让 pin 与 handle 的职责混杂。
@@ -1134,6 +1134,11 @@
   - 补充 extern signature / round-trip regression，覆盖 handle 传递、回传、drop，以及 pin/unpin 的短时地址借出边界。
 - 验收：
   - `ISSUES.md` 第 11 条中关于 stable handle / pin 职责分离的剩余描述收窄或关闭。
+- 完成记录：
+  - `crates/scoopc/src/typecheck/annotations.rs` 的 `extern_fun_signature_must_be_gc_free` 诊断已显式区分两条桥接路径：长期 opaque token 使用 `GcHandle.raw: UIntPtr`，短时裸地址借出使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`；`crates/scoopc/src/typecheck/expr/error.rs` 中过时的 ``Pinned<引用类型>`` 文案也已收口为 `Pinned` handle。
+  - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop` 与 `ISSUES.md` 已统一到同一叙事：ordinary `@Extern` / reactor / callback 的长期 round-trip 走 `GcHandle.raw: UIntPtr`，`Pinned` 仅是 Scoop 侧短时 pin handle，不是 ordinary `@Extern` ABI token。
+  - 新增 typecheck 回归 `extern_fun_gc_handle_raw_token_roundtrip_ok.scoop` 与 `extern_fun_signature_with_pinned_is_error.scoop`；结合既有 runtime GC 回归 `gc_handle_token_roundtrip_callback_basic.scoop`、`gc_handle_stale_callback_token_is_error.scoop`、`gc_pin_unpin_move_stress_matrix.scoop`，覆盖 handle round-trip、drop、stale token 与 pin/unpin 边界。
+  - 已复验 `cargo fmt --check`、`cargo run -p scoop_tools -- spec-fixtures check`、`target/debug/scoop test`（`fixtures: ok (1202)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4014a
 
 ### T4014R [TODO] Review：确认普通 FFI 边界不再隐含 GC / effect 语义

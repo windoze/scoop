@@ -2410,6 +2410,7 @@ Rules:
   - they communicate only through ordinary ABI argument/result slots.
 - The receiver, parameters, and return type of an ordinary `@Extern` function must be **GC-free value types**. This excludes `Continuation<...>` and other GC-managed control objects from the ordinary C ABI surface.
 - Effects, continuation resumption, and longjmp-like non-local control must not unwind through an ordinary `@Extern` call. If native code needs to hand deferred/effectful work back to Scoop, it must do so via an explicit bridge token such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw`, and the later unsafe bridge call/lookup establishes the next control-flow boundary.
+- For long-lived callback / reactor / wake-token round-trips, ordinary `@Extern` signatures should pass the word-sized token `GcHandle.raw: UIntPtr`, and Scoop code should reconstruct `GcHandle { raw: raw }` before calling `GC.handleGet` / `GC.handleDrop`. `Pinned` itself is not the ordinary `@Extern` token surface.
 
 #### 15.5.2 `@CLayout` (C-compatible Struct Layout)
 
@@ -2894,6 +2895,7 @@ Semantics:
 - `GC.pin(obj)` marks `obj` as **pinned**: it must not be moved by the GC until it is unpinned.
 - A pinned object is treated as a GC root (kept alive) while it is pinned. Each successful `pin` must be paired with exactly one `unpin`. Dropping a `Pinned` handle without calling `unpin` is a resource leak (the object remains pinned indefinitely).
 - `GC.unpin(pinned)` removes the pin associated with the `Pinned` handle. Unpinning twice is a runtime error.
+- `Pinned` is an in-language pin handle, not a long-lived native identity token. Ordinary `@Extern` boundaries should pass a separately obtained raw pointer / integer token instead; callback or registration tokens that survive safepoints should use `GcHandle.raw` (§15.10.1).
 - Pinning/unpinning is an unsafe operation because early-unpin (while a foreign party still holds the pointer) can cause memory corruption.
 - Pinning is per-object. The object whose address is shared with a foreign subsystem must be the object that is pinned; pinning a wrapper object does not automatically pin other objects it references.
 

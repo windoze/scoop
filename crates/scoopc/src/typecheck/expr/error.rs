@@ -455,7 +455,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("GC.unpin 当前阶段仅支持 `Pinned<引用类型>`：{found}")]
+    #[error("GC.unpin 当前阶段仅支持 `Pinned` handle：{found}")]
     #[diagnostic(code(scoop::typecheck::gc_unpin_requires_ref))]
     GcUnpinRequiresRefType {
         found: String,

@@ -74,11 +74,11 @@
 - 影响：当前仓库不再保留“关键字负责语法、annotation 负责语义”或“inline 放宽控制流规则”的双轨模型。若未来重新设计 non-local return / break / continue，应作为新的 effect/handler 设计任务处理，而不是回挂到 `@Inline`。
 - 证据：`crates/scoopc/src/parser/mod.rs`；`crates/scoopc/src/parser/decls.rs`；`crates/scoopc/src/typecheck/expr/stmt.rs`；`crates/scoopc/src/typecheck/expr/error.rs`；`tests/fixtures/parse/inline_modifier_removed.scoop`；`tests/fixtures/typecheck/return_in_inline_annotation_lambda_arg_is_error.scoop`。
 
-## 11. stable handle / `Pinned` token 模型仍待最终收口
+## 11. stable handle / `Pinned` token 模型已收口
 
-- 现状：`T4014a` 已把 ordinary `@Extern` 收口为 effect-impermeable boundary：`@Extern` 函数现在要求 Pure（或省略 effect row）、禁止 `eff` 参数，并继续要求 ABI 签名为 GC-free 值类型；若 native 需要把 effectful/deferred capability 交还给 Scoop，只能通过 `FunPtr<F>` / `UIntPtr` / `GcHandle.raw` 之类的显式 bridge token。当前剩余问题收窄为 pin/stable-handle 职责分离仍未彻底定型：`Pinned` 依旧是 `struct Pinned(val value: Any)`，不是像 `FunPtr<F>` 那样可直接出现在 ABI 上的 word-sized opaque token，因此“pin 后直接声明 extern 参数”的模型仍未最终确定。
-- 影响：普通 FFI 边界的 GC / effect 语义不再含混，但长期 token / reactor wake-token / callback round-trip 的最终 surface 仍需要继续收口，否则类型系统仍看不见“这是短时裸地址借出”与“这是长期 stable identity”的明确差异。
-- 证据：`crates/scoopc/src/typecheck/annotations.rs`；`crates/scoopc/src/llvm/codegen/mod.rs`；`SCOOP_FULL_SPEC.md` §15.5.1 / §15.8.3 / §15.9.4；`SCOOP_RUNTIME.md` §4.3-§4.4；`sysroot/core.scoop:224-256`；`sysroot/unsafe.scoop:14-123`。
+- 现状：ordinary `@Extern` 的长期 opaque token 现已明确收口为 `GcHandle.raw: UIntPtr` round-trip：native 侧长期保存 word-sized token，Scoop 侧在 callback / completion / cancellation 路径上重建 `GcHandle { raw: raw }` 后执行 `GC.handleGet` / `GC.handleDrop`。`Pinned` 继续保留为含 `Any` 的 Scoop 侧 pin handle，只承担短时裸地址借出，不再被表述为 ordinary `@Extern` ABI token。
+- 影响：FFI / reactor / callback 场景中的“长期 stable identity”与“短时 raw-address borrow”现已由不同 surface 明确区分，不再混用 pin 作为 wake-token / registration token。
+- 证据：`crates/scoopc/src/typecheck/annotations.rs`；`crates/scoopc/src/typecheck/expr/error.rs`；`SCOOP_FULL_SPEC.md` §15.5.1 / §15.10 / §15.10.1；`SCOOP_RUNTIME.md` §4.3-§4.4；`sysroot/core.scoop:220-258`；`tests/fixtures/typecheck/extern_fun_gc_handle_raw_token_roundtrip_ok.scoop`；`tests/fixtures/typecheck/extern_fun_signature_with_pinned_is_error.scoop`；`tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop`；`tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`；`tests/fixtures/runtime_gc/gc_pin_unpin_move_stress_matrix.scoop`。
 
 ## 12. const / comptime 仍然只覆盖很窄的纯计算子集
 

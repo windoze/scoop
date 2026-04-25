@@ -1,0 +1,29 @@
+// EXPECT: pass
+// 目标：T4014b ordinary `@Extern` 通过 `GcHandle.raw: UIntPtr` 往返长期 token；
+// Scoop 侧再重建 `GcHandle` 并消费 handle ownership。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_store")
+fun storeHandleToken(raw: UIntPtr): Unit
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_take")
+fun takeHandleToken(): UIntPtr
+
+class WakeCell(val value: String)
+
+fun main() {
+    val wakeHandle: GcHandle = @Unsafe do { GC.handleNew(WakeCell("wake")) }
+
+    @Unsafe do { storeHandleToken(wakeHandle.raw) }
+
+    val raw: UIntPtr = @Unsafe do { takeHandleToken() }
+    val returned: GcHandle = GcHandle { raw: raw }
+    val _got: Any = @Unsafe do { GC.handleGet(returned) }
+
+    @Unsafe do { GC.handleDrop(returned) }
+}

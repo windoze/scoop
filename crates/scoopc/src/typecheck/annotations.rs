@@ -229,7 +229,7 @@ pub enum AnnotationError {
     },
 
     #[error(
-        "`@Extern` 函数的 ABI 签名必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}；请使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`（或 handle）桥接"
+        "`@Extern` 函数的 ABI 签名必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}；长期 opaque token 请 round-trip `GcHandle.raw: UIntPtr`，短时裸地址借出请使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`"
     )]
     #[diagnostic(code(scoop::typecheck::extern_fun_signature_must_be_gc_free))]
     ExternFunSignatureMustBeGcFree {

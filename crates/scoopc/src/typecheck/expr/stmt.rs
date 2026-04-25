@@ -1356,9 +1356,7 @@ fn check_expr_stmt_with_mode(
                 StmtExprContext { flow, call_mode },
             )
         }
-        ast::ExprKind::Lambda(lam) => {
-            check_lambda_expr_stmt_body(shared, lam, lower, state, flow)
-        }
+        ast::ExprKind::Lambda(lam) => check_lambda_expr_stmt_body(shared, lam, lower, state, flow),
         ast::ExprKind::Assign { lhs, rhs, .. } => {
             check_assign_expr_stmt(shared, lhs, rhs, lower, state, flow)
         }

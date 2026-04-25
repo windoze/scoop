@@ -114,6 +114,7 @@ Operational contract:
 
 - Native state should store the stable token (`GcHandle.raw`) rather than a raw object address. The raw address returned by a handle lookup is still only a momentary view and must not be cached across safepoints.
 - Copying the token bits does not clone the underlying runtime handle record. Ownership is protocol-defined: one successful `handleNew` still requires exactly one matching `handleDrop`, even if the token is round-tripped through multiple native frames or callback queues.
+- Ordinary `@Extern` signatures should round-trip the word-sized token (`UIntPtr` / `GcHandle.raw`), not the `Pinned` wrapper itself. `Pinned` keeps a short-lived raw-address borrow alive on the Scoop side while some separate raw pointer / integer token is in flight.
 - If native code needs a raw pointer after `handleGet`, it must separately pin for that short borrowing window. `Pinned` is not the long-lived identity object.
 - The low-level runtime ABI may report stale / unknown handle lookup as `NULL` / `0`; the language-level `GC.handleGet` / `GC.handleDrop` surface may then trap. In practice this means late callbacks after cancellation must treat the old token as invalid rather than trying to resurrect it.
 
