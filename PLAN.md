@@ -519,6 +519,22 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000c3R Review：确认共享分析消费者已脱离 LLVM backend 源文件依赖`。
+- 2026-04-26：`T5000c3R Review：确认共享分析消费者已脱离 LLVM backend 源文件依赖` 已完成。
+  - 复核结论：
+    - `crates/scoopc/src/lib.rs` 现仅在 `#[cfg(not(feature = "llvm"))]` 下暴露 `effect_step_summary`；`crates/scoopc/src/effect_step_summary.rs` 当前直接 `include!("effect_state_machine_analysis.rs")`，而 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 只保留 backend 局部可见性的薄包装；全文检索仓库内 shared analysis 源文件的文本级复用路径，确认现仅剩这两条显式入口，不再存在 non-LLVM consumer 经由 backend 路径复用 shared source 的残留；
+    - `crates/scoopc/src/program_facts.rs`、`crates/scoopc/src/effect_analysis.rs` 与 `crates/scoopc/src/expr_facts.rs` 已共同提供 planning 与 direct-step summary 的 shared 输入：`ProgramFacts` 负责 top-level/object/field/return 事实，`EffectAnalysisCtx` 负责 known local metadata / local function suspendability / synthetic symbol / source-path 上下文，`ExprFactResolver` 负责 concrete-type / field-type / call-result 解析；共享分析消费者已不再依赖 backend helper 现场回捞这些输入；
+    - `crates/scoopc/src/effect_state_machine_analysis.rs` 中剩余 `MainCodegen` 相关入口全部位于 `#[cfg(feature = "llvm")] impl MainCodegen` 内，只作为 backend 调用 shared analysis 的接缝；shared direct-step summary API 与非 LLVM 测试辅助路径继续只消费 shared context / shared functions，没有重新引入对 LLVM backend 类型或 backend 源文件路径的强耦合；
+    - review 结论：共享分析消费者已脱离 LLVM backend 源文件依赖，`T5000cR` 已可以基于清晰的 backend-agnostic facts / analysis 边界做总复核；未发现需要插入到 `T5000cR` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo check -p scoopc --lib`
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`
+    - `cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向`。
 
 ## 1. 当前判断
 
