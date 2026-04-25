@@ -13,7 +13,7 @@ while true; do
 
     echo "Running codex with PROMPT.md..."
     # cwcli --token "$CW_TOKEN" send -w dab07a9c-c526-4edd-8a70-e14e3252d123 "$(cat "$PROMPT_FILE")"
-    codex  exec --dangerously-bypass-approvals-and-sandbox "$(cat "$PROMPT_FILE")" >> ~/tmp/scoop_1_codex_output.txt
+    codex  exec --dangerously-bypass-approvals-and-sandbox "$(cat "$PROMPT_FILE")"
     # claude --print --dangerously-skip-permissions "$(cat "$PROMPT_FILE")" 2>&1 | tee /tmp/scoop-cc.log
     "$REPO_DIR/notification.sh"
     git push

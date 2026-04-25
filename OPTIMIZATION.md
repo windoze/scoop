@@ -2,7 +2,7 @@
 
 > 状态：设计草案 / 基线  
 > 目标：引入一个最小 early MIR / ANF 作为中端优化承载层，并把结构驱动的 `summary-driven inlining`、通用 `devirtualization`、以及后续 `continuation escaping analysis` 放到这一层统一收口。  
-> 边界：本文只定义方向、IR 形状、核心分析与 pass 顺序；本轮不涉及代码实现，也不把优化建立在函数名白名单、热点库函数开洞、或 `inline` 关键字之上。文中提到的 LLVM / statepoint / spill-writeback 等术语，只用于说明当前实现中的工程压力，不构成 early MIR 的语义前提；early MIR 本身必须保持后端无关，能够对接 LLVM、C、JVM bytecode、CLR IR 等不同 codegen 路径。
+> 边界：本文只定义方向、IR 形状、核心分析与 pass 顺序，并补充当前代码库里 LLVM codegen 的职责错位、可拆模块边界、以及应上移到 early MIR / ANF 的内容；本轮不涉及代码实现，也不把优化建立在函数名白名单、热点库函数开洞、或 `inline` 关键字之上。文中提到的 LLVM / statepoint / spill-writeback 等术语，只用于说明当前实现中的工程压力，不构成 early MIR 的语义前提；early MIR 本身必须保持后端无关，能够对接 LLVM、C、JVM bytecode、CLR IR 等不同 codegen 路径。
 
 ## 1. 背景
 
@@ -228,6 +228,7 @@ v1 不要求：
 典型来源：
 
 - 普通顶层函数调用；
+- 已实例化后的 generic 调用；
 - 已经解析为唯一具体成员实现的方法调用；
 - 去虚化后的 call；
 - higher-order beta-reduction 后被重新显式化的 call。
@@ -281,20 +282,78 @@ v1 可以保守处理；如果后续证明 receiver exact type 已知且 target 
 
 这为后续 continuation escaping analysis 提供了稳定落点。
 
+### 5.8 Monomorphization 的位置
+
+`monomorphization` 不应放在 LLVM codegen。
+
+更合适的位置是：
+
+- `typed HIR -> generic early MIR / ANF template`
+- `generic early MIR / ANF template -> monomorphic MIR instance`
+- `monomorphic MIR instance -> summaries / devirtualization / inlining / continuation escaping / effect planning`
+- `最后再进入 LLVM / C / JVM / CLR backend`
+
+也就是说，它应成为 **early MIR 内部的一道边界**，而不是 backend 的现场修补逻辑。
+
+更准确地说，这里最好区分两个层次：
+
+- `generic MIR template`
+  - 从 typed HIR 降下来的模板 body；
+  - 仍允许存在 type params；
+  - 主要用于承载后续实例化所需的结构信息。
+- `monomorphic MIR instance`
+  - 用具体 type arguments 替换后的实例 body；
+  - 从这里开始，后续优化看到的应该是具体 receiver type、具体 callee、具体 nominal specialization。
+
+之所以要把它放在这里，而不是放在 LLVM codegen，有几个直接原因：
+
+1. 它是 backend-agnostic 的语义工作。
+   - 决定“某个 generic item 在给定 type arguments 下对应哪个实例”，不是 LLVM 特有问题。
+2. 后续 devirtualization 和 inlining 依赖它。
+   - 很多 receiver exactness、callee summary、call target shrinking 都需要建立在“实例已明确”之上。
+3. 如果拖到 codegen，backend 就会被迫做中端决策。
+   - 这会退化成“codegen 现场根据 mangled FQN 重定向目标”的模式。
+4. 如果完全放在 HIR 上，又太早。
+   - HIR 仍然过于接近语法和前端降糖结果，不适合作为后续多轮中端重写的稳定承载层。
+
+因此，本方案里更推荐的表示不是“把实例身份直接编码成最终符号名字符串”，而是维护一个 backend-agnostic 的 `InstanceKey`。一个最小可行形状可以是：
+
+- base item
+- owner / nominal specialization（若有）
+- type arguments
+- 必要时的 receiver / method specialization 维度
+
+随后：
+
+- summaries 应按 `InstanceKey` 挂载；
+- call graph / reachability 也应按 `InstanceKey` 维护；
+- backend 再把 `InstanceKey` 映射成 LLVM 符号名、C 符号名、JVM method 形状或 CLR 元数据形状。
+
+在实例化策略上，v1 也不应做成“全量 eager monomorphization”，而应采用：
+
+- reachable-driven
+- on-demand
+- cached by `InstanceKey`
+
+这样既能保持结构正确，也不会在 `-O0` / debug build 下先把编译器自身成本拉爆。
+
 ## 6. Summary 与核心分析
 
 这个方案的核心，不是“对某些语法模式直接硬编码内联”，而是先建立一组可组合的 summary / analysis，再让优化 pass 按这些 summary 做改写。
 
 ### 6.1 Callee Summary
 
-每个函数至少应维护一个保守 summary，v1 可以包含：
+每个**可优化的单态实例**至少应维护一个保守 summary，而不是只按语法层面的函数名维护一份 summary。v1 可以包含：
+
+- `instance_key`
+  - 对应的 monomorphic instance 身份。
 
 - `body_known`
-  - 当前编译单元内 body 是否可见。
+  - 当前编译单元内该实例 body 是否可见。
 - `size_cost`
   - 一个简单的 body 大小/成本估计。
 - `recursive_scc`
-  - 是否处于递归 SCC 中。
+  - 该实例是否处于递归 SCC 中。
 - `may_outward_effect`
   - 运行时是否可能向当前边界外传播 effect/control-transfer。
 - `may_allocate_closure`
@@ -497,39 +556,225 @@ DirectCall ConcreteType.m(receiver, args...)
 
 建议顺序如下：
 
-1. `HIR -> early MIR / ANF`
+1. `HIR -> generic early MIR / ANF template`
 2. canonicalization
    - 展平嵌套表达式；
    - 恢复显式 call kind；
    - 建立基本块与局部绑定。
-3. 初始 summaries
+3. instance collection / monomorphization
+   - 以 reachable-driven、on-demand、可缓存的方式收集 `InstanceKey`；
+   - 从 generic template 生成 monomorphic MIR instance；
+   - backend 尚未介入符号名或 ABI 细节。
+4. 初始 summaries
    - `size_cost`
    - `may_outward_effect`
    - 参数使用摘要
    - provenance 初值
-4. receiver exactness / target-set analysis
-5. devirtualization
-6. summary-driven inlining
-7. higher-order beta-reduction / `FunValueCall` 细化
-8. non-escaping closure simplification
-9. continuation escaping analysis
-10. 重新计算 summaries，并按预算做一到两轮迭代
-11. effect / state-machine planning
-12. 再进入更低层 lowering 与 LLVM codegen
+5. receiver exactness / target-set analysis
+6. devirtualization
+7. summary-driven inlining
+8. higher-order beta-reduction / `FunValueCall` 细化
+9. non-escaping closure simplification
+10. continuation escaping analysis
+11. 重新计算 summaries，并按预算做一到两轮迭代
+12. effect / state-machine planning
+13. 再进入更低层 lowering 与 LLVM codegen
 
 这个顺序里最重要的约束是：
 
+- devirt / inline / effect planning 消费的应是 **monomorphic MIR instances**，而不是仍带 type params 的 generic template；
 - effect/state-machine planning 必须发生在这些中端收缩之后；
 - 否则 inline / devirt 的大部分价值都拿不到。
 
-## 10. 优化级别与 `@Inline`
+## 10. 当前代码库调查结论
 
-### 10.1 优化级别建议
+这一节把设计落回当前仓库，回答两个问题：
+
+- 现有 LLVM codegen 里，哪些东西只是“文件太大、职责太杂”，但本质上仍属于 backend；
+- 哪些东西已经越过 backend 边界，应该上移到 early MIR / ANF 或独立的中端分析层。
+
+### 10.1 当前热点与边界错位
+
+当前最重的几个文件大致如下：
+
+- `crates/scoopc/src/llvm/codegen/mod.rs`
+  - 约 17759 行，是当前最主要的巨型职责聚合点。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
+  - 约 10322 行，已经不只是“LLVM emitter 前的准备”，而是一个事实上的 effect middle-end。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
+  - 约 5923 行。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`
+  - 约 5085 行。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs`
+  - 约 4979 行。
+- `crates/scoopc/src/llvm/codegen/control_flow.rs`
+  - 约 2488 行。
+- `crates/scoopc/src/llvm/codegen/gc.rs`
+  - 约 1984 行。
+- `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
+  - 约 1567 行。
+- `crates/scoopc/src/llvm/mod.rs`
+  - 约 3835 行。
+
+需要注意两点：
+
+- 一部分行数来自内联测试，尤其是 `llvm/mod.rs` 和 `effect/state_machine_*` 几个文件；
+- 但即便扣掉测试，生产代码本体也仍然显示出明显的职责错位，尤其是 `codegen/mod.rs` 与 `state_machine_plan.rs`。
+
+换句话说，这不是单纯“测试太多导致文件看起来大”，而是：
+
+- 一部分逻辑确实应该继续拆成更小的 LLVM codegen 模块；
+- 另一部分逻辑已经不该继续停留在 LLVM backend。
+
+### 10.2 仍属于 LLVM backend，但应先做工程性拆分的部分
+
+下面这些内容本质上仍然是 backend-specific lowering，只是当前边界过差，应该先整理模块化形状。
+
+1. 调用 lowering 主簇
+   - 当前 `codegen_call`、`codegen_top_level_fun_call`、vtable/itable lowering、callable-value call、extern/native call、实参绑定、ABI 细节都挤在 `codegen/mod.rs`。
+   - 建议拆成 `call/` 目录，例如：
+     - `call/direct.rs`
+     - `call/virtual.rs`
+     - `call/interface.rs`
+     - `call/callable.rs`
+     - `call/extern_native.rs`
+     - `call/args.rs`
+     - `call/abi.rs`
+2. builtin / sysroot lowering
+   - 当前 `String` builtin、`print`、`io`、`env`、`time`、`fs`、`process`、`path`、`sync`、`thread`、`channels`、`array`、`atomic` 都堆在 `codegen/mod.rs`。
+   - 这部分适合拆成 `intrinsics/` 或 `sysroot_lowering/` 目录，按 domain 分文件。
+3. closure lowering
+   - closure object 布局、capture env、lambda body codegen、resume thunk 等职责已经形成独立簇。
+   - 适合拆成 `closure/` 目录，例如 `closure/object.rs`、`closure/env_layout.rs`、`closure/body.rs`。
+4. class / object / enum lowering
+   - class ctor、object init、enum value lowering 三类逻辑已经足够独立。
+   - 适合拆成 `class_ctor.rs`、`object_init.rs`、`enum_lowering.rs`。
+5. GC lowering
+   - `gc.rs` 里现在混了 debug intrinsics、statepoint/root spill、type descriptor/vtable/itable global 构造、write barrier/store exact。
+   - 适合继续拆成 `gc/statepoints.rs`、`gc/type_desc.rs`、`gc/write_barrier.rs`、`gc/debug_intrinsics.rs`。
+6. runtime ABI glue
+   - `runtime_abi.rs` 里同时声明了 string / fs / sync / thread / gc / effect / continuation 等多种 runtime 符号。
+   - 适合按 ABI 领域拆分，例如 `runtime_abi/gc.rs`、`runtime_abi/effect.rs`、`runtime_abi/continuation.rs`、`runtime_abi/string.rs`。
+7. 控制流 lowering
+   - `control_flow.rs` 里 `block`、`if`、`when`、pattern binding / condition 也是一个已经成型的子系统。
+   - 即便暂时不迁出到 MIR，也适合先拆成 `control_flow/block.rs`、`control_flow/if.rs`、`control_flow/when.rs`、`control_flow/pattern.rs`。
+8. `llvm/mod.rs`
+   - 当前把 emit API、module build pipeline、reachability、pass pipeline、以及大量测试混在一起。
+   - 适合拆成 `llvm/emit_api.rs`、`llvm/pipeline.rs`、`llvm/reachability.rs`，测试移到更独立的位置。
+
+这一层拆分的目标不是“把大文件拆成更多大文件”，而是先把真正属于 LLVM lowering 的职责从主文件中清出来，避免后续 MIR/ANF 迁移继续受到 `codegen/mod.rs` 的组织方式拖累。
+
+### 10.3 不应继续留在 LLVM 的部分
+
+下面这些内容已经不是“如何发射 LLVM IR”的问题，而是“如何理解和重写语言级中端结构”的问题，应上移到 early MIR / ANF 或独立的 backend-agnostic 中端层。
+
+1. 调用目标解析与重定向
+   - generic member / standalone function 的 monomorphized callee 解析，本质上既是 call target resolution，也是 instance materialization 的一部分。
+   - 这应成为 MIR/ANF 上 `ResolvedCallee` / `CallKind` / `InstanceKey` 的一部分，而不是 codegen 现场再推断，更不应依赖 mangled FQN 字符串做核心语义判定。
+2. 具体类型恢复
+   - `resolve_expr_concrete_type`、`resolve_member_access_concrete_type`、`resolve_call_result_type` 这类逻辑，本质上是在弥补前中端没有把 value provenance 和 concrete type 记录下来。
+   - 这说明 MIR/ANF 节点需要显式保存这些信息，而不是让 backend 反推。
+3. devirtualization 的判定部分
+   - “receiver exact type 是否已知”“target set 是否收缩成 singleton”是中端分析问题。
+   - 真正留给 backend 的只应是：在确定 `DirectCall` / `VirtualCall` / `InterfaceCall` 之后，如何生成相应底层代码。
+4. operator overload 目标确定
+   - 当前 operator overload 的目标 materialization 仍发生在 codegen 阶段，这直接导致 `llvm/mod.rs` 里还要用 eager inclusion 补 reachable 集。
+   - 这类“把语义调用点具象成具体 callee”的工作应前移。
+5. `state_machine_plan / segments / transform`
+   - 这三部分已经构成一个 effect middle-end。
+   - 其中大部分工作是 HIR/MIR 结构分析、resume path 重写、summary 计算、segment 投影与 canonical machine 构造，不应继续挂在 LLVM codegen 目录里。
+   - 真正属于 backend 的主要是 emitter。
+6. higher-order effect / suspendability summary
+   - 当前对函数值 `may_outward_effect` / `may_suspend` 的分析，实际上就是后续 summary-driven inlining、continuation escaping analysis 的基础设施雏形。
+   - 这应与 early MIR / ANF 上的 summary 体系合并，而不是继续作为 `MainCodegen` 的现场查询逻辑。
+7. `when` / pattern lowering
+   - 当前 LLVM 直接从 HIR 生成复杂 `when` CFG，意味着 pattern matching 还没有在更早层正规化。
+   - 随着 MIR 已经具备最小 block/local/CFG 骨架，这部分应该尽早进入 MIR。
+
+一个重要准则是：不要把本应迁出的中端逻辑“换个 LLVM 子模块名字继续留在 `llvm/codegen/` 下面”。那样只会得到更碎的目录，不会得到更清晰的层次边界。
+
+### 10.4 `MainCodegen` 的拆层建议
+
+当前 `MainCodegen` 同时承载：
+
+- module 级只读输入；
+- layout / type / effect 相关 cache；
+- 当前函数 builder 状态；
+- 局部环境与返回上下文；
+- GC root slot 状态；
+- effect / continuation runtime function 状态。
+
+这会带来两个问题：
+
+- 结构上，一个类型同时扮演“module context”“function context”“analysis cache”“effect emitter context”；
+- 性能上，closure body、object init、wrapper function 等路径反复 `MainCodegen::new`，导致共享事实与缓存难以持久化。
+
+更合理的边界大致是：
+
+- `ModuleCodegenCx`
+  - 持有 module / context / target / shared readonly program facts。
+- `FnCodegenCx`
+  - 持有当前函数 builder、env、return context、临时 slot、局部 control-flow 状态。
+- `SharedAnalysisCache`
+  - 持有可跨函数复用的 layout、summary、known effect instance、callee metadata 等缓存。
+- `EffectCodegenCx`
+  - 持有当前 effect/state-machine emitter 的专用上下文。
+
+更关键的是：后续 effect/state-machine 的 planning 层，不应再依赖 `MainCodegen` 本体。它应当只依赖一个 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx`。
+
+## 11. 编译器自身性能调查
+
+除了生成代码质量，这轮调查还暴露出编译器自身，尤其是 debug / `-O0` 路径上的几个结构性热点。
+
+### 11.1 当前高概率热点
+
+1. `MainCodegen::new` 的重复构造
+   - 顶层函数、closure body、object init、wrapper function 等路径都会重新构造一个完整 `MainCodegen`。
+   - 这让很多原本可以共享的 program facts / caches 难以持久化。
+2. 按查询临时重建分析上下文
+   - 某些 higher-order effect / suspendability 查询每次都会现场组装大量 `HashMap` / `HashSet` / analysis view。
+   - 这类成本与最终是否真的需要做重写往往并不严格绑定。
+3. reachability 的重复扫描与 eager inclusion
+   - 当前既有 HIR reachability 扫描，又有因为 backend 才决定 call target 而产生的补扫、补入 reachable 集。
+   - 这对 `-O0` 同样是固定成本。
+4. effect middle-end 的 debug 校验成本
+   - `build_unified_lowering_contract` 在 `debug_assertions` 下会做 builder contract 验证和 segment round-trip 验证。
+   - 这些检查在开发期有价值，但也会抬高编译器自身 debug build 的常数成本。
+5. O0 路径并不是真正的“轻量空转”
+   - 即使 `-O0`，当前 LLVM backend 仍要跑固定的 `SROA + rewrite-statepoints-for-gc`，并打开 `verify_each`。
+   - 这意味着如果中端再把很多昂贵分析做成“默认总会执行”，调试编译的反馈时间会很容易恶化。
+
+### 11.2 对后续设计的直接要求
+
+这些热点意味着，优化设计不仅要改善生成代码，还要避免把编译器自己做慢。
+
+因此后续设计应满足：
+
+- 共享 program facts 与 summaries 应尽量一次构建、多处复用，而不是在 codegen 查询点重复拼装；
+- MIR/ANF 上的 `CallKind`、receiver exactness、provenance、summary 结果应显式挂在 IR 或稳定 side tables 上，而不是让 backend 反复推断；
+- monomorphic instance 的收集与实例化应 reachable-driven、on-demand，并按 `InstanceKey` 缓存，而不是全量 eager clone 或 codegen 现场临时解析；
+- `-O0` 路径应只保留必要 canonicalization 与必须的语义准备，不应默认执行多轮 interprocedural summary / devirt / inline 迭代；
+- 需要昂贵验证的 pass，应明确区分“开发期断言”和“默认编译路径”；
+- codegen 边界整理本身就应被视为一个 compiler-performance 任务，而不只是代码风格整理。
+
+### 11.3 对落地顺序的含义
+
+这也解释了为什么第一步应从 codegen refactoring 开始，而不是直接把更多优化规则叠到现有 `llvm/codegen` 上：
+
+- 如果不先拆边界，新的 summary / devirt / escape analysis 很容易继续长在 `MainCodegen` 上；
+- 如果不先抽 program facts，early MIR 即使引入了，也可能仍然被迫从 LLVM codegen 反向取信息；
+- 如果不先整理共享缓存与上下文，优化还没做强，编译器自身的固定成本就会先上升。
+
+因此，从当前仓库状态出发，“先做 codegen refactoring，再引入 early MIR / ANF”不是偏好问题，而是更稳妥的工程顺序。
+
+## 12. 优化级别与 `@Inline`
+
+### 12.1 优化级别建议
 
 一个可行的起点是：
 
 - `-O0`
-  - 构建 early MIR / ANF，但只做必要 canonicalization；
+  - 构建 early MIR / ANF，并完成必要的按需实例化、canonicalization 与 call classification；
   - 不做跨函数 inlining；
   - 不做激进去虚化；
   - 优先保证调试与诊断可读性。
@@ -545,7 +790,12 @@ DirectCall ConcreteType.m(receiver, args...)
   - 仍然是同一套机制，只放宽预算和阈值；
   - 不是引入一批“只有 O3 才识别某些名字”的新特判。
 
-### 10.2 `@Inline` 的位置
+这里还需要补一条工程约束：
+
+- codegen 边界整理、program facts 抽取、以及 early MIR 的建立，本身不是“高优化级别才开启”的可选项；
+- 真正受优化级别控制的，是 summary / devirt / inline / escape analysis 的预算、轮数与激进程度。
+
+### 12.2 `@Inline` 的位置
 
 如果未来保留 `@Inline`，建议它的语义保持极窄：
 
@@ -559,9 +809,9 @@ DirectCall ConcreteType.m(receiver, args...)
 - 没有 `@Inline`，优化也应该按结构自动发生；
 - 有 `@Inline`，只是少量特殊场景下帮助编译器越过默认预算。
 
-## 11. Mem2reg 与 Safepoint 方向
+## 13. Mem2reg 与 Safepoint 方向
 
-### 11.1 近期不把 `mem2reg` 作为主路径
+### 13.1 近期不把 `mem2reg` 作为主路径
 
 在当前实现现实下，`mem2reg` 不是这轮设计的主目标。
 
@@ -577,7 +827,7 @@ DirectCall ConcreteType.m(receiver, args...)
 - 先减少必须跨 safepoint 存活的函数值、receiver、closure、continuation；
 - 先减少“本可被 inline/devirt 消掉，但目前仍残留”的调用边界。
 
-### 11.2 early MIR 对这条线的帮助
+### 13.2 early MIR 对这条线的帮助
 
 虽然 v1 不直接做 `mem2reg`，但 early MIR 仍然能为这条线打基础。
 
@@ -593,9 +843,42 @@ DirectCall ConcreteType.m(receiver, args...)
 - 先通过 inline / devirt / closure simplification 降低 safepoint 压力；
 - 再视 GC root 合同演进情况，决定是否继续推进更激进的 `mem2reg` / register-root 研究。
 
-## 12. 分阶段落地建议
+## 14. 分阶段落地建议
 
-### 12.1 第一阶段：最小 early MIR / ANF
+### 14.1 第零阶段：整理现有 LLVM codegen 边界
+
+这一阶段的目标不是引入新优化，而是把“还能继续留在 backend 的部分”和“已经应迁出的部分”先分开。
+
+需要优先完成的事情包括：
+
+- 拆 `MainCodegen` 的上下文层次，避免它继续同时承担 module / function / cache / effect emitter 四类职责；
+- 把调用 lowering、builtin/sysroot lowering、closure lowering、class/object/enum lowering、GC lowering、runtime ABI glue 从 `codegen/mod.rs` 的巨型聚合形态里拆出去；
+- 把 `llvm/mod.rs` 中的 emit API、pipeline、reachability、测试边界拆开；
+- 明确一个规则：新的 backend-agnostic 分析，不再继续直接挂到 `llvm/codegen/` 下。
+
+这一阶段本身就能改善两件事：
+
+- 后续 early MIR / ANF 的迁移路径会更清晰；
+- 编译器自身的固定开销不会继续因为巨型上下文与重复构造而恶化。
+
+### 14.2 第一阶段：抽离 backend-agnostic 的 program facts / summaries
+
+在真正引入 early MIR 之前，先把当前已经“像中端分析”的部分从 LLVM codegen 依赖里解耦出来。
+
+优先对象包括：
+
+- callee target resolution 的共享事实；
+- receiver exactness / target-set shrinking 所需的静态事实；
+- higher-order function value provenance；
+- `may_outward_effect` / `may_suspend` 相关 summary；
+- effect/state-machine planning 所需的 `ProgramFacts` / `EffectAnalysisCtx`。
+
+这里的关键不是先换消费者，而是先换依赖方向：
+
+- 当前是中端分析从 `MainCodegen` 取信息；
+- 目标应变成 LLVM codegen 与 future MIR pass 都依赖同一份 backend-agnostic facts / side tables。
+
+### 14.3 第二阶段：最小 early MIR / ANF
 
 只做最小承载层，不追求一开始就很强：
 
@@ -603,9 +886,40 @@ DirectCall ConcreteType.m(receiver, args...)
 - 显式局部绑定；
 - 显式 call kinds；
 - 显式 `Perform` / `Resume`；
-- 保留足够的类型与 dispatch 元信息。
+- 保留足够的类型、dispatch 与 provenance 元信息。
 
-### 12.2 第二阶段：summary 基础设施
+这一阶段还应开始把当前 backend 里晚做的几类“语义决定”前移：
+
+- 调用分类；
+- 初始 callee resolution；
+- `when` / pattern lowering 的最小正规化入口。
+
+这里还要明确一个结构边界：
+
+- 这一阶段先产出 generic MIR template；
+- 后续优化主流程不应直接消费仍带 type params 的模板 body。
+
+### 14.4 第三阶段：monomorphization / instance materialization
+
+这一阶段把 generic MIR template 转成 monomorphic MIR instances。
+
+核心要求是：
+
+- 以 `InstanceKey` 作为实例身份，而不是以最终 mangled 符号名作为语义身份；
+- 以 reachable-driven、on-demand 的方式收集实例；
+- 对实例化结果做缓存，避免重复克隆与重复建图；
+- 让后续 summary / call graph / devirt / inline 都按实例工作。
+
+这一阶段结束后，后续 pass 消费的主体应是：
+
+- monomorphic MIR instance
+
+而不是：
+
+- generic template
+- codegen 现场推断出来的“临时单态目标”
+
+### 14.5 第四阶段：summary 基础设施
 
 先做最保守的跨函数摘要：
 
@@ -616,7 +930,12 @@ DirectCall ConcreteType.m(receiver, args...)
 - 函数值参数使用摘要
 - 基础 provenance
 
-### 12.3 第三阶段：通用 devirtualization
+这里的实现要求是：
+
+- summary 应能稳定挂在 MIR 或 side tables 上；
+- 不应继续以“codegen 查询时现场重建分析上下文”的方式提供。
+
+### 14.6 第五阶段：通用 devirtualization
 
 先统一处理所有 `VirtualCall` / `InterfaceCall`：
 
@@ -624,7 +943,9 @@ DirectCall ConcreteType.m(receiver, args...)
 - 先不做 speculative guard；
 - 先不按名字区分热点。
 
-### 12.4 第四阶段：summary-driven inlining
+这一阶段还应把当前 backend 中的“去虚化判定逻辑”彻底上移，让 LLVM backend 只消费已经分类完成的调用节点。
+
+### 14.7 第六阶段：summary-driven inlining
 
 先支持：
 
@@ -637,7 +958,7 @@ DirectCall ConcreteType.m(receiver, args...)
 
 这一阶段即使能力有限，也已经是通用方案，而不是特判方案。
 
-### 12.5 第五阶段：continuation / closure 逃逸分析
+### 14.8 第七阶段：continuation / closure 逃逸分析
 
 在同一层继续扩展：
 
@@ -645,7 +966,9 @@ DirectCall ConcreteType.m(receiver, args...)
 - continuation escaping analysis；
 - 对 effect/state-machine 规划提供更细粒度输入。
 
-### 12.6 第六阶段：迭代扩展覆盖面
+这一阶段应直接复用前面的 summary / provenance / call-kind 基础设施，而不是另起一套专用机制。
+
+### 14.9 第八阶段：迭代扩展覆盖面
 
 后续扩展方向应该是：
 
@@ -653,10 +976,11 @@ DirectCall ConcreteType.m(receiver, args...)
 - 改善 summaries 的精度；
 - 改善 provenance / target-set shrinking；
 - 引入更成熟的 budget / profitability 模型；
+- 继续减少 effect/state-machine planning 前仍残留的不必要调用边界。
 
 而不是继续累积“又支持了几个特殊函数名”。
 
-## 13. 非目标
+## 15. 非目标
 
 本文明确不把以下方向作为 v1 目标：
 
@@ -667,7 +991,7 @@ DirectCall ConcreteType.m(receiver, args...)
 - 不要求一开始就支持 speculative guarded devirtualization；
 - 不要求一开始就做完整全程序优化。
 
-## 14. 总结
+## 16. 总结
 
 这份设计的核心，不是“先把 `map` / `filter` / `Iterator.next()` 优化掉”，而是先建立一个足够小、但语义位置正确的中端层：
 
@@ -677,4 +1001,4 @@ DirectCall ConcreteType.m(receiver, args...)
 - 它能为 continuation escaping analysis 提供稳定落点；
 - 它还能在当前 GC 合同不变的前提下，通过减少调用边界和 safepoint，为后续性能优化创造空间。
 
-因此，第一步不是扩更多特判，而是先把 early MIR / ANF 这一层立起来。只要这一层存在，后面的优化能力就可以沿着“结构覆盖面”持续扩张，而不是沿着“函数名白名单”持续堆积。
+因此，第一步不是扩更多特判，也不是继续把中端逻辑往 LLVM 子模块里分摊，而是先整理现有 codegen 边界，再把 early MIR / ANF 这一层立起来。只要这一层存在，后面的优化能力就可以沿着“结构覆盖面”持续扩张，而不是沿着“函数名白名单”持续堆积。
