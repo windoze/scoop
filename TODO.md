@@ -30,7 +30,7 @@
 
 ## T5000：建立 early MIR / ANF 优化基线，并把 LLVM codegen 收口到正确边界
 
-### [x] T5000a 建立编译器性能与 codegen 边界基线
+### [DONE] T5000a 建立编译器性能与 codegen 边界基线
 - 范围：
   - 用当前代码库建立一份最小但可复验的 baseline，至少覆盖：
     - `llvm/codegen` 的主要巨型文件与职责簇；
@@ -46,7 +46,7 @@
   - baseline 已统一固化到 `OPTIMIZATION.md` 第 0、10、11 节；
   - 已记录巨型模块/职责簇、`MainCodegen::new` 重复构造点、`-O0` / debug build 固定成本、reachability / eager inclusion / codegen 查询重复工作及其 guardrail。
 
-### [x] T5000aR Review：确认 baseline 已足够支撑后续实现顺序
+### [DONE] T5000aR Review：确认 baseline 已足够支撑后续实现顺序
 - 重点：
   - baseline 是否覆盖了 `MainCodegen`、effect middle-end、reachability、O0 cost 这四类关键热点；
   - 是否已经能支持“先 codegen refactoring，再 early MIR”的顺序判断；
@@ -59,7 +59,7 @@
   - 已补记 `crates/scoopc/src/effect_step_summary.rs` 对 `llvm/codegen/effect/state_machine_plan.rs` 的 `include!` 复用，确认这是现有 effect middle-end / shared facts 边界泄漏的一部分，而不是新的前置缺陷任务；
   - review 结论：baseline 足以支撑“先 codegen refactoring，再 early MIR”的顺序，下一条可直接进入 `T5000b`。
 
-### T5000b 清理 LLVM codegen 边界，拆分 `MainCodegen` 与巨型模块
+### [TODO] T5000b 清理 LLVM codegen 边界，拆分 `MainCodegen` 与巨型模块
 - 范围：
   - 拆出 `MainCodegen` 的层次边界，至少区分：
     - module 级上下文；
@@ -88,7 +88,7 @@
   - 新的 backend-agnostic 分析不再直接挂回 `llvm/codegen/`。
 - 依赖：T5000aR
 
-### T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向
+### [TODO] T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向
 - 重点：
   - 本轮拆分是否只是“把大文件拆成更多大文件”，还是确实拉直了 backend 边界；
   - 是否仍有明显的中端分析继续依附在 `MainCodegen` 上；
@@ -97,7 +97,7 @@
   - 可以明确指出“哪些部分仍属于 backend”“哪些部分下一步要迁出”，且边界比改动前更清楚。
 - 依赖：T5000b
 
-### T5000c 抽离 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables
+### [TODO] T5000c 抽离 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables
 - 范围：
   - 把当前已经像中端分析的共享事实从 LLVM codegen 依赖中解耦出来，至少覆盖：
     - callee target resolution 所需事实；
@@ -111,7 +111,7 @@
   - monomorphized callee resolution、concrete type 恢复、receiver exactness 等所需数据不再必须从 LLVM codegen 现场拼装。
 - 依赖：T5000bR
 
-### T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向
+### [TODO] T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向
 - 重点：
   - `ProgramFacts` / `EffectAnalysisCtx` 是否真的 backend-agnostic；
   - 是否还残留“必须通过 `MainCodegen` 才能做分析”的强耦合路径；
@@ -120,7 +120,7 @@
   - 后续 MIR 任务可以在不依赖 LLVM builder / module / GC ABI 细节的前提下推进。
 - 依赖：T5000c
 
-### T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template
+### [TODO] T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template
 - 范围：
   - 在现有 MIR 上引入最小但稳定的中端承载能力：
     - 显式 call kinds：`DirectCall` / `VirtualCall` / `InterfaceCall` / `ClosureCall` / `FunValueCall`
@@ -134,7 +134,7 @@
   - 后续 pass 不必再通过 HIR 语法形状或 LLVM codegen 现场推断来恢复这些信息。
 - 依赖：T5000cR
 
-### T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确
+### [TODO] T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确
 - 重点：
   - MIR 是否仍保持 backend-agnostic；
   - 是否只表达“语言/运行时抽象事实”，没有提前混入 LLVM 落地细节；
@@ -143,7 +143,7 @@
   - 可以明确回答“这层 MIR 负责什么，不负责什么”，且它还没有越权承担 backend 细节。
 - 依赖：T5000d
 
-### T5000e 在 MIR 层实现 monomorphization / instance materialization
+### [TODO] T5000e 在 MIR 层实现 monomorphization / instance materialization
 - 范围：
   - 引入 `InstanceKey` 作为 backend-agnostic 的实例身份，而不是让 mangled symbol name 承担语义身份。
   - 实现：
@@ -157,7 +157,7 @@
   - codegen 不再以“现场根据 mangled FQN 重定向目标”为主路径来承担 monomorphization。
 - 依赖：T5000dR
 
-### T5000eR Review：确认 monomorphization 已成为 MIR 内部独立阶段
+### [TODO] T5000eR Review：确认 monomorphization 已成为 MIR 内部独立阶段
 - 重点：
   - `InstanceKey` 是否真正独立于 backend 符号名；
   - 是否仍有大量单态化职责遗留在 LLVM codegen；
@@ -166,7 +166,7 @@
   - monomorphization 的主语义与主数据结构已经明确属于 MIR，而不是 HIR 或 LLVM codegen。
 - 依赖：T5000e
 
-### T5000f 建立 per-instance summary 基础设施
+### [TODO] T5000f 建立 per-instance summary 基础设施
 - 范围：
   - 对每个单态实例建立最小 summary，至少覆盖：
     - `body_known`
@@ -182,7 +182,7 @@
   - higher-order function value 的 `DirectCallOnly` / `Escapes` 等判断不再由 codegen 现场重复现算。
 - 依赖：T5000eR
 
-### T5000fR Review：确认 summary 已按单态实例而不是按函数名工作
+### [TODO] T5000fR Review：确认 summary 已按单态实例而不是按函数名工作
 - 重点：
   - summary 是否真正挂在 monomorphic instance 上；
   - 是否还残留“按函数名一份 summary，再在 codegen 现场补类型”的做法；
@@ -191,7 +191,7 @@
   - summary 的层次归属与 identity 已足够稳定，可以直接喂给 devirt / inline。
 - 依赖：T5000f
 
-### T5000g 在 MIR 层实现通用 devirtualization
+### [TODO] T5000g 在 MIR 层实现通用 devirtualization
 - 范围：
   - 对所有 `VirtualCall` / `InterfaceCall` 统一做 receiver exactness / target-set shrinking；
   - 只要静态 target set 为 singleton，就改写为 `DirectCall`；
@@ -201,7 +201,7 @@
   - 不依赖 `Iterator.next()` / `Iterator.hasNext()` 等任何特定函数名。
 - 依赖：T5000fR
 
-### T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判
+### [TODO] T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判
 - 重点：
   - 规则是否对所有符合条件的调用统一生效；
   - 是否仍保留 backend 侧的目标猜测或名字特判；
@@ -210,7 +210,7 @@
   - `InterfaceCall -> DirectCall`、`VirtualCall -> DirectCall` 已是 MIR 层统一改写，而不是 codegen 侧例外路径。
 - 依赖：T5000g
 
-### T5000h 在 MIR 层实现 summary-driven inlining
+### [TODO] T5000h 在 MIR 层实现 summary-driven inlining
 - 范围：
   - 先做保守但通用的版本：
     - body-known
@@ -227,7 +227,7 @@
   - codegen 不再继续承担“内联后才能去掉的额外高层调用边界”。
 - 依赖：T5000gR
 
-### T5000hR Review：确认 inlining 已走 summary / structure 路线
+### [TODO] T5000hR Review：确认 inlining 已走 summary / structure 路线
 - 重点：
   - 是否仍有特定函数名 hard-code；
   - `DirectCallOnly` 与 provenance 是否真的在驱动高阶内联；
@@ -236,7 +236,7 @@
   - 内联主路径已经是结构驱动；没有退回“为几个库函数特判”的方案。
 - 依赖：T5000h
 
-### T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界
+### [TODO] T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界
 - 范围：
   - 在 MIR 层加入：
     - non-escaping closure simplification；
@@ -248,7 +248,7 @@
   - closure / continuation 是否逃逸成为 MIR 层稳定分析结果，而不是 codegen 现场推断。
 - 依赖：T5000hR
 
-### T5000iR Review：确认 effect middle-end 已从 LLVM backend 语义边界迁出
+### [TODO] T5000iR Review：确认 effect middle-end 已从 LLVM backend 语义边界迁出
 - 重点：
   - `state_machine_plan / segments / transform` 是否已经脱离 LLVM codegen 主职责；
   - effect planning 是否真正依赖 MIR 与 shared facts，而不是依赖 backend context；
@@ -272,7 +272,7 @@
   - safepoint / root-pressure 的变化有可复验结论，可为后续 GC / `mem2reg` 研究提供真实输入。
 - 依赖：T5000iR
 
-### T5000jR Review：确认优化主线已形成可持续扩展的中端体系
+### [TODO] T5000jR Review：确认优化主线已形成可持续扩展的中端体系
 - 重点：
   - 后续扩展是否仍沿 MIR / summary / structure 方向推进；
   - 是否重新出现“把新分析长回 LLVM codegen”的回退；
