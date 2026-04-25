@@ -1,53 +1,51 @@
-# 执行记录
+# 本次执行计划
 
-## 约束说明
+## 说明
 
-- 按要求先写入本文件，再执行仓库检查与实现工作。
-- 不记录原始逐字思维过程；改为记录可公开的决策摘要、执行计划、进度与变更原因。
-- 本次目标是：先检查最新提交是否提到需先修复的既有问题；若有，优先修复。否则读取 `TODO.md`，完成第一个未完成任务，然后更新 `TODO.md` / `PLAN.md`，提交 git commit，并停止。
+按要求，先记录可审查的执行计划与决策摘要。这里记录的是执行步骤、检查项与后续更新，不包含原始逐字思维流。
 
-## 初始执行计划
+## 初始计划
 
-1. 查看最新一次提交信息，确认是否明确提到已有缺陷、回归或待优先修复的问题。
-2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务，并确认其依赖关系与当前计划是否一致。
-3. 如果首个未完成任务过大，先把它拆成更小的可执行子任务，并同步更新 `TODO.md` 与 `PLAN.md`；本次只执行拆分后的第一个子任务。
-4. 在实现前检查相关代码、测试、规格或夹具，确认不存在被该任务触发的既有问题；一旦发现，优先修复或将其以前置任务形式插入 `TODO.md`。
-5. 实现当前任务，保持实现符合规格，不采用绕过缺陷的临时方案。
-6. 运行与改动相关的格式化、测试、必要的 lint / clippy，修复发现的问题直到通过，或在无法继续时把阻塞项显式前移到 `TODO.md`。
-7. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md` 记录结果。
-8. 使用清晰的提交信息提交本次改动，然后停止，不继续下一个任务。
+1. 查看最新一次 Git 提交信息，确认是否提到任何已知问题、回归、临时修复或待补漏洞。
+2. 如果最新提交提到了现存问题，优先定位并修复该问题，再继续后续步骤。
+3. 读取 `TODO.md`，识别第一个未完成任务。
+4. 评估该任务规模与依赖：
+   - 如果可以在本轮完整实现，则直接执行。
+   - 如果任务过大或存在前置缺口，则把任务拆分为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
+5. 在执行过程中检查是否存在任何阻塞当前任务的既有问题、规范不匹配、回归、缺失特性或测试失败：
+   - 若发现，立即把该问题视为当前优先事项。
+   - 能直接修复则先修复。
+   - 若无法在本轮直接修复，则将其作为前置任务插入 `TODO.md` 到当前任务之前，并更新 `PLAN.md` 说明依赖关系，然后停止。
+6. 实现当前目标任务，必要时补充或调整代码注释、文档与模块结构。
+7. 运行相关验证：
+   - 最少运行与改动直接相关的测试。
+   - 若改动影响较广，再运行更高层级测试。
+   - 按要求检查无警告构建与 lint，优先执行 `cargo clippy --all-targets -- -D warnings`（若时间和作用域允许则完整执行）。
+8. 更新进度文档：
+   - 在 `TODO.md` 中标记该任务完成，或在阻塞场景下正确重排任务顺序。
+   - 在 `PLAN.md` 中更新状态、依赖与后续说明。
+   - 回写本文件，记录关键发现、计划变化和已完成步骤。
+9. 使用清晰的 Git 提交信息提交本轮结果。
+10. 停止，不继续做下一个任务。
 
-## 进度
+## 执行时的记录要求
 
-- 已完成：初始化计划文件。
-- 已完成：检查最新提交、`TODO.md`、`PLAN.md`。
-- 已确认：
-  - 最新提交 `[T5000b3R] Review codegen theme split boundary` 的提交信息没有显式声明需要先修复的既有缺陷。
-  - 当前第一个未完成任务是 `T5000b4 继续拆分 MainCodegen 为 module / function / cache / effect emitter 上下文`。
-  - `T5000b4` 单轮范围过大，需要先拆分为更小子任务。
-  - 拆分依据：
-    - `crates/scoopc/src/llvm/codegen/mod.rs` 仍有 7185 行；
-    - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 仍有 5923 行，且存在多处手动保存/恢复 `MainCodegen` 状态；
-    - `layout.rs` / `ty.rs` 仍独占 `type_layout_cache`、`option_niche_cache`、`enum_cg_layout_cache`、`class_init_layout_cache`、`pack_field_indices` 等缓存，适合作为第一个独立切口。
-- 当前计划调整：
-  1. 先把 `T5000b4` 拆成更小的 `T5000b4a` / `T5000b4b` / `T5000b4c` 子任务，并更新 `TODO.md` / `PLAN.md`。
-  2. 本轮执行第一个子任务：抽出编译单元级共享 layout / suspend-analysis cache。
-  3. 代码完成后运行 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
-  4. 若测试通过，则回写 `memory/claude_plan.md`、`TODO.md`、`PLAN.md` 的完成记录，提交 commit 后停止。
-- 已完成：将 `T5000b4` 拆成 `T5000b4a` / `T5000b4b` / `T5000b4c`，并回写 `TODO.md` / `PLAN.md`。
-- 已完成：实现 `T5000b4a`。
-  - 关键改动：
-    - 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `SharedCodegenCaches`；
-    - `CompilationUnitCodegenCx` 现持有编译单元级共享 cache；
-    - `MainCodegen` 已删除 layout / suspend-analysis cache 字段；
-    - `layout.rs`、`ty.rs`、`effect/state_machine_plan.rs`、`codegen/mod.rs` 的相关读写路径均已切换到共享 cache；
-    - `cg_enum_layout(...)` 改为返回从共享 cache 克隆出的 `CgEnumLayout`，以适配 `RefCell` 化后的缓存访问。
-- 已完成：验证当前实现。
-  - `cargo fmt --all`
-  - `cargo test -p scoopc llvm::`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - 结果：全部通过。
-- 下一步：
-  - 更新 git 状态并提交本轮改动。
-  - 本轮停止；下一次调用应从 `T5000b4aR` 开始。
+- 每完成一个关键步骤后，更新本文件。
+- 如果计划发生变化，补充“变更原因”和“新计划”。
+- 若遇到阻塞，明确记录阻塞原因、对应新增前置任务以及停止点。
+
+## 当前状态
+
+- 已完成：创建计划文件并写入初始计划。
+- 已完成：检查最新提交提交信息，确认最新提交 `[T5000b4a] Share codegen layout cache context` 本身没有在提交说明中声明待先修复问题。
+- 已完成：读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T5000b4aR Review：确认共享 cache 已脱离 MainCodegen 的函数级状态`。
+- 已完成：第一轮代码面复核。
+  - 已检查 `crates/scoopc/src/llvm/codegen/mod.rs`、`layout.rs`、`ty.rs`、`effect/state_machine_plan.rs`、`emit.rs`；
+  - 已确认 `known_fun_call_suspend_cache`、`type_layout_cache`、`option_niche_cache`、`enum_cg_layout_cache`、`class_init_layout_cache`、`pack_field_indices` 现统一收口到 `CompilationUnitCodegenCx.shared_caches`；
+  - 已确认 `CompilationUnitCodegenCx::new(...)` 仍只有一个实现构造入口，`fresh_main_codegen()` / `fresh_child_codegen()` 统一复用同一编译单元共享 cache；
+  - 暂未发现仍由每个 `MainCodegen` 单独维护上述 cache 的残留路径。
+- 已完成：运行验证命令，确认 review 结论与测试结果一致。
+  - `cargo test -p scoopc llvm::` 通过；
+  - `cargo test --all` 通过；
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 进行中：回写 `TODO.md` / `PLAN.md` / 本文件，并准备提交 `T5000b4aR` 完成记录。

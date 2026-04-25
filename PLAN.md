@@ -266,7 +266,22 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b4aR Review：确认共享 cache 已脱离 MainCodegen 的函数级状态`。
+- 2026-04-25：`T5000b4aR Review：确认共享 cache 已脱离 MainCodegen 的函数级状态` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 `SharedCodegenCaches` 现由 `CompilationUnitCodegenCx` 持有，`MainCodegen` 已不再直接持有六类 layout / suspend-analysis cache；
+    - 已复核 `crates/scoopc/src/llvm/emit.rs`，确认实现代码中仍只有一个 `CompilationUnitCodegenCx::new(...)` 构造入口；顶层声明、reachable top-level function body 发射与入口 `main` lowering 统一经 `fresh_main_codegen()` 进入，而 effect-call wrapper、closure body、object init 等 nested lowering 统一经 `fresh_child_codegen()` 进入，均会复用同一编译单元级共享 cache；
+    - 已复核 `crates/scoopc/src/llvm/codegen/layout.rs`、`ty.rs` 与 `effect/state_machine_plan.rs`，确认 `known_fun_call_suspend_cache`、`type_layout_cache`、`option_niche_cache`、`enum_cg_layout_cache`、`class_init_layout_cache`、`pack_field_indices` 的读写均已统一经由 `self.shared_caches` 进行，没有残留“每个 MainCodegen 自带一份 cache 容器”的路径；
+    - 已确认 `cg_enum_layout(...)` 继续返回从共享 cache 克隆出的 layout，`packed-field` 索引回填也稳定写回共享 cache，因此后续 `T5000b4b` / `T5000b4c` 不再需要同时处理 cache 借用或缓存所有权迁移问题。
+  - review 结论：
+    - 共享 cache 已成功脱离 `MainCodegen` 的函数级状态；
+    - 后续 function/body 与 effect emitter 上下文拆分可以聚焦真正的生命周期状态；
+    - 未发现需要插入到 `T5000b4b` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b4b 拆出 MainCodegen 的 function/body 级上下文`。
 
 ## 1. 当前判断
 

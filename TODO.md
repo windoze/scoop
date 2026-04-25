@@ -299,7 +299,7 @@
   - 已同步更新 `enum_lowering.rs`、`control_flow.rs`、`ty.rs` 中围绕 enum layout 的注释口径，确保文档与新的共享 cache 行为一致；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b4aR Review：确认共享 cache 已脱离 `MainCodegen` 的函数级状态
+### [DONE] T5000b4aR Review：确认共享 cache 已脱离 `MainCodegen` 的函数级状态
 - 重点：
   - layout / suspend-analysis cache 是否都已收口到编译单元级共享上下文；
   - 是否还残留“每个 `MainCodegen` 各自维护一份 cache”的路径；
@@ -307,6 +307,12 @@
 - 验收：
   - 后续 `T5000b4b` / `T5000b4c` 可以不再同时搬运 layout / analysis cache 的字段。
 - 依赖：T5000b4a
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 `SharedCodegenCaches` 现由 `CompilationUnitCodegenCx` 持有，`MainCodegen` 不再直接定义 `known_fun_call_suspend_cache`、`type_layout_cache`、`option_niche_cache`、`enum_cg_layout_cache`、`class_init_layout_cache`、`pack_field_indices` 六类 cache 字段；
+  - 已复核 `crates/scoopc/src/llvm/emit.rs`，确认实现代码中仍只有一个 `CompilationUnitCodegenCx::new(...)` 构造入口；顶层声明、reachable top-level function body 发射与入口 `main` lowering 统一经 `fresh_main_codegen()` 进入，而 effect-call wrapper、closure body、object init 等 nested lowering 统一经 `fresh_child_codegen()` 进入，都会复用同一编译单元级 `shared_caches`；
+  - 已复核 `crates/scoopc/src/llvm/codegen/layout.rs`、`ty.rs` 与 `effect/state_machine_plan.rs`，确认 layout / suspend-analysis 相关 cache 访问现全部通过 `self.shared_caches` 读写，没有残留“每个 `MainCodegen` 自带一份 cache 容器”的路径；其中 `cg_enum_layout(...)` 继续返回从共享 cache 克隆出的 layout，`packed-field` 索引回填也稳定写回共享 cache，避免把 `RefCell` 借用或缓存所有权继续泄漏到后续 lowering；
+  - review 结论：后续 `T5000b4b` / `T5000b4c` 可以只聚焦 function/body 状态与 effect emitter 专属状态的收口，不再需要同时搬运 layout / analysis cache 字段；未发现需要插入到 `T5000b4b` 之前的新前置缺陷任务；
+  - 已验证 `cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b4b 拆出 `MainCodegen` 的 function/body 级上下文
 - 范围：
