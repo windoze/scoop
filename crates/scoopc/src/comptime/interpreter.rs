@@ -1,12 +1,13 @@
 //! const/comptime 解释器（v0）。
 //!
-//! 目标（TODO T1202c）：
+//! 当前阶段目标：
 //! - 支持 `const fun` 调用（仅 Pure；由 typecheck headers 做最小门禁）；
-//! - 支持函数体内的局部 `val`、`return` 语句、以及 block 的“最后表达式返回”；
+//! - 支持函数体内的局部 `val/var`、assignment、`return`、`break/continue`，
+//!   以及普通 `if` / `while` / `for` / block / `do` 的纯控制流；
 //! - 支持 `const val` initializer 的常量折叠（用于 `tests/fixtures/comptime` 回归）。
 //!
 //! 非目标（后续任务逐步补齐）：
-//! - 闭包/lambda、effects、循环/控制流（`if/when/while`）、`perform/handle`；
+//! - `when`、闭包/lambda、effects、`perform/handle`；
 //! - 更完整的 generic/effect-row contract 与运行期 fallback 语义。
 
 use std::collections::HashMap;
@@ -17,7 +18,10 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::eval::{ConstEvalHost, eval_const_expr, eval_const_expr_with_host, value_kind};
+use super::eval::{
+    ConstEvalHost, ConstExprFlow, EvalControl, eval_const_expr, eval_const_expr_flow_with_host,
+    eval_const_expr_with_host, value_kind,
+};
 use super::{ConstEvalCtx, ConstEvalError, ConstFloatTy, ConstIntTy, ConstValue};
 
 /// const 解释器配置项（v0）。
@@ -30,7 +34,9 @@ pub struct ConstEvalOptions {
 impl Default for ConstEvalOptions {
     fn default() -> Self {
         Self {
-            recursion_limit: 64,
+            // 解释器本身仍是递归实现；默认上限需要显著低于测试线程栈能承受的深度，
+            // 否则会先触发宿主 stack overflow，而不是稳定返回结构化诊断。
+            recursion_limit: 48,
         }
     }
 }
@@ -339,6 +345,13 @@ struct RegisteredType<'a> {
     decl: &'a ast::TypeDecl,
 }
 
+#[derive(Debug, Clone)]
+struct LocalBinding {
+    value: ConstValue,
+    mutable: bool,
+    ty: Option<TypeId>,
+}
+
 #[derive(Clone)]
 struct ReflectionTypeTarget<'a> {
     full_name: String,
@@ -462,7 +475,7 @@ struct ConstInterpreter<'a> {
     options: ConstEvalOptions,
     call_depth: usize,
     /// 作用域栈（后进先出）：局部 val/参数/顶层 const val 都放在这里。
-    scopes: Vec<HashMap<String, ConstValue>>,
+    scopes: Vec<HashMap<String, LocalBinding>>,
     /// generic `const fun` 的活动类型实参绑定（后进先出）。
     type_param_scopes: Vec<HashMap<String, TypeId>>,
     /// 当前求值栈上的 source/file 上下文。
@@ -658,9 +671,10 @@ impl<'a> ConstInterpreter<'a> {
         let source = ctx.source;
         let name = name_ident.text(source).to_string();
         let init_value = eval_const_expr_with_host(ctx, self, init)?;
-        let value = self.coerce_value_to_declared_type(source, init_value, v.ty.as_ref());
+        let binding_ty = self.binding_type_for_ident(&name_ident);
+        let value = self.coerce_value_to_target_type(source, init_value, v.ty.as_ref(), binding_ty);
 
-        self.define_local(name, value);
+        self.define_local(name, value, false, binding_ty);
         Ok(())
     }
 
@@ -726,10 +740,12 @@ impl<'a> ConstInterpreter<'a> {
             let source = ctx.source;
             let name = name_ident.text(source).to_string();
             let init_value = eval_const_expr_with_host(ctx, self, init)?;
-            let value = self.coerce_value_to_declared_type(source, init_value, v.ty.as_ref());
+            let binding_ty = self.binding_type_for_ident(&name_ident);
+            let value =
+                self.coerce_value_to_target_type(source, init_value, v.ty.as_ref(), binding_ty);
 
             // 顶层 const val 也进入环境：后续 const val/const fun 可引用它。
-            self.define_local(name.clone(), value.clone());
+            self.define_local(name.clone(), value.clone(), false, binding_ty);
             out.push(ConstBinding { name, value });
         }
 
@@ -744,18 +760,68 @@ impl<'a> ConstInterpreter<'a> {
         self.scopes.pop();
     }
 
-    fn define_local(&mut self, name: String, value: ConstValue) {
+    fn define_local(&mut self, name: String, value: ConstValue, mutable: bool, ty: Option<TypeId>) {
         let scope = self.scopes.last_mut().expect("at least one scope");
-        scope.insert(name, value);
+        scope.insert(name, LocalBinding { value, mutable, ty });
     }
 
     fn lookup(&self, name: &str) -> Option<ConstValue> {
         for scope in self.scopes.iter().rev() {
-            if let Some(v) = scope.get(name) {
-                return Some(v.clone());
+            if let Some(binding) = scope.get(name) {
+                return Some(binding.value.clone());
             }
         }
         None
+    }
+
+    fn assign_local(
+        &mut self,
+        name: &str,
+        value: ConstValue,
+        span: Span,
+    ) -> Result<(), ConstEvalError> {
+        let coerced_value = {
+            let mut target_ty = None;
+            let mut mutable = false;
+            let mut found = false;
+            for scope in self.scopes.iter().rev() {
+                if let Some(binding) = scope.get(name) {
+                    target_ty = binding.ty;
+                    mutable = binding.mutable;
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                return Err(ConstEvalError::UnknownIdent {
+                    name: name.to_string(),
+                    span: span.into(),
+                });
+            }
+            if !mutable {
+                return Err(ConstEvalError::UnsupportedExpr {
+                    kind: "assignment to immutable binding",
+                    span: span.into(),
+                });
+            }
+            self.coerce_value_to_type_id(value, target_ty)
+        };
+
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(binding) = scope.get_mut(name) {
+                binding.value = coerced_value;
+                return Ok(());
+            }
+        }
+
+        Err(ConstEvalError::UnknownIdent {
+            name: name.to_string(),
+            span: span.into(),
+        })
+    }
+
+    fn binding_type_for_ident(&self, ident: &ast::Ident) -> Option<TypeId> {
+        self.current_file().inferred_binding_ty(ident.span)
     }
 
     fn push_type_bindings(&mut self, bindings: impl IntoIterator<Item = (String, TypeId)>) {
@@ -953,7 +1019,8 @@ impl<'a> ConstInterpreter<'a> {
             return self.call_bound_const_fun(call_span, &binding, callee_name, args);
         }
 
-        // v0：解释器不支持泛型 const fun；显式 type args 只允许用于 intrinsics。
+        // generic `const fun` 应优先走上面的 typechecked binding 主线；若仍落到
+        // simple-name fallback，则显式 type args 只允许用于 reflection intrinsics。
         if !type_args.is_empty() {
             return Err(ConstEvalError::UnsupportedConstFunSignature {
                 reason: "explicit type args",
@@ -1879,12 +1946,29 @@ impl<'a> ConstInterpreter<'a> {
             for (param, arg) in decl.params.iter().zip(args) {
                 let name = param.name.text(decl_source).to_string();
                 let value = self.coerce_value_to_declared_type(decl_source, arg, param.ty.as_ref());
-                self.define_local(name, value);
+                let binding_ty = param
+                    .ty
+                    .as_ref()
+                    .and_then(|ty| self.try_resolve_bound_type_ref(ty));
+                let value = self.coerce_value_to_type_id(value, binding_ty);
+                self.define_local(name, value, false, binding_ty);
             }
 
             let ret = match &decl.body {
                 ast::FunBody::Block(b) => match self.eval_block(b)? {
-                    ControlFlow::Break(v) | ControlFlow::Continue(v) => v,
+                    ControlFlow::Break(EvalControl::Return(v)) | ControlFlow::Continue(v) => v,
+                    ControlFlow::Break(EvalControl::Break) => {
+                        return Err(ConstEvalError::UnsupportedStmt {
+                            kind: "break outside loop",
+                            span: decl.span.into(),
+                        });
+                    }
+                    ControlFlow::Break(EvalControl::Continue) => {
+                        return Err(ConstEvalError::UnsupportedStmt {
+                            kind: "continue outside loop",
+                            span: decl.span.into(),
+                        });
+                    }
                 },
                 ast::FunBody::Missing => {
                     return Err(ConstEvalError::UnsupportedConstFunSignature {
@@ -1908,16 +1992,16 @@ impl<'a> ConstInterpreter<'a> {
     fn eval_block(
         &mut self,
         block: &ast::Block,
-    ) -> Result<ControlFlow<ConstValue, ConstValue>, ConstEvalError> {
+    ) -> Result<ControlFlow<EvalControl, ConstValue>, ConstEvalError> {
         // block 自带一个子作用域（与 resolver/typecheck 的“block 内声明仅在该 block 内可见”一致）。
         self.push_scope();
 
         let mut last_value = ConstValue::Unit;
         for stmt in &block.stmts {
             match self.eval_stmt(stmt)? {
-                ControlFlow::Break(ret) => {
+                ControlFlow::Break(signal) => {
                     self.pop_scope();
-                    return Ok(ControlFlow::Break(ret));
+                    return Ok(ControlFlow::Break(signal));
                 }
                 ControlFlow::Continue(Some(v)) => last_value = v,
                 ControlFlow::Continue(None) => {}
@@ -1928,77 +2012,98 @@ impl<'a> ConstInterpreter<'a> {
         Ok(ControlFlow::Continue(last_value))
     }
 
+    fn eval_expr_flow(&mut self, expr: &ast::Expr) -> Result<ConstExprFlow, ConstEvalError> {
+        eval_const_expr_flow_with_host(self.current_ctx(), self, expr)
+    }
+
     fn eval_stmt(
         &mut self,
         stmt: &ast::Stmt,
-    ) -> Result<ControlFlow<ConstValue, Option<ConstValue>>, ConstEvalError> {
+    ) -> Result<ControlFlow<EvalControl, Option<ConstValue>>, ConstEvalError> {
         match &stmt.kind {
             ast::StmtKind::Empty => Ok(ControlFlow::Continue(None)),
             ast::StmtKind::Expr(e) => {
-                let v = eval_const_expr_with_host(self.current_ctx(), self, e)?;
-                Ok(ControlFlow::Continue(Some(v)))
+                let v = match self.eval_expr_flow(e)? {
+                    ControlFlow::Continue(v) => v,
+                    ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+                };
+                Ok(ControlFlow::Continue(
+                    (!stmt.has_trailing_semi).then_some(v),
+                ))
             }
             ast::StmtKind::Val(v) => {
-                if v.kind != ast::ValKind::Val {
-                    return Err(ConstEvalError::UnsupportedStmt {
-                        kind: "local var",
-                        span: v.span.into(),
-                    });
-                }
                 let Some(name) = v.name() else {
                     return Err(ConstEvalError::UnsupportedStmt {
-                        kind: "local val pattern binding",
+                        kind: if v.kind == ast::ValKind::Var {
+                            "local var pattern binding"
+                        } else {
+                            "local val pattern binding"
+                        },
                         span: v.span.into(),
                     });
                 };
                 let Some(init) = v.init.as_ref() else {
                     return Err(ConstEvalError::MissingInitializer {
-                        kind: "local val",
+                        kind: if v.kind == ast::ValKind::Var {
+                            "local var"
+                        } else {
+                            "local val"
+                        },
                         span: v.span.into(),
                     });
                 };
 
                 let ctx = self.current_ctx();
-                let init_value = eval_const_expr_with_host(ctx, self, init)?;
-                let value =
-                    self.coerce_value_to_declared_type(ctx.source, init_value, v.ty.as_ref());
-                self.define_local(name.text(ctx.source).to_string(), value);
+                let init_value = match self.eval_expr_flow(init)? {
+                    ControlFlow::Continue(v) => v,
+                    ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+                };
+                let binding_ty = self.binding_type_for_ident(&name);
+                let value = self.coerce_value_to_target_type(
+                    ctx.source,
+                    init_value,
+                    v.ty.as_ref(),
+                    binding_ty,
+                );
+                self.define_local(
+                    name.text(ctx.source).to_string(),
+                    value,
+                    v.kind == ast::ValKind::Var,
+                    binding_ty,
+                );
                 Ok(ControlFlow::Continue(None))
             }
             ast::StmtKind::Return { value, .. } => {
                 let v = match value {
-                    Some(expr) => eval_const_expr_with_host(self.current_ctx(), self, expr)?,
+                    Some(expr) => match self.eval_expr_flow(expr)? {
+                        ControlFlow::Continue(v) => v,
+                        ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+                    },
                     None => ConstValue::Unit,
                 };
-                Ok(ControlFlow::Break(v))
+                Ok(ControlFlow::Break(EvalControl::Return(v)))
             }
-            ast::StmtKind::While { .. } => Err(ConstEvalError::UnsupportedStmt {
-                kind: "while",
-                span: stmt.span.into(),
-            }),
-            ast::StmtKind::For(_) => Err(ConstEvalError::UnsupportedStmt {
-                kind: "for",
-                span: stmt.span.into(),
-            }),
-            ast::StmtKind::Break { .. } => Err(ConstEvalError::UnsupportedStmt {
-                kind: "break",
-                span: stmt.span.into(),
-            }),
-            ast::StmtKind::Continue { .. } => Err(ConstEvalError::UnsupportedStmt {
-                kind: "continue",
-                span: stmt.span.into(),
-            }),
+            ast::StmtKind::While { cond, body, .. } => self.eval_while_stmt(cond, body),
+            ast::StmtKind::For(f) => self.eval_for_stmt(f),
+            ast::StmtKind::Break { .. } => Ok(ControlFlow::Break(EvalControl::Break)),
+            ast::StmtKind::Continue { .. } => Ok(ControlFlow::Break(EvalControl::Continue)),
             ast::StmtKind::ComptimeBlock { body, .. } => match self.eval_block(body)? {
-                ControlFlow::Break(ret) => Ok(ControlFlow::Break(ret)),
-                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(Some(v))),
+                ControlFlow::Break(signal) => Ok(ControlFlow::Break(signal)),
+                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(
+                    (!stmt.has_trailing_semi).then_some(v),
+                )),
             },
             ast::StmtKind::ComptimeIf(ci) => match self.eval_comptime_if(ci)? {
-                ControlFlow::Break(ret) => Ok(ControlFlow::Break(ret)),
-                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(Some(v))),
+                ControlFlow::Break(signal) => Ok(ControlFlow::Break(signal)),
+                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(
+                    (!stmt.has_trailing_semi).then_some(v),
+                )),
             },
             ast::StmtKind::ComptimeFor(cf) => match self.eval_comptime_for(cf)? {
-                ControlFlow::Break(ret) => Ok(ControlFlow::Break(ret)),
-                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(Some(v))),
+                ControlFlow::Break(signal) => Ok(ControlFlow::Break(signal)),
+                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(
+                    (!stmt.has_trailing_semi).then_some(v),
+                )),
             },
             ast::StmtKind::Missing => Err(ConstEvalError::UnsupportedStmt {
                 kind: "missing stmt",
@@ -2007,12 +2112,62 @@ impl<'a> ConstInterpreter<'a> {
         }
     }
 
+    fn eval_while_stmt(
+        &mut self,
+        cond: &ast::Expr,
+        body: &ast::Block,
+    ) -> Result<ControlFlow<EvalControl, Option<ConstValue>>, ConstEvalError> {
+        loop {
+            let cond_v = match self.eval_expr_flow(cond)? {
+                ControlFlow::Continue(v) => v,
+                ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+            };
+            let ConstValue::Bool(cond_b) = cond_v else {
+                return Err(ConstEvalError::OperandTypeMismatch {
+                    expected: "Bool",
+                    found: value_kind(&cond_v),
+                    span: cond.span.into(),
+                });
+            };
+            if !cond_b {
+                return Ok(ControlFlow::Continue(None));
+            }
+
+            match self.eval_block(body)? {
+                ControlFlow::Break(EvalControl::Return(v)) => {
+                    return Ok(ControlFlow::Break(EvalControl::Return(v)));
+                }
+                ControlFlow::Break(EvalControl::Break) => return Ok(ControlFlow::Continue(None)),
+                ControlFlow::Break(EvalControl::Continue) => {}
+                ControlFlow::Continue(_) => {}
+            }
+        }
+    }
+
+    fn eval_for_stmt(
+        &mut self,
+        f: &ast::ForStmt,
+    ) -> Result<ControlFlow<EvalControl, Option<ConstValue>>, ConstEvalError> {
+        match self.eval_for_like_loop(
+            f.binder.text(self.current_source()).to_string(),
+            self.current_file().inferred_binding_ty(f.binder.span),
+            &f.iter,
+            &f.body,
+        )? {
+            ControlFlow::Break(signal) => Ok(ControlFlow::Break(signal)),
+            ControlFlow::Continue(_) => Ok(ControlFlow::Continue(None)),
+        }
+    }
+
     fn eval_comptime_if(
         &mut self,
         ci: &ast::ComptimeIf,
-    ) -> Result<ControlFlow<ConstValue, ConstValue>, ConstEvalError> {
+    ) -> Result<ControlFlow<EvalControl, ConstValue>, ConstEvalError> {
         // `comptime if`：在编译期求值条件，仅执行被选中的分支（未选中分支不求值）。
-        let cond_v = eval_const_expr_with_host(self.current_ctx(), self, &ci.cond)?;
+        let cond_v = match self.eval_expr_flow(&ci.cond)? {
+            ControlFlow::Continue(v) => v,
+            ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+        };
         let ConstValue::Bool(cond_b) = cond_v else {
             return Err(ConstEvalError::OperandTypeMismatch {
                 expected: "Bool",
@@ -2037,22 +2192,38 @@ impl<'a> ConstInterpreter<'a> {
     fn eval_comptime_for(
         &mut self,
         cf: &ast::ComptimeFor,
-    ) -> Result<ControlFlow<ConstValue, ConstValue>, ConstEvalError> {
+    ) -> Result<ControlFlow<EvalControl, ConstValue>, ConstEvalError> {
+        self.eval_for_like_loop(
+            cf.binder.text(self.current_source()).to_string(),
+            self.current_file().inferred_binding_ty(cf.binder.span),
+            &cf.iter,
+            &cf.body,
+        )
+    }
+
+    fn eval_for_like_loop(
+        &mut self,
+        binder_name: String,
+        binder_ty: Option<TypeId>,
+        iter: &ast::Expr,
+        body: &ast::Block,
+    ) -> Result<ControlFlow<EvalControl, ConstValue>, ConstEvalError> {
         // `comptime for (x in xs) { ... }`：
         // - 先在编译期求值 iter；
         // - 对可迭代对象进行“展开执行”，每次迭代把 binder 绑定到当前元素；
         // - v0：仅支持整数范围 `a..b` 与 tuple/array（以 ConstValue::Tuple 承载）。
-        let binder_name = cf.binder.text(self.current_source()).to_string();
-
         // 1) 整数范围：`a..b`
         if let ast::ExprKind::Binary {
             lhs,
             op: ast::BinaryOp::RangeInclusive,
             rhs,
             ..
-        } = &cf.iter.kind
+        } = &iter.kind
         {
-            let lv = eval_const_expr_with_host(self.current_ctx(), self, lhs)?;
+            let lv = match self.eval_expr_flow(lhs)? {
+                ControlFlow::Continue(v) => v,
+                ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+            };
             let li = match lv {
                 ConstValue::Int(i) => i,
                 other => {
@@ -2064,7 +2235,10 @@ impl<'a> ConstInterpreter<'a> {
                 }
             };
 
-            let rv = eval_const_expr_with_host(self.current_ctx(), self, rhs)?;
+            let rv = match self.eval_expr_flow(rhs)? {
+                ControlFlow::Continue(v) => v,
+                ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+            };
             let ri = match rv {
                 ConstValue::Int(i) => i,
                 other => {
@@ -2079,7 +2253,7 @@ impl<'a> ConstInterpreter<'a> {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "相同的整数类型",
                     found: "不同位宽/符号位的整数",
-                    span: cf.iter.span.into(),
+                    span: iter.span.into(),
                 });
             }
 
@@ -2093,17 +2267,26 @@ impl<'a> ConstInterpreter<'a> {
                     self.define_local(
                         binder_name.clone(),
                         ConstValue::Int(super::ConstInt::new(li.ty, cur as u128)),
+                        false,
+                        binder_ty,
                     );
-                    match self.eval_block(&cf.body)? {
-                        ControlFlow::Break(ret) => {
+                    match self.eval_block(body)? {
+                        ControlFlow::Break(EvalControl::Return(v)) => {
                             self.pop_scope();
-                            return Ok(ControlFlow::Break(ret));
+                            return Ok(ControlFlow::Break(EvalControl::Return(v)));
+                        }
+                        ControlFlow::Break(EvalControl::Break) => {
+                            self.pop_scope();
+                            break;
+                        }
+                        ControlFlow::Break(EvalControl::Continue) => {
+                            self.pop_scope();
                         }
                         ControlFlow::Continue(v) => {
+                            self.pop_scope();
                             last_value = v;
                         }
                     }
-                    self.pop_scope();
 
                     let Some(next) = cur.checked_add(1) else {
                         break;
@@ -2118,17 +2301,26 @@ impl<'a> ConstInterpreter<'a> {
                     self.define_local(
                         binder_name.clone(),
                         ConstValue::Int(super::ConstInt::new(li.ty, cur)),
+                        false,
+                        binder_ty,
                     );
-                    match self.eval_block(&cf.body)? {
-                        ControlFlow::Break(ret) => {
+                    match self.eval_block(body)? {
+                        ControlFlow::Break(EvalControl::Return(v)) => {
                             self.pop_scope();
-                            return Ok(ControlFlow::Break(ret));
+                            return Ok(ControlFlow::Break(EvalControl::Return(v)));
+                        }
+                        ControlFlow::Break(EvalControl::Break) => {
+                            self.pop_scope();
+                            break;
+                        }
+                        ControlFlow::Break(EvalControl::Continue) => {
+                            self.pop_scope();
                         }
                         ControlFlow::Continue(v) => {
+                            self.pop_scope();
                             last_value = v;
                         }
                     }
-                    self.pop_scope();
 
                     let Some(next) = cur.checked_add(1) else {
                         break;
@@ -2141,31 +2333,40 @@ impl<'a> ConstInterpreter<'a> {
         }
 
         // 2) tuple/array（v0：统一用 Tuple 承载，见 comptime::eval）
-        let iter_v = eval_const_expr_with_host(self.current_ctx(), self, &cf.iter)?;
+        let iter_v = match self.eval_expr_flow(iter)? {
+            ControlFlow::Continue(v) => v,
+            ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+        };
         let ConstValue::Tuple(items) = iter_v else {
             return Err(ConstEvalError::OperandTypeMismatch {
                 expected: "Tuple（可迭代）",
                 found: value_kind(&iter_v),
-                span: cf.iter.span.into(),
+                span: iter.span.into(),
             });
         };
 
         let mut last_value = ConstValue::Unit;
         for item in items {
             self.push_scope();
-            self.define_local(binder_name.clone(), item);
+            self.define_local(binder_name.clone(), item, false, binder_ty);
 
-            match self.eval_block(&cf.body)? {
-                ControlFlow::Break(ret) => {
+            match self.eval_block(body)? {
+                ControlFlow::Break(EvalControl::Return(v)) => {
                     self.pop_scope();
-                    return Ok(ControlFlow::Break(ret));
+                    return Ok(ControlFlow::Break(EvalControl::Return(v)));
+                }
+                ControlFlow::Break(EvalControl::Break) => {
+                    self.pop_scope();
+                    break;
+                }
+                ControlFlow::Break(EvalControl::Continue) => {
+                    self.pop_scope();
                 }
                 ControlFlow::Continue(v) => {
+                    self.pop_scope();
                     last_value = v;
                 }
             }
-
-            self.pop_scope();
         }
 
         Ok(ControlFlow::Continue(last_value))
@@ -2218,11 +2419,35 @@ impl<'a> ConstInterpreter<'a> {
         value: ConstValue,
         ty: Option<&ast::TypeRef>,
     ) -> ConstValue {
-        let Some(target_ty) = ty.and_then(|t| self.builtin_float_ty_from_type_ref(source, t))
-        else {
+        self.coerce_value_to_target_type(source, value, ty, None)
+    }
+
+    fn coerce_value_to_target_type(
+        &self,
+        source: &SourceFile,
+        value: ConstValue,
+        ty: Option<&ast::TypeRef>,
+        inferred_ty: Option<TypeId>,
+    ) -> ConstValue {
+        let target_ty = inferred_ty
+            .and_then(|ty| self.builtin_float_ty_from_type_id(ty))
+            .or_else(|| ty.and_then(|t| self.builtin_float_ty_from_type_ref(source, t)));
+        self.coerce_value_to_type_id_with_builtin(value, target_ty)
+    }
+
+    fn coerce_value_to_type_id(&self, value: ConstValue, ty: Option<TypeId>) -> ConstValue {
+        let target_ty = ty.and_then(|ty| self.builtin_float_ty_from_type_id(ty));
+        self.coerce_value_to_type_id_with_builtin(value, target_ty)
+    }
+
+    fn coerce_value_to_type_id_with_builtin(
+        &self,
+        value: ConstValue,
+        target_ty: Option<ConstFloatTy>,
+    ) -> ConstValue {
+        let Some(target_ty) = target_ty else {
             return value;
         };
-
         match value {
             ConstValue::Float(f) => ConstValue::Float(f.cast(target_ty)),
             other => other,
@@ -2536,5 +2761,33 @@ impl ConstEvalHost for ConstInterpreter<'_> {
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError> {
         self.call_fun_or_intrinsic(call_span, callee_name, type_args, args)
+    }
+
+    fn eval_block_expr(
+        &mut self,
+        _ctx: ConstEvalCtx<'_>,
+        _expr_span: Span,
+        block: &ast::Block,
+    ) -> Result<ConstExprFlow, ConstEvalError> {
+        self.eval_block(block)
+    }
+
+    fn assign_expr(
+        &mut self,
+        _ctx: ConstEvalCtx<'_>,
+        expr_span: Span,
+        lhs: &ast::Expr,
+        rhs: ConstValue,
+    ) -> Result<ConstExprFlow, ConstEvalError> {
+        let ast::ExprKind::Ident(id) = &lhs.kind else {
+            return Err(ConstEvalError::UnsupportedExpr {
+                kind: "assignment lhs",
+                span: expr_span.into(),
+            });
+        };
+
+        let name = self.current_source().slice(id.span).to_string();
+        self.assign_local(&name, rhs, lhs.span)?;
+        Ok(ControlFlow::Continue(ConstValue::Unit))
     }
 }

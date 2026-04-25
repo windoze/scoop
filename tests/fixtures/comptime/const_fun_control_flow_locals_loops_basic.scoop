@@ -1,0 +1,83 @@
+// 目标：T4015b：const/comptime 解释器支持普通控制流、局部绑定、赋值与循环。
+// - 覆盖：普通 `if`、block/`do`、局部 `val/var`、assignment、`while`、普通 `for`、
+//   `break/continue`、跨函数纯计算，以及 const val initializer 中的 block 表达式。
+
+package fixtures.comptime_
+
+const fun step(x: Int): Int {
+    if (x % 2 == 0) {
+        do {
+            val doubled: Int = x * 2
+            doubled + 1
+        }
+    } else {
+        x + 10
+    }
+}
+
+const fun accumulateTo(limit: Int): Int {
+    var sum: Int = 0
+    var i: Int = 0
+    while (i <= limit) {
+        if (i == 4) {
+            i = i + 1
+            continue
+        }
+        if (i == 7) {
+            break
+        }
+        sum = sum + step(if (i == 0) { 0 } else { i })
+        i = i + 1
+    }
+    sum
+}
+
+const fun sumRange(limit: Int): Int {
+    var total: Int = 0
+    for (x in 1..limit) {
+        total = total + x
+    }
+    total
+}
+
+const fun sumArray(): Int {
+    var total: Int = 0
+    for (x in [1, 2, 3]) {
+        total = total + x
+    }
+    total
+}
+
+const fun sumOdds(limit: Int): Int {
+    var total: Int = 0
+    for (x in 1..limit) {
+        if (x % 2 == 0) {
+            continue
+        }
+        total = total + x
+    }
+    total
+}
+
+const fun emitUnitViaSemicolon(): Unit {
+    do {
+        1;
+    }
+}
+
+const val A: Int = accumulateTo(8)
+const val B: Int = sumRange(4)
+const val C: Int = sumArray()
+const val D: Int = sumOdds(6)
+const val E: Int = if (false) { 1 } else do {
+    val base: Int = 40
+    base + 2
+}
+const val F: Unit = emitUnitViaSemicolon()
+const val G: Int = step(if (true) { 2 } else { 9 })
+const val H: Int = 1 + (if (true) { 2 } else { 3 })
+const val I: Int = do {
+    var x: Int = 1
+    x = x + 2
+    x
+}

@@ -881,6 +881,67 @@ const val C: Int = lastTuple()
 }
 
 #[test]
+fn const_eval_ordinary_control_flow_locals_and_loops_match_fixture_behavior() {
+    let int_ty = ConstIntTy::host_word(true);
+    let sysroot = load_sysroot();
+    let path = format!(
+        "{}/../../tests/fixtures/comptime/const_fun_control_flow_locals_loops_basic.scoop",
+        env!("CARGO_MANIFEST_DIR"),
+    );
+    let source = SourceFile::new_virtual(
+        &path,
+        include_str!(
+            "../../../../tests/fixtures/comptime/const_fun_control_flow_locals_loops_basic.scoop"
+        )
+        .to_string(),
+    );
+    let file = parser::parse_file(&source).expect("parse");
+    let consts = eval_const_bindings_in_file(&sysroot, &source, &file).expect("eval");
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: mk_int(int_ty, 58),
+            },
+            ConstBinding {
+                name: "B".to_string(),
+                value: mk_int(int_ty, 10),
+            },
+            ConstBinding {
+                name: "C".to_string(),
+                value: mk_int(int_ty, 6),
+            },
+            ConstBinding {
+                name: "D".to_string(),
+                value: mk_int(int_ty, 9),
+            },
+            ConstBinding {
+                name: "E".to_string(),
+                value: mk_int(int_ty, 42),
+            },
+            ConstBinding {
+                name: "F".to_string(),
+                value: ConstValue::Unit,
+            },
+            ConstBinding {
+                name: "G".to_string(),
+                value: mk_int(int_ty, 5),
+            },
+            ConstBinding {
+                name: "H".to_string(),
+                value: mk_int(int_ty, 3),
+            },
+            ConstBinding {
+                name: "I".to_string(),
+                value: mk_int(int_ty, 3),
+            },
+        ]
+    );
+}
+
+#[test]
 fn const_eval_literal_matrix_across_const_fun_const_val_and_comptime_paths() {
     let ty = ConstIntTy::host_word(true);
 

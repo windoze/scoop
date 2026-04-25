@@ -1,9 +1,13 @@
-//! 纯表达式（pure expressions）的最小常量求值器（v0）。
+//! const/comptime 的表达式求值器（v0）。
 //!
-//! 约束（T1202a）：
-//! - 只支持字面量（Int/Float/Bool/Unit/String）与一元/二元运算；
-//! - 不支持函数调用、控制流、effects、循环；
+//! 约束：
+//! - 直接建模的叶子能力仍以字面量、一元/二元运算、aggregate 与若干内建 const path 为主；
+//! - block/`if`/assignment 这类需要局部作用域或控制流传播的节点，通过 `ConstEvalHost`
+//!   回调到解释器执行；
+//! - `when`、effects、`handle/perform`、lambda 等复杂语义仍保持不支持；
 //! - 遇到不支持的语法节点必须返回结构化诊断（而非 panic）。
+
+use std::ops::ControlFlow;
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -271,6 +275,15 @@ pub enum ConstEvalError {
 /// 常量求值时用于“外部交互”的宿主接口：
 /// - 解释器可通过它解析局部/全局名字；
 /// - 并把 `f(...)` 的调用委托给宿主（用于 `const fun`）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum EvalControl {
+    Return(ConstValue),
+    Break,
+    Continue,
+}
+
+pub(crate) type ConstExprFlow = ControlFlow<EvalControl, ConstValue>;
+
 pub(crate) trait ConstEvalHost {
     fn resolve_ident(&mut self, name: &str) -> Option<ConstValue>;
     fn call_fun(
@@ -280,6 +293,31 @@ pub(crate) trait ConstEvalHost {
         type_args: Vec<ast::TypeRef>,
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError>;
+
+    fn eval_block_expr(
+        &mut self,
+        _ctx: ConstEvalCtx<'_>,
+        expr_span: crate::span::Span,
+        _block: &ast::Block,
+    ) -> Result<ConstExprFlow, ConstEvalError> {
+        Err(ConstEvalError::UnsupportedExpr {
+            kind: "block expression",
+            span: expr_span.into(),
+        })
+    }
+
+    fn assign_expr(
+        &mut self,
+        _ctx: ConstEvalCtx<'_>,
+        expr_span: crate::span::Span,
+        _lhs: &ast::Expr,
+        _rhs: ConstValue,
+    ) -> Result<ConstExprFlow, ConstEvalError> {
+        Err(ConstEvalError::UnsupportedExpr {
+            kind: "assignment",
+            span: expr_span.into(),
+        })
+    }
 }
 
 struct NoHost;
@@ -303,6 +341,18 @@ impl ConstEvalHost for NoHost {
     }
 }
 
+fn unexpected_control_flow_error(span: crate::span::Span, control: EvalControl) -> ConstEvalError {
+    let kind = match control {
+        EvalControl::Return(_) => "return expression",
+        EvalControl::Break => "break expression",
+        EvalControl::Continue => "continue expression",
+    };
+    ConstEvalError::UnsupportedExpr {
+        kind,
+        span: span.into(),
+    }
+}
+
 /// 对 AST 表达式做最小常量求值（T1202a/T1202b）。
 ///
 /// 说明：该函数不支持 `const fun` 调用；调用/局部变量由解释器（T1202c）通过
@@ -315,11 +365,31 @@ pub fn eval_const_expr(
     eval_const_expr_with_host(ctx, &mut host, expr)
 }
 
+macro_rules! eval_value {
+    ($ctx:expr, $host:expr, $expr:expr) => {
+        match eval_const_expr_flow_with_host($ctx, $host, $expr)? {
+            ControlFlow::Continue(v) => v,
+            ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+        }
+    };
+}
+
 pub(crate) fn eval_const_expr_with_host(
     ctx: ConstEvalCtx<'_>,
     host: &mut impl ConstEvalHost,
     expr: &ast::Expr,
 ) -> Result<ConstValue, ConstEvalError> {
+    match eval_const_expr_flow_with_host(ctx, host, expr)? {
+        ControlFlow::Continue(v) => Ok(v),
+        ControlFlow::Break(control) => Err(unexpected_control_flow_error(expr.span, control)),
+    }
+}
+
+pub(crate) fn eval_const_expr_flow_with_host(
+    ctx: ConstEvalCtx<'_>,
+    host: &mut impl ConstEvalHost,
+    expr: &ast::Expr,
+) -> Result<ConstExprFlow, ConstEvalError> {
     match &expr.kind {
         ast::ExprKind::Missing => Err(ConstEvalError::UnsupportedExpr {
             kind: "missing",
@@ -328,7 +398,10 @@ pub(crate) fn eval_const_expr_with_host(
         ast::ExprKind::IntLit => {
             let text = ctx.source.slice(expr.span);
             let raw = parse_int_literal(text);
-            Ok(ConstValue::Int(ConstInt::new(ctx.default_int_ty, raw)))
+            Ok(ControlFlow::Continue(ConstValue::Int(ConstInt::new(
+                ctx.default_int_ty,
+                raw,
+            ))))
         }
         ast::ExprKind::FloatLit => {
             let text = ctx.source.slice(expr.span);
@@ -337,7 +410,7 @@ pub(crate) fn eval_const_expr_with_host(
                 FloatLiteralSuffix::Float64 => ConstFloat::from_f64(parsed.value),
                 FloatLiteralSuffix::Float32 => ConstFloat::from_f32(parsed.value as f32),
             };
-            Ok(ConstValue::Float(value))
+            Ok(ControlFlow::Continue(ConstValue::Float(value)))
         }
         ast::ExprKind::CharLit => {
             let text = ctx.source.slice(expr.span);
@@ -346,7 +419,7 @@ pub(crate) fn eval_const_expr_with_host(
                     kind: "char literal",
                     span: expr.span.into(),
                 })?;
-            Ok(ConstValue::Char(value))
+            Ok(ControlFlow::Continue(ConstValue::Char(value)))
         }
         ast::ExprKind::StringLit => {
             let text = ctx.source.slice(expr.span);
@@ -367,18 +440,18 @@ pub(crate) fn eval_const_expr_with_host(
                 String::from_utf8(bytes).map_err(|_e| ConstEvalError::InvalidStringLiteral {
                     span: expr.span.into(),
                 })?;
-            Ok(ConstValue::String(s))
+            Ok(ControlFlow::Continue(ConstValue::String(s)))
         }
-        ast::ExprKind::UnitLit => Ok(ConstValue::Unit),
+        ast::ExprKind::UnitLit => Ok(ControlFlow::Continue(ConstValue::Unit)),
 
         // `true/false` 当前阶段仍用 Ident 承载（见 typecheck::infer_value_ident_type）。
         ast::ExprKind::Ident(id) => {
             let name = ctx.source.slice(id.span);
             match name {
-                "true" => Ok(ConstValue::Bool(true)),
-                "false" => Ok(ConstValue::Bool(false)),
+                "true" => Ok(ControlFlow::Continue(ConstValue::Bool(true))),
+                "false" => Ok(ControlFlow::Continue(ConstValue::Bool(false))),
                 other => match host.resolve_ident(other) {
-                    Some(v) => Ok(v),
+                    Some(v) => Ok(ControlFlow::Continue(v)),
                     None => Err(ConstEvalError::UnknownIdent {
                         name: name.to_string(),
                         span: id.span.into(),
@@ -390,8 +463,8 @@ pub(crate) fn eval_const_expr_with_host(
         ast::ExprKind::Unary {
             op, expr: inner, ..
         } => {
-            let v = eval_const_expr_with_host(ctx, host, inner)?;
-            eval_unary(expr.span, *op, v)
+            let v = eval_value!(ctx, host, inner);
+            Ok(ControlFlow::Continue(eval_unary(expr.span, *op, v)?))
         }
         ast::ExprKind::Binary { lhs, op, rhs, .. } => {
             eval_binary(ctx, host, expr.span, *op, lhs, rhs)
@@ -401,9 +474,9 @@ pub(crate) fn eval_const_expr_with_host(
         ast::ExprKind::TupleLit { elements } => {
             let mut out: Vec<ConstValue> = Vec::with_capacity(elements.len());
             for e in elements {
-                out.push(eval_const_expr_with_host(ctx, host, e)?);
+                out.push(eval_value!(ctx, host, e));
             }
-            Ok(ConstValue::Tuple(out))
+            Ok(ControlFlow::Continue(ConstValue::Tuple(out)))
         }
         ast::ExprKind::ArrayLit { elements } => {
             // v0：编译期执行侧先把 array literal 视为“可迭代的常量序列”。
@@ -411,22 +484,16 @@ pub(crate) fn eval_const_expr_with_host(
             // 主要用于 `comptime for` 的迭代对象（T1207）。
             let mut out: Vec<ConstValue> = Vec::with_capacity(elements.len());
             for e in elements {
-                out.push(eval_const_expr_with_host(ctx, host, e)?);
+                out.push(eval_value!(ctx, host, e));
             }
-            Ok(ConstValue::Tuple(out))
+            Ok(ControlFlow::Continue(ConstValue::Tuple(out)))
         }
         ast::ExprKind::InterpolatedString { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "interpolated string",
             span: expr.span.into(),
         }),
-        ast::ExprKind::Block(_) => Err(ConstEvalError::UnsupportedExpr {
-            kind: "block expression",
-            span: expr.span.into(),
-        }),
-        ast::ExprKind::DoBlock { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "do block expression",
-            span: expr.span.into(),
-        }),
+        ast::ExprKind::Block(body) => host.eval_block_expr(ctx, expr.span, body),
+        ast::ExprKind::DoBlock { body, .. } => host.eval_block_expr(ctx, expr.span, body),
         ast::ExprKind::UnsafeBlock { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "@Unsafe block",
             span: expr.span.into(),
@@ -452,12 +519,29 @@ pub(crate) fn eval_const_expr_with_host(
                     span: expr.span.into(),
                 });
             };
-            Ok(ConstValue::String(name))
+            Ok(ControlFlow::Continue(ConstValue::String(name)))
         }
-        ast::ExprKind::If { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "if expression",
-            span: expr.span.into(),
-        }),
+        ast::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            let cond_v = eval_value!(ctx, host, cond);
+            let ConstValue::Bool(cond_b) = cond_v else {
+                return Err(ConstEvalError::OperandTypeMismatch {
+                    expected: "Bool",
+                    found: value_kind(&cond_v),
+                    span: cond.span.into(),
+                });
+            };
+            if cond_b {
+                eval_const_expr_flow_with_host(ctx, host, then_branch)
+            } else if let Some(else_branch) = else_branch {
+                eval_const_expr_flow_with_host(ctx, host, else_branch)
+            } else {
+                Ok(ControlFlow::Continue(ConstValue::Unit))
+            }
+        }
         ast::ExprKind::When { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "when expression",
             span: expr.span.into(),
@@ -475,13 +559,13 @@ pub(crate) fn eval_const_expr_with_host(
             let mut out_fields = std::collections::BTreeMap::<String, ConstValue>::new();
             for f in fields {
                 let name = f.name.text(ctx.source).to_string();
-                let value = eval_const_expr_with_host(ctx, host, &f.value)?;
+                let value = eval_value!(ctx, host, &f.value);
                 out_fields.insert(name, value);
             }
-            Ok(ConstValue::Struct(ConstStruct {
+            Ok(ControlFlow::Continue(ConstValue::Struct(ConstStruct {
                 ty: ty_name,
                 fields: out_fields,
-            }))
+            })))
         }
 
         ast::ExprKind::MemberAccess { receiver, member } => {
@@ -495,15 +579,17 @@ pub(crate) fn eval_const_expr_with_host(
             // 额外约束：
             // - 若路径首段能被 host 解析为一个运行期值，则优先把它当作普通 member access（避免误判）。
             if let Some((ty, variant)) = try_parse_enum_unit_variant_path(ctx.source, host, expr) {
-                return Ok(ConstValue::Enum(ConstEnum {
+                return Ok(ControlFlow::Continue(ConstValue::Enum(ConstEnum {
                     ty: Some(ty),
                     variant,
                     payload: Vec::new(),
-                }));
+                })));
             }
 
-            let recv = eval_const_expr_with_host(ctx, host, receiver)?;
-            eval_member_access(ctx, recv, member, expr.span)
+            let recv = eval_value!(ctx, host, receiver);
+            Ok(ControlFlow::Continue(eval_member_access(
+                ctx, recv, member, expr.span,
+            )?))
         }
 
         ast::ExprKind::SpliceField { receiver, field } => {
@@ -512,8 +598,8 @@ pub(crate) fn eval_const_expr_with_host(
             // v0：先允许 field 为以下两类编译期值：
             // - `String`：字段名
             // - `Struct` 且包含 `name: String`：为后续 FieldMeta 兼容预留
-            let recv = eval_const_expr_with_host(ctx, host, receiver)?;
-            let field_v = eval_const_expr_with_host(ctx, host, field)?;
+            let recv = eval_value!(ctx, host, receiver);
+            let field_v = eval_value!(ctx, host, field);
 
             let field_name: String = match &field_v {
                 ConstValue::String(s) => s.clone(),
@@ -537,12 +623,15 @@ pub(crate) fn eval_const_expr_with_host(
             };
 
             match recv {
-                ConstValue::Struct(s) => s.fields.get(&field_name).cloned().ok_or_else(|| {
-                    ConstEvalError::UnknownMember {
-                        name: field_name,
-                        span: field.span.into(),
-                    }
-                }),
+                ConstValue::Struct(s) => {
+                    let value = s.fields.get(&field_name).cloned().ok_or_else(|| {
+                        ConstEvalError::UnknownMember {
+                            name: field_name,
+                            span: field.span.into(),
+                        }
+                    })?;
+                    Ok(ControlFlow::Continue(value))
+                }
                 _ => Err(ConstEvalError::UnsupportedExpr {
                     kind: "splice field access（receiver 必须为 struct 常量）",
                     span: expr.span.into(),
@@ -555,7 +644,7 @@ pub(crate) fn eval_const_expr_with_host(
             // 当 receiver 为编译期常量（ConstValue::String）时，在编译期执行并折叠。
             if let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind {
                 let member_name = member_simple_name(ctx.source, member);
-                if let Some(result) = try_eval_string_method_intrinsic(
+                match try_eval_string_method_intrinsic(
                     ctx,
                     host,
                     expr.span,
@@ -563,9 +652,13 @@ pub(crate) fn eval_const_expr_with_host(
                     member_name,
                     args,
                 )? {
-                    return Ok(result);
+                    ControlFlow::Continue(Some(result)) => {
+                        return Ok(ControlFlow::Continue(result));
+                    }
+                    ControlFlow::Continue(None) => {}
+                    ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
                 }
-                if let Some(result) = try_eval_float_method_intrinsic(
+                match try_eval_float_method_intrinsic(
                     ctx,
                     host,
                     expr.span,
@@ -573,9 +666,13 @@ pub(crate) fn eval_const_expr_with_host(
                     member_name,
                     args,
                 )? {
-                    return Ok(result);
+                    ControlFlow::Continue(Some(result)) => {
+                        return Ok(ControlFlow::Continue(result));
+                    }
+                    ControlFlow::Continue(None) => {}
+                    ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
                 }
-                if let Some(result) = try_eval_char_method_intrinsic(
+                match try_eval_char_method_intrinsic(
                     ctx,
                     host,
                     expr.span,
@@ -583,7 +680,11 @@ pub(crate) fn eval_const_expr_with_host(
                     member_name,
                     args,
                 )? {
-                    return Ok(result);
+                    ControlFlow::Continue(Some(result)) => {
+                        return Ok(ControlFlow::Continue(result));
+                    }
+                    ControlFlow::Continue(None) => {}
+                    ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
                 }
             }
 
@@ -603,9 +704,14 @@ pub(crate) fn eval_const_expr_with_host(
 
                 let mut argv: Vec<ConstValue> = Vec::with_capacity(args.len());
                 for a in args {
-                    argv.push(eval_const_expr_with_host(ctx, host, a)?);
+                    argv.push(eval_value!(ctx, host, a));
                 }
-                return host.call_fun(expr.span, name, type_args.clone(), argv);
+                return Ok(ControlFlow::Continue(host.call_fun(
+                    expr.span,
+                    name,
+                    type_args.clone(),
+                    argv,
+                )?));
             }
 
             // enum ctor（T1202b）：`Opt.Some(1)` / `Some(1)`
@@ -618,9 +724,14 @@ pub(crate) fn eval_const_expr_with_host(
                 if !looks_like_type_name(name) {
                     let mut argv: Vec<ConstValue> = Vec::with_capacity(args.len());
                     for a in args {
-                        argv.push(eval_const_expr_with_host(ctx, host, a)?);
+                        argv.push(eval_value!(ctx, host, a));
                     }
-                    return host.call_fun(expr.span, name, Vec::new(), argv);
+                    return Ok(ControlFlow::Continue(host.call_fun(
+                        expr.span,
+                        name,
+                        Vec::new(),
+                        argv,
+                    )?));
                 }
             }
 
@@ -634,10 +745,10 @@ pub(crate) fn eval_const_expr_with_host(
             kind: "not-null assert (!!)",
             span: expr.span.into(),
         }),
-        ast::ExprKind::Assign { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "assignment",
-            span: expr.span.into(),
-        }),
+        ast::ExprKind::Assign { lhs, rhs, .. } => {
+            let rhs_value = eval_value!(ctx, host, rhs);
+            host.assign_expr(ctx, expr.span, lhs, rhs_value)
+        }
         ast::ExprKind::TypeCheck { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "type check (is/!is)",
             span: expr.span.into(),
@@ -668,7 +779,7 @@ fn try_eval_string_method_intrinsic(
     receiver_expr: &ast::Expr,
     method_name: &str,
     args: &[ast::Expr],
-) -> Result<Option<ConstValue>, ConstEvalError> {
+) -> Result<ControlFlow<EvalControl, Option<ConstValue>>, ConstEvalError> {
     // 已知的 String 方法名集合——若不匹配则提前返回 None（不影响其它路径）。
     let is_known_string_method = matches!(
         method_name,
@@ -695,13 +806,16 @@ fn try_eval_string_method_intrinsic(
             | "hash"
     );
     if !is_known_string_method {
-        return Ok(None);
+        return Ok(ControlFlow::Continue(None));
     }
 
     // 求值 receiver：若非 String 则不处理。
-    let recv = eval_const_expr_with_host(ctx, host, receiver_expr)?;
+    let recv = match eval_const_expr_flow_with_host(ctx, host, receiver_expr)? {
+        ControlFlow::Continue(v) => v,
+        ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+    };
     let ConstValue::String(s) = recv else {
-        return Ok(None);
+        return Ok(ControlFlow::Continue(None));
     };
 
     let int_ty = ctx.default_int_ty;
@@ -710,7 +824,11 @@ fn try_eval_string_method_intrinsic(
     // 求值参数。
     let mut argv: Vec<ConstValue> = Vec::with_capacity(args.len());
     for a in args {
-        argv.push(eval_const_expr_with_host(ctx, host, a)?);
+        let value = match eval_const_expr_flow_with_host(ctx, host, a)? {
+            ControlFlow::Continue(v) => v,
+            ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+        };
+        argv.push(value);
     }
 
     let check_arity = |expected: usize| -> Result<(), ConstEvalError> {
@@ -888,10 +1006,10 @@ fn try_eval_string_method_intrinsic(
             }
         }
 
-        _ => return Ok(None),
+        _ => return Ok(ControlFlow::Continue(None)),
     };
 
-    Ok(Some(result))
+    Ok(ControlFlow::Continue(Some(result)))
 }
 
 /// Float builtin 方法 intrinsics（T0148d-3）。
@@ -906,18 +1024,21 @@ fn try_eval_float_method_intrinsic(
     receiver_expr: &ast::Expr,
     method_name: &str,
     args: &[ast::Expr],
-) -> Result<Option<ConstValue>, ConstEvalError> {
+) -> Result<ControlFlow<EvalControl, Option<ConstValue>>, ConstEvalError> {
     let is_known_float_method = matches!(
         method_name,
         "toInt" | "toString" | "hash" | "abs" | "isNaN" | "isInfinite"
     );
     if !is_known_float_method {
-        return Ok(None);
+        return Ok(ControlFlow::Continue(None));
     }
 
-    let recv = eval_const_expr_with_host(ctx, host, receiver_expr)?;
+    let recv = match eval_const_expr_flow_with_host(ctx, host, receiver_expr)? {
+        ControlFlow::Continue(v) => v,
+        ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+    };
     let ConstValue::Float(value) = recv else {
-        return Ok(None);
+        return Ok(ControlFlow::Continue(None));
     };
 
     if !args.is_empty() {
@@ -950,7 +1071,7 @@ fn try_eval_float_method_intrinsic(
         _ => unreachable!("filtered by is_known_float_method"),
     };
 
-    Ok(Some(result))
+    Ok(ControlFlow::Continue(Some(result)))
 }
 
 /// Char 方法 intrinsics（T0146b）。
@@ -963,14 +1084,17 @@ fn try_eval_char_method_intrinsic(
     receiver_expr: &ast::Expr,
     method_name: &str,
     args: &[ast::Expr],
-) -> Result<Option<ConstValue>, ConstEvalError> {
+) -> Result<ControlFlow<EvalControl, Option<ConstValue>>, ConstEvalError> {
     if method_name != "toInt" {
-        return Ok(None);
+        return Ok(ControlFlow::Continue(None));
     }
 
-    let recv = eval_const_expr_with_host(ctx, host, receiver_expr)?;
+    let recv = match eval_const_expr_flow_with_host(ctx, host, receiver_expr)? {
+        ControlFlow::Continue(v) => v,
+        ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+    };
     let ConstValue::Char(ch) = recv else {
-        return Ok(None);
+        return Ok(ControlFlow::Continue(None));
     };
 
     if !args.is_empty() {
@@ -982,10 +1106,10 @@ fn try_eval_char_method_intrinsic(
         });
     }
 
-    Ok(Some(ConstValue::Int(ConstInt::new(
+    Ok(ControlFlow::Continue(Some(ConstValue::Int(ConstInt::new(
         ctx.default_int_ty,
         ch as u32 as u128,
-    ))))
+    )))))
 }
 
 fn format_const_float_to_runtime_text(value: ConstFloat) -> String {
@@ -1210,7 +1334,7 @@ fn eval_enum_ctor_call(
     call_span: crate::span::Span,
     callee: &ast::Expr,
     args: &[ast::Expr],
-) -> Result<ConstValue, ConstEvalError> {
+) -> Result<ConstExprFlow, ConstEvalError> {
     let (ty, variant) = match &callee.kind {
         // `Some(1)`：缺少 expected type 时无法静态消歧，先允许 ty 为空。
         ast::ExprKind::Ident(id) => {
@@ -1251,14 +1375,18 @@ fn eval_enum_ctor_call(
 
     let mut payload: Vec<ConstValue> = Vec::with_capacity(args.len());
     for a in args {
-        payload.push(eval_const_expr_with_host(ctx, host, a)?);
+        let value = match eval_const_expr_flow_with_host(ctx, host, a)? {
+            ControlFlow::Continue(v) => v,
+            ControlFlow::Break(signal) => return Ok(ControlFlow::Break(signal)),
+        };
+        payload.push(value);
     }
 
-    Ok(ConstValue::Enum(ConstEnum {
+    Ok(ControlFlow::Continue(ConstValue::Enum(ConstEnum {
         ty,
         variant,
         payload,
-    }))
+    })))
 }
 
 fn type_path_name(source: &SourceFile, ty: &ast::TypePath) -> String {
@@ -1551,10 +1679,10 @@ fn eval_binary(
     op: ast::BinaryOp,
     lhs: &ast::Expr,
     rhs: &ast::Expr,
-) -> Result<ConstValue, ConstEvalError> {
+) -> Result<ConstExprFlow, ConstEvalError> {
     match op {
         ast::BinaryOp::LogAnd => {
-            let l = eval_const_expr_with_host(ctx, host, lhs)?;
+            let l = eval_value!(ctx, host, lhs);
             let ConstValue::Bool(lb) = l else {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "Bool",
@@ -1563,9 +1691,9 @@ fn eval_binary(
                 });
             };
             if !lb {
-                return Ok(ConstValue::Bool(false));
+                return Ok(ControlFlow::Continue(ConstValue::Bool(false)));
             }
-            let r = eval_const_expr_with_host(ctx, host, rhs)?;
+            let r = eval_value!(ctx, host, rhs);
             let ConstValue::Bool(rb) = r else {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "Bool",
@@ -1573,10 +1701,10 @@ fn eval_binary(
                     span: span.into(),
                 });
             };
-            Ok(ConstValue::Bool(rb))
+            Ok(ControlFlow::Continue(ConstValue::Bool(rb)))
         }
         ast::BinaryOp::LogOr => {
-            let l = eval_const_expr_with_host(ctx, host, lhs)?;
+            let l = eval_value!(ctx, host, lhs);
             let ConstValue::Bool(lb) = l else {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "Bool",
@@ -1585,9 +1713,9 @@ fn eval_binary(
                 });
             };
             if lb {
-                return Ok(ConstValue::Bool(true));
+                return Ok(ControlFlow::Continue(ConstValue::Bool(true)));
             }
-            let r = eval_const_expr_with_host(ctx, host, rhs)?;
+            let r = eval_value!(ctx, host, rhs);
             let ConstValue::Bool(rb) = r else {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "Bool",
@@ -1595,12 +1723,14 @@ fn eval_binary(
                     span: span.into(),
                 });
             };
-            Ok(ConstValue::Bool(rb))
+            Ok(ControlFlow::Continue(ConstValue::Bool(rb)))
         }
         _ => {
-            let l = eval_const_expr_with_host(ctx, host, lhs)?;
-            let r = eval_const_expr_with_host(ctx, host, rhs)?;
-            eval_binary_eager(ctx.source, span, op, lhs, rhs, l, r)
+            let l = eval_value!(ctx, host, lhs);
+            let r = eval_value!(ctx, host, rhs);
+            Ok(ControlFlow::Continue(eval_binary_eager(
+                ctx.source, span, op, lhs, rhs, l, r,
+            )?))
         }
     }
 }

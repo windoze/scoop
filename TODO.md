@@ -1209,13 +1209,19 @@
   - 已验证 `cargo test -p scoopc const_eval_ -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/comptime`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4015a1
 
-### T4015b [TODO] 扩展纯 comptime evaluator / interpreter 到控制流、局部声明与循环等常见结构
+### T4015b [DONE] 扩展纯 comptime evaluator / interpreter 到控制流、局部声明与循环等常见结构
 - 范围：
   - 常量 evaluator / interpreter 从“字面量 + 一元/二元运算”扩展到更完整的纯计算子集，包括控制流、局部声明与循环等常见结构。
   - 继续保持纯计算前提，不把 effectful execution 偷偷放进 comptime；必要时通过明确 diagnostics 区分“纯但未支持”和“语义上不允许”。
   - 补充 regression，覆盖条件分支、局部绑定、循环与跨函数纯计算。
 - 验收：
   - `ISSUES.md` 第 12 条中“常量 evaluator 仍只覆盖很窄纯计算子集”的部分收窄或关闭。
+- 已完成：
+  - `crates/scoopc/src/comptime/eval.rs` 现已把普通 `if`、block/`do` 与 assignment 接回统一的表达式求值主线；需要局部作用域或控制流传播的节点通过 `ConstEvalHost` 回调到解释器执行，不再停留在“字面量 + 一元/二元运算”的最小旁路。
+  - `crates/scoopc/src/comptime/interpreter.rs` 现已支持局部 `val/var`、assignment、`while` / 普通 `for`、`break/continue`、block tail value 与分号抑制语义；局部绑定会携带 mutability 与 typecheck 推导出的绑定类型，保证 `Float32/Float64` 等需要目标类型收敛的路径继续稳定。
+  - 复验过程中顺手修复了一个既有问题：在当前递归实现深度下，默认 `recursion_limit = 64` 会先触发测试线程 stack overflow，再来得及返回 `scoop::comptime::recursion_limit_exceeded`；默认门限现已收紧到保守值 `48`，恢复稳定诊断。
+  - 已新增 Rust 单测与 fixture `tests/fixtures/comptime/const_fun_control_flow_locals_loops_basic.scoop` / `.comptime`，覆盖普通 `if`、`do`、局部 `val/var`、assignment、`while` / 普通 `for`、`break/continue`、嵌套在 call/binary 中的 `if` 表达式，以及 const val initializer 中的 block 表达式。
+  - 已验证 `cargo test -p scoopc const_eval_ -- --nocapture` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/comptime` 通过；全量 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 留待本任务收尾复验。
 - 依赖：T4015a2
 
 ### T4015c [TODO] 重新收口 `const fun` 的 effect-row / `eff` 参数 contract
