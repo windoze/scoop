@@ -485,7 +485,7 @@
   - `direct_step_analysis_context_for_handle(...)` 也已改为构造统一 `EffectAnalysisCtx + ProgramFacts` 输入形态，后续 `T5000c3` 可以继续直接迁移共享分析消费者，而不必再先清理 local metadata / source-path / synthetic symbol 的来源边界；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000c2R Review：确认 `EffectAnalysisCtx` 已脱离 LLVM backend 现场取数
+### [DONE] T5000c2R Review：确认 `EffectAnalysisCtx` 已脱离 LLVM backend 现场取数
 - 重点：
   - `EffectAnalysisCtx` 是否真的 backend-agnostic；
   - 是否还残留“必须通过 `MainCodegen` 才能做分析”的强耦合路径；
@@ -493,6 +493,12 @@
 - 验收：
   - 后续共享分析消费者迁移时，不再需要继续从 backend 主上下文回捞 analysis state。
 - 依赖：T5000c2
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/effect_analysis.rs`，确认 `EffectAnalysisCtx` / `KnownLocalMetadata` 只依赖 `hir`、`TypeId`、`ProgramFacts`、`PathBuf` 与标准库容器/内部可变性，不依赖 LLVM builder、module、GC ABI 或 runtime helper 类型，因此 analysis context 本体已形成 backend-agnostic 边界；
+  - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`，确认 `HandlePlanContext` 当前仅是 `EffectAnalysisCtx` 别名，`SuspendCallAnalysis`、`HandlePlanBuilder` 与 direct-step summary helper 都经共享 context 访问 known fun/local effects、known local metadata、synthetic symbol allocator、source-path / call-site 与 `ProgramFacts`，不再平铺保存或从 backend 现场回捞这些 analysis state；
+  - 已复核 `MainCodegen::effect_analysis_ctx()` 只承担 LLVM backend -> shared context 的单向投影；同时 `collect_effect_analysis_context_for_fun(...)` 已为 backend 外构造提供稳定入口，`state_machine_segments.rs` 与 `state_machine_transform.rs` 的测试 helper 现统一经该入口复用 analysis context，不再手工拼装平行上下文；
+  - review 未发现需要插入到 `T5000c3` 之前的新前置缺陷任务；`effect_step_summary.rs` 对 `state_machine_plan.rs` 的 `include!` 复用仍是已在 `T5000c3` 显式跟踪的下一步工作，但它当前已不需要通过 backend 主上下文回捞 analysis state；
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000c3 迁移 effect/state-machine planning 与 direct-step summary 到 shared facts / analysis 层
 - 范围：
