@@ -17,9 +17,9 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use super::{
-    BasicBlock, BasicBlockId, Body, ConstValue, File, FunDecl, HandlerArm, Item, LocalDecl,
-    LocalId, Operand, Param, Rvalue, Statement, StatementKind, Terminator, TerminatorKind,
-    UnwindAction,
+    BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, File, FunDecl, HandlerArm, Item,
+    LocalDecl, LocalId, Operand, Param, Rvalue, Statement, StatementKind, Terminator,
+    TerminatorKind, UnwindAction,
 };
 
 /// MIR lowering 错误（当前阶段仅包装 HIR lowering 错误）。
@@ -128,6 +128,11 @@ struct FnLowering<'a> {
     current_bb: BasicBlockId,
     next_temp: u32,
     symbol_locals: HashMap<hir::SymbolId, LocalId>,
+    /// 函数值 local 的最小 provenance。
+    ///
+    /// 当前阶段只跟踪“它是否稳定来自某个 closure fn_ptr”，用于把 local 传播后的调用
+    /// 继续保持为 `ClosureCall`；一旦出现多路径/多来源冲突，就保守退化为 `Unknown`。
+    callable_value_origins: HashMap<LocalId, CallableValueOrigin>,
     /// 当前函数内哪些 `SymbolId` 以 box 形式存储（用于 `var` 被 closure 捕获时的别名语义，T0714）。
     boxed_symbols: HashSet<hir::SymbolId>,
     loop_stack: Vec<LoopContext>,
@@ -139,6 +144,13 @@ struct FnLowering<'a> {
 struct LoopContext {
     break_target: BasicBlockId,
     continue_target: BasicBlockId,
+}
+
+/// 一个函数值 local 当前可观察到的 provenance。
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CallableValueOrigin {
+    Closure { fn_ptr: String },
+    Unknown,
 }
 
 /// 一个 closure 捕获的外部局部变量在 env tuple 中的布局信息（T0711）。
@@ -164,6 +176,7 @@ impl<'a> FnLowering<'a> {
             current_bb: BasicBlockId(0),
             next_temp: 0,
             symbol_locals: HashMap::new(),
+            callable_value_origins: HashMap::new(),
             boxed_symbols: HashSet::new(),
             loop_stack: Vec::new(),
             nested_funs: Vec::new(),
@@ -285,7 +298,74 @@ impl<'a> FnLowering<'a> {
 
     /// 生成 `target = value` 赋值语句。
     fn assign(&mut self, span: Span, target: LocalId, value: Rvalue) {
+        self.record_callable_value_origin(target, &value);
         self.push_stmt(span, StatementKind::Assign { target, value });
+    }
+
+    fn is_function_value_ty(&self, ty: TypeId) -> bool {
+        matches!(self.types.kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
+    }
+
+    fn callable_value_origin_from_operand(&self, operand: &Operand) -> Option<CallableValueOrigin> {
+        match operand {
+            Operand::Local(local) => self.callable_value_origins.get(local).cloned(),
+            Operand::Const(_) => None,
+        }
+    }
+
+    fn classify_callable_assignment(
+        &self,
+        target: LocalId,
+        value: &Rvalue,
+    ) -> Option<CallableValueOrigin> {
+        let target_ty = self.body.locals[target.as_u32() as usize].ty;
+        match value {
+            Rvalue::MakeClosure { fn_ptr, .. } => Some(CallableValueOrigin::Closure {
+                fn_ptr: fn_ptr.clone(),
+            }),
+            Rvalue::Use(operand) => {
+                self.callable_value_origin_from_operand(operand)
+                    .or_else(|| {
+                        self.is_function_value_ty(target_ty)
+                            .then_some(CallableValueOrigin::Unknown)
+                    })
+            }
+            _ => self
+                .is_function_value_ty(target_ty)
+                .then_some(CallableValueOrigin::Unknown),
+        }
+    }
+
+    fn merge_callable_value_origin(
+        current: Option<CallableValueOrigin>,
+        next: Option<CallableValueOrigin>,
+    ) -> Option<CallableValueOrigin> {
+        match (current, next) {
+            (None, None) => None,
+            (_, None) => None,
+            (None, Some(origin)) => Some(origin),
+            (
+                Some(CallableValueOrigin::Closure { fn_ptr: left }),
+                Some(CallableValueOrigin::Closure { fn_ptr: right }),
+            ) if left == right => Some(CallableValueOrigin::Closure { fn_ptr: left }),
+            (Some(_), Some(_)) => Some(CallableValueOrigin::Unknown),
+        }
+    }
+
+    fn record_callable_value_origin(&mut self, target: LocalId, value: &Rvalue) {
+        let next = self.classify_callable_assignment(target, value);
+        let merged = Self::merge_callable_value_origin(
+            self.callable_value_origins.get(&target).cloned(),
+            next,
+        );
+        match merged {
+            Some(origin) => {
+                self.callable_value_origins.insert(target, origin);
+            }
+            None => {
+                self.callable_value_origins.remove(&target);
+            }
+        }
     }
 
     /// 把一个 block 作为“语句块”来 lower（顺序执行；最后表达式结果被丢弃）。
@@ -569,8 +649,8 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::MemberAccess { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "member access lowering pending")
             }
-            hir::ExprKind::Call { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "call lowering pending")
+            hir::ExprKind::Call { callee, args } => {
+                self.lower_call_expr(expr.span, expr.ty, callee, args)
             }
             hir::ExprKind::Perform { op, args, .. } => {
                 self.lower_perform_expr(expr.span, expr.ty, op, args)
@@ -591,6 +671,104 @@ impl<'a> FnLowering<'a> {
         let tmp = self.push_temp_local(span, ty);
         self.assign(span, tmp, Rvalue::Todo(msg));
         tmp
+    }
+
+    fn lower_call_args(&mut self, args: &[hir::CallArg]) -> Option<Vec<CallArg>> {
+        let mut out = Vec::with_capacity(args.len());
+        for arg in args {
+            if self.current_is_terminated() {
+                return None;
+            }
+            match arg {
+                hir::CallArg::Positional(expr) => {
+                    let value = self.lower_expr_to_local(expr);
+                    if self.current_is_terminated() {
+                        return None;
+                    }
+                    out.push(CallArg {
+                        span: expr.span,
+                        name: None,
+                        value: Operand::Local(value),
+                    });
+                }
+                hir::CallArg::Named { name, value, .. } => {
+                    let operand_local = self.lower_expr_to_local(value);
+                    if self.current_is_terminated() {
+                        return None;
+                    }
+                    out.push(CallArg {
+                        span: value.span,
+                        name: Some(name.clone()),
+                        value: Operand::Local(operand_local),
+                    });
+                }
+            }
+        }
+        Some(out)
+    }
+
+    fn lower_call_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+
+        if matches!(callee.kind, hir::ExprKind::MemberAccess { .. }) {
+            self.assign(span, result, Rvalue::Todo("dispatch call lowering pending"));
+            return result;
+        }
+        if matches!(callee.kind, hir::ExprKind::UnresolvedIdent { .. }) {
+            self.assign(span, result, Rvalue::Todo("ctor call lowering pending"));
+            return result;
+        }
+
+        if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+            let Some(args) = self.lower_call_args(args) else {
+                return result;
+            };
+            self.assign(
+                span,
+                result,
+                Rvalue::Call {
+                    kind: CallKind::Direct {
+                        callee_fqn: fqn.clone(),
+                    },
+                    args,
+                },
+            );
+            return result;
+        }
+
+        let callee_local = self.lower_expr_to_local(callee);
+        if self.current_is_terminated() {
+            return result;
+        }
+        let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
+        let callee_origin = self.callable_value_origins.get(&callee_local).cloned();
+        if !self.is_function_value_ty(callee_ty) && callee_origin.is_none() {
+            self.assign(span, result, Rvalue::Todo("call callee lowering pending"));
+            return result;
+        }
+
+        let Some(args) = self.lower_call_args(args) else {
+            return result;
+        };
+
+        let kind = match callee_origin.as_ref() {
+            Some(CallableValueOrigin::Closure { fn_ptr }) => CallKind::Closure {
+                callee: Operand::Local(callee_local),
+                fn_ptr: fn_ptr.clone(),
+            },
+            Some(CallableValueOrigin::Unknown) | None => CallKind::FunValue {
+                callee: Operand::Local(callee_local),
+            },
+        };
+
+        self.assign(span, result, Rvalue::Call { kind, args });
+        result
     }
 
     fn capture_box_ty(&mut self, inner: TypeId) -> TypeId {

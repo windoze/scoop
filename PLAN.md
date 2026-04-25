@@ -552,6 +552,30 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template`。
+- 2026-04-26：`T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template` 已判定为单轮过大任务，现拆成 `T5000d1`～`T5000d3` 三个实现子任务与对应 review。
+  - 拆分依据：
+    - 当前 `crates/scoopc/src/mir/mod.rs` 已有 CFG / locals / 最小 `Perform` / `Handle` 占位，但普通 `Call` 尚无显式 MIR 节点；
+    - `crates/scoopc/src/mir/lower.rs` 对普通 `Call` 仍统一落成 `Todo("call lowering pending")`；
+    - `VirtualCall / InterfaceCall / Resume` 与 `Perform` metadata / provenance 收口属于不同语义层次，强行单轮完成会混杂“表示层扩展”和“动态分派 / control-transfer 细化”两类改动。
+  - 拆分顺序：
+    - `T5000d1`：先为 MIR 引入显式普通调用节点，落地 `DirectCall / ClosureCall / FunValueCall`；
+    - `T5000d2`：再补 `VirtualCall / InterfaceCall / Resume` 与最小 receiver / dispatch metadata；
+    - `T5000d3`：最后收口 `Perform` / provenance / canonicalization 入口，为后续 `when` / pattern lowering 与 operator-overload target materialization 提供正规化 MIR 形状。
+  - 下一条待执行任务切换为 `T5000d1 为 MIR 引入显式普通调用节点，并落地 DirectCall / ClosureCall / FunValueCall`。
+- 2026-04-26：`T5000d1 为 MIR 引入显式普通调用节点，并落地 DirectCall / ClosureCall / FunValueCall` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/mir/mod.rs` 新增 `CallArg`、`CallKind::{Direct, Closure, FunValue}` 与 `Rvalue::Call`，普通调用现已是 MIR 一等节点；
+    - `crates/scoopc/src/mir/lower.rs` 现已把顶层静态调用 lowering 为 `DirectCall`，把已知 closure value 调用 lowering 为 `ClosureCall`，其余函数值调用 lowering 为 `FunValueCall`，并统一按求值顺序先 materialize 实参 operand/local；
+    - 新增 `tests/fixtures/mir/direct_and_fun_value_call.{scoop,mir}`，同时更新现有 closure MIR fixtures，确认 direct / closure / fun-value 三类调用均能在 dump 路径中稳定出现。
+  - 过程中优先修复的既有阻塞点：
+    - `crates/scoopc/src/hir/lower/expr.rs` 中 `ExpectedExpr` 的旧“非数组字面量直接早退”会吞掉 callable value 所需的 `value_ty` hint，导致顶层函数值作为调用实参时无法在 dump 路径合成为 closure；现已补上一般 `value_ty` 透传与 expected-type fallback；
+    - `crates/scoopc/src/mir/lower.rs` 中 callable provenance 之前隐式依赖中间 local 先有函数类型，导致 `MakeClosure -> Any temp -> typed local` 的 dump 路径会丢失 closure provenance；现已改为对已知 closure 来源独立保留并跨 local 传播。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000d1R Review：确认普通调用主线已从 HIR 语法形状收口为显式 MIR call kind`。
 
 ## 1. 当前判断
 

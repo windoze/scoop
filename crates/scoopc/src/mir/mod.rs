@@ -277,6 +277,35 @@ pub enum Operand {
     Const(ConstValue),
 }
 
+/// 调用实参在 MIR 中的最小表示。
+///
+/// 说明：
+/// - `value` 总是已经先被 lowering 为 operand / local，便于后续按 ANF 风格分析求值顺序；
+/// - `name` 仅在源级为命名参数时存在；当前阶段保留它，避免后续 pass 被迫回到 HIR 读取调用形状。
+#[derive(Debug, Clone)]
+pub struct CallArg {
+    pub span: Span,
+    pub name: Option<String>,
+    pub value: Operand,
+}
+
+/// MIR 上显式区分的普通调用种类（当前阶段先覆盖 direct / closure / fun-value）。
+///
+/// 注意：
+/// - 这里刻意只表达语言级调用形态，不表达 LLVM vtable/itable/statepoint 等后端细节；
+/// - `VirtualCall` / `InterfaceCall` / `Resume` 会在后续 `T5000d2+` 继续接入。
+#[derive(Debug, Clone)]
+pub enum CallKind {
+    /// 目标函数在 MIR 上已经静态唯一确定。
+    Direct { callee_fqn: String },
+    /// 已知调用的是某个 closure value。
+    ///
+    /// `fn_ptr` 记录该 closure 当前可恢复出的唯一 invoke target，便于后续 closure/provenance 分析。
+    Closure { callee: Operand, fn_ptr: String },
+    /// 调用一个函数值，但当前还不足以把它恢复成更具体的 direct/closure 形态。
+    FunValue { callee: Operand },
+}
+
 /// 常量值（当前阶段不保留字面量原始内容，仅保留种类）。
 #[derive(Debug, Clone)]
 pub enum ConstValue {
@@ -293,6 +322,14 @@ pub enum ConstValue {
 #[derive(Debug, Clone)]
 pub enum Rvalue {
     Use(Operand),
+    /// 一个显式普通调用节点。
+    ///
+    /// 当前阶段只先承载 direct / closure / fun-value 三类普通调用；
+    /// 更晚接入的 `VirtualCall` / `InterfaceCall` / `Resume` 会复用同一调用层级，而不是再造平行表示。
+    Call {
+        kind: CallKind,
+        args: Vec<CallArg>,
+    },
     /// 创建一个 tuple 值（最小 aggregate，用于 env struct 等场景）。
     MakeTuple {
         elements: Vec<Operand>,

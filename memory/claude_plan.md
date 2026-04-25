@@ -1,57 +1,75 @@
-## 当前执行计划（可验证摘要）
+## 执行摘要
 
-说明：按要求先记录执行计划与决策摘要；这里保存的是可验证的步骤、假设与变更记录，不包含逐字内部推理。
+用户要求先处理最新提交中提到的遗留问题，再执行 `TODO.md` 中第一个未完成任务，并且整个过程中持续更新本文件。
 
-### 初始目标
+出于安全约束，这里不记录逐字内部思考；改为记录可审阅的高层判断、执行步骤、发现的问题、决策依据与进度。
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行前或执行中发现更早应修复的既有问题，则先修复该问题，或者把它整理为新的前置任务插入 `TODO.md`，更新 `PLAN.md` 后停止。
+## 初始计划
 
-### 执行步骤
+1. 检查最新一次 Git 提交，确认是否明确提到已有问题、回归、规避方案或未完成边界。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 如该任务过大，先把它拆分为更小的可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+4. 对当前要执行的首个任务进行实现。
+5. 运行与该任务直接相关的测试；如果发现任何既有缺陷、回归或规范不匹配，优先修复，或将其作为前置任务插入 `TODO.md` 并停止。
+6. 在完成后更新 `TODO.md`、`PLAN.md` 与本文件，记录结果和后续状态。
+7. 提交本次变更，提交信息应清晰描述完成的任务。
 
-1. 检查最新一次 git 提交，确认提交说明里是否提到已知问题、待补修项或回归；若有，优先处理。
-2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务，以及是否需要拆分为更小子任务。
-3. 审查相关代码、测试与规范上下文，确认任务边界，并识别任何阻塞当前任务的既有缺陷或规格不匹配。
-4. 若任务可直接完成：
-   - 实现代码；
-   - 添加或更新测试；
-   - 运行相关验证，至少覆盖受影响范围，并尽量满足 `cargo clippy --all-targets -- -D warnings` 与相关测试要求。
-5. 若任务不可直接完成：
-   - 在 `TODO.md` 中插入前置修复任务并调整顺序；
-   - 在 `PLAN.md` 中记录阻塞原因与依赖关系；
-   - 提交变更后停止。
-6. 完成任务后：
-   - 更新 `TODO.md` 勾选状态；
-   - 更新 `PLAN.md` 当前状态；
-   - 在本文件补充结果摘要与验证记录；
-   - 提交 git，随后停止，不继续做下一项任务。
+## 进度记录
 
-### 记录规则
+- 已创建计划文件，等待检查最新提交与任务列表。
+- 已检查最新提交 `e991a8c653f81bb5cc1e89739a0a7bae4b850b2a`（`[T5000cR] Review shared facts backend boundary`）。
+  - 提交中提到的既有问题是一个文档错配，且已在该提交内修复；
+  - 未发现“提交明确提到但尚未修复”的前置缺陷，因此可继续读取 `TODO.md`。
+- 已确认 `TODO.md` 中首个未完成任务是 `T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template`。
+- 已判断 `T5000d` 单轮过大，需要先拆分。
+  - 依据：
+    - 当前 `crates/scoopc/src/mir/mod.rs` 只有 CFG / locals / 最小 `Perform` / `Handle` 占位；
+    - `crates/scoopc/src/mir/lower.rs` 对普通 `Call` 仍统一产出 `Todo("call lowering pending")`；
+    - `T5000d` 同时要求显式 `DirectCall / VirtualCall / InterfaceCall / ClosureCall / FunValueCall`，以及显式 `Perform` / `Resume` 与更稳定的 provenance / dispatch metadata，单次完成风险过高。
 
-- 每当发现关键阻塞、调整计划、完成实现、完成测试或准备提交时，更新本文件。
-- 不通过规避缺陷的方式推进任务；遇到规格缺口时，先修复或先建前置任务。
+## 拆分判断
 
-### 进度更新（2026-04-26）
+计划把 `T5000d` 拆成按语义边界递进的子任务，并保持每个子任务后跟一个 review：
 
-- 已检查最新提交 `95504b115175e836c7d41856b9a37e2de2ecd9f3`，提交说明为 `[T5000c3R] Review shared analysis consumer boundary`，未在提交说明中看到需要优先修复的额外既有问题。
-- 已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务为 `T5000cR Review：确认共享事实层已经脱离 LLVM backend 依赖方向`。
-- 本轮接下来将围绕 `ProgramFacts`、`EffectAnalysisCtx`、`ExprFactResolver`、`effect_state_machine_analysis.rs` 与相关 LLVM 接缝做总复核；若发现 shared 层仍持有 backend 依赖或只能通过 `MainCodegen` 才能工作的路径，将先修复该问题或把它登记为新的前置任务。
-- 审查过程中发现一个已存在的文档错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释仍写“下一步 T5000c”；该注释已更新为反映 `T5000c` 已完成 shared facts 抽离、后续转向 `T5000d+` 的真实状态。
+1. 先落地普通调用主线的最小 ANF 形状：
+   - 显式 `DirectCall / ClosureCall / FunValueCall`；
+   - 打通 callable value provenance 的最小基线；
+   - 让 MIR 不再把这三类调用统一写成 `Todo(...)`。
+2. 再处理分派与 control-transfer 特有调用：
+   - `VirtualCall / InterfaceCall`；
+   - `Continuation.resume` 等显式 `Resume` 语义；
+   - 必要的 receiver / dispatch metadata。
+3. 最后收口 `Perform` / `Resume` 与更稳定的 control-flow / provenance 入口，
+   为后续 `when` / pattern lowering、operator-overload target materialization 等提供正规化承载点。
 
-### 本轮结果（2026-04-26）
+## 当前执行项
 
-- `T5000cR` 已完成并已在 `TODO.md` / `PLAN.md` 记录：
-  - `ProgramFacts`、`EffectAnalysisCtx`、`ExprFactResolver` 本身不依赖 LLVM backend 类型；
-  - `effect_state_machine_analysis.rs` 中剩余 `MainCodegen` 相关逻辑只存在于 `#[cfg(feature = "llvm")]` 的薄包装接缝；
-  - shared planning / direct-step summary 的入口可以在不构造 LLVM backend 上下文的前提下独立运行；
-  - backend 侧改为统一消费 `Rc<ProgramFacts>` 与 shared resolver，而不是现场拼装平行分析 side table。
-- 本轮顺手修复的既有问题：
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释的任务状态描述过期，已更新。
-- 验证已完成并通过：
-  - `cargo fmt --all --check`
-  - `cargo check -p scoopc --lib`
-  - `cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`
-  - `cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`
-  - `cargo test -p scoopc --no-default-features`
+准备执行拆分后的第一个子任务：
+
+- 目标：
+  - 为 MIR 引入显式普通调用节点；
+  - 实现 `DirectCall / ClosureCall / FunValueCall` 的 lowering；
+  - 保持 MIR 仍然 backend-agnostic，不混入 LLVM 细节。
+- 预期改动：
+  - `crates/scoopc/src/mir/mod.rs`
+  - `crates/scoopc/src/mir/lower.rs`
+  - `TODO.md`
+  - `PLAN.md`
+  - `tests/fixtures/mir/*`（新增或更新与调用形态相关的 fixture）
+
+## 本轮结果
+
+- `T5000d1` 已完成，并已把 `TODO.md` / `PLAN.md` 标记到位。
+- 已完成的代码改动：
+  - 在 `crates/scoopc/src/mir/mod.rs` 中新增 MIR 普通调用节点：`CallArg`、`CallKind::{Direct, Closure, FunValue}`、`Rvalue::Call`；
+  - 在 `crates/scoopc/src/mir/lower.rs` 中实现 `DirectCall / ClosureCall / FunValueCall` lowering，并加入最小 callable provenance 跟踪；
+  - 在 `crates/scoopc/src/hir/lower/expr.rs` 中修复 dump 路径的既有阻塞点：调用实参 expected-type 旧早退会丢掉 `value_ty`，导致顶层函数值作为实参时不能合成为 closure；现已补上一般 `value_ty` 透传与 top-level function value fallback。
+- 已新增/更新回归：
+  - 新增 `tests/fixtures/mir/direct_and_fun_value_call.{scoop,mir}`；
+  - 更新 `tests/fixtures/mir/closure_non_capture.mir`、`tests/fixtures/mir/closure_capture_val.mir`、`tests/fixtures/mir/closure_capture_var.mir`。
+- 验证已完成：
+  - `cargo fmt --all`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 下一条待执行任务已切换为 `T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template`；本轮按要求在提交后停止。
+- 下一条待执行任务应为：
+  - `T5000d1R Review：确认普通调用主线已从 HIR 语法形状收口为显式 MIR call kind`

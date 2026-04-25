@@ -597,19 +597,79 @@
   - review 结论：共享事实层已经脱离 LLVM backend 依赖方向，后续 `T5000d` 可以在不依赖 LLVM builder / module / GC ABI 细节的前提下推进 generic early MIR / ANF template；当前未发现需要插入到 `T5000d` 之前的新前置缺陷任务。
   - 已验证 `cargo fmt --all --check`、`cargo check -p scoopc --lib`、`cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`、`cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template
+### T5000d 扩展现有 MIR，形成最小 generic early MIR / ANF template
+- 说明：
+  - 经核对，当前 `crates/scoopc/src/mir/mod.rs` 虽已具备 CFG / locals / 最小 `Perform` / `Handle` 占位，但 `crates/scoopc/src/mir/lower.rs` 对普通 `Call` 仍统一产出 `Todo("call lowering pending")`，`Perform` 也尚未承载稳定的 payload / dispatch metadata，而 `Continuation.resume` / member dispatch 仍未在 MIR 上显式出现。
+  - 原任务单轮过大，现按“普通调用主线 → 动态分派 / resume → control-transfer / provenance 收口”的依赖顺序拆成以下子任务；所有子任务均保持 backend-agnostic，不把 LLVM 细节倒灌到 MIR。
+
+### [DONE] T5000d1 为 MIR 引入显式普通调用节点，并落地 `DirectCall / ClosureCall / FunValueCall`
 - 范围：
-  - 在现有 MIR 上引入最小但稳定的中端承载能力：
-    - 显式 call kinds：`DirectCall` / `VirtualCall` / `InterfaceCall` / `ClosureCall` / `FunValueCall`
-    - 显式 `Perform` / `Resume`
-    - 更稳定的 control-flow / local-binding / provenance 形状
-    - 必要的 concrete type / dispatch / receiver metadata
-  - 为后续 `when` / pattern lowering、operator-overload target materialization 等提供正规化入口。
-  - 本阶段产物仍允许存在 type params，因此它是 generic template，而不是最终优化输入。
+  - 在 MIR 中加入显式普通调用节点与参数承载形状，不再让这三类调用统一退化为 `Todo(...)`；
+  - 将以下调用主线 lowering 为稳定的 ANF 形状：
+    - 顶层 / 已静态唯一确定的直接调用 → `DirectCall`
+    - 已知 closure value 调用 → `ClosureCall`
+    - 其余函数值调用基线 → `FunValueCall`
+  - 打通 callable value 的最小 provenance 基线，使 closure/object-like callable 值经 local 传播后仍可在 MIR 上区分为 `ClosureCall` 而不是重新退化成模糊 `Call`。
 - 验收：
-  - MIR 能稳定表达后续优化需要观察的调用形态与控制转移；
-  - 后续 pass 不必再通过 HIR 语法形状或 LLVM codegen 现场推断来恢复这些信息。
+  - MIR dump / fixtures 能显式区分 `DirectCall`、`ClosureCall`、`FunValueCall`；
+  - 这三类调用不再出现通用 `"call lowering pending"` 占位；
+  - 调用实参按求值顺序先降到 operand / local，再进入 MIR 调用节点。
 - 依赖：T5000cR
+- 完成记录（2026-04-26）：
+  - 已在 `crates/scoopc/src/mir/mod.rs` 中新增 MIR 级 `CallArg`、`CallKind::{Direct, Closure, FunValue}` 与 `Rvalue::Call`，把普通调用从通用 `Todo(...)` 提升为显式普通调用节点；
+  - 已在 `crates/scoopc/src/mir/lower.rs` 中实现普通调用 lowering：顶层静态调用降为 `DirectCall`，已知 closure value 调用降为 `ClosureCall`，其余函数值调用降为 `FunValueCall`；调用实参现统一先按求值顺序 lowering 为 operand/local，再写入 MIR 调用节点；
+  - 实现过程中暴露并修复了两个既有阻塞点：
+    - `dump-hir` / `dump-mir` 路径里，顶层函数值作为普通调用实参时，`ExpectedExpr` 的旧“非数组字面量直接早退”会吞掉 `value_ty` hint，导致 `apply(id, 2)` 这类 callable 实参无法合成为 closure；现已在 `crates/scoopc/src/hir/lower/expr.rs` 中补上一般 `value_ty` 透传与顶层函数值 expected-type fallback；
+    - closure 临时值在 dump 路径中常先落成 `Any` local，导致 `MakeClosure -> local -> local` 传播后丢失 closure provenance；现已在 `crates/scoopc/src/mir/lower.rs` 中把 callable provenance 跟踪改成对已知 closure 来源独立保留，不再要求中间 local 先有函数类型；
+  - 已新增 `tests/fixtures/mir/direct_and_fun_value_call.{scoop,mir}`，并更新 `closure_non_capture.mir`、`closure_capture_val.mir`、`closure_capture_var.mir`，确认 direct / closure / fun-value 三类调用都能在 MIR golden 中显式出现。
+  - 已验证 `cargo fmt --all`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+
+### [TODO] T5000d1R Review：确认普通调用主线已从 HIR 语法形状收口为显式 MIR call kind
+- 重点：
+  - `DirectCall / ClosureCall / FunValueCall` 是否已经在 MIR 上显式区分；
+  - callable value provenance 是否足以支撑后续 closure / higher-order 分析，而不要求再回到 HIR 语法猜测；
+  - 当前改动是否仍保持 backend-agnostic，没有混入 LLVM lowering 细节。
+- 验收：
+  - 后续 `VirtualCall / InterfaceCall / Resume` 可直接建立在统一调用节点之上，而不是再改一套平行表示。
+- 依赖：T5000d1
+
+### [TODO] T5000d2 在 MIR 中显式表达 `VirtualCall / InterfaceCall / Resume`
+- 范围：
+  - 将剩余依赖 member dispatch 的调用主线从 HIR `MemberAccess` 形状提升为显式 `VirtualCall` / `InterfaceCall`；
+  - 为这些调用补上后续优化所需的最小 receiver / dispatch metadata；
+  - 将 typecheck 已确认的 `Continuation.resume` 调用点提升为显式 `Resume`，不再只靠 side table + 更晚 lowering 识别。
+- 验收：
+  - MIR 不再需要通过 `MemberAccess` callee 形状隐式推断“这是 virtual/interface 调用”；
+  - `Continuation.resume` 在 MIR 上有稳定落点，可供后续 escaping / effect planning 直接消费。
+- 依赖：T5000d1R
+
+### [TODO] T5000d2R Review：确认动态分派与 `Resume` 已成为 MIR 一等节点
+- 重点：
+  - `VirtualCall / InterfaceCall` 是否仍保持 backend-agnostic，而非退化成 vtable / itable 细节；
+  - `Resume` 是否已脱离“普通调用 + side table”的隐式表示；
+  - receiver / dispatch metadata 是否已经足够稳定，可供 devirt / escape analysis 使用。
+- 验收：
+  - 后续 pass 不必再回到 HIR `MemberAccess` 或 LLVM codegen 现场恢复这些控制转移形态。
+- 依赖：T5000d2
+
+### [TODO] T5000d3 收口 `Perform` / provenance / canonicalization 入口，为后续 pattern 与 operator materialization 提供正规化 MIR 形状
+- 范围：
+  - 将 `Perform` 扩展为显式承载已排序 payload / 调用点 metadata 的 MIR 节点；
+  - 收口 early MIR 中与调用/控制转移相关的 provenance、control-flow 与 local-binding 形状，使其足以支撑后续 `when` / pattern lowering 与 operator-overload target materialization；
+  - 清理剩余必须依赖 HIR 语法形状才能恢复的信息入口。
+- 验收：
+  - MIR 能稳定承载后续优化所需的调用形态与控制转移信息；
+  - 后续 pass 不必再通过 HIR 语法形状或 LLVM codegen 现场推断来恢复这些信息。
+- 依赖：T5000d2R
+
+### [TODO] T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型
+- 重点：
+  - `Perform` / `Resume` / 各类 call kind 是否已形成统一、可扩展的 MIR 表达；
+  - provenance / receiver / dispatch metadata 是否已经满足后续 monomorphization / summary / devirt 的最低要求；
+  - 是否还残留“必须靠 HIR 语法或 backend 现场补猜”的关键信息。
+- 验收：
+  - `T5000dR` 可以只做总边界复核，而不需要再补基础表示层缺口。
+- 依赖：T5000d3
 
 ### [TODO] T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确
 - 重点：
@@ -618,7 +678,7 @@
   - generic template 与后续 monomorphic instance 的边界是否清楚。
 - 验收：
   - 可以明确回答“这层 MIR 负责什么，不负责什么”，且它还没有越权承担 backend 细节。
-- 依赖：T5000d
+- 依赖：T5000d3R
 
 ### [TODO] T5000e 在 MIR 层实现 monomorphization / instance materialization
 - 范围：

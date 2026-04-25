@@ -129,7 +129,7 @@ impl<'a> HirLowering<'a> {
                 )
             }
             ast::ExprKind::Ident(id) => self
-                .try_lower_top_level_fun_value_expr(e.span)
+                .try_lower_top_level_fun_value_expr(e, expected)
                 .unwrap_or_else(|| self.lower_ident_expr(id)),
             ast::ExprKind::Block(b) => {
                 let b = self.lower_block_with_expected(pkg_prefix, b, expected);
@@ -157,7 +157,7 @@ impl<'a> HirLowering<'a> {
                 (ExprKind::Block(b), ty)
             }
             ast::ExprKind::TypeApply { callee, .. } => self
-                .try_lower_top_level_fun_value_expr(e.span)
+                .try_lower_top_level_fun_value_expr(e, expected)
                 .unwrap_or_else(|| {
                     // v0：HIR 暂不承载显式类型实参；先把它视为 callee 的透明包装。
                     // 反射 intrinsics 的 type args 语义目前由 comptime 解释器消费（T1204）。
@@ -1406,9 +1406,52 @@ impl<'a> HirLowering<'a> {
         format!("{fqn}::<{args}>")
     }
 
-    fn try_lower_top_level_fun_value_expr(&mut self, span: Span) -> Option<(ExprKind, TypeId)> {
-        let (base_fqn, type_args) = self.typechecked_top_level_fun_value_ref(span)?;
-        let fun_ty_id = self.typechecked_expr_ty(span)?;
+    fn fallback_top_level_fun_value_target(
+        &mut self,
+        expr: &ast::Expr,
+        expected: ExpectedExpr,
+    ) -> Option<(String, Vec<TypeId>, TypeId)> {
+        let expected_fun_ty = expected.value_ty.filter(|ty| {
+            matches!(
+                self.types.kind(*ty),
+                TypeKind::Ref(RefTypeKind::Function(_))
+            )
+        })?;
+
+        match &expr.kind {
+            ast::ExprKind::Ident(id) => {
+                let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
+                    return None;
+                };
+                Some((fqn.clone(), Vec::new(), expected_fun_ty))
+            }
+            ast::ExprKind::TypeApply { callee, args } => {
+                let ast::ExprKind::Ident(id) = &callee.kind else {
+                    return None;
+                };
+                let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
+                    return None;
+                };
+                let type_args = args.iter().map(|arg| self.lower_type_ref(arg)).collect();
+                Some((fqn.clone(), type_args, expected_fun_ty))
+            }
+            _ => None,
+        }
+    }
+
+    fn try_lower_top_level_fun_value_expr(
+        &mut self,
+        expr: &ast::Expr,
+        expected: ExpectedExpr,
+    ) -> Option<(ExprKind, TypeId)> {
+        let (base_fqn, type_args, fun_ty_id) = if let Some((base_fqn, type_args)) =
+            self.typechecked_top_level_fun_value_ref(expr.span)
+        {
+            let fun_ty_id = self.typechecked_expr_ty(expr.span).or(expected.value_ty)?;
+            (base_fqn, type_args, fun_ty_id)
+        } else {
+            self.fallback_top_level_fun_value_target(expr, expected)?
+        };
         let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(fun_ty_id).clone()
         else {
             return None;
@@ -1421,7 +1464,7 @@ impl<'a> HirLowering<'a> {
         let mut ordinal = 0usize;
 
         if let Some(receiver_ty) = fun_ty.receiver {
-            let decl_span = self.synthetic_top_level_fun_value_param_span(span, ordinal);
+            let decl_span = self.synthetic_top_level_fun_value_param_span(expr.span, ordinal);
             let id = self.intern_local_symbol(decl_span, false);
             let name = "receiver".to_string();
             params.push(Param {
@@ -1443,7 +1486,7 @@ impl<'a> HirLowering<'a> {
         }
 
         for (idx, param_ty) in fun_ty.params.iter().copied().enumerate() {
-            let decl_span = self.synthetic_top_level_fun_value_param_span(span, ordinal);
+            let decl_span = self.synthetic_top_level_fun_value_param_span(expr.span, ordinal);
             let id = self.intern_local_symbol(decl_span, false);
             let name = format!("a{idx}");
             params.push(Param {
@@ -1466,7 +1509,7 @@ impl<'a> HirLowering<'a> {
 
         let callee_fqn = self.mangled_top_level_fun_value_fqn(&base_fqn, &type_args);
         let callee = Expr {
-            span,
+            span: expr.span,
             ty: self.builtins.any,
             kind: ExprKind::VarRef(ValueRef::TopLevel {
                 id: self.symbols.intern_top_level(callee_fqn.clone()),
@@ -1474,7 +1517,7 @@ impl<'a> HirLowering<'a> {
             }),
         };
         let body = Expr {
-            span,
+            span: expr.span,
             ty: fun_ty.return_ty,
             kind: ExprKind::Call {
                 callee: Box::new(callee),
@@ -1484,7 +1527,7 @@ impl<'a> HirLowering<'a> {
 
         Some((
             ExprKind::Closure(ClosureExpr {
-                span,
+                span: expr.span,
                 id: self.alloc_closure_id(),
                 at_safe_span: None,
                 captures: Vec::new(),
@@ -1637,7 +1680,8 @@ impl<'a> HirLowering<'a> {
         arg: &ast::Expr,
         positional_index: usize,
     ) -> ExpectedExpr {
-        // expected-type hint 目前只用于数组字面量 `[...]` 的 lowering（Array vs MutableArray）。
+        // expected-type hint 当前既用于数组字面量 `[...]` 的 lowering（Array vs MutableArray），
+        // 也用于把 `foo` / `foo<T>` 在值位置恢复成“顶层函数值 closure”形态。
         //
         // 注意：`FunSig` 的参数 `TypeRef` 可能来自**其它源文件**（sysroot/stdlib/多文件编译单元），
         // 其 span 无法用当前文件的 `SourceFile` 回切；因此我们必须避免在“非数组字面量实参”
@@ -1649,15 +1693,6 @@ impl<'a> HirLowering<'a> {
             }
             _ => false,
         };
-        if !arg_is_array_lit {
-            return ExpectedExpr {
-                value_ty: None,
-                array_lit_target: None,
-                array_lit_ty: None,
-                struct_lit_ty: None,
-            };
-        }
-
         let param_ty = match (sig, &arg.kind) {
             (Some(sig), ast::ExprKind::NamedArg { name, .. }) => {
                 let name = name.text(self.source);
@@ -1669,14 +1704,24 @@ impl<'a> HirLowering<'a> {
             (Some(sig), _) => sig.params.get(positional_index).and_then(|p| p.ty.as_ref()),
             _ => None,
         };
+        let value_ty = param_ty.and_then(|ty| self.local_type_ref_ty(ty));
+        if !arg_is_array_lit {
+            return ExpectedExpr {
+                value_ty,
+                array_lit_target: None,
+                array_lit_ty: None,
+                struct_lit_ty: value_ty,
+            };
+        }
+
         let array_lit_target = param_ty.and_then(|ty| self.array_lit_target_from_type_ref(ty));
         let array_lit_ty = param_ty.and_then(|ty| self.local_type_ref_ty(ty));
 
         ExpectedExpr {
-            value_ty: None,
+            value_ty,
             array_lit_target,
             array_lit_ty,
-            struct_lit_ty: None,
+            struct_lit_ty: value_ty,
         }
     }
 

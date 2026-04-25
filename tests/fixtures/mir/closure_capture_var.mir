@@ -260,18 +260,30 @@ File {
                                         span: 132..135,
                                         kind: Assign {
                                             target: l10,
-                                            value: Todo(
-                                                "call lowering pending",
-                                            ),
+                                            value: Call {
+                                                kind: Closure {
+                                                    callee: Local(
+                                                        l2,
+                                                    ),
+                                                    fn_ptr: "a.main.$lambda0",
+                                                },
+                                                args: [],
+                                            },
                                         },
                                     },
                                     Statement {
                                         span: 138..141,
                                         kind: Assign {
                                             target: l11,
-                                            value: Todo(
-                                                "call lowering pending",
-                                            ),
+                                            value: Call {
+                                                kind: Closure {
+                                                    callee: Local(
+                                                        l5,
+                                                    ),
+                                                    fn_ptr: "a.main.$lambda1",
+                                                },
+                                                args: [],
+                                            },
                                         },
                                     },
                                     Statement {

@@ -69,6 +69,15 @@ File {
                                     0,
                                 ),
                             },
+                            LocalDecl {
+                                span: 75..76,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
                         ],
                         blocks: [
                             BasicBlock {
@@ -133,12 +142,37 @@ File {
                                         },
                                     },
                                     Statement {
+                                        span: 75..76,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
                                         span: 73..77,
                                         kind: Assign {
                                             target: l5,
-                                            value: Todo(
-                                                "call lowering pending",
-                                            ),
+                                            value: Call {
+                                                kind: Closure {
+                                                    callee: Local(
+                                                        l2,
+                                                    ),
+                                                    fn_ptr: "a.main.$lambda0",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 75..76,
+                                                        name: None,
+                                                        value: Local(
+                                                            l6,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
                                         },
                                     },
                                 ],
