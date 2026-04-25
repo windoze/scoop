@@ -484,6 +484,26 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000c3b 收口 concrete-type / field-type / receiver exactness 共享 helper 的消费方向`。
+- 2026-04-26：`T5000c3b 收口 concrete-type / field-type / receiver exactness 共享 helper 的消费方向` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/expr_facts.rs` 与 `lib.rs` 中对应模块声明，把 concrete-type / field-type / call-result 解析收口为 shared `ExprFactResolver`；该 resolver 只依赖 `TypeStore`、`ProgramFacts` 与注入式 local type lookup，不依赖 LLVM builder/module/runtime ABI；
+    - `crates/scoopc/src/program_facts.rs` 已补充 `top_level_value_ty`、`object_property_ty`、`fun_return_ty` 与 `resolve_nominal_field_ty` 等查询 helper，使 top-level value、object property、struct/class field 与 class-super 递归查询都由 shared facts 层统一提供；
+    - `crates/scoopc/src/effect_state_machine_analysis.rs` 中 planning 的 `resolve_plan_*` concrete-type helper 与 `SuspendCallAnalysis` 内 duplicated 的 concrete-type / field-type / call-result helper 已删除，统一改经 `ExprFactResolver`；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 中原本平行维护的 `resolve_member_access_concrete_type`、`resolve_*_field_concrete_type` 与 `resolve_call_result_type` 已整体删除，`MainCodegen::resolve_expr_concrete_type` 现仅作为对 shared resolver 的薄包装，local exact type 仍由 codegen env 注入。
+  - 阶段结论：
+    - planning / direct-step summary 与 backend generic lowering 已不再各自维护一套同类 helper；
+    - concrete type、receiver exactness 与 field specialization 所需的共同输入已收口到 shared `ProgramFacts` + `expr_facts` 层；
+    - 未发现需要插入到 `T5000c3bR` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`
+    - `cargo test -p scoopc direct_step_effect_rows_include_direct_effectful_call_after_escape_site`
+    - `cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000c3bR Review：确认 concrete-type / receiver exactness helper 的依赖方向已拉直`。
 
 ## 1. 当前判断
 

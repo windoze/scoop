@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::hir;
-use crate::ty::TypeId;
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 /// 由 HIR lowering 产出的稳定程序事实集合。
 ///
@@ -144,5 +144,86 @@ impl ProgramFacts {
             object_property_fqns,
             top_level_immutable_value_fqns,
         }
+    }
+
+    /// 查询 top-level `var` / `const` / `immutable val` 的 concrete type。
+    pub(crate) fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.top_level_value_tys.get(fqn).copied()
+    }
+
+    /// 查询 object property 的 concrete type。
+    pub(crate) fn object_property_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.object_property_tys.get(fqn).copied()
+    }
+
+    /// 查询已知函数或方法的声明返回类型。
+    pub(crate) fn fun_return_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.fun_return_tys.get(fqn).copied()
+    }
+
+    /// 在 exact nominal receiver 已知时，解析其字段的 concrete type。
+    pub(crate) fn resolve_nominal_field_ty(
+        &self,
+        types: &TypeStore,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        self.resolve_struct_field_ty(types, receiver_ty, field_fqn)
+            .or_else(|| self.resolve_class_field_ty(types, receiver_ty, field_fqn))
+    }
+
+    fn resolve_struct_field_ty(
+        &self,
+        types: &TypeStore,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+        self.struct_field_tys
+            .get(&layout_key)
+            .and_then(|fields| fields.get(field_fqn).copied())
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| {
+                        self.struct_field_tys
+                            .get(&nominal.fqn)
+                            .and_then(|fields| fields.get(field_fqn).copied())
+                    })
+                    .flatten()
+            })
+    }
+
+    fn resolve_class_field_ty(
+        &self,
+        types: &TypeStore,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+        self.lookup_class_field_ty_by_key(&layout_key, field_fqn)
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| self.lookup_class_field_ty_by_key(&nominal.fqn, field_fqn))
+                    .flatten()
+            })
+    }
+
+    fn lookup_class_field_ty_by_key(&self, class_key: &str, field_fqn: &str) -> Option<TypeId> {
+        if let Some(ty) = self
+            .class_field_tys
+            .get(class_key)
+            .and_then(|fields| fields.get(field_fqn).copied())
+        {
+            return Some(ty);
+        }
+        self.class_super_keys
+            .get(class_key)
+            .and_then(|super_key| self.lookup_class_field_ty_by_key(super_key, field_fqn))
     }
 }

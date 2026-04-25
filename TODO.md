@@ -536,7 +536,7 @@
   - review 结论：shared planning / direct-step summary 源文件归属已经脱离 backend 路径，后续 `T5000c3b` 可以只继续处理 concrete-type / field-type / receiver exactness helper 的消费方向；未发现需要插入到 `T5000c3b` 之前的新前置缺陷任务；
   - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000c3b 收口 concrete-type / field-type / receiver exactness 共享 helper 的消费方向
+### [DONE] T5000c3b 收口 concrete-type / field-type / receiver exactness 共享 helper 的消费方向
 - 范围：
   - 将 effect/state-machine planning 中的 concrete-type / field-type / receiver exactness 相关共享 helper 收口到 backend-agnostic 的 shared analysis / facts 归属层；
   - 拉直 `llvm/codegen/mod.rs` 与 shared planning / summary 对这组 helper 的消费方向，为后续 MIR / summary 复用同一层事实做准备。
@@ -544,6 +544,12 @@
   - planning / direct-step summary 与 backend generic lowering 不再各自维护一套同类 helper；
   - concrete type、receiver exactness 与 field specialization 相关事实已可由 shared 层统一提供。
 - 依赖：T5000c3aR
+- 完成记录（2026-04-26）：
+  - 新增 `crates/scoopc/src/expr_facts.rs`，将基于 `TypeStore + ProgramFacts + local type lookup` 的 concrete-type / field-type / call-result 解析统一收口为 backend-agnostic shared resolver `ExprFactResolver`，不再让 LLVM generic lowering 与 effect/state-machine shared analysis 维持平行实现；
+  - `crates/scoopc/src/program_facts.rs` 已补充 `top_level_value_ty`、`object_property_ty`、`fun_return_ty` 与 `resolve_nominal_field_ty` 等最小查询 helper，把 top-level value、object property、struct/class field 与 class-super 递归查询集中到 shared facts 层；
+  - `crates/scoopc/src/effect_state_machine_analysis.rs` 中 planning 的 `resolve_plan_*` concrete-type helper 与 `SuspendCallAnalysis` 内部的同类 helper 已删除并统一改为调用 `ExprFactResolver`；`crates/scoopc/src/llvm/codegen/mod.rs` 中原本独立维护的 `resolve_member_access_concrete_type` / `resolve_*_field_concrete_type` / `resolve_call_result_type` 也已收口为对 shared resolver 的薄包装；
+  - 阶段结论：planning / direct-step summary 与 backend generic lowering 已不再各自维护一套同类 helper，receiver exactness / field specialization 所需的 concrete-type 事实现统一由 shared `ProgramFacts` + `expr_facts` 层提供；
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::tests::lowered_call_results_keep_concrete_types_for_local_bindings`、`cargo test -p scoopc direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test -p scoopc --no-default-features direct_step_effect_rows_include_direct_effectful_call_after_escape_site`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000c3bR Review：确认 concrete-type / receiver exactness helper 的依赖方向已拉直
 - 重点：

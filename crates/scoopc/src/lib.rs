@@ -14,6 +14,7 @@ pub mod cone;
 pub(crate) mod effect_analysis;
 #[cfg(not(feature = "llvm"))]
 pub(crate) mod effect_step_summary;
+pub(crate) mod expr_facts;
 pub mod hir;
 pub mod infer;
 pub mod itable;
