@@ -886,11 +886,13 @@ impl<'a> TypeLowering<'a> {
     /// 记录一次“泛型函数实例化调用”的 monomorph key（T0712）。
     ///
     /// 当前阶段约束：
-    /// - 只记录“当前文件内”的顶层函数（decl_file 取 `self.source.path()`）；
+    /// - 调用点必须显式传入被选中声明的 `decl_file/decl_span`，避免 imported/sysroot generic fun
+    ///   被误记成“当前文件声明”；
     /// - effect row args（`<eff E>`）的实例化在后续任务接入（此处先留空）。
     pub(super) fn record_monomorph_call(
         &mut self,
         callee_fqn: String,
+        callee_decl_file: &Path,
         callee_decl_span: Span,
         type_args: &[TypeId],
     ) {
@@ -903,7 +905,7 @@ impl<'a> TypeLowering<'a> {
 
         let symbol = MonomorphSymbol {
             fqn: callee_fqn,
-            decl_file: self.source.path().to_path_buf(),
+            decl_file: callee_decl_file.to_path_buf(),
             decl_span: callee_decl_span,
         };
         req.record(MonomorphKey {

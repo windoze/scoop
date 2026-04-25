@@ -742,7 +742,7 @@
   - 已新增/更新回归测试：`monomorph_collects_two_instances_for_id`、`monomorph_discovers_direct_call_fixed_point_in_mir_instances`、`monomorph_rewrites_nested_closure_family_fn_ptrs`、`monomorph_preserves_virtual_call_kind_in_instantiated_body`、`monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body`；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000e1a 为 `dump-ir` materializer 补齐跨文件 / sysroot generic template 目录与正确的声明源身份
+### [DONE] T5000e1a 为 `dump-ir` materializer 补齐跨文件 / sysroot generic template 目录与正确的声明源身份
 - 范围：
   - 修正 typecheck 收集的 `MonomorphKey.symbol`，让 imported / sysroot generic fun 使用真实 `decl_file` / `decl_span`，而不是把调用点文件误记为声明源；
   - 为 `dump-ir` 的 MIR materializer 建立至少覆盖输入源文件 + sysroot/imported generic fun 的 template catalog，避免 direct generic call 在单文件调试路径上因“只索引当前源文件 template”而失败；
@@ -751,6 +751,13 @@
   - `scoop dump-ir` 对 `scoop.core.print<T>`、`channelCreate<T>` 等外部 generic fun 的 direct call 能稳定 materialize 对应 MIR instance，而不是报 `missing_generic_template`；
   - 请求键中的声明源身份与 template lookup 已不再依赖“generic fun 必须定义在当前输入文件”这一错误假设。
 - 依赖：T5000e1
+- 完成记录（2026-04-26）：
+  - 已在 `crates/scoopc/src/typecheck/lower.rs` 调整 `record_monomorph_call(...)` 签名，并在 `crates/scoopc/src/typecheck/expr/call.rs` 的全部泛型 direct/member/extension 调用路径上传入真实 `sig.decl_file`；`MonomorphKey.symbol` 不再把 imported / sysroot generic fun 误记成调用点文件声明。
+  - 已重写 `crates/scoopc/src/mir/materialize.rs` 的 dump/debug 前端准备流程：`materialize_for_dump(...)` 现在会为当前输入文件、`session.sysroot().compilable_source_paths` 中的可编译 sysroot 源，以及 `sysroot` 声明文件建立统一 index / resolve / typecheck / lowering 上下文，再用整组文件的 generic HIR/MIR template 驱动实例化，而不再只 lower 当前源文件。
+  - `collect_generic_template_infos(...)` 现已按整组 prepared files 收集 template catalog，并纳入 declaration-only generic fun；因此 `scoop.channels.channelCreate<T>` 这类只在 sysroot 声明文件里出现的 generic fun 也能生成稳定的 `TemplateKey` / `InstanceKey`，不再触发 `missing_generic_template`。
+  - 由于 `sysroot/print.scoop`、`sysroot/task.scoop` 等可编译 sysroot 源依赖 `stdlib/*.scoop`，本轮一并把 dump/debug support sources 扩到 `stdlib + compilable sysroot`；这是为了让外部 template 在调试路径上可 resolve/typecheck/lower，并未把 `T5000e2` 的编译单元主路径迁移提前并入。
+  - 已新增回归测试 `monomorph_materializes_compilable_sysroot_generic_template` 与 `monomorph_materializes_declaration_only_sysroot_generic_template`，分别覆盖 `scoop.core.print::<Int>` 与 `scoop.channels.channelCreate::<Int>` 的实例化。
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo run -q -p scoop -- dump-ir <tmp print case>`、`cargo run -q -p scoop -- dump-ir <tmp channelCreate case>`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设
 - 重点：

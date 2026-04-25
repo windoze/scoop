@@ -9,7 +9,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -133,6 +133,10 @@ pub struct MaterializedMir {
 pub enum MirMaterializeError {
     #[error(transparent)]
     #[diagnostic(transparent)]
+    Hir(#[from] crate::hir::HirLowerError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     Parse(#[from] ParseError),
 
     #[error(transparent)]
@@ -179,6 +183,9 @@ pub enum MirMaterializeError {
     #[diagnostic(transparent)]
     MirLower(#[from] super::MirLowerError),
 
+    #[error("{message}")]
+    Frontend { message: String },
+
     #[error("实例请求找不到对应的 generic template：{fqn}@{file}:{span:?}")]
     #[diagnostic(code(scoop::mir::materialize::missing_generic_template))]
     MissingGenericTemplate {
@@ -210,6 +217,12 @@ type MaterializeResult<T> = Result<T, Box<MirMaterializeError>>;
 
 fn materialize_err(error: MirMaterializeError) -> Box<MirMaterializeError> {
     Box::new(error)
+}
+
+impl From<crate::hir::HirLowerError> for Box<MirMaterializeError> {
+    fn from(error: crate::hir::HirLowerError) -> Self {
+        materialize_err(MirMaterializeError::from(error))
+    }
 }
 
 impl From<ParseError> for Box<MirMaterializeError> {
@@ -284,19 +297,49 @@ impl From<super::MirLowerError> for Box<MirMaterializeError> {
     }
 }
 
+fn frontend_err(message: impl Into<String>) -> Box<MirMaterializeError> {
+    materialize_err(MirMaterializeError::Frontend {
+        message: message.into(),
+    })
+}
+
 /// 为 `dump-ir` / tests 生成 monomorphic MIR instances。
 pub fn materialize_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> MaterializeResult<MaterializedMir> {
-    let (ast, typecheck_types, monomorph_keys) = collect_dump_monomorph_requests(session, source)?;
-    let template_catalog = collect_generic_template_infos(source, &ast);
-    let lowered_mir = super::lower_for_dump(session, source)?;
-    let mut types = lowered_mir.types;
-    let builtins = types.intern_builtins();
+    let DumpMaterializationInputs {
+        prepared_files,
+        index,
+        env,
+        typecheck_types,
+        monomorph_keys,
+    } = collect_dump_materialization_inputs(session, source)?;
+    let template_catalog = collect_generic_template_infos(&prepared_files);
+    let compilation_unit = prepared_files
+        .iter()
+        .map(|file| (&file.source, &file.ast))
+        .collect::<Vec<_>>();
+    let mut lowered_hir = crate::hir::lower_for_compilation_unit_multi_files_with_type_env(
+        &index,
+        &compilation_unit,
+        &compilation_unit,
+        &[],
+        Some(&env),
+        &typecheck_types,
+    )?;
+    let builtins = lowered_hir.types.intern_builtins();
+    let facts = super::MirLoweringFacts::from_lowered_hir(&lowered_hir);
+    let generic_file = super::lower_hir_file_for_dump_with_facts(
+        builtins,
+        &mut lowered_hir.types,
+        &lowered_hir.file,
+        &facts,
+    );
+    let types = lowered_hir.types;
 
     materialize_generic_mir_for_dump(
-        lowered_mir.file,
+        generic_file,
         types,
         builtins,
         &typecheck_types,
@@ -305,69 +348,159 @@ pub fn materialize_for_dump(
     )
 }
 
-fn collect_dump_monomorph_requests(
+#[derive(Clone)]
+struct PreparedDumpFile {
+    source: SourceFile,
+    ast: ast::File,
+    extend_type_env: bool,
+    collect_monomorph_keys: bool,
+}
+
+struct DumpMaterializationInputs {
+    prepared_files: Vec<PreparedDumpFile>,
+    index: Index,
+    env: TypeEnv,
+    typecheck_types: TypeStore,
+    monomorph_keys: Vec<MonomorphKey>,
+}
+
+fn collect_dump_materialization_inputs(
     session: &Session,
     source: &SourceFile,
-) -> MaterializeResult<(ast::File, TypeStore, Vec<MonomorphKey>)> {
-    let mut file = parse_file(source)?;
+) -> MaterializeResult<DumpMaterializationInputs> {
+    let mut prepared_files = Vec::with_capacity(session.sysroot().files.len() + 8);
+    for file in &session.sysroot().files {
+        prepared_files.push(PreparedDumpFile {
+            source: file.source.clone(),
+            ast: file.ast.clone(),
+            extend_type_env: false,
+            collect_monomorph_keys: false,
+        });
+    }
+
+    for support_source in load_dump_support_sources(session)? {
+        let ast = parse_file(&support_source)?;
+        prepared_files.push(PreparedDumpFile {
+            source: support_source,
+            ast,
+            extend_type_env: true,
+            collect_monomorph_keys: false,
+        });
+    }
+
+    let entry_source = source.clone();
+    let entry_ast = parse_file(&entry_source)?;
+    prepared_files.push(PreparedDumpFile {
+        source: entry_source,
+        ast: entry_ast,
+        extend_type_env: true,
+        collect_monomorph_keys: true,
+    });
+
     {
-        let sources = [source];
-        let mut files = [&mut file];
+        let trim_sources = prepared_files
+            .iter()
+            .filter(|file| file.extend_type_env)
+            .map(|file| file.source.clone())
+            .collect::<Vec<_>>();
+        let sources = trim_sources.iter().collect::<Vec<_>>();
+        let mut files = prepared_files
+            .iter_mut()
+            .filter(|file| file.extend_type_env)
+            .map(|file| &mut file.ast)
+            .collect::<Vec<_>>();
         crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
             session.sysroot(),
             &sources,
             &mut files,
         )?;
     }
-    typecheck::check_file_headers(source, &file)?;
-    typecheck::check_file_struct_decls(source, &file)?;
+
+    for file in &prepared_files {
+        typecheck::check_file_headers(&file.source, &file.ast)?;
+        typecheck::check_file_struct_decls(&file.source, &file.ast)?;
+    }
 
     let index = {
-        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &session.sysroot().files {
-            pairs.push((&f.source, &f.ast));
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::with_capacity(prepared_files.len());
+        for file in &prepared_files {
+            pairs.push((&file.source, &file.ast));
         }
-        pairs.push((source, &file));
         Index::build(&pairs)?
     };
 
-    let resolved_headers = crate::resolve::check_file_headers(source, &file, &index)?;
-    crate::resolve::check_file_bodies(source, &mut file, &index, &resolved_headers)?;
+    let mut resolved_headers = Vec::with_capacity(prepared_files.len());
+    for file in &prepared_files {
+        resolved_headers.push(crate::resolve::check_file_headers(
+            &file.source,
+            &file.ast,
+            &index,
+        )?);
+    }
+    for (file, headers) in prepared_files.iter_mut().zip(resolved_headers.iter()) {
+        crate::resolve::check_file_bodies(&file.source, &mut file.ast, &index, headers)?;
+    }
 
     let mut env = TypeEnv::from_sysroot(session.sysroot(), &index)?;
-    env.extend_from_file(source, &file, &index)?;
+    for file in &prepared_files {
+        if file.extend_type_env {
+            env.extend_from_file(&file.source, &file.ast, &index)?;
+        }
+    }
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
-    typecheck::check_file_annotations(
-        source,
-        &file,
-        &index,
-        &resolved_headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )?;
-    typecheck::check_file_type_refs(
-        source,
-        &file,
-        &index,
-        &resolved_headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )?;
-    let monomorph_keys = typecheck::check_file_exprs_with_monomorph_keys(
-        source,
-        &file,
-        &index,
-        &resolved_headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )?;
+    let mut monomorph_keys = Vec::new();
+    for (file, headers) in prepared_files.iter().zip(resolved_headers.iter()) {
+        typecheck::check_file_annotations(
+            &file.source,
+            &file.ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )?;
+        typecheck::check_file_type_refs(
+            &file.source,
+            &file.ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )?;
 
-    Ok((file, types, monomorph_keys))
+        if file.collect_monomorph_keys {
+            monomorph_keys.extend(typecheck::check_file_exprs_with_monomorph_keys(
+                &file.source,
+                &file.ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )?);
+        } else {
+            typecheck::check_file_exprs(
+                &file.source,
+                &file.ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )?;
+        }
+    }
+
+    Ok(DumpMaterializationInputs {
+        prepared_files,
+        index,
+        env,
+        typecheck_types: types,
+        monomorph_keys,
+    })
 }
 
 #[derive(Clone)]
@@ -377,40 +510,90 @@ struct GenericTemplateInfo {
     type_param_names: Vec<String>,
 }
 
-fn collect_generic_template_infos(
-    source: &SourceFile,
-    file: &ast::File,
-) -> Vec<GenericTemplateInfo> {
-    let pkg_prefix = package_prefix(source, file.package.as_ref());
+fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<GenericTemplateInfo> {
     let mut out = Vec::new();
-    for item in &file.items {
-        let ast::Item::Fun(fun) = item else {
-            continue;
-        };
-        if fun.type_params.is_empty() || matches!(fun.body, ast::FunBody::Missing) {
-            continue;
+    for file in prepared_files {
+        let pkg_prefix = package_prefix(&file.source, file.ast.package.as_ref());
+        for item in &file.ast.items {
+            let ast::Item::Fun(fun) = item else {
+                continue;
+            };
+            if fun.type_params.is_empty() {
+                continue;
+            }
+            let local_name = file.source.slice(fun.name.span);
+            let fqn = if pkg_prefix.is_empty() {
+                local_name.to_string()
+            } else {
+                format!("{pkg_prefix}.{local_name}")
+            };
+            out.push(GenericTemplateInfo {
+                request_lookup_key: (fqn.clone(), fun.name.span),
+                template: TemplateKey {
+                    fqn,
+                    source_path: file.source.path().to_path_buf(),
+                    decl_span: fun.span,
+                },
+                type_param_names: fun
+                    .type_params
+                    .iter()
+                    .map(|param| param.name.text(&file.source).to_string())
+                    .collect(),
+            });
         }
-        let local_name = source.slice(fun.name.span);
-        let fqn = if pkg_prefix.is_empty() {
-            local_name.to_string()
-        } else {
-            format!("{pkg_prefix}.{local_name}")
-        };
-        out.push(GenericTemplateInfo {
-            request_lookup_key: (fqn.clone(), fun.name.span),
-            template: TemplateKey {
-                fqn,
-                source_path: source.path().to_path_buf(),
-                decl_span: fun.span,
-            },
-            type_param_names: fun
-                .type_params
-                .iter()
-                .map(|param| param.name.text(source).to_string())
-                .collect(),
-        });
     }
     out
+}
+
+fn load_dump_support_sources(session: &Session) -> MaterializeResult<Vec<SourceFile>> {
+    let stdlib_root = default_stdlib_path();
+    let stdlib_root = stdlib_root.canonicalize().map_err(|error| {
+        frontend_err(format!(
+            "dump-ir 无法定位 stdlib 目录：{}: {error}",
+            stdlib_root.display()
+        ))
+    })?;
+
+    let mut paths = Vec::new();
+    collect_scoop_files(&stdlib_root, &mut paths)?;
+    paths.extend(session.sysroot().compilable_source_paths.iter().cloned());
+    paths.sort();
+
+    let mut sources = Vec::with_capacity(paths.len());
+    for path in paths {
+        let source = SourceFile::load(&path).map_err(|error| {
+            frontend_err(format!(
+                "dump-ir 无法读取 sysroot support source：{}: {error}",
+                path.display()
+            ))
+        })?;
+        sources.push(source);
+    }
+    Ok(sources)
+}
+
+fn default_stdlib_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
+}
+
+fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> MaterializeResult<()> {
+    for entry in std::fs::read_dir(dir).map_err(|error| {
+        frontend_err(format!("dump-ir 无法读取目录：{}: {error}", dir.display()))
+    })? {
+        let entry = entry.map_err(|error| frontend_err(error.to_string()))?;
+        let path = entry.path();
+        let ty = entry
+            .file_type()
+            .map_err(|error| frontend_err(error.to_string()))?;
+        if ty.is_dir() {
+            collect_scoop_files(&path, out)?;
+            continue;
+        }
+        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {

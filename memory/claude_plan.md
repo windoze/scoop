@@ -1,90 +1,92 @@
 # 执行计划
 
-## 约束说明
+## 约束与目标
 
-- 按要求先记录执行计划，再开始读取仓库和执行命令。
-- 计划文件会在关键步骤完成或计划变化时持续更新。
-- 这里记录的是可审计的执行步骤与决策，不包含冗长的内部推理草稿。
+- 本次只处理 `TODO.md` 中第一个未完成任务，完成后停止。
+- 在推进计划任务前，先检查最新提交是否提到既有问题；若提到，则优先修复。
+- 在执行、测试、发现阻塞、调整任务拆分、完成关键步骤时，持续更新本文件。
+- 若遇到任何既有缺陷、规格不匹配、实现边界缺失或依赖前置能力不足，必须优先修复，或将其作为新的前置任务写入 `TODO.md` / `PLAN.md` 后停止，不能绕过。
 
 ## 初始步骤
 
-1. 检查最新一次 Git 提交信息，确认是否明确提到已有问题、回归、临时修复或待补事项。
-2. 如果最新提交中提到需要先处理的既有问题，先定位并修复这些问题，再继续后续步骤。
-3. 阅读 `TODO.md`，识别第一个未完成任务。
-4. 阅读 `PLAN.md`，核对当前计划、依赖关系和已有拆分是否与 `TODO.md` 一致。
-5. 判断第一个未完成任务是否足够小且可以在本次调用中完整交付。
-6. 如果任务过大或存在未建模依赖：
-   - 在 `PLAN.md` 中补充分解后的计划；
-   - 在 `TODO.md` 中把该任务拆成更小的前置子任务，并把当前应执行的第一个子任务排到最前；
-   - 本次仅执行新的第一个子任务。
+1. 检查最新一次 Git 提交，确认是否显式提到待修复的既有问题。
+2. 阅读 `TODO.md`，找出第一个未完成任务。
+3. 阅读 `PLAN.md`，核对该任务的上下文、依赖和已有拆分。
+4. 评估该任务是否过大；若过大，则先拆分并更新 `TODO.md` / `PLAN.md`。
+5. 阅读与该任务直接相关的代码、测试、规格或文档，确定正确实现边界。
+6. 实施修改，并补充或调整测试。
+7. 运行相关验证；至少覆盖任务相关测试，并尽量满足 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 等质量要求。若全量验证成本过高或受环境限制，需明确记录原因。
+8. 更新 `TODO.md`、`PLAN.md`、本文件，标记当前任务已完成或记录新的前置阻塞。
+9. 使用清晰的 Git 提交信息提交改动。
+10. 停止，不继续处理下一个任务。
 
-## 执行步骤
+## 当前已知情况
 
-1. 在实现前先阅读相关代码、测试、规范或运行路径，确认修改边界。
-2. 实现当前目标任务，不引入规避性 workaround。
-3. 在实现过程中如果发现既有缺陷、规格不匹配、实现边界缺失或测试回归：
-   - 立即将其视为当前范围内问题；
-   - 若可以直接修复，则优先修复；
-   - 若它阻塞当前任务且不能在本轮直接完成，则把修复任务作为前置任务写入 `TODO.md`，同步更新 `PLAN.md`，提交后停止。
-4. 对改动运行充分验证，至少包括与任务直接相关的测试；若改动影响较广，还要运行更高层级验证。
-5. 运行质量检查，目标包含：
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 必要时运行针对性的 fixture/spec 命令
-6. 修复验证中发现的所有问题，直到相关检查通过或明确形成新的前置任务。
+- 已检查最新提交：`f723e3b2 [T5000e1R] Insert dump-ir materializer prerequisite tasks`。
+- 最新提交没有直接修代码，而是把 `T5000e1R` review 暴露出的两个阻塞缺口回写成新的前置任务。
+- `TODO.md` / `PLAN.md` 中第一个未完成任务已确认是 `T5000e1a 为 dump-ir materializer 补齐跨文件 / sysroot generic template 目录与正确的声明源身份`。
+- `T5000e1a` 的直接背景：
+  - `typecheck/lower.rs` 里记录的 `MonomorphKey.symbol.decl_file` 仍错误写成调用点文件；
+  - `mir/materialize.rs` 当前只为“当前输入文件”的 generic template 建目录，导致 imported / sysroot generic fun 在 `dump-ir` 路径上找不到 template。
+- 该问题已被上一提交明确认定为阻塞 `T5000e1R` 的既有缺陷，因此本轮应直接修复它，而不是继续做后续 review 或新功能。
+
+## 接下来要做的事
+
+1. 阅读 `crates/scoopc/src/typecheck/lower.rs` 中 monomorph 请求记录逻辑，确认声明源信息当前如何生成。
+2. 阅读 `crates/scoopc/src/mir/materialize.rs`、`crates/scoop/src/commands/dump_ir.rs` 与相关测试，确认 dump-ir template catalog 当前只覆盖本地文件的具体实现边界。
+3. 设计并实现 `T5000e1a`：
+   - 修正 imported / sysroot generic fun 的请求键声明源身份；
+   - 扩展 dump-ir materializer 的 template catalog，使其覆盖调试路径可达的外部 generic template；
+   - 保持改动边界停留在 dump/debug 路径，不提前把编译单元主路径整体迁移进来。
+4. 增加或更新回归测试，优先覆盖 imported / sysroot generic direct call 在 `dump-ir` 上的 materialization。
+5. 运行格式化、相关测试和必要的全量验证。
+6. 更新 `TODO.md`、`PLAN.md`、本文件并提交。
+
+## 当前实现设计
+
+- `record_monomorph_call(...)` 现有签名不足以记录真实声明源，因为调用点已经拿得到 `sig.decl_file`，但函数本身只收 `decl_span`。本轮会把它改成显式接收 `decl_file`，并更新所有调用点。
+- `dump-ir` 目前的 generic template 输入有两个缺口：
+  - 只解析/resolve/typecheck 当前输入文件，没有把 `sysroot/print.scoop` 这类“可编译 sysroot 实现文件”加入调试路径；
+  - template catalog 只扫当前文件，而且只收“带 body 的 generic fun”，导致 `scoop.channels.channelCreate<T>` 这类 declaration-only generic fun 也会漏掉。
+- 拟采用的修复方式：
+  1. 在 `mir/materialize.rs` 内为 dump/debug 路径补一个小型 frontend 准备流程，只覆盖：
+     - sysroot 声明文件（克隆 AST，供索引/模板目录/声明型 generic fun lowering 使用）；
+     - `session.sysroot().compilable_source_paths` 中的可编译 sysroot 源；
+     - 当前输入文件。
+  2. 该流程会：
+     - 为上述文件建立统一 `Index`；
+     - 对需要的文件做 resolve/typecheck；
+     - 仅从当前输入文件收集 monomorph 请求；
+     - 用整组文件 lower 出 generic HIR/MIR template 输入，供 materializer 查询外部 template。
+  3. `collect_generic_template_infos(...)` 会扩成按整个编译单元收集，并纳入 declaration-only generic fun，而不是继续假设“有 body 且定义在当前文件”。
+  4. 回归测试至少补两类：
+     - `print<T>` 这种位于 compilable sysroot 源中的 generic fun；
+     - `channelCreate<T>` 这种位于声明型 sysroot 文件中的 generic fun。
+
+## 已完成步骤
+
+1. 已修正 `MonomorphKey` 声明源记录：
+   - `crates/scoopc/src/typecheck/lower.rs` 的 `record_monomorph_call(...)` 已改为接收真实 `decl_file`；
+   - `crates/scoopc/src/typecheck/expr/call.rs` 的所有泛型调用记录点都已传入 `sig.decl_file` / `sig.decl_span`。
+2. 已扩展 dump/debug template 输入：
+   - `crates/scoopc/src/mir/materialize.rs` 现在会准备 sysroot 声明文件克隆、`stdlib/*.scoop`、可编译 sysroot 源和当前输入文件；
+   - 会在该文件集上统一做 trim / index / resolve / typecheck / lowering；
+   - template catalog 已扩成按整组文件收集，并纳入 declaration-only generic fun。
+3. 已补回归测试：
+   - `monomorph_materializes_compilable_sysroot_generic_template`
+   - `monomorph_materializes_declaration_only_sysroot_generic_template`
+
+## 验证结果
+
+- `cargo fmt --all`：通过。
+- `cargo test -p scoopc monomorph::lower -- --nocapture`：通过。
+- `cargo run -q -p scoop -- dump-ir <tmp print case>`：通过；已确认 `print::<Int>` 指向 `sysroot/print.scoop`。
+- `cargo run -q -p scoop -- dump-ir <tmp channelCreate case>`：通过；已确认 `channelCreate::<Int>` 指向 `sysroot/channels.scoop`。
+- `cargo test --all`：通过。
+- `cargo clippy --all-targets -- -D warnings`：通过。
 
 ## 收尾步骤
 
-1. 更新 `TODO.md`，将本次完成的唯一任务标记为完成。
-2. 更新 `PLAN.md`，记录当前状态、已完成内容、后续影响和必要调整。
-3. 再次更新本文件，记录关键结果与最终执行状态。
-4. 检查工作区改动，确认未误改无关文件。
-5. 使用清晰的 Git 提交信息提交本次改动。
-6. 提交后停止，不继续处理下一个任务。
-
-## 本轮目标
-
-- 当前唯一执行任务：`T5000e1R Review：确认 InstanceKey 与 dump-ir materializer 的边界正确`。
-- 最新提交 `75d109f18de5da63bb8ac7c95c6321ed04cb9b8e` 的提交正文仅为 `[T5000e1] Materialize dump-ir instances from MIR templates`，未显式挂出需要先修复的既有问题。
-
-## 针对当前任务的执行细化
-
-1. 阅读 `TODO.md` / `PLAN.md` 中 `T5000e1` 与 `T5000e1R` 的范围、验收与完成记录。
-2. 审查 `crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/monomorph/{mod,lower}.rs`、`crates/scoop/src/commands/dump_ir.rs`、`crates/scoopc/src/hir/lower/mod.rs` 的实现接缝。
-3. 重点核对三件事：
-   - `InstanceKey` 是否已经是最终实例身份，而 `MonomorphKey` 是否退回为“实例请求”；
-   - `dump-ir` 是否只消费 generic MIR template + MIR materializer，而不是对实例重新做 HIR lowering；
-   - per-`InstanceKey` cache 与 fixed-point 发现是否能稳定覆盖直接泛型调用与 nested closure family。
-4. 若 review 暴露既有缺陷：
-   - 能直接修复则立即修复，并补测试；
-   - 若形成新的前置阻塞，则先更新 `TODO.md` / `PLAN.md` 后停止。
-5. 运行与该 review 相关的验证命令，必要时补更窄的 targeted tests，再跑全量质量门禁。
-6. 若 review 通过，则更新 `TODO.md`、`PLAN.md` 与本文件，提交本轮结果并停止。
-
-## 当前状态
-
-- 已完成：初始化计划；检查最新提交；定位首个未完成任务；完成 `T5000e1R` 的代码审查与最小复现探测。
-- 已确认的阻塞点：
-  1. `dump-ir` 对 imported / sysroot generic fun 仍会失败。
-     - 复现：`cargo run -q -p scoop -- dump-ir /tmp/e1r_sysroot2.scoop`
-     - 现象：`scoop.core.print<T>` 直接触发 `missing_generic_template`。
-     - 原因摘要：
-       - `record_monomorph_call(...)` 仍把声明文件写成调用点文件；
-       - dump-ir materializer 只为当前输入源文件建立 template catalog。
-  2. effect-row 泛型实例尚未进入 `InstanceKey` / materializer 闭环。
-     - 复现：
-       - `cargo run -q -p scoop -- dump-ir /tmp/e1r_eff.scoop`
-       - `cargo run -q -p scoop -- dump-mir /tmp/e1r_eff.scoop`
-     - 现象：
-       - effect-only generic `forward<eff E>` 在 `dump-ir` 中返回空实例集；
-       - `dump-mir` 中调用仍直接指向 generic `forward`。
-     - 原因摘要：
-       - monomorph 请求收集只在 `type_args` 非空时入队，`eff_args` 固定为空；
-       - `InstanceKey` 的 `eff_args` 未进入 instance 命名、cache 与 fixed-point；
-       - HIR lowering 当前未保留 effect-row 参数绑定语义。
-- 计划调整：
-  - `T5000e1R` 不能在当前状态下通过；
-  - 已决定把阻塞点拆成前置任务并写入 `TODO.md` / `PLAN.md`：
-    - `T5000e1a`：跨文件 / sysroot template identity 与请求声明源修复；
-    - `T5000e1b`：effect-row 实参进入 `InstanceKey` / materializer 闭环。
-- 进行中：更新 `TODO.md` / `PLAN.md` / 本文件，然后提交本轮“前置任务重排”结果并停止。
+1. 将 `T5000e1a` 标记为完成，并在 `TODO.md` / `PLAN.md` 中记录实现与验证结果。
+2. 检查工作区 diff，确认只包含本轮任务需要的改动。
+3. 提交 Git commit，并停止；下一轮应进入 `T5000e1aR`。

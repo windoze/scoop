@@ -329,4 +329,88 @@ fun entry(): Int / Pair {
         assert_eq!(result_op_fqn, "fixtures.monomorph.Pair.emit");
         assert_eq!(result_effect_ty, metadata.effect_ty);
     }
+
+    #[test]
+    fn monomorph_materializes_compilable_sysroot_generic_template() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/monomorph_sysroot_print.scoop",
+            r#"
+package fixtures.monomorph
+
+import scoop.core.*
+
+fun entry(): Unit {
+    print(1)
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let key = lowered
+            .instance_keys
+            .iter()
+            .find(|key| key.template.fqn == "scoop.core.print")
+            .expect("expected print::<Int> instance request");
+        assert_eq!(
+            key.template
+                .source_path
+                .file_name()
+                .and_then(|name| name.to_str()),
+            Some("print.scoop")
+        );
+        assert!(lowered.file.items.iter().any(|item| matches!(
+            item,
+            crate::mir::Item::Fun(fun) if fun.fqn == "scoop.core.print::<Int>"
+        )));
+    }
+
+    #[test]
+    fn monomorph_materializes_declaration_only_sysroot_generic_template() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/monomorph_sysroot_channels.scoop",
+            r#"
+package fixtures.monomorph
+
+import scoop.core.*
+import scoop.channels.*
+
+fun entry(): Int {
+    val ch: Channel<Int> = channelCreate<Int>()
+    return 0
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let key = lowered
+            .instance_keys
+            .iter()
+            .find(|key| key.template.fqn == "scoop.channels.channelCreate")
+            .expect("expected channelCreate::<Int> instance request");
+        assert_eq!(
+            key.template
+                .source_path
+                .file_name()
+                .and_then(|name| name.to_str()),
+            Some("channels.scoop")
+        );
+
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::Fun(fun) if fun.fqn == "scoop.channels.channelCreate::<Int>" => {
+                    Some(fun)
+                }
+                _ => None,
+            })
+            .expect("expected declaration-only sysroot instance");
+        assert!(
+            fun.body.is_none(),
+            "declaration-only generic fun should materialize as bodyless MIR instance"
+        );
+    }
 }

@@ -736,6 +736,26 @@
       - `T5000e1b`：再补 effect-row 实参从请求收集、template 表示、实例 identity 到 cache/fixed-point 的闭环；
     - `T5000e1R` 现改为依赖 `T5000e1bR`，待上述缺口修复并复核后再继续。
   - 下一条待执行任务切换为 `T5000e1a 为 dump-ir materializer 补齐跨文件 / sysroot generic template 目录与正确的声明源身份`。
+- 2026-04-26：`T5000e1a 为 dump-ir materializer 补齐跨文件 / sysroot generic template 目录与正确的声明源身份` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/typecheck/lower.rs` 的 `record_monomorph_call(...)` 现改为显式接收 `decl_file`，`crates/scoopc/src/typecheck/expr/call.rs` 中所有泛型 direct/member/extension 调用路径都已传入被选中签名的真实 `sig.decl_file` / `sig.decl_span`；`MonomorphKey.symbol` 不再把 imported / sysroot generic fun 误记成调用点文件声明。
+    - `crates/scoopc/src/mir/materialize.rs` 的 dump/debug 前端准备流程已改为构建一组 prepared files：sysroot 声明文件克隆、`stdlib/*.scoop`、`session.sysroot().compilable_source_paths` 中的可编译 sysroot 源，以及当前输入文件；随后在这组文件上统一执行 trim/index/resolve/typecheck，并以整组 generic HIR/MIR template 作为 materializer 输入，而不再只 lower 当前文件。
+    - `collect_generic_template_infos(...)` 现按整组 prepared files 收集 template catalog，并把 declaration-only generic fun 一并纳入；因此 `scoop.core.print<T>` 能从 `sysroot/print.scoop` 找到 body-bearing template，`scoop.channels.channelCreate<T>` 也能从 `sysroot/channels.scoop` 建立稳定的 bodiless template identity，而不再报 `missing_generic_template`。
+  - 依赖/边界说明：
+    - 由于 `sysroot/print.scoop`、`sysroot/task.scoop` 等可编译 sysroot 源本身依赖 `stdlib/*.scoop`，本轮一并把 dump/debug support sources 扩到 `stdlib + compilable sysroot`；这一步仍只服务 `dump-ir` template catalog / lowering，不涉及 `T5000e2` 的编译单元主路径接线。
+  - 回归覆盖：
+    - 新增 `monomorph_materializes_compilable_sysroot_generic_template`，验证 `print(1)` 会 materialize 到 `scoop.core.print::<Int>` 且 `TemplateKey.source_path` 指向 `print.scoop`；
+    - 新增 `monomorph_materializes_declaration_only_sysroot_generic_template`，验证 `channelCreate<Int>()` 会 materialize 到 `scoop.channels.channelCreate::<Int>` 且模板身份指向 `channels.scoop`。
+    - 额外 CLI 复现已确认：
+      - `cargo run -q -p scoop -- dump-ir <tmp print case>` 不再报 `missing_generic_template`；
+      - `cargo run -q -p scoop -- dump-ir <tmp channelCreate case>` 会输出 `scoop.channels.channelCreate::<Int>` 与 `sysroot/channels.scoop` 模板身份。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设`。
 
 ## 1. 当前判断
 

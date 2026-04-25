@@ -1783,6 +1783,7 @@ pub(super) fn infer_top_level_fun_value_expr_type(
     if !selected.sig.type_params.is_empty() {
         lower.record_monomorph_call(
             callee_fqn.clone(),
+            &selected.sig.decl_file,
             selected.sig.decl_span,
             &selected.instantiated.type_args,
         );
@@ -2609,6 +2610,7 @@ pub(super) fn infer_call_expr_type(
                 // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
                 lower.record_monomorph_call(
                     callee_fqn.clone(),
+                    &sig.decl_file,
                     sig.decl_span,
                     &instantiated.type_args,
                 );
@@ -3106,6 +3108,7 @@ pub(super) fn infer_call_expr_type(
 
             lower.record_monomorph_call(
                 callee_fqn.clone(),
+                &chosen.sig.decl_file,
                 chosen.sig.decl_span,
                 &chosen.instantiated.type_args,
             );
@@ -6042,6 +6045,7 @@ fn infer_member_call_expr_type(
             // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
             lower.record_monomorph_call(
                 fqn.to_string(),
+                &chosen.sig.decl_file,
                 chosen.sig.decl_span,
                 &chosen.instantiated.type_args,
             );
@@ -6833,7 +6837,12 @@ fn infer_member_call_expr_type(
         }
 
         // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
-        lower.record_monomorph_call(callee_fqn.clone(), sig.decl_span, &instantiated.type_args);
+        lower.record_monomorph_call(
+            callee_fqn.clone(),
+            &sig.decl_file,
+            sig.decl_span,
+            &instantiated.type_args,
+        );
 
         let ret = if safe {
             lower.ty_option(instantiated.return_ty)
@@ -7391,6 +7400,7 @@ fn infer_member_call_expr_type(
     // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
     lower.record_monomorph_call(
         callee_fqn.clone(),
+        &chosen.sig.decl_file,
         chosen.sig.decl_span,
         &chosen.instantiated.type_args,
     );
