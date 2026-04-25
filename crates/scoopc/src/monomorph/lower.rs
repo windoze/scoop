@@ -413,4 +413,77 @@ fun entry(): Int {
             "declaration-only generic fun should materialize as bodyless MIR instance"
         );
     }
+
+    #[test]
+    fn monomorph_rewrites_external_generic_calls_to_concrete_instances() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/monomorph_external_generic_fixed_point.scoop",
+            r#"
+package fixtures.monomorph
+
+import scoop.core.*
+
+fun wrap<T>(value: T): Unit {
+    print(value)
+}
+
+fun entry(): Unit {
+    wrap(1)
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let wrap = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::Fun(fun) if fun.fqn == "fixtures.monomorph.wrap::<Int>" => {
+                    Some(fun)
+                }
+                _ => None,
+            })
+            .expect("expected wrap::<Int> instance");
+        let body = wrap.body.as_ref().expect("wrap::<Int> should have body");
+        let call_kind = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Call { kind, .. },
+                    ..
+                } => Some(kind),
+                _ => None,
+            })
+            .expect("expected direct call in wrap::<Int>");
+        match call_kind {
+            crate::mir::CallKind::Direct { callee_fqn } => {
+                assert_eq!(callee_fqn, "scoop.core.print::<Int>");
+            }
+            other => panic!("expected direct instantiated print call, got {other:?}"),
+        }
+
+        assert_eq!(
+            lowered
+                .file
+                .items
+                .iter()
+                .filter(|item| matches!(
+                    item,
+                    crate::mir::Item::Fun(fun) if fun.fqn == "scoop.core.print::<Int>"
+                ))
+                .count(),
+            1
+        );
+        assert!(
+            !lowered.file.items.iter().any(|item| matches!(
+                item,
+                crate::mir::Item::Fun(fun) if fun.fqn == "scoop.core.print::<T>"
+            )),
+            "materializer should not emit template-param-only print instances"
+        );
+    }
 }

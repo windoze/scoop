@@ -503,9 +503,11 @@ fn collect_dump_materialization_inputs(
     })
 }
 
+type RequestTemplateKey = (String, PathBuf, Span);
+
 #[derive(Clone)]
 struct GenericTemplateInfo {
-    request_lookup_key: (String, Span),
+    request_lookup_key: RequestTemplateKey,
     template: TemplateKey,
     type_param_names: Vec<String>,
 }
@@ -528,7 +530,7 @@ fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<Ge
                 format!("{pkg_prefix}.{local_name}")
             };
             out.push(GenericTemplateInfo {
-                request_lookup_key: (fqn.clone(), fun.name.span),
+                request_lookup_key: (fqn.clone(), file.source.path().to_path_buf(), fun.name.span),
                 template: TemplateKey {
                     fqn,
                     source_path: file.source.path().to_path_buf(),
@@ -625,15 +627,24 @@ fn materialize_generic_mir_for_dump(
 #[derive(Clone)]
 struct TemplateRootInfo {
     template: TemplateKey,
-    request_decl_span: Span,
     type_param_names: Vec<String>,
     root_fun: FunDecl,
     family: Vec<FunDecl>,
 }
 
+#[derive(Clone)]
+struct TemplateRootCandidate {
+    request_lookup_key: RequestTemplateKey,
+    template: TemplateKey,
+    type_param_names: Vec<String>,
+    signature_key: String,
+    root_fun: FunDecl,
+}
+
 struct MirInstanceMaterializer {
     types: TypeStore,
     builtins: BuiltinTypes,
+    request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     roots: HashMap<TemplateKey, TemplateRootInfo>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     queued: HashSet<InstanceKey>,
@@ -655,14 +666,8 @@ impl MirInstanceMaterializer {
             }
         }
 
-        let mut info_by_request: HashMap<(String, Span), GenericTemplateInfo> = HashMap::new();
+        let mut root_candidates = Vec::new();
         for info in template_infos {
-            info_by_request.insert(info.request_lookup_key.clone(), info);
-        }
-
-        let mut roots = HashMap::new();
-        let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
-        for info in info_by_request.into_values() {
             let Some(root_fun) = generic_funs
                 .iter()
                 .find(|fun| fun.fqn == info.template.fqn && fun.span == info.template.decl_span)
@@ -677,23 +682,50 @@ impl MirInstanceMaterializer {
                 ));
             };
 
+            root_candidates.push(TemplateRootCandidate {
+                request_lookup_key: info.request_lookup_key,
+                template: info.template,
+                type_param_names: info.type_param_names,
+                signature_key: template_signature_key(&types, &root_fun),
+                root_fun,
+            });
+        }
+
+        let canonical_templates = canonical_template_map(&root_candidates);
+
+        let mut request_templates = HashMap::new();
+        let mut roots = HashMap::new();
+        let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
+        for candidate in root_candidates {
+            let group_key = (
+                candidate.template.fqn.clone(),
+                candidate.signature_key.clone(),
+            );
+            let canonical = canonical_templates
+                .get(&group_key)
+                .cloned()
+                .expect("canonical template must exist for every root candidate");
+            request_templates.insert(candidate.request_lookup_key, canonical.clone());
+
+            if candidate.template != canonical {
+                continue;
+            }
+
             let family = generic_funs
                 .iter()
-                .filter(|fun| belongs_to_template_family(&fun.fqn, &info.template.fqn))
+                .filter(|fun| belongs_to_template_family(fun, &candidate.root_fun))
                 .cloned()
                 .collect::<Vec<_>>();
-            let template = info.template.clone();
             roots_by_fqn
-                .entry(template.fqn.clone())
+                .entry(canonical.fqn.clone())
                 .or_default()
-                .push(template.clone());
+                .push(canonical.clone());
             roots.insert(
-                template.clone(),
+                canonical.clone(),
                 TemplateRootInfo {
-                    template,
-                    request_decl_span: info.request_lookup_key.1,
-                    type_param_names: info.type_param_names,
-                    root_fun,
+                    template: canonical,
+                    type_param_names: candidate.type_param_names,
+                    root_fun: candidate.root_fun,
                     family,
                 },
             );
@@ -702,6 +734,7 @@ impl MirInstanceMaterializer {
         Ok(Self {
             types,
             builtins,
+            request_templates,
             roots,
             roots_by_fqn,
             queued: HashSet::new(),
@@ -715,21 +748,10 @@ impl MirInstanceMaterializer {
         typecheck_types: &TypeStore,
         monomorph_keys: &[MonomorphKey],
     ) -> MaterializeResult<Vec<InstanceKey>> {
-        let mut request_lookup: HashMap<(String, PathBuf, Span), TemplateKey> = HashMap::new();
-        for root in self.roots.values() {
-            request_lookup.insert(
-                (
-                    root.template.fqn.clone(),
-                    root.template.source_path.clone(),
-                    root.request_decl_span,
-                ),
-                root.template.clone(),
-            );
-        }
-
         let mut initial = Vec::new();
         for key in monomorph_keys {
-            let Some(template) = request_lookup
+            let Some(template) = self
+                .request_templates
                 .get(&(
                     key.symbol.fqn.clone(),
                     key.symbol.decl_file.clone(),
@@ -738,15 +760,14 @@ impl MirInstanceMaterializer {
                 .cloned()
                 .or_else(|| {
                     let matches = self
-                        .roots
-                        .keys()
-                        .filter(|candidate| {
-                            candidate.fqn == key.symbol.fqn
-                                && candidate.source_path == key.symbol.decl_file
+                        .request_templates
+                        .iter()
+                        .filter(|((fqn, file, _), _)| {
+                            *fqn == key.symbol.fqn && *file == key.symbol.decl_file
                         })
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    (matches.len() == 1).then(|| matches[0].clone())
+                        .map(|(_, template)| template.clone())
+                        .collect::<HashSet<_>>();
+                    (matches.len() == 1).then(|| matches.into_iter().next().unwrap())
                 })
             else {
                 return Err(materialize_err(
@@ -761,18 +782,22 @@ impl MirInstanceMaterializer {
             if key.type_args.is_empty() {
                 continue;
             }
+            let type_args = key
+                .type_args
+                .iter()
+                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
+                .collect::<Vec<_>>();
             let eff_args = key
                 .eff_args
                 .iter()
                 .map(|row| re_intern_effect_row_from(&mut self.types, typecheck_types, row))
-                .collect();
+                .collect::<Vec<_>>();
+            if !instance_request_is_concrete(&self.types, &type_args, &eff_args) {
+                continue;
+            }
             initial.push(InstanceKey {
                 template,
-                type_args: key
-                    .type_args
-                    .iter()
-                    .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
-                    .collect(),
+                type_args,
                 eff_args,
             });
         }
@@ -1226,11 +1251,63 @@ impl MirInstanceMaterializer {
     }
 }
 
-fn belongs_to_template_family(fun_fqn: &str, root_fqn: &str) -> bool {
-    fun_fqn == root_fqn
-        || fun_fqn
-            .strip_prefix(root_fqn)
-            .is_some_and(|suffix| suffix.starts_with(".$lambda"))
+fn canonical_template_map(
+    candidates: &[TemplateRootCandidate],
+) -> HashMap<(String, String), TemplateKey> {
+    let mut grouped: HashMap<(String, String), Vec<&TemplateRootCandidate>> = HashMap::new();
+    for candidate in candidates {
+        grouped
+            .entry((
+                candidate.template.fqn.clone(),
+                candidate.signature_key.clone(),
+            ))
+            .or_default()
+            .push(candidate);
+    }
+
+    let mut out = HashMap::new();
+    for (key, group) in grouped {
+        let chosen = choose_canonical_template(&group);
+        out.insert(key, chosen.template.clone());
+    }
+    out
+}
+
+fn choose_canonical_template<'a>(
+    candidates: &[&'a TemplateRootCandidate],
+) -> &'a TemplateRootCandidate {
+    let mut preferred = candidates
+        .iter()
+        .copied()
+        .filter(|candidate| candidate.root_fun.body.is_some())
+        .collect::<Vec<_>>();
+    if preferred.is_empty() {
+        preferred.extend(candidates.iter().copied());
+    }
+    preferred.sort_by(|a, b| {
+        a.template
+            .source_path
+            .cmp(&b.template.source_path)
+            .then_with(|| a.template.decl_span.start.cmp(&b.template.decl_span.start))
+            .then_with(|| a.template.decl_span.end.cmp(&b.template.decl_span.end))
+    });
+    preferred
+        .into_iter()
+        .next()
+        .expect("template candidate group must not be empty")
+}
+
+fn belongs_to_template_family(fun: &FunDecl, root_fun: &FunDecl) -> bool {
+    if fun.fqn == root_fun.fqn {
+        return fun.span == root_fun.span;
+    }
+    fun.fqn.strip_prefix(&root_fun.fqn).is_some_and(|suffix| {
+        suffix.starts_with(".$lambda") && span_contains(root_fun.span, fun.span)
+    })
+}
+
+fn span_contains(outer: Span, inner: Span) -> bool {
+    outer.start <= inner.start && inner.end <= outer.end
 }
 
 fn rewrite_family_symbol_name(
@@ -1412,6 +1489,124 @@ fn operand_type(
         !type_contains_param(types, *ty)
             && !matches!(types.kind(*ty), TypeKind::Ref(RefTypeKind::Any))
     })
+}
+
+fn template_signature_key(types: &TypeStore, fun: &FunDecl) -> String {
+    normalized_type_key(types, fun.ty)
+}
+
+fn normalized_type_key(types: &TypeStore, ty: TypeId) -> String {
+    match types.kind(ty) {
+        TypeKind::Param(param) => format!("P({})", param.name),
+        TypeKind::StarProjection(star) => {
+            format!("Star({})", normalized_type_key(types, star.read_ty))
+        }
+        TypeKind::Ref(RefTypeKind::Any) => "Ref(Any)".to_string(),
+        TypeKind::Ref(RefTypeKind::String) => "Ref(String)".to_string(),
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => format!(
+            "RefNominal({};{};{})",
+            nominal.fqn,
+            nominal
+                .args
+                .iter()
+                .map(|&arg| normalized_type_key(types, arg))
+                .collect::<Vec<_>>()
+                .join(","),
+            nominal
+                .eff
+                .as_ref()
+                .map(|row| effect_row_signature_key(types, row))
+                .unwrap_or_else(|| "NoEff".to_string())
+        ),
+        TypeKind::Ref(RefTypeKind::Function(fun)) => format!(
+            "Fn({};{};{};{};{})",
+            fun.receiver
+                .map(|receiver| normalized_type_key(types, receiver))
+                .unwrap_or_else(|| "NoReceiver".to_string()),
+            fun.params
+                .iter()
+                .map(|&param| normalized_type_key(types, param))
+                .collect::<Vec<_>>()
+                .join(","),
+            normalized_type_key(types, fun.return_ty),
+            effect_row_signature_key(types, &fun.effects),
+            fun.effects_closed
+        ),
+        TypeKind::Ref(RefTypeKind::Union(union)) => format!(
+            "Union({})",
+            union
+                .variants
+                .iter()
+                .map(|&variant| normalized_type_key(types, variant))
+                .collect::<Vec<_>>()
+                .join("|")
+        ),
+        TypeKind::Value(ValueTypeKind::Unit) => "Unit".to_string(),
+        TypeKind::Value(ValueTypeKind::Nothing) => "Nothing".to_string(),
+        TypeKind::Value(ValueTypeKind::Bool) => "Bool".to_string(),
+        TypeKind::Value(ValueTypeKind::Char) => "Char".to_string(),
+        TypeKind::Value(ValueTypeKind::Float64) => "Float64".to_string(),
+        TypeKind::Value(ValueTypeKind::Float32) => "Float32".to_string(),
+        TypeKind::Value(ValueTypeKind::Int) => "Int".to_string(),
+        TypeKind::Value(ValueTypeKind::UInt) => "UInt".to_string(),
+        TypeKind::Value(ValueTypeKind::IntN(bits)) => format!("IntN({bits})"),
+        TypeKind::Value(ValueTypeKind::UIntN(bits)) => format!("UIntN({bits})"),
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => format!(
+            "ValNominal({};{};{})",
+            nominal.fqn,
+            nominal
+                .args
+                .iter()
+                .map(|&arg| normalized_type_key(types, arg))
+                .collect::<Vec<_>>()
+                .join(","),
+            nominal
+                .eff
+                .as_ref()
+                .map(|row| effect_row_signature_key(types, row))
+                .unwrap_or_else(|| "NoEff".to_string())
+        ),
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            format!("Option({})", normalized_type_key(types, *inner))
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => format!(
+            "Tuple({})",
+            elements
+                .iter()
+                .map(|&element| normalized_type_key(types, element))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    }
+}
+
+fn effect_row_signature_key(types: &TypeStore, row: &EffectRow) -> String {
+    if row.terms.is_empty() {
+        return "Pure".to_string();
+    }
+    row.terms
+        .iter()
+        .map(|&term| normalized_type_key(types, term))
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
+fn instance_request_is_concrete(
+    types: &TypeStore,
+    type_args: &[TypeId],
+    eff_args: &[EffectRow],
+) -> bool {
+    type_args.iter().all(|&ty| !type_contains_param(types, ty))
+        && eff_args
+            .iter()
+            .all(|row| !effect_row_contains_param(types, row))
+}
+
+fn effect_row_contains_param(types: &TypeStore, row: &EffectRow) -> bool {
+    row.terms
+        .iter()
+        .copied()
+        .any(|term| type_contains_param(types, term))
 }
 
 fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {

@@ -756,6 +756,28 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设`。
+- 2026-04-26：`T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设` 已完成。
+  - review 先暴露并修复了一个现存 dump-ir fixed-point 缺口：
+    - 复现：`fun wrap<T>(value: T) { print(value) }` + `wrap(1)` 时，`dump-ir` 先前会错误输出 `scoop.core.print::<T>`，并在 `wrap::<Int>` 的实例体内保留 generic `callee_fqn: "scoop.core.print"`；
+    - 根因 1：`seed_requests(...)` 会把 generic template body 中记录到的 type-param 实例请求当成 monomorphic roots，导致 materializer 先错误生成 `::<T>` 实例；
+    - 根因 2：`mir::materialize` 先前按 `fqn` 粗粒度聚合 template family，遇到 `sysroot/core.scoop` 声明 + `sysroot/print.scoop` 实现这类“同 FQN 双模板”时，direct-call fixed-point 无法稳定选中 body-bearing root。
+  - 修复结果：
+    - `crates/scoopc/src/mir/materialize.rs` 现为 dump/debug materializer 新增 `request_templates` 与 canonical template 选择：按 `(fqn, decl_file, decl_span)` 请求键入表，并用归一化签名把 declaration/body duplicates 收口到单一 canonical root，优先选择 body-bearing template；
+    - template family 现改为“当前 root + 其 lambda family”而不是“同 fqn 全部 generic fun”，从而避免把 bodyless declaration 或其它同名 root 一并 materialize 进单个实例；
+    - `seed_requests(...)` 现会跳过仍含 type/effect 参数的非具体实例请求，外部 generic direct-call 的 concrete instance 改由 materialized body 的 fixed-point 路径发现。
+  - 回归覆盖：
+    - 新增 `monomorph_rewrites_external_generic_calls_to_concrete_instances`，验证 `wrap::<Int>` 会把 `print(value)` 重写到 `scoop.core.print::<Int>`，且不会再产出 `scoop.core.print::<T>`；
+    - 额外 CLI 复现已确认 `cargo run -q -p scoop -- dump-ir <tmp wrap/print case>` 的输出包含 `callee_fqn: "scoop.core.print::<Int>"`，不再出现 `scoop.core.print::<T>`；
+    - 现有 `mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization` 继续通过，说明这次修复没有把 dump/debug 路径重新推回到 e2 的编译单元主路径。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`
+    - `cargo run -q -p scoop -- dump-ir <tmp wrap/print case>`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：dump-ir 单文件路径的 template identity 现已稳定脱离“仅当前源文件”与“声明/实现双模板会破坏 fixed-point”两类错误假设；下一条待执行任务切换为 `T5000e1b 让 InstanceKey / dump-ir materializer 正确承载 effect-row 实参`。
 
 ## 1. 当前判断
 

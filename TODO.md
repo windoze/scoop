@@ -759,7 +759,7 @@
   - 已新增回归测试 `monomorph_materializes_compilable_sysroot_generic_template` 与 `monomorph_materializes_declaration_only_sysroot_generic_template`，分别覆盖 `scoop.core.print::<Int>` 与 `scoop.channels.channelCreate::<Int>` 的实例化。
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo run -q -p scoop -- dump-ir <tmp print case>`、`cargo run -q -p scoop -- dump-ir <tmp channelCreate case>`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设
+### [DONE] T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设
 - 重点：
   - imported / sysroot generic fun 的请求键是否指向真实声明源；
   - dump-ir template catalog 是否已覆盖调试路径上可达的外部 generic template，而不是继续只扫当前源文件；
@@ -767,6 +767,13 @@
 - 验收：
   - 单文件/调试路径上的 template identity 已足够稳定，不再因外部 generic direct call 而直接报缺模板。
 - 依赖：T5000e1a
+- 完成记录（2026-04-26）：
+  - review 过程中先暴露并修复了一个现存 fixed-point 缺口：当 entry 文件中的 generic fun 实例体继续 direct-call 外部 generic fun（例如 `wrap<T>(value: T) { print(value) }` + `wrap(1)`）时，`dump-ir` 先前会错误 seed 出 `scoop.core.print::<T>` 这类非具体实例请求，并在 `wrap::<Int>` 体内保留 generic `callee_fqn: "scoop.core.print"`；现已在 `crates/scoopc/src/mir/materialize.rs` 中引入基于 `(fqn, decl_file, decl_span)` 请求键与归一化签名的 canonical template 选择，优先收口到 body-bearing root，并把 template family 缩到“当前 root + 其 lambda family”，从而恢复外部 generic direct-call 的具体实例 fixed-point；
+  - `seed_requests(...)` 现会过滤仍含 type-param / effect-param 的非具体实例请求，避免把 generic template body 的 typecheck 请求误当成 monomorphic roots；外部 generic direct-call 的具体实例改由 materialized instance body 的 fixed-point 发现路径补齐；
+  - 已新增回归测试 `monomorph_rewrites_external_generic_calls_to_concrete_instances`，确认 `wrap::<Int>` 的 body 会把 `print(value)` 重写到 `scoop.core.print::<Int>`，且 materializer 不再输出 `scoop.core.print::<T>` 这类模板参数实例；CLI 复现 `cargo run -q -p scoop -- dump-ir <tmp wrap/print case>` 也已确认输出中的 `callee_fqn` 为 `scoop.core.print::<Int>`；
+  - 已复核 `record_monomorph_call(...)` 的 `decl_file/decl_span` 传递链、dump/debug prepared-files template catalog、以及新的 canonical root/family 逻辑，确认本轮改动仍局限在 `dump-ir` materializer 与调试回归，没有提前把 `T5000e2` 的编译单元 frontend/build 主路径接线并入；
+  - review 结论：单文件/调试路径上的 template identity 已脱离“generic template 必须定义在当前输入文件”与“声明/实现双份 generic fun 会破坏 fixed-point”这两类错误假设，下一条可进入 `T5000e1b`；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`、`cargo run -q -p scoop -- dump-ir <tmp wrap/print case>`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000e1b 让 `InstanceKey` / dump-ir materializer 正确承载 effect-row 实参
 - 范围：
