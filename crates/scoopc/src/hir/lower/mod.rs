@@ -30,6 +30,7 @@ use crate::ty::{
     ValueTypeKind,
 };
 
+use super::EFFECT_ROW_PARAM_DECL_FILE;
 use super::{
     Block, CallArg, CallSite, ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex,
     Expr, ExprKind, File, FunDecl, Item, NonPureContinuationResumeCallSiteIndex, ObjectInitIndex,
@@ -114,6 +115,8 @@ struct HirLowering<'a> {
     builtins: BuiltinTypes,
     /// type parameter 作用域栈：用于 lowering `T` 这类抽象类型引用。
     type_param_scopes: Vec<HashMap<String, TypeId>>,
+    /// effect row parameter 作用域栈：用于 lowering `/ E` 或 `Type<eff E>` 这类 row 变量引用。
+    effect_row_param_scopes: Vec<HashMap<String, EffectRowParamBinding>>,
 }
 
 /// 构造 `HirLowering` 时用到的非必需上下文集合。
@@ -129,6 +132,11 @@ struct HirLoweringSetup<'a> {
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
     value_type_computed_properties: &'a HashSet<String>,
     builtins: BuiltinTypes,
+}
+
+#[derive(Clone)]
+enum EffectRowParamBinding {
+    Placeholder(TypeId),
 }
 
 impl<'a> HirLowering<'a> {
@@ -199,6 +207,7 @@ impl<'a> HirLowering<'a> {
             types,
             builtins,
             type_param_scopes: Vec::new(),
+            effect_row_param_scopes: Vec::new(),
         }
     }
 
@@ -224,6 +233,25 @@ impl<'a> HirLowering<'a> {
             decl_span,
         };
         self.when_pat_binding_tys.insert(site, ty);
+    }
+
+    fn intern_effect_row_param_marker(&mut self, name: String, decl_span: Span) -> TypeId {
+        self.types.intern(TypeKind::Param(TypeParamType {
+            name,
+            decl_file: std::path::PathBuf::from(EFFECT_ROW_PARAM_DECL_FILE),
+            decl_span,
+        }))
+    }
+
+    fn push_effect_row_param_placeholder(&mut self, name: String, decl_span: Span) {
+        let mut scope = HashMap::new();
+        let marker = self.intern_effect_row_param_marker(name.clone(), decl_span);
+        scope.insert(name, EffectRowParamBinding::Placeholder(marker));
+        self.effect_row_param_scopes.push(scope);
+    }
+
+    fn pop_effect_row_param_binding(&mut self) {
+        let _ = self.effect_row_param_scopes.pop();
     }
 
     fn call_site(&self, span: Span) -> CallSite {
@@ -507,6 +535,13 @@ impl<'a> HirLowering<'a> {
     fn lower_fun_decl(&mut self, pkg_prefix: &str, fun: &ast::FunDecl) -> FunDecl {
         // 进入函数作用域：先把 type params lower 成 `TypeId`，保证签名与 body 内引用一致。
         self.push_type_params(&fun.type_params);
+        let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
+            let name = eff_param.name.text(self.source).to_string();
+            self.push_effect_row_param_placeholder(name, eff_param.name.span);
+            true
+        } else {
+            false
+        };
 
         let name = fun.name.text(self.source).to_string();
         let fqn = if pkg_prefix.is_empty() {
@@ -600,6 +635,9 @@ impl<'a> HirLowering<'a> {
             ast::FunBody::Missing => None,
         };
 
+        if eff_binding_pushed {
+            self.pop_effect_row_param_binding();
+        }
         self.pop_type_params();
 
         FunDecl {
@@ -722,6 +760,13 @@ impl<'a> HirLowering<'a> {
         // owner type params 在 member 方法体内可见（例如 `class Box<T> { fun get(): T }`）。
         self.push_type_params(owner_type_params);
         self.push_type_params(&fun.type_params);
+        let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
+            let name = eff_param.name.text(self.source).to_string();
+            self.push_effect_row_param_placeholder(name, eff_param.name.span);
+            true
+        } else {
+            false
+        };
 
         let name = fun.name.text(self.source).to_string();
         let fqn = format!("{owner_fqn}.{name}");
@@ -790,6 +835,9 @@ impl<'a> HirLowering<'a> {
             ast::FunBody::Missing => None,
         };
 
+        if eff_binding_pushed {
+            self.pop_effect_row_param_binding();
+        }
         self.pop_type_params(); // fun type params
         self.pop_type_params(); // owner type params
 
@@ -899,6 +947,13 @@ impl<'a> HirLowering<'a> {
         pkg_prefix: &str,
         fun: &ast::FunDecl,
     ) -> FunDecl {
+        let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
+            let name = eff_param.name.text(self.source).to_string();
+            self.push_effect_row_param_placeholder(name, eff_param.name.span);
+            true
+        } else {
+            false
+        };
         let name = fun.name.text(self.source).to_string();
         let fqn = if pkg_prefix.is_empty() {
             name.clone()
@@ -986,7 +1041,7 @@ impl<'a> HirLowering<'a> {
             ast::FunBody::Missing => None,
         };
 
-        FunDecl {
+        let out = FunDecl {
             span: fun.span,
             fqn,
             name,
@@ -996,7 +1051,11 @@ impl<'a> HirLowering<'a> {
             params,
             return_ty,
             body,
+        };
+        if eff_binding_pushed {
+            self.pop_effect_row_param_binding();
         }
+        out
     }
 
     /// T0126: 在"已绑定 owner type params"的语境下降低成员方法。
@@ -1019,6 +1078,13 @@ impl<'a> HirLowering<'a> {
         // 方法自身的 type params（如果有的话）仍然需要 push；
         // owner 的 type params 已由调用方在 push_type_param_bindings 中绑定。
         self.push_type_params(&fun.type_params);
+        let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
+            let name = eff_param.name.text(self.source).to_string();
+            self.push_effect_row_param_placeholder(name, eff_param.name.span);
+            true
+        } else {
+            false
+        };
 
         let name = fun.name.text(self.source).to_string();
         let fqn = format!("{owner_fqn}.{name}");
@@ -1082,6 +1148,9 @@ impl<'a> HirLowering<'a> {
             ast::FunBody::Missing => None,
         };
 
+        if eff_binding_pushed {
+            self.pop_effect_row_param_binding();
+        }
         self.pop_type_params(); // fun type params
 
         FunDecl {
@@ -1453,6 +1522,20 @@ impl<'a> HirLowering<'a> {
 
         let mut terms: Vec<TypeId> = Vec::with_capacity(expr.terms.len());
         for term in &expr.terms {
+            if term.segments.len() == 1 && term.args.is_empty() {
+                let name = term.segments[0].text(self.source);
+                if let Some(binding) = self
+                    .effect_row_param_scopes
+                    .iter()
+                    .rev()
+                    .find_map(|scope| scope.get(name))
+                {
+                    match binding {
+                        EffectRowParamBinding::Placeholder(marker) => terms.push(*marker),
+                    }
+                    continue;
+                }
+            }
             terms.push(self.lower_type_path(term));
         }
         EffectRow::new(terms)

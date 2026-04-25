@@ -10,7 +10,7 @@ use std::cell::{OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 
 use crate::span::Span;
-use crate::ty::TypeId;
+use crate::ty::{EffectRow, TypeId};
 
 #[derive(Clone)]
 pub struct File {
@@ -218,6 +218,10 @@ impl File {
         self.top_level_fun_value_refs.borrow().get(&span).cloned()
     }
 
+    pub fn top_level_fun_value_refs(&self) -> HashMap<Span, TopLevelFunValueRef> {
+        self.top_level_fun_value_refs.borrow().clone()
+    }
+
     pub fn replace_top_level_fun_call_bindings(
         &self,
         bindings: HashMap<Span, TopLevelFunCallBinding>,
@@ -230,6 +234,10 @@ impl File {
             .borrow()
             .get(&span)
             .cloned()
+    }
+
+    pub fn top_level_fun_call_bindings(&self) -> HashMap<Span, TopLevelFunCallBinding> {
+        self.top_level_fun_call_bindings.borrow().clone()
     }
 
     pub fn replace_typechecked_effect_op_call_bindings(
@@ -261,7 +269,10 @@ impl File {
 #[derive(Debug, Clone)]
 pub struct TopLevelFunValueRef {
     pub fqn: String,
+    pub decl_file: std::path::PathBuf,
+    pub decl_span: Span,
     pub type_args: Vec<TypeId>,
+    pub eff_args: Vec<EffectRow>,
 }
 
 #[derive(Debug, Clone)]
@@ -271,6 +282,7 @@ pub struct TopLevelFunCallBinding {
     pub decl_span: Span,
     pub is_intrinsic: bool,
     pub type_args: Vec<TypeId>,
+    pub eff_args: Vec<EffectRow>,
 }
 
 #[derive(Debug, Clone)]

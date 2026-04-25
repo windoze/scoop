@@ -1,65 +1,67 @@
-# 本轮执行计划
+# 当前执行记录（2026-04-26）
 
-## 目标
+## 任务结论
 
-完成 `TODO.md` 中第一个未完成任务；如果在检查最新提交、代码、测试或执行过程中发现任何既有问题，则优先修复该问题，或将其作为前置任务插入 `TODO.md` 后停止。
+- 本轮目标 `T5000e1b 让 InstanceKey / dump-ir materializer 正确承载 effect-row 实参` 已完成。
+- 执行过程中未发现需要再插入到 `TODO.md` 当前任务之前的新前置缺陷任务。
 
-## 约束
+## 前置检查
 
-- 先检查最新一次提交是否提到待修复问题。
-- 只完成一个任务，然后停止。
-- 不接受规避性实现；若发现规范不匹配、功能缺口、回归或临时绕过，必须优先修复或登记为前置任务。
-- 变更后必须更新 `TODO.md`、`PLAN.md`，并提交 Git。
+- 已复核最新提交 `fa1973b2c34fd47b69d3baaaffd7bc5731e677b2` 的提交信息，没有发现额外声明且尚未修复的前置问题。
+- 已确认本轮开始时 `TODO.md` 第一条未完成任务为 `T5000e1b`。
 
-## 执行步骤
+## 本轮实际完成项
 
-1. 查看最新一次提交信息，确认是否明确提到已有问题需要先修复。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，核对当前计划与任务依赖。
-4. 结合任务内容检查相关代码与测试范围，判断任务是否可以在本轮完整完成。
-5. 如果任务过大：
-   - 将任务拆分为更小的可执行子任务。
-   - 更新 `PLAN.md`。
-   - 更新 `TODO.md`，把新子任务放到正确顺序。
-   - 执行拆分后的第一个子任务。
-6. 在实现前后持续检查是否存在既有问题、规范不匹配、回归或阻塞项：
-   - 若能直接修复，则先修复。
-   - 若不能在本轮直接修复，则将其写入 `TODO.md` 作为前置任务，更新 `PLAN.md`，提交后停止。
-7. 实现当前目标任务。
-8. 运行相关格式化、lint、测试命令，修复出现的问题，直到相关检查通过。
-9. 更新 `memory/claude_plan.md` 记录关键进展与计划调整。
-10. 更新 `TODO.md`，将当前任务标记为完成或在阻塞时按依赖重排。
-11. 更新 `PLAN.md`，记录当前状态、完成情况、后续顺序与任何新增前置项。
-12. 检查工作区变更，整理提交内容。
-13. 使用清晰的提交信息创建 Git 提交。
-14. 停止，不继续处理下一个任务。
+1. 接通 effect-row 实参的请求收集与 side table
+   - `crates/scoopc/src/ast/mod.rs`：
+     - `TopLevelFunValueRef` 新增 `decl_file`、`decl_span`、`eff_args`；
+     - 暴露 `top_level_fun_value_refs()` / `top_level_fun_call_bindings()` 整表 getter。
+   - `crates/scoopc/src/typecheck/lower.rs`：
+     - `record_monomorph_call(...)` / `record_top_level_fun_value_ref(...)` 记录真实 `eff_args`；
+     - `record_top_level_fun_call_binding(...)` 改成直接接收 `ast::TopLevelFunCallBinding`，顺带收口参数数量。
+   - `crates/scoopc/src/typecheck/expr/call.rs`：
+     - direct/member/overload call、top-level function value、`TypeApply` callee 路径都已写入 `eff_args`；
+     - 显式 `<eff ...>` 实参优先于默认推断路径。
 
-## 进度记录
+2. 修复表达式级 `<eff ...>` 解析与 effect-row 参数保真
+   - `crates/scoopc/src/parser/expr.rs`：
+     - 修复 `looks_like_type_apply_expr` lookahead；
+     - `scan_type_args_end(...)` / `scan_type_ref_end(...)` 已支持 `<eff ...>`。
+   - `crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/expr/{entry,stmt}.rs`：
+     - effect-row 形参绑定改为 marker-preserving 语义，不再提前退化到 `Pure`。
+   - `crates/scoopc/src/hir/{mod.rs,lower/mod.rs,lower/util.rs,lower/expr.rs}`：
+     - HIR generic template 现在保留 effect-row param marker；
+     - top-level function value mangling / fallback `TypeApply` 已把 `eff_args` 纳入。
 
-- 已创建本计划文件。
-- 已检查最新提交：`063444a6 [T5000e1a] Fix dump-ir external template identity`，提交正文没有额外遗留问题说明。
-- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设`。
-- review 过程中通过临时复现用例发现一个现存阻塞问题：
-  - 用例形态：`fun wrap<T>(value: T) { print(value) }` 且入口调用 `wrap(1)`。
-  - 当前 `dump-ir` 输出中，`wrap::<Int>` 的函数体内仍保留 `callee_fqn: "scoop.core.print"`，没有改写到 `scoop.core.print::<Int>`。
-  - 同时 materializer 还错误地产生了 `scoop.core.print::<T>` 这类带模板参数的非具体实例请求。
-- 当前调整后的执行计划：
-  1. 修复 `dump-ir` materializer 对“generic 实例体内继续 direct-call 外部 generic”的 fixed-point 路径。
-  2. 确认不会再从 generic template body 的 typecheck 请求中错误 seed 出非具体实例。
-  3. 为该回归补测试。
-  4. 重新运行相关测试与 review；若通过，再更新 `TODO.md` / `PLAN.md` 并提交。
-- 已完成阻塞修复：
-  - `mir/materialize.rs` 已新增请求键到 canonical template 的映射，并把 template family 收紧到“当前 root + lambda family”，避免 declaration/body duplicates 破坏 fixed-point；
-  - `seed_requests(...)` 已过滤仍含模板参数的非具体实例请求；
-  - 已新增回归测试 `monomorph_rewrites_external_generic_calls_to_concrete_instances`。
-- 已完成验证：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc monomorph::lower -- --nocapture`
-  - `cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`
-  - `cargo run -q -p scoop -- dump-ir <tmp wrap/print case>`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-- 当前剩余步骤：
-  1. 更新 `TODO.md` / `PLAN.md` 完成记录。
-  2. 检查工作区并提交本轮任务。
-  3. 停止，等待下一轮。
+3. 完成 MIR materializer 的 effect-row 闭环，并收口 clippy
+   - `crates/scoopc/src/mir/materialize.rs`：
+     - `InstanceKey`、`instance_fqn(...)`、site binding、instance substitution、effect-row substitution、direct-call fixed-point 与 cache 都已区分 `eff_args`；
+     - effect-only generic fun 会真正进入 materializer，不再返回空实例；
+     - top-level function value / direct call 在同 type args、不同 effect row 下会 materialize 成不同 callee；
+     - 引入 `DumpMaterializeRequestSet` / `RewriteContext`，消除 `too_many_arguments`；
+     - 收掉 `collapsible_if` 等 `clippy` 阻塞。
+
+4. 新增并验证回归测试
+   - `crates/scoopc/src/monomorph/lower.rs` 新增：
+     - `monomorph_materializes_effect_only_generic_instance`
+     - `monomorph_distinguishes_same_type_args_with_different_effect_rows`
+     - `monomorph_rewrites_top_level_fun_value_effect_instance`
+
+## 验证结果
+
+- `cargo fmt --all`：通过
+- `cargo check -p scoopc`：通过
+- `cargo clippy --all-targets -- -D warnings`：通过
+- `cargo test -p scoopc monomorph::lower -- --nocapture`：通过
+- `cargo test --all`：通过
+
+## 文档与任务状态更新
+
+- 已将 `TODO.md` 中 `T5000e1b` 标记为完成，并补充完成记录与验证结果。
+- 已更新 `PLAN.md`，记录 effect-row 实参闭环已完成，并把下一条待执行任务切换为 `T5000e1bR`。
+
+## 收尾步骤
+
+1. 检查工作区 diff 与文档更新是否一致。
+2. 提交 git commit，提交信息使用 `[T5000e1b] ...` 风格。
+3. 停止，不继续下一条任务。

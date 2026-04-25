@@ -70,6 +70,12 @@ pub(in super::super) struct EnumTypeSubstContext<'a> {
     pub(in super::super) subst: &'a HashMap<String, TypeId>,
 }
 
+#[derive(Debug, Clone, Default)]
+struct ExplicitTypeApplyArgs {
+    type_args: Vec<TypeId>,
+    eff_arg: Option<EffectRow>,
+}
+
 /// 把 AST 的调用实参列表归一化为"用于重载筛选"的结构，并预先推导每个实参表达式的类型。
 ///
 /// 说明：
@@ -1596,6 +1602,10 @@ fn generic_constraints_from_expected_fun_value(
     lower: &mut TypeLowering<'_>,
     use_span: Span,
 ) -> Result<Vec<GenericArgConstraint>, ExprTypeError> {
+    if sig.type_params.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let placeholder = InstantiatedFunSig {
         params: sig.params.clone(),
         return_ty: sig.return_ty,
@@ -1621,13 +1631,13 @@ fn generic_constraints_from_expected_fun_value(
 fn extract_top_level_fun_value_target(
     expr: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-) -> Result<Option<(String, Vec<TypeId>)>, ExprTypeError> {
+) -> Result<Option<(String, ExplicitTypeApplyArgs)>, ExprTypeError> {
     match &expr.kind {
         ast::ExprKind::Ident(id) => {
             let Some(ast::ResolvedValueRef::TopLevel { fqn }) = id.resolved.as_ref() else {
                 return Ok(None);
             };
-            Ok(Some((fqn.clone(), Vec::new())))
+            Ok(Some((fqn.clone(), ExplicitTypeApplyArgs::default())))
         }
         ast::ExprKind::TypeApply { callee, args } => {
             let ast::ExprKind::Ident(id) = &callee.kind else {
@@ -1636,14 +1646,32 @@ fn extract_top_level_fun_value_target(
             let Some(ast::ResolvedValueRef::TopLevel { fqn }) = id.resolved.as_ref() else {
                 return Ok(None);
             };
-            let lowered = args
-                .iter()
-                .map(|arg| lower.lower_type_ref(arg))
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(Some((fqn.clone(), lowered)))
+            Ok(Some((
+                fqn.clone(),
+                lower_explicit_type_apply_args(args, lower)?,
+            )))
         }
         _ => Ok(None),
     }
+}
+
+fn lower_explicit_type_apply_args(
+    args: &[ast::TypeRef],
+    lower: &mut TypeLowering<'_>,
+) -> Result<ExplicitTypeApplyArgs, ExprTypeError> {
+    let mut lowered = ExplicitTypeApplyArgs::default();
+    for arg in args {
+        match arg {
+            ast::TypeRef::EffectRowArg { row, .. } => {
+                if lowered.eff_arg.is_none() {
+                    lowered.eff_arg =
+                        Some(lower.lower_effect_row_expr_preserving_params(Some(row))?);
+                }
+            }
+            other => lowered.type_args.push(lower.lower_type_ref(other)?),
+        }
+    }
+    Ok(lowered)
 }
 
 pub(super) fn infer_top_level_fun_value_expr_type(
@@ -1653,7 +1681,7 @@ pub(super) fn infer_top_level_fun_value_expr_type(
     expected_from: Option<&ExpectedTypeFrom>,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
-    let Some((callee_fqn, explicit_type_args)) = extract_top_level_fun_value_target(expr, lower)?
+    let Some((callee_fqn, explicit_apply_args)) = extract_top_level_fun_value_target(expr, lower)?
     else {
         return Ok(None);
     };
@@ -1684,6 +1712,7 @@ pub(super) fn infer_top_level_fun_value_expr_type(
     struct MatchCandidate {
         sig: FunSigOwned,
         instantiated: InstantiatedFunSig,
+        eff_arg: EffectRow,
         fun_ty: TypeId,
     }
 
@@ -1691,6 +1720,10 @@ pub(super) fn infer_top_level_fun_value_expr_type(
     let mut first_error: Option<ExprTypeError> = None;
 
     for sig in sigs {
+        if explicit_apply_args.eff_arg.is_some() && sig.eff_param.is_none() {
+            continue;
+        }
+
         let constraints = match (expected_fun_ty, expected_from) {
             (Some(expected_fun_ty), Some(expected_from)) => {
                 generic_constraints_from_expected_fun_value(
@@ -1708,7 +1741,8 @@ pub(super) fn infer_top_level_fun_value_expr_type(
             &callee_name,
             expr.span,
             sig,
-            (!explicit_type_args.is_empty()).then_some(explicit_type_args.as_slice()),
+            (!explicit_apply_args.type_args.is_empty())
+                .then_some(explicit_apply_args.type_args.as_slice()),
             constraints,
             lower,
             builtins,
@@ -1722,7 +1756,10 @@ pub(super) fn infer_top_level_fun_value_expr_type(
             }
         };
 
-        let eff_arg = default_eff_arg_for_fun_sig(sig);
+        let eff_arg = explicit_apply_args
+            .eff_arg
+            .clone()
+            .unwrap_or_else(|| default_eff_arg_for_fun_sig(sig));
         let fun_ty = function_value_type_from_instantiated_sig(
             sig,
             &instantiated,
@@ -1740,6 +1777,7 @@ pub(super) fn infer_top_level_fun_value_expr_type(
         matches.push(MatchCandidate {
             sig: sig.clone(),
             instantiated,
+            eff_arg,
             fun_ty,
         });
     }
@@ -1747,12 +1785,17 @@ pub(super) fn infer_top_level_fun_value_expr_type(
     let selected = match matches.len() {
         0 => {
             if let Some(err) = first_error
-                && (sigs.len() == 1 || !explicit_type_args.is_empty())
+                && (sigs.len() == 1
+                    || !explicit_apply_args.type_args.is_empty()
+                    || explicit_apply_args.eff_arg.is_some())
             {
                 return Err(err);
             }
 
-            if expected_fun_ty.is_some() || !explicit_type_args.is_empty() {
+            if expected_fun_ty.is_some()
+                || !explicit_apply_args.type_args.is_empty()
+                || explicit_apply_args.eff_arg.is_some()
+            {
                 return Err(ExprTypeError::NoMatchingOverload {
                     callee: callee_name,
                     span: expr.span.into(),
@@ -1780,14 +1823,19 @@ pub(super) fn infer_top_level_fun_value_expr_type(
         }
     };
 
-    if !selected.sig.type_params.is_empty() {
-        lower.record_monomorph_call(
-            callee_fqn.clone(),
-            &selected.sig.decl_file,
-            selected.sig.decl_span,
-            &selected.instantiated.type_args,
-        );
-    }
+    let eff_args = selected
+        .sig
+        .eff_param
+        .as_ref()
+        .map(|_| vec![selected.eff_arg.clone()])
+        .unwrap_or_default();
+    lower.record_monomorph_call(
+        callee_fqn.clone(),
+        &selected.sig.decl_file,
+        selected.sig.decl_span,
+        &selected.instantiated.type_args,
+        &eff_args,
+    );
     lower.emit_deprecated_fun_use(
         &callee_fqn,
         &selected.sig.decl_file,
@@ -1797,7 +1845,10 @@ pub(super) fn infer_top_level_fun_value_expr_type(
     lower.record_top_level_fun_value_ref(
         expr.span,
         callee_fqn,
+        selected.sig.decl_file.clone(),
+        selected.sig.decl_span,
         selected.instantiated.type_args.clone(),
+        eff_args,
     );
 
     Ok(Some(selected.fun_ty))
@@ -2056,16 +2107,15 @@ pub(super) fn infer_call_expr_type(
     // - 在“普通值表达式”位置，`callee<T>` 现由 `infer_top_level_fun_value_expr_type` 处理；
     // - 但当它作为 `Call` 的 callee 出现时，我们仍需要把显式 type args 传给泛型函数实例化逻辑。
     let mut explicit_type_args: Option<Vec<TypeId>> = None;
+    let mut explicit_eff_arg: Option<EffectRow> = None;
     let callee_expr: &ast::Expr = match &callee.kind {
         ast::ExprKind::TypeApply {
             callee: inner,
             args,
         } => {
-            let lowered = args
-                .iter()
-                .map(|a| lower.lower_type_ref(a))
-                .collect::<Result<Vec<_>, _>>()?;
-            explicit_type_args = Some(lowered);
+            let lowered = lower_explicit_type_apply_args(args, lower)?;
+            explicit_type_args = Some(lowered.type_args);
+            explicit_eff_arg = lowered.eff_arg;
             inner.as_ref()
         }
         _ => callee,
@@ -2420,7 +2470,9 @@ pub(super) fn infer_call_expr_type(
                 // T0509/T0624：推断 `eff` row 参数：
                 // - T0509：从 lambda body 的 required effects 推断 `E`；
                 // - T0624：从 `Type<eff E>` 形式的实参类型中提取 row 约束（例如 `Disposable<eff Async>`）。
-                let eff_arg = if let Some(eff_param) = &sig.eff_param {
+                let eff_arg = if let Some(explicit_eff_arg) = explicit_eff_arg.clone() {
+                    explicit_eff_arg
+                } else if let Some(eff_param) = &sig.eff_param {
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
                     // T0624/T0628a：从 `Type<eff Row>` 的"实参类型"中提取 row 约束。
@@ -2608,19 +2660,28 @@ pub(super) fn infer_call_expr_type(
                 }
 
                 // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
+                let eff_args = sig
+                    .eff_param
+                    .as_ref()
+                    .map(|_| vec![eff_arg.clone()])
+                    .unwrap_or_default();
                 lower.record_monomorph_call(
                     callee_fqn.clone(),
                     &sig.decl_file,
                     sig.decl_span,
                     &instantiated.type_args,
+                    &eff_args,
                 );
                 lower.record_top_level_fun_call_binding(
                     call_expr.span,
-                    callee_fqn.clone(),
-                    sig.decl_file.clone(),
-                    sig.decl_span,
-                    sig.is_intrinsic,
-                    instantiated.type_args.clone(),
+                    ast::TopLevelFunCallBinding {
+                        fqn: callee_fqn.clone(),
+                        decl_file: sig.decl_file.clone(),
+                        decl_span: sig.decl_span,
+                        is_intrinsic: sig.is_intrinsic,
+                        type_args: instantiated.type_args.clone(),
+                        eff_args,
+                    },
                 );
 
                 return Ok(instantiated.return_ty);
@@ -2850,7 +2911,9 @@ pub(super) fn infer_call_expr_type(
                 // T0509/T0624/T0628a：推断 `eff` row 参数：
                 // - 从 lambda body 的 required effects 推断（`found - base`）；
                 // - 从 `Type<eff Row>` 形参的实参类型提取 row 约束（`found - base`）。
-                let eff_arg = if let Some(eff_param) = &cand.eff_param {
+                let eff_arg = if let Some(explicit_eff_arg) = explicit_eff_arg.clone() {
+                    explicit_eff_arg
+                } else if let Some(eff_param) = &cand.eff_param {
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
@@ -3106,19 +3169,29 @@ pub(super) fn infer_call_expr_type(
                 lower.record_performed_effect(effect, call_expr.span);
             }
 
+            let eff_args = chosen
+                .sig
+                .eff_param
+                .as_ref()
+                .map(|_| vec![chosen.eff_arg.clone()])
+                .unwrap_or_default();
             lower.record_monomorph_call(
                 callee_fqn.clone(),
                 &chosen.sig.decl_file,
                 chosen.sig.decl_span,
                 &chosen.instantiated.type_args,
+                &eff_args,
             );
             lower.record_top_level_fun_call_binding(
                 call_expr.span,
-                callee_fqn.clone(),
-                chosen.sig.decl_file.clone(),
-                chosen.sig.decl_span,
-                chosen.sig.is_intrinsic,
-                chosen.instantiated.type_args.clone(),
+                ast::TopLevelFunCallBinding {
+                    fqn: callee_fqn.clone(),
+                    decl_file: chosen.sig.decl_file.clone(),
+                    decl_span: chosen.sig.decl_span,
+                    is_intrinsic: chosen.sig.is_intrinsic,
+                    type_args: chosen.instantiated.type_args.clone(),
+                    eff_args,
+                },
             );
 
             Ok(chosen.instantiated.return_ty)
@@ -4883,10 +4956,7 @@ pub(super) fn infer_continuation_resume_call_expr_type(
             callee: inner,
             args,
         } => {
-            let _explicit_type_args = args
-                .iter()
-                .map(|arg| lower.lower_type_ref(arg))
-                .collect::<Result<Vec<_>, _>>()?;
+            let _explicit_apply_args = lower_explicit_type_apply_args(args, lower)?;
             inner.as_ref()
         }
         _ => callee,
@@ -6043,11 +6113,18 @@ fn infer_member_call_expr_type(
             }
 
             // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
+            let eff_args = chosen
+                .sig
+                .eff_param
+                .as_ref()
+                .map(|_| vec![chosen.eff_arg.clone()])
+                .unwrap_or_default();
             lower.record_monomorph_call(
                 fqn.to_string(),
                 &chosen.sig.decl_file,
                 chosen.sig.decl_span,
                 &chosen.instantiated.type_args,
+                &eff_args,
             );
 
             let ret = if safe {
@@ -6837,11 +6914,17 @@ fn infer_member_call_expr_type(
         }
 
         // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
+        let eff_args = sig
+            .eff_param
+            .as_ref()
+            .map(|_| vec![eff_arg.clone()])
+            .unwrap_or_default();
         lower.record_monomorph_call(
             callee_fqn.clone(),
             &sig.decl_file,
             sig.decl_span,
             &instantiated.type_args,
+            &eff_args,
         );
 
         let ret = if safe {
@@ -7398,11 +7481,18 @@ fn infer_member_call_expr_type(
     }
 
     // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
+    let eff_args = chosen
+        .sig
+        .eff_param
+        .as_ref()
+        .map(|_| vec![chosen.eff_arg.clone()])
+        .unwrap_or_default();
     lower.record_monomorph_call(
         callee_fqn.clone(),
         &chosen.sig.decl_file,
         chosen.sig.decl_span,
         &chosen.instantiated.type_args,
+        &eff_args,
     );
 
     let ret = if safe {

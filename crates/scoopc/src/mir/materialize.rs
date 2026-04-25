@@ -211,6 +211,16 @@ pub enum MirMaterializeError {
         #[label("模板声明在这里")]
         decl_span: miette::SourceSpan,
     },
+
+    #[error("实例化的 effect args 数量不匹配：{fqn} 期望 {expected} 个，但得到 {found} 个")]
+    #[diagnostic(code(scoop::mir::materialize::effect_arg_arity_mismatch))]
+    EffectArgArityMismatch {
+        fqn: String,
+        expected: usize,
+        found: usize,
+        #[label("模板声明在这里")]
+        decl_span: miette::SourceSpan,
+    },
 }
 
 type MaterializeResult<T> = Result<T, Box<MirMaterializeError>>;
@@ -314,6 +324,8 @@ pub fn materialize_for_dump(
         env,
         typecheck_types,
         monomorph_keys,
+        top_level_fun_value_refs,
+        top_level_fun_call_bindings,
     } = collect_dump_materialization_inputs(session, source)?;
     let template_catalog = collect_generic_template_infos(&prepared_files);
     let compilation_unit = prepared_files
@@ -342,9 +354,13 @@ pub fn materialize_for_dump(
         generic_file,
         types,
         builtins,
-        &typecheck_types,
-        &monomorph_keys,
-        template_catalog,
+        DumpMaterializeRequestSet {
+            typecheck_types: &typecheck_types,
+            monomorph_keys: &monomorph_keys,
+            template_infos: template_catalog,
+            top_level_fun_value_refs,
+            top_level_fun_call_bindings,
+        },
     )
 }
 
@@ -362,6 +378,18 @@ struct DumpMaterializationInputs {
     env: TypeEnv,
     typecheck_types: TypeStore,
     monomorph_keys: Vec<MonomorphKey>,
+    top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
+    top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+}
+
+type SourceSiteKey = (PathBuf, Span);
+
+struct DumpMaterializeRequestSet<'a> {
+    typecheck_types: &'a TypeStore,
+    monomorph_keys: &'a [MonomorphKey],
+    template_infos: Vec<GenericTemplateInfo>,
+    top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
+    top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
 }
 
 fn collect_dump_materialization_inputs(
@@ -494,12 +522,26 @@ fn collect_dump_materialization_inputs(
         }
     }
 
+    let mut top_level_fun_value_refs = HashMap::new();
+    let mut top_level_fun_call_bindings = HashMap::new();
+    for file in &prepared_files {
+        let source_path = file.source.path().to_path_buf();
+        for (span, binding) in file.ast.top_level_fun_value_refs() {
+            top_level_fun_value_refs.insert((source_path.clone(), span), binding);
+        }
+        for (span, binding) in file.ast.top_level_fun_call_bindings() {
+            top_level_fun_call_bindings.insert((source_path.clone(), span), binding);
+        }
+    }
+
     Ok(DumpMaterializationInputs {
         prepared_files,
         index,
         env,
         typecheck_types: types,
         monomorph_keys,
+        top_level_fun_value_refs,
+        top_level_fun_call_bindings,
     })
 }
 
@@ -510,6 +552,7 @@ struct GenericTemplateInfo {
     request_lookup_key: RequestTemplateKey,
     template: TemplateKey,
     type_param_names: Vec<String>,
+    eff_param_name: Option<String>,
 }
 
 fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<GenericTemplateInfo> {
@@ -520,7 +563,7 @@ fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<Ge
             let ast::Item::Fun(fun) = item else {
                 continue;
             };
-            if fun.type_params.is_empty() {
+            if fun.type_params.is_empty() && fun.eff_param.is_none() {
                 continue;
             }
             let local_name = file.source.slice(fun.name.span);
@@ -541,6 +584,10 @@ fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<Ge
                     .iter()
                     .map(|param| param.name.text(&file.source).to_string())
                     .collect(),
+                eff_param_name: fun
+                    .eff_param
+                    .as_ref()
+                    .map(|param| param.name.text(&file.source).to_string()),
             });
         }
     }
@@ -614,12 +661,24 @@ fn materialize_generic_mir_for_dump(
     generic_file: File,
     types: TypeStore,
     builtins: BuiltinTypes,
-    typecheck_types: &TypeStore,
-    monomorph_keys: &[MonomorphKey],
-    template_infos: Vec<GenericTemplateInfo>,
+    requests: DumpMaterializeRequestSet<'_>,
 ) -> MaterializeResult<MaterializedMir> {
-    let mut materializer =
-        MirInstanceMaterializer::new(generic_file, types, builtins, template_infos)?;
+    let DumpMaterializeRequestSet {
+        typecheck_types,
+        monomorph_keys,
+        template_infos,
+        top_level_fun_value_refs,
+        top_level_fun_call_bindings,
+    } = requests;
+    let mut materializer = MirInstanceMaterializer::new(
+        generic_file,
+        types,
+        builtins,
+        template_infos,
+        typecheck_types,
+        top_level_fun_value_refs,
+        top_level_fun_call_bindings,
+    )?;
     let initial_requests = materializer.seed_requests(typecheck_types, monomorph_keys)?;
     materializer.run(initial_requests)
 }
@@ -628,6 +687,7 @@ fn materialize_generic_mir_for_dump(
 struct TemplateRootInfo {
     template: TemplateKey,
     type_param_names: Vec<String>,
+    eff_param_name: Option<String>,
     root_fun: FunDecl,
     family: Vec<FunDecl>,
 }
@@ -637,8 +697,30 @@ struct TemplateRootCandidate {
     request_lookup_key: RequestTemplateKey,
     template: TemplateKey,
     type_param_names: Vec<String>,
+    eff_param_name: Option<String>,
     signature_key: String,
     root_fun: FunDecl,
+}
+
+#[derive(Clone)]
+struct SiteInstanceBinding {
+    template: TemplateKey,
+    type_args: Vec<TypeId>,
+    eff_args: Vec<EffectRow>,
+}
+
+#[derive(Default)]
+struct InstanceSubstitution {
+    type_params: HashMap<String, TypeId>,
+    effect_params: HashMap<String, EffectRow>,
+}
+
+struct RewriteContext<'a> {
+    locals: &'a [LocalDecl],
+    substitution: &'a InstanceSubstitution,
+    template_source_path: &'a Path,
+    template_root_fqn: &'a str,
+    instance_root_fqn: &'a str,
 }
 
 struct MirInstanceMaterializer {
@@ -647,6 +729,8 @@ struct MirInstanceMaterializer {
     request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     roots: HashMap<TemplateKey, TemplateRootInfo>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
+    call_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
+    value_ref_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     queued: HashSet<InstanceKey>,
     queue: VecDeque<InstanceKey>,
     materialized: HashMap<InstanceKey, Vec<FunDecl>>,
@@ -658,6 +742,9 @@ impl MirInstanceMaterializer {
         types: TypeStore,
         builtins: BuiltinTypes,
         template_infos: Vec<GenericTemplateInfo>,
+        typecheck_types: &TypeStore,
+        top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
+        top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     ) -> MaterializeResult<Self> {
         let mut generic_funs = Vec::new();
         for item in &generic_file.items {
@@ -686,6 +773,7 @@ impl MirInstanceMaterializer {
                 request_lookup_key: info.request_lookup_key,
                 template: info.template,
                 type_param_names: info.type_param_names,
+                eff_param_name: info.eff_param_name,
                 signature_key: template_signature_key(&types, &root_fun),
                 root_fun,
             });
@@ -725,22 +813,132 @@ impl MirInstanceMaterializer {
                 TemplateRootInfo {
                     template: canonical,
                     type_param_names: candidate.type_param_names,
+                    eff_param_name: candidate.eff_param_name,
                     root_fun: candidate.root_fun,
                     family,
                 },
             );
         }
 
-        Ok(Self {
+        let mut materializer = Self {
             types,
             builtins,
             request_templates,
             roots,
             roots_by_fqn,
+            call_bindings: HashMap::new(),
+            value_ref_bindings: HashMap::new(),
             queued: HashSet::new(),
             queue: VecDeque::new(),
             materialized: HashMap::new(),
-        })
+        };
+        materializer.load_site_instance_bindings(
+            typecheck_types,
+            top_level_fun_value_refs,
+            top_level_fun_call_bindings,
+        )?;
+        Ok(materializer)
+    }
+
+    fn load_site_instance_bindings(
+        &mut self,
+        typecheck_types: &TypeStore,
+        top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
+        top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    ) -> MaterializeResult<()> {
+        for (site, binding) in top_level_fun_call_bindings {
+            if binding.type_args.is_empty() && binding.eff_args.is_empty() {
+                continue;
+            }
+            let Some(template) =
+                self.resolve_request_template(&binding.fqn, &binding.decl_file, binding.decl_span)
+            else {
+                return Err(materialize_err(
+                    MirMaterializeError::MissingGenericTemplate {
+                        fqn: binding.fqn,
+                        file: binding.decl_file.display().to_string(),
+                        span: binding.decl_span,
+                    },
+                ));
+            };
+            let type_args = binding
+                .type_args
+                .iter()
+                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
+                .collect();
+            let eff_args = binding
+                .eff_args
+                .iter()
+                .map(|row| re_intern_effect_row_from(&mut self.types, typecheck_types, row))
+                .collect();
+            self.call_bindings.insert(
+                site,
+                SiteInstanceBinding {
+                    template,
+                    type_args,
+                    eff_args,
+                },
+            );
+        }
+
+        for (site, binding) in top_level_fun_value_refs {
+            if binding.type_args.is_empty() && binding.eff_args.is_empty() {
+                continue;
+            }
+            let Some(template) =
+                self.resolve_request_template(&binding.fqn, &binding.decl_file, binding.decl_span)
+            else {
+                return Err(materialize_err(
+                    MirMaterializeError::MissingGenericTemplate {
+                        fqn: binding.fqn,
+                        file: binding.decl_file.display().to_string(),
+                        span: binding.decl_span,
+                    },
+                ));
+            };
+            let type_args = binding
+                .type_args
+                .iter()
+                .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
+                .collect();
+            let eff_args = binding
+                .eff_args
+                .iter()
+                .map(|row| re_intern_effect_row_from(&mut self.types, typecheck_types, row))
+                .collect();
+            self.value_ref_bindings.insert(
+                site,
+                SiteInstanceBinding {
+                    template,
+                    type_args,
+                    eff_args,
+                },
+            );
+        }
+
+        Ok(())
+    }
+
+    fn resolve_request_template(
+        &self,
+        fqn: &str,
+        decl_file: &Path,
+        decl_span: Span,
+    ) -> Option<TemplateKey> {
+        self.request_templates
+            .get(&(fqn.to_string(), decl_file.to_path_buf(), decl_span))
+            .cloned()
+            .or_else(|| {
+                let matches = self
+                    .request_templates
+                    .iter()
+                    .filter(|((candidate_fqn, candidate_file, _), _)| {
+                        candidate_fqn == fqn && candidate_file == decl_file
+                    })
+                    .map(|(_, template)| template.clone())
+                    .collect::<HashSet<_>>();
+                (matches.len() == 1).then(|| matches.into_iter().next().unwrap())
+            })
     }
 
     fn seed_requests(
@@ -750,26 +948,11 @@ impl MirInstanceMaterializer {
     ) -> MaterializeResult<Vec<InstanceKey>> {
         let mut initial = Vec::new();
         for key in monomorph_keys {
-            let Some(template) = self
-                .request_templates
-                .get(&(
-                    key.symbol.fqn.clone(),
-                    key.symbol.decl_file.clone(),
-                    key.symbol.decl_span,
-                ))
-                .cloned()
-                .or_else(|| {
-                    let matches = self
-                        .request_templates
-                        .iter()
-                        .filter(|((fqn, file, _), _)| {
-                            *fqn == key.symbol.fqn && *file == key.symbol.decl_file
-                        })
-                        .map(|(_, template)| template.clone())
-                        .collect::<HashSet<_>>();
-                    (matches.len() == 1).then(|| matches.into_iter().next().unwrap())
-                })
-            else {
+            let Some(template) = self.resolve_request_template(
+                &key.symbol.fqn,
+                &key.symbol.decl_file,
+                key.symbol.decl_span,
+            ) else {
                 return Err(materialize_err(
                     MirMaterializeError::MissingGenericTemplate {
                         fqn: key.symbol.fqn.clone(),
@@ -779,7 +962,7 @@ impl MirInstanceMaterializer {
                 ));
             };
 
-            if key.type_args.is_empty() {
+            if key.type_args.is_empty() && key.eff_args.is_empty() {
                 continue;
             }
             let type_args = key
@@ -871,26 +1054,29 @@ impl MirInstanceMaterializer {
             }));
         }
 
+        let substitution = self.build_instance_substitution(&root, instance)?;
         let instance_root_fqn = self.instance_fqn(instance);
-        let param_map: HashMap<String, TypeId> = root
-            .type_param_names
-            .iter()
-            .cloned()
-            .zip(instance.type_args.iter().copied())
-            .collect();
 
         let mut out = Vec::with_capacity(root.family.len());
         for template_fun in &root.family {
             let mut fun = template_fun.clone();
             fun.fqn = rewrite_family_symbol_name(&fun.fqn, &root.template.fqn, &instance_root_fqn)
                 .unwrap_or_else(|| fun.fqn.clone());
-            fun.ty = substitute_type_params(&mut self.types, fun.ty, &param_map);
+            fun.ty = substitute_type_and_effect_params(&mut self.types, fun.ty, &substitution);
             for param in &mut fun.params {
-                param.ty = substitute_type_params(&mut self.types, param.ty, &param_map);
+                param.ty =
+                    substitute_type_and_effect_params(&mut self.types, param.ty, &substitution);
             }
-            fun.return_ty = substitute_type_params(&mut self.types, fun.return_ty, &param_map);
+            fun.return_ty =
+                substitute_type_and_effect_params(&mut self.types, fun.return_ty, &substitution);
             if let Some(body) = &mut fun.body {
-                self.rewrite_body(body, &param_map, &root.template.fqn, &instance_root_fqn)?;
+                self.rewrite_body(
+                    body,
+                    &substitution,
+                    &root.template.source_path,
+                    &root.template.fqn,
+                    &instance_root_fqn,
+                )?;
             }
             out.push(fun);
         }
@@ -898,34 +1084,75 @@ impl MirInstanceMaterializer {
         Ok(out)
     }
 
+    fn build_instance_substitution(
+        &self,
+        root: &TemplateRootInfo,
+        instance: &InstanceKey,
+    ) -> MaterializeResult<InstanceSubstitution> {
+        let mut substitution = InstanceSubstitution {
+            type_params: root
+                .type_param_names
+                .iter()
+                .cloned()
+                .zip(instance.type_args.iter().copied())
+                .collect(),
+            effect_params: HashMap::new(),
+        };
+
+        match (&root.eff_param_name, instance.eff_args.as_slice()) {
+            (None, []) => {}
+            (None, eff_args) => {
+                return Err(materialize_err(
+                    MirMaterializeError::EffectArgArityMismatch {
+                        fqn: root.template.fqn.clone(),
+                        expected: 0,
+                        found: eff_args.len(),
+                        decl_span: root.template.decl_span.into(),
+                    },
+                ));
+            }
+            (Some(name), [row]) => {
+                substitution.effect_params.insert(name.clone(), row.clone());
+            }
+            (Some(_), eff_args) => {
+                return Err(materialize_err(
+                    MirMaterializeError::EffectArgArityMismatch {
+                        fqn: root.template.fqn.clone(),
+                        expected: 1,
+                        found: eff_args.len(),
+                        decl_span: root.template.decl_span.into(),
+                    },
+                ));
+            }
+        }
+
+        Ok(substitution)
+    }
+
     fn rewrite_body(
         &mut self,
         body: &mut Body,
-        param_map: &HashMap<String, TypeId>,
+        substitution: &InstanceSubstitution,
+        template_source_path: &Path,
         template_root_fqn: &str,
         instance_root_fqn: &str,
     ) -> MaterializeResult<()> {
         for local in &mut body.locals {
-            local.ty = substitute_type_params(&mut self.types, local.ty, param_map);
+            local.ty = substitute_type_and_effect_params(&mut self.types, local.ty, substitution);
         }
         let locals = body.locals.clone();
+        let ctx = RewriteContext {
+            locals: &locals,
+            substitution,
+            template_source_path,
+            template_root_fqn,
+            instance_root_fqn,
+        };
         for block in &mut body.blocks {
             for stmt in &mut block.stmts {
-                self.rewrite_statement(
-                    stmt,
-                    &locals,
-                    param_map,
-                    template_root_fqn,
-                    instance_root_fqn,
-                )?;
+                self.rewrite_statement(stmt, &ctx)?;
             }
-            self.rewrite_terminator(
-                &mut block.terminator,
-                &locals,
-                param_map,
-                template_root_fqn,
-                instance_root_fqn,
-            )?;
+            self.rewrite_terminator(&mut block.terminator, &ctx)?;
         }
         Ok(())
     }
@@ -933,19 +1160,10 @@ impl MirInstanceMaterializer {
     fn rewrite_statement(
         &mut self,
         stmt: &mut Statement,
-        locals: &[LocalDecl],
-        param_map: &HashMap<String, TypeId>,
-        template_root_fqn: &str,
-        instance_root_fqn: &str,
+        ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         if let StatementKind::Assign { value, .. } = &mut stmt.kind {
-            self.rewrite_rvalue(
-                value,
-                locals,
-                param_map,
-                template_root_fqn,
-                instance_root_fqn,
-            )?;
+            self.rewrite_rvalue(stmt.span, value, ctx)?;
         }
         Ok(())
     }
@@ -953,14 +1171,11 @@ impl MirInstanceMaterializer {
     fn rewrite_terminator(
         &mut self,
         terminator: &mut Terminator,
-        locals: &[LocalDecl],
-        param_map: &HashMap<String, TypeId>,
-        template_root_fqn: &str,
-        instance_root_fqn: &str,
+        ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         match &mut terminator.kind {
             TerminatorKind::Perform { metadata, args, .. } => {
-                self.rewrite_perform_metadata(metadata, param_map);
+                self.rewrite_perform_metadata(metadata, ctx.substitution);
                 for arg in args {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
@@ -979,7 +1194,6 @@ impl MirInstanceMaterializer {
             | TerminatorKind::Unreachable
             | TerminatorKind::Todo(_) => {}
         }
-        let _ = (locals, template_root_fqn, instance_root_fqn);
         Ok(())
     }
 
@@ -987,18 +1201,18 @@ impl MirInstanceMaterializer {
 
     fn rewrite_rvalue(
         &mut self,
+        stmt_span: Span,
         value: &mut Rvalue,
-        locals: &[LocalDecl],
-        param_map: &HashMap<String, TypeId>,
-        template_root_fqn: &str,
-        instance_root_fqn: &str,
+        ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         match value {
             Rvalue::Use(operand) => *operand = self.rewrite_operand(operand.clone()),
             Rvalue::TopLevelRef(top) => {
-                if let Some(rewritten) =
-                    rewrite_family_symbol_name(&top.fqn, template_root_fqn, instance_root_fqn)
-                {
+                if let Some(rewritten) = rewrite_family_symbol_name(
+                    &top.fqn,
+                    ctx.template_root_fqn,
+                    ctx.instance_root_fqn,
+                ) {
                     top.fqn = rewritten;
                 }
             }
@@ -1010,35 +1224,28 @@ impl MirInstanceMaterializer {
             }
             Rvalue::TypeCheck { value, test_ty, .. } => {
                 *value = self.rewrite_operand(value.clone());
-                *test_ty = substitute_type_params(&mut self.types, *test_ty, param_map);
+                *test_ty =
+                    substitute_type_and_effect_params(&mut self.types, *test_ty, ctx.substitution);
             }
             Rvalue::Cast {
                 value, target_ty, ..
             } => {
                 *value = self.rewrite_operand(value.clone());
-                *target_ty = substitute_type_params(&mut self.types, *target_ty, param_map);
+                *target_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    *target_ty,
+                    ctx.substitution,
+                );
             }
             Rvalue::MemberAccess { receiver, member } => {
                 *receiver = self.rewrite_operand(receiver.clone());
-                self.rewrite_member_access_metadata(
-                    member,
-                    param_map,
-                    template_root_fqn,
-                    instance_root_fqn,
-                );
+                self.rewrite_member_access_metadata(member, ctx);
             }
             Rvalue::Call { kind, args } => {
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
-                self.rewrite_call_kind(
-                    kind,
-                    args,
-                    locals,
-                    param_map,
-                    template_root_fqn,
-                    instance_root_fqn,
-                )?;
+                self.rewrite_call_kind(stmt_span, kind, args, ctx)?;
             }
             Rvalue::MakeTuple { elements } => {
                 for element in elements.iter_mut() {
@@ -1056,7 +1263,7 @@ impl MirInstanceMaterializer {
             }
             Rvalue::PatternMatch { subject, pattern } => {
                 *subject = self.rewrite_operand(subject.clone());
-                self.rewrite_pattern(pattern, param_map);
+                self.rewrite_pattern(pattern, ctx.substitution);
             }
             Rvalue::PatternExtract { subject, path } => {
                 *subject = self.rewrite_operand(subject.clone());
@@ -1065,13 +1272,17 @@ impl MirInstanceMaterializer {
             Rvalue::MakeClosure { env, fn_ptr } => {
                 *env = self.rewrite_operand(env.clone());
                 if let Some(rewritten) =
-                    rewrite_family_symbol_name(fn_ptr, template_root_fqn, instance_root_fqn)
+                    rewrite_family_symbol_name(fn_ptr, ctx.template_root_fqn, ctx.instance_root_fqn)
                 {
                     *fn_ptr = rewritten;
                 }
             }
             Rvalue::PerformResult { effect_ty, .. } => {
-                *effect_ty = substitute_type_params(&mut self.types, *effect_ty, param_map);
+                *effect_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    *effect_ty,
+                    ctx.substitution,
+                );
             }
             Rvalue::Todo(_) => {}
         }
@@ -1080,24 +1291,29 @@ impl MirInstanceMaterializer {
 
     fn rewrite_call_kind(
         &mut self,
+        call_span: Span,
         kind: &mut CallKind,
         args: &[CallArg],
-        locals: &[LocalDecl],
-        param_map: &HashMap<String, TypeId>,
-        template_root_fqn: &str,
-        instance_root_fqn: &str,
+        ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         match kind {
             CallKind::Direct { callee_fqn } => {
-                if let Some(rewritten) =
-                    rewrite_family_symbol_name(callee_fqn, template_root_fqn, instance_root_fqn)
-                {
+                if let Some(rewritten) = rewrite_family_symbol_name(
+                    callee_fqn,
+                    ctx.template_root_fqn,
+                    ctx.instance_root_fqn,
+                ) {
                     *callee_fqn = rewritten;
                     return Ok(());
                 }
-                if let Some(instance_key) =
-                    self.infer_direct_call_instance(callee_fqn, args, locals)
-                {
+                if let Some(instance_key) = self.infer_direct_call_instance(
+                    ctx.template_source_path,
+                    call_span,
+                    callee_fqn,
+                    args,
+                    ctx.locals,
+                    ctx.substitution,
+                ) {
                     *callee_fqn = self.instance_fqn(&instance_key);
                     self.enqueue(instance_key);
                 }
@@ -1105,7 +1321,7 @@ impl MirInstanceMaterializer {
             CallKind::Closure { callee, fn_ptr } => {
                 *callee = self.rewrite_operand(callee.clone());
                 if let Some(rewritten) =
-                    rewrite_family_symbol_name(fn_ptr, template_root_fqn, instance_root_fqn)
+                    rewrite_family_symbol_name(fn_ptr, ctx.template_root_fqn, ctx.instance_root_fqn)
                 {
                     *fn_ptr = rewritten;
                 }
@@ -1114,16 +1330,22 @@ impl MirInstanceMaterializer {
             CallKind::Virtual { receiver, dispatch }
             | CallKind::Interface { receiver, dispatch } => {
                 *receiver = self.rewrite_operand(receiver.clone());
-                dispatch.receiver_ty =
-                    substitute_type_params(&mut self.types, dispatch.receiver_ty, param_map);
+                dispatch.receiver_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    dispatch.receiver_ty,
+                    ctx.substitution,
+                );
             }
             CallKind::Resume {
                 continuation,
                 resume,
             } => {
                 *continuation = self.rewrite_operand(continuation.clone());
-                resume.continuation_ty =
-                    substitute_type_params(&mut self.types, resume.continuation_ty, param_map);
+                resume.continuation_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    resume.continuation_ty,
+                    ctx.substitution,
+                );
             }
         }
         Ok(())
@@ -1131,16 +1353,26 @@ impl MirInstanceMaterializer {
 
     fn infer_direct_call_instance(
         &mut self,
+        template_source_path: &Path,
+        call_span: Span,
         callee_fqn: &str,
         args: &[CallArg],
         locals: &[LocalDecl],
+        substitution: &InstanceSubstitution,
     ) -> Option<InstanceKey> {
+        if let Some(binding) = self
+            .lookup_site_instance_binding(template_source_path, call_span)
+            .cloned()
+        {
+            return self.instantiate_site_binding(&binding, substitution);
+        }
+
         let candidates = self.roots_by_fqn.get(callee_fqn)?;
         if candidates.len() != 1 {
             return None;
         }
         let root = self.roots.get(&candidates[0])?;
-        if root.type_param_names.is_empty() {
+        if root.type_param_names.is_empty() || root.eff_param_name.is_some() {
             return None;
         }
 
@@ -1175,20 +1407,65 @@ impl MirInstanceMaterializer {
         })
     }
 
+    fn lookup_site_instance_binding(
+        &self,
+        template_source_path: &Path,
+        call_span: Span,
+    ) -> Option<&SiteInstanceBinding> {
+        let key = (template_source_path.to_path_buf(), call_span);
+        self.call_bindings
+            .get(&key)
+            .or_else(|| self.value_ref_bindings.get(&key))
+    }
+
+    fn instantiate_site_binding(
+        &mut self,
+        binding: &SiteInstanceBinding,
+        substitution: &InstanceSubstitution,
+    ) -> Option<InstanceKey> {
+        let type_args = binding
+            .type_args
+            .iter()
+            .copied()
+            .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution))
+            .collect::<Vec<_>>();
+        let eff_args = binding
+            .eff_args
+            .iter()
+            .map(|row| {
+                substitute_type_and_effect_params_in_effect_row(&mut self.types, row, substitution)
+            })
+            .collect::<Vec<_>>();
+        if (type_args.is_empty() && eff_args.is_empty())
+            || !instance_request_is_concrete(&self.types, &type_args, &eff_args)
+        {
+            return None;
+        }
+        Some(InstanceKey {
+            template: binding.template.clone(),
+            type_args,
+            eff_args,
+        })
+    }
+
     fn rewrite_member_access_metadata(
         &mut self,
         member: &mut MemberAccessMetadata,
-        param_map: &HashMap<String, TypeId>,
-        template_root_fqn: &str,
-        instance_root_fqn: &str,
+        ctx: &RewriteContext<'_>,
     ) {
-        member.receiver_ty = substitute_type_params(&mut self.types, member.receiver_ty, param_map);
+        member.receiver_ty = substitute_type_and_effect_params(
+            &mut self.types,
+            member.receiver_ty,
+            ctx.substitution,
+        );
         if let Some(target) = &mut member.resolved {
             match target {
                 MemberTarget::Fun { fqn } | MemberTarget::ExtensionFun { fqn } => {
-                    if let Some(rewritten) =
-                        rewrite_family_symbol_name(fqn, template_root_fqn, instance_root_fqn)
-                    {
+                    if let Some(rewritten) = rewrite_family_symbol_name(
+                        fqn,
+                        ctx.template_root_fqn,
+                        ctx.instance_root_fqn,
+                    ) {
                         *fqn = rewritten;
                     }
                 }
@@ -1197,19 +1474,19 @@ impl MirInstanceMaterializer {
         }
     }
 
-    fn rewrite_pattern(&mut self, pattern: &mut Pattern, param_map: &HashMap<String, TypeId>) {
+    fn rewrite_pattern(&mut self, pattern: &mut Pattern, substitution: &InstanceSubstitution) {
         match pattern {
             Pattern::Is { ty } | Pattern::Bind { ty, .. } => {
-                *ty = substitute_type_params(&mut self.types, *ty, param_map);
+                *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
             }
             Pattern::Or { pats } => {
                 for pat in pats {
-                    self.rewrite_pattern(pat, param_map);
+                    self.rewrite_pattern(pat, substitution);
                 }
             }
             Pattern::Tuple { elements } | Pattern::Variant { args: elements, .. } => {
                 for pat in elements {
-                    self.rewrite_pattern(pat, param_map);
+                    self.rewrite_pattern(pat, substitution);
                 }
             }
             Pattern::Else
@@ -1225,12 +1502,13 @@ impl MirInstanceMaterializer {
     fn rewrite_perform_metadata(
         &mut self,
         metadata: &mut PerformMetadata,
-        param_map: &HashMap<String, TypeId>,
+        substitution: &InstanceSubstitution,
     ) {
-        metadata.effect_ty = substitute_type_params(&mut self.types, metadata.effect_ty, param_map);
+        metadata.effect_ty =
+            substitute_type_and_effect_params(&mut self.types, metadata.effect_ty, substitution);
         metadata.payload_tuple_ty = metadata
             .payload_tuple_ty
-            .map(|ty| substitute_type_params(&mut self.types, ty, param_map));
+            .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
     }
 
     fn rewrite_operand(&mut self, operand: Operand) -> Operand {
@@ -1238,16 +1516,32 @@ impl MirInstanceMaterializer {
     }
 
     fn instance_fqn(&self, instance: &InstanceKey) -> String {
-        if instance.type_args.is_empty() {
+        if instance.type_args.is_empty() && instance.eff_args.is_empty() {
             return instance.template.fqn.clone();
         }
-        let args = instance
+        let mut args = instance
             .type_args
             .iter()
             .map(|&ty| self.types.display(ty).to_string())
+            .collect::<Vec<_>>();
+        args.extend(
+            instance
+                .eff_args
+                .iter()
+                .map(|row| format!("eff {}", self.format_effect_row_stable(row))),
+        );
+        format!("{}::<{}>", instance.template.fqn, args.join(", "))
+    }
+
+    fn format_effect_row_stable(&self, row: &EffectRow) -> String {
+        if row.terms.is_empty() {
+            return "Pure".to_string();
+        }
+        row.terms
+            .iter()
+            .map(|&ty| self.types.display(ty).to_string())
             .collect::<Vec<_>>()
-            .join(", ");
-        format!("{}::<{}>", instance.template.fqn, args)
+            .join(" + ")
     }
 }
 
@@ -1337,15 +1631,25 @@ fn re_intern_effect_row_from(
     )
 }
 
-fn substitute_type_params(
+fn substitute_type_and_effect_params(
     types: &mut TypeStore,
     ty: TypeId,
-    param_map: &HashMap<String, TypeId>,
+    substitution: &InstanceSubstitution,
 ) -> TypeId {
     match types.kind(ty).clone() {
-        TypeKind::Param(param) => param_map.get(&param.name).copied().unwrap_or(ty),
+        TypeKind::Param(param) => {
+            if param.decl_file.as_os_str() == crate::hir::EFFECT_ROW_PARAM_DECL_FILE {
+                ty
+            } else {
+                substitution
+                    .type_params
+                    .get(&param.name)
+                    .copied()
+                    .unwrap_or(ty)
+            }
+        }
         TypeKind::StarProjection(star) => {
-            let read_ty = substitute_type_params(types, star.read_ty, param_map);
+            let read_ty = substitute_type_and_effect_params(types, star.read_ty, substitution);
             types.ty_star_projection(read_ty)
         }
         TypeKind::Ref(RefTypeKind::Any) | TypeKind::Ref(RefTypeKind::String) => ty,
@@ -1353,12 +1657,11 @@ fn substitute_type_params(
             let args = nominal
                 .args
                 .iter()
-                .map(|&arg| substitute_type_params(types, arg, param_map))
+                .map(|&arg| substitute_type_and_effect_params(types, arg, substitution))
                 .collect();
-            let eff = nominal
-                .eff
-                .as_ref()
-                .map(|row| substitute_type_params_in_effect_row(types, row, param_map));
+            let eff = nominal.eff.as_ref().map(|row| {
+                substitute_type_and_effect_params_in_effect_row(types, row, substitution)
+            });
             types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
                 fqn: nominal.fqn,
                 args,
@@ -1368,21 +1671,22 @@ fn substitute_type_params(
         TypeKind::Ref(RefTypeKind::Function(fun)) => {
             let receiver = fun
                 .receiver
-                .map(|receiver| substitute_type_params(types, receiver, param_map));
+                .map(|receiver| substitute_type_and_effect_params(types, receiver, substitution));
             let params = fun
                 .params
                 .iter()
-                .map(|&param| substitute_type_params(types, param, param_map))
+                .map(|&param| substitute_type_and_effect_params(types, param, substitution))
                 .collect();
-            let return_ty = substitute_type_params(types, fun.return_ty, param_map);
-            let effects = substitute_type_params_in_effect_row(types, &fun.effects, param_map);
+            let return_ty = substitute_type_and_effect_params(types, fun.return_ty, substitution);
+            let effects =
+                substitute_type_and_effect_params_in_effect_row(types, &fun.effects, substitution);
             types.ty_function(receiver, params, return_ty, effects, fun.effects_closed)
         }
         TypeKind::Ref(RefTypeKind::Union(union)) => {
             let variants = union
                 .variants
                 .iter()
-                .map(|&variant| substitute_type_params(types, variant, param_map))
+                .map(|&variant| substitute_type_and_effect_params(types, variant, substitution))
                 .collect();
             types.ty_union(variants)
         }
@@ -1397,13 +1701,13 @@ fn substitute_type_params(
         | TypeKind::Value(ValueTypeKind::IntN(_))
         | TypeKind::Value(ValueTypeKind::UIntN(_)) => ty,
         TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            let inner = substitute_type_params(types, inner, param_map);
+            let inner = substitute_type_and_effect_params(types, inner, substitution);
             types.ty_option(inner)
         }
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
             let elements = elements
                 .iter()
-                .map(|&element| substitute_type_params(types, element, param_map))
+                .map(|&element| substitute_type_and_effect_params(types, element, substitution))
                 .collect();
             types.ty_tuple(elements)
         }
@@ -1411,12 +1715,11 @@ fn substitute_type_params(
             let args = nominal
                 .args
                 .iter()
-                .map(|&arg| substitute_type_params(types, arg, param_map))
+                .map(|&arg| substitute_type_and_effect_params(types, arg, substitution))
                 .collect();
-            let eff = nominal
-                .eff
-                .as_ref()
-                .map(|row| substitute_type_params_in_effect_row(types, row, param_map));
+            let eff = nominal.eff.as_ref().map(|row| {
+                substitute_type_and_effect_params_in_effect_row(types, row, substitution)
+            });
             types.intern(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
                 fqn: nominal.fqn,
                 args,
@@ -1426,17 +1729,35 @@ fn substitute_type_params(
     }
 }
 
-fn substitute_type_params_in_effect_row(
+fn substitute_type_and_effect_params_in_effect_row(
     types: &mut TypeStore,
     row: &EffectRow,
-    param_map: &HashMap<String, TypeId>,
+    substitution: &InstanceSubstitution,
 ) -> EffectRow {
-    EffectRow::new(
-        row.terms
-            .iter()
-            .map(|&term| substitute_type_params(types, term, param_map))
-            .collect(),
-    )
+    let mut terms = Vec::new();
+    for &term in &row.terms {
+        if let Some(name) = effect_row_param_marker_name(types, term)
+            && let Some(bound) = substitution.effect_params.get(&name)
+        {
+            terms.extend(bound.terms.iter().copied().map(|bound_term| {
+                substitute_type_and_effect_params(types, bound_term, substitution)
+            }));
+            continue;
+        }
+        terms.push(substitute_type_and_effect_params(types, term, substitution));
+    }
+    EffectRow::new(terms)
+}
+
+fn effect_row_param_marker_name(types: &TypeStore, ty: TypeId) -> Option<String> {
+    match types.kind(ty) {
+        TypeKind::Param(param)
+            if param.decl_file.as_os_str() == crate::hir::EFFECT_ROW_PARAM_DECL_FILE =>
+        {
+            Some(param.name.clone())
+        }
+        _ => None,
+    }
 }
 
 fn map_call_args_to_params(params: &[Param], args: &[CallArg]) -> Option<Vec<usize>> {

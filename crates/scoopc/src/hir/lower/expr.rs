@@ -923,7 +923,10 @@ impl<'a> HirLowering<'a> {
         self.file.typechecked_effect_op_call_binding(span)
     }
 
-    fn typechecked_top_level_fun_value_ref(&mut self, span: Span) -> Option<(String, Vec<TypeId>)> {
+    fn typechecked_top_level_fun_value_ref(
+        &mut self,
+        span: Span,
+    ) -> Option<(String, Vec<TypeId>, Vec<crate::ty::EffectRow>)> {
         let typecheck_types = self.typecheck_types?;
         let fun_ref = self.file.top_level_fun_value_ref(span)?;
         let type_args = fun_ref
@@ -935,7 +938,12 @@ impl<'a> HirLowering<'a> {
                 self.apply_active_type_param_bindings(ty)
             })
             .collect();
-        Some((fun_ref.fqn, type_args))
+        let eff_args = fun_ref
+            .eff_args
+            .iter()
+            .map(|row| self.apply_active_type_param_bindings_to_effect_row(row))
+            .collect();
+        Some((fun_ref.fqn, type_args, eff_args))
     }
 
     fn apply_active_type_param_bindings(&mut self, ty: TypeId) -> TypeId {
@@ -955,6 +963,19 @@ impl<'a> HirLowering<'a> {
         } else {
             substitute_type_params(self.types, ty, &bindings)
         }
+    }
+
+    fn apply_active_type_param_bindings_to_effect_row(
+        &mut self,
+        row: &crate::ty::EffectRow,
+    ) -> crate::ty::EffectRow {
+        let terms = row
+            .terms
+            .iter()
+            .copied()
+            .map(|term| self.apply_active_type_param_bindings(term))
+            .collect();
+        crate::ty::EffectRow::new(terms)
     }
 
     fn typechecked_ctor_call_binding(&self, span: Span) -> Option<ast::CtorCallBinding> {
@@ -1389,28 +1410,55 @@ impl<'a> HirLowering<'a> {
         Span::new(offset, offset)
     }
 
-    fn mangled_top_level_fun_value_fqn(&self, fqn: &str, type_args: &[TypeId]) -> String {
-        if type_args.is_empty()
-            || type_args
+    fn mangled_top_level_fun_value_fqn(
+        &self,
+        fqn: &str,
+        type_args: &[TypeId],
+        eff_args: &[crate::ty::EffectRow],
+    ) -> String {
+        let type_args_concrete = type_args
+            .iter()
+            .all(|ty| !matches!(self.types.kind(*ty), TypeKind::Param(_)));
+        let eff_args_concrete = eff_args.iter().all(|row| {
+            row.terms
                 .iter()
-                .any(|ty| matches!(self.types.kind(*ty), TypeKind::Param(_)))
+                .all(|ty| !matches!(self.types.kind(*ty), TypeKind::Param(_)))
+        });
+        if (type_args.is_empty() && eff_args.is_empty())
+            || !type_args_concrete
+            || !eff_args_concrete
         {
             return fqn.to_string();
         }
 
-        let args = type_args
+        let mut args = type_args
+            .iter()
+            .map(|ty| self.types.display(*ty).to_string())
+            .collect::<Vec<_>>();
+        args.extend(
+            eff_args
+                .iter()
+                .map(|row| format!("eff {}", self.format_effect_row_stable(row))),
+        );
+        format!("{fqn}::<{}>", args.join(", "))
+    }
+
+    fn format_effect_row_stable(&self, row: &crate::ty::EffectRow) -> String {
+        if row.terms.is_empty() {
+            return "Pure".to_string();
+        }
+        row.terms
             .iter()
             .map(|ty| self.types.display(*ty).to_string())
             .collect::<Vec<_>>()
-            .join(", ");
-        format!("{fqn}::<{args}>")
+            .join(" + ")
     }
 
     fn fallback_top_level_fun_value_target(
         &mut self,
         expr: &ast::Expr,
         expected: ExpectedExpr,
-    ) -> Option<(String, Vec<TypeId>, TypeId)> {
+    ) -> Option<(String, Vec<TypeId>, Vec<crate::ty::EffectRow>, TypeId)> {
         let expected_fun_ty = expected.value_ty.filter(|ty| {
             matches!(
                 self.types.kind(*ty),
@@ -1423,7 +1471,7 @@ impl<'a> HirLowering<'a> {
                 let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
                     return None;
                 };
-                Some((fqn.clone(), Vec::new(), expected_fun_ty))
+                Some((fqn.clone(), Vec::new(), Vec::new(), expected_fun_ty))
             }
             ast::ExprKind::TypeApply { callee, args } => {
                 let ast::ExprKind::Ident(id) = &callee.kind else {
@@ -1432,8 +1480,17 @@ impl<'a> HirLowering<'a> {
                 let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
                     return None;
                 };
-                let type_args = args.iter().map(|arg| self.lower_type_ref(arg)).collect();
-                Some((fqn.clone(), type_args, expected_fun_ty))
+                let mut type_args = Vec::new();
+                let mut eff_args = Vec::new();
+                for arg in args {
+                    match arg {
+                        ast::TypeRef::EffectRowArg { row, .. } => {
+                            eff_args.push(self.lower_effect_row_expr(Some(row)));
+                        }
+                        other => type_args.push(self.lower_type_ref(other)),
+                    }
+                }
+                Some((fqn.clone(), type_args, eff_args, expected_fun_ty))
             }
             _ => None,
         }
@@ -1444,14 +1501,15 @@ impl<'a> HirLowering<'a> {
         expr: &ast::Expr,
         expected: ExpectedExpr,
     ) -> Option<(ExprKind, TypeId)> {
-        let (base_fqn, type_args, fun_ty_id) = if let Some((base_fqn, type_args)) =
-            self.typechecked_top_level_fun_value_ref(expr.span)
-        {
-            let fun_ty_id = self.typechecked_expr_ty(expr.span).or(expected.value_ty)?;
-            (base_fqn, type_args, fun_ty_id)
-        } else {
-            self.fallback_top_level_fun_value_target(expr, expected)?
-        };
+        let (base_fqn, type_args, eff_args, fun_ty_id) =
+            if let Some((base_fqn, type_args, eff_args)) =
+                self.typechecked_top_level_fun_value_ref(expr.span)
+            {
+                let fun_ty_id = self.typechecked_expr_ty(expr.span).or(expected.value_ty)?;
+                (base_fqn, type_args, eff_args, fun_ty_id)
+            } else {
+                self.fallback_top_level_fun_value_target(expr, expected)?
+            };
         let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(fun_ty_id).clone()
         else {
             return None;
@@ -1507,7 +1565,7 @@ impl<'a> HirLowering<'a> {
             ordinal += 1;
         }
 
-        let callee_fqn = self.mangled_top_level_fun_value_fqn(&base_fqn, &type_args);
+        let callee_fqn = self.mangled_top_level_fun_value_fqn(&base_fqn, &type_args, &eff_args);
         let callee = Expr {
             span: expr.span,
             ty: self.builtins.any,

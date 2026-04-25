@@ -775,7 +775,7 @@
   - review 结论：单文件/调试路径上的 template identity 已脱离“generic template 必须定义在当前输入文件”与“声明/实现双份 generic fun 会破坏 fixed-point”这两类错误假设，下一条可进入 `T5000e1b`；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`、`cargo run -q -p scoop -- dump-ir <tmp wrap/print case>`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000e1b 让 `InstanceKey` / dump-ir materializer 正确承载 effect-row 实参
+### [DONE] T5000e1b 让 `InstanceKey` / dump-ir materializer 正确承载 effect-row 实参
 - 范围：
   - 让 monomorph 请求收集记录 `<eff ...>` 实参，不再把 `eff_args` 留空，也不再因为 `type_args` 为空而跳过 effect-only generic fun 的实例请求；
   - 让 generic HIR/MIR template 与 MIR materializer 保留并应用 effect-row 参数绑定，避免 `<eff E>` 在 dump 路径中退化为默认 row 或 `Any`；
@@ -784,6 +784,26 @@
   - effect-only generic fun 在 `dump-ir` 路径上会生成对应实例，而不是返回空实例集；
   - 同一 generic template 在相同 type args、不同 `eff_args` 下拥有可区分的实例身份与 materialized callee。
 - 依赖：T5000e1aR
+- 完成记录（2026-04-26）：
+  - 已在 `crates/scoopc/src/ast/mod.rs`、`crates/scoopc/src/typecheck/lower.rs` 与 `crates/scoopc/src/typecheck/expr/call.rs` 接通 `eff_args` side table：top-level function value / call binding 与 `MonomorphKey` 请求现在都会记录真实 effect-row 实参和声明源身份；effect-only generic fun 不再因 `type_args.is_empty()` 被漏掉，显式 `<eff ...>` 也会优先进入实例请求。
+  - 已在 `crates/scoopc/src/parser/expr.rs` 修复表达式级 `<eff ...>` lookahead / type-apply 扫描，使 `forward<eff Boom>` 这类写法不会再被误当成比较表达式；`crates/scoopc/src/typecheck/expr/call.rs` 现能从 `TypeApply` callee 和 top-level function value 路径提取显式 `eff_arg`。
+  - 已在 `crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/expr/{entry,stmt}.rs` 把 effect-row 形参绑定改为 marker-preserving 语义；`<eff E>` 在 typecheck / HIR lowering / template substitution 路径上不再塌缩成默认 `Pure`，而是保留为可替换的 effect-row 参数。
+  - 已在 `crates/scoopc/src/hir/{mod.rs,lower/mod.rs,lower/util.rs,lower/expr.rs}` 与 `crates/scoopc/src/mir/materialize.rs` 完成 effect-row 模板闭环：
+    - HIR generic template 会保留 effect-row 参数 marker；
+    - `InstanceKey`、`instance_fqn(...)`、site binding、instance substitution、effect-row substitution、direct-call fixed-point 与 per-instance cache 现在都区分 `eff_args`；
+    - top-level function value / direct call 都能把同 type args、不同 effect row 的实例 materialize 成不同 callee。
+  - `crates/scoopc/src/mir/materialize.rs` 本轮还顺手收口了 `DumpMaterializeRequestSet` / `RewriteContext`，消除了 `clippy` 的 `too_many_arguments` 与 `collapsible_if` 问题；`crates/scoopc/src/typecheck/lower.rs` 的 `record_top_level_fun_call_binding(...)` 也已改成直接接收结构体绑定，避免继续堆参数。
+  - 已新增回归测试：
+    - `monomorph_materializes_effect_only_generic_instance`
+    - `monomorph_distinguishes_same_type_args_with_different_effect_rows`
+    - `monomorph_rewrites_top_level_fun_value_effect_instance`
+  - 已验证：
+    - `cargo fmt --all`
+    - `cargo check -p scoopc`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test --all`
+    - 全部通过。
 
 ### [TODO] T5000e1bR Review：确认 effect-row 实参已成为 `InstanceKey` / materializer 的一等维度
 - 重点：

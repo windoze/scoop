@@ -21,10 +21,11 @@ use super::{HirLowering, HirLoweringSetup};
 use super::super::{
     Block, CallArg, Capture, ClassCtor, ClassCtorDelegation, ClassCtorKind, ClassCtorParam,
     ClassField, ClassInit, ClassInitIndex, ClassInitStep, CtorCallInfo, CtorCallSiteIndex,
-    EnumLayout, EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, ExternAbi,
-    ExternFun, ExternFunIndex, InterpolatedStringPart, LiteralKind, MemberAccess, MemberRef,
-    ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, StmtKind, StructCLayout,
-    StructFieldLayout, StructLayout, StructLayoutIndex, SymbolId, ValueRef, WhenPat,
+    EFFECT_ROW_PARAM_DECL_FILE, EnumLayout, EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout,
+    EnumVariantLayout, ExternAbi, ExternFun, ExternFunIndex, InterpolatedStringPart, LiteralKind,
+    MemberAccess, MemberRef, ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param,
+    StmtKind, StructCLayout, StructFieldLayout, StructLayout, StructLayoutIndex, SymbolId,
+    ValueRef, WhenPat,
 };
 
 /// 计算 closure（lambda）的 capture set（自由变量集合）。
@@ -3072,6 +3073,7 @@ pub(super) fn substitute_type_params(
     param_map: &HashMap<String, crate::ty::TypeId>,
 ) -> crate::ty::TypeId {
     match types.kind(ty).clone() {
+        TypeKind::Param(p) if p.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE => ty,
         TypeKind::Param(p) => param_map.get(&p.name).copied().unwrap_or(ty),
         TypeKind::StarProjection(star) => {
             let read_ty = substitute_type_params(types, star.read_ty, param_map);

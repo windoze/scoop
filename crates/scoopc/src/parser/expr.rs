@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
         if !self.peek_symbol(Symbol::Lt) {
             return false;
         }
-        let Some(end) = scan_type_args_end(&self.tokens, self.i) else {
+        let Some(end) = scan_type_args_end(&self.tokens, self.source_text, self.i) else {
             return false;
         };
         self.type_apply_can_end_here(end)
@@ -710,7 +710,7 @@ impl<'a> Parser<'a> {
             return false;
         }
 
-        let Some(end) = scan_type_ref_end(&self.tokens, self.i + 1) else {
+        let Some(end) = scan_type_ref_end(&self.tokens, self.source_text, self.i + 1) else {
             return false;
         };
 
@@ -2938,8 +2938,12 @@ enum BraceGroupKind {
     Lambda,
 }
 
-fn scan_type_ref_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
-    scan_type_ref_end_inner(tokens, start).map(|mut i| {
+fn scan_type_ref_end(
+    tokens: &[crate::syntax::token::Token],
+    source_text: &str,
+    start: usize,
+) -> Option<usize> {
+    scan_type_ref_end_inner(tokens, source_text, start).map(|mut i| {
         if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Question)) {
             i += 1;
         }
@@ -2947,15 +2951,22 @@ fn scan_type_ref_end(tokens: &[crate::syntax::token::Token], start: usize) -> Op
     })
 }
 
-fn scan_type_ref_end_inner(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+fn scan_type_ref_end_inner(
+    tokens: &[crate::syntax::token::Token],
+    source_text: &str,
+    start: usize,
+) -> Option<usize> {
     match kind_at(tokens, start) {
-        TokenKind::Symbol(Symbol::LParen) => scan_tuple_or_group_type_end(tokens, start),
-        _ => scan_path_type_end(tokens, start),
+        TokenKind::Symbol(Symbol::LParen) => {
+            scan_tuple_or_group_type_end(tokens, source_text, start)
+        }
+        _ => scan_path_type_end(tokens, source_text, start),
     }
 }
 
 fn scan_tuple_or_group_type_end(
     tokens: &[crate::syntax::token::Token],
+    source_text: &str,
     start: usize,
 ) -> Option<usize> {
     if !matches!(kind_at(tokens, start), TokenKind::Symbol(Symbol::LParen)) {
@@ -2967,7 +2978,7 @@ fn scan_tuple_or_group_type_end(
         return Some(i + 1);
     }
 
-    i = scan_type_ref_end(tokens, i)?;
+    i = scan_type_ref_end(tokens, source_text, i)?;
 
     if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
         i += 1;
@@ -2975,7 +2986,7 @@ fn scan_tuple_or_group_type_end(
             kind_at(tokens, i),
             TokenKind::Symbol(Symbol::RParen) | TokenKind::Eof
         ) {
-            i = scan_type_ref_end(tokens, i)?;
+            i = scan_type_ref_end(tokens, source_text, i)?;
             if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
                 i += 1;
                 // allow trailing comma
@@ -2998,7 +3009,11 @@ fn scan_tuple_or_group_type_end(
     Some(i + 1)
 }
 
-fn scan_path_type_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+fn scan_path_type_end(
+    tokens: &[crate::syntax::token::Token],
+    source_text: &str,
+    start: usize,
+) -> Option<usize> {
     if !matches!(kind_at(tokens, start), TokenKind::Ident) {
         return None;
     }
@@ -3013,13 +3028,17 @@ fn scan_path_type_end(tokens: &[crate::syntax::token::Token], start: usize) -> O
     }
 
     if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Lt)) {
-        i = scan_type_args_end(tokens, i)?;
+        i = scan_type_args_end(tokens, source_text, i)?;
     }
 
     Some(i)
 }
 
-fn scan_type_args_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+fn scan_type_args_end(
+    tokens: &[crate::syntax::token::Token],
+    source_text: &str,
+    start: usize,
+) -> Option<usize> {
     if !matches!(kind_at(tokens, start), TokenKind::Symbol(Symbol::Lt)) {
         return None;
     }
@@ -3031,7 +3050,20 @@ fn scan_type_args_end(tokens: &[crate::syntax::token::Token], start: usize) -> O
     }
 
     loop {
-        i = scan_type_ref_end(tokens, i)?;
+        if token_text_at(tokens, source_text, i) == Some("eff") {
+            i += 1;
+            i = scan_effect_row_expr_end(tokens, source_text, i)?;
+            if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
+                i += 1;
+                if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Gt)) {
+                    break;
+                }
+                return None;
+            }
+            break;
+        }
+
+        i = scan_type_ref_end(tokens, source_text, i)?;
         if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
             i += 1;
             if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Gt)) {
@@ -3049,8 +3081,46 @@ fn scan_type_args_end(tokens: &[crate::syntax::token::Token], start: usize) -> O
     Some(i + 1)
 }
 
+fn scan_effect_row_expr_end(
+    tokens: &[crate::syntax::token::Token],
+    source_text: &str,
+    start: usize,
+) -> Option<usize> {
+    let mut i = if matches!(kind_at(tokens, start), TokenKind::Symbol(Symbol::LParen)) {
+        let inner_end = scan_effect_row_expr_end(tokens, source_text, start + 1)?;
+        if !matches!(
+            kind_at(tokens, inner_end),
+            TokenKind::Symbol(Symbol::RParen)
+        ) {
+            return None;
+        }
+        inner_end + 1
+    } else {
+        let mut i = scan_path_type_end(tokens, source_text, start)?;
+        while matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Plus)) {
+            i = scan_path_type_end(tokens, source_text, i + 1)?;
+        }
+        i
+    };
+
+    if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Bang)) {
+        i += 1;
+    }
+
+    Some(i)
+}
+
 fn kind_at(tokens: &[crate::syntax::token::Token], i: usize) -> TokenKind {
     tokens.get(i).map(|t| t.kind).unwrap_or(TokenKind::Eof)
+}
+
+fn token_text_at<'a>(
+    tokens: &'a [crate::syntax::token::Token],
+    source_text: &'a str,
+    i: usize,
+) -> Option<&'a str> {
+    let token = tokens.get(i)?;
+    source_text.get(token.span.start..token.span.end)
 }
 
 #[derive(Debug, Clone, Copy)]

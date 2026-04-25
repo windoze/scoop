@@ -888,18 +888,20 @@ impl<'a> TypeLowering<'a> {
     /// 当前阶段约束：
     /// - 调用点必须显式传入被选中声明的 `decl_file/decl_span`，避免 imported/sysroot generic fun
     ///   被误记成“当前文件声明”；
-    /// - effect row args（`<eff E>`）的实例化在后续任务接入（此处先留空）。
+    /// - `type_args` 与 `eff_args` 共同构成调用点请求的实例身份；
+    /// - effect-only generic fun（没有 type args，只有 effect row args）也必须进入请求集合。
     pub(super) fn record_monomorph_call(
         &mut self,
         callee_fqn: String,
         callee_decl_file: &Path,
         callee_decl_span: Span,
         type_args: &[TypeId],
+        eff_args: &[EffectRow],
     ) {
         let Some(req) = self.monomorph_requests.as_mut() else {
             return;
         };
-        if type_args.is_empty() {
+        if type_args.is_empty() && eff_args.is_empty() {
             return;
         }
 
@@ -911,7 +913,7 @@ impl<'a> TypeLowering<'a> {
         req.record(MonomorphKey {
             symbol,
             type_args: type_args.to_vec(),
-            eff_args: Vec::new(),
+            eff_args: eff_args.to_vec(),
         });
     }
 
@@ -919,6 +921,19 @@ impl<'a> TypeLowering<'a> {
         let mut scope = HashMap::new();
         scope.insert(name, row);
         self.effect_row_param_scopes.push(scope);
+    }
+
+    pub(super) fn push_effect_row_param_marker_binding(&mut self, name: String, decl_span: Span) {
+        let marker = self.intern_effect_row_param_marker(name.clone(), decl_span);
+        self.push_effect_row_param_binding(name, EffectRow::new(vec![marker]));
+    }
+
+    fn intern_effect_row_param_marker(&mut self, name: String, decl_span: Span) -> TypeId {
+        self.types.intern(TypeKind::Param(TypeParamType {
+            name,
+            decl_file: PathBuf::from(crate::hir::EFFECT_ROW_PARAM_DECL_FILE),
+            decl_span,
+        }))
     }
 
     pub(super) fn pop_effect_row_param_binding(&mut self) {
@@ -1392,6 +1407,67 @@ impl<'a> TypeLowering<'a> {
         Ok(EffectRow::new(terms))
     }
 
+    pub(super) fn lower_effect_row_expr_preserving_params(
+        &mut self,
+        expr: Option<&ast::EffectRowExpr>,
+    ) -> Result<EffectRow, TypeLowerError> {
+        let Some(expr) = expr else {
+            return Ok(EffectRow::pure());
+        };
+        if expr.terms.is_empty() {
+            return Ok(EffectRow::pure());
+        }
+
+        let mut terms: Vec<TypeId> = Vec::with_capacity(expr.terms.len());
+        for term in &expr.terms {
+            if term.segments.len() == 1 && term.args.is_empty() {
+                let name = self.source.slice(term.segments[0].span);
+                if expr.closed
+                    && self
+                        .effect_row_param_scopes
+                        .iter()
+                        .rev()
+                        .any(|s| s.contains_key(name))
+                {
+                    return Err(TypeLowerError::ClosedEffectRowContainsRowVar {
+                        name: name.to_string(),
+                        span: term.span.into(),
+                    });
+                }
+                if self
+                    .effect_row_param_scopes
+                    .iter()
+                    .rev()
+                    .any(|s| s.contains_key(name))
+                {
+                    if let Some(bound) = self
+                        .effect_row_param_scopes
+                        .iter()
+                        .rev()
+                        .find_map(|s| s.get(name))
+                    {
+                        terms.extend(bound.terms.iter().copied());
+                    }
+                    continue;
+                }
+            }
+
+            let ty = self.lower_type_ref(&ast::TypeRef::Path(term.clone()))?;
+            match self.types.kind(ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(_)) => terms.push(ty),
+                _ => {
+                    return Err(TypeLowerError::EffectRowItemNotEffect {
+                        item: self.source.slice(term.span).to_string(),
+                        found: self.fmt_type(ty),
+                        span: term.span.into(),
+                    });
+                }
+            }
+        }
+
+        Ok(EffectRow::new(terms))
+    }
+
     pub(super) fn begin_effect_collection(&mut self) {
         self.effect_collection_enabled = true;
         self.effect_collection_suspend_depth = 0;
@@ -1606,31 +1682,29 @@ impl<'a> TypeLowering<'a> {
         &mut self,
         expr_span: Span,
         fqn: String,
+        decl_file: std::path::PathBuf,
+        decl_span: Span,
         type_args: Vec<TypeId>,
+        eff_args: Vec<EffectRow>,
     ) {
-        self.top_level_fun_value_refs
-            .insert(expr_span, ast::TopLevelFunValueRef { fqn, type_args });
+        self.top_level_fun_value_refs.insert(
+            expr_span,
+            ast::TopLevelFunValueRef {
+                fqn,
+                decl_file,
+                decl_span,
+                type_args,
+                eff_args,
+            },
+        );
     }
 
     pub(super) fn record_top_level_fun_call_binding(
         &mut self,
         call_span: Span,
-        fqn: String,
-        decl_file: std::path::PathBuf,
-        decl_span: Span,
-        is_intrinsic: bool,
-        type_args: Vec<TypeId>,
+        binding: ast::TopLevelFunCallBinding,
     ) {
-        self.top_level_fun_call_bindings.insert(
-            call_span,
-            ast::TopLevelFunCallBinding {
-                fqn,
-                decl_file,
-                decl_span,
-                is_intrinsic,
-                type_args,
-            },
-        );
+        self.top_level_fun_call_bindings.insert(call_span, binding);
     }
 
     pub(super) fn record_typechecked_effect_op_call_binding(

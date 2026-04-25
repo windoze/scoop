@@ -419,20 +419,16 @@ pub(super) fn check_fun_body_exprs(
 
     let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
         let name = source.slice(eff_param.name.span).to_string();
-        let default = match eff_param.default.as_ref() {
-            Some(expr) => match lower.lower_effect_row_expr(Some(expr)) {
-                Ok(row) => row,
-                Err(e) => {
-                    if where_bounds_pushed {
-                        lower.pop_where_bounds();
-                    }
-                    lower.pop_type_params(&fun.type_params);
-                    return Err(e.into());
-                }
-            },
-            None => EffectRow::pure(),
-        };
-        lower.push_effect_row_param_binding(name, default);
+        if let Some(expr) = eff_param.default.as_ref()
+            && let Err(e) = lower.lower_effect_row_expr(Some(expr))
+        {
+            if where_bounds_pushed {
+                lower.pop_where_bounds();
+            }
+            lower.pop_type_params(&fun.type_params);
+            return Err(e.into());
+        }
+        lower.push_effect_row_param_marker_binding(name, eff_param.name.span);
         true
     } else {
         false

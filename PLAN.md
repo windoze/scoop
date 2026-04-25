@@ -778,6 +778,30 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - review 结论：dump-ir 单文件路径的 template identity 现已稳定脱离“仅当前源文件”与“声明/实现双模板会破坏 fixed-point”两类错误假设；下一条待执行任务切换为 `T5000e1b 让 InstanceKey / dump-ir materializer 正确承载 effect-row 实参`。
+- 2026-04-26：`T5000e1b 让 InstanceKey / dump-ir materializer 正确承载 effect-row 实参` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/ast/mod.rs`、`crates/scoopc/src/typecheck/lower.rs` 与 `crates/scoopc/src/typecheck/expr/call.rs` 已接通 effect-row 实参 side table：`MonomorphKey`、top-level function value ref、top-level function call binding 现在都会携带真实 `eff_args` 与声明源身份；effect-only generic fun 不再因 `type_args` 为空而被跳过。
+    - `crates/scoopc/src/parser/expr.rs` 已修复表达式级 `<eff ...>` type-apply lookahead / 扫描，`forward<eff Boom>` 等显式 effect 实参现在能稳定进入 typecheck；`typecheck/expr/call.rs` 随后会优先把显式 `eff_arg` 写入实例请求与 function-value 绑定。
+    - `crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/expr/{entry,stmt}.rs` 与 `crates/scoopc/src/hir/lower/{mod.rs,util.rs,expr.rs}` 已把 effect-row 形参从“提前塌缩到默认 row”改成 marker-preserving 路径：generic template 本身会保留可替换的 effect-row 参数语义，而不是在 lowering 时退化成 `Pure` / `Any`。
+    - `crates/scoopc/src/mir/materialize.rs` 已完成 effect-row 维度闭环：
+      - `InstanceKey`、`instance_fqn(...)`、site binding 恢复、instance substitution、effect-row substitution、direct-call fixed-point 与 per-instance cache 全部纳入 `eff_args`；
+      - top-level function value 与 direct call 现在都能把同 type args、不同 effect row 的实例 materialize 成不同 callee；
+      - effect-only generic fun 的实例请求也能真正进入 materializer 并生成对应 instance family。
+  - 收尾整理：
+    - `mir::materialize` 本轮顺手引入 `DumpMaterializeRequestSet` / `RewriteContext`，收掉 `too_many_arguments` / `collapsible_if` 等既有 `clippy` 阻塞；
+    - `record_top_level_fun_call_binding(...)` 已改成直接接收 `ast::TopLevelFunCallBinding`，避免 typecheck 侧继续堆叠参数。
+  - 回归覆盖：
+    - 新增 `monomorph_materializes_effect_only_generic_instance`，验证 effect-only generic fun 会在 `dump-ir` 路径上产出具体实例；
+    - 新增 `monomorph_distinguishes_same_type_args_with_different_effect_rows`，验证相同 type args 下不同 `eff_args` 会生成不同 `InstanceKey` / callee；
+    - 新增 `monomorph_rewrites_top_level_fun_value_effect_instance`，验证 top-level function value 也会按 effect-row 实参重写到具体实例。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo check -p scoopc`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test --all`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e1bR Review：确认 effect-row 实参已成为 InstanceKey / materializer 的一等维度`。
 
 ## 1. 当前判断
 
