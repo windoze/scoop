@@ -43,8 +43,16 @@
     - `T5000b2`：再提炼 `MainCodegen` 共享编译单元上下文与 child-codegen 构造路径；
     - `T5000b3`：按主题拆 `llvm/codegen/mod.rs`；
     - `T5000b4`：最后把 `MainCodegen` 进一步分成 module / function / cache / effect emitter 上下文。
-- 下一条待执行任务切换为 `T5000b1 拆分 llvm/mod.rs 的 emit API / pipeline / reachability / tests`。
-- baseline review 后，仍未发现需要插入到 `T5000b1` 之前的新前置缺陷任务。
+- 2026-04-25：`T5000b1 拆分 llvm/mod.rs 的 emit API / pipeline / reachability / tests` 已完成。
+  - 新增 `emit.rs`、`pipeline.rs`、`reachability.rs`、`tests.rs` 四个子模块；
+  - `llvm/mod.rs` 现已只保留错误边界、常量、子模块声明与必要 re-export；
+  - 验证结果：
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b1R Review：确认 llvm/mod.rs 已收口为根模块而非实现巨型文件`。
+- `T5000b1` 实现过程中未发现必须插入到 `T5000b1R` 之前的新前置缺陷任务。
 
 ## 1. 当前判断
 

@@ -59,7 +59,7 @@
   - 已补记 `crates/scoopc/src/effect_step_summary.rs` 对 `llvm/codegen/effect/state_machine_plan.rs` 的 `include!` 复用，确认这是现有 effect middle-end / shared facts 边界泄漏的一部分，而不是新的前置缺陷任务；
   - review 结论：baseline 足以支撑“先 codegen refactoring，再 early MIR”的顺序，下一条可直接进入 `T5000b`。
 
-### [TODO] T5000b1 拆分 `llvm/mod.rs` 的 emit API / pipeline / reachability / tests
+### [DONE] T5000b1 拆分 `llvm/mod.rs` 的 emit API / pipeline / reachability / tests
 - 范围：
   - 把当前 `crates/scoopc/src/llvm/mod.rs` 中的几类职责拆分到独立模块：
     - emit API / module build；
@@ -76,6 +76,10 @@
   - 现有 `emit_minimal_main_*` API、`build_main_module_from_lowered_hir`、`run_pass_pipeline` 的调用点保持工作；
   - 测试仍能覆盖拆分后的模块边界。
 - 依赖：T5000aR
+- 完成记录（2026-04-25）：
+  - 新增 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/pipeline.rs`、`crates/scoopc/src/llvm/reachability.rs`、`crates/scoopc/src/llvm/tests.rs`，将原 `llvm/mod.rs` 的实现细节和测试迁出；
+  - `crates/scoopc/src/llvm/mod.rs` 已收口为错误类型、常量、子模块声明与必要 re-export，不再承载 emit/pipeline/reachability 的主体实现；
+  - 已验证 `cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b1R Review：确认 `llvm/mod.rs` 已收口为根模块而非实现巨型文件
 - 重点：

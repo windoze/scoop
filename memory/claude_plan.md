@@ -50,4 +50,15 @@
   - `T5000b2`：提炼 `MainCodegen` 共享编译单元上下文与 child-codegen 构造路径；
   - `T5000b3`：按主题拆分 `llvm/codegen/mod.rs`；
   - `T5000b4`：继续拆分 `MainCodegen` 为 module / function / cache / effect emitter 上下文。
-- 正在更新 `TODO.md` / `PLAN.md` 以反映上述拆分，并准备开始实现 `T5000b1`。
+- 已更新 `TODO.md` / `PLAN.md` 并提交任务拆分历史。
+- 已完成 `T5000b1` 实现：
+  - 新增 `crates/scoopc/src/llvm/emit.rs`，承接 emit API 与 module build；
+  - 新增 `crates/scoopc/src/llvm/pipeline.rs`，承接 LLVM pass pipeline；
+  - 新增 `crates/scoopc/src/llvm/reachability.rs`，承接 HIR reachability 收集；
+  - 新增 `crates/scoopc/src/llvm/tests.rs`，迁出 `llvm/mod.rs` 的测试。
+- 已完成验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc llvm::`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 当前正在回写 `TODO.md` / `PLAN.md` 的完成状态，并准备提交本轮实现结果。

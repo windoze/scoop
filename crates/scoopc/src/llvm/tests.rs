@@ -1,0 +1,2340 @@
+#[cfg(test)]
+mod clayout_tests {
+    use super::*;
+    use inkwell::values::InstructionOpcode;
+
+    #[test]
+    fn clayout_packed_struct_has_expected_field_offsets() {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/clayout_packed.scoop",
+            r#"
+package fixtures.clayout
+
+import scoop.core.*
+
+@CLayout(packed: 1)
+struct Packed(val a: UInt8, val b: Int64)
+
+fun main() {
+    val a0: UInt8 = 1
+    val b0: Int64 = 2
+    val s = Packed { a: a0, b: b0 }
+    println(0)
+}
+"#,
+        );
+
+        let context = Context::create();
+        let module = build_minimal_main_module(&session, &source, &context).unwrap();
+        let data_layout = module.get_data_layout();
+        let target_data = TargetData::create(data_layout.as_str().to_str().unwrap());
+
+        let packed = context
+            .get_struct_type("fixtures.clayout.Packed")
+            .expect("missing llvm struct type for fixtures.clayout.Packed");
+        assert!(
+            packed.is_packed(),
+            "expected @CLayout(packed=1) struct to be packed in LLVM"
+        );
+        assert_eq!(
+            target_data.offset_of_element(&packed, 1).unwrap(),
+            1,
+            "expected second field offset to be 1 for packed struct"
+        );
+    }
+
+    #[test]
+    fn clayout_aligned_struct_sets_alloca_alignment() {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/clayout_aligned.scoop",
+            r#"
+package fixtures.clayout
+
+import scoop.core.*
+
+@CLayout(aligned: 16, packed: 1)
+struct AlignedPacked(val a: UInt8, val b: Int64)
+
+fun main() {
+    val a0: UInt8 = 1
+    val b0: Int64 = 2
+    val s = AlignedPacked { a: a0, b: b0 }
+    println(0)
+}
+"#,
+        );
+
+        let context = Context::create();
+        let module = build_minimal_main_module(&session, &source, &context).unwrap();
+
+        let fun = module
+            .get_function("main")
+            .expect("missing entry function main");
+        let entry = fun
+            .get_first_basic_block()
+            .expect("function has no entry block");
+
+        let mut found_align: Option<u32> = None;
+        let mut inst = entry.get_first_instruction();
+        while let Some(i) = inst {
+            if i.get_opcode() == InstructionOpcode::Alloca {
+                let name = i.get_name().and_then(|n| n.to_str().ok()).unwrap_or("");
+                if name == "s" {
+                    found_align = Some(i.get_alignment().unwrap());
+                    break;
+                }
+            }
+            inst = i.get_next_instruction();
+        }
+
+        assert_eq!(
+            found_align,
+            Some(16),
+            "expected local alloca for `s` to have align 16 due to @CLayout(aligned=16)"
+        );
+    }
+
+    #[test]
+    fn clayout_packed_field_load_uses_align_1() {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/clayout_packed_field_load.scoop",
+            r#"
+package fixtures.clayout
+
+import scoop.core.*
+
+@CLayout(packed: 1)
+struct Packed(val a: UInt8, val b: Int64)
+
+fun main() {
+    val a0: UInt8 = 1
+    val b0: Int64 = 2
+    val s: Packed = Packed { a: a0, b: b0 }
+    val x: Int64 = s.b
+    println(0)
+}
+"#,
+        );
+
+        let context = Context::create();
+        let module = build_minimal_main_module(&session, &source, &context).unwrap();
+        let fun = module
+            .get_function("main")
+            .expect("missing entry function main");
+
+        let mut found: Option<u32> = None;
+        for bb in fun.get_basic_blocks() {
+            let mut inst = bb.get_first_instruction();
+            while let Some(i) = inst {
+                if i.get_opcode() == InstructionOpcode::Load {
+                    let name = i.get_name().and_then(|n| n.to_str().ok()).unwrap_or("");
+                    if name.starts_with("load_field") {
+                        found = Some(i.get_alignment().unwrap());
+                        break;
+                    }
+                }
+                inst = i.get_next_instruction();
+            }
+            if found.is_some() {
+                break;
+            }
+        }
+
+        assert_eq!(
+            found,
+            Some(1),
+            "expected field load from @CLayout(packed=1) struct to use align 1"
+        );
+    }
+}
+
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use super::*;
+use crate::ast;
+use crate::hir;
+use crate::opt::OptLevel;
+use crate::parser::parse_file;
+use crate::resolve::Index;
+use crate::session::Session;
+use crate::source::{SourceFile, SourceMap};
+use crate::ty::TypeStore;
+use inkwell::context::Context;
+use inkwell::targets::TargetData;
+use object::Object;
+use object::ObjectSection;
+
+fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir =
+        std::env::temp_dir().join(format!("scoopc_{prefix}_{}_{}", std::process::id(), nanos));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+#[test]
+fn minimal_main_ir_contains_main_and_ret0() {
+    let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    // `main` 为 C ABI：`i32 @main(i32 argc, i8** argv)`（inkwell/LLVM 版本可能影响参数命名）。
+    assert!(ir.contains("define i32 @main("));
+    assert!(
+        ir.contains("call void @scoop_runtime_init()"),
+        "生成的 main 应调用 scoop_runtime_init"
+    );
+    assert!(ir.contains("ret i32 0"));
+    assert!(ir.contains("target datalayout ="));
+    assert!(ir.contains("target triple ="));
+}
+
+#[test]
+fn float_builtin_types_lower_to_llvm_scalars() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+@Extern(name = "scoop_test_seed64")
+fun seed64(): Float64
+
+@Extern(name = "scoop_test_seed32")
+fun seed32(): Float32
+
+fun id64(x: Float64): Float64 {
+    return x
+}
+
+fun id32(x: Float32): Float32 {
+    return x
+}
+
+fun choose(flag: Bool, left: Float64, right: Float64): Float64 {
+    if (flag) {
+        return left
+    }
+    return right
+}
+
+fun main() {
+    val a64: Float64 = @Unsafe do { seed64() }
+    val a32: Float32 = @Unsafe do { seed32() }
+    val b64: Float64 = id64(a64)
+    val b32: Float32 = id32(a32)
+    val c64: Float64 = choose(true, b64, a64)
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("define double @a.id64("),
+        "Float64 should lower to LLVM double in function signatures"
+    );
+    assert!(
+        ir.contains("define float @a.id32("),
+        "Float32 should lower to LLVM float in function signatures"
+    );
+    assert!(
+        ir.contains("declare double @scoop_test_seed64()"),
+        "extern Float64 function should keep double ABI"
+    );
+    assert!(
+        ir.contains("declare float @scoop_test_seed32()"),
+        "extern Float32 function should keep float ABI"
+    );
+    assert!(
+        ir.contains("call double @a.choose("),
+        "Float64 return values should stay on the LLVM scalar path through calls"
+    );
+}
+
+#[test]
+fn float_builtin_methods_lower_to_runtime_calls_and_hash_bits() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+@Extern(name = "scoop_test_seed64")
+fun seed64(): Float64
+
+@Extern(name = "scoop_test_seed32")
+fun seed32(): Float32
+
+fun main() {
+    val a64: Float64 = @Unsafe do { seed64() }
+    val a32: Float32 = @Unsafe do { seed32() }
+
+    val s64: String = a64.toString()
+    val s32: String = a32.toString()
+    val i64: Int = a64.toInt()
+    val i32: Int = a32.toInt()
+    val h64: Int = a64.hash()
+    val h32: Int = a32.hash()
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_float64_to_string("),
+        "Float64.toString should declare the runtime conversion symbol"
+    );
+    assert!(
+        ir.contains("@scoop_float32_to_string("),
+        "Float32.toString should declare the runtime conversion symbol"
+    );
+    assert!(
+        ir.contains("@scoop_float64_to_int("),
+        "Float64.toInt should declare the runtime conversion symbol"
+    );
+    assert!(
+        ir.contains("@scoop_float32_to_int("),
+        "Float32.toInt should declare the runtime conversion symbol"
+    );
+    assert!(
+        ir.contains("f64_hash_bits"),
+        "Float64.hash should lower via float-bit reinterpretation"
+    );
+    assert!(
+        ir.contains("f32_hash_bits"),
+        "Float32.hash should lower via float-bit reinterpretation"
+    );
+}
+
+#[test]
+fn float_literals_lower_to_arithmetic_comparisons_and_narrowing() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+val topWide: Float64 = 1.25
+val topNarrow: Float32 = 1.5
+
+fun main() {
+    val wideBase: Float64 = 1.25
+    val narrowBase: Float32 = 1.5
+    val wideSum: Float64 = wideBase + 2.75
+    val narrowSum: Float32 = narrowBase + 0.5f
+    val narrowRem: Float32 = narrowSum % 1.5f
+    val absorbed: Float32 = 1.5
+    val negWide: Float64 = -wideBase
+    val lt: Bool = wideSum < 10.0
+    val eq: Bool = narrowBase == 1.5
+    val ne: Bool = narrowBase != 2.5
+    val text: String = 1.25e2.toString()
+    val whole: Int = 3.75.toInt()
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("fadd double"),
+        "Float64 arithmetic should lower via LLVM floating-point add"
+    );
+    assert!(
+        ir.contains("fadd float"),
+        "Float32 arithmetic should lower via LLVM floating-point add"
+    );
+    assert!(
+        ir.contains("frem float"),
+        "Float32 remainder should lower via LLVM floating-point remainder"
+    );
+    assert!(
+        ir.contains("store float 1.500000e+00, ptr %absorbed"),
+        "Unsuffixed Float literals in Float32 contexts should lower as LLVM float constants"
+    );
+    assert!(
+        ir.contains("fcmp olt double"),
+        "Float comparisons should use ordered LLVM floating-point predicates"
+    );
+    assert!(
+        ir.contains("fcmp oeq float"),
+        "Float equality should use ordered equality for NaN-sensitive semantics"
+    );
+    assert!(
+        ir.contains("fcmp une float"),
+        "Float inequality should treat NaN as not-equal"
+    );
+    assert!(
+        ir.contains("fneg double"),
+        "Unary Float negation should lower to LLVM floating-point negation"
+    );
+    assert!(
+        ir.contains("@scoop_float64_to_string("),
+        "Float literal member calls should reuse Float.toString runtime lowering"
+    );
+    assert!(
+        ir.contains("@scoop_float64_to_int("),
+        "Float literal member calls should reuse Float.toInt runtime lowering"
+    );
+}
+
+#[test]
+fn lowered_call_results_keep_concrete_types_for_local_bindings() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun id(x: Int): Int { return x }
+
+fun main() {
+    val n = id(1)
+    val mag = (-2.5).abs()
+    val inf = (1.0 / 0.0).isInfinite()
+
+    println(n.toString())
+    println(mag.toString())
+    println(inf.toString())
+}
+"#,
+    );
+
+    let mut ast = parse_file(&source).unwrap();
+    let index = {
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            pairs.push((&file.source, &file.ast));
+        }
+        pairs.push((&source, &ast));
+        Index::build(&pairs).unwrap()
+    };
+
+    let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+    crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+    env.extend_from_file(&source, &ast, &index).unwrap();
+
+    let mut typecheck_types = TypeStore::new();
+    let builtins = typecheck_types.intern_builtins();
+    crate::typecheck::check_file_annotations(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_type_refs(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_exprs(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+
+    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        unit.push((&file.source, &file.ast));
+    }
+    unit.push((&source, &ast));
+
+    let files_to_lower = vec![(&source, &ast)];
+    let lowered = hir::lower_for_compilation_unit_multi_files(
+        &source,
+        &index,
+        &unit,
+        &files_to_lower,
+        &[],
+        &typecheck_types,
+    )
+    .unwrap();
+    let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+    let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+    assert!(
+        ir.contains("@scoop_int_to_string("),
+        "Unannotated local Int call results should keep Int through lowering/codegen"
+    );
+    assert!(
+        ir.contains("@scoop_float64_to_string("),
+        "Unannotated local Float call results should keep Float64 through lowering/codegen"
+    );
+    assert!(
+        ir.contains("@scoop_bool_to_string("),
+        "Unannotated local Bool call results should keep Bool through lowering/codegen"
+    );
+}
+
+#[test]
+fn lowered_hir_codegen_accepts_multi_file_source_map() {
+    let session = Session::new().unwrap();
+
+    let src_lib = SourceFile::new_virtual(
+        "<lib>",
+        r#"
+package fixtures.t0150b
+
+import scoop.core.*
+
+fun helper(x: Int): Int { return x + 1 }
+"#,
+    );
+    let src_main = SourceFile::new_virtual(
+        "<main>",
+        r#"
+package fixtures.t0150b
+
+import scoop.core.*
+
+fun main(): Int { return helper(41) }
+"#,
+    );
+
+    let mut ast_lib = parse_file(&src_lib).unwrap();
+    let mut ast_main = parse_file(&src_main).unwrap();
+
+    let index = {
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            pairs.push((&file.source, &file.ast));
+        }
+        pairs.push((&src_lib, &ast_lib));
+        pairs.push((&src_main, &ast_main));
+        Index::build(&pairs).unwrap()
+    };
+
+    let headers_lib = crate::resolve::check_file_headers(&src_lib, &ast_lib, &index).unwrap();
+    crate::resolve::check_file_bodies(&src_lib, &mut ast_lib, &index, &headers_lib).unwrap();
+
+    let headers_main = crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
+    crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main).unwrap();
+
+    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        unit.push((&file.source, &file.ast));
+    }
+    unit.push((&src_lib, &ast_lib));
+    unit.push((&src_main, &ast_main));
+
+    let files_to_lower = vec![(&src_lib, &ast_lib), (&src_main, &ast_main)];
+    let typecheck_types = TypeStore::new();
+    let lowered = hir::lower_for_compilation_unit_multi_files(
+        &src_main,
+        &index,
+        &unit,
+        &files_to_lower,
+        &[],
+        &typecheck_types,
+    )
+    .unwrap();
+
+    let mut source_map = SourceMap::new();
+    for file in &session.sysroot().files {
+        let _ = source_map.add_source_clone(&file.source);
+    }
+    let _ = source_map.add_source_clone(&src_lib);
+    let entry_source_id = source_map.add_source_clone(&src_main);
+
+    let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+    assert!(ir.contains("define i32 @main("));
+    assert!(
+        ir.contains("@fixtures.t0150b.helper"),
+        "expected reachable helper from non-entry file to be present in IR"
+    );
+}
+
+#[test]
+fn cross_file_class_ctor_literal_codegen_uses_correct_source_with_utf8_comments() {
+    let session = Session::new().unwrap();
+
+    let src_lib = SourceFile::new_virtual(
+        "<lib>",
+        r#"
+package fixtures.t4016t5a
+
+import scoop.core.*
+
+// 中文注释：跨文件构造器参数不应把 caller span 绑到这里。
+class Box(val value: Int)
+"#,
+    );
+    let src_main = SourceFile::new_virtual(
+        "<main>",
+        r#"
+package fixtures.t4016t5a
+
+import scoop.core.*
+
+fun main(): Int {
+    val box: Box = Box(7)
+    return box.value
+}
+"#,
+    );
+
+    let mut ast_lib = parse_file(&src_lib).unwrap();
+    let mut ast_main = parse_file(&src_main).unwrap();
+
+    let index = {
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            pairs.push((&file.source, &file.ast));
+        }
+        pairs.push((&src_lib, &ast_lib));
+        pairs.push((&src_main, &ast_main));
+        Index::build(&pairs).unwrap()
+    };
+
+    let headers_lib = crate::resolve::check_file_headers(&src_lib, &ast_lib, &index).unwrap();
+    crate::resolve::check_file_bodies(&src_lib, &mut ast_lib, &index, &headers_lib).unwrap();
+
+    let headers_main = crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
+    crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main).unwrap();
+
+    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        unit.push((&file.source, &file.ast));
+    }
+    unit.push((&src_lib, &ast_lib));
+    unit.push((&src_main, &ast_main));
+
+    let files_to_lower = vec![(&src_lib, &ast_lib), (&src_main, &ast_main)];
+    let typecheck_types = TypeStore::new();
+    let lowered = hir::lower_for_compilation_unit_multi_files(
+        &src_main,
+        &index,
+        &unit,
+        &files_to_lower,
+        &[],
+        &typecheck_types,
+    )
+    .unwrap();
+
+    let mut source_map = SourceMap::new();
+    for file in &session.sysroot().files {
+        let _ = source_map.add_source_clone(&file.source);
+    }
+    let _ = source_map.add_source_clone(&src_lib);
+    let entry_source_id = source_map.add_source_clone(&src_main);
+
+    let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+    assert!(ir.contains("define i32 @main("));
+}
+
+#[test]
+fn effect_runtime_intrinsics_are_emitted_as_symbol_calls() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    __scoop_effect_clear()
+    __scoop_effect_slot_write(9, 4, 33)
+    __scoop_effect_slot_write2(7, 5, 11, 22)
+    __scoop_effect_set_active()
+
+    val active: Int = __scoop_effect_is_active()
+    val tag: Int = __scoop_effect_slot_read_op_tag()
+    val key: Int = __scoop_effect_slot_read_effect_instance_key()
+    val len: Int = __scoop_effect_slot_read_len_words()
+    val single: Int = __scoop_effect_slot_read_value()
+    val w0: Int = __scoop_effect_slot_read_word(0)
+    val w1: Int = __scoop_effect_slot_read_word(1)
+
+    // 让返回值依赖这些调用，避免未来优化/重写时被意外删除。
+    active + tag + key + len + single + w0 + w1
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_effect_is_active"),
+        "IR 应包含对 scoop_effect_is_active 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_set_active"),
+        "IR 应包含对 scoop_effect_set_active 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_clear"),
+        "IR 应包含对 scoop_effect_clear 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_write_u64_2"),
+        "IR 应包含对 scoop_effect_perform_slot_write_u64_2 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_write_u64"),
+        "IR 应包含对 scoop_effect_perform_slot_write_u64 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_read_op_tag"),
+        "IR 应包含对 scoop_effect_perform_slot_read_op_tag 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_read_effect_instance_key"),
+        "IR 应包含对 scoop_effect_perform_slot_read_effect_instance_key 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_read_len_words"),
+        "IR 应包含对 scoop_effect_perform_slot_read_len_words 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_read_u64"),
+        "IR 应包含对 scoop_effect_perform_slot_read_u64 的引用"
+    );
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_read_u64_at"),
+        "IR 应包含对 scoop_effect_perform_slot_read_u64_at 的引用"
+    );
+}
+
+#[test]
+fn effect_contract_struct_types_are_registered_for_effect_codegen() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/effect_contract_types.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ping {
+    fun pong(value: Int): Int
+}
+
+fun go(): Int / Ping {
+    return Ping.pong(7)
+}
+
+fun main(): Int {
+    return handle {
+        go()
+    } with {
+        Ping.pong(value: Int) -> value
+    }
+}
+"#,
+    );
+
+    let context = Context::create();
+    let _module = build_minimal_main_module(&session, &source, &context).unwrap();
+
+    let effect_ctx = context
+        .get_struct_type("scoop.runtime.ScoopEffectCtx")
+        .expect("effect codegen 应注册 ScoopEffectCtx");
+    assert_eq!(effect_ctx.count_fields(), 1);
+
+    let value_transport = context
+        .get_struct_type("scoop.runtime.ScoopValueTransport")
+        .expect("effect codegen 应注册 ScoopValueTransport");
+    assert_eq!(value_transport.count_fields(), 2);
+
+    let effect_signal = context
+        .get_struct_type("scoop.runtime.ScoopEffectSignal")
+        .expect("effect codegen 应注册 ScoopEffectSignal");
+    assert_eq!(effect_signal.count_fields(), 4);
+    assert_eq!(
+        effect_signal.get_field_types()[2].into_struct_type(),
+        value_transport,
+        "EffectSignal.payload 应继续复用共享的 ValueTransport contract"
+    );
+
+    let effect_outcome = context
+        .get_struct_type("scoop.runtime.ScoopEffectOutcome")
+        .expect("effect codegen 应注册 ScoopEffectOutcome");
+    assert_eq!(effect_outcome.count_fields(), 4);
+    assert_eq!(
+        effect_outcome.get_field_types()[2].into_struct_type(),
+        value_transport,
+        "EffectOutcome.complete 应继续走 ValueTransport contract"
+    );
+    assert_eq!(
+        effect_outcome.get_field_types()[3].into_struct_type(),
+        effect_signal,
+        "EffectOutcome.propagate 分支应显式承载 EffectSignal"
+    );
+}
+
+#[test]
+fn indirect_multi_payload_perform_boxes_and_unboxes_tuple_transport() {
+    let source = SourceFile::new_virtual(
+        "main.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+fun go(): Int / Edge {
+    return Edge.visit("left", 6)
+}
+
+fun main(): Int {
+    return handle {
+        go()
+    } with {
+        Edge.visit(from, to) -> to + 4
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let mut ast = parse_file(&source).unwrap();
+    let index = {
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            pairs.push((&file.source, &file.ast));
+        }
+        pairs.push((&source, &ast));
+        Index::build(&pairs).unwrap()
+    };
+
+    let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+    crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+    env.extend_from_file(&source, &ast, &index).unwrap();
+
+    let mut typecheck_types = TypeStore::new();
+    let builtins = typecheck_types.intern_builtins();
+    crate::typecheck::check_file_annotations(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_type_refs(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_exprs(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+
+    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        unit.push((&file.source, &file.ast));
+    }
+    unit.push((&source, &ast));
+    let files_to_lower = vec![(&source, &ast)];
+    let lowered = hir::lower_for_compilation_unit_multi_files(
+        &source,
+        &index,
+        &unit,
+        &files_to_lower,
+        &[],
+        &typecheck_types,
+    )
+    .unwrap();
+
+    let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+    let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_write_u64_with_gc_ref"),
+        "ordinary callee perform should still write through the shared gc-ref transport entrypoint"
+    );
+    assert!(
+        ir.contains("rt_alloc_effect_value_box"),
+        "multi-payload perform should box the whole tuple payload instead of dropping extra args"
+    );
+    assert!(
+        ir.contains("effect_value_box_payload"),
+        "handler binder lowering should unbox the transported tuple payload before reading multiple binders"
+    );
+    assert!(
+        !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32"),
+        "multi-payload perform should not fall back to the single-word slot write ABI"
+    );
+}
+
+#[test]
+fn state_machine_multi_payload_perform_uses_tuple_transport() {
+    let source = SourceFile::new_virtual(
+        "main.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+fun main(): Int {
+    return handle {
+        println("before")
+        val x: Int = if (true) Edge.visit("left", 6) else 0
+        println("after")
+        x + 1
+    } with {
+        Edge.visit(from, to) , k -> {
+            println(from)
+            println(to)
+            k.resume(to + 1)
+        }
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let mut ast = parse_file(&source).unwrap();
+    let index = {
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            pairs.push((&file.source, &file.ast));
+        }
+        pairs.push((&source, &ast));
+        Index::build(&pairs).unwrap()
+    };
+
+    let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+    crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+    let mut typecheck_types = TypeStore::new();
+    let builtins = typecheck_types.intern_builtins();
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+    env.extend_from_file(&source, &ast, &index).unwrap();
+    crate::typecheck::check_file_annotations(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_type_refs(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_exprs(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+
+    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        unit.push((&file.source, &file.ast));
+    }
+    unit.push((&source, &ast));
+    let files_to_lower = vec![(&source, &ast)];
+    let lowered = hir::lower_for_compilation_unit_multi_files(
+        &source,
+        &index,
+        &unit,
+        &files_to_lower,
+        &[],
+        &typecheck_types,
+    )
+    .unwrap();
+
+    let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+    let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_write_u64_with_gc_ref"),
+        "state-machine perform should also write through the shared gc-ref transport entrypoint"
+    );
+    assert!(
+        ir.contains("rt_alloc_effect_value_box"),
+        "state-machine multi-payload perform should box the tuple transport instead of rejecting 2+ args"
+    );
+    assert!(
+        ir.contains("effect_value_box_payload"),
+        "state-machine handler binder lowering should unbox the transported tuple payload before reading multiple binders"
+    );
+    assert!(
+        ir.contains("@scoop_continuation_resume_with"),
+        "Continuation.resume lowering should route through the shared payload+answer helper entry"
+    );
+    assert!(
+        !ir.contains("@scoop_continuation_resume_into"),
+        "Continuation.resume lowering should no longer stage payload by calling the lower-level answer-only helper directly"
+    );
+    assert!(
+        !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32"),
+        "state-machine multi-payload perform should not fall back to the single-word slot write ABI"
+    );
+}
+
+#[test]
+fn direct_effectful_signature_without_outward_effect_skips_tls_check() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun hidden(): Int / (Ask) {
+    return handle {
+        Ask.ask(41)
+    } with {
+        Ask.ask(seed) -> seed + 1
+    }
+}
+
+fun entry(): Int / (Ask) {
+    return hidden()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_named(&ir, "a.entry");
+
+    assert!(
+        !entry_ir.contains("@scoop_effect_is_active"),
+        "签名 effectful 但 body 不会 outward-effect 的直调用不应再保留 TLS active 分流:\n{entry_ir}"
+    );
+}
+
+#[test]
+fn direct_call_with_uncalled_effectful_higher_order_param_skips_tls_check() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun latent(thunk: () -> Int / (Ask)): Int / (Ask) {
+    7
+}
+
+fun entry(): Int / (Ask) {
+    return latent({ Ask.ask(5) })
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_named(&ir, "a.entry");
+
+    assert!(
+        !entry_ir.contains("@scoop_effect_is_active"),
+        "未调用的 higher-order effect 参数不应让外层 ordinary 直调用保留 TLS 分流:\n{entry_ir}"
+    );
+}
+
+#[test]
+fn closure_call_without_outward_effect_skips_tls_check() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun entry(): Int / (Ask) {
+    val thunk: () -> Int / (Ask) = {
+        handle {
+            Ask.ask(41)
+        } with {
+            Ask.ask(seed) -> seed + 1
+        }
+    }
+    return thunk()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_named(&ir, "a.entry");
+
+    assert!(
+        !entry_ir.contains("@scoop_effect_is_active"),
+        "body 不会 outward-effect 的 closure 调用不应再保留 TLS active 分流:\n{entry_ir}"
+    );
+}
+
+#[test]
+fn direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun outward(): Int / (Ask) {
+    Ask.ask(41)
+}
+
+fun entry(): Int / (Ask) {
+    return outward()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_named(&ir, "a.entry");
+    let wrapper_ir = function_ir_named(&ir, "__scoop_effect_call_wrapper__a.outward");
+
+    assert!(
+        entry_ir.contains("@__scoop_effect_call_wrapper__a.outward")
+            && entry_ir.contains("@scoop_effect_outcome_publish")
+            && !entry_ir.contains("@scoop_effect_is_active"),
+        "ordinary direct outward-effect call 应改走显式 wrapper + outcome，而不是 post-call TLS active probing:\n{entry_ir}"
+    );
+    assert!(
+        wrapper_ir.contains("@scoop_effect_handler_stack_swap_top")
+            && wrapper_ir.contains("@scoop_effect_outcome_consume_current"),
+        "direct-call wrapper 应负责安装 ctx 并把 legacy TLS signal 收口到显式 outcome:\n{wrapper_ir}"
+    );
+}
+
+#[test]
+fn closure_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun entry(): Int / (Ask) {
+    val thunk: () -> Int / (Ask) = {
+        Ask.ask(41)
+    }
+    return thunk()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_named(&ir, "a.entry");
+
+    assert!(
+        entry_ir.contains("@scoop_effect_outcome_consume_current")
+            && entry_ir.contains("@scoop_effect_outcome_publish")
+            && !entry_ir.contains("@scoop_effect_is_active"),
+        "outward-effect closure call 应在 higher-order boundary 上显式 consume/publish outcome，而不是 post-call TLS probing:\n{entry_ir}"
+    );
+}
+
+#[test]
+fn effectful_funptr_call_uses_explicit_outcome_boundary() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+import scoop.unsafe.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+@Extern("scoop_test_get_effectful_funptr")
+fun get_effectful_funptr(): FunPtr<() -> Int / (Ask)>
+
+fun entry(): Int / (Ask) {
+    val fp: FunPtr<() -> Int / (Ask)> = @Unsafe do { get_effectful_funptr() }
+    return @Unsafe do { fp() }
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_named(&ir, "a.entry");
+
+    assert!(
+        entry_ir.contains("@scoop_effect_outcome_consume_current")
+            && entry_ir.contains("@scoop_effect_outcome_publish")
+            && !entry_ir.contains("@scoop_effect_is_active"),
+        "effectful funptr call 应在 boundary 上显式 consume/publish outcome，而不是继续依赖 TLS active probing:\n{entry_ir}"
+    );
+}
+
+#[test]
+fn virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+open class Base() {
+    open fun ping(): Int / (Ask) {
+        Ask.ask(1)
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int / (Ask) {
+        Ask.ask(41)
+    }
+}
+
+fun helper(base: Base): Int / (Ask) {
+    return base.ping()
+}
+
+fun main(): Int {
+    return handle {
+        helper(Derived())
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let helper_ir = function_ir_named(&ir, "a.helper");
+
+    assert!(
+        helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && helper_ir.contains("@scoop_effect_outcome_publish")
+            && !helper_ir.contains("@scoop_effect_is_active"),
+        "outward-effect vtable call 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn interface_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+interface IFace {
+    fun ping(): Int / (Ask)
+}
+
+class Impl() : IFace {
+    fun ping(): Int / (Ask) {
+        Ask.ask(52)
+    }
+}
+
+fun helper(face: IFace): Int / (Ask) {
+    return face.ping()
+}
+
+fun main(): Int {
+    return handle {
+        helper(Impl())
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let helper_ir = function_ir_named(&ir, "a.helper");
+
+    assert!(
+        helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && helper_ir.contains("@scoop_effect_outcome_publish")
+            && !helper_ir.contains("@scoop_effect_is_active"),
+        "outward-effect itable call 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn object_value_init_with_real_outward_effect_uses_explicit_outcome_boundary() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val marker: Int = 1
+}
+
+fun helper(): Int / Raise<RuntimeError> {
+    val _obj = BoomObject
+    return 7
+}
+
+fun main(): Int {
+    return try {
+        helper()
+    } catch (e: RuntimeError) {
+        11
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let helper_ir = function_ir_named(&ir, "a.helper");
+
+    assert!(
+        helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && helper_ir.contains("@scoop_effect_outcome_publish")
+            && !helper_ir.contains("@scoop_effect_is_active"),
+        "object value init access 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn top_level_immutable_init_with_real_outward_effect_uses_explicit_outcome_boundary() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+val Broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
+
+fun helper(): Int / Raise<RuntimeError> {
+    return Broken
+}
+
+fun main(): Int {
+    return try {
+        helper()
+    } catch (e: RuntimeError) {
+        11
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let helper_ir = function_ir_named(&ir, "a.helper");
+
+    assert!(
+        helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && helper_ir.contains("@scoop_effect_outcome_publish")
+            && !helper_ir.contains("@scoop_effect_is_active"),
+        "top-level immutable init access 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn pure_extern_call_does_not_install_effect_boundary() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+@Extern("scoop_test_add_int")
+fun nativeAdd(a: Int, b: Int): Int
+
+fun helper(): Int {
+    return @Unsafe do { nativeAdd(1, 2) }
+}
+
+fun main(): Int {
+    return helper()
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let helper_ir = function_ir_named(&ir, "a.helper");
+
+    assert!(
+        !helper_ir.contains("@scoop_effect_handler_stack_swap_top")
+            && !helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && !helper_ir.contains("@scoop_effect_outcome_publish")
+            && !helper_ir.contains("@scoop_effect_is_active"),
+        "ordinary `@Extern` 调用不应再安装任何 effect boundary 或 TLS probing:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn async_task_ir_uses_ordinary_scoop_task_helpers_not_legacy_runtime_abi() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async {
+        val t: Task<Int> = async { 41 }
+        val x: Int = await t
+        x + 1
+    }
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("scoop.core.__task_create::<Int>"),
+        "async sugar 应落到 ordinary Scoop `__task_create` helper，而不是旧 runtime ABI"
+    );
+    assert!(
+        ir.contains("scoop.core.__task_step_pending::<Int>"),
+        "async task body 内的 await 应改写成 ordinary Scoop pending step helper，而不是同步 join"
+    );
+    assert!(
+        ir.contains("scoop.core.__task_step_ready::<Int>"),
+        "async task body 正常完成时应构造 ordinary Scoop ready step helper，而不是直接返回普通值"
+    );
+    assert!(
+        !ir.contains("@scoop_task_create")
+            && !ir.contains("@scoop_task_poll")
+            && !ir.contains("@scoop_task_step_pending")
+            && !ir.contains("@scoop_task_step_ready")
+            && !ir.contains("@scoop_task_join"),
+        "ordinary `__task_*` 路径不应再直接依赖 legacy `scoop_task_*` runtime ABI"
+    );
+}
+
+#[test]
+fn single_file_minimal_ir_supports_handled_async_await() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val resultTask: Task<Int> = async {
+        val t: Task<Int> = async { 41 }
+        val x: Int = await t
+        x + 1
+    }
+
+    return handle {
+        Async.await(resultTask)
+    } with {
+        Async.await(taskArg: Task<Int>) -> __task_join(taskArg)
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("scoop.core.__task_create::<Int>"),
+        "single-file LLVM 路径应继续看到 ordinary Scoop `__task_create` helper"
+    );
+    assert!(
+        ir.contains("@scoop_effect_perform_slot_write_u64_with_gc_ref"),
+        "handled Async.await(...) 的 perform site 应在最小 IR 路径上保留 effect transport lowering"
+    );
+    assert!(
+        ir.contains("scoop.core.__task_join::<Int>"),
+        "外层 handled Async.await(...) 的 arm body 应能在最小 IR 路径上看到 ordinary Scoop `__task_join` helper"
+    );
+    assert!(
+        !ir.contains("@scoop_task_create")
+            && !ir.contains("@scoop_task_poll")
+            && !ir.contains("@scoop_task_join"),
+        "minimal LLVM 路径里的 async / await 主线不应再回退到 legacy task runtime ABI"
+    );
+}
+
+#[test]
+fn task_step_ir_uses_ordinary_scoop_definition_not_legacy_poll_abi() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async { 41 }
+    return when (task.step()) {
+        TaskStep.Pending -> 0
+        TaskStep.Ready(value) -> value
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("scoop.core.step::<Int>"),
+        "Task.step() 应落到 ordinary Scoop `scoop.core.step::<Int>` 定义"
+    );
+    assert!(
+        ir.contains("scoop.core.__task_drive_created::<Int>"),
+        "ordinary Scoop 的 `Task.step()` 实现应继续调用 `__task_drive_created::<Int>`"
+    );
+    assert!(
+        !ir.contains("@scoop_task_poll"),
+        "Task.step() 不应再直接调用 legacy `scoop_task_poll` runtime ABI"
+    );
+}
+
+#[test]
+fn task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async { 41 }
+    return when (task.step()) {
+        TaskStep.Pending -> 0
+        TaskStep.Ready(value) -> value
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("cmpxchg ptr addrspace(1) %class_field_gep, i64 0, i64 1 seq_cst seq_cst"),
+        "Task.step() 的 claim acquire 必须保持 seq_cst cmpxchg，以支撑 cross-thread sequential handoff"
+    );
+    assert!(
+        ir.contains("store atomic i64 0, ptr addrspace(1) %class_field_gep seq_cst"),
+        "Task.step() 的 claim release 必须保持 seq_cst store，以发布 Waiting/Completed 状态"
+    );
+    assert!(
+        ir.contains("@scoop_process_exit"),
+        "claim 冲突或 Running 观察的 single-driver 误用应继续降到 fatal trap"
+    );
+    assert!(
+        !ir.contains("@scoop_sync_mutex_create")
+            && !ir.contains("@scoop_sync_mutex_lock")
+            && !ir.contains("@scoop_sync_mutex_unlock")
+            && !ir.contains("@scoop_sync_mutex_destroy"),
+        "Task.step() 不应再回退到 per-task mutex 实现"
+    );
+    assert!(
+        !ir.contains("@scoop_thread_yield"),
+        "claim 冲突不应回退到自旋 yield；应直接 trap"
+    );
+}
+
+#[test]
+fn thread_join_statepoint_preserves_live_gc_locals() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop"
+        )),
+    );
+
+    let session = Session::new().unwrap();
+    let context = Context::create();
+    let module = build_minimal_main_module(&session, &source, &context).unwrap();
+    let (target_machine, _target_info) =
+        target::host_target_machine_with_opt_level(OptLevel::O0).unwrap();
+    run_pass_pipeline(&module, &target_machine, OptLevel::O0).unwrap();
+    let ir = module.print_to_string().to_string();
+
+    let join_idx = ir
+        .find("@scoop_thread_join")
+        .expect("IR 应包含 `scoop_thread_join` 调用");
+    let join_window_start = join_idx.saturating_sub(400);
+    let join_window_end = std::cmp::min(join_idx + 1400, ir.len());
+    let join_window = &ir[join_window_start..join_window_end];
+
+    assert!(
+        join_window.contains("%inner"),
+        "thread.join statepoint 应保留仍在当前 frame 里的 `inner` root\n{join_window}"
+    );
+    assert!(
+        join_window.contains("%outer"),
+        "thread.join statepoint 应保留仍在当前 frame 里的 `outer` root\n{join_window}"
+    );
+    assert!(
+        join_window.contains("%worker"),
+        "thread.join statepoint 应保留 `worker` root 并在返回后写回槽位\n{join_window}"
+    );
+    assert!(
+        join_window.matches("gc_root_keepalive_").count() >= 3,
+        "thread.join statepoint 应显式 spill 至少三个 GC local keepalive，而不是只保留 receiver 参数\n{join_window}"
+    );
+    assert!(
+        join_window.contains(r#"[ "gc-live"("#),
+        "thread.join 调用点应继续走 LLVM statepoint `gc-live` roots 合同\n{join_window}"
+    );
+    assert!(
+        join_window.contains("store ptr addrspace(1) %gc_root_keepalive_"),
+        "thread.join 返回后应把 relocated keepalive 写回真实 local root 槽位\n{join_window}"
+    );
+}
+
+#[test]
+fn single_file_minimal_ir_includes_compilable_sysroot_string_helpers() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val word: String = "hello".substring(1, 4)
+    return if (word == "ell") 1 else 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop.core.substring("),
+        "single-file LLVM 路径应把可编译 sysroot 源中的 substring helper 编进当前模块"
+    );
+}
+
+#[test]
+fn box_int_to_any_uses_addrspace_1_ref_pointer() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: Any = 1
+    __scoop_gc_collect()
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("addrspace(1)"),
+        "IR 应包含 addrspace(1)（GC-managed 引用指针）"
+    );
+    assert!(
+        ir.contains("@scoop_alloc_typed"),
+        "装箱到 Any 应调用/声明 scoop_alloc_typed"
+    );
+    assert!(
+        !ir.contains("addrspacecast"),
+        "当前阶段的装箱路径不应依赖 addrspacecast 回退到 addrspace(0)"
+    );
+}
+
+#[test]
+fn sync_mutex_runtime_calls_use_addrspace_1_object_pointers() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+import scoop.sync.*
+
+fun main(): Int {
+    val m: Mutex = mutexCreate()
+    m.lock()
+    m.unlock()
+    m.destroy()
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_sync_mutex_create"),
+        "IR 应包含对 scoop_sync_mutex_create 的引用"
+    );
+    assert!(
+        ir.contains("addrspace(1)"),
+        "IR 应包含 addrspace(1)（GC-managed 引用指针）"
+    );
+    assert!(
+        !ir.contains("addrspacecast"),
+        "sync 相关调用不应依赖 addrspacecast 回退到 addrspace(0)"
+    );
+}
+
+#[test]
+fn string_literal_uses_addrspace_1_gc_string_object() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val s: String = "hi"
+    println(s)
+    __scoop_gc_collect()
+    println(s)
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_println"),
+        "IR 应包含对 scoop_println 的引用"
+    );
+    assert!(
+        ir.contains("addrspace(1)"),
+        "String 应为 addrspace(1) GC-managed 指针"
+    );
+    assert!(
+        !ir.contains("addrspacecast"),
+        "String 相关调用不应依赖 addrspacecast 回退到 addrspace(0)"
+    );
+}
+
+#[test]
+fn object_member_call_uses_gc_managed_singleton_receiver() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+object Helper {
+    fun run(): Int {
+        return 7
+    }
+}
+
+fun main(): Int {
+    return Helper.run()
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@__scoop_object_instance__a.Helper = internal global ptr addrspace(1) null"),
+        "object 单例槽应保存 GC-managed receiver 指针"
+    );
+    assert!(
+        ir.contains("@scoop_alloc_typed"),
+        "object 单例值应通过 typed alloc 生成真实 Ref 对象"
+    );
+    assert!(
+        ir.contains("call i64 @a.Helper.run(ptr addrspace(1)"),
+        "object member call 应把 addrspace(1) receiver 传给成员函数"
+    );
+    assert!(
+        !ir.contains("call i64 @a.Helper.run(ptr @__scoop_object_instance__a.Helper)"),
+        "member call 不应再把默认地址空间全局地址直接当 receiver 传递"
+    );
+    assert!(
+        !ir.contains("addrspacecast"),
+        "object member call 修复不应退回 addrspacecast 打补丁"
+    );
+}
+
+#[test]
+fn println_int_lowers_via_string_formatting_without_print_int_helpers() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    println(123)
+    __scoop_gc_collect()
+    println(-42)
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_println"),
+        "IR 应包含对 scoop_println 的引用（与 String 路径对齐）"
+    );
+    assert!(
+        ir.contains("@scoop_format_i64"),
+        "IR 应通过 scoop_format_i64 走最小格式化（避免 codegen 侧 varargs snprintf）"
+    );
+    assert!(
+        ir.contains("@scoop_alloc_typed"),
+        "println(Int) 需要分配 GC-managed String，应调用/声明 scoop_alloc_typed"
+    );
+    assert!(
+        !ir.contains("@scoop_println_i64"),
+        "println(Int) 不应再依赖 runtime 的 scoop_println_i64 绕路"
+    );
+    assert!(
+        !ir.contains("addrspacecast"),
+        "println(Int)->String 的路径不应依赖 addrspacecast"
+    );
+}
+
+#[test]
+fn array_of_any_uses_ref_element_runtime_apis_without_ptr_to_u64() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: Any = 1
+    val b: Any = 2
+    val xs: Array<Any> = [a, b]
+    val v: Any = xs.get(0)
+    __scoop_gc_collect()
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_array_builder_push_ref"),
+        "Array<Any> 的 array literal builder 应走 scoop_array_builder_push_ref"
+    );
+    assert!(
+        ir.contains("@scoop_array_get_ref"),
+        "Array<Any>.get 应走 scoop_array_get_ref"
+    );
+    assert!(
+        !ir.contains("ptr_to_u64"),
+        "ref 元素路径不应把 GC 指针编码为 u64（ptr_to_u64）"
+    );
+    assert!(
+        !ir.contains("u64_to_ref"),
+        "ref 元素路径不应从 u64 解码回 GC 指针（u64_to_ref）"
+    );
+    assert!(
+        !ir.contains("addrspacecast"),
+        "ref array 路径不应引入 addrspacecast"
+    );
+}
+
+#[test]
+fn array_of_string_uses_ref_element_runtime_apis_without_ptr_to_u64() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: MutableArray<String> = ["a", "b"]
+    xs.set(0, "z")
+    val v: String = xs.get(0)
+    println(v)
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_array_builder_push_ref"),
+        "Array<String> 的 array literal builder 应走 scoop_array_builder_push_ref"
+    );
+    assert!(
+        ir.contains("@scoop_array_get_ref"),
+        "Array<String>.get 应走 scoop_array_get_ref"
+    );
+    assert!(
+        ir.contains("@scoop_array_set_ref"),
+        "MutableArray<String>.set 应走 scoop_array_set_ref"
+    );
+    assert!(
+        !ir.contains("ptr_to_u64"),
+        "String 元素路径不应把 GC 指针编码为 u64（ptr_to_u64）"
+    );
+    assert!(
+        !ir.contains("u64_to_string"),
+        "String 元素路径不应从 u64 解码回 GC 字符串指针（u64_to_string）"
+    );
+    assert!(
+        !ir.contains("addrspacecast"),
+        "String array 路径不应引入 addrspacecast"
+    );
+}
+
+#[test]
+fn enum_single_field_non_scalar_payload_uses_boxed_variant_path() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Msg(val payload: (String, Int)),
+    Err(val code: Int),
+}
+
+fun main(): Int {
+    val ok: Result = Ok(Point { x: 7, y: 8 })
+    val msg: Result = Msg(("hello", 30))
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("scoop.runtime.EnumBoxedPayload__a_Result__Ok"),
+        "single-field struct payload 应生成 boxed payload object type"
+    );
+    assert!(
+        ir.contains("scoop.runtime.EnumBoxedPayload__a_Result__Msg"),
+        "single-field tuple payload 应生成 boxed payload object type"
+    );
+    assert!(
+        ir.contains("__scoop_type_desc_runtime__enum_boxed_payload__a_Result__Ok"),
+        "boxed struct payload 应生成对应的类型描述符"
+    );
+    assert!(
+        ir.contains("__scoop_type_desc_runtime__enum_boxed_payload__a_Result__Msg"),
+        "boxed tuple payload 应生成对应的类型描述符"
+    );
+}
+
+#[test]
+fn missing_main_is_reported() {
+    let source = SourceFile::new_virtual("<mem>", "package a\nfun not_main() {}");
+    let session = Session::new().unwrap();
+    let err = emit_minimal_main_ir(&session, &source).unwrap_err();
+
+    assert!(matches!(err, LlvmEmitError::MissingEntryMain));
+}
+
+#[test]
+fn minimal_main_obj_written_is_non_empty() {
+    let dir = make_temp_dir("minimal_main_obj_written_is_non_empty");
+    let output = dir.join("main.o");
+
+    let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
+    let session = Session::new().unwrap();
+    emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
+
+    let size = std::fs::metadata(&output).unwrap().len();
+    assert!(size > 0, "object 文件不应为空");
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn minimal_main_obj_contains_stackmap_section_and_header_is_parseable() {
+    let dir = make_temp_dir("minimal_main_obj_contains_stackmap_section");
+    let output = dir.join("main.o");
+
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main() {
+    // 强制触发 `Int -> Any` 装箱（heap alloc），让 statepoint pipeline 产出 stackmap records。
+    val a: Any = 1
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
+
+    let bytes = std::fs::read(&output).unwrap();
+    let obj = object::File::parse(&*bytes).expect("failed to parse object file");
+
+    let stackmap_section = obj
+        .sections()
+        .find(|s| s.name().ok().is_some_and(|n| n.contains("llvm_stackmaps")))
+        .expect("missing stackmap section (llvm_stackmaps)");
+    let section_data = stackmap_section
+        .data()
+        .expect("failed to read stackmap section data");
+
+    let header = super::stackmap::StackMapHeader::parse(section_data)
+        .expect("stackmap header should be parseable");
+    assert!(
+        header.num_records > 0,
+        "expected stackmap section to contain at least one record"
+    );
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn minimal_main_obj_stackmap_roots_contract_is_verifyable() {
+    // GC-FIX Phase A1：
+    // - 解析 stackmap records；
+    // - 固化“roots locations 是可计算的连续后缀”契约；
+    // - 单测层面保证：至少出现一个带 roots 的 record（否则校验形同虚设）。
+    let dir = make_temp_dir("minimal_main_obj_stackmap_roots_contract_is_verifyable");
+    let output = dir.join("main.o");
+
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun keepAlive(x: Any): Unit {
+}
+
+fun main(): Unit {
+    val keep: Any = 1
+    // 手动触发一次 GC（调用点应被 statepoint pipeline 产出 stackmap record）。
+    __scoop_gc_collect()
+    // 显式使用 keep，确保其在 collect 调用点是 live（应出现在 roots locations 后缀）。
+    keepAlive(keep)
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
+
+    let bytes = std::fs::read(&output).unwrap();
+    let obj = object::File::parse(&*bytes).expect("failed to parse object file");
+    let stackmap_section = obj
+        .sections()
+        .find(|s| s.name().ok().is_some_and(|n| n.contains("llvm_stackmaps")))
+        .expect("missing stackmap section (llvm_stackmaps)");
+    let section_data = stackmap_section
+        .data()
+        .expect("failed to read stackmap section data");
+
+    let section = crate::stackmap::StackMapSection::parse(section_data)
+        .expect("stackmap section should be parseable (v3)");
+
+    let cfg = if cfg!(target_arch = "x86_64") {
+        crate::stackmap::StackMapRootsContractConfig {
+            pointer_size: 8,
+            sp_dwarf_reg: 7,
+            fp_dwarf_reg: Some(6),
+        }
+    } else if cfg!(target_arch = "aarch64") {
+        crate::stackmap::StackMapRootsContractConfig {
+            pointer_size: 8,
+            sp_dwarf_reg: 31,
+            fp_dwarf_reg: Some(29),
+        }
+    } else {
+        panic!("unsupported test target_arch for stackmap roots contract");
+    };
+
+    section
+        .verify_roots_contract(cfg)
+        .expect("stackmap roots contract should hold");
+
+    let roots_records = section
+        .records
+        .iter()
+        .filter(|rec| {
+            rec.locations.iter().any(|loc| {
+                matches!(
+                    loc.kind,
+                    crate::stackmap::StackMapLocationKind::Direct
+                        | crate::stackmap::StackMapLocationKind::Indirect
+                ) && loc.size == cfg.pointer_size
+                    && (loc.dwarf_reg == cfg.sp_dwarf_reg
+                        || cfg.fp_dwarf_reg.is_some_and(|fp| fp == loc.dwarf_reg))
+            })
+        })
+        .count();
+    let sample = section
+        .records
+        .iter()
+        .take(3)
+        .enumerate()
+        .map(|(i, rec)| {
+            let locs = rec
+                .locations
+                .iter()
+                .enumerate()
+                .map(|(j, loc)| {
+                    format!(
+                        "loc[{j}] kind={:?} size={} reg={} off={}",
+                        loc.kind, loc.size, loc.dwarf_reg, loc.offset
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "record[{i}] patchpoint_id=0x{:x} inst_off=0x{:x} locs=[{locs}]",
+                rec.patchpoint_id, rec.instruction_offset
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        roots_records > 0,
+        "expected at least one record to contain GC roots locations\n{sample}"
+    );
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn statepoint_pipeline_rewrites_scoop_alloc_typed_callsites() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: Any = 1
+    return 0
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+
+    let context = Context::create();
+    let module = build_minimal_main_module(&session, &source, &context).unwrap();
+    let (target_machine, _target_info) =
+        target::host_target_machine_with_opt_level(OptLevel::O0).unwrap();
+    run_pass_pipeline(&module, &target_machine, OptLevel::O0).unwrap();
+
+    let ir = module.print_to_string().to_string();
+    assert!(
+        ir.contains("llvm.experimental.gc.statepoint"),
+        "expected rewrite-statepoints-for-gc to emit gc.statepoint intrinsics"
+    );
+    assert!(
+        ir.contains("scoop_alloc_typed"),
+        "expected statepoint pipeline to cover scoop_alloc_typed (alloc safepoint boundary)"
+    );
+    assert!(
+        !ir.contains("llvm.experimental.stackmap"),
+        "expected stackmap records to come from statepoints, not manual stackmap probes"
+    );
+}
+
+#[test]
+fn minimal_main_asm_written_is_non_empty() {
+    let dir = make_temp_dir("minimal_main_asm_written_is_non_empty");
+    let output = dir.join("main.s");
+
+    let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
+    let session = Session::new().unwrap();
+    emit_minimal_main_asm_to_file(&session, &source, &output).unwrap();
+
+    let size = std::fs::metadata(&output).unwrap().len();
+    assert!(size > 0, "assembly 文件不应为空");
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
+    for chunk in ir.split("\ndefine ").skip(1) {
+        let end = chunk.find("\n}").expect("expected end of function body") + 2;
+        let function = &chunk[..end];
+        let header = function.lines().next().expect("expected function header");
+        if header.contains(name_fragment) {
+            return function;
+        }
+    }
+    panic!("expected function containing {name_fragment}");
+}
