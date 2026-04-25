@@ -1,50 +1,63 @@
-# 执行计划
+# Claude Plan
 
 ## 说明
 
-按要求，我会先维护这份可审阅的执行计划与进度记录，再进行仓库检查、实现、测试与提交。
-这里记录的是面向执行的计划、决策与进度，不包含不可审阅的内部推理细节。
+按本次任务要求，这里先记录一份可审计的执行计划、判断依据摘要与后续进度日志。内容会在执行过程中持续更新。
 
-## 初始步骤
+## 初始目标
 
-1. 检查最新一次 Git 提交，确认提交说明中是否提到需要先修复的既有问题。
-2. 查看 `TODO.md`，定位第一个未完成任务。
-3. 查看 `PLAN.md`，确认当前计划与 `TODO.md` 是否一致。
-4. 检查工作树状态，避免覆盖已有未提交改动。
-5. 如果第一个未完成任务过大，则把它拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，随后优先执行拆分后的第一个子任务。
-6. 实现当前应执行的第一个任务。
-7. 运行相关测试、格式化、lint，并修复发现的问题。
-8. 将完成情况同步回 `TODO.md`、`PLAN.md` 与本文件。
-9. 使用清晰的提交信息提交当前轮工作。
-10. 停止，不继续处理下一个任务。
+1. 检查最新提交是否提到任何既有问题；若有，优先修复。
+2. 读取 `TODO.md`，确定第一个未完成任务。
+3. 如果该任务过大，先拆分任务并更新 `PLAN.md` / `TODO.md`，然后只执行拆分后的第一个子任务。
+4. 在执行当前任务的过程中，任何发现的既有缺陷、回归、规范不匹配、未完成实现边界或临时规避路径，都立即视为当前范围内问题：
+   - 若能直接修复，则先修复。
+   - 若阻塞当前任务且无法在本轮直接完成，则在 `TODO.md` 中把该修复任务插入到被阻塞任务之前，更新 `PLAN.md` 说明依赖关系，然后提交并停止。
+5. 对本轮实际执行的唯一任务完成以下闭环：
+   - 实现
+   - 测试（包含相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`，以及必要的专项测试）
+   - 更新 `TODO.md` / `PLAN.md`
+   - Git 提交
+   - 停止
 
-## 进度记录
+## 执行步骤
 
-- 2026-04-25：已创建本文件并写入初始执行计划，尚未开始仓库检查。
-- 2026-04-25：已检查最新提交、`TODO.md`、`PLAN.md` 与工作树状态。
-  - 最新提交为 `[T5000b3d] Split enum and object lowering modules`，提交说明未显式挂出需要优先修复的既有问题。
-  - 当前工作树仅有本文件的未提交修改。
-  - `TODO.md` 中第一个明确未完成条目为 `T5000b3dR Review：确认 codegen/mod.rs 的主题拆分已收口到共享上下文与通用 helper`。
-- 2026-04-25：确定本轮执行目标为 `T5000b3dR`，当前不需要再把任务细分。
-  - 具体执行步骤：
-    1. 审阅 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 enum/object lowering 主体是否已全部迁出。
-    2. 审阅 `enum_lowering.rs`、`object_init.rs` 及相关调用面，确认接口方向是否为单向窄接口。
-    3. 检查根模块剩余的大函数簇，判断它们是否属于共享上下文、通用 helper 或跨主题桥接；若发现既有边界泄漏，先修复，再继续 review。
-    4. 运行相关测试与 lint。
-    5. 将 review 结果同步到 `TODO.md`、`PLAN.md` 与本文件，然后提交并停止。
-- 2026-04-25：`T5000b3dR` 复核过程中发现一个既有边界泄漏，需先修复。
-  - 问题：`crates/scoopc/src/llvm/codegen/mod.rs` 仍残留 `codegen_sysroot_funptr_invoke`、`codegen_sysroot_funptr_to_uintptr`、`codegen_sysroot_uintptr_to_funptr` 三个 `scoop.unsafe.*` intrinsic lowering；
-  - 现状：`crates/scoopc/src/llvm/codegen/call/dispatch.rs` 仍通过这三条接口做分派，说明 sysroot intrinsic lowering 尚未完全从根模块迁出；
-  - 处理：先把这组三个函数迁入 `crates/scoopc/src/llvm/codegen/intrinsics/sysroot.rs`，再重新复核根模块剩余职责。
-- 2026-04-25：已完成边界修复与验证。
-  - 已将 `codegen_sysroot_funptr_invoke`、`codegen_sysroot_funptr_to_uintptr`、`codegen_sysroot_uintptr_to_funptr` 从 `crates/scoopc/src/llvm/codegen/mod.rs` 迁入 `crates/scoopc/src/llvm/codegen/intrinsics/sysroot.rs`；
-  - 已重新复核 `codegen/mod.rs`：
-    - enum / object lowering 主体已稳定留在 `enum_lowering.rs` 与 `object_init.rs`；
-    - 根模块剩余内容以共享上下文、通用 helper、顶层值初始化/访问、GC/root/sret/return 桥接、单态化/具体类型恢复 helper、以及通用表达式/运算/转换 lowering 为主；
-    - 未再发现需要先于 `T5000b3R` 插入的新前置缺陷任务。
-  - 已完成验证：
-    1. `cargo fmt --all`
-    2. `cargo test -p scoopc llvm::`
-    3. `cargo test --all`
-    4. `cargo clippy --all-targets -- -D warnings`
-- 2026-04-25：当前轮目标 `T5000b3dR` 已完成，下一步只剩提交并停止。
+1. 查看最新提交信息与改动摘要，确认是否有明确提及待修问题。
+2. 读取 `TODO.md`、`PLAN.md`，确认当前优先级最高的未完成任务。
+3. 评估任务规模和前置依赖：
+   - 如果任务清晰且可在本轮闭环，直接实施。
+   - 如果任务过大或存在未覆盖前置能力，先拆分并更新计划文件。
+4. 阅读相关代码与测试，定位实现点和潜在既有问题。
+5. 修改代码并补充/调整测试。
+6. 运行格式化、静态检查和相关测试，修复发现的问题。
+7. 更新 `TODO.md` / `PLAN.md` / 本文件的进度日志。
+8. 检查工作区改动，形成单一逻辑提交并停止。
+
+## 进度日志
+
+- 2026-04-25：已创建计划文件，尚未开始代码与仓库内容检查。
+- 2026-04-25：已检查最新提交 `57026f324c184c96963a6dcea261a6fe0716bd72`（`[T5000b3dR] Review codegen root boundary`）。
+  - 提交说明本身未直接声明新的待修既有问题；
+  - 但该提交属于 `T5000b3dR` review，因此当前仍需按 `TODO.md` 继续执行下一条 review 任务，并在审阅中把任何暴露出的既有边界问题立即纳入范围。
+- 2026-04-25：已读取 `TODO.md` / `PLAN.md`。
+  - 当前第一个未完成任务是 `T5000b3R Review：确认 llvm/codegen/mod.rs 的主题拆分是真正的边界整理`；
+  - 当前执行策略：先审阅 `llvm/codegen` 根模块与各主题模块边界、确认是否存在跨主题倒灌或残留主体实现；若发现既有问题则先修复，否则完成 review、更新文档并提交。
+- 2026-04-25：已完成 `llvm/codegen` 主题边界审阅的代码证据收集。
+  - `call/`、`intrinsics/`、`closure/`、`class_ctor.rs`、`enum_lowering.rs`、`object_init.rs` 的主体入口均位于各自主题模块；
+  - `codegen/mod.rs` 中对应的少量同名函数目前主要是薄委托或表达式层统一分派入口，而不是主题主体实现本身；
+  - `codegen_addressable_place` 仅被 `intrinsics/atomic.rs` 复用，当前更像通用 lvalue bridge；`lookup_pure_unit_closure_type` 已位于 `closure/`，仅被 `sync/thread` 借用作 expected-function-type 桥接。
+- 2026-04-25：审阅中发现一个需立即修正的既有问题。
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 顶部模块说明仍描述“早期最小子集 / 不支持 if/loop”等旧口径，与当前主题拆分后的真实职责边界不符；
+  - 这属于本轮 review 直接暴露的文档错配，需要先修正，再把 review 结论回写到 `TODO.md` / `PLAN.md`。
+- 2026-04-25：已修正 `crates/scoopc/src/llvm/codegen/mod.rs` 顶部模块说明。
+  - 现已改为描述当前真实边界：根模块承接共享上下文、generic lowering 与跨主题 helper；
+  - `call/`、`intrinsics/`、`closure/`、`class_ctor.rs`、`enum_lowering.rs`、`object_init.rs` 等主题模块的职责边界已明确写入注释；
+  - 下一步进入格式化、测试与 review 记录回写。
+- 2026-04-25：验证已完成。
+  - `cargo fmt --all`：通过；
+  - `cargo test -p scoopc llvm::`：通过；
+  - `cargo test --all`：通过；
+  - `cargo clippy --all-targets -- -D warnings`：通过。
+- 2026-04-25：任务文档已回写。
+  - `TODO.md` 已将 `T5000b3R` 标记为完成，并记录本轮 review 结论与修正的文档问题；
+  - `PLAN.md` 已追加 `T5000b3R` 进度记录，并将下一条待执行任务切换为 `T5000b4`；
+  - 下一步：检查 diff，提交本轮改动，然后停止。

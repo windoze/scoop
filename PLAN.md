@@ -221,7 +221,29 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b3R Review：确认 llvm/codegen/mod.rs 的主题拆分是真正的边界整理`。
+- 2026-04-25：`T5000b3R Review：确认 llvm/codegen/mod.rs 的主题拆分是真正的边界整理` 已完成。
+  - 汇总复核结果：
+    - `call/` 继续稳定承接调用分派、调用点 ABI / 实参绑定、ordinary callee resume 与 effect-call wrapper；
+    - `intrinsics/` 继续稳定承接 builtin 与 sysroot intrinsics；
+    - `closure/` / `class_ctor.rs` 继续稳定承接 closure lowering 与 class ctor lowering；
+    - `enum_lowering.rs` / `object_init.rs` 继续稳定承接 enum constructor / payload / 常量，以及 object singleton / property / init-body lowering；
+    - `codegen/mod.rs` 中对应的少量同名入口均已退回薄委托或表达式层统一分派桥接，不再承载这些主题的主体实现。
+  - review 进一步确认了根模块剩余职责的性质：
+    - `CompilationUnitCodegenCx` / `MainCodegen` 及相关缓存、顶层 const/immutable/var 初始化与访问、GC-sensitive spill/root/sret/return helper、`codegen_addressable_place` 这类通用 lvalue bridge、具体类型恢复 / 通用 coercion / 字面量与聚合值 lowering，当前都更接近“共享上下文 + generic lowering”，而不是应立即继续拆走的已成型主题；
+    - `codegen_addressable_place` 虽目前仅被 `intrinsics/atomic.rs` 直接复用，但语义上仍是通用可寻址 place 抽象，因此本轮未把它误判为 atomic lowering 主体残留。
+  - review 过程中发现并修复了一个既有文档错配：
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 顶部模块注释仍沿用早期“最小子集 / 不支持 if/loop”的旧描述；
+    - 现已改为准确描述根模块的共享上下文 / generic lowering 边界，以及 `call/`、`intrinsics/`、`closure/`、`class_ctor.rs`、`enum_lowering.rs`、`object_init.rs` 等主题模块的职责分布。
+  - review 结论：
+    - `llvm/codegen/mod.rs` 的主题拆分已经是实质性的边界整理，而不是机械切碎；
+    - 下一步 `T5000b4` 的切入点已经明确收敛为继续拆分 `CompilationUnitCodegenCx` / `MainCodegen` 的 module / function / cache / effect emitter 职责，而不是再次回头追打本轮已拆完的主题模块。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b4 继续拆分 MainCodegen 为 module / function / cache / effect emitter 上下文`。
 
 ## 1. 当前判断
 

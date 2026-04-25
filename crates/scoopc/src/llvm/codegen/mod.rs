@@ -1,20 +1,20 @@
-//! LLVM IR 生成（早期阶段，T0808～T0810）。
+//! LLVM backend lowering root.
 //!
-//! 当前落点：支持把**入口函数 `fun main`** 与其调用到的顶层函数降低到单个 LLVM module：
-//! - 入口保持为 `i32 @main()`（C ABI），其返回值作为进程退出码；
-//! - 额外生成（或声明）被调用的顶层函数（先按简单 C ABI）。
+//! 当前 `codegen/mod.rs` 的职责上界已经从“巨型主题混合文件”收口为：
+//! - `CompilationUnitCodegenCx` / `MainCodegen` 等共享上下文与构造入口；
+//! - 顶层 `const` / `immutable` / `var` 初始化与访问；
+//! - 字面量、聚合值、成员访问、运算符、类型转换、通用 coercion 等 generic lowering；
+//! - GC-sensitive spill/root/sret/return helper、通用 lvalue bridge、具体类型恢复等跨主题 helper。
 //!
-//! 表达式/语句子集（当前只覆盖早期最小回归需要）：
-//! - 整数/布尔字面量；
-//! - 一元运算：`!`、`-`、`~`；
-//! - 二元运算：算术/比较/位运算/移位（含 shift count mask）；
-//! - 局部绑定：`val`/`var`（映射为 `alloca` + `load/store`）；
-//! - 赋值语句：`x = expr`（仅支持 local `var`）；
-//! - `return`（以及"block 最后表达式"作为隐式返回）。
-//! - `when`（T0813：仅支持 enum tag 判别 + variant binder；不支持 guard/or-pattern）。
+//! 其余主题 lowering 已拆到独立模块：
+//! - `call/`：调用分派、调用点 ABI / 实参绑定、ordinary callee resume 与 effect-call wrapper；
+//! - `intrinsics/`：builtin 与 sysroot intrinsics；
+//! - `closure/` / `class_ctor.rs`：closure lowering 与 class constructor lowering；
+//! - `enum_lowering.rs` / `object_init.rs`：enum constructor/object singleton 相关 lowering；
+//! - `effect/`、`gc.rs`、`runtime_abi.rs` 等继续保持独立主题边界。
 //!
-//! 非目标（后续任务逐步补齐）：
-//! - if/loop 等更复杂控制流（依赖 MIR/CFG codegen 任务）。
+//! 下一步 `T5000b4` 会继续把这里剩余的共享状态拆成 module / function / cache /
+//! effect-emitter 级上下文。
 
 use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};

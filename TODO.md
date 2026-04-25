@@ -256,7 +256,7 @@
   - review 结论：`codegen/mod.rs` 的主题拆分已收口到共享上下文、通用 helper 与跨主题桥接，下一条可直接进入 `T5000b3R` 汇总 review；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b3R Review：确认 `llvm/codegen/mod.rs` 的主题拆分是真正的边界整理
+### [DONE] T5000b3R Review：确认 `llvm/codegen/mod.rs` 的主题拆分是真正的边界整理
 - 重点：
   - 是否只是把大文件切碎，还是确实按 lowering 主题形成了清晰边界；
   - 是否仍有明显的跨主题 helper 继续倒灌回 `codegen/mod.rs`；
@@ -264,6 +264,13 @@
 - 验收：
   - 可以明确说出每个主题模块的职责上界，以及哪些共享逻辑仍待进一步抽象。
 - 依赖：T5000b3dR
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/call/{dispatch,abi,resume}.rs`、`intrinsics/{builtin,sysroot,sync,thread,channels,containers,atomic}.rs`、`closure/mod.rs`、`class_ctor.rs`、`enum_lowering.rs`、`object_init.rs`，确认调用分派/ABI/resume、builtin/sysroot intrinsics、closure/class ctor、enum/object lowering 的主体入口均位于各自主题模块，而不是继续留在 `codegen/mod.rs`；
+  - 已复核 `crates/scoopc/src/llvm/codegen/mod.rs` 中残留的少量同名入口，确认 `codegen_call`、`codegen_callee_resume_dispatch`、`codegen_callee_resume_entry_function`、`codegen_bound_call_args`、`codegen_callable_value_args`、`codegen_function_value_call*` 等仅为薄委托；`codegen_member_access` 则承担表达式层统一分派与通用 struct/tuple/class-field 访问桥接，不再承载 object/enum/class-ctor/intrinsics 主题主体实现；
+  - 已确认仍留在根模块中的跨主题共享逻辑主要是 `CompilationUnitCodegenCx` / `MainCodegen` 状态、顶层 const/immutable/var 初始化与访问、GC-sensitive spill/root/sret/return helper、`codegen_addressable_place` 这类通用 lvalue bridge，以及具体类型恢复/通用 coercion 等 generic lowering；其中 `codegen_addressable_place` 当前仅被 `intrinsics/atomic.rs` 复用，但边界上更接近通用可寻址 place 抽象，而不是 atomic lowering 主体；
+  - review 过程中发现并修复了一个既有文档错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释仍描述早期“最小子集 / 不支持 if/loop”等旧口径，现已改为准确描述根模块的共享上下文 / generic lowering 边界，以及各主题子模块的职责分布；
+  - review 结论：本轮拆分不是机械切碎，`llvm/codegen/mod.rs` 已真实收口到共享上下文、generic lowering 与跨主题桥接；后续 `T5000b4` 的明确落点已经收敛为继续拆分 `CompilationUnitCodegenCx` / `MainCodegen` 的 module / function / cache / effect emitter 职责边界；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b4 继续拆分 `MainCodegen` 为 module / function / cache / effect emitter 上下文
 - 范围：
