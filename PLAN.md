@@ -170,7 +170,18 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b3c 拆出 closure/ 与 class_ctor.rs lowering 模块`。
+- 2026-04-25：`T5000b3c 拆出 closure/ 与 class_ctor.rs lowering 模块` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/llvm/codegen/closure/mod.rs`，将 `ClosureParamBindings`、`ClosureBodyCodegenSpec`、`codegen_closure_expr`、`closure_param_bindings`、`codegen_closure_fun_body`、`llvm_closure_env_type`、`build_closure_callee_suspend_plan`、`lookup_pure_unit_closure_type` 与 `closure_callee_resume_entry_fn_name` 迁出根模块；
+    - 新增 `crates/scoopc/src/llvm/codegen/class_ctor.rs`，将 `codegen_class_ctor_call`、ctor 选择/实参求值、super/delegation、init-step 与 invoke lowering 主题整体迁出根模块；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 已收口为主题模块声明、共享上下文与通用 helper；`crates/scoopc/src/llvm/codegen/call/resume.rs` 则改为从 `closure/` 导入 `closure_callee_resume_entry_fn_name`，避免 closure resume 命名 helper 留在根模块。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b3cR Review：确认 closure/ 与 class_ctor.rs 主题边界成立`。
 
 ## 1. 当前判断
 

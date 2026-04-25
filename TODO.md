@@ -195,7 +195,7 @@
   - review 结论：`intrinsics/` 的职责上界现可明确界定为 builtin 标量/字符串方法与顶层内建、sysroot API、并发/容器/原子 intrinsics lowering；`codegen/mod.rs` 中尚未迁出的相关共享 helper 仅剩非 intrinsics 主题内容，例如原子 lvalue 地址解析 `codegen_addressable_place`（更接近通用 lvalue / object 访问边界）以及 `lookup_pure_unit_closure_type`（供 `sync.Once.run` / `thread.spawn` 暂借的 closure 主题桥接），它们分别属于后续 object/lvalue 与 `T5000b3c` 的继续收口范围；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b3c 拆出 `closure/` 与 `class_ctor.rs` lowering 模块
+### [DONE] T5000b3c 拆出 `closure/` 与 `class_ctor.rs` lowering 模块
 - 范围：
   - 将 closure expr / env / body lowering、closure suspend-plan 相关 helper 迁入 `llvm/codegen/closure/`；
   - 将 class ctor 选择、实参求值、super 调用、init-step 执行与 invoke lowering 迁入 `llvm/codegen/class_ctor.rs`；
@@ -204,6 +204,11 @@
   - `codegen/mod.rs` 不再直接承载 closure 与 class ctor lowering 主体实现；
   - closure 与 class ctor 各自形成稳定主题边界，而不是继续依赖根模块中的大段邻接 helper。
 - 依赖：T5000b3bR
+- 完成记录（2026-04-25）：
+  - 新增 `crates/scoopc/src/llvm/codegen/closure/mod.rs` 与 `crates/scoopc/src/llvm/codegen/class_ctor.rs`，分别收口 closure expr / env / body lowering、closure suspend-plan / expected-function-type helper，以及 class ctor 选择、实参求值、super/delegation、init-step 与 invoke lowering；
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 现仅保留 `mod closure;` / `mod class_ctor;` 声明与共享上下文/通用 helper，不再直接定义 closure 或 class ctor lowering 主体实现；
+  - `crates/scoopc/src/llvm/codegen/call/resume.rs` 已改为从 `closure/` 复用 `closure_callee_resume_entry_fn_name`，而 `expr.rs`、`effect/mod.rs`、`intrinsics/sync.rs`、`intrinsics/thread.rs`、`call/abi.rs`、`call/dispatch.rs` 等现有调用面继续只经 `MainCodegen` 的窄接口消费这两类主题；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b3cR Review：确认 `closure/` 与 `class_ctor.rs` 主题边界成立
 - 重点：

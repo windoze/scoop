@@ -1,5 +1,6 @@
 //! Ordinary callee resume and effect-call wrapper helpers.
 
+use super::super::closure::closure_callee_resume_entry_fn_name;
 use super::super::*;
 use crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE;
 
