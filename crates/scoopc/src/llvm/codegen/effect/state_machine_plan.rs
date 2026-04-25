@@ -1597,7 +1597,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             known_fun_effects: &self.context.known_fun_effects,
             known_local_metadata: &self.context.known_local_metadata,
             current_source_path: self.context.current_source_path.as_path(),
-            program_facts: self.context.program_facts.as_ref(),
+            program_facts: Rc::clone(&self.context.program_facts),
         }
         .function_value_may_suspend_when_called(expr, &self.known_local_fun_effects)
     }
@@ -6679,7 +6679,7 @@ struct SuspendCallAnalysis<'a> {
     known_fun_effects: &'a HashMap<String, bool>,
     known_local_metadata: &'a HashMap<hir::SymbolId, KnownLocalMetadata>,
     current_source_path: &'a Path,
-    program_facts: &'a ProgramFacts,
+    program_facts: Rc<ProgramFacts>,
 }
 
 impl<'a> SuspendCallAnalysis<'a> {
@@ -7197,7 +7197,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             known_local_metadata,
             next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             current_source_path: self.current_source_path.to_path_buf(),
-            program_facts: Rc::new(self.program_facts.clone()),
+            program_facts: Rc::clone(&self.program_facts),
         };
 
         HandleStateMachinePlan::build_with_context(self.types, handle, &context)
@@ -7271,7 +7271,7 @@ impl<'a> SuspendCallAnalysis<'a> {
 fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
-    program_facts: &ProgramFacts,
+    program_facts: Rc<ProgramFacts>,
 ) -> HashMap<String, bool> {
     let mut known_fun_effects = fun_index
         .iter()
@@ -7301,7 +7301,7 @@ fn collect_known_fun_call_suspendability(
                 known_fun_effects: &snapshot,
                 known_local_metadata: &known_local_metadata,
                 current_source_path: fun.source_path.as_path(),
-                program_facts,
+                program_facts: Rc::clone(&program_facts),
             };
             let seed_locals = fun
                 .params
@@ -8096,7 +8096,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let known_fun_effects = collect_known_fun_call_suspendability(
             self.types,
             self.fun_index,
-            self.shared.program_facts.as_ref(),
+            Rc::clone(&self.shared.program_facts),
         );
         *self
             .shared_caches
@@ -8182,7 +8182,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .current_source()
                 .expect("codegen context should always have a current source")
                 .path(),
-            program_facts: self.shared.program_facts.as_ref(),
+            program_facts: Rc::clone(&self.shared.program_facts),
         }
         .function_value_may_suspend_when_called(expr, &known_locals)
     }

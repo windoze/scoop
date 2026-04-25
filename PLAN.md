@@ -394,6 +394,23 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000c1R Review：确认 ProgramFacts 已成为 backend-agnostic 的共享 side table`。
+- 2026-04-25：`T5000c1R Review：确认 ProgramFacts 已成为 backend-agnostic 的共享 side table` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/program_facts.rs` 与 `crates/scoopc/src/lib.rs`，确认 `ProgramFacts` 结构与 `ProgramFacts::from_lowered(...)` 只依赖 HIR lowering side tables 与 `TypeId`，不依赖 LLVM builder / module / GC ABI，因此已形成 backend-agnostic 的共享 facts 层；
+    - 已复核 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs` 与 `state_machine_transform.rs`，确认生产路径与 effect 测试 helper 都统一经 `ProgramFacts::from_lowered(&hir::LoweredHir)` 构造 facts，没有残留第二套 `SuspendCallProgramFacts` 或手写 side-table 现场拼装；
+    - review 过程中暴露并修复了一个既有共享性回退：`SuspendCallAnalysis::handle_may_suspend_outward(...)` 原先会把借来的 `ProgramFacts` 整体 `clone` 后重新包成新的 `Rc` 交给 nested `HandlePlanContext`；现已把 `SuspendCallAnalysis` 与相关测试 helper 统一改为持有并传递共享 `Rc<ProgramFacts>`，使 nested-handle suspendability 分析重新复用同一份 side table，而不是复制整表。
+  - review 结论：
+    - `ProgramFacts` 的来源已经稳定收口为 `LoweredHir -> ProgramFacts::from_lowered(...) -> Rc<ProgramFacts>`；
+    - 后续 `T5000c2` 可以直接聚焦 `HandlePlanContext::from_codegen(...)`、known local metadata、synthetic symbol/source-path 等 `EffectAnalysisCtx` 边界，而不必再先清理 facts 来源；
+    - 未发现需要插入到 `T5000c2` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000c2 抽出 backend-agnostic 的 EffectAnalysisCtx 与 shared local metadata`。
 
 ## 1. 当前判断
 

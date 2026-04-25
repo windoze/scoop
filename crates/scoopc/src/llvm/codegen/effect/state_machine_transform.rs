@@ -4844,7 +4844,7 @@ fun demo(flag: Bool): Int {
         let known_fun_effects = collect_known_fun_call_suspendability(
             &lowered.types,
             &fun_index,
-            program_facts.as_ref(),
+            std::rc::Rc::clone(&program_facts),
         );
 
         let mut known_local_metadata = HashMap::new();
@@ -4854,7 +4854,7 @@ fun demo(flag: Bool): Int {
             known_fun_effects: &known_fun_effects,
             known_local_metadata: &known_local_metadata,
             current_source_path: owner_fun.source_path.as_path(),
-            program_facts: program_facts.as_ref(),
+            program_facts: std::rc::Rc::clone(&program_facts),
         };
         let known_local_fun_effects =
             collect_known_local_fun_call_suspendability_in_fun(owner_fun, &analysis);

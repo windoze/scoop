@@ -450,7 +450,7 @@
   - 本轮同时修复了一个既有无告警构建问题：`crates/scoopc/src/effect_step_summary.rs` 在 `--no-default-features` 路径下直接 `include!` 整个 `state_machine_plan.rs` 会暴露大量 intentional dead-code / unused-import warnings；现已把告警边界收口在 `effect_step_summary.rs` 自身，保持当前共享语义不变并恢复无告警构建。
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000c1R Review：确认 `ProgramFacts` 已成为 backend-agnostic 的共享 side table
+### [DONE] T5000c1R Review：确认 `ProgramFacts` 已成为 backend-agnostic 的共享 side table
 - 重点：
   - `ProgramFacts` 是否已脱离 LLVM builder / module / GC ABI 依赖；
   - 是否还残留多处重复拼装 program facts 的路径；
@@ -458,6 +458,12 @@
 - 验收：
   - 后续 `T5000c2` 可直接在 `ProgramFacts` 之上继续收口 analysis context，而不再先清理 facts 来源。
 - 依赖：T5000c1
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/program_facts.rs` 与 `crates/scoopc/src/lib.rs`，确认 `ProgramFacts` 结构与 builder 只依赖 HIR lowering / `TypeId` side tables，不依赖 LLVM builder、module、GC ABI 或 backend runtime helper，因而已形成 backend-agnostic 的共享 facts 层；
+  - 已复核 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs` 与 `state_machine_transform.rs`，确认生产路径与 effect 测试 helper 都统一经 `ProgramFacts::from_lowered(&hir::LoweredHir)` 构造 facts，没有残留第二套 `SuspendCallProgramFacts` 或手写 `HashMap` / `HashSet` 现场拼装；
+  - review 过程中暴露并修复了一个既有共享性回退：`SuspendCallAnalysis::handle_may_suspend_outward(...)` 原先会把借来的 `ProgramFacts` 整体 `clone` 后重新包成 `Rc` 传给 nested `HandlePlanContext`；现已把 `SuspendCallAnalysis` 及相关测试 helper 统一改为持有并传递共享 `Rc<ProgramFacts>`，从而恢复 nested-handle suspendability 分析对同一份 side table 的复用，而不是重复复制整表；
+  - review 结论：`ProgramFacts` 的来源已经稳定收口为 lowering -> shared builder -> `Rc<ProgramFacts>`，后续 `T5000c2` 可以直接聚焦 `HandlePlanContext::from_codegen(...)`、known local metadata、synthetic symbol/source-path 等 analysis context 取数边界，而不必再回头清理 facts 来源；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000c2 抽出 backend-agnostic 的 `EffectAnalysisCtx` 与 shared local metadata
 - 范围：
