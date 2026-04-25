@@ -406,7 +406,7 @@
   - review 结论：`MainCodegen` 的 module / function / cache / effect emitter 四类职责边界已成立；下一步要迁出 backend 的不再是“更多 runtime lowering 状态”，而是 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables 这类分析事实。当前未发现需要插入到 `T5000bR` 之前的新前置缺陷任务；
   - 已验证 `cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向
+### [DONE] T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向
 - 重点：
   - 本轮拆分是否只是“把大文件拆成更多大文件”，还是确实拉直了 backend 边界；
   - 是否仍有明显的中端分析继续依附在 `MainCodegen` 上；
@@ -414,6 +414,15 @@
 - 验收：
   - 可以明确指出“哪些部分仍属于 backend”“哪些部分下一步要迁出”，且边界比改动前更清楚。
 - 依赖：T5000b4R
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/` 当前主题边界：`call/`、`intrinsics/`、`closure/`、`class_ctor.rs`、`enum_lowering.rs`、`object_init.rs`、`effect/`、`gc.rs`、`runtime_abi.rs` 等已各自承接稳定 backend lowering 主题；`crates/scoopc/src/llvm/codegen/mod.rs` 当前主要保留 `CompilationUnitCodegenCx` / `MainCodegen` 共享上下文、顶层初始化/访问、字面量/聚合值/成员访问/运算符/类型转换等 generic lowering，以及 GC-sensitive spill/root/sret/return helper 与通用 lvalue bridge，说明本轮拆分不是简单把一个大文件机械切成更多大文件；
+  - 已确认仍滞留在 LLVM backend 内、且下一步必须迁出的 shared facts/analysis side tables 主要集中在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`：
+    - `HandlePlanContext::from_codegen(...)` 仍直接从 `MainCodegen` 采集 ctor/object/property/type/local metadata；
+    - `ensure_known_fun_body_may_outward_effect_cache(...)` / `known_fun_body_may_outward_effect_map(...)` 仍在 codegen 内拼装 `SuspendCallProgramFacts` 并缓存 higher-order suspendability 事实；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 与 `state_machine_plan.rs` 仍各自维护 concrete-type / field-type 恢复 helper，说明 concrete type、receiver exactness 与 field specialization 相关事实尚未统一迁出 backend；
+  - 已再次确认 `crates/scoopc/src/effect_step_summary.rs` 直接 `include!` 复用 `state_machine_plan.rs` 的纯分析实现，证明 effect planning/shared facts 已经存在 backend 外消费者，因此后续 `T5000c` 的方向应是抽离 `ProgramFacts` / `EffectAnalysisCtx`，而不是继续把更多分析逻辑留在 LLVM codegen 内；
+  - review 过程中顺手修复了一个既有文档错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部注释此前仍写“下一步 T5000b4”，现已改为准确指向 `T5000c` 的 shared-facts 抽离入口；
+  - review 结论：LLVM codegen 已明显朝“只做 backend lowering”的方向收口，backend 主题边界比改动前更清楚；当前剩余问题已明确收敛到 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables 抽离，没有发现需要插到 `T5000c` 之前的新前置缺陷任务。
 
 ### [TODO] T5000c 抽离 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables
 - 范围：

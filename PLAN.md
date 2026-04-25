@@ -356,7 +356,17 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向`。
+- 2026-04-25：`T5000bR Review：确认 LLVM codegen 已收口到“只做 backend lowering”的方向` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/llvm/codegen/` 当前模块面：`call/`、`intrinsics/`、`closure/`、`class_ctor.rs`、`enum_lowering.rs`、`object_init.rs`、`effect/`、`gc.rs`、`runtime_abi.rs` 等主题模块均继续承接稳定 backend lowering；`crates/scoopc/src/llvm/codegen/mod.rs` 当前剩余职责则集中在共享上下文、顶层初始化/访问、generic expr/value lowering、GC-sensitive helper 与通用 lvalue bridge，说明本轮确实在拉直 backend 边界，而不只是把原来的巨型文件打散；
+    - 已再次确认“仍不应继续留在 LLVM backend 内”的 shared facts / analysis side tables 入口已经清晰暴露：
+      - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `HandlePlanContext::from_codegen(...)` 仍直接从 `MainCodegen` 采集 ctor/object/property/type/local metadata；
+      - 同文件的 `ensure_known_fun_body_may_outward_effect_cache(...)` / `known_fun_body_may_outward_effect_map(...)` 仍在 codegen 内拼装 `SuspendCallProgramFacts` 并缓存 higher-order suspendability facts；
+      - `crates/scoopc/src/llvm/codegen/mod.rs` 与 `state_machine_plan.rs` 仍各自维护 concrete-type / field-type 恢复 helper，说明 receiver exactness、field specialization 与 concrete-type resolution 还没有形成 backend-agnostic 的共享事实层；
+      - `crates/scoopc/src/effect_step_summary.rs` 继续直接复用 `state_machine_plan.rs` 的纯分析实现，证明这些事实层已经同时服务 backend 外消费者；
+    - review 过程中顺手修复了一个既有注释错配：`crates/scoopc/src/llvm/codegen/mod.rs` 顶部模块注释此前仍写“下一步 T5000b4”，现已改为准确指向下一条 `T5000c` 的 shared-facts 抽离工作；
+    - review 结论：LLVM codegen 的主题拆分与上下文分层已经把边界拉直到“backend lowering 与 shared facts 的分界线”可清晰审计；下一步应进入 `T5000c`，抽离 `ProgramFacts` / `EffectAnalysisCtx` / shared side tables，而不是继续在 backend 内扩张分析逻辑。当前未发现需要插到 `T5000c` 之前的新前置缺陷任务。
+  - 下一条待执行任务切换为 `T5000c 抽离 backend-agnostic 的 ProgramFacts / EffectAnalysisCtx / shared side tables`。
 
 ## 1. 当前判断
 
