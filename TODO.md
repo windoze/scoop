@@ -225,7 +225,7 @@
   - review 结论：closure lowering 的职责上界现可明确界定为 closure expr/env/body lowering、capture/env layout 与 callee suspend-plan helper；class ctor lowering 的职责上界现可明确界定为 ctor 选择、arg-eval/default binding、delegation、super/init/invoke。根模块及相邻主题中与两者相关的剩余桥接仅剩调用点委托、`call/dispatch.rs` 内的函数值调用桥接，以及 `gc.rs` 中 closure object/runtime layout helper；这些都不再承载 closure/class ctor lowering 主体实现。剩余待抽离的稳定主题已收敛为 `T5000b3d` 的 enum/object lowering 与后续 `T5000b4` 的 `MainCodegen` 上下文分层；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b3d 拆出 `enum_lowering.rs` 与 `object_init.rs` lowering 模块
+### [DONE] T5000b3d 拆出 `enum_lowering.rs` 与 `object_init.rs` lowering 模块
 - 范围：
   - 将 enum variant ctor、payload coercion、enum 常量构造与 qualified unit variant lowering 迁入 `llvm/codegen/enum_lowering.rs`；
   - 将 object property / singleton access、object init body 与相关 global helper 迁入 `llvm/codegen/object_init.rs`；
@@ -234,6 +234,12 @@
   - `codegen/mod.rs` 不再继续承载 object/enum lowering 主体实现；
   - 根模块剩余内容能明显收敛为共享上下文与尚未独立成主题的通用 helper，而不是继续混放 call / intrinsics / closure / object / enum 主体。
 - 依赖：T5000b3cR
+- 完成记录（2026-04-25）：
+  - 新增 `crates/scoopc/src/llvm/codegen/enum_lowering.rs`，将 `codegen_unresolved_ident`、`codegen_enum_variant_ctor_call`、`build_enum_variant_value_from_field_values`、`coerce_enum_payload`、`build_enum_value` 与 `try_codegen_qualified_enum_unit_variant_value` 迁出根模块，统一收口 enum ctor / payload / enum 常量 lowering；
+  - 新增 `crates/scoopc/src/llvm/codegen/object_init.rs`，将 `lookup_object_property_by_fqn`、`codegen_object_property_access`、`ensure_object_init_function_defined`、`codegen_object_init_fun_body`、`codegen_object_value_access` 以及 object once-guard / singleton global / property global helper 迁出根模块；
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 现仅新增 `mod enum_lowering;` 与 `mod object_init;` 声明，并删除 object/enum lowering 主体实现块；根模块不再直接定义上述函数；
+  - 迁移过程中发现 `object_init.rs` 需要显式从 `crate::llvm` 导入 `LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE`，已在本轮一并修复，未留下新的前置缺陷任务；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b3dR Review：确认 `codegen/mod.rs` 的主题拆分已收口到共享上下文与通用 helper
 - 重点：

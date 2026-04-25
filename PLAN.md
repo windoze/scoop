@@ -193,7 +193,21 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b3d 拆出 enum_lowering.rs 与 object_init.rs lowering 模块`。
+- 2026-04-25：`T5000b3d 拆出 enum_lowering.rs 与 object_init.rs lowering 模块` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/llvm/codegen/enum_lowering.rs`，将 `codegen_unresolved_ident`、`codegen_enum_variant_ctor_call`、`build_enum_variant_value_from_field_values`、`coerce_enum_payload`、`build_enum_value` 与 `try_codegen_qualified_enum_unit_variant_value` 迁出根模块；
+    - 新增 `crates/scoopc/src/llvm/codegen/object_init.rs`，将 object property access、singleton value access、object init function 生成与 body lowering，以及 object once-guard / singleton global / property global helper 迁出根模块；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 现仅新增 `mod enum_lowering;` / `mod object_init;` 声明，并删除上述 enum/object lowering 主体实现。
+  - 收尾修复：
+    - 迁移后发现 `object_init.rs` 需要显式从 `crate::llvm` 导入 `LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE`；该可见性问题已在本轮立即修复，没有形成新的前置阻塞任务；
+    - 迁移过程中发现 `build_enum_value` 初版拷贝遗漏了 `CgEnumRepr::ValueOnly` 分支且未对齐当前 `NicheStorage::U8` lowering，已在提交前回补并与原实现对齐，避免语义回退。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b3dR Review：确认 codegen/mod.rs 的主题拆分已收口到共享上下文与通用 helper`。
 
 ## 1. 当前判断
 

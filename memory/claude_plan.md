@@ -1,65 +1,71 @@
-# 本轮执行计划（初始）
+# 执行计划与进度记录
 
-## 目标
+## 约束说明
 
-本轮只完成一项工作：先检查最新提交是否提到需要先修复的既有问题；若有，则优先修复这些问题。随后读取 `TODO.md`，定位第一项未完成任务，并在必要时将其拆分为更小的子任务，更新 `PLAN.md` 与 `TODO.md`。然后只执行排在最前面的那一项，完成实现、测试、文档更新与提交，最后停止。
+- 按用户要求，先写本文件，再执行其余命令或代码。
+- 这里记录的是精简后的执行计划、决策依据和进度日志，不包含逐字内部推理。
+- 本轮目标：完成 `TODO.md` 中第一个未完成任务；若发现既有问题或前置阻塞，则先修复该问题，或把前置任务插入 `TODO.md`/`PLAN.md` 后停止。
 
-## 已知约束
+## 初始计划
 
-- 所有输出与记录使用中文。
-- 在执行任何实际代码修改或命令前，先把计划写入本文件。
-- 发现任何既有问题、规格不一致、实现边界缺失、回归或测试暴露的问题，都必须立即纳入本轮范围优先处理。
-- 不能通过变通、缩小范围、替换表示方式、弱化测试形状等方式绕过问题。
-- 本轮至多完成 `TODO.md` 中当前排在最前面的一个未完成任务；完成后必须停止。
-- 修改计划、发现阻塞、完成关键步骤时，要及时更新本文件。
+1. 检查最新一次提交信息，确认是否提到需要先修复的既有问题。
+2. 检查当前工作树状态，避免误覆盖已有改动。
+3. 阅读 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并判断是否需要拆分。
+4. 若任务过大：
+   - 更新 `PLAN.md`，补充更细的子任务。
+   - 更新 `TODO.md`，把原任务替换或扩展为子任务，并选择第一个子任务作为本轮执行目标。
+5. 实现目标任务；若过程中发现任何既有 bug、回归、规范不匹配或实现边界缺失：
+   - 先修复；
+   - 若无法在本轮直接修复，则把它作为前置任务插入 `TODO.md`，更新 `PLAN.md` 说明阻塞关系，然后停止。
+6. 运行必要验证，至少覆盖：
+   - 与改动直接相关的测试；
+   - 必要时运行更广泛的 `cargo test --all`；
+   - `cargo fmt`；
+   - `cargo clippy --all-targets -- -D warnings`（如果当前仓库状态允许且与本轮改动相关）。
+7. 更新文档与跟踪文件：
+   - 在 `TODO.md` 标记完成或重排阻塞依赖；
+   - 更新 `PLAN.md` 当前状态；
+   - 视需要补充 `README.md` / 行内注释。
+8. 检查 `git diff`，确认只包含应提交的内容。
+9. 使用清晰提交信息提交本轮变更。
+10. 停止，不继续做下一个任务。
 
-## 执行步骤
+## 进度日志
 
-1. 查看最新一次 Git 提交，确认是否提到需要先修复的既有问题。
-2. 读取 `TODO.md`、`PLAN.md`，确认当前第一项未完成任务及上下文。
-3. 结合代码与测试现状评估该任务是否足够小：
-   - 若任务过大，先拆分为更小的可执行子任务；
-   - 更新 `TODO.md` 与 `PLAN.md`，并将第一项子任务作为本轮执行目标。
-4. 在开始实现前，检查工作区状态，避免覆盖已有未提交改动。
-5. 实现当前目标任务，必要时先修复在探查、编译、测试中发现的既有问题。
-6. 运行相关验证：
-   - 至少运行与修改直接相关的测试；
-   - 若变更范围需要，运行更广的测试；
-   - 最终运行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`（若时间和变更范围允许且与本任务相关）。
-7. 更新文档与任务状态：
-   - 在 `TODO.md` 中将本轮完成的任务标记为完成；
-   - 在 `PLAN.md` 中记录当前状态、后续依赖或调整；
-   - 如计划发生变化，同步更新本文件。
-8. 检查变更，使用清晰的 Git 提交信息提交本轮工作。
-9. 提交后停止，不继续处理下一项任务。
+- 已创建本文件，准备开始仓库检查。
+- 已检查最新提交、工作树、`TODO.md` 与 `PLAN.md`。
+  - 最新提交 `0f2cc6c5af23ba9df31e58ffc29ede735b0c0009` 的提交说明未留下新的“必须先修复的既有问题”条目；
+  - 当前工作树只有本文件处于修改状态；
+  - `TODO.md` 中首个未完成任务为 `T5000b3d 拆出 enum_lowering.rs 与 object_init.rs lowering 模块`。
+- 已初步勘察 `crates/scoopc/src/llvm/codegen/mod.rs`：
+  - enum lowering 主要残留在 `codegen_unresolved_ident`、`codegen_enum_variant_ctor_call`、`build_enum_variant_value_from_field_values`、`coerce_enum_payload`、`build_enum_value`、`try_codegen_qualified_enum_unit_variant_value`；
+  - object lowering 主要残留在 `lookup_object_property_by_fqn`、`codegen_object_property_access`、`ensure_object_init_function_defined`、`codegen_object_init_fun_body`、`declare_object_init_guard`、`declare_object_instance_global`、`allocate_object_singleton_instance`、`codegen_object_value_access`、`declare_object_property_global`。
+- 当前判断：`T5000b3d` 范围清晰，暂不需要拆成更小的 TODO 子任务。
 
-## 风险与决策原则
+## 当前执行顺序
 
-- 如果最新提交或当前代码状态暴露出先于任务的缺陷，先修复缺陷，再决定是否还来得及完成当前任务。
-- 如果任务依赖缺失特性或错误实现，不能绕过；必须把该依赖作为前置任务写入 `TODO.md`，更新 `PLAN.md`，提交后停止。
-- 如果测试暴露出与当前任务无关但已存在的真实缺陷，只要是在当前探查路径中发现，也要按要求优先处理。
+1. 核对上述 enum/object lowering 的调用面，确保对外只暴露最小接口。
+2. 新建 `crates/scoopc/src/llvm/codegen/enum_lowering.rs`，迁出 enum ctor / payload / unit-variant lowering。
+3. 新建 `crates/scoopc/src/llvm/codegen/object_init.rs`，迁出 object property / singleton / init lowering。
+4. 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中收口模块声明与必要桥接。
+5. 运行格式化与测试；若过程中暴露既有缺陷，先修复再继续。
+6. 更新 `TODO.md`、`PLAN.md` 与本文件，最后提交并停止。
 
-## 进度记录
+## 执行进展补记
 
-- 初始计划已写入，尚未开始仓库检查。
-- 已检查最新提交 `2ddbc085653f799f58c23b7de99be2256685c9eb`，提交信息仅为 `[T5000b3c] Split closure and class ctor lowering modules`，未额外提及需要先修复的既有问题。
-- 已读取 `TODO.md` 与 `PLAN.md`，确认当前首个未完成任务为 `T5000b3cR Review：确认 closure/ 与 class_ctor.rs 主题边界成立`。
-- 当前 review 重点：
-  - 检查 closure env/body lowering 是否仍散落在 `call/`、`effect/`、`intrinsics/` 或 `codegen/mod.rs`；
-  - 检查 class ctor 选择、实参求值、super/delegation、init-step lowering 是否已经集中到 `class_ctor.rs`；
-  - 检查这些主题与 `call/`、`intrinsics/` 的接口是否保持为窄委托，而不是相互夹杂主体实现。
-- review 过程中发现并修复了一个既有文档问题：
-  - `crates/scoopc/src/llvm/codegen/class_ctor.rs` 顶部注释仍写着“仅支持 positional args，不支持 named/default args”；
-  - 但实现已经通过 `CtorCallInfo::arg_mapping` 与 `default_value` 支持 named/default args；
-  - 已修正注释，使其准确描述“优先使用 `CtorCallInfo`，无 side-table 的内部路径才退回 positional-only”。
-- 已完成 `T5000b3cR` 的 review 结论整理，并同步更新 `TODO.md` / `PLAN.md`：
-  - closure 主题边界已稳定收口到 `crates/scoopc/src/llvm/codegen/closure/mod.rs`；
-  - class ctor 主题边界已稳定收口到 `crates/scoopc/src/llvm/codegen/class_ctor.rs`；
-  - `call/dispatch.rs`、`expr.rs`、`effect/mod.rs`、`intrinsics/{sync,thread}.rs` 当前只保留窄委托接口；
-  - 下一条待执行任务已切换为 `T5000b3d`。
-- 验证结果：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc llvm::`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - 全部通过。
+- 已新增 `crates/scoopc/src/llvm/codegen/enum_lowering.rs`：
+  - 迁入 `codegen_unresolved_ident`、`codegen_enum_variant_ctor_call`、`build_enum_variant_value_from_field_values`、`coerce_enum_payload`、`build_enum_value`、`try_codegen_qualified_enum_unit_variant_value`；
+  - 其中 `build_enum_value` 已按当前仓库现状补齐 `CgEnumRepr::ValueOnly` 分支，并对齐 `NicheStorage::U8` 的最新 lowering 逻辑，避免回退到旧实现。
+- 已新增 `crates/scoopc/src/llvm/codegen/object_init.rs`：
+  - 迁入 object property access、singleton value access、object init function 生成与 body lowering、once guard / singleton global / property global helper。
+- 已从 `crates/scoopc/src/llvm/codegen/mod.rs` 删除上述 enum/object lowering 主体实现，仅保留模块声明与共享/通用 helper。
+- 过程中暴露并修复了一个本轮改动引入的可见性问题：
+  - `object_init.rs` 中 `LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE` 需要从 `crate::llvm` 导入，不能继续走旧的 `super::...` 路径。
+- 当前验证结果：
+  - `cargo fmt --all` 通过；
+  - `cargo test -p scoopc llvm::` 通过；
+  - `cargo test --all` 通过；
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 下一步：
+  - 更新 `TODO.md` 与 `PLAN.md`，把 `T5000b3d` 标记完成并把下一条待执行任务切换到 `T5000b3dR`；
+  - 检查 diff 后提交本轮改动并停止。
