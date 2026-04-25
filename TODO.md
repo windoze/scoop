@@ -126,23 +126,94 @@
   - 已复核 `MainCodegen` 当前仍保留函数级 builder/env/cache/return/suspend 等局部状态，而共享编译单元输入、`effect_op_tags` 与 `known_effect_instances_by_effect_fqn` 已收口到 `CompilationUnitCodegenCx`；`type_layout_cache` / `enum_cg_layout_cache` / effect emitter 专用上下文等更深层分层仍留待 `T5000b3` / `T5000b4`；
   - 已验证 `cargo test -p scoopc llvm::` 与 `cargo clippy --all-targets -- -D warnings` 通过，未发现必须插入到 `T5000b3` 之前的新前置缺陷任务。
 
-### [TODO] T5000b3 按主题拆分 `llvm/codegen/mod.rs` 的独立 lowering 模块
+### T5000b3 按主题拆分 `llvm/codegen/mod.rs` 的独立 lowering 模块
+- 说明：
+  - 经核对，`crates/scoopc/src/llvm/codegen/mod.rs` 当前仍有 17671 行，并且至少同时承载四组稳定函数簇：
+    - call dispatch / callable ABI / extern-native / vtable-itable / callee-resume；
+    - sysroot / builtin intrinsics；
+    - closure / class ctor；
+    - enum lowering / object init。
+  - 原任务单轮过大，现按稳定主题拆成以下实现子任务；所有子任务均保持语义不变，只做 lowering 边界整理。
+
+### [DONE] T5000b3a 拆出 `call/` lowering 模块
 - 范围：
-  - 从 `llvm/codegen/mod.rs` 中优先拆出稳定主题模块：
-    - `call/`
-    - `intrinsics/`
-    - `closure/`
-    - `class_ctor.rs`
-    - `object_init.rs`
-    - `enum_lowering.rs`
-    - `gc/*`
-    - `runtime_abi/*`
-    - `control_flow/*`
-  - 保持语义不变；只整理 lowering 主题边界。
+  - 将 `llvm/codegen/mod.rs` 中的 call dispatch、ordinary/callable arg ABI、extern/native call boundary、vtable/itable dispatch、funptr / function-value / closure-object call lowering、callee-resume call boundary 等实现迁入 `llvm/codegen/call/`；
+  - 保留 `class_ctor`、`closure`、`intrinsics` 等主题暂时留在各自后续子任务中，通过清晰接口互调，而不是继续把 call 主体留在根模块。
 - 验收：
-  - `codegen/mod.rs` 不再继续承担调用分发、builtin/sysroot、closure、object/enum、GC、RTTI、coercion 等全部主题；
-  - 新文件边界能对应稳定主题，而不是把一个巨型文件机械拆成多个同样混杂的文件。
+  - `codegen/mod.rs` 不再直接承载 `codegen_call`、top-level fun call、vtable/itable call、funptr/function-value call、callable arg binding 与 ordinary param ABI 的主体实现；
+  - `call/` 内部边界至少能区分 dispatch / arg binding / indirect call lowering，不是新的单文件巨型模块。
 - 依赖：T5000b2R
+- 完成记录（2026-04-25）：
+  - 新增 `crates/scoopc/src/llvm/codegen/call/mod.rs`、`call/abi.rs`、`call/dispatch.rs`、`call/resume.rs`，将 `codegen/mod.rs` 中原本混放的 call dispatch、ordinary/callable 参数 ABI、extern/native call、vtable/itable dispatch、funptr/function-value call、ordinary callee resume / top-level effect-call wrapper 等主体实现按主题迁出；
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 中保留原有入口名，但主体已改为薄委托到 `*_impl`，从而维持现有调用面不变并收口 call 主题边界；
+  - `call/` 内部已按稳定职责拆成 3 个实现面：`dispatch.rs` 负责 direct/virtual/interface/funptr/function-value call dispatch，`abi.rs` 负责参数 ABI、named arg 绑定与 deferred materialization，`resume.rs` 负责 ordinary callee resume 与 top-level effect-call wrapper；
+  - 已修复迁移过程中暴露的两个边界问题：`call/resume.rs` 缺少 `LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE` 导入，以及 `*_impl` 可见性过宽触发 `private_interfaces` warning；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+
+### [TODO] T5000b3aR Review：确认 `call/` 拆分形成稳定 lowering 边界
+- 重点：
+  - call dispatch、ABI 绑定、indirect call lowering 是否已离开 `codegen/mod.rs` 主体；
+  - `class_ctor` / `closure` / `intrinsics` 与 `call/` 的交叉接口是否清晰，没有新的双向耦合；
+  - ordinary callee resume / effect-call wrapper 的调用边界是否仍集中在 call 主题内。
+- 验收：
+  - 可以明确指出 `call/` 的职责上界，以及剩余待拆主题为何仍应留待后续子任务处理。
+- 依赖：T5000b3a
+
+### [TODO] T5000b3b 拆出 `intrinsics/` lowering 模块
+- 范围：
+  - 将 `llvm/codegen/mod.rs` 中的 string / char / int / float builtin lowering，以及 sysroot I/O、env、time、fs、process、path、sync、thread、channels、array、task transport、atomic int 等 lowering 迁入 `llvm/codegen/intrinsics/`；
+  - 保持现有 builtin/sysroot 语义与错误边界不变，只按主题收口文件边界。
+- 验收：
+  - `codegen/mod.rs` 不再直接承载 builtin/sysroot intrinsics 主体实现；
+  - `intrinsics/` 内部边界能区分标量内建、sysroot API、并发/容器 intrinsics，而不是新的混杂入口。
+- 依赖：T5000b3aR
+
+### [TODO] T5000b3bR Review：确认 `intrinsics/` 拆分没有把 builtin/sysroot 继续堆回根模块
+- 重点：
+  - builtin 与 sysroot lowering 是否已稳定离开 `codegen/mod.rs`；
+  - intrinsics 主题内部是否已有按语义分组的边界，而不是机械移动；
+  - 与 `call/`、`runtime_abi`、`gc` 的交互是否仍保持单向清晰。
+- 验收：
+  - 可以明确说出 `intrinsics/` 的职责上界，以及尚未迁出的共享 helper 属于什么后续主题。
+- 依赖：T5000b3b
+
+### [TODO] T5000b3c 拆出 `closure/` 与 `class_ctor.rs` lowering 模块
+- 范围：
+  - 将 closure expr / env / body lowering、closure suspend-plan 相关 helper 迁入 `llvm/codegen/closure/`；
+  - 将 class ctor 选择、实参求值、super 调用、init-step 执行与 invoke lowering 迁入 `llvm/codegen/class_ctor.rs`；
+  - 保持现有行为不变，只整理主题边界。
+- 验收：
+  - `codegen/mod.rs` 不再直接承载 closure 与 class ctor lowering 主体实现；
+  - closure 与 class ctor 各自形成稳定主题边界，而不是继续依赖根模块中的大段邻接 helper。
+- 依赖：T5000b3bR
+
+### [TODO] T5000b3cR Review：确认 `closure/` 与 `class_ctor.rs` 主题边界成立
+- 重点：
+  - closure env / body lowering 是否已经从 call 与 object/enum 主题中分离；
+  - class ctor 相关路径是否已集中，不再散落在根模块不同位置；
+  - 两者与 `call/`、`intrinsics/` 的接口是否足够窄。
+- 验收：
+  - 可以明确指出 closure 与 class ctor lowering 的职责上界，以及仍待抽离的剩余主题。
+- 依赖：T5000b3c
+
+### [TODO] T5000b3d 拆出 `enum_lowering.rs` 与 `object_init.rs` lowering 模块
+- 范围：
+  - 将 enum variant ctor、payload coercion、enum 常量构造与 qualified unit variant lowering 迁入 `llvm/codegen/enum_lowering.rs`；
+  - 将 object property / singleton access、object init body 与相关 global helper 迁入 `llvm/codegen/object_init.rs`；
+  - 完成后收口 `codegen/mod.rs` 的主题边界，只保留共享上下文、通用字面量/运算/类型转换等尚未进一步抽象的实现。
+- 验收：
+  - `codegen/mod.rs` 不再继续承载 object/enum lowering 主体实现；
+  - 根模块剩余内容能明显收敛为共享上下文与尚未独立成主题的通用 helper，而不是继续混放 call / intrinsics / closure / object / enum 主体。
+- 依赖：T5000b3cR
+
+### [TODO] T5000b3dR Review：确认 `codegen/mod.rs` 的主题拆分已收口到共享上下文与通用 helper
+- 重点：
+  - enum / object lowering 是否已脱离根模块主体；
+  - 根模块剩余内容是否确实以共享上下文、通用 helper、跨主题桥接为主；
+  - 是否还残留明显应继续优先迁出的稳定主题簇。
+- 验收：
+  - 可以明确说出 `codegen/mod.rs` 当前剩余职责上界，并证明主题拆分不是机械切碎。
+- 依赖：T5000b3d
 
 ### [TODO] T5000b3R Review：确认 `llvm/codegen/mod.rs` 的主题拆分是真正的边界整理
 - 重点：
@@ -151,7 +222,7 @@
   - 后续 `MainCodegen` 分层是否已有更清晰的落点。
 - 验收：
   - 可以明确说出每个主题模块的职责上界，以及哪些共享逻辑仍待进一步抽象。
-- 依赖：T5000b3
+- 依赖：T5000b3dR
 
 ### [TODO] T5000b4 继续拆分 `MainCodegen` 为 module / function / cache / effect emitter 上下文
 - 范围：

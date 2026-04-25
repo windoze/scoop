@@ -89,7 +89,34 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过；
   - review 结论：当前改动已经显著收敛构造样板，可以直接继续 `T5000b3`，无需在其前插入新的缺陷修复任务。
-- 下一条待执行任务切换为 `T5000b3 按主题拆分 llvm/codegen/mod.rs 的独立 lowering 模块`。
+- 2026-04-25：`T5000b3 按主题拆分 llvm/codegen/mod.rs 的独立 lowering 模块` 已判定为单轮过大任务，已拆成 `T5000b3a`～`T5000b3d` 四个实现子任务与对应 review。
+  - 拆分依据：
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 当前仍有 17671 行；
+    - 其中至少存在四组稳定函数簇：
+      - call dispatch / callable ABI / extern-native / vtable-itable / callee-resume；
+      - sysroot / builtin intrinsics；
+      - closure / class ctor；
+      - enum lowering / object init。
+  - 拆分顺序：
+    - `T5000b3a`：先拆 `call/` lowering 模块；
+    - `T5000b3b`：再拆 `intrinsics/` lowering 模块；
+    - `T5000b3c`：拆 `closure/` 与 `class_ctor.rs`；
+    - `T5000b3d`：拆 `enum_lowering.rs` 与 `object_init.rs` 并收口根模块剩余职责。
+- 2026-04-25：`T5000b3a 拆出 call/ lowering 模块` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/llvm/codegen/call/{mod,abi,dispatch,resume}.rs`；
+    - `codegen/mod.rs` 中 `codegen_call`、top-level fun call、extern/native call、vtable/itable dispatch、funptr/function-value call、callable arg ABI、ordinary callee resume 与 top-level effect-call wrapper 等入口已改为薄委托；
+    - `call/` 已按 `dispatch` / `abi` / `resume` 三组稳定职责分层，而不是机械迁移到新的单文件。
+  - 收尾修复：
+    - 补上 `call/resume.rs` 对 `LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE` 的导入；
+    - 将新 `*_impl` 方法的可见性收紧为 `pub(in crate::llvm::codegen)`，消除 `private_interfaces` warning。
+  - 验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b3aR Review：确认 call/ 拆分形成稳定 lowering 边界`。
 
 ## 1. 当前判断
 
@@ -137,16 +164,12 @@
   - 目标：先让 `llvm/mod.rs` 根模块退回“入口 + 错误边界 + re-export”角色，避免后续所有改动继续堆回单一根文件。
 - P1-2：提炼 `MainCodegen` 的共享编译单元输入与 child-codegen 构造路径。
   - 目标：先消除多处重复 `MainCodegenInputs { ... }` 拼装，为真正的上下文分层扫清构造层噪音。
-- P1-3：从 `codegen/mod.rs` 拆出独立主题：
-  - `call/`
-  - `intrinsics/`
-  - `closure/`
-  - `class_ctor.rs`
-  - `object_init.rs`
-  - `enum_lowering.rs`
-  - `gc/*`
-  - `runtime_abi/*`
-  - `control_flow/*`
+- P1-3：从 `codegen/mod.rs` 按稳定主题逐步拆出独立 lowering 模块：
+  - P1-3a：`call/`
+  - P1-3b：`intrinsics/`
+  - P1-3c：`closure/` + `class_ctor.rs`
+  - P1-3d：`enum_lowering.rs` + `object_init.rs`
+  - 已存在的 `gc.rs` / `runtime_abi.rs` / `control_flow.rs` 继续保持独立主题边界；若后续需要继续细分，再在 `T5000b4` 之前单独评估，不与本轮从 `mod.rs` 迁出的主题混做一次性搬家。
 - P1-4：继续拆分 `MainCodegen`：
   - `ModuleCodegenCx`
   - `FnCodegenCx`
