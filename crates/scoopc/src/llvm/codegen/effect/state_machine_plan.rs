@@ -1,9 +1,13 @@
 use crate::ast;
-use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 
+use crate::effect_analysis::{
+    EffectAnalysisCtx, KnownLocalMetadata, collect_known_local_metadata_in_block,
+    collect_known_local_metadata_in_expr, collect_known_local_metadata_in_fun,
+    collect_known_local_metadata_in_handle, collect_known_local_metadata_in_handle_arm,
+};
 use crate::hir;
 use crate::program_facts::ProgramFacts;
 use crate::span::Span;
@@ -14,21 +18,7 @@ type SuspendSiteId = u32;
 type ArmPlanId = u32;
 type CleanupScopeId = u32;
 
-#[derive(Debug, Clone, Default)]
-struct HandlePlanContext {
-    known_fun_effects: HashMap<String, bool>,
-    known_local_fun_effects: HashMap<hir::SymbolId, bool>,
-    known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
-    next_synthetic_symbol_raw: Cell<u32>,
-    current_source_path: PathBuf,
-    program_facts: Rc<ProgramFacts>,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct KnownLocalMetadata {
-    ty: TypeId,
-    mutable: bool,
-}
+type HandlePlanContext = EffectAnalysisCtx;
 
 #[derive(Debug, Clone)]
 pub(crate) struct HandleStateMachinePlan {
@@ -1500,9 +1490,9 @@ struct HandlePlanBuilder<'a, 'hir> {
 
 impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     fn snapshot_synthetic_symbol_seed<T>(&self, f: impl FnOnce() -> T) -> T {
-        let saved_seed = self.context.next_synthetic_symbol_raw.get();
+        let saved_seed = self.context.synthetic_symbol_seed();
         let result = f();
-        self.context.next_synthetic_symbol_raw.set(saved_seed);
+        self.context.restore_synthetic_symbol_seed(saved_seed);
         result
     }
 
@@ -1594,10 +1584,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     fn local_function_value_may_suspend_when_called(&self, expr: &hir::Expr) -> bool {
         SuspendCallAnalysis {
             types: self.types,
-            known_fun_effects: &self.context.known_fun_effects,
-            known_local_metadata: &self.context.known_local_metadata,
-            current_source_path: self.context.current_source_path.as_path(),
-            program_facts: Rc::clone(&self.context.program_facts),
+            context: self.context,
         }
         .function_value_may_suspend_when_called(expr, &self.known_local_fun_effects)
     }
@@ -6482,183 +6469,6 @@ fn collect_outer_scope_slots(
     slots
 }
 
-fn collect_known_local_metadata_in_handle(
-    handle: &hir::HandleExpr,
-    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
-) {
-    collect_known_local_metadata_in_block(&handle.body, out);
-    for arm in &handle.arms {
-        collect_known_local_metadata_in_expr(&arm.body, out);
-    }
-    if let Some(finally_block) = handle.finally.as_ref() {
-        collect_known_local_metadata_in_block(finally_block, out);
-    }
-}
-
-fn collect_known_local_metadata_in_fun(
-    fun: &hir::FunDecl,
-    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
-) {
-    for param in &fun.params {
-        out.insert(
-            param.id,
-            KnownLocalMetadata {
-                ty: param.ty,
-                mutable: false,
-            },
-        );
-    }
-    if let Some(body) = &fun.body {
-        collect_known_local_metadata_in_block(body, out);
-    }
-}
-
-fn collect_known_local_metadata_in_block(
-    block: &hir::Block,
-    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
-) {
-    for stmt in &block.stmts {
-        collect_known_local_metadata_in_stmt(stmt, out);
-    }
-}
-
-fn collect_known_local_metadata_in_stmt(
-    stmt: &hir::Stmt,
-    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
-) {
-    match &stmt.kind {
-        hir::StmtKind::Val(decl) => {
-            if let Some(id) = decl.id {
-                out.insert(
-                    id,
-                    KnownLocalMetadata {
-                        ty: decl.ty,
-                        mutable: decl.mutable,
-                    },
-                );
-            }
-            if let Some(init) = decl.init.as_ref() {
-                collect_known_local_metadata_in_expr(init, out);
-            }
-        }
-        hir::StmtKind::Expr(expr) => collect_known_local_metadata_in_expr(expr, out),
-        hir::StmtKind::Assign { lhs, rhs, .. } => {
-            collect_known_local_metadata_in_expr(lhs, out);
-            collect_known_local_metadata_in_expr(rhs, out);
-        }
-        hir::StmtKind::While { cond, body } => {
-            collect_known_local_metadata_in_expr(cond, out);
-            collect_known_local_metadata_in_block(body, out);
-        }
-        hir::StmtKind::Return { value } => {
-            if let Some(expr) = value {
-                collect_known_local_metadata_in_expr(expr, out);
-            }
-        }
-        hir::StmtKind::Empty
-        | hir::StmtKind::Break { .. }
-        | hir::StmtKind::Continue { .. }
-        | hir::StmtKind::Todo(_) => {}
-    }
-}
-
-fn collect_known_local_metadata_in_expr(
-    expr: &hir::Expr,
-    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
-) {
-    match &expr.kind {
-        hir::ExprKind::Block(block) => collect_known_local_metadata_in_block(block, out),
-        hir::ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-        } => {
-            collect_known_local_metadata_in_expr(cond, out);
-            collect_known_local_metadata_in_expr(then_branch, out);
-            if let Some(else_branch) = else_branch.as_deref() {
-                collect_known_local_metadata_in_expr(else_branch, out);
-            }
-        }
-        hir::ExprKind::When { subject, arms } => {
-            collect_known_local_metadata_in_expr(subject, out);
-            for arm in arms {
-                if let Some(guard) = arm.guard.as_ref() {
-                    collect_known_local_metadata_in_expr(guard, out);
-                }
-                collect_known_local_metadata_in_expr(&arm.body, out);
-            }
-        }
-        hir::ExprKind::Closure(closure) => {
-            for param in &closure.params {
-                out.insert(
-                    param.id,
-                    KnownLocalMetadata {
-                        ty: param.ty,
-                        mutable: false,
-                    },
-                );
-            }
-            collect_known_local_metadata_in_expr(&closure.body, out);
-        }
-        hir::ExprKind::StructLit { fields, .. } => {
-            for field in fields {
-                collect_known_local_metadata_in_expr(&field.value, out);
-            }
-        }
-        hir::ExprKind::TupleLit { elements } => {
-            for element in elements {
-                collect_known_local_metadata_in_expr(element, out);
-            }
-        }
-        hir::ExprKind::InterpolatedString { parts, .. } => {
-            for part in parts {
-                if let hir::InterpolatedStringPart::Expr { expr } = part {
-                    collect_known_local_metadata_in_expr(expr, out);
-                }
-            }
-        }
-        hir::ExprKind::Unary { expr: inner, .. }
-        | hir::ExprKind::Cast { expr: inner, .. }
-        | hir::ExprKind::TypeCheck { expr: inner, .. }
-        | hir::ExprKind::MemberAccess {
-            receiver: inner, ..
-        } => collect_known_local_metadata_in_expr(inner, out),
-        hir::ExprKind::Binary { lhs, rhs, .. } => {
-            collect_known_local_metadata_in_expr(lhs, out);
-            collect_known_local_metadata_in_expr(rhs, out);
-        }
-        hir::ExprKind::Call { callee, args } => {
-            collect_known_local_metadata_in_expr(callee, out);
-            for arg in args {
-                match arg {
-                    hir::CallArg::Positional(expr) => collect_known_local_metadata_in_expr(expr, out),
-                    hir::CallArg::Named { value, .. } => {
-                        collect_known_local_metadata_in_expr(value, out)
-                    }
-                }
-            }
-        }
-        hir::ExprKind::Perform { args, .. } => {
-            for arg in args {
-                match arg {
-                    hir::CallArg::Positional(expr) => collect_known_local_metadata_in_expr(expr, out),
-                    hir::CallArg::Named { value, .. } => {
-                        collect_known_local_metadata_in_expr(value, out)
-                    }
-                }
-            }
-        }
-        hir::ExprKind::Handle(handle) => {
-            collect_known_local_metadata_in_handle(handle, out);
-        }
-        hir::ExprKind::Missing
-        | hir::ExprKind::Literal(_)
-        | hir::ExprKind::VarRef(_)
-        | hir::ExprKind::UnresolvedIdent { .. }
-        | hir::ExprKind::Todo(_) => {}
-    }
-}
-
 fn function_ty_declared_effectful(types: &TypeStore, ty: TypeId) -> bool {
     matches!(
         types.kind(ty),
@@ -6676,15 +6486,12 @@ fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
 
 struct SuspendCallAnalysis<'a> {
     types: &'a TypeStore,
-    known_fun_effects: &'a HashMap<String, bool>,
-    known_local_metadata: &'a HashMap<hir::SymbolId, KnownLocalMetadata>,
-    current_source_path: &'a Path,
-    program_facts: Rc<ProgramFacts>,
+    context: &'a EffectAnalysisCtx,
 }
 
 impl<'a> SuspendCallAnalysis<'a> {
     fn call_site(&self, span: Span) -> hir::CallSite {
-        hir::CallSite::new(self.current_source_path.to_path_buf(), span)
+        self.context.call_site(span)
     }
 
     fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<TypeId> {
@@ -6694,10 +6501,13 @@ impl<'a> SuspendCallAnalysis<'a> {
 
         match &expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
-                self.known_local_metadata.get(id).map(|metadata| metadata.ty)
+                self.context
+                    .known_local_metadata
+                    .get(id)
+                    .map(|metadata| metadata.ty)
             }
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.program_facts.top_level_value_tys.get(fqn).copied()
+                self.context.program_facts.top_level_value_tys.get(fqn).copied()
             }
             hir::ExprKind::MemberAccess { receiver, member } => {
                 self.resolve_member_access_concrete_type(receiver, member)
@@ -6749,10 +6559,22 @@ impl<'a> SuspendCallAnalysis<'a> {
             _ => return None,
         };
 
-        if let Some(ty) = self.program_facts.top_level_value_tys.get(field_fqn).copied() {
+        if let Some(ty) = self
+            .context
+            .program_facts
+            .top_level_value_tys
+            .get(field_fqn)
+            .copied()
+        {
             return Some(ty);
         }
-        if let Some(ty) = self.program_facts.object_property_tys.get(field_fqn).copied() {
+        if let Some(ty) = self
+            .context
+            .program_facts
+            .object_property_tys
+            .get(field_fqn)
+            .copied()
+        {
             return Some(ty);
         }
 
@@ -6774,14 +6596,16 @@ impl<'a> SuspendCallAnalysis<'a> {
             return None;
         };
         let layout_key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.types);
-        self.program_facts
+        self.context
+            .program_facts
             .struct_field_tys
             .get(&layout_key)
             .and_then(|fields| fields.get(field_fqn).copied())
             .or_else(|| {
                 (layout_key != nominal.fqn)
                     .then(|| {
-                        self.program_facts
+                        self.context
+                            .program_facts
                             .struct_field_tys
                             .get(&nominal.fqn)
                             .and_then(|fields| fields.get(field_fqn).copied())
@@ -6813,6 +6637,7 @@ impl<'a> SuspendCallAnalysis<'a> {
         field_fqn: &str,
     ) -> Option<TypeId> {
         if let Some(ty) = self
+            .context
             .program_facts
             .class_field_tys
             .get(class_key)
@@ -6820,7 +6645,8 @@ impl<'a> SuspendCallAnalysis<'a> {
         {
             return Some(ty);
         }
-        self.program_facts
+        self.context
+            .program_facts
             .class_super_keys
             .get(class_key)
             .and_then(|super_key| self.lookup_class_field_concrete_type_by_key(super_key, field_fqn))
@@ -6846,7 +6672,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             _ => None,
         }?;
 
-        if let Some(return_ty) = self.program_facts.fun_return_tys.get(fqn).copied()
+        if let Some(return_ty) = self.context.program_facts.fun_return_tys.get(fqn).copied()
             && hir_ty_is_precise(self.types, return_ty)
         {
             return Some(return_ty);
@@ -7100,8 +6926,9 @@ impl<'a> SuspendCallAnalysis<'a> {
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => false,
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.program_facts.object_value_fqns.contains(fqn)
+                self.context.program_facts.object_value_fqns.contains(fqn)
                     || self
+                        .context
                         .program_facts
                         .top_level_immutable_value_fqns
                         .contains(fqn)
@@ -7153,8 +6980,8 @@ impl<'a> SuspendCallAnalysis<'a> {
                     || matches!(
                         member.resolved.as_ref(),
                         Some(hir::MemberRef::Value { fqn, .. })
-                            if self.program_facts.object_value_fqns.contains(fqn)
-                                || self.program_facts.object_property_fqns.contains(fqn)
+                            if self.context.program_facts.object_value_fqns.contains(fqn)
+                                || self.context.program_facts.object_property_fqns.contains(fqn)
                     )
             }
             hir::ExprKind::Binary { lhs, rhs, .. } => {
@@ -7162,10 +6989,12 @@ impl<'a> SuspendCallAnalysis<'a> {
                     || self.expr_may_suspend(rhs, known_locals)
             }
             hir::ExprKind::Call { callee, args } => {
-                self.program_facts
+                self.context
+                    .program_facts
                     .continuation_resume_call_sites
                     .contains(&self.call_site(expr.span))
                     || self
+                        .context
                         .program_facts
                         .ctor_call_targets
                         .contains_key(&self.call_site(expr.span))
@@ -7188,17 +7017,15 @@ impl<'a> SuspendCallAnalysis<'a> {
         handle: &hir::HandleExpr,
         known_locals: &HashMap<hir::SymbolId, bool>,
     ) -> bool {
-        let mut known_local_metadata = self.known_local_metadata.clone();
+        let mut known_local_metadata = self.context.known_local_metadata.clone();
         collect_known_local_metadata_in_handle(handle, &mut known_local_metadata);
-        let next_synthetic_symbol_raw = next_synthetic_symbol_seed(handle, &known_local_metadata);
-        let context = HandlePlanContext {
-            known_fun_effects: self.known_fun_effects.clone(),
-            known_local_fun_effects: known_locals.clone(),
+        let context = HandlePlanContext::new(
+            self.context.known_fun_effects.clone(),
+            known_locals.clone(),
             known_local_metadata,
-            next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
-            current_source_path: self.current_source_path.to_path_buf(),
-            program_facts: Rc::clone(&self.program_facts),
-        };
+            self.context.current_source_path().to_path_buf(),
+            Rc::clone(&self.context.program_facts),
+        );
 
         HandleStateMachinePlan::build_with_context(self.types, handle, &context)
             .may_suspend_outward()
@@ -7214,7 +7041,8 @@ impl<'a> SuspendCallAnalysis<'a> {
             .is_some_and(|ty| function_ty_declared_effectful(self.types, ty));
         match &expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.known_fun_effects
+                self.context
+                    .known_fun_effects
                     .get(fqn)
                     .copied()
                     .unwrap_or(declared_effectful)
@@ -7225,7 +7053,8 @@ impl<'a> SuspendCallAnalysis<'a> {
             hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref() {
                 Some(hir::MemberRef::Fun { fqn, .. })
                 | Some(hir::MemberRef::ExtensionFun { fqn, .. }) => {
-                    self.known_fun_effects
+                    self.context
+                        .known_fun_effects
                         .get(fqn)
                         .copied()
                         .unwrap_or(declared_effectful)
@@ -7296,12 +7125,16 @@ fn collect_known_fun_call_suspendability(
             };
             let mut known_local_metadata = HashMap::new();
             collect_known_local_metadata_in_fun(fun, &mut known_local_metadata);
+            let context = EffectAnalysisCtx::new(
+                snapshot.clone(),
+                HashMap::new(),
+                known_local_metadata,
+                fun.source_path.clone(),
+                Rc::clone(&program_facts),
+            );
             let analysis = SuspendCallAnalysis {
                 types,
-                known_fun_effects: &snapshot,
-                known_local_metadata: &known_local_metadata,
-                current_source_path: fun.source_path.as_path(),
-                program_facts: Rc::clone(&program_facts),
+                context: &context,
             };
             let seed_locals = fun
                 .params
@@ -7345,6 +7178,54 @@ fn collect_known_local_fun_call_suspendability_in_fun(
         .as_ref()
         .map(|body| analysis.solve_local_fun_effects_in_block(body, &seed_locals))
         .unwrap_or(seed_locals)
+}
+
+#[cfg(test)]
+fn collect_effect_analysis_context_for_fun(
+    lowered: &hir::LoweredHir,
+    owner_fun: &hir::FunDecl,
+) -> EffectAnalysisCtx {
+    let fun_index = lowered
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            hir::Item::Fun(fun) => Some((fun.fqn.clone(), fun)),
+            _ => None,
+        })
+        .chain(lowered.member_funs.iter().map(|fun| (fun.fqn.clone(), fun)))
+        .collect::<HashMap<_, _>>();
+
+    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let known_fun_effects = collect_known_fun_call_suspendability(
+        &lowered.types,
+        &fun_index,
+        Rc::clone(&program_facts),
+    );
+
+    let mut known_local_metadata = HashMap::new();
+    collect_known_local_metadata_in_fun(owner_fun, &mut known_local_metadata);
+    let analysis_seed = EffectAnalysisCtx::new(
+        known_fun_effects.clone(),
+        HashMap::new(),
+        known_local_metadata.clone(),
+        owner_fun.source_path.clone(),
+        Rc::clone(&program_facts),
+    );
+    let analysis = SuspendCallAnalysis {
+        types: &lowered.types,
+        context: &analysis_seed,
+    };
+    let known_local_fun_effects =
+        collect_known_local_fun_call_suspendability_in_fun(owner_fun, &analysis);
+
+    EffectAnalysisCtx::new(
+        known_fun_effects,
+        known_local_fun_effects,
+        known_local_metadata,
+        owner_fun.source_path.clone(),
+        program_facts,
+    )
 }
 
 fn collect_declared_local_ids_in_stmt(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
@@ -7913,32 +7794,13 @@ fn handle_arm_kind_signature(kind: hir::HandleArmKind) -> usize {
     }
 }
 
-impl HandlePlanContext {
-    fn call_site(&self, span: Span) -> hir::CallSite {
-        hir::CallSite::new(self.current_source_path.clone(), span)
-    }
-
-    fn reserve_synthetic_symbol_floor(&self, floor: u32) {
-        let current = self.next_synthetic_symbol_raw.get();
-        if floor > current {
-            self.next_synthetic_symbol_raw.set(floor);
-        }
-    }
-
-    fn allocate_synthetic_symbol_id(&self) -> hir::SymbolId {
-        let raw = self.next_synthetic_symbol_raw.get();
-        self.next_synthetic_symbol_raw
-            .set(raw.saturating_add(1));
-        hir::SymbolId::from_raw(raw)
-    }
-
-    #[cfg(feature = "llvm")]
-    fn from_codegen<'a, 'ctx>(cg: &MainCodegen<'a, 'ctx>) -> Self {
-        let known_fun_effects = cg.known_fun_call_suspendability_map().clone();
-
+#[cfg(feature = "llvm")]
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn effect_analysis_ctx(&self) -> EffectAnalysisCtx {
+        let known_fun_effects = self.known_fun_call_suspendability_map().clone();
         let mut known_local_fun_effects = HashMap::new();
         let mut known_local_metadata = HashMap::new();
-        for scope in &cg.function_cx.env.scopes {
+        for scope in &self.function_cx.env.scopes {
             for (&id, local) in scope {
                 let Some(hir_ty) = local.hir_ty else {
                     continue;
@@ -7950,41 +7812,25 @@ impl HandlePlanContext {
                         mutable: local.mutable,
                     },
                 );
-                if hir_ty_is_function_value(cg.types, hir_ty) {
+                if hir_ty_is_function_value(self.types, hir_ty) {
                     known_local_fun_effects.insert(id, local.call_may_suspend);
                 }
             }
         }
-        let next_synthetic_symbol_raw = known_local_metadata
-            .keys()
-            .copied()
-            .map(hir::SymbolId::as_u32)
-            .max()
-            .unwrap_or(0)
-            .saturating_add(1);
-        let current_source_path = cg
+        let current_source_path = self
             .current_source()
             .expect("codegen context should always have a current source")
             .path()
             .to_path_buf();
-
-        Self {
+        EffectAnalysisCtx::new(
             known_fun_effects,
             known_local_fun_effects,
             known_local_metadata,
-            next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             current_source_path,
-            program_facts: Rc::clone(&cg.shared.program_facts),
-        }
+            Rc::clone(&self.shared.program_facts),
+        )
     }
 
-    fn extend_known_local_metadata_from_handle(&mut self, handle: &hir::HandleExpr) {
-        collect_known_local_metadata_in_handle(handle, &mut self.known_local_metadata);
-    }
-}
-
-#[cfg(feature = "llvm")]
-impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in super::super) fn build_ordinary_callee_suspend_plan_from_unified_contract(
         &self,
         body: &hir::Block,
@@ -7996,7 +7842,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             finally: None,
         };
 
-        let mut context = HandlePlanContext::from_codegen(self);
+        let mut context = self.effect_analysis_ctx();
         context.extend_known_local_metadata_from_handle(&synthetic_handle);
 
         let mut builder = HandlePlanBuilder::new(self.types, &synthetic_handle, &context);
@@ -8153,38 +7999,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         expr: &hir::Expr,
     ) -> bool {
-        let known_fun_effects = self.known_fun_body_may_outward_effect_map();
-        let mut known_locals = HashMap::new();
-        let mut known_local_metadata = HashMap::new();
-        for scope in &self.function_cx.env.scopes {
-            for (&id, local) in scope {
-                let Some(hir_ty) = local.hir_ty else {
-                    continue;
-                };
-                known_local_metadata.insert(
-                    id,
-                    KnownLocalMetadata {
-                        ty: hir_ty,
-                        mutable: local.mutable,
-                    },
-                );
-                if hir_ty_is_function_value(self.types, hir_ty) {
-                    known_locals.insert(id, local.call_may_suspend);
-                }
-            }
-        }
-
+        let context = self.effect_analysis_ctx();
         SuspendCallAnalysis {
             types: self.types,
-            known_fun_effects: &known_fun_effects,
-            known_local_metadata: &known_local_metadata,
-            current_source_path: self
-                .current_source()
-                .expect("codegen context should always have a current source")
-                .path(),
-            program_facts: Rc::clone(&self.shared.program_facts),
+            context: &context,
         }
-        .function_value_may_suspend_when_called(expr, &known_locals)
+        .function_value_may_suspend_when_called(expr, &context.known_local_fun_effects)
     }
 
     pub(in crate::llvm::codegen) fn function_value_expr_may_suspend_when_called_for_local(
@@ -8202,7 +8022,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         handle: &hir::HandleExpr,
     ) -> UnifiedHandleLoweringContract {
-        let mut context = HandlePlanContext::from_codegen(self);
+        let mut context = self.effect_analysis_ctx();
         context.extend_known_local_metadata_from_handle(handle);
         let source_plan = HandleStateMachinePlan::build_with_context(self.types, handle, &context);
 
@@ -8416,15 +8236,13 @@ fn compute_escape_continuation_direct_step_rows_by_site(
 fn direct_step_analysis_context_for_handle(handle: &hir::HandleExpr) -> HandlePlanContext {
     let mut known_local_metadata = HashMap::new();
     collect_known_local_metadata_in_handle(handle, &mut known_local_metadata);
-    let next_synthetic_symbol_raw = next_synthetic_symbol_seed(handle, &known_local_metadata);
-    HandlePlanContext {
-        known_fun_effects: HashMap::new(),
-        known_local_fun_effects: HashMap::new(),
+    HandlePlanContext::new(
+        HashMap::new(),
+        HashMap::new(),
         known_local_metadata,
-        next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
-        current_source_path: PathBuf::from("<t4008b1a>"),
-        program_facts: Rc::new(ProgramFacts::default()),
-    }
+        PathBuf::from("<t4008b1a>"),
+        Rc::new(ProgramFacts::default()),
+    )
 }
 
 fn select_escape_continuation_for_direct_site(
@@ -9304,23 +9122,6 @@ fn summarize_direct_step_handle_finally(
         &known_local_metadata,
         analysis,
     )
-}
-
-fn collect_known_local_metadata_in_handle_arm(
-    arm: &hir::HandleArm,
-) -> HashMap<hir::SymbolId, KnownLocalMetadata> {
-    let mut out = HashMap::new();
-    for binder in &arm.op.binders {
-        out.insert(
-            binder.id,
-            KnownLocalMetadata {
-                ty: binder.ty,
-                mutable: false,
-            },
-        );
-    }
-    collect_known_local_metadata_in_expr(&arm.body, &mut out);
-    out
 }
 
 fn classify_direct_step_hidden_boundary_for_value_ref<'a>(

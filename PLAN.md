@@ -411,6 +411,22 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000c2 抽出 backend-agnostic 的 EffectAnalysisCtx 与 shared local metadata`。
+- 2026-04-25：`T5000c2 抽出 backend-agnostic 的 EffectAnalysisCtx 与 shared local metadata` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/effect_analysis.rs` 与 `lib.rs` 模块入口，抽出 backend-agnostic `EffectAnalysisCtx`、`KnownLocalMetadata`，统一承接 known fun/local effect facts、known local metadata、synthetic symbol allocator 状态，以及 source-path / call-site 关联上下文；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现将 `HandlePlanContext` 收口为 `EffectAnalysisCtx` 别名，`SuspendCallAnalysis` 改为直接依赖共享 analysis context，而不再重复平铺 `known_fun_effects`、`known_local_metadata`、`current_source_path` 与 `ProgramFacts`；
+    - `HandlePlanContext::from_codegen(...)` 已移除；LLVM backend 当前仅通过 `MainCodegen::effect_analysis_ctx()` 把函数级 env 投影成共享 `EffectAnalysisCtx`，然后供 ordinary callee suspend planning、`build_unified_lowering_contract(...)` 与 local higher-order suspendability 查询复用；
+    - `state_machine_segments.rs` 与 `state_machine_transform.rs` 的测试 helper 已统一改为复用 `collect_effect_analysis_context_for_fun(...)`，不再继续手工拼装平行的 plan-analysis context。
+  - 收尾修复：
+    - 在验证过程中暴露并修复了两个告警回退：`state_machine_segments.rs` 与 `state_machine_transform.rs` 测试模块里残留的 `HashMap` unused import 已删除，从而恢复无告警测试构建。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000c2R Review：确认 EffectAnalysisCtx 已脱离 LLVM backend 现场取数`。
 
 ## 1. 当前判断
 

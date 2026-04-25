@@ -13,7 +13,7 @@
 //! - `enum_lowering.rs` / `object_init.rs`：enum constructor/object singleton 相关 lowering；
 //! - `effect/`、`gc.rs`、`runtime_abi.rs` 等继续保持独立主题边界。
 //!
-//! 下一步 `T5000c` 会继续把 `HandlePlanContext::from_codegen(...)` 这类 shared facts
+//! 下一步 `T5000c` 会继续把 `ProgramFacts` / `EffectAnalysisCtx` 这类 shared facts
 //! 迁出 LLVM backend，让这里进一步收口为“只做 backend lowering”的边界。
 
 use std::cell::{Ref, RefCell};

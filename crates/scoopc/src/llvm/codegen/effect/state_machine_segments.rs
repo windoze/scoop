@@ -2218,8 +2218,6 @@ fn build_segment_dispatch_entries(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use crate::ast;
     use crate::hir;
     use crate::parser::parse_file;
@@ -4925,51 +4923,6 @@ fun demo(limit: Int): Int {
         lowered: &hir::LoweredHir,
         owner_fun: &hir::FunDecl,
     ) -> HandlePlanContext {
-        let fun_index = lowered
-            .file
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                hir::Item::Fun(fun) => Some((fun.fqn.clone(), fun)),
-                _ => None,
-            })
-            .chain(lowered.member_funs.iter().map(|fun| (fun.fqn.clone(), fun)))
-            .collect::<HashMap<_, _>>();
-
-        let program_facts =
-            std::rc::Rc::new(crate::program_facts::ProgramFacts::from_lowered(lowered));
-        let known_fun_effects = collect_known_fun_call_suspendability(
-            &lowered.types,
-            &fun_index,
-            std::rc::Rc::clone(&program_facts),
-        );
-
-        let mut known_local_metadata = HashMap::new();
-        collect_known_local_metadata_in_fun(owner_fun, &mut known_local_metadata);
-        let analysis = SuspendCallAnalysis {
-            types: &lowered.types,
-            known_fun_effects: &known_fun_effects,
-            known_local_metadata: &known_local_metadata,
-            current_source_path: owner_fun.source_path.as_path(),
-            program_facts: std::rc::Rc::clone(&program_facts),
-        };
-        let known_local_fun_effects =
-            collect_known_local_fun_call_suspendability_in_fun(owner_fun, &analysis);
-        let next_synthetic_symbol_raw = known_local_metadata
-            .keys()
-            .copied()
-            .map(hir::SymbolId::as_u32)
-            .max()
-            .unwrap_or(0)
-            .saturating_add(1);
-
-        HandlePlanContext {
-            known_fun_effects,
-            known_local_fun_effects,
-            known_local_metadata,
-            next_synthetic_symbol_raw: std::cell::Cell::new(next_synthetic_symbol_raw),
-            current_source_path: owner_fun.source_path.clone(),
-            program_facts,
-        }
+        collect_effect_analysis_context_for_fun(lowered, owner_fun)
     }
 }

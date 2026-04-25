@@ -465,7 +465,7 @@
   - review 结论：`ProgramFacts` 的来源已经稳定收口为 lowering -> shared builder -> `Rc<ProgramFacts>`，后续 `T5000c2` 可以直接聚焦 `HandlePlanContext::from_codegen(...)`、known local metadata、synthetic symbol/source-path 等 analysis context 取数边界，而不必再回头清理 facts 来源；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000c2 抽出 backend-agnostic 的 `EffectAnalysisCtx` 与 shared local metadata
+### [DONE] T5000c2 抽出 backend-agnostic 的 `EffectAnalysisCtx` 与 shared local metadata
 - 范围：
   - 将当前 `HandlePlanContext` 中与 effect/state-machine 分析相关、但不应继续依赖 `MainCodegen` 的上下文收口为独立 `EffectAnalysisCtx`，至少覆盖：
     - known fun/local effect facts；
@@ -477,6 +477,13 @@
   - `HandlePlanContext::from_codegen` 这类由 backend 上下文直接喂给中端分析的路径开始消失；
   - planning / suspendability summary 进入统一 `EffectAnalysisCtx + ProgramFacts` 输入形态。
 - 依赖：T5000c1R
+- 完成记录（2026-04-25）：
+  - 新增 `crates/scoopc/src/effect_analysis.rs` 与 `crates/scoopc/src/lib.rs` 模块入口，抽出 backend-agnostic 的 `EffectAnalysisCtx`、`KnownLocalMetadata`，并统一收口 known local metadata 收集、synthetic symbol allocator、source-path / call-site 关联上下文；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现将 `HandlePlanContext` 收口为 `EffectAnalysisCtx` 别名，`SuspendCallAnalysis` 改为直接消费共享 analysis context，而不再平铺保存 `known_fun_effects`、`known_local_metadata`、`current_source_path` 与 `ProgramFacts`；
+  - `HandlePlanContext::from_codegen(...)` 已消失；LLVM backend 现仅通过 `MainCodegen::effect_analysis_ctx()` 把当前函数 env 投影成共享 `EffectAnalysisCtx`，再供 `build_unified_lowering_contract(...)`、ordinary callee suspend planning 与 higher-order function-value suspendability 查询复用；
+  - `state_machine_segments.rs` 与 `state_machine_transform.rs` 的测试 helper 已改为统一复用 `collect_effect_analysis_context_for_fun(...)`，不再各自手工拼装同类 analysis context；
+  - `direct_step_analysis_context_for_handle(...)` 也已改为构造统一 `EffectAnalysisCtx + ProgramFacts` 输入形态，后续 `T5000c3` 可以继续直接迁移共享分析消费者，而不必再先清理 local metadata / source-path / synthetic symbol 的来源边界；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000c2R Review：确认 `EffectAnalysisCtx` 已脱离 LLVM backend 现场取数
 - 重点：
