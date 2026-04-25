@@ -6,10 +6,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 生成 class 构造调用（Appendix B.2.2，Kotlin-like 初始化顺序）。
     ///
     /// 当前阶段的约束（为保持 run-pass 可落地且实现量可控）：
-    /// - 调用点仅支持位置参数（positional args），不支持 named args / default args；
-    /// - ctor 选择规则：按“参数个数”在已收集 ctor 集合中匹配；若不唯一则报错；
+    /// - 对正常 class ctor call，调用点会优先消费前端准备好的 `CtorCallInfo`：
+    ///   已解析的 named args / default args 映射会在这里按形参顺序求值；
+    /// - 若某些内部复用路径没有 `CtorCallInfo`，则仍退回到仅按 positional args + 参数个数匹配；
+    /// - ctor 选择规则：优先按 `CtorCallInfo.ctor_span` 精确命中；否则再按“参数个数”在已收集
+    ///   ctor 集合中匹配；若不唯一则报错；
     /// - class 单继承初始化链：会从最基类到派生类逐层执行 init steps；
-    /// - super ctor args 与 secondary ctor delegation args 同样只支持位置参数，并按源码顺序求值。
+    /// - super ctor args 与 secondary ctor delegation args 同样优先走 `CtorCallInfo` 映射，
+    ///   并按源码顺序求值。
     pub(in crate::llvm::codegen) fn codegen_class_ctor_call(
         &mut self,
         span: crate::span::Span,

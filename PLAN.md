@@ -181,7 +181,19 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b3cR Review：确认 closure/ 与 class_ctor.rs 主题边界成立`。
+- 2026-04-25：`T5000b3cR Review：确认 closure/ 与 class_ctor.rs 主题边界成立` 已完成。
+  - 复核结论：
+    - `crates/scoopc/src/llvm/codegen/closure/mod.rs` 已集中承接 closure expr/env/body lowering、capture/env layout、callee suspend-plan 与 expected-function-type helper；`expr.rs`、`effect/mod.rs`、`call/abi.rs`、`intrinsics/{sync,thread}.rs` 只经 `codegen_closure_expr` / `lookup_pure_unit_closure_type` 等窄接口进入该主题；
+    - `crates/scoopc/src/llvm/codegen/class_ctor.rs` 已集中承接 ctor 选择、arg-eval/default binding、super/this delegation、init-step 与 invoke lowering；`call/dispatch.rs` 仅保留 unresolved ctor call 的分派入口，并通过 `ctor_call_sites` 单向委托到 `codegen_class_ctor_call`；
+    - review 过程中顺手修复了一个既有文档错配：`class_ctor.rs` 顶部注释此前仍声称“不支持 named/default args”，现已改为准确描述 `CtorCallInfo` 优先路径与 positional-only fallback；
+    - 剩余仍在根模块或相邻主题中的相关桥接，已经收敛为调用点委托、函数值调用桥接和 `gc.rs` 中的 closure object/runtime layout helper；它们不再承载 closure/class ctor lowering 主体实现，下一步可直接继续 `T5000b3d` 的 enum/object lowering 拆分；
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b3d 拆出 enum_lowering.rs 与 object_init.rs lowering 模块`。
 
 ## 1. 当前判断
 

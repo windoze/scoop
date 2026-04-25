@@ -210,7 +210,7 @@
   - `crates/scoopc/src/llvm/codegen/call/resume.rs` 已改为从 `closure/` 复用 `closure_callee_resume_entry_fn_name`，而 `expr.rs`、`effect/mod.rs`、`intrinsics/sync.rs`、`intrinsics/thread.rs`、`call/abi.rs`、`call/dispatch.rs` 等现有调用面继续只经 `MainCodegen` 的窄接口消费这两类主题；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b3cR Review：确认 `closure/` 与 `class_ctor.rs` 主题边界成立
+### [DONE] T5000b3cR Review：确认 `closure/` 与 `class_ctor.rs` 主题边界成立
 - 重点：
   - closure env / body lowering 是否已经从 call 与 object/enum 主题中分离；
   - class ctor 相关路径是否已集中，不再散落在根模块不同位置；
@@ -218,6 +218,12 @@
 - 验收：
   - 可以明确指出 closure 与 class ctor lowering 的职责上界，以及仍待抽离的剩余主题。
 - 依赖：T5000b3c
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/closure/mod.rs`，确认 closure expr / env / body lowering、callee suspend-plan 与 expected-function-type helper 已集中到 `closure/`；`crates/scoopc/src/llvm/codegen/expr.rs`、`effect/mod.rs`、`call/abi.rs`、`intrinsics/{sync,thread}.rs` 仅通过 `codegen_closure_expr`、`lookup_pure_unit_closure_type` 等窄接口复用该主题，没有继续在调用侧承载 closure lowering 主体实现；
+  - 已复核 `crates/scoopc/src/llvm/codegen/class_ctor.rs`，确认 ctor 选择、实参求值与默认值绑定、super/this delegation、init-step 执行与 invoke lowering 已集中在该模块；`crates/scoopc/src/llvm/codegen/call/dispatch.rs` 仅保留 unresolved ctor call 的分派入口，并通过 `ctor_call_sites` 单向委托到 `codegen_class_ctor_call`；
+  - review 过程中发现并修复了一个既有文档问题：`crates/scoopc/src/llvm/codegen/class_ctor.rs` 顶部注释仍写着“不支持 named/default args”，现已改为准确描述 `CtorCallInfo` 驱动的 named/default arg 支持，以及无 side-table 的内部复用路径才退回 positional-only 的约束；
+  - review 结论：closure lowering 的职责上界现可明确界定为 closure expr/env/body lowering、capture/env layout 与 callee suspend-plan helper；class ctor lowering 的职责上界现可明确界定为 ctor 选择、arg-eval/default binding、delegation、super/init/invoke。根模块及相邻主题中与两者相关的剩余桥接仅剩调用点委托、`call/dispatch.rs` 内的函数值调用桥接，以及 `gc.rs` 中 closure object/runtime layout helper；这些都不再承载 closure/class ctor lowering 主体实现。剩余待抽离的稳定主题已收敛为 `T5000b3d` 的 enum/object lowering 与后续 `T5000b4` 的 `MainCodegen` 上下文分层；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b3d 拆出 `enum_lowering.rs` 与 `object_init.rs` lowering 模块
 - 范围：
