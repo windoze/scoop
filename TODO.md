@@ -81,7 +81,7 @@
   - `crates/scoopc/src/llvm/mod.rs` 已收口为错误类型、常量、子模块声明与必要 re-export，不再承载 emit/pipeline/reachability 的主体实现；
   - 已验证 `cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b1R Review：确认 `llvm/mod.rs` 已收口为根模块而非实现巨型文件
+### [DONE] T5000b1R Review：确认 `llvm/mod.rs` 已收口为根模块而非实现巨型文件
 - 重点：
   - 根模块是否只保留后端入口、错误边界与必要 re-export；
   - emit / pipeline / reachability / tests 是否已形成稳定的独立文件边界；
@@ -89,6 +89,11 @@
 - 验收：
   - 可以明确指出 `llvm/mod.rs` 根模块的职责上界，不再把新的实现细节继续堆回去。
 - 依赖：T5000b1
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/llvm/mod.rs`，确认根模块当前只保留子模块声明、对外 emit/target re-export、测试期窄桥接 re-export、LLVM GC 策略常量、一次性全局 LLVM 选项配置与统一错误诊断边界；
+  - 已复核 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/pipeline.rs`、`crates/scoopc/src/llvm/reachability.rs`、`crates/scoopc/src/llvm/tests.rs`，确认 emit API / module build、pass pipeline、reachability 扫描与测试主体实现均已迁出根模块；
+  - 已确认 `llvm/codegen/effect/state_machine_emitter.rs` 的测试仅通过 `#[cfg(test)]` 下的窄桥接 re-export 访问 `build_main_module_from_lowered_hir` 与 `run_pass_pipeline`，未把新的实现职责倒灌回 `llvm/mod.rs`；
+  - 已验证 `cargo test -p scoopc llvm::` 与 `cargo clippy --all-targets -- -D warnings` 通过，未发现必须插入到 `T5000b2` 之前的新前置缺陷任务。
 
 ### [TODO] T5000b2 提炼 `MainCodegen` 共享编译单元上下文与 child-codegen 构造路径
 - 范围：

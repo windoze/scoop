@@ -51,8 +51,24 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b1R Review：确认 llvm/mod.rs 已收口为根模块而非实现巨型文件`。
-- `T5000b1` 实现过程中未发现必须插入到 `T5000b1R` 之前的新前置缺陷任务。
+- 2026-04-25：`T5000b1R Review：确认 llvm/mod.rs 已收口为根模块而非实现巨型文件` 已完成。
+  - 已复核 `crates/scoopc/src/llvm/mod.rs` 的职责上界：
+    - 根模块只保留子模块声明；
+    - 对外 emit/target 入口 re-export；
+    - 测试期窄桥接 re-export；
+    - LLVM GC 策略常量、一次性全局 LLVM 选项配置；
+    - 统一 `LlvmEmitError` 诊断边界及其轻量辅助函数；
+  - 已复核 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/pipeline.rs`、`crates/scoopc/src/llvm/reachability.rs`、`crates/scoopc/src/llvm/tests.rs`：
+    - emit API / module build 主体留在 `emit.rs`；
+    - pass pipeline 完整落在 `pipeline.rs`；
+    - HIR reachability 扫描完整落在 `reachability.rs`；
+    - 根模块测试已迁到 `tests.rs`，effect emitter 侧测试只通过 `#[cfg(test)]` 下的窄桥接 re-export 使用内部 helper；
+  - 验证结果：
+    - `cargo test -p scoopc llvm::`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过；
+  - review 结论：`llvm/mod.rs` 已收口为根模块，没有发现需要在 `T5000b2` 前新增的阻塞缺陷任务。
+- 下一条待执行任务切换为 `T5000b2 提炼 MainCodegen 共享编译单元上下文与 child-codegen 构造路径`。
 
 ## 1. 当前判断
 
