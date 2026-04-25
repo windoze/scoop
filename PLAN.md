@@ -153,7 +153,24 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b3bR Review：确认 intrinsics/ 拆分没有把 builtin/sysroot 继续堆回根模块`。
+- 2026-04-25：`T5000b3bR Review：确认 intrinsics/ 拆分没有把 builtin/sysroot 继续堆回根模块` 已完成。
+  - review 先暴露并修复了一个既有边界问题：
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 中仍残留 `codegen_string_trim_indent`、`codegen_string_method`、`codegen_to_string_method`、`expr_is_builtin_char`，以及 `Char` / `Int` / `Float` builtin member-call helper；
+    - 这些实现已在本轮迁入 `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`，从而把上一轮未完全收口的 builtin lowering 主体真正移出根模块。
+  - 复核结论：
+    - `codegen/mod.rs` 现不再定义 string/char/int/float builtin lowering，也不再承载 io/env/time/fs/process/path、sync/thread/channels、array/task transport、atomic int 等 sysroot/intrinsics 主体实现；
+    - `call/dispatch.rs` 仍只承担 FQN/member dispatch，具体 lowering 主体单向落到 `intrinsics/`；
+    - `intrinsics/` 与 `runtime_abi` / `gc` 的交互保持为单向消费 runtime/GC helper，没有出现新的双向耦合。
+  - 仍留在 `codegen/mod.rs` 的相关共享 helper：
+    - `codegen_addressable_place` / `AddressablePlace` 属于通用 lvalue / object 访问边界，当前仅被 atomic intrinsics 复用，不再算 builtin/sysroot 主题残留；
+    - `lookup_pure_unit_closure_type` 仍被 `sync.Once.run` / `thread.spawn` 暂借，属于后续 `T5000b3c` 需要继续收口的 closure 主题桥接。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b3c 拆出 closure/ 与 class_ctor.rs lowering 模块`。
 
 ## 1. 当前判断
 

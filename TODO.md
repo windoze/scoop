@@ -180,7 +180,7 @@
   - 迁移过程中暴露的唯一现存问题是 `crates/scoopc/src/llvm/codegen/mod.rs` 残留的 `inkwell::AtomicOrdering` 未使用导入，已在本轮一并修复；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b3bR Review：确认 `intrinsics/` 拆分没有把 builtin/sysroot 继续堆回根模块
+### [DONE] T5000b3bR Review：确认 `intrinsics/` 拆分没有把 builtin/sysroot 继续堆回根模块
 - 重点：
   - builtin 与 sysroot lowering 是否已稳定离开 `codegen/mod.rs`；
   - intrinsics 主题内部是否已有按语义分组的边界，而不是机械移动；
@@ -188,6 +188,12 @@
 - 验收：
   - 可以明确说出 `intrinsics/` 的职责上界，以及尚未迁出的共享 helper 属于什么后续主题。
 - 依赖：T5000b3b
+- 完成记录（2026-04-25）：
+  - review 首先发现并修复了 `T5000b3b` 的既有边界泄漏：`crates/scoopc/src/llvm/codegen/mod.rs` 中仍残留 `codegen_string_trim_indent`、`codegen_string_method`、`codegen_to_string_method`、`expr_is_builtin_char`，以及 `Char` / `Int` / `Float` builtin member-call helper；这些实现现已整体迁入 `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`，并按实际调用面收紧为 `pub(in crate::llvm::codegen)` 或模块私有 helper；
+  - 复核后确认 `crates/scoopc/src/llvm/codegen/mod.rs` 已不再定义 string / char / int / float builtin lowering，也不再承载 io/env/time/fs/process/path、sync/thread/channels、array/task transport、atomic int 等 sysroot/intrinsics 主体实现；相应职责现稳定位于 `intrinsics/builtin.rs`、`sysroot.rs`、`sync.rs`、`thread.rs`、`channels.rs`、`containers.rs`、`atomic.rs`；
+  - 已确认 `crates/scoopc/src/llvm/codegen/call/dispatch.rs` 仍只负责 FQN/member dispatch，并单向调用 `intrinsics/` 主题 helper；`intrinsics/` 继续单向消费 `runtime_abi` / `gc` / 通用 codegen helper，没有把 builtin/sysroot 主体逻辑倒灌回 `call/` 或 `codegen/mod.rs`；
+  - review 结论：`intrinsics/` 的职责上界现可明确界定为 builtin 标量/字符串方法与顶层内建、sysroot API、并发/容器/原子 intrinsics lowering；`codegen/mod.rs` 中尚未迁出的相关共享 helper 仅剩非 intrinsics 主题内容，例如原子 lvalue 地址解析 `codegen_addressable_place`（更接近通用 lvalue / object 访问边界）以及 `lookup_pure_unit_closure_type`（供 `sync.Once.run` / `thread.spawn` 暂借的 closure 主题桥接），它们分别属于后续 object/lvalue 与 `T5000b3c` 的继续收口范围；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b3c 拆出 `closure/` 与 `class_ctor.rs` lowering 模块
 - 范围：

@@ -1,64 +1,64 @@
-## 当前轮执行计划（决策摘要）
+# 执行记录
 
-注意：这里记录的是可审查的执行计划、依据和进度摘要，不写入逐字内部推理。
+说明：按要求先记录可共享的执行计划、约束、检查点与后续进展。这里不会写入不可共享的内部推理细节，但会持续更新关键判断、实施步骤、阻塞项和完成状态，便于随时审阅当前进度。
 
-### 初始目标
+## 当前目标
 
-本轮只处理 `TODO.md` 中第一个未完成任务；如果在检查、实现或测试中发现已有缺陷、规格不匹配或前置依赖缺失，则优先修复，或将其作为新的前置任务插入 `TODO.md` 并停止。
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在开始该任务前，先检查最新提交是否提到任何既有问题；如果提到，先修复这些问题。
+- 在执行过程中，只要发现任何既有 bug、回归、规格不匹配、不完整实现边界或依赖缺失，都必须先修复，或把它们作为前置任务插入 `TODO.md` 后停止，不能绕过。
 
-### 执行步骤
+## 初始执行计划
 
-1. 检查最新一次 git 提交的信息，确认是否明确提到已有问题需要先修。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，确认该任务的上下文、依赖和已有拆分。
-4. 评估任务规模：
-   - 如果可在本轮完整交付，则直接实现。
-   - 如果过大，则先把它拆分成更小的子任务，并更新 `PLAN.md` 与 `TODO.md`，本轮只做新的第一个子任务。
-5. 实现任务时同时检查相关代码路径；任何现存 bug、回归、规格不匹配、未完成边界都视为本轮范围内问题。
-6. 运行相关测试，并补充必要测试；同时执行质量检查，至少包括与本次改动相关的测试，以及在可行时运行 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`。
-7. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞依赖。
-8. 提交一个清晰的 git commit，然后停止，不继续下一个任务。
+1. 检查最新提交信息与工作树状态，确认是否有被最新提交明确提到、但尚未修复的既有问题。
+2. 阅读 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并确认是否需要拆分成更小子任务。
+3. 如果任务过大或被前置问题阻塞：
+   - 在 `PLAN.md` 中细化计划；
+   - 在 `TODO.md` 中新增或重排前置子任务；
+   - 提交这些计划调整并停止。
+4. 如果任务可直接执行：
+   - 先阅读相关代码、测试和规范文件；
+   - 实现任务所需改动；
+   - 运行相关测试，并修复过程中暴露的既有问题。
+5. 任务完成后：
+   - 更新 `TODO.md`，标记该任务完成；
+   - 更新 `PLAN.md`，反映当前状态与后续计划；
+   - 记录本文件中的关键进展；
+   - 提交 git commit；
+   - 停止，不进入下一个任务。
 
-### 当前已知约束
+## 强制检查项
 
-- 必须优先处理已有问题，不能用规避方案推进任务。
-- 必须在修改前后持续更新本文件。
-- 本轮结束前需要有 git commit。
+- 不使用规避方案、局部特判、缩窄测试形状或偏离规格的实现。
+- 代码改动后至少运行与变更直接相关的测试；若范围较大，还要补充更广的回归验证。
+- 保持编译与 lint 无警告；若当前任务影响范围允许，将运行 `cargo clippy --all-targets -- -D warnings`。
+- 若发现 `README.md`、注释、模块组织存在与当前任务直接相关的问题，需要一并修复。
 
-### 当前进度
+## 进展日志
 
-- 已创建本计划文件。
+- 已创建本计划文件，准备开始检查最新提交、任务列表与现有状态。
 - 已检查最新提交、`TODO.md` 与 `PLAN.md`：
-  - 最新提交为 `[T5000b3aR] Review call lowering boundaries`；
-  - 提交说明本身未提出需要先修复的新旧缺陷；
-  - 当前首个未完成任务为 `T5000b3b 拆出 intrinsics/ lowering 模块`。
-- 当前判断：
-  - 本轮目标是把 builtin/sysroot lowering 从 `crates/scoopc/src/llvm/codegen/mod.rs` 迁到 `llvm/codegen/intrinsics/`；
-  - 这是边界整理任务，要求保持语义与错误边界不变；
-  - 在迁移过程中若发现现存 bug、规格不匹配或缺失前置能力，必须先修复或把它前移为 TODO 前置任务。
-- 已完成代码面梳理，并确定 `intrinsics/` 拆分形状：
-  - `builtin.rs`：标量内建 / `print` / `toString` / `toInt` / `hash` / `sizeOf`
-  - `sysroot.rs`：io/env/time/fs/process/path
-  - `sync.rs`：mutex / condvar / once / destroy
-  - `thread.rs`：thread / task transport / thread-specific intrinsics
-  - `channels.rs`：channel send/recv/close
-  - `containers.rs`：array builder / array get-set / array-like helper
-  - `atomic.rs`：atomic int intrinsics
-- 已开始实施：
-  - 已新增 `crates/scoopc/src/llvm/codegen/intrinsics/` 及上述子模块文件；
-  - 已在 `crates/scoopc/src/llvm/codegen/mod.rs` 注册 `mod intrinsics;`；
-  - 已从 `codegen/mod.rs` 删除 builtin/sysroot lowering 主体实现块，仅保留非 intrinsics 主题与通用 helper。
-- 进度校验：
-  - 已确认 `codegen/mod.rs` 中不再残留 `codegen_sysroot_*` 主体实现，只剩 `scoop.unsafe` 的 funptr helper；
-  - `cargo fmt --all` 已通过。
-- 第一轮验证结果：
-  - `cargo test -p scoopc llvm::` 已通过（148 tests passed）；
-  - 暴露并已修复 1 个整理后遗留问题：`crates/scoopc/src/llvm/codegen/mod.rs` 中 `inkwell::AtomicOrdering` 导入未使用。
-- 全量验证结果：
-  - `cargo test --all` 已通过；
-  - `cargo clippy --all-targets -- -D warnings` 已通过；
-  - 未发现需要前插到 `T5000b3bR` 之前的现存缺陷任务。
-- 文档状态：
-  - 已将 `TODO.md` 中 `T5000b3b` 标记为完成并补充完成记录；
-  - 已将 `PLAN.md` 补记 `T5000b3b` 的实现/验证结果，并将下一条待执行任务切换为 `T5000b3bR`。
-- 下一步：检查工作区、准备本轮提交，并在提交后停止。
+  - 最新提交 `[T5000b3b] Split intrinsics lowering module` 未在提交说明中额外声明待修既有问题；
+  - 当前首个未完成条目为 `T5000b3bR Review：确认 intrinsics/ 拆分没有把 builtin/sysroot 继续堆回根模块`。
+- review 过程中发现一个必须先修复的既有边界问题：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 中仍保留 `codegen_string_trim_indent`、`codegen_string_method`、`codegen_to_string_method`、`expr_is_builtin_char`，以及一整组 `Char/Int/Float` builtin lowering helper；
+  - 这些不是单纯共享工具，而是上一轮 `intrinsics/builtin.rs` 拆分未完成后继续留在根模块的 builtin lowering 主体实现；
+  - 因此当前不能直接把 `T5000b3bR` 标记完成，必须先把这组 helper 真正迁入 `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`，再复跑 review 验证。
+- 当前执行中的修复计划：
+  1. 将上述 builtin helper 从 `codegen/mod.rs` 迁入 `intrinsics/builtin.rs`，并按实际调用面调整可见性；
+  2. 清理根模块中的残留定义，确认 `call/dispatch.rs`、字符串插值等调用路径仍通过清晰接口访问 builtin lowering；
+  3. 运行定向测试与 lint，确认没有行为回归；
+  4. 更新 `TODO.md` / `PLAN.md` / 本文件，记录修复后的 review 结论并提交。
+- 修复与验证已完成：
+  - 已将 `codegen_string_trim_indent`、`codegen_string_method`、`codegen_to_string_method`、`expr_is_builtin_char`，以及 `Char` / `Int` / `Float` builtin helper 从 `crates/scoopc/src/llvm/codegen/mod.rs` 迁入 `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`；
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 行数已从 11240 降到 9946，`intrinsics/builtin.rs` 行数增至 2166；对应 builtin helper 定义现只出现在 `intrinsics/builtin.rs`；
+  - 已完成验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 当前收尾动作：
+  1. 将 `T5000b3bR` 在 `TODO.md` 中标记完成；
+  2. 在 `PLAN.md` 与本文件记录 review 结论、残留共享 helper 的后续归属与下一条任务；
+  3. 检查最终 diff 并提交本轮变更后停止。
