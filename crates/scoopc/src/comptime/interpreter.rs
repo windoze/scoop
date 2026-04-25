@@ -1,14 +1,15 @@
 //! const/comptime 解释器（v0）。
 //!
 //! 当前阶段目标：
-//! - 支持 `const fun` 调用（仅 Pure；由 typecheck headers 做最小门禁）；
+//! - 支持 `const fun` 调用（声明级合同固定为：省略 effect row，或显式 `/ Pure` / `/ Pure!`；
+//!   且不允许声明 `<eff ...>`）；
 //! - 支持函数体内的局部 `val/var`、assignment、`return`、`break/continue`，
 //!   以及普通 `if` / `while` / `for` / block / `do` 的纯控制流；
 //! - 支持 `const val` initializer 的常量折叠（用于 `tests/fixtures/comptime` 回归）。
 //!
 //! 非目标（后续任务逐步补齐）：
 //! - `when`、闭包/lambda、effects、`perform/handle`；
-//! - 更完整的 generic/effect-row contract 与运行期 fallback 语义。
+//! - 更完整的纯 comptime 语义边界与运行期 fallback 语义。
 
 use std::collections::HashMap;
 use std::ops::ControlFlow;
@@ -1901,7 +1902,9 @@ impl<'a> ConstInterpreter<'a> {
             });
         }
 
-        // 解释器入口做一次“最小签名门禁”，避免把复杂语义带入 v0。
+        // 解释器入口做一次防御性签名检查：
+        // - 正常路径下，这些约束已由前端 header/typecheck 合同保证；
+        // - 这里保留检查，是为了避免未来绕过前端入口时让解释器默默接受越界签名。
         if decl.receiver.is_some() {
             return Err(ConstEvalError::UnsupportedConstFunSignature {
                 reason: "extension receiver",
@@ -1912,6 +1915,14 @@ impl<'a> ConstInterpreter<'a> {
             return Err(ConstEvalError::UnsupportedConstFunSignature {
                 reason: "generic type args",
                 span: decl.span.into(),
+            });
+        }
+        if let Some(effects) = &decl.effects
+            && !effects.terms.is_empty()
+        {
+            return Err(ConstEvalError::UnsupportedConstFunSignature {
+                reason: "non-Pure effect row",
+                span: effects.span.into(),
             });
         }
         if decl.eff_param.is_some() {

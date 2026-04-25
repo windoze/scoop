@@ -1224,13 +1224,26 @@
   - 已验证 `cargo test -p scoopc const_eval_ -- --nocapture` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/comptime` 通过；全量 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 留待本任务收尾复验。
 - 依赖：T4015a2
 
-### T4015c [TODO] 重新收口 `const fun` 的 effect-row / `eff` 参数 contract
+### T4015c [DONE] 重新收口 `const fun` 的 effect-row / `eff` 参数 contract
 - 范围：
   - `const fun` 对 non-`Pure` effect row 与 `eff` 参数的限制不能继续停留在“一刀切早退但没有明确 contract”；需要决定并实现可支持的纯兼容子集，或把不支持部分写成显式 deferred contract 与精确诊断。
   - typecheck、文档与 comptime interpreter 的边界表述必须一致，不再出现 header phase、解释器与 spec 三处口径分裂。
   - 若本轮仍选择保守限制，必须把 `SCOOP_FULL_SPEC.md` / 相关文档的同步任务纳入验收。
 - 验收：
   - `ISSUES.md` 第 12 条中关于 non-`Pure` effect row / `eff` 参数的剩余描述收窄或关闭。
+- 已完成：
+  - `crates/scoopc/src/typecheck/headers.rs` 已把 `const fun` 的声明级 effect contract 注释与诊断收口为明确规则：函数自身只能省略 effect row，或显式写 `/ Pure` / `/ Pure!`；`<eff ...>` 被明确视为非法声明面，而不是解释器的偶然实现边界。
+  - `crates/scoopc/src/comptime/mod.rs` 与 `crates/scoopc/src/comptime/interpreter.rs` 已同步到同一口径；解释器入口新增防御性签名检查，若未来有路径绕过前端 header/typecheck，也不会默默接受 non-`Pure` effect row 或 effect-row 参数。
+  - `SCOOP_FULL_SPEC.md` §6.2、`README.md` 与 `ISSUES.md` 第 12 条已同步到保守纯契约：`const fun` 当前不是 effect-polymorphic declaration surface，effectful/effect-polymorphic `const fun` 明确 deferred。
+  - 新增 comptime 正例 `tests/fixtures/comptime/const_fun_closed_pure_basic.scoop` / `.comptime`，锁定显式 `/ Pure!` 的 `const fun` 能进入编译期求值主线；同时更新既有负例 fixture 文案与错误位置，继续锁定 non-`Pure` effect row / `<eff ...>` 的 header-phase 诊断。
+- 已复验：
+  - `cargo fmt --check`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/comptime`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4015b
 
 ### T4015R [TODO] Review：确认 const/comptime 不再只靠“同文件 + 名字/参数个数 + 字面量求值”的最小旁路

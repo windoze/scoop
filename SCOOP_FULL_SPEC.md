@@ -1121,6 +1121,14 @@ const val X = add(1, 2)  // evaluated to 3 at compile time
 val y = add(a, b)
 ```
 
+`const fun` has a declaration-level purity contract:
+
+- Its own effect row must be omitted, or explicitly declared as `/ Pure` or `/ Pure!`.
+- It must not declare effect-row parameters such as `<eff E = ...>`.
+- In other words, `const fun` is currently **not** an effect-polymorphic declaration surface.
+
+This rule applies even though a `const fun` may also be called at runtime. The `const` marker promises that the declaration remains compatible with compile-time execution; supporting effectful or effect-polymorphic `const fun` is deferred until the language can specify a coherent pure-compatible subset across the spec, type checker, and comptime interpreter.
+
 #### Allowed in `const fun`:
 
 - Calling other `const fun`
@@ -1134,7 +1142,8 @@ val y = add(a, b)
 #### Prohibited in `const fun`:
 
 - Calling non-`const` functions
-- Any effect (IO, Async, Raise, etc.)
+- Any non-`Pure` effect contract on the declaration itself (including non-`Pure` effect rows and effect-row parameters)
+- Any effectful execution in the body (IO, Async, Raise, etc.)
 - Accessing global mutable state
 - Creating reference type instances (class instances require heap allocation, unavailable at compile time) — exception: `String` is allowed (see above)
 - Closures / lambdas (capturing environment makes compile-time analysis intractable — whether a closure fully satisfies `const` semantics depends on its capture set, which is difficult to verify statically)

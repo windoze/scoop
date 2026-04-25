@@ -4,6 +4,8 @@
 //! - 最小值模型（ConstValue）
 //! - 纯表达式求值（字面量/一元/二元/aggregate）与 block/`if`/assignment 等宿主驱动节点
 //! - `const fun` 解释器入口（现已接到 compilation-unit resolve/typecheck 主线，支持跨文件顶层调用与 generic 实例化）
+//!   - 声明级合同已固定：`const fun` 自身只能省略 effect row，或显式写 `/ Pure` / `/ Pure!`；
+//!     不允许声明 `<eff ...>` effect-row 参数
 //! - `const val` initializer 的常量折叠（用于 fixtures 回归）
 //! - 普通 `if` / `do` / 局部 `val/var` / assignment / `while` / `for` / `break` / `continue`
 //!   与 `comptime { ... }` / `comptime if` / `comptime for` 的解释执行
@@ -12,6 +14,7 @@
 //!
 //! 非目标（留给后续子任务 T1204+）：
 //! - `when`、`handle/perform`、`async`、闭包/lambda 等更复杂语义；
+//! - 超出上述 Pure/Pure! 合同的 effectful/effect-polymorphic `const fun` 设计；
 //! - 更完整的 `const fun` 静态约束（例如禁止闭包捕获）。
 
 mod eval;

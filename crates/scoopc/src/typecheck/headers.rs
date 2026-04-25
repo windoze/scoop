@@ -23,22 +23,35 @@ pub enum TypeHeaderError {
         span: miette::SourceSpan,
     },
 
-    /// `const fun` 的语法限制：当前阶段要求其 effect row 只能为 Pure（或缺省）。
+    /// `const fun` 的声明级 effect contract：
+    /// - effect row 只能省略，或显式写成 `Pure` / `Pure!`；
+    /// - 不允许声明任何 non-`Pure` effect row。
     ///
     /// 说明：
     /// - spec §6.2：const 计算应为纯计算；
-    /// - 早期阶段先做“声明级”的最小门禁，避免后续解释器入口难以界定；
-    /// - 更细粒度的规则（例如禁止在 body 内 perform/raise 等）可在 comptime 解释器任务中逐步补齐。
+    /// - 这里的“Pure/Pure!”限制是语言合同，而不是解释器的偶然实现细节；
+    /// - 更细粒度的 body 级限制（如 `when`/lambda/effectful constructs）仍由后续 const/comptime 任务继续收口。
     #[error("const fun 不允许声明非 Pure 的 effect row")]
-    #[diagnostic(code(scoop::typecheck::const_fun_effects_not_allowed))]
+    #[diagnostic(
+        code(scoop::typecheck::const_fun_effects_not_allowed),
+        help("const fun 只能省略 effect row，或显式声明为 `/ Pure` / `/ Pure!`")
+    )]
     ConstFunEffectsNotAllowed {
-        #[label("const fun 必须为 Pure（或不写 effect row）")]
+        #[label("const fun 只能是 `/ Pure`、`/ Pure!`，或省略 effect row")]
         span: miette::SourceSpan,
     },
 
     /// `const fun` 不允许声明 effect row 参数（`<eff E = ...>`）。
+    ///
+    /// 说明：
+    /// - `const fun` 当前不是 effect-polymorphic declaration surface；
+    /// - 若后续要支持更丰富的纯兼容子集，应在 spec / typecheck / comptime 中统一设计，
+    ///   不能让 header phase、解释器与文档各自漂移。
     #[error("const fun 不允许声明 effect row 参数")]
-    #[diagnostic(code(scoop::typecheck::const_fun_eff_param_not_allowed))]
+    #[diagnostic(
+        code(scoop::typecheck::const_fun_eff_param_not_allowed),
+        help("请去掉 `<eff ...>`；const fun 当前只能声明固定的 Pure/Pure! 合同")
+    )]
     ConstFunEffParamNotAllowed {
         #[label("这里")]
         span: miette::SourceSpan,
@@ -93,12 +106,9 @@ fn check_fun_header(source: &SourceFile, fun: &ast::FunDecl) -> Result<(), TypeH
         }
 
         if let Some(effects) = &fun.effects {
-            // 允许：
-            // - 缺省（None）
-            // - 显式 Pure（`/ Pure` 或 `/ Pure!`）：`terms.is_empty()`
-            //
-            // 不允许：
-            // - 任何非空 effect row（例如 `/ Raise<E>` / `/ IO+State!`）
+            // `EffectRow.terms` 只存放除 `Pure` 之外的项：
+            // - `[]` 同时代表 `/ Pure` 与 `/ Pure!`
+            // - 任何非空项都意味着 non-`Pure` effect row
             if !effects.terms.is_empty() {
                 return Err(TypeHeaderError::ConstFunEffectsNotAllowed {
                     span: effects.span.into(),

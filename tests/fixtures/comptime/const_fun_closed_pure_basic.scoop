@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T4015c：显式 `/ Pure!` 的 `const fun` 仍属于允许的纯契约，
+// 并且能进入 comptime 求值主线。
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+const fun answer(): Int / Pure! {
+    return 42
+}
+
+const val ANSWER: Int = answer()
