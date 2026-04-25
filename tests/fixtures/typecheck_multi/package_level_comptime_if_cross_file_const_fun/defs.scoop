@@ -1,0 +1,9 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.package_level_comptime_if_cross_file_const_fun
+
+import scoop.core.*
+
+const fun truthy<T>(value: T): Bool {
+    return true
+}

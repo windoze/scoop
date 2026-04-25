@@ -4483,11 +4483,20 @@ fun demo(flag: Bool): Int {
 
         let mut asts = Vec::with_capacity(input_sources.len());
         for source in &input_sources {
-            let mut ast = parse_file(source).unwrap();
-            crate::comptime::trim_package_level_comptime_ifs(source, &mut ast).unwrap();
+            let ast = parse_file(source).unwrap();
             crate::typecheck::check_file_headers(source, &ast).unwrap();
             crate::typecheck::check_file_struct_decls(source, &ast).unwrap();
             asts.push(ast);
+        }
+        {
+            let source_refs = input_sources.iter().collect::<Vec<_>>();
+            let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
+            crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+                session.sysroot(),
+                &source_refs,
+                &mut ast_refs,
+            )
+            .unwrap();
         }
 
         let index = {

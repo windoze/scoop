@@ -94,11 +94,9 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     let mut prepared_sysroot: Vec<PreparedConstEvalFile<'a>> =
         Vec::with_capacity(sysroot.files.len());
     for f in &sysroot.files {
-        let mut ast = f.ast.clone();
-        trim_package_level_comptime_ifs(&f.source, &mut ast)?;
         prepared_sysroot.push(PreparedConstEvalFile {
             source: &f.source,
-            ast,
+            ast: f.ast.clone(),
         });
     }
 
@@ -147,9 +145,14 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
             trim_sources.push(file.source);
             trim_files.push(&mut file.ast);
         }
-        trim_package_level_comptime_ifs_in_compilation_unit(
-            sysroot,
-            &trim_sources,
+        let indexed_sources = trim_sources
+            .iter()
+            .copied()
+            .map(|source| (crate::resolve::ConeId::DEFAULT, source))
+            .collect::<Vec<_>>();
+        trim_package_level_comptime_ifs_in_indexed_compilation_unit(
+            &[],
+            &indexed_sources,
             &mut trim_files,
         )?;
     }
@@ -340,6 +343,38 @@ pub fn trim_package_level_comptime_ifs_in_compilation_unit(
     sources: &[&SourceFile],
     files: &mut [&mut ast::File],
 ) -> Result<(), ConstEvalError> {
+    let ambient_files = sysroot
+        .files
+        .iter()
+        .map(|file| crate::resolve::IndexedFile {
+            cone: crate::resolve::ConeId::DEFAULT,
+            source: &file.source,
+            file: &file.ast,
+        })
+        .collect::<Vec<_>>();
+    let indexed_sources = sources
+        .iter()
+        .copied()
+        .map(|source| (crate::resolve::ConeId::DEFAULT, source))
+        .collect::<Vec<_>>();
+    trim_package_level_comptime_ifs_in_indexed_compilation_unit(
+        &ambient_files,
+        &indexed_sources,
+        files,
+    )
+}
+
+/// 在共享 visible-unit / cone 上下文中裁剪 package-level `comptime if`。
+///
+/// 说明：
+/// - `ambient_files` 表示“始终可见、但本次不需要再次裁剪”的源集（例如已加载的 sysroot 或外层 source set）；
+/// - `sources + files` 表示“本次需要被裁剪的文件集合”，二者按位置一一对应；
+/// - `sources` 携带 cone id，用于让 pre-trim probe 与正式 build/typecheck 的可见性边界保持一致。
+pub fn trim_package_level_comptime_ifs_in_indexed_compilation_unit(
+    ambient_files: &[crate::resolve::IndexedFile<'_>],
+    sources: &[(crate::resolve::ConeId, &SourceFile)],
+    files: &mut [&mut ast::File],
+) -> Result<(), ConstEvalError> {
     assert_eq!(
         sources.len(),
         files.len(),
@@ -366,9 +401,9 @@ pub fn trim_package_level_comptime_ifs_in_compilation_unit(
     for _ in 0..max_passes {
         let mut changed = false;
 
-        for (idx, source) in sources.iter().copied().enumerate() {
+        for (idx, (_, source)) in sources.iter().copied().enumerate() {
             let ctx = CompilationUnitTrimContext {
-                sysroot,
+                ambient_files,
                 sources,
                 visible_files: &visible_files,
                 current_file_idx: idx,
@@ -416,7 +451,7 @@ fn trim_package_level_comptime_ifs_with_unit_ctx<'a>(
         );
         interp.register_file(source, file);
         if let Some(ctx) = unit_ctx {
-            for (other_idx, other_source) in ctx.sources.iter().copied().enumerate() {
+            for (other_idx, (_, other_source)) in ctx.sources.iter().copied().enumerate() {
                 if other_idx == ctx.current_file_idx {
                     continue;
                 }
@@ -528,8 +563,8 @@ fn build_visible_file_for_binding_refresh(
 }
 
 struct CompilationUnitTrimContext<'a> {
-    sysroot: &'a crate::sysroot::Sysroot,
-    sources: &'a [&'a SourceFile],
+    ambient_files: &'a [crate::resolve::IndexedFile<'a>],
+    sources: &'a [(crate::resolve::ConeId, &'a SourceFile)],
     visible_files: &'a [ast::File],
     current_file_idx: usize,
 }
@@ -551,24 +586,30 @@ impl<'a> CompilationUnitTrimContext<'a> {
             probe_cond,
         );
 
-        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
+        for ((_, source), ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
             crate::typecheck::check_file_headers(source, ast).map_err(frontend_diagnostic)?;
             crate::typecheck::check_file_struct_decls(source, ast).map_err(frontend_diagnostic)?;
         }
 
-        let mut pairs: Vec<(&SourceFile, &ast::File)> =
-            Vec::with_capacity(self.sysroot.files.len() + probe_asts.len());
-        for file in &self.sysroot.files {
-            pairs.push((&file.source, &file.ast));
-        }
-        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
-            pairs.push((source, ast));
+        let mut indexed: Vec<crate::resolve::IndexedFile<'_>> =
+            Vec::with_capacity(self.ambient_files.len() + probe_asts.len());
+        indexed.extend(self.ambient_files.iter().copied());
+        for ((cone, source), ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
+            indexed.push(crate::resolve::IndexedFile {
+                cone,
+                source,
+                file: ast,
+            });
         }
 
-        let index = crate::resolve::Index::build(&pairs).map_err(frontend_diagnostic)?;
-        let mut env = crate::typecheck::TypeEnv::from_sysroot(self.sysroot, &index)
-            .map_err(frontend_diagnostic)?;
-        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
+        let index =
+            crate::resolve::Index::build_with_cones(&indexed).map_err(frontend_diagnostic)?;
+        let mut env = crate::typecheck::TypeEnv::default();
+        for file in self.ambient_files.iter().copied() {
+            env.extend_from_file(file.source, file.file, &index)
+                .map_err(frontend_diagnostic)?;
+        }
+        for ((_, source), ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
             env.extend_from_file(source, ast, &index)
                 .map_err(frontend_diagnostic)?;
         }
@@ -576,7 +617,7 @@ impl<'a> CompilationUnitTrimContext<'a> {
         let mut types = crate::ty::TypeStore::new();
         let builtins = types.intern_builtins();
 
-        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter_mut()) {
+        for ((_, source), ast) in self.sources.iter().copied().zip(probe_asts.iter_mut()) {
             let headers = crate::resolve::check_file_headers(source, ast, &index)
                 .map_err(frontend_diagnostic)?;
             crate::resolve::check_file_bodies(source, ast, &index, &headers)
@@ -650,7 +691,7 @@ impl<'a> CompilationUnitTrimContext<'a> {
         }
 
         let mut overrides: HashMap<(PathBuf, Span), ast::TopLevelFunCallBinding> = HashMap::new();
-        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
+        for ((_, source), ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
             let path = source.path().to_path_buf();
             for (span, binding) in ast.top_level_fun_call_bindings.borrow().iter() {
                 overrides.insert((path.clone(), *span), binding.clone());

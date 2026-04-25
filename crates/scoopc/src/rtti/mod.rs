@@ -196,7 +196,15 @@ impl RttiContext {
     fn build(session: &Session, source: &SourceFile) -> Result<Self, RttiError> {
         // 1) parse + 最小声明检查（不依赖 index/resolver）。
         let mut file = parse_file(source)?;
-        crate::comptime::trim_package_level_comptime_ifs(source, &mut file)?;
+        {
+            let sources = [source];
+            let mut files = [&mut file];
+            crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+                session.sysroot(),
+                &sources,
+                &mut files,
+            )?;
+        }
         crate::typecheck::check_file_headers(source, &file)?;
         crate::typecheck::check_file_struct_decls(source, &file)?;
 

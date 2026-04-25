@@ -165,7 +165,15 @@ pub fn lower_for_dump(
 ) -> MonomorphLowerResult<LoweredMonomorphMir> {
     // 1) parse + headers 预检查（不依赖 resolver/index）
     let mut file = parse_file(source)?;
-    crate::comptime::trim_package_level_comptime_ifs(source, &mut file)?;
+    {
+        let sources = [source];
+        let mut files = [&mut file];
+        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &sources,
+            &mut files,
+        )?;
+    }
     typecheck::check_file_headers(source, &file)?;
     typecheck::check_file_struct_decls(source, &file)?;
 

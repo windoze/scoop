@@ -216,10 +216,31 @@ pub fn build_pre_specialize_file_for_cone_sources(
     // 1) parse sources → AST（resolver 会写回绑定结果，因此用可变 Vec 承载）。
     let mut asts = Vec::with_capacity(sources.len());
     for source in sources {
-        let mut ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
-        crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)
-            .map_err(miette::Report::from)?;
+        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
         asts.push(ast);
+    }
+    {
+        let ambient_files = session
+            .sysroot()
+            .files
+            .iter()
+            .map(|file| IndexedFile {
+                cone: ConeId::DEFAULT,
+                source: &file.source,
+                file: &file.ast,
+            })
+            .collect::<Vec<_>>();
+        let indexed_sources = sources
+            .iter()
+            .map(|source| (ConeId::new(1), source))
+            .collect::<Vec<_>>();
+        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
+        crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
+            &ambient_files,
+            &indexed_sources,
+            &mut ast_refs,
+        )
+        .map_err(miette::Report::from)?;
     }
 
     // 2) index：sysroot cone=0，当前 cone=1（与 build/scoopir 导出保持一致）。

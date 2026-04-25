@@ -1871,7 +1871,15 @@ enum ValScope {
 ///    （未覆盖节点用 `Any` 占位）。
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredHir, HirLowerError> {
     let mut ast = parse_file(source)?;
-    crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)?;
+    {
+        let sources = [source];
+        let mut files = [&mut ast];
+        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &sources,
+            &mut files,
+        )?;
+    }
 
     let index = {
         // 注意：`check_file_bodies` 需要 `&mut ast`，因此这里把构建 index 的临时借用放在独立作用域中，
@@ -3098,7 +3106,16 @@ mod tests {
 
     fn lower_typed_single_source_file(sess: &Session, source: &SourceFile) -> LoweredHir {
         let mut ast = parse_file(source).unwrap();
-        crate::comptime::trim_package_level_comptime_ifs(source, &mut ast).unwrap();
+        {
+            let sources = [source];
+            let mut files = [&mut ast];
+            crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+                sess.sysroot(),
+                &sources,
+                &mut files,
+            )
+            .unwrap();
+        }
 
         typecheck::check_file_headers(source, &ast).unwrap();
         typecheck::check_file_struct_decls(source, &ast).unwrap();
@@ -3918,7 +3935,16 @@ fun main(): Int {
             .join("../../tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop");
         let source = SourceFile::load(&fixture_path).unwrap();
         let mut ast = parse_file(&source).unwrap();
-        crate::comptime::trim_package_level_comptime_ifs(&source, &mut ast).unwrap();
+        {
+            let sources = [&source];
+            let mut files = [&mut ast];
+            crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+                sess.sysroot(),
+                &sources,
+                &mut files,
+            )
+            .unwrap();
+        }
 
         typecheck::check_file_headers(&source, &ast).unwrap();
         typecheck::check_file_struct_decls(&source, &ast).unwrap();

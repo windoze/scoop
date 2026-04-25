@@ -1164,12 +1164,15 @@
 
 ## T4015：const / comptime 扩展
 
-### T4015 [TODO] 将 const/comptime 从最小纯算术子集扩到可用的纯计算模型（拆分执行）
+### T4015 [DONE] 将 const/comptime 从最小纯算术子集扩到可用的纯计算模型（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 12 条把当前限制拆成三层：generic `const fun` 的实例化 / type-substitution 仍未接通；常量 evaluator / interpreter 仍只覆盖很窄的纯表达式子集；header phase 仍对 effect row / `eff` 参数采取一刀切早退。
   - 这三层依赖顺序不同，因此拆分为 `T4015a -> T4015b -> T4015c -> T1220b -> T4015R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 12 条收窄或关闭。
+- 已完成：
+  - `const/comptime` 主线现已覆盖 compilation-unit / cross-file / generic / package-level `comptime if` 的 typechecked 调用绑定、ordinary control flow 解释执行，以及声明级 `/ Pure` / `/ Pure!` contract；`ISSUES.md` 第 12 条已收窄到更复杂纯语义的剩余缺口。
+  - `T4015R` 复审期间额外修复了多个既有入口仍停留在单文件 trim 的问题；package-level `comptime if` 现已在 sysroot、top-level index、多文件 fixtures、cone 导出/预专门化/visibility、HIR/MIR dump 与 RTTI 路径上统一复用 visible-unit binding refresh。
 - 依赖：T4014R
 
 ### T4015a [DONE] 收口 `const fun` 的解析 / 选择 / 跨文件调用主线（拆分执行）
@@ -1273,11 +1276,29 @@
   - 旧实现签名 `trim_package_level_comptime_ifs(source, file)` 也意味着 imported / cross-file const 调用缺少可见性上下文；本轮已通过 compilation-unit trim 入口一并收口。
 - 依赖：T4015c
 
-### T4015R [TODO] Review：确认 const/comptime 不再只靠“同文件 + 名字/参数个数 + 字面量求值”的最小旁路
+### T4015R [DONE] Review：确认 const/comptime 不再只靠“同文件 + 名字/参数个数 + 字面量求值”的最小旁路
 - 说明：
   - 在开始本条 review 时，已通过 package-level `comptime if` probe 发现 pre-trim 条件求值仍会回退到旧的单文件 simple-name/arity 路径，因此先前插 `T1220b`。
   - 本条改为在 `T1220b` 完成后，重新复审整个 const/comptime 主线是否还残留类似旧旁路。
 - 重点：
   - 不允许在 parser/typecheck 接受更多语法后，解释器仍偷偷回退到最小选择模型。
   - comptime 的“纯计算”边界必须由统一 contract 说明，而不是散落在多个早期 gate 里。
+- 结论：
+  - 复扫 `crates/scoopc/src/comptime/*`、`typecheck/headers.rs`、`build.rs` 与 `llvm/frontend.rs` 后，顶层 `const fun` 调用、generic type args/type-substitution、package-level `comptime if` 条件与 ordinary control flow 解释执行均已建立在 resolve/typecheck 绑定与统一 pure contract 上，不再只靠 same-file + name/arity + literal-eval 的最小旁路。
+  - review 期间额外发现并修复了既有缺口：多个 multi-file / cone / sysroot / dump / RTTI / fixture 入口仍直接调用旧 `trim_package_level_comptime_ifs(...)`，会让 package-level `comptime if` 条件重新丢失 visible-unit binding。现在这些入口已统一切到 cone-aware / visible-unit compilation-unit trim。
+  - `call_const_fun(...)` 的 simple-name + arity fallback 仍作为解释器的局部防御性兜底保留，但显式类型实参、cross-file、imported 与 package-level `comptime if` 主线都已优先走 typechecked binding refresh，不再把 fallback 当成生产主合同。
+- 已新增回归：
+  - `tests/fixtures/typecheck_multi/package_level_comptime_if_cross_file_const_fun/`
+  - `tests/fixtures/typecheck_cone/package_level_comptime_if_cross_cone_const_fun/`
+  - `session::tests::build_top_level_index_trims_package_level_comptime_if_across_source_set`
+  - `cone::scoopir::tests::export_public_api_for_cone_sources_trims_package_level_comptime_if_across_files`
+- 已复验：
+  - `cargo fmt --all`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck_multi/package_level_comptime_if_cross_file_const_fun`
+  - `cargo test -p scoopc package_level_comptime_if_ -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T1220b

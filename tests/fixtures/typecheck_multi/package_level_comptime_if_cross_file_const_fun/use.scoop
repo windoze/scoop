@@ -1,0 +1,19 @@
+// EXPECT: pass
+//
+// T4015R：真实 typecheck_multi 编译单元里，package-level `comptime if` 条件中的
+// cross-file generic `const fun` 调用必须复用 compilation-unit 的 typechecked binding，
+// 不能退回单文件 trim 的 explicit-type-args fallback。
+
+package fixtures.typecheck_multi.package_level_comptime_if_cross_file_const_fun
+
+import scoop.core.*
+
+comptime if (truthy<Int>(1)) {
+    fun selected(): Int {
+        return 7
+    }
+}
+
+fun useSelected(): Int {
+    return selected()
+}

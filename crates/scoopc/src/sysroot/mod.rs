@@ -72,17 +72,30 @@ impl Sysroot {
             }
 
             let source = SourceFile::load(&path)?;
-            let mut ast = crate::parser::parse_file(&source)
+            let ast = crate::parser::parse_file(&source)
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
-            crate::comptime::trim_package_level_comptime_ifs(&source, &mut ast).wrap_err_with(
-                || {
-                    format!(
-                        "裁剪 sysroot 文件的 package-level comptime if 失败：{}",
-                        path.display()
-                    )
-                },
-            )?;
             files.push(SysrootFile { path, source, ast });
+        }
+
+        {
+            let source_clones = files
+                .iter()
+                .map(|file| file.source.clone())
+                .collect::<Vec<_>>();
+            let indexed_sources = source_clones
+                .iter()
+                .map(|source| (crate::resolve::ConeId::DEFAULT, source))
+                .collect::<Vec<_>>();
+            let mut ast_refs = files
+                .iter_mut()
+                .map(|file| &mut file.ast)
+                .collect::<Vec<_>>();
+            crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
+                &[],
+                &indexed_sources,
+                &mut ast_refs,
+            )
+            .wrap_err("裁剪 sysroot compilation-unit 的 package-level comptime if 失败")?;
         }
 
         Ok(Self {

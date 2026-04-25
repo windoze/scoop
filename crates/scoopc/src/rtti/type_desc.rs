@@ -352,7 +352,15 @@ fn collect_precise_runtime_class_itables(
     source: &SourceFile,
 ) -> Result<crate::itable::ClassItableIndex, TypeDescError> {
     let mut ast = session.parse(source)?;
-    crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)?;
+    {
+        let sources = [source];
+        let mut files = [&mut ast];
+        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &sources,
+            &mut files,
+        )?;
+    }
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
     for f in &session.sysroot().files {
@@ -455,7 +463,15 @@ fn collect_interface_descs_and_class_vtables(
     // - 这里刻意不复用 `hir::lower_for_dump` 内部构建的 index/AST，避免把内部实现细节泄漏到 API。
     // - interface slot table 的提取只依赖声明头与成员列表，不依赖 body 的 resolver 注入信息。
     let mut ast = session.parse(source)?;
-    crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)?;
+    {
+        let sources = [source];
+        let mut files = [&mut ast];
+        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &sources,
+            &mut files,
+        )?;
+    }
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
     for f in &session.sysroot().files {

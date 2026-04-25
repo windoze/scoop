@@ -5,7 +5,7 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::typecheck::TypeEnv;
 
-use super::export_public_api_for_source;
+use super::{export_public_api_for_cone_sources, export_public_api_for_source};
 
 #[test]
 fn scoopir_fixture_public_api_filter_golden() {
@@ -60,4 +60,25 @@ fn scoopir_fixture_package_level_comptime_if_public_api_trimmed_golden() {
     let expected = std::fs::read_to_string(&golden_path).unwrap();
 
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn export_public_api_for_cone_sources_trims_package_level_comptime_if_across_files() {
+    let sess = Session::new().unwrap();
+    let defs = SourceFile::new_virtual(
+        "<defs>",
+        "package fixtures.scoopir.multi\nimport scoop.core.*\nconst fun truthy<T>(value: T): Bool { return true }\n",
+    );
+    let main = SourceFile::new_virtual(
+        "<main>",
+        "package fixtures.scoopir.multi\nimport scoop.core.*\ncomptime if (truthy<Int>(1)) {\n    public fun selected(): Int { return 7 }\n}\n",
+    );
+
+    let ir = export_public_api_for_cone_sources(&sess, &[defs, main]).unwrap();
+    assert!(
+        ir.funs
+            .iter()
+            .any(|fun| fun.fqn == "fixtures.scoopir.multi.selected"),
+        "被选中的 package-level comptime if 分支应出现在多源 cone 导出的 public API 中"
+    );
 }
