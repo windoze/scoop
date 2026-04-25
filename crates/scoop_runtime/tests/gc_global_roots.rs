@@ -1,5 +1,6 @@
 // 强制链接本 package 的 `scoop_runtime` crate，确保其 build.rs 输出的 native link args 生效。
 use scoop_runtime as _;
+use scoop_runtime::gc_backend::{GC_BACKEND, GC_CAPABILITIES};
 
 use core::ffi::c_void;
 use core::ptr;
@@ -99,28 +100,34 @@ fn gc_registered_global_root_keeps_object_alive_and_slot_stays_live() {
             &root_slot_type_desc,
         );
 
-        std::env::set_var("SCOOP_GC_MOVE", "1");
-        scoop_gc_collect();
-        std::env::remove_var("SCOOP_GC_MOVE");
+        if GC_CAPABILITIES.precise_roots_update {
+            std::env::set_var("SCOOP_GC_MOVE", "1");
+            scoop_gc_collect();
+            std::env::remove_var("SCOOP_GC_MOVE");
+        } else {
+            // 非 moving backend 仅验证“注册的 global root 能保活/回收”这一接口契约。
+            scoop_gc_collect();
+        }
 
         assert_eq!(
             scoop_gc_debug_heap_object_count(),
             1,
-            "registered global root should keep exactly one live object after collect"
+            "registered global root should keep exactly one live object after collect; backend={GC_BACKEND:?}"
         );
 
         let rooted_after_gc = GLOBAL_ROOT_SLOT;
         assert!(
             !rooted_after_gc.is_null(),
-            "global root slot must still point at a live object after collect"
+            "global root slot must still point at a live object after collect; backend={GC_BACKEND:?}"
         );
 
-        // moving GC 下若 slot 未被 fixup，这里会因 heap membership 校验失败而返回 0。
         let handle = scoop_handle_new(rooted_after_gc);
-        assert_ne!(
-            handle, 0,
+        let handle_error = if GC_CAPABILITIES.precise_roots_update {
             "global root slot must be updated to the live object address after collect"
-        );
+        } else {
+            "global root slot must still reference a live object after collect"
+        };
+        assert_ne!(handle, 0, "{handle_error}");
         assert_eq!(scoop_handle_drop(handle), 1);
 
         GLOBAL_ROOT_SLOT = ptr::null_mut();
