@@ -588,6 +588,23 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000d2 在 MIR 中显式表达 VirtualCall / InterfaceCall / Resume`。
+- 2026-04-26：`T5000d2 在 MIR 中显式表达 VirtualCall / InterfaceCall / Resume` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/mir/mod.rs` 新增 `DispatchMetadata`、`ResumeMetadata`，并将 `CallKind` 扩展为 `Virtual / Interface / Resume`；普通调用与动态分派/continuation resume 现统一落在同一 `Rvalue::Call` 层级。
+    - `crates/scoopc/src/mir/lower.rs` 新增 `MirLoweringFacts`，从 typed/shared HIR facts 收口 class / interface dispatch 目标与 `Continuation.resume` side table；`lower_call_expr` 现会显式 lowering 为 `VirtualCall`、`InterfaceCall`、`Resume`，不再依赖 HIR `MemberAccess` 语法形状回猜。
+    - `crates/scoopc/src/hir/lower/mod.rs` 新增 `lower_typed_for_dump(...)`，`crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/monomorph/lower.rs`、`crates/scoopc/src/cone/pre_specialize.rs` 现统一走带 facts 的 typed dump 路径；新 MIR fixture `tests/fixtures/mir/dispatch_and_resume_call.{scoop,mir}` 与 monomorph 单测共同确认这些调用形态在 dump / 实例化后仍可稳定观察。
+  - 过程中优先修复的既有阻塞点：
+    - 原先 `hir::lower_for_dump(...)` 只提供未携带 typed facts 的 HIR，导致 `Continuation.resume`、late-bound member resolution 与 typed effect payload 无法稳定进入 MIR dump / monomorph 路径；现已补上 typed dump lowering 并接回所有相关消费者。
+    - 新增 typed-lowering 错误变体后，`crates/scoopc/src/hir/lower/types.rs` 的 `HirLowerError` 触发 `clippy::result_large_err`；现已将相关 typecheck 错误变体装箱并手写 `From` 转换，恢复 lint 通过。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo test -p scoopc monomorph::lower`
+    - `cargo test -p scoop --test t1124_incremental_cone_run -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000d2R Review：确认动态分派与 Resume 已成为 MIR 一等节点`。
 
 ## 1. 当前判断
 

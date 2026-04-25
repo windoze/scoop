@@ -2062,6 +2062,92 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     })
 }
 
+/// 为需要 typed HIR 事实的调试入口生成 HIR。
+///
+/// 与 `lower_for_dump` 的区别：
+/// - 这里会运行 typecheck（annotations / type refs / exprs）并消费 AST side tables；
+/// - 用于 `dump-mir` / MIR fixtures 这类需要 `Continuation.resume`、late-bound member
+///   resolution、effect payload binding 等 typed 事实的路径。
+pub fn lower_typed_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<LoweredHir, HirLowerError> {
+    let mut ast = parse_file(source)?;
+    {
+        let sources = [source];
+        let mut files = [&mut ast];
+        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &sources,
+            &mut files,
+        )?;
+    }
+
+    crate::typecheck::check_file_headers(source, &ast)?;
+    crate::typecheck::check_file_struct_decls(source, &ast)?;
+
+    let index = {
+        let mut compilation_unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            compilation_unit.push((&file.source, &file.ast));
+        }
+        compilation_unit.push((source, &ast));
+        Index::build(&compilation_unit)?
+    };
+
+    let headers = crate::resolve::check_file_headers(source, &ast, &index)?;
+    crate::resolve::check_file_bodies(source, &mut ast, &index, &headers)?;
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)?;
+    env.extend_from_file(source, &ast, &index)?;
+
+    let mut typecheck_types = TypeStore::new();
+    let builtins = typecheck_types.intern_builtins();
+    crate::typecheck::check_file_annotations(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_type_refs(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_exprs(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )?;
+
+    let mut compilation_unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        compilation_unit.push((&file.source, &file.ast));
+    }
+    compilation_unit.push((source, &ast));
+    let files_to_lower = [(source, &ast)];
+
+    lower_for_compilation_unit_multi_files_with_type_env(
+        &index,
+        &compilation_unit,
+        &files_to_lower,
+        &[],
+        Some(&env),
+        &typecheck_types,
+    )
+}
+
 /// 在“给定编译单元（多个源文件）”的上下文中，为其中一个文件生成 HIR。
 ///
 /// 用途：

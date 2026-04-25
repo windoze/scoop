@@ -282,6 +282,14 @@ pub fn build_pre_specialize_file_for_cone_sources(
         compilation_unit.push((source, ast));
     }
     let type_kinds = collect_type_decl_kinds(&compilation_unit);
+    let class_vtables = crate::vtable::collect_class_vtables(&compilation_unit, &index)
+        .map_err(miette::Report::from)?;
+    let (interfaces, _class_itables) = crate::itable::collect_interfaces_and_class_itables(
+        &compilation_unit,
+        &index,
+        &class_vtables,
+    )
+    .map_err(miette::Report::from)?;
 
     // 5) 扫描顶层 fun decls：FQN → (decl_source_idx, decl_ptr)。
     let fun_decl_index = index_compilation_unit_fun_decls(sources, &asts);
@@ -350,7 +358,14 @@ pub fn build_pre_specialize_file_for_cone_sources(
         let hir_file = hir::File {
             items: vec![hir::Item::Fun(hir_fun)],
         };
-        let mir_file = mir::lower_hir_file_for_dump(builtins, &mut types, &hir_file);
+        let mir_facts = mir::MirLoweringFacts::from_dispatch_tables_and_resume_spans(
+            &class_vtables,
+            &interfaces,
+            file.continuation_resume_call_sites(),
+            file.non_pure_continuation_resume_call_sites(),
+        );
+        let mir_file =
+            mir::lower_hir_file_for_dump_with_facts(builtins, &mut types, &hir_file, &mir_facts);
 
         out_funs.push(PreSpecializedFunInstance {
             key: PreSpecializedFunKey {

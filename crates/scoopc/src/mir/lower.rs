@@ -17,10 +17,111 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use super::{
-    BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, File, FunDecl, HandlerArm, Item,
-    LocalDecl, LocalId, Operand, Param, Rvalue, Statement, StatementKind, Terminator,
-    TerminatorKind, UnwindAction,
+    BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
+    HandlerArm, Item, LocalDecl, LocalId, Operand, Param, ResumeMetadata, Rvalue, Statement,
+    StatementKind, Terminator, TerminatorKind, UnwindAction,
 };
+
+/// MIR lowering 需要消费的最小共享事实。
+///
+/// 目标：
+/// - 把 HIR/typecheck 已确认的调用语义收口成 MIR lowering 可直接查询的 backend-agnostic 输入；
+/// - 避免 MIR 阶段重新回到 LLVM vtable/itable 细节或 `Continuation.resume` 名字推断。
+#[derive(Debug, Clone, Default)]
+pub(crate) struct MirLoweringFacts {
+    dispatch_targets: HashMap<DispatchTargetKey, DispatchTargetKind>,
+    continuation_resume_call_spans: HashSet<Span>,
+    non_pure_continuation_resume_call_spans: HashSet<Span>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct DispatchTargetKey {
+    callee_fqn: String,
+    explicit_arg_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DispatchTargetKind {
+    Virtual,
+    Interface,
+}
+
+impl MirLoweringFacts {
+    pub(crate) fn from_dispatch_tables_and_resume_spans(
+        class_vtables: &crate::vtable::ClassVtableIndex,
+        interfaces: &crate::itable::InterfaceIndex,
+        continuation_resume_call_spans: impl IntoIterator<Item = Span>,
+        non_pure_continuation_resume_call_spans: impl IntoIterator<Item = Span>,
+    ) -> Self {
+        let mut facts = Self::default();
+
+        for (owner_fqn, slots) in class_vtables {
+            for slot in slots {
+                facts.dispatch_targets.insert(
+                    DispatchTargetKey {
+                        callee_fqn: format!("{owner_fqn}.{}", slot.name),
+                        explicit_arg_count: slot.params_len as usize,
+                    },
+                    DispatchTargetKind::Virtual,
+                );
+            }
+        }
+
+        for (owner_fqn, iface) in interfaces {
+            for slot in &iface.method_slots {
+                facts.dispatch_targets.insert(
+                    DispatchTargetKey {
+                        callee_fqn: format!("{owner_fqn}.{}", slot.name),
+                        explicit_arg_count: slot.params_len as usize,
+                    },
+                    DispatchTargetKind::Interface,
+                );
+            }
+        }
+
+        facts.continuation_resume_call_spans = continuation_resume_call_spans.into_iter().collect();
+        facts.non_pure_continuation_resume_call_spans = non_pure_continuation_resume_call_spans
+            .into_iter()
+            .collect();
+        facts
+    }
+
+    pub(crate) fn from_lowered_hir(lowered: &hir::LoweredHir) -> Self {
+        Self::from_dispatch_tables_and_resume_spans(
+            &lowered.class_vtables,
+            &lowered.interfaces,
+            lowered
+                .continuation_resume_call_sites
+                .iter()
+                .map(|site| site.span),
+            lowered
+                .non_pure_continuation_resume_call_sites
+                .iter()
+                .map(|site| site.span),
+        )
+    }
+
+    fn dispatch_target_kind(
+        &self,
+        callee_fqn: &str,
+        explicit_arg_count: usize,
+    ) -> Option<DispatchTargetKind> {
+        self.dispatch_targets
+            .get(&DispatchTargetKey {
+                callee_fqn: callee_fqn.to_string(),
+                explicit_arg_count,
+            })
+            .copied()
+    }
+
+    fn is_continuation_resume_call(&self, span: Span) -> bool {
+        self.continuation_resume_call_spans.contains(&span)
+    }
+
+    fn continuation_resume_suspends_outward(&self, span: Span) -> bool {
+        self.non_pure_continuation_resume_call_spans.contains(&span)
+    }
+}
 
 /// MIR lowering 错误（当前阶段仅包装 HIR lowering 错误）。
 #[derive(Debug, Error, Diagnostic)]
@@ -53,30 +154,35 @@ const CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
 /// 1) parse/resolve 源文件并降到 HIR（复用 `hir::lower_for_dump`）；
 /// 2) 把 HIR 再降到 MIR（本文件实现），并生成显式 CFG。
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredMir, MirLowerError> {
-    let mut lowered_hir = hir::lower_for_dump(session, source)?;
+    let mut lowered_hir = hir::lower_typed_for_dump(session, source)?;
     let builtins = lowered_hir.types.intern_builtins();
+    let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
 
-    let file = {
-        let mut lowering = MirLowering::new(builtins, &mut lowered_hir.types);
-        lowering.lower_file(&lowered_hir.file)
-    };
+    let file = lower_hir_file_for_dump_with_facts(
+        builtins,
+        &mut lowered_hir.types,
+        &lowered_hir.file,
+        &facts,
+    );
     Ok(LoweredMir {
         file,
         types: lowered_hir.types,
     })
 }
 
-/// 将一份已构造的 HIR 文件降低为 MIR（供单态化实例生成复用，T0712）。
+/// 将一份已构造的 HIR 文件降低为 MIR，并显式接入 typed/shared facts。
 ///
 /// 说明：
-/// - 与 `lower_for_dump` 不同，该函数不负责 parse/resolve/HIR lowering；
-/// - 调用方需要确保 `hir_file` 中的 `TypeId` 与 `types` 来自同一个 `TypeStore`。
-pub(crate) fn lower_hir_file_for_dump(
+/// - 调用方需要确保 `hir_file` 中的 `TypeId` 与 `types` 来自同一个 `TypeStore`；
+/// - `facts` 负责把 `Continuation.resume`、virtual/interface dispatch 等已确认语义
+///   从 HIR/typecheck side table 收口为 MIR lowering 可直接消费的最小输入。
+pub(crate) fn lower_hir_file_for_dump_with_facts(
     builtins: BuiltinTypes,
     types: &mut TypeStore,
     hir_file: &hir::File,
+    facts: &MirLoweringFacts,
 ) -> File {
-    let mut lowering = MirLowering::new(builtins, types);
+    let mut lowering = MirLowering::new(builtins, types, facts);
     lowering.lower_file(hir_file)
 }
 
@@ -84,12 +190,17 @@ pub(crate) fn lower_hir_file_for_dump(
 struct MirLowering<'a> {
     builtins: BuiltinTypes,
     types: &'a mut TypeStore,
+    facts: &'a MirLoweringFacts,
 }
 
 impl<'a> MirLowering<'a> {
     /// 创建一个 MIR lowering 上下文（仅保存 builtin type ids）。
-    fn new(builtins: BuiltinTypes, types: &'a mut TypeStore) -> Self {
-        Self { builtins, types }
+    fn new(builtins: BuiltinTypes, types: &'a mut TypeStore, facts: &'a MirLoweringFacts) -> Self {
+        Self {
+            builtins,
+            types,
+            facts,
+        }
     }
 
     /// 把 HIR 文件降到 MIR 文件。
@@ -114,7 +225,7 @@ impl<'a> MirLowering<'a> {
 
     /// 把一个函数降到 MIR。
     fn lower_fun(&mut self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
-        FnLowering::new(self.builtins, self.types, fun.fqn.clone()).lower_fun(fun)
+        FnLowering::new(self.builtins, self.types, self.facts, fun.fqn.clone()).lower_fun(fun)
     }
 }
 
@@ -123,6 +234,7 @@ impl<'a> MirLowering<'a> {
 struct FnLowering<'a> {
     builtins: BuiltinTypes,
     types: &'a mut TypeStore,
+    facts: &'a MirLoweringFacts,
     owner_fqn: String,
     body: Body,
     current_bb: BasicBlockId,
@@ -167,10 +279,16 @@ struct ClosureCaptureLayout {
 
 impl<'a> FnLowering<'a> {
     /// 创建一个新的函数 lowering builder。
-    fn new(builtins: BuiltinTypes, types: &'a mut TypeStore, owner_fqn: String) -> Self {
+    fn new(
+        builtins: BuiltinTypes,
+        types: &'a mut TypeStore,
+        facts: &'a MirLoweringFacts,
+        owner_fqn: String,
+    ) -> Self {
         Self {
             builtins,
             types,
+            facts,
             owner_fqn,
             body: Body::new_empty(),
             current_bb: BasicBlockId(0),
@@ -716,6 +834,15 @@ impl<'a> FnLowering<'a> {
     ) -> LocalId {
         let result = self.push_temp_local(span, ty);
 
+        if self.facts.is_continuation_resume_call(span) {
+            self.lower_resume_call_expr(span, result, callee, args);
+            return result;
+        }
+
+        if self.lower_dispatch_call_expr(span, result, callee, args) {
+            return result;
+        }
+
         if matches!(callee.kind, hir::ExprKind::MemberAccess { .. }) {
             self.assign(span, result, Rvalue::Todo("dispatch call lowering pending"));
             return result;
@@ -769,6 +896,121 @@ impl<'a> FnLowering<'a> {
 
         self.assign(span, result, Rvalue::Call { kind, args });
         result
+    }
+
+    fn lower_resume_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+    ) {
+        let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind else {
+            self.assign(span, result, Rvalue::Todo("resume callee lowering pending"));
+            return;
+        };
+
+        let continuation_local = self.lower_expr_to_local(receiver);
+        if self.current_is_terminated() {
+            return;
+        }
+
+        let Some(args) = self.lower_call_args(args) else {
+            return;
+        };
+        let continuation_ty = self.body.locals[continuation_local.as_u32() as usize].ty;
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                kind: CallKind::Resume {
+                    continuation: Operand::Local(continuation_local),
+                    resume: ResumeMetadata {
+                        continuation_ty,
+                        suspends_outward: self.facts.continuation_resume_suspends_outward(span),
+                    },
+                },
+                args,
+            },
+        );
+    }
+
+    fn lower_dispatch_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> bool {
+        let dispatch_target = match &callee.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                let explicit_arg_count = match args.len().checked_sub(1) {
+                    Some(count) => count,
+                    None => return false,
+                };
+                let Some(kind) = self.facts.dispatch_target_kind(fqn, explicit_arg_count) else {
+                    return false;
+                };
+                let Some((receiver_arg, remaining_args)) = args.split_first() else {
+                    self.assign(
+                        span,
+                        result,
+                        Rvalue::Todo("dispatch receiver lowering pending"),
+                    );
+                    return true;
+                };
+                let receiver_expr = match receiver_arg {
+                    hir::CallArg::Positional(expr) => expr,
+                    hir::CallArg::Named { value, .. } => value,
+                };
+                (kind, fqn.as_str(), receiver_expr, remaining_args)
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                let Some(hir::MemberRef::Fun { fqn, .. }) = member.resolved.as_ref() else {
+                    return false;
+                };
+                let Some(kind) = self.facts.dispatch_target_kind(fqn, args.len()) else {
+                    return false;
+                };
+                (kind, fqn.as_str(), receiver.as_ref(), args)
+            }
+            _ => return false,
+        };
+
+        let (dispatch_kind, callee_fqn, receiver_expr, call_args) = dispatch_target;
+        let receiver_local = self.lower_expr_to_local(receiver_expr);
+        if self.current_is_terminated() {
+            return true;
+        }
+        let Some(args) = self.lower_call_args(call_args) else {
+            return true;
+        };
+        let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
+        let Some((owner_fqn, member_name)) = callee_fqn.rsplit_once('.') else {
+            self.assign(
+                span,
+                result,
+                Rvalue::Todo("dispatch callee lowering pending"),
+            );
+            return true;
+        };
+        let dispatch = DispatchMetadata {
+            owner_fqn: owner_fqn.to_string(),
+            member_name: member_name.to_string(),
+            receiver_ty,
+        };
+        let kind = match dispatch_kind {
+            DispatchTargetKind::Virtual => CallKind::Virtual {
+                receiver: Operand::Local(receiver_local),
+                dispatch,
+            },
+            DispatchTargetKind::Interface => CallKind::Interface {
+                receiver: Operand::Local(receiver_local),
+                dispatch,
+            },
+        };
+        self.assign(span, result, Rvalue::Call { kind, args });
+        true
     }
 
     fn capture_box_ty(&mut self, inner: TypeId) -> TypeId {
@@ -996,7 +1238,7 @@ impl<'a> FnLowering<'a> {
 
         let (fun, nested) = {
             let types = &mut *self.types;
-            FnLowering::new(self.builtins, types, fqn.clone()).lower_closure_fun(
+            FnLowering::new(self.builtins, types, self.facts, fqn.clone()).lower_closure_fun(
                 fqn.clone(),
                 name,
                 closure,

@@ -1,0 +1,282 @@
+File {
+    items: [
+        Todo {
+            span: 43..114,
+            kind: "type",
+        },
+        Todo {
+            span: 116..154,
+            kind: "type",
+        },
+        Fun(
+            FunDecl {
+                span: 156..209,
+                fqn: "fixtures.mir.callVirtual",
+                name: "callVirtual",
+                ty: TypeId(
+                    11,
+                ),
+                params: [
+                    Param {
+                        span: 172..173,
+                        name: "b",
+                        ty: TypeId(
+                            10,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 172..173,
+                                name: Some(
+                                    "b",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 199..207,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 199..207,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                kind: Virtual {
+                                                    receiver: Local(
+                                                        l0,
+                                                    ),
+                                                    dispatch: DispatchMetadata {
+                                                        owner_fqn: "fixtures.mir.Base",
+                                                        member_name: "ping",
+                                                        receiver_ty: TypeId(
+                                                            10,
+                                                        ),
+                                                    },
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 192..207,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 211..266,
+                fqn: "fixtures.mir.callInterface",
+                name: "callInterface",
+                ty: TypeId(
+                    13,
+                ),
+                params: [
+                    Param {
+                        span: 229..230,
+                        name: "i",
+                        ty: TypeId(
+                            12,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 229..230,
+                                name: Some(
+                                    "i",
+                                ),
+                                ty: TypeId(
+                                    12,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 257..264,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 257..264,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                kind: Interface {
+                                                    receiver: Local(
+                                                        l0,
+                                                    ),
+                                                    dispatch: DispatchMetadata {
+                                                        owner_fqn: "fixtures.mir.IFace",
+                                                        member_name: "foo",
+                                                        receiver_ty: TypeId(
+                                                            12,
+                                                        ),
+                                                    },
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 250..264,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 268..368,
+                fqn: "fixtures.mir.resumeOnce",
+                name: "resumeOnce",
+                ty: TypeId(
+                    17,
+                ),
+                params: [
+                    Param {
+                        span: 283..284,
+                        name: "k",
+                        ty: TypeId(
+                            14,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 283..284,
+                                name: Some(
+                                    "k",
+                                ),
+                                ty: TypeId(
+                                    14,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 355..366,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 364..365,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 364..365,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 355..366,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                kind: Resume {
+                                                    continuation: Local(
+                                                        l0,
+                                                    ),
+                                                    resume: ResumeMetadata {
+                                                        continuation_ty: TypeId(
+                                                            14,
+                                                        ),
+                                                        suspends_outward: false,
+                                                    },
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 364..365,
+                                                        name: None,
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 268..368,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}

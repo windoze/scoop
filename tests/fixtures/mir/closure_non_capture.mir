@@ -30,7 +30,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    11,
                                 ),
                             },
                             LocalDecl {
@@ -39,7 +39,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    5,
                                 ),
                             },
                             LocalDecl {
@@ -147,13 +147,13 @@ File {
                         span: 51..52,
                         name: "x",
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Body {
@@ -173,7 +173,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    5,
                                 ),
                             },
                         ],

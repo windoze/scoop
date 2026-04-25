@@ -15,6 +15,9 @@ use crate::resolve::ResolveError;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeStore};
+use crate::typecheck::{
+    AnnotationError, ExprTypeError, StructDeclError, TypeEnvError, TypeHeaderError, TypeLowerError,
+};
 
 use super::super::{
     ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, DirectSupertypesIndex,
@@ -172,6 +175,66 @@ pub enum HirLowerError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     ItableLayout(#[from] crate::itable::ItableLayoutError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    TypeHeader(Box<TypeHeaderError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    StructDecl(Box<StructDeclError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    TypeEnv(Box<TypeEnvError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Annotation(Box<AnnotationError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    TypeLower(Box<TypeLowerError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ExprType(Box<ExprTypeError>),
+}
+
+impl From<TypeHeaderError> for HirLowerError {
+    fn from(error: TypeHeaderError) -> Self {
+        Self::TypeHeader(Box::new(error))
+    }
+}
+
+impl From<StructDeclError> for HirLowerError {
+    fn from(error: StructDeclError) -> Self {
+        Self::StructDecl(Box::new(error))
+    }
+}
+
+impl From<TypeEnvError> for HirLowerError {
+    fn from(error: TypeEnvError) -> Self {
+        Self::TypeEnv(Box::new(error))
+    }
+}
+
+impl From<AnnotationError> for HirLowerError {
+    fn from(error: AnnotationError) -> Self {
+        Self::Annotation(Box::new(error))
+    }
+}
+
+impl From<TypeLowerError> for HirLowerError {
+    fn from(error: TypeLowerError) -> Self {
+        Self::TypeLower(Box::new(error))
+    }
+}
+
+impl From<ExprTypeError> for HirLowerError {
+    fn from(error: ExprTypeError) -> Self {
+        Self::ExprType(Box::new(error))
+    }
 }
 
 /// 一次 lowering 的产物：HIR + 对应的 `TypeStore`。

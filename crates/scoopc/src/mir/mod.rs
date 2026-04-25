@@ -19,8 +19,8 @@ use std::fmt;
 use crate::span::Span;
 use crate::ty::TypeId;
 
-pub(crate) use lower::lower_hir_file_for_dump;
 pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
+pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 
 /// 一个源文件 lowering 后的 MIR（当前阶段主要用于 dump/fixtures）。
 #[derive(Debug, Clone)]
@@ -289,11 +289,35 @@ pub struct CallArg {
     pub value: Operand,
 }
 
-/// MIR 上显式区分的普通调用种类（当前阶段先覆盖 direct / closure / fun-value）。
+/// virtual / interface dispatch 在 MIR 上保留的最小语言级 metadata。
+///
+/// 注意：
+/// - 这里只保留 receiver 的静态类型与被调成员的声明身份；
+/// - 不把 vtable slot / itable id / runtime thunk 等后端细节编码进 MIR。
+#[derive(Debug, Clone)]
+pub struct DispatchMetadata {
+    pub owner_fqn: String,
+    pub member_name: String,
+    pub receiver_ty: TypeId,
+}
+
+/// `Continuation.resume(...)` 在 MIR 上保留的最小语义 metadata。
+///
+/// 注意：
+/// - 这里只保留 continuation 的静态类型与“resumed body 是否仍可能 outward suspend”；
+/// - runtime replay token / payload transport 等细节仍属于更晚的 lowering 阶段。
+#[derive(Debug, Clone)]
+pub struct ResumeMetadata {
+    pub continuation_ty: TypeId,
+    pub suspends_outward: bool,
+}
+
+/// MIR 上显式区分的调用种类。
 ///
 /// 注意：
 /// - 这里刻意只表达语言级调用形态，不表达 LLVM vtable/itable/statepoint 等后端细节；
-/// - `VirtualCall` / `InterfaceCall` / `Resume` 会在后续 `T5000d2+` 继续接入。
+/// - direct / closure / fun-value / virtual / interface / resume 共用同一调用层级，
+///   避免后续 pass 再回到 HIR 或 LLVM codegen 现场恢复控制转移语义。
 #[derive(Debug, Clone)]
 pub enum CallKind {
     /// 目标函数在 MIR 上已经静态唯一确定。
@@ -304,6 +328,21 @@ pub enum CallKind {
     Closure { callee: Operand, fn_ptr: String },
     /// 调用一个函数值，但当前还不足以把它恢复成更具体的 direct/closure 形态。
     FunValue { callee: Operand },
+    /// class virtual dispatch（语言级“按 receiver 动态分派到 class override”）。
+    Virtual {
+        receiver: Operand,
+        dispatch: DispatchMetadata,
+    },
+    /// interface dispatch（语言级“按 receiver 的 interface 实现做动态分派”）。
+    Interface {
+        receiver: Operand,
+        dispatch: DispatchMetadata,
+    },
+    /// `Continuation.resume(...)`。
+    Resume {
+        continuation: Operand,
+        resume: ResumeMetadata,
+    },
 }
 
 /// 常量值（当前阶段不保留字面量原始内容，仅保留种类）。
@@ -324,8 +363,8 @@ pub enum Rvalue {
     Use(Operand),
     /// 一个显式普通调用节点。
     ///
-    /// 当前阶段只先承载 direct / closure / fun-value 三类普通调用；
-    /// 更晚接入的 `VirtualCall` / `InterfaceCall` / `Resume` 会复用同一调用层级，而不是再造平行表示。
+    /// 当前阶段承载 direct / closure / fun-value / virtual / interface / resume 六类调用；
+    /// 更晚若补更多调用/控制转移语义，也应继续复用同一调用层级，而不是再造平行表示。
     Call {
         kind: CallKind,
         args: Vec<CallArg>,

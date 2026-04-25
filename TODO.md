@@ -639,7 +639,7 @@
   - review 结论：普通调用主线已经从 HIR 语法形状收口为显式 MIR call kind，后续 `T5000d2` 可直接在同一调用节点层级上补 `VirtualCall / InterfaceCall / Resume`，无需再引入平行表示。
   - 已验证 `cargo fmt --all --check`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000d2 在 MIR 中显式表达 `VirtualCall / InterfaceCall / Resume`
+### [DONE] T5000d2 在 MIR 中显式表达 `VirtualCall / InterfaceCall / Resume`
 - 范围：
   - 将剩余依赖 member dispatch 的调用主线从 HIR `MemberAccess` 形状提升为显式 `VirtualCall` / `InterfaceCall`；
   - 为这些调用补上后续优化所需的最小 receiver / dispatch metadata；
@@ -648,6 +648,13 @@
   - MIR 不再需要通过 `MemberAccess` callee 形状隐式推断“这是 virtual/interface 调用”；
   - `Continuation.resume` 在 MIR 上有稳定落点，可供后续 escaping / effect planning 直接消费。
 - 依赖：T5000d1R
+- 完成记录（2026-04-26）：
+  - `crates/scoopc/src/mir/mod.rs` 新增 `DispatchMetadata`、`ResumeMetadata`，并将 `CallKind` 扩展为 `Direct / Closure / FunValue / Virtual / Interface / Resume`；MIR 调用节点现在可直接表达动态分派与 continuation resume，而不再回退到 HIR `MemberAccess` 形状推断。
+  - `crates/scoopc/src/mir/lower.rs` 新增 `MirLoweringFacts`，统一消费 typed/shared HIR facts 中的 class vtable / interface dispatch 目标与 `Continuation.resume` side table，并在 `lower_call_expr` 中显式产出 `Virtual`、`Interface`、`Resume` 调用。
+  - 已修复 dump 路径的既有阻塞点：`crates/scoopc/src/hir/lower/mod.rs` 新增 `lower_typed_for_dump(...)`，`crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/monomorph/lower.rs`、`crates/scoopc/src/cone/pre_specialize.rs` 现统一走带 facts 的 typed lowering，从而让 late-bound member resolution、`Continuation.resume` 与 typed effect payload 信息都能进入 MIR dump / monomorph 路径。
+  - 已新增 `tests/fixtures/mir/dispatch_and_resume_call.{scoop,mir}` 覆盖 `Virtual` / `Interface` / `Resume`，并更新现有 MIR goldens 以匹配 typed dump 的更精确类型信息；`crates/scoopc/src/monomorph/lower.rs` 还新增单测，确认实例化后仍保留 `Virtual` call kind。
+  - 已修复新增 typed-lowering 错误变体导致的 `clippy::result_large_err`：`crates/scoopc/src/hir/lower/types.rs` 中相关 `HirLowerError` 变体已改为装箱并补齐 `From` 转换。
+  - 已验证 `cargo fmt --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test -p scoopc monomorph::lower`、`cargo test -p scoop --test t1124_incremental_cone_run -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000d2R Review：确认动态分派与 `Resume` 已成为 MIR 一等节点
 - 重点：

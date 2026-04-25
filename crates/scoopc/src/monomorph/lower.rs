@@ -69,6 +69,14 @@ pub enum MonomorphLowerError {
     #[diagnostic(transparent)]
     ExprType(#[from] ExprTypeError),
 
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    VtableLayout(#[from] crate::vtable::VtableLayoutError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ItableLayout(#[from] crate::itable::ItableLayoutError),
+
     #[error("单态化实例生成缺少函数声明：{fqn}@{file}:{span:?}")]
     #[diagnostic(code(scoop::monomorph::missing_fun_decl_for_instance))]
     MissingFunDeclForInstance {
@@ -144,6 +152,18 @@ impl From<AnnotationError> for Box<MonomorphLowerError> {
 
 impl From<ExprTypeError> for Box<MonomorphLowerError> {
     fn from(error: ExprTypeError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<crate::vtable::VtableLayoutError> for Box<MonomorphLowerError> {
+    fn from(error: crate::vtable::VtableLayoutError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<crate::itable::ItableLayoutError> for Box<MonomorphLowerError> {
+    fn from(error: crate::itable::ItableLayoutError) -> Self {
         monomorph_lower_err(MonomorphLowerError::from(error))
     }
 }
@@ -232,6 +252,23 @@ pub fn lower_for_dump(
     // 6) 生成实例 MIR（同 key 只生成一次）。
     let fun_index = index_file_fun_decls(source, &file);
     let type_kinds = collect_type_decl_kinds(session, source, &file);
+    let mut compilation_unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for sysroot_file in &session.sysroot().files {
+        compilation_unit.push((&sysroot_file.source, &sysroot_file.ast));
+    }
+    compilation_unit.push((source, &file));
+    let class_vtables = crate::vtable::collect_class_vtables(&compilation_unit, &index)?;
+    let (interfaces, _class_itables) = crate::itable::collect_interfaces_and_class_itables(
+        &compilation_unit,
+        &index,
+        &class_vtables,
+    )?;
+    let mir_facts = crate::mir::MirLoweringFacts::from_dispatch_tables_and_resume_spans(
+        &class_vtables,
+        &interfaces,
+        file.continuation_resume_call_sites(),
+        file.non_pure_continuation_resume_call_sites(),
+    );
 
     let mut seen: HashSet<MonomorphKey> = HashSet::new();
     let mut instances: Vec<(String, crate::mir::File)> = Vec::new();
@@ -304,7 +341,9 @@ pub fn lower_for_dump(
         let hir_file = crate::hir::File {
             items: vec![crate::hir::Item::Fun(hir_fun)],
         };
-        let mir_file = crate::mir::lower_hir_file_for_dump(builtins, &mut types, &hir_file);
+        let mir_file = crate::mir::lower_hir_file_for_dump_with_facts(
+            builtins, &mut types, &hir_file, &mir_facts,
+        );
         instances.push((instance_fqn, mir_file));
     }
 
@@ -442,5 +481,64 @@ fun f() {
             fqn_list.iter().filter(|fqn| fqn.contains("id::<")).count(),
             2
         );
+    }
+
+    #[test]
+    fn monomorph_preserves_virtual_call_kind_in_instantiated_body() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/monomorph_virtual_call.scoop",
+            r#"
+package fixtures.monomorph
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+fun use<T>(marker: T, b: Base): Int {
+    return b.ping()
+}
+
+fun entry(b: Base): Int {
+    return use(1, b)
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::Fun(fun) if fun.fqn.contains("use::<Int>") => Some(fun),
+                _ => None,
+            })
+            .expect("expected monomorphized use::<Int> instance");
+        let body = fun
+            .body
+            .as_ref()
+            .expect("monomorphized instance should have body");
+        let stmt = body.blocks[0]
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Call { kind, .. },
+                    ..
+                } => Some(kind),
+                _ => None,
+            })
+            .expect("expected call in monomorphized body");
+
+        match stmt {
+            crate::mir::CallKind::Virtual { dispatch, .. } => {
+                assert_eq!(dispatch.owner_fqn, "fixtures.monomorph.Base");
+                assert_eq!(dispatch.member_name, "ping");
+            }
+            other => panic!("expected virtual call kind, got {other:?}"),
+        }
     }
 }

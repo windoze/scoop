@@ -39,7 +39,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    3,
                                 ),
                             },
                             LocalDecl {

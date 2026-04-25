@@ -1,46 +1,64 @@
-# 执行计划
+## 2026-04-26 当前执行计划
 
-## 当前目标
+本文件记录本轮执行计划与进度。按系统安全要求，这里提供可审计的执行摘要与步骤，不记录逐字内部推理。
 
-本轮只处理 `TODO.md` 中第一个未完成任务。在开始实现前，先检查最新提交是否提到了已知遗留问题；如果提到，先修复该问题。若在执行过程中发现任何现存缺陷、规格不匹配、实现边界不完整或测试暴露出的旧问题，也必须优先修复，或将其作为前置任务插入 `TODO.md` 后停止。
+### 目标
 
-## 执行步骤
+完成 `TODO.md` 中首个未完成任务 `T5000d2` 的收尾工作，并在确认测试与 lint 通过后提交；本轮不继续处理后续任务。
 
-1. 查看最新一次 git 提交，确认是否明确提到需要先处理的遗留问题。
-2. 读取 `TODO.md`，识别第一个未完成任务。
-3. 读取 `PLAN.md`，理解该任务的上下文、依赖关系和现有拆分情况。
-4. 判断该任务是否过大：
-   - 如果过大，则把它拆分成更小的子任务，更新 `PLAN.md` 和 `TODO.md`，本轮只执行拆分后排在最前面的那个子任务。
-   - 如果存在阻塞该任务的既有问题，则把修复问题的任务插入到 `TODO.md` 中当前任务之前，更新 `PLAN.md`，提交后停止。
-5. 阅读与目标任务直接相关的源码、测试、规范或文档，定位实现点。
-6. 实现该任务，必要时同时修复执行中发现的既有问题。
-7. 运行与改动直接相关的验证：
-   - 至少运行该任务相关测试；
-   - 如有必要，运行更广的回归测试；
-   - 按要求检查格式、lint 和编译告警。
-8. 若测试或验证失败：
-   - 先分析是否为当前改动引入的问题；
-   - 若暴露出既有缺陷，则优先修复；
-   - 修复后重新运行验证。
-9. 完成后更新文档状态：
-   - 在 `TODO.md` 中把本轮完成的任务标记为已完成；
-   - 在 `PLAN.md` 中记录当前进展、调整和后续依赖；
-   - 视进展同步更新本文件。
-10. 检查工作区改动，确认只包含本轮相关修改且不误伤用户已有改动。
-11. 使用清晰的提交信息提交本轮工作，然后停止，不继续处理下一个任务。
+### 已知上下文
 
-## 当前已知约束
+- 前一轮实现已基本完成：MIR 已显式表达 `Virtual` / `Interface` / `Resume` 调用，相关 lowering、typed HIR dump、monomorph 路径和 fixtures 已更新。
+- 已成功跑过：
+  - `cargo fmt --all`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+  - `cargo test -p scoopc monomorph::lower`
+  - `cargo test -p scoop --test t1124_incremental_cone_run -- --nocapture`
+  - `cargo test --all`
+- 尚未完成：
+  - 顺序重跑 `cargo clippy --all-targets -- -D warnings`
+  - 将最终状态回写到 `TODO.md`、`PLAN.md`、本文件
+  - 提交 git commit
 
-- 不允许通过规避、弱化测试、改变目标表示或添加临时分支来绕过问题。
-- 如果需要修改文件，优先做最小且正确的实现，并补充必要测试。
-- 如果发现所有任务都已完成，则转为最终检查、必要修正、提交，并创建 `v0.1.0` 标签。
+### 执行步骤
 
-## 进度记录
+1. 查看最新提交信息，确认是否提到需要先修复的既有问题。
+2. 检查当前工作区状态，确认前一轮修改是否仍在。
+3. 顺序运行 `cargo clippy --all-targets -- -D warnings`。
+4. 如果 `clippy` 报错：
+   - 修复问题；
+   - 重新运行 `cargo fmt --all`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+5. 如果 `clippy` 通过：
+   - 检查 `TODO.md` 首个未完成任务仍为 `T5000d2`；
+   - 更新 `TODO.md` 为已完成；
+   - 更新 `PLAN.md` 记录完成情况与下一个任务；
+   - 更新本文件记录完成状态。
+6. 使用与任务一致的提交信息提交本轮改动，然后停止。
 
-- 已完成：初始执行计划写入。
-- 已完成：检查最新提交正文；最新提交 `[T5000d1] Lower explicit MIR call kinds` 未在提交正文中额外点名需要先修复的遗留问题。
-- 已完成：读取 `TODO.md` / `PLAN.md`，确认第一个未完成任务是 `T5000d1R Review：确认普通调用主线已从 HIR 语法形状收口为显式 MIR call kind`。
-- 已完成：初步复核 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/hir/lower/expr.rs` 与相关 MIR fixtures，当前未见 LLVM/backend 细节倒灌到 MIR 表示层。
-- 已完成：`cargo fmt --all --check`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过，未暴露需要前插修复的新缺陷。
-- 已完成：将 `T5000d1R` 标记为完成，并把 review 结论写回 `TODO.md` / `PLAN.md`。
-- 下一步：检查改动、提交本轮仅包含 review 记录的变更，然后停止。
+### 风险与约束
+
+- 所有 `cargo` 命令必须顺序执行，避免并行污染 `t1124_incremental_cone_run` 的缓存命中断言。
+- 若在验证过程中发现既有 bug / 规格不匹配，必须先修复或把前置任务插入 `TODO.md` 后停止，不能绕过。
+
+### 进度
+
+- [x] 初始计划写入
+- [x] 查看最新提交
+- [x] 顺序运行 clippy
+- [x] 回写 TODO / PLAN / memory
+- [ ] 提交并停止
+
+### 执行记录
+
+- 已检查最新提交：`[T5000d1R] Review explicit MIR call kinds`，提交标题与正文均未提到需要优先处理的既有缺陷。
+- 已确认 `TODO.md` 首个未完成任务仍为 `T5000d2`，因此本轮继续对该任务做收尾验证与回写。
+- 已顺序运行 `cargo clippy --all-targets -- -D warnings`，通过。
+- 已将 `T5000d2` 的完成记录写回 `TODO.md` 与 `PLAN.md`，并记录了本轮中途修复的两个真实阻塞点：
+  - dump 路径缺少 typed facts，导致 `Virtual` / `Interface` / `Resume` 无法稳定进入 MIR dump / monomorph 路径；
+  - `HirLowerError` 过大触发 `clippy::result_large_err`。
+
+### 当前状态
+
+- 剩余动作只有一次提交：
+  - 计划提交信息：`[T5000d2] Lower Virtual/Interface/Resume into MIR`
+  - 提交后立即停止，不继续处理 `T5000d2R`
