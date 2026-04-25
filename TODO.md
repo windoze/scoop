@@ -30,7 +30,7 @@
 
 ## T5000：建立 early MIR / ANF 优化基线，并把 LLVM codegen 收口到正确边界
 
-### T5000a 建立编译器性能与 codegen 边界基线
+### [x] T5000a 建立编译器性能与 codegen 边界基线
 - 范围：
   - 用当前代码库建立一份最小但可复验的 baseline，至少覆盖：
     - `llvm/codegen` 的主要巨型文件与职责簇；
@@ -42,6 +42,9 @@
   - 能明确回答“当前最主要的 codegen 边界错位在哪里”“当前编译器自身最可能的固定成本热点在哪里”。
   - 后续任务可引用统一 baseline，而不需要每轮重新做一遍同类调查。
 - 依赖：无
+- 完成记录（2026-04-25）：
+  - baseline 已统一固化到 `OPTIMIZATION.md` 第 0、10、11 节；
+  - 已记录巨型模块/职责簇、`MainCodegen::new` 重复构造点、`-O0` / debug build 固定成本、reachability / eager inclusion / codegen 查询重复工作及其 guardrail。
 
 ### T5000aR Review：确认 baseline 已足够支撑后续实现顺序
 - 重点：

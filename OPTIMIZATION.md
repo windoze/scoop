@@ -4,6 +4,134 @@
 > 目标：引入一个最小 early MIR / ANF 作为中端优化承载层，并把结构驱动的 `summary-driven inlining`、通用 `devirtualization`、以及后续 `continuation escaping analysis` 放到这一层统一收口。  
 > 边界：本文只定义方向、IR 形状、核心分析与 pass 顺序，并补充当前代码库里 LLVM codegen 的职责错位、可拆模块边界、以及应上移到 early MIR / ANF 的内容；本轮不涉及代码实现，也不把优化建立在函数名白名单、热点库函数开洞、或 `inline` 关键字之上。文中提到的 LLVM / statepoint / spill-writeback 等术语，只用于说明当前实现中的工程压力，不构成 early MIR 的语义前提；early MIR 本身必须保持后端无关，能够对接 LLVM、C、JVM bytecode、CLR IR 等不同 codegen 路径。
 
+## 0. 当前基线与 Guardrail（2026-04-25）
+
+本节是 `T5000a` 的统一基线入口。后续 `T5000b+` 若需要回答“当前 LLVM codegen 的主要边界错位是什么”“`-O0` / debug build 的固定成本热点在哪里”“哪些重复工作必须优先迁出”，都应优先引用本节，再按需展开到第 10、11 节。
+
+### 0.1 结论速览
+
+当前仓库已经足够明确地暴露出四类基线事实：
+
+1. LLVM codegen 的主要问题不是单点 bug，而是结构边界错位。
+   - `codegen/mod.rs` 继续同时承担调用分发、builtin/sysroot lowering、closure lowering、class/object/enum lowering、GC lowering、runtime ABI glue、以及部分“实际上更像中端分析”的逻辑。
+   - effect 相关 `state_machine_plan / segments / transform / emitter` 已经形成一个事实上的 middle-end 簇，而不只是“LLVM emitter 的前置准备”。
+2. `MainCodegen` 不是单纯的函数级 emitter。
+   - 它同时混合 module 级只读输入、function builder 状态、layout/type caches、effect planning 查询缓存、GC slot 状态与 effect emitter 上下文。
+3. `-O0` / debug build 路径并不轻。
+   - 当前即使在 `-O0`，LLVM pipeline 仍固定执行 `function(sroa),rewrite-statepoints-for-gc`；
+   - `run_pass_pipeline` 还固定启用 `verify_each(true)`；
+   - `debug_assertions` 下 effect middle-end 还会做额外 contract 校验与 round-trip 验证。
+4. reachability、callee 解析和 effect/suspendability 查询仍有明显重复工作。
+   - HIR reachability 之后仍需要因为 codegen 期目标物化而做 eager inclusion；
+   - call target / monomorphized variant 解析仍发生在 codegen 调用路径；
+   - higher-order outward-effect / suspendability summary 仍按 `MainCodegen` 实例临时拼装查询上下文。
+
+换句话说，后续顺序必须是：
+
+- 先把 LLVM backend 的边界收口；
+- 再把不该留在 backend 的 program facts / effect analysis / monomorphization 语义迁出去；
+- 然后再让 early MIR / ANF 接手后续优化。
+
+### 0.2 结构体量基线
+
+以下是 2026-04-25 直接对 `crates/scoopc/src/llvm/**/*.rs` 做行数统计得到的当前主热点：
+
+- `crates/scoopc/src/llvm/codegen/mod.rs`
+  - 17759 行；当前最大的职责聚合点。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
+  - 10322 行；effect middle-end 的核心规划器。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
+  - 5923 行；负责 LLVM emitter 落地。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`
+  - 5085 行；负责 plan 到 segments 的投影与约束。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs`
+  - 4988 行；负责 canonical machine transform。
+- `crates/scoopc/src/llvm/mod.rs`
+  - 3835 行；同时承载 emit API、module build pipeline、reachability、pass pipeline 和测试。
+
+几个直接 guardrail：
+
+- effect 相关主簇（`effect/mod.rs`、`state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs`、`state_machine_emitter.rs`）总量已经接近 `crates/scoopc/src/llvm` 下全部 Rust 代码的一半，因此后续不能再把新的中端逻辑继续塞回这个簇里。
+- `codegen/mod.rs` 已经大到不能继续作为“默认新增 lowering 入口”；新职责要么拆成独立 backend 模块，要么迁出 backend。
+- `llvm/mod.rs` 不能继续同时承担 emit API、pipeline、reachability 与测试汇总；否则后续 `ProgramFacts` / MIR 接口会继续被顶层模块耦死。
+
+### 0.3 `MainCodegen::new` 构造点基线
+
+当前 `MainCodegen::new` 至少在下列路径显式重复构造：
+
+- `crates/scoopc/src/llvm/mod.rs`
+  - 用于顶层声明阶段；
+  - 用于每个 reachable top-level function body 的发射；
+  - 用于入口 `main` 的 exit-code lowering。
+- `crates/scoopc/src/llvm/codegen/mod.rs`
+  - 用于 effect-call wrapper body；
+  - 用于 top-level immutable value init；
+  - 用于 closure body lowering；
+  - 用于 object init lowering。
+
+这不是普通的“构造几个轻量 helper”：
+
+- `MainCodegen::new` 会重新收集 `known_effect_instances_by_effect_fqn`；
+- 新实例会重新初始化 `known_fun_call_suspend_cache`、type/layout caches、局部 env 与 effect 相关状态；
+- 因为这些缓存挂在 `MainCodegen` 实例上，closure / wrapper / init function 等路径很难共享 program facts 与分析结果。
+
+因此，后续 refactoring 的最低要求不是“减少一点样板代码”，而是：
+
+- 把 module 级只读输入、shared caches、function emitter 状态拆开；
+- 让“可跨函数复用的 facts / summary / layout cache”不再随着 `MainCodegen::new` 一起反复重建；
+- 新增代码不得继续默认引入新的 `MainCodegen::new` 调用点，除非能明确说明为什么共享上下文做不到。
+
+### 0.4 `-O0` / debug build 固定成本基线
+
+当前 `-O0` / debug build 的固定成本至少包括：
+
+1. LLVM pass pipeline 不是空的。
+   - `llvm_pass_pipeline_for_opt_level(OptLevel::O0)` 仍固定返回 `function(sroa),rewrite-statepoints-for-gc`。
+   - 这意味着 `-O0` 路径已经天然带着 GC/statepoint 所需的 canonicalization 与 rewrite 成本。
+2. `run_pass_pipeline` 固定启用 `verify_each(true)`，而且 passes 完成后还会再做一次 `module.verify()`。
+   - 这让 `-O0` 路径仍承担显著的 IR 校验成本。
+3. effect middle-end 的 debug 断言不是零成本。
+   - `build_unified_lowering_contract` 在 `debug_assertions` 下会执行 segment builder contract 验证；
+   - 同时还会做 plan/segments round-trip 的结构签名比对。
+
+这组事实给后续阶段的明确约束是：
+
+- 新的 interprocedural summary / devirt / inline / escape analysis 不能默认塞进 `-O0`；
+- 若某个分析只服务 `-O1+`，其构建成本也不应在 `-O0` 先支付一遍；
+- 调试期断言应与默认编译路径显式分层，而不是继续沿着 codegen 查询点无限叠加。
+
+### 0.5 Reachability、callee 解析与查询重复工作基线
+
+当前存在三类会直接拖累编译器固定成本、并持续模糊 backend 边界的重复工作：
+
+1. reachability 之后仍要补扫 eager inclusion。
+   - `collect_reachable_top_level_funs` 先做一轮 BFS；
+   - 随后 `llvm/mod.rs` 还会因为 operator overload 目标在 codegen 期才物化，而额外扫描 `fun_index`，把 struct member methods 补进 reachable 集；
+   - generic class member methods 的单态化变体也会再次通过 `fun_index` 全表扫描补入。
+2. monomorphized callee resolution 仍发生在 codegen 调用路径。
+   - `codegen_top_level_fun_call` 会在真正发射调用前，通过 `try_resolve_monomorphized_member_fqn` / `try_resolve_monomorphized_standalone_fun_fqn` 现场推断目标；
+   - 这说明实例身份仍被 mangled FQN 和 codegen 查询逻辑共同承担，而不是由一个独立的 monomorphic instance 层承担。
+3. higher-order effect / suspendability 查询仍按 `MainCodegen` 实例临时组装。
+   - `ensure_known_fun_body_may_outward_effect_cache` 会收集多组 `HashMap` / `HashSet` 构成 `SuspendCallProgramFacts`；
+   - `HandlePlanContext::from_codegen(self)` 说明 effect/state-machine planning 仍直接依赖 LLVM codegen 上下文；
+   - `build_unified_lowering_contract` 仍是 codegen 查询路径上的即时分析，而不是稳定的 backend-agnostic 产物。
+
+这部分的 guardrail 很直接：
+
+- reachability 与 eager inclusion 不能继续依赖“backend 才知道真正 callee”这一前提；
+- monomorphization 不能继续以 mangled symbol name + codegen 猜目标作为主路径；
+- effect/state-machine planning 所需事实必须变成稳定 side tables / `ProgramFacts`，而不是从 `MainCodegen` 现场回捞。
+
+### 0.6 后续任务的最小验收护栏
+
+从 `T5000b` 开始，每个后续任务都至少要满足下面这些护栏之一，否则说明它没有真正改善当前 baseline：
+
+- 没有新增“必须挂在 `MainCodegen` 上才能工作”的中端分析入口。
+- 没有新增 `MainCodegen::new` 重复构造点，或者显式减少了既有构造点的共享状态丢失。
+- 没有把新的默认固定成本塞进 `-O0` / debug build。
+- 没有继续依赖 eager inclusion、mangled FQN 重定向或 backend 侧临时分析来恢复本该更早可知的语义事实。
+- 让下一阶段能够以 backend-agnostic 的事实层为输入，而不是继续从 LLVM builder / module / runtime ABI 现场取数。
+
 ## 1. 背景
 
 当前的几个性能瓶颈，本质上都指向同一个问题：优化发生得太晚，而且缺少一个适合做“结构驱动”分析的中间层。
@@ -606,7 +734,7 @@ DirectCall ConcreteType.m(receiver, args...)
 - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`
   - 约 5085 行。
 - `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs`
-  - 约 4979 行。
+  - 约 4988 行。
 - `crates/scoopc/src/llvm/codegen/control_flow.rs`
   - 约 2488 行。
 - `crates/scoopc/src/llvm/codegen/gc.rs`

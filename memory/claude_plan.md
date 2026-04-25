@@ -1,79 +1,61 @@
 # 本轮执行计划
 
-## 说明
+## 约束说明
 
-按你的要求，我会先记录一份可审阅的执行思路摘要与操作计划，再开始读取仓库状态、最新提交和任务列表。这里记录的是高层次执行方案、检查顺序、决策准则和进度更新点，不包含不可审阅的内部推理细节。
+- 本轮只处理 `TODO.md` 中当前排在最前面的未完成任务，完成后立即停止。
+- 在开始任务前，先检查最新提交是否提到任何既有问题；若提到，则先修复这些问题。
+- 如果在探查、实现、测试过程中发现任何既有缺陷、规格不匹配、未完成实现边界或依赖缺口，必须优先修复；若当前无法直接修复，则需要先把该问题作为前置任务写入 `TODO.md` 并更新 `PLAN.md`，随后提交并停止。
+- 不接受规避性实现、夹具专用 hack、缩小范围或改变建模来绕过问题。
 
-## 目标
+## 初始步骤
 
-本轮只完成 `TODO.md` 中的第一个未完成任务；如果在执行前或执行过程中发现已存在问题阻塞该任务，则先修复该问题，或将其作为前置任务插入 `TODO.md` 并停止。
+1. 检查最新一次 Git 提交，确认提交说明中是否提到需要先处理的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认当前计划与 `TODO.md` 是否一致。
+4. 判断该任务是否足够小且可在本轮内完整完成：
+   - 如果可以，直接实施。
+   - 如果不可以，先把任务拆成更小的子任务，更新 `PLAN.md` 与 `TODO.md`，并把新的第一个子任务作为本轮目标。
 
-## 执行步骤
+## 实施步骤
 
-1. 检查最新一次 Git 提交：
-   - 查看提交标题与正文是否提到已知问题、回归、临时方案或待补修复。
-   - 若最新提交明确提到未解决问题，则优先修复该问题。
+1. 阅读与目标任务直接相关的代码、测试、规格或文档。
+2. 在不引入变通方案的前提下实现任务。
+3. 运行相关测试、格式化和必要的静态检查；若发现问题，立即修复。
+4. 若执行过程中计划发生变化，或关键步骤完成，及时更新本文件。
 
-2. 读取任务与计划文件：
-   - 读取 `TODO.md`，找出第一个未完成任务。
-   - 读取 `PLAN.md`，理解当前项目阶段、依赖关系与任务上下文。
+## 收尾步骤
 
-3. 判断任务粒度：
-   - 如果第一个未完成任务过大或依赖未满足，则将其拆分为更小的前置子任务。
-   - 更新 `PLAN.md` 与 `TODO.md`，保证任务顺序反映真实依赖关系。
-   - 如果只是拆分任务而无法继续实现，则提交这些计划调整并停止。
-
-4. 实施任务：
-   - 修改代码、测试、文档或任务文件，以完整实现当前目标。
-   - 在过程中主动检查是否暴露出已有缺陷、规格不匹配、未完成边界或依赖缺失。
-   - 若发现这类问题，会优先修复；如无法在本轮直接修复，则将其插入 `TODO.md` 作为前置任务并停止。
-
-5. 验证质量：
-   - 运行与改动直接相关的测试。
-   - 如有必要，运行更高覆盖度的检查，例如 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`、特定夹具测试或格式化检查。
-   - 若测试失败，先修复再继续。
-
-6. 更新文档与任务状态：
-   - 在 `TODO.md` 中将本轮完成的任务标记为完成。
-   - 在 `PLAN.md` 中更新当前状态、后续影响和剩余工作。
-   - 按需回写本文件，记录关键步骤完成情况和计划变化。
-
-7. 提交并停止：
-   - 使用清晰的 Git 提交信息提交本轮所有改动。
-   - 完成一个任务后立即停止，不继续处理下一个任务。
-
-## 关键检查点
-
-- 如果最新提交提到待修问题：先修它。
-- 如果第一个未完成任务存在缺失前置能力：先把前置任务写进 `TODO.md`，调整顺序后停止。
-- 不接受规避式实现、夹具特判、窄化规格或替代表示来绕过真正缺陷。
-- 若执行过程中计划变化，本文件会同步更新。
+1. 将已完成任务在 `TODO.md` 中标记完成。
+2. 更新 `PLAN.md`，反映当前状态、已完成内容和后续顺序。
+3. 检查工作区改动，确认仅包含本轮应提交内容。
+4. 使用清晰的 Git 提交信息提交改动。
+5. 提交后停止，不继续处理下一个任务。
 
 ## 当前状态
 
-- 已完成：创建本计划文件。
-- 已完成：检查最新 Git 提交、`TODO.md`、`PLAN.md`、`ISSUES.md`。
-- 结论：
-  - 最新提交 `bfab87ee3cf47d5a060c541360c6918d28e847bb` 标题为 `[T1220b] Reuse typechecked bindings for package-level comptime if`，未在提交标题/正文中直接声明待补修复项。
-  - `TODO.md` 中顺序上的首个未完成总任务是 `T4015`，其剩余未完成具体子任务为 `T4015R`。
-  - `T4015R` 的目标是 review const/comptime 主线，确认不再残留“同文件 + 名字/参数个数 + 字面量求值”的旧旁路。
-- 复审中发现并确认的既有问题：
-  - 多个入口仍直接调用旧的 `trim_package_level_comptime_ifs(...)`，导致 package-level `comptime if` 在这些路径上继续丢失 compilation-unit 的 typechecked 调用绑定。
-  - 具体暴露点包括：`typecheck_multi` fixture runner、多源 cone 导出/分析路径、`Session::build_top_level_index`、若干单源但带 sysroot 可见性的 dump/RTTI 路径，以及 sysroot 自身加载时的 package-level trim。
-  - 已用新增回归 `tests/fixtures/typecheck_multi/package_level_comptime_if_cross_file_const_fun/` 复现旧问题；旧代码会稳定报 `scoop::comptime::unsupported_const_fun_signature`（`explicit type args`）。
-- 已完成的修复：
-  - 扩展 comptime trim API，使其可在带 visible-unit / cone id 的上下文中刷新 package-level `comptime if` 条件的 typechecked 绑定。
-  - 将 sysroot、自顶向下索引、cone 导出/注解/visibility/pre-specialize、fixture runner、HIR/MIR dump、RTTI 与相关测试入口统一切到新的 compilation-unit trim 主线。
-  - 新增回归：
-    - `tests/fixtures/typecheck_multi/package_level_comptime_if_cross_file_const_fun/`
-    - `tests/fixtures/typecheck_cone/package_level_comptime_if_cross_cone_const_fun/`
-    - `session::tests::build_top_level_index_trims_package_level_comptime_if_across_source_set`
-    - `cone::scoopir::tests::export_public_api_for_cone_sources_trims_package_level_comptime_if_across_files`
-- 已完成的定向验证：
-  - `cargo fmt --all`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck_multi/package_level_comptime_if_cross_file_const_fun`
-  - `cargo test -p scoopc build_top_level_index_trims_package_level_comptime_if_across_source_set -- --nocapture`
-  - `cargo test -p scoopc export_public_api_for_cone_sources_trims_package_level_comptime_if_across_files -- --nocapture`
-  - `cargo test -p scoopc package_level_comptime_if_ -- --nocapture`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun`
-- 下一步：运行全量验证（至少 `cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`，必要时补 `spec-fixtures check`），若全部通过则回写 `TODO.md` / `PLAN.md` 并提交。
+- 已完成：创建本轮计划文件。
+- 已完成：检查最新提交；最新提交说明只有 `Update plan`，未额外声明需要先修复的既有问题。
+- 已完成：读取 `TODO.md` 与 `PLAN.md`；当前首个未完成任务为 `T5000a 建立编译器性能与 codegen 边界基线`，任务规模可在本轮直接完成，无需先拆分。
+- 已完成：收集 baseline 证据，当前已确认的关键事实包括：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 约 17759 行；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 约 10322 行；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 约 5923 行；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs` 约 5085 行；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs` 约 4988 行；
+  - `crates/scoopc/src/llvm/mod.rs` 约 3835 行。
+  - `MainCodegen::new` 不只在模块入口构造，还在 wrapper/object init/top-level immutable init/closure lowering 等路径重复构造。
+  - `-O0` 路径仍固定执行 `function(sroa),rewrite-statepoints-for-gc`，同时 `run_pass_pipeline` 还固定开启 `verify_each(true)`。
+  - `debug_assertions` 下 `build_unified_lowering_contract` 会做额外校验与 round-trip 检查。
+  - reachability 在 `collect_reachable_top_level_funs` 之后，还会做 struct member eager inclusion 与 generic member monomorphized eager inclusion，并再次扫描 `fun_index`。
+  - 单态目标解析、outward-effect/suspendability 判断、handle/state-machine planning 仍直接挂在 LLVM codegen 查询路径上。
+- 已完成：已将 baseline 与 guardrail 固化到 `OPTIMIZATION.md` 第 0、10、11 节。
+- 已完成：已更新 `PLAN.md` 当前进度，明确下一条待执行任务为 `T5000aR`。
+- 已完成：已在 `TODO.md` 中将 `T5000a` 标记完成，并记录 baseline 的归档位置。
+- 已完成：运行 `cargo test --all`，全量测试通过。
+- 已完成：运行 `cargo clippy --all-targets -- -D warnings`，零 warning 通过。
+- 已完成：检查工作区差异，当前仅包含 `OPTIMIZATION.md`、`PLAN.md`、`TODO.md` 与本文件的本轮改动。
+- 进行中：准备提交本轮改动，提交后立即停止。
+
+## 下一步
+
+1. 提交本轮改动并停止。

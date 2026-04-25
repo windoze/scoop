@@ -24,6 +24,18 @@
 - `mem2reg` 暂不作为主线。
   - 近期主方向仍是减少调用边界与 safepoint 压力，而不是先推动 register-root 改造。
 
+## 0.5 当前进度
+
+- 2026-04-25：`T5000a 建立编译器性能与 codegen 边界基线` 已完成。
+  - 统一 baseline 已固化在 [`OPTIMIZATION.md`](./OPTIMIZATION.md) 的第 0、10、11 节；
+  - 当前已经能直接回答：
+    - `llvm/codegen` 的主要巨型文件与职责簇在哪里；
+    - `MainCodegen::new` 的重复构造点在哪里；
+    - `-O0` / debug build 的固定成本主要来自哪些路径；
+    - reachability / eager inclusion / codegen 查询的重复工作主要在哪里。
+- 下一条待执行任务切换为 `T5000aR Review：确认 baseline 已足够支撑后续实现顺序`。
+- 在建立 baseline 的过程中，没有发现需要插入到 `T5000aR` 之前的新前置缺陷任务。
+
 ## 1. 当前判断
 
 当前代码库已经清楚暴露出两个问题：
