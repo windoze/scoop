@@ -3,7 +3,7 @@
 //! 当前阶段（TODO T1202a/T1202b/T1202c/T1203）落地：
 //! - 最小值模型（ConstValue）
 //! - 纯表达式求值（字面量/一元/二元/aggregate）
-//! - `const fun` 的最小解释器入口（现已接到 compilation-unit resolve/typecheck 主线，支持跨文件 non-generic 顶层调用）
+//! - `const fun` 的最小解释器入口（现已接到 compilation-unit resolve/typecheck 主线，支持跨文件顶层调用与 generic 实例化）
 //! - `const val` initializer 的常量折叠（用于 fixtures 回归）
 //! - `comptime { ... }` / `comptime if` 的最小语句级执行（仅在 const 解释器求值路径内）
 //! - 为后续 `const fun` 解释器与 `comptime { ... }` 执行提供可复用的底座；

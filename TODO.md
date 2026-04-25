@@ -1172,7 +1172,7 @@
   - 子任务全部完成后，`ISSUES.md` 第 12 条收窄或关闭。
 - 依赖：T4014R
 
-### T4015a [TODO] 收口 `const fun` 的解析 / 选择 / 跨文件调用主线（拆分执行）
+### T4015a [DONE] 收口 `const fun` 的解析 / 选择 / 跨文件调用主线（拆分执行）
 - 说明：
   - 当前条目同时包含三类改动：把 const/comptime 接回 compilation-unit 的 resolve/typecheck 上下文、让解释器按普通调用主线的最终选择执行跨文件/重载调用，以及支持 generic `const fun` 的实例化与 type-substitution。
   - 这三者存在明确依赖顺序，且 generic `const fun` 仍需要额外处理反射 intrinsic / 类型参数替换，因此先拆成 `T4015a1 -> T4015a2` 两步。
@@ -1195,13 +1195,18 @@
   - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/comptime`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4015a
 
-### T4015a2 [TODO] 支持 generic `const fun` 的实例化与 type-substitution，并接到同一条调用绑定主线
+### T4015a2 [DONE] 支持 generic `const fun` 的实例化与 type-substitution，并接到同一条调用绑定主线
 - 范围：
   - 解释器不再用 `generic type params` 直接拒绝 generic `const fun`；需要消费 typecheck 选定的 type args，并把它们带入参数/返回类型、反射 intrinsic 与函数体中的类型引用。
   - generic `const fun` 的显式 / 推断类型实参、declaration context 与跨文件调用要继续复用 `T4015a1` 已接好的绑定主线，而不是新增第二套 const-only 选择规则。
   - 补充 regression，覆盖 generic const 调用、type-substitution 与错误路径。
 - 验收：
   - `const fun` 的 generic 实例化不再是解释器的独立 blocker；`ISSUES.md` 第 12 条关于 call-site 选择的剩余描述进一步收窄。
+- 已完成：
+  - const/comptime 解释器现已持有 compilation-unit typecheck 产出的 `TypeStore` 与活动类型实参环境，会消费 `TopLevelFunCallBinding.type_args`，并把外层 `T/U/...` 递归替换到当前 generic `const fun` 实例。
+  - generic `const fun` 的参数/返回类型强制、`nameOf<T>()` / `fieldsOf<T>()` 等反射 intrinsic，以及 `wrapName<T>() -> typeNameOf<T>()` 这类嵌套 generic const 调用，现已统一复用同一条 typechecked 调用绑定主线。
+  - 已新增跨文件单测与 comptime fixture，覆盖显式/推断类型实参、generic 返回类型、nested type-substitution，以及显式类型实参数量错误的 typecheck error path。
+  - 已验证 `cargo test -p scoopc const_eval_ -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/comptime`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4015a1
 
 ### T4015b [TODO] 扩展纯 comptime evaluator / interpreter 到控制流、局部声明与循环等常见结构

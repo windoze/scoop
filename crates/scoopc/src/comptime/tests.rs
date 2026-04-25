@@ -547,6 +547,71 @@ const val C: Int = twice(21)
 }
 
 #[test]
+fn const_eval_compilation_unit_supports_generic_const_fun_instantiation_and_type_substitution() {
+    let consts = eval_unit_consts(
+        &[
+            (
+                "/mem/lib.scoop",
+                r#"
+package fixtures.lib
+
+import scoop.core.*
+
+const fun <T> identity(x: T): T {
+    return x
+}
+
+const fun <T> typeNameOf(): String {
+    return nameOf<T>()
+}
+
+const fun <T> wrapName(x: T): String {
+    return typeNameOf<T>()
+}
+"#,
+            ),
+            (
+                "/mem/main.scoop",
+                r#"
+package fixtures.main
+
+import scoop.core.*
+import fixtures.lib.*
+
+const val A: Int = identity(41)
+const val B: String = identity<String>("hi")
+const val C: String = typeNameOf<Int>()
+const val D: String = wrapName("hello")
+"#,
+            ),
+        ],
+        1,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: mk_int(ConstIntTy::host_word(true), 41),
+            },
+            ConstBinding {
+                name: "B".to_string(),
+                value: ConstValue::String("hi".to_string()),
+            },
+            ConstBinding {
+                name: "C".to_string(),
+                value: ConstValue::String("Int".to_string()),
+            },
+            ConstBinding {
+                name: "D".to_string(),
+                value: ConstValue::String("String".to_string()),
+            },
+        ]
+    );
+}
+
+#[test]
 fn const_eval_const_fun_string_methods_match_fixture_behavior() {
     let sysroot = load_sysroot();
     let path = format!(
@@ -635,6 +700,28 @@ const val X: Int = add(1, 2)
     assert_eq!(
         err.code().unwrap().to_string(),
         "scoop::comptime::callee_not_const_fun"
+    );
+}
+
+#[test]
+fn const_eval_generic_const_fun_bad_explicit_type_arg_arity_uses_typecheck_error_path() {
+    let sysroot = load_sysroot();
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+const fun <T> identity(x: T): T {
+    return x
+}
+
+const val BAD: Int = identity<Int, String>(1)
+"#
+        .to_string(),
+    );
+    let file = parser::parse_file(&source).expect("parse");
+    let err = eval_const_bindings_in_file(&sysroot, &source, &file).unwrap_err();
+    assert_eq!(
+        err.code().unwrap().to_string(),
+        "scoop::typecheck::generic_type_arg_arity_mismatch"
     );
 }
 

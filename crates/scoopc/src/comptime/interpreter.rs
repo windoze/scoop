@@ -7,7 +7,7 @@
 //!
 //! 非目标（后续任务逐步补齐）：
 //! - 闭包/lambda、effects、循环/控制流（`if/when/while`）、`perform/handle`；
-//! - 泛型实例化与重载决议（当前仅按“函数名 + 参数个数”做最小选择）。
+//! - 更完整的 generic/effect-row contract 与运行期 fallback 语义。
 
 use std::collections::HashMap;
 use std::ops::ControlFlow;
@@ -15,6 +15,7 @@ use std::ops::ControlFlow;
 use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::eval::{ConstEvalHost, eval_const_expr, eval_const_expr_with_host, value_kind};
 use super::{ConstEvalCtx, ConstEvalError, ConstFloatTy, ConstIntTy, ConstValue};
@@ -252,10 +253,11 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     }
 
     let target = &prepared[target_file_idx];
-    let mut interp = ConstInterpreter::with_options(
+    let mut interp = ConstInterpreter::with_types(
         ConstEvalCtx::new(target.source),
         &target.ast,
         ConstEvalOptions::default(),
+        types,
     );
     for f in &prepared_sysroot {
         interp.register_file(f.source, &f.ast);
@@ -335,6 +337,14 @@ struct RegisteredType<'a> {
     source: &'a SourceFile,
     file: &'a ast::File,
     decl: &'a ast::TypeDecl,
+}
+
+#[derive(Clone)]
+struct ReflectionTypeTarget<'a> {
+    full_name: String,
+    simple_name: String,
+    span: Span,
+    decl: Option<RegisteredType<'a>>,
 }
 
 fn trim_package_level_items<'a>(
@@ -453,29 +463,48 @@ struct ConstInterpreter<'a> {
     call_depth: usize,
     /// 作用域栈（后进先出）：局部 val/参数/顶层 const val 都放在这里。
     scopes: Vec<HashMap<String, ConstValue>>,
+    /// generic `const fun` 的活动类型实参绑定（后进先出）。
+    type_param_scopes: Vec<HashMap<String, TypeId>>,
     /// 当前求值栈上的 source/file 上下文。
     current_sources: Vec<&'a SourceFile>,
     current_files: Vec<&'a ast::File>,
+    /// compilation-unit typecheck 产出的类型表；generic `const fun` 的 type args 与反射
+    /// 都要复用它，避免再按 AST 文本猜测实例化结果。
+    types: TypeStore,
     /// 顶层函数注册表（simple name → 声明集合）。
     funs_by_name: HashMap<String, Vec<RegisteredFun<'a>>>,
     /// 顶层函数注册表（FQN → overload set）。
     funs_by_fqn: HashMap<String, Vec<RegisteredFun<'a>>>,
     /// 顶层类型声明（按 simple name 聚合；用于反射 intrinsics v0）。
     types_by_name: HashMap<String, Vec<RegisteredType<'a>>>,
+    /// 顶层类型声明（按 FQN 精确索引；generic reflection 需要绕过 simple-name 歧义）。
+    types_by_fqn: HashMap<String, RegisteredType<'a>>,
 }
 
 impl<'a> ConstInterpreter<'a> {
     fn with_options(ctx: ConstEvalCtx<'a>, file: &'a ast::File, options: ConstEvalOptions) -> Self {
+        Self::with_types(ctx, file, options, TypeStore::new())
+    }
+
+    fn with_types(
+        ctx: ConstEvalCtx<'a>,
+        file: &'a ast::File,
+        options: ConstEvalOptions,
+        types: TypeStore,
+    ) -> Self {
         Self {
             default_int_ty: ctx.default_int_ty,
             options,
             call_depth: 0,
             scopes: vec![HashMap::new()],
+            type_param_scopes: Vec::new(),
             current_sources: vec![ctx.source],
             current_files: vec![file],
+            types,
             funs_by_name: HashMap::new(),
             funs_by_fqn: HashMap::new(),
             types_by_name: HashMap::new(),
+            types_by_fqn: HashMap::new(),
         }
     }
 
@@ -528,14 +557,14 @@ impl<'a> ConstInterpreter<'a> {
                 }
                 ast::Item::Type(ty) => {
                     let name = ty.name.text(source).to_string();
-                    self.types_by_name
-                        .entry(name)
-                        .or_default()
-                        .push(RegisteredType {
-                            source,
-                            file,
-                            decl: ty,
-                        });
+                    let entry = RegisteredType {
+                        source,
+                        file,
+                        decl: ty,
+                    };
+                    self.types_by_name.entry(name).or_default().push(entry);
+                    self.types_by_fqn
+                        .insert(top_level_fqn(&pkg_prefix, ty.name.text(source)), entry);
                 }
                 ast::Item::TypeAlias(_)
                 | ast::Item::ExtensionProperty(_)
@@ -566,14 +595,14 @@ impl<'a> ConstInterpreter<'a> {
                 }
                 ast::Item::Type(ty) => {
                     let name = ty.name.text(source).to_string();
-                    self.types_by_name
-                        .entry(name)
-                        .or_default()
-                        .push(RegisteredType {
-                            source,
-                            file,
-                            decl: ty,
-                        });
+                    let entry = RegisteredType {
+                        source,
+                        file,
+                        decl: ty,
+                    };
+                    self.types_by_name.entry(name).or_default().push(entry);
+                    self.types_by_fqn
+                        .insert(top_level_fqn(&pkg_prefix, ty.name.text(source)), entry);
                 }
                 // 只预注册“直接出现的”声明；`comptime if` 的分支选择应发生在裁剪时，
                 // 因此这里刻意跳过它，避免把未选中分支的声明引入环境。
@@ -628,11 +657,8 @@ impl<'a> ConstInterpreter<'a> {
         let ctx = self.current_ctx();
         let source = ctx.source;
         let name = name_ident.text(source).to_string();
-        let value = coerce_value_to_declared_type(
-            source,
-            eval_const_expr_with_host(ctx, self, init)?,
-            v.ty.as_ref(),
-        );
+        let init_value = eval_const_expr_with_host(ctx, self, init)?;
+        let value = self.coerce_value_to_declared_type(source, init_value, v.ty.as_ref());
 
         self.define_local(name, value);
         Ok(())
@@ -699,11 +725,8 @@ impl<'a> ConstInterpreter<'a> {
             let ctx = self.current_ctx();
             let source = ctx.source;
             let name = name_ident.text(source).to_string();
-            let value = coerce_value_to_declared_type(
-                source,
-                eval_const_expr_with_host(ctx, self, init)?,
-                v.ty.as_ref(),
-            );
+            let init_value = eval_const_expr_with_host(ctx, self, init)?;
+            let value = self.coerce_value_to_declared_type(source, init_value, v.ty.as_ref());
 
             // 顶层 const val 也进入环境：后续 const val/const fun 可引用它。
             self.define_local(name.clone(), value.clone());
@@ -733,6 +756,48 @@ impl<'a> ConstInterpreter<'a> {
             }
         }
         None
+    }
+
+    fn push_type_bindings(&mut self, bindings: impl IntoIterator<Item = (String, TypeId)>) {
+        let mut frame = HashMap::new();
+        for (name, ty) in bindings {
+            frame.insert(name, ty);
+        }
+        self.type_param_scopes.push(frame);
+    }
+
+    fn pop_type_bindings(&mut self) {
+        let _ = self.type_param_scopes.pop();
+    }
+
+    fn lookup_type_binding(&self, name: &str) -> Option<TypeId> {
+        self.type_param_scopes
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(name).copied())
+    }
+
+    fn active_type_bindings_map(&self) -> HashMap<String, TypeId> {
+        let mut bindings = HashMap::new();
+        for scope in &self.type_param_scopes {
+            for (name, ty) in scope {
+                bindings.insert(name.clone(), *ty);
+            }
+        }
+        bindings
+    }
+
+    fn apply_active_type_bindings(&mut self, ty: TypeId) -> TypeId {
+        if self.type_param_scopes.is_empty() {
+            return ty;
+        }
+
+        let bindings = self.active_type_bindings_map();
+        if bindings.is_empty() {
+            ty
+        } else {
+            substitute_type_params_in_store(&mut self.types, ty, &bindings)
+        }
     }
 
     fn find_registered_fun_by_binding(
@@ -768,7 +833,13 @@ impl<'a> ConstInterpreter<'a> {
             });
         }
 
-        self.eval_fun_call(call_span, fun, args)
+        let type_args = binding
+            .type_args
+            .iter()
+            .copied()
+            .map(|ty| self.apply_active_type_bindings(ty))
+            .collect();
+        self.eval_fun_call(call_span, fun, type_args, args)
     }
 
     fn call_const_fun(
@@ -829,7 +900,7 @@ impl<'a> ConstInterpreter<'a> {
             }
         };
 
-        self.eval_fun_call(call_span, fun, args)
+        self.eval_fun_call(call_span, fun, Vec::new(), args)
     }
 
     fn call_fun_or_intrinsic(
@@ -908,8 +979,10 @@ impl<'a> ConstInterpreter<'a> {
             });
         }
 
-        let ty_arg = &type_args[0];
-        let (full_name, simple_name, ty_span) = self.type_ref_path_name_and_simple(ty_arg)?;
+        let target = self.resolve_reflection_type_target(&type_args[0])?;
+        let full_name = target.full_name.clone();
+        let simple_name = target.simple_name.clone();
+        let ty_span = target.span;
 
         match name {
             "nameOf" => Ok(ConstValue::String(full_name)),
@@ -938,21 +1011,12 @@ impl<'a> ConstInterpreter<'a> {
                 )))
             }
             "fieldsOf" => {
-                let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
-                    ConstEvalError::ReflectionUnknownType {
+                let decl = target
+                    .decl
+                    .ok_or_else(|| ConstEvalError::ReflectionUnknownType {
                         name: full_name.clone(),
                         span: ty_span.into(),
-                    }
-                })?;
-                let decl = match decls.as_slice() {
-                    [one] => *one,
-                    _ => {
-                        return Err(ConstEvalError::ReflectionAmbiguousType {
-                            name: full_name.clone(),
-                            span: ty_span.into(),
-                        });
-                    }
-                };
+                    })?;
                 let decl_source = decl.source;
                 let decl_file = decl.file;
                 let decl = decl.decl;
@@ -1027,21 +1091,12 @@ impl<'a> ConstInterpreter<'a> {
                 result
             }
             "variantsOf" => {
-                let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
-                    ConstEvalError::ReflectionUnknownType {
+                let decl = target
+                    .decl
+                    .ok_or_else(|| ConstEvalError::ReflectionUnknownType {
                         name: full_name.clone(),
                         span: ty_span.into(),
-                    }
-                })?;
-                let decl = match decls.as_slice() {
-                    [one] => *one,
-                    _ => {
-                        return Err(ConstEvalError::ReflectionAmbiguousType {
-                            name: full_name.clone(),
-                            span: ty_span.into(),
-                        });
-                    }
-                };
+                    })?;
                 let decl_source = decl.source;
                 let decl_file = decl.file;
                 let decl = decl.decl;
@@ -1070,21 +1125,12 @@ impl<'a> ConstInterpreter<'a> {
                 result
             }
             "superTypesOf" => {
-                let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
-                    ConstEvalError::ReflectionUnknownType {
+                let decl = target
+                    .decl
+                    .ok_or_else(|| ConstEvalError::ReflectionUnknownType {
                         name: full_name.clone(),
                         span: ty_span.into(),
-                    }
-                })?;
-                let decl = match decls.as_slice() {
-                    [one] => *one,
-                    _ => {
-                        return Err(ConstEvalError::ReflectionAmbiguousType {
-                            name: full_name.clone(),
-                            span: ty_span.into(),
-                        });
-                    }
-                };
+                    })?;
                 self.push_eval_frame(decl.source, decl.file);
                 let result = (|| {
                     let decl = decl.decl;
@@ -1098,21 +1144,12 @@ impl<'a> ConstInterpreter<'a> {
                 result
             }
             "annotationsOf" => {
-                let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
-                    ConstEvalError::ReflectionUnknownType {
+                let decl = target
+                    .decl
+                    .ok_or_else(|| ConstEvalError::ReflectionUnknownType {
                         name: full_name.clone(),
                         span: ty_span.into(),
-                    }
-                })?;
-                let decl = match decls.as_slice() {
-                    [one] => *one,
-                    _ => {
-                        return Err(ConstEvalError::ReflectionAmbiguousType {
-                            name: full_name.clone(),
-                            span: ty_span.into(),
-                        });
-                    }
-                };
+                    })?;
                 self.push_eval_frame(decl.source, decl.file);
                 let result = (|| {
                     let decl = decl.decl;
@@ -1231,14 +1268,238 @@ impl<'a> ConstInterpreter<'a> {
         }
     }
 
+    fn lookup_type_decl_for_type_id(&self, ty: TypeId) -> Option<RegisteredType<'a>> {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+                self.types_by_fqn
+                    .get(&n.fqn)
+                    .copied()
+                    .or_else(|| self.lookup_unique_type_decl(&self.type_id_simple_name(ty)))
+            }
+            _ => self.lookup_unique_type_decl(&self.type_id_simple_name(ty)),
+        }
+    }
+
+    fn type_id_simple_name(&self, ty: TypeId) -> String {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Any) => "Any".to_string(),
+            TypeKind::Ref(RefTypeKind::String) => "String".to_string(),
+            TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+                self.types_by_fqn
+                    .get(&n.fqn)
+                    .map(|decl| decl.decl.name.text(decl.source).to_string())
+                    .unwrap_or_else(|| {
+                        n.fqn
+                            .rsplit('.')
+                            .next()
+                            .unwrap_or(n.fqn.as_str())
+                            .to_string()
+                    })
+            }
+            TypeKind::Ref(RefTypeKind::Function(_)) => "Function".to_string(),
+            TypeKind::Ref(RefTypeKind::Union(_)) => self.type_id_to_stable_name(ty),
+            TypeKind::StarProjection(_) => "*".to_string(),
+            TypeKind::Value(ValueTypeKind::Unit) => "Unit".to_string(),
+            TypeKind::Value(ValueTypeKind::Nothing) => "Nothing".to_string(),
+            TypeKind::Value(ValueTypeKind::Bool) => "Bool".to_string(),
+            TypeKind::Value(ValueTypeKind::Char) => "Char".to_string(),
+            TypeKind::Value(ValueTypeKind::Float64) => "Float64".to_string(),
+            TypeKind::Value(ValueTypeKind::Float32) => "Float32".to_string(),
+            TypeKind::Value(ValueTypeKind::Int) => "Int".to_string(),
+            TypeKind::Value(ValueTypeKind::UInt) => "UInt".to_string(),
+            TypeKind::Value(ValueTypeKind::IntN(bits)) => format!("Int{bits}"),
+            TypeKind::Value(ValueTypeKind::UIntN(bits)) => format!("UInt{bits}"),
+            TypeKind::Value(ValueTypeKind::Option(_)) => "Option".to_string(),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                if elements.is_empty() {
+                    "Unit".to_string()
+                } else {
+                    self.type_id_to_stable_name(ty)
+                }
+            }
+            TypeKind::Param(p) => p.name.clone(),
+        }
+    }
+
+    fn type_id_to_stable_name(&self, ty: TypeId) -> String {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Any) => "Any".to_string(),
+            TypeKind::Ref(RefTypeKind::String) => "String".to_string(),
+            TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+                let mut out = self.type_id_simple_name(ty);
+                if !n.args.is_empty() || n.eff.is_some() {
+                    let mut args: Vec<String> = n
+                        .args
+                        .iter()
+                        .copied()
+                        .map(|arg| self.type_id_to_stable_name(arg))
+                        .collect();
+                    if let Some(eff) = &n.eff {
+                        args.push(format!("eff {}", self.effect_row_to_stable_name(eff)));
+                    }
+                    out.push('<');
+                    out.push_str(&args.join(", "));
+                    out.push('>');
+                }
+                out
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                let mut out = String::new();
+                if let Some(receiver) = fun.receiver {
+                    out.push_str(&self.type_id_to_stable_name(receiver));
+                    out.push('.');
+                }
+                out.push('(');
+                out.push_str(
+                    &fun.params
+                        .iter()
+                        .copied()
+                        .map(|param| self.type_id_to_stable_name(param))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                );
+                out.push_str(") -> ");
+                out.push_str(&self.type_id_to_stable_name(fun.return_ty));
+                out.push_str(" / ");
+                out.push_str(&self.effect_row_to_stable_name(&fun.effects));
+                if fun.effects_closed {
+                    out.push('!');
+                }
+                out
+            }
+            TypeKind::Ref(RefTypeKind::Union(union)) => union
+                .variants
+                .iter()
+                .copied()
+                .map(|variant| self.type_id_to_stable_name(variant))
+                .collect::<Vec<_>>()
+                .join(" | "),
+            TypeKind::StarProjection(_) => "*".to_string(),
+            TypeKind::Value(ValueTypeKind::Unit) => "Unit".to_string(),
+            TypeKind::Value(ValueTypeKind::Nothing) => "Nothing".to_string(),
+            TypeKind::Value(ValueTypeKind::Bool) => "Bool".to_string(),
+            TypeKind::Value(ValueTypeKind::Char) => "Char".to_string(),
+            TypeKind::Value(ValueTypeKind::Float64) => "Float64".to_string(),
+            TypeKind::Value(ValueTypeKind::Float32) => "Float32".to_string(),
+            TypeKind::Value(ValueTypeKind::Int) => "Int".to_string(),
+            TypeKind::Value(ValueTypeKind::UInt) => "UInt".to_string(),
+            TypeKind::Value(ValueTypeKind::IntN(bits)) => format!("Int{bits}"),
+            TypeKind::Value(ValueTypeKind::UIntN(bits)) => format!("UInt{bits}"),
+            TypeKind::Value(ValueTypeKind::Option(inner)) => {
+                format!("Option<{}>", self.type_id_to_stable_name(*inner))
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                if elements.is_empty() {
+                    return "Unit".to_string();
+                }
+                let mut out = String::from("(");
+                out.push_str(
+                    &elements
+                        .iter()
+                        .copied()
+                        .map(|element| self.type_id_to_stable_name(element))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                );
+                if elements.len() == 1 {
+                    out.push(',');
+                }
+                out.push(')');
+                out
+            }
+            TypeKind::Param(p) => p.name.clone(),
+        }
+    }
+
+    fn effect_row_to_stable_name(&self, row: &EffectRow) -> String {
+        if row.is_pure() {
+            return "Pure".to_string();
+        }
+        if row.terms.len() == 1 {
+            return self.type_id_to_stable_name(row.terms[0]);
+        }
+        row.terms
+            .iter()
+            .copied()
+            .map(|term| self.type_id_to_stable_name(term))
+            .collect::<Vec<_>>()
+            .join(" + ")
+    }
+
+    fn try_resolve_bound_type_ref(&self, ty: &ast::TypeRef) -> Option<TypeId> {
+        let ast::TypeRef::Path(path) = ty else {
+            return None;
+        };
+        if path.segments.len() != 1 || !path.args.is_empty() {
+            return None;
+        }
+        self.lookup_type_binding(path.segments[0].text(self.current_source()))
+    }
+
+    fn resolve_reflection_type_target(
+        &self,
+        ty: &ast::TypeRef,
+    ) -> Result<ReflectionTypeTarget<'a>, ConstEvalError> {
+        let ast::TypeRef::Path(path) = ty else {
+            return Err(ConstEvalError::ReflectionTypeArgNotSupported {
+                found: "non-path type",
+                span: ty.span().into(),
+            });
+        };
+
+        if let Some(bound_ty) = self.try_resolve_bound_type_ref(ty) {
+            return Ok(ReflectionTypeTarget {
+                full_name: self.type_id_to_stable_name(bound_ty),
+                simple_name: self.type_id_simple_name(bound_ty),
+                span: path.span,
+                decl: self.lookup_type_decl_for_type_id(bound_ty),
+            });
+        }
+
+        let full_name =
+            self.type_ref_to_string(ty)
+                .ok_or(ConstEvalError::ReflectionTypeArgNotSupported {
+                    found: "non-path type",
+                    span: ty.span().into(),
+                })?;
+        let simple_name = path
+            .segments
+            .last()
+            .map(|s| s.text(self.current_source()).to_string())
+            .unwrap_or_default();
+        let decl = match self.types_by_name.get(&simple_name) {
+            Some(decls) => match decls.as_slice() {
+                [one] => Some(*one),
+                _ => {
+                    return Err(ConstEvalError::ReflectionAmbiguousType {
+                        name: full_name.clone(),
+                        span: path.span.into(),
+                    });
+                }
+            },
+            None => None,
+        };
+        Ok(ReflectionTypeTarget {
+            full_name,
+            simple_name,
+            span: path.span,
+            decl,
+        })
+    }
+
     /// 把一个类型引用“降级”为 TypeMeta。
     ///
     /// 说明：
-    /// - const 解释器在当前阶段没有完整的 name resolution / type env，因此这里采用“尽力而为”的策略：
-    ///   - `name`：基于 AST 的稳定 pretty string（不保证全限定名）；
-    ///   - `kind/annotations`：仅当该类型在当前文件中有唯一声明时补齐；否则回退为 `Primitive` + 空注解；
-    /// - 这保证了 fixtures 可以稳定读取 `field.type.name`，并把“精确元信息”留给后续任务（resolve/typecheck）补齐。
+    /// - 对普通 AST type ref，仍保持“尽力而为”的轻量策略；
+    /// - 若 type ref 是当前 generic `const fun` 的类型参数，会先按调用点实参解析为具体类型，
+    ///   再构造与实例化结果一致的 `TypeMeta`。
     fn mk_type_meta(&mut self, ty: Option<&ast::TypeRef>) -> Result<ConstValue, ConstEvalError> {
+        if let Some(ty) = ty
+            && let Some(bound_ty) = self.try_resolve_bound_type_ref(ty)
+        {
+            return self.mk_type_meta_from_type_id(bound_ty);
+        }
+
         let name = ty
             .and_then(|t| self.type_ref_to_string(t))
             .unwrap_or_else(|| "Any".to_string());
@@ -1270,6 +1531,44 @@ impl<'a> ConstInterpreter<'a> {
                 }
             }
             Some(_) | None => (self.mk_type_kind("Primitive"), Vec::new()),
+        };
+
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert("name".to_string(), ConstValue::String(name));
+        fields.insert("kind".to_string(), kind);
+        fields.insert("annotations".to_string(), ConstValue::Tuple(annotations));
+        Ok(ConstValue::Struct(super::ConstStruct {
+            ty: "TypeMeta".to_string(),
+            fields,
+        }))
+    }
+
+    fn mk_type_meta_from_type_id(&mut self, ty: TypeId) -> Result<ConstValue, ConstEvalError> {
+        let name = self.type_id_to_stable_name(ty);
+        let decl = self.lookup_type_decl_for_type_id(ty);
+
+        let (kind, annotations) = match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Unit) => (self.mk_type_kind("Tuple"), Vec::new()),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements.is_empty() => {
+                (self.mk_type_kind("Tuple"), Vec::new())
+            }
+            _ => {
+                if let Some(decl) = decl {
+                    self.push_eval_frame(decl.source, decl.file);
+                    let kind = match decl.decl.kind {
+                        ast::TypeKind::Struct => self.mk_type_kind("Struct"),
+                        ast::TypeKind::Enum => self.mk_type_kind("Enum"),
+                        ast::TypeKind::Class => self.mk_type_kind("Class"),
+                        ast::TypeKind::Interface => self.mk_type_kind("Interface"),
+                        ast::TypeKind::Effect => self.mk_type_kind("Effect"),
+                    };
+                    let annotations = self.mk_annotation_list(&decl.decl.annotations, true)?;
+                    self.pop_eval_frame();
+                    (kind, annotations)
+                } else {
+                    (self.mk_type_kind("Primitive"), Vec::new())
+                }
+            }
         };
 
         let mut fields = std::collections::BTreeMap::new();
@@ -1476,11 +1775,15 @@ impl<'a> ConstInterpreter<'a> {
     /// 把 `TypeRef` 格式化为稳定的字符串（用于 `TypeMeta.name`）。
     ///
     /// 说明：
-    /// - 这里输出的是“语法层面”的名字（基于 AST），并不保证是全限定名；
-    /// - 后续接入 resolve/typecheck 后，可把它升级为 FQN + 泛型实例信息。
+    /// - 默认保持“语法层面”的名字（基于 AST），并不保证是全限定名；
+    /// - 若当前处于 generic `const fun` 实例化环境，会先把 `T/U/...` 替换为调用点选定的
+    ///   具体类型，再继续做稳定字符串格式化。
     fn type_ref_to_string(&self, ty: &ast::TypeRef) -> Option<String> {
         match ty {
             ast::TypeRef::Path(p) => {
+                if let Some(bound_ty) = self.try_resolve_bound_type_ref(ty) {
+                    return Some(self.type_id_to_stable_name(bound_ty));
+                }
                 let mut out = p
                     .segments
                     .iter()
@@ -1512,38 +1815,11 @@ impl<'a> ConstInterpreter<'a> {
         }
     }
 
-    fn type_ref_path_name_and_simple(
-        &self,
-        ty: &ast::TypeRef,
-    ) -> Result<(String, String, Span), ConstEvalError> {
-        let ast::TypeRef::Path(p) = ty else {
-            return Err(ConstEvalError::ReflectionTypeArgNotSupported {
-                found: "non-path type",
-                span: ty.span().into(),
-            });
-        };
-
-        let mut full = String::new();
-        for (idx, seg) in p.segments.iter().enumerate() {
-            if idx > 0 {
-                full.push('.');
-            }
-            full.push_str(seg.text(self.current_source()));
-        }
-
-        let simple = p
-            .segments
-            .last()
-            .map(|s| s.text(self.current_source()).to_string())
-            .unwrap_or_default();
-
-        Ok((full, simple, p.span))
-    }
-
     fn eval_fun_call(
         &mut self,
         call_span: Span,
         fun: RegisteredFun<'a>,
+        type_args: Vec<TypeId>,
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError> {
         let decl = fun.fun;
@@ -1565,9 +1841,9 @@ impl<'a> ConstInterpreter<'a> {
                 span: decl.span.into(),
             });
         }
-        if !decl.type_params.is_empty() {
+        if decl.type_params.len() != type_args.len() {
             return Err(ConstEvalError::UnsupportedConstFunSignature {
-                reason: "generic type params",
+                reason: "generic type args",
                 span: decl.span.into(),
             });
         }
@@ -1589,12 +1865,20 @@ impl<'a> ConstInterpreter<'a> {
         self.call_depth += 1;
         self.push_eval_frame(decl_source, decl_file);
         self.push_scope();
+        if !type_args.is_empty() {
+            let bindings = decl
+                .type_params
+                .iter()
+                .zip(type_args.iter().copied())
+                .map(|(param, ty)| (param.name.text(decl_source).to_string(), ty));
+            self.push_type_bindings(bindings);
+        }
 
         let result = (|| {
             // 参数绑定写入当前 frame scope。
             for (param, arg) in decl.params.iter().zip(args) {
                 let name = param.name.text(decl_source).to_string();
-                let value = coerce_value_to_declared_type(decl_source, arg, param.ty.as_ref());
+                let value = self.coerce_value_to_declared_type(decl_source, arg, param.ty.as_ref());
                 self.define_local(name, value);
             }
 
@@ -1609,13 +1893,12 @@ impl<'a> ConstInterpreter<'a> {
                     });
                 }
             };
-            Ok(coerce_value_to_declared_type(
-                decl_source,
-                ret,
-                decl.return_ty.as_ref(),
-            ))
+            Ok(self.coerce_value_to_declared_type(decl_source, ret, decl.return_ty.as_ref()))
         })();
 
+        if !type_args.is_empty() {
+            self.pop_type_bindings();
+        }
         self.pop_scope();
         self.pop_eval_frame();
         self.call_depth -= 1;
@@ -1676,11 +1959,9 @@ impl<'a> ConstInterpreter<'a> {
                 };
 
                 let ctx = self.current_ctx();
-                let value = coerce_value_to_declared_type(
-                    ctx.source,
-                    eval_const_expr_with_host(ctx, self, init)?,
-                    v.ty.as_ref(),
-                );
+                let init_value = eval_const_expr_with_host(ctx, self, init)?;
+                let value =
+                    self.coerce_value_to_declared_type(ctx.source, init_value, v.ty.as_ref());
                 self.define_local(name.text(ctx.source).to_string(), value);
                 Ok(ControlFlow::Continue(None))
             }
@@ -1889,6 +2170,257 @@ impl<'a> ConstInterpreter<'a> {
 
         Ok(ControlFlow::Continue(last_value))
     }
+
+    fn builtin_float_ty_from_type_id(&self, ty: TypeId) -> Option<ConstFloatTy> {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Float64) => Some(ConstFloatTy::Float64),
+            TypeKind::Value(ValueTypeKind::Float32) => Some(ConstFloatTy::Float32),
+            _ => None,
+        }
+    }
+
+    fn builtin_float_ty_from_type_ref(
+        &self,
+        source: &SourceFile,
+        ty: &ast::TypeRef,
+    ) -> Option<ConstFloatTy> {
+        if let Some(bound_ty) = self.try_resolve_bound_type_ref(ty) {
+            return self.builtin_float_ty_from_type_id(bound_ty);
+        }
+
+        match ty {
+            ast::TypeRef::Path(path) => {
+                let name = path
+                    .segments
+                    .iter()
+                    .map(|seg| seg.text(source))
+                    .collect::<Vec<_>>()
+                    .join(".");
+                match name.as_str() {
+                    "Float64" | "Double" | "scoop.core.Float64" => Some(ConstFloatTy::Float64),
+                    "Float32" | "scoop.core.Float32" => Some(ConstFloatTy::Float32),
+                    _ => None,
+                }
+            }
+            ast::TypeRef::Nullable { inner, .. } => {
+                self.builtin_float_ty_from_type_ref(source, inner)
+            }
+            ast::TypeRef::Tuple(_)
+            | ast::TypeRef::Star { .. }
+            | ast::TypeRef::EffectRowArg { .. }
+            | ast::TypeRef::Function(_) => None,
+        }
+    }
+
+    fn coerce_value_to_declared_type(
+        &self,
+        source: &SourceFile,
+        value: ConstValue,
+        ty: Option<&ast::TypeRef>,
+    ) -> ConstValue {
+        let Some(target_ty) = ty.and_then(|t| self.builtin_float_ty_from_type_ref(source, t))
+        else {
+            return value;
+        };
+
+        match value {
+            ConstValue::Float(f) => ConstValue::Float(f.cast(target_ty)),
+            other => other,
+        }
+    }
+}
+
+fn substitute_type_params_in_store(
+    types: &mut TypeStore,
+    ty: TypeId,
+    param_map: &HashMap<String, TypeId>,
+) -> TypeId {
+    match types.kind(ty).clone() {
+        TypeKind::Param(p) => param_map.get(&p.name).copied().unwrap_or(ty),
+        TypeKind::StarProjection(star) => {
+            let read_ty = substitute_type_params_in_store(types, star.read_ty, param_map);
+            if read_ty == star.read_ty {
+                ty
+            } else {
+                types.ty_star_projection(read_ty)
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+        | TypeKind::Value(ValueTypeKind::Unit)
+        | TypeKind::Value(ValueTypeKind::Nothing)
+        | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
+        | TypeKind::Value(ValueTypeKind::Int)
+        | TypeKind::Value(ValueTypeKind::UInt)
+        | TypeKind::Value(ValueTypeKind::IntN(_))
+        | TypeKind::Value(ValueTypeKind::UIntN(_)) => ty,
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            let new_inner = substitute_type_params_in_store(types, inner, param_map);
+            if new_inner == inner {
+                ty
+            } else {
+                types.ty_option(new_inner)
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            let mut changed = false;
+            let new_elements: Vec<TypeId> = elements
+                .into_iter()
+                .map(|element| {
+                    let new_element = substitute_type_params_in_store(types, element, param_map);
+                    if new_element != element {
+                        changed = true;
+                    }
+                    new_element
+                })
+                .collect();
+            if changed {
+                types.ty_tuple(new_elements)
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+            let mut changed = false;
+            let args: Vec<TypeId> = nominal
+                .args
+                .into_iter()
+                .map(|arg| {
+                    let new_arg = substitute_type_params_in_store(types, arg, param_map);
+                    if new_arg != arg {
+                        changed = true;
+                    }
+                    new_arg
+                })
+                .collect();
+            let eff = nominal.eff.map(|row| {
+                let new_row = substitute_type_params_in_effect_row(types, &row, param_map);
+                if new_row != row {
+                    changed = true;
+                }
+                new_row
+            });
+            if changed {
+                types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+                    fqn: nominal.fqn,
+                    args,
+                    eff,
+                })))
+            } else {
+                ty
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            let mut changed = false;
+            let args: Vec<TypeId> = nominal
+                .args
+                .into_iter()
+                .map(|arg| {
+                    let new_arg = substitute_type_params_in_store(types, arg, param_map);
+                    if new_arg != arg {
+                        changed = true;
+                    }
+                    new_arg
+                })
+                .collect();
+            let eff = nominal.eff.map(|row| {
+                let new_row = substitute_type_params_in_effect_row(types, &row, param_map);
+                if new_row != row {
+                    changed = true;
+                }
+                new_row
+            });
+            if changed {
+                types.intern(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+                    fqn: nominal.fqn,
+                    args,
+                    eff,
+                })))
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            let mut changed = false;
+            let receiver = fun.receiver.map(|receiver| {
+                let new_receiver = substitute_type_params_in_store(types, receiver, param_map);
+                if new_receiver != receiver {
+                    changed = true;
+                }
+                new_receiver
+            });
+            let params: Vec<TypeId> = fun
+                .params
+                .into_iter()
+                .map(|param| {
+                    let new_param = substitute_type_params_in_store(types, param, param_map);
+                    if new_param != param {
+                        changed = true;
+                    }
+                    new_param
+                })
+                .collect();
+            let return_ty = substitute_type_params_in_store(types, fun.return_ty, param_map);
+            if return_ty != fun.return_ty {
+                changed = true;
+            }
+            let effects = substitute_type_params_in_effect_row(types, &fun.effects, param_map);
+            if effects != fun.effects {
+                changed = true;
+            }
+            if changed {
+                types.ty_function(receiver, params, return_ty, effects, fun.effects_closed)
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => {
+            let mut changed = false;
+            let variants: Vec<TypeId> = union
+                .variants
+                .into_iter()
+                .map(|variant| {
+                    let new_variant = substitute_type_params_in_store(types, variant, param_map);
+                    if new_variant != variant {
+                        changed = true;
+                    }
+                    new_variant
+                })
+                .collect();
+            if changed {
+                types.ty_union(variants)
+            } else {
+                ty
+            }
+        }
+    }
+}
+
+fn substitute_type_params_in_effect_row(
+    types: &mut TypeStore,
+    row: &EffectRow,
+    param_map: &HashMap<String, TypeId>,
+) -> EffectRow {
+    let mut changed = false;
+    let terms: Vec<TypeId> = row
+        .terms
+        .iter()
+        .copied()
+        .map(|term| {
+            let new_term = substitute_type_params_in_store(types, term, param_map);
+            if new_term != term {
+                changed = true;
+            }
+            new_term
+        })
+        .collect();
+    if changed {
+        EffectRow::new(terms)
+    } else {
+        EffectRow { terms }
+    }
 }
 
 fn size_of_builtin_ty_bytes(name: &str) -> Option<usize> {
@@ -1926,44 +2458,6 @@ fn align_of_builtin_ty_bytes(name: &str) -> Option<usize> {
         "String" => Some(std::mem::align_of::<usize>()),
 
         _ => None,
-    }
-}
-
-fn builtin_float_ty_from_type_ref(source: &SourceFile, ty: &ast::TypeRef) -> Option<ConstFloatTy> {
-    match ty {
-        ast::TypeRef::Path(path) => {
-            let name = path
-                .segments
-                .iter()
-                .map(|seg| seg.text(source))
-                .collect::<Vec<_>>()
-                .join(".");
-            match name.as_str() {
-                "Float64" | "Double" | "scoop.core.Float64" => Some(ConstFloatTy::Float64),
-                "Float32" | "scoop.core.Float32" => Some(ConstFloatTy::Float32),
-                _ => None,
-            }
-        }
-        ast::TypeRef::Nullable { inner, .. } => builtin_float_ty_from_type_ref(source, inner),
-        ast::TypeRef::Tuple(_)
-        | ast::TypeRef::Star { .. }
-        | ast::TypeRef::EffectRowArg { .. }
-        | ast::TypeRef::Function(_) => None,
-    }
-}
-
-fn coerce_value_to_declared_type(
-    source: &SourceFile,
-    value: ConstValue,
-    ty: Option<&ast::TypeRef>,
-) -> ConstValue {
-    let Some(target_ty) = ty.and_then(|t| builtin_float_ty_from_type_ref(source, t)) else {
-        return value;
-    };
-
-    match value {
-        ConstValue::Float(f) => ConstValue::Float(f.cast(target_ty)),
-        other => other,
     }
 }
 

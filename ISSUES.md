@@ -82,8 +82,8 @@
 
 ## 12. const / comptime 仍然只覆盖很窄的纯计算子集
 
-- 现状：non-generic 顶层 `const fun` 调用现已接入 compilation-unit 的 resolve/typecheck 绑定，跨文件 / import / overload 会复用普通调用主线的最终选择；但 generic `const fun` 的实例化 / type-substitution 仍未接通。与此同时，声明头检查仍会直接拒绝 `const fun` 上的非 `Pure` effect row 与任何 `eff` 参数；常量 evaluator / interpreter 虽已覆盖 `const fun`、局部声明、`comptime if/for`、字符串 builtin 等一批常见路径，但整体仍停留在较窄的纯计算子集，离更完整的 comptime 语义还有明显距离。
-- 影响：编译期执行链路已经具备跨文件 non-generic 调用能力，但 generic `const fun`、更宽的纯计算结构与更细粒度的 header-phase const 规则仍然是后续收口重点。
+- 现状：顶层 `const fun` 调用现已接入 compilation-unit 的 resolve/typecheck 绑定，跨文件 / import / overload / generic 实例化都会复用普通调用主线的最终选择；解释器也已消费 typecheck 选定的 type args，把它们带入参数/返回类型、反射 intrinsic 与 generic `const fun` 的嵌套调用。与此同时，声明头检查仍会直接拒绝 `const fun` 上的非 `Pure` effect row 与任何 `eff` 参数；常量 evaluator / interpreter 虽已覆盖 `const fun`、局部声明、`comptime if/for`、字符串 builtin 等一批常见路径，但整体仍停留在较窄的纯计算子集，离更完整的 comptime 语义还有明显距离。
+- 影响：编译期执行链路的“调用绑定 + generic 实例化”主线已基本打通；后续重点收敛到更宽的纯计算结构与更细粒度的 header-phase const 规则。
 - 证据：`crates/scoopc/src/typecheck/headers.rs`；`crates/scoopc/src/typecheck/expr/call.rs`；`crates/scoopc/src/comptime/eval.rs`；`crates/scoopc/src/comptime/interpreter.rs`；`crates/scoopc/src/comptime/tests.rs`；`tests/fixtures/comptime/const_fun_string_methods.scoop`。
 
 ## 13. Elvis `?:` 已有静态规则，但仍未进入可执行 lowering / codegen
