@@ -1,47 +1,61 @@
-# 执行计划与进度记录
+## 执行计划
 
-## 说明
+说明：我不会记录或暴露详细的内部思维过程，但会在此维护可审阅的高层计划、关键判断、执行进度与变更原因。
 
-- 按要求，本文件在开始任何仓库探查或命令执行前创建。
-- 我不会记录私有逐字思维链，但会记录可审阅的执行步骤、判断依据、发现的问题、计划变更与完成状态。
-- 本次调用的目标是：先处理最近一次提交中提到的既有问题（如果有），然后完成 `TODO.md` 中第一个未完成任务，完成测试、更新文档与计划、提交 git commit，随后停止。
-
-## 初始执行计划
-
-1. 查看最新一次 git 提交信息，确认是否显式提到需要先修复的既有问题。
+1. 检查最新一次 Git 提交，确认是否提到了任何已知问题、回归、待修复项或阻塞事项；若有，先修复这些问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，理解该任务上下文、依赖关系与现有分解情况。
-4. 结合任务与最近提交说明，评估是否存在阻塞性既有问题、规格不匹配、未完成实现边界或回避式实现。
-5. 如果当前首个未完成任务过大，则先把它拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`；本次只执行拆分后排在最前面的那个子任务。
-6. 实现当前应执行的任务，不采用规避性方案；若遇到真正阻塞问题，则把该问题以前置任务形式加入 `TODO.md`，更新 `PLAN.md` 说明依赖关系，然后停止。
-7. 运行与改动相关的验证：
-   - 至少运行最小相关测试；
-   - 若改动影响面较大，运行更完整的测试；
-   - 按要求检查质量门槛，包括 `cargo clippy --all-targets -- -D warnings`，除非与本次改动完全无关且执行成本不合理时再在记录中说明。
-8. 更新进度文档：
-   - 在 `TODO.md` 标记已完成任务；
-   - 在 `PLAN.md` 反映当前状态、后续依赖和必要说明；
-   - 继续更新本文件记录关键进展与变更。
-9. 检查 git diff，确保只包含本次合理修改。
-10. 使用清晰提交信息提交本次变更，然后停止，不继续下一个任务。
+3. 评估该任务是否过大：
+   - 如果可直接完成，进入实现；
+   - 如果过大，则先更新 `PLAN.md` 与 `TODO.md`，将其拆分为更小的前置子任务，本次只执行新的第一个子任务。
+4. 在实现过程中，如果发现任何既有缺陷、规格不匹配、实现边界缺失或测试/运行时回归：
+   - 先修复该问题；
+   - 若当前无法在本次直接修复，则把它作为前置任务插入 `TODO.md` 当前任务之前，并更新 `PLAN.md` 说明阻塞关系，然后停止。
+5. 完成当前首个任务后，运行相关验证：
+   - 至少执行与改动直接相关的测试；
+   - 若适用，执行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`，或给出无法执行的明确原因。
+6. 更新文档与计划：
+   - 在 `TODO.md` 标记任务完成；
+   - 在 `PLAN.md` 记录当前状态、依赖变化与后续顺序；
+   - 必要时同步更新本文件中的执行进度。
+7. 提交 Git，提交信息使用清晰描述并尽量带任务号。
+8. 本轮只完成一个任务，然后停止。
 
-## 进度日志
+## 当前进度
 
-- 2026-04-25：已创建本文件并写入初始计划，下一步将检查最新提交说明与任务列表。
-- 2026-04-25：已检查最新提交 `e90de94a7373c1451449e4eb4374cbd1b98d756c`，提交标题为 `[T5000b1] Split llvm mod implementation modules`，提交信息中未显式提到需要先修复的既有问题。
-- 2026-04-25：已读取 `TODO.md` 与 `PLAN.md`，当前首个未完成任务为 `T5000b1R Review：确认 llvm/mod.rs 已收口为根模块而非实现巨型文件`。
-- 2026-04-25：当前执行策略已细化为：
-  1. 审查 `crates/scoopc/src/llvm/mod.rs` 的职责是否仅剩根模块边界；
-  2. 审查 `emit.rs`、`pipeline.rs`、`reachability.rs`、`tests.rs` 与调用点，确认主体实现确已迁出；
-  3. 若发现边界未收口或存在回归，则先修复并补测；
-  4. 若 review 通过，则更新 `TODO.md` / `PLAN.md` / 本文件并提交。
-- 2026-04-25：已完成 `T5000b1R` 的结构审查。审查结论：
-  - `crates/scoopc/src/llvm/mod.rs` 只剩子模块声明、对外 re-export、测试期窄桥接 re-export、LLVM GC 策略常量、一次性全局 LLVM 选项配置与统一错误诊断边界；
-  - `emit.rs` 承载 emit API 与 module build；`pipeline.rs` 承载 pass pipeline；`reachability.rs` 承载 HIR 扫描；`tests.rs` 承载根模块测试主体；
-  - `llvm/codegen/effect/state_machine_emitter.rs` 的测试仅通过 `#[cfg(test)]` 下的内部 helper re-export 访问构建与 pipeline 入口，没有把实现职责倒灌回根模块；
-  - 未发现需要在 `T5000b2` 之前插入的新前置缺陷任务。
-- 2026-04-25：已完成验证：
+- 已创建执行计划文件。
+- 已检查最新提交 `30b179ddacd42073cee6df8bb6db3c0803b63aea`（`[T5000b1R] Review llvm mod root boundary`）。
+  - 提交内容只是在 `TODO.md` / `PLAN.md` / `memory/claude_plan.md` 中记录 review 结论；
+  - 未提到任何需要优先修复的既有缺陷；
+  - review 结论明确写明：未发现必须插入到 `T5000b2` 之前的新前置缺陷任务。
+- 已确认 `TODO.md` 当前首个未完成任务为 `T5000b2 提炼 MainCodegen 共享编译单元上下文与 child-codegen 构造路径`。
+- 已完成对 `MainCodegen::new` 现有构造点的勘察：
+  - `crates/scoopc/src/llvm/emit.rs` 中有 3 组编译单元级输入重复拼装：
+    - 顶层声明阶段；
+    - reachable top-level function body 发射阶段；
+    - 入口 `main` exit-code lowering 阶段。
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 中有 4 处 child/nested codegen 手写 `MainCodegenInputs { ... }`：
+    - effect-call wrapper body；
+    - top-level immutable value init；
+    - closure body lowering；
+    - object init lowering。
+- 当前实现策略：
+  1. 新增一个共享的编译单元上下文类型，承接稳定只读输入与跨 child-codegen 共享的编译单元级状态；
+  2. 将 `known_effect_instances_by_effect_fqn` 的构建上移到共享上下文，避免每次 child-codegen 重新扫描；
+  3. 让 `MainCodegen` 持有对共享上下文的引用，并提供统一的 child-codegen 工厂方法；
+  4. 收敛 `emit.rs` 中的入口构造方式，使编译单元输入只在一处集中拼装；
+  5. 运行格式化、测试与 clippy；
+  6. 若验证通过，再更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+- 已完成 `T5000b2` 实现：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `CompilationUnitCodegenCx` / `CompilationUnitCodegenInputs`，把稳定编译单元输入、共享 `effect_op_tags`、共享 `known_fun_call_suspend_cache` 与预计算的 `known_effect_instances_by_effect_fqn` 集中到共享层；
+  - `MainCodegen` 已改为持有 `shared: &CompilationUnitCodegenCx`，并新增 `fresh_child_codegen()`，收口了 effect-call wrapper、top-level immutable init、closure body lowering、object init lowering 4 处 child/nested codegen 构造路径；
+  - `crates/scoopc/src/llvm/emit.rs` 已改为只在一个位置构造编译单元上下文，并通过 `fresh_main_codegen()` 复用到顶层声明、reachable top-level function body 发射和入口 `main` exit-code lowering。
+- 实现过程中出现过两个局部编译问题，均已当场修正：
+  - `Deref` 的关联类型暴露了过窄可见性的共享上下文类型，已把 `CompilationUnitCodegenCx` 调整为 `pub(crate)`；
+  - 共享层里误残留了 `current_source_id`，已移回函数级 `MainCodegen`。
+- 已完成验证：
+  - `cargo fmt --all`
   - `cargo test -p scoopc llvm::`
+  - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
   - 结果：全部通过。
-- 2026-04-25：已更新 `TODO.md` 与 `PLAN.md`，将 `T5000b1R` 标记完成，下一条任务切换为 `T5000b2 提炼 MainCodegen 共享编译单元上下文与 child-codegen 构造路径`。
+- 下一步：检查文档改动与代码 diff，提交本轮 `T5000b2` 结果，然后停止；后续待执行任务应切换为 `T5000b2R`。

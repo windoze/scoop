@@ -95,7 +95,7 @@
   - 已确认 `llvm/codegen/effect/state_machine_emitter.rs` 的测试仅通过 `#[cfg(test)]` 下的窄桥接 re-export 访问 `build_main_module_from_lowered_hir` 与 `run_pass_pipeline`，未把新的实现职责倒灌回 `llvm/mod.rs`；
   - 已验证 `cargo test -p scoopc llvm::` 与 `cargo clippy --all-targets -- -D warnings` 通过，未发现必须插入到 `T5000b2` 之前的新前置缺陷任务。
 
-### [TODO] T5000b2 提炼 `MainCodegen` 共享编译单元上下文与 child-codegen 构造路径
+### [DONE] T5000b2 提炼 `MainCodegen` 共享编译单元上下文与 child-codegen 构造路径
 - 范围：
   - 先从 `MainCodegen` 中抽出稳定的共享只读输入与 child-codegen 工厂路径；
   - 消除 `llvm/mod.rs` 与 `llvm/codegen/mod.rs` 内部多处重复拼装 `MainCodegenInputs` 的模式；
@@ -105,6 +105,12 @@
   - child/nested codegen 不再每次手写整套编译单元输入拼装；
   - 后续拆 cache / effect emitter 上下文时不需要再先做一轮大范围构造点清理。
 - 依赖：T5000b1R
+- 完成记录（2026-04-25）：
+  - 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `CompilationUnitCodegenCx` / `CompilationUnitCodegenInputs`，把稳定的编译单元输入、共享 `effect_op_tags`、共享 `known_fun_call_suspend_cache` 与预计算的 `known_effect_instances_by_effect_fqn` 收口到统一入口；
+  - `MainCodegen` 现改为持有 `shared: &CompilationUnitCodegenCx`，并提供 `fresh_child_codegen()`，从而消除 effect-call wrapper、top-level immutable init、closure body lowering、object init lowering 4 处 child/nested codegen 的整包 `MainCodegenInputs { ... }` 手写拼装；
+  - `crates/scoopc/src/llvm/emit.rs` 现仅在一个位置构造编译单元上下文，并通过 `fresh_main_codegen()` 复用到顶层声明、reachable top-level function body 发射与入口 `main` exit-code lowering 3 条路径；
+  - `known_effect_instances_by_effect_fqn` 不再随着每次 child-codegen 构造重新扫描 `TypeStore`，为后续继续拆分 `MainCodegen` 的 module/function/cache/effect emitter 上下文留出了稳定入口；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b2R Review：确认 `MainCodegen` 构造边界已开始从“巨型输入包”收口
 - 重点：

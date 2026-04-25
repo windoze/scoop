@@ -18,6 +18,7 @@
 
 use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};
+use std::ops::Deref;
 use std::path::Path;
 use std::rc::Rc;
 
@@ -335,7 +336,15 @@ struct ClosureBodyCodegenSpec<'ctx, 'spec> {
     callee_resume_entry_fn: Option<FunctionValue<'ctx>>,
 }
 
-pub(crate) struct MainCodegen<'a, 'ctx> {
+/// 单个编译单元内可跨多个 `MainCodegen` 复用的稳定输入与共享状态。
+///
+/// 这一层先只承接：
+/// - module 级只读输入；
+/// - 编译单元级共享事实；
+/// - child-codegen 之间必须一致的共享状态。
+///
+/// 函数级 builder/env/临时状态仍保留在 `MainCodegen`，留待后续任务继续拆层。
+pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
@@ -343,7 +352,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     host: &'a HostTargetInfo,
     source_map: &'a SourceMap,
     entry_source_id: SourceId,
-    current_source_id: SourceId,
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
@@ -367,11 +375,32 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    /// 顶层/member 函数“调用时是否可能成为 suspend boundary”的惰性缓存。
+    known_fun_call_suspend_cache: RefCell<Option<HashMap<String, bool>>>,
+    /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
+    ///
+    /// 说明：
+    /// - 每个 effect operation 的 FQN 在单次编译中对应唯一的 `op_tag`；
+    /// - `scoop.core.Raise.raise` 固定为 1（与 runtime 约定兼容）；
+    /// - 其余 effect op 从 2 开始递增分配；
+    /// - 所有顶层函数 / nested helper / step trampoline 都必须共享同一份状态，
+    ///   否则跨函数 perform 的 op_tag 会错位。
+    effect_op_tags: Rc<RefCell<EffectOpTagState>>,
+    /// 编译单元内“effect FQN -> 已知 effect 实例 TypeId 列表”。
+    ///
+    /// 用途：
+    /// - same-op multi-arm dispatch 需要把 runtime perform-slot 中的 effect-instance key
+    ///   与“当前程序里可能出现的 effect 实例集合”对齐；
+    /// - 这里采用闭包世界（当前编译单元）收集，避免在 emitter 内重复扫描 `TypeStore`。
+    known_effect_instances_by_effect_fqn: HashMap<String, Vec<TypeId>>,
+}
+
+pub(crate) struct MainCodegen<'a, 'ctx> {
+    shared: &'a CompilationUnitCodegenCx<'a, 'ctx>,
+    current_source_id: SourceId,
     env: Env<'ctx>,
     extra_gc_root_slots: Vec<ExtraGcRootSlot<'ctx>>,
     next_extra_gc_root_slot_id: u32,
-    /// 顶层/member 函数“调用时是否可能成为 suspend boundary”的惰性缓存。
-    known_fun_call_suspend_cache: RefCell<Option<HashMap<String, bool>>>,
     /// `TypeId -> TypeLayout`（仅用于 codegen 侧的 niche 决策；不追求覆盖所有类型语法）。
     type_layout_cache: HashMap<TypeId, TypeLayout>,
     /// `Option<T>` niche 表示的 `None` 编码（用于 nested niche，例如 `Option<Option<Bool>>`）。
@@ -393,22 +422,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 用于 `codegen_return_stmt` 确定返回值类型与 coercion 目标。
     /// - state machine emitter 在生成 step function 时保存/恢复此字段。
     current_fun_return_ty: Option<CgTy>,
-    /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
-    ///
-    /// 说明：
-    /// - 每个 effect operation 的 FQN 在单次编译中对应唯一的 `op_tag`；
-    /// - `scoop.core.Raise.raise` 固定为 1（与 runtime 约定兼容）；
-    /// - 其余 effect op 从 2 开始递增分配；
-    /// - 所有顶层函数 / nested helper / step trampoline 都必须共享同一份状态，
-    ///   否则跨函数 perform 的 op_tag 会错位。
-    effect_op_tags: Rc<RefCell<EffectOpTagState>>,
-    /// 编译单元内“effect FQN -> 已知 effect 实例 TypeId 列表”。
-    ///
-    /// 用途：
-    /// - same-op multi-arm dispatch 需要把 runtime perform-slot 中的 effect-instance key
-    ///   与“当前程序里可能出现的 effect 实例集合”对齐；
-    /// - 这里采用闭包世界（当前编译单元）收集，避免在 emitter 内重复扫描 `TypeStore`。
-    known_effect_instances_by_effect_fqn: HashMap<String, Vec<TypeId>>,
     /// T0119: `@CLayout(packed = N)` で N > 1 の場合、LLVM struct に挿入した padding 要素を
     /// 考慮して、「論理フィールド番号 → LLVM struct 要素番号」のマッピングを保持するキャッシュ。
     ///
@@ -564,7 +577,7 @@ fn collect_known_effect_instance_types_by_effect_fqn(
     by_effect_fqn
 }
 
-pub(super) struct MainCodegenInputs<'a, 'ctx> {
+pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) context: &'ctx Context,
     pub(super) module: &'a Module<'ctx>,
     pub(super) builder: &'a Builder<'ctx>,
@@ -610,9 +623,9 @@ pub(super) struct TypeDescriptorSpec<'ctx, 'a> {
     pub(super) vtable: Option<PointerValue<'ctx>>,
 }
 
-impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(crate) fn new(inputs: MainCodegenInputs<'a, 'ctx>) -> Self {
-        let MainCodegenInputs {
+impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
+    pub(super) fn new(inputs: CompilationUnitCodegenInputs<'a, 'ctx>) -> Self {
+        let CompilationUnitCodegenInputs {
             context,
             module,
             builder,
@@ -655,7 +668,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             host,
             source_map,
             entry_source_id,
-            current_source_id: entry_source_id,
             types,
             struct_layouts,
             enum_layouts,
@@ -679,17 +691,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             direct_supertypes,
             builtins,
             fun_index,
+            known_fun_call_suspend_cache: RefCell::new(None),
+            effect_op_tags,
+            known_effect_instances_by_effect_fqn,
+        }
+    }
+
+    /// 为单个顶层函数、closure body、wrapper 或 init body 构造新的函数级 codegen。
+    ///
+    /// 新实例会重置函数级局部状态，但继续复用编译单元级共享输入与共享事实。
+    pub(super) fn fresh_main_codegen(&'a self) -> MainCodegen<'a, 'ctx> {
+        MainCodegen::new(self)
+    }
+}
+
+impl<'a, 'ctx> Deref for MainCodegen<'a, 'ctx> {
+    type Target = CompilationUnitCodegenCx<'a, 'ctx>;
+
+    fn deref(&self) -> &Self::Target {
+        self.shared
+    }
+}
+
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn new(shared: &'a CompilationUnitCodegenCx<'a, 'ctx>) -> Self {
+        Self {
+            shared,
+            current_source_id: shared.entry_source_id,
             env: Env::default(),
             extra_gc_root_slots: Vec::new(),
             next_extra_gc_root_slot_id: 0,
-            known_fun_call_suspend_cache: RefCell::new(None),
             type_layout_cache: HashMap::new(),
             option_niche_cache: HashMap::new(),
             enum_cg_layout_cache: HashMap::new(),
             class_init_layout_cache: HashMap::new(),
             current_fun_return_ty: None,
-            effect_op_tags,
-            known_effect_instances_by_effect_fqn,
             pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
             return_context: None,
@@ -703,6 +739,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             suspend_site_explicit_effect_outcomes: HashMap::new(),
             top_level_const_eval_stack: Vec::new(),
         }
+    }
+
+    /// 统一 nested/wrapper codegen 的构造路径，避免再次手写整套编译单元输入拼装。
+    fn fresh_child_codegen(&self) -> Self {
+        Self::new(self.shared)
     }
 
     fn when_pat_binding_hir_ty(
@@ -1353,39 +1394,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let legacy_fun = self.declare_top_level_fun(fun)?;
         let saved_block = self.builder.get_insert_block();
-        let mut wrapper_codegen = MainCodegen::new(MainCodegenInputs {
-            context: self.context,
-            module: self.module,
-            builder: self.builder,
-            target_data: self.target_data,
-            host: self.host,
-            source_map: self.source_map,
-            entry_source_id: self.entry_source_id,
-            types: self.types,
-            struct_layouts: self.struct_layouts,
-            enum_layouts: self.enum_layouts,
-            top_level_vars: self.top_level_vars,
-            top_level_consts: self.top_level_consts,
-            top_level_immutable_values: self.top_level_immutable_values,
-            object_inits: self.object_inits,
-            class_inits: self.class_inits,
-            class_vtables: self.class_vtables,
-            interfaces: self.interfaces,
-            class_itables: self.class_itables,
-            ctor_call_sites: self.ctor_call_sites,
-            effect_op_call_sites: self.effect_op_call_sites,
-            handle_payload_tuple_tys: self.handle_payload_tuple_tys,
-            continuation_resume_call_sites: self.continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites: self.non_pure_continuation_resume_call_sites,
-            when_pat_binding_tys: self.when_pat_binding_tys,
-            nominal_kinds: self.nominal_kinds,
-            nominal_variances: self.nominal_variances,
-            direct_supertypes: self.direct_supertypes,
-            builtins: self.builtins,
-            extern_funs: self.extern_funs,
-            fun_index: self.fun_index,
-            effect_op_tags: Rc::clone(&self.effect_op_tags),
-        });
+        let mut wrapper_codegen = self.fresh_child_codegen();
         wrapper_codegen.codegen_top_level_fun_effect_call_wrapper(fun, legacy_fun, wrapper)?;
 
         if let Some(bb) = saved_block {
@@ -2263,39 +2272,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let saved_block = self.builder.get_insert_block();
 
-        let mut init_codegen = MainCodegen::new(MainCodegenInputs {
-            context: self.context,
-            module: self.module,
-            builder: self.builder,
-            target_data: self.target_data,
-            host: self.host,
-            source_map: self.source_map,
-            entry_source_id: self.entry_source_id,
-            types: self.types,
-            struct_layouts: self.struct_layouts,
-            enum_layouts: self.enum_layouts,
-            top_level_vars: self.top_level_vars,
-            top_level_consts: self.top_level_consts,
-            top_level_immutable_values: self.top_level_immutable_values,
-            object_inits: self.object_inits,
-            class_inits: self.class_inits,
-            class_vtables: self.class_vtables,
-            interfaces: self.interfaces,
-            class_itables: self.class_itables,
-            ctor_call_sites: self.ctor_call_sites,
-            effect_op_call_sites: self.effect_op_call_sites,
-            handle_payload_tuple_tys: self.handle_payload_tuple_tys,
-            continuation_resume_call_sites: self.continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites: self.non_pure_continuation_resume_call_sites,
-            when_pat_binding_tys: self.when_pat_binding_tys,
-            nominal_kinds: self.nominal_kinds,
-            nominal_variances: self.nominal_variances,
-            direct_supertypes: self.direct_supertypes,
-            builtins: self.builtins,
-            extern_funs: self.extern_funs,
-            fun_index: self.fun_index,
-            effect_op_tags: Rc::clone(&self.effect_op_tags),
-        });
+        let mut init_codegen = self.fresh_child_codegen();
         init_codegen.codegen_top_level_immutable_value_init_fun_body(value, llvm_fun)?;
 
         if let Some(bb) = saved_block {
@@ -12143,40 +12120,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
             }
 
-            let mut cg = MainCodegen::new(MainCodegenInputs {
-                context: self.context,
-                module: self.module,
-                builder: self.builder,
-                target_data: self.target_data,
-                host: self.host,
-                source_map: self.source_map,
-                entry_source_id: self.entry_source_id,
-                types: self.types,
-                struct_layouts: self.struct_layouts,
-                enum_layouts: self.enum_layouts,
-                top_level_vars: self.top_level_vars,
-                top_level_consts: self.top_level_consts,
-                top_level_immutable_values: self.top_level_immutable_values,
-                object_inits: self.object_inits,
-                class_inits: self.class_inits,
-                class_vtables: self.class_vtables,
-                interfaces: self.interfaces,
-                class_itables: self.class_itables,
-                ctor_call_sites: self.ctor_call_sites,
-                effect_op_call_sites: self.effect_op_call_sites,
-                handle_payload_tuple_tys: self.handle_payload_tuple_tys,
-                continuation_resume_call_sites: self.continuation_resume_call_sites,
-                non_pure_continuation_resume_call_sites: self
-                    .non_pure_continuation_resume_call_sites,
-                when_pat_binding_tys: self.when_pat_binding_tys,
-                nominal_kinds: self.nominal_kinds,
-                nominal_variances: self.nominal_variances,
-                direct_supertypes: self.direct_supertypes,
-                builtins: self.builtins,
-                extern_funs: self.extern_funs,
-                fun_index: self.fun_index,
-                effect_op_tags: Rc::clone(&self.effect_op_tags),
-            });
+            let mut cg = self.fresh_child_codegen();
             // 说明：closure 捕获信息里没有类型；这里在外层 codegen 阶段用 env 中的 locals 恢复 type id，
             // 再传给 closure fun body 用于 env layout 与绑定。
             let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
@@ -14934,39 +14878,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 在生成 init function body 时，临时切换 builder 的插入点；结束后恢复到调用方位置。
         let saved_block = self.builder.get_insert_block();
 
-        let mut init_codegen = MainCodegen::new(MainCodegenInputs {
-            context: self.context,
-            module: self.module,
-            builder: self.builder,
-            target_data: self.target_data,
-            host: self.host,
-            source_map: self.source_map,
-            entry_source_id: self.entry_source_id,
-            types: self.types,
-            struct_layouts: self.struct_layouts,
-            enum_layouts: self.enum_layouts,
-            top_level_vars: self.top_level_vars,
-            top_level_consts: self.top_level_consts,
-            top_level_immutable_values: self.top_level_immutable_values,
-            object_inits: self.object_inits,
-            class_inits: self.class_inits,
-            class_vtables: self.class_vtables,
-            interfaces: self.interfaces,
-            class_itables: self.class_itables,
-            ctor_call_sites: self.ctor_call_sites,
-            effect_op_call_sites: self.effect_op_call_sites,
-            handle_payload_tuple_tys: self.handle_payload_tuple_tys,
-            continuation_resume_call_sites: self.continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites: self.non_pure_continuation_resume_call_sites,
-            when_pat_binding_tys: self.when_pat_binding_tys,
-            nominal_kinds: self.nominal_kinds,
-            nominal_variances: self.nominal_variances,
-            direct_supertypes: self.direct_supertypes,
-            builtins: self.builtins,
-            extern_funs: self.extern_funs,
-            fun_index: self.fun_index,
-            effect_op_tags: Rc::clone(&self.effect_op_tags),
-        });
+        let mut init_codegen = self.fresh_child_codegen();
         init_codegen.codegen_object_init_fun_body(obj, llvm_fun)?;
 
         if let Some(bb) = saved_block {

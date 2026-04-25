@@ -68,7 +68,18 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过；
   - review 结论：`llvm/mod.rs` 已收口为根模块，没有发现需要在 `T5000b2` 前新增的阻塞缺陷任务。
-- 下一条待执行任务切换为 `T5000b2 提炼 MainCodegen 共享编译单元上下文与 child-codegen 构造路径`。
+- 2026-04-25：`T5000b2 提炼 MainCodegen 共享编译单元上下文与 child-codegen 构造路径` 已完成。
+  - 已在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `CompilationUnitCodegenCx` / `CompilationUnitCodegenInputs`，集中承接稳定编译单元输入、共享 `effect_op_tags`、共享 `known_fun_call_suspend_cache` 与预计算的 `known_effect_instances_by_effect_fqn`；
+  - `MainCodegen` 当前已改为持有 `shared: &CompilationUnitCodegenCx`，并通过 `fresh_child_codegen()` 统一 effect-call wrapper、top-level immutable init、closure body lowering、object init lowering 四条 child/nested codegen 构造路径；
+  - `crates/scoopc/src/llvm/emit.rs` 中的顶层声明、reachable top-level function body 发射与入口 `main` exit-code lowering 三条路径，现统一经由单次编译单元上下文构造 + `fresh_main_codegen()` 进入；
+  - 这一步先把“共享编译单元输入”和“函数级局部状态”从构造入口上分离，尚未继续推进到 `type_layout_cache` / `enum_cg_layout_cache` / effect emitter 专用上下文等更深层 cache/状态拆分；这些属于后续 `T5000b2R` / `T5000b4` 继续确认与推进的范围；
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b2R Review：确认 MainCodegen 构造边界已开始从“巨型输入包”收口`。
 
 ## 1. 当前判断
 

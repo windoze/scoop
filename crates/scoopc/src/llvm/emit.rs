@@ -485,39 +485,42 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
     // - 避免“无 main”时把无关错误暴露给调用方；
     // - 避免因为文件里存在“当前后端不支持的函数签名”（例如泛型函数）而影响不相关的程序。
-    let mut declare = codegen::MainCodegen::new(codegen::MainCodegenInputs {
-        context,
-        module: &module,
-        builder: &builder,
-        target_data: &target_data,
-        host: &target_info,
-        source_map,
-        entry_source_id,
-        types: &lowered.types,
-        struct_layouts: &lowered.struct_layouts,
-        enum_layouts: &lowered.enum_layouts,
-        top_level_vars: &lowered.top_level_vars,
-        top_level_consts: &lowered.top_level_consts,
-        top_level_immutable_values: &lowered.top_level_immutable_values,
-        object_inits: &lowered.object_inits,
-        class_inits: &lowered.class_inits,
-        class_vtables: &lowered.class_vtables,
-        interfaces: &lowered.interfaces,
-        class_itables: &lowered.class_itables,
-        ctor_call_sites: &lowered.ctor_call_sites,
-        effect_op_call_sites: &lowered.effect_op_call_sites,
-        handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
-        continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-        non_pure_continuation_resume_call_sites: &lowered.non_pure_continuation_resume_call_sites,
-        when_pat_binding_tys: &lowered.when_pat_binding_tys,
-        nominal_kinds: &lowered.nominal_kinds,
-        nominal_variances: &lowered.nominal_variances,
-        direct_supertypes: &lowered.direct_supertypes,
-        builtins: lowered.builtins,
-        extern_funs: &lowered.extern_funs,
-        fun_index: &fun_index,
-        effect_op_tags: Rc::clone(&effect_op_tags),
-    });
+    let unit_codegen =
+        codegen::CompilationUnitCodegenCx::new(codegen::CompilationUnitCodegenInputs {
+            context,
+            module: &module,
+            builder: &builder,
+            target_data: &target_data,
+            host: &target_info,
+            source_map,
+            entry_source_id,
+            types: &lowered.types,
+            struct_layouts: &lowered.struct_layouts,
+            enum_layouts: &lowered.enum_layouts,
+            top_level_vars: &lowered.top_level_vars,
+            top_level_consts: &lowered.top_level_consts,
+            top_level_immutable_values: &lowered.top_level_immutable_values,
+            object_inits: &lowered.object_inits,
+            class_inits: &lowered.class_inits,
+            class_vtables: &lowered.class_vtables,
+            interfaces: &lowered.interfaces,
+            class_itables: &lowered.class_itables,
+            ctor_call_sites: &lowered.ctor_call_sites,
+            effect_op_call_sites: &lowered.effect_op_call_sites,
+            handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
+            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites: &lowered
+                .non_pure_continuation_resume_call_sites,
+            when_pat_binding_tys: &lowered.when_pat_binding_tys,
+            nominal_kinds: &lowered.nominal_kinds,
+            nominal_variances: &lowered.nominal_variances,
+            direct_supertypes: &lowered.direct_supertypes,
+            builtins: lowered.builtins,
+            extern_funs: &lowered.extern_funs,
+            fun_index: &fun_index,
+            effect_op_tags: Rc::clone(&effect_op_tags),
+        });
+    let mut declare = unit_codegen.fresh_main_codegen();
 
     let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(
         hir_main,
@@ -617,41 +620,8 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
                 kind: "missing declared function",
                 at: fun.span.into(),
             })?;
-        codegen::MainCodegen::new(codegen::MainCodegenInputs {
-            context,
-            module: &module,
-            builder: &builder,
-            target_data: &target_data,
-            host: &target_info,
-            source_map,
-            entry_source_id,
-            types: &lowered.types,
-            struct_layouts: &lowered.struct_layouts,
-            enum_layouts: &lowered.enum_layouts,
-            top_level_vars: &lowered.top_level_vars,
-            top_level_consts: &lowered.top_level_consts,
-            top_level_immutable_values: &lowered.top_level_immutable_values,
-            object_inits: &lowered.object_inits,
-            class_inits: &lowered.class_inits,
-            class_vtables: &lowered.class_vtables,
-            interfaces: &lowered.interfaces,
-            class_itables: &lowered.class_itables,
-            ctor_call_sites: &lowered.ctor_call_sites,
-            effect_op_call_sites: &lowered.effect_op_call_sites,
-            handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
-            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-            non_pure_continuation_resume_call_sites: &lowered
-                .non_pure_continuation_resume_call_sites,
-            when_pat_binding_tys: &lowered.when_pat_binding_tys,
-            nominal_kinds: &lowered.nominal_kinds,
-            nominal_variances: &lowered.nominal_variances,
-            direct_supertypes: &lowered.direct_supertypes,
-            builtins: lowered.builtins,
-            extern_funs: &lowered.extern_funs,
-            fun_index: &fun_index,
-            effect_op_tags: Rc::clone(&effect_op_tags),
-        })
-        .codegen_top_level_fun(fun, llvm_fun)?;
+        let body_codegen = unit_codegen.fresh_main_codegen();
+        body_codegen.codegen_top_level_fun(fun, llvm_fun)?;
     }
 
     let i32_type = context.i32_type();
@@ -707,40 +677,7 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
         });
     builder.build_call(rt_init, &[], "rt_init")?;
 
-    let make_main_codegen_inputs = || codegen::MainCodegenInputs {
-        context,
-        module: &module,
-        builder: &builder,
-        target_data: &target_data,
-        host: &target_info,
-        source_map,
-        entry_source_id,
-        types: &lowered.types,
-        struct_layouts: &lowered.struct_layouts,
-        enum_layouts: &lowered.enum_layouts,
-        top_level_vars: &lowered.top_level_vars,
-        top_level_consts: &lowered.top_level_consts,
-        top_level_immutable_values: &lowered.top_level_immutable_values,
-        object_inits: &lowered.object_inits,
-        class_inits: &lowered.class_inits,
-        class_vtables: &lowered.class_vtables,
-        interfaces: &lowered.interfaces,
-        class_itables: &lowered.class_itables,
-        ctor_call_sites: &lowered.ctor_call_sites,
-        effect_op_call_sites: &lowered.effect_op_call_sites,
-        handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
-        continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-        non_pure_continuation_resume_call_sites: &lowered.non_pure_continuation_resume_call_sites,
-        when_pat_binding_tys: &lowered.when_pat_binding_tys,
-        nominal_kinds: &lowered.nominal_kinds,
-        nominal_variances: &lowered.nominal_variances,
-        direct_supertypes: &lowered.direct_supertypes,
-        builtins: lowered.builtins,
-        extern_funs: &lowered.extern_funs,
-        fun_index: &fun_index,
-        effect_op_tags: Rc::clone(&effect_op_tags),
-    };
-    let main_codegen = codegen::MainCodegen::new(make_main_codegen_inputs());
+    let main_codegen = unit_codegen.fresh_main_codegen();
     let exit_code = main_codegen.codegen_main_exit_code(hir_main)?;
     builder.build_return(Some(&exit_code))?;
 
