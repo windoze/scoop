@@ -25,6 +25,7 @@ pub use eval::{ConstEvalCtx, ConstEvalError, eval_const_expr};
 pub use interpreter::{
     ConstBinding, ConstEvalOptions, eval_const_bindings_in_compilation_unit,
     eval_const_bindings_in_file, trim_package_level_comptime_ifs,
+    trim_package_level_comptime_ifs_in_compilation_unit,
 };
 pub use value::{
     ConstEnum, ConstFloat, ConstFloatTy, ConstInt, ConstIntTy, ConstStruct, ConstValue,

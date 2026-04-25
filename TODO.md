@@ -1246,7 +1246,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4015b
 
-### T1220b [TODO] 让 package-level `comptime if` 条件复用 const/comptime 的 typechecked 调用绑定主线
+### T1220b [DONE] 让 package-level `comptime if` 条件复用 const/comptime 的 typechecked 调用绑定主线
 - 范围：
   - 当前 `trim_package_level_comptime_ifs(source, file)` 在 index/resolve/typecheck 之前裁剪 AST；其内部 `ConstInterpreter` 只注册当前文件顶层声明，且条件表达式一旦拿不到 `TopLevelFunCallBinding`，就会回退到 `call_const_fun(...)` 的 simple-name + arity 选择。
   - 这条 pre-trim 路径必须与 `T4015a1/T4015a2` 已收口的 const/comptime 主线对齐：package-level `comptime if` 条件里的 top-level `const fun` 调用也要支持 overload 选择、generic type args/type-substitution，以及 compilation-unit 级别的 import/cross-file 可见性，而不是继续停留在单文件本地注册表。
@@ -1255,10 +1255,22 @@
   - 同文件 overloaded `const fun` 可作为 package-level `comptime if` 条件正常裁剪，不再报 `scoop::comptime::const_fun_ambiguous`。
   - generic `const fun` 的显式类型实参可用于 package-level `comptime if` 条件，不再报 `scoop::comptime::unsupported_const_fun_signature`（`explicit type args`）。
   - imported / cross-file `const fun` 也可在 package-level `comptime if` 条件中复用同一条调用绑定主线。
-- 已发现阻塞：
-  - 临时 probe `comptime if (describe(1)) { ... }` 在同文件定义 `describe(Int)` / `describe(String)` 时，`cargo run -p scoop -- build` 当前稳定报 `scoop::comptime::const_fun_ambiguous`，证明 pre-trim 条件求值仍在走 simple-name + arity fallback。
-  - 临时 probe `comptime if (truthy<Int>(1)) { ... }` 当前稳定报 `scoop::comptime::unsupported_const_fun_signature`（`explicit type args`），证明 generic const call 在 package-level 裁剪路径上还没接入 `T4015a2` 的 typechecked binding 主线。
-  - 现有实现签名 `trim_package_level_comptime_ifs(source, file)` 也意味着 imported / cross-file const 调用目前缺少可见性上下文，必须一并收口。
+- 已完成：
+  - `crates/scoopc/src/comptime/interpreter.rs` 已新增 `trim_package_level_comptime_ifs_in_compilation_unit(...)` 与 `CompilationUnitTrimContext`；package-level `comptime if` 条件在 pre-trim 阶段会基于“当前可见前缀 + 条件 probe”构造临时 compilation unit，复用 resolve/typecheck 主线刷新 `TopLevelFunCallBinding`，并把 probe `TypeStore` 回填给解释器，避免 overloaded / generic explicit type args / imported const 调用退回 simple-name + arity fallback。
+  - `crates/scoop/src/commands/build.rs`、`crates/scoop/src/fixtures/mod.rs`、`crates/scoopc/src/llvm/frontend.rs` 与 `eval_const_bindings_in_compilation_unit(...)` 已统一切到“先 parse 整编译单元 AST，再按 compilation unit 裁剪 package-level `comptime if`，再进入后续前端阶段”的路径。
+  - `crates/scoopc/src/comptime/tests.rs` 已新增同文件 overload、同文件 generic 显式类型实参、imported cross-file 三类定向回归；`tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun/` 则补锁真实多文件前端路径。
+- 已复验：
+  - `cargo fmt`
+  - `cargo test -p scoopc package_level_comptime_if_ -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 原始阻塞（现已收口）：
+  - 临时 probe `comptime if (describe(1)) { ... }` 在同文件定义 `describe(Int)` / `describe(String)` 时，曾稳定报 `scoop::comptime::const_fun_ambiguous`，证明 pre-trim 条件求值当时仍在走 simple-name + arity fallback。
+  - 临时 probe `comptime if (truthy<Int>(1)) { ... }` 曾稳定报 `scoop::comptime::unsupported_const_fun_signature`（`explicit type args`），证明 generic const call 在 package-level 裁剪路径上当时还没接入 `T4015a2` 的 typechecked binding 主线。
+  - 旧实现签名 `trim_package_level_comptime_ifs(source, file)` 也意味着 imported / cross-file const 调用缺少可见性上下文；本轮已通过 compilation-unit trim 入口一并收口。
 - 依赖：T4015c
 
 ### T4015R [TODO] Review：确认 const/comptime 不再只靠“同文件 + 名字/参数个数 + 字面量求值”的最小旁路

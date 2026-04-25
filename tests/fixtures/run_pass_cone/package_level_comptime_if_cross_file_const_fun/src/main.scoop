@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+// 目标：T1220b package-level `comptime if` 条件可通过 import 复用跨文件 `const fun` 的
+// typechecked 调用绑定主线，而不是退回单文件 simple-name/arity fallback。
+
+package fixtures.run_pass_cone.package_level_comptime_if_cross_file_const_fun
+
+import scoop.core.*
+import fixtures.run_pass_cone.package_level_comptime_if_cross_file_const_fun.enabled
+
+comptime if (enabled(1)) {
+    fun pick(): Int {
+        return 42
+    }
+} else {
+    fun pick(): Int {
+        return 0
+    }
+}
+
+fun main() {
+    println(pick())
+}

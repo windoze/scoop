@@ -22,12 +22,12 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b`、`T4014R`、`T4015a1`、`T4015a2`、`T4015b` 与 `T4015c` 均已完成；在执行 `T4015R` 复审时发现 package-level `comptime if` 条件仍停留在旧的 pre-typecheck fallback，因此下一步前插 `T1220b`。
+1. 前置 blockers、continuation review、core `Task` 无锁 single-driver review 与 `T4017` 显式上下文化收口均已完成；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7`、`T4016T7a`、`T4016T8`、`T4016T9`、`T4016T4R`、`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b`、`T4014R`、`T4015a1`、`T4015a2`、`T4015b`、`T4015c` 与 `T1220b` 均已完成；package-level `comptime if` 条件现已接入 compilation-unit pre-trim 的 typechecked 调用绑定主线，因此下一步回到 `T4015R`。
 2. `CONTINUATION.md` 已收口为显式 `EffectCtx` / `EffectOutcome` 的实施基线，且 `T4017R` 已确认 ordinary boundary、continuation resume 与文档叙事均不再把 ambient effect TLS 当成 source of truth。
 3. `ISSUES.md` 第 9 条：`@Inline` 交叉项已随 `T4013` 收口，不再构成 annotation blocker
 4. `ISSUES.md` 第 10 条：legacy `inline` 关键字与 non-local return 语义残留已由 `T4013R` review 确认关闭。
 5. `ISSUES.md` 第 11 条：ordinary `@Extern` 的 effect-impermeable 边界与 stable handle / `Pinned` 职责分离已由 `T4014R` 复审确认收口。
-6. `ISSUES.md` 第 12 条：const / comptime 的声明级 Pure/Pure! 合同已收口，但 package-level `comptime if` 条件尚未接入同一条调用绑定主线；剩余顺序为 `T1220b -> T4015R`，下一步执行 `T1220b`。
+6. `ISSUES.md` 第 12 条：const / comptime 的声明级 Pure/Pure! 合同与 package-level `comptime if` 条件的调用绑定现已一并收口；剩余顺序为 `T4015R`，下一步执行 `T4015R`。
 
 ## 2. 分阶段目标
 
@@ -304,7 +304,7 @@
   - 因此当前剩余顺序为：
     - `T4017a`：先更新 `CONTINUATION.md`、spec 与 runtime 设计文档，收口显式 `EffectCtx` / `EffectOutcome` 叙事。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b` 与 `T4014R` 已完成；后续顺序转入 `T4015a -> T4015b -> T4015c -> T4015R`。
+- 当前状态：`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b` 与 `T4014R` 已完成；后续顺序现已推进到 `T4015R`。
 
 ### P1.6. continuation / effect runtime 显式上下文化（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e1 -> T4017e2 -> T4017e3 -> T4017f -> T4017R`）
 
@@ -368,7 +368,7 @@
     - continuation resume 的权威恢复状态已收口为 captured handler context、continuation/frame metadata 与显式 resume token；`scoop_callee_suspend_state_get()` 不再被生产 codegen 当作恢复入口。
     - `state_machine_emitter` 中保留的 TLS handler-stack / perform-slot / active 读取与 `CONTINUATION.md`、`docs/effect_unified_state_machine.md` 的叙事一致，只承担 direct `perform` / hidden-suspend / arm-cleanup 的局部 transport，不再把 ambient TLS 当成语义 source of truth。
     - 已复验 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-- 当前状态：`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b` 与 `T4014R` 已完成，`T4017e` 已整体收口。下一步执行 `T4015a`。
+- 当前状态：`T4017a`、`T4017b`、`T4017c`、`T4017d`、`T4017e1`、`T4017e2`、`T4017e3`、`T4017f`、`T4017R`、`T4012b3`、`T4012c`、`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b` 与 `T4014R` 已完成，`T4017e` 已整体收口。下一步执行 `T4015R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
@@ -415,7 +415,7 @@
   - 复扫 annotation / typecheck / lowering / codegen 后，已确认 `@Inline` 只参与 built-in annotation 识别与 target/参数校验；表达式、局部绑定等非函数目标会稳定报错，生产 lowering/runtime 中不存在 `@Inline` 控制流或 ABI special-case。
   - 复扫 `return` 规则与文档后，已确认 lambda 中的 `return` 统一只允许离开立即包裹它的命名函数体；`SCOOP_FULL_SPEC.md`、`sysroot/core.scoop` 与 `ISSUES.md` 叙事一致，若未来要重引 non-local control，只能另立 deferred 设计任务。
   - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/parse`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop_tools -- spec-fixtures check` 通过。
-- 当前状态：annotation marker / inline keyword cleanup 与 FFI / ABI 边界收口主线已完成，`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b` 与 `T4014R` 已完成；下一步进入 `T4015a`。
+- 当前状态：annotation marker / inline keyword cleanup 与 FFI / ABI 边界收口主线已完成，`T4012R`、`T4013`、`T4013R`、`T4014a`、`T4014b` 与 `T4014R` 已完成；下一步进入 `T4015R`。
 
 ### P3. FFI / ABI 边界收口
 
@@ -429,7 +429,7 @@
 - `T4014R` 已完成：
   - 复扫 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`、`sysroot/unsafe.scoop`、`crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/typecheck/expr/error.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/mod.rs` 后，ordinary `@Extern` 的 effect-impermeable 边界、stable handle 的长期 token 合同以及 `Pinned` 的短时借址语义仍保持一致，不存在继续隐含 GC / effect 语义的生产旁路。
   - 复验 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo test -p scoopc pure_extern_call_does_not_install_effect_boundary --features llvm`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，均未暴露新的前置 blocker。
-- 当前状态：`T4014a`、`T4014b`、`T4014R`、`T4015a1`、`T4015a2`、`T4015b` 与 `T4015c` 已完成；`T4015` 已完成调用绑定 / generic 实例化 / ordinary control flow / 声明级 effect contract 主线，但在 `T4015R` 复审 probe 中发现 package-level `comptime if` 条件仍存在旧 fallback，因而需先执行 `T1220b`。
+- 当前状态：`T4014a`、`T4014b`、`T4014R`、`T4015a1`、`T4015a2`、`T4015b`、`T4015c` 与 `T1220b` 已完成；`T4015` 已完成调用绑定 / generic 实例化 / ordinary control flow / 声明级 effect contract 主线，并已把 package-level `comptime if` 条件接到 compilation-unit 调用绑定主线，因此下一步回到 `T4015R`。
 
 ### P4. const / comptime 扩展
 
@@ -441,11 +441,9 @@
   - `T4015a2` 已完成后，const/comptime 解释器现已复用 typecheck 选定的 generic type args、活动类型实参环境与 reflection/type-substitution 支撑；跨文件 generic const 调用、显式/推断类型实参，以及 nested generic const 调用现已统一复用 typechecked 绑定主线。
   - `T4015b` 已完成：ordinary `if` / block / `do`、局部 `val/var`、assignment、`while` / 普通 `for`、`break/continue` 与 const val initializer 中的 block 表达式现已可解释执行；同时默认递归门限已从 `64` 收紧到 `48`，恢复“先报 `recursion_limit_exceeded`、不先撞宿主线程栈”的稳定合同。
   - `T4015c` 已完成：`const fun` 的声明级 effect contract 现已在 typecheck / comptime 注释 / spec / README / `ISSUES.md` 中统一为“仅允许省略 effect row，或显式 `/ Pure` / `/ Pure!`，且不允许 `<eff ...>`”；新增 `const_fun_closed_pure_basic` 回归锁定显式 `/ Pure!` 仍能走 comptime 主线。
-  - 在执行 `T4015R` 复审时，已用最小 probe 确认 package-level `comptime if` 裁剪路径尚未跟随主线收口：
-    - 同文件 overloaded `describe(Int/String)` 条件 `comptime if (describe(1)) { ... }` 会在 `cargo run -p scoop -- build` 下报 `scoop::comptime::const_fun_ambiguous`；
-    - 同文件 generic `truthy<Int>(1)` 条件会报 `scoop::comptime::unsupported_const_fun_signature`（`explicit type args`）；
-    - 根因是 `trim_package_level_comptime_ifs(source, file)` 仍在 index/resolve/typecheck 前用单文件 `ConstInterpreter` 求值；一旦缺少 `TopLevelFunCallBinding`，条件调用就回退到 `call_const_fun(...)` 的 simple-name + arity 路径。
-  - 因此当前主线顺序更新为 `T1220b -> T4015R`；`T4015R` 需在 package-level `comptime if` 条件也复用同一条 const/comptime 调用绑定主线后再做结论性复审。
+  - `T1220b` 已完成：`trim_package_level_comptime_ifs_in_compilation_unit(...)` 会在 pre-trim 阶段为“当前可见前缀 + 条件 probe”构造临时 compilation unit，复用 resolve/typecheck 主线刷新 `TopLevelFunCallBinding`，并把 probe `TypeStore` 回填给解释器，因此 package-level `comptime if` 条件中的 overloaded / generic explicit type args / imported cross-file `const fun` 调用不再退回 simple-name + arity fallback。
+  - `crates/scoop/src/commands/build.rs`、`crates/scoop/src/fixtures/mod.rs`、`crates/scoopc/src/llvm/frontend.rs` 与 `eval_const_bindings_in_compilation_unit(...)` 已统一切到 compilation-unit trim 路径；`crates/scoopc/src/comptime/tests.rs` 与 `tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun/` 也已补齐同文件 overload、显式类型实参与跨文件 import 三类回归。
+  - 因此当前主线顺序更新为 `T4015R`；下一步应复审整个 const/comptime 主线是否还残留类似旧旁路。
 
 ## 3. 各阶段完成标准
 

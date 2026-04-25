@@ -36,12 +36,22 @@ pub(super) fn prepare_single_file_codegen_unit(
 
     let mut asts = Vec::with_capacity(input_sources.len());
     for source in &input_sources {
-        let mut ast = parse_file(source).map_err(frontend_error)?;
-        crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)
-            .map_err(frontend_error)?;
-        crate::typecheck::check_file_headers(source, &ast).map_err(frontend_error)?;
-        crate::typecheck::check_file_struct_decls(source, &ast).map_err(frontend_error)?;
+        let ast = parse_file(source).map_err(frontend_error)?;
         asts.push(ast);
+    }
+    {
+        let source_refs = input_sources.iter().collect::<Vec<_>>();
+        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
+        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &source_refs,
+            &mut ast_refs,
+        )
+        .map_err(frontend_error)?;
+    }
+    for (source, ast) in input_sources.iter().zip(asts.iter()) {
+        crate::typecheck::check_file_headers(source, ast).map_err(frontend_error)?;
+        crate::typecheck::check_file_struct_decls(source, ast).map_err(frontend_error)?;
     }
 
     let index = build_single_file_index(session, &input_sources, &asts).map_err(frontend_error)?;

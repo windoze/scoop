@@ -13,6 +13,7 @@
 
 use std::collections::HashMap;
 use std::ops::ControlFlow;
+use std::path::PathBuf;
 
 use crate::ast;
 use crate::source::SourceFile;
@@ -106,8 +107,7 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
         Vec::with_capacity(stdlib_source_paths.len());
     for path in stdlib_source_paths {
         let source = SourceFile::load(&path).map_err(|err| frontend_message(err.to_string()))?;
-        let mut ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
-        trim_package_level_comptime_ifs(&source, &mut ast)?;
+        let ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
         prepared_stdlib.push(OwnedPreparedConstEvalFile { source, ast });
     }
 
@@ -118,16 +118,40 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
         Vec::with_capacity(compilable_sysroot_paths.len());
     for path in compilable_sysroot_paths {
         let source = SourceFile::load(&path).map_err(|err| frontend_message(err.to_string()))?;
-        let mut ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
-        trim_package_level_comptime_ifs(&source, &mut ast)?;
+        let ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
         prepared_compilable_sysroot.push(OwnedPreparedConstEvalFile { source, ast });
     }
 
     let mut prepared: Vec<PreparedConstEvalFile<'a>> = Vec::with_capacity(files.len());
     for (source, file) in files.iter().copied() {
-        let mut ast = file.clone();
-        trim_package_level_comptime_ifs(source, &mut ast)?;
+        let ast = file.clone();
         prepared.push(PreparedConstEvalFile { source, ast });
+    }
+
+    {
+        let mut trim_sources: Vec<&SourceFile> = Vec::with_capacity(
+            prepared_stdlib.len() + prepared_compilable_sysroot.len() + prepared.len(),
+        );
+        let mut trim_files: Vec<&mut ast::File> = Vec::with_capacity(
+            prepared_stdlib.len() + prepared_compilable_sysroot.len() + prepared.len(),
+        );
+        for file in &mut prepared_stdlib {
+            trim_sources.push(&file.source);
+            trim_files.push(&mut file.ast);
+        }
+        for file in &mut prepared_compilable_sysroot {
+            trim_sources.push(&file.source);
+            trim_files.push(&mut file.ast);
+        }
+        for file in &mut prepared {
+            trim_sources.push(file.source);
+            trim_files.push(&mut file.ast);
+        }
+        trim_package_level_comptime_ifs_in_compilation_unit(
+            sysroot,
+            &trim_sources,
+            &mut trim_files,
+        )?;
     }
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::with_capacity(
@@ -282,7 +306,7 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     interp.eval_const_bindings_for_file(target.source, &target.ast)
 }
 
-/// 在 resolver/index 之前裁剪 package-level `comptime if`（TODO T1220b）。
+/// 在 resolver/index 之前裁剪 package-level `comptime if`（单文件入口）。
 ///
 /// 语义（v0）：
 /// - 对顶层 `comptime if (<cond>) { <items> } else ...` 的 `<cond>` 做编译期求值（Bool）；
@@ -297,33 +321,123 @@ pub fn trim_package_level_comptime_ifs(
     source: &SourceFile,
     file: &mut ast::File,
 ) -> Result<(), ConstEvalError> {
+    let trimmed = trim_package_level_comptime_ifs_with_unit_ctx(source, &*file, None)?;
+    *file = trimmed;
+    Ok(())
+}
+
+/// 在共享 compilation-unit 上下文中裁剪 package-level `comptime if`。
+///
+/// 说明：
+/// - 该入口用于真实多文件前端（build / fixtures / llvm single-file support sources / const eval）；
+/// - 它会在“未选中分支不进入 index/resolve/typecheck”的前提下，为当前可见顶层项构造一个
+///   临时 compilation unit，并复用现有 resolve/typecheck 主线为 package-level 条件和其中
+///   触达的 const fun body 产出 `TopLevelFunCallBinding`；
+/// - 从而让 package-level 条件中的 overloaded / generic / imported const 调用不再退回
+///   simple-name + arity fallback。
+pub fn trim_package_level_comptime_ifs_in_compilation_unit(
+    sysroot: &crate::sysroot::Sysroot,
+    sources: &[&SourceFile],
+    files: &mut [&mut ast::File],
+) -> Result<(), ConstEvalError> {
+    assert_eq!(
+        sources.len(),
+        files.len(),
+        "sources/files length mismatch in package-level comptime trim"
+    );
+    if files.is_empty() {
+        return Ok(());
+    }
+
+    let originals = files
+        .iter()
+        .map(|file| (**file).clone())
+        .collect::<Vec<_>>();
+    let mut visible_files = originals
+        .iter()
+        .map(direct_visible_file)
+        .collect::<Vec<_>>();
+    let mut fingerprints = visible_files
+        .iter()
+        .map(file_items_fingerprint)
+        .collect::<Vec<_>>();
+    let max_passes = sources.len().max(1) * 2;
+
+    for _ in 0..max_passes {
+        let mut changed = false;
+
+        for (idx, source) in sources.iter().copied().enumerate() {
+            let ctx = CompilationUnitTrimContext {
+                sysroot,
+                sources,
+                visible_files: &visible_files,
+                current_file_idx: idx,
+            };
+            let trimmed =
+                trim_package_level_comptime_ifs_with_unit_ctx(source, &originals[idx], Some(&ctx))?;
+            let fingerprint = file_items_fingerprint(&trimmed);
+            if fingerprint != fingerprints[idx] {
+                fingerprints[idx] = fingerprint;
+                visible_files[idx] = trimmed;
+                changed = true;
+            }
+        }
+
+        if !changed {
+            break;
+        }
+    }
+
+    for (dst, trimmed) in files.iter_mut().zip(visible_files.into_iter()) {
+        **dst = trimmed;
+    }
+
+    Ok(())
+}
+
+fn trim_package_level_comptime_ifs_with_unit_ctx<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    unit_ctx: Option<&CompilationUnitTrimContext<'a>>,
+) -> Result<ast::File, ConstEvalError> {
     if !file
         .items
         .iter()
         .any(|it| matches!(it, ast::Item::ComptimeIf(_)))
     {
-        return Ok(());
+        return Ok(file.clone());
     }
 
     let trimmed = {
-        // 这里借用 `file` 进行裁剪，但直到最终替换 `file.items` 之前都不写回，
-        // 以避免 “解释器内部持有对 AST 节点的引用” 与 “移动 items” 之间的冲突。
-        let file_ref: &ast::File = &*file;
-
         let mut interp = ConstInterpreter::with_options(
             ConstEvalCtx::new(source),
-            file_ref,
+            file,
             ConstEvalOptions::default(),
         );
-        interp.register_file(source, file_ref);
+        interp.register_file(source, file);
+        if let Some(ctx) = unit_ctx {
+            for (other_idx, other_source) in ctx.sources.iter().copied().enumerate() {
+                if other_idx == ctx.current_file_idx {
+                    continue;
+                }
+                interp.register_file(other_source, &ctx.visible_files[other_idx]);
+            }
+        }
 
         let mut out: Vec<ast::Item> = Vec::new();
-        trim_package_level_items(&mut interp, &file_ref.items, &mut out, PreRegisterDecls::No)?;
+        trim_package_level_items(
+            &mut interp,
+            &file.items,
+            &mut out,
+            PreRegisterDecls::No,
+            unit_ctx,
+        )?;
         out
     };
 
-    file.items = trimmed;
-    Ok(())
+    let mut trimmed_file = file.clone();
+    trimmed_file.items = trimmed;
+    Ok(trimmed_file)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -361,11 +475,199 @@ struct ReflectionTypeTarget<'a> {
     decl: Option<RegisteredType<'a>>,
 }
 
+fn file_items_fingerprint(file: &ast::File) -> String {
+    format!("{:?}", file.items)
+}
+
+fn direct_visible_file(file: &ast::File) -> ast::File {
+    let mut visible = file.clone();
+    visible.items = file
+        .items
+        .iter()
+        .filter(|item| !matches!(item, ast::Item::ComptimeIf(_)))
+        .cloned()
+        .collect();
+    visible
+}
+
+fn make_package_level_condition_probe_val(cond: &ast::Expr) -> ast::Item {
+    ast::Item::Val(Box::new(ast::ValDecl {
+        span: cond.span,
+        annotations: Vec::new(),
+        modifiers: Vec::new(),
+        kind: ast::ValKind::Val,
+        binding: ast::ValBinding::Pattern(ast::Pattern {
+            span: cond.span,
+            kind: ast::PatternKind::Wildcard,
+        }),
+        ty: None,
+        init: Some(cond.clone()),
+    }))
+}
+
+fn build_visible_file_for_binding_refresh(
+    file: &ast::File,
+    visible_prefix_items: &[ast::Item],
+    remaining_items: &[ast::Item],
+    probe_cond: Option<&ast::Expr>,
+) -> ast::File {
+    let mut visible = file.clone();
+    visible.items = visible_prefix_items.to_vec();
+    visible.items.extend(
+        remaining_items
+            .iter()
+            .filter(|item| !matches!(item, ast::Item::ComptimeIf(_)))
+            .cloned(),
+    );
+    if let Some(cond) = probe_cond {
+        visible
+            .items
+            .push(make_package_level_condition_probe_val(cond));
+    }
+    visible
+}
+
+struct CompilationUnitTrimContext<'a> {
+    sysroot: &'a crate::sysroot::Sysroot,
+    sources: &'a [&'a SourceFile],
+    visible_files: &'a [ast::File],
+    current_file_idx: usize,
+}
+
+impl<'a> CompilationUnitTrimContext<'a> {
+    fn refresh_visible_unit_call_bindings(
+        &self,
+        interp: &mut ConstInterpreter<'a>,
+        current_file: &'a ast::File,
+        visible_prefix_items: &[ast::Item],
+        remaining_items: &[ast::Item],
+        probe_cond: Option<&'a ast::Expr>,
+    ) -> Result<(), ConstEvalError> {
+        let mut probe_asts = self.visible_files.to_vec();
+        probe_asts[self.current_file_idx] = build_visible_file_for_binding_refresh(
+            current_file,
+            visible_prefix_items,
+            remaining_items,
+            probe_cond,
+        );
+
+        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
+            crate::typecheck::check_file_headers(source, ast).map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_struct_decls(source, ast).map_err(frontend_diagnostic)?;
+        }
+
+        let mut pairs: Vec<(&SourceFile, &ast::File)> =
+            Vec::with_capacity(self.sysroot.files.len() + probe_asts.len());
+        for file in &self.sysroot.files {
+            pairs.push((&file.source, &file.ast));
+        }
+        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
+            pairs.push((source, ast));
+        }
+
+        let index = crate::resolve::Index::build(&pairs).map_err(frontend_diagnostic)?;
+        let mut env = crate::typecheck::TypeEnv::from_sysroot(self.sysroot, &index)
+            .map_err(frontend_diagnostic)?;
+        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
+            env.extend_from_file(source, ast, &index)
+                .map_err(frontend_diagnostic)?;
+        }
+
+        let mut types = crate::ty::TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter_mut()) {
+            let headers = crate::resolve::check_file_headers(source, ast, &index)
+                .map_err(frontend_diagnostic)?;
+            crate::resolve::check_file_bodies(source, ast, &index, &headers)
+                .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_annotations(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_properties(source, ast, &index, &env)
+                .map_err(|err| frontend_boxed_diagnostic(err))?;
+            crate::typecheck::check_file_inheritance(source, ast, &index)
+                .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_interfaces(source, ast, &index, &env)
+                .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_override_effects(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(|err| frontend_boxed_diagnostic(err))?;
+            crate::typecheck::check_file_type_refs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_where_clauses(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_overload_conflicts(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+            crate::typecheck::check_file_exprs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(frontend_diagnostic)?;
+        }
+
+        let mut overrides: HashMap<(PathBuf, Span), ast::TopLevelFunCallBinding> = HashMap::new();
+        for (source, ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
+            let path = source.path().to_path_buf();
+            for (span, binding) in ast.top_level_fun_call_bindings.borrow().iter() {
+                overrides.insert((path.clone(), *span), binding.clone());
+            }
+        }
+        interp.types = types;
+        interp.replace_top_level_fun_call_binding_overrides(overrides);
+        Ok(())
+    }
+}
+
 fn trim_package_level_items<'a>(
     interp: &mut ConstInterpreter<'a>,
     items: &'a [ast::Item],
     out: &mut Vec<ast::Item>,
     pre_register: PreRegisterDecls,
+    unit_ctx: Option<&CompilationUnitTrimContext<'a>>,
 ) -> Result<(), ConstEvalError> {
     // 在处理一个“被选中的分支块”之前，先把该块内直接出现的 type/fun 声明预注册到环境，
     // 以支持 const/comptime 里“先用后声明”的常见模式。
@@ -376,8 +678,23 @@ fn trim_package_level_items<'a>(
     for item in items {
         match item {
             ast::Item::ComptimeIf(ci) => {
+                if let Some(ctx) = unit_ctx {
+                    ctx.refresh_visible_unit_call_bindings(
+                        interp,
+                        interp.current_file(),
+                        out.as_slice(),
+                        &[],
+                        Some(&ci.cond),
+                    )?;
+                }
                 if let Some(block) = interp.select_comptime_if_item_branch(ci)? {
-                    trim_package_level_items(interp, &block.items, out, PreRegisterDecls::Yes)?;
+                    trim_package_level_items(
+                        interp,
+                        &block.items,
+                        out,
+                        PreRegisterDecls::Yes,
+                        unit_ctx,
+                    )?;
                 }
             }
             other => {
@@ -493,6 +810,13 @@ struct ConstInterpreter<'a> {
     types_by_name: HashMap<String, Vec<RegisteredType<'a>>>,
     /// 顶层类型声明（按 FQN 精确索引；generic reflection 需要绕过 simple-name 歧义）。
     types_by_fqn: HashMap<String, RegisteredType<'a>>,
+    /// package-level `comptime if` 裁剪阶段的“(file path, call span) -> typechecked binding”覆写表。
+    ///
+    /// 说明：
+    /// - 该表只在 pre-trim 条件求值阶段使用；
+    /// - key 需要带文件路径，避免跨文件同 span 冲突；
+    /// - 一旦存在该覆写，应优先于当前 AST side-table，避免重新退回 simple-name/arity fallback。
+    top_level_fun_call_binding_overrides: HashMap<(PathBuf, Span), ast::TopLevelFunCallBinding>,
 }
 
 impl<'a> ConstInterpreter<'a> {
@@ -519,6 +843,7 @@ impl<'a> ConstInterpreter<'a> {
             funs_by_fqn: HashMap::new(),
             types_by_name: HashMap::new(),
             types_by_fqn: HashMap::new(),
+            top_level_fun_call_binding_overrides: HashMap::new(),
         }
     }
 
@@ -551,6 +876,24 @@ impl<'a> ConstInterpreter<'a> {
     fn pop_eval_frame(&mut self) {
         let _ = self.current_sources.pop();
         let _ = self.current_files.pop();
+    }
+
+    fn replace_top_level_fun_call_binding_overrides(
+        &mut self,
+        overrides: HashMap<(PathBuf, Span), ast::TopLevelFunCallBinding>,
+    ) {
+        self.top_level_fun_call_binding_overrides = overrides;
+    }
+
+    fn top_level_fun_call_binding_for_current_file(
+        &self,
+        span: Span,
+    ) -> Option<ast::TopLevelFunCallBinding> {
+        let key = (self.current_source().path().to_path_buf(), span);
+        self.top_level_fun_call_binding_overrides
+            .get(&key)
+            .cloned()
+            .or_else(|| self.current_file().top_level_fun_call_binding(span))
     }
 
     fn register_file(&mut self, source: &'a SourceFile, file: &'a ast::File) {
@@ -977,7 +1320,7 @@ impl<'a> ConstInterpreter<'a> {
         type_args: Vec<ast::TypeRef>,
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError> {
-        let selected_binding = self.current_file().top_level_fun_call_binding(call_span);
+        let selected_binding = self.top_level_fun_call_binding_for_current_file(call_span);
 
         // T1219：平台反射 `getPlatform()`：既可在 comptime 求值，也可在运行期查询。
         //

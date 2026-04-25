@@ -563,11 +563,20 @@ fn run_frontend(
     // 先 parse 所有文件（cone 包模式下：`src/**/*.scoop`）。
     let mut asts = Vec::with_capacity(input.sources.len());
     for source in &input.sources {
-        let mut ast = scoopc::parser::parse_file(source).map_err(miette::Report::from)?;
-        // T1220b：在 resolver/index 之前裁剪 package-level `comptime if`（未选中分支不进入后续阶段）。
-        scoopc::comptime::trim_package_level_comptime_ifs(source, &mut ast)
-            .map_err(miette::Report::from)?;
+        let ast = scoopc::parser::parse_file(source).map_err(miette::Report::from)?;
         asts.push(ast);
+    }
+    {
+        let source_refs = input.sources.iter().collect::<Vec<_>>();
+        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
+        // T1220b：在 resolver/index 之前按整编译单元裁剪 package-level `comptime if`
+        //（未选中分支不进入后续阶段），并让条件表达式复用 const/comptime 的 typechecked 调用绑定主线。
+        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &source_refs,
+            &mut ast_refs,
+        )
+        .map_err(miette::Report::from)?;
     }
 
     // 先运行不依赖 resolver/index 的 typecheck 预检查（与 fixtures/typecheck pipeline 对齐）。

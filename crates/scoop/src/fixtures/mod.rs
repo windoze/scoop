@@ -1520,11 +1520,19 @@ fn run_resolve_multi_case(
     let mut asts = Vec::with_capacity(paths.len());
     for path in &paths {
         let source = scoopc::source::SourceFile::load(path)?;
-        let mut ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
-        scoopc::comptime::trim_package_level_comptime_ifs(&source, &mut ast)
-            .map_err(miette::Report::new)?;
+        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
+    }
+    {
+        let source_refs = sources.iter().collect::<Vec<_>>();
+        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
+        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &source_refs,
+            &mut ast_refs,
+        )
+        .map_err(miette::Report::new)?;
     }
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
@@ -1966,11 +1974,19 @@ fn run_typecheck_cone_archive_case(
     let mut asts: Vec<scoopc::ast::File> = Vec::new();
     for path in &consumer_pkg.sources {
         let source = scoopc::source::SourceFile::load(path)?;
-        let mut ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
-        scoopc::comptime::trim_package_level_comptime_ifs(&source, &mut ast)
-            .map_err(miette::Report::new)?;
+        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
+    }
+    {
+        let source_refs = sources.iter().collect::<Vec<_>>();
+        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
+        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &source_refs,
+            &mut ast_refs,
+        )
+        .map_err(miette::Report::new)?;
     }
 
     // 先构建 Index：sysroot + consumer sources（cone=1）。
