@@ -410,53 +410,58 @@ struct FunctionBodyCodegenCx<'ctx> {
     top_level_const_eval_stack: Vec<String>,
 }
 
+/// ordinary callee suspend/resume lowering 的专属运行态。
+///
+/// 这组状态只在“普通函数体需要把 perform 外传到外层 state-machine，再由 resume thunk
+/// 回放原 call-site”这一 effect lowering 路径中有意义；它不属于 generic lowering
+/// 或普通函数 / body 生命周期上下文。
+#[derive(Default)]
+struct CalleeSuspendLoweringCodegenCx<'ctx> {
+    current_suspend_plan: Option<CalleeSuspendPlan>,
+    current_resume_entry_fn: Option<FunctionValue<'ctx>>,
+}
+
+/// `Continuation.resume(...)` replay 模式的专属运行态。
+#[derive(Default, Clone, Copy)]
+struct ContinuationResumeReplayCodegenCx<'ctx> {
+    active: bool,
+    replay_context: Option<ContinuationResumeReplayContext<'ctx>>,
+}
+
+/// state-machine step/dispatch 中 suspend-site outcome 捕获的专属运行态。
+#[derive(Default)]
+struct SuspendSiteEffectOutcomeCodegenCx<'ctx> {
+    active_capture: Option<ActiveSuspendSiteEffectOutcomeCapture>,
+    explicit_outcomes: HashMap<u32, PointerValue<'ctx>>,
+}
+
+/// effect lowering / state-machine emitter 的专属上下文。
+///
+/// 它集中承接所有不应继续平铺在 `MainCodegen` 上的 effect 专属运行态，使：
+/// - 独立 runtime function（step/dispatch、callee resume entry）可以整组保存/恢复；
+/// - state-machine emitter 不再手工保存/恢复多串 `MainCodegen` 字段；
+/// - `MainCodegen` 的剩余字段更接近 generic lowering / function-body 边界。
+#[derive(Default)]
+struct EffectLoweringCodegenCx<'ctx> {
+    function_return_context: Option<EffectFunctionReturnContext<'ctx>>,
+    callee_suspend: CalleeSuspendLoweringCodegenCx<'ctx>,
+    continuation_resume_replay: ContinuationResumeReplayCodegenCx<'ctx>,
+    suspend_site_effect_outcomes: SuspendSiteEffectOutcomeCodegenCx<'ctx>,
+}
+
+impl<'ctx> EffectLoweringCodegenCx<'ctx> {
+    fn enclosing_function_return_ty(&self, function_return_ty: Option<CgTy>) -> Option<CgTy> {
+        self.function_return_context
+            .map(|ctx| ctx.return_ty)
+            .or(function_return_ty)
+    }
+}
+
 pub(crate) struct MainCodegen<'a, 'ctx> {
     shared: &'a CompilationUnitCodegenCx<'a, 'ctx>,
     current_source_id: SourceId,
     function_cx: FunctionBodyCodegenCx<'ctx>,
-    /// 统一 state-machine 运行时函数内的“向外层函数返回”上下文。
-    ///
-    /// 说明：
-    /// - `handle` 的 step/dispatch runtime function 不是用户函数本身，不能直接 branch 到外层
-    ///   函数的 `return_bb`；
-    /// - 但 runtime function 内仍可能递归生成 nested handle，其 `return` 需要继续向真实外层函数传播；
-    /// - 因此这里单独保存一个“先写回当前 handle frame，再跳到 runtime-function 本地 return block”
-    ///   的桥接上下文，只供 state-machine emitter 消费。
-    effect_function_return_context: Option<EffectFunctionReturnContext<'ctx>>,
-    /// 当前正在生成的 ordinary callee resumed-body 保存/恢复计划。
-    ///
-    /// 说明：
-    /// - 仅在“direct perform 外传后需要由 outer state-machine resume 重放原 call”这一
-    ///   普通 callee 路径上设置；
-    /// - `codegen_perform_expr` 在 ordinary frame 中观察到该字段时，会先保存 callee
-    ///   suspend state，再走现有的 active-flag 外传返回；
-    /// - 进入其它独立函数体（例如 closure body、effect step_fn）时必须保存/恢复此字段，
-    ///   避免把外层计划泄漏到不相关的代码生成上下文。
-    current_callee_suspend_plan: Option<CalleeSuspendPlan>,
-    /// 当前 ordinary callee suspend-state 对应的显式 resume thunk。
-    ///
-    /// fresh path 在保存 suspend-state 时会把这个 thunk 指针写进 state 对象；随后 outer
-    /// state-machine replay 直接调用该 thunk，而不是再让普通函数入口通过 TLS 判定
-    /// fresh/resume。
-    current_callee_resume_entry_fn: Option<FunctionValue<'ctx>>,
-    /// `Continuation.resume(...)` 的 outer call-boundary replay 模式。
-    ///
-    /// 说明：
-    /// - fresh path 直接对原 receiver continuation 调用 runtime resume；
-    /// - replay path 则从当前 state-machine frame 显式读出“上一次 suspend outward 时
-    ///   记录的 `EffectSignal.resume_token`”，再把新的 resume payload 送回该 inner
-    ///   continuation，最后继续执行原 call site 之后的外层状态。
-    current_continuation_resume_replay: bool,
-    /// 当前 `Continuation.resume(...)` replay call 绑定的显式 replay token + payload。
-    current_continuation_resume_replay_context: Option<ContinuationResumeReplayContext<'ctx>>,
-    /// 当前 `SuspendCall` fresh path 正在捕获的显式 outcome 边界。
-    ///
-    /// direct / closure / funptr ordinary call 与 `Continuation.resume(...)` builtin
-    /// 都会写入这份捕获状态；state-machine terminator 读取后即可改用显式 outcome，
-    /// 而不是再次 probing TLS active。
-    active_suspend_site_effect_outcome_capture: Option<ActiveSuspendSiteEffectOutcomeCapture>,
-    /// 已由当前 step function 某个 `SuspendCall` 捕获到的显式 outcome slot。
-    suspend_site_explicit_effect_outcomes: HashMap<u32, PointerValue<'ctx>>,
+    effect_cx: EffectLoweringCodegenCx<'ctx>,
 }
 
 /// T0141: Loop context for break/continue targets.
@@ -691,13 +696,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             shared,
             current_source_id: shared.entry_source_id,
             function_cx: FunctionBodyCodegenCx::default(),
-            effect_function_return_context: None,
-            current_callee_suspend_plan: None,
-            current_callee_resume_entry_fn: None,
-            current_continuation_resume_replay: false,
-            current_continuation_resume_replay_context: None,
-            active_suspend_site_effect_outcome_capture: None,
-            suspend_site_explicit_effect_outcomes: HashMap::new(),
+            effect_cx: EffectLoweringCodegenCx::default(),
         }
     }
 
@@ -712,6 +711,131 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn restore_function_body_cx(&mut self, function_cx: FunctionBodyCodegenCx<'ctx>) {
         self.function_cx = function_cx;
+    }
+
+    fn take_effect_lowering_cx(&mut self) -> EffectLoweringCodegenCx<'ctx> {
+        std::mem::take(&mut self.effect_cx)
+    }
+
+    fn restore_effect_lowering_cx(&mut self, effect_cx: EffectLoweringCodegenCx<'ctx>) {
+        self.effect_cx = effect_cx;
+    }
+
+    fn current_callee_suspend_plan(&self) -> Option<&CalleeSuspendPlan> {
+        self.effect_cx.callee_suspend.current_suspend_plan.as_ref()
+    }
+
+    fn current_callee_resume_entry_fn(&self) -> Option<FunctionValue<'ctx>> {
+        self.effect_cx.callee_suspend.current_resume_entry_fn
+    }
+
+    fn effect_function_return_context(&self) -> Option<EffectFunctionReturnContext<'ctx>> {
+        self.effect_cx.function_return_context
+    }
+
+    fn current_continuation_resume_replay(&self) -> bool {
+        self.effect_cx.continuation_resume_replay.active
+    }
+
+    fn current_continuation_resume_replay_context(
+        &self,
+    ) -> Option<ContinuationResumeReplayContext<'ctx>> {
+        self.effect_cx.continuation_resume_replay.replay_context
+    }
+
+    fn take_suspend_site_explicit_effect_outcome(
+        &mut self,
+        site_id: u32,
+    ) -> Option<PointerValue<'ctx>> {
+        self.effect_cx
+            .suspend_site_effect_outcomes
+            .explicit_outcomes
+            .remove(&site_id)
+    }
+
+    fn suspend_site_explicit_effect_outcome(&self, site_id: u32) -> Option<PointerValue<'ctx>> {
+        self.effect_cx
+            .suspend_site_effect_outcomes
+            .explicit_outcomes
+            .get(&site_id)
+            .copied()
+    }
+
+    /// 临时安装 effect runtime-function 的“向外层函数返回”桥接上下文。
+    fn with_effect_function_return_context<T, F>(
+        &mut self,
+        function_return_context: Option<EffectFunctionReturnContext<'ctx>>,
+        f: F,
+    ) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        let saved_return_context = self.effect_cx.function_return_context;
+        self.effect_cx.function_return_context = function_return_context;
+        let result = f(self);
+        self.effect_cx.function_return_context = saved_return_context;
+        result
+    }
+
+    /// 在某段 lowering 内临时安装 ordinary callee suspend/replay 状态。
+    fn with_callee_suspend_lowering<T, F>(
+        &mut self,
+        current_suspend_plan: Option<CalleeSuspendPlan>,
+        current_resume_entry_fn: Option<FunctionValue<'ctx>>,
+        f: F,
+    ) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        let saved_callee_suspend = std::mem::take(&mut self.effect_cx.callee_suspend);
+        self.effect_cx.callee_suspend = CalleeSuspendLoweringCodegenCx {
+            current_suspend_plan,
+            current_resume_entry_fn,
+        };
+        let result = f(self);
+        self.effect_cx.callee_suspend = saved_callee_suspend;
+        result
+    }
+
+    /// 在单个 suspend-site 的 fresh path 内临时安装显式 outcome 捕获边界。
+    fn with_active_suspend_site_effect_outcome_capture<T, F>(
+        &mut self,
+        site_id: u32,
+        call_span: crate::span::Span,
+        f: F,
+    ) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        let saved_capture = self.effect_cx.suspend_site_effect_outcomes.active_capture;
+        self.effect_cx.suspend_site_effect_outcomes.active_capture =
+            Some(ActiveSuspendSiteEffectOutcomeCapture { site_id, call_span });
+        self.effect_cx
+            .suspend_site_effect_outcomes
+            .explicit_outcomes
+            .remove(&site_id);
+        let result = f(self);
+        self.effect_cx.suspend_site_effect_outcomes.active_capture = saved_capture;
+        result
+    }
+
+    /// 临时安装 `Continuation.resume(...)` 的 replay token + payload 绑定。
+    fn with_continuation_resume_replay<T, F>(
+        &mut self,
+        replay_context: ContinuationResumeReplayContext<'ctx>,
+        f: F,
+    ) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        let saved_replay = self.effect_cx.continuation_resume_replay;
+        self.effect_cx.continuation_resume_replay = ContinuationResumeReplayCodegenCx {
+            active: true,
+            replay_context: Some(replay_context),
+        };
+        let result = f(self);
+        self.effect_cx.continuation_resume_replay = saved_replay;
+        result
     }
 
     fn when_pat_binding_hir_ty(
@@ -2541,20 +2665,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        let saved_callee_resume_entry_fn = self.current_callee_resume_entry_fn;
-
-        if let Some(plan) = callee_suspend_plan.as_ref() {
-            self.current_callee_suspend_plan = Some(plan.clone());
-            self.current_callee_resume_entry_fn = callee_resume_entry_fn;
-            let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
-            self.current_callee_suspend_plan = None;
-            self.current_callee_resume_entry_fn = saved_callee_resume_entry_fn;
-            self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
+        let ret_v = if let Some(plan) = callee_suspend_plan.as_ref() {
+            self.with_callee_suspend_lowering(Some(plan.clone()), callee_resume_entry_fn, |cg| {
+                cg.codegen_block_as_return_value(body, declared_return_cg)
+            })?
         } else {
-            let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
-            self.current_callee_resume_entry_fn = saved_callee_resume_entry_fn;
-            self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
-        }
+            self.codegen_block_as_return_value(body, declared_return_cg)?
+        };
+        self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
 
         self.emit_function_return_block(fun.span, declared_return_cg, return_bb, return_alloca)?;
         if let (Some(plan), Some(resume_fun)) =
@@ -3286,10 +3404,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call_span: crate::span::Span,
         outcome_slot: PointerValue<'ctx>,
     ) {
-        if let Some(capture) = self.active_suspend_site_effect_outcome_capture
+        if let Some(capture) = self.effect_cx.suspend_site_effect_outcomes.active_capture
             && capture.call_span == call_span
         {
-            self.suspend_site_explicit_effect_outcomes
+            self.effect_cx
+                .suspend_site_effect_outcomes
+                .explicit_outcomes
                 .insert(capture.site_id, outcome_slot);
         }
     }

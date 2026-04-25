@@ -454,8 +454,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(spec.llvm_fun, "entry");
         self.builder.position_at_end(entry);
 
-        let saved_callee_suspend_plan = self.current_callee_suspend_plan.take();
-        let saved_callee_resume_entry_fn = self.current_callee_resume_entry_fn;
         self.function_cx.env.push_scope();
 
         // 入口的返回类型由期望函数类型决定（用于 Raise 的“早退默认值”）。
@@ -588,27 +586,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         }
 
-        if let Some(plan) = spec.callee_suspend_plan {
-            self.current_callee_suspend_plan = Some(plan.clone());
-            self.current_callee_resume_entry_fn = spec.callee_resume_entry_fn;
-        }
         let body_expr = closure.body.as_ref();
-        let ret_v = match &body_expr.kind {
-            hir::ExprKind::Block(block) => {
-                self.codegen_block_as_return_value(block, declared_return_cg)?
-            }
-            _ => {
-                let v =
-                    self.codegen_expr_in_expected_context(body_expr, Some(declared_return_cg))?;
-                if declared_return_cg == CgTy::Unit {
-                    CgValue::unit()
-                } else {
-                    self.coerce_value(body_expr.span, v, declared_return_cg)?
+        let ret_v = self.with_callee_suspend_lowering(
+            spec.callee_suspend_plan.cloned(),
+            spec.callee_resume_entry_fn,
+            |cg| match &body_expr.kind {
+                hir::ExprKind::Block(block) => {
+                    cg.codegen_block_as_return_value(block, declared_return_cg)
                 }
-            }
-        };
-        self.current_callee_suspend_plan = None;
-        self.current_callee_resume_entry_fn = saved_callee_resume_entry_fn;
+                _ => {
+                    let v =
+                        cg.codegen_expr_in_expected_context(body_expr, Some(declared_return_cg))?;
+                    if declared_return_cg == CgTy::Unit {
+                        Ok(CgValue::unit())
+                    } else {
+                        cg.coerce_value(body_expr.span, v, declared_return_cg)
+                    }
+                }
+            },
+        )?;
         self.finish_function_return_path(closure.span, declared_return_cg, ret_v)?;
 
         self.emit_function_return_block(
@@ -628,8 +624,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
         }
         self.function_cx.current_sret_return_ptr = None;
-        self.current_callee_suspend_plan = saved_callee_suspend_plan;
-        self.current_callee_resume_entry_fn = saved_callee_resume_entry_fn;
         self.function_cx.env.pop_scope();
         Ok(())
     }

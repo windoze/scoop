@@ -290,13 +290,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.position_at_end(bb);
             self.function_cx.env = base_env.clone();
             self.emit_callee_suspend_resume_site_prologue(at, plan, site, resume_state)?;
-            let saved_resume_entry_fn = self.current_callee_resume_entry_fn;
-            self.current_callee_suspend_plan = Some(plan.clone());
-            self.current_callee_resume_entry_fn = Some(llvm_fun);
             let ret_v =
-                self.codegen_block_as_return_value(&site.resume_tail, declared_return_cg)?;
-            self.current_callee_suspend_plan = None;
-            self.current_callee_resume_entry_fn = saved_resume_entry_fn;
+                self.with_callee_suspend_lowering(Some(plan.clone()), Some(llvm_fun), |cg| {
+                    cg.codegen_block_as_return_value(&site.resume_tail, declared_return_cg)
+                })?;
             self.finish_function_return_path(at, declared_return_cg, ret_v)?;
         }
 

@@ -656,7 +656,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .const_int(site.site_tag() as u64, false);
         self.builder.build_store(site_tag_gep, site_tag)?;
         let resume_entry_fn =
-            self.current_callee_resume_entry_fn
+            self.current_callee_resume_entry_fn()
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "callee suspend resume entry fn",
                     at: at.into(),
@@ -1115,8 +1115,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        if self.current_continuation_resume_replay {
-            let replay = self.current_continuation_resume_replay_context.ok_or(
+        if self.current_continuation_resume_replay() {
+            let replay = self.current_continuation_resume_replay_context().ok_or(
                 LlvmEmitError::UnsupportedMainBody {
                     kind: "Continuation.resume replay context",
                     at: span.into(),
@@ -1218,8 +1218,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee: &hir::Expr,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if self.current_continuation_resume_replay {
-            let replay = self.current_continuation_resume_replay_context.ok_or(
+        if self.current_continuation_resume_replay() {
+            let replay = self.current_continuation_resume_replay_context().ok_or(
                 LlvmEmitError::UnsupportedMainBody {
                     kind: "Continuation.resume replay context",
                     at: span.into(),
@@ -1505,7 +1505,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
 
         if self.ordinary_effect_propagation_enabled() {
-            if let Some(plan) = self.current_callee_suspend_plan.clone() {
+            if let Some(plan) = self.current_callee_suspend_plan().cloned() {
                 let site =
                     plan.resume_site_for_span(span)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {

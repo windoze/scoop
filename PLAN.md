@@ -310,7 +310,23 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b4c 抽出 effect/state-machine emitter 专用上下文`。
+- 2026-04-25：`T5000b4c 抽出 effect/state-machine emitter 专用上下文` 已完成。
+  - 实现结果：
+    - 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `EffectLoweringCodegenCx`，并细分 `CalleeSuspendLoweringCodegenCx`、`ContinuationResumeReplayCodegenCx` 与 `SuspendSiteEffectOutcomeCodegenCx` 三个子上下文，把 `effect_function_return_context`、ordinary callee suspend/replay 状态、continuation replay 状态与 suspend-site explicit outcome 捕获状态从 `MainCodegen` 根字段整体收口到 effect 专用上下文；
+    - `MainCodegen` 当前新增 `take_effect_lowering_cx()` / `restore_effect_lowering_cx()`、`with_effect_function_return_context(...)`、`with_callee_suspend_lowering(...)`、`with_active_suspend_site_effect_outcome_capture(...)` 与 `with_continuation_resume_replay(...)` 等 helper，用于整组切换或局部覆写 effect 运行态；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 step / dispatch runtime function 发射入口现已改为整组交换 effect 上下文，step/dispatch return bridge 统一经 helper 安装；`SuspendCall`、object-init boundary、runtime-raise boundary、ordinary callee fresh path 以及 continuation replay 的 effect 状态覆写，也都已改为新 helper，而不是继续在 emitter 内手动保存/恢复多串字段；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 的顶层函数 lowering、`closure/mod.rs` 的 closure body lowering、`call/resume.rs` 的 callee resume dispatch 与 `effect/mod.rs` 的相关读取点，现也都统一改为走新的 effect 上下文入口，不再直接依赖 `MainCodegen` 平铺字段。
+  - 阶段结论：
+    - `MainCodegen` 已不再直接承载 effect emitter 的主要运行态；
+    - step / dispatch runtime function 与 ordinary callee/continuation replay 的 effect 专属状态切换边界已经显式化；
+    - 本轮验证中未发现需要插入到 `T5000b4cR` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b4cR Review：确认 effect/state-machine emitter 上下文边界成立`。
 
 ## 1. 当前判断
 

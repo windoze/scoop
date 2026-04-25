@@ -351,7 +351,7 @@
   - review 结论：function/body 生命周期边界已成立，effect emitter 后续可以只聚焦 effect 专属状态收口；未发现需要插入到 `T5000b4c` 之前的新前置缺陷任务；
   - 已验证 `cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b4c 抽出 effect/state-machine emitter 专用上下文
+### [DONE] T5000b4c 抽出 effect/state-machine emitter 专用上下文
 - 范围：
   - 将 `effect/mod.rs` 与 `effect/state_machine_emitter.rs` 当前依赖的 effect 专属 lowering 状态收口为独立上下文，至少覆盖：
     - `effect_function_return_context`
@@ -366,6 +366,11 @@
   - effect/state-machine emitter 拥有清晰专用上下文；
   - `MainCodegen` 不再直接承载 effect emitter 的主要运行态。
 - 依赖：T5000b4bR
+- 完成记录（2026-04-25）：
+  - 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `EffectLoweringCodegenCx`，并按职责继续细分为 `CalleeSuspendLoweringCodegenCx`、`ContinuationResumeReplayCodegenCx` 与 `SuspendSiteEffectOutcomeCodegenCx`；原先平铺在 `MainCodegen` 上的 `effect_function_return_context`、`current_callee_suspend_plan`、`current_callee_resume_entry_fn`、`current_continuation_resume_replay`、`current_continuation_resume_replay_context`、`active_suspend_site_effect_outcome_capture` 与 `suspend_site_explicit_effect_outcomes` 已全部收口到该专用上下文；
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 step / dispatch runtime function 发射入口现已改为整组 `take_effect_lowering_cx()` / `restore_effect_lowering_cx()` 交换 effect 专属状态；`step` / `dispatch` return bridge 改经 `with_effect_function_return_context(...)` 安装，`SuspendCall` / object-init / runtime-raise boundary 与 ordinary callee fresh path 改经 `with_active_suspend_site_effect_outcome_capture(...)` 覆写局部 outcome capture，continuation replay 路径改经 `with_continuation_resume_replay(...)` 安装 replay token + payload 绑定，不再在 emitter 中成片手工保存/恢复多组 effect 字段；
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 的顶层函数 body lowering、`crates/scoopc/src/llvm/codegen/closure/mod.rs` 的 closure body lowering 与 `crates/scoopc/src/llvm/codegen/call/resume.rs` 的 callee resume dispatch 已统一改经 `with_callee_suspend_lowering(...)` 临时安装 ordinary callee suspend/resume lowering 状态；`crates/scoopc/src/llvm/codegen/effect/mod.rs` 及 `state_machine_emitter.rs` 的 effect 状态访问也已统一改成新的上下文 getter / helper；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b4cR Review：确认 effect/state-machine emitter 上下文边界成立
 - 重点：
