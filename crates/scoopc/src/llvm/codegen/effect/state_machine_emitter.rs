@@ -1731,34 +1731,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "ordinary suspend-call replay slot type",
                     at: source_span.into(),
                 })?;
-        let saved_return_ctx = self.function_cx.return_context.take();
-        let saved_return_ty = self.function_cx.current_fun_return_ty.take();
-        self.function_cx.current_fun_return_ty = Some(CgTy::Never);
-        let call_result = self.call_callee_resume_entry_from_state(
-            source_span,
-            replay_token,
-            result_cg,
-            &format!("site{site_id}_suspend_call_callee_resume"),
-        );
-        self.consume_current_effect_outcome_into(
-            source_span,
-            outcome_slot,
-            &format!("site{site_id}_suspend_call_callee_resume"),
-        )?;
-        let replay_resume_token = self.effect_outcome_resume_token(
-            source_span,
-            outcome_slot,
-            &format!("site{site_id}_suspend_call_callee_resume"),
-        )?;
-        self.builder.build_store(token_slot, replay_resume_token)?;
-        self.emit_ordinary_call_effect_propagation_check_from_outcome(
-            source_span,
-            outcome_slot,
-            &format!("site{site_id}_suspend_call_callee_resume"),
-        )?;
-        self.function_cx.current_fun_return_ty = saved_return_ty;
-        self.function_cx.return_context = saved_return_ctx;
-        let call_result = call_result?;
+        let call_result = self.with_local_never_return_semantics(|cg| {
+            let call_result = cg.call_callee_resume_entry_from_state(
+                source_span,
+                replay_token,
+                result_cg,
+                &format!("site{site_id}_suspend_call_callee_resume"),
+            )?;
+            cg.consume_current_effect_outcome_into(
+                source_span,
+                outcome_slot,
+                &format!("site{site_id}_suspend_call_callee_resume"),
+            )?;
+            let replay_resume_token = cg.effect_outcome_resume_token(
+                source_span,
+                outcome_slot,
+                &format!("site{site_id}_suspend_call_callee_resume"),
+            )?;
+            cg.builder.build_store(token_slot, replay_resume_token)?;
+            cg.emit_ordinary_call_effect_propagation_check_from_outcome(
+                source_span,
+                outcome_slot,
+                &format!("site{site_id}_suspend_call_callee_resume"),
+            )?;
+            Ok(call_result)
+        })?;
         self.store_value_to_frame_slot(
             source_span,
             &resume_slot,
@@ -1909,20 +1906,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if is_continuation_resume_call {
             self.builder
                 .build_store(replay_token_slot, self.llvm_gc_i8_ptr_type().const_null())?;
-            let saved_return_ctx = self.function_cx.return_context.take();
-            let saved_return_ty = self.function_cx.current_fun_return_ty.take();
-            self.function_cx.current_fun_return_ty = Some(CgTy::Never);
-            let call_result = self.with_continuation_resume_replay(
-                ContinuationResumeReplayContext {
-                    token: replay_token,
-                    resume_word,
-                    resume_gc_ref,
-                },
-                |cg| cg.codegen_expr_in_expected_context(call_expr, None),
-            );
-            self.function_cx.current_fun_return_ty = saved_return_ty;
-            self.function_cx.return_context = saved_return_ctx;
-            let call_result = call_result?;
+            let call_result = self.with_local_never_return_semantics(|cg| {
+                cg.with_continuation_resume_replay(
+                    ContinuationResumeReplayContext {
+                        token: replay_token,
+                        resume_word,
+                        resume_gc_ref,
+                    },
+                    |cg| cg.codegen_expr_in_expected_context(call_expr, None),
+                )
+            })?;
             self.store_value_to_frame_slot(
                 source_span,
                 resume_slot,
@@ -1959,35 +1952,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "ordinary callee resume slot type",
                     at: source_span.into(),
                 })?;
-        let saved_return_ctx = self.function_cx.return_context.take();
-        let saved_return_ty = self.function_cx.current_fun_return_ty.take();
-        self.function_cx.current_fun_return_ty = Some(CgTy::Never);
-        let call_result = self.call_callee_resume_entry_from_state(
-            source_span,
-            replay_token,
-            result_cg,
-            &format!("site{site_id}_call_callee_resume"),
-        );
-        self.consume_current_effect_outcome_into(
-            source_span,
-            outcome_slot,
-            &format!("site{site_id}_callee_resume"),
-        )?;
-        let replay_resume_token = self.effect_outcome_resume_token(
-            source_span,
-            outcome_slot,
-            &format!("site{site_id}_callee_resume"),
-        )?;
-        self.builder
-            .build_store(replay_token_slot, replay_resume_token)?;
-        self.emit_ordinary_call_effect_propagation_check_from_outcome(
-            source_span,
-            outcome_slot,
-            &format!("site{site_id}_callee_resume"),
-        )?;
-        self.function_cx.current_fun_return_ty = saved_return_ty;
-        self.function_cx.return_context = saved_return_ctx;
-        let call_result = call_result?;
+        let call_result = self.with_local_never_return_semantics(|cg| {
+            let call_result = cg.call_callee_resume_entry_from_state(
+                source_span,
+                replay_token,
+                result_cg,
+                &format!("site{site_id}_call_callee_resume"),
+            )?;
+            cg.consume_current_effect_outcome_into(
+                source_span,
+                outcome_slot,
+                &format!("site{site_id}_callee_resume"),
+            )?;
+            let replay_resume_token = cg.effect_outcome_resume_token(
+                source_span,
+                outcome_slot,
+                &format!("site{site_id}_callee_resume"),
+            )?;
+            cg.builder
+                .build_store(replay_token_slot, replay_resume_token)?;
+            cg.emit_ordinary_call_effect_propagation_check_from_outcome(
+                source_span,
+                outcome_slot,
+                &format!("site{site_id}_callee_resume"),
+            )?;
+            Ok(call_result)
+        })?;
         self.store_value_to_frame_slot(
             source_span,
             resume_slot,
@@ -3858,12 +3848,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // instead of being segmented into state-machine ops. Without a
         // temporary ordinary-frame return type, a non-resuming effect raised
         // inside the arm would only set TLS active and then keep executing the
-        // rest of the arm body. Setting `current_fun_return_ty = Never` lets
-        // the existing ordinary propagation helpers terminate the step
+        // rest of the arm body. `with_local_never_return_semantics(...)`
+        // lets the existing ordinary propagation helpers terminate the step
         // function immediately when arm-local code performs.
-        let saved_return_ctx = self.function_cx.return_context.take();
-        let saved_return_ty = self.function_cx.current_fun_return_ty.take();
-        self.function_cx.current_fun_return_ty = Some(CgTy::Never);
 
         let tail_resume_rewritten = match arm.kind {
             hir::HandleArmKind::EscapeContinuation { continuation } => {
@@ -3872,22 +3859,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::HandleArmKind::NonResuming => None,
         };
 
-        let result = match tail_resume_rewritten {
+        self.with_local_never_return_semantics(|cg| match tail_resume_rewritten {
             Some(rewritten) => {
                 let payload_cg_ty =
-                    self.cg_ty_of(rewritten.ty)
+                    cg.cg_ty_of(rewritten.ty)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "tail resume payload type",
                             at: rewritten.span.into(),
                         })?;
-                self.codegen_expr_in_expected_context(&rewritten, Some(payload_cg_ty))
+                cg.codegen_expr_in_expected_context(&rewritten, Some(payload_cg_ty))
             }
-            None => self.codegen_expr_in_expected_context(&arm.body, None),
-        };
-
-        self.function_cx.current_fun_return_ty = saved_return_ty;
-        self.function_cx.return_context = saved_return_ctx;
-        result
+            None => cg.codegen_expr_in_expected_context(&arm.body, None),
+        })
     }
 
     fn retarget_escaped_continuation_resume_state(

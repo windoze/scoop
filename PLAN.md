@@ -326,7 +326,22 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b4cR Review：确认 effect/state-machine emitter 上下文边界成立`。
+- 2026-04-25：`T5000b4cR Review：确认 effect/state-machine emitter 上下文边界成立` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 `EffectLoweringCodegenCx` 及其 `callee_suspend` / `continuation_resume_replay` / `suspend_site_effect_outcomes` 子上下文已完整承接 `effect_function_return_context`、ordinary callee suspend/resume lowering、continuation replay 与 suspend-site explicit outcome 捕获状态；
+    - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`effect/mod.rs`、`call/resume.rs` 与 `closure/mod.rs`，确认 effect 专属状态的安装、切换与查询统一经 `take_effect_lowering_cx()` / `restore_effect_lowering_cx()`、getter 与 `with_*` helper 进入；`state_machine_emitter` 不再直接读写 `effect_cx` 内部字段；
+    - review 过程中暴露并修复了一个既有边界问题：`state_machine_emitter.rs` 仍有 4 处手工保存/恢复 `function_cx.return_context` 与 `current_fun_return_ty = Never` 的局部覆写，而且中间夹着会 `?` 提前返回的调用；现已在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `with_local_never_return_semantics(...)`，并让 ordinary callee replay、`Continuation.resume(...)` replay 与 handler arm body 等路径统一改走该 helper，从而在成功/失败两条路径上都能恢复函数级返回状态；
+    - 已明确区分边界：
+      - effect emitter 专属上下文：`function_return_context`、callee suspend/resume lowering、continuation replay、suspend-site outcome capture；
+      - backend generic lowering / function-body 上下文：`current_source_id`、`FunctionBodyCodegenCx` 中的 env/loop/return/return-ty/sret 等状态；
+    - 未发现需要插入到 `T5000b4R` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+- 下一条待执行任务切换为 `T5000b4R Review：确认 MainCodegen 的上下文分层已经成立`。
 
 ## 1. 当前判断
 

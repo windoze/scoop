@@ -838,6 +838,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result
     }
 
+    /// 在局部 lowering 内临时禁用普通函数 return block，并把返回类型视为 `Never`。
+    ///
+    /// 这用于 state-machine runtime function 内部的 replay / arm-body 路径：
+    /// 若其中再次 outward-effect，应立即结束当前 runtime function，而不是误接到外层
+    /// 普通函数返回合同。无论闭包成功还是失败，都必须恢复原有函数级返回状态。
+    fn with_local_never_return_semantics<T, F>(&mut self, f: F) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        let saved_return_context = self.function_cx.return_context.take();
+        let saved_return_ty = self.function_cx.current_fun_return_ty;
+        self.function_cx.current_fun_return_ty = Some(CgTy::Never);
+        let result = f(self);
+        self.function_cx.current_fun_return_ty = saved_return_ty;
+        self.function_cx.return_context = saved_return_context;
+        result
+    }
+
     fn when_pat_binding_hir_ty(
         &self,
         span: crate::span::Span,

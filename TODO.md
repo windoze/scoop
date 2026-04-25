@@ -372,7 +372,7 @@
   - `crates/scoopc/src/llvm/codegen/mod.rs` 的顶层函数 body lowering、`crates/scoopc/src/llvm/codegen/closure/mod.rs` 的 closure body lowering 与 `crates/scoopc/src/llvm/codegen/call/resume.rs` 的 callee resume dispatch 已统一改经 `with_callee_suspend_lowering(...)` 临时安装 ordinary callee suspend/resume lowering 状态；`crates/scoopc/src/llvm/codegen/effect/mod.rs` 及 `state_machine_emitter.rs` 的 effect 状态访问也已统一改成新的上下文 getter / helper；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b4cR Review：确认 effect/state-machine emitter 上下文边界成立
+### [DONE] T5000b4cR Review：确认 effect/state-machine emitter 上下文边界成立
 - 重点：
   - effect emitter 专属状态是否已集中；
   - state-machine emitter 是否仍大量直接操作外层主上下文；
@@ -380,6 +380,12 @@
 - 验收：
   - 可以明确指出哪些状态仍属于 backend 的 generic lowering，哪些已是 effect emitter 自己的上下文。
 - 依赖：T5000b4c
+- 完成记录（2026-04-25）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/mod.rs` 中的 `EffectLoweringCodegenCx`、`CalleeSuspendLoweringCodegenCx`、`ContinuationResumeReplayCodegenCx` 与 `SuspendSiteEffectOutcomeCodegenCx`，确认 `effect_function_return_context`、ordinary callee suspend/resume、continuation replay 与 suspend-site explicit outcome 捕获状态均已集中到 effect 专用上下文；
+  - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`effect/mod.rs`、`call/resume.rs` 与 `closure/mod.rs`，确认 effect 专属状态的消费面现统一经 `take_effect_lowering_cx()` / `restore_effect_lowering_cx()`、getter 与 `with_*` helper 进入；除 `mod.rs` 外未再发现直接操作 `effect_cx` 内部字段的路径；
+  - review 过程中发现并修复了一个既有边界泄漏：`state_machine_emitter.rs` 中仍残留 4 处手工保存/恢复 `function_cx.return_context` 与 `current_fun_return_ty = Never` 的模式，而且中间夹着会通过 `?` 提前返回的调用；现已在 `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `with_local_never_return_semantics(...)`，并将 ordinary callee replay、`Continuation.resume(...)` replay 与 handler arm body 等路径统一改经该 helper，确保无论成功还是失败都恢复函数级返回语义；
+  - review 结论：effect emitter 自己的上下文现可明确界定为 `function_return_context`、callee suspend/resume lowering、continuation replay 与 suspend-site outcome 捕获；`current_source_id` 与 `FunctionBodyCodegenCx` 中的 env/loop/return/return-ty 等状态继续属于 backend 的 generic lowering / function-body 上下文，其中 `state_machine_emitter` 剩余的函数级返回语义覆写也已收口为统一 helper，而不再是 effect 专属字段成片手工保存/恢复；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000b4R Review：确认 `MainCodegen` 的上下文分层已经成立
 - 重点：
