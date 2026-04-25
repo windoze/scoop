@@ -2067,7 +2067,9 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 /// 与 `lower_for_dump` 的区别：
 /// - 这里会运行 typecheck（annotations / type refs / exprs）并消费 AST side tables；
 /// - 用于 `dump-mir` / MIR fixtures 这类需要 `Continuation.resume`、late-bound member
-///   resolution、effect payload binding 等 typed 事实的路径。
+///   resolution、effect payload binding 等 typed 事实的路径；
+/// - 但仍停留在 generic HIR/MIR template 边界：不会在这里额外 materialize
+///   standalone generic fun 的 `::<T...>` 实例。
 pub fn lower_typed_for_dump(
     session: &Session,
     source: &SourceFile,
@@ -2138,13 +2140,14 @@ pub fn lower_typed_for_dump(
     compilation_unit.push((source, &ast));
     let files_to_lower = [(source, &ast)];
 
-    lower_for_compilation_unit_multi_files_with_type_env(
+    lower_for_compilation_unit_multi_files_internal(
         &index,
         &compilation_unit,
         &files_to_lower,
         &[],
         Some(&env),
         &typecheck_types,
+        false,
     )
 }
 
@@ -2320,13 +2323,14 @@ pub fn lower_for_compilation_unit_multi_files(
     monomorph_keys: &[crate::monomorph::MonomorphKey],
     typecheck_types: &TypeStore,
 ) -> Result<LoweredHir, HirLowerError> {
-    lower_for_compilation_unit_multi_files_with_type_env(
+    lower_for_compilation_unit_multi_files_internal(
         index,
         compilation_unit,
         files_to_lower,
         monomorph_keys,
         None,
         typecheck_types,
+        true,
     )
 }
 
@@ -2337,6 +2341,26 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     monomorph_keys: &[crate::monomorph::MonomorphKey],
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
+) -> Result<LoweredHir, HirLowerError> {
+    lower_for_compilation_unit_multi_files_internal(
+        index,
+        compilation_unit,
+        files_to_lower,
+        monomorph_keys,
+        type_env,
+        typecheck_types,
+        true,
+    )
+}
+
+fn lower_for_compilation_unit_multi_files_internal(
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    files_to_lower: &[(&SourceFile, &ast::File)],
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &TypeStore,
+    materialize_generic_fun_instances: bool,
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
@@ -2494,18 +2518,21 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     // 注意：必须在 class member monomorphization 之前运行，因为独立函数的单态化
     // 可能在 TypeStore 中创建新的泛型 class 实例化类型（例如 `Printer<Greeter>`），
     // 这些类型需要被后续的 class member monomorphization 发现。
-    let monomorphized_funs = collect_generic_fun_instantiations(GenericFunInstantiationInputs {
-        pairs: compilation_unit,
-        monomorph_keys,
-        index,
-        type_kinds: &type_kinds,
-        types: &mut types,
-        builtins,
-        typecheck_types,
-        initial_items: &items,
-        initial_member_funs: &member_funs,
-    });
-    items.extend(monomorphized_funs.into_iter().map(Item::Fun));
+    if materialize_generic_fun_instances {
+        let monomorphized_funs =
+            collect_generic_fun_instantiations(GenericFunInstantiationInputs {
+                pairs: compilation_unit,
+                monomorph_keys,
+                index,
+                type_kinds: &type_kinds,
+                types: &mut types,
+                builtins,
+                typecheck_types,
+                initial_items: &items,
+                initial_member_funs: &member_funs,
+            });
+        items.extend(monomorphized_funs.into_iter().map(Item::Fun));
+    }
 
     // T0130：第二遍 class 实例化 —— standalone fun monomorphization 可能在 TypeStore 中
     // 创建了新的泛型 class 实例化类型（例如 `Printer<Greeter>`），这里补充收集。

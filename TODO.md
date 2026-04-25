@@ -706,7 +706,7 @@
   - review 结论：generic early MIR template 的调用与 control-transfer 入口已经成型；`T5000dR` 可以进入总边界复核，无需再先补一轮表示层缺口。
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确
+### [DONE] T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确
 - 重点：
   - MIR 是否仍保持 backend-agnostic；
   - 是否只表达“语言/运行时抽象事实”，没有提前混入 LLVM 落地细节；
@@ -714,6 +714,13 @@
 - 验收：
   - 可以明确回答“这层 MIR 负责什么，不负责什么”，且它还没有越权承担 backend 细节。
 - 依赖：T5000d3R
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/monomorph/lower.rs` 与 `crates/scoop/src/commands/dump_mir.rs`，确认 generic early MIR / ANF template 当前只承载显式 CFG、locals、ANF 风格 operand/materialization、以及 call / perform / resume / pattern / member-access 等语言级事实；没有混入 LLVM statepoint/address space/stackmap、mangled symbol、vtable slot / itable id、GC ABI 或 runtime thunk 细节。
+  - review 过程中暴露并修复了一个既有边界泄漏：`crates/scoopc/src/hir/lower/mod.rs` 中 `lower_typed_for_dump(...)` 虽未传入 `monomorph_keys`，但共用的 compilation-unit lowering 入口仍会从初始 HIR body 做 fixed-point 扫描并 materialize standalone generic fun 的 `::<T...>` 实例，导致 `dump-mir` 把 generic template 与 monomorphic item 混在一起；现已抽出 `lower_for_compilation_unit_multi_files_internal(...)`，并让 dump 路径显式关闭该实例物化。
+  - 已更新 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs` 与 `crates/scoop/src/commands/dump_mir.rs` 的顶部说明，明确 generic template 的职责上界，以及它与后续 monomorphized MIR instance 的分层关系。
+  - 已新增回归单测 `mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization`，确认 `dump-mir` 继续保留 generic fun 的裸 `fqn` 与 `TypeKind::Param`，不会提前输出 `::<...>` 实例；同时 `crates/scoopc/src/monomorph/lower.rs` 现有单测继续证明实例化后的 `dump-ir` 路径仍保留 `Virtual` / `Perform` 等结构化 MIR 语义。
+  - review 结论：generic early MIR / ANF template 的语义边界现已清楚可答复，即“负责 backend-agnostic 的语言/运行时抽象事实模板，不负责实例身份物化与 backend 落地细节”；下一条可进入 `T5000e`。
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000e 在 MIR 层实现 monomorphization / instance materialization
 - 范围：

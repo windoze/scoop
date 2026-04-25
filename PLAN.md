@@ -663,6 +663,25 @@
     - 全部通过。
   - review 结论：generic early MIR template 的调用与 control-transfer 入口已经成型，没有发现需要插入到 `T5000dR` 之前的新前置缺陷任务。
   - 下一条待执行任务切换为 `T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确`。
+- 2026-04-26：`T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确` 已完成。
+  - 复核结论：
+    - `crates/scoopc/src/mir/mod.rs` 与 `crates/scoopc/src/mir/lower.rs` 当前已经把 early MIR 的职责边界写实并落到数据结构上：这层只承载 backend-agnostic 的 CFG、locals、ANF 风格 operand/materialization、以及 call / perform / resume / pattern / member-access 等语言级事实，不再依赖 LLVM builder / statepoint / mangled symbol / runtime thunk 等 backend 落地细节；
+    - generic template 与 monomorphic instance 的分层也已明确：`dump-mir` 继续保留 generic fun 的裸 `fqn` 与 `TypeKind::Param`，而 `crates/scoopc/src/monomorph/lower.rs` 继续单独负责实例化后的 dump-only monomorph MIR 视图；两者不再在同一输出里混杂。
+  - review 过程中修复的既有边界泄漏：
+    - `crates/scoopc/src/hir/lower/mod.rs` 中 `lower_typed_for_dump(...)` 原本虽不传 `monomorph_keys`，但仍会通过共用的 compilation-unit lowering 入口从初始 HIR body 做 fixed-point 扫描，并 materialize standalone generic fun 的 `::<T...>` 实例；
+    - 这会让 `dump-mir` 把 generic template 与 monomorphic item 混在一起，直接违背 `T5000dR` 要确认的边界；现已抽出 `lower_for_compilation_unit_multi_files_internal(...)`，并让 dump 路径显式关闭 generic fun instance materialization，而 build/run 与 LLVM frontend 路径继续保持原有实例化行为。
+  - 新增回归与文档：
+    - 已在 `crates/scoopc/src/mir/mod.rs` 新增单测 `dump_mir_keeps_generic_functions_as_templates_before_monomorphization`，直接锁定“`dump-mir` 不提前输出 `::<...>` 实例”的语义边界；
+    - 已更新 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs` 与 `crates/scoop/src/commands/dump_mir.rs` 的顶部说明，明确 generic early MIR / ANF template 的职责上界，以及它和后续 monomorphic MIR instance 的关系。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：generic early MIR / ANF template 的语义边界已经清楚可答复，且 review 中暴露的既有边界泄漏已修复；下一条待执行任务切换为 `T5000e 在 MIR 层实现 monomorphization / instance materialization`。
 
 ## 1. 当前判断
 

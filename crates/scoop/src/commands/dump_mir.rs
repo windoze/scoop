@@ -1,6 +1,9 @@
 //! `scoop dump-mir` 子命令。
 //!
-//! 当前阶段（TODO T0708）：输出 MIR 的 Debug 视图，用于验证 if/when lowering 生成的 CFG 形态。
+//! 当前输出的是 generic early MIR / ANF template 的 Debug 视图，用于验证：
+//! - backend-agnostic 的 CFG / locals / call kind / perform / pattern lowering 形状；
+//! - `dump-mir` 仍停留在 generic template 边界，不提前 materialize `::<T>` 实例；
+//! - 更晚 backend lowering（如 LLVM 细节）不会混入这层输出。
 
 use std::path::PathBuf;
 

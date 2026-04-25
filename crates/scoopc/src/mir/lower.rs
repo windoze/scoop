@@ -1,9 +1,11 @@
-//! HIR → MIR 的最小 lowering（TODO T0708）。
+//! typed/lowered HIR → generic early MIR / ANF template lowering。
 //!
 //! 说明：
-//! - 该 lowering 目前仅用于 `scoop dump-mir` 与 `tests/fixtures/mir/**` 的回归；
-//! - 实现优先保证“稳定输出 + 不 panic”；
-//! - 未覆盖的表达式/语句会以 `Todo(...)` 占位，避免阻断后续迭代。
+//! - 当前入口仍主要服务 `scoop dump-mir` 与 `tests/fixtures/mir/**` 的回归；
+//! - lowering 会显式消费 typed/shared HIR side tables，把 dispatch / resume / perform / pattern
+//!   等语言级事实收口到 MIR；
+//! - 这里不负责 materialize monomorphic instance，也不编码 LLVM/backend-specific 细节；
+//! - 未覆盖的表达式/语句继续以 `Todo(...)` 占位，优先保证边界清晰、输出稳定、不 panic。
 
 use std::collections::{HashMap, HashSet};
 

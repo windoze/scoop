@@ -1,69 +1,57 @@
 # 本轮执行计划
 
-## 约束说明
+## 说明
 
-- 我不会写入不可共享的逐字内部思维过程，但会在此文件持续记录可审计的执行计划、依据、关键决策、发现的问题与完成状态。
-- 本轮目标是：先检查最新提交是否提到需要先修复的既有问题；随后读取 `TODO.md`，锁定第一个未完成任务；如果任务过大则先拆分并更新 `PLAN.md`/`TODO.md`；然后只完成当前首个任务，补齐测试、文档、任务状态与提交，最后停止。
+按要求先记录本轮的执行思路与步骤。这里保留可公开的分析摘要，不写内部隐式推理细节；但会完整记录执行顺序、判断依据、发现的问题、以及后续调整。
 
-## 初始步骤
+## 初始目标
 
-1. 检查当前工作树状态，避免误覆盖现有改动。
-2. 查看最新提交信息，确认是否显式提到必须先处理的既有问题。
-3. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务以及现有计划上下文。
-4. 结合代码与测试现状评估任务复杂度；若过大，则先拆分任务并更新 `TODO.md`/`PLAN.md`。
-5. 实现当前首个应执行任务。
-6. 运行与改动相关的验证，至少覆盖任务相关测试；若影响面较大，再补充 `cargo test` / `cargo clippy --all-targets -- -D warnings` 等检查。
-7. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md`，标记完成状态与关键结论。
-8. 使用清晰提交信息创建一次 git commit，然后停止。
+本轮目标是：
 
-## 进度记录
+1. 检查最新提交，确认是否提到需要优先修复的既有问题。
+2. 阅读 `TODO.md`，找到第一个未完成任务。
+3. 如该任务过大，则先拆分任务，并同步更新 `PLAN.md` / `TODO.md`。
+4. 仅执行当前应做的第一个任务。
+5. 运行相关测试与质量检查，修复过程中发现的既有问题。
+6. 更新 `TODO.md`、`PLAN.md`、本文件，并提交 git commit。
+7. 完成后停止，不继续做下一个任务。
 
-- 已创建本文件并写入初始计划。
-- 已检查当前工作树：仅有本文件改动。
-- 已检查最新提交 `eacc54cf [T5000d3] Regularize perform and provenance MIR entry points`：
-  - 提交正文没有额外说明新的已知前置缺陷；
-  - 但相关实现涉及 `TODO.md`/`PLAN.md`/`memory/claude_plan.md` 更新，因此仍需按 `T5000d3R` 对该轮改动做结构复核。
-- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务是 `T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型`。
+## 详细步骤
 
-## 当前任务：T5000d3R
+1. 查看最近一次提交的信息，判断是否显式提到 pre-existing issue。
+2. 打开并阅读 `TODO.md`、`PLAN.md`，确认任务顺序与依赖。
+3. 如果任务依赖尚未满足，先把阻塞项作为前置任务加入 `TODO.md`，并更新 `PLAN.md`，随后停止。
+4. 如果任务可直接实现，则定位相关代码、测试和规范文件，完成修改。
+5. 运行最小充分测试，再运行更全面的检查：
+   - 相关单测 / 集成测试 / fixture 测试
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+   - 如变更影响格式，则运行 `cargo fmt`
+6. 若测试暴露既有缺陷，则该缺陷立即转为当前范围内问题，优先修复或在 `TODO.md` 中前置。
+7. 修改完成后：
+   - 在 `TODO.md` 标记任务完成，或在被阻塞时重排任务
+   - 在 `PLAN.md` 记录当前状态
+   - 在本文件补充执行结果
+   - 提交 git
 
-### review 目标
+## 当前状态
 
-1. 复核 `Perform` / `Resume` / `Direct|Closure|FunValue|Virtual|Interface` 等 call kind 是否已经统一成可扩展的 MIR 表达。
-2. 复核 provenance / receiver / dispatch / perform metadata 是否足以支撑后续 monomorphization、summary、devirtualization，而不需要回退到 HIR 语法或 LLVM backend 现场补猜。
-3. 检查 monomorph lowering、MIR fixture 与相关调用点是否真的消费这些结构化入口。
-4. 若发现既有缺口，优先修复缺口；若确认边界成立，则更新 `TODO.md` / `PLAN.md` / 本文件并提交。
-
-### 预定验证
-
-- 定向阅读：
-  - `crates/scoopc/src/mir/mod.rs`
-  - `crates/scoopc/src/mir/lower.rs`
-  - `crates/scoopc/src/monomorph/lower.rs`
-  - 相关 fixture 与 HIR/LLVM 消费侧
-- 计划运行：
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
-  - `cargo test -p scoopc monomorph::lower -- --nocapture`
-  - 如有必要，补 `cargo test --all`
-  - 完成前执行 `cargo clippy --all-targets -- -D warnings`
-
-## 执行结果
-
-- 已完成定向代码复核，确认 `Perform` / `Resume` / `Direct|Closure|FunValue|Virtual|Interface` 已统一进入 MIR 调用 / control-transfer 表达层，且 `TopLevelRef`、`MemberAccessMetadata`、`DispatchMetadata`、`ResumeMetadata`、`PerformMetadata`、`PerformArg`、`PerformResult` 已承载后续阶段所需的最小语言级事实。
-- review 过程中新增了 monomorph 回归测试 `monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body`，用于确认 generic 函数实例化后的 MIR 仍保留 `Perform` terminator、payload canonicalization 顺序、`source_arg_index` 与 `PerformResult` provenance。
-- 新回归测试首次暴露了一个既有真实缺口：
-  - `crates/scoopc/src/mir/lower.rs` 中 `return` / `val` / `assign` 这些 statement wrapper 会在子表达式 lowering 已通过 `Perform` 等 terminator 结束当前块后，仍继续覆盖 terminator 或追加语句；
-  - 该问题会破坏 return-position / initializer-position `Perform` 的 CFG 形状，因此已在本轮立即修复，而不是延后到后续任务。
-- 已完成修复：
-  - 在 `return` / `val` / `assign` lowering 包装层中统一检测 `current_is_terminated()`，若子表达式已经终结当前块则立即停止。
+- 已完成：建立本轮计划文件。
+- 已完成：检查最近一次提交、阅读 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务是 `T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确`。
+- 已完成：初步复核 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/monomorph/lower.rs`，确认当前 MIR 数据结构和 lowering 输入保持 backend-agnostic，没有直接混入 LLVM builder / statepoint / mangled symbol 等后端细节。
+- 新发现问题：
+  1. `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs`、`crates/scoop/src/commands/dump_mir.rs` 的顶部说明仍偏向早期“最小 dump/if-when CFG” 口径，没有准确描述当前 generic early MIR / ANF template 的职责边界。
+  2. 现有测试覆盖了 monomorphized MIR 会保留 call/perform metadata，但缺少一条直接证明 `dump-mir` 仍输出 generic template、不会提前 materialize `::<T>` 实例的回归测试。
+- 已完成：补齐 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs`、`crates/scoop/src/commands/dump_mir.rs` 的边界说明，并新增回归单测 `mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization`。
+- review 过程中新增发现并已修复：
+  - `crates/scoopc/src/hir/lower/mod.rs` 中 `lower_typed_for_dump(...)` 共享了会 materialize standalone generic fun 实例的 compilation-unit lowering 主线，导致 `dump-mir` 可能把 `pkg.fun::<Int>` 这类 monomorphic item 混进 generic template 输出；
+  - 已抽出 `lower_for_compilation_unit_multi_files_internal(...)`，并让 dump 路径显式关闭 generic fun instance materialization，保持 `dump-mir` 与 `dump-ir` 的语义边界分离。
 - 已完成验证：
   - `cargo fmt --all`
-  - `cargo test -p scoopc monomorph::lower -- --nocapture`
+  - `cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`
   - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+  - `cargo test -p scoopc monomorph::lower -- --nocapture`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-  - 以上全部通过。
-- 当前结论：
-  - `T5000d3R` 可标记完成；
-  - 未发现需要插入到 `T5000dR` 之前的新 prerequisite 任务；
-  - 本轮下一步只剩更新任务文档、提交并停止。
+- 已完成：更新 `TODO.md` / `PLAN.md`，将 `T5000dR` 标记完成，并记录本轮 review 结论与修复项。
+- 待执行：检查变更集并提交 git commit，然后停止。

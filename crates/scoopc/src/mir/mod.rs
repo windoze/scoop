@@ -1,15 +1,20 @@
-//! MIR（Mid-level IR）。
+//! MIR（Mid-level IR / 当前阶段的 generic early MIR template）。
 //!
-//! MIR 的定位：在 HIR 之上引入**显式控制流**（基本块/CFG）与**显式临时变量**（locals），为后续阶段服务：
-//! - `if/when/while` 等控制流 lowering（TODO T0708+）
-//! - `try/finally`、effect handler 等需要 cleanup/unwinding 的语义建模（TODO T0707、T0612）
-//! - 单态化与 LLVM codegen
+//! 当前这层 MIR 的职责边界：
+//! - 负责把 typed/lowered HIR 收口为 backend-agnostic 的显式 CFG、locals、ANF 风格 operand/materialization，
+//!   以及语言级的 call / perform / resume / pattern / member-access 事实；
+//! - 负责保留 generic template 语义：函数 `fqn`、`TypeKind::Param`、语言级 dispatch metadata
+//!   都在这层继续保持抽象，不提前 materialize 成单态实例；
+//! - 不负责承载 LLVM statepoint/address space/stackmap、mangled symbol name、vtable slot / itable id、
+//!   GC ABI 或 runtime thunk 等 backend 落地细节。
 //!
-//! 当前阶段（TODO T0703/T0708）落地：
-//! - 基本块（BB）+ terminator
-//! - locals 声明列表
-//! - CFG 连通性/合法性检查（用于单测与后续 pass 的断言）
-//! - 最小 MIR lowering（用于 `dump-mir`/fixtures 回归；未覆盖节点用 `Todo(...)` 占位）
+//! 后续阶段会在此基础上继续做：
+//! - monomorphization / instance materialization
+//! - per-instance summary / devirtualization / inlining
+//! - backend lowering（例如 LLVM codegen）
+//!
+//! 当前入口仍主要服务 `dump-mir` 与 MIR fixtures；未覆盖节点继续以 `Todo(...)` 占位，
+//! 避免在边界收口阶段退回到 panic/隐式后端推断。
 
 mod lower;
 
@@ -638,7 +643,9 @@ pub enum MirValidationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ty::TypeStore;
+    use crate::session::Session;
+    use crate::source::SourceFile;
+    use crate::ty::{TypeKind, TypeStore};
 
     #[test]
     fn cfg_reachable_two_blocks_ok() {
@@ -757,5 +764,85 @@ mod tests {
         assert!(body.is_fully_reachable().unwrap());
         assert!(body.unreachable_blocks().unwrap().is_empty());
         assert!(body.blocks[bb1.as_usize()].is_cleanup);
+    }
+
+    #[test]
+    fn dump_mir_keeps_generic_functions_as_templates_before_monomorphization() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/generic_template_boundary.scoop",
+            r#"
+package fixtures.mir
+
+fun id<T>(x: T): T {
+    return x
+}
+
+fun use<T>(x: T): T {
+    return id(x)
+}
+
+fun entry(): Int {
+    return use(1)
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun_fqns: Vec<&str> = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) => Some(fun.fqn.as_str()),
+                Item::Todo { .. } => None,
+            })
+            .collect();
+
+        assert!(fun_fqns.contains(&"fixtures.mir.id"));
+        assert!(fun_fqns.contains(&"fixtures.mir.use"));
+        assert!(fun_fqns.contains(&"fixtures.mir.entry"));
+        assert!(fun_fqns.iter().all(|fqn| !fqn.contains("::<")));
+
+        let use_fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.mir.use" => Some(fun),
+                _ => None,
+            })
+            .expect("expected generic use function in MIR dump");
+        assert!(matches!(
+            lowered.types.kind(use_fun.params[0].ty),
+            TypeKind::Param(_)
+        ));
+        assert!(matches!(
+            lowered.types.kind(use_fun.return_ty),
+            TypeKind::Param(_)
+        ));
+
+        let body = use_fun
+            .body
+            .as_ref()
+            .expect("generic use function should have body");
+        let call_kind = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    value: Rvalue::Call { kind, .. },
+                    ..
+                } => Some(kind),
+                _ => None,
+            })
+            .expect("expected direct call in generic use function body");
+        match call_kind {
+            CallKind::Direct { callee_fqn } => {
+                assert_eq!(callee_fqn, "fixtures.mir.id");
+            }
+            other => panic!("expected direct generic-template call, got {other:?}"),
+        }
     }
 }
