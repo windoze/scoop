@@ -79,7 +79,17 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-- 下一条待执行任务切换为 `T5000b2R Review：确认 MainCodegen 构造边界已开始从“巨型输入包”收口`。
+- 2026-04-25：`T5000b2R Review：确认 MainCodegen 构造边界已开始从“巨型输入包”收口` 已完成。
+  - 已确认 `crates/scoopc/src/llvm/emit.rs` 中 `CompilationUnitCodegenCx::new(...)` 在实现代码里只剩 1 个编译单元构造入口；
+  - 已确认 `fresh_main_codegen()` 统一承接顶层声明、reachable top-level function body 发射与入口 `main` exit-code lowering，`fresh_child_codegen()` 覆盖 effect-call wrapper、top-level immutable init、closure body lowering、object init lowering 四条 child/nested 路径；
+  - 已确认实现代码中不再残留 `MainCodegenInputs { ... }` 手写构造，说明构造样板已经显著收敛；
+  - 已复核共享编译单元输入/共享事实与函数级局部状态已开始分离，但 `type_layout_cache`、`enum_cg_layout_cache`、effect emitter 专用上下文等更深层分层仍属于后续 `T5000b3` / `T5000b4` 范围；
+  - 验证结果：
+    - `cargo test -p scoopc llvm::`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过；
+  - review 结论：当前改动已经显著收敛构造样板，可以直接继续 `T5000b3`，无需在其前插入新的缺陷修复任务。
+- 下一条待执行任务切换为 `T5000b3 按主题拆分 llvm/codegen/mod.rs 的独立 lowering 模块`。
 
 ## 1. 当前判断
 

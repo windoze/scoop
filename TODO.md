@@ -112,7 +112,7 @@
   - `known_effect_instances_by_effect_fqn` 不再随着每次 child-codegen 构造重新扫描 `TypeStore`，为后续继续拆分 `MainCodegen` 的 module/function/cache/effect emitter 上下文留出了稳定入口；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000b2R Review：确认 `MainCodegen` 构造边界已开始从“巨型输入包”收口
+### [DONE] T5000b2R Review：确认 `MainCodegen` 构造边界已开始从“巨型输入包”收口
 - 重点：
   - 共享编译单元输入是否已和函数级运行时状态分开；
   - 是否仍有大量重复 `MainCodegenInputs { ... }` 手写构造残留；
@@ -120,6 +120,11 @@
 - 验收：
   - 下一步可以在不反复搬运构造样板的前提下继续拆 `MainCodegen` 与 `codegen/mod.rs`。
 - 依赖：T5000b2
+- 完成记录（2026-04-25）：
+  - 已核对 `crates/scoopc/src/llvm/emit.rs` 中 `CompilationUnitCodegenCx::new(codegen::CompilationUnitCodegenInputs { ... })` 仅保留 1 个编译单元构造入口，顶层声明、reachable top-level function body 发射与入口 `main` exit-code lowering 均统一经 `fresh_main_codegen()` 进入；
+  - 已核对 `crates/scoopc/src/llvm/codegen/mod.rs` 中 effect-call wrapper、top-level immutable init、closure body lowering、object init lowering 4 条 child/nested 路径均改经 `fresh_child_codegen()`，实现代码内已无残留 `MainCodegenInputs { ... }` 手写构造；
+  - 已复核 `MainCodegen` 当前仍保留函数级 builder/env/cache/return/suspend 等局部状态，而共享编译单元输入、`effect_op_tags` 与 `known_effect_instances_by_effect_fqn` 已收口到 `CompilationUnitCodegenCx`；`type_layout_cache` / `enum_cg_layout_cache` / effect emitter 专用上下文等更深层分层仍留待 `T5000b3` / `T5000b4`；
+  - 已验证 `cargo test -p scoopc llvm::` 与 `cargo clippy --all-targets -- -D warnings` 通过，未发现必须插入到 `T5000b3` 之前的新前置缺陷任务。
 
 ### [TODO] T5000b3 按主题拆分 `llvm/codegen/mod.rs` 的独立 lowering 模块
 - 范围：

@@ -1,61 +1,48 @@
-## 执行计划
+## 执行思路摘要
 
-说明：我不会记录或暴露详细的内部思维过程，但会在此维护可审阅的高层计划、关键判断、执行进度与变更原因。
+说明：我不会写入不可公开的逐字内部推理，但会持续维护一份足够详细的行动计划、判断依据摘要、执行进度和变更记录，便于随时审阅。
 
-1. 检查最新一次 Git 提交，确认是否提到了任何已知问题、回归、待修复项或阻塞事项；若有，先修复这些问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 评估该任务是否过大：
-   - 如果可直接完成，进入实现；
-   - 如果过大，则先更新 `PLAN.md` 与 `TODO.md`，将其拆分为更小的前置子任务，本次只执行新的第一个子任务。
-4. 在实现过程中，如果发现任何既有缺陷、规格不匹配、实现边界缺失或测试/运行时回归：
-   - 先修复该问题；
-   - 若当前无法在本次直接修复，则把它作为前置任务插入 `TODO.md` 当前任务之前，并更新 `PLAN.md` 说明阻塞关系，然后停止。
-5. 完成当前首个任务后，运行相关验证：
-   - 至少执行与改动直接相关的测试；
-   - 若适用，执行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`，或给出无法执行的明确原因。
-6. 更新文档与计划：
-   - 在 `TODO.md` 标记任务完成；
-   - 在 `PLAN.md` 记录当前状态、依赖变化与后续顺序；
-   - 必要时同步更新本文件中的执行进度。
-7. 提交 Git，提交信息使用清晰描述并尽量带任务号。
-8. 本轮只完成一个任务，然后停止。
+当前目标：严格按仓库根目录 `TODO.md` 的优先顺序，只完成“第一个未完成任务”并停止。在开始任务前，先检查最新提交是否提到任何既有问题；如果提到，先修复这些问题。执行过程中遇到任何既存缺陷、规格不匹配、实现边界缺失、测试回归或依赖缺口，都必须立即纳入当前范围，优先修复，或在 `TODO.md` 中插入前置任务后停止。
 
-## 当前进度
+## 分步计划
 
-- 已创建执行计划文件。
-- 已检查最新提交 `30b179ddacd42073cee6df8bb6db3c0803b63aea`（`[T5000b1R] Review llvm mod root boundary`）。
-  - 提交内容只是在 `TODO.md` / `PLAN.md` / `memory/claude_plan.md` 中记录 review 结论；
-  - 未提到任何需要优先修复的既有缺陷；
-  - review 结论明确写明：未发现必须插入到 `T5000b2` 之前的新前置缺陷任务。
-- 已确认 `TODO.md` 当前首个未完成任务为 `T5000b2 提炼 MainCodegen 共享编译单元上下文与 child-codegen 构造路径`。
-- 已完成对 `MainCodegen::new` 现有构造点的勘察：
-  - `crates/scoopc/src/llvm/emit.rs` 中有 3 组编译单元级输入重复拼装：
-    - 顶层声明阶段；
-    - reachable top-level function body 发射阶段；
-    - 入口 `main` exit-code lowering 阶段。
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 中有 4 处 child/nested codegen 手写 `MainCodegenInputs { ... }`：
-    - effect-call wrapper body；
-    - top-level immutable value init；
-    - closure body lowering；
-    - object init lowering。
-- 当前实现策略：
-  1. 新增一个共享的编译单元上下文类型，承接稳定只读输入与跨 child-codegen 共享的编译单元级状态；
-  2. 将 `known_effect_instances_by_effect_fqn` 的构建上移到共享上下文，避免每次 child-codegen 重新扫描；
-  3. 让 `MainCodegen` 持有对共享上下文的引用，并提供统一的 child-codegen 工厂方法；
-  4. 收敛 `emit.rs` 中的入口构造方式，使编译单元输入只在一处集中拼装；
-  5. 运行格式化、测试与 clippy；
-  6. 若验证通过，再更新 `TODO.md` / `PLAN.md` / 本文件并提交。
-- 已完成 `T5000b2` 实现：
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 中新增 `CompilationUnitCodegenCx` / `CompilationUnitCodegenInputs`，把稳定编译单元输入、共享 `effect_op_tags`、共享 `known_fun_call_suspend_cache` 与预计算的 `known_effect_instances_by_effect_fqn` 集中到共享层；
-  - `MainCodegen` 已改为持有 `shared: &CompilationUnitCodegenCx`，并新增 `fresh_child_codegen()`，收口了 effect-call wrapper、top-level immutable init、closure body lowering、object init lowering 4 处 child/nested codegen 构造路径；
-  - `crates/scoopc/src/llvm/emit.rs` 已改为只在一个位置构造编译单元上下文，并通过 `fresh_main_codegen()` 复用到顶层声明、reachable top-level function body 发射和入口 `main` exit-code lowering。
-- 实现过程中出现过两个局部编译问题，均已当场修正：
-  - `Deref` 的关联类型暴露了过窄可见性的共享上下文类型，已把 `CompilationUnitCodegenCx` 调整为 `pub(crate)`；
-  - 共享层里误残留了 `current_source_id`，已移回函数级 `MainCodegen`。
+1. 检查最新一次 Git 提交信息与当前工作树状态，确认是否已有被明确提及但尚未解决的问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务；同时阅读 `PLAN.md` 获取当前规划上下文。
+3. 判断该任务是否可在一次迭代中完整落地：
+   - 若可直接完成，继续实现。
+   - 若过大或依赖缺失，则把任务拆解为更小子任务，更新 `PLAN.md` 与 `TODO.md` 的顺序和依赖，并在本次只处理新的第一个子任务。
+4. 在实现前补充必要上下文：
+   - 阅读相关代码、测试、规范或最近改动。
+   - 运行最小必要命令复现现状。
+   - 如果在探查中发现任何既有问题，先修复问题或把其登记为当前任务的前置任务。
+5. 实现当前目标任务，保证改动符合现有架构和规范，不引入绕过式方案。
+6. 运行相关验证：
+   - 先跑与改动直接相关的测试。
+   - 再按需要运行更广验证，至少覆盖任务影响面。
+   - 按要求检查格式、lint 和警告，必要时运行 `cargo fmt`、`cargo clippy --all-targets -- -D warnings` 及相关测试。
+7. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记该任务完成，或在受阻时调整依赖顺序并保留为未完成。
+   - 在 `PLAN.md` 中记录当前状态、拆分结果、阻塞原因或后续顺序。
+   - 持续同步本文件，记录关键判断、计划调整与完成情况。
+8. 检查 `git diff`，确认只包含预期修改，不回退他人改动。
+9. 提交本次变更，提交信息应清晰描述任务编号与内容。
+10. 停止，不继续执行后续任务。
+
+## 进度记录
+
+- 已创建本计划文件，下一步将检查最新提交、工作树、`TODO.md` 与 `PLAN.md`。
+- 已检查最新提交 `a489b034 [T5000b2] Extract shared compilation-unit codegen context`，提交正文无额外 pre-existing issue 说明。
+- 已确认当前首个未完成任务为 `T5000b2R Review：确认 MainCodegen 构造边界已开始从“巨型输入包”收口`。
+- 已完成 review 取证：
+  - `crates/scoopc/src/llvm/emit.rs` 中 `CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs { ... })` 仅保留 1 个编译单元构造入口；
+  - `fresh_main_codegen()` 统一承接顶层声明、reachable top-level function body 发射与入口 `main` exit-code lowering；
+  - `fresh_child_codegen()` 已覆盖 effect-call wrapper、top-level immutable init、closure body lowering、object init lowering 4 条 child/nested 路径；
+  - 实现代码中已无残留 `MainCodegenInputs { ... }` 手写构造。
 - 已完成验证：
-  - `cargo fmt --all`
   - `cargo test -p scoopc llvm::`
-  - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-  - 结果：全部通过。
-- 下一步：检查文档改动与代码 diff，提交本轮 `T5000b2` 结果，然后停止；后续待执行任务应切换为 `T5000b2R`。
+  - 结果均通过。
+- 当前结论：
+  - 未发现需要先于 `T5000b3` 插入的新前置缺陷任务；
+  - 共享编译单元输入与函数级局部状态已经开始分离，但更深层的 cache / effect emitter 上下文分层仍属于后续 `T5000b3` / `T5000b4` 范围。
+- 下一步：更新 `TODO.md` / `PLAN.md`，将 `T5000b2R` 标记完成，并把待执行任务切换为 `T5000b3`，随后检查差异并提交。
