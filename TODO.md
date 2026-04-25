@@ -690,7 +690,7 @@
   - 已更新 `tests/fixtures/mir/direct_and_fun_value_call.mir`、`tests/fixtures/mir/handle_perform.mir`、`tests/fixtures/mir/if_when.mir`，并新增 `tests/fixtures/mir/when_bind_guard.{scoop,mir}` 覆盖 `PatternMatch + PatternExtract + guard Binary` 路径；同时更新 `tests/fixtures/hir/control_flow.hir` 以匹配 `WhenPat::IntLit { raw }` 的新 HIR 形状。
   - 已验证 `cargo fmt --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型
+### [DONE] T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型
 - 重点：
   - `Perform` / `Resume` / 各类 call kind 是否已形成统一、可扩展的 MIR 表达；
   - provenance / receiver / dispatch metadata 是否已经满足后续 monomorphization / summary / devirt 的最低要求；
@@ -698,6 +698,13 @@
 - 验收：
   - `T5000dR` 可以只做总边界复核，而不需要再补基础表示层缺口。
 - 依赖：T5000d3
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs` 与 `crates/scoopc/src/monomorph/lower.rs`，确认 `CallKind::{Direct, Closure, FunValue, Virtual, Interface, Resume}` 与 `TerminatorKind::Perform` 已形成统一的调用 / control-transfer 入口；`TopLevelRef`、`MemberAccessMetadata`、`DispatchMetadata`、`ResumeMetadata`、`PerformMetadata`、`PerformArg` 与 `PerformResult` 已把后续 monomorphization / summary / devirt 需要的最小语言级事实显式落到 MIR，而没有回退到 LLVM vtable/itable/statepoint 细节。
+  - 已确认 `MirLoweringFacts` 继续只承担 backend-agnostic 的 lowering 输入：dispatch 目标来自 class/interface shared tables，`Continuation.resume` 来自 typed/shared HIR call-site 标记，effect payload canonicalization 与 `when` binder type 也都经 side table 收口；下游 pass 无需再回到 HIR 语法或 backend 现场补猜这些信息。
+  - review 过程中暴露并修复了一个既有 CFG 缺口：`crates/scoopc/src/mir/lower.rs` 中 `return` / `val` / `assign` 这类 statement wrapper 在子表达式 lowering 已通过 `Perform` 等 terminator 终结当前块后，仍会继续覆盖 terminator 或追加伪语句；现已统一在这些包装层检测 `current_is_terminated()` 并即时停止，恢复 return-position / initializer-position `Perform` 的正规 MIR 形状。
+  - 已在 `crates/scoopc/src/monomorph/lower.rs` 新增单测 `monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body`，确认 generic 函数实例化后的 MIR 仍稳定保留 `Perform` terminator、payload canonicalization 顺序、`source_arg_index` 与 `PerformResult` provenance。
+  - review 结论：generic early MIR template 的调用与 control-transfer 入口已经成型；`T5000dR` 可以进入总边界复核，无需再先补一轮表示层缺口。
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确
 - 重点：

@@ -545,4 +545,85 @@ fun entry(b: Base): Int {
             other => panic!("expected virtual call kind, got {other:?}"),
         }
     }
+
+    #[test]
+    fn monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/monomorph_perform.scoop",
+            r#"
+package fixtures.monomorph
+
+effect Pair {
+    fun emit(a: Int, b: String): Int
+}
+
+fun use<T>(marker: T): Int / Pair {
+    return Pair.emit(b = "x", a = 1)
+}
+
+fun entry(): Int / Pair {
+    return use(0)
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::Fun(fun) if fun.fqn.contains("use::<Int>") => Some(fun),
+                _ => None,
+            })
+            .expect("expected monomorphized use::<Int> instance");
+        let body = fun
+            .body
+            .as_ref()
+            .expect("monomorphized instance should have body");
+        let block = body
+            .blocks
+            .iter()
+            .find(|block| {
+                matches!(
+                    block.terminator.kind,
+                    crate::mir::TerminatorKind::Perform { .. }
+                )
+            })
+            .expect("expected perform terminator in monomorphized body");
+
+        let (op_fqn, metadata, args) = match &block.terminator.kind {
+            crate::mir::TerminatorKind::Perform {
+                op_fqn,
+                metadata,
+                args,
+            } => (op_fqn, metadata, args),
+            other => panic!("expected perform terminator, got {other:?}"),
+        };
+        assert_eq!(op_fqn, "fixtures.monomorph.Pair.emit");
+        assert!(metadata.payload_tuple_ty.is_some());
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0].source_arg_index, 1);
+        assert_eq!(args[0].name.as_deref(), Some("a"));
+        assert_eq!(args[1].source_arg_index, 0);
+        assert_eq!(args[1].name.as_deref(), Some("b"));
+
+        let (result_op_fqn, result_effect_ty) = block
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                crate::mir::StatementKind::Assign {
+                    value:
+                        crate::mir::Rvalue::PerformResult {
+                            op_fqn, effect_ty, ..
+                        },
+                    ..
+                } => Some((op_fqn.as_str(), *effect_ty)),
+                _ => None,
+            })
+            .expect("expected perform result provenance in monomorphized body");
+        assert_eq!(result_op_fqn, "fixtures.monomorph.Pair.emit");
+        assert_eq!(result_effect_ty, metadata.effect_ty);
+    }
 }

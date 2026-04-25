@@ -646,6 +646,23 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型`。
+- 2026-04-26：`T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型` 已完成。
+  - 复核结论：
+    - `crates/scoopc/src/mir/mod.rs` 中 `CallKind::{Direct, Closure, FunValue, Virtual, Interface, Resume}` 与 `TerminatorKind::Perform` 已收口为统一的调用 / control-transfer 层级；`TopLevelRef`、`MemberAccessMetadata`、`DispatchMetadata`、`ResumeMetadata`、`PerformMetadata`、`PerformArg` 与 `PerformResult` 已把后续 monomorphization / summary / devirtualization 需要的最小语言级事实稳定显式化。
+    - `crates/scoopc/src/mir/lower.rs` 中 `MirLoweringFacts` 继续只消费 backend-agnostic shared facts：dispatch 目标来自 class/interface tables，`Continuation.resume` 来自 typed/shared HIR call-site side table，effect payload canonicalization 与 `when` binder type 也都通过 HIR side table 进入 MIR；下游不再需要回到 HIR 语法或 LLVM backend 现场补猜这些入口信息。
+    - `crates/scoopc/src/monomorph/lower.rs` 继续通过 typed lowering + `with_hir_side_tables(...)` 实例化 generic 函数，并新增回归单测 `monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body`，确认 monomorphized MIR 仍保留 `Perform` terminator、payload canonicalization 顺序、`source_arg_index` 与 `PerformResult` provenance。
+  - review 过程中修复的既有缺口：
+    - `crates/scoopc/src/mir/lower.rs` 中 `return` / `val` / `assign` 这些 statement wrapper 在子表达式 lowering 已通过 `Perform` 等 terminator 终结当前块后，仍会继续覆盖 terminator 或追加语句；这会让 return-position / initializer-position `Perform` 在 MIR 上退化为错误 CFG 形状；
+    - 现已在这些包装层统一检测 `current_is_terminated()` 并立即停止，恢复终结型表达式的正规 block 边界。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：generic early MIR template 的调用与 control-transfer 入口已经成型，没有发现需要插入到 `T5000dR` 之前的新前置缺陷任务。
+  - 下一条待执行任务切换为 `T5000dR Review：确认 generic early MIR / ANF template 的语义边界正确`。
 
 ## 1. 当前判断
 

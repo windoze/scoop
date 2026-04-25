@@ -583,6 +583,9 @@ impl<'a> FnLowering<'a> {
             hir::StmtKind::Return { value } => {
                 if let Some(expr) = value {
                     let _ = self.lower_expr_to_local(expr);
+                    if self.current_is_terminated() {
+                        return;
+                    }
                 }
                 self.set_terminator(self.current_bb, stmt.span, TerminatorKind::Return);
             }
@@ -697,6 +700,9 @@ impl<'a> FnLowering<'a> {
 
             if let Some(init) = &decl.init {
                 let value = self.lower_expr_to_local(init);
+                if self.current_is_terminated() {
+                    return;
+                }
                 self.assign(
                     decl.span,
                     local,
@@ -719,6 +725,9 @@ impl<'a> FnLowering<'a> {
 
         if let Some(init) = &decl.init {
             let value = self.lower_expr_to_local(init);
+            if self.current_is_terminated() {
+                return;
+            }
             self.assign(decl.span, local, Rvalue::Use(Operand::Local(value)));
         }
     }
@@ -735,6 +744,9 @@ impl<'a> FnLowering<'a> {
         };
 
         let value = self.lower_expr_to_local(rhs);
+        if self.current_is_terminated() {
+            return;
+        }
         if self.boxed_symbols.contains(id) {
             let tmp = self.push_temp_local(span, self.builtins.unit);
             self.assign(

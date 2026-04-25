@@ -1,103 +1,69 @@
-# 本轮执行计划（T5000d3）
+# 本轮执行计划
 
-## 目标
+## 约束说明
 
-完成 `TODO.md` 中当前排在最前的未完成任务 `T5000d3`，并在完成后更新 `TODO.md`、`PLAN.md`、提交 git commit，然后停止。
+- 我不会写入不可共享的逐字内部思维过程，但会在此文件持续记录可审计的执行计划、依据、关键决策、发现的问题与完成状态。
+- 本轮目标是：先检查最新提交是否提到需要先修复的既有问题；随后读取 `TODO.md`，锁定第一个未完成任务；如果任务过大则先拆分并更新 `PLAN.md`/`TODO.md`；然后只完成当前首个任务，补齐测试、文档、任务状态与提交，最后停止。
 
-## 当前判断依据
+## 初始步骤
 
-- 已有交接信息表明：最新提交未显式声明需要先修的遗留问题，但在实现 `T5000d3` 时暴露出一个真实前置缺口：
-  `when` 的整数字面量 / 字符串字面量模式在多个阶段仍依赖 span 回查源码，这与本任务要求的“Perform / provenance / canonicalization 入口收口”和更规范的 MIR 表达相冲突。
-- 这个缺口不是可接受的绕过点，因此要作为本任务实现的一部分继续修复，而不是回避。
-- 当前代码处于“结构已改一半、尚未完成收口”的状态，最可能的阻塞点是：
-  - `crates/scoopc/src/mir/lower.rs`
-  - `crates/scoopc/src/mir/mod.rs`
-  - `crates/scoopc/src/llvm/codegen/control_flow.rs`
-  - `crates/scoopc/src/llvm/codegen/mod.rs`
-  - `crates/scoopc/src/hir/{mod.rs,lower/*}`
-  - `crates/scoopc/src/monomorph/lower.rs`
-
-## 执行原则
-
-1. 先保证代码重新可编译，再判断当前 MIR 设计是否需要最小化收口。
-2. 不接受把问题重新压回字符串 `Todo(...)`、span 反查、fixture 特判等“绕过去”的做法。
-3. 只做本轮首个任务；若发现真正新的前置问题无法在本轮内修完，就把它插入 `TODO.md` 到当前任务之前，并更新 `PLAN.md` 后提交并停止。
-
-## 详细步骤
-
-1. 编译探测
-   - 运行 `cargo check -p scoopc`。
-   - 按报错顺序修复，优先处理类型定义、模式匹配分支、字段改名、缺失 derive、side table 透传断点。
-
-2. 收口 HIR / LLVM 字面量 pattern 通路
-   - 确认 `WhenPat::IntLit` / `WhenPat::StringLit` 的新载荷在所有使用点一致。
-   - 修复 LLVM `when` codegen 中仍依赖源码 span 的路径，改为使用 HIR 携带的 `raw` / `value`。
-
-3. 收口 MIR 结构与 lowering
-   - 修复 `mir/mod.rs` 与 `mir/lower.rs` 的结构不一致问题。
-   - 确认以下节点完整可用：
-     - `Rvalue::TopLevelRef`
-     - `Rvalue::UnresolvedName`
-     - `Rvalue::Unary`
-     - `Rvalue::Binary`
-     - `Rvalue::TypeCheck`
-     - `Rvalue::Cast`
-     - `Rvalue::MemberAccess`
-     - `Rvalue::PatternMatch`
-     - `Rvalue::PatternExtract`
-     - `Rvalue::PerformResult`
-     - `TerminatorKind::Perform { op_fqn, metadata, args }`
-   - 确认 provenance 从“仅 callable”扩展到通用 `value_origins` 后，call lowering / perform lowering 仍保持正确。
-
-4. 收口 monomorph side table 透传
-   - 确认 monomorph lowering 也能获得 HIR side tables，而不只是 `dump-mir` 路径。
-
-5. 更新或新增 MIR fixtures / 测试
-   - 视最终 MIR 输出更新相关 fixture，至少覆盖：
-     - `when` 的 pattern match / binder extract / guard 分离
-     - `perform` 的参数正规化与 metadata
-   - 必要时补最小测试来防止 side table 只在单一路径生效。
-
-6. 验证
-   - 运行 `cargo fmt --all`
-   - 运行与本任务直接相关的测试
-   - 运行 `cargo clippy --all-targets -- -D warnings`
-   - 若发现任何既有缺陷，优先修复；无法当场修复则把它前插进 `TODO.md`。
-
-7. 文档与提交
-   - 更新 `memory/claude_plan.md` 记录关键进展和计划变化。
-   - 更新 `TODO.md`，把本轮完成的任务标记为已完成。
-   - 更新 `PLAN.md`，反映当前状态。
-   - 提交一次 git commit，然后停止。
-
-## 当前已知风险
-
-- 由于 MIR 结构改动较大，可能会连带影响 pretty printer、fixture 生成、LLVM codegen、monomorph 等多处调用点。
-- `when` lowering 的 binder 注入/恢复如果控制流边界不严谨，容易引入 symbol shadowing 或错误类型。
-- `Perform` 参数 canonicalization 如果缺少类型信息，可能需要进一步回填 side table 或补充 metadata。
+1. 检查当前工作树状态，避免误覆盖现有改动。
+2. 查看最新提交信息，确认是否显式提到必须先处理的既有问题。
+3. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务以及现有计划上下文。
+4. 结合代码与测试现状评估任务复杂度；若过大，则先拆分任务并更新 `TODO.md`/`PLAN.md`。
+5. 实现当前首个应执行任务。
+6. 运行与改动相关的验证，至少覆盖任务相关测试；若影响面较大，再补充 `cargo test` / `cargo clippy --all-targets -- -D warnings` 等检查。
+7. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md`，标记完成状态与关键结论。
+8. 使用清晰提交信息创建一次 git commit，然后停止。
 
 ## 进度记录
 
-- 已重新整理本轮计划，准备开始第一次编译探测。
-- 已完成第一次编译探测：
-  - `cargo check -p scoopc` 初始只暴露出 `mir/lower.rs` 中 `TypeCheck` / `Cast` 仍使用旧字段名 `ty`；
-  - 已改为对齐 HIR 的 `target_ty` 字段，并顺手去掉 `crates/scoopc/src/hir/mod.rs` 中未使用的 `LoweredFunWithSideTables` re-export；
-  - 重新运行 `cargo check -p scoopc` 后已通过。
-- 下一步：运行 MIR 相关 fixture / 单测，确认本轮新增 MIR 节点与 lowering 形状是否与 golden 一致，若不一致则更新实现或 fixture。
-- 已完成 MIR 路径第一轮收口：
-  - `cargo test -p scoopc monomorph::lower -- --nocapture` 通过，说明 HIR side table 透传没有打断 monomorph 路径；
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir` 初始暴露 3 个 golden 失配：`direct_and_fun_value_call`、`handle_perform`、`if_when`；
-  - 其中 `if_when` 暴露出真实 lowering 缺口：`when` 对“无 guard 的兜底 arm”会预分配不会执行的 `next_test_bb`，并留下 `unterminated` / 多余 CFG 残块；已在 `crates/scoopc/src/mir/lower.rs` 中改为按 arm 形状懒分配 fallthrough/body block，并让无 guard arm 直接在 match block 内继续 lowering；
-  - 已更新受影响的 MIR golden，并新增 `tests/fixtures/mir/when_bind_guard.{scoop,mir}`，显式覆盖 `PatternMatch + PatternExtract + guard Binary` 路径；
-  - 重新跑 `cargo run -p scoop -- test --fixtures tests/fixtures/mir` 后已通过（9 个 fixture）。
-- 全量验证进行中：
-  - `cargo fmt --all` 已通过；
-  - `cargo test --all` 首轮在 `hir::lower::tests::hir_fixture_control_flow_golden` 失败，原因是 HIR fixture 仍停留在旧的 `WhenPat::IntLit { span }` 输出，没有跟上本轮新增的 `raw` 字段；
-  - 已更新 `tests/fixtures/hir/control_flow.hir`，准备重新跑全量测试与 `clippy`。
-- 已完成最终验证：
-  - `cargo test -p scoopc hir::lower::tests::hir_fixture_control_flow_golden -- --nocapture` 已通过；
-  - `cargo test --all` 已重新通过；
-  - `cargo clippy --all-targets -- -D warnings` 已通过。
-- 收尾步骤：
-  - 已更新 `TODO.md` / `PLAN.md`，将 `T5000d3` 标记为完成，并把下一条待执行任务推进到 `T5000d3R`；
-  - 下一步只剩 git 提交，然后停止本轮执行。
+- 已创建本文件并写入初始计划。
+- 已检查当前工作树：仅有本文件改动。
+- 已检查最新提交 `eacc54cf [T5000d3] Regularize perform and provenance MIR entry points`：
+  - 提交正文没有额外说明新的已知前置缺陷；
+  - 但相关实现涉及 `TODO.md`/`PLAN.md`/`memory/claude_plan.md` 更新，因此仍需按 `T5000d3R` 对该轮改动做结构复核。
+- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务是 `T5000d3R Review：确认 generic early MIR template 的调用与 control-transfer 入口已经成型`。
+
+## 当前任务：T5000d3R
+
+### review 目标
+
+1. 复核 `Perform` / `Resume` / `Direct|Closure|FunValue|Virtual|Interface` 等 call kind 是否已经统一成可扩展的 MIR 表达。
+2. 复核 provenance / receiver / dispatch / perform metadata 是否足以支撑后续 monomorphization、summary、devirtualization，而不需要回退到 HIR 语法或 LLVM backend 现场补猜。
+3. 检查 monomorph lowering、MIR fixture 与相关调用点是否真的消费这些结构化入口。
+4. 若发现既有缺口，优先修复缺口；若确认边界成立，则更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+
+### 预定验证
+
+- 定向阅读：
+  - `crates/scoopc/src/mir/mod.rs`
+  - `crates/scoopc/src/mir/lower.rs`
+  - `crates/scoopc/src/monomorph/lower.rs`
+  - 相关 fixture 与 HIR/LLVM 消费侧
+- 计划运行：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+  - `cargo test -p scoopc monomorph::lower -- --nocapture`
+  - 如有必要，补 `cargo test --all`
+  - 完成前执行 `cargo clippy --all-targets -- -D warnings`
+
+## 执行结果
+
+- 已完成定向代码复核，确认 `Perform` / `Resume` / `Direct|Closure|FunValue|Virtual|Interface` 已统一进入 MIR 调用 / control-transfer 表达层，且 `TopLevelRef`、`MemberAccessMetadata`、`DispatchMetadata`、`ResumeMetadata`、`PerformMetadata`、`PerformArg`、`PerformResult` 已承载后续阶段所需的最小语言级事实。
+- review 过程中新增了 monomorph 回归测试 `monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body`，用于确认 generic 函数实例化后的 MIR 仍保留 `Perform` terminator、payload canonicalization 顺序、`source_arg_index` 与 `PerformResult` provenance。
+- 新回归测试首次暴露了一个既有真实缺口：
+  - `crates/scoopc/src/mir/lower.rs` 中 `return` / `val` / `assign` 这些 statement wrapper 会在子表达式 lowering 已通过 `Perform` 等 terminator 结束当前块后，仍继续覆盖 terminator 或追加语句；
+  - 该问题会破坏 return-position / initializer-position `Perform` 的 CFG 形状，因此已在本轮立即修复，而不是延后到后续任务。
+- 已完成修复：
+  - 在 `return` / `val` / `assign` lowering 包装层中统一检测 `current_is_terminated()`，若子表达式已经终结当前块则立即停止。
+- 已完成验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc monomorph::lower -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 以上全部通过。
+- 当前结论：
+  - `T5000d3R` 可标记完成；
+  - 未发现需要插入到 `T5000dR` 之前的新 prerequisite 任务；
+  - 本轮下一步只剩更新任务文档、提交并停止。
