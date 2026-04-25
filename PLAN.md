@@ -718,7 +718,24 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-  - 下一条待执行任务切换为 `T5000e1R Review：确认 InstanceKey 与 dump-ir materializer 的边界正确`。
+  - 下一条待执行任务原本切换为 `T5000e1R Review：确认 InstanceKey 与 dump-ir materializer 的边界正确`。
+- 2026-04-26：执行 `T5000e1R Review` 时发现 e1 仍有两个阻塞缺口，因此该 review 暂不能直接判定通过，已先把阻塞点回写为新的前置任务 `T5000e1a` / `T5000e1b`。
+  - 阻塞点 1：`dump-ir` 的 template identity 仍错误依赖“generic template 定义在当前输入源文件”。
+    - 复现：`cargo run -q -p scoop -- dump-ir /tmp/e1r_sysroot2.scoop`（内容为 `print(1)`）当前会报 `scoop::mir::materialize::missing_generic_template`；
+    - 根因 1：`crates/scoopc/src/typecheck/lower.rs` 中 `record_monomorph_call(...)` 仍把 `MonomorphKey.symbol.decl_file` 固定写成 `self.source.path()`，对 imported / sysroot generic fun 记录了错误的声明源；
+    - 根因 2：`crates/scoopc/src/mir/materialize.rs` 中 `collect_generic_template_infos(...)` 只从当前输入 AST 建 template catalog，`materialize_for_dump(...)` 也只 lower 当前源文件到 generic MIR template，因此外部 generic direct call 在 dump/debug 路径上无法找到对应 template。
+  - 阻塞点 2：effect-row 实参尚未真正进入 `InstanceKey` / materializer 闭环。
+    - 复现：`cargo run -q -p scoop -- dump-ir /tmp/e1r_eff.scoop`（effect-only generic `forward<eff E>`）当前返回空 `instance_keys` / 空 `items`；`cargo run -q -p scoop -- dump-mir /tmp/e1r_eff.scoop` 则显示调用仍直接指向 generic `review.e1r.forward`；
+    - 根因 1：`crates/scoopc/src/typecheck/lower.rs` 中 `record_monomorph_call(...)` 只在 `type_args` 非空时记录请求，并把 `eff_args` 固定留空，因此 effect-only generic fun 根本不会进入实例队列；
+    - 根因 2：`crates/scoopc/src/mir/materialize.rs` 虽让 `InstanceKey` 带有 `eff_args`，但 `instance_fqn(...)`、`infer_direct_call_instance(...)` 与实例化替换主路径仍未消费这一维度；
+    - 根因 3：`crates/scoopc/src/hir/lower/mod.rs` 的 `lower_fun_decl(...)` / `lower_fun_decl_with_bound_type_params(...)` 在 lowering `fun.effects` 时没有为 `<eff E = ...>` 建 effect-row binding scope，导致 generic template 本身无法稳定保留 effect-row 参数语义；当前 dump path 中这类 row 会退化到默认 row / `Any` 语义附近，而不是可替换的 template 参数。
+  - 处理决策：
+    - 由于这两个缺口都直接否定了 `T5000e1R` 的验收前提，不能通过“缩小 review 结论”或“把 dump-ir 限定为仅当前源文件/仅 type-param generic”来绕过；
+    - 已把问题拆成两个前置任务：
+      - `T5000e1a`：先补齐 dump-ir 单文件路径的跨文件 / sysroot template catalog 与正确的声明源身份；
+      - `T5000e1b`：再补 effect-row 实参从请求收集、template 表示、实例 identity 到 cache/fixed-point 的闭环；
+    - `T5000e1R` 现改为依赖 `T5000e1bR`，待上述缺口修复并复核后再继续。
+  - 下一条待执行任务切换为 `T5000e1a 为 dump-ir materializer 补齐跨文件 / sysroot generic template 目录与正确的声明源身份`。
 
 ## 1. 当前判断
 

@@ -742,6 +742,44 @@
   - 已新增/更新回归测试：`monomorph_collects_two_instances_for_id`、`monomorph_discovers_direct_call_fixed_point_in_mir_instances`、`monomorph_rewrites_nested_closure_family_fn_ptrs`、`monomorph_preserves_virtual_call_kind_in_instantiated_body`、`monomorph_preserves_perform_metadata_and_arg_order_in_instantiated_body`；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
+### [TODO] T5000e1a 为 `dump-ir` materializer 补齐跨文件 / sysroot generic template 目录与正确的声明源身份
+- 范围：
+  - 修正 typecheck 收集的 `MonomorphKey.symbol`，让 imported / sysroot generic fun 使用真实 `decl_file` / `decl_span`，而不是把调用点文件误记为声明源；
+  - 为 `dump-ir` 的 MIR materializer 建立至少覆盖输入源文件 + sysroot/imported generic fun 的 template catalog，避免 direct generic call 在单文件调试路径上因“只索引当前源文件 template”而失败；
+  - 保持当前任务边界仍在 dump/debug 路径，不提前把 build/frontend 主路径的整体迁移混进来；编译单元主路径迁移仍留待 `T5000e2`。
+- 验收：
+  - `scoop dump-ir` 对 `scoop.core.print<T>`、`channelCreate<T>` 等外部 generic fun 的 direct call 能稳定 materialize 对应 MIR instance，而不是报 `missing_generic_template`；
+  - 请求键中的声明源身份与 template lookup 已不再依赖“generic fun 必须定义在当前输入文件”这一错误假设。
+- 依赖：T5000e1
+
+### [TODO] T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设
+- 重点：
+  - imported / sysroot generic fun 的请求键是否指向真实声明源；
+  - dump-ir template catalog 是否已覆盖调试路径上可达的外部 generic template，而不是继续只扫当前源文件；
+  - 该补丁是否仍保持 e1 边界，即只修 dump/debug materializer，不提前把 e2 的 build/frontend 主路径一起耦合进来。
+- 验收：
+  - 单文件/调试路径上的 template identity 已足够稳定，不再因外部 generic direct call 而直接报缺模板。
+- 依赖：T5000e1a
+
+### [TODO] T5000e1b 让 `InstanceKey` / dump-ir materializer 正确承载 effect-row 实参
+- 范围：
+  - 让 monomorph 请求收集记录 `<eff ...>` 实参，不再把 `eff_args` 留空，也不再因为 `type_args` 为空而跳过 effect-only generic fun 的实例请求；
+  - 让 generic HIR/MIR template 与 MIR materializer 保留并应用 effect-row 参数绑定，避免 `<eff E>` 在 dump 路径中退化为默认 row 或 `Any`；
+  - 让 `InstanceKey` 的显示名、实例缓存与 direct-call fixed-point 发现共同区分 `eff_args`，避免同一 type args 下不同 effect 实例发生身份碰撞。
+- 验收：
+  - effect-only generic fun 在 `dump-ir` 路径上会生成对应实例，而不是返回空实例集；
+  - 同一 generic template 在相同 type args、不同 `eff_args` 下拥有可区分的实例身份与 materialized callee。
+- 依赖：T5000e1aR
+
+### [TODO] T5000e1bR Review：确认 effect-row 实参已成为 `InstanceKey` / materializer 的一等维度
+- 重点：
+  - `eff_args` 是否已经从 typecheck 请求一路进入 `InstanceKey`、template substitution、instance cache 与 Debug 输出；
+  - HIR/MIR template 是否仍然保存 effect-row 参数语义，而不是在 lowering 时提前塌缩成默认 row / `Any`；
+  - effect-only generic fun 与“同 type args 不同 effect row”的实例是否都能稳定区分。
+- 验收：
+  - `InstanceKey` 与 dump-ir materializer 的 effect-row 维度已经闭环，e1R 可以继续审查总体边界。
+- 依赖：T5000e1b
+
 ### [TODO] T5000e1R Review：确认 `InstanceKey` 与 dump-ir materializer 的边界正确
 - 重点：
   - `InstanceKey` 是否已与旧的 `MonomorphKey` 请求键语义分离；
@@ -749,7 +787,7 @@
   - per-`InstanceKey` cache 与 fixed-point 发现策略是否足够稳定，可作为编译单元接线前的基础。
 - 验收：
   - 单文件/调试路径上的实例身份、模板索引与实例缓存已经明确落在 MIR 层，而不是旧 `monomorph` HIR 调试路径。
-- 依赖：T5000e1
+- 依赖：T5000e1bR
 
 ### [TODO] T5000e2 把编译单元 frontend/build 路径的 instance collection / materialization 迁到 MIR 层
 - 范围：

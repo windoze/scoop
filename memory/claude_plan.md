@@ -1,90 +1,90 @@
-# 本轮执行计划
+# 执行计划
 
-## 说明
+## 约束说明
 
-按要求，先在此文件记录本轮的可执行计划、检查顺序、关键判断依据和进度更新。这里不会逐字记录内部私有推理，但会完整记录外部可审计的执行步骤、发现的问题、采取的修复动作、测试结果与计划调整。
+- 按要求先记录执行计划，再开始读取仓库和执行命令。
+- 计划文件会在关键步骤完成或计划变化时持续更新。
+- 这里记录的是可审计的执行步骤与决策，不包含冗长的内部推理草稿。
 
 ## 初始步骤
 
-1. 检查最近一次提交信息与提交内容，确认是否提到了尚未修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，确认当前计划是否与 `TODO.md` 一致。
-4. 如果第一个未完成任务过大或存在前置依赖缺口，则先细化任务并更新 `PLAN.md` / `TODO.md`。
-5. 实施当前应执行的第一个任务，同时在过程中留意任何既有缺陷、回归、规约不匹配或不完整实现边界；若发现，则优先修复或把它作为新的前置任务插入 `TODO.md` 并停止继续推进原任务。
-6. 运行与改动相关的测试；如果任务完成后范围允许，再补充更高层验证，至少确保本次改动路径通过。
-7. 更新 `TODO.md` 与 `PLAN.md`，记录完成状态或新的依赖调整。
-8. 提交本轮改动，提交后停止。
+1. 检查最新一次 Git 提交信息，确认是否明确提到已有问题、回归、临时修复或待补事项。
+2. 如果最新提交中提到需要先处理的既有问题，先定位并修复这些问题，再继续后续步骤。
+3. 阅读 `TODO.md`，识别第一个未完成任务。
+4. 阅读 `PLAN.md`，核对当前计划、依赖关系和已有拆分是否与 `TODO.md` 一致。
+5. 判断第一个未完成任务是否足够小且可以在本次调用中完整交付。
+6. 如果任务过大或存在未建模依赖：
+   - 在 `PLAN.md` 中补充分解后的计划；
+   - 在 `TODO.md` 中把该任务拆成更小的前置子任务，并把当前应执行的第一个子任务排到最前；
+   - 本次仅执行新的第一个子任务。
 
-## 当前假设
+## 执行步骤
 
-- 目前尚未确认最近一次提交是否声明了遗留问题。
-- 目前尚未确认 `TODO.md` 的第一个未完成任务是什么。
-- 在读取仓库现状前，不预设任务内容或实现方案。
+1. 在实现前先阅读相关代码、测试、规范或运行路径，确认修改边界。
+2. 实现当前目标任务，不引入规避性 workaround。
+3. 在实现过程中如果发现既有缺陷、规格不匹配、实现边界缺失或测试回归：
+   - 立即将其视为当前范围内问题；
+   - 若可以直接修复，则优先修复；
+   - 若它阻塞当前任务且不能在本轮直接完成，则把修复任务作为前置任务写入 `TODO.md`，同步更新 `PLAN.md`，提交后停止。
+4. 对改动运行充分验证，至少包括与任务直接相关的测试；若改动影响较广，还要运行更高层级验证。
+5. 运行质量检查，目标包含：
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+   - 必要时运行针对性的 fixture/spec 命令
+6. 修复验证中发现的所有问题，直到相关检查通过或明确形成新的前置任务。
 
-## 进度日志
+## 收尾步骤
 
-- 已创建本文件并写入初始计划，下一步将检查最近一次提交与任务清单。
-- 已检查最近一次提交：
-  - `git log -1 --format=fuller` 显示提交为 `[T5000dR] Fix dump-mir generic template boundary`；
-  - 提交说明中没有额外声明“尚未修复的既有问题”，因此当前无需先插入基于提交说明的额外修复项。
-- 已定位 `TODO.md` 的第一个未完成任务：
-  - `T5000e 在 MIR 层实现 monomorphization / instance materialization`。
-- 已核对当前实现边界：
-  - `crates/scoopc/src/monomorph/` 仍是早期调试/实例生成模块；
-  - `crates/scoopc/src/hir/lower/mod.rs` 的多文件 lowering 仍通过 `materialize_generic_fun_instances` 和 `collect_generic_fun_instantiations(...)` 直接在 HIR 层生成 `::<...>` 实例；
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留 `try_resolve_monomorphized_member_fqn` / `try_resolve_monomorphized_standalone_fun_fqn`，说明 LLVM codegen 仍在现场承担一部分单态化目标解析职责；
-  - 这与 `T5000e` 的目标一致，说明任务是真实责任迁移，不是单点小修。
+1. 更新 `TODO.md`，将本次完成的唯一任务标记为完成。
+2. 更新 `PLAN.md`，记录当前状态、已完成内容、后续影响和必要调整。
+3. 再次更新本文件，记录关键结果与最终执行状态。
+4. 检查工作区改动，确认未误改无关文件。
+5. 使用清晰的 Git 提交信息提交本次改动。
+6. 提交后停止，不继续处理下一个任务。
 
-## 当前判断
+## 本轮目标
 
-- `T5000e` 当前过大，至少同时包含：
-  1. 引入 backend-agnostic `InstanceKey`；
-  2. 建立 generic MIR template -> monomorphic MIR instance 的实例化机制；
-  3. reachable-driven / on-demand / per-instance cache；
-  4. 把 frontend / codegen 从“HIR 预实例化 + codegen 现场猜目标”迁移到新的实例化边界。
-- 预计需要先在 `TODO.md` / `PLAN.md` 中拆分 `T5000e`，再完成拆分后的第一个子任务。
-- 下一步将进一步确认一个“本轮可完整交付且可测试”的首个子任务边界，并据此更新 `TODO.md` / `PLAN.md`。
+- 当前唯一执行任务：`T5000e1R Review：确认 InstanceKey 与 dump-ir materializer 的边界正确`。
+- 最新提交 `75d109f18de5da63bb8ac7c95c6321ed04cb9b8e` 的提交正文仅为 `[T5000e1] Materialize dump-ir instances from MIR templates`，未显式挂出需要先修复的既有问题。
 
-## 任务拆分结果
+## 针对当前任务的执行细化
 
-- 已更新 `TODO.md` / `PLAN.md`，把 `T5000e` 拆为：
-  1. `T5000e1`：引入 `InstanceKey`，并把 `dump-ir` 路径迁到真正的 MIR template → instance materialization；
-  2. `T5000e2`：把 compilation unit frontend/build 的 instance collection / materialization 主路径迁到 MIR；
-  3. `T5000e3`：让 LLVM codegen 改为消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径。
-- 当前本轮执行目标已切换为：`T5000e1`。
+1. 阅读 `TODO.md` / `PLAN.md` 中 `T5000e1` 与 `T5000e1R` 的范围、验收与完成记录。
+2. 审查 `crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/monomorph/{mod,lower}.rs`、`crates/scoop/src/commands/dump_ir.rs`、`crates/scoopc/src/hir/lower/mod.rs` 的实现接缝。
+3. 重点核对三件事：
+   - `InstanceKey` 是否已经是最终实例身份，而 `MonomorphKey` 是否退回为“实例请求”；
+   - `dump-ir` 是否只消费 generic MIR template + MIR materializer，而不是对实例重新做 HIR lowering；
+   - per-`InstanceKey` cache 与 fixed-point 发现是否能稳定覆盖直接泛型调用与 nested closure family。
+4. 若 review 暴露既有缺陷：
+   - 能直接修复则立即修复，并补测试；
+   - 若形成新的前置阻塞，则先更新 `TODO.md` / `PLAN.md` 后停止。
+5. 运行与该 review 相关的验证命令，必要时补更窄的 targeted tests，再跑全量质量门禁。
+6. 若 review 通过，则更新 `TODO.md`、`PLAN.md` 与本文件，提交本轮结果并停止。
 
-## T5000e1 计划
+## 当前状态
 
-1. 设计新的 `InstanceKey` 与 dump-ir materializer 的最小数据结构。
-2. 复用现有 typed dump 前端事实，生成 generic MIR template，并建立模板索引。
-3. 在 MIR 层实现单文件/调试路径的实例 materialization：
-   - 以 typecheck 收集到的 monomorph 请求作为初始种子；
-   - 对 direct generic call 做 fixed-point 发现；
-   - 对 closure family 做实例化时的 FQN / fn_ptr 重写；
-   - 用 per-`InstanceKey` cache 去重。
-4. 把 `dump-ir` 与旧 `monomorph` 调试入口切到新 materializer。
-5. 补充/迁移测试，覆盖：
-   - `InstanceKey` 稳定性；
-   - generic direct call 改写到实例；
-   - nested closure family 在实例化后不会残留 generic fn_ptr；
-   - 现有 `Virtual` / `Perform` 等 MIR 结构事实在实例体中继续保留。
-6. 运行格式化、相关单测、全量测试与 clippy；若发现既有问题，优先修复。
-
-## T5000e1 完成情况
-
-- 已完成 `T5000e1` 的实现与验证。
-- 主要实现：
-  - 新增 `crates/scoopc/src/mir/materialize.rs`，引入 `TemplateKey`、`InstanceKey`、`MaterializedMir` 与 `materialize_for_dump(...)`；
-  - `dump-ir` 现改为直接走 MIR materializer，并打印包含 `instance_keys` 的 `MaterializedMir` Debug 视图；
-  - 旧 `crates/scoopc/src/monomorph/lower.rs` 已收口为兼容薄包装；
-  - `MonomorphKey` 的注释与定位已修正为“typecheck 收集到的实例请求”，不再暗示它是最终实例身份；
-  - 迁移后暴露的既有无效接口 `LoweredFunWithSideTables` 已一并清理，避免留下 warning。
-- 回归测试：
-  - `cargo test -p scoopc monomorph::lower -- --nocapture`
-  - `cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - 全部通过。
-- 文档/任务状态：
-  - 已在 `TODO.md` 将 `T5000e1` 标记为完成；
-  - 已在 `PLAN.md` 追加 `T5000e1` 的完成记录，并将下一条待执行任务更新为 `T5000e1R`。
+- 已完成：初始化计划；检查最新提交；定位首个未完成任务；完成 `T5000e1R` 的代码审查与最小复现探测。
+- 已确认的阻塞点：
+  1. `dump-ir` 对 imported / sysroot generic fun 仍会失败。
+     - 复现：`cargo run -q -p scoop -- dump-ir /tmp/e1r_sysroot2.scoop`
+     - 现象：`scoop.core.print<T>` 直接触发 `missing_generic_template`。
+     - 原因摘要：
+       - `record_monomorph_call(...)` 仍把声明文件写成调用点文件；
+       - dump-ir materializer 只为当前输入源文件建立 template catalog。
+  2. effect-row 泛型实例尚未进入 `InstanceKey` / materializer 闭环。
+     - 复现：
+       - `cargo run -q -p scoop -- dump-ir /tmp/e1r_eff.scoop`
+       - `cargo run -q -p scoop -- dump-mir /tmp/e1r_eff.scoop`
+     - 现象：
+       - effect-only generic `forward<eff E>` 在 `dump-ir` 中返回空实例集；
+       - `dump-mir` 中调用仍直接指向 generic `forward`。
+     - 原因摘要：
+       - monomorph 请求收集只在 `type_args` 非空时入队，`eff_args` 固定为空；
+       - `InstanceKey` 的 `eff_args` 未进入 instance 命名、cache 与 fixed-point；
+       - HIR lowering 当前未保留 effect-row 参数绑定语义。
+- 计划调整：
+  - `T5000e1R` 不能在当前状态下通过；
+  - 已决定把阻塞点拆成前置任务并写入 `TODO.md` / `PLAN.md`：
+    - `T5000e1a`：跨文件 / sysroot template identity 与请求声明源修复；
+    - `T5000e1b`：effect-row 实参进入 `InstanceKey` / materializer 闭环。
+- 进行中：更新 `TODO.md` / `PLAN.md` / 本文件，然后提交本轮“前置任务重排”结果并停止。
