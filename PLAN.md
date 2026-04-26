@@ -844,6 +844,24 @@
     - `T5000e1b0a1R`：复核 member direct-call 是否已经真正消费 lambda-derived effect-row facts；
     - `T5000e1b0aR` 顺延到上述前置任务之后。
   - 下一条待执行任务切换为 `T5000e1b0a1 修复 effect-generic member direct-call 对 lambda 实参的 overload matching / eff_arg 推断闭环`。
+- 2026-04-26：`T5000e1b0a1 修复 effect-generic member direct-call 对 lambda 实参的 overload matching / eff_arg 推断闭环` 已完成。
+  - 根因复盘：
+    - 继续 probing 后确认，`box.lift({ perform Boom.ping(); 1 })` 之所以在 member direct-call 分支报 `NoMatchingOverload`，并不是 `collect_member_method_signatures_from_index(...)` 收集到的 `eff_param` / `param_*_eff_base` / subst facts 完全没被消费；
+    - 真正先炸掉的是更早的 spec/实现错配：`SCOOP_FULL_SPEC.md` 已明确支持 `perform E.op(...)`，但 parser 还没有把显式 `perform` 接进表达式前缀，导致 lambda body 内的 `perform Boom.ping()` 落成 `StmtKind::Missing`，expected-context typecheck 提前报 `block expression（missing stmt）`，成员候选因此被误丢弃。
+  - 实现结果：
+    - `crates/scoopc/src/parser/expr.rs` 现已把 `perform E.op(...)` 作为 effect-op call 的源码级前缀语法糖接入表达式解析，并把外层 span 扩到包含 `perform` 关键字；这样现有 typecheck / HIR lowering / MIR materialization 主线就能无分叉消费显式 `perform` 形式；
+    - 新增 `typecheck::expr::infer::tests::member_direct_call_infers_effect_row_from_lambda_with_explicit_perform`，确认 typed receiver 成员 direct-call 现在能够从显式 `perform` 的 lambda body 推断非 `Pure` `eff_arg`；
+    - 新增 `mir::materialize::tests::dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding_from_lambda`，确认 lambda-derived member direct-call 的 `TopLevelFunCallBinding` / monomorph key 会保留非 `Pure` `eff_args`；
+    - 已回归 `typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path` 与 `monomorph_rewrites_effect_generic_extension_call_to_concrete_instance`，确认显式 `<eff E>` 的 member direct-call 与 extension direct-call 路径不回退。
+  - 验证结果：
+    - `cargo test -p scoopc member_direct_call_infers_effect_row_from_lambda_with_explicit_perform -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding -- --nocapture`
+    - `cargo test -p scoopc typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path -- --nocapture`
+    - `cargo test -p scoopc monomorph_rewrites_effect_generic_extension_call_to_concrete_instance -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e1b0a1R Review：确认 member direct-call 已真正消费 lambda-derived effect-row facts`。
 
 ## 1. 当前判断
 

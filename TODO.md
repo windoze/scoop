@@ -828,7 +828,7 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e1b0a1 修复 effect-generic member direct-call 对 lambda 实参的 overload matching / `eff_arg` 推断闭环
+### [DONE] T5000e1b0a1 修复 effect-generic member direct-call 对 lambda 实参的 overload matching / `eff_arg` 推断闭环
 - 范围：
   - 修复 `class Box() { fun <eff E = Pure> lift(f: () -> Int / E): Int / E { ... } }` 这类成员方法在 typed receiver 路径上的 direct-call typecheck；
   - 让 `val box: Box = Box(); box.lift({ perform Boom.ping(); 1 })` 不再在 member direct-call 分支因 `NoMatchingOverload` 提前丢弃候选；
@@ -838,6 +838,21 @@
   - 对应 `TopLevelFunCallBinding` / monomorph key 会保留非 `Pure` 的 `eff_args`；
   - 不回退当前已验证通过的 extension/member 显式 `<eff E>` direct-call 路径。
 - 依赖：T5000e1b0a
+- 完成记录（2026-04-26）：
+  - 继续定位后确认，阻塞 `box.lift({ perform Boom.ping(); 1 })` 的真正既有缺口并不是 member overload matcher 本身，而是 spec-correct 的显式 `perform` 语法尚未进入 parser 表达式前缀：`perform Boom.ping()` 先被落成 `StmtKind::Missing`，导致 lambda expected-context typecheck 提前报 `block expression（missing stmt）`，成员候选因此被误丢弃；
+  - 已在 `crates/scoopc/src/parser/expr.rs` 为 `perform E.op(...)` 补齐前缀解析，并把它按 effect-op call 的源码级语法糖接入现有 typecheck/HIR lowering 主线，从而不再要求把该 case 改写成非 spec 代表形状；
+  - 已新增 `typecheck::expr::infer::tests::member_direct_call_infers_effect_row_from_lambda_with_explicit_perform`，确认 typed receiver 成员 direct-call 现在能从显式 `perform` 的 lambda body 推断出非 `Pure` `eff_arg`；
+  - 已新增 `mir::materialize::tests::dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding_from_lambda`，确认对应 `TopLevelFunCallBinding` / monomorph key 都会保留非 `Pure` 的 `eff_args`；
+  - 已回归 `typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path` 与 `monomorph_rewrites_effect_generic_extension_call_to_concrete_instance`，确认显式 `<eff E>` member direct-call 与 extension direct-call 路径没有回退；
+  - 已验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc member_direct_call_infers_effect_row_from_lambda_with_explicit_perform -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding -- --nocapture`
+    - `cargo test -p scoopc typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path -- --nocapture`
+    - `cargo test -p scoopc monomorph_rewrites_effect_generic_extension_call_to_concrete_instance -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ### [TODO] T5000e1b0a1R Review：确认 member direct-call 已真正消费 lambda-derived effect-row facts
 - 重点：

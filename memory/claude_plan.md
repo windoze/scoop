@@ -1,93 +1,73 @@
-# 执行计划记录
+# 当前执行计划
 
-## 约束说明
+## 目标
+- 按照 `TODO.md` 的顺序，只完成第一个未完成任务，然后停止。
+- 在推进该任务前，先检查最近一次提交是否提到已有问题；若提到，则先修复该问题。
+- 在执行过程中，若发现任何现存缺陷、规格不匹配、实现边界缺口或回避性做法，立即将其视为当前范围内的问题优先处理，必要时先更新 `TODO.md`/`PLAN.md` 后停止。
 
-- 按用户要求，先写入本文件，再执行仓库检查与实现工作。
-- 这里记录的是可公开的执行计划、检查步骤、进度与决策依据摘要，不包含隐藏的内部推理细节。
+## 约束与执行原则
+- 不以变通方案、特判、缩小测试形状或规避路径的方式推进任务。
+- 如果当前任务过大，需要先拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+- 完成任务后必须：
+  - 更新 `TODO.md`
+  - 更新 `PLAN.md`
+  - 运行相关测试与质量检查
+  - 提交 Git commit
+  - 停止，不继续下一个任务
 
-## 初始计划
+## 初始步骤
+1. 查看最近一次提交信息，确认是否提到已有问题需要优先修复。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对该任务上下文、依赖和是否需要拆分。
+4. 结合代码与测试现状判断：
+   - 若存在最近提交提到的已有问题，先修复该问题。
+   - 若首个未完成任务过大，则拆分任务并更新 `TODO.md`/`PLAN.md`，本轮只执行拆分后的第一个子任务。
+   - 若执行中发现阻塞性的既有缺陷，则先修复；若本轮无法直接修复，则把缺陷作为前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
 
-1. 检查最新一次提交信息，确认是否提到需要优先修复的现存问题。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，确认当前计划与任务依赖关系。
-4. 结合代码与测试现状判断该任务是否可直接完成：
-   - 若可直接完成，则实现、补充测试、运行验证，并更新文档与任务状态。
-   - 若任务规模过大或存在前置阻塞，则先把任务拆分/重排到 `TODO.md` 与 `PLAN.md`，本次只处理新的首个子任务或前置任务。
-5. 在执行过程中，任何发现的既有缺陷、回归、规范不匹配、未完成边界，都优先视为当前范围内问题处理。
-6. 完成当前首个任务后：
-   - 更新 `memory/claude_plan.md`
-   - 更新 `TODO.md`
-   - 更新 `PLAN.md`
-   - 运行相关测试与 `cargo clippy --all-targets -- -D warnings`
-   - 提交 git commit
-   - 停止，不继续下一个任务
+## 本轮预期产出
+- 一个完成的首个未完成任务（或其拆分后的首个子任务），以及对应代码、测试、文档和提交。
+- 或者：若发现阻塞性既有问题，则新增前置任务并提交任务重排结果后停止。
 
-## 当前状态
-
-- 已完成：初始化计划文件
-- 已完成：检查最新提交、`TODO.md`、`PLAN.md`，确认最新提交未额外声明需先插入的新遗留修复任务
-- 已完成：定位首个未完成任务为 `T5000e1b0aR Review`
-- 进行中：执行 `T5000e1b0aR Review`
-
-## 当前任务：T5000e1b0aR Review
-
-### 目标
-
-确认 extension/member direct-call 在 request binding 与调用点正规化阶段不再丢失 `eff_args`，并验证：
-
-1. call-callee 位置的 `TypeApply` 仍会走 extension/member direct-call 降糖；
-2. extension/member direct-call 的 `TopLevelFunCallBinding` 能稳定携带 `decl_file`、`decl_span`、`type_args`、`eff_args`；
-3. 直连成员方法签名收集会保留 `eff_param` 与 effect-row substitution 事实；
-4. 已知更深层阻塞 `T5000e1b0b` 之外，不存在新的更浅层既有问题。
-
-### 执行步骤
-
-1. 阅读 `TODO.md` / `PLAN.md` 中 `T5000e1b0a` 与 `T5000e1b0aR` 的说明。
-2. 检查相关代码：
-   - `crates/scoopc/src/hir/lower/expr.rs`
-   - `crates/scoopc/src/typecheck/expr/call.rs`
-   - `crates/scoopc/src/typecheck/expr/ops.rs`
-   - `crates/scoopc/src/mir/materialize.rs`
-   - 相关测试与探针
-3. 运行定向测试和必要的 CLI probe，验证 review 验收项。
-4. 若发现既有问题：
-   - 先修复，或把前置任务插入 `TODO.md`/`PLAN.md` 后停止。
-5. 若 review 通过：
-   - 更新 `TODO.md` / `PLAN.md` / 本文件
-   - 运行最终验证（至少覆盖相关测试与 `clippy`）
-   - 提交 commit
-   - 停止
-
-## review 进展更新
-
-- 已确认并补充回归：
-  - typed HIR 中 `box.forward<eff E>()` 仍走 member direct-call 降糖，而不是退回成员值 / `FunValue`。
-  - materialization inputs 中，typed receiver 下的 member direct-call request binding / monomorph key 会保留非 `Pure` 的 `eff_args`。
-- review 过程中暴露出新的前置缺口：
-  - `class Box() { fun <eff E = Pure> lift(f: () -> Int / E): Int / E { ... } }`
-    配合
-    `val box: Box = Box(); box.lift({ perform Boom.ping(); 1 })`
-    仍会在 member direct-call typecheck 阶段命中 `NoMatchingOverload`。
-  - 这说明带 lambda 实参的 effect-generic member direct-call 仍未真正消费已收集的
-    `eff_param` / `param_*_eff_base` / subst facts。
-
-## 当前结论
-
-- `T5000e1b0aR` 不能直接完成。
-- 需要先插入新的前置任务，修复 effect-generic member direct-call 的 lambda 实参 overload matching /
-  `eff_arg` 推断闭环，再回到本 review。
-- 下一步：
-  1. 更新 `TODO.md` 与 `PLAN.md`，把新的前置任务放到 `T5000e1b0aR` 之前。
-  2. 运行验证，确保新增回归测试通过且无告警。
-  3. 提交本次“发现阻塞并重排任务”的变更，然后停止。
-
-## 最新状态
-
-- 已完成：`TODO.md` / `PLAN.md` 重排，新增 `T5000e1b0a1` / `T5000e1b0a1R` 作为 `T5000e1b0aR` 的前置任务。
-- 已完成：新增并通过以下回归测试：
-  - `typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path`
-  - `dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding`
-- 已完成验证：
-  - `cargo test -p scoopc`
-  - `cargo clippy --all-targets -- -D warnings`
-- 进行中：整理变更并提交 git commit，随后停止。
+## 进度记录
+- 已完成：创建本计划文件，后续会在关键步骤完成后持续更新。
+- 2026-04-26 进展：
+  - 已检查最新提交：`[T5000e1b0a1] Queue member lambda-eff direct-call fix before review`。
+  - 已阅读 `TODO.md` / `PLAN.md` 并确认：
+    - 第一个未完成任务是 `T5000e1b0a1 修复 effect-generic member direct-call 对 lambda 实参的 overload matching / eff_arg 推断闭环`；
+    - 该任务正是最新提交显式排到 review 之前的前置修复项，因此必须先完成它，不能跳到后续 review。
+  - 下一步：
+    1. 阅读 `T5000e1b0a1` 的任务说明与最近相关实现；
+    2. 构造或定位能稳定复现问题的 case；
+    3. 修复 overload matching / `eff_arg` 推断闭环；
+    4. 运行相关测试、更新 `TODO.md` / `PLAN.md`、提交并停止。
+- 2026-04-26 进一步进展：
+  - 已用最小 case 复现当前失败：`box.lift({ perform Boom.ping(); 1 })` 会报 `NoMatchingOverload`。
+  - 继续定位后确认真正的前置阻塞不是 member overload matcher 本身，而是更早的既有规格缺口：
+    - `SCOOP_FULL_SPEC.md` 明确支持 `perform E.op(...)`；
+    - 但当前 parser 尚未把 `perform` 接进表达式前缀，导致 lambda body 内的 `perform Boom.ping()` 落成 `StmtKind::Missing`，在 expected-context typecheck 时先报 `block expression（missing stmt）`，从而让 member direct-call 候选被误丢弃。
+  - 由于这是阻塞当前任务的既有问题，已直接纳入本轮修复，而不是绕过成 `Boom.ping()` 形式。
+  - 已完成的代码修改：
+    1. 在 `crates/scoopc/src/parser/expr.rs` 为显式 `perform` 增加前缀解析，按 effect-op call 语法糖处理，并把外层 span 扩到包含 `perform` 关键字；
+    2. 新增 `crates/scoopc/src/typecheck/expr/infer.rs` 回归测试，覆盖 typed receiver 成员 direct-call + lambda + 显式 `perform`；
+    3. 新增 `crates/scoopc/src/mir/materialize.rs` 回归测试，覆盖 lambda-derived member direct-call 的 `TopLevelFunCallBinding` / monomorph key 保留非 `Pure` `eff_args`。
+  - 下一步：
+    1. 运行格式化与定向测试，确认显式 `perform` 已打通当前任务路径；
+    2. 若定向测试通过，再运行任务要求的更完整检查；
+    3. 更新 `TODO.md` / `PLAN.md`、提交并停止。
+- 2026-04-26 收尾状态：
+  - 已完成验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc member_direct_call_infers_effect_row_from_lambda_with_explicit_perform -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding -- --nocapture`
+    - `cargo test -p scoopc typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path -- --nocapture`
+    - `cargo test -p scoopc monomorph_rewrites_effect_generic_extension_call_to_concrete_instance -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 已更新 `TODO.md` / `PLAN.md`：
+    - `T5000e1b0a1` 已标记为完成；
+    - 下一条待执行任务已切换为 `T5000e1b0a1R Review：确认 member direct-call 已真正消费 lambda-derived effect-row facts`。
+  - 下一步：
+    1. 检查工作区状态与 diff；
+    2. 提交本轮改动；
+    3. 停止，等待下一次调用。

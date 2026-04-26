@@ -2198,4 +2198,63 @@ fun entry(): Int / Boom {
             "成员 direct-call 的 monomorph key 应保留非 Pure 的 eff_args"
         );
     }
+
+    #[test]
+    fn dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding_from_lambda() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_member_lambda_binding_effect.scoop",
+            r#"
+package fixtures.materialize
+
+effect Boom {
+    fun ping(): Unit
+}
+
+class Box() {
+    fun <eff E = Pure> lift(f: () -> Int / E): Int / E {
+        return f()
+    }
+}
+
+fun entry(): Int / Boom {
+    val box: Box = Box()
+    return box.lift({
+        perform Boom.ping()
+        1
+    })
+}
+"#,
+        );
+
+        let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+        let bindings = inputs
+            .top_level_fun_call_bindings
+            .values()
+            .filter(|binding| binding.fqn == "fixtures.materialize.Box.lift")
+            .collect::<Vec<_>>();
+        assert_eq!(bindings.len(), 1);
+        let binding = bindings[0];
+        assert_eq!(binding.decl_file, source.path().to_path_buf());
+        assert!(binding.decl_span.start < binding.decl_span.end);
+        assert!(binding.type_args.is_empty());
+        assert_eq!(binding.eff_args.len(), 1);
+        assert!(
+            !binding.eff_args[0].is_pure(),
+            "lambda-derived 成员 direct-call binding 应保留非 Pure eff_args"
+        );
+
+        let keys = inputs
+            .monomorph_keys
+            .iter()
+            .filter(|key| key.symbol.fqn == "fixtures.materialize.Box.lift")
+            .collect::<Vec<_>>();
+        assert_eq!(keys.len(), 1);
+        assert!(keys[0].type_args.is_empty());
+        assert_eq!(keys[0].eff_args.len(), 1);
+        assert!(
+            !keys[0].eff_args[0].is_pure(),
+            "lambda-derived 成员 direct-call monomorph key 应保留非 Pure eff_args"
+        );
+    }
 }

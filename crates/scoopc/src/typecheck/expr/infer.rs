@@ -3406,4 +3406,32 @@ fun demo(flag: Bool): Int / Raise<RuntimeError> {
         )
         .expect("tail-position branch resume should remain valid");
     }
+
+    #[test]
+    fn member_direct_call_infers_effect_row_from_lambda_with_explicit_perform() {
+        typecheck_single_source(
+            r#"
+package fixtures.typecheck
+
+effect Boom {
+    fun ping(): Unit
+}
+
+class Box() {
+    fun <eff E = Pure> lift(f: () -> Int / E): Int / E {
+        return f()
+    }
+}
+
+fun entry(): Int / Boom {
+    val box: Box = Box()
+    return box.lift({
+        perform Boom.ping()
+        1
+    })
+}
+"#,
+        )
+        .expect("typed receiver 成员 direct-call 应能从显式 perform 的 lambda 推断非 Pure eff_arg");
+    }
 }
