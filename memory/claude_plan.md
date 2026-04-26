@@ -65,4 +65,4 @@
 
 - 已完成：`T5000e2cR Review：确认 build/frontend 主路径已切到 MIR instance collection`。
 - 已完成：更新 `TODO.md` 与 `PLAN.md`，将 `T5000e2cR` 标记为完成，并把下一条待执行任务切换为 `T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization`。
-- 进行中：准备提交本轮仅包含任务记录与计划更新的 Git 提交，然后停止。
+- 已完成：提交本轮任务记录与计划更新的 Git 提交，随后停止，不继续进入 `T5000e2R`。
