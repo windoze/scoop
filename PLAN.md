@@ -930,6 +930,30 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - review 结论：type-body / companion object generic member fun 已真正进入 generic MIR template → instance materialization 主线，且 member method 的 effect-row 实参现在会进入 concrete instance identity；下一条待执行任务切换为 `T5000e1bR Review：确认 effect-row 实参已成为 InstanceKey / materializer 的一等维度`。
+- 2026-04-26：`T5000e1bR Review：确认 effect-row 实参已成为 InstanceKey / materializer 的一等维度` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/monomorph/mod.rs`、`crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/ast/mod.rs`、`crates/scoopc/src/hir/lower/{mod.rs,expr.rs}` 与 `crates/scoopc/src/mir/materialize.rs`，确认 `MonomorphKey` 请求、`TopLevelFunCallBinding` / `TopLevelFunValueRef`、`SiteInstanceBinding`、`InstanceKey`、`instance_fqn(...)`、effect-row substitution、以及 `HashMap<InstanceKey, Vec<FunDecl>>` materializer cache 全都把 `eff_args` 纳入实例身份，而不是只在调用点 side table 中短暂保存；
+    - 已确认模板层仍保留 effect-row 参数语义：`hir::lower::mod.rs` 继续通过 `push_effect_row_param_placeholder(...)` 把 `<eff E>` lowering 为 `EFFECT_ROW_PARAM_DECL_FILE` marker，`lower_effect_row_expr(...)` 与 `substitute_type_and_effect_params_in_effect_row(...)` 则分别在模板阶段保留、在实例化阶段展开该 marker，因此 HIR/MIR template 没有把 row 提前塌缩成 `Pure` 或 `Any`；
+    - 已复核并补跑 effect-only generic fun、相同 type args 不同 effect row、top-level function value、extension/member/lambda-derived member、type-body member 与 companion member 路径的现有回归，确认这些路径现在都会稳定区分非 `Pure` `eff_args`，并在 materialized MIR 中生成不同的 concrete callee / `InstanceKey`；
+    - 已额外用 `wrap<Int, eff Boom>` / `wrap<Int, eff Zap>` 的 `dump-ir` CLI probe 复核用户可见输出，确认 `MaterializedMir.instance_keys` 中会同时出现两个 distinct `InstanceKey`，`file.items` 也会 materialize `review.e1br.wrap::<Int, eff review.e1br.Boom>` 与 `::<Int, eff review.e1br.Zap>` 两个不同实例。
+  - review 结论：
+    - effect-row 实参已经成为 `InstanceKey` / dump-ir materializer 的一等维度；
+    - 当前未发现需要插入到 `T5000e1R` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo test -p scoopc monomorph_materializes_effect_only_generic_instance -- --nocapture`
+    - `cargo test -p scoopc monomorph_distinguishes_same_type_args_with_different_effect_rows -- --nocapture`
+    - `cargo test -p scoopc monomorph_rewrites_top_level_fun_value_effect_instance -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_extension_direct_call_binding -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding_from_lambda -- --nocapture`
+    - `cargo test -p scoopc materialize_for_dump_handles_type_body_generic_member_fun_roots -- --nocapture`
+    - `cargo test -p scoopc materialize_for_dump_distinguishes_companion_member_fun_effect_instances -- --nocapture`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo run -q -p scoop -- dump-ir <tmp review case>`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e1R Review：确认 InstanceKey 与 dump-ir materializer 的边界正确`。
 
 ## 1. 当前判断
 

@@ -1,63 +1,82 @@
-# 执行计划
+# 执行记录与计划
 
-说明：我不会把完整的内部推理逐字展开，但会在这里持续维护可检查的执行计划、关键判断依据、当前进度与变更记录。
+## 当前约束
 
-## 当前目标
+- 本次调用只处理 `TODO.md` 中第一个未完成任务，完成后停止。
+- 在开始任何仓库检查之前，先写入本文件作为初始计划。
+- 执行过程中如果计划变化、发现阻塞、完成关键步骤，持续更新本文件。
+- 需要先检查最新提交是否提到已有问题；若提到，优先修复该问题。
+- 若任务过大，需要把任务拆分到 `PLAN.md` 和 `TODO.md`，并只执行拆分后的第一个子任务。
+- 不允许以变通方案绕过现有缺陷；若发现阻塞缺陷，必须先修复，或把缺陷作为前置任务插入 `TODO.md` 并停止。
+- 完成当前任务后，需要更新 `TODO.md`、`PLAN.md`，运行相关测试与校验，并创建一次 git 提交。
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行前或执行中发现已有问题、回归、规格不匹配或实现边界缺口，则先修复该问题，或者按要求把它整理为前置任务写回 `TODO.md` / `PLAN.md`，然后停止。
+## 初始执行步骤
 
-## 初始步骤
+1. 查看最新一条 git 提交信息，确认是否提到了待修复的既有问题。
+2. 查看 `TODO.md` 与 `PLAN.md`，确定第一个未完成任务，以及是否需要先拆分任务。
+3. 查看当前工作区状态，确认是否存在用户未提交改动，避免误覆盖。
+4. 根据第一个未完成任务定位相关代码、测试和规范位置。
+5. 如遇到既有缺陷或实现边界问题，先判断是否必须作为前置问题处理，并据此更新 `TODO.md` / `PLAN.md`。
+6. 实现当前任务或当前子任务。
+7. 运行必要的格式化、测试和 lint/检查命令，修复出现的问题。
+8. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
+9. 使用清晰的提交信息提交本次变更，然后停止。
 
-1. 检查最新一次 Git 提交信息，确认是否提到了待修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，理解当前计划与任务上下文。
-4. 检查工作树状态，识别是否已有未提交改动，避免覆盖用户改动。
-5. 评估第一个未完成任务是否可在本轮完整完成。
-6. 如果任务过大，则把它拆成更小的子任务，并更新 `TODO.md` / `PLAN.md`。
-7. 实现当前应执行的那个任务。
-8. 运行相关测试与质量检查；若发现已有问题，立即修复或转化为前置任务。
-9. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
-10. 提交 Git commit，然后停止。
+## 说明
 
-## 进度记录
+- 由于尚未读取仓库内容，上述计划是初始计划；在读取 `TODO.md`、`PLAN.md`、最新提交说明后，我会细化并更新。
 
-- 已创建初始计划文件，下一步将检查最新提交与任务列表。
-- 已检查最新提交 `3432ab25c7ef3abe890f64d620762685f7a4092f`，提交正文未额外声明需要先修的既有问题。
-- 已定位第一个未完成任务为 `T5000e1b0bR Review：确认 type-body generic member fun 已进入 generic MIR template → instance materialization 主线`。
-- 正在复核的关键点：
-  - `dump-mir` 是否通过 `lowered_hir.member_funs` 发射真实 member fun MIR root；
-  - `materialize_for_dump(...)` 的 template catalog / canonical lookup / instance cache 是否把 type-body member fun 与顶层 / extension fun 同层处理；
-  - `eff_args` 是否不仅停留在 call binding，而是真正进入 `InstanceKey` 与 concrete instance FQN。
-- 复核过程中发现新的前置缺陷（必须先修）：
-  - `dump-mir` / `dump-ir` 对 `TypeName.member()` 的 companion member call 仍会在 typecheck 阶段把 receiver 当普通值表达式处理；
-  - 复现实例：
-    - `/tmp/t5000e1b0br_companion_plain.scoop` 中 `Box.forward()`；
-    - `/tmp/t5000e1b0br_companion_member.scoop` 中 `Box.forward<eff E>()`；
-  - 当前错误：
-    - `scoop::typecheck::unsupported_expr`
-    - `暂不支持的表达式类型检查：ident（未 resolve）`
-- 该缺陷为何阻塞当前任务：
-  - `T5000e1b0b` / `T5000e1b0bR` 的范围明确包含 type-body / companion object 内的 generic member fun；
-  - 如果 `TypeName.member()` 这条 companion dispatch 主线在 typed dump 路径本身就失败，就不能声称已完成“generic MIR template -> instance materialization 主线”的 review。
-- 修复计划已调整为：
-  1. 先修 companion member call 的 typed typecheck / HIR lowering 接线；
-  2. 再补 review 所需的 companion generic member 回归测试；
-  3. 跑定向验证与全量质量检查；
-  4. 通过后再回写 `TODO.md` / `PLAN.md` 完成 `T5000e1b0bR`。
-- 已完成修复：
-  - `typecheck/expr/call.rs` 已为 unresolved type receiver 恢复 companion object nominal receiver type；
-  - `hir/lower/expr.rs` 已把 companion member direct-call 改写为带 companion singleton receiver 的顶层 direct-call；
-  - 已新增 typed HIR / MIR / materialize 三条回归测试，覆盖 companion generic member direct-call、generic MIR root 发射与不同 effect-row 实例身份。
-- 已完成验证：
-  - `cargo test -p scoopc companion -- --nocapture`
-  - `cargo run -q -p scoop -- dump-mir /tmp/t5000e1b0br_companion_plain.scoop`
-  - `cargo run -q -p scoop -- dump-mir /tmp/t5000e1b0br_companion_member.scoop`
-  - `cargo run -q -p scoop -- dump-ir /tmp/t5000e1b0br_companion_member.scoop`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/mir`
+## 已完成的检查
+
+- 已查看最新提交：`42e272aa [T5000e1b0bR] Review member MIR materialization`。
+- 已查看 `TODO.md`、`PLAN.md` 与当前工作区状态。
+- 最新提交说明中未直接声明新的待修复遗留问题；当前工作区只有本文件处于修改状态。
+
+## 当前锁定任务
+
+- 当前第一个未完成任务是：`T5000e1bR Review：确认 effect-row 实参已成为 InstanceKey / materializer 的一等维度`。
+- 该任务依赖 `T5000e1b0bR`，而该依赖在 `TODO.md` / `PLAN.md` 中已标记完成。
+
+## 针对当前任务的细化计划
+
+1. 复核 `MonomorphKey`、`TopLevelFunCallBinding`、HIR lowering、MIR materializer、`InstanceKey` 与调试输出中的 `eff_args` 传播链。
+2. 复核 effect-only generic fun、相同 type args 但不同 effect row、top-level function value、member/extension/companion member 路径是否都被统一覆盖。
+3. 运行与 `T5000e1b*` 直接相关的 targeted tests / CLI 复现，必要时补跑更大范围测试。
+4. 若 review 暴露新的既有缺陷：
+   - 先修复；若无法在本轮直接修复，则把它写成 `TODO.md` 中位于当前任务之前的前置任务，并同步更新 `PLAN.md`；
+   - 然后提交并停止。
+5. 若 review 通过：
+   - 在 `TODO.md` 中将 `T5000e1bR` 标记完成；
+   - 在 `PLAN.md` 中记录 review 结论与验证结果；
+   - 更新本文件记录关键结论；
+   - 提交并停止。
+
+## 当前结果
+
+- `T5000e1bR` 已确认可完成，不需要插入新的前置缺陷任务。
+- 关键复核结论：
+  - `eff_args` 已从 `MonomorphKey` / `TopLevelFunCallBinding` / `TopLevelFunValueRef` 进入 `SiteInstanceBinding`、`InstanceKey`、`instance_fqn(...)`、effect-row substitution 与 `HashMap<InstanceKey, ...>` materializer cache。
+  - HIR/MIR template 仍通过 effect-row marker 保留 `<eff E>` 语义，实例化阶段才展开，不存在在 lowering 时提前塌缩成 `Pure` / `Any` 的回退。
+  - effect-only generic、相同 type args 不同 effect row、top-level function value、extension/member/lambda-derived member、type-body member、companion member 等路径都已有代码复核和回归覆盖。
+  - `dump-ir` CLI 复现已确认用户可见输出里会出现两个不同 effect row 的 `InstanceKey` 与 concrete callee。
+
+## 本轮验证
+
+- 已通过 targeted tests：
+  - `monomorph_materializes_effect_only_generic_instance`
+  - `monomorph_distinguishes_same_type_args_with_different_effect_rows`
+  - `monomorph_rewrites_top_level_fun_value_effect_instance`
+  - `dump_materialization_inputs_keep_eff_args_for_extension_direct_call_binding`
+  - `dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding`
+  - `dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding_from_lambda`
+  - `materialize_for_dump_handles_type_body_generic_member_fun_roots`
+  - `materialize_for_dump_distinguishes_companion_member_fun_effect_instances`
+- 已通过更大范围验证：
+  - `cargo test -p scoopc monomorph::lower -- --nocapture`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-  - 全部通过。
-- 文档/任务状态已更新：
-  - `TODO.md` 已将 `T5000e1b0bR` 标记为完成，并记录 review 期间修复的 companion dispatch 前置缺陷；
-  - `PLAN.md` 已补记本轮 review 的结论与验证结果；
-  - 下一条待执行任务已切换为 `T5000e1bR Review：确认 effect-row 实参已成为 InstanceKey / materializer 的一等维度`。
+
+## 收尾步骤
+
+1. 提交 `TODO.md`、`PLAN.md` 与本文件更新。
+2. 停止，等待下一次调用处理 `T5000e1R`。
