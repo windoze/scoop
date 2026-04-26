@@ -355,6 +355,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     monomorph_keys: &[MonomorphKey],
 ) -> MaterializeResult<MaterializedMir> {
     let template_catalog = collect_generic_template_infos(compilation_unit);
+    let callable_body_infos = collect_callable_body_infos(compilation_unit);
     // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
     // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
     // `monomorph_keys` 决定初始请求种子，而不是把 template 提供者排除在外。
@@ -388,6 +389,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
             construction_inputs: MaterializerConstructionInputs {
                 typecheck_types,
                 template_infos: template_catalog,
+                callable_body_infos,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 request_root_fun_keys,
@@ -421,9 +423,18 @@ struct RequestRootFunKey {
     span: Span,
 }
 
+#[derive(Clone)]
+struct CallableBodyInfo {
+    request_lookup_key: RequestTemplateKey,
+    source_path: PathBuf,
+    fqn: String,
+    body_span: Span,
+}
+
 struct MaterializerConstructionInputs<'a> {
     typecheck_types: &'a TypeStore,
     template_infos: Vec<GenericTemplateInfo>,
+    callable_body_infos: Vec<CallableBodyInfo>,
     top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     request_root_fun_keys: Vec<RequestRootFunKey>,
@@ -939,6 +950,166 @@ fn collect_generic_template_infos(
     out
 }
 
+fn push_callable_fun_body_info(
+    out: &mut Vec<CallableBodyInfo>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    fun: &ast::FunDecl,
+) {
+    if !matches!(fun.body, ast::FunBody::Block(_)) {
+        return;
+    }
+
+    let local_name = source.slice(fun.name.span);
+    let fqn = if owner_fqn.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{owner_fqn}.{local_name}")
+    };
+    out.push(CallableBodyInfo {
+        request_lookup_key: (fqn.clone(), source.path().to_path_buf(), fun.name.span),
+        source_path: source.path().to_path_buf(),
+        fqn,
+        body_span: fun.span,
+    });
+}
+
+fn push_callable_property_getter_body_info(
+    out: &mut Vec<CallableBodyInfo>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    property: &ast::PropertyDecl,
+) {
+    let Some(getter) = property.getter.as_ref() else {
+        return;
+    };
+    if matches!(getter.body, ast::AccessorBody::Missing) {
+        return;
+    }
+
+    let local_name = source.slice(property.name.span);
+    let fqn = if owner_fqn.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{owner_fqn}.{local_name}")
+    };
+    out.push(CallableBodyInfo {
+        request_lookup_key: (fqn.clone(), source.path().to_path_buf(), property.name.span),
+        source_path: source.path().to_path_buf(),
+        fqn,
+        body_span: property.span,
+    });
+}
+
+fn collect_callable_body_infos_from_type_body(
+    out: &mut Vec<CallableBodyInfo>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    body: Option<&ast::TypeBody>,
+) {
+    let Some(body) = body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) => push_callable_fun_body_info(out, source, owner_fqn, fun),
+            ast::TypeMember::Property(property) => {
+                push_callable_property_getter_body_info(out, source, owner_fqn, property);
+            }
+            ast::TypeMember::Type(ty) => {
+                let nested_owner = format!("{owner_fqn}.{}", ty.name.text(source));
+                collect_callable_body_infos_from_type_body(
+                    out,
+                    source,
+                    &nested_owner,
+                    ty.body.as_ref(),
+                );
+            }
+            ast::TypeMember::Object(obj) => {
+                let object_name = obj
+                    .name
+                    .as_ref()
+                    .map(|name| name.text(source).to_string())
+                    .or_else(|| {
+                        matches!(obj.kind, ast::ObjectKind::Companion)
+                            .then(|| "Companion".to_string())
+                    });
+                let Some(object_name) = object_name else {
+                    continue;
+                };
+                let nested_owner = format!("{owner_fqn}.{object_name}");
+                collect_callable_body_infos_from_type_body(
+                    out,
+                    source,
+                    &nested_owner,
+                    obj.body.as_ref(),
+                );
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_) => {}
+        }
+    }
+}
+
+fn collect_callable_body_infos(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> Vec<CallableBodyInfo> {
+    let mut out = Vec::new();
+    for (source, file) in compilation_unit {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            match item {
+                ast::Item::Fun(fun) => {
+                    push_callable_fun_body_info(&mut out, source, &pkg_prefix, fun);
+                }
+                ast::Item::Type(ty) => {
+                    let owner_fqn = if pkg_prefix.is_empty() {
+                        ty.name.text(source).to_string()
+                    } else {
+                        format!("{pkg_prefix}.{}", ty.name.text(source))
+                    };
+                    collect_callable_body_infos_from_type_body(
+                        &mut out,
+                        source,
+                        &owner_fqn,
+                        ty.body.as_ref(),
+                    );
+                }
+                ast::Item::Object(obj) => {
+                    let object_name = obj
+                        .name
+                        .as_ref()
+                        .map(|name| name.text(source).to_string())
+                        .or_else(|| {
+                            matches!(obj.kind, ast::ObjectKind::Companion)
+                                .then(|| "Companion".to_string())
+                        });
+                    let Some(object_name) = object_name else {
+                        continue;
+                    };
+                    let owner_fqn = if pkg_prefix.is_empty() {
+                        object_name
+                    } else {
+                        format!("{pkg_prefix}.{object_name}")
+                    };
+                    collect_callable_body_infos_from_type_body(
+                        &mut out,
+                        source,
+                        &owner_fqn,
+                        obj.body.as_ref(),
+                    );
+                }
+                ast::Item::TypeAlias(_)
+                | ast::Item::ComptimeIf(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::Val(_) => {}
+            }
+        }
+    }
+    out
+}
+
 fn load_dump_support_sources(session: &Session) -> MaterializeResult<Vec<SourceFile>> {
     let stdlib_root = default_stdlib_path();
     let stdlib_root = stdlib_root.canonicalize().map_err(|error| {
@@ -1060,7 +1231,7 @@ struct RewriteContext<'a> {
 }
 
 #[derive(Clone)]
-struct RequestRootFun {
+struct ReachableMirFun {
     source_path: PathBuf,
     fun: FunDecl,
 }
@@ -1068,12 +1239,17 @@ struct RequestRootFun {
 struct MirInstanceMaterializer {
     types: TypeStore,
     builtins: BuiltinTypes,
-    request_root_funs: Vec<RequestRootFun>,
+    request_root_funs: Vec<ReachableMirFun>,
+    generic_family_fqns: HashSet<String>,
     request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     roots: HashMap<TemplateKey, TemplateRootInfo>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
+    direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    reachable_fun_bodies_by_request: HashMap<RequestTemplateKey, ReachableMirFun>,
+    reachable_fun_bodies_by_fqn: HashMap<String, Vec<ReachableMirFun>>,
     call_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     value_ref_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
+    scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
     queued: HashSet<InstanceKey>,
     queue: VecDeque<InstanceKey>,
     materialized: HashMap<InstanceKey, Vec<FunDecl>>,
@@ -1089,6 +1265,7 @@ impl MirInstanceMaterializer {
         let MaterializerConstructionInputs {
             typecheck_types,
             template_infos,
+            callable_body_infos,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             request_root_fun_keys,
@@ -1190,22 +1367,53 @@ impl MirInstanceMaterializer {
                     .iter()
                     .find(|fun| fun.fqn == key.fqn && fun.span == key.span)
                     .cloned()
-                    .map(|fun| RequestRootFun {
+                    .map(|fun| ReachableMirFun {
                         source_path: key.source_path,
                         fun,
                     })
             })
             .collect::<Vec<_>>();
 
+        let generic_family_fqns = roots
+            .values()
+            .flat_map(|root| root.family.iter().map(|fun| fun.fqn.clone()))
+            .collect::<HashSet<_>>();
+
+        let mut reachable_fun_bodies_by_request = HashMap::new();
+        let mut reachable_fun_bodies_by_fqn: HashMap<String, Vec<ReachableMirFun>> = HashMap::new();
+        for info in callable_body_infos {
+            let Some(fun) = generic_funs
+                .iter()
+                .find(|fun| fun.fqn == info.fqn && fun.span == info.body_span)
+                .cloned()
+            else {
+                continue;
+            };
+            let reachable = ReachableMirFun {
+                source_path: info.source_path.clone(),
+                fun,
+            };
+            reachable_fun_bodies_by_request.insert(info.request_lookup_key, reachable.clone());
+            reachable_fun_bodies_by_fqn
+                .entry(reachable.fun.fqn.clone())
+                .or_default()
+                .push(reachable);
+        }
+
         let mut materializer = Self {
             types,
             builtins,
             request_root_funs,
+            generic_family_fqns,
             request_templates,
             roots,
             roots_by_fqn,
+            direct_call_bindings: top_level_fun_call_bindings.clone(),
+            reachable_fun_bodies_by_request,
+            reachable_fun_bodies_by_fqn,
             call_bindings: HashMap::new(),
             value_ref_bindings: HashMap::new(),
+            scanned_non_generic_funs: HashSet::new(),
             queued: HashSet::new(),
             queue: VecDeque::new(),
             materialized: HashMap::new(),
@@ -1372,58 +1580,50 @@ impl MirInstanceMaterializer {
         if self.request_root_funs.is_empty() {
             return Vec::new();
         }
-        let generic_family_fqns = self
-            .roots
-            .values()
-            .flat_map(|root| root.family.iter().map(|fun| fun.fqn.clone()))
-            .collect::<HashSet<_>>();
-        let substitution = InstanceSubstitution::default();
         let request_root_funs = self.request_root_funs.clone();
         let mut out = Vec::new();
 
         for request_root in request_root_funs {
-            if generic_family_fqns.contains(&request_root.fun.fqn) {
-                continue;
-            }
-            let Some(body) = &request_root.fun.body else {
-                continue;
-            };
-            out.extend(self.collect_direct_call_instances_from_body(
-                body,
-                &request_root.source_path,
-                &substitution,
-            ));
+            self.scan_reachable_non_generic_fun(&request_root, &mut out);
         }
 
         out
     }
 
-    fn collect_direct_call_instances_from_body(
+    fn scan_reachable_non_generic_fun(
         &mut self,
-        body: &Body,
-        template_source_path: &Path,
-        substitution: &InstanceSubstitution,
-    ) -> Vec<InstanceKey> {
-        let mut out = Vec::new();
+        reachable_fun: &ReachableMirFun,
+        out: &mut Vec<InstanceKey>,
+    ) {
+        if self.generic_family_fqns.contains(&reachable_fun.fun.fqn) {
+            return;
+        }
+        let scan_key = (reachable_fun.source_path.clone(), reachable_fun.fun.span);
+        if !self.scanned_non_generic_funs.insert(scan_key) {
+            return;
+        }
+        let Some(body) = &reachable_fun.fun.body else {
+            return;
+        };
+        let substitution = InstanceSubstitution::default();
         let locals = &body.locals;
         for block in &body.blocks {
             for stmt in &block.stmts {
                 if let StatementKind::Assign { value, .. } = &stmt.kind {
-                    self.collect_direct_call_instances_from_rvalue(
+                    self.collect_reachable_instances_from_rvalue(
                         stmt.span,
                         value,
-                        template_source_path,
+                        &reachable_fun.source_path,
                         locals,
-                        substitution,
-                        &mut out,
+                        &substitution,
+                        out,
                     );
                 }
             }
         }
-        out
     }
 
-    fn collect_direct_call_instances_from_rvalue(
+    fn collect_reachable_instances_from_rvalue(
         &mut self,
         span: Span,
         value: &Rvalue,
@@ -1448,7 +1648,46 @@ impl MirInstanceMaterializer {
             substitution,
         ) {
             out.push(instance_key);
+            return;
         }
+        if let Some(reachable_callee) =
+            self.resolve_non_generic_direct_callee(template_source_path, span, callee_fqn)
+        {
+            self.scan_reachable_non_generic_fun(&reachable_callee, out);
+        }
+    }
+
+    fn resolve_non_generic_direct_callee(
+        &self,
+        template_source_path: &Path,
+        call_span: Span,
+        callee_fqn: &str,
+    ) -> Option<ReachableMirFun> {
+        let call_site = (template_source_path.to_path_buf(), call_span);
+        if let Some(binding) = self.direct_call_bindings.get(&call_site) {
+            if binding.type_args.is_empty() && binding.eff_args.is_empty() {
+                if let Some(fun) = self
+                    .reachable_fun_bodies_by_request
+                    .get(&(
+                        binding.fqn.clone(),
+                        binding.decl_file.clone(),
+                        binding.decl_span,
+                    ))
+                    .cloned()
+                {
+                    return (!self.generic_family_fqns.contains(&fun.fun.fqn)).then_some(fun);
+                }
+            } else {
+                return None;
+            }
+        }
+
+        let candidates = self.reachable_fun_bodies_by_fqn.get(callee_fqn)?;
+        if candidates.len() != 1 {
+            return None;
+        }
+        let candidate = candidates[0].clone();
+        (!self.generic_family_fqns.contains(&candidate.fun.fqn)).then_some(candidate)
     }
 
     fn run(mut self, initial_requests: Vec<InstanceKey>) -> MaterializeResult<MaterializedMir> {
@@ -1779,6 +2018,16 @@ impl MirInstanceMaterializer {
                 ) {
                     *callee_fqn = self.instance_fqn(&instance_key);
                     self.enqueue(instance_key);
+                } else if let Some(reachable_callee) = self.resolve_non_generic_direct_callee(
+                    ctx.template_source_path,
+                    call_span,
+                    callee_fqn,
+                ) {
+                    let mut discovered = Vec::new();
+                    self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered);
+                    for instance in discovered {
+                        self.enqueue(instance);
+                    }
                 }
             }
             CallKind::Closure { callee, fn_ptr } => {
@@ -2968,6 +3217,134 @@ fun entry(): Int {
                 Item::Fun(fun) if fun.fqn == "fixtures.materialize.Box.doubled::<String>"
             )),
             "请求根扫描应保持 call-site driven，不应因为 `Box<String>` 出现在 TypeStore 中就 eager materialize 未调用 getter"
+        );
+    }
+
+    #[test]
+    fn typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_cross_file_non_generic_helper()
+     {
+        let sess = Session::new().unwrap();
+        let helper = SourceFile::new_virtual(
+            "<mem>/materialize_owner_specialized_getter_helper.scoop",
+            r#"
+package fixtures.materialize
+
+struct Box<T>(val value: T) {
+    val doubled: T
+        get() = this.value
+}
+
+fun helper(box: Box<Int>): Int {
+    return box.doubled
+}
+"#,
+        );
+        let main = SourceFile::new_virtual(
+            "<mem>/materialize_owner_specialized_getter_main.scoop",
+            r#"
+package fixtures.materialize
+
+fun entry(): Int {
+    return helper(Box(1))
+}
+"#,
+        );
+
+        let (files, index, env, types, monomorph_keys) =
+            prepare_typechecked_compilation_unit_inputs(&sess, vec![helper, main.clone()], &[1]);
+        let compilation_unit = files
+            .iter()
+            .map(|(source, ast)| (source, ast))
+            .collect::<Vec<_>>();
+
+        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            &[main.path().to_path_buf()],
+            &index,
+            Some(&env),
+            &types,
+            &monomorph_keys,
+        )
+        .unwrap();
+
+        let getter_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.Box.doubled")
+            .collect::<Vec<_>>();
+        assert_eq!(getter_keys.len(), 1);
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun) if fun.fqn == "fixtures.materialize.Box.doubled::<Int>"
+            )),
+            "跨文件非泛型 helper 中触发的 owner-specialized getter 应继续进入 MIR materialization"
+        );
+    }
+
+    #[test]
+    fn typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_non_generic_helper_called_by_generic_instance()
+     {
+        let sess = Session::new().unwrap();
+        let helper = SourceFile::new_virtual(
+            "<mem>/materialize_owner_specialized_getter_helper_via_generic_instance.scoop",
+            r#"
+package fixtures.materialize
+
+struct Box<T>(val value: T) {
+    val doubled: T
+        get() = this.value
+}
+
+fun helper(box: Box<Int>): Int {
+    return box.doubled
+}
+"#,
+        );
+        let main = SourceFile::new_virtual(
+            "<mem>/materialize_owner_specialized_getter_generic_instance_main.scoop",
+            r#"
+package fixtures.materialize
+
+fun <eff E = Pure> wrap(box: Box<Int>): Int / E {
+    return helper(box)
+}
+
+fun entry(): Int {
+    return wrap(Box(1))
+}
+"#,
+        );
+
+        let (files, index, env, types, monomorph_keys) =
+            prepare_typechecked_compilation_unit_inputs(&sess, vec![helper, main.clone()], &[1]);
+        let compilation_unit = files
+            .iter()
+            .map(|(source, ast)| (source, ast))
+            .collect::<Vec<_>>();
+
+        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            &[main.path().to_path_buf()],
+            &index,
+            Some(&env),
+            &types,
+            &monomorph_keys,
+        )
+        .unwrap();
+
+        let getter_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.Box.doubled")
+            .collect::<Vec<_>>();
+        assert_eq!(getter_keys.len(), 1);
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun) if fun.fqn == "fixtures.materialize.Box.doubled::<Int>"
+            )),
+            "generic instance 经由非泛型 helper 可达的 owner-specialized getter 应继续进入 MIR materialization"
         );
     }
 

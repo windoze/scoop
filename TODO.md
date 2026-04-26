@@ -1076,7 +1076,7 @@
   - `cargo test --all`
   - 全部通过。
 
-### [TODO] T5000e2bR Review：确认 owner/nominal specialization 已进入 MIR instance collection 语义
+### [DONE] T5000e2bR Review：确认 owner/nominal specialization 已进入 MIR instance collection 语义
 - 重点：
   - generic owner member/getter 的实例身份是否已被 MIR 层建模；
   - 是否仍有大块 owner-specialized instance discovery 依赖 HIR 扫描 `TypeStore`；
@@ -1084,6 +1084,20 @@
 - 验收：
   - owner/nominal specialization 已成为 MIR instance collection 的一部分，而不是 HIR 副产物。
 - 依赖：T5000e2b
+- 完成记录（2026-04-26）：
+  - review 先暴露并修复了一个真实 reachable-driven 缺口：`crates/scoopc/src/mir/materialize.rs` 原先只会扫描请求源文件中的非泛型 root，以及后续真正被 materialize 的 generic family；若 owner-specialized getter/member 只出现在跨文件非泛型 helper 中，或 generic instance 再调用非泛型 helper 后才触发，则该实例不会进入 MIR request 集合。
+  - `crates/scoopc/src/mir/materialize.rs` 现已新增 `CallableBodyInfo` 与可达 non-generic body lookup，并保留完整 `TopLevelFunCallBinding` 索引；request-root seeding 与 generic instance rewrite 现在都会沿 direct-call 可达图继续扫描非泛型 helper/body，而不是只停在请求根文件本体。
+  - generic owner member/getter 的实例身份继续由 MIR 层建模：owner args + fun args / `eff_args` 仍经 `typecheck -> MonomorphKey / TopLevelFunCallBinding -> materializer request/site binding -> InstanceKey` 主线传递；owner-specialized getter 在没有 AST call binding 的情况下，也会通过 MIR direct-call + receiver concrete type 推导进入实例集合。
+  - `HIR` 的 `collect_generic_member_fun_instantiations(...)` 目前仍存在，但只服务后续 `T5000e2c` 尚未切换的 build/frontend 主路径；当前 MIR collection 本身已经不再依赖 HIR `TypeStore` 扫描来发现 owner-specialized member/getter 实例。
+  - 已新增 `mir::materialize::tests::typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_cross_file_non_generic_helper` 与 `mir::materialize::tests::typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_non_generic_helper_called_by_generic_instance`，分别锁定“请求根跨文件 helper”与“generic instance 经由非泛型 helper”两条 reachable-driven 回归路径。
+  - review 结论：owner/nominal specialization 现已成为 MIR instance collection 的一部分，且 collection 继续保持 reachable-driven / on-demand，没有退回到“按 `TypeStore` 中出现的 nominal 实例全量 eager clone 成员”的旧模式。
+- 已验证：
+  - `cargo test -p scoopc typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_cross_file_non_generic_helper -- --nocapture`
+  - `cargo test -p scoopc typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_non_generic_helper_called_by_generic_instance -- --nocapture`
+  - `cargo fmt --all`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 全部通过。
 
 ### [TODO] T5000e2c 让 build / single-file LLVM frontend 消费 MIR instance collection，并收口 HIR eager materialization 主路径
 - 范围：

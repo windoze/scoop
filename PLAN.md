@@ -1050,6 +1050,28 @@
     - `cargo test --all`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e2bR Review：确认 owner/nominal specialization 已进入 MIR instance collection 语义`。
+- 2026-04-26：`T5000e2bR Review：确认 owner/nominal specialization 已进入 MIR instance collection 语义` 已完成。
+  - review 先暴露并修复了一个真实 reachable-driven 缺口：
+    - `crates/scoopc/src/mir/materialize.rs` 原先只会扫描请求源文件中的非泛型 root，以及后续真正被 materialize 的 generic family；
+    - 如果 owner-specialized getter/member 只出现在跨文件非泛型 helper 中，或 generic instance 再调用非泛型 helper 后才触发，则该实例不会进入 MIR request 集合，说明 collection 语义还没有真正覆盖完整可达图。
+  - 修复结果：
+    - `crates/scoopc/src/mir/materialize.rs` 现已新增 `CallableBodyInfo` 与可达 non-generic body lookup，并保留完整 `TopLevelFunCallBinding` 索引；
+    - request-root seeding 与 generic instance rewrite 现在都会沿 direct-call 可达图继续扫描非泛型 helper/body，而不是只停在请求根文件本体；
+    - generic owner member/getter 的实例身份仍继续经 `typecheck -> MonomorphKey / TopLevelFunCallBinding -> materializer request/site binding -> InstanceKey` 主线传递；而 owner-specialized getter 在没有 AST call binding 的情况下，也会通过 MIR direct-call + receiver concrete type 推导进入实例集合。
+  - review 同时确认了边界状态：
+    - `HIR` 的 `collect_generic_member_fun_instantiations(...)` 目前仍存在，但它只服务后续 `T5000e2c` 尚未切换的 build/frontend 主路径；
+    - 当前 MIR instance collection 本身已经不再依赖 HIR `TypeStore` 扫描来发现 owner-specialized member/getter 实例，因此 owner/nominal specialization 已经进入 MIR collection 语义，而不是 HIR 副产物。
+  - 新增验证覆盖：
+    - `mir::materialize::tests::typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_cross_file_non_generic_helper`
+    - `mir::materialize::tests::typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_non_generic_helper_called_by_generic_instance`
+  - 验证结果：
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_cross_file_non_generic_helper -- --nocapture`
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_reaches_owner_specialized_getter_through_non_generic_helper_called_by_generic_instance -- --nocapture`
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e2c 让 build / single-file LLVM frontend 消费 MIR instance collection，并收口 HIR eager materialization 主路径`。
 
 ## 1. 当前判断
 
