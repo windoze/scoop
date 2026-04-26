@@ -1193,7 +1193,7 @@
     - 已复核 `sysroot/` 当前只保留 `collections/core/delegates/print/process/string/sync/task/thread/unsafe` 这组 source files；`channels/env/fs/io/net/path/test/time` 不再存在于 sysroot 目录，也不再出现在 runtime ABI、LLVM codegen dispatch 或 fixture 主路径中；
     - 已全文检索移除名单对应模块名，确认剩余命中只存在于明确声明“已移除”的状态说明、未来设计文档或 fixture 注释，不再存在为了兼容旧 fixture 而保留的 lowering / runtime ABI / prelude 特判；
     - review 过程中先暴露并修复了 3 处既有文档错配：`PLATFORM_API_SURFACE_AUDIT.md` 仍把已删除模块列为当前 platform surface，`STDLIB_COMPLETENESS.md` 仍把已删除 surface 与 `stdlib/test.scoop` 记为 `DONE/DECL-ONLY`，`STDLIB_DESIGN.md` 的目标模块树未显式区分“future target” 与“current shipped surface”；这些口径现已统一收口到 `T5000e3b` 后的实际边界；
-    - 当前仍保留下来并近期承诺维护的平台相关 surface 已明确收敛为 `scoop.thread`、`scoop.sync` 与过渡期的 `scoop.process`；其中 `scoop.process` 只是等待 `T5000e3c` 用 `main(args: Array<String>)` 程序边界替换的临时契约，而不是重新扩张 platform/sysroot 范围的信号。
+    - 当前仍保留下来并近期承诺维护的平台相关 surface 已明确收敛为 `scoop.thread`、`scoop.sync` 与过渡期的 `scoop.process`；其中 `scoop.process` 只是等待 `T5000e3c` 用扩展后的 `main` 程序边界替换的临时契约（允许零参数/单个 `Array<String>` 参数，返回 `Unit` 或 `Int`），而不是重新扩张 platform/sysroot 范围的信号。
   - 验证结果：
     - `cargo run -p scoop -- test`（`fixtures: ok (1197)`）
     - `cargo test --all`

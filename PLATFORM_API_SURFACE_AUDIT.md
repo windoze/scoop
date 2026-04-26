@@ -42,7 +42,7 @@ sysroot：`sysroot/process.scoop`
   - 早期实现依赖 host libc/CRT；不向 Scoop 暴露 `argv` 指针/宽字符等 OS 细节。
 - 维护说明：
   - 这是当前仍保留的临时程序边界 surface；
-  - 下一步 `T5000e3c` 会把 argv 直接并入 `main(args: Array<String>)`，并连同 `process.scoop` 一起删除。
+  - 下一步 `T5000e3c` 会把 argv 直接并入扩展后的 `main` 程序边界，并连同 `process.scoop` 一起删除；届时仅允许 `fun main(): Unit / Pure!`、`fun main(): Int / Pure!`、`fun main(args: Array<String>): Unit / Pure!`、`fun main(args: Array<String>): Int / Pure!` 四种形状，其中 `Unit` 正常返回默认退出码为 `0`，`Int` 正常返回值直接作为退出码。
 
 ### 2.2 `scoop.thread`（线程）
 

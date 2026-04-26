@@ -191,7 +191,7 @@
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `process.exit(code)` / `process.args()` | P1 | needs_runtime_lib | DONE | `sysroot/process.scoop` + `runtime/c` | `std_process_args_exit_basic` | 过渡 surface；`T5000e3c` 将改为 `main(args: Array<String>)` 并移除 `scoop.process` |
+| `process.exit(code)` / `process.args()` | P1 | needs_runtime_lib | DONE | `sysroot/process.scoop` + `runtime/c` | `std_process_args_exit_basic` | 过渡 surface；`T5000e3c` 将改为扩展后的 `main` 程序边界（`main(): Unit/Int / Pure!`、`main(args: Array<String>): Unit/Int / Pure!`），并移除 `scoop.process` |
 | `env.getOrNull(key)` | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/env.scoop` 已在 `T5000e3b` 移除；需按新 env surface 重做 |
 | `path.normalize/join/basename/dirname` | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/path.scoop` 已在 `T5000e3b` 移除；需按新 path surface 重做 |
 | Subprocess / exec | P2 | needs_runtime_lib | TODO | — | — | |

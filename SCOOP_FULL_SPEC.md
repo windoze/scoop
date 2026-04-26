@@ -1109,7 +1109,16 @@ The Scoop runtime invokes the program's entry point(s) with **no ambient effect 
 
 In other words, effects may be used inside an entry point only if they are handled within the entry point (directly via `handle` / `try`, or indirectly by calling library code that installs handlers).
 
-Implementation status note (non-normative, 2026-04): the current compiler only accepts a zero-parameter executable `main`. The planned program-boundary surface is to accept either `fun main(): Unit / Pure!` or `fun main(args: Array<String>): Unit / Pure!`, where `args` carries the native executable argv as-is, including `argv[0]` (the executable name/path). This is intentionally not the Kotlin/Java convention of exposing only user-supplied arguments. Once that lands, argv should enter through the program boundary rather than through a separate transitional `scoop.process.args()` sysroot API.
+Implementation status note (non-normative, 2026-04): the current compiler only accepts a zero-parameter executable `main`. The planned program-boundary surface is to accept exactly these four executable `main` forms:
+
+- `fun main(): Unit / Pure!`
+- `fun main(): Int / Pure!`
+- `fun main(args: Array<String>): Unit / Pure!`
+- `fun main(args: Array<String>): Int / Pure!`
+
+When a `Unit`-returning `main` returns normally, the process exit code defaults to `0`. When an `Int`-returning `main` returns normally, that value becomes the process exit code. Other early-termination paths such as `panic(...)` remain separate runtime behavior and may use different exit codes; they are not part of `main`'s normal return contract.
+
+For the `args` forms, `args` carries the native executable argv as-is, including `argv[0]` (the executable name/path). This is intentionally not the Kotlin/Java convention of exposing only user-supplied arguments. Once that lands, argv should enter through the program boundary rather than through a separate transitional `scoop.process.args()` sysroot API.
 
 ## 6. Compile-time Evaluation and Static Reflection
 

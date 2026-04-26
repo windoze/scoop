@@ -1250,27 +1250,32 @@
   - 已复核 `sysroot/` 当前仅保留 `collections.scoop`、`core.scoop`、`delegates.scoop`、`print.scoop`、`process.scoop`、`string.scoop`、`sync.scoop`、`task.scoop`、`thread.scoop`、`unsafe.scoop`；被列入移除名单的 `channels/env/fs/io/net/path/test/time` 均已不再出现在 sysroot 目录中。
   - 已全文检索仓库中对 `scoop.channels`、`scoop.test`、`scoop.env`、`scoop.fs`、`scoop.io`、`scoop.net`、`scoop.path`、`scoop.time` 的剩余引用：运行时/LLVM codegen/fixture 主路径中未再发现兼容性 lowering、runtime ABI 导出或 prelude 特判；剩余命中只存在于显式说明“已移除”的状态注记、未来设计文档或 fixture 注释。
   - review 过程中发现并修复了 3 处既有文档错配：`PLATFORM_API_SURFACE_AUDIT.md` 仍把已删除 platform surface 列为现行模块，`STDLIB_COMPLETENESS.md` 仍把这些已删除 surface 与 `stdlib/test.scoop` 记为 `DONE/DECL-ONLY`，`STDLIB_DESIGN.md` 的目标模块树缺少“这不是当前 shipped surface”的状态说明；现均已回写为与 `T5000e3b` 后边界一致的口径。
-  - 已复核当前仍保留并近期承诺维护的最小 sysroot surface 与文档口径一致：通用/核心边界为 `scoop.core`、`scoop.unsafe`、`scoop.collections`、`scoop.delegates`、`scoop.string`、`scoop.print`、`scoop.task`，平台相关 surface 仅剩 `scoop.thread`、`scoop.sync` 与过渡期的 `scoop.process`；其中 `scoop.process` 将由下一条 `T5000e3c` 以 `main(args: Array<String>)` 程序边界替换。
+  - 已复核当前仍保留并近期承诺维护的最小 sysroot surface 与文档口径一致：通用/核心边界为 `scoop.core`、`scoop.unsafe`、`scoop.collections`、`scoop.delegates`、`scoop.string`、`scoop.print`、`scoop.task`，平台相关 surface 仅剩 `scoop.thread`、`scoop.sync` 与过渡期的 `scoop.process`；其中 `scoop.process` 将由下一条 `T5000e3c` 以扩展后的 `main` 程序边界替换（允许零参数/单个 `Array<String>` 参数，返回 `Unit` 或 `Int`）。
   - 已验证 `cargo run -p scoop -- test`（`fixtures: ok (1197)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
   - review 结论：sysroot surface 已实质缩回到当前仍承诺维护的最小集合，后续 std/runtime 重设计可以在干净边界上推进；未发现需要插入到 `T5000e3c` 之前的新前置缺陷任务。
 
 ### [TODO] T5000e3c 扩展程序边界 `main` 签名以直接承载 argv，并移除 `scoop.process`
 - 范围：
-  - 将 executable entry `main` 的允许签名扩展为以下两种且仅以下两种：
+  - 将 executable entry `main` 的允许签名扩展为以下四种且仅以下四种：
     - `fun main(): Unit / Pure!`
+    - `fun main(): Int / Pure!`
     - `fun main(args: Array<String>): Unit / Pure!`
+    - `fun main(args: Array<String>): Int / Pure!`
   - 规定 `args` 直接承载 native 程序边界收到的完整 `argv`，包含 `argv[0]`（可执行文件名/路径）；这不是 Kotlin/Java 风格的“仅用户参数”约定；
-  - 在 driver / frontend / typecheck / docs 中同步这一 entry contract，使零参数 `main` 与带 `Array<String>` 参数的 `main` 都能成为合法程序边界；
+  - 规定返回 `Unit` 的 `main` 在正常返回时默认进程退出码为 `0`；返回 `Int` 的 `main` 在正常返回时将该值作为进程退出码；`panic(...)` 等其它提前终止路径可以使用不同退出码，但它们不属于 `main` 的正常返回 contract；
+  - 在 driver / frontend / typecheck / docs 中同步这一 entry contract，使零参数/单个 `Array<String>` 参数、`Unit`/`Int` 返回的 `main` 都能成为合法程序边界；
   - 移除 `scoop.process` sysroot surface（包括 `args()` 与旧 `exit(...)`），并删除/改写对应 tests/fixtures。
 - 验收：
-  - `main` 的 program-boundary contract 已明确且文档化：仅接受零参数或单个 `Array<String>` 参数两种形状，并继续强制 `Pure!`；
+  - `main` 的 program-boundary contract 已明确且文档化：参数仅接受零参数或单个 `Array<String>` 两种形状，返回类型仅接受 `Unit` 或 `Int`，并继续强制 `Pure!`；
+  - 正常返回 `Unit` 的 `main` 默认退出码为 `0`；正常返回 `Int` 的 `main` 将该值作为进程退出码；其它提前终止路径仍由各自语义负责；
   - 运行时传入的完整 `argv` 可稳定到达 `main(args)`，并保留 `argv[0]`；
   - 代码库中不再存在 `scoop.process` 模块、`args()` API 与相关 fixture 依赖。
 - 依赖：T5000e3bR
 
 ### [TODO] T5000e3cR Review：确认 entry-point argv contract 已替代临时 `scoop.process` surface
 - 重点：
-  - `main` 的合法签名集合是否已经稳定收口为两种约定形状；
+  - `main` 的合法签名集合是否已经稳定收口为“两种参数形状 × 两种返回类型”的四种约定；
+  - `Unit` 返回的 `main` 是否在正常返回时稳定映射到默认退出码 `0`，而 `Int` 返回的 `main` 是否把返回值作为退出码；
   - argv 是否已经从程序边界直接进入，而不是继续绕经单独的 process sysroot API；
   - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、README/相关入口文档与 fixtures 是否已经同步。
 - 验收：
