@@ -191,14 +191,13 @@ sysroot/
   delegates.scoop
   unsafe.scoop
   print.scoop
-  process.scoop
   string.scoop
   sync.scoop
   task.scoop
   thread.scoop
 ```
 
-Status note (2026-04-26): the early-stage `channels.scoop`, `env.scoop`, `fs.scoop`, `io.scoop`, `net.scoop`, `path.scoop`, `test.scoop`, and `time.scoop` surfaces have been removed from the sysroot pending redesign. `process.scoop` remains transitional until the executable entry contract grows to the four allowed `main` forms `fun main(): Unit / Pure!`, `fun main(): Int / Pure!`, `fun main(args: Array<String>): Unit / Pure!`, and `fun main(args: Array<String>): Int / Pure!`. At that point argv should arrive through the program boundary as the full native argv vector, including `argv[0]`, and `scoop.process.args()` should disappear together with `process.scoop`. A `Unit`-returning `main` should exit with code `0` on normal return; an `Int`-returning `main` should use that value as the process exit code. Other early-exit paths such as `panic(...)` remain separate runtime behavior rather than part of `main`'s normal return contract.
+Status note (2026-04-26): the early-stage `channels.scoop`, `env.scoop`, `fs.scoop`, `io.scoop`, `net.scoop`, `path.scoop`, `process.scoop`, `test.scoop`, and `time.scoop` surfaces have been removed from the sysroot pending redesign. Executable entry points now accept exactly four `main` forms: `fun main(): Unit / Pure!`, `fun main(): Int / Pure!`, `fun main(args: Array<String>): Unit / Pure!`, and `fun main(args: Array<String>): Int / Pure!`. For the `args` forms, argv arrives directly through the program boundary as the full native argv vector, including `argv[0]`. A `Unit`-returning `main` exits with code `0` on normal return; an `Int`-returning `main` uses that value as the process exit code. Other early-exit paths such as `panic(...)` remain separate runtime behavior rather than part of `main`'s normal return contract.
 
 Conventions:
 

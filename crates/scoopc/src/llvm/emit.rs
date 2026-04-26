@@ -20,6 +20,7 @@ use crate::opt::OptLevel;
 use crate::program_facts::ProgramFacts;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
+use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 
 use super::frontend;
 use super::pipeline::run_pass_pipeline;
@@ -455,18 +456,8 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
     let target_info = target::configure_module_for_host(&module)?;
     let target_data = TargetData::create(&target_info.data_layout);
 
-    let hir_main = if let Some(entry_main_fqn) = entry_main_fqn {
-        lowered.file.items.iter().find_map(|item| match item {
-            hir::Item::Fun(fun) if fun.fqn == entry_main_fqn => Some(fun),
-            _ => None,
-        })
-    } else {
-        lowered.file.items.iter().find_map(|item| match item {
-            hir::Item::Fun(fun) if fun.name == "main" => Some(fun),
-            _ => None,
-        })
-    }
-    .ok_or(LlvmEmitError::MissingEntryMain)?;
+    let selected_main = select_entry_main(lowered, entry_main_fqn)?;
+    let hir_main = selected_main.fun;
 
     let builder = context.create_builder();
 
@@ -652,20 +643,6 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
     argc.set_name("argc");
     argv.set_name("argv");
 
-    // T1318c：process.args 需要能读取 argv；在最早期保存参数指针，供 runtime 查询。
-    let process_init = module
-        .get_function("scoop_process_init")
-        .unwrap_or_else(|| {
-            module.add_function(
-                "scoop_process_init",
-                context
-                    .void_type()
-                    .fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
-                None,
-            )
-        });
-    builder.build_call(process_init, &[argc.into(), argv.into()], "process_init")?;
-
     // T0815：在入口函数里调用 runtime init（当前阶段先只调用一次）。
     let rt_init = module
         .get_function("scoop_runtime_init")
@@ -678,8 +655,33 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
         });
     builder.build_call(rt_init, &[], "rt_init")?;
 
+    let entry_argv_array = match selected_main.arg_shape {
+        EntryMainArgShape::None => None,
+        EntryMainArgShape::ArrayString => {
+            let argv_array_fn = module
+                .get_function("scoop_entry_argv_array")
+                .unwrap_or_else(|| {
+                    module.add_function(
+                        "scoop_entry_argv_array",
+                        context
+                            .ptr_type(inkwell::AddressSpace::from(1u16))
+                            .fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
+                        None,
+                    )
+                });
+            let call =
+                builder.build_call(argv_array_fn, &[argc.into(), argv.into()], "entry_argv")?;
+            let raw = call.try_as_basic_value().basic().ok_or(
+                LlvmEmitError::ModuleVerificationFailed {
+                    message: "entry argv helper 未返回值".to_string(),
+                },
+            )?;
+            Some(raw.into_pointer_value())
+        }
+    };
+
     let main_codegen = unit_codegen.fresh_main_codegen();
-    let exit_code = main_codegen.codegen_main_exit_code(hir_main)?;
+    let exit_code = main_codegen.codegen_main_exit_code(hir_main, entry_argv_array)?;
     builder.build_return(Some(&exit_code))?;
 
     module
@@ -704,6 +706,84 @@ fn entry_source(source_map: &SourceMap, entry_source_id: SourceId) -> &SourceFil
     source_map
         .source(entry_source_id)
         .expect("entry source id should exist in source map")
+}
+
+#[derive(Clone, Copy)]
+enum EntryMainArgShape {
+    None,
+    ArrayString,
+}
+
+#[derive(Clone, Copy)]
+struct SelectedEntryMain<'a> {
+    fun: &'a hir::FunDecl,
+    arg_shape: EntryMainArgShape,
+}
+
+fn classify_entry_main_arg_shape(
+    lowered: &hir::LoweredHir,
+    fun: &hir::FunDecl,
+) -> Option<EntryMainArgShape> {
+    match fun.params.as_slice() {
+        [] => Some(EntryMainArgShape::None),
+        [param] => match lowered.types.kind(param.ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.Array"
+                    && nominal.args.len() == 1
+                    && matches!(
+                        lowered.types.kind(nominal.args[0]),
+                        TypeKind::Ref(RefTypeKind::String)
+                    )
+                    && nominal.eff.is_none() =>
+            {
+                Some(EntryMainArgShape::ArrayString)
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn select_entry_main<'a>(
+    lowered: &'a hir::LoweredHir,
+    entry_main_fqn: Option<&str>,
+) -> Result<SelectedEntryMain<'a>, LlvmEmitError> {
+    let mut candidates = lowered
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .filter(|fun| {
+            if let Some(entry_main_fqn) = entry_main_fqn {
+                fun.fqn == entry_main_fqn
+            } else {
+                fun.name == "main"
+            }
+        })
+        .filter(|fun| fun.body.is_some())
+        .filter(|fun| {
+            matches!(
+                lowered.types.kind(fun.return_ty),
+                TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Int)
+            )
+        })
+        .filter_map(|fun| {
+            classify_entry_main_arg_shape(lowered, fun)
+                .map(|arg_shape| SelectedEntryMain { fun, arg_shape })
+        })
+        .collect::<Vec<_>>();
+
+    match candidates.len() {
+        0 => Err(LlvmEmitError::MissingEntryMain),
+        1 => Ok(candidates.pop().expect("len checked above")),
+        count => Err(LlvmEmitError::AmbiguousEntryMain {
+            entry: entry_main_fqn.unwrap_or("main").to_string(),
+            count,
+        }),
+    }
 }
 
 fn module_name_from_path(path: &Path) -> String {

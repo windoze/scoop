@@ -1254,7 +1254,7 @@
   - 已验证 `cargo run -p scoop -- test`（`fixtures: ok (1197)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
   - review 结论：sysroot surface 已实质缩回到当前仍承诺维护的最小集合，后续 std/runtime 重设计可以在干净边界上推进；未发现需要插入到 `T5000e3c` 之前的新前置缺陷任务。
 
-### [TODO] T5000e3c 扩展程序边界 `main` 签名以直接承载 argv，并移除 `scoop.process`
+### [DONE] T5000e3c 扩展程序边界 `main` 签名以直接承载 argv，并移除 `scoop.process`
 - 范围：
   - 将 executable entry `main` 的允许签名扩展为以下四种且仅以下四种：
     - `fun main(): Unit / Pure!`
@@ -1271,6 +1271,13 @@
   - 运行时传入的完整 `argv` 可稳定到达 `main(args)`，并保留 `argv[0]`；
   - 代码库中不再存在 `scoop.process` 模块、`args()` API 与相关 fixture 依赖。
 - 依赖：T5000e3bR
+- 完成记录（2026-04-26）：
+  - 已在 driver / frontend / typecheck / HIR lowering / LLVM entry lowering 上统一收口 `main` program-boundary contract：合法形状稳定为零参数或单个 `Array<String>` 参数，返回类型仅允许 `Unit` 或 `Int`，并继续要求 `Pure!`；
+  - 已修复一个阻塞本任务的既有真实缺陷：typecheck 先前不会把未显式标注返回类型的 `fun` 推断结果回写到 typed HIR 可消费的 side table，导致 typed lowering 与 `main` 签名校验会把这类函数错误地回退成 `Any` / `Unit`；现已新增并接通推断返回类型 side table，使 `main` 的推断返回类型在 typed HIR 与 entry-point 校验中一致生效；
+  - runtime / codegen / driver 主路径现已把 native 程序边界收到的完整 `argv`（包含 `argv[0]`）直接传给 `main(args)`，并按 contract 将正常返回的 `Unit` 映射为退出码 `0`、正常返回的 `Int` 映射为进程退出码；
+  - `sysroot/process.scoop` 已删除，相关 runtime ABI / lowering / fixture 主路径已迁移到新的 entry-point argv contract；`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与受影响的 fixture / golden 已同步更新；
+  - 本轮收尾还修正了一个过时 fixture 断言：`tests/fixtures/typecheck/entry_point_main_param_not_array_string_is_error.scoop` 现改为匹配当前实际诊断中的完整限定类型名 `scoop.core.Array<Int>`。
+  - 已验证 `target/debug/scoop test --fixtures tests/fixtures/typecheck`（`fixtures: ok (395)`）、`target/debug/scoop test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (24)`）、`target/debug/scoop test --fixtures tests/fixtures/run-pass`（`fixtures: ok (394)`）、`target/debug/scoop test --fixtures tests/fixtures/spec_doctest`（`fixtures: ok (1)`）、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000e3cR Review：确认 entry-point argv contract 已替代临时 `scoop.process` surface
 - 重点：

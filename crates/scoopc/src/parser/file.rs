@@ -149,6 +149,7 @@ impl<'a> Parser<'a> {
             items,
             inferred_expr_tys: std::cell::RefCell::new(std::collections::HashMap::new()),
             inferred_binding_tys: std::cell::RefCell::new(std::collections::HashMap::new()),
+            inferred_fun_return_tys: std::cell::RefCell::new(std::collections::HashMap::new()),
             inferred_performed_effect_tys: std::cell::RefCell::new(
                 std::collections::HashMap::new(),
             ),

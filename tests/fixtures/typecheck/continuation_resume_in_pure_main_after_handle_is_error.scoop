@@ -27,7 +27,7 @@ fun main() {
 
     when (saved) {
         Some(k) -> {
-            k.resume(42)
+            k.resume(42);
         }
         None -> {}
     }

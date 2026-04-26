@@ -1,45 +1,67 @@
-# 执行计划
+# 本轮执行计划
 
-说明：按要求先写入可审阅的计划与进度记录。我不会在这里写出不可审阅的内部推理细节，但会持续维护完整的执行步骤、判断依据摘要、阻塞项与结果。
+## 目标
 
-## 初始计划
+- 只处理 `TODO.md` 中第一个未完成任务 `T5000e3c`。
+- 在继续实现前，先检查最新提交是否提到需要优先修复的既有问题。
+- 不接受绕过方案；如果验证中发现真实缺陷，先修复缺陷或将其作为前置任务加入 `TODO.md`。
 
-1. 检查最新一次 Git 提交信息，确认是否显式提到需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划与任务顺序是否一致。
-4. 如果首个未完成任务过大，先把它拆分为可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-5. 实现当前应执行的第一个任务。
-6. 运行相关测试、格式化、`clippy`，修复过程中发现的既有问题或回归。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或新的前置依赖。
-8. 提交 Git commit，然后停止，不继续做下一个任务。
+## 当前已知状态
 
-## 执行记录
+- 工作区已经存在与 `T5000e3c` 相关的未提交修改，本轮需要在这些修改基础上继续推进，不能回退无关改动。
+- 已有一批围绕 `main` 入口签名与返回类型推断的修复和 fixture 调整，但任务尚未完成。
+- 关键剩余工作是继续跑完整测试，修复因为真实入口契约收紧而暴露出的旧 fixture / 实现问题，并完成任务收尾。
 
-- 状态：已完成最新提交、`TODO.md`、`PLAN.md` 的初步检查。
-- 已确认：
-  - 最新提交为 `3ffdb1a3c40ff39e198e35a504e544709f0f3c91`，主题是删除待重做的早期 sysroot surface；
-  - `TODO.md` 中首个未完成条目是 `T5000e3bR Review：确认 sysroot surface 已实质缩回到仍承诺维护的最小集合`；
-  - 当前轮次目标不是推进新功能，而是先复核上一提交是否留下既有问题或边界遗漏。
-- 接下来要做的检查：
-  1. 核对被移除的 sysroot 模块是否确实已从 `sysroot/`、fixture、文档、编译器可见面中消失。
-  2. 核对当前保留的 sysroot surface 是否与文档承诺一致。
-  3. 运行与本次 review 直接相关的测试、全量测试与 `clippy`。
-  4. 如果发现既有问题，优先修复或按依赖顺序回写 `TODO.md` / `PLAN.md`。
+## 执行步骤
 
-## 完成情况
+1. 查看最新提交信息，确认是否有必须优先修复的既有问题。
+2. 查看 `TODO.md` 与 `PLAN.md`，确认 `T5000e3c` 仍是第一个未完成任务，并核对当前计划是否需要细化。
+3. 检查工作区状态，明确已修改文件范围，避免覆盖现有进展。
+4. 继续运行与 `T5000e3c` 直接相关的验证，优先完成 `cargo run -p scoop -- test`。
+5. 如果测试失败：
+   - 判断是旧 fixture 需要按新入口契约修正，还是暴露出新的真实实现缺陷。
+   - 对真实缺陷直接修复；若当前无法在本轮完整解决，则按要求把前置任务写入 `TODO.md` / `PLAN.md` 后停止。
+   - 对确属过时假设的 fixture，按规范更新并补充必要断言。
+6. 在 fixture 套件通过后，继续运行：
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+7. 所有相关验证通过后：
+   - 更新 `memory/claude_plan.md` 记录完成情况。
+   - 更新 `TODO.md`，将 `T5000e3c` 标记为完成。
+   - 更新 `PLAN.md`，记录本轮完成内容与后续状态。
+   - 提交 git commit，然后停止，不进入下一任务。
 
-- 已完成 `T5000e3bR`。
-- review 期间发现的既有问题：
-  - `PLATFORM_API_SURFACE_AUDIT.md` 仍把已删除的 platform surface 写成现行支持；
-  - `STDLIB_COMPLETENESS.md` 仍把已删除 surface 与 `stdlib/test.scoop` 记为已完成；
-  - `STDLIB_DESIGN.md` 的目标模块树缺少“future target，不等同当前 shipped surface”的状态说明。
-- 已完成修复：
-  - 回写上述 3 份文档，使其与 `T5000e3b` 后的实际 sysroot 边界一致。
-- 已完成验证：
-  - `cargo run -p scoop -- test` -> `fixtures: ok (1197)`
-  - `cargo test --all` -> 通过
-  - `cargo clippy --all-targets -- -D warnings` -> 通过
-- review 结论：
-  - 当前 sysroot 已收敛到 `collections/core/delegates/print/process/string/sync/task/thread/unsafe`；
-  - 已移除的 `channels/env/fs/io/net/path/test/time` 不再出现在 sysroot、runtime ABI、LLVM codegen dispatch 或 fixture 主路径；
-  - 当前唯一保留的过渡 platform surface 是 `scoop.process`，下一条任务即 `T5000e3c`。
+## 当前进展（2026-04-26）
+
+- 已检查最新提交 `c72a6370 Update plan`，未发现提交说明中要求优先处理的新历史问题。
+- 已确认 `TODO.md` 中首个未完成任务仍为 `T5000e3c`。
+- 已完成的直接验证：
+  - `target/debug/scoop test --fixtures tests/fixtures/typecheck`：通过（395）
+  - `target/debug/scoop test --fixtures tests/fixtures/runtime_gc`：通过（24）
+  - `target/debug/scoop test --fixtures tests/fixtures/run-pass`：通过（394）
+  - `target/debug/scoop test --fixtures tests/fixtures/spec_doctest`：通过（1）
+- 本轮新增修正：
+  - 更新 `tests/fixtures/typecheck/entry_point_main_param_not_array_string_is_error.scoop`，将预期错误子串从旧的 `Array<Int>` 对齐到当前实际诊断中的 `scoop.core.Array<Int>`。
+- 下一步：
+  - 回写完成状态并提交
+
+## 完成情况（2026-04-26）
+
+- 已完成全量验证：
+  - `cargo run -p scoop -- test`：通过（`fixtures: ok (1201)`）
+  - `cargo test --all`：通过
+  - `cargo clippy --all-targets -- -D warnings`：通过
+- 已更新 `TODO.md`：`T5000e3c` 现已标记为完成，并补记实现要点与验证结果。
+- 已更新 `PLAN.md`：记录 `T5000e3c` 的完成情况，并将下一条待执行任务切换为 `T5000e3cR`。
+- 本轮最终代码/fixture 收尾修正只有 1 处新增变更：
+  - `tests/fixtures/typecheck/entry_point_main_param_not_array_string_is_error.scoop` 的期望错误子串已对齐到当前实际诊断中的完整限定类型名。
+- 下一步：
+  - 查看最终 diff
+  - 提交本轮变更
+  - 停止，不进入 `T5000e3cR`
+
+## 判定标准
+
+- `T5000e3c` 涉及的实现、fixture、文档与验证全部闭环完成。
+- 不存在未记录的阻塞性既有问题。
+- 本轮结束前必须有清晰的计划记录、任务状态更新、验证结果与 git 提交。

@@ -69,6 +69,16 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "程序入口 `main` 只能是以下四种形状之一：`fun main(): Unit / Pure!`、`fun main(): Int / Pure!`、`fun main(args: Array<String>): Unit / Pure!`、`fun main(args: Array<String>): Int / Pure!`；这里是 {found}"
+    )]
+    #[diagnostic(code(scoop::typecheck::entry_point_main_invalid_signature))]
+    EntryPointMainInvalidSignature {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("导出入口 `{entry}` 必须显式声明闭合 effect row：`Pure!`")]
     #[diagnostic(code(scoop::typecheck::export_entry_point_must_declare_closed_pure))]
     ExportEntryPointMustDeclareClosedPure {

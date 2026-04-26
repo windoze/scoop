@@ -125,9 +125,17 @@ pub enum LlvmEmitError {
     #[diagnostic(code(scoop::llvm::instruction_error))]
     Instruction(#[from] InstructionValueError),
 
-    #[error("找不到入口函数 `main`（当前阶段仅支持顶层 `fun main() {{ ... }}`）")]
+    #[error(
+        "找不到合法入口函数 `main`（仅支持 `fun main(): Unit / Pure!`、`fun main(): Int / Pure!`、`fun main(args: Array<String>): Unit / Pure!`、`fun main(args: Array<String>): Int / Pure!`）"
+    )]
     #[diagnostic(code(scoop::llvm::missing_entry_main))]
     MissingEntryMain,
+
+    #[error(
+        "入口函数 `{entry}` 存在多个合法候选（{count} 个）；可执行程序必须且只能有一个 entry main"
+    )]
+    #[diagnostic(code(scoop::llvm::ambiguous_entry_main))]
+    AmbiguousEntryMain { entry: String, count: usize },
 
     #[error("暂不支持的 main 代码生成节点：{kind}")]
     #[diagnostic(code(scoop::llvm::unsupported_main_body))]

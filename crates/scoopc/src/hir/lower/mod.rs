@@ -620,8 +620,6 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
-        //
         // T0623/T4009：`async fun foo(): T` 对外统一暴露 `Task<T>`，并直接建立在普通 nominal
         // object lowering 上；不再把旧的 `spawn/join` 早期语义当作 `Task` core 前提。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
@@ -630,6 +628,7 @@ impl<'a> HirLowering<'a> {
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
+            .or_else(|| self.typechecked_fun_return_ty(fun.name.span))
             .unwrap_or(self.builtins.any);
         let return_ty = if is_async_fun {
             self.task_type_of(inner_return_ty)
@@ -818,13 +817,13 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let inner_return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
+            .or_else(|| self.typechecked_fun_return_ty(fun.name.span))
             .unwrap_or(self.builtins.any);
         let return_ty = if is_async_fun {
             self.task_type_of(inner_return_ty)
@@ -1016,8 +1015,6 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
-        //
         // T0623：monomorph/hir 视图下同样把 `async fun` 的返回类型降为 `Task<T>`。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
@@ -1025,6 +1022,7 @@ impl<'a> HirLowering<'a> {
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
+            .or_else(|| self.typechecked_fun_return_ty(fun.name.span))
             .unwrap_or(self.builtins.any);
         let return_ty = if is_async_fun {
             self.task_type_of(inner_return_ty)
@@ -1126,6 +1124,7 @@ impl<'a> HirLowering<'a> {
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
+            .or_else(|| self.typechecked_fun_return_ty(fun.name.span))
             .unwrap_or(self.builtins.any);
         let return_ty = if is_async_fun {
             self.task_type_of(inner_return_ty)
@@ -3672,6 +3671,58 @@ mod tests {
             &types,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn lower_typed_single_source_file_preserves_inferred_fun_return_types() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t5000e3c_inferred_return_ty>",
+            r#"
+package fixtures.t5000e3c
+
+import scoop.core.*
+
+class Box {
+    fun value() { 1 }
+}
+
+fun helper() { 1 }
+
+fun main() {}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+
+        let helper = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t5000e3c.helper" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 helper");
+        assert_eq!(lowered.types.display(helper.return_ty).to_string(), "Int");
+
+        let main = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t5000e3c.main" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 main");
+        assert_eq!(lowered.types.display(main.return_ty).to_string(), "Unit");
+
+        let value_method = lowered
+            .member_funs
+            .iter()
+            .find(|fun| fun.fqn == "fixtures.t5000e3c.Box.value")
+            .expect("应收集到 Box.value");
+        assert_eq!(lowered.types.display(value_method.return_ty).to_string(), "Int");
     }
 
     #[test]

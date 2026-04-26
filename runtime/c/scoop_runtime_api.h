@@ -112,9 +112,7 @@
   X(scoop_pin) \
   X(scoop_print) \
   X(scoop_println) \
-  X(scoop_process_args_array) \
-  X(scoop_process_exit) \
-  X(scoop_process_init) \
+  X(scoop_entry_argv_array) \
   X(scoop_runtime_init) \
   X(scoop_runtime_init_count) \
   X(scoop_runtime_is_initialized) \

@@ -1,4 +1,5 @@
 // EXPECT: pass
+// EXPECT-EXIT: 42
 // RUN-STDOUT: effect_indirect_perform_nonresuming_function_value_wrapper_member_direct.stdout
 //
 // T4016T1c: wrapper/member direct call 必须和局部函数值走同一套 may-suspend 主线。

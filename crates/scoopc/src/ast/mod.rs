@@ -39,6 +39,13 @@ pub struct File {
     /// - HIR lowering 在 build/test 路径下会读取该表，避免这类 binder 退回到 `Any`；
     /// - 该表不参与 AST Debug 输出，避免影响 parse fixtures。
     pub(crate) inferred_binding_tys: RefCell<HashMap<Span, TypeId>>,
+    /// typecheck 写回的“函数声明 name span -> 推导后的内部返回 TypeId” side table。
+    ///
+    /// 说明：
+    /// - 仅记录“缺少显式返回类型标注”的 `fun`/member `fun` 的推断结果；
+    /// - 存储的是 async 展开前的内部返回类型 `T`，而不是公开签名里的 `Task<T>`；
+    /// - HIR lowering 读取该表，避免未标注返回类型的函数在 typed 路径里退回到 `Any`。
+    pub(crate) inferred_fun_return_tys: RefCell<HashMap<Span, TypeId>>,
     /// typecheck 写回的“perform span -> performed effect 实例 TypeId” side table。
     ///
     /// 说明：
@@ -146,6 +153,14 @@ impl File {
 
     pub fn inferred_binding_ty(&self, span: Span) -> Option<TypeId> {
         self.inferred_binding_tys.borrow().get(&span).copied()
+    }
+
+    pub fn replace_inferred_fun_return_tys(&self, inferred: HashMap<Span, TypeId>) {
+        *self.inferred_fun_return_tys.borrow_mut() = inferred;
+    }
+
+    pub fn inferred_fun_return_ty(&self, span: Span) -> Option<TypeId> {
+        self.inferred_fun_return_tys.borrow().get(&span).copied()
     }
 
     pub fn replace_inferred_performed_effect_tys(&self, inferred: HashMap<Span, TypeId>) {

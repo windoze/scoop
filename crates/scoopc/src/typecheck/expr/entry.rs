@@ -95,6 +95,7 @@ struct CtorCallCheckRequest<'a> {
 struct CheckFileExprsPassResult {
     inferred_expr_tys: HashMap<Span, TypeId>,
     inferred_binding_tys: HashMap<Span, TypeId>,
+    inferred_fun_return_tys: HashMap<Span, TypeId>,
     inferred_performed_effect_tys: HashMap<Span, TypeId>,
     inferred_handle_arm_effect_tys: HashMap<Span, TypeId>,
     safe_member_access_resolved: HashMap<Span, ast::ResolvedMemberRef>,
@@ -244,6 +245,7 @@ fn check_file_exprs_impl(
 fn reset_file_expr_side_tables(file: &ast::File) {
     file.replace_inferred_expr_tys(HashMap::new());
     file.replace_inferred_binding_tys(HashMap::new());
+    file.replace_inferred_fun_return_tys(HashMap::new());
     file.replace_inferred_performed_effect_tys(HashMap::new());
     file.replace_inferred_handle_arm_effect_tys(HashMap::new());
     file.replace_safe_member_access_resolved(HashMap::new());
@@ -259,6 +261,7 @@ fn reset_file_expr_side_tables(file: &ast::File) {
 fn apply_check_file_exprs_pass_result(file: &ast::File, result: &CheckFileExprsPassResult) {
     file.replace_inferred_expr_tys(result.inferred_expr_tys.clone());
     file.replace_inferred_binding_tys(result.inferred_binding_tys.clone());
+    file.replace_inferred_fun_return_tys(result.inferred_fun_return_tys.clone());
     file.replace_inferred_performed_effect_tys(result.inferred_performed_effect_tys.clone());
     file.replace_inferred_handle_arm_effect_tys(result.inferred_handle_arm_effect_tys.clone());
     file.replace_safe_member_access_resolved(result.safe_member_access_resolved.clone());
@@ -409,6 +412,7 @@ fn check_file_exprs_pass(
     Ok(CheckFileExprsPassResult {
         inferred_expr_tys: lower.take_inferred_expr_tys(),
         inferred_binding_tys: lower.take_inferred_binding_tys(),
+        inferred_fun_return_tys: lower.take_inferred_fun_return_tys(),
         inferred_performed_effect_tys: lower.take_inferred_performed_effect_tys(),
         inferred_handle_arm_effect_tys: lower.take_inferred_handle_arm_effect_tys(),
         safe_member_access_resolved: lower.take_safe_member_access_resolutions(),
@@ -969,9 +973,14 @@ fn check_class_member_fun_body_exprs(
                                 0,
                             )?
                         };
-                        inferred.unwrap_or(builtins.unit)
+                        let inferred = inferred.unwrap_or(builtins.unit);
+                        lower.record_inferred_fun_return_ty(fun.name.span, inferred);
+                        inferred
                     }
-                    ast::FunBody::Missing => builtins.unit,
+                    ast::FunBody::Missing => {
+                        lower.record_inferred_fun_return_ty(fun.name.span, builtins.unit);
+                        builtins.unit
+                    }
                 },
             };
 

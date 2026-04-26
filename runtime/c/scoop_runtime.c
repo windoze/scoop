@@ -2413,54 +2413,30 @@ static const ScoopString *scoop_string_from_bytes(const uint8_t *value, uint64_t
 }
 
 // 以 “转移所有权” 的方式构造 runtime String（避免二次拷贝）。
-// --- fatal trap / process（T5000e3a / T1318c） ---
+// --- fatal trap / entry argv（T5000e3a / T5000e3c） ---
 //
 // 说明：
 // - `scoop.core.panic(message)`：bottom-typed fatal trap surface；当前实现仍直接 exit(3)；
-// - `scoop.process.args()` 读取启动参数（argv，不含 argv[0]）；
-// - `scoop.process.exit(code)` 主动退出当前进程；
+// - 可执行入口 `main(args: Array<String>)` 通过 runtime helper 直接接收 native argv；
 // - 当前阶段只做 host 平台 happy path：不处理宽字符（Windows）、不做复杂错误模型。
 
 // `scoop.core.panic(message: String): Nothing`
 //
 // 说明：
 // - 当前阶段只要求“立即终止”语义，message 先不做 stderr 格式化；
-// - 这样可以把 fatal trap 统一收口到 core intrinsic / runtime 边界，而不是继续复用
-//   `scoop.process.exit(3)` 作为语言层 surface。
+// - fatal trap 与 `main` 的正常返回 contract 分离：这里仍直接 exit(3)，
+//   不复用已经删除的 `scoop.process.exit(...)` surface。
 void scoop_panic(const void *message) {
   (void)message;
   exit(3);
 }
 
-// 进程启动参数（由 LLVM 入口 `main(argc, argv)` 在最早期写入）。
-static int32_t scoop_process_argc = 0;
-static const char **scoop_process_argv = 0;
-static void *scoop_process_args_cache = 0;
-
-// `scoop_process_init(argc, argv)`：由入口 main 调用，保存 argv 指针。
-void scoop_process_init(int32_t argc, const char **argv) {
-  scoop_process_argc = argc;
-  scoop_process_argv = argv;
-  scoop_process_args_cache = 0;
-}
-
-// `scoop.process.exit(code: Int): Unit`
-//
-// 说明：直接映射到 libc `exit(3)`；不做 unwind/清理语义。
-void scoop_process_exit(int64_t code) {
-  exit((int)code);
-}
-
-// `scoop.process.args(): Array<String>`
+// `scoop_entry_argv_array(argc, argv): Array<String>`
 //
 // 约定：
-// - 返回的数组不包含 argv[0]（与 Kotlin 的 main(args) 对齐）；
-// - 首次调用时构造并缓存（early stage：可能泄漏；后续由 GC/运行时托管补齐）。
-void *scoop_process_args_array(void) {
-  if (scoop_process_args_cache != 0) {
-    return scoop_process_args_cache;
-  }
-
+// - 直接按 native 程序边界的 argv 形状构造，包含 argv[0]；
+// - 当前阶段仅由 LLVM 入口 wrapper 调用一次，因此不再保留全局缓存/过渡 surface。
+void *scoop_entry_argv_array(int32_t argc, const char **argv) {
   // Array builder 由 `runtime/c/scoop_array.c` 提供。
   void *scoop_array_builder_new(void);
   void scoop_array_builder_push_ref(void *builder, void *value);
@@ -2475,17 +2451,13 @@ void *scoop_process_args_array(void) {
   // scoop_string_from_cstr / scoop_array_builder_build_array calls that trigger scoop_alloc.
   scoop_pin(builder);
 
-  int32_t argc = scoop_process_argc;
-  const char **argv = scoop_process_argv;
-  if (argc <= 1 || argv == 0) {
+  if (argc <= 0 || argv == 0) {
     void *arr = scoop_array_builder_build_array(builder);
     scoop_unpin(builder);
-    scoop_process_args_cache = arr;
     return arr;
   }
 
-  // 跳过 argv[0]（程序路径），只保留用户参数。
-  for (int32_t i = 1; i < argc; i++) {
+  for (int32_t i = 0; i < argc; i++) {
     const char *s = argv[i];
     const ScoopString *str = scoop_string_from_cstr(s);
     scoop_array_builder_push_ref(builder, (void *)str);
@@ -2493,7 +2465,6 @@ void *scoop_process_args_array(void) {
 
   void *arr = scoop_array_builder_build_array(builder);
   scoop_unpin(builder);
-  scoop_process_args_cache = arr;
   return arr;
 }
 

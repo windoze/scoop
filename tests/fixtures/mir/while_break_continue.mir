@@ -10,7 +10,7 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    2,
                 ),
                 body: Some(
                     Body {

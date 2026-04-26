@@ -1204,6 +1204,26 @@
     - 后续 std/runtime 重设计可以在干净边界上推进，不需要继续背着旧 API 壳；
     - 当前未发现需要插入到 `T5000e3c` 之前的新前置缺陷任务。
   - 下一条待执行任务切换为 `T5000e3c 扩展程序边界 main 签名以直接承载 argv，并移除 scoop.process`。
+- 2026-04-26：`T5000e3c 扩展程序边界 main 签名以直接承载 argv，并移除 scoop.process` 已完成。
+  - 实现结果：
+    - 已在 driver / frontend / typecheck / HIR lowering / LLVM entry lowering 上统一收口 `main` 的 program-boundary contract：允许形状现稳定为 `fun main(): Unit / Pure!`、`fun main(): Int / Pure!`、`fun main(args: Array<String>): Unit / Pure!`、`fun main(args: Array<String>): Int / Pure!`；
+    - native 程序边界收到的完整 `argv`（包含 `argv[0]`）现已直接传入 `main(args)`；正常返回 `Unit` 的 `main` 默认映射为退出码 `0`，正常返回 `Int` 的 `main` 则把该值作为进程退出码；
+    - `sysroot/process.scoop` 已删除，旧 `scoop.process.args()` / `exit(...)` 主路径已经从 sysroot surface、runtime ABI、fixtures 与文档口径中迁出，`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与受影响 fixtures/golden 已同步到新的 entry contract。
+  - 过程中优先修复的既有阻塞点：
+    - typecheck 过去只把未显式写返回类型的 `fun` 推断结果保留在过程内临时表，没有回写到 typed HIR 可消费的 side table；这会让 typed lowering 与 `main` 签名检查在无显式返回类型时错误回退到 `Any` / `Unit`；
+    - 现已补上推断返回类型 side table 并让 HIR lowering、entry-point `main` 校验与相关测试统一消费，从而恢复未显式标注返回类型的 `main` 在 typed 路径中的真实返回 contract。
+  - 收尾修正：
+    - `tests/fixtures/typecheck/entry_point_main_param_not_array_string_is_error.scoop` 的预期错误子串原先仍匹配旧的非限定类型名 `Array<Int>`；现已更新为当前实际诊断中的 `scoop.core.Array<Int>`。
+  - 验证结果：
+    - `target/debug/scoop test --fixtures tests/fixtures/typecheck`（`fixtures: ok (395)`）
+    - `target/debug/scoop test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (24)`）
+    - `target/debug/scoop test --fixtures tests/fixtures/run-pass`（`fixtures: ok (394)`）
+    - `target/debug/scoop test --fixtures tests/fixtures/spec_doctest`（`fixtures: ok (1)`）
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e3cR Review：确认 entry-point argv contract 已替代临时 scoop.process surface`。
 
 ## 1. 当前判断
 

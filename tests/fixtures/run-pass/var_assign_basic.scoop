@@ -8,9 +8,8 @@
 
 import scoop.core.*
 
-fun main(): Int32 {
+fun main(): Int {
     var x: Int32 = 1
     x = x + 1
-    return x
+    if (x == 2) { 2 } else { 1 }
 }
-

@@ -830,7 +830,7 @@ fn select_cone_entry_main(
         syms.fun.iter().find(|o| {
             o.symbol.decl_cone == consumer_cone
                 && o.sig.receiver.is_none()
-                && o.sig.params.is_empty()
+                && o.sig.kind == scoopc::ast::FunDeclKind::Regular
         })
     });
 

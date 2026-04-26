@@ -252,12 +252,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_sysroot_is_infinite_ext(span, callee.span, args);
             }
 
-            if fqn == "scoop.process.exit" {
-                return self.codegen_sysroot_process_exit(span, callee.span, args);
-            }
-            if fqn == "scoop.process.args" {
-                return self.codegen_sysroot_process_args(span, callee.span, args);
-            }
             if fqn == "scoop.sync.mutexCreate" {
                 return self.codegen_sysroot_sync_mutex_create(span, callee.span, args);
             }

@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::entry_point_main_invalid_signature
+// EXPECT-ERROR: 参数类型为 `scoop.core.Array<Int>`
+// 目标：T5000e3c：entry-point `main` 的单参数形状只能是 `Array<String>`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(args: Array<Int>) {}

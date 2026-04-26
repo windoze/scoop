@@ -10,7 +10,7 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Body {
@@ -39,7 +39,7 @@ File {
                                     "f",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    11,
                                 ),
                             },
                             LocalDecl {
@@ -57,7 +57,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    10,
                                 ),
                             },
                             LocalDecl {
@@ -66,7 +66,7 @@ File {
                                     "g",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    11,
                                 ),
                             },
                             LocalDecl {
@@ -84,7 +84,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    10,
                                 ),
                             },
                             LocalDecl {

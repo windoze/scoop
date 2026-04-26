@@ -270,6 +270,99 @@ fn check_call_expr_stmt_fallback(
     Ok(())
 }
 
+fn check_executable_main_signature(
+    fun: &ast::FunDecl,
+    return_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), ExprTypeError> {
+    if fun.modifiers.contains(&ast::Modifier::Async) {
+        return Err(ExprTypeError::EntryPointMainInvalidSignature {
+            found: "`async fun main`".to_string(),
+            span: fun.name.span.into(),
+        });
+    }
+
+    if !fun.type_params.is_empty() {
+        return Err(ExprTypeError::EntryPointMainInvalidSignature {
+            found: format!("带 {} 个类型参数的 `main`", fun.type_params.len()),
+            span: fun.name.span.into(),
+        });
+    }
+
+    if fun.eff_param.is_some() {
+        return Err(ExprTypeError::EntryPointMainInvalidSignature {
+            found: "`main` 带 effect row 参数".to_string(),
+            span: fun.name.span.into(),
+        });
+    }
+
+    if fun.where_clause.is_some() {
+        return Err(ExprTypeError::EntryPointMainInvalidSignature {
+            found: "`main` 带 where 子句".to_string(),
+            span: fun.name.span.into(),
+        });
+    }
+
+    match fun.params.as_slice() {
+        [] => {}
+        [param] => {
+            if param.is_vararg {
+                return Err(ExprTypeError::EntryPointMainInvalidSignature {
+                    found: "带 vararg 参数的 `main`".to_string(),
+                    span: param.name.span.into(),
+                });
+            }
+
+            if param.default_value.is_some() {
+                return Err(ExprTypeError::EntryPointMainInvalidSignature {
+                    found: "带默认参数的 `main`".to_string(),
+                    span: param.name.span.into(),
+                });
+            }
+
+            let Some(ty_ref) = &param.ty else {
+                return Err(ExprTypeError::EntryPointMainInvalidSignature {
+                    found: "参数缺少显式类型标注".to_string(),
+                    span: param.name.span.into(),
+                });
+            };
+
+            let found_ty = lower.lower_type_ref(ty_ref)?;
+            let expected_ty = lower.lower_type_fqn_with_args(
+                "scoop.core.Array".to_string(),
+                vec![builtins.string],
+                ty_ref.span(),
+            )?;
+            if found_ty != expected_ty {
+                return Err(ExprTypeError::EntryPointMainInvalidSignature {
+                    found: format!("参数类型为 `{}`", lower.fmt_type(found_ty)),
+                    span: ty_ref.span().into(),
+                });
+            }
+        }
+        params => {
+            return Err(ExprTypeError::EntryPointMainInvalidSignature {
+                found: format!("带 {} 个参数", params.len()),
+                span: fun.params_span.into(),
+            });
+        }
+    }
+
+    if return_ty != builtins.unit && return_ty != builtins.int {
+        let span = fun
+            .return_ty
+            .as_ref()
+            .map_or(fun.name.span, ast::TypeRef::span);
+        return Err(ExprTypeError::EntryPointMainInvalidSignature {
+            found: format!("返回类型为 `{}`", lower.fmt_type(return_ty)),
+            span: span.into(),
+        });
+    }
+
+    Ok(())
+}
+
 pub(super) fn check_required_effects_for_fun_decl(
     fun: &ast::FunDecl,
     performed: &[(TypeId, Span)],
@@ -550,6 +643,8 @@ pub(super) fn check_fun_body_exprs(
                         }
                         .unwrap_or(builtins.unit);
 
+                        lower.record_inferred_fun_return_ty(fun.name.span, inferred);
+
                         // 回写到顶层函数签名表：使得后续同文件的调用点能看到推断后的返回类型。
                         if let Some(sigs) = top_level_funs.get_mut(fun_fqn)
                             && let Some(sig) =
@@ -568,9 +663,16 @@ pub(super) fn check_fun_body_exprs(
 
                         inferred
                     }
-                    ast::FunBody::Missing => builtins.unit,
+                    ast::FunBody::Missing => {
+                        lower.record_inferred_fun_return_ty(fun.name.span, builtins.unit);
+                        builtins.unit
+                    }
                 },
             };
+
+            if matches!(program_boundary, ProgramBoundaryKind::Main) {
+                check_executable_main_signature(fun, expected_return_ty, lower, builtins)?;
+            }
 
             match &fun.body {
                 ast::FunBody::Block(b) => {

@@ -1,20 +1,18 @@
 // EXPECT: pass
+// EXPECT-EXIT: 0
 // RUN-STDOUT: std_process_args_exit_basic.stdout
 // ARGS: foo bar
 //
-// T1318c：std v2 `scoop.process` 过渡期 argv 接口回归：
-// - `args()` 能读取 argv（不含 argv[0]）
-// - fatal trap / invariant failure 已改由 `scoop.core.panic(...)` 承接，因此这里不再直接做显式进程终止调用
+// T5000e3c：argv 直接经由 `main(args)` 进入程序边界：
+// - `args` 必须包含完整 native argv，因此这里的 size 应为 3（含 argv[0]）；
+// - `args[0]` 的具体路径不稳定，因此只断言它是非空字符串；
+// - 其余用户参数应保持原顺序。
 
 import scoop.core.*
-import scoop.process.*
 
-fun main() {
-    val argv: Array<String> = args()
-    val n: Int = argv.size()
-    println(n)
-
-    // 断言能读取传入参数本身（避免 argv[0] 的不稳定路径影响）。
-    println(argv.get(0))
-    println(argv.get(1))
+fun main(args: Array<String>) {
+    println(args.size())
+    println(args.get(0).length() > 0)
+    println(args.get(1))
+    println(args.get(2))
 }

@@ -18,7 +18,6 @@
 package fixtures.codegen
 
 import scoop.core.*
-import scoop.process.*
 
 @Unsafe
 @Extern("scoop_test_unwind_dump_frames_and_stackmap_hits")

@@ -13,6 +13,6 @@ fun add(a: Int32, b: Int32): Int32 {
     return a + b
 }
 
-fun main(): Int32 {
-    return add(1, 2)
+fun main(): Int {
+    if (add(1, 2) == 3) { 3 } else { 1 }
 }

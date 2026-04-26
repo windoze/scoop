@@ -462,6 +462,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - 保存 `handle` arm binder 这类不一定有显式类型注解、但 HIR/codegen 仍需要真实类型的绑定；
     /// - typecheck 成功后写回到 `ast::File` 的 side table，供 HIR lowering 复用。
     inferred_binding_tys: HashMap<Span, TypeId>,
+    /// 当前文件中“函数声明 name span -> 推导后的内部返回 TypeId”。
+    ///
+    /// 用途：
+    /// - 保存未显式声明返回类型的函数/成员函数的推断结果；
+    /// - typecheck 成功后写回到 `ast::File` 的 side table，供 HIR lowering 复用。
+    inferred_fun_return_tys: HashMap<Span, TypeId>,
     /// 当前文件中“perform span -> performed effect 实例 TypeId”。
     ///
     /// 用途：
@@ -642,6 +648,7 @@ impl<'a> TypeLowering<'a> {
             performed_effects: Vec::new(),
             inferred_expr_tys: HashMap::new(),
             inferred_binding_tys: HashMap::new(),
+            inferred_fun_return_tys: HashMap::new(),
             inferred_performed_effect_tys: HashMap::new(),
             inferred_handle_arm_effect_tys: HashMap::new(),
             safe_member_access_resolutions: HashMap::new(),
@@ -1532,6 +1539,10 @@ impl<'a> TypeLowering<'a> {
         self.inferred_binding_tys.insert(span, ty);
     }
 
+    pub(super) fn record_inferred_fun_return_ty(&mut self, span: Span, ty: TypeId) {
+        self.inferred_fun_return_tys.insert(span, ty);
+    }
+
     pub(super) fn record_inferred_performed_effect_ty(&mut self, span: Span, ty: TypeId) {
         self.inferred_performed_effect_tys.insert(span, ty);
     }
@@ -1741,6 +1752,10 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn take_inferred_binding_tys(&mut self) -> HashMap<Span, TypeId> {
         std::mem::take(&mut self.inferred_binding_tys)
+    }
+
+    pub(super) fn take_inferred_fun_return_tys(&mut self) -> HashMap<Span, TypeId> {
+        std::mem::take(&mut self.inferred_fun_return_tys)
     }
 
     pub(super) fn take_inferred_performed_effect_tys(&mut self) -> HashMap<Span, TypeId> {

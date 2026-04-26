@@ -942,6 +942,13 @@ impl<'a> HirLowering<'a> {
         Some(self.apply_active_type_param_bindings(ty))
     }
 
+    pub(super) fn typechecked_fun_return_ty(&mut self, span: Span) -> Option<TypeId> {
+        let typecheck_types = self.typecheck_types?;
+        let ty = self.file.inferred_fun_return_ty(span)?;
+        let ty = self.types.re_intern_from(typecheck_types, ty);
+        Some(self.apply_active_type_param_bindings(ty))
+    }
+
     fn option_inner_ty(&self, ty: TypeId) -> Option<TypeId> {
         match self.types.kind(ty) {
             TypeKind::Value(ValueTypeKind::Option(inner)) => Some(*inner),

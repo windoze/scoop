@@ -1,4 +1,5 @@
 // EXPECT: pass
+// EXPECT-EXIT: 10
 // RUN-STDOUT: effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.stdout
 //
 // T4016T1c: higher-order 返回值与 `when` 分支 LUB 产出的函数值也要按静态 function type

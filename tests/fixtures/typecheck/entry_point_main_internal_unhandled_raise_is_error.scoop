@@ -9,6 +9,5 @@ package fixtures.typecheck
 import scoop.core.*
 
 internal fun main() {
-    Raise.raise(1)
+    Raise.raise(1);
 }
-

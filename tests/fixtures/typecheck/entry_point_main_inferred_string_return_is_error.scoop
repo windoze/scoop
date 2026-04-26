@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::entry_point_main_invalid_signature
+// EXPECT-ERROR: 返回类型为 `String`
+// 目标：T5000e3c：未显式标注返回类型时，entry-point `main` 也必须按推断后的返回类型校验签名。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    "oops"
+}

@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::entry_point_main_invalid_signature
+// EXPECT-ERROR: 带 2 个参数
+// 目标：T5000e3c：entry-point `main` 不允许超过一个参数。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(args: Array<String>, code: Int) {}

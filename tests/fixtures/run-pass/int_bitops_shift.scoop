@@ -9,7 +9,7 @@
 
 import scoop.core.*
 
-fun main(): UInt8 {
+fun main(): Int {
     val x: UInt8 = 129
     val one: UInt8 = 1
     val mask: UInt8 = 15
@@ -21,6 +21,6 @@ fun main(): UInt8 {
     val e: UInt8 = c & d
     val f: UInt8 = e | mask
 
-    return f >> 9
+    val result: UInt8 = f >> 9
+    if (result == 39) { 39 } else { 1 }
 }
-

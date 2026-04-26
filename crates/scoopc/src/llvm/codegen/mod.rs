@@ -2737,6 +2737,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(crate) fn codegen_main_exit_code(
         mut self,
         fun: &hir::FunDecl,
+        entry_argv_array: Option<PointerValue<'ctx>>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         // 入口 `i32 @main()` 的返回类型固定为 i32；这里记录下来以便最小 Raise 传播时能"早退"。
         self.function_cx.current_fun_return_ty = Some(CgTy::Int(IntTy {
@@ -2745,6 +2746,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }));
 
         self.function_cx.env.push_scope();
+
+        match (fun.params.as_slice(), entry_argv_array) {
+            ([], None) => {}
+            ([param], Some(argv_array)) => {
+                self.bind_entry_main_param_local(
+                    param,
+                    CgValue {
+                        ty: CgTy::Ref,
+                        value: Some(argv_array.into()),
+                    },
+                )?;
+            }
+            ([], Some(_)) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "entry main unexpected argv binding",
+                    at: fun.span.into(),
+                });
+            }
+            ([param], None) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "entry main missing argv binding",
+                    at: param.span.into(),
+                });
+            }
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "entry main param arity",
+                    at: fun.span.into(),
+                });
+            }
+        }
 
         let exit = match fun.body.as_ref() {
             Some(body) => self.codegen_block_as_exit_code(body, fun.return_ty)?,
@@ -3590,6 +3622,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 missing_kind: "missing llvm param",
             })?;
         }
+        Ok(())
+    }
+
+    fn bind_entry_main_param_local(
+        &mut self,
+        param: &hir::Param,
+        init: CgValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let target_ty = self
+            .cg_ty_of(param.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "entry main param type",
+                at: param.span.into(),
+            })?;
+        let ptr = self.create_entry_alloca(param.span, &param.name, target_ty)?;
+        let _ = self.store_local_value(param.span, ptr, target_ty, init)?;
+        self.function_cx.env.insert(
+            param.id,
+            CgLocal {
+                hir_ty: Some(param.ty),
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
+                ty: target_ty,
+                ptr,
+                mutable: false,
+            },
+        );
         Ok(())
     }
 
