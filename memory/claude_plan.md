@@ -1,75 +1,53 @@
-# 当前轮执行计划
+# 执行计划（决策摘要）
 
-## 约束说明
+说明：
+- 用户要求先把“完整思考过程”和执行计划写入本文件；这里记录的是可审计的执行计划、假设、检查点与决策摘要，不写入逐字内部推理。
+- 本轮目标是：先检查最新提交是否提到既有问题并优先修复；然后读取 `TODO.md` 找到第一项未完成任务；若任务过大则拆分并更新 `PLAN.md`/`TODO.md`；完成恰好一个任务后测试、更新文档、提交并停止。
 
-- 本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
-- 在开始任务前，先检查最新提交是否提到需要先修复的既有问题；若有，先修复这些问题。
-- 在执行过程中，任何探测、测试、评审中发现的既有 bug、回归、规格不一致、未完成实现边界或现有 workaround，都必须优先处理，不能绕过。
-- 若当前任务过大，需要先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
-- 完成实现后必须运行相关验证；若可行，还要运行更严格的无警告检查，例如 `cargo clippy --all-targets -- -D warnings`。
-- 需要持续维护本文件；当计划调整、发现阻塞、完成关键步骤时，及时更新这里。
+初始步骤：
+1. 检查仓库状态与最新提交信息，确认是否存在提交中明确提及、且尚未修复的既有问题。
+2. 读取 `TODO.md` 与 `PLAN.md`，确定第一项未完成任务及其上下文。
+3. 结合代码现状判断任务是否可直接完成；若过大，则先拆分任务并更新计划文件。
+4. 实施该任务所需的最小正确修改，不接受规避缺陷的变通方案。
+5. 运行相关测试、格式化、lint；若暴露既有问题，则先修复问题或把前置任务插入 `TODO.md` 并停止。
+6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况与任何计划调整。
+7. 提交 git commit，然后停止，不继续处理下一项任务。
 
-## 初始执行步骤
+执行约束：
+- 若在探查、测试、评审中发现任何既有 bug / 回归 / 规范不匹配 / 未完成实现边界，必须立即优先处理，或在 `TODO.md` 中插入前置任务后停止。
+- 不回退用户已有修改；不使用破坏性 git 命令。
+- 所有输出与记录使用中文。
 
-1. 查看最新一次 git 提交，确认提交信息里是否提到待修复的既有问题，必要时先定位并修复。
-2. 阅读 `TODO.md`，识别第一个未完成任务。
-3. 阅读 `PLAN.md`，确认该任务的背景、依赖与当前项目阶段。
-4. 结合代码与测试现状评估该任务是否可在本轮完整完成：
-   - 若可完成：继续实现。
-   - 若过大或存在未被记录的前置缺口：把任务拆成更小子任务，更新 `TODO.md` / `PLAN.md`，本轮只执行新的第一个子任务，或者在被阻塞时仅记录新的前置任务后停止。
-5. 在实现前阅读相关模块、现有测试、规格说明与最近变更，明确影响面。
-6. 实现任务，并同步补充或调整测试。
-7. 运行与该任务相关的测试；若影响面较大，补充运行更广泛的测试与静态检查。
-8. 更新 `TODO.md`、`PLAN.md`、本文件，记录已完成内容或阻塞原因。
-9. 提交 git commit，提交信息聚焦本轮完成的任务或新识别的前置修复任务。
+待检查项：
+- 最新 commit message / diff 是否包含待修复问题提示。
+- `TODO.md` 第一项未完成任务是什么。
+- 是否存在阻塞该任务的已知实现缺口。
 
-## 决策准则
-
-- 如果发现“已有问题”会影响当前任务的正确实现，则先修该问题；如果无法在本轮直接修复，就必须先把该问题写入 `TODO.md` 并排到当前任务之前，然后停止。
-- 不接受通过缩小范围、改变数据表示、削弱测试形状、增加特判、跳过错误路径等方式“先让任务过掉”。
-- 所有任务状态必须明确：完成才勾选；若受阻，保持未完成并调整顺序，不使用 `[BLOCKED]`。
-
-## 本轮预期产出
-
-- 一个已完成并验证通过的首个未完成任务，或者
-- 一个被正确拆分/重排并记录前置依赖的任务列表更新（若存在真实阻塞）。
-
-## 进度记录
-
-- 已完成：创建本计划文件，准备开始仓库检查。
-- 已完成：检查最新 git 提交说明，提交标题为 `[T5000e3R] Review monomorphization boundary stability`，未发现额外正文中声明的待修复遗留问题。
-- 已完成：读取 `TODO.md` 与 `PLAN.md`，定位到首个未完成任务为 `T5000f 建立 per-instance summary 基础设施`。
-- 已完成：读取 `T5000e3R` 与 `T5000f` 相邻上下文，确认前一轮 review 未留下必须先插入 `TODO.md` 的未记录阻塞项。
-- 已完成：评估 `T5000f` 的可实现性，结论是本轮可直接实现，但过程中暴露一个真实前置边界缺口：当前 MIR 的 `Return` terminator 不显式携带返回 operand，这会削弱 `result_provenance` 与“参数是否经返回逃逸”的稳定计算。
-- 决策：该缺口直接服务 `T5000f` 的验收目标，且影响面目前集中在 `crates/scoopc/src/mir/{mod,lower,materialize}.rs` 与相关测试，预计可在本轮一并修复，不需要先拆任务或改写 `TODO.md` 顺序。
-- 接下来的实施步骤：
-  1. 修改 MIR `Return` 形状，让 terminator 显式携带 `Option<Operand>` 返回值，并更新 lowering / materialization / MIR 测试。
-  2. 设计并实现 `per-instance summary` 数据结构，挂到 `MaterializedMir` 的稳定 side tables 上。
-  3. 基于 materialized MIR 计算 summary：
-     - `body_known`
-     - `size_cost`
-     - `recursive_scc`
-     - `may_outward_effect`
-     - `may_allocate_closure`
-     - `param_use_summaries`
-     - `result_provenance`
-  4. 为 `dump` / compilation-unit materialization 添加回归测试，覆盖：
-     - summary 按 `InstanceKey` 建立，而不是按模板函数名；
-     - 返回参数/closure/直接函数时的 provenance；
-     - `DirectCallOnly` / `Escapes` 的基本分类；
-     - 递归实例与 declaration-only instance 的保守 summary。
-  5. 运行格式化、相关测试、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
-  6. 更新 `TODO.md` / `PLAN.md` / 本文件，提交 commit，然后停止。
-- 已完成：实现 `T5000f` 主体。
-  - 已新增 `crates/scoopc/src/mir/summary.rs`，把 per-instance summary 挂到 `MaterializedMir` 上；
-  - 已把 `TerminatorKind::Return` 改为显式携带 `Option<Operand>`，并同步接通 lowering/materialization；
-  - 已落地 `body_known / size_cost / recursive_scc / may_outward_effect / may_allocate_closure / param_use_summaries / result_provenance`。
-- 已完成：验证实现。
+进度日志：
+- 2026-04-27：已创建计划文件，下一步开始检查最新提交与任务列表。
+- 2026-04-27：已确认最新提交未直接声明待修复 issue；`TODO.md` 第一项未完成任务为 `T5000fR Review：确认 summary 已按单态实例而不是按函数名工作`。
+- 2026-04-27：review 过程中发现一个必须先修的既有问题：
+  - `MaterializedMirSummaries` 对外虽然按 `InstanceKey` 暴露，但 `crates/scoopc/src/mir/materialize.rs` 中 `instance_fqn()` 目前只用 `template.fqn + type_args + eff_args` 生成 materialized root identity；
+  - 仓库支持同名 overload，而 `TemplateKey` 之所以携带 `source_path + decl_span`，就是为了区分这些模板；
+  - 因此，若存在“同名 generic overload + 相同实例化实参”的情况，不同模板实例会落到同一个 materialized root 字符串，进而让 `crates/scoopc/src/mir/summary.rs` 中按 `root_fqn: String` 建图的 pending summaries、direct-call graph、SCC 与 outward-effect 传播发生碰撞。
+- 2026-04-27：计划调整：
+  1. 先为 overloaded generic template 引入稳定且唯一的 materialized root symbol disambiguator，确保实例投影到 MIR family symbol 时仍保持单射。
+  2. 补 materialize / summary 回归测试，覆盖“同名 overload + 相同 type args 不得共享 root identity / summary”的场景。
+  3. 跑相关测试与全量校验。
+  4. 若验证通过，再更新 `TODO.md` / `PLAN.md` 完成 `T5000fR` 并提交。
+- 2026-04-27：已完成代码修复与最小回归：
+  - 在 `crates/scoopc/src/mir/materialize.rs` 中新增 canonical template → stable overload suffix 的映射；当同一 `template.fqn` 存在多个 canonical overload 时，materialized root 会在 `::<args>` 之后追加稳定的 overload discriminator，而不是继续只用 `fqn::<args>`；
+  - `instance_fqn()` 已统一消费这层 suffix，因此 family root、nested lambda rewrite、direct-call rewrite、summary root 映射都会拿到不冲突且保留原始 `template_fqn::<...>` 前缀的实例化符号；
+  - 在 `crates/scoopc/src/mir/summary.rs` 新增回归测试 `overloaded_generic_instances_keep_distinct_summary_identity`，验证两个同名 generic overload 在相同 `Int` 实例化下仍保留不同 root symbol，并分别得到 `Param(0)` / `Param(1)` 的 summary；
+  - 已通过最小验证：
+    - `cargo test -p scoopc overloaded_generic_instances_keep_distinct_summary_identity -- --nocapture`
+    - `cargo test -p scoopc summaries_are_keyed_by_instance_identity -- --nocapture`
+- 2026-04-27：下一步执行全量格式化、测试与 clippy，然后回写 `TODO.md` / `PLAN.md` 完成 `T5000fR`。
+- 2026-04-27：全量验证已完成：
   - `cargo fmt --all`
-  - `cargo test -p scoopc mir::summary -- --nocapture`
-  - `cargo test -p scoopc`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-  - 以上全部通过。
-- 已完成：更新 `TODO.md` 与 `PLAN.md`，把 `T5000f` 标记为完成，并把下一条待执行任务切到 `T5000fR`。
-- 下一步：检查工作区 diff，提交本轮变更，然后停止。
+  - 全部通过。
+- 2026-04-27：已回写 `TODO.md` / `PLAN.md`：
+  - 将 `T5000fR` 标记为完成，并记录 review 中发现并修复的 overload-aware instance identity 问题；
+  - 明确下一条待执行任务切换为 `T5000g 在 MIR 层实现通用 devirtualization`。

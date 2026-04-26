@@ -910,6 +910,21 @@ mod tests {
             .expect("summary should exist for every instance key")
     }
 
+    fn root_fun_for_instance<'a>(
+        materialized: &'a super::super::MaterializedMir,
+        key: &InstanceKey,
+    ) -> &'a FunDecl {
+        materialized
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.span == key.template.decl_span => Some(fun),
+                Item::Fun(_) | Item::Todo { .. } => None,
+            })
+            .expect("materialized root function should exist for every instance")
+    }
+
     #[test]
     fn summaries_are_keyed_by_instance_identity() {
         let sess = Session::new().unwrap();
@@ -954,6 +969,95 @@ fun entry(): Unit {
         assert_eq!(
             bool_summary.param_use_summaries,
             vec![ParamUseSummary::Escapes]
+        );
+    }
+
+    #[test]
+    fn overloaded_generic_instances_keep_distinct_summary_identity() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_summary_overload_identity.scoop",
+            r#"
+package fixtures.mirsummary
+
+fun <T> pick(x: T): T {
+    return x
+}
+
+fun <T> pick(x: T, y: T): T {
+    return y
+}
+
+fun entry(): Unit {
+    pick(1)
+    pick(1, 2)
+}
+"#,
+        );
+
+        let materialized = super::super::materialize_for_dump(&sess, &source).unwrap();
+        let pick_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| {
+                key.template.fqn == "fixtures.mirsummary.pick"
+                    && key
+                        .type_args
+                        .iter()
+                        .map(|&ty| materialized.types.display(ty).to_string())
+                        .collect::<Vec<_>>()
+                        == ["Int".to_string()]
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            pick_keys.len(),
+            2,
+            "同名 generic overload 的相同 type-arg 实例应各自保留 InstanceKey"
+        );
+
+        let root_fqns = pick_keys
+            .iter()
+            .map(|key| root_fun_for_instance(&materialized, key).fqn.clone())
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            root_fqns.len(),
+            2,
+            "materialized root symbol 必须保持 overload-aware 的唯一 identity"
+        );
+        assert!(
+            root_fqns
+                .iter()
+                .all(|fqn| fqn.starts_with("fixtures.mirsummary.pick::<Int>")),
+            "materialized overload symbol 应保留 `template_fqn::<args>` 前缀，以便 base-FQN 查询仍能工作: {root_fqns:#?}"
+        );
+
+        let mut unary_summary = None;
+        let mut binary_summary = None;
+        for key in pick_keys {
+            let root_fun = root_fun_for_instance(&materialized, key);
+            let summary = materialized
+                .summaries
+                .get(key)
+                .expect("summary should exist for every overload instance")
+                .clone();
+            match root_fun.params.len() {
+                1 => unary_summary = Some(summary),
+                2 => binary_summary = Some(summary),
+                other => panic!("unexpected overload arity: {other}"),
+            }
+        }
+
+        assert_eq!(
+            unary_summary
+                .expect("unary overload summary should exist")
+                .result_provenance,
+            ResultProvenance::Param(0)
+        );
+        assert_eq!(
+            binary_summary
+                .expect("binary overload summary should exist")
+                .result_provenance,
+            ResultProvenance::Param(1)
         );
     }
 

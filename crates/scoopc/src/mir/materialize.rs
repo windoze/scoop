@@ -2046,6 +2046,7 @@ struct MirInstanceMaterializer {
     request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     roots: HashMap<TemplateKey, TemplateRootInfo>,
     template_signatures: HashMap<TemplateKey, TemplateSignatureInfo>,
+    template_symbol_suffixes: HashMap<TemplateKey, String>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     reachable_fun_bodies_by_request: HashMap<RequestTemplateKey, ReachableMirFun>,
@@ -2150,6 +2151,7 @@ impl MirInstanceMaterializer {
         let mut request_templates = HashMap::new();
         let mut roots = HashMap::new();
         let mut template_signatures = HashMap::new();
+        let mut canonical_signature_keys = HashMap::new();
         for candidate in root_candidates {
             let group_key = (
                 candidate.template.fqn.clone(),
@@ -2160,6 +2162,9 @@ impl MirInstanceMaterializer {
                 .cloned()
                 .expect("canonical template must exist for every root candidate");
             request_templates.insert(candidate.request_lookup_key, canonical.clone());
+            canonical_signature_keys
+                .entry(canonical.clone())
+                .or_insert_with(|| candidate.signature_key.clone());
 
             if candidate.template != canonical || roots.contains_key(&canonical) {
                 continue;
@@ -2210,6 +2215,9 @@ impl MirInstanceMaterializer {
                 .cloned()
                 .expect("canonical template must exist for every decl-only candidate");
             request_templates.insert(candidate.request_lookup_key, canonical.clone());
+            canonical_signature_keys
+                .entry(canonical.clone())
+                .or_insert_with(|| candidate.signature_key.clone());
 
             if candidate.template != canonical || template_signatures.contains_key(&canonical) {
                 continue;
@@ -2228,6 +2236,7 @@ impl MirInstanceMaterializer {
             );
         }
 
+        let template_symbol_suffixes = build_template_symbol_suffixes(&canonical_signature_keys);
         let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
         for template in template_signatures.keys() {
             roots_by_fqn
@@ -2295,6 +2304,7 @@ impl MirInstanceMaterializer {
             request_templates,
             roots,
             template_signatures,
+            template_symbol_suffixes,
             roots_by_fqn,
             direct_call_bindings: top_level_fun_call_bindings.clone(),
             reachable_fun_bodies_by_request,
@@ -3224,9 +3234,17 @@ impl MirInstanceMaterializer {
         operand
     }
 
+    fn template_symbol_suffix(&self, template: &TemplateKey) -> &str {
+        self.template_symbol_suffixes
+            .get(template)
+            .map(String::as_str)
+            .unwrap_or("")
+    }
+
     fn instance_fqn(&self, instance: &InstanceKey) -> String {
+        let symbol_suffix = self.template_symbol_suffix(&instance.template);
         if instance.type_args.is_empty() && instance.eff_args.is_empty() {
-            return instance.template.fqn.clone();
+            return format!("{}{symbol_suffix}", instance.template.fqn);
         }
         let mut args = instance
             .type_args
@@ -3239,7 +3257,11 @@ impl MirInstanceMaterializer {
                 .iter()
                 .map(|row| format!("eff {}", self.format_effect_row_stable(row))),
         );
-        format!("{}::<{}>", instance.template.fqn, args.join(", "))
+        format!(
+            "{}::<{}>{symbol_suffix}",
+            instance.template.fqn,
+            args.join(", ")
+        )
     }
 
     fn format_effect_row_stable(&self, row: &EffectRow) -> String {
@@ -3298,6 +3320,65 @@ fn choose_canonical_template<'a>(
         .into_iter()
         .next()
         .expect("template candidate group must not be empty")
+}
+
+fn build_template_symbol_suffixes(
+    signature_keys: &HashMap<TemplateKey, String>,
+) -> HashMap<TemplateKey, String> {
+    let mut templates_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
+    for template in signature_keys.keys() {
+        templates_by_fqn
+            .entry(template.fqn.clone())
+            .or_default()
+            .push(template.clone());
+    }
+
+    let mut out = HashMap::new();
+    for (_, mut templates) in templates_by_fqn {
+        templates.sort_by(template_key_sort);
+        let overloaded = templates.len() > 1;
+        for template in templates {
+            let symbol_suffix = if overloaded {
+                let signature_key = signature_keys
+                    .get(&template)
+                    .expect("every template symbol suffix should have a signature key");
+                format!(
+                    "$overload${}",
+                    stable_template_symbol_suffix(&template, signature_key)
+                )
+            } else {
+                String::new()
+            };
+            out.insert(template, symbol_suffix);
+        }
+    }
+    out
+}
+
+fn template_key_sort(lhs: &TemplateKey, rhs: &TemplateKey) -> std::cmp::Ordering {
+    lhs.source_path
+        .cmp(&rhs.source_path)
+        .then_with(|| lhs.decl_span.start.cmp(&rhs.decl_span.start))
+        .then_with(|| lhs.decl_span.end.cmp(&rhs.decl_span.end))
+}
+
+fn stable_template_symbol_suffix(template: &TemplateKey, signature_key: &str) -> String {
+    let mut hash = 0xcbf29ce484222325u64;
+    stable_hash_bytes(&mut hash, template.source_path.to_string_lossy().as_bytes());
+    stable_hash_bytes(&mut hash, &[0xff]);
+    stable_hash_bytes(&mut hash, &template.decl_span.start.to_le_bytes());
+    stable_hash_bytes(&mut hash, &template.decl_span.end.to_le_bytes());
+    stable_hash_bytes(&mut hash, &[0xfe]);
+    stable_hash_bytes(&mut hash, signature_key.as_bytes());
+    format!("{hash:016x}")
+}
+
+fn stable_hash_bytes(hash: &mut u64, bytes: &[u8]) {
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    for &byte in bytes {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(FNV_PRIME);
+    }
 }
 
 fn belongs_to_template_family(fun: &FunDecl, root_fun: &FunDecl) -> bool {

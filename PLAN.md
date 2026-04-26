@@ -1345,6 +1345,23 @@
     - per-instance summary 现已稳定挂在 monomorphic MIR instance 上，而不是按函数名/符号名临时聚合；
     - MIR 已具备后续 `T5000fR` / `T5000g` 所需的最小 summary / provenance 前置边界；
     - 下一条待执行任务切换为 `T5000fR Review：确认 summary 已按单态实例而不是按函数名工作`。
+- 2026-04-27：`T5000fR Review：确认 summary 已按单态实例而不是按函数名工作` 已完成。
+  - review 首先发现并修复了一个既有实例 identity 缺口：
+    - `crates/scoopc/src/mir/materialize.rs` 中的 `instance_fqn()` 之前仅使用 `template.fqn + type/effect args` 生成 materialized root symbol；
+    - 这会让“同名 generic overload + 相同实例化实参”映射到同一个 root symbol，进而使 `crates/scoopc/src/mir/summary.rs` 里按 materialized family symbol 建的 pending summaries、direct-call graph、递归 SCC 与 outward-effect 传播存在碰撞风险；
+    - 现已新增 canonical template → stable overload suffix 映射；只有在同一 `template.fqn` 下存在多个 canonical overload 时，才会为实例化 root 追加 `$overload$<stable-hash>`，且后缀落在 `::<args>` 之后，以保持现有基于 `template_fqn::<...>` 前缀的 base-FQN 查询与 eager inclusion 逻辑不被破坏。
+  - review 复核结论：
+    - `MaterializedMirSummaries` 的导出边界仍然稳定是 `InstanceKey -> InstanceSummary`，没有长回“按函数名缓存一份 summary，再在 codegen 现场补类型”的旧路径；
+    - `summary.rs` 内部仍允许用 materialized family symbol 做局部图节点，但现在 root projection 已再次对 `TemplateKey + type/effect args` 保持单射，因此不同 overload 实例不会在 summary fixed-point 中相互覆盖；
+    - 新增 `mir::summary::tests::overloaded_generic_instances_keep_distinct_summary_identity`，明确锁定两个同名 generic overload 在相同 `Int` 实例化下会产生不同 root symbol、保留 `template_fqn::<Int>` 前缀，并分别得到 `ResultProvenance::Param(0)` / `Param(1)` 的 summary。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：
+    - per-instance summary 的层次归属、导出 identity 与缓存边界现已足够稳定，可直接作为 `T5000g` devirtualization 的共享输入；
+    - 下一条待执行任务切换为 `T5000g 在 MIR 层实现通用 devirtualization`。
 
 ## 1. 当前判断
 
