@@ -195,6 +195,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.core.sizeOf" {
                 return self.codegen_sysroot_size_of(span, callee.span, args);
             }
+            if fqn == "scoop.core.panic" {
+                return self.codegen_sysroot_panic(span, callee.span, args);
+            }
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
             }
@@ -662,12 +665,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|param| param.name.clone())
             .collect();
         let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
-        let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call return type",
-                    at: span.into(),
-                })?;
+        let ret_cg = if let Some(ret_cg) = self.cg_ty_of(sig_fun.return_ty) {
+            ret_cg
+        } else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "call return type",
+                at: span.into(),
+            });
+        };
         let hidden_sret_result_ty = if is_extern {
             None
         } else {

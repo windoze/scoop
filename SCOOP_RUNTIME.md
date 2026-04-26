@@ -428,6 +428,11 @@ Implementation note:
   a SeqCst `store(__claim, 0)` on release. That is sufficient for the intended
   contract: one active public driver at a time plus synchronized state
   publication for sequential cross-thread handoff.
+- These fatal trap paths are expressed in the core surface as
+  `scoop.core.panic(message: String): Nothing`; the current runtime still maps
+  that intrinsic to immediate process termination (`exit(3)` / equivalent), but
+  the `exit(3)` detail now stays behind the runtime boundary rather than leaking
+  through task/sysroot user code.
 - Claim failure is fatal driver misuse, not a recoverable result: the task layer
   does not spin, yield, block, or translate contention into `Pending`.
 - The claim is intentionally an implementation detail rather than a user-visible

@@ -32,8 +32,8 @@ use crate::typecheck::{
 
 use super::{
     Body, CallArg, CallKind, ConstValue, File, FunDecl, HandlerArm, Item, LocalDecl,
-    MemberAccessMetadata, MemberTarget, Operand, Param, Pattern, PerformMetadata, Rvalue,
-    Statement, StatementKind, Terminator, TerminatorKind,
+    MemberAccessMetadata, MemberTarget, Operand, Pattern, PerformMetadata, Rvalue, Statement,
+    StatementKind, Terminator, TerminatorKind,
 };
 
 /// 一个 generic MIR template 的稳定标识。
@@ -369,6 +369,13 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         typecheck_types,
     )?;
     let request_root_fun_keys = collect_request_root_fun_keys(&lowered_hir, request_source_paths);
+    let callable_signatures = collect_callable_signature_infos(&lowered_hir);
+    let hir_direct_instance_keys = collect_hir_direct_call_instance_requests(
+        &mut lowered_hir,
+        typecheck_types,
+        &top_level_fun_call_bindings,
+        &request_root_fun_keys,
+    );
     let builtins = lowered_hir.types.intern_builtins();
     let facts = super::MirLoweringFacts::from_lowered_hir(&lowered_hir);
     let generic_file = super::lower_hir_file_for_dump_with_facts(
@@ -386,10 +393,12 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         builtins,
         MaterializeRequestSet {
             monomorph_keys,
+            hir_direct_instance_keys,
             construction_inputs: MaterializerConstructionInputs {
                 typecheck_types,
                 template_infos: template_catalog,
                 callable_body_infos,
+                callable_signatures,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 request_root_fun_keys,
@@ -431,10 +440,23 @@ struct CallableBodyInfo {
     body_span: Span,
 }
 
+#[derive(Clone)]
+struct CallableSignatureParam {
+    name: String,
+    ty: TypeId,
+}
+
+#[derive(Clone)]
+struct CallableSignatureInfo {
+    template: TemplateKey,
+    params: Vec<CallableSignatureParam>,
+}
+
 struct MaterializerConstructionInputs<'a> {
     typecheck_types: &'a TypeStore,
     template_infos: Vec<GenericTemplateInfo>,
     callable_body_infos: Vec<CallableBodyInfo>,
+    callable_signatures: Vec<CallableSignatureInfo>,
     top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     request_root_fun_keys: Vec<RequestRootFunKey>,
@@ -442,6 +464,7 @@ struct MaterializerConstructionInputs<'a> {
 
 struct MaterializeRequestSet<'a> {
     monomorph_keys: &'a [MonomorphKey],
+    hir_direct_instance_keys: Vec<InstanceKey>,
     construction_inputs: MaterializerConstructionInputs<'a>,
 }
 
@@ -479,6 +502,751 @@ fn collect_request_root_fun_keys(
     }
 
     out
+}
+
+fn collect_callable_signature_infos(
+    lowered_hir: &crate::hir::LoweredHir,
+) -> Vec<CallableSignatureInfo> {
+    lowered_hir
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(lowered_hir.member_funs.iter())
+        .map(|fun| CallableSignatureInfo {
+            template: TemplateKey {
+                fqn: fun.fqn.clone(),
+                source_path: fun.source_path.clone(),
+                decl_span: fun.span,
+            },
+            params: fun
+                .params
+                .iter()
+                .map(|param| CallableSignatureParam {
+                    name: param.name.clone(),
+                    ty: param.ty,
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+#[derive(Clone)]
+struct HirDirectCallTemplateInfo {
+    template: TemplateKey,
+    type_param_names: Vec<String>,
+    params: Vec<CallableSignatureParam>,
+    has_effect_param: bool,
+    has_body: bool,
+}
+
+fn collect_hir_direct_call_instance_requests(
+    lowered_hir: &mut crate::hir::LoweredHir,
+    typecheck_types: &TypeStore,
+    top_level_fun_call_bindings: &HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    request_root_fun_keys: &[RequestRootFunKey],
+) -> Vec<InstanceKey> {
+    let file_items = &lowered_hir.file.items;
+    let member_funs = &lowered_hir.member_funs;
+    let types = &mut lowered_hir.types;
+    let request_root_keys = request_root_fun_keys
+        .iter()
+        .map(|key| (key.source_path.clone(), key.fqn.clone(), key.span))
+        .collect::<HashSet<_>>();
+    let mut templates_by_fqn: HashMap<String, Vec<HirDirectCallTemplateInfo>> = HashMap::new();
+    for fun in file_items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(member_funs.iter())
+    {
+        let mut type_param_names = Vec::new();
+        for param in &fun.params {
+            collect_type_param_names_in_type(&*types, param.ty, &mut type_param_names);
+        }
+        collect_type_param_names_in_type(&*types, fun.return_ty, &mut type_param_names);
+        let has_effect_param = function_type_has_effect_param(&*types, fun.ty);
+        if type_param_names.is_empty() && !has_effect_param {
+            continue;
+        }
+        let template = TemplateKey {
+            fqn: fun.fqn.clone(),
+            source_path: fun.source_path.clone(),
+            decl_span: fun.span,
+        };
+        let entry = templates_by_fqn.entry(fun.fqn.clone()).or_default();
+        if entry.iter().any(|existing| existing.template == template) {
+            continue;
+        }
+        entry.push(HirDirectCallTemplateInfo {
+            template,
+            type_param_names,
+            params: fun
+                .params
+                .iter()
+                .map(|param| CallableSignatureParam {
+                    name: param.name.clone(),
+                    ty: param.ty,
+                })
+                .collect(),
+            has_effect_param,
+            has_body: fun.body.is_some(),
+        });
+    }
+
+    let mut out = HashSet::new();
+    for fun in file_items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(member_funs.iter())
+    {
+        if !request_root_keys.contains(&(fun.source_path.clone(), fun.fqn.clone(), fun.span)) {
+            continue;
+        }
+        let Some(body) = &fun.body else {
+            continue;
+        };
+        collect_hir_direct_call_instances_in_block(
+            body,
+            &fun.source_path,
+            &templates_by_fqn,
+            typecheck_types,
+            types,
+            top_level_fun_call_bindings,
+            &mut out,
+        );
+    }
+
+    out.into_iter().collect()
+}
+
+fn collect_hir_direct_call_instances_in_block(
+    block: &crate::hir::Block,
+    source_path: &Path,
+    templates_by_fqn: &HashMap<String, Vec<HirDirectCallTemplateInfo>>,
+    typecheck_types: &TypeStore,
+    types: &mut TypeStore,
+    top_level_fun_call_bindings: &HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    out: &mut HashSet<InstanceKey>,
+) {
+    for stmt in &block.stmts {
+        collect_hir_direct_call_instances_in_stmt(
+            stmt,
+            source_path,
+            templates_by_fqn,
+            typecheck_types,
+            types,
+            top_level_fun_call_bindings,
+            out,
+        );
+    }
+}
+
+fn collect_hir_direct_call_instances_in_stmt(
+    stmt: &crate::hir::Stmt,
+    source_path: &Path,
+    templates_by_fqn: &HashMap<String, Vec<HirDirectCallTemplateInfo>>,
+    typecheck_types: &TypeStore,
+    types: &mut TypeStore,
+    top_level_fun_call_bindings: &HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    out: &mut HashSet<InstanceKey>,
+) {
+    match &stmt.kind {
+        crate::hir::StmtKind::Expr(expr) => collect_hir_direct_call_instances_in_expr(
+            expr,
+            source_path,
+            templates_by_fqn,
+            typecheck_types,
+            types,
+            top_level_fun_call_bindings,
+            out,
+        ),
+        crate::hir::StmtKind::Val(decl) => {
+            if let Some(init) = &decl.init {
+                collect_hir_direct_call_instances_in_expr(
+                    init,
+                    source_path,
+                    templates_by_fqn,
+                    typecheck_types,
+                    types,
+                    top_level_fun_call_bindings,
+                    out,
+                );
+            }
+        }
+        crate::hir::StmtKind::Assign { lhs, rhs, .. } => {
+            collect_hir_direct_call_instances_in_expr(
+                lhs,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+            collect_hir_direct_call_instances_in_expr(
+                rhs,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+        }
+        crate::hir::StmtKind::While { cond, body } => {
+            collect_hir_direct_call_instances_in_expr(
+                cond,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+            collect_hir_direct_call_instances_in_block(
+                body,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+        }
+        crate::hir::StmtKind::Return { value } => {
+            if let Some(value) = value {
+                collect_hir_direct_call_instances_in_expr(
+                    value,
+                    source_path,
+                    templates_by_fqn,
+                    typecheck_types,
+                    types,
+                    top_level_fun_call_bindings,
+                    out,
+                );
+            }
+        }
+        crate::hir::StmtKind::Empty
+        | crate::hir::StmtKind::Break { .. }
+        | crate::hir::StmtKind::Continue { .. }
+        | crate::hir::StmtKind::Todo(_) => {}
+    }
+}
+
+fn collect_hir_direct_call_instances_in_expr(
+    expr: &crate::hir::Expr,
+    source_path: &Path,
+    templates_by_fqn: &HashMap<String, Vec<HirDirectCallTemplateInfo>>,
+    typecheck_types: &TypeStore,
+    types: &mut TypeStore,
+    top_level_fun_call_bindings: &HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    out: &mut HashSet<InstanceKey>,
+) {
+    match &expr.kind {
+        crate::hir::ExprKind::Call { callee, args } => {
+            collect_hir_direct_call_instances_in_expr(
+                callee,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+            for arg in args {
+                match arg {
+                    crate::hir::CallArg::Positional(value) => {
+                        collect_hir_direct_call_instances_in_expr(
+                            value,
+                            source_path,
+                            templates_by_fqn,
+                            typecheck_types,
+                            types,
+                            top_level_fun_call_bindings,
+                            out,
+                        )
+                    }
+                    crate::hir::CallArg::Named { value, .. } => {
+                        collect_hir_direct_call_instances_in_expr(
+                            value,
+                            source_path,
+                            templates_by_fqn,
+                            typecheck_types,
+                            types,
+                            top_level_fun_call_bindings,
+                            out,
+                        )
+                    }
+                }
+            }
+
+            let crate::hir::ExprKind::VarRef(crate::hir::ValueRef::TopLevel { fqn, .. }) =
+                &callee.kind
+            else {
+                return;
+            };
+            let Some(candidates) = templates_by_fqn.get(fqn) else {
+                return;
+            };
+            if let Some(binding) =
+                top_level_fun_call_bindings.get(&(source_path.to_path_buf(), expr.span))
+                && binding.fqn == *fqn
+            {
+                let candidate =
+                    choose_hir_direct_call_template_for_binding(candidates, binding, &*types)
+                        .or_else(|| choose_hir_direct_call_template(candidates, &*types));
+                if let Some(candidate) = candidate {
+                    let type_args = binding
+                        .type_args
+                        .iter()
+                        .map(|&ty| types.re_intern_from(typecheck_types, ty))
+                        .collect::<Vec<_>>();
+                    let eff_args = binding
+                        .eff_args
+                        .iter()
+                        .map(|row| re_intern_effect_row_from(types, typecheck_types, row))
+                        .collect::<Vec<_>>();
+                    if !type_args.is_empty() || !eff_args.is_empty() {
+                        let instance = InstanceKey {
+                            template: candidate.template.clone(),
+                            type_args,
+                            eff_args,
+                        };
+                        if instance_request_is_concrete(
+                            types,
+                            &instance.type_args,
+                            &instance.eff_args,
+                        ) {
+                            out.insert(instance);
+                        }
+                    }
+                    return;
+                }
+            }
+
+            let Some(candidate) = choose_hir_direct_call_template(candidates, &*types) else {
+                return;
+            };
+            if candidate.has_effect_param || candidate.type_param_names.is_empty() {
+                return;
+            }
+
+            let Some(arg_to_param) = map_hir_call_args_to_signature_params(&candidate.params, args)
+            else {
+                return;
+            };
+            let mut bindings = HashMap::new();
+            for (arg_idx, param_idx) in arg_to_param.into_iter().enumerate() {
+                let Some(param) = candidate.params.get(param_idx) else {
+                    return;
+                };
+                if !type_contains_param(types, param.ty) {
+                    continue;
+                }
+                let arg_ty = match args.get(arg_idx) {
+                    Some(crate::hir::CallArg::Positional(value)) => value.ty,
+                    Some(crate::hir::CallArg::Named { value, .. }) => value.ty,
+                    None => return,
+                };
+                if type_contains_param(types, arg_ty) {
+                    return;
+                }
+                collect_type_param_bindings(types, param.ty, arg_ty, &mut bindings);
+            }
+
+            let mut ordered = Vec::with_capacity(candidate.type_param_names.len());
+            for name in &candidate.type_param_names {
+                let Some(ty) = bindings.get(name).copied() else {
+                    return;
+                };
+                if type_contains_param(types, ty) {
+                    return;
+                }
+                ordered.push(ty);
+            }
+            if ordered.is_empty() {
+                return;
+            }
+
+            let instance = InstanceKey {
+                template: candidate.template.clone(),
+                type_args: ordered,
+                eff_args: Vec::new(),
+            };
+            if instance_request_is_concrete(types, &instance.type_args, &instance.eff_args) {
+                out.insert(instance);
+            }
+        }
+        crate::hir::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_hir_direct_call_instances_in_expr(
+                    &field.value,
+                    source_path,
+                    templates_by_fqn,
+                    typecheck_types,
+                    types,
+                    top_level_fun_call_bindings,
+                    out,
+                );
+            }
+        }
+        crate::hir::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_hir_direct_call_instances_in_expr(
+                    element,
+                    source_path,
+                    templates_by_fqn,
+                    typecheck_types,
+                    types,
+                    top_level_fun_call_bindings,
+                    out,
+                );
+            }
+        }
+        crate::hir::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_hir_direct_call_instances_in_expr(
+                        expr,
+                        source_path,
+                        templates_by_fqn,
+                        typecheck_types,
+                        types,
+                        top_level_fun_call_bindings,
+                        out,
+                    );
+                }
+            }
+        }
+        crate::hir::ExprKind::Unary { expr, .. } => collect_hir_direct_call_instances_in_expr(
+            expr,
+            source_path,
+            templates_by_fqn,
+            typecheck_types,
+            types,
+            top_level_fun_call_bindings,
+            out,
+        ),
+        crate::hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_hir_direct_call_instances_in_expr(
+                lhs,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+            collect_hir_direct_call_instances_in_expr(
+                rhs,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+        }
+        crate::hir::ExprKind::TypeCheck { expr, .. } | crate::hir::ExprKind::Cast { expr, .. } => {
+            collect_hir_direct_call_instances_in_expr(
+                expr,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+        }
+        crate::hir::ExprKind::Block(block) => collect_hir_direct_call_instances_in_block(
+            block,
+            source_path,
+            templates_by_fqn,
+            typecheck_types,
+            types,
+            top_level_fun_call_bindings,
+            out,
+        ),
+        crate::hir::ExprKind::Closure(closure) => collect_hir_direct_call_instances_in_expr(
+            &closure.body,
+            source_path,
+            templates_by_fqn,
+            typecheck_types,
+            types,
+            top_level_fun_call_bindings,
+            out,
+        ),
+        crate::hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_hir_direct_call_instances_in_expr(
+                cond,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+            collect_hir_direct_call_instances_in_expr(
+                then_branch,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+            if let Some(else_branch) = else_branch {
+                collect_hir_direct_call_instances_in_expr(
+                    else_branch,
+                    source_path,
+                    templates_by_fqn,
+                    typecheck_types,
+                    types,
+                    top_level_fun_call_bindings,
+                    out,
+                );
+            }
+        }
+        crate::hir::ExprKind::When { subject, arms } => {
+            collect_hir_direct_call_instances_in_expr(
+                subject,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_hir_direct_call_instances_in_expr(
+                        guard,
+                        source_path,
+                        templates_by_fqn,
+                        typecheck_types,
+                        types,
+                        top_level_fun_call_bindings,
+                        out,
+                    );
+                }
+                collect_hir_direct_call_instances_in_expr(
+                    &arm.body,
+                    source_path,
+                    templates_by_fqn,
+                    typecheck_types,
+                    types,
+                    top_level_fun_call_bindings,
+                    out,
+                );
+            }
+        }
+        crate::hir::ExprKind::MemberAccess { receiver, .. } => {
+            collect_hir_direct_call_instances_in_expr(
+                receiver,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            )
+        }
+        crate::hir::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    crate::hir::CallArg::Positional(value) => {
+                        collect_hir_direct_call_instances_in_expr(
+                            value,
+                            source_path,
+                            templates_by_fqn,
+                            typecheck_types,
+                            types,
+                            top_level_fun_call_bindings,
+                            out,
+                        )
+                    }
+                    crate::hir::CallArg::Named { value, .. } => {
+                        collect_hir_direct_call_instances_in_expr(
+                            value,
+                            source_path,
+                            templates_by_fqn,
+                            typecheck_types,
+                            types,
+                            top_level_fun_call_bindings,
+                            out,
+                        )
+                    }
+                }
+            }
+        }
+        crate::hir::ExprKind::Handle(handle) => {
+            collect_hir_direct_call_instances_in_block(
+                &handle.body,
+                source_path,
+                templates_by_fqn,
+                typecheck_types,
+                types,
+                top_level_fun_call_bindings,
+                out,
+            );
+            for arm in &handle.arms {
+                collect_hir_direct_call_instances_in_expr(
+                    &arm.body,
+                    source_path,
+                    templates_by_fqn,
+                    typecheck_types,
+                    types,
+                    top_level_fun_call_bindings,
+                    out,
+                );
+            }
+            if let Some(finally) = &handle.finally {
+                collect_hir_direct_call_instances_in_block(
+                    finally,
+                    source_path,
+                    templates_by_fqn,
+                    typecheck_types,
+                    types,
+                    top_level_fun_call_bindings,
+                    out,
+                );
+            }
+        }
+        crate::hir::ExprKind::Missing
+        | crate::hir::ExprKind::Literal(_)
+        | crate::hir::ExprKind::VarRef(_)
+        | crate::hir::ExprKind::UnresolvedIdent { .. }
+        | crate::hir::ExprKind::Todo(_) => {}
+    }
+}
+
+fn choose_hir_direct_call_template_for_binding<'a>(
+    candidates: &'a [HirDirectCallTemplateInfo],
+    binding: &ast::TopLevelFunCallBinding,
+    types: &TypeStore,
+) -> Option<&'a HirDirectCallTemplateInfo> {
+    let chosen = candidates.iter().find(|candidate| {
+        candidate.template.source_path == binding.decl_file
+            && candidate.template.decl_span == binding.decl_span
+    })?;
+    let mut preferred = candidates
+        .iter()
+        .filter(|candidate| {
+            hir_direct_call_templates_have_same_signature(candidate, chosen, types)
+                && candidate.has_body
+        })
+        .collect::<Vec<_>>();
+    if preferred.is_empty() {
+        preferred.extend(candidates.iter().filter(|candidate| {
+            hir_direct_call_templates_have_same_signature(candidate, chosen, types)
+        }));
+    }
+    preferred.into_iter().min_by(|lhs, rhs| {
+        lhs.template
+            .source_path
+            .cmp(&rhs.template.source_path)
+            .then_with(|| {
+                lhs.template
+                    .decl_span
+                    .start
+                    .cmp(&rhs.template.decl_span.start)
+            })
+            .then_with(|| lhs.template.decl_span.end.cmp(&rhs.template.decl_span.end))
+    })
+}
+
+fn hir_direct_call_templates_have_same_signature(
+    lhs: &HirDirectCallTemplateInfo,
+    rhs: &HirDirectCallTemplateInfo,
+    types: &TypeStore,
+) -> bool {
+    lhs.type_param_names == rhs.type_param_names
+        && lhs.has_effect_param == rhs.has_effect_param
+        && lhs.params.len() == rhs.params.len()
+        && lhs.params.iter().zip(rhs.params.iter()).all(|(lhs, rhs)| {
+            lhs.name == rhs.name
+                && types.display(lhs.ty).to_string() == types.display(rhs.ty).to_string()
+        })
+}
+
+fn map_hir_call_args_to_signature_params(
+    params: &[CallableSignatureParam],
+    args: &[crate::hir::CallArg],
+) -> Option<Vec<usize>> {
+    let mut used = vec![false; params.len()];
+    let mut next_pos = 0;
+    let mut out = Vec::with_capacity(args.len());
+
+    for arg in args {
+        let param_idx = match arg {
+            crate::hir::CallArg::Named { name, .. } => params
+                .iter()
+                .enumerate()
+                .find_map(|(idx, param)| (!used[idx] && param.name == *name).then_some(idx))?,
+            crate::hir::CallArg::Positional(_) => {
+                while used.get(next_pos).copied().unwrap_or(false) {
+                    next_pos += 1;
+                }
+                let idx = next_pos;
+                if idx >= params.len() {
+                    return None;
+                }
+                next_pos += 1;
+                idx
+            }
+        };
+        used[param_idx] = true;
+        out.push(param_idx);
+    }
+
+    Some(out)
+}
+
+fn choose_hir_direct_call_template<'a>(
+    candidates: &'a [HirDirectCallTemplateInfo],
+    types: &TypeStore,
+) -> Option<&'a HirDirectCallTemplateInfo> {
+    let first = candidates.first()?;
+    let same_signature = candidates
+        .iter()
+        .skip(1)
+        .all(|candidate| hir_direct_call_templates_have_same_signature(candidate, first, types));
+    if !same_signature {
+        return None;
+    }
+
+    let mut preferred = candidates
+        .iter()
+        .filter(|candidate| candidate.has_body)
+        .collect::<Vec<_>>();
+    if preferred.is_empty() {
+        preferred.extend(candidates.iter());
+    }
+    preferred.into_iter().min_by(|lhs, rhs| {
+        lhs.template
+            .source_path
+            .cmp(&rhs.template.source_path)
+            .then_with(|| {
+                lhs.template
+                    .decl_span
+                    .start
+                    .cmp(&rhs.template.decl_span.start)
+            })
+            .then_with(|| lhs.template.decl_span.end.cmp(&rhs.template.decl_span.end))
+    })
 }
 
 fn collect_dump_materialization_inputs(
@@ -1181,12 +1949,14 @@ fn materialize_generic_mir(
 ) -> MaterializeResult<MaterializedMir> {
     let MaterializeRequestSet {
         monomorph_keys,
+        hir_direct_instance_keys,
         construction_inputs,
     } = requests;
     let typecheck_types = construction_inputs.typecheck_types;
     let mut materializer =
         MirInstanceMaterializer::new(generic_file, types, builtins, construction_inputs)?;
-    let initial_requests = materializer.seed_requests(typecheck_types, monomorph_keys)?;
+    let mut initial_requests = materializer.seed_requests(typecheck_types, monomorph_keys)?;
+    initial_requests.extend(hir_direct_instance_keys);
     materializer.run(initial_requests)
 }
 
@@ -1195,7 +1965,6 @@ struct TemplateRootInfo {
     template: TemplateKey,
     type_param_names: Vec<String>,
     eff_param_name: Option<String>,
-    root_fun: FunDecl,
     family: Vec<FunDecl>,
 }
 
@@ -1207,6 +1976,31 @@ struct TemplateRootCandidate {
     eff_param_name: Option<String>,
     signature_key: String,
     root_fun: FunDecl,
+}
+
+#[derive(Clone)]
+struct DeclOnlyTemplateCandidate {
+    request_lookup_key: RequestTemplateKey,
+    template: TemplateKey,
+    type_param_names: Vec<String>,
+    eff_param_name: Option<String>,
+    signature_key: String,
+    signature: CallableSignatureInfo,
+}
+
+#[derive(Clone)]
+struct TemplateCatalogCandidate {
+    template: TemplateKey,
+    signature_key: String,
+    prefers_materialized_body: bool,
+}
+
+#[derive(Clone)]
+struct TemplateSignatureInfo {
+    template: TemplateKey,
+    type_param_names: Vec<String>,
+    eff_param_name: Option<String>,
+    params: Vec<CallableSignatureParam>,
 }
 
 #[derive(Clone)]
@@ -1243,6 +2037,7 @@ struct MirInstanceMaterializer {
     generic_family_fqns: HashSet<String>,
     request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     roots: HashMap<TemplateKey, TemplateRootInfo>,
+    template_signatures: HashMap<TemplateKey, TemplateSignatureInfo>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     reachable_fun_bodies_by_request: HashMap<RequestTemplateKey, ReachableMirFun>,
@@ -1254,6 +2049,7 @@ struct MirInstanceMaterializer {
     queued: HashSet<InstanceKey>,
     queue: VecDeque<InstanceKey>,
     materialized: HashMap<InstanceKey, Vec<FunDecl>>,
+    declaration_only_instances: HashSet<InstanceKey>,
 }
 
 impl MirInstanceMaterializer {
@@ -1267,6 +2063,7 @@ impl MirInstanceMaterializer {
             typecheck_types,
             template_infos,
             callable_body_infos,
+            callable_signatures,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             request_root_fun_keys,
@@ -1277,35 +2074,62 @@ impl MirInstanceMaterializer {
                 generic_funs.push(fun.clone());
             }
         }
+        let callable_signatures = callable_signatures
+            .into_iter()
+            .map(|signature| (signature.template.clone(), signature))
+            .collect::<HashMap<_, _>>();
 
         let mut root_candidates = Vec::new();
-        let mut deferred_request_templates = Vec::new();
+        let mut decl_only_candidates = Vec::new();
+        let mut canonical_candidates = Vec::new();
         for info in template_infos {
+            let template = info.template.clone();
             let root_fun = generic_funs
                 .iter()
-                .find(|fun| fun.fqn == info.template.fqn && fun.span == info.template.decl_span)
+                .find(|fun| fun.fqn == template.fqn && fun.span == template.decl_span)
                 .cloned();
             let Some(root_fun) = root_fun else {
                 if !info.has_body {
-                    deferred_request_templates.push((
-                        info.request_lookup_key,
-                        info.template.fqn,
-                        info.signature_key,
-                    ));
+                    let Some(signature) = callable_signatures.get(&template).cloned() else {
+                        return Err(frontend_err(format!(
+                            "materialize 无法定位 declaration-only generic template 的 HIR 签名：{}@{}:{:?}",
+                            template.fqn,
+                            template.source_path.display(),
+                            template.decl_span
+                        )));
+                    };
+                    canonical_candidates.push(TemplateCatalogCandidate {
+                        template: template.clone(),
+                        signature_key: info.signature_key.clone(),
+                        prefers_materialized_body: false,
+                    });
+                    decl_only_candidates.push(DeclOnlyTemplateCandidate {
+                        request_lookup_key: info.request_lookup_key,
+                        template,
+                        type_param_names: info.type_param_names,
+                        eff_param_name: info.eff_param_name,
+                        signature_key: info.signature_key,
+                        signature,
+                    });
                     continue;
                 }
                 return Err(materialize_err(
                     MirMaterializeError::MissingMirRootForTemplate {
-                        fqn: info.template.fqn.clone(),
-                        file: info.template.source_path.display().to_string(),
-                        span: info.template.decl_span,
+                        fqn: template.fqn.clone(),
+                        file: template.source_path.display().to_string(),
+                        span: template.decl_span,
                     },
                 ));
             };
 
+            canonical_candidates.push(TemplateCatalogCandidate {
+                template: template.clone(),
+                signature_key: info.signature_key.clone(),
+                prefers_materialized_body: root_fun.body.is_some(),
+            });
             root_candidates.push(TemplateRootCandidate {
                 request_lookup_key: info.request_lookup_key,
-                template: info.template,
+                template,
                 type_param_names: info.type_param_names,
                 eff_param_name: info.eff_param_name,
                 signature_key: info.signature_key,
@@ -1313,11 +2137,11 @@ impl MirInstanceMaterializer {
             });
         }
 
-        let canonical_templates = canonical_template_map(&root_candidates);
+        let canonical_templates = canonical_template_map(&canonical_candidates);
 
         let mut request_templates = HashMap::new();
         let mut roots = HashMap::new();
-        let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
+        let mut template_signatures = HashMap::new();
         for candidate in root_candidates {
             let group_key = (
                 candidate.template.fqn.clone(),
@@ -1329,7 +2153,7 @@ impl MirInstanceMaterializer {
                 .expect("canonical template must exist for every root candidate");
             request_templates.insert(candidate.request_lookup_key, canonical.clone());
 
-            if candidate.template != canonical {
+            if candidate.template != canonical || roots.contains_key(&canonical) {
                 continue;
             }
 
@@ -1338,27 +2162,66 @@ impl MirInstanceMaterializer {
                 .filter(|fun| belongs_to_template_family(fun, &candidate.root_fun))
                 .cloned()
                 .collect::<Vec<_>>();
-            roots_by_fqn
-                .entry(canonical.fqn.clone())
-                .or_default()
-                .push(canonical.clone());
+            template_signatures.insert(
+                canonical.clone(),
+                TemplateSignatureInfo {
+                    template: canonical.clone(),
+                    type_param_names: candidate.type_param_names.clone(),
+                    eff_param_name: candidate.eff_param_name.clone(),
+                    params: candidate
+                        .root_fun
+                        .params
+                        .iter()
+                        .map(|param| CallableSignatureParam {
+                            name: param.name.clone(),
+                            ty: param.ty,
+                        })
+                        .collect(),
+                },
+            );
             roots.insert(
                 canonical.clone(),
                 TemplateRootInfo {
                     template: canonical,
                     type_param_names: candidate.type_param_names,
                     eff_param_name: candidate.eff_param_name,
-                    root_fun: candidate.root_fun,
                     family,
                 },
             );
         }
 
-        for (request_lookup_key, fqn, signature_key) in deferred_request_templates {
-            let Some(canonical) = canonical_templates.get(&(fqn, signature_key)).cloned() else {
+        for candidate in decl_only_candidates {
+            let group_key = (
+                candidate.template.fqn.clone(),
+                candidate.signature_key.clone(),
+            );
+            let canonical = canonical_templates
+                .get(&group_key)
+                .cloned()
+                .expect("canonical template must exist for every decl-only candidate");
+            request_templates.insert(candidate.request_lookup_key, canonical.clone());
+
+            if candidate.template != canonical || template_signatures.contains_key(&canonical) {
                 continue;
-            };
-            request_templates.insert(request_lookup_key, canonical);
+            }
+
+            template_signatures.insert(
+                canonical.clone(),
+                TemplateSignatureInfo {
+                    template: canonical,
+                    type_param_names: candidate.type_param_names,
+                    eff_param_name: candidate.eff_param_name,
+                    params: candidate.signature.params,
+                },
+            );
+        }
+
+        let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
+        for template in template_signatures.keys() {
+            roots_by_fqn
+                .entry(template.fqn.clone())
+                .or_default()
+                .push(template.clone());
         }
 
         let request_root_funs = request_root_fun_keys
@@ -1419,6 +2282,7 @@ impl MirInstanceMaterializer {
             generic_family_fqns,
             request_templates,
             roots,
+            template_signatures,
             roots_by_fqn,
             direct_call_bindings: top_level_fun_call_bindings.clone(),
             reachable_fun_bodies_by_request,
@@ -1430,6 +2294,7 @@ impl MirInstanceMaterializer {
             queued: HashSet::new(),
             queue: VecDeque::new(),
             materialized: HashMap::new(),
+            declaration_only_instances: HashSet::new(),
         };
         materializer.load_site_instance_bindings(
             typecheck_types,
@@ -1743,11 +2608,16 @@ impl MirInstanceMaterializer {
             self.materialized.insert(instance, family);
         }
 
-        let mut instance_keys = self.materialized.keys().cloned().collect::<Vec<_>>();
+        let mut materialized_instance_keys = self.materialized.keys().cloned().collect::<Vec<_>>();
+        materialized_instance_keys.sort_by_key(|a| self.instance_fqn(a));
+
+        let mut instance_keys = materialized_instance_keys.clone();
+        instance_keys.extend(self.declaration_only_instances.iter().cloned());
         instance_keys.sort_by_key(|a| self.instance_fqn(a));
+        instance_keys.dedup();
 
         let mut items = Vec::new();
-        for key in &instance_keys {
+        for key in &materialized_instance_keys {
             let mut family = self
                 .materialized
                 .get(key)
@@ -1769,10 +2639,19 @@ impl MirInstanceMaterializer {
     }
 
     fn enqueue(&mut self, key: InstanceKey) {
-        if self.materialized.contains_key(&key) || !self.queued.insert(key.clone()) {
+        if self.materialized.contains_key(&key)
+            || self.declaration_only_instances.contains(&key)
+            || self.queued.contains(&key)
+        {
             return;
         }
-        self.queue.push_back(key);
+
+        if self.roots.contains_key(&key.template) {
+            self.queued.insert(key.clone());
+            self.queue.push_back(key);
+        } else if self.template_signatures.contains_key(&key.template) {
+            self.declaration_only_instances.insert(key);
+        }
     }
 
     fn materialize_instance(&mut self, instance: &InstanceKey) -> MaterializeResult<Vec<FunDecl>> {
@@ -2122,15 +3001,15 @@ impl MirInstanceMaterializer {
         if candidates.len() != 1 {
             return None;
         }
-        let root = self.roots.get(&candidates[0])?;
-        if root.type_param_names.is_empty() || root.eff_param_name.is_some() {
+        let signature = self.template_signatures.get(&candidates[0])?;
+        if signature.type_param_names.is_empty() || signature.eff_param_name.is_some() {
             return None;
         }
 
-        let arg_to_param = map_call_args_to_params(&root.root_fun.params, args)?;
+        let arg_to_param = map_call_args_to_signature_params(&signature.params, args)?;
         let mut bindings = HashMap::new();
         for (arg_idx, param_idx) in arg_to_param.into_iter().enumerate() {
-            let param = root.root_fun.params.get(param_idx)?;
+            let param = signature.params.get(param_idx)?;
             if !type_contains_param(&self.types, param.ty) {
                 continue;
             }
@@ -2139,8 +3018,8 @@ impl MirInstanceMaterializer {
             collect_type_param_bindings(&self.types, param.ty, concrete_ty, &mut bindings);
         }
 
-        let mut ordered = Vec::with_capacity(root.type_param_names.len());
-        for name in &root.type_param_names {
+        let mut ordered = Vec::with_capacity(signature.type_param_names.len());
+        for name in &signature.type_param_names {
             let ty = bindings.get(name).copied()?;
             if type_contains_param(&self.types, ty) {
                 return None;
@@ -2152,7 +3031,7 @@ impl MirInstanceMaterializer {
         }
 
         Some(InstanceKey {
-            template: root.template.clone(),
+            template: signature.template.clone(),
             type_args: ordered,
             eff_args: Vec::new(),
         })
@@ -2297,9 +3176,9 @@ impl MirInstanceMaterializer {
 }
 
 fn canonical_template_map(
-    candidates: &[TemplateRootCandidate],
+    candidates: &[TemplateCatalogCandidate],
 ) -> HashMap<(String, String), TemplateKey> {
-    let mut grouped: HashMap<(String, String), Vec<&TemplateRootCandidate>> = HashMap::new();
+    let mut grouped: HashMap<(String, String), Vec<&TemplateCatalogCandidate>> = HashMap::new();
     for candidate in candidates {
         grouped
             .entry((
@@ -2319,12 +3198,12 @@ fn canonical_template_map(
 }
 
 fn choose_canonical_template<'a>(
-    candidates: &[&'a TemplateRootCandidate],
-) -> &'a TemplateRootCandidate {
+    candidates: &[&'a TemplateCatalogCandidate],
+) -> &'a TemplateCatalogCandidate {
     let mut preferred = candidates
         .iter()
         .copied()
-        .filter(|candidate| candidate.root_fun.body.is_some())
+        .filter(|candidate| candidate.prefers_materialized_body)
         .collect::<Vec<_>>();
     if preferred.is_empty() {
         preferred.extend(candidates.iter().copied());
@@ -2511,7 +3390,10 @@ fn effect_row_param_marker_name(types: &TypeStore, ty: TypeId) -> Option<String>
     }
 }
 
-fn map_call_args_to_params(params: &[Param], args: &[CallArg]) -> Option<Vec<usize>> {
+fn map_call_args_to_signature_params(
+    params: &[CallableSignatureParam],
+    args: &[CallArg],
+) -> Option<Vec<usize>> {
     let mut used = vec![false; params.len()];
     let mut next_pos = 0;
     let mut out = Vec::with_capacity(args.len());
@@ -2579,6 +3461,75 @@ fn effect_row_contains_param(types: &TypeStore, row: &EffectRow) -> bool {
         .iter()
         .copied()
         .any(|term| type_contains_param(types, term))
+}
+
+fn collect_type_param_names_in_type(types: &TypeStore, ty: TypeId, out: &mut Vec<String>) {
+    match types.kind(ty) {
+        TypeKind::Param(param) => {
+            if param.decl_file.as_os_str() != crate::hir::EFFECT_ROW_PARAM_DECL_FILE
+                && !out.contains(&param.name)
+            {
+                out.push(param.name.clone());
+            }
+        }
+        TypeKind::StarProjection(star) => {
+            collect_type_param_names_in_type(types, star.read_ty, out)
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            for &arg in &nominal.args {
+                collect_type_param_names_in_type(types, arg, out);
+            }
+            if let Some(eff) = &nominal.eff {
+                for &term in &eff.terms {
+                    collect_type_param_names_in_type(types, term, out);
+                }
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            collect_type_param_names_in_type(types, *inner, out)
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            for &element in elements {
+                collect_type_param_names_in_type(types, element, out);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            if let Some(receiver) = fun.receiver {
+                collect_type_param_names_in_type(types, receiver, out);
+            }
+            for &param in &fun.params {
+                collect_type_param_names_in_type(types, param, out);
+            }
+            collect_type_param_names_in_type(types, fun.return_ty, out);
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => {
+            for &variant in &union.variants {
+                collect_type_param_names_in_type(types, variant, out);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+        | TypeKind::Value(ValueTypeKind::Unit)
+        | TypeKind::Value(ValueTypeKind::Nothing)
+        | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
+        | TypeKind::Value(ValueTypeKind::Int)
+        | TypeKind::Value(ValueTypeKind::UInt)
+        | TypeKind::Value(ValueTypeKind::IntN(_))
+        | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+    }
+}
+
+fn function_type_has_effect_param(types: &TypeStore, fun_ty: TypeId) -> bool {
+    let TypeKind::Ref(RefTypeKind::Function(fun)) = types.kind(fun_ty) else {
+        return false;
+    };
+    fun.effects
+        .terms
+        .iter()
+        .any(|&term| effect_row_param_marker_name(types, term).is_some())
 }
 
 fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
@@ -3627,6 +4578,412 @@ fun entry(): Int / Boom {
         assert!(
             !keys[0].eff_args[0].is_pure(),
             "lambda-derived 成员 direct-call monomorph key 应保留非 Pure eff_args"
+        );
+    }
+
+    #[test]
+    fn dump_materialization_inputs_keep_precise_type_args_for_object_member_call_results() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_object_member_call_binding.scoop",
+            r#"
+package fixtures.materialize
+
+import scoop.core.*
+
+object Helper {
+    fun run(seed: Int): Int {
+        println(seed)
+        return seed + 1
+    }
+}
+
+fun main(): Int {
+    val result: Int = Helper.run(41)
+    println(result)
+    return 0
+}
+"#,
+        );
+
+        let mut inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let (_value_refs, call_bindings) = collect_site_instance_bindings(&compilation_unit);
+        let builtins = inputs.typecheck_types.intern_builtins();
+
+        let println_type_args = call_bindings
+            .iter()
+            .filter(|((site_path, _), binding)| {
+                *site_path == source.path() && binding.fqn == "scoop.core.println"
+            })
+            .map(|(_, binding)| {
+                assert_eq!(binding.type_args.len(), 1);
+                binding.type_args[0]
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            println_type_args.len(),
+            2,
+            "object member call 场景中应记录 2 个用户 println 调用"
+        );
+        assert!(
+            println_type_args.iter().all(|&ty| ty == builtins.int),
+            "object member call 场景中的 println binding 不应退回 Any：{println_type_args:?}"
+        );
+
+        let println_monomorph_type_args = inputs
+            .monomorph_keys
+            .iter()
+            .filter(|key| key.symbol.fqn == "scoop.core.println")
+            .map(|key| {
+                assert_eq!(key.type_args.len(), 1);
+                key.type_args[0]
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !println_monomorph_type_args.is_empty(),
+            "object member call 场景中至少应保留 request-root 上的 println monomorph key"
+        );
+        assert!(
+            println_monomorph_type_args
+                .iter()
+                .all(|&ty| ty == builtins.int),
+            "object member call 场景中的 println monomorph key 不应退回 Any：{println_monomorph_type_args:?}"
+        );
+
+        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            &[source.path().to_path_buf()],
+            &inputs.index,
+            Some(&inputs.env),
+            &inputs.typecheck_types,
+            &inputs.monomorph_keys,
+        )
+        .unwrap();
+        let materialized_printlns = materialized
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) if fun.fqn.starts_with("scoop.core.println::<") => {
+                    Some(fun.fqn.clone())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            materialized_printlns
+                .iter()
+                .filter(|fqn| *fqn == "scoop.core.println::<Int>")
+                .count()
+                >= 1,
+            "object member call 场景中应 materialize 出 println::<Int>：{materialized_printlns:#?}"
+        );
+        assert!(
+            !materialized_printlns
+                .iter()
+                .any(|fqn| fqn == "scoop.core.println::<Any>"),
+            "object member call 场景中不应 materialize 出 println::<Any>：{materialized_printlns:#?}"
+        );
+    }
+
+    #[test]
+    fn dump_materialization_inputs_keep_precise_type_args_for_chained_member_access_call_args() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_chained_member_access_binding.scoop",
+            r#"
+package fixtures.materialize
+
+import scoop.core.*
+
+struct Tag(val label: String, val score: Int)
+
+class Node(val name: String, val tag: Tag, val value: Int)
+
+class Holder(val node: Node)
+
+fun makeHolder(): Holder {
+    val node: Node = Node("root", Tag { label: "alpha", score: 7 }, 42)
+    return Holder(node)
+}
+
+fun main() {
+    val holder: Holder = makeHolder()
+    val label: String = holder.node.tag.label
+    println(label)
+    println(holder.node.tag.label)
+    println(holder.node.tag.score)
+}
+"#,
+        );
+
+        let mut inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let (_value_refs, call_bindings) = collect_site_instance_bindings(&compilation_unit);
+        let builtins = inputs.typecheck_types.intern_builtins();
+
+        let println_type_args = call_bindings
+            .iter()
+            .filter(|((site_path, _), binding)| {
+                *site_path == source.path() && binding.fqn == "scoop.core.println"
+            })
+            .map(|(_, binding)| {
+                assert_eq!(binding.type_args.len(), 1);
+                binding.type_args[0]
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(println_type_args.len(), 3);
+        assert!(
+            !println_type_args.contains(&builtins.any),
+            "链式成员访问作为实参时，println 不应退回到 `Any` 实例"
+        );
+        assert_eq!(
+            println_type_args
+                .iter()
+                .filter(|&&ty| ty == builtins.string)
+                .count(),
+            2,
+            "label 与 holder.node.tag.label 都应绑定到 println::<String>"
+        );
+        assert_eq!(
+            println_type_args
+                .iter()
+                .filter(|&&ty| ty == builtins.int)
+                .count(),
+            1,
+            "holder.node.tag.score 应绑定到 println::<Int>"
+        );
+
+        let println_monomorph_type_args = inputs
+            .monomorph_keys
+            .iter()
+            .filter(|key| key.symbol.fqn == "scoop.core.println")
+            .map(|key| {
+                assert_eq!(key.type_args.len(), 1);
+                key.type_args[0]
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !println_monomorph_type_args.contains(&builtins.any),
+            "链式成员访问作为实参时，println 的 monomorph key 不应退回到 `Any`"
+        );
+
+        let template_catalog = collect_generic_template_infos(&compilation_unit);
+        let callable_body_infos = collect_callable_body_infos(&compilation_unit);
+        let (top_level_fun_value_refs, top_level_fun_call_bindings) =
+            collect_site_instance_bindings(&compilation_unit);
+        let mut lowered_hir =
+            crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+                &inputs.index,
+                &compilation_unit,
+                &compilation_unit,
+                Some(&inputs.env),
+                &inputs.typecheck_types,
+            )
+            .unwrap();
+        let request_root_fun_keys =
+            collect_request_root_fun_keys(&lowered_hir, &[source.path().to_path_buf()]);
+        let callable_signatures = collect_callable_signature_infos(&lowered_hir);
+        let hir_direct_instance_keys = collect_hir_direct_call_instance_requests(
+            &mut lowered_hir,
+            &inputs.typecheck_types,
+            &call_bindings,
+            &request_root_fun_keys,
+        );
+        let hir_direct_println_requests = hir_direct_instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "scoop.core.println")
+            .map(|key| {
+                (
+                    key.template.source_path.clone(),
+                    key.template.decl_span,
+                    key.type_args.clone(),
+                    key.eff_args.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let builtins = lowered_hir.types.intern_builtins();
+        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
+        let generic_file = lower_hir_file_for_dump_with_facts(
+            builtins,
+            &mut lowered_hir.types,
+            &lowered_hir.file,
+            &lowered_hir.member_funs,
+            &facts,
+        );
+        let types = lowered_hir.types;
+        let mut materializer = MirInstanceMaterializer::new(
+            generic_file,
+            types,
+            builtins,
+            MaterializerConstructionInputs {
+                typecheck_types: &inputs.typecheck_types,
+                template_infos: template_catalog,
+                callable_body_infos,
+                callable_signatures,
+                top_level_fun_value_refs,
+                top_level_fun_call_bindings,
+                request_root_fun_keys,
+            },
+        )
+        .unwrap();
+        let request_root_println_bindings = materializer
+            .request_root_funs
+            .iter()
+            .flat_map(|reachable_fun| {
+                reachable_fun
+                    .fun
+                    .body
+                    .iter()
+                    .flat_map(|body| body.blocks.iter())
+                    .flat_map(|block| block.stmts.iter())
+                    .filter_map(|stmt| match &stmt.kind {
+                        StatementKind::Assign {
+                            value:
+                                Rvalue::Call {
+                                    kind: CallKind::Direct { callee_fqn },
+                                    ..
+                                },
+                            ..
+                        } if callee_fqn == "scoop.core.println" => Some((
+                            reachable_fun.source_path.clone(),
+                            stmt.span,
+                            materializer
+                                .lookup_site_instance_binding(&reachable_fun.source_path, stmt.span)
+                                .map(|binding| binding.type_args.clone()),
+                        )),
+                        _ => None,
+                    })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            request_root_println_bindings.len(),
+            3,
+            "request root 中应恰好看到 3 个用户 println 调用：{request_root_println_bindings:#?}"
+        );
+        assert!(
+            request_root_println_bindings
+                .iter()
+                .all(|(_, _, binding)| binding.is_some()),
+            "request root 的 println 调用必须全部命中 site binding：{request_root_println_bindings:#?}"
+        );
+        assert!(
+            request_root_println_bindings.iter().all(|(_, _, binding)| {
+                binding
+                    .as_ref()
+                    .is_some_and(|type_args| !type_args.contains(&builtins.any))
+            }),
+            "request root 的 println 调用命中的 binding 不应含 Any：{request_root_println_bindings:#?}"
+        );
+        let mut reachable_generic_calls = Vec::new();
+        let mut visited_non_generic = std::collections::HashSet::new();
+        let mut stack = materializer.request_root_funs.clone();
+        while let Some(reachable_fun) = stack.pop() {
+            let scan_key = (reachable_fun.source_path.clone(), reachable_fun.fun.span);
+            if !visited_non_generic.insert(scan_key) {
+                continue;
+            }
+            let Some(body) = &reachable_fun.fun.body else {
+                continue;
+            };
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    let StatementKind::Assign {
+                        value:
+                            Rvalue::Call {
+                                kind: CallKind::Direct { callee_fqn },
+                                args,
+                            },
+                        ..
+                    } = &stmt.kind
+                    else {
+                        continue;
+                    };
+                    if let Some(instance_key) = materializer.infer_direct_call_instance(
+                        &reachable_fun.source_path,
+                        stmt.span,
+                        callee_fqn,
+                        args,
+                        &body.locals,
+                        &InstanceSubstitution::default(),
+                    ) {
+                        reachable_generic_calls.push((
+                            reachable_fun.fun.fqn.clone(),
+                            reachable_fun.source_path.clone(),
+                            stmt.span,
+                            materializer.instance_fqn(&instance_key),
+                        ));
+                        continue;
+                    }
+                    if let Some(reachable_callee) = materializer.resolve_non_generic_direct_callee(
+                        &reachable_fun.source_path,
+                        stmt.span,
+                        callee_fqn,
+                    ) {
+                        stack.push(reachable_callee);
+                    }
+                }
+            }
+        }
+        let reachable_println_calls = reachable_generic_calls
+            .iter()
+            .filter(|(_, _, _, instance_fqn)| instance_fqn.starts_with("scoop.core.println::<"))
+            .collect::<Vec<_>>();
+        assert!(
+            !reachable_println_calls
+                .iter()
+                .any(|(_, _, _, instance_fqn)| instance_fqn == "scoop.core.println::<Any>"),
+            "request-root 可达扫描不应推导出 println::<Any>：{reachable_println_calls:#?}"
+        );
+        let mut initial_requests = materializer
+            .seed_requests(&inputs.typecheck_types, &inputs.monomorph_keys)
+            .unwrap();
+        let initial_println_requests = initial_requests
+            .iter()
+            .filter(|key| key.template.fqn == "scoop.core.println")
+            .map(|key| {
+                (
+                    key.template.source_path.clone(),
+                    key.template.decl_span,
+                    materializer.instance_fqn(key),
+                )
+            })
+            .collect::<Vec<_>>();
+        initial_requests.extend(hir_direct_instance_keys);
+        assert!(
+            !initial_requests.iter().any(|key| {
+                key.template.fqn == "scoop.core.println" && key.type_args == vec![builtins.any]
+            }),
+            "精确 monomorph key 与 call binding 存在时，seed_requests 不应额外加入 println::<Any>：seed={initial_println_requests:#?}, hir={hir_direct_println_requests:#?}"
+        );
+
+        let materialized = materializer.run(initial_requests).unwrap();
+        let materialized_printlns = materialized
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) if fun.fqn.starts_with("scoop.core.println::<") => {
+                    Some(fun.fqn.clone())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !materialized_printlns
+                .iter()
+                .any(|fqn| fqn == "scoop.core.println::<Any>"),
+            "精确 call binding 存在时，materialize 后不应额外产出 println::<Any>：{materialized_printlns:#?}"
         );
     }
 

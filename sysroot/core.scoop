@@ -585,6 +585,15 @@ enum RuntimeError {
     ContinuationAlreadyResumed,
 }
 
+// Fatal trap intrinsic（T5000e3a）。
+//
+// 说明：
+// - `panic(message)` 用于表达“不应继续执行”的 fatal trap / invariant break；
+// - 它返回 `Nothing`，因此类型检查与控制流分析会把它视为 bottom；
+// - 当前 runtime 仍允许把它实现为 `exit(3)` / 等价立即终止，但该细节必须隐藏在
+//   core intrinsic / runtime 边界后，而不是继续暴露为用户直接调用的 process-style surface。
+fun panic(message: String): Nothing
+
 // Built-in effect: Raise
 effect Raise<in E> {
     fun raise(error: E): Nothing

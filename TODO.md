@@ -1188,7 +1188,7 @@
     - LLVM codegen 仍在按 mangled FQN 现场猜测 monomorphized target。
   - 因此该阶段拆成 `T5000e3a`～`T5000e3d` 四个实现子任务与对应 review，按顺序推进。
 
-### [TODO] T5000e3a 在 corelib / `scoop.core` 中新增 `panic` intrinsic，并收口当前直接 abort 路径
+### [DONE] T5000e3a 在 corelib / `scoop.core` 中新增 `panic` intrinsic，并收口当前直接 abort 路径
 - 范围：
   - 在 corelib（当前为 `scoop.core` sysroot surface）新增 `panic` intrinsic，返回类型固定为 `Nothing`；
   - 当前阶段允许 `panic` 的 runtime 落点继续实现为 `exit(3)` / 等价的立即终止路径，但该细节必须隐藏在 intrinsic / runtime 边界后面，而不是继续暴露成用户或 fixture 直接调用的 surface；
@@ -1199,6 +1199,12 @@
   - `panic` 的返回类型为 `Nothing`，可被类型检查与控制流分析视为 bottom；
   - 任意 fixture 中都不再出现 `exit(...)` 调用。
 - 依赖：T5000e2R
+- 完成记录（2026-04-26）：
+  - `sysroot/core.scoop` 已新增 `panic(message: String): Nothing`；LLVM codegen / runtime ABI / C runtime 已新增 `scoop_panic` 入口，当前 runtime 仍可在边界后把它落到 `exit(3)` / 等价立即终止路径；
+  - `sysroot/task.scoop` 中语义上属于 panic/trap 的 `exit(3)` 已改为 `panic(...)`；fixture 中直接 `exit(...)` 的写法已清理，`std_process_args_exit_basic.scoop` 现只覆盖 argv 行为，并新增 `tests/fixtures/run-pass/core_panic_intrinsic_basic.scoop` 覆盖 bottom-typed panic surface；
+  - `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 现断言 trap 路径走 `@scoop_panic`，`SCOOP_FULL_SPEC.md` 与 `SCOOP_RUNTIME.md` 已同步更新 panic surface/runtime 口径；
+  - 收尾验证中先后修复了两个既有编译器阻塞：`crates/scoopc/src/typecheck/expr/entry.rs` 中 object member `fun` 未进入 expr typecheck 主线导致的 `object_member_call_basic.scoop` codegen 回归，以及 `crates/scoopc/src/hir/lower/expr.rs` 中 imported/sysroot `FunSig` expected-type hint 误用 caller source 导致的 `std_channels_basic.scoop` UTF-8 foreign-span panic；
+  - 已验证 `cargo test -p scoopc mir::materialize --no-fail-fast`、`cargo test -p scoopc llvm:: --no-fail-fast`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过，其中完整 fixture suite 输出 `fixtures: ok (1214)`。
 
 ### [TODO] T5000e3aR Review：确认 panic/trap 语义已统一收口到 `Nothing`-typed intrinsic
 - 重点：

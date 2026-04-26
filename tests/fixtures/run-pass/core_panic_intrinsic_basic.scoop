@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+//
+// T5000e3a：`scoop.core.panic(message): Nothing` 应作为统一 fatal trap surface，
+// 当前 runtime 允许继续把它落到“立即终止当前进程”的路径。
+
+import scoop.core.*
+
+fun main(): Unit {
+    panic("boom")
+}

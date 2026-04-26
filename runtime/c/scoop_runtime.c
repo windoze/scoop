@@ -2744,12 +2744,24 @@ int64_t scoop_fs_write_all_text_utf8(const ScoopString *path, const ScoopString 
   return 0;
 }
 
-// --- std v2：process（T1318c） ---
+// --- fatal trap / process（T5000e3a / T1318c） ---
 //
 // 说明：
+// - `scoop.core.panic(message)`：bottom-typed fatal trap surface；当前实现仍直接 exit(3)；
 // - `scoop.process.args()` 读取启动参数（argv，不含 argv[0]）；
 // - `scoop.process.exit(code)` 主动退出当前进程；
 // - 当前阶段只做 host 平台 happy path：不处理宽字符（Windows）、不做复杂错误模型。
+
+// `scoop.core.panic(message: String): Nothing`
+//
+// 说明：
+// - 当前阶段只要求“立即终止”语义，message 先不做 stderr 格式化；
+// - 这样可以把 fatal trap 统一收口到 core intrinsic / runtime 边界，而不是继续复用
+//   `scoop.process.exit(3)` 作为语言层 surface。
+void scoop_panic(const void *message) {
+  (void)message;
+  exit(3);
+}
 
 // 进程启动参数（由 LLVM 入口 `main(argc, argv)` 在最早期写入）。
 static int32_t scoop_process_argc = 0;

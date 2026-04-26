@@ -834,6 +834,14 @@ Rules:
 
 As a consequence, these constructs require `Raise<RuntimeError>` unless the failure is handled by `try`/`catch` (or `handle`).
 
+Separate from `Raise<RuntimeError>`, the core library may expose a fatal trap primitive:
+
+```kotlin
+fun panic(message: String): Nothing
+```
+
+`panic(...)` is bottom-typed and is reserved for unrecoverable runtime misuse / implementation-defined abort paths. It does **not** replace effect-based runtime errors such as `!!`, `as`, or `Continuation.resume(...)`; those continue to use `Raise.raise(RuntimeError.…)`.
+
 #### async / await (sugar for `Async` effect)
 
 Async is built on escape continuations. The `Async` effect is a built-in effect:

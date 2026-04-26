@@ -3,6 +3,52 @@
 use super::super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(in crate::llvm::codegen) fn codegen_sysroot_panic(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot panic arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(message_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot panic named arg",
+                at: span.into(),
+            });
+        };
+
+        let message_v = self.codegen_expr_in_expected_context(message_expr, Some(CgTy::String))?;
+        let message_v = self.coerce_value(message_expr.span, message_v, CgTy::String)?;
+        let Some(raw) = message_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot panic message value",
+                at: message_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(message_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot panic message type",
+                at: message_expr.span.into(),
+            });
+        };
+
+        let rt_fun = self.declare_runtime_panic();
+        let _ = self.build_call_preserving_gc_local_roots(
+            message_expr.span,
+            rt_fun,
+            &[message_ptr.into()],
+            "rt_panic",
+        )?;
+        let _ = callee_span;
+        Ok(CgValue::never())
+    }
+
     pub(in crate::llvm::codegen) fn codegen_sysroot_print_like(
         &mut self,
         span: crate::span::Span,

@@ -1134,6 +1134,27 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - review 结论：编译单元主路径上的实例身份、收集与物化已归属于 MIR 层，当前无需在 `T5000e3` 之前插入新的前置缺陷任务；下一条待执行任务切换为 `T5000e3 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径`。
+- 2026-04-26：`T5000e3a 在 corelib / scoop.core 中新增 panic intrinsic，并收口当前直接 abort 路径` 已完成。
+  - 实现结果：
+    - `sysroot/core.scoop` 已新增 `panic(message: String): Nothing`；LLVM codegen / runtime ABI / C runtime 已新增 `scoop_panic` 入口，使 fatal trap surface 收口到 `scoop.core` 而不是继续经 `scoop.process.exit(3)` 暴露；
+    - `sysroot/task.scoop` 中语义上属于 panic/trap 的路径已统一改走 `panic(...)`；fixture 中 direct `exit(...)` 的写法已清理，`std_process_args_exit_basic.scoop` 现只保留 argv 行为覆盖，并新增 `tests/fixtures/run-pass/core_panic_intrinsic_basic.scoop` 覆盖 bottom-typed panic surface；
+    - `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 现断言 trap path 走 `@scoop_panic`，`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已同步更新 panic intrinsic 与 runtime 边界口径。
+  - 收尾验证中修复的既有阻塞：
+    - `crates/scoopc/src/typecheck/expr/entry.rs` 现把 object member `fun` 纳入 expr typecheck 主线，修复了 `tests/fixtures/run-pass/object_member_call_basic.scoop` 触发的 `itable call callee type` codegen 回归；
+    - `crates/scoopc/src/hir/lower/expr.rs` 现会在 imported/sysroot `FunSig` expected-type hint 上切回声明源文件上下文，并在 `crates/scoop/src/commands/build.rs` 新增 `build_frontend_handles_imported_fun_signature_hints_with_utf8_comments` 回归测试，从而修复 `tests/fixtures/run-pass/std_channels_basic.scoop` 的 UTF-8 foreign-span panic。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::materialize --no-fail-fast`
+    - `cargo test -p scoopc llvm:: --no-fail-fast`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/core_panic_intrinsic_basic.scoop`（退出码 `3`）
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/std_process_args_exit_basic.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/std_channels_basic.scoop`
+    - `cargo run -p scoop -- build --emit-llvm tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop -o /tmp/task_atomic_claim_no_mutex_llvm.ll`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1214)`）
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e3aR Review：确认 panic/trap 语义已统一收口到 Nothing-typed intrinsic`。
 
 ## 1. 当前判断
 

@@ -209,18 +209,29 @@ impl<'a> HirLowering<'a> {
                         return None;
                     };
 
-                    let sig = self.fun_sig_by_fqn(fqn);
+                    let overload = self.fun_overload_by_fqn(fqn);
                     // expected-type hint 目前只用于数组字面量 `[...]` 的 lowering（Array vs MutableArray）。
-                    // receiver 不是数组字面量时无需解析签名里的 receiver TypeRef，避免跨文件 span 误用。
+                    // receiver 不是数组字面量时无需解析签名里的 receiver TypeRef；若需要读取 imported/sysroot
+                    // 签名，则必须切回声明源文件上下文，不能再把 foreign span 当成 caller 文件来切片。
                     let receiver_is_array_lit =
                         matches!(receiver.kind, ast::ExprKind::ArrayLit { .. });
                     let receiver_expected = ExpectedExpr {
                         value_ty: None,
                         array_lit_target: match receiver_is_array_lit {
-                            true => sig
-                                .as_ref()
-                                .and_then(|sig| sig.receiver.as_ref())
-                                .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+                            true => {
+                                if let Some(overload) = overload.as_ref() {
+                                    if let Some(receiver_ty) = overload.sig.receiver.as_ref() {
+                                        self.array_lit_target_from_type_ref_in_decl_context(
+                                            &overload.symbol.decl_file,
+                                            receiver_ty,
+                                        )
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            }
                             false => None,
                         },
                         array_lit_ty: None,
@@ -234,7 +245,7 @@ impl<'a> HirLowering<'a> {
                     let mut positional_index = 0usize;
                     for arg in args {
                         let expected = self.expected_expr_for_fun_call_arg(
-                            sig.as_ref(),
+                            overload.as_ref(),
                             arg,
                             positional_index,
                         );
@@ -386,10 +397,11 @@ impl<'a> HirLowering<'a> {
                     }
 
                     let callee_fqn = self.callee_top_level_fqn(callee);
-                    let sig = callee_fqn.and_then(|fqn| self.fun_sig_by_fqn(fqn));
+                    let overload = callee_fqn.and_then(|fqn| self.fun_overload_by_fqn(fqn));
 
                     // T0113: find the vararg param index (if any) from the callee sig.
-                    let vararg_param_index = sig.as_ref().and_then(|s| {
+                    let vararg_param_index = overload.as_ref().and_then(|overload| {
+                        let s = &overload.sig;
                         // Account for receiver: if the function has a receiver, params
                         // in the sig start with it, but call args don't include receiver.
                         let offset = if s.receiver.is_some() { 1 } else { 0 };
@@ -411,7 +423,7 @@ impl<'a> HirLowering<'a> {
                             pkg_prefix,
                             e.span,
                             args,
-                            sig.as_ref(),
+                            overload.as_ref(),
                             va_idx,
                         )
                     } else {
@@ -419,7 +431,7 @@ impl<'a> HirLowering<'a> {
                         let mut out: Vec<CallArg> = Vec::with_capacity(args.len());
                         for arg in args {
                             let expected = self.expected_expr_for_fun_call_arg(
-                                sig.as_ref(),
+                                overload.as_ref(),
                                 arg,
                                 positional_index,
                             );
@@ -882,6 +894,38 @@ impl<'a> HirLowering<'a> {
             return None;
         }
         Some(self.lower_type_ref(ty))
+    }
+
+    /// 在声明源文件上下文里把 `TypeRef` 解析为 `TypeId`。
+    ///
+    /// 说明：
+    /// - imported/sysroot `FunSig` 保留的是“声明处 AST”，其 `TypeRef` span 只对声明源文件有效；
+    /// - 若在 caller 文件里直接切这些 span，轻则误解析，重则在 UTF-8 注释上命中非字符边界并 panic；
+    /// - 因此 expected-type hint 需要先切回声明源文件上下文，再复用本地 lowering 逻辑。
+    fn type_ref_ty_in_decl_context(
+        &mut self,
+        decl_file: &std::path::Path,
+        ty: &ast::TypeRef,
+    ) -> Option<TypeId> {
+        if decl_file == self.source.path() {
+            return self.local_type_ref_ty(ty);
+        }
+        let (decl_source, decl_ast) = self.decl_ast_context(decl_file)?;
+        self.with_foreign_ast_context(decl_source, decl_ast, |this| this.local_type_ref_ty(ty))
+    }
+
+    fn array_lit_target_from_type_ref_in_decl_context(
+        &mut self,
+        decl_file: &std::path::Path,
+        ty: &ast::TypeRef,
+    ) -> Option<ArrayLitTarget> {
+        if decl_file == self.source.path() {
+            return self.array_lit_target_from_type_ref(ty);
+        }
+        let (decl_source, decl_ast) = self.decl_ast_context(decl_file)?;
+        self.with_foreign_ast_context(decl_source, decl_ast, |this| {
+            this.array_lit_target_from_type_ref(ty)
+        })
     }
 
     pub(super) fn typechecked_expr_ty(&mut self, span: Span) -> Option<TypeId> {
@@ -1711,10 +1755,10 @@ impl<'a> HirLowering<'a> {
     }
 
     /// 根据 FQN 获取函数签名（用于从函数参数类型向下传播 expected-type hint）。
-    fn fun_sig_by_fqn(&self, fqn: &str) -> Option<crate::resolve::FunSig> {
+    fn fun_overload_by_fqn(&self, fqn: &str) -> Option<crate::resolve::FunOverload> {
         let syms = self.index.by_fqn.get(fqn)?;
         let overload = syms.fun.first()?;
-        Some(overload.sig.clone())
+        Some(overload.clone())
     }
 
     /// 调用位置把 `TypeApply` 视为 callee 的透明外壳。
@@ -1745,7 +1789,7 @@ impl<'a> HirLowering<'a> {
     /// 为一次函数调用的某个实参计算 expected-type hint（目前仅用于数组字面量）。
     fn expected_expr_for_fun_call_arg(
         &mut self,
-        sig: Option<&crate::resolve::FunSig>,
+        overload: Option<&crate::resolve::FunOverload>,
         arg: &ast::Expr,
         positional_index: usize,
     ) -> ExpectedExpr {
@@ -1762,18 +1806,28 @@ impl<'a> HirLowering<'a> {
             }
             _ => false,
         };
-        let param_ty = match (sig, &arg.kind) {
-            (Some(sig), ast::ExprKind::NamedArg { name, .. }) => {
+        let param_ty = match (overload, &arg.kind) {
+            (Some(overload), ast::ExprKind::NamedArg { name, .. }) => {
                 let name = name.text(self.source);
-                sig.params
+                overload
+                    .sig
+                    .params
                     .iter()
                     .find(|p| p.name == name)
                     .and_then(|p| p.ty.as_ref())
             }
-            (Some(sig), _) => sig.params.get(positional_index).and_then(|p| p.ty.as_ref()),
+            (Some(overload), _) => overload
+                .sig
+                .params
+                .get(positional_index)
+                .and_then(|p| p.ty.as_ref()),
             _ => None,
         };
-        let value_ty = param_ty.and_then(|ty| self.local_type_ref_ty(ty));
+        let decl_file = overload.map(|overload| overload.symbol.decl_file.as_path());
+        let value_ty = match (decl_file, param_ty) {
+            (Some(decl_file), Some(ty)) => self.type_ref_ty_in_decl_context(decl_file, ty),
+            _ => None,
+        };
         if !arg_is_array_lit {
             return ExpectedExpr {
                 value_ty,
@@ -1783,8 +1837,16 @@ impl<'a> HirLowering<'a> {
             };
         }
 
-        let array_lit_target = param_ty.and_then(|ty| self.array_lit_target_from_type_ref(ty));
-        let array_lit_ty = param_ty.and_then(|ty| self.local_type_ref_ty(ty));
+        let array_lit_target = match (decl_file, param_ty) {
+            (Some(decl_file), Some(ty)) => {
+                self.array_lit_target_from_type_ref_in_decl_context(decl_file, ty)
+            }
+            _ => None,
+        };
+        let array_lit_ty = match (decl_file, param_ty) {
+            (Some(decl_file), Some(ty)) => self.type_ref_ty_in_decl_context(decl_file, ty),
+            _ => None,
+        };
 
         ExpectedExpr {
             value_ty,
@@ -2070,7 +2132,7 @@ impl<'a> HirLowering<'a> {
         pkg_prefix: &str,
         call_span: Span,
         args: &[ast::Expr],
-        sig: Option<&crate::resolve::FunSig>,
+        overload: Option<&crate::resolve::FunOverload>,
         vararg_idx: usize,
     ) -> Vec<CallArg> {
         let mut out: Vec<CallArg> = Vec::with_capacity(args.len());
@@ -2081,14 +2143,14 @@ impl<'a> HirLowering<'a> {
         for arg in args {
             // Named args are passed through without affecting positional index.
             if let ast::ExprKind::NamedArg { .. } = &arg.kind {
-                let expected = self.expected_expr_for_fun_call_arg(sig, arg, positional_index);
+                let expected = self.expected_expr_for_fun_call_arg(overload, arg, positional_index);
                 out.push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
                 continue;
             }
 
             if positional_index < vararg_idx {
                 // Pre-vararg: normal positional arg.
-                let expected = self.expected_expr_for_fun_call_arg(sig, arg, positional_index);
+                let expected = self.expected_expr_for_fun_call_arg(overload, arg, positional_index);
                 out.push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
             } else {
                 // Vararg slot: collect for later wrapping.

@@ -803,10 +803,23 @@ fn check_object_decl_init_exprs(
     } else {
         format!("{prefix}.{obj_name}")
     };
+    let this_decl_span = obj.name.as_ref().map(|name| name.span).unwrap_or(obj.span);
+    let this_ty = lower.with_warning_emission_suspended(|lower| {
+        lower.lower_type_fqn_with_args(obj_fqn.clone(), Vec::new(), this_decl_span)
+    })?;
+    let object_shared = ClassExprShared {
+        file: shared,
+        this_decl_span,
+        this_ty,
+        ctor_params: &[],
+    };
 
     if let Some(body) = &obj.body {
         for member in &body.members {
             match member {
+                ast::TypeMember::Fun(fun) => {
+                    check_class_member_fun_body_exprs(object_shared, fun, lower)?;
+                }
                 ast::TypeMember::Property(p) => {
                     check_object_property_initializer_exprs(shared, p, lower)?;
                 }
@@ -819,9 +832,7 @@ fn check_object_decl_init_exprs(
                 ast::TypeMember::Object(nested) => {
                     check_object_decl_init_exprs(shared, nested, &obj_fqn, lower)?;
                 }
-                ast::TypeMember::EnumVariant(_)
-                | ast::TypeMember::SecondaryCtor(_)
-                | ast::TypeMember::Fun(_) => {}
+                ast::TypeMember::EnumVariant(_) | ast::TypeMember::SecondaryCtor(_) => {}
             }
         }
     }

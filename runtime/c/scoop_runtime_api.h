@@ -124,6 +124,7 @@
   X(scoop_path_dirname) \
   X(scoop_path_join) \
   X(scoop_path_normalize) \
+  X(scoop_panic) \
   X(scoop_pin) \
   X(scoop_print) \
   X(scoop_println) \

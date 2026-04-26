@@ -16,7 +16,6 @@ package fixtures.codegen
 
 import scoop.core.*
 import scoop.env.*
-import scoop.process.*
 
 @Unsafe
 @Extern("scoop_test_handle_get_object_addr")
@@ -33,7 +32,7 @@ fun envEnabled(key: String): Bool {
 fun assertTrueCode(cond: Bool, code: Int): Unit {
     when (cond) {
         true -> {}
-        false -> exit(code)
+        false -> panic("gc_pin_unpin_move_stress_matrix assertion failed")
     }
 }
 

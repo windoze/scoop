@@ -5,7 +5,7 @@
 // 一致的运行期校验语义：
 // - 匹配成功时，隐藏的 top-level once-init boundary 走 inactive path，后续表达式继续执行；
 // - 匹配失败时，隐藏 check 必须把 `Raise.raise(RuntimeError.*)` 交给 handler dispatch，
-//   不能被顶层 guard 检查误判成递归初始化并 `exit(1)`。
+//   不能被顶层 guard 检查误判成递归初始化并触发 fatal trap。
 
 import scoop.core.*
 

@@ -2,7 +2,7 @@
 // ARGS: --emit-llvm --opt-level 0
 // BUILD-LLVM-CONTAINS: cmpxchg ptr addrspace(1)
 // BUILD-LLVM-CONTAINS: store atomic i64 0, ptr addrspace(1)
-// BUILD-LLVM-CONTAINS: @scoop_process_exit
+// BUILD-LLVM-CONTAINS: @scoop_panic
 // BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_create
 // BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_lock
 // BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_unlock

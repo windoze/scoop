@@ -11,7 +11,6 @@
 package scoop.core
 
 import scoop.core.*
-import scoop.process.*
 import scoop.thread.*
 import scoop.unsafe.*
 
@@ -24,7 +23,7 @@ fun <T> __task_claim_acquire(task: Task<T>): Unit {
     }
 
     // public `step()` 的并发 / reentrant 误用按 fatal trap 处理，而不是回落为 `Pending`。
-    exit(3)
+    panic("task claim already held")
 }
 
 fun <T> __task_claim_release(task: Task<T>): Unit {
@@ -108,8 +107,7 @@ fun <T> __task_drive_waiting(
             } catch (e: RuntimeError) {
                 // 与 legacy task runtime 一致：这里若触发 continuation runtime error，
                 // 说明 task 内部 drive/resume 合同被破坏，按 fatal invariant 处理。
-                exit(3)
-                Pending()
+                panic("task continuation resume invariant violated")
             }
             resumed
         }
@@ -122,8 +120,7 @@ fun <T> Task<T>.step(): TaskStep<T> {
         Running -> {
             // 成功 claim 后若仍观察到 `Running`，说明另一个 driver 正在推进该 task；
             // 这属于 core task single-driver 合同的误用，不能再编码成 `Pending`。
-            exit(3)
-            Pending()
+            panic("task.step observed Running while claim held")
         }
         Completed(value) -> {
             __task_claim_release(this)

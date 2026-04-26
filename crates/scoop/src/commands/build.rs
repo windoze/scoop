@@ -1361,6 +1361,28 @@ public fun main() / Pure! {
 
     #[cfg(feature = "llvm")]
     #[test]
+    fn build_frontend_handles_imported_fun_signature_hints_with_utf8_comments() {
+        let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/std_channels_basic.scoop");
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_input = super::load_build_input(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+
+        assert!(
+            lowered.file.items.iter().any(|item| {
+                matches!(
+                    item,
+                    scoopc::hir::Item::Fun(fun) if fun.fqn == "main" || fun.fqn.ends_with(".main")
+                )
+            }),
+            "build frontend 应成功 lower `std_channels_basic.scoop`，而不是在 imported fun signature hint 上 panic"
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
     fn build_frontend_keeps_distinct_effect_row_generic_instances() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");

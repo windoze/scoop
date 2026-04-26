@@ -43,9 +43,18 @@ File {
                                 ),
                             },
                             LocalDecl {
-                                span: 118..119,
+                                span: 83..84,
                                 name: Some(
                                     "tmp3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 118..119,
+                                name: Some(
+                                    "tmp4",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -137,9 +146,32 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 118..119,
+                                        span: 83..84,
                                         kind: Assign {
                                             target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 58..88,
+                                    kind: Todo(
+                                        "handle body exit pending",
+                                    ),
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 118..119,
+                                        kind: Assign {
+                                            target: l4,
                                             value: Use(
                                                 Const(
                                                     Int,

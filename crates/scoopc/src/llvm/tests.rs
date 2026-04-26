@@ -1783,8 +1783,8 @@ fun main(): Int {
         "Task.step() 的 claim release 必须保持 seq_cst store，以发布 Waiting/Completed 状态"
     );
     assert!(
-        ir.contains("@scoop_process_exit"),
-        "claim 冲突或 Running 观察的 single-driver 误用应继续降到 fatal trap"
+        ir.contains("@scoop_panic"),
+        "claim 冲突或 Running 观察的 single-driver 误用应继续通过 scoop.core.panic 降到 fatal trap"
     );
     assert!(
         !ir.contains("@scoop_sync_mutex_create")

@@ -433,6 +433,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_panic(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_PANIC;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_panic(const ScoopString* message)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_process_args_array(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_PROCESS_ARGS_ARRAY;
         if let Some(existing) = self.module.get_function(NAME) {

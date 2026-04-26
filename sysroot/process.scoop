@@ -13,7 +13,10 @@ import scoop.core.*
 
 /// 退出当前进程并返回指定退出码。
 ///
-/// 说明：当前阶段直接映射到 runtime 的 `exit(3)`；不做资源清理/析构语义。
+/// 说明：
+/// - 这是显式的 process control surface，不用于表达 fatal trap / invariant failure；
+/// - 语义上属于 panic/trap 的路径应统一经 `scoop.core.panic(...)`；
+/// - 当前阶段仍直接映射到 runtime 的 `exit(3)`；不做资源清理/析构语义。
 fun exit(code: Int): Unit
 
 /// 返回启动参数数组（不包含 argv[0]）。

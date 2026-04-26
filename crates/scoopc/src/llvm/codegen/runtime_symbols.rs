@@ -71,6 +71,7 @@ pub(super) const SCOOP_PATH_BASENAME: &str = "scoop_path_basename";
 pub(super) const SCOOP_PATH_DIRNAME: &str = "scoop_path_dirname";
 pub(super) const SCOOP_PATH_JOIN: &str = "scoop_path_join";
 pub(super) const SCOOP_PATH_NORMALIZE: &str = "scoop_path_normalize";
+pub(super) const SCOOP_PANIC: &str = "scoop_panic";
 pub(super) const SCOOP_PIN: &str = "scoop_pin";
 pub(super) const SCOOP_PROCESS_ARGS_ARRAY: &str = "scoop_process_args_array";
 pub(super) const SCOOP_PROCESS_EXIT: &str = "scoop_process_exit";
