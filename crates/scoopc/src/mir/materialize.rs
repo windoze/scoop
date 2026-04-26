@@ -553,6 +553,138 @@ struct GenericTemplateInfo {
     template: TemplateKey,
     type_param_names: Vec<String>,
     eff_param_name: Option<String>,
+    signature_key: String,
+    has_body: bool,
+}
+
+fn normalize_sig_piece(s: &str) -> String {
+    s.split_whitespace().collect()
+}
+
+fn generic_template_signature_key(source: &SourceFile, fun: &ast::FunDecl) -> String {
+    let mut out = String::new();
+    out.push_str(match fun.kind {
+        ast::FunDeclKind::Regular => "fun",
+        ast::FunDeclKind::EffectOp => "effect-op",
+    });
+    out.push('|');
+    for param in &fun.type_params {
+        out.push_str(param.name.text(source));
+        out.push(',');
+    }
+    out.push('|');
+    if let Some(eff) = &fun.eff_param {
+        out.push_str(&normalize_sig_piece(source.slice(eff.span)));
+    }
+    out.push('|');
+    if let Some(receiver) = &fun.receiver {
+        out.push_str(&normalize_sig_piece(source.slice(receiver.span())));
+    }
+    out.push('|');
+    for param in &fun.params {
+        if let Some(ty) = &param.ty {
+            out.push_str(&normalize_sig_piece(source.slice(ty.span())));
+        } else {
+            out.push('_');
+        }
+        out.push(';');
+    }
+    out.push('|');
+    match &fun.return_ty {
+        Some(ret) => out.push_str(&normalize_sig_piece(source.slice(ret.span()))),
+        None => out.push_str("Unit"),
+    }
+    out.push('|');
+    if let Some(effects) = &fun.effects {
+        out.push_str(&normalize_sig_piece(source.slice(effects.span)));
+    }
+    out
+}
+
+fn push_generic_template_info(
+    out: &mut Vec<GenericTemplateInfo>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    fun: &ast::FunDecl,
+) {
+    if fun.type_params.is_empty() && fun.eff_param.is_none() {
+        return;
+    }
+
+    let local_name = source.slice(fun.name.span);
+    let fqn = if owner_fqn.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{owner_fqn}.{local_name}")
+    };
+    out.push(GenericTemplateInfo {
+        request_lookup_key: (fqn.clone(), source.path().to_path_buf(), fun.name.span),
+        template: TemplateKey {
+            fqn,
+            source_path: source.path().to_path_buf(),
+            decl_span: fun.span,
+        },
+        type_param_names: fun
+            .type_params
+            .iter()
+            .map(|param| param.name.text(source).to_string())
+            .collect(),
+        eff_param_name: fun
+            .eff_param
+            .as_ref()
+            .map(|param| param.name.text(source).to_string()),
+        signature_key: generic_template_signature_key(source, fun),
+        has_body: matches!(fun.body, ast::FunBody::Block(_)),
+    });
+}
+
+fn collect_generic_templates_from_type_body(
+    out: &mut Vec<GenericTemplateInfo>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    body: Option<&ast::TypeBody>,
+) {
+    let Some(body) = body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) => push_generic_template_info(out, source, owner_fqn, fun),
+            ast::TypeMember::Type(ty) => {
+                let nested_owner = format!("{owner_fqn}.{}", ty.name.text(source));
+                collect_generic_templates_from_type_body(
+                    out,
+                    source,
+                    &nested_owner,
+                    ty.body.as_ref(),
+                );
+            }
+            ast::TypeMember::Object(obj) => {
+                let object_name = obj
+                    .name
+                    .as_ref()
+                    .map(|name| name.text(source).to_string())
+                    .or_else(|| {
+                        matches!(obj.kind, ast::ObjectKind::Companion)
+                            .then(|| "Companion".to_string())
+                    });
+                let Some(object_name) = object_name else {
+                    continue;
+                };
+                let nested_owner = format!("{owner_fqn}.{object_name}");
+                collect_generic_templates_from_type_body(
+                    out,
+                    source,
+                    &nested_owner,
+                    obj.body.as_ref(),
+                );
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_) => {}
+        }
+    }
 }
 
 fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<GenericTemplateInfo> {
@@ -560,35 +692,52 @@ fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<Ge
     for file in prepared_files {
         let pkg_prefix = package_prefix(&file.source, file.ast.package.as_ref());
         for item in &file.ast.items {
-            let ast::Item::Fun(fun) = item else {
-                continue;
-            };
-            if fun.type_params.is_empty() && fun.eff_param.is_none() {
-                continue;
+            match item {
+                ast::Item::Fun(fun) => {
+                    push_generic_template_info(&mut out, &file.source, &pkg_prefix, fun);
+                }
+                ast::Item::Type(ty) => {
+                    let owner_fqn = if pkg_prefix.is_empty() {
+                        ty.name.text(&file.source).to_string()
+                    } else {
+                        format!("{pkg_prefix}.{}", ty.name.text(&file.source))
+                    };
+                    collect_generic_templates_from_type_body(
+                        &mut out,
+                        &file.source,
+                        &owner_fqn,
+                        ty.body.as_ref(),
+                    );
+                }
+                ast::Item::Object(obj) => {
+                    let object_name = obj
+                        .name
+                        .as_ref()
+                        .map(|name| name.text(&file.source).to_string())
+                        .or_else(|| {
+                            matches!(obj.kind, ast::ObjectKind::Companion)
+                                .then(|| "Companion".to_string())
+                        });
+                    let Some(object_name) = object_name else {
+                        continue;
+                    };
+                    let owner_fqn = if pkg_prefix.is_empty() {
+                        object_name
+                    } else {
+                        format!("{pkg_prefix}.{object_name}")
+                    };
+                    collect_generic_templates_from_type_body(
+                        &mut out,
+                        &file.source,
+                        &owner_fqn,
+                        obj.body.as_ref(),
+                    );
+                }
+                ast::Item::TypeAlias(_)
+                | ast::Item::ComptimeIf(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::Val(_) => {}
             }
-            let local_name = file.source.slice(fun.name.span);
-            let fqn = if pkg_prefix.is_empty() {
-                local_name.to_string()
-            } else {
-                format!("{pkg_prefix}.{local_name}")
-            };
-            out.push(GenericTemplateInfo {
-                request_lookup_key: (fqn.clone(), file.source.path().to_path_buf(), fun.name.span),
-                template: TemplateKey {
-                    fqn,
-                    source_path: file.source.path().to_path_buf(),
-                    decl_span: fun.span,
-                },
-                type_param_names: fun
-                    .type_params
-                    .iter()
-                    .map(|param| param.name.text(&file.source).to_string())
-                    .collect(),
-                eff_param_name: fun
-                    .eff_param
-                    .as_ref()
-                    .map(|param| param.name.text(&file.source).to_string()),
-            });
         }
     }
     out
@@ -754,12 +903,21 @@ impl MirInstanceMaterializer {
         }
 
         let mut root_candidates = Vec::new();
+        let mut deferred_request_templates = Vec::new();
         for info in template_infos {
-            let Some(root_fun) = generic_funs
+            let root_fun = generic_funs
                 .iter()
                 .find(|fun| fun.fqn == info.template.fqn && fun.span == info.template.decl_span)
-                .cloned()
-            else {
+                .cloned();
+            let Some(root_fun) = root_fun else {
+                if !info.has_body {
+                    deferred_request_templates.push((
+                        info.request_lookup_key,
+                        info.template.fqn,
+                        info.signature_key,
+                    ));
+                    continue;
+                }
                 return Err(materialize_err(
                     MirMaterializeError::MissingMirRootForTemplate {
                         fqn: info.template.fqn.clone(),
@@ -774,7 +932,7 @@ impl MirInstanceMaterializer {
                 template: info.template,
                 type_param_names: info.type_param_names,
                 eff_param_name: info.eff_param_name,
-                signature_key: template_signature_key(&types, &root_fun),
+                signature_key: info.signature_key,
                 root_fun,
             });
         }
@@ -818,6 +976,13 @@ impl MirInstanceMaterializer {
                     family,
                 },
             );
+        }
+
+        for (request_lookup_key, fqn, signature_key) in deferred_request_templates {
+            let Some(canonical) = canonical_templates.get(&(fqn, signature_key)).cloned() else {
+                continue;
+            };
+            request_templates.insert(request_lookup_key, canonical);
         }
 
         let mut materializer = Self {
@@ -1810,106 +1975,6 @@ fn operand_type(
         !type_contains_param(types, *ty)
             && !matches!(types.kind(*ty), TypeKind::Ref(RefTypeKind::Any))
     })
-}
-
-fn template_signature_key(types: &TypeStore, fun: &FunDecl) -> String {
-    normalized_type_key(types, fun.ty)
-}
-
-fn normalized_type_key(types: &TypeStore, ty: TypeId) -> String {
-    match types.kind(ty) {
-        TypeKind::Param(param) => format!("P({})", param.name),
-        TypeKind::StarProjection(star) => {
-            format!("Star({})", normalized_type_key(types, star.read_ty))
-        }
-        TypeKind::Ref(RefTypeKind::Any) => "Ref(Any)".to_string(),
-        TypeKind::Ref(RefTypeKind::String) => "Ref(String)".to_string(),
-        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => format!(
-            "RefNominal({};{};{})",
-            nominal.fqn,
-            nominal
-                .args
-                .iter()
-                .map(|&arg| normalized_type_key(types, arg))
-                .collect::<Vec<_>>()
-                .join(","),
-            nominal
-                .eff
-                .as_ref()
-                .map(|row| effect_row_signature_key(types, row))
-                .unwrap_or_else(|| "NoEff".to_string())
-        ),
-        TypeKind::Ref(RefTypeKind::Function(fun)) => format!(
-            "Fn({};{};{};{};{})",
-            fun.receiver
-                .map(|receiver| normalized_type_key(types, receiver))
-                .unwrap_or_else(|| "NoReceiver".to_string()),
-            fun.params
-                .iter()
-                .map(|&param| normalized_type_key(types, param))
-                .collect::<Vec<_>>()
-                .join(","),
-            normalized_type_key(types, fun.return_ty),
-            effect_row_signature_key(types, &fun.effects),
-            fun.effects_closed
-        ),
-        TypeKind::Ref(RefTypeKind::Union(union)) => format!(
-            "Union({})",
-            union
-                .variants
-                .iter()
-                .map(|&variant| normalized_type_key(types, variant))
-                .collect::<Vec<_>>()
-                .join("|")
-        ),
-        TypeKind::Value(ValueTypeKind::Unit) => "Unit".to_string(),
-        TypeKind::Value(ValueTypeKind::Nothing) => "Nothing".to_string(),
-        TypeKind::Value(ValueTypeKind::Bool) => "Bool".to_string(),
-        TypeKind::Value(ValueTypeKind::Char) => "Char".to_string(),
-        TypeKind::Value(ValueTypeKind::Float64) => "Float64".to_string(),
-        TypeKind::Value(ValueTypeKind::Float32) => "Float32".to_string(),
-        TypeKind::Value(ValueTypeKind::Int) => "Int".to_string(),
-        TypeKind::Value(ValueTypeKind::UInt) => "UInt".to_string(),
-        TypeKind::Value(ValueTypeKind::IntN(bits)) => format!("IntN({bits})"),
-        TypeKind::Value(ValueTypeKind::UIntN(bits)) => format!("UIntN({bits})"),
-        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => format!(
-            "ValNominal({};{};{})",
-            nominal.fqn,
-            nominal
-                .args
-                .iter()
-                .map(|&arg| normalized_type_key(types, arg))
-                .collect::<Vec<_>>()
-                .join(","),
-            nominal
-                .eff
-                .as_ref()
-                .map(|row| effect_row_signature_key(types, row))
-                .unwrap_or_else(|| "NoEff".to_string())
-        ),
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            format!("Option({})", normalized_type_key(types, *inner))
-        }
-        TypeKind::Value(ValueTypeKind::Tuple(elements)) => format!(
-            "Tuple({})",
-            elements
-                .iter()
-                .map(|&element| normalized_type_key(types, element))
-                .collect::<Vec<_>>()
-                .join(",")
-        ),
-    }
-}
-
-fn effect_row_signature_key(types: &TypeStore, row: &EffectRow) -> String {
-    if row.terms.is_empty() {
-        return "Pure".to_string();
-    }
-    row.terms
-        .iter()
-        .map(|&term| normalized_type_key(types, term))
-        .collect::<Vec<_>>()
-        .join("|")
 }
 
 fn instance_request_is_concrete(

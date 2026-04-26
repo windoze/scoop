@@ -11,15 +11,16 @@ use super::call::{
     CallArgInfo, CallArgKind, GenericArgConstraint, InstantiatedFunSig, check_const_fun_call_gate,
     check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate, check_nogc_call_gate,
     check_unsafe_call_gate, instantiate_fun_sig_for_call, map_call_args_to_params_with_defaults,
-    substitute_type_args_in_effect_row, type_param_name,
+    substitute_type_args_in_effect_row, type_param_name, type_ref_fn_effect_eff_base,
+    type_ref_nominal_eff_eff_base,
 };
 use super::infer::ExpectedTypeFrom;
 use super::util::{fmt_overload_signature, join_overload_signatures};
 
-use super::{ExprInferInputs, ExprTypeError, FunSigOwned};
+use super::{EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned};
 
 use super::super::assignable::is_type_assignable;
-use super::super::eff_row_subst::EffRowVarSubstPlan;
+use super::super::eff_row_subst::{EffRowVarSubstPlan, build_eff_row_var_subst_plan};
 use super::super::lower::TypeLowering;
 
 fn unary_op_text(op: ast::UnaryOp) -> &'static str {
@@ -307,11 +308,6 @@ pub(super) fn collect_member_method_signatures_from_index(
             continue;
         }
 
-        // operator overloading 当前不接入 `<eff E>`（可在后续任务中补齐）。
-        if o.sig.eff_param.is_some() {
-            continue;
-        }
-
         let decl_source = lower
             .env()
             .source(&o.symbol.decl_file)
@@ -329,6 +325,25 @@ pub(super) fn collect_member_method_signatures_from_index(
             type_param_bindings.push((p.name.clone(), ty));
             type_params.push(ty);
         }
+
+        let eff_param_sig = if let Some(eff_param) = &o.sig.eff_param {
+            let name = eff_param.name.text(&decl_source).to_string();
+            let default = match eff_param.default.as_ref() {
+                Some(expr) => lower.lower_effect_row_expr_in_decl_file_with_bindings(
+                    &o.symbol.decl_file,
+                    type_param_bindings.iter().cloned(),
+                    Some(expr),
+                )?,
+                None => EffectRow::pure(),
+            };
+            Some(EffParamSig { name, default })
+        } else {
+            None
+        };
+        let eff_bindings: Vec<(String, EffectRow)> = eff_param_sig
+            .as_ref()
+            .map(|p| vec![(p.name.clone(), p.default.clone())])
+            .unwrap_or_default();
 
         let mut param_names: Vec<String> = Vec::with_capacity(o.sig.params.len() + 1);
         let mut param_has_defaults: Vec<bool> = Vec::with_capacity(o.sig.params.len() + 1);
@@ -348,7 +363,7 @@ pub(super) fn collect_member_method_signatures_from_index(
             let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),
-                Vec::new(),
+                eff_bindings.clone(),
                 ty_ref,
             )?;
             params.push(ty);
@@ -358,13 +373,14 @@ pub(super) fn collect_member_method_signatures_from_index(
             Some(ret) => lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),
-                Vec::new(),
+                eff_bindings.clone(),
                 ret,
             )?,
             None => builtins.unit,
         };
 
-        // 对 operator method：receiver 不参与 eff var substitution 推断，因此这里按“无基底/无替换”处理。
+        // 成员方法的隐式 receiver 不直接携带函数级 `eff` row 变量，因此第 0 个 receiver 参数
+        // 保持“无基底/无替换”；其余显式参数则按顶层/扩展函数相同规则构建 effect facts。
         let mut param_fn_effect_eff_base: Vec<Option<EffectRow>> = Vec::with_capacity(params.len());
         let mut param_nominal_eff_eff_base: Vec<Option<EffectRow>> =
             Vec::with_capacity(params.len());
@@ -374,15 +390,37 @@ pub(super) fn collect_member_method_signatures_from_index(
         param_nominal_eff_eff_base.push(None);
         param_eff_row_var_subst.push(EffRowVarSubstPlan::None);
 
+        let mut param_pos = 1usize;
         for p in &o.sig.params {
             let Some(ty_ref) = &p.ty else {
                 continue;
             };
-            // operator overloading 当前不支持 `<eff E>`，因此这里不计算相关基底与替换计划。
-            let _ = (ty_ref, &decl_source);
-            param_fn_effect_eff_base.push(None);
-            param_nominal_eff_eff_base.push(None);
-            param_eff_row_var_subst.push(EffRowVarSubstPlan::None);
+            let param_ty = params[param_pos];
+            param_pos += 1;
+            let fn_eff_base = if let Some(eff_param) = &eff_param_sig {
+                type_ref_fn_effect_eff_base(ty_ref, &eff_param.name, &decl_source, lower)?
+            } else {
+                None
+            };
+            let nominal_eff_base = if let Some(eff_param) = &eff_param_sig {
+                type_ref_nominal_eff_eff_base(ty_ref, &eff_param.name, &decl_source, lower)?
+            } else {
+                None
+            };
+            let subst_plan = if let Some(eff_param) = &eff_param_sig {
+                build_eff_row_var_subst_plan(
+                    ty_ref,
+                    param_ty,
+                    &eff_param.name,
+                    &decl_source,
+                    lower,
+                )?
+            } else {
+                EffRowVarSubstPlan::None
+            };
+            param_fn_effect_eff_base.push(fn_eff_base);
+            param_nominal_eff_eff_base.push(nominal_eff_base);
+            param_eff_row_var_subst.push(subst_plan);
         }
 
         // T0129：member method 签名收集中也填充 where_constraints。
@@ -405,7 +443,7 @@ pub(super) fn collect_member_method_signatures_from_index(
             param_has_defaults,
             param_is_vararg: vec![false; params.len()],
             type_params,
-            eff_param: None,
+            eff_param: eff_param_sig,
             param_fn_effect_eff_base,
             param_nominal_eff_eff_base,
             param_eff_row_var_subst,

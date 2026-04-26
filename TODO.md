@@ -805,6 +805,57 @@
     - `cargo test --all`
     - 全部通过。
 
+### [DONE] T5000e1b0a 修复 effect-generic extension/member direct-call 的 request binding 与显式 type-apply 透传
+- 范围：
+  - 让 `x.ext<eff E>()` / `obj.method<T>()` 这类 call-callee 位置的 `TypeApply` 在 HIR lowering 中继续走 extension/member direct-call 降糖，而不是退回成员值 / `FunValue` 路径；
+  - 让 extension/member direct-call 的 typecheck side table 写回 `TopLevelFunCallBinding { decl_file, decl_span, type_args, eff_args }`，使 materializer fixed-point 能恢复具体实例请求；
+  - 让扩展函数与直连成员方法的签名收集 / 调用点推断不再在 request binding 阶段丢掉 `eff_param` 与显式 `eff_arg`。
+- 验收：
+  - effect-generic extension call 在 `dump-ir` 路径中会把 nested direct call 重写到带 `eff_args` 的 concrete callee，而不是退回 `Pure` 或 generic FQN；
+  - extension/member direct-call 路径的 request binding 现在都能携带真实 `eff_args`。
+- 依赖：T5000e1b
+- 完成记录（2026-04-26）：
+  - 已在 `crates/scoopc/src/hir/lower/expr.rs` 新增 `transparent_call_callee(...)`，把 call 位置的 `TypeApply` 视为透明外壳；`x.forward<eff E>()` 之类 extension/member 调用不再错误落到 `MemberAccess + FunValue` 路径；
+  - 已在 `crates/scoopc/src/typecheck/expr/call.rs` 为 extension/member direct-call 补齐 `record_top_level_fun_call_binding(...)`，并让扩展调用的 single-candidate / overload 两条路径优先消费显式 `eff_arg`；`eff_args` 现在会一路进入 request binding，而不是在 direct-call fixed-point 前被塌缩成 `Pure`；
+  - 已在 `crates/scoopc/src/typecheck/expr/ops.rs` 让直连成员方法签名收集保留 `eff_param`、默认 effect binding、`param_*_eff_base` 与 `param_eff_row_var_subst`，从而不再在 typecheck 阶段先天丢失成员方法的 effect-row 事实；
+  - 已在 `crates/scoopc/src/mir/materialize.rs` 扩展 generic template catalog，使其能够为 type-body / companion object 内的 generic member fun 建立 request lookup key 与 canonical signature groundwork，而不会继续只看顶层 `fun`；
+  - 已新增回归测试 `monomorph_rewrites_effect_generic_extension_call_to_concrete_instance`，确认 effect-generic extension call 会 materialize 到 `forward::<eff fixtures.monomorph.Boom>`，且 nested call 会重写成 concrete direct callee；
+  - 继续 probing 时暴露出新的更深阻塞：`cargo run -q -p scoop -- dump-mir <member-effect-generic case>` 仍把 type declarations 输出为 `Todo { kind: "type" }`，generic MIR file 里没有 `fixtures.monomorph.Box.forward` root，因此 member method 的 monomorphic materialization 仍需后续前置任务 `T5000e1b0b` 补齐；本条任务只负责修正 request binding / call-site 透传层面的 `eff_args` 缺口。
+  - 已验证：
+    - `cargo fmt --all`
+    - `cargo check -p scoopc`
+    - `cargo test -p scoopc monomorph_ -- --nocapture`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+
+### [TODO] T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 `eff_args`
+- 重点：
+  - call-callee 位置的 `TypeApply` 是否已不会把 extension/member call 重新打回成员值 / `FunValue` 路径；
+  - extension/member direct-call 的 `TopLevelFunCallBinding` 是否已稳定携带 `decl_file` / `decl_span` / `type_args` / `eff_args`；
+  - 直连成员方法签名收集是否已保留 `eff_param` 与 effect-row subst facts，而不是继续在 typecheck 入口处先天丢失。
+- 验收：
+  - extension/member direct-call 在 request binding 与调用点正规化层面已经具备与顶层函数相同的 `eff_args` 承载能力。
+- 依赖：T5000e1b0a
+
+### [TODO] T5000e1b0b 让 generic MIR template / dump-ir 收录 type-body generic member fun roots
+- 范围：
+  - 让 `dump-mir` / generic MIR lowering 把 type-body / companion object 内的 generic member fun 作为真正的 MIR template root 发射，而不是继续把整段 type decl 记成 `Todo { kind: "type" }`；
+  - 让 materializer 能为 `Owner.method` 这类 type-body generic fun 找到对应 root/family，并完成 member direct-call 的 monomorphic fixed-point；
+  - 用用户态回归覆盖 `class Box { fun <eff E> forward() }` + `wrap<eff Boom>(box.forward<eff E>())` 这类路径，确认 member method 也能生成带 `eff_args` 的 concrete callee。
+- 验收：
+  - `cargo run -q -p scoop -- dump-ir <member-effect-generic case>` 不再报 `missing_mir_root_for_template`；
+  - type-body generic member fun 能进入 `InstanceKey` / materializer 闭环。
+- 依赖：T5000e1b0aR
+
+### [TODO] T5000e1b0bR Review：确认 type-body generic member fun 已进入 generic MIR template → instance materialization 主线
+- 重点：
+  - `dump-mir` 是否已为 generic member fun 发射真实 MIR root，而不是停留在 `Todo { kind: "type" }`；
+  - template catalog / canonical lookup / instance cache 是否已经同时覆盖顶层 fun、extension fun 与 type-body member fun；
+  - member method 的 effect-row 实参是否真正进入 concrete instance identity，而不是只在 call-site binding 层保存。
+- 验收：
+  - `InstanceKey` / materializer 对 member method 的支持与顶层/扩展函数处于同一层次，`T5000e1bR` 可以继续做总复核。
+- 依赖：T5000e1b0b
+
 ### [TODO] T5000e1bR Review：确认 effect-row 实参已成为 `InstanceKey` / materializer 的一等维度
 - 重点：
   - `eff_args` 是否已经从 typecheck 请求一路进入 `InstanceKey`、template substitution、instance cache 与 Debug 输出；
@@ -812,7 +863,7 @@
   - effect-only generic fun 与“同 type args 不同 effect row”的实例是否都能稳定区分。
 - 验收：
   - `InstanceKey` 与 dump-ir materializer 的 effect-row 维度已经闭环，e1R 可以继续审查总体边界。
-- 依赖：T5000e1b
+- 依赖：T5000e1b0bR
 
 ### [TODO] T5000e1R Review：确认 `InstanceKey` 与 dump-ir materializer 的边界正确
 - 重点：

@@ -801,7 +801,32 @@
     - `cargo test -p scoopc monomorph::lower -- --nocapture`
     - `cargo test --all`
     - 全部通过。
-  - 下一条待执行任务切换为 `T5000e1bR Review：确认 effect-row 实参已成为 InstanceKey / materializer 的一等维度`。
+- 2026-04-26：执行 `T5000e1bR Review` 时又暴露出一条更深的 member-method 前置缺口，因此该 review 暂不能直接判定通过，已拆成新的前置任务 `T5000e1b0a` / `T5000e1b0b`。
+  - 阻塞现象：
+    - effect-generic extension call 在 `dump-ir` 路径上最初会把 `x.forward<eff E>()` 错误保留为成员值 / `FunValue` 路径，或把 nested direct-call 重写到 `forward::<eff Pure>`；
+    - 补完 extension/member direct-call 的 request binding 之后，继续用 `class Box { fun <eff E = Pure> forward(): Int / E { ... } }` + `wrap(box.forward<eff E>())` probing 发现，`cargo run -q -p scoop -- dump-mir <case>` 仍把 type declarations 输出为 `Todo { kind: "type" }`，generic MIR file 中没有 `fixtures.monomorph.Box.forward` root；因此 `dump-ir` 会进一步报 `missing_mir_root_for_template`，说明 type-body generic member fun 尚未进入 generic MIR template 主线。
+  - 为什么这会阻塞 `T5000e1bR`：
+    - `T5000e1bR` 需要确认 effect-row 实参已经成为 `InstanceKey` / materializer 的一等维度；
+    - 但只要 type-body generic member fun 还没有 MIR template root，member direct-call 的 effect-row 维度就不可能真正闭环，因此不能把 review 结论限定为“仅顶层/扩展函数”来绕过。
+  - 拆分结果：
+    - `T5000e1b0a`：先修复 extension/member direct-call 的 call-site 透明化、request binding 与显式 `eff_arg` 透传；
+    - `T5000e1b0b`：再让 generic MIR template / dump-ir 真正收录 type-body generic member fun roots，并接通 member method materialization。
+- 2026-04-26：`T5000e1b0a 修复 effect-generic extension/member direct-call 的 request binding 与显式 type-apply 透传` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/hir/lower/expr.rs` 已新增 `transparent_call_callee(...)`，call 位置的 `TypeApply` 现会继续走 extension/member direct-call 降糖；`x.forward<eff E>()` 之类路径不再被打回成员值 / `FunValue`；
+    - `crates/scoopc/src/typecheck/expr/call.rs` 已为 extension/member direct-call 补齐 `TopLevelFunCallBinding` 写回，并让扩展函数 single-candidate / overload 两条路径优先消费显式 `eff_arg`；
+    - `crates/scoopc/src/typecheck/expr/ops.rs` 已让直连成员方法签名收集保留 `eff_param`、默认 effect binding 与 `param_*_eff_base` / subst facts，避免在 typecheck 入口先天丢失成员方法的 effect-row 信息；
+    - `crates/scoopc/src/mir/materialize.rs` 已扩展 generic template catalog 的 request lookup groundwork，使 type-body / companion object 内的 generic member fun 能建立 canonical lookup key；这一步还不足以完成 member method materialization，但为后续 `T5000e1b0b` 消除了“catalog 只看顶层 fun”的更浅层阻塞。
+  - 回归与探针：
+    - 新增 `monomorph_rewrites_effect_generic_extension_call_to_concrete_instance`，确认 effect-generic extension call 现会 materialize 成 `forward::<eff fixtures.monomorph.Boom>`，且 nested call 已重写到 concrete direct callee；
+    - 继续 probing 的 `class Box { fun <eff E = Pure> forward(): Int / E { ... } }` case 现已通过 typecheck/request binding，但仍会在 `dump-ir` 阶段暴露 `missing_mir_root_for_template`，这正是下一条 `T5000e1b0b` 的范围，而不是本条的剩余尾巴。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo check -p scoopc`
+    - `cargo test -p scoopc monomorph_ -- --nocapture`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 eff_args`。
 
 ## 1. 当前判断
 

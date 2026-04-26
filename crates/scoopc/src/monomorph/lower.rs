@@ -647,4 +647,87 @@ fun entry(): Int / Boom {
                 if fun.fqn == "fixtures.monomorph.forward::<eff fixtures.monomorph.Boom>"
         )));
     }
+
+    #[test]
+    fn monomorph_rewrites_effect_generic_extension_call_to_concrete_instance() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/monomorph_extension_effect_instance.scoop",
+            r#"
+package fixtures.monomorph
+
+effect Boom {
+    fun ping(): Unit
+}
+
+fun <eff E = Pure> Int.forward(): Int / E {
+    return this
+}
+
+fun <eff E = Pure> wrap(x: Int): Int / E {
+    return x.forward<eff E>()
+}
+
+fun entry(): Int / Boom {
+    return wrap<eff Boom>(1)
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let forward_keys = lowered
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.monomorph.forward")
+            .collect::<Vec<_>>();
+        assert_eq!(forward_keys.len(), 1);
+        assert_eq!(forward_keys[0].eff_args.len(), 1);
+        assert!(!forward_keys[0].eff_args[0].is_pure());
+        assert!(lowered.file.items.iter().any(|item| matches!(
+            item,
+            crate::mir::Item::Fun(fun)
+                if fun.fqn == "fixtures.monomorph.forward::<eff fixtures.monomorph.Boom>"
+        )));
+        assert!(!lowered.file.items.iter().any(|item| matches!(
+            item,
+            crate::mir::Item::Fun(fun)
+                if fun.fqn == "fixtures.monomorph.forward::<eff Pure>"
+        )));
+
+        let wrap = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::Fun(fun)
+                    if fun.fqn == "fixtures.monomorph.wrap::<eff fixtures.monomorph.Boom>" =>
+                {
+                    Some(fun)
+                }
+                _ => None,
+            })
+            .expect("expected instantiated wrap body");
+        let body = wrap.body.as_ref().expect("wrap instance should have body");
+        let call_kind = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Call { kind, .. },
+                    ..
+                } => Some(kind),
+                _ => None,
+            })
+            .expect("expected direct call in wrap instance");
+        match call_kind {
+            crate::mir::CallKind::Direct { callee_fqn } => {
+                assert_eq!(
+                    callee_fqn,
+                    "fixtures.monomorph.forward::<eff fixtures.monomorph.Boom>"
+                );
+            }
+            other => panic!("expected instantiated extension direct call, got {other:?}"),
+        }
+    }
 }

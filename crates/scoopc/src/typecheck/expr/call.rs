@@ -49,6 +49,7 @@ struct MemberCallRequest<'a> {
     member: &'a ast::MemberIdent,
     args: &'a [ast::Expr],
     explicit_type_args: Option<&'a [TypeId]>,
+    explicit_eff_arg: Option<&'a EffectRow>,
     safe: bool,
 }
 
@@ -3222,6 +3223,7 @@ pub(super) fn infer_call_expr_type(
                     member,
                     args,
                     explicit_type_args: explicit_type_args.as_deref(),
+                    explicit_eff_arg: explicit_eff_arg.as_ref(),
                     safe: false,
                 },
                 lower,
@@ -3237,6 +3239,7 @@ pub(super) fn infer_call_expr_type(
                 member,
                 args,
                 explicit_type_args: explicit_type_args.as_deref(),
+                explicit_eff_arg: explicit_eff_arg.as_ref(),
                 safe: true,
             },
             lower,
@@ -5013,6 +5016,7 @@ fn infer_member_call_expr_type(
         member,
         args,
         explicit_type_args,
+        explicit_eff_arg,
         safe,
     } = request;
     let source = inputs.source;
@@ -5961,8 +5965,83 @@ fn infer_member_call_expr_type(
                     continue;
                 }
 
-                // 当前 member method call 路径不支持 `<eff E>`：保持与签名收集规则一致。
-                let eff_arg = EffectRow::pure();
+                let eff_arg = if let Some(explicit_eff_arg) = explicit_eff_arg.cloned() {
+                    explicit_eff_arg
+                } else if let Some(eff_param) = &cand.eff_param {
+                    let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+                    for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                        let arg = &call_args_with_receiver[arg_idx];
+                        if arg.is_spread {
+                            continue;
+                        }
+
+                        if let Some(base) = cand
+                            .param_nominal_eff_eff_base
+                            .get(param_idx)
+                            .and_then(|b| b.as_ref())
+                        {
+                            let base = match substitute_type_args_in_effect_row(
+                                base.clone(),
+                                &cand.type_params,
+                                &instantiated.type_args,
+                                lower,
+                                call_expr.span,
+                            ) {
+                                Ok(row) => row,
+                                Err(_) => continue,
+                            };
+                            let found_ty = checked_arg_tys[arg_idx];
+                            if let Some(found_row) = nominal_eff_row_from_type(found_ty, lower) {
+                                let delta = effect_row_difference(&found_row, &base);
+                                terms.extend(delta.terms);
+                            }
+                        }
+
+                        let Some(base) = cand
+                            .param_fn_effect_eff_base
+                            .get(param_idx)
+                            .and_then(|b| b.as_ref())
+                        else {
+                            continue;
+                        };
+                        if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+                            continue;
+                        }
+
+                        let base = match substitute_type_args_in_effect_row(
+                            base.clone(),
+                            &cand.type_params,
+                            &instantiated.type_args,
+                            lower,
+                            call_expr.span,
+                        ) {
+                            Ok(row) => row,
+                            Err(_) => continue,
+                        };
+                        let found_ty = checked_arg_tys[arg_idx];
+                        if let TypeKind::Ref(RefTypeKind::Function(found_fun)) =
+                            lower.type_kind(found_ty)
+                        {
+                            let delta = effect_row_difference(&found_fun.effects, &base);
+                            terms.extend(delta.terms);
+                        }
+                    }
+
+                    let inferred = EffectRow::new(terms);
+                    match substitute_type_args_in_effect_row(
+                        inferred,
+                        &cand.type_params,
+                        &instantiated.type_args,
+                        lower,
+                        call_expr.span,
+                    ) {
+                        Ok(row) => row,
+                        Err(_) => continue,
+                    }
+                } else {
+                    EffectRow::pure()
+                };
 
                 if cand.eff_param.is_some()
                     && instantiate_eff_row_var_in_sig_types(
@@ -6125,6 +6204,17 @@ fn infer_member_call_expr_type(
                 chosen.sig.decl_span,
                 &chosen.instantiated.type_args,
                 &eff_args,
+            );
+            lower.record_top_level_fun_call_binding(
+                call_expr.span,
+                ast::TopLevelFunCallBinding {
+                    fqn: fqn.to_string(),
+                    decl_file: chosen.sig.decl_file.clone(),
+                    decl_span: chosen.sig.decl_span,
+                    is_intrinsic: chosen.sig.is_intrinsic,
+                    type_args: chosen.instantiated.type_args.clone(),
+                    eff_args,
+                },
             );
 
             let ret = if safe {
@@ -6691,7 +6781,9 @@ fn infer_member_call_expr_type(
         // T0509/T0624/T0628a：推断 `eff` row 参数：
         // - 从 lambda body 的 required effects 推断（`found - base`）；
         // - 从 `Type<eff Row>` receiver/形参的实参类型提取 row 约束（`found - base`）。
-        let eff_arg = if let Some(eff_param) = &sig.eff_param {
+        let eff_arg = if let Some(explicit_eff_arg) = explicit_eff_arg.cloned() {
+            explicit_eff_arg
+        } else if let Some(eff_param) = &sig.eff_param {
             let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
             // receiver 约束：`ReceiverType<eff Row>`。
@@ -6925,6 +7017,17 @@ fn infer_member_call_expr_type(
             sig.decl_span,
             &instantiated.type_args,
             &eff_args,
+        );
+        lower.record_top_level_fun_call_binding(
+            call_expr.span,
+            ast::TopLevelFunCallBinding {
+                fqn: callee_fqn.clone(),
+                decl_file: sig.decl_file.clone(),
+                decl_span: sig.decl_span,
+                is_intrinsic: sig.is_intrinsic,
+                type_args: instantiated.type_args.clone(),
+                eff_args,
+            },
         );
 
         let ret = if safe {
@@ -7187,7 +7290,9 @@ fn infer_member_call_expr_type(
         // T0509/T0624/T0628a：推断 `eff` row 参数：
         // - 从 lambda body 的 required effects 推断（`found - base`）；
         // - 从 `Type<eff Row>` receiver/形参的实参类型提取 row 约束（`found - base`）。
-        let eff_arg = if let Some(eff_param) = &cand.eff_param {
+        let eff_arg = if let Some(explicit_eff_arg) = explicit_eff_arg.cloned() {
+            explicit_eff_arg
+        } else if let Some(eff_param) = &cand.eff_param {
             let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
             if let Some(base) = cand
@@ -7493,6 +7598,17 @@ fn infer_member_call_expr_type(
         chosen.sig.decl_span,
         &chosen.instantiated.type_args,
         &eff_args,
+    );
+    lower.record_top_level_fun_call_binding(
+        call_expr.span,
+        ast::TopLevelFunCallBinding {
+            fqn: callee_fqn.clone(),
+            decl_file: chosen.sig.decl_file.clone(),
+            decl_span: chosen.sig.decl_span,
+            is_intrinsic: chosen.sig.is_intrinsic,
+            type_args: chosen.instantiated.type_args.clone(),
+            eff_args,
+        },
     );
 
     let ret = if safe {

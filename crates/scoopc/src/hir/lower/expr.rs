@@ -170,6 +170,7 @@ impl<'a> HirLowering<'a> {
                 // 因为中间表达式被写成 `Any` 而在 codegen 时触发错误的 value coercion。
                 let typechecked_call_ty = self.typechecked_expr_ty(e.span);
                 let call_ty = typechecked_call_ty.unwrap_or(self.builtins.any);
+                let callee_expr = self.transparent_call_callee(callee);
 
                 // T0108：safe call 方法调用：`receiver?.method(args)` → when desugar。
                 if let ast::ExprKind::SafeMemberAccess {
@@ -200,7 +201,7 @@ impl<'a> HirLowering<'a> {
                 // - 运行期 codegen 当前只直接支持 `TopLevel` callee（以及少量特殊 member call）；
                 // - 这里在 lowering 阶段提前把 extension call 改写为顶层调用，避免后端无法识别 `MemberAccess` callee。
                 if let Some((kind, ty)) = (|| {
-                    let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+                    let ast::ExprKind::MemberAccess { receiver, member } = &callee_expr.kind else {
                         return None;
                     };
                     let resolved = self.resolved_member_for_lowering(member);
@@ -275,7 +276,7 @@ impl<'a> HirLowering<'a> {
                     //   会走其它 lowering 路径（当前阶段可能仍保持为 `MemberAccess` 供后续任务落地）。
                     // - `GC.pin/unpin` 等少量内建 member call 依赖后端 `MemberAccess` special-case，
                     //   不能在这里改写为顶层调用。
-                    let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+                    let ast::ExprKind::MemberAccess { receiver, member } = &callee_expr.kind else {
                         return None;
                     };
                     if self.should_keep_member_call_as_member_access(receiver, member) {
@@ -1714,14 +1715,22 @@ impl<'a> HirLowering<'a> {
         Some(overload.sig.clone())
     }
 
+    /// 调用位置把 `TypeApply` 视为 callee 的透明外壳。
+    ///
+    /// 这样 `foo<T>()`、`obj.method<eff E>()` 与 `x.ext<U>()` 可以共用与非 `TypeApply`
+    /// 相同的 lowering / 分派路径，而不会意外退回到值表达式处理。
+    fn transparent_call_callee<'b>(&self, callee: &'b ast::Expr) -> &'b ast::Expr {
+        match &callee.kind {
+            ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
+            _ => callee,
+        }
+    }
+
     /// 尝试从 callee 表达式中提取“顶层函数 FQN”（用于向实参传播期望类型）。
     fn callee_top_level_fqn<'b>(&self, callee: &'b ast::Expr) -> Option<&'b str> {
         // `callee<T>()`：在“调用 callee”位置仍把 `TypeApply` 视为透明包装；
         // 若其处于普通值表达式位置，则会提前经由 top-level function value side table 合成为 closure。
-        let callee = match &callee.kind {
-            ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
-            _ => callee,
-        };
+        let callee = self.transparent_call_callee(callee);
         let ast::ExprKind::Ident(id) = &callee.kind else {
             return None;
         };
@@ -3537,12 +3546,9 @@ impl<'a> HirLowering<'a> {
         callee: &ast::Expr,
         args: &[ast::Expr],
     ) -> Option<(ExprKind, TypeId)> {
-        let callee = match &callee.kind {
-            // `Effect.op<T>(...)`：HIR lowering 也把 TypeApply 视为“只包住 callee 的透明外壳”，
-            // 以便 generic effect-op call 与普通 effect-op call 进入同一条 perform lowering 主线。
-            ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
-            _ => callee,
-        };
+        // `Effect.op<T>(...)`：HIR lowering 也把 TypeApply 视为“只包住 callee 的透明外壳”，
+        // 以便 generic effect-op call 与普通 effect-op call 进入同一条 perform lowering 主线。
+        let callee = self.transparent_call_callee(callee);
 
         let ast::ExprKind::MemberAccess { member, .. } = &callee.kind else {
             return None;
@@ -4214,11 +4220,8 @@ impl<'a> HirLowering<'a> {
         let call_ty = typechecked_call_ty.unwrap_or(self.builtins.any);
 
         // 仅处理：顶层函数直接调用 `foo(...)`。
-        let callee = match &callee.kind {
-            // `callee<T>()`：HIR v0 视为透明包装（同 `lower_expr(TypeApply)`）。
-            ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
-            _ => callee,
-        };
+        // `callee<T>()`：HIR v0 视为透明包装（同 `lower_expr(TypeApply)`）。
+        let callee = self.transparent_call_callee(callee);
         let ast::ExprKind::Ident(id) = &callee.kind else {
             return None;
         };
