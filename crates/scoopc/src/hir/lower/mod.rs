@@ -5316,4 +5316,77 @@ fun <eff E = Pure> wrap(box: Box?): Int? / E {
             other => panic!("inner_call 应已降糖为顶层函数引用，实际为 {other:?}"),
         }
     }
+
+    #[test]
+    fn typed_hir_lowers_companion_member_type_apply_as_direct_call() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>/hir_companion_member_effect_type_apply.scoop",
+            r#"
+package fixtures.hirreview
+
+class Box {
+    companion object {
+        fun <eff E = Pure> forward(): Int / E {
+            return 1
+        }
+    }
+}
+
+fun <eff E = Pure> wrap(): Int / E {
+    return Box.forward<eff E>()
+}
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &src)
+            .expect("companion member direct-call + TypeApply 应能通过 typed HIR lowering");
+        let wrap = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.hirreview.wrap" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.hirreview.wrap");
+        let body = wrap.body.as_ref().expect("wrap 应有函数体");
+        let call_expr = body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Return { value: Some(expr) } => Some(expr),
+                _ => None,
+            })
+            .expect("wrap 应包含返回调用");
+        let ExprKind::Call { callee, args } = &call_expr.kind else {
+            panic!(
+                "期望 companion member 调用被 lower 为 direct call，实际为 {:?}",
+                call_expr.kind
+            );
+        };
+        assert_eq!(
+            args.len(),
+            1,
+            "companion direct-call 应注入 companion receiver 实参"
+        );
+        match &callee.kind {
+            ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+                assert_eq!(fqn, "fixtures.hirreview.Box.Companion.forward");
+            }
+            other => panic!("期望 callee 已被降糖为 companion 顶层函数引用，实际为 {other:?}"),
+        }
+        let [CallArg::Positional(receiver)] = args.as_slice() else {
+            panic!(
+                "companion direct-call 应只注入一个 receiver，实际为 {:?}",
+                args
+            );
+        };
+        match &receiver.kind {
+            ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+                assert_eq!(fqn, "fixtures.hirreview.Box.Companion");
+            }
+            other => panic!("receiver 应为 companion object 单例值，实际为 {other:?}"),
+        }
+    }
 }

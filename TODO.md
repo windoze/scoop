@@ -925,7 +925,7 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e1b0bR Review：确认 type-body generic member fun 已进入 generic MIR template → instance materialization 主线
+### [DONE] T5000e1b0bR Review：确认 type-body generic member fun 已进入 generic MIR template → instance materialization 主线
 - 重点：
   - `dump-mir` 是否已为 generic member fun 发射真实 MIR root，而不是停留在 `Todo { kind: "type" }`；
   - template catalog / canonical lookup / instance cache 是否已经同时覆盖顶层 fun、extension fun 与 type-body member fun；
@@ -933,6 +933,24 @@
 - 验收：
   - `InstanceKey` / materializer 对 member method 的支持与顶层/扩展函数处于同一层次，`T5000e1bR` 可以继续做总复核。
 - 依赖：T5000e1b0b
+- 完成记录（2026-04-26）：
+  - review 先暴露并修复了一个真实前置缺陷：`dump-mir` / `dump-ir` 的 typed dump 路径原本会把 `TypeName.member()` 的 companion dispatch receiver 当成普通值表达式去 typecheck，导致 `Box.forward()` / `Box.forward<eff E>()` 直接报 `scoop::typecheck::unsupported_expr`（`ident（未 resolve）`）；现已在 `crates/scoopc/src/typecheck/expr/call.rs` 把 unresolved type receiver 收口为 companion object nominal receiver，并在 `crates/scoopc/src/hir/lower/expr.rs` 把 companion member direct-call 改写为携带显式 companion singleton receiver 的顶层 direct-call；
+  - 已新增 `hir::lower::tests::typed_hir_lowers_companion_member_type_apply_as_direct_call`、`mir::lower::tests::dump_mir_emits_companion_generic_member_fun_roots`、`mir::materialize::tests::materialize_for_dump_distinguishes_companion_member_fun_effect_instances`，分别锁定 companion member direct-call 降糖、generic MIR root 发射，以及同一 companion member fun 在不同 effect row 下的独立 `InstanceKey` / concrete MIR instance；
+  - 复核后确认 template catalog / canonical lookup / instance cache 现已在同一层处理顶层 fun、extension fun、type-body member fun 与 companion member fun；`Box.Companion.forward::<eff Boom>` / `::<eff Zap>` 会作为不同实例身份稳定 materialize；
+  - `dump-mir` 的 member-fun 发射范围现与 `member_funs` side table 对齐，因此补充更新了 `tests/fixtures/mir/dispatch_and_resume_call.mir`，以反映 type/effect/interface body member fun 作为真实 MIR root 输出的现状；
+  - 已用 CLI 复现确认：
+    - `/tmp/t5000e1b0br_companion_plain.scoop` 的 `cargo run -q -p scoop -- dump-mir ...` 不再报 unresolved ident，并会把 `Box.forward()` 降成 `fixtures.review.Box.Companion.forward` 的 direct call；
+    - `/tmp/t5000e1b0br_companion_member.scoop` 的 `cargo run -q -p scoop -- dump-mir ...` / `dump-ir ...` 现在都会通过，并会 materialize `fixtures.review.Box.Companion.forward::<eff fixtures.review.Boom>` 与 `::<eff fixtures.review.Zap>`；
+  - 已验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc companion -- --nocapture`
+    - `cargo run -q -p scoop -- dump-mir /tmp/t5000e1b0br_companion_plain.scoop`
+    - `cargo run -q -p scoop -- dump-mir /tmp/t5000e1b0br_companion_member.scoop`
+    - `cargo run -q -p scoop -- dump-ir /tmp/t5000e1b0br_companion_member.scoop`
+    - `cargo run -q -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ### [TODO] T5000e1bR Review：确认 effect-row 实参已成为 `InstanceKey` / materializer 的一等维度
 - 重点：

@@ -2174,4 +2174,47 @@ fun <eff E = Pure> wrap(box: Box): Int / E {
             "顶层 generic fun root 仍应继续保留"
         );
     }
+
+    #[test]
+    fn dump_mir_emits_companion_generic_member_fun_roots() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_companion_member_root_generic.scoop",
+            r#"
+package fixtures.mirlower
+
+class Box() {
+    companion object {
+        fun <eff E = Pure> forward(): Int / E {
+            return 1
+        }
+    }
+}
+
+fun <eff E = Pure> wrap(): Int / E {
+    return Box.forward<eff E>()
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun_fqns = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) => Some(fun.fqn.as_str()),
+                Item::Todo { .. } => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            fun_fqns.contains(&"fixtures.mirlower.Box.Companion.forward"),
+            "generic MIR lowering 应显式发射 companion generic member fun root"
+        );
+        assert!(
+            fun_fqns.contains(&"fixtures.mirlower.wrap"),
+            "顶层 generic fun root 仍应继续保留"
+        );
+    }
 }

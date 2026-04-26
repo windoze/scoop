@@ -272,8 +272,10 @@ impl<'a> HirLowering<'a> {
                     // 降糖为顶层调用 `Owner.method(receiver, args...)`。
                     //
                     // 注意：
-                    // - 这里刻意只改写 value receiver 的 member call；type receiver（companion dispatch）
-                    //   会走其它 lowering 路径（当前阶段可能仍保持为 `MemberAccess` 供后续任务落地）。
+                    // - value receiver 直接沿用原 receiver lowering；
+                    // - 对 `TypeName.member(...)` 这类 companion dispatch，receiver 在 AST/typecheck 中
+                    //   仍是“未 resolve 的类型名 ident”，这里需要显式改写成 companion object 单例值，
+                    //   才能进入和普通 object member call 相同的 direct-call 主线；
                     // - `GC.pin/unpin` 等少量内建 member call 依赖后端 `MemberAccess` special-case，
                     //   不能在这里改写为顶层调用。
                     let ast::ExprKind::MemberAccess { receiver, member } = &callee_expr.kind else {
@@ -310,17 +312,17 @@ impl<'a> HirLowering<'a> {
                         return None;
                     }
 
-                    // resolver 的 type receiver（例如 `TypeName.member` / `EffectName.op`）约定为：
-                    // receiver ident 不写回 `resolved`。这里用该信号避免把 companion dispatch 误改写为
-                    // “带隐式 receiver 参数”的普通 member call。
-                    if let ast::ExprKind::Ident(id) = &receiver.kind
+                    let receiver = if let ast::ExprKind::Ident(id) = &receiver.kind
                         && id.resolved.is_none()
                         && self.source.slice(id.span) != "this"
                     {
-                        return None;
-                    }
-
-                    let receiver = self.lower_expr(pkg_prefix, receiver);
+                        if !owner_is_object {
+                            return None;
+                        }
+                        self.synth_object_singleton_value_expr(owner_fqn, receiver.span)
+                    } else {
+                        self.lower_expr(pkg_prefix, receiver)
+                    };
 
                     let mut lowered_args = Vec::with_capacity(args.len() + 1);
                     lowered_args.push(CallArg::Positional(receiver));
@@ -3537,6 +3539,17 @@ impl<'a> HirLowering<'a> {
         };
 
         (ExprKind::VarRef(resolved), ty)
+    }
+
+    fn synth_object_singleton_value_expr(&mut self, fqn: &str, span: Span) -> Expr {
+        Expr {
+            span,
+            ty: self.intern_nominal(fqn.to_string(), Vec::new(), None),
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(fqn.to_string()),
+                fqn: fqn.to_string(),
+            }),
+        }
     }
 
     fn try_lower_effect_op_call_expr(

@@ -390,5 +390,124 @@ File {
                 ),
             },
         ),
+        Fun(
+            FunDecl {
+                span: 61..76,
+                fqn: "fixtures.mir.Boom.next",
+                name: "next",
+                ty: TypeId(
+                    21,
+                ),
+                params: [
+                    Param {
+                        span: 50..54,
+                        name: "this",
+                        ty: TypeId(
+                            18,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 104..149,
+                fqn: "fixtures.mir.Base.ping",
+                name: "ping",
+                ty: TypeId(
+                    11,
+                ),
+                params: [
+                    Param {
+                        span: 91..95,
+                        name: "this",
+                        ty: TypeId(
+                            10,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 91..95,
+                                name: Some(
+                                    "this",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 142..143,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 142..143,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 135..143,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 175..189,
+                fqn: "fixtures.mir.IFace.foo",
+                name: "foo",
+                ty: TypeId(
+                    13,
+                ),
+                params: [
+                    Param {
+                        span: 163..168,
+                        name: "this",
+                        ty: TypeId(
+                            12,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: None,
+            },
+        ),
     ],
 }

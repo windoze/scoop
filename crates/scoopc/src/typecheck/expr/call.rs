@@ -5027,7 +5027,35 @@ fn infer_member_call_expr_type(
     let struct_field_types = inputs.struct_field_types;
 
     // 先递归类型检查 receiver：保证 `a?.b()` 中的 `a` 自身也会被覆盖。
-    let receiver_ty = inputs.infer(lower, receiver)?;
+    //
+    // 例外：`TypeName.member(...)` 的 companion dispatch 中，receiver 是一个类型名而不是值表达式；
+    // resolver 会刻意保留该 ident 为未解析状态，而实际运行期 receiver 应是 companion object 单例值。
+    // 这里直接把 receiver 视为 companion object 的名义类型，避免把 `TypeName` 当普通值去推导。
+    let companion_receiver_owner_fqn = if let ast::ExprKind::Ident(id) = &receiver.kind
+        && id.resolved.is_none()
+        && source.slice(id.span) != "this"
+    {
+        match member.resolved.as_ref() {
+            Some(ast::ResolvedMemberRef::Fun { fqn })
+            | Some(ast::ResolvedMemberRef::Value { fqn }) => {
+                if let Some((owner_fqn, _)) = fqn.rsplit_once('.') {
+                    lower
+                        .is_object_type(owner_fqn)
+                        .then(|| owner_fqn.to_string())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+    let receiver_ty = if let Some(owner_fqn) = companion_receiver_owner_fqn {
+        lower.lower_type_fqn_with_args(owner_fqn, Vec::new(), receiver.span)?
+    } else {
+        inputs.infer(lower, receiver)?
+    };
 
     let actual_receiver_ty = if safe {
         match lower.type_kind(receiver_ty) {

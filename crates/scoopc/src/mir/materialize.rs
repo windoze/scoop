@@ -2367,4 +2367,81 @@ fun entry(): Int / Boom {
             "materialize_for_dump 应产出 Box.forward 的 concrete MIR root"
         );
     }
+
+    #[test]
+    fn materialize_for_dump_distinguishes_companion_member_fun_effect_instances() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_companion_member_root_generic.scoop",
+            r#"
+package fixtures.materialize
+
+effect Boom {
+    fun ping(): Unit
+}
+
+effect Zap {
+    fun pong(): Unit
+}
+
+class Box() {
+    companion object {
+        fun <eff E = Pure> forward(): Int / E {
+            return 1
+        }
+    }
+}
+
+fun <eff E = Pure> wrap(): Int / E {
+    return Box.forward<eff E>()
+}
+
+fun use_boom(): Int / Boom {
+    return wrap<eff Boom>()
+}
+
+fun use_zap(): Int / Zap {
+    return wrap<eff Zap>()
+}
+"#,
+        );
+
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+        let forward_instances = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.Box.Companion.forward")
+            .collect::<Vec<_>>();
+        assert_eq!(forward_instances.len(), 2);
+        let mut effect_rows = forward_instances
+            .iter()
+            .map(|key| {
+                assert!(key.type_args.is_empty());
+                assert_eq!(key.eff_args.len(), 1);
+                assert_eq!(key.eff_args[0].terms.len(), 1);
+                materialized
+                    .types
+                    .display(key.eff_args[0].terms[0])
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        effect_rows.sort();
+        assert_eq!(
+            effect_rows,
+            vec![
+                "fixtures.materialize.Boom".to_string(),
+                "fixtures.materialize.Zap".to_string()
+            ]
+        );
+        assert!(materialized.file.items.iter().any(|item| matches!(
+            item,
+            Item::Fun(fun)
+                if fun.fqn == "fixtures.materialize.Box.Companion.forward::<eff fixtures.materialize.Boom>"
+        )));
+        assert!(materialized.file.items.iter().any(|item| matches!(
+            item,
+            Item::Fun(fun)
+                if fun.fqn == "fixtures.materialize.Box.Companion.forward::<eff fixtures.materialize.Zap>"
+        )));
+    }
 }
