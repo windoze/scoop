@@ -828,6 +828,26 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
+### [TODO] T5000e1b0a1 修复 effect-generic member direct-call 对 lambda 实参的 overload matching / `eff_arg` 推断闭环
+- 范围：
+  - 修复 `class Box() { fun <eff E = Pure> lift(f: () -> Int / E): Int / E { ... } }` 这类成员方法在 typed receiver 路径上的 direct-call typecheck；
+  - 让 `val box: Box = Box(); box.lift({ perform Boom.ping(); 1 })` 不再在 member direct-call 分支因 `NoMatchingOverload` 提前丢弃候选；
+  - 确保 member direct-call 在 lambda expected-context typecheck、`eff_arg` 推断、`instantiate_eff_row_var_in_sig_types(...)` 与最终 assignability 检查之间形成和顶层/扩展函数一致的闭环，而不是只收集了 `param_*_eff_base` / subst facts 却没真正消费成功。
+- 验收：
+  - 上述 typed receiver + lambda case 能通过 typecheck；
+  - 对应 `TopLevelFunCallBinding` / monomorph key 会保留非 `Pure` 的 `eff_args`；
+  - 不回退当前已验证通过的 extension/member 显式 `<eff E>` direct-call 路径。
+- 依赖：T5000e1b0a
+
+### [TODO] T5000e1b0a1R Review：确认 member direct-call 已真正消费 lambda-derived effect-row facts
+- 重点：
+  - member direct-call 分支是否已经不再“先按默认 `Pure` expected type 过滤掉 lambda 实参候选，再去推 `eff_arg`”；
+  - `collect_member_method_signatures_from_index(...)` 产出的 `eff_param` / `param_fn_effect_eff_base` / `param_nominal_eff_eff_base` / `param_eff_row_var_subst` 是否已被调用点闭环消费，而不是停留在 side table；
+  - typed receiver / lambda 推断路径修复后，显式 `<eff E>` 与 extension direct-call 回归是否仍保持通过。
+- 验收：
+  - effect-generic member method 的 lambda 实参路径已经具备与顶层/扩展函数相同的 `eff_arg` 推断能力。
+- 依赖：T5000e1b0a1
+
 ### [TODO] T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 `eff_args`
 - 重点：
   - call-callee 位置的 `TypeApply` 是否已不会把 extension/member call 重新打回成员值 / `FunValue` 路径；
@@ -835,7 +855,7 @@
   - 直连成员方法签名收集是否已保留 `eff_param` 与 effect-row subst facts，而不是继续在 typecheck 入口处先天丢失。
 - 验收：
   - extension/member direct-call 在 request binding 与调用点正规化层面已经具备与顶层函数相同的 `eff_args` 承载能力。
-- 依赖：T5000e1b0a
+- 依赖：T5000e1b0a1R
 
 ### [TODO] T5000e1b0b 让 generic MIR template / dump-ir 收录 type-body generic member fun roots
 - 范围：

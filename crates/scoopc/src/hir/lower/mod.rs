@@ -5176,4 +5176,58 @@ fun main(): Int {
         );
         assert_raise_int_effect_ty(&lowered.types, effect_ty);
     }
+
+    #[test]
+    fn typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>/hir_member_effect_type_apply.scoop",
+            r#"
+package fixtures.hirreview
+
+class Box {
+    fun <eff E = Pure> forward(): Int / E {
+        return 1
+    }
+}
+
+fun <eff E = Pure> wrap(box: Box): Int / E {
+    return box.forward<eff E>()
+}
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &src).unwrap();
+        let wrap = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.hirreview.wrap" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.hirreview.wrap");
+        let body = wrap.body.as_ref().expect("wrap 应有函数体");
+        let call_expr = body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Return { value: Some(expr) } => Some(expr),
+                _ => None,
+            })
+            .expect("wrap 应包含返回调用");
+        let ExprKind::Call { callee, args } = &call_expr.kind else {
+            panic!(
+                "期望 wrap 返回值被 lower 为 direct call，实际为 {:?}",
+                call_expr.kind
+            );
+        };
+        assert_eq!(args.len(), 1, "成员 direct-call 应携带隐式 receiver 实参");
+        match &callee.kind {
+            ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+                assert_eq!(fqn, "fixtures.hirreview.Box.forward");
+            }
+            other => panic!("期望 callee 已被降糖为顶层函数引用，实际为 {other:?}"),
+        }
+    }
 }

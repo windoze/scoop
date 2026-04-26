@@ -826,7 +826,24 @@
     - `cargo test -p scoopc monomorph_ -- --nocapture`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-  - 下一条待执行任务切换为 `T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 eff_args`。
+-  - 下一条待执行任务切换为 `T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 eff_args`。
+- 2026-04-26：执行 `T5000e1b0aR Review` 时，又暴露出一条新的 member direct-call 前置缺口，因此该 review 需再次顺延。
+  - 本轮先确认了两个已修复面确实稳定：
+    - 新增 `typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path`，确认 `box.forward<eff E>()` 在 typed HIR 中仍被降糖为 `fixtures.hirreview.Box.forward` 的 direct-call，而不是退回成员值 / `FunValue`；
+    - 新增 `dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding`，确认 typed receiver 下的 member direct-call request binding / monomorph key 会稳定携带非 `Pure` 的 `eff_args`。
+  - 继续 probing member-method effect-row subst consumer 路径时，发现更深阻塞：
+    - `class Box() { fun <eff E = Pure> lift(f: () -> Int / E): Int / E { ... } }` +
+      `val box: Box = Box(); box.lift({ perform Boom.ping(); 1 })`
+      仍会在 `crates/scoopc/src/typecheck/expr/call.rs` 的 member direct-call 分支报 `NoMatchingOverload { callee: "fixtures.materialize.Box.lift" }`；
+    - 这说明 `collect_member_method_signatures_from_index(...)` 产出的 `eff_param` / `param_*_eff_base` / subst facts 虽已开始收集，但带 lambda 实参的 member direct-call 仍未形成与顶层/扩展函数等价的调用点闭环。
+  - 为什么这会阻塞 `T5000e1b0aR`：
+    - `T5000e1b0aR` 需要确认“直连成员方法签名收集是否已保留 `eff_param` 与 effect-row subst facts，而不是继续在 typecheck 入口处先天丢失”；
+    - 只要带函数参数的 effect-generic member method 仍在 direct-call typecheck 阶段 `NoMatchingOverload`，就不能把 review 结论限定成“显式 `<eff E>` 已通、剩下 consumer 闭环以后再说”。
+  - 拆分结果：
+    - `T5000e1b0a1`：先修复 effect-generic member direct-call 对 lambda 实参的 overload matching / `eff_arg` 推断闭环；
+    - `T5000e1b0a1R`：复核 member direct-call 是否已经真正消费 lambda-derived effect-row facts；
+    - `T5000e1b0aR` 顺延到上述前置任务之后。
+  - 下一条待执行任务切换为 `T5000e1b0a1 修复 effect-generic member direct-call 对 lambda 实参的 overload matching / eff_arg 推断闭环`。
 
 ## 1. 当前判断
 
