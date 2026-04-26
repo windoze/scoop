@@ -137,6 +137,7 @@ struct HirLoweringSetup<'a> {
 #[derive(Clone)]
 enum EffectRowParamBinding {
     Placeholder(TypeId),
+    Concrete(EffectRow),
 }
 
 impl<'a> HirLowering<'a> {
@@ -248,6 +249,34 @@ impl<'a> HirLowering<'a> {
         let marker = self.intern_effect_row_param_marker(name.clone(), decl_span);
         scope.insert(name, EffectRowParamBinding::Placeholder(marker));
         self.effect_row_param_scopes.push(scope);
+    }
+
+    fn push_effect_row_param_binding(&mut self, name: String, row: EffectRow) {
+        let mut scope = HashMap::new();
+        scope.insert(name, EffectRowParamBinding::Concrete(row));
+        self.effect_row_param_scopes.push(scope);
+    }
+
+    fn effect_row_param_is_bound(&self, name: &str) -> bool {
+        self.effect_row_param_scopes
+            .iter()
+            .rev()
+            .any(|scope| scope.contains_key(name))
+    }
+
+    fn push_missing_fun_effect_placeholder(
+        &mut self,
+        eff_param: Option<&ast::EffectRowParam>,
+    ) -> bool {
+        let Some(eff_param) = eff_param else {
+            return false;
+        };
+        let name = eff_param.name.text(self.source).to_string();
+        if self.effect_row_param_is_bound(&name) {
+            return false;
+        }
+        self.push_effect_row_param_placeholder(name, eff_param.name.span);
+        true
     }
 
     fn pop_effect_row_param_binding(&mut self) {
@@ -535,13 +564,7 @@ impl<'a> HirLowering<'a> {
     fn lower_fun_decl(&mut self, pkg_prefix: &str, fun: &ast::FunDecl) -> FunDecl {
         // 进入函数作用域：先把 type params lower 成 `TypeId`，保证签名与 body 内引用一致。
         self.push_type_params(&fun.type_params);
-        let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
-            let name = eff_param.name.text(self.source).to_string();
-            self.push_effect_row_param_placeholder(name, eff_param.name.span);
-            true
-        } else {
-            false
-        };
+        let eff_binding_pushed = self.push_missing_fun_effect_placeholder(fun.eff_param.as_ref());
 
         let name = fun.name.text(self.source).to_string();
         let fqn = if pkg_prefix.is_empty() {
@@ -760,13 +783,7 @@ impl<'a> HirLowering<'a> {
         // owner type params 在 member 方法体内可见（例如 `class Box<T> { fun get(): T }`）。
         self.push_type_params(owner_type_params);
         self.push_type_params(&fun.type_params);
-        let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
-            let name = eff_param.name.text(self.source).to_string();
-            self.push_effect_row_param_placeholder(name, eff_param.name.span);
-            true
-        } else {
-            false
-        };
+        let eff_binding_pushed = self.push_missing_fun_effect_placeholder(fun.eff_param.as_ref());
 
         let name = fun.name.text(self.source).to_string();
         let fqn = format!("{owner_fqn}.{name}");
@@ -947,13 +964,7 @@ impl<'a> HirLowering<'a> {
         pkg_prefix: &str,
         fun: &ast::FunDecl,
     ) -> FunDecl {
-        let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
-            let name = eff_param.name.text(self.source).to_string();
-            self.push_effect_row_param_placeholder(name, eff_param.name.span);
-            true
-        } else {
-            false
-        };
+        let eff_binding_pushed = self.push_missing_fun_effect_placeholder(fun.eff_param.as_ref());
         let name = fun.name.text(self.source).to_string();
         let fqn = if pkg_prefix.is_empty() {
             name.clone()
@@ -1077,14 +1088,8 @@ impl<'a> HirLowering<'a> {
     ) -> FunDecl {
         // 方法自身的 type params（如果有的话）仍然需要 push；
         // owner 的 type params 已由调用方在 push_type_param_bindings 中绑定。
-        self.push_type_params(&fun.type_params);
-        let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
-            let name = eff_param.name.text(self.source).to_string();
-            self.push_effect_row_param_placeholder(name, eff_param.name.span);
-            true
-        } else {
-            false
-        };
+        let fun_type_params_pushed = self.push_missing_type_params(&fun.type_params);
+        let eff_binding_pushed = self.push_missing_fun_effect_placeholder(fun.eff_param.as_ref());
 
         let name = fun.name.text(self.source).to_string();
         let fqn = format!("{owner_fqn}.{name}");
@@ -1151,7 +1156,9 @@ impl<'a> HirLowering<'a> {
         if eff_binding_pushed {
             self.pop_effect_row_param_binding();
         }
-        self.pop_type_params(); // fun type params
+        if fun_type_params_pushed {
+            self.pop_type_params(); // fun type params
+        }
 
         FunDecl {
             span: fun.span,
@@ -1532,6 +1539,9 @@ impl<'a> HirLowering<'a> {
                 {
                     match binding {
                         EffectRowParamBinding::Placeholder(marker) => terms.push(*marker),
+                        EffectRowParamBinding::Concrete(row) => {
+                            terms.extend(row.terms.iter().copied())
+                        }
                     }
                     continue;
                 }
@@ -1613,6 +1623,26 @@ impl<'a> HirLowering<'a> {
             frame.insert(name, id);
         }
         self.type_param_scopes.push(frame);
+    }
+
+    fn type_param_is_bound(&self, name: &str) -> bool {
+        self.type_param_scopes
+            .iter()
+            .rev()
+            .any(|scope| scope.contains_key(name))
+    }
+
+    fn push_missing_type_params(&mut self, params: &[ast::TypeParam]) -> bool {
+        let missing = params
+            .iter()
+            .filter(|param| !self.type_param_is_bound(param.name.text(self.source)))
+            .cloned()
+            .collect::<Vec<_>>();
+        if missing.is_empty() {
+            return false;
+        }
+        self.push_type_params(&missing);
+        true
     }
 
     fn pop_type_params(&mut self) {
@@ -2230,7 +2260,7 @@ pub fn lower_typed_for_dump(
         &[],
         Some(&env),
         &typecheck_types,
-        CompilationUnitLoweringOptions::GENERIC_TEMPLATE_ONLY,
+        CompilationUnitLoweringOptions::generic_template_only(),
     )
 }
 
@@ -2413,7 +2443,7 @@ pub fn lower_for_compilation_unit_multi_files(
         monomorph_keys,
         None,
         typecheck_types,
-        CompilationUnitLoweringOptions::FULL,
+        CompilationUnitLoweringOptions::legacy_eager_hir(),
     )
 }
 
@@ -2432,8 +2462,48 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         monomorph_keys,
         type_env,
         typecheck_types,
-        CompilationUnitLoweringOptions::FULL,
+        CompilationUnitLoweringOptions::legacy_eager_hir(),
     )
+}
+
+/// 为 build / single-file LLVM frontend 生成“由 MIR instance collection 决定实例集合”的 HIR 兼容输入。
+///
+/// 说明：
+/// - 该入口先复用 typechecked compilation-unit facts 做 MIR materialization；
+/// - 再只按 MIR 产出的 `InstanceKey` 集合生成当前 LLVM codegen 仍需要的 monomorphic HIR fun/member；
+/// - 因而实例发现职责归属于 MIR，而不是继续由 HIR 自己扫描 `MonomorphKey` / `TypeStore`。
+pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection(
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    files_to_lower: &[(&SourceFile, &ast::File)],
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &TypeStore,
+) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
+    let request_source_paths = files_to_lower
+        .iter()
+        .map(|(source, _)| source.path().to_path_buf())
+        .collect::<Vec<_>>();
+    let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+        compilation_unit,
+        &request_source_paths,
+        index,
+        type_env,
+        typecheck_types,
+        monomorph_keys,
+    )?;
+    Ok(lower_for_compilation_unit_multi_files_internal(
+        index,
+        compilation_unit,
+        files_to_lower,
+        &[],
+        type_env,
+        typecheck_types,
+        CompilationUnitLoweringOptions::explicit_mir_instances(
+            &materialized.instance_keys,
+            &materialized.types,
+        ),
+    )?)
 }
 
 /// 为 typed dump / MIR materializer 构造“只保留 generic template”的多文件 HIR。
@@ -2454,41 +2524,59 @@ pub(crate) fn lower_generic_for_compilation_unit_multi_files_with_type_env(
         &[],
         type_env,
         typecheck_types,
-        CompilationUnitLoweringOptions::GENERIC_TEMPLATE_ONLY,
+        CompilationUnitLoweringOptions::generic_template_only(),
     )
 }
 
-#[derive(Clone, Copy)]
-struct CompilationUnitLoweringOptions {
-    materialize_generic_fun_instances: bool,
-    materialize_generic_member_fun_instances: bool,
+enum CompilationUnitInstanceMode<'a> {
+    LegacyEagerHir,
+    ExplicitMirInstances {
+        instance_keys: &'a [crate::mir::InstanceKey],
+        instance_types: &'a TypeStore,
+    },
+    GenericTemplateOnly,
 }
 
-impl CompilationUnitLoweringOptions {
-    const FULL: Self = Self {
-        materialize_generic_fun_instances: true,
-        materialize_generic_member_fun_instances: true,
-    };
-
-    const GENERIC_TEMPLATE_ONLY: Self = Self {
-        materialize_generic_fun_instances: false,
-        materialize_generic_member_fun_instances: false,
-    };
+struct CompilationUnitLoweringOptions<'a> {
+    instance_mode: CompilationUnitInstanceMode<'a>,
 }
 
-fn lower_for_compilation_unit_multi_files_internal(
+impl<'a> CompilationUnitLoweringOptions<'a> {
+    fn legacy_eager_hir() -> Self {
+        Self {
+            instance_mode: CompilationUnitInstanceMode::LegacyEagerHir,
+        }
+    }
+
+    fn explicit_mir_instances(
+        instance_keys: &'a [crate::mir::InstanceKey],
+        instance_types: &'a TypeStore,
+    ) -> Self {
+        Self {
+            instance_mode: CompilationUnitInstanceMode::ExplicitMirInstances {
+                instance_keys,
+                instance_types,
+            },
+        }
+    }
+
+    fn generic_template_only() -> Self {
+        Self {
+            instance_mode: CompilationUnitInstanceMode::GenericTemplateOnly,
+        }
+    }
+}
+
+fn lower_for_compilation_unit_multi_files_internal<'a>(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
     monomorph_keys: &[crate::monomorph::MonomorphKey],
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
-    options: CompilationUnitLoweringOptions,
+    options: CompilationUnitLoweringOptions<'a>,
 ) -> Result<LoweredHir, HirLowerError> {
-    let CompilationUnitLoweringOptions {
-        materialize_generic_fun_instances,
-        materialize_generic_member_fun_instances,
-    } = options;
+    let CompilationUnitLoweringOptions { instance_mode } = options;
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
@@ -2641,61 +2729,114 @@ fn lower_for_compilation_unit_multi_files_internal(
         &class_inits,
     ));
 
-    // T0127：为泛型独立函数的具体实例化生成单态化的 FunDecl。
-    // 注意：必须在 class member monomorphization 之前运行，因为独立函数的单态化
-    // 可能在 TypeStore 中创建新的泛型 class 实例化类型（例如 `Printer<Greeter>`），
-    // 这些类型需要被后续的 class member monomorphization 发现。
-    if materialize_generic_fun_instances {
-        let monomorphized_funs =
-            collect_generic_fun_instantiations(GenericFunInstantiationInputs {
-                pairs: compilation_unit,
-                monomorph_keys,
+    match instance_mode {
+        CompilationUnitInstanceMode::LegacyEagerHir => {
+            // T0127：为泛型独立函数的具体实例化生成单态化的 FunDecl。
+            // 注意：必须在 class member monomorphization 之前运行，因为独立函数的单态化
+            // 可能在 TypeStore 中创建新的泛型 class 实例化类型（例如 `Printer<Greeter>`），
+            // 这些类型需要被后续的 class member monomorphization 发现。
+            let monomorphized_funs =
+                collect_generic_fun_instantiations(GenericFunInstantiationInputs {
+                    compilation_unit,
+                    monomorph_keys,
+                    index,
+                    type_kinds: &type_kinds,
+                    types: &mut types,
+                    builtins,
+                    typecheck_types,
+                    initial_items: &items,
+                    initial_member_funs: &member_funs,
+                });
+            items.extend(monomorphized_funs.into_iter().map(Item::Fun));
+
+            // T0130：第二遍 class 实例化 —— standalone fun monomorphization 可能在 TypeStore 中
+            // 创建了新的泛型 class 实例化类型（例如 `Printer<Greeter>`），这里补充收集。
+            class_inits.extend(collect_generic_class_instantiation_inits(
+                compilation_unit,
+                &mut types,
+                &class_inits,
+            ));
+
+            // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
+            member_funs.extend(collect_generic_member_fun_instantiations(
+                compilation_unit,
                 index,
-                type_kinds: &type_kinds,
-                types: &mut types,
+                &type_kinds,
+                Some(typecheck_types),
+                &mut types,
                 builtins,
-                typecheck_types,
-                initial_items: &items,
-                initial_member_funs: &member_funs,
-            });
-        items.extend(monomorphized_funs.into_iter().map(Item::Fun));
-    }
+            ));
+            struct_layouts.extend(collect_generic_struct_instantiation_layouts(
+                compilation_unit,
+                index,
+                &mut types,
+            ));
+            enum_layouts.extend(collect_generic_enum_instantiation_layouts(
+                compilation_unit,
+                index,
+                &mut types,
+            ));
+            class_inits.extend(collect_generic_class_instantiation_inits(
+                compilation_unit,
+                &mut types,
+                &class_inits,
+            ));
+        }
+        CompilationUnitInstanceMode::ExplicitMirInstances {
+            instance_keys,
+            instance_types,
+        } => {
+            let monomorphic_funs = collect_generic_fun_instantiations_from_instance_keys(
+                ExplicitGenericFunInstantiationInputs {
+                    compilation_unit,
+                    instance_keys,
+                    instance_types,
+                    index,
+                    type_kinds: &type_kinds,
+                    types: &mut types,
+                    builtins,
+                    typecheck_types,
+                },
+            )?;
+            items.extend(monomorphic_funs.into_iter().map(Item::Fun));
 
-    // T0130：第二遍 class 实例化 —— standalone fun monomorphization 可能在 TypeStore 中
-    // 创建了新的泛型 class 实例化类型（例如 `Printer<Greeter>`），这里补充收集。
-    if materialize_generic_fun_instances {
-        class_inits.extend(collect_generic_class_instantiation_inits(
-            compilation_unit,
-            &mut types,
-            &class_inits,
-        ));
-    }
+            class_inits.extend(collect_generic_class_instantiation_inits(
+                compilation_unit,
+                &mut types,
+                &class_inits,
+            ));
 
-    // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
-    if materialize_generic_member_fun_instances {
-        member_funs.extend(collect_generic_member_fun_instantiations(
-            compilation_unit,
-            index,
-            &type_kinds,
-            Some(typecheck_types),
-            &mut types,
-            builtins,
-        ));
-        struct_layouts.extend(collect_generic_struct_instantiation_layouts(
-            compilation_unit,
-            index,
-            &mut types,
-        ));
-        enum_layouts.extend(collect_generic_enum_instantiation_layouts(
-            compilation_unit,
-            index,
-            &mut types,
-        ));
-        class_inits.extend(collect_generic_class_instantiation_inits(
-            compilation_unit,
-            &mut types,
-            &class_inits,
-        ));
+            member_funs.extend(
+                collect_generic_member_fun_instantiations_from_instance_keys(
+                    ExplicitGenericMemberInstantiationInputs {
+                        compilation_unit,
+                        instance_keys,
+                        instance_types,
+                        index,
+                        type_kinds: &type_kinds,
+                        types: &mut types,
+                        builtins,
+                        typecheck_types: Some(typecheck_types),
+                    },
+                )?,
+            );
+            struct_layouts.extend(collect_generic_struct_instantiation_layouts(
+                compilation_unit,
+                index,
+                &mut types,
+            ));
+            enum_layouts.extend(collect_generic_enum_instantiation_layouts(
+                compilation_unit,
+                index,
+                &mut types,
+            ));
+            class_inits.extend(collect_generic_class_instantiation_inits(
+                compilation_unit,
+                &mut types,
+                &class_inits,
+            ));
+        }
+        CompilationUnitInstanceMode::GenericTemplateOnly => {}
     }
 
     Ok(LoweredHir {
@@ -2733,6 +2874,7 @@ pub(crate) struct LoweringInputs<'a> {
     pub(crate) index: &'a Index,
     pub(crate) type_kinds: &'a HashMap<String, ast::TypeKind>,
     pub(crate) typecheck_types: Option<&'a TypeStore>,
+    pub(crate) compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     pub(crate) types: &'a mut TypeStore,
     pub(crate) builtins: BuiltinTypes,
 }
@@ -2761,21 +2903,30 @@ pub(crate) fn lower_fun_with_type_bindings(
     fun: &ast::FunDecl,
     type_bindings: impl IntoIterator<Item = (String, TypeId)>,
 ) -> FunDecl {
+    lower_fun_with_bindings(inputs, fun, type_bindings, None)
+}
+
+pub(crate) fn lower_fun_with_bindings(
+    inputs: LoweringInputs<'_>,
+    fun: &ast::FunDecl,
+    type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+    effect_binding: Option<(String, EffectRow)>,
+) -> FunDecl {
     let LoweringInputs {
         source,
         file,
         index,
         type_kinds,
         typecheck_types,
+        compilation_unit,
         types,
         builtins,
     } = inputs;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let compilation_unit = [(source, file)];
-    let delegated_properties = collect_delegated_properties(&compilation_unit);
-    let default_arg_structs = collect_default_arg_structs(&compilation_unit);
+    let delegated_properties = collect_delegated_properties(compilation_unit);
+    let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let value_type_computed_properties =
-        collect_value_type_computed_property_fqns(&compilation_unit);
+        collect_value_type_computed_property_fqns(compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -2785,15 +2936,30 @@ pub(crate) fn lower_fun_with_type_bindings(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
-            compilation_unit: &compilation_unit,
+            compilation_unit,
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
         },
     );
-    ctx.push_type_param_bindings(type_bindings);
+    let type_bindings = type_bindings.into_iter().collect::<Vec<_>>();
+    let type_bindings_pushed = !type_bindings.is_empty();
+    if type_bindings_pushed {
+        ctx.push_type_param_bindings(type_bindings);
+    }
+    let effect_binding_pushed = if let Some((name, row)) = effect_binding {
+        ctx.push_effect_row_param_binding(name, row);
+        true
+    } else {
+        false
+    };
     let out = ctx.lower_fun_decl_with_bound_type_params(&pkg_prefix, fun);
-    ctx.pop_type_params();
+    if effect_binding_pushed {
+        ctx.pop_effect_row_param_binding();
+    }
+    if type_bindings_pushed {
+        ctx.pop_type_params();
+    }
     out
 }
 
@@ -2810,12 +2976,29 @@ pub(crate) fn lower_member_fun_with_type_bindings(
     target: BoundMemberFunLoweringTarget<'_>,
     owner_type_bindings: impl IntoIterator<Item = (String, TypeId)>,
 ) -> FunDecl {
+    lower_member_fun_with_bindings(
+        inputs,
+        target,
+        owner_type_bindings,
+        Vec::<(String, TypeId)>::new(),
+        None,
+    )
+}
+
+pub(crate) fn lower_member_fun_with_bindings(
+    inputs: LoweringInputs<'_>,
+    target: BoundMemberFunLoweringTarget<'_>,
+    owner_type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+    fun_type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+    effect_binding: Option<(String, EffectRow)>,
+) -> FunDecl {
     let LoweringInputs {
         source,
         file,
         index,
         type_kinds,
         typecheck_types,
+        compilation_unit,
         types,
         builtins,
     } = inputs;
@@ -2826,11 +3009,10 @@ pub(crate) fn lower_member_fun_with_type_bindings(
         fun,
     } = target;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let compilation_unit = [(source, file)];
-    let delegated_properties = collect_delegated_properties(&compilation_unit);
-    let default_arg_structs = collect_default_arg_structs(&compilation_unit);
+    let delegated_properties = collect_delegated_properties(compilation_unit);
+    let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let value_type_computed_properties =
-        collect_value_type_computed_property_fqns(&compilation_unit);
+        collect_value_type_computed_property_fqns(compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -2840,7 +3022,7 @@ pub(crate) fn lower_member_fun_with_type_bindings(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
-            compilation_unit: &compilation_unit,
+            compilation_unit,
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
@@ -2848,7 +3030,22 @@ pub(crate) fn lower_member_fun_with_type_bindings(
     );
     // 先绑定 owner type params（例如 class Box<T> 的 T → Int），
     // 再由 lower_member_fun_decl_with_bound_type_params 处理方法 body。
-    ctx.push_type_param_bindings(owner_type_bindings);
+    let owner_type_bindings = owner_type_bindings.into_iter().collect::<Vec<_>>();
+    let owner_type_bindings_pushed = !owner_type_bindings.is_empty();
+    if owner_type_bindings_pushed {
+        ctx.push_type_param_bindings(owner_type_bindings);
+    }
+    let fun_type_bindings = fun_type_bindings.into_iter().collect::<Vec<_>>();
+    let fun_type_bindings_pushed = !fun_type_bindings.is_empty();
+    if fun_type_bindings_pushed {
+        ctx.push_type_param_bindings(fun_type_bindings);
+    }
+    let effect_binding_pushed = if let Some((name, row)) = effect_binding {
+        ctx.push_effect_row_param_binding(name, row);
+        true
+    } else {
+        false
+    };
     let out = ctx.lower_member_fun_decl_with_bound_type_params(
         &pkg_prefix,
         owner_fqn,
@@ -2856,7 +3053,15 @@ pub(crate) fn lower_member_fun_with_type_bindings(
         this_concrete_args,
         fun,
     );
-    ctx.pop_type_params();
+    if effect_binding_pushed {
+        ctx.pop_effect_row_param_binding();
+    }
+    if fun_type_bindings_pushed {
+        ctx.pop_type_params();
+    }
+    if owner_type_bindings_pushed {
+        ctx.pop_type_params();
+    }
     out
 }
 
@@ -2872,6 +3077,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         index,
         type_kinds,
         typecheck_types,
+        compilation_unit,
         types,
         builtins,
     } = inputs;
@@ -2882,11 +3088,10 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         property,
     } = target;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let compilation_unit = [(source, file)];
-    let delegated_properties = collect_delegated_properties(&compilation_unit);
-    let default_arg_structs = collect_default_arg_structs(&compilation_unit);
+    let delegated_properties = collect_delegated_properties(compilation_unit);
+    let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let value_type_computed_properties =
-        collect_value_type_computed_property_fqns(&compilation_unit);
+        collect_value_type_computed_property_fqns(compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -2896,13 +3101,17 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
-            compilation_unit: &compilation_unit,
+            compilation_unit,
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
         },
     );
-    ctx.push_type_param_bindings(owner_type_bindings);
+    let owner_type_bindings = owner_type_bindings.into_iter().collect::<Vec<_>>();
+    let owner_type_bindings_pushed = !owner_type_bindings.is_empty();
+    if owner_type_bindings_pushed {
+        ctx.push_type_param_bindings(owner_type_bindings);
+    }
     let out = ctx.lower_value_property_getter_decl_with_bound_type_params(
         &pkg_prefix,
         owner_fqn,
@@ -2910,7 +3119,9 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         this_concrete_args,
         property,
     );
-    ctx.pop_type_params();
+    if owner_type_bindings_pushed {
+        ctx.pop_type_params();
+    }
     out
 }
 

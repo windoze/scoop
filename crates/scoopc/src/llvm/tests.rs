@@ -196,6 +196,118 @@ fn minimal_main_ir_contains_main_and_ret0() {
 }
 
 #[test]
+fn single_file_frontend_keeps_distinct_effect_row_generic_instances() {
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000e2c_single_file.scoop",
+        r#"
+package fixtures.t5000e2c
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(): Int
+}
+
+effect Zap {
+    fun zap(): Int
+}
+
+fun <T, eff E> id(x: T): T / E {
+    return x
+}
+
+fun <T, eff E> wrap(x: T): T / E {
+    return id<T, eff E>(x)
+}
+
+private fun entry(): Int / (Boom + Zap) {
+    val a = wrap<Int, eff Boom>(1)
+    val b = wrap<Int, eff Zap>(2)
+    return a + b
+}
+
+fun main(): Int / Pure! {
+    val thunk: () -> Int / (Boom + Zap) = entry
+    return 0
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let lowered_fun_fqns = codegen_unit
+        .lowered
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            hir::Item::Fun(fun) => Some(fun.fqn.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    for fqn in [
+        "fixtures.t5000e2c.wrap::<Int, eff fixtures.t5000e2c.Boom>",
+        "fixtures.t5000e2c.wrap::<Int, eff fixtures.t5000e2c.Zap>",
+        "fixtures.t5000e2c.id::<Int, eff fixtures.t5000e2c.Boom>",
+        "fixtures.t5000e2c.id::<Int, eff fixtures.t5000e2c.Zap>",
+    ] {
+        assert!(
+            lowered_fun_fqns.contains(&fqn),
+            "single-file frontend lowering 应保留实例 `{fqn}`，实际函数集合为: {lowered_fun_fqns:?}"
+        );
+    }
+}
+
+#[test]
+fn single_file_frontend_reaches_async_task_helper_instances_through_perform_continuations() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async {
+        println("before")
+        val x: Int = await __task_from_result(41)
+        println("after")
+        println(x)
+        x + 1
+    }
+    return 0
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let lowered_fun_fqns = codegen_unit
+        .lowered
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            hir::Item::Fun(fun) => Some(fun.fqn.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    for fqn in [
+        "scoop.core.__task_create::<Int>",
+        "scoop.core.__task_from_result::<Int>",
+        "scoop.core.__task_step_pending::<Int>",
+        "scoop.core.__task_step_ready::<Int>",
+        "scoop.core.println::<Int>",
+        "scoop.core.println::<String>",
+    ] {
+        assert!(
+            lowered_fun_fqns.contains(&fqn),
+            "single-file frontend 应保留 async 闭包 continuation 所需实例 `{fqn}`，实际函数集合为: {lowered_fun_fqns:?}"
+        );
+    }
+}
+
+#[test]
 fn float_builtin_types_lower_to_llvm_scalars() {
     let source = SourceFile::new_virtual(
         "<mem>",

@@ -1247,6 +1247,7 @@ struct MirInstanceMaterializer {
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     reachable_fun_bodies_by_request: HashMap<RequestTemplateKey, ReachableMirFun>,
     reachable_fun_bodies_by_fqn: HashMap<String, Vec<ReachableMirFun>>,
+    all_fun_bodies_by_fqn: HashMap<String, Vec<FunDecl>>,
     call_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     value_ref_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
@@ -1381,6 +1382,7 @@ impl MirInstanceMaterializer {
 
         let mut reachable_fun_bodies_by_request = HashMap::new();
         let mut reachable_fun_bodies_by_fqn: HashMap<String, Vec<ReachableMirFun>> = HashMap::new();
+        let mut all_fun_bodies_by_fqn: HashMap<String, Vec<FunDecl>> = HashMap::new();
         for info in callable_body_infos {
             let Some(fun) = generic_funs
                 .iter()
@@ -1399,6 +1401,16 @@ impl MirInstanceMaterializer {
                 .or_default()
                 .push(reachable);
         }
+        for fun in &generic_funs {
+            let Some(_) = &fun.body else {
+                continue;
+            };
+            let entry = all_fun_bodies_by_fqn.entry(fun.fqn.clone()).or_default();
+            if entry.iter().any(|existing| existing.span == fun.span) {
+                continue;
+            }
+            entry.push(fun.clone());
+        }
 
         let mut materializer = Self {
             types,
@@ -1411,6 +1423,7 @@ impl MirInstanceMaterializer {
             direct_call_bindings: top_level_fun_call_bindings.clone(),
             reachable_fun_bodies_by_request,
             reachable_fun_bodies_by_fqn,
+            all_fun_bodies_by_fqn,
             call_bindings: HashMap::new(),
             value_ref_bindings: HashMap::new(),
             scanned_non_generic_funs: HashSet::new(),
@@ -1632,29 +1645,60 @@ impl MirInstanceMaterializer {
         substitution: &InstanceSubstitution,
         out: &mut Vec<InstanceKey>,
     ) {
-        let Rvalue::Call {
-            kind: CallKind::Direct { callee_fqn },
-            args,
-        } = value
-        else {
-            return;
-        };
-        if let Some(instance_key) = self.infer_direct_call_instance(
-            template_source_path,
-            span,
-            callee_fqn,
-            args,
-            locals,
-            substitution,
-        ) {
-            out.push(instance_key);
-            return;
+        match value {
+            Rvalue::Call {
+                kind: CallKind::Direct { callee_fqn },
+                args,
+            } => {
+                if let Some(instance_key) = self.infer_direct_call_instance(
+                    template_source_path,
+                    span,
+                    callee_fqn,
+                    args,
+                    locals,
+                    substitution,
+                ) {
+                    out.push(instance_key);
+                    return;
+                }
+                if let Some(reachable_callee) =
+                    self.resolve_non_generic_direct_callee(template_source_path, span, callee_fqn)
+                {
+                    self.scan_reachable_non_generic_fun(&reachable_callee, out);
+                }
+            }
+            Rvalue::MakeClosure { fn_ptr, .. } => {
+                if let Some(reachable_closure) =
+                    self.resolve_non_generic_fun_body_by_fqn(template_source_path, fn_ptr)
+                {
+                    self.scan_reachable_non_generic_fun(&reachable_closure, out);
+                }
+            }
+            _ => {}
         }
-        if let Some(reachable_callee) =
-            self.resolve_non_generic_direct_callee(template_source_path, span, callee_fqn)
-        {
-            self.scan_reachable_non_generic_fun(&reachable_callee, out);
+    }
+
+    fn resolve_non_generic_fun_body_by_fqn(
+        &self,
+        default_source_path: &Path,
+        fqn: &str,
+    ) -> Option<ReachableMirFun> {
+        if let Some(candidates) = self.reachable_fun_bodies_by_fqn.get(fqn) {
+            if candidates.len() != 1 {
+                return None;
+            }
+            let candidate = candidates[0].clone();
+            return (!self.generic_family_fqns.contains(&candidate.fun.fqn)).then_some(candidate);
         }
+        let candidates = self.all_fun_bodies_by_fqn.get(fqn)?;
+        if candidates.len() != 1 {
+            return None;
+        }
+        let fun = candidates[0].clone();
+        (!self.generic_family_fqns.contains(&fun.fqn)).then_some(ReachableMirFun {
+            source_path: default_source_path.to_path_buf(),
+            fun,
+        })
     }
 
     fn resolve_non_generic_direct_callee(
@@ -1682,12 +1726,7 @@ impl MirInstanceMaterializer {
             }
         }
 
-        let candidates = self.reachable_fun_bodies_by_fqn.get(callee_fqn)?;
-        if candidates.len() != 1 {
-            return None;
-        }
-        let candidate = candidates[0].clone();
-        (!self.generic_family_fqns.contains(&candidate.fun.fqn)).then_some(candidate)
+        self.resolve_non_generic_fun_body_by_fqn(template_source_path, callee_fqn)
     }
 
     fn run(mut self, initial_requests: Vec<InstanceKey>) -> MaterializeResult<MaterializedMir> {
@@ -3346,6 +3385,59 @@ fun entry(): Int {
             )),
             "generic instance 经由非泛型 helper 可达的 owner-specialized getter 应继续进入 MIR materialization"
         );
+    }
+
+    #[test]
+    fn typechecked_compilation_unit_materialization_reaches_generic_calls_through_non_generic_async_closure_body()
+     {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_async_closure_helper_reachability.scoop",
+            r#"
+package fixtures.materialize
+
+import scoop.core.*
+
+fun entry(): Int {
+    val task: Task<Int> = async {
+        val inner: Task<Int> = async { 41 }
+        val value: Int = await inner
+        value + 1
+    }
+    return 0
+}
+"#,
+        );
+
+        let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            &[source.path().to_path_buf()],
+            &inputs.index,
+            Some(&inputs.env),
+            &inputs.typecheck_types,
+            &inputs.monomorph_keys,
+        )
+        .unwrap();
+
+        for fqn in [
+            "scoop.core.__task_create::<Int>",
+            "scoop.core.__task_step_ready::<Int>",
+            "scoop.core.__task_step_pending::<Int>",
+        ] {
+            assert!(
+                materialized.file.items.iter().any(|item| matches!(
+                    item,
+                    Item::Fun(fun) if fun.fqn == fqn
+                )),
+                "non-generic async closure body 内的 task helper 应继续进入编译单元 materialization，缺失 `{fqn}`"
+            );
+        }
     }
 
     #[test]

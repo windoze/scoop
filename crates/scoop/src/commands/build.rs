@@ -1048,7 +1048,7 @@ fn lower_main_hir_for_build(
         .zip(front.asts.iter())
         .collect::<Vec<_>>();
 
-    scoopc::hir::lower_for_compilation_unit_multi_files_with_type_env(
+    scoopc::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection(
         &front.index,
         &unit,
         &files_to_lower,
@@ -1056,7 +1056,7 @@ fn lower_main_hir_for_build(
         Some(&front.type_env),
         &front.typecheck_types,
     )
-    .map_err(miette::Report::from)
+    .map_err(|err| miette::Report::from(*err))
 }
 
 #[cfg(feature = "llvm")]
@@ -1350,5 +1350,75 @@ public fun main() / Pure! {
 
         let ll = std::fs::read_to_string(&out).unwrap();
         assert!(ll.contains("define i32 @main("), "应输出 LLVM IR");
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_frontend_keeps_distinct_effect_row_generic_instances() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("main.scoop");
+
+        std::fs::write(
+            &input,
+            r#"
+package fixtures.t5000e2c
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(): Int
+}
+
+effect Zap {
+    fun zap(): Int
+}
+
+fun <T, eff E> id(x: T): T / E {
+    return x
+}
+
+fun <T, eff E> wrap(x: T): T / E {
+    return id<T, eff E>(x)
+}
+
+private fun entry(): Int / (Boom + Zap) {
+    val a = wrap<Int, eff Boom>(1)
+    val b = wrap<Int, eff Zap>(2)
+    return a + b
+}
+
+fun main(): Int / Pure! {
+    val thunk: () -> Int / (Boom + Zap) = entry
+    return 0
+}
+"#,
+        )
+        .unwrap();
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_input = super::load_build_input(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+        let lowered_fun_fqns = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                scoopc::hir::Item::Fun(fun) => Some(fun.fqn.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        for fqn in [
+            "fixtures.t5000e2c.wrap::<Int, eff fixtures.t5000e2c.Boom>",
+            "fixtures.t5000e2c.wrap::<Int, eff fixtures.t5000e2c.Zap>",
+            "fixtures.t5000e2c.id::<Int, eff fixtures.t5000e2c.Boom>",
+            "fixtures.t5000e2c.id::<Int, eff fixtures.t5000e2c.Zap>",
+        ] {
+            assert!(
+                lowered_fun_fqns.contains(&fqn),
+                "build frontend lowering 应保留实例 `{fqn}`，实际函数集合为: {lowered_fun_fqns:?}"
+            );
+        }
     }
 }

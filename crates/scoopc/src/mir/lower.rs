@@ -457,6 +457,28 @@ impl<'a> FnLowering<'a> {
         )
     }
 
+    /// 当前 block 若只是被占位式 effect terminator 截断，则为后续语句分配一个新的 continuation block。
+    ///
+    /// 说明：
+    /// - 现阶段 `TerminatorKind::Handle` / `TerminatorKind::Perform` 仍未展开成真实 CFG；
+    /// - 但像 async task body 这类形状会在 `handle { ... }` 之后继续出现普通 direct call
+    ///   （例如 `__task_step_ready(...)`），并且 `await` 之后的恢复路径也仍需要在 generic MIR 中保形；
+    /// - 若这里直接停止，generic MIR materializer 将看不到这些后续 call-site；
+    /// - 因此仅当终止原因是占位式 `Handle` / `Perform` 时，允许把后续语句接到一个新的孤立 block 中继续保形。
+    fn continue_after_placeholder_effect_terminator_if_needed(&mut self, next_span: Span) -> bool {
+        if !self.current_is_terminated() {
+            return true;
+        }
+        if !matches!(
+            self.body.blocks[self.current_bb.as_usize()].terminator.kind,
+            TerminatorKind::Handle { .. } | TerminatorKind::Perform { .. }
+        ) {
+            return false;
+        }
+        self.current_bb = self.push_block(next_span);
+        true
+    }
+
     /// 若函数尾部没有显式 terminator，则默认补一个 `return`（保持 body 可验证/可 dump）。
     fn finish_function(&mut self, span: Span) {
         if !self.current_is_terminated() {
@@ -551,7 +573,7 @@ impl<'a> FnLowering<'a> {
     /// 把一个 block 作为“语句块”来 lower（顺序执行；最后表达式结果被丢弃）。
     fn lower_block_as_stmt(&mut self, block: &hir::Block) {
         for stmt in &block.stmts {
-            if self.current_is_terminated() {
+            if !self.continue_after_placeholder_effect_terminator_if_needed(stmt.span) {
                 break;
             }
             self.lower_stmt(stmt);
@@ -562,7 +584,7 @@ impl<'a> FnLowering<'a> {
     fn lower_block_as_expr(&mut self, block: &hir::Block) -> LocalId {
         let mut result: Option<LocalId> = None;
         for (idx, stmt) in block.stmts.iter().enumerate() {
-            if self.current_is_terminated() {
+            if !self.continue_after_placeholder_effect_terminator_if_needed(stmt.span) {
                 break;
             }
             let is_last = idx + 1 == block.stmts.len();

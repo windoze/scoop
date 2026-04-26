@@ -8,12 +8,13 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
+use crate::mir::{InstanceKey, TemplateKey};
 use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::parse_string_literal_utf8;
-use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::types::*;
 use super::{HirLowering, HirLoweringSetup};
@@ -3416,6 +3417,7 @@ pub(super) fn collect_generic_member_fun_instantiations(
                             index,
                             type_kinds,
                             typecheck_types,
+                            compilation_unit: pairs,
                             types,
                             builtins,
                         },
@@ -3441,6 +3443,7 @@ pub(super) fn collect_generic_member_fun_instantiations(
                             index,
                             type_kinds,
                             typecheck_types,
+                            compilation_unit: pairs,
                             types,
                             builtins,
                         },
@@ -3461,6 +3464,393 @@ pub(super) fn collect_generic_member_fun_instantiations(
     }
 
     out
+}
+
+enum ExplicitMemberTemplate<'a> {
+    Fun {
+        source: &'a SourceFile,
+        file: &'a ast::File,
+        owner_fqn: String,
+        owner_type_params: &'a [ast::TypeParam],
+        this_decl_span: Span,
+        fun: &'a ast::FunDecl,
+    },
+    Getter {
+        source: &'a SourceFile,
+        file: &'a ast::File,
+        owner_fqn: String,
+        owner_type_params: &'a [ast::TypeParam],
+        this_decl_span: Span,
+        property: &'a ast::PropertyDecl,
+    },
+}
+
+pub(super) struct ExplicitGenericMemberInstantiationInputs<'a> {
+    pub compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
+    pub instance_keys: &'a [InstanceKey],
+    pub instance_types: &'a TypeStore,
+    pub index: &'a Index,
+    pub type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub typecheck_types: Option<&'a TypeStore>,
+    pub types: &'a mut TypeStore,
+    pub builtins: BuiltinTypes,
+}
+
+pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
+    inputs: ExplicitGenericMemberInstantiationInputs<'_>,
+) -> Result<Vec<super::super::FunDecl>, super::HirLowerError> {
+    let ExplicitGenericMemberInstantiationInputs {
+        compilation_unit,
+        instance_keys,
+        instance_types,
+        index,
+        type_kinds,
+        typecheck_types,
+        types,
+        builtins,
+    } = inputs;
+
+    if instance_keys.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let templates = collect_explicit_member_templates(compilation_unit);
+    if templates.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out = Vec::new();
+
+    for instance in instance_keys {
+        let Some(template) = templates.get(&instance.template) else {
+            continue;
+        };
+
+        match template {
+            ExplicitMemberTemplate::Fun {
+                source,
+                file,
+                owner_fqn,
+                owner_type_params,
+                this_decl_span,
+                fun,
+            } => {
+                let owner_param_count = owner_type_params.len();
+                let fun_param_count = fun.type_params.len();
+                if instance.type_args.len() != owner_param_count + fun_param_count {
+                    return Err(explicit_instance_lowering_error(format!(
+                        "member fun `{}` 的 type args 数量不匹配：期望 {}，得到 {}",
+                        instance.template.fqn,
+                        owner_param_count + fun_param_count,
+                        instance.type_args.len()
+                    )));
+                }
+                let owner_args = instance.type_args[..owner_param_count]
+                    .iter()
+                    .map(|&arg| types.re_intern_from(instance_types, arg))
+                    .collect::<Vec<_>>();
+                let fun_args = instance.type_args[owner_param_count..]
+                    .iter()
+                    .map(|&arg| types.re_intern_from(instance_types, arg))
+                    .collect::<Vec<_>>();
+                let eff_args = instance
+                    .eff_args
+                    .iter()
+                    .map(|row| re_intern_effect_row_from(types, instance_types, row))
+                    .collect::<Vec<_>>();
+                let effect_binding = build_effect_binding(
+                    source,
+                    &instance.template.fqn,
+                    &fun.eff_param,
+                    &eff_args,
+                )?;
+                let instance_fqn = stable_instance_fqn(
+                    types,
+                    &instance.template,
+                    &[owner_args.as_slice(), fun_args.as_slice()].concat(),
+                    &eff_args,
+                );
+                if !seen.insert(instance_fqn.clone()) {
+                    continue;
+                }
+                let owner_bindings = owner_type_params
+                    .iter()
+                    .zip(owner_args.iter())
+                    .map(|(param, &arg)| (param.name.text(source).to_string(), arg))
+                    .collect::<Vec<_>>();
+                let fun_bindings = fun
+                    .type_params
+                    .iter()
+                    .zip(fun_args.iter())
+                    .map(|(param, &arg)| (param.name.text(source).to_string(), arg))
+                    .collect::<Vec<_>>();
+                let mut hir_fun = super::lower_member_fun_with_bindings(
+                    super::LoweringInputs {
+                        source,
+                        file,
+                        index,
+                        type_kinds,
+                        typecheck_types,
+                        compilation_unit,
+                        types,
+                        builtins,
+                    },
+                    super::BoundMemberFunLoweringTarget {
+                        owner_fqn,
+                        this_decl_span: *this_decl_span,
+                        this_concrete_args: &owner_args,
+                        fun,
+                    },
+                    owner_bindings,
+                    fun_bindings,
+                    effect_binding,
+                );
+                hir_fun.fqn = instance_fqn;
+                out.push(hir_fun);
+            }
+            ExplicitMemberTemplate::Getter {
+                source,
+                file,
+                owner_fqn,
+                owner_type_params,
+                this_decl_span,
+                property,
+            } => {
+                if !instance.eff_args.is_empty() {
+                    return Err(explicit_instance_lowering_error(format!(
+                        "value getter `{}` 不应携带 effect args，但实例请求提供了 {} 个",
+                        instance.template.fqn,
+                        instance.eff_args.len()
+                    )));
+                }
+                if instance.type_args.len() != owner_type_params.len() {
+                    return Err(explicit_instance_lowering_error(format!(
+                        "value getter `{}` 的 owner type args 数量不匹配：期望 {}，得到 {}",
+                        instance.template.fqn,
+                        owner_type_params.len(),
+                        instance.type_args.len()
+                    )));
+                }
+                let owner_args = instance
+                    .type_args
+                    .iter()
+                    .map(|&arg| types.re_intern_from(instance_types, arg))
+                    .collect::<Vec<_>>();
+                let instance_fqn = stable_instance_fqn(types, &instance.template, &owner_args, &[]);
+                if !seen.insert(instance_fqn.clone()) {
+                    continue;
+                }
+                let owner_bindings = owner_type_params
+                    .iter()
+                    .zip(owner_args.iter())
+                    .map(|(param, &arg)| (param.name.text(source).to_string(), arg))
+                    .collect::<Vec<_>>();
+                let mut hir_fun = super::lower_value_property_getter_with_type_bindings(
+                    super::LoweringInputs {
+                        source,
+                        file,
+                        index,
+                        type_kinds,
+                        typecheck_types,
+                        compilation_unit,
+                        types,
+                        builtins,
+                    },
+                    super::BoundValuePropertyGetterLoweringTarget {
+                        owner_fqn,
+                        this_decl_span: *this_decl_span,
+                        this_concrete_args: &owner_args,
+                        property,
+                    },
+                    owner_bindings,
+                );
+                hir_fun.fqn = instance_fqn;
+                out.push(hir_fun);
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+fn collect_explicit_member_templates<'a>(
+    compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
+) -> HashMap<TemplateKey, ExplicitMemberTemplate<'a>> {
+    let mut out = HashMap::new();
+    for (source, file) in compilation_unit {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        collect_explicit_member_templates_in_items(
+            source,
+            file,
+            &pkg_prefix,
+            &file.items,
+            &mut out,
+        );
+    }
+    out
+}
+
+fn collect_explicit_member_templates_in_items<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    owner_prefix: &str,
+    items: &'a [ast::Item],
+    out: &mut HashMap<TemplateKey, ExplicitMemberTemplate<'a>>,
+) {
+    for item in items {
+        match item {
+            ast::Item::Type(ty) => {
+                collect_explicit_member_templates_in_type_decl(source, file, ty, owner_prefix, out);
+            }
+            ast::Item::Object(obj) => {
+                collect_explicit_member_templates_in_object_decl(
+                    source,
+                    file,
+                    obj,
+                    owner_prefix,
+                    out,
+                );
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
+        }
+    }
+}
+
+fn collect_explicit_member_templates_in_type_decl<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    decl: &'a ast::TypeDecl,
+    owner_prefix: &str,
+    out: &mut HashMap<TemplateKey, ExplicitMemberTemplate<'a>>,
+) {
+    let local_name = decl.name.text(source);
+    let owner_fqn = join_prefix(owner_prefix, local_name);
+    let owner_is_generic = !decl.type_params.is_empty();
+    let Some(body) = &decl.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun)
+                if owner_is_generic || !fun.type_params.is_empty() || fun.eff_param.is_some() =>
+            {
+                let fqn = format!("{owner_fqn}.{}", fun.name.text(source));
+                out.insert(
+                    TemplateKey {
+                        fqn,
+                        source_path: source.path().to_path_buf(),
+                        decl_span: fun.span,
+                    },
+                    ExplicitMemberTemplate::Fun {
+                        source,
+                        file,
+                        owner_fqn: owner_fqn.clone(),
+                        owner_type_params: &decl.type_params,
+                        this_decl_span: decl.name.span,
+                        fun,
+                    },
+                );
+            }
+            ast::TypeMember::Property(property)
+                if owner_is_generic
+                    && matches!(decl.kind, ast::TypeKind::Struct | ast::TypeKind::Enum)
+                    && property.getter.is_some() =>
+            {
+                let fqn = format!("{owner_fqn}.{}", property.name.text(source));
+                out.insert(
+                    TemplateKey {
+                        fqn,
+                        source_path: source.path().to_path_buf(),
+                        decl_span: property.span,
+                    },
+                    ExplicitMemberTemplate::Getter {
+                        source,
+                        file,
+                        owner_fqn: owner_fqn.clone(),
+                        owner_type_params: &decl.type_params,
+                        this_decl_span: decl.name.span,
+                        property,
+                    },
+                );
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_explicit_member_templates_in_type_decl(
+                    source, file, nested, &owner_fqn, out,
+                );
+            }
+            ast::TypeMember::Object(obj) => {
+                collect_explicit_member_templates_in_object_decl(
+                    source, file, obj, &owner_fqn, out,
+                );
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn collect_explicit_member_templates_in_object_decl<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    obj: &'a ast::ObjectDecl,
+    owner_prefix: &str,
+    out: &mut HashMap<TemplateKey, ExplicitMemberTemplate<'a>>,
+) {
+    let Some(name) = object_decl_name(source, obj) else {
+        return;
+    };
+    let owner_fqn = join_prefix(owner_prefix, &name);
+    let this_decl_span = obj.name.as_ref().map(|n| n.span).unwrap_or(obj.span);
+    let Some(body) = &obj.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) if !fun.type_params.is_empty() || fun.eff_param.is_some() => {
+                let fqn = format!("{owner_fqn}.{}", fun.name.text(source));
+                out.insert(
+                    TemplateKey {
+                        fqn,
+                        source_path: source.path().to_path_buf(),
+                        decl_span: fun.span,
+                    },
+                    ExplicitMemberTemplate::Fun {
+                        source,
+                        file,
+                        owner_fqn: owner_fqn.clone(),
+                        owner_type_params: &[],
+                        this_decl_span,
+                        fun,
+                    },
+                );
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_explicit_member_templates_in_type_decl(
+                    source, file, nested, &owner_fqn, out,
+                );
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_explicit_member_templates_in_object_decl(
+                    source, file, nested, &owner_fqn, out,
+                );
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
 }
 
 /// 类似 `collect_generic_class_decls_in_items`，但同时记录 file 引用（用于单态化 lowering）。
@@ -4276,7 +4666,7 @@ fn collect_generic_fun_calls_in_expr(
 /// 3. 调用 `lower_fun_with_type_bindings` 生成具体实例的 HIR FunDecl。
 /// 4. 重命名 FQN 为 mangled 形式（例如 `pkg.id::<Int>`）。
 pub(super) struct GenericFunInstantiationInputs<'a> {
-    pub pairs: &'a [(&'a SourceFile, &'a ast::File)],
+    pub compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     pub monomorph_keys: &'a [crate::monomorph::MonomorphKey],
     pub index: &'a Index,
     pub type_kinds: &'a HashMap<String, ast::TypeKind>,
@@ -4291,7 +4681,7 @@ pub(super) fn collect_generic_fun_instantiations(
     inputs: GenericFunInstantiationInputs<'_>,
 ) -> Vec<super::super::FunDecl> {
     let GenericFunInstantiationInputs {
-        pairs,
+        compilation_unit,
         monomorph_keys,
         index,
         type_kinds,
@@ -4311,7 +4701,7 @@ pub(super) fn collect_generic_fun_instantiations(
         (String, crate::span::Span),
         (&SourceFile, &ast::File, &ast::FunDecl),
     > = HashMap::new();
-    for (source, file) in pairs {
+    for (source, file) in compilation_unit {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             let ast::Item::Fun(fun) = item else {
@@ -4380,6 +4770,7 @@ pub(super) fn collect_generic_fun_instantiations(
                 index,
                 type_kinds,
                 typecheck_types: Some(typecheck_types),
+                compilation_unit,
                 types,
                 builtins,
             },
@@ -4476,6 +4867,7 @@ pub(super) fn collect_generic_fun_instantiations(
                 index,
                 type_kinds,
                 typecheck_types: Some(typecheck_types),
+                compilation_unit,
                 types,
                 builtins,
             },
@@ -4501,6 +4893,220 @@ pub(super) fn collect_generic_fun_instantiations(
     }
 
     out
+}
+
+struct ExplicitTopLevelGenericFunTemplate<'a> {
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    fun: &'a ast::FunDecl,
+}
+
+pub(super) struct ExplicitGenericFunInstantiationInputs<'a> {
+    pub compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
+    pub instance_keys: &'a [InstanceKey],
+    pub instance_types: &'a TypeStore,
+    pub index: &'a Index,
+    pub type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub types: &'a mut TypeStore,
+    pub builtins: BuiltinTypes,
+    pub typecheck_types: &'a TypeStore,
+}
+
+pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
+    inputs: ExplicitGenericFunInstantiationInputs<'_>,
+) -> Result<Vec<super::super::FunDecl>, super::HirLowerError> {
+    let ExplicitGenericFunInstantiationInputs {
+        compilation_unit,
+        instance_keys,
+        instance_types,
+        index,
+        type_kinds,
+        types,
+        builtins,
+        typecheck_types,
+    } = inputs;
+
+    if instance_keys.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let generic_funs = collect_explicit_top_level_generic_fun_templates(compilation_unit);
+    if generic_funs.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out = Vec::new();
+
+    for instance in instance_keys {
+        let Some(template) = generic_funs.get(&instance.template) else {
+            continue;
+        };
+        let re_interned_type_args = instance
+            .type_args
+            .iter()
+            .map(|&arg| types.re_intern_from(instance_types, arg))
+            .collect::<Vec<_>>();
+        if template.fun.type_params.len() != re_interned_type_args.len() {
+            return Err(explicit_instance_lowering_error(format!(
+                "top-level generic fun `{}` 的 type args 数量不匹配：期望 {}，得到 {}",
+                instance.template.fqn,
+                template.fun.type_params.len(),
+                re_interned_type_args.len()
+            )));
+        }
+        let re_interned_eff_args = instance
+            .eff_args
+            .iter()
+            .map(|row| re_intern_effect_row_from(types, instance_types, row))
+            .collect::<Vec<_>>();
+        let effect_binding = build_effect_binding(
+            template.source,
+            &instance.template.fqn,
+            &template.fun.eff_param,
+            &re_interned_eff_args,
+        )?;
+        let instance_fqn = stable_instance_fqn(
+            types,
+            &instance.template,
+            &re_interned_type_args,
+            &re_interned_eff_args,
+        );
+        if !seen.insert(instance_fqn.clone()) {
+            continue;
+        }
+
+        let bindings = template
+            .fun
+            .type_params
+            .iter()
+            .zip(re_interned_type_args.iter())
+            .map(|(param, &arg)| (param.name.text(template.source).to_string(), arg))
+            .collect::<Vec<_>>();
+
+        let mut hir_fun = super::lower_fun_with_bindings(
+            super::LoweringInputs {
+                source: template.source,
+                file: template.file,
+                index,
+                type_kinds,
+                typecheck_types: Some(typecheck_types),
+                compilation_unit,
+                types,
+                builtins,
+            },
+            template.fun,
+            bindings,
+            effect_binding,
+        );
+        hir_fun.fqn = instance_fqn;
+        out.push(hir_fun);
+    }
+
+    Ok(out)
+}
+
+fn collect_explicit_top_level_generic_fun_templates<'a>(
+    compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
+) -> HashMap<TemplateKey, ExplicitTopLevelGenericFunTemplate<'a>> {
+    let mut out = HashMap::new();
+    for (source, file) in compilation_unit {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Fun(fun) = item else {
+                continue;
+            };
+            if fun.type_params.is_empty() && fun.eff_param.is_none() {
+                continue;
+            }
+            let local_name = source.slice(fun.name.span);
+            let fqn = if pkg_prefix.is_empty() {
+                local_name.to_string()
+            } else {
+                format!("{pkg_prefix}.{local_name}")
+            };
+            out.insert(
+                TemplateKey {
+                    fqn,
+                    source_path: source.path().to_path_buf(),
+                    decl_span: fun.span,
+                },
+                ExplicitTopLevelGenericFunTemplate { source, file, fun },
+            );
+        }
+    }
+    out
+}
+
+fn re_intern_effect_row_from(
+    types: &mut TypeStore,
+    other: &TypeStore,
+    row: &EffectRow,
+) -> EffectRow {
+    EffectRow::new(
+        row.terms
+            .iter()
+            .map(|&ty| types.re_intern_from(other, ty))
+            .collect(),
+    )
+}
+
+fn stable_instance_fqn(
+    types: &TypeStore,
+    template: &TemplateKey,
+    type_args: &[TypeId],
+    eff_args: &[EffectRow],
+) -> String {
+    if type_args.is_empty() && eff_args.is_empty() {
+        return template.fqn.clone();
+    }
+    let mut args = type_args
+        .iter()
+        .map(|&ty| types.display(ty).to_string())
+        .collect::<Vec<_>>();
+    args.extend(
+        eff_args
+            .iter()
+            .map(|row| format!("eff {}", stable_effect_row_string(types, row))),
+    );
+    format!("{}::<{}>", template.fqn, args.join(", "))
+}
+
+fn stable_effect_row_string(types: &TypeStore, row: &EffectRow) -> String {
+    if row.terms.is_empty() {
+        return "Pure".to_string();
+    }
+    row.terms
+        .iter()
+        .map(|&ty| types.display(ty).to_string())
+        .collect::<Vec<_>>()
+        .join(" + ")
+}
+
+fn build_effect_binding(
+    source: &SourceFile,
+    fqn: &str,
+    eff_param: &Option<ast::EffectRowParam>,
+    eff_args: &[EffectRow],
+) -> Result<Option<(String, EffectRow)>, super::HirLowerError> {
+    match (eff_param, eff_args) {
+        (None, []) => Ok(None),
+        (Some(param), [row]) => Ok(Some((param.name.text(source).to_string(), row.clone()))),
+        (None, found) => Err(explicit_instance_lowering_error(format!(
+            "generic fun `{fqn}` 没有 effect row 参数，但实例请求提供了 {} 个 effect args",
+            found.len()
+        ))),
+        (Some(_), found) => Err(explicit_instance_lowering_error(format!(
+            "generic fun `{fqn}` 期望 1 个 effect row 参数，但实例请求提供了 {} 个 effect args",
+            found.len()
+        ))),
+    }
+}
+
+fn explicit_instance_lowering_error(message: impl Into<String>) -> super::HirLowerError {
+    super::HirLowerError::Frontend {
+        message: message.into(),
+    }
 }
 
 fn eval_value_only_enum_discriminant(source: &SourceFile, expr: &ast::Expr) -> Option<i128> {

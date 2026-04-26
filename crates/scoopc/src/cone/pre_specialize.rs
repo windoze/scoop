@@ -338,6 +338,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
             bindings.push((name, type_args[idx]));
         }
 
+        let compilation_unit = [(source, file)];
         let mut hir_fun = hir::lower_fun_with_type_bindings(
             hir::LoweringInputs {
                 source,
@@ -345,6 +346,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
                 index: &index,
                 type_kinds: &type_kinds,
                 typecheck_types: None,
+                compilation_unit: &compilation_unit,
                 types: &mut types,
                 builtins,
             },

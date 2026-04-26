@@ -1099,7 +1099,7 @@
   - `cargo clippy --all-targets -- -D warnings`
   - 全部通过。
 
-### [TODO] T5000e2c 让 build / single-file LLVM frontend 消费 MIR instance collection，并收口 HIR eager materialization 主路径
+### [DONE] T5000e2c 让 build / single-file LLVM frontend 消费 MIR instance collection，并收口 HIR eager materialization 主路径
 - 范围：
   - 将 build / single-file LLVM frontend 当前依赖的 `MonomorphKey` + HIR `collect_generic_fun_instantiations(...)` / `collect_generic_member_fun_instantiations(...)` 主路径切换到 MIR instance collection / materialization；
   - 给当前仍消费 HIR 的 LLVM codegen 提供兼容输入，但该输入必须以 MIR 产出的实例集合为来源，而不是继续让 HIR 自己做主发现；
@@ -1109,6 +1109,31 @@
   - HIR lowering 不再作为 standalone generic fun 与 owner-specialized member fun 实例生成的主入口；
   - `wrap<Int, eff Boom>` / `wrap<Int, eff Zap>` 这类实例在 build/frontend 主路径上不会再坍缩成同一个符号身份。
 - 依赖：T5000e2bR
+- 完成记录（2026-04-26）：
+  - `crates/scoop/src/commands/build.rs` 与 `crates/scoopc/src/llvm/frontend.rs` 现已统一改为调用 `hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection(...)`，build / single-file LLVM frontend 都先复用 typechecked compilation-unit facts 做 MIR materialization，再生成当前 LLVM 仍消费的 HIR 兼容输入；
+  - `crates/scoopc/src/hir/lower/mod.rs` / `util.rs` 已新增“显式 `InstanceKey` 集驱动”的 HIR 兼容 lowering：top-level generic fun、owner-specialized member fun/getter 的 concrete `FunDecl` 只按 MIR 产出的实例集合生成，`HIR` 不再通过 `MonomorphKey` / `TypeStore` 扫描承担主实例发现职责；
+  - 本轮同时修复了两个真实前置缺口，避免 build/frontend 主路径在 async/task 场景下退回 generic 签名：
+    - `crates/scoopc/src/mir/materialize.rs` 现会继续扫描 non-generic request root 创建出来的 closure body，并为所有带 body 的 MIR fun 建立按 FQN 的可达索引，使 async lowering 生成的匿名 lambda 也能继续贡献实例请求；
+    - `crates/scoopc/src/mir/lower.rs` 现会在占位式 `Handle` / `Perform` terminator 后为剩余源码语句落一个孤立 continuation block，保住 `await` 之后的 `println(...)`、`__task_step_ready(...)` 等 direct-call 形状，避免 generic MIR 在 placeholder terminator 处把后半段语句截断；
+  - 新增回归覆盖：
+    - `llvm::tests::single_file_frontend_keeps_distinct_effect_row_generic_instances`
+    - `llvm::tests::single_file_frontend_reaches_async_task_helper_instances_through_perform_continuations`
+    - `mir::materialize::tests::typechecked_compilation_unit_materialization_reaches_generic_calls_through_non_generic_async_closure_body`
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test -p scoopc single_file_frontend_reaches_async_task_helper_instances_through_perform_continuations -- --nocapture`
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_reaches_generic_calls_through_non_generic_async_closure_body -- --nocapture`
+    - `cargo test -p scoopc async_task_resume_ir_does_not_replay_original_await_site -- --nocapture`
+    - `cargo test -p scoopc async_task_resume_replay_ir_terminates_step_fn_on_active_effect -- --nocapture`
+    - `cargo test -p scoopc async_task_ir_uses_ordinary_scoop_task_helpers_not_legacy_runtime_abi -- --nocapture`
+    - `cargo test -p scoopc single_file_minimal_ir_supports_handled_async_await -- --nocapture`
+    - `cargo test -p scoopc task_step_ir_uses_ordinary_scoop_definition_not_legacy_poll_abi -- --nocapture`
+    - `cargo test -p scoopc task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex -- --nocapture`
+    - `cargo test -p scoopc thread_join_statepoint_preserves_live_gc_locals -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ### [TODO] T5000e2cR Review：确认 build/frontend 主路径已切到 MIR instance collection
 - 重点：

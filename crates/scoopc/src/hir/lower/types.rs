@@ -199,6 +199,9 @@ pub enum HirLowerError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     ExprType(Box<ExprTypeError>),
+
+    #[error("{message}")]
+    Frontend { message: String },
 }
 
 impl From<TypeHeaderError> for HirLowerError {

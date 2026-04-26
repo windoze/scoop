@@ -166,14 +166,15 @@ pub(super) fn prepare_single_file_codegen_unit(
         .iter()
         .zip(asts.iter())
         .collect::<Vec<(&SourceFile, &ast::File)>>();
-    let lowered = hir::lower_for_compilation_unit_multi_files_with_type_env(
+    let lowered = hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection(
         &index,
         &compilation_unit,
         &files_to_lower,
         &monomorph_keys,
         Some(&env),
         &typecheck_types,
-    )?;
+    )
+    .map_err(|err| frontend_error(err.to_string()))?;
 
     let (source_map, entry_source_id) =
         build_source_map_with_extra_sources(session, &input_sources, entry_index);
