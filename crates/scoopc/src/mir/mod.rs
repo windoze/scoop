@@ -32,6 +32,23 @@ pub use materialize::{
     InstanceKey, MaterializedMir, MirMaterializeError, TemplateKey, materialize_for_dump,
 };
 
+/// 为编译单元 frontend/build 路径暴露可复用的 MIR materialization 入口。
+pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
+    compilation_unit: &[(&crate::source::SourceFile, &crate::ast::File)],
+    index: &crate::resolve::Index,
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &crate::ty::TypeStore,
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
+) -> Result<MaterializedMir, Box<MirMaterializeError>> {
+    materialize::materialize_compilation_unit_from_typechecked_inputs(
+        compilation_unit,
+        index,
+        type_env,
+        typecheck_types,
+        monomorph_keys,
+    )
+}
+
 /// 一个源文件 lowering 后的 MIR（当前阶段主要用于 dump/fixtures）。
 #[derive(Debug, Clone)]
 pub struct File {

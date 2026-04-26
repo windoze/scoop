@@ -1031,7 +1031,7 @@
   - 已新增 `mir::materialize::tests::typechecked_compilation_unit_materialization_distinguishes_same_type_args_with_different_effect_rows`，直接锁定基于同一组 typechecked inputs 的编译单元 materialization 会保留 `wrap::<Int, eff Boom>` 与 `wrap::<Int, eff Zap>` 两个不同实例身份；
   - 本轮刻意未修改 build / single-file LLVM frontend 的主接线，`scoop build` 路径上 effect-row 实例身份坍缩问题仍继续由后续 `T5000e2c` 跟踪修复。
 
-### [TODO] T5000e2aR Review：确认编译单元级 materialization API 已脱离 dump-only 包装
+### [DONE] T5000e2aR Review：确认编译单元级 materialization API 已脱离 dump-only 包装
 - 重点：
   - 新 API 是否真正复用了既有 typechecked compilation-unit facts，而不是重新构造一套 dump 专用前端；
   - 跨文件 template identity / `eff_args` 维度是否已经在该层稳定可见；
@@ -1039,6 +1039,18 @@
 - 验收：
   - 编译单元 materialization 的可复用入口已经成立，可直接作为 `T5000e2b` / `T5000e2c` 的基础。
 - 依赖：T5000e2a
+- 完成记录（2026-04-26）：
+  - review 先暴露并修复了一个真实边界泄漏：`materialize_compilation_unit_from_typechecked_inputs(...)` 仍只对 `files_to_lower` 收集 `TopLevelFunCallBinding` / `TopLevelFunValueRef` 并生成 generic HIR/MIR template；这在 dump 包装的 `compilation_unit == files_to_lower` 形状下可工作，但对后续 build/frontend 的典型形状（完整 `compilation_unit` + 子集请求源文件）会遗漏跨文件 generic template 的 MIR root 与 helper 文件内的 site binding，不能作为稳定复用入口。
+  - `crates/scoopc/src/mir/materialize.rs` 现已改为始终基于完整 `compilation_unit` 收集 site binding 并生成 generic HIR/MIR template；实例请求的裁剪只由调用方传入的 `monomorph_keys` 决定，不再通过排除 template 提供者文件来“间接筛选”。
+  - `crates/scoopc/src/mir/mod.rs` 现新增模块级 `pub(crate)` 包装入口 `materialize_compilation_unit_from_typechecked_inputs(...)`，并让 `materialize_for_dump(...)` 与 review 测试都经由该入口调用，确认编译单元 materialization API 已真正穿出 dump-only 包装边界，而不是继续埋在私有 `mir::materialize` 模块内部。
+  - 已新增 `mir::materialize::tests::typechecked_compilation_unit_materialization_keeps_cross_file_effect_roots_when_request_sources_are_subset`，锁定“helper 文件定义 effect-generic `wrap/id`，main 文件仅贡献实例请求”时，编译单元 materialization 仍会保留跨文件 `wrap::<eff Boom>` 与 helper 内嵌套调用触发的 `id::<eff Boom>` 两个 concrete root。
+  - review 结论：新 API 现已真正复用既有 typechecked compilation-unit facts；跨文件 template identity、`eff_args` 与 site binding 语义已经在该层稳定可见；后续 `T5000e2b` / `T5000e2c` 可以直接基于这一入口继续推进。
+  - 已验证：
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_keeps_cross_file_effect_roots_when_request_sources_are_subset -- --nocapture`
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ### [TODO] T5000e2b 让编译单元 MIR instance collection 覆盖 owner/nominal specialization
 - 范围：

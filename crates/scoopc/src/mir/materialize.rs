@@ -329,8 +329,7 @@ pub fn materialize_for_dump(
         .iter()
         .map(|file| (&file.source, &file.ast))
         .collect::<Vec<_>>();
-    materialize_compilation_unit_from_typechecked_inputs(
-        &compilation_unit,
+    super::materialize_compilation_unit_from_typechecked_inputs(
         &compilation_unit,
         &index,
         Some(&env),
@@ -348,19 +347,21 @@ pub fn materialize_for_dump(
 /// - dump/debug 路径目前通过它做包装，后续 build/frontend 主路径也将复用同一层。
 pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     compilation_unit: &[(&SourceFile, &ast::File)],
-    files_to_lower: &[(&SourceFile, &ast::File)],
     index: &Index,
     type_env: Option<&TypeEnv>,
     typecheck_types: &TypeStore,
     monomorph_keys: &[MonomorphKey],
 ) -> MaterializeResult<MaterializedMir> {
     let template_catalog = collect_generic_template_infos(compilation_unit);
+    // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
+    // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
+    // `monomorph_keys` 决定初始请求种子，而不是把 template 提供者排除在外。
     let (top_level_fun_value_refs, top_level_fun_call_bindings) =
-        collect_site_instance_bindings(files_to_lower);
+        collect_site_instance_bindings(compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
         index,
         compilation_unit,
-        files_to_lower,
+        compilation_unit,
         type_env,
         typecheck_types,
     )?;
@@ -2172,6 +2173,113 @@ mod tests {
     use crate::session::Session;
     use crate::source::SourceFile;
 
+    /// 构造“完整编译单元 facts + 仅部分文件贡献实例请求”的最小测试输入。
+    fn prepare_typechecked_compilation_unit_inputs(
+        session: &Session,
+        files: Vec<SourceFile>,
+        request_file_indices: &[usize],
+    ) -> (
+        Vec<(SourceFile, ast::File)>,
+        Index,
+        TypeEnv,
+        TypeStore,
+        Vec<MonomorphKey>,
+    ) {
+        let mut files = files
+            .into_iter()
+            .map(|source| {
+                let ast = parse_file(&source).unwrap();
+                (source, ast)
+            })
+            .collect::<Vec<_>>();
+
+        for (source, ast) in &files {
+            typecheck::check_file_headers(source, ast).unwrap();
+            typecheck::check_file_struct_decls(source, ast).unwrap();
+        }
+
+        let index = {
+            let mut unit: Vec<(&SourceFile, &ast::File)> =
+                Vec::with_capacity(session.sysroot().files.len() + files.len());
+            for file in &session.sysroot().files {
+                unit.push((&file.source, &file.ast));
+            }
+            for (source, ast) in &files {
+                unit.push((source, ast));
+            }
+            Index::build(&unit).unwrap()
+        };
+
+        let mut resolved_headers = Vec::with_capacity(files.len());
+        for (source, ast) in &files {
+            resolved_headers.push(crate::resolve::check_file_headers(source, ast, &index).unwrap());
+        }
+        for ((source, ast), headers) in files.iter_mut().zip(resolved_headers.iter()) {
+            crate::resolve::check_file_bodies(source, ast, &index, headers).unwrap();
+        }
+
+        let mut env = TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+        for (source, ast) in &files {
+            env.extend_from_file(source, ast, &index).unwrap();
+        }
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut monomorph_keys = Vec::new();
+        for (file_index, ((source, ast), headers)) in
+            files.iter().zip(resolved_headers.iter()).enumerate()
+        {
+            typecheck::check_file_annotations(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_type_refs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .unwrap();
+
+            if request_file_indices.contains(&file_index) {
+                monomorph_keys.extend(
+                    typecheck::check_file_exprs_with_monomorph_keys(
+                        source,
+                        ast,
+                        &index,
+                        &headers.imports,
+                        &env,
+                        &mut types,
+                        builtins,
+                    )
+                    .unwrap(),
+                );
+            } else {
+                typecheck::check_file_exprs(
+                    source,
+                    ast,
+                    &index,
+                    &headers.imports,
+                    &env,
+                    &mut types,
+                    builtins,
+                )
+                .unwrap();
+            }
+        }
+
+        (files, index, env, types, monomorph_keys)
+    }
+
     #[test]
     fn generic_mir_template_for_dump_stays_free_of_hir_level_instances() {
         let sess = Session::new().unwrap();
@@ -2347,8 +2455,7 @@ fun entry(): Unit / (Boom + Zap) {
             .iter()
             .map(|file| (&file.source, &file.ast))
             .collect::<Vec<_>>();
-        let materialized = materialize_compilation_unit_from_typechecked_inputs(
-            &compilation_unit,
+        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
             &compilation_unit,
             &inputs.index,
             Some(&inputs.env),
@@ -2380,6 +2487,91 @@ fun entry(): Unit / (Boom + Zap) {
                     if fun.fqn == "fixtures.materialize.wrap::<Int, eff fixtures.materialize.Zap>"
             )),
             "编译单元 materialization 应保留 Zap effect-row 实例"
+        );
+    }
+
+    #[test]
+    fn typechecked_compilation_unit_materialization_keeps_cross_file_effect_roots_when_request_sources_are_subset()
+     {
+        let sess = Session::new().unwrap();
+        let helper_source = SourceFile::new_virtual(
+            "<mem>/materialize_cross_file_helper.scoop",
+            r#"
+package fixtures.materialize
+
+effect Boom {
+    fun ping(): Unit
+}
+
+fun <eff E = Pure> id(x: Int): Int / E {
+    return x
+}
+
+fun <eff E = Pure> wrap(x: Int): Int / E {
+    return id<eff E>(x)
+}
+"#,
+        );
+        let main_source = SourceFile::new_virtual(
+            "<mem>/materialize_cross_file_main.scoop",
+            r#"
+package fixtures.materialize
+
+fun entry(): Int / Boom {
+    return wrap<eff Boom>(1)
+}
+"#,
+        );
+
+        let (files, index, env, types, monomorph_keys) =
+            prepare_typechecked_compilation_unit_inputs(
+                &sess,
+                vec![helper_source, main_source],
+                &[1],
+            );
+        let compilation_unit = files
+            .iter()
+            .map(|(source, ast)| (source, ast))
+            .collect::<Vec<_>>();
+
+        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            &index,
+            Some(&env),
+            &types,
+            &monomorph_keys,
+        )
+        .unwrap();
+
+        let wrap_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.wrap")
+            .collect::<Vec<_>>();
+        let id_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.id")
+            .collect::<Vec<_>>();
+        assert_eq!(wrap_keys.len(), 1);
+        assert_eq!(id_keys.len(), 1);
+        assert_eq!(wrap_keys[0].eff_args.len(), 1);
+        assert_eq!(id_keys[0].eff_args.len(), 1);
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun)
+                    if fun.fqn == "fixtures.materialize.wrap::<eff fixtures.materialize.Boom>"
+            )),
+            "跨文件 helper 中定义的 wrap 应在编译单元 materialization 中保留 concrete root"
+        );
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun)
+                    if fun.fqn == "fixtures.materialize.id::<eff fixtures.materialize.Boom>"
+            )),
+            "跨文件 helper 中嵌套调用的 id 应通过 helper 文件内的 site binding 继续 materialize"
         );
     }
 

@@ -1007,6 +1007,25 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e2aR Review：确认编译单元级 materialization API 已脱离 dump-only 包装`。
+- 2026-04-26：`T5000e2aR Review：确认编译单元级 materialization API 已脱离 dump-only 包装` 已完成。
+  - review 先暴露并修复了一个真实边界泄漏：
+    - `materialize_compilation_unit_from_typechecked_inputs(...)` 仍只对 `files_to_lower` 收集 `TopLevelFunCallBinding` / `TopLevelFunValueRef` 并生成 generic HIR/MIR template；
+    - 这在 dump 包装的 `compilation_unit == files_to_lower` 形状下可工作，但对后续 build/frontend 的典型形状（完整 `compilation_unit` + 子集请求源文件）会遗漏跨文件 generic template 的 MIR root 与 helper 文件内的 site binding。
+  - 修复与收口结果：
+    - `crates/scoopc/src/mir/materialize.rs` 现已统一基于完整 `compilation_unit` 收集 site binding 并生成 generic HIR/MIR template，调用方只通过 `monomorph_keys` 控制初始实例请求种子；
+    - `crates/scoopc/src/mir/mod.rs` 现新增模块级 `pub(crate)` 包装入口 `materialize_compilation_unit_from_typechecked_inputs(...)`，并让 `materialize_for_dump(...)` 与 review 测试都经由该入口调用，从模块边界上确认编译单元 materialization API 已不再埋在 dump-only 私有实现里；
+    - 新增 `mir::materialize::tests::typechecked_compilation_unit_materialization_keeps_cross_file_effect_roots_when_request_sources_are_subset`，锁定“helper 文件定义 effect-generic `wrap/id`，main 文件仅贡献实例请求”时，跨文件 `wrap::<eff Boom>` 与 helper 内嵌套调用触发的 `id::<eff Boom>` 都会被稳定 materialize。
+  - review 结论：
+    - 新 API 现在确实复用了既有 typechecked compilation-unit facts，而不是重新拼一套 dump 前端；
+    - 跨文件 template identity、`eff_args` 与 site binding 语义已经在这一层稳定可见；
+    - 后续 `T5000e2b` / `T5000e2c` 已拥有可直接调用的编译单元 materialization 入口。
+  - 验证结果：
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_keeps_cross_file_effect_roots_when_request_sources_are_subset -- --nocapture`
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e2b 让编译单元 MIR instance collection 覆盖 owner/nominal specialization`。
 
 ## 1. 当前判断
 
