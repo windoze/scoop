@@ -332,11 +332,10 @@ pub fn materialize_for_dump(
         .iter()
         .map(|file| (&file.source, &file.ast))
         .collect::<Vec<_>>();
-    let mut lowered_hir = crate::hir::lower_for_compilation_unit_multi_files_with_type_env(
+    let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
         &index,
         &compilation_unit,
         &compilation_unit,
-        &[],
         Some(&env),
         &typecheck_types,
     )?;
@@ -2138,8 +2137,150 @@ fn collect_type_param_bindings(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mir::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
     use crate::session::Session;
     use crate::source::SourceFile;
+
+    #[test]
+    fn generic_mir_template_for_dump_stays_free_of_hir_level_instances() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_generic_template_boundary.scoop",
+            r#"
+package fixtures.materialize
+
+class Box<T>(val value: T) {
+    fun get(): T {
+        return value
+    }
+}
+
+fun id<T>(x: T): T {
+    return x
+}
+
+fun entry(): Int {
+    val box: Box<Int> = Box(1)
+    val a = id(1)
+    return a + box.get()
+}
+"#,
+        );
+
+        let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let mut lowered_hir =
+            crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+                &inputs.index,
+                &compilation_unit,
+                &compilation_unit,
+                Some(&inputs.env),
+                &inputs.typecheck_types,
+            )
+            .unwrap();
+
+        let hir_fun_fqns: Vec<&str> = lowered_hir
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                crate::hir::Item::Fun(fun) => Some(fun.fqn.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(hir_fun_fqns.contains(&"fixtures.materialize.id"));
+        assert!(hir_fun_fqns.contains(&"fixtures.materialize.entry"));
+        assert!(
+            hir_fun_fqns.iter().all(|fqn| !fqn.contains("::<")),
+            "generic typed HIR 不应预先混入 standalone generic HIR instances: {hir_fun_fqns:?}"
+        );
+
+        let hir_member_fqns: Vec<&str> = lowered_hir
+            .member_funs
+            .iter()
+            .map(|fun| fun.fqn.as_str())
+            .collect::<Vec<_>>();
+        assert!(hir_member_fqns.contains(&"fixtures.materialize.Box.get"));
+        assert!(
+            hir_member_fqns.iter().all(|fqn| !fqn.contains("::<")),
+            "generic typed HIR 不应预先混入 owner-specialized member instances: {hir_member_fqns:?}"
+        );
+
+        let builtins = lowered_hir.types.intern_builtins();
+        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
+        let generic_file = lower_hir_file_for_dump_with_facts(
+            builtins,
+            &mut lowered_hir.types,
+            &lowered_hir.file,
+            &lowered_hir.member_funs,
+            &facts,
+        );
+
+        let mir_fun_fqns: Vec<&str> = generic_file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) => Some(fun.fqn.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(mir_fun_fqns.contains(&"fixtures.materialize.id"));
+        assert!(mir_fun_fqns.contains(&"fixtures.materialize.Box.get"));
+        assert!(
+            mir_fun_fqns.iter().all(|fqn| !fqn.contains("::<")),
+            "generic MIR template 不应在 materializer 之前混入 monomorphic roots: {mir_fun_fqns:?}"
+        );
+    }
+
+    #[test]
+    fn materialize_for_dump_dedups_repeated_instance_requests() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_instance_dedup.scoop",
+            r#"
+package fixtures.materialize
+
+fun id<T>(x: T): T {
+    return x
+}
+
+fun entry(): Int {
+    val a = id(1)
+    val b = id(2)
+    return a + b
+}
+"#,
+        );
+
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+        let id_instances = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.id")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            id_instances.len(),
+            1,
+            "重复请求同一 generic instance 时应只保留一个 InstanceKey"
+        );
+        assert_eq!(
+            materialized
+                .file
+                .items
+                .iter()
+                .filter(|item| matches!(
+                    item,
+                    Item::Fun(fun) if fun.fqn == "fixtures.materialize.id::<Int>"
+                ))
+                .count(),
+            1,
+            "per-InstanceKey cache 应确保同一实例只 materialize 一次"
+        );
+    }
 
     #[test]
     fn dump_materialization_inputs_keep_eff_args_for_extension_direct_call_binding() {

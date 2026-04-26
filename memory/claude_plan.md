@@ -1,82 +1,66 @@
-# 执行记录与计划
+# 执行计划与进度记录
 
-## 当前约束
+## 约束说明
 
-- 本次调用只处理 `TODO.md` 中第一个未完成任务，完成后停止。
-- 在开始任何仓库检查之前，先写入本文件作为初始计划。
-- 执行过程中如果计划变化、发现阻塞、完成关键步骤，持续更新本文件。
-- 需要先检查最新提交是否提到已有问题；若提到，优先修复该问题。
-- 若任务过大，需要把任务拆分到 `PLAN.md` 和 `TODO.md`，并只执行拆分后的第一个子任务。
-- 不允许以变通方案绕过现有缺陷；若发现阻塞缺陷，必须先修复，或把缺陷作为前置任务插入 `TODO.md` 并停止。
-- 完成当前任务后，需要更新 `TODO.md`、`PLAN.md`，运行相关测试与校验，并创建一次 git 提交。
+- 按用户要求，先记录执行计划，再进行仓库检查与命令执行。
+- 这里记录的是可审计的执行计划、依据与进度摘要，不包含逐字内部推理。
+- 本轮目标：只完成 `TODO.md` 中第一个未完成任务；若发现前置缺陷，则优先修复前置缺陷或将其整理为新的前置任务后停止。
 
-## 初始执行步骤
+## 初始执行计划
 
-1. 查看最新一条 git 提交信息，确认是否提到了待修复的既有问题。
-2. 查看 `TODO.md` 与 `PLAN.md`，确定第一个未完成任务，以及是否需要先拆分任务。
-3. 查看当前工作区状态，确认是否存在用户未提交改动，避免误覆盖。
-4. 根据第一个未完成任务定位相关代码、测试和规范位置。
-5. 如遇到既有缺陷或实现边界问题，先判断是否必须作为前置问题处理，并据此更新 `TODO.md` / `PLAN.md`。
-6. 实现当前任务或当前子任务。
-7. 运行必要的格式化、测试和 lint/检查命令，修复出现的问题。
-8. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
-9. 使用清晰的提交信息提交本次变更，然后停止。
+1. 检查最新一次 Git 提交信息，确认是否明确提到需要先处理的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对当前计划与任务是否一致。
+4. 评估该任务是否过大：
+   - 若可直接完成，则开始实现。
+   - 若过大，则先细化为更小子任务，更新 `PLAN.md` 与 `TODO.md`，并将第一个子任务作为本轮目标。
+5. 在实现前后检查相关代码、测试与规范上下文，识别任何已存在缺陷、回归、规范不匹配或实现边界问题。
+6. 若发现阻塞性既有问题：
+   - 先修复；
+   - 或将其作为当前任务的前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
+7. 完成本轮目标后，运行相关验证：
+   - 至少执行与改动直接相关的测试；
+   - 若可行，执行更广的验证，包括 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`，以及任务相关命令。
+8. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记完成；
+   - 在 `PLAN.md` 中同步状态与后续影响；
+   - 持续更新本文件中的进度记录。
+9. 使用清晰的 Git 提交信息提交本轮改动，然后停止，不继续下一个任务。
 
-## 说明
+## 进度记录
 
-- 由于尚未读取仓库内容，上述计划是初始计划；在读取 `TODO.md`、`PLAN.md`、最新提交说明后，我会细化并更新。
-
-## 已完成的检查
-
-- 已查看最新提交：`42e272aa [T5000e1b0bR] Review member MIR materialization`。
-- 已查看 `TODO.md`、`PLAN.md` 与当前工作区状态。
-- 最新提交说明中未直接声明新的待修复遗留问题；当前工作区只有本文件处于修改状态。
-
-## 当前锁定任务
-
-- 当前第一个未完成任务是：`T5000e1bR Review：确认 effect-row 实参已成为 InstanceKey / materializer 的一等维度`。
-- 该任务依赖 `T5000e1b0bR`，而该依赖在 `TODO.md` / `PLAN.md` 中已标记完成。
-
-## 针对当前任务的细化计划
-
-1. 复核 `MonomorphKey`、`TopLevelFunCallBinding`、HIR lowering、MIR materializer、`InstanceKey` 与调试输出中的 `eff_args` 传播链。
-2. 复核 effect-only generic fun、相同 type args 但不同 effect row、top-level function value、member/extension/companion member 路径是否都被统一覆盖。
-3. 运行与 `T5000e1b*` 直接相关的 targeted tests / CLI 复现，必要时补跑更大范围测试。
-4. 若 review 暴露新的既有缺陷：
-   - 先修复；若无法在本轮直接修复，则把它写成 `TODO.md` 中位于当前任务之前的前置任务，并同步更新 `PLAN.md`；
-   - 然后提交并停止。
-5. 若 review 通过：
-   - 在 `TODO.md` 中将 `T5000e1bR` 标记完成；
-   - 在 `PLAN.md` 中记录 review 结论与验证结果；
-   - 更新本文件记录关键结论；
-   - 提交并停止。
-
-## 当前结果
-
-- `T5000e1bR` 已确认可完成，不需要插入新的前置缺陷任务。
-- 关键复核结论：
-  - `eff_args` 已从 `MonomorphKey` / `TopLevelFunCallBinding` / `TopLevelFunValueRef` 进入 `SiteInstanceBinding`、`InstanceKey`、`instance_fqn(...)`、effect-row substitution 与 `HashMap<InstanceKey, ...>` materializer cache。
-  - HIR/MIR template 仍通过 effect-row marker 保留 `<eff E>` 语义，实例化阶段才展开，不存在在 lowering 时提前塌缩成 `Pure` / `Any` 的回退。
-  - effect-only generic、相同 type args 不同 effect row、top-level function value、extension/member/lambda-derived member、type-body member、companion member 等路径都已有代码复核和回归覆盖。
-  - `dump-ir` CLI 复现已确认用户可见输出里会出现两个不同 effect row 的 `InstanceKey` 与 concrete callee。
-
-## 本轮验证
-
-- 已通过 targeted tests：
-  - `monomorph_materializes_effect_only_generic_instance`
-  - `monomorph_distinguishes_same_type_args_with_different_effect_rows`
-  - `monomorph_rewrites_top_level_fun_value_effect_instance`
-  - `dump_materialization_inputs_keep_eff_args_for_extension_direct_call_binding`
-  - `dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding`
-  - `dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding_from_lambda`
-  - `materialize_for_dump_handles_type_body_generic_member_fun_roots`
-  - `materialize_for_dump_distinguishes_companion_member_fun_effect_instances`
-- 已通过更大范围验证：
-  - `cargo test -p scoopc monomorph::lower -- --nocapture`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-
-## 收尾步骤
-
-1. 提交 `TODO.md`、`PLAN.md` 与本文件更新。
-2. 停止，等待下一次调用处理 `T5000e1R`。
+- 已完成：创建本计划文件并写入初始执行方案。
+- 已完成：检查最新提交、`TODO.md` 与 `PLAN.md`，确认当前首个未完成任务为 `T5000e1R Review：确认 InstanceKey 与 dump-ir materializer 的边界正确`。
+- 已完成：初步复核 `crates/scoopc/src/monomorph/{mod.rs,lower.rs}`、`crates/scoop/src/commands/dump_ir.rs`、`crates/scoopc/src/mir/{mod.rs,lower.rs,materialize.rs}`，确认：
+  - `dump-ir` 主入口已经直接调用 `mir::materialize_for_dump(...)`；
+  - `monomorph::lower_for_dump(...)` 只剩兼容薄包装；
+  - `InstanceKey` 与 `MonomorphKey` 在数据结构语义上已经分层。
+- 新发现的关键边界问题：
+  - `crates/scoopc/src/mir/materialize.rs` 当前通过 `hir::lower_for_compilation_unit_multi_files_with_type_env(...)` 构造 typed HIR；
+  - 该入口仍会启用 `collect_generic_fun_instantiations(...)` 的旧 HIR 实例化路径；
+  - 这意味着 `dump-ir` 在进入 MIR materializer 之前，仍可能先在 HIR 层偷偷生成 standalone generic `::<...>` 实例；
+  - 这与 `T5000e1R` 的验收条件“dump-ir 消费 generic MIR template，而不是继续把 HIR 重新 lower 成实例”直接冲突。
+- 计划调整：
+  1. 先修改 HIR lowering API，提供一个显式“只生成 generic typed HIR template、不做 standalone generic HIR 实例化”的编译单元入口。
+  2. 让 `mir::materialize_for_dump(...)` 改用该入口，确保实例化唯一发生在 MIR materializer 内部。
+  3. 补两类回归测试：
+     - 锁定 `materialize_for_dump` 的 generic MIR template 不含预先生成的 standalone `::<...>` HIR/MIR 实例；
+     - 锁定 per-`InstanceKey` cache 会对重复实例请求去重。
+  4. 运行相关测试与全量校验；若无新的前置缺陷，再更新 `TODO.md` / `PLAN.md` 并提交。
+- 已完成：实现上述 API/调用链调整。
+  - 在 `crates/scoopc/src/hir/lower/mod.rs` 新增 generic-only 的 typed compilation-unit lowering 入口，并把内部 lowering 选项细化为“standalone generic fun 实例化”和“owner-specialized member fun 实例化”两个开关；
+  - `lower_typed_for_dump(...)` 与 `mir::materialize_for_dump(...)` 现都显式关闭这两条旧 HIR 实例化路径；
+  - build / frontend 继续沿用原有会物化实例的 lowering 入口，没有改动编译单元主路径行为。
+- 已完成：新增并通过两条回归测试。
+  - `generic_mir_template_for_dump_stays_free_of_hir_level_instances`
+  - `materialize_for_dump_dedups_repeated_instance_requests`
+- 已完成：补跑既有 monomorph/materialize/dump-mir 回归，并完成全量校验。
+  - 通过的关键验证包括：
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`
+    - `cargo test -p scoopc materialize_for_dump_handles_type_body_generic_member_fun_roots -- --nocapture`
+    - `cargo test -p scoopc materialize_for_dump_distinguishes_companion_member_fun_effect_instances -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+- 已完成：更新 `TODO.md` 与 `PLAN.md`，将 `T5000e1R` 标记为完成，并记录本轮 review 中发现并修复的真实边界问题。
+- 下一步：检查工作区改动并提交 Git，然后停止，不进入 `T5000e2`。

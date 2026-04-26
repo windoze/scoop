@@ -981,7 +981,7 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e1R Review：确认 `InstanceKey` 与 dump-ir materializer 的边界正确
+### [DONE] T5000e1R Review：确认 `InstanceKey` 与 dump-ir materializer 的边界正确
 - 重点：
   - `InstanceKey` 是否已与旧的 `MonomorphKey` 请求键语义分离；
   - `dump-ir` 是否已经改为消费 generic MIR template，而不是继续把 HIR 重新 lower 成实例；
@@ -989,6 +989,23 @@
 - 验收：
   - 单文件/调试路径上的实例身份、模板索引与实例缓存已经明确落在 MIR 层，而不是旧 `monomorph` HIR 调试路径。
 - 依赖：T5000e1bR
+- 完成记录（2026-04-26）：
+  - review 先暴露并修复了一个真实边界泄漏：`crates/scoopc/src/mir/materialize.rs` 仍通过 `hir::lower_for_compilation_unit_multi_files_with_type_env(...)` 构造 typed HIR，而该入口会继续启用 HIR 层的 standalone generic fun / owner-specialized member fun `::<...>` 实例物化；这与“dump-ir 消费 generic MIR template，再由 MIR materializer 负责实例化”的验收边界直接冲突。
+  - 已在 `crates/scoopc/src/hir/lower/mod.rs` 新增 `lower_generic_for_compilation_unit_multi_files_with_type_env(...)` 与 `CompilationUnitLoweringOptions`，显式区分“完整编译单元 lowering”和“generic template only lowering”；`lower_typed_for_dump(...)` 与 `crates/scoopc/src/mir/materialize.rs` 现都关闭 HIR 层 standalone/member generic 实例物化，只保留 generic template roots。
+  - 已新增 `mir::materialize::tests::generic_mir_template_for_dump_stays_free_of_hir_level_instances`，确认 typed HIR 与 generic MIR template 输入均不再混入 `::<...>` standalone/member roots；并新增 `mir::materialize::tests::materialize_for_dump_dedups_repeated_instance_requests`，确认 per-`InstanceKey` cache 会对重复请求去重，同一实例只 materialize 一次。
+  - 已复核 `crates/scoopc/src/monomorph/{mod.rs,lower.rs}` 与 `crates/scoop/src/commands/dump_ir.rs`，确认 `MonomorphKey` 现只保留 typecheck 请求键语义，`dump-ir` 入口直接进入 `mir::materialize_for_dump(...)`，`monomorph::lower_for_dump(...)` 仅剩兼容薄包装；单文件/调试路径上的实例身份、模板索引与实例缓存均已收口到 MIR 层。
+  - review 结论：`InstanceKey` 已与旧 `MonomorphKey` 请求键语义分离；`dump-ir` 现在消费 generic MIR template 而不是 HIR eager 实例；per-`InstanceKey` cache 与 fixed-point 发现策略已足够稳定，可继续进入 `T5000e2`。
+  - 已验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc generic_mir_template_for_dump_stays_free_of_hir_level_instances -- --nocapture`
+    - `cargo test -p scoopc materialize_for_dump_dedups_repeated_instance_requests -- --nocapture`
+    - `cargo test -p scoopc monomorph::lower -- --nocapture`
+    - `cargo test -p scoopc mir::tests::dump_mir_keeps_generic_functions_as_templates_before_monomorphization -- --nocapture`
+    - `cargo test -p scoopc materialize_for_dump_handles_type_body_generic_member_fun_roots -- --nocapture`
+    - `cargo test -p scoopc materialize_for_dump_distinguishes_companion_member_fun_effect_instances -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ### [TODO] T5000e2 把编译单元 frontend/build 路径的 instance collection / materialization 迁到 MIR 层
 - 范围：

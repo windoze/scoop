@@ -2152,7 +2152,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 /// - 用于 `dump-mir` / MIR fixtures 这类需要 `Continuation.resume`、late-bound member
 ///   resolution、effect payload binding 等 typed 事实的路径；
 /// - 但仍停留在 generic HIR/MIR template 边界：不会在这里额外 materialize
-///   standalone generic fun 的 `::<T...>` 实例。
+///   standalone generic fun 或 owner-specialized member fun 的 `::<...>` 实例。
 pub fn lower_typed_for_dump(
     session: &Session,
     source: &SourceFile,
@@ -2230,7 +2230,7 @@ pub fn lower_typed_for_dump(
         &[],
         Some(&env),
         &typecheck_types,
-        false,
+        CompilationUnitLoweringOptions::GENERIC_TEMPLATE_ONLY,
     )
 }
 
@@ -2413,7 +2413,7 @@ pub fn lower_for_compilation_unit_multi_files(
         monomorph_keys,
         None,
         typecheck_types,
-        true,
+        CompilationUnitLoweringOptions::FULL,
     )
 }
 
@@ -2432,8 +2432,48 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         monomorph_keys,
         type_env,
         typecheck_types,
-        true,
+        CompilationUnitLoweringOptions::FULL,
     )
+}
+
+/// 为 typed dump / MIR materializer 构造“只保留 generic template”的多文件 HIR。
+///
+/// 该入口会复用 resolver/typecheck 事实，但显式关闭 HIR lowering 中遗留的 generic
+/// `::<...>` 实例物化路径，使实例身份只在后续 MIR 层建立。
+pub(crate) fn lower_generic_for_compilation_unit_multi_files_with_type_env(
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    files_to_lower: &[(&SourceFile, &ast::File)],
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &TypeStore,
+) -> Result<LoweredHir, HirLowerError> {
+    lower_for_compilation_unit_multi_files_internal(
+        index,
+        compilation_unit,
+        files_to_lower,
+        &[],
+        type_env,
+        typecheck_types,
+        CompilationUnitLoweringOptions::GENERIC_TEMPLATE_ONLY,
+    )
+}
+
+#[derive(Clone, Copy)]
+struct CompilationUnitLoweringOptions {
+    materialize_generic_fun_instances: bool,
+    materialize_generic_member_fun_instances: bool,
+}
+
+impl CompilationUnitLoweringOptions {
+    const FULL: Self = Self {
+        materialize_generic_fun_instances: true,
+        materialize_generic_member_fun_instances: true,
+    };
+
+    const GENERIC_TEMPLATE_ONLY: Self = Self {
+        materialize_generic_fun_instances: false,
+        materialize_generic_member_fun_instances: false,
+    };
 }
 
 fn lower_for_compilation_unit_multi_files_internal(
@@ -2443,8 +2483,12 @@ fn lower_for_compilation_unit_multi_files_internal(
     monomorph_keys: &[crate::monomorph::MonomorphKey],
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
-    materialize_generic_fun_instances: bool,
+    options: CompilationUnitLoweringOptions,
 ) -> Result<LoweredHir, HirLowerError> {
+    let CompilationUnitLoweringOptions {
+        materialize_generic_fun_instances,
+        materialize_generic_member_fun_instances,
+    } = options;
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
@@ -2619,36 +2663,40 @@ fn lower_for_compilation_unit_multi_files_internal(
 
     // T0130：第二遍 class 实例化 —— standalone fun monomorphization 可能在 TypeStore 中
     // 创建了新的泛型 class 实例化类型（例如 `Printer<Greeter>`），这里补充收集。
-    class_inits.extend(collect_generic_class_instantiation_inits(
-        compilation_unit,
-        &mut types,
-        &class_inits,
-    ));
+    if materialize_generic_fun_instances {
+        class_inits.extend(collect_generic_class_instantiation_inits(
+            compilation_unit,
+            &mut types,
+            &class_inits,
+        ));
+    }
 
     // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
-    member_funs.extend(collect_generic_member_fun_instantiations(
-        compilation_unit,
-        index,
-        &type_kinds,
-        Some(typecheck_types),
-        &mut types,
-        builtins,
-    ));
-    struct_layouts.extend(collect_generic_struct_instantiation_layouts(
-        compilation_unit,
-        index,
-        &mut types,
-    ));
-    enum_layouts.extend(collect_generic_enum_instantiation_layouts(
-        compilation_unit,
-        index,
-        &mut types,
-    ));
-    class_inits.extend(collect_generic_class_instantiation_inits(
-        compilation_unit,
-        &mut types,
-        &class_inits,
-    ));
+    if materialize_generic_member_fun_instances {
+        member_funs.extend(collect_generic_member_fun_instantiations(
+            compilation_unit,
+            index,
+            &type_kinds,
+            Some(typecheck_types),
+            &mut types,
+            builtins,
+        ));
+        struct_layouts.extend(collect_generic_struct_instantiation_layouts(
+            compilation_unit,
+            index,
+            &mut types,
+        ));
+        enum_layouts.extend(collect_generic_enum_instantiation_layouts(
+            compilation_unit,
+            index,
+            &mut types,
+        ));
+        class_inits.extend(collect_generic_class_instantiation_inits(
+            compilation_unit,
+            &mut types,
+            &class_inits,
+        ));
+    }
 
     Ok(LoweredHir {
         file: File { items },
