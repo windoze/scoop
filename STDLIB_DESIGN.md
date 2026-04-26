@@ -124,6 +124,8 @@ platform backend 指“一套可被编译期选择的运行时实现组合”，
 
 ### 4.2 std（用户层）
 
+> 状态说明（2026-04-26）：以下是目标模块树，不等同于当前已 shipped 的 sysroot/std surface。`T5000e3b` 已将早期试验性的 `scoop.time`、`scoop.io`、`scoop.fs`、`scoop.path`、`scoop.env`、`scoop.channels`、`scoop.net` 与 `scoop.test` 从当前主线移除，后续若恢复这些能力，需要按本文分层边界重新设计后再引入。
+
 - `scoop.collections`
   - `Iterable/Iterator`（迭代协议推荐形状：`Iterator.next(): Option<T>`，避免 `hasNext()` + 内部缓存）
   - `Array/MutableArray` 的高层算法扩展（map/filter/fold/…）

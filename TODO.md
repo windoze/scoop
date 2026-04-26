@@ -1238,7 +1238,7 @@
   - 收尾验证中顺手修复了三个暴露出的既有问题：`crates/scoop/src/commands/build.rs` 里硬编码的已删 fixture 已改为 `std_sync_basic.scoop`，`runtime/c/scoop_runtime.c` 中 3 个删除 surface 后遗留的未使用符号已清理，`tests/fixtures/hir/**/*.hir` 与 `tests/fixtures/mir/**/*.mir` 已按新的 `TypeId` 编号重生快照；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过，其中完整 fixture suite 输出 `fixtures: ok (1197)`。
 
-### [TODO] T5000e3bR Review：确认 sysroot surface 已实质缩回到仍承诺维护的最小集合
+### [DONE] T5000e3bR Review：确认 sysroot surface 已实质缩回到仍承诺维护的最小集合
 - 重点：
   - 被列入本轮移除名单的模块是否真的从 sysroot / fixtures / docs 中消失；
   - 是否还残留只为了兼容旧 fixture 而保留的 lowering / prelude 特判；
@@ -1246,6 +1246,13 @@
 - 验收：
   - 后续 std/runtime 重设计可以在干净边界上重做，而不是继续背着旧 API 壳。
 - 依赖：T5000e3b
+- 完成记录（2026-04-26）：
+  - 已复核 `sysroot/` 当前仅保留 `collections.scoop`、`core.scoop`、`delegates.scoop`、`print.scoop`、`process.scoop`、`string.scoop`、`sync.scoop`、`task.scoop`、`thread.scoop`、`unsafe.scoop`；被列入移除名单的 `channels/env/fs/io/net/path/test/time` 均已不再出现在 sysroot 目录中。
+  - 已全文检索仓库中对 `scoop.channels`、`scoop.test`、`scoop.env`、`scoop.fs`、`scoop.io`、`scoop.net`、`scoop.path`、`scoop.time` 的剩余引用：运行时/LLVM codegen/fixture 主路径中未再发现兼容性 lowering、runtime ABI 导出或 prelude 特判；剩余命中只存在于显式说明“已移除”的状态注记、未来设计文档或 fixture 注释。
+  - review 过程中发现并修复了 3 处既有文档错配：`PLATFORM_API_SURFACE_AUDIT.md` 仍把已删除 platform surface 列为现行模块，`STDLIB_COMPLETENESS.md` 仍把这些已删除 surface 与 `stdlib/test.scoop` 记为 `DONE/DECL-ONLY`，`STDLIB_DESIGN.md` 的目标模块树缺少“这不是当前 shipped surface”的状态说明；现均已回写为与 `T5000e3b` 后边界一致的口径。
+  - 已复核当前仍保留并近期承诺维护的最小 sysroot surface 与文档口径一致：通用/核心边界为 `scoop.core`、`scoop.unsafe`、`scoop.collections`、`scoop.delegates`、`scoop.string`、`scoop.print`、`scoop.task`，平台相关 surface 仅剩 `scoop.thread`、`scoop.sync` 与过渡期的 `scoop.process`；其中 `scoop.process` 将由下一条 `T5000e3c` 以 `main(args: Array<String>)` 程序边界替换。
+  - 已验证 `cargo run -p scoop -- test`（`fixtures: ok (1197)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+  - review 结论：sysroot surface 已实质缩回到当前仍承诺维护的最小集合，后续 std/runtime 重设计可以在干净边界上推进；未发现需要插入到 `T5000e3c` 之前的新前置缺陷任务。
 
 ### [TODO] T5000e3c 扩展程序边界 `main` 签名以直接承载 argv，并移除 `scoop.process`
 - 范围：

@@ -3,6 +3,7 @@
 > 生成时间：2026-04-09
 > 基于：`KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）的能力矩阵
 > 目的：以"能力项"为粒度，对照当前仓库（sysroot/stdlib/runtime/c）的实现覆盖度，产出 DONE/TODO/Blockers 清单，并为 T1802（拆分任务）提供输入。
+> 状态修订：2026-04-26 已按 `T5000e3b` / `T5000e3bR` 回写平台与测试 surface 收口结果；`scoop.env`、`scoop.time`、`scoop.io`、`scoop.fs`、`scoop.path`、`scoop.channels`、`scoop.net` 与 `stdlib/test.scoop` 已从当前主线移除，等待重设计后再重新进入清单。
 
 ## 约定
 
@@ -159,9 +160,9 @@
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `nowUnixMillis()` | P1 | needs_runtime_lib | DONE | `sysroot/time.scoop` + `runtime/c` | `std_env_time_basic` | 最小可用 |
+| `nowUnixMillis()` | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/time.scoop` 已在 `T5000e3b` 移除；需按新 platform/time 设计重做 |
 | `Duration` 值类型 | P1 | pure_scoop_ok | TODO | — | — | 可在 stdlib 实现 |
-| `Instant` / monotonic clock | P2 | needs_runtime_lib | TODO | — | — | 需 runtime 平台 API |
+| `Instant` / monotonic clock | P2 | needs_runtime_lib | TODO | — | — | 需先重建 time surface，再补 runtime 平台 API |
 
 ---
 
@@ -169,9 +170,9 @@
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `stdoutWriteString` / `stdoutWriteLine` | P0 | needs_runtime_lib | DONE | `sysroot/io.scoop` + `runtime/c` | `std_io_stdout_stderr_basic`, `std_io_write_line_basic` | |
-| `stderrWriteString` / `stderrWriteLine` | P1 | needs_runtime_lib | DONE | `sysroot/io.scoop` + `runtime/c` | `std_io_stdout_stderr_basic`, `std_io_write_line_basic` | |
-| `stdinReadLine()` | P1 | needs_runtime_lib | DONE | `sysroot/io.scoop` + `runtime/c` | `std_io_stdin_read_line_basic` | |
+| `stdoutWriteString` / `stdoutWriteLine` | P0 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/io.scoop` 已在 `T5000e3b` 移除；当前仅保留 `scoop.core.print/println` 最小可观察输出 |
+| `stderrWriteString` / `stderrWriteLine` | P1 | needs_runtime_lib | TODO | — | — | 同上，需按新 I/O surface 重做 |
+| `stdinReadLine()` | P1 | needs_runtime_lib | TODO | — | — | 同上，旧 fixture 已删除 |
 | Buffered / binary IO | P2 | needs_runtime_lib | TODO | — | — | 后续扩展 |
 
 ---
@@ -180,7 +181,7 @@
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `readAllText` / `writeAllText` | P1 | needs_runtime_lib | DONE | `sysroot/fs.scoop` + `runtime/c` | `std_fs_text_basic` | |
+| `readAllText` / `writeAllText` | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/fs.scoop` 已在 `T5000e3b` 移除；需按新 filesystem surface 重做 |
 | Directory operations (mkdir/readdir) | P2 | needs_runtime_lib | TODO | — | — | |
 | Binary file read/write | P2 | needs_runtime_lib | TODO | — | — | |
 
@@ -190,9 +191,9 @@
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `process.exit(code)` / `process.args()` | P1 | needs_runtime_lib | DONE | `sysroot/process.scoop` + `runtime/c` | `std_process_args_exit_basic` | |
-| `env.getOrNull(key)` | P1 | needs_runtime_lib | DONE | `sysroot/env.scoop` + `runtime/c` | `std_env_time_basic` | |
-| `path.normalize/join/basename/dirname` | P1 | needs_runtime_lib | DONE | `sysroot/path.scoop` + `runtime/c` | `std_path_basic` | |
+| `process.exit(code)` / `process.args()` | P1 | needs_runtime_lib | DONE | `sysroot/process.scoop` + `runtime/c` | `std_process_args_exit_basic` | 过渡 surface；`T5000e3c` 将改为 `main(args: Array<String>)` 并移除 `scoop.process` |
+| `env.getOrNull(key)` | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/env.scoop` 已在 `T5000e3b` 移除；需按新 env surface 重做 |
+| `path.normalize/join/basename/dirname` | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/path.scoop` 已在 `T5000e3b` 移除；需按新 path surface 重做 |
 | Subprocess / exec | P2 | needs_runtime_lib | TODO | — | — | |
 
 ---
@@ -206,7 +207,7 @@
 | `Mutex` (create/lock/unlock/destroy) | P1 | needs_runtime_lib | DONE | `sysroot/sync.scoop` + `runtime/c` | `std_sync_basic` | |
 | `CondVar` (create/wait/notify) | P1 | needs_runtime_lib | DONE | `sysroot/sync.scoop` + `runtime/c` | `std_sync_basic` | |
 | `Once` (create/isDone/run) | P1 | needs_runtime_lib | DONE | `sysroot/sync.scoop` + `runtime/c` | `std_sync_basic` | |
-| `Channel<T>` (create/send/recv/close) | P1 | needs_runtime_lib | DONE | `sysroot/channels.scoop` + `runtime/c` | `std_channels_basic` | |
+| `Channel<T>` (create/send/recv/close) | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/channels.scoop` 已在 `T5000e3b` 移除；需按新并发/通信设计重做 |
 | Atomics (`__AtomicInt` load/store/CAS) | P2 | needs_runtime_lib | DONE | `sysroot/unsafe.scoop` + 编译器 | 部分 run-pass | SeqCst only；更多 ordering 后置 |
 
 ---
@@ -225,9 +226,9 @@
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `TcpStream` / `TcpListener` 声明 | P2 | needs_runtime_lib | DECL-ONLY | `sysroot/net.scoop` | — | 声明存在；runtime 实现待确认 |
-| `tcpConnect` / `tcpListen` / `accept` / `close` | P2 | needs_runtime_lib | DECL-ONLY | `sysroot/net.scoop` | — | 需 runtime socket backend |
-| `writeUtf8` / `readUtf8` | P2 | needs_runtime_lib | DECL-ONLY | `sysroot/net.scoop` | — | |
+| `TcpStream` / `TcpListener` 声明 | P2 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/net.scoop` 已在 `T5000e3b` 移除；需按新 net surface 重做 |
+| `tcpConnect` / `tcpListen` / `accept` / `close` | P2 | needs_runtime_lib | TODO | — | — | 需先重建设计，再落 runtime socket backend |
+| `writeUtf8` / `readUtf8` | P2 | needs_runtime_lib | TODO | — | — | 同上 |
 
 ---
 
@@ -264,11 +265,11 @@
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `assertTrue` / `assertFalse` | P0 | pure_scoop_ok | DONE | `stdlib/test.scoop` | 多个 fixtures 使用 | |
-| `assertEqInt` | P0 | pure_scoop_ok | DONE | `stdlib/test.scoop` | 多个 fixtures 使用 | |
-| `assertSomeInt` / `assertNoneInt` | P1 | pure_scoop_ok | DONE | `stdlib/test.scoop` | 部分 fixtures | |
-| `assertEqString` | P1 | pure_scoop_ok | TODO | — | — | 需 String comparison |
-| `assertEqBool` | P1 | pure_scoop_ok | TODO | — | — | 简单 |
+| `assertTrue` / `assertFalse` | P0 | pure_scoop_ok | TODO | — | — | `stdlib/test.scoop` 已在 `T5000e3b` 移除；当前 fixture 改用局部 helper 或 `require(...)` |
+| `assertEqInt` | P0 | pure_scoop_ok | TODO | — | — | 同上，后续需按新测试 support 设计重做 |
+| `assertSomeInt` / `assertNoneInt` | P1 | pure_scoop_ok | TODO | — | — | 同上 |
+| `assertEqString` | P1 | pure_scoop_ok | TODO | — | — | 需测试 support 重做 + String comparison |
+| `assertEqBool` | P1 | pure_scoop_ok | TODO | — | — | 需测试 support 重做 |
 
 ---
 
@@ -317,17 +318,17 @@
    - 分类：`pure_scoop_ok`
    - 依赖：前端语法糖 + for-in 链路（T1508）
 
-8. **Duration 类型**
+8. **Duration / time surface 重建设计**
    - 分类：`pure_scoop_ok`
-   - 依赖：time（DONE）
+   - 依赖：新的 time surface（`T5000e3b` 后当前未提供）
 
 9. **Random / PRNG**
    - 分类：`pure_scoop_ok`
-   - 依赖：time（DONE，用于 seed）
+   - 依赖：新的 time 或 OS entropy surface（当前未提供）
 
-10. **Test utilities 扩展**：`assertEqString`/`assertEqBool`
+10. **Test utilities 重做**：`assertTrue`/`assertFalse`/`assertEqInt`/`assertSomeInt`/`assertNoneInt`
     - 分类：`pure_scoop_ok`
-    - 依赖：无
+    - 依赖：新的测试 support 设计；`assertEqString` 还额外依赖 String comparison
 
 ### Intrinsic 结论
 
