@@ -1007,15 +1007,77 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e2 把编译单元 frontend/build 路径的 instance collection / materialization 迁到 MIR 层
+### T5000e2 把编译单元 frontend/build 路径的 instance collection / materialization 迁到 MIR 层
+- 经核对，`T5000e2` 当前同时覆盖：
+  - 抽出可复用的“编译单元 typechecked facts -> generic MIR template -> `InstanceKey` 集合”主线；
+  - 扩展 MIR instance collection，使其覆盖 owner/nominal specialization，而不只是 dump 路径上的 standalone generic fun；
+  - 把 build / single-file LLVM frontend 从 `MonomorphKey` + HIR `collect_generic_*_instantiations(...)` 主路径切换到 MIR，并给仍消费 HIR 的 codegen 保留兼容输入。
+- 另外，现有主路径已暴露真实问题：`scoop build --emit-llvm` 对 `wrap<Int, eff Boom>` / `wrap<Int, eff Zap>` 这类“相同 type args、不同 effect-row”的调用会坍缩成同一个 `@"wrap::<Int>"` 符号，说明编译单元 build 路径的实例身份仍未正确纳入 `eff_args`。
+- 因此该任务拆成 `T5000e2a`～`T5000e2c` 三个实现子任务与对应 review，按顺序推进。
+
+### [DONE] T5000e2a 抽出编译单元级 MIR materialization 输入/instance-set API
 - 范围：
-  - 为多文件 compilation unit 建立稳定的 template catalog / template identity（含跨文件来源信息）；
-  - 把 build / single-file LLVM frontend 当前依赖的 `MonomorphKey` + HIR `collect_generic_fun_instantiations(...)` 主路径迁移为 MIR instance collection / materialization；
-  - 收口 standalone generic fun 与需要 owner/nominal specialization 的 instance collection，不再让 HIR lowering 继续承担主要实例化职责。
+  - 从当前 dump-only `materialize_for_dump(...)` 中抽出一条可复用的“基于既有 typechecked compilation-unit facts 进行 generic MIR lowering + materialization”的内部 API；
+  - 该 API 必须直接消费现成的 `Index`、`TypeEnv`、`TypeStore`、`MonomorphKey` 与 AST side table，而不是重新跑一次 parse/resolve/typecheck；
+  - 先锁定编译单元级 `InstanceKey` 集合对跨文件 template identity 与 `eff_args` 维度的稳定承载，为后续 build/frontend 接线提供可复用基础。
 - 验收：
-  - 编译单元级 monomorphic instance 集合已由 MIR 层生成并缓存；
-  - HIR lowering 不再作为 standalone generic fun 实例生成的主入口。
+  - `mir/materialize.rs` 不再只有 dump-only 入口，而是拥有可复用的编译单元 materialization 主线；
+  - 基于同一组 typechecked inputs，能够得到稳定的 `InstanceKey` 集合，并区分相同 type args 下的不同 effect rows。
 - 依赖：T5000e1R
+- 完成记录（2026-04-26）：
+  - 已在 `crates/scoopc/src/mir/materialize.rs` 新增 `materialize_compilation_unit_from_typechecked_inputs(...)`，将 generic HIR lowering、generic MIR lowering、template catalog 构建、AST side table site binding 收集与 `InstanceKey` materialization 收口为可复用的编译单元内部 API；
+  - `materialize_for_dump(...)` 现已退回为 dump-only 前端准备包装，真正的“既有 typechecked compilation-unit facts -> monomorphic MIR instances”主线转由上述新 API 承接；
+  - `collect_generic_template_infos(...)` 现已直接消费通用 `(&SourceFile, &ast::File)` compilation-unit 视图，而不再绑定 `PreparedDumpFile` 包装；AST `TopLevelFunCallBinding` / `TopLevelFunValueRef` 的 site binding 收集也已收口到 `collect_site_instance_bindings(...)`；
+  - 已新增 `mir::materialize::tests::typechecked_compilation_unit_materialization_distinguishes_same_type_args_with_different_effect_rows`，直接锁定基于同一组 typechecked inputs 的编译单元 materialization 会保留 `wrap::<Int, eff Boom>` 与 `wrap::<Int, eff Zap>` 两个不同实例身份；
+  - 本轮刻意未修改 build / single-file LLVM frontend 的主接线，`scoop build` 路径上 effect-row 实例身份坍缩问题仍继续由后续 `T5000e2c` 跟踪修复。
+
+### [TODO] T5000e2aR Review：确认编译单元级 materialization API 已脱离 dump-only 包装
+- 重点：
+  - 新 API 是否真正复用了既有 typechecked compilation-unit facts，而不是重新构造一套 dump 专用前端；
+  - 跨文件 template identity / `eff_args` 维度是否已经在该层稳定可见；
+  - 是否为后续 build/frontend 接线留下了直接入口，而不是继续把主逻辑埋在 dump 包装里。
+- 验收：
+  - 编译单元 materialization 的可复用入口已经成立，可直接作为 `T5000e2b` / `T5000e2c` 的基础。
+- 依赖：T5000e2a
+
+### [TODO] T5000e2b 让编译单元 MIR instance collection 覆盖 owner/nominal specialization
+- 范围：
+  - 扩展 MIR template / instance collection，使其不只覆盖独立泛型函数，还能表达 generic owner 下 member fun / getter 所需的 owner-specialized instance identity；
+  - 收口当前 HIR `collect_generic_member_fun_instantiations(...)` 通过扫描 `TypeStore` 承担的 owner/nominal specialization 发现职责；
+  - 保持 reachable-driven / on-demand，不退回“看到某个具体 nominal 类型就全量 eager clone 全部成员”的旧模式。
+- 验收：
+  - owner/nominal specialization 的实例集合已可在 MIR 层表达与收集；
+  - HIR 不再是 generic owner member specialization 的主发现入口。
+- 依赖：T5000e2aR
+
+### [TODO] T5000e2bR Review：确认 owner/nominal specialization 已进入 MIR instance collection 语义
+- 重点：
+  - generic owner member/getter 的实例身份是否已被 MIR 层建模；
+  - 是否仍有大块 owner-specialized instance discovery 依赖 HIR 扫描 `TypeStore`；
+  - 新 collection 是否仍保持 reachable-driven / on-demand。
+- 验收：
+  - owner/nominal specialization 已成为 MIR instance collection 的一部分，而不是 HIR 副产物。
+- 依赖：T5000e2b
+
+### [TODO] T5000e2c 让 build / single-file LLVM frontend 消费 MIR instance collection，并收口 HIR eager materialization 主路径
+- 范围：
+  - 将 build / single-file LLVM frontend 当前依赖的 `MonomorphKey` + HIR `collect_generic_fun_instantiations(...)` / `collect_generic_member_fun_instantiations(...)` 主路径切换到 MIR instance collection / materialization；
+  - 给当前仍消费 HIR 的 LLVM codegen 提供兼容输入，但该输入必须以 MIR 产出的实例集合为来源，而不是继续让 HIR 自己做主发现；
+  - 修复编译单元 build 路径对“相同 type args、不同 effect rows”实例身份的坍缩问题。
+- 验收：
+  - 编译单元级 monomorphic instance 集合已由 MIR 层生成并缓存，并被 build/frontend 主路径消费；
+  - HIR lowering 不再作为 standalone generic fun 与 owner-specialized member fun 实例生成的主入口；
+  - `wrap<Int, eff Boom>` / `wrap<Int, eff Zap>` 这类实例在 build/frontend 主路径上不会再坍缩成同一个符号身份。
+- 依赖：T5000e2bR
+
+### [TODO] T5000e2cR Review：确认 build/frontend 主路径已切到 MIR instance collection
+- 重点：
+  - build / single-file LLVM frontend 是否已消费 MIR 产出的实例集合；
+  - HIR lowering 是否已经退出主实例发现职责；
+  - effect-row 与跨文件 template identity 是否在编译单元主路径上保持稳定。
+- 验收：
+  - 编译单元 build/frontend 路径的实例收集与实例身份已经由 MIR 层主导。
+- 依赖：T5000e2c
 
 ### [TODO] T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization
 - 重点：
@@ -1024,7 +1086,7 @@
   - 实例收集是否仍保持 reachable-driven / on-demand，而不是退回全量 eager clone。
 - 验收：
   - 编译单元主路径上的实例身份、收集与物化已经归属于 MIR 层。
-- 依赖：T5000e2
+- 依赖：T5000e2cR
 
 ### [TODO] T5000e3 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径
 - 范围：

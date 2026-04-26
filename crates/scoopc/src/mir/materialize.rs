@@ -324,20 +324,45 @@ pub fn materialize_for_dump(
         env,
         typecheck_types,
         monomorph_keys,
-        top_level_fun_value_refs,
-        top_level_fun_call_bindings,
     } = collect_dump_materialization_inputs(session, source)?;
-    let template_catalog = collect_generic_template_infos(&prepared_files);
     let compilation_unit = prepared_files
         .iter()
         .map(|file| (&file.source, &file.ast))
         .collect::<Vec<_>>();
-    let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+    materialize_compilation_unit_from_typechecked_inputs(
+        &compilation_unit,
+        &compilation_unit,
         &index,
-        &compilation_unit,
-        &compilation_unit,
         Some(&env),
         &typecheck_types,
+        &monomorph_keys,
+    )
+}
+
+/// 基于既有 typechecked compilation-unit facts 执行 generic MIR template -> monomorphic
+/// instance materialization。
+///
+/// 说明：
+/// - 该入口直接复用调用方已经准备好的 `Index` / `TypeEnv` / `TypeStore` / `MonomorphKey`
+///   与 AST side tables，不重新跑 parse/resolve/typecheck；
+/// - dump/debug 路径目前通过它做包装，后续 build/frontend 主路径也将复用同一层。
+pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    files_to_lower: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    type_env: Option<&TypeEnv>,
+    typecheck_types: &TypeStore,
+    monomorph_keys: &[MonomorphKey],
+) -> MaterializeResult<MaterializedMir> {
+    let template_catalog = collect_generic_template_infos(compilation_unit);
+    let (top_level_fun_value_refs, top_level_fun_call_bindings) =
+        collect_site_instance_bindings(files_to_lower);
+    let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+        index,
+        compilation_unit,
+        files_to_lower,
+        type_env,
+        typecheck_types,
     )?;
     let builtins = lowered_hir.types.intern_builtins();
     let facts = super::MirLoweringFacts::from_lowered_hir(&lowered_hir);
@@ -350,13 +375,13 @@ pub fn materialize_for_dump(
     );
     let types = lowered_hir.types;
 
-    materialize_generic_mir_for_dump(
+    materialize_generic_mir(
         generic_file,
         types,
         builtins,
-        DumpMaterializeRequestSet {
-            typecheck_types: &typecheck_types,
-            monomorph_keys: &monomorph_keys,
+        MaterializeRequestSet {
+            typecheck_types,
+            monomorph_keys,
             template_infos: template_catalog,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
@@ -378,13 +403,11 @@ struct DumpMaterializationInputs {
     env: TypeEnv,
     typecheck_types: TypeStore,
     monomorph_keys: Vec<MonomorphKey>,
-    top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
-    top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
 }
 
 type SourceSiteKey = (PathBuf, Span);
 
-struct DumpMaterializeRequestSet<'a> {
+struct MaterializeRequestSet<'a> {
     typecheck_types: &'a TypeStore,
     monomorph_keys: &'a [MonomorphKey],
     template_infos: Vec<GenericTemplateInfo>,
@@ -522,27 +545,33 @@ fn collect_dump_materialization_inputs(
         }
     }
 
-    let mut top_level_fun_value_refs = HashMap::new();
-    let mut top_level_fun_call_bindings = HashMap::new();
-    for file in &prepared_files {
-        let source_path = file.source.path().to_path_buf();
-        for (span, binding) in file.ast.top_level_fun_value_refs() {
-            top_level_fun_value_refs.insert((source_path.clone(), span), binding);
-        }
-        for (span, binding) in file.ast.top_level_fun_call_bindings() {
-            top_level_fun_call_bindings.insert((source_path.clone(), span), binding);
-        }
-    }
-
     Ok(DumpMaterializationInputs {
         prepared_files,
         index,
         env,
         typecheck_types: types,
         monomorph_keys,
-        top_level_fun_value_refs,
-        top_level_fun_call_bindings,
     })
+}
+
+fn collect_site_instance_bindings(
+    files_to_lower: &[(&SourceFile, &ast::File)],
+) -> (
+    HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
+    HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+) {
+    let mut top_level_fun_value_refs = HashMap::new();
+    let mut top_level_fun_call_bindings = HashMap::new();
+    for (source, file) in files_to_lower {
+        let source_path = source.path().to_path_buf();
+        for (span, binding) in file.top_level_fun_value_refs() {
+            top_level_fun_value_refs.insert((source_path.clone(), span), binding);
+        }
+        for (span, binding) in file.top_level_fun_call_bindings() {
+            top_level_fun_call_bindings.insert((source_path.clone(), span), binding);
+        }
+    }
+    (top_level_fun_value_refs, top_level_fun_call_bindings)
 }
 
 type RequestTemplateKey = (String, PathBuf, Span);
@@ -687,24 +716,26 @@ fn collect_generic_templates_from_type_body(
     }
 }
 
-fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<GenericTemplateInfo> {
+fn collect_generic_template_infos(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> Vec<GenericTemplateInfo> {
     let mut out = Vec::new();
-    for file in prepared_files {
-        let pkg_prefix = package_prefix(&file.source, file.ast.package.as_ref());
-        for item in &file.ast.items {
+    for (source, file) in compilation_unit {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
             match item {
                 ast::Item::Fun(fun) => {
-                    push_generic_template_info(&mut out, &file.source, &pkg_prefix, fun);
+                    push_generic_template_info(&mut out, source, &pkg_prefix, fun);
                 }
                 ast::Item::Type(ty) => {
                     let owner_fqn = if pkg_prefix.is_empty() {
-                        ty.name.text(&file.source).to_string()
+                        ty.name.text(source).to_string()
                     } else {
-                        format!("{pkg_prefix}.{}", ty.name.text(&file.source))
+                        format!("{pkg_prefix}.{}", ty.name.text(source))
                     };
                     collect_generic_templates_from_type_body(
                         &mut out,
-                        &file.source,
+                        source,
                         &owner_fqn,
                         ty.body.as_ref(),
                     );
@@ -713,7 +744,7 @@ fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<Ge
                     let object_name = obj
                         .name
                         .as_ref()
-                        .map(|name| name.text(&file.source).to_string())
+                        .map(|name| name.text(source).to_string())
                         .or_else(|| {
                             matches!(obj.kind, ast::ObjectKind::Companion)
                                 .then(|| "Companion".to_string())
@@ -728,7 +759,7 @@ fn collect_generic_template_infos(prepared_files: &[PreparedDumpFile]) -> Vec<Ge
                     };
                     collect_generic_templates_from_type_body(
                         &mut out,
-                        &file.source,
+                        source,
                         &owner_fqn,
                         obj.body.as_ref(),
                     );
@@ -806,13 +837,13 @@ fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> St
         .join(".")
 }
 
-fn materialize_generic_mir_for_dump(
+fn materialize_generic_mir(
     generic_file: File,
     types: TypeStore,
     builtins: BuiltinTypes,
-    requests: DumpMaterializeRequestSet<'_>,
+    requests: MaterializeRequestSet<'_>,
 ) -> MaterializeResult<MaterializedMir> {
-    let DumpMaterializeRequestSet {
+    let MaterializeRequestSet {
         typecheck_types,
         monomorph_keys,
         template_infos,
@@ -2283,6 +2314,76 @@ fun entry(): Int {
     }
 
     #[test]
+    fn typechecked_compilation_unit_materialization_distinguishes_same_type_args_with_different_effect_rows()
+     {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_compilation_unit_effect_rows.scoop",
+            r#"
+package fixtures.materialize
+
+effect Boom {
+    fun ping(): Int
+}
+
+effect Zap {
+    fun pong(): Int
+}
+
+fun <T, eff E = Pure> wrap(x: T): T / E {
+    return x
+}
+
+fun entry(): Unit / (Boom + Zap) {
+    val a = wrap<Int, eff Boom>(1)
+    val b = wrap<Int, eff Zap>(2)
+}
+"#,
+        );
+
+        let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let materialized = materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            &compilation_unit,
+            &inputs.index,
+            Some(&inputs.env),
+            &inputs.typecheck_types,
+            &inputs.monomorph_keys,
+        )
+        .unwrap();
+
+        let wrap_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.wrap")
+            .collect::<Vec<_>>();
+        assert_eq!(wrap_keys.len(), 2);
+        assert!(wrap_keys.iter().all(|key| key.type_args.len() == 1));
+        assert!(wrap_keys.iter().all(|key| key.eff_args.len() == 1));
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun)
+                    if fun.fqn == "fixtures.materialize.wrap::<Int, eff fixtures.materialize.Boom>"
+            )),
+            "编译单元 materialization 应保留 Boom effect-row 实例"
+        );
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun)
+                    if fun.fqn == "fixtures.materialize.wrap::<Int, eff fixtures.materialize.Zap>"
+            )),
+            "编译单元 materialization 应保留 Zap effect-row 实例"
+        );
+    }
+
+    #[test]
     fn dump_materialization_inputs_keep_eff_args_for_extension_direct_call_binding() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
@@ -2309,8 +2410,13 @@ fun entry(): Int / Boom {
         );
 
         let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
-        let bindings = inputs
-            .top_level_fun_call_bindings
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let (_value_refs, call_bindings) = collect_site_instance_bindings(&compilation_unit);
+        let bindings = call_bindings
             .values()
             .filter(|binding| binding.fqn == "fixtures.materialize.forward")
             .collect::<Vec<_>>();
@@ -2368,8 +2474,13 @@ fun entry(): Int / Boom {
         );
 
         let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
-        let bindings = inputs
-            .top_level_fun_call_bindings
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let (_value_refs, call_bindings) = collect_site_instance_bindings(&compilation_unit);
+        let bindings = call_bindings
             .values()
             .filter(|binding| binding.fqn == "fixtures.materialize.Box.forward")
             .collect::<Vec<_>>();
@@ -2427,8 +2538,13 @@ fun entry(): Int / Boom {
         );
 
         let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
-        let bindings = inputs
-            .top_level_fun_call_bindings
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let (_value_refs, call_bindings) = collect_site_instance_bindings(&compilation_unit);
+        let bindings = call_bindings
             .values()
             .filter(|binding| binding.fqn == "fixtures.materialize.Box.lift")
             .collect::<Vec<_>>();

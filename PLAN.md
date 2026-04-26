@@ -979,7 +979,34 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-  - 下一条待执行任务切换为 `T5000e2 把编译单元 frontend/build 路径的 instance collection / materialization 迁到 MIR 层`。
+  - 下一条待执行任务原本切换为 `T5000e2 把编译单元 frontend/build 路径的 instance collection / materialization 迁到 MIR 层`。
+- 2026-04-26：在执行 `T5000e2` 前的主路径探查中，确认该任务当前单轮过大，已拆成 `T5000e2a`～`T5000e2c` 三个实现子任务与对应 review。
+  - 拆分依据：
+    - `crates/scoopc/src/mir/materialize.rs` 目前虽已形成 dump 路径的 `InstanceKey` / fixed-point / cache，但对外仍主要暴露 dump-only 包装，尚缺少可直接复用的“既有 typechecked compilation-unit facts -> generic MIR template -> instance set”入口；
+    - build / single-file LLVM frontend 仍直接调用 `hir::lower_for_compilation_unit_multi_files_with_type_env(...)`，而该路径内部继续通过 `collect_generic_fun_instantiations(...)` 与 `collect_generic_member_fun_instantiations(...)` 在 HIR 层承担主实例发现与物化职责；
+    - 主路径探针已复现真实问题：`scoop build --emit-llvm` 对 `wrap<Int, eff Boom>` / `wrap<Int, eff Zap>` 会坍缩成同一个 `@"wrap::<Int>"` 符号，说明编译单元 build 路径的实例身份仍未正确纳入 `eff_args`；
+    - 另外，generic owner member/getter 的 owner-specialized instance 目前仍主要由 HIR 扫描 `TypeStore` 发现，这与“实例集合属于 MIR 层”的目标边界不符。
+  - 拆分顺序：
+    - `T5000e2a`：先抽出编译单元级 MIR materialization 输入/instance-set API，直接复用既有 typechecked compilation-unit facts；
+    - `T5000e2b`：再把 owner/nominal specialization 纳入 MIR instance collection 语义；
+    - `T5000e2c`：最后让 build / single-file LLVM frontend 消费 MIR instance collection，并收口 HIR eager materialization 主路径。
+  - 下一条待执行任务切换为 `T5000e2a 抽出编译单元级 MIR materialization 输入/instance-set API`。
+- 2026-04-26：`T5000e2a 抽出编译单元级 MIR materialization 输入/instance-set API` 已完成。
+  - 实现结果：
+    - 已在 `crates/scoopc/src/mir/materialize.rs` 新增 `materialize_compilation_unit_from_typechecked_inputs(...)`，将“既有 typechecked compilation-unit facts -> generic HIR lowering -> generic MIR template -> `InstanceKey` materialization”主线抽成可复用内部 API；
+    - `materialize_for_dump(...)` 现已退回为 dump-only 前端准备包装；真正的 materialization 主逻辑不再埋在 dump 包装里；
+    - `collect_generic_template_infos(...)` 已改为直接消费通用 `(&SourceFile, &ast::File)` compilation-unit 视图，`TopLevelFunCallBinding` / `TopLevelFunValueRef` 的 site binding 收集也已收口到 `collect_site_instance_bindings(...)`；
+    - 新增 `mir::materialize::tests::typechecked_compilation_unit_materialization_distinguishes_same_type_args_with_different_effect_rows`，直接锁定基于同一组 typechecked inputs 的编译单元 materialization 会区分 `wrap::<Int, eff Boom>` 与 `wrap::<Int, eff Zap>` 两个实例身份。
+  - 边界说明：
+    - 本轮只完成“可复用编译单元 materialization API”抽取，没有修改 build / single-file LLVM frontend 的主接线；
+    - 因此主路径探针暴露的 `scoop build --emit-llvm` effect-row 实例身份坍缩问题仍继续留在 `T5000e2c` 跟踪修复，而不是被误记为已解决。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::materialize -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e2aR Review：确认编译单元级 materialization API 已脱离 dump-only 包装`。
 
 ## 1. 当前判断
 
