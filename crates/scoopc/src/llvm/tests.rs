@@ -841,6 +841,94 @@ fun main(): Int {
 }
 
 #[test]
+fn frontend_codegen_consumes_materialized_generic_direct_call_instances() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package fixtures.t5000e3dr
+
+import scoop.core.*
+
+fun <T> id(x: T): T { return x }
+
+object Box {
+    fun <T> memberId(x: T): T { return id(x) }
+}
+
+fun main(): Int {
+    val a: Int = id(1)
+    val b: Int = Box.memberId(2)
+    return a + b
+}
+"#,
+    );
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let main = codegen_unit
+        .lowered
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            hir::Item::Fun(fun) if fun.fqn == "fixtures.t5000e3dr.main" => Some(fun),
+            _ => None,
+        })
+        .expect("expected lowered main");
+    let body = main.body.as_ref().expect("main should have a body");
+
+    let direct_call_targets = body
+        .stmts
+        .iter()
+        .filter_map(|stmt| match &stmt.kind {
+            hir::StmtKind::Val(val) => val.init.as_ref(),
+            _ => None,
+        })
+        .filter_map(|expr| match &expr.kind {
+            hir::ExprKind::Call { callee, .. } => match &callee.kind {
+                hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    for expected in [
+        "fixtures.t5000e3dr.id::<Int>",
+        "fixtures.t5000e3dr.Box.memberId::<Int>",
+    ] {
+        assert!(
+            direct_call_targets.contains(&expected),
+            "via-MIR frontend lowering 应已把 generic direct-call target 物化为实例 FQN；缺少 `{expected}`，实际为 {direct_call_targets:?}"
+        );
+    }
+
+    let ir = emit_minimal_main_ir_from_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    for expected in [
+        "fixtures.t5000e3dr.id::<Int>",
+        "fixtures.t5000e3dr.Box.memberId::<Int>",
+    ] {
+        assert!(
+            ir.contains(expected),
+            "LLVM IR 应继续直接消费实例身份 `{expected}`，实际 IR:\n{ir}"
+        );
+    }
+    assert!(
+        !ir.contains("@fixtures.t5000e3dr.id("),
+        "LLVM IR 不应回退到 template target `fixtures.t5000e3dr.id`，实际 IR:\n{ir}"
+    );
+    assert!(
+        !ir.contains("@fixtures.t5000e3dr.Box.memberId("),
+        "LLVM IR 不应回退到 template target `fixtures.t5000e3dr.Box.memberId`，实际 IR:\n{ir}"
+    );
+}
+
+#[test]
 fn cross_file_class_ctor_literal_codegen_uses_correct_source_with_utf8_comments() {
     let session = Session::new().unwrap();
 

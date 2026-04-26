@@ -1312,7 +1312,7 @@
   - 已新增 `compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets`、`typed_hir_dump_keeps_generic_direct_calls_as_template_targets` 与 `lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls` 回归测试，分别锁定 compilation-unit lowering、typed dump / generic-template lowering 与 LLVM builtin dispatch 的边界；
   - 已验证 `cargo test -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000e3dR Review：确认 LLVM backend 已退出单态目标猜测主职责
+### [DONE] T5000e3dR Review：确认 LLVM backend 已退出单态目标猜测主职责
 - 重点：
   - LLVM codegen 是否已经直接消费显式 instance identity，而不是继续依赖 backend 符号名推断；
   - 是否还残留大块 `try_resolve_monomorphized_*` / mangled-FQN 导向的现场补救逻辑；
@@ -1320,6 +1320,12 @@
 - 验收：
   - backend 只消费已物化实例，而不是继续承担 monomorphization 的最后一公里语义。
 - 依赖：T5000e3d
+- 完成记录（2026-04-27）：
+  - 已复核 `crates/scoopc/src/hir/lower/{mod,expr}.rs`、`crates/scoopc/src/llvm/codegen/call/dispatch.rs`、`crates/scoopc/src/llvm/frontend.rs` 与 `crates/scoopc/src/mir/materialize.rs`：codegen 主路径上的 standalone / member / extension direct-call 已统一回放 typecheck `TopLevelFunCallBinding`，并在 via-MIR compilation-unit lowering 中按 `InstanceKey` 物化实例 target；`prepare_single_file_codegen_unit(...)` 也已稳定走 `lower_for_compilation_unit_multi_files_via_mir_instance_collection(...)`。
+  - 已全文检索 LLVM backend 中 `try_resolve_monomorphized_*` / mangled-FQN 现场重定向逻辑：`codegen/mod.rs` 中旧 helper 已删除，普通静态 direct-call 只剩完整实例 FQN 命中 `fun_index` 的主路径；剩余模板名消费已收口为 `call/dispatch.rs` 的 sysroot / builtin special-case、vtable / itable slot 识别，以及 `emit.rs` 中围绕 generic member reachability 的窄兜底路径，未再承担 ordinary static direct-call 的单态目标解析语义。
+  - 已在 `crates/scoopc/src/llvm/tests.rs` 新增 `frontend_codegen_consumes_materialized_generic_direct_call_instances`，从 via-MIR frontend lowering 与 LLVM IR 双层断言 `fixtures.t5000e3dr.id::<Int>` / `fixtures.t5000e3dr.Box.memberId::<Int>` 在进入 backend 前后都保持实例身份，且 IR 不会回退到 template target 符号。
+  - 已验证 `cargo test -p scoopc compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets -- --nocapture`、`cargo test -p scoopc typed_hir_dump_keeps_generic_direct_calls_as_template_targets -- --nocapture`、`cargo test -p scoopc lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls -- --nocapture`、`cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`、`cargo fmt --all`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+  - review 结论：LLVM backend 已退出 ordinary static direct-call 的单态目标猜测主职责；后续 `T5000e3R` / summary / devirt / inline / effect planning 可以把 MIR `InstanceKey` 与已物化实例 HIR 作为稳定前置边界继续推进。
 
 ### [TODO] T5000e3R Review：确认 monomorphization 与 program-boundary / sysroot 收口已形成稳定前置边界
 - 重点：

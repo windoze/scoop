@@ -1272,6 +1272,25 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e3dR Review：确认 LLVM backend 已退出单态目标猜测主职责`。
+- 2026-04-27：`T5000e3dR Review：确认 LLVM backend 已退出单态目标猜测主职责` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/hir/lower/{mod,expr}.rs`、`crates/scoopc/src/llvm/codegen/call/dispatch.rs`、`crates/scoopc/src/llvm/frontend.rs` 与 `crates/scoopc/src/mir/materialize.rs`，确认 codegen 主路径上的 standalone / member / extension direct-call 已统一回放 typecheck `TopLevelFunCallBinding`，via-MIR compilation-unit lowering 则明确以 `InstanceKey` 驱动 fun/member 单态实例生成；
+    - 已全文检索 LLVM backend 中 `try_resolve_monomorphized_*` / mangled-FQN 导向的现场补救逻辑：普通静态 direct-call 已稳定收口为完整实例 FQN 命中 `fun_index`；模板名消费只剩 sysroot / builtin special-case、vtable / itable slot 识别，以及 `emit.rs` 中围绕 generic member reachability 的窄兜底路径，不再承担 ordinary static direct-call 的单态目标猜测主职责；
+    - 已在 `crates/scoopc/src/llvm/tests.rs` 新增 `frontend_codegen_consumes_materialized_generic_direct_call_instances`，从 via-MIR frontend lowering 与 LLVM IR 双层断言 `id::<Int>` / `Box.memberId::<Int>` 在进入 backend 前后都保持实例身份，且 IR 不会回退到 template target。
+  - 验证结果：
+    - `cargo test -p scoopc compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets -- --nocapture`
+    - `cargo test -p scoopc typed_hir_dump_keeps_generic_direct_calls_as_template_targets -- --nocapture`
+    - `cargo test -p scoopc lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls -- --nocapture`
+    - `cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：
+    - LLVM backend 已退出 ordinary static direct-call 的单态目标猜测主职责；
+    - MIR `InstanceKey` 与已物化实例 HIR 已可作为后续 summary / devirt / inline / effect planning 的稳定前置边界；
+    - 当前未发现需要插入到 `T5000e3R` 之前的新前置缺陷任务。
+  - 下一条待执行任务切换为 `T5000e3R Review：确认 monomorphization 与 program-boundary / sysroot 收口已形成稳定前置边界`。
 
 ## 1. 当前判断
 
