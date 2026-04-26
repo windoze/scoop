@@ -876,7 +876,7 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 `eff_args`
+### [DONE] T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 `eff_args`
 - 重点：
   - call-callee 位置的 `TypeApply` 是否已不会把 extension/member call 重新打回成员值 / `FunValue` 路径；
   - extension/member direct-call 的 `TopLevelFunCallBinding` 是否已稳定携带 `decl_file` / `decl_span` / `type_args` / `eff_args`；
@@ -884,6 +884,21 @@
 - 验收：
   - extension/member direct-call 在 request binding 与调用点正规化层面已经具备与顶层函数相同的 `eff_args` 承载能力。
 - 依赖：T5000e1b0a1R
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/hir/lower/expr.rs`、`crates/scoopc/src/typecheck/expr/call.rs` 与 `crates/scoopc/src/typecheck/expr/ops.rs`：call-callee 位置的 `TypeApply` 现会继续走 member / extension direct-call 主线；顶层 / member / extension direct-call 的单候选与多候选路径都会写回带 `decl_file` / `decl_span` / `type_args` / `eff_args` 的 `TopLevelFunCallBinding`；`collect_member_method_signatures_from_index(...)` 继续保留并输出 `eff_param`、`param_*_eff_base` 与 `param_eff_row_var_subst`；
+  - review 过程中额外暴露并修复了一个既有 safe-call 缺口：nullable receiver 的 direct member call 先前在 `member.resolved == None` 时不会做 late resolution，`box?.forward()` / `box?.forward<eff E>()` 会在 `dump-mir` 路径报 `callee_not_callable`；现已在 `crates/scoopc/src/typecheck/expr/call.rs` 扩大 direct member late resolution 触发条件，并在 `crates/scoopc/src/hir/lower/expr.rs` 让 `TypeApply(SafeMemberAccess(...))` 继续命中 `lower_safe_call_expr(...)`，不再把 safe-call 误丢到普通 callee lowering；
+  - 已新增 `hir::lower::tests::typed_hir_lowers_safe_member_type_apply_as_safe_direct_call`，确认 safe member direct-call + `TypeApply` 会被 typed HIR lowering 保持在 safe-call desugar + direct-call 主线；已新增 `mir::materialize::tests::dump_materialization_inputs_keep_eff_args_for_extension_direct_call_binding`，直接锁定 extension direct-call 的 `TopLevelFunCallBinding` / monomorph key 会保留非 `Pure` `eff_args`；
+  - 已回归 `dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding{,_from_lambda}`、`typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path`、`monomorph_rewrites_effect_generic_extension_call_to_concrete_instance`，并额外用 CLI 复现确认 `/tmp/safe_member_plain.scoop` 与 `/tmp/safe_member_type_apply.scoop` 的 `dump-mir` 路径均不再报 `callee_not_callable`；
+  - 已验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc typed_hir_ -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_ -- --nocapture`
+    - `cargo test -p scoopc monomorph_rewrites_effect_generic_extension_call_to_concrete_instance -- --nocapture`
+    - `cargo run -q -p scoop -- dump-mir /tmp/safe_member_plain.scoop`
+    - `cargo run -q -p scoop -- dump-mir /tmp/safe_member_type_apply.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ### [TODO] T5000e1b0b 让 generic MIR template / dump-ir 收录 type-body generic member fun roots
 - 范围：

@@ -5324,7 +5324,7 @@ fn infer_member_call_expr_type(
     }
 
     let current_lambda_this = inputs.is_current_lambda_this_expr(receiver);
-    let late_direct_member_fun_fqn = if current_lambda_this {
+    let late_direct_member_fun_fqn = if current_lambda_this || member.resolved.is_none() {
         late_resolve_direct_member_fun_fqn_from_receiver_ty(
             inputs,
             actual_receiver_ty,

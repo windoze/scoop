@@ -177,7 +177,7 @@ impl<'a> HirLowering<'a> {
                     receiver: inner_receiver,
                     op_span,
                     member,
-                } = &callee.kind
+                } = &callee_expr.kind
                 {
                     let (kind, ty) = self.lower_safe_call_expr(
                         pkg_prefix,

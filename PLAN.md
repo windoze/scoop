@@ -869,6 +869,23 @@
     - 为避免 review 只停留在代码阅读，本轮新增 `typecheck::expr::infer::tests::member_direct_call_overload_keeps_effect_generic_lambda_candidate_alive`，确认在存在其它成员重载候选时，`box.lift({ perform Boom.ping(); 1 })` 仍不会因默认 `Pure` expected type 而误丢 effect-generic lambda 候选；
     - 已回归 `member_direct_call_infers_effect_row_from_lambda_with_explicit_perform`、`dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding{,_from_lambda}`、`typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path` 与 `monomorph_rewrites_effect_generic_extension_call_to_concrete_instance`，并补跑 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，未发现需要插入到 `T5000e1b0aR` 之前的新前置缺陷任务。
   - 下一条待执行任务切换为 `T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 eff_args`。
+- 2026-04-26：`T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 eff_args` 已完成。
+  - 复核结论：
+    - 已复核 `crates/scoopc/src/hir/lower/expr.rs`、`crates/scoopc/src/typecheck/expr/call.rs` 与 `crates/scoopc/src/typecheck/expr/ops.rs`：call-callee 位置的 `TypeApply` 会继续命中 member / extension direct-call 主线；顶层 / member / extension direct-call 的单候选与多候选路径都会写回带 `decl_file` / `decl_span` / `type_args` / `eff_args` 的 `TopLevelFunCallBinding`；`collect_member_method_signatures_from_index(...)` 保留的 `eff_param`、`param_*_eff_base` 与 `param_eff_row_var_subst` 仍会被 member direct-call 主线消费；
+    - review 过程中额外暴露并修复了一个既有 safe-call 缺口：nullable receiver 的 direct member call 在 `member.resolved == None` 时先前不会触发 late resolution，`box?.forward()` / `box?.forward<eff E>()` 会在 `dump-mir` 路径报 `callee_not_callable`；现已在 `crates/scoopc/src/typecheck/expr/call.rs` 扩大 direct member late resolution 入口，并在 `crates/scoopc/src/hir/lower/expr.rs` 让 `TypeApply(SafeMemberAccess(...))` 继续命中 `lower_safe_call_expr(...)`，从而保持 safe-call desugar 与 direct-call rewrite 的一致性；
+    - 为避免 extension 面只靠端到端 materialization 间接覆盖，本轮新增 `mir::materialize::tests::dump_materialization_inputs_keep_eff_args_for_extension_direct_call_binding`，直接锁定 extension direct-call 的 `TopLevelFunCallBinding` / monomorph key 会保留非 `Pure` `eff_args`；同时新增 `hir::lower::tests::typed_hir_lowers_safe_member_type_apply_as_safe_direct_call`，确认 safe member direct-call + `TypeApply` 会稳定落在 safe-call desugar + top-level direct-call HIR 形态；
+    - 已回归 `dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding{,_from_lambda}`、`typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path`、`monomorph_rewrites_effect_generic_extension_call_to_concrete_instance`，并额外用 CLI 复现确认 `/tmp/safe_member_plain.scoop` 与 `/tmp/safe_member_type_apply.scoop` 的 `dump-mir` 输出均不再报 `callee_not_callable`；
+    - 验证结果：
+      - `cargo fmt --all`
+      - `cargo test -p scoopc typed_hir_ -- --nocapture`
+      - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_ -- --nocapture`
+      - `cargo test -p scoopc monomorph_rewrites_effect_generic_extension_call_to_concrete_instance -- --nocapture`
+      - `cargo run -q -p scoop -- dump-mir /tmp/safe_member_plain.scoop`
+      - `cargo run -q -p scoop -- dump-mir /tmp/safe_member_type_apply.scoop`
+      - `cargo test --all`
+      - `cargo clippy --all-targets -- -D warnings`
+      - 全部通过。
+  - 下一条待执行任务切换为 `T5000e1b0b 让 generic MIR template / dump-ir 收录 type-body generic member fun roots`。
 
 ## 1. 当前判断
 

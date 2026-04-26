@@ -5230,4 +5230,90 @@ fun <eff E = Pure> wrap(box: Box): Int / E {
             other => panic!("期望 callee 已被降糖为顶层函数引用，实际为 {other:?}"),
         }
     }
+
+    #[test]
+    fn typed_hir_lowers_safe_member_type_apply_as_safe_direct_call() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>/hir_safe_member_effect_type_apply.scoop",
+            r#"
+package fixtures.hirreview
+
+class Box {
+    fun <eff E = Pure> forward(): Int / E {
+        return 1
+    }
+}
+
+fun <eff E = Pure> wrap(box: Box?): Int? / E {
+    return box?.forward<eff E>()
+}
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &src)
+            .expect("safe member direct-call + TypeApply 应能通过 typed HIR lowering");
+        let wrap = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.hirreview.wrap" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.hirreview.wrap");
+        let body = wrap.body.as_ref().expect("wrap 应有函数体");
+        let ret_expr = body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Return { value: Some(expr) } => Some(expr),
+                _ => None,
+            })
+            .expect("wrap 应包含返回表达式");
+        let ExprKind::When { arms, .. } = &ret_expr.kind else {
+            panic!(
+                "safe member call 应被 lower 为 when desugar，实际为 {:?}",
+                ret_expr.kind
+            );
+        };
+        let some_arm = arms
+            .iter()
+            .find(|arm| matches!(&arm.pat, super::super::WhenPat::Variant { name, .. } if name == "Some"))
+            .expect("safe call desugar 应包含 Some 分支");
+        let ExprKind::Call {
+            callee: some_callee,
+            args: some_args,
+        } = &some_arm.body.kind
+        else {
+            panic!(
+                "Some 分支应包装 Some(inner_call)，实际为 {:?}",
+                some_arm.body.kind
+            );
+        };
+        match &some_callee.kind {
+            ExprKind::UnresolvedIdent { name } => assert_eq!(name, "Some"),
+            other => panic!("Some 分支外层应调用 Some(...)，实际为 {other:?}"),
+        }
+        let [CallArg::Positional(inner_call)] = some_args.as_slice() else {
+            panic!("Some 分支应只包装一个 inner_call，实际为 {:?}", some_args);
+        };
+        let ExprKind::Call { callee, args } = &inner_call.kind else {
+            panic!(
+                "safe call 的 inner_call 应为 direct call，实际为 {:?}",
+                inner_call.kind
+            );
+        };
+        assert_eq!(
+            args.len(),
+            1,
+            "safe member direct-call 仍应携带隐式 receiver 实参"
+        );
+        match &callee.kind {
+            ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+                assert_eq!(fqn, "fixtures.hirreview.Box.forward");
+            }
+            other => panic!("inner_call 应已降糖为顶层函数引用，实际为 {other:?}"),
+        }
+    }
 }
