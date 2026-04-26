@@ -854,7 +854,7 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e1b0a1R Review：确认 member direct-call 已真正消费 lambda-derived effect-row facts
+### [DONE] T5000e1b0a1R Review：确认 member direct-call 已真正消费 lambda-derived effect-row facts
 - 重点：
   - member direct-call 分支是否已经不再“先按默认 `Pure` expected type 过滤掉 lambda 实参候选，再去推 `eff_arg`”；
   - `collect_member_method_signatures_from_index(...)` 产出的 `eff_param` / `param_fn_effect_eff_base` / `param_nominal_eff_eff_base` / `param_eff_row_var_subst` 是否已被调用点闭环消费，而不是停留在 side table；
@@ -862,6 +862,19 @@
 - 验收：
   - effect-generic member method 的 lambda 实参路径已经具备与顶层/扩展函数相同的 `eff_arg` 推断能力。
 - 依赖：T5000e1b0a1
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/typecheck/expr/call.rs` 的 member direct-call 单候选与多候选路径，确认两条路径都会先对 lambda 实参做 expected-context typecheck，再消费 `param_nominal_eff_eff_base` / `param_fn_effect_eff_base` 推断 `eff_arg`，随后通过 `instantiate_eff_row_var_in_sig_types(...)` 回填签名并执行最终 assignability 检查，而不是在默认 `Pure` 形态下提前淘汰候选；
+  - 已确认 `collect_member_method_signatures_from_index(...)` 产出的 `eff_param`、`param_*_eff_base` 与 `param_eff_row_var_subst` 并未停留在 side table：member direct-call 分支会直接消费这些事实来决定 receiver 是否依赖 `E`、从 lambda / nominal 参数提取 effect-row 增量，并完成实例化后的 receiver/arg 复检；
+  - 已新增回归测试 `typecheck::expr::infer::tests::member_direct_call_overload_keeps_effect_generic_lambda_candidate_alive`，确认在存在其它成员重载候选时，`box.lift({ perform Boom.ping(); 1 })` 仍不会因默认 `Pure` expected type 而过早丢弃 effect-generic lambda 候选；
+  - 已回归 `member_direct_call_infers_effect_row_from_lambda_with_explicit_perform`、`dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding{,_from_lambda}`、`typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path` 与 `monomorph_rewrites_effect_generic_extension_call_to_concrete_instance`，确认 typed receiver / lambda 推断修复后，显式 `<eff E>` 与 extension direct-call 路径仍保持通过；
+  - 已验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc member_direct_call_ -- --nocapture`
+    - `cargo test -p scoopc typed_hir_keeps_effect_generic_member_type_apply_on_direct_call_path -- --nocapture`
+    - `cargo test -p scoopc monomorph_rewrites_effect_generic_extension_call_to_concrete_instance -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ### [TODO] T5000e1b0aR Review：确认 extension/member direct-call 已不再在 request binding 阶段丢失 `eff_args`
 - 重点：

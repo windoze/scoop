@@ -3434,4 +3434,38 @@ fun entry(): Int / Boom {
         )
         .expect("typed receiver 成员 direct-call 应能从显式 perform 的 lambda 推断非 Pure eff_arg");
     }
+
+    #[test]
+    fn member_direct_call_overload_keeps_effect_generic_lambda_candidate_alive() {
+        typecheck_single_source(
+            r#"
+package fixtures.typecheck
+
+effect Boom {
+    fun ping(): Unit
+}
+
+class Box() {
+    fun lift(f: (Int) -> Int / Pure): Int {
+        return 0
+    }
+
+    fun <eff E = Pure> lift(f: () -> Int / E): Int / E {
+        return f()
+    }
+}
+
+fun entry(): Int / Boom {
+    val box: Box = Box()
+    return box.lift({
+        perform Boom.ping()
+        1
+    })
+}
+"#,
+        )
+        .expect(
+            "member direct-call 在重载候选中不应先按默认 Pure 过滤掉 effect-generic lambda 候选",
+        );
+    }
 }
