@@ -364,8 +364,13 @@ pub fn build_pre_specialize_file_for_cone_sources(
             file.continuation_resume_call_sites(),
             file.non_pure_continuation_resume_call_sites(),
         );
-        let mir_file =
-            mir::lower_hir_file_for_dump_with_facts(builtins, &mut types, &hir_file, &mir_facts);
+        let mir_file = mir::lower_hir_file_for_dump_with_facts(
+            builtins,
+            &mut types,
+            &hir_file,
+            &[],
+            &mir_facts,
+        );
 
         out_funs.push(PreSpecializedFunInstance {
             key: PreSpecializedFunKey {

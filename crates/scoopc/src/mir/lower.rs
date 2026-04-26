@@ -205,6 +205,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredM
         builtins,
         &mut lowered_hir.types,
         &lowered_hir.file,
+        &lowered_hir.member_funs,
         &facts,
     );
     Ok(LoweredMir {
@@ -223,10 +224,11 @@ pub(crate) fn lower_hir_file_for_dump_with_facts(
     builtins: BuiltinTypes,
     types: &mut TypeStore,
     hir_file: &hir::File,
+    member_funs: &[hir::FunDecl],
     facts: &MirLoweringFacts,
 ) -> File {
     let mut lowering = MirLowering::new(builtins, types, facts);
-    lowering.lower_file(hir_file)
+    lowering.lower_file(hir_file, member_funs)
 }
 
 /// 文件级 lowering：负责遍历顶层 item 并为每个函数构造 MIR body。
@@ -247,8 +249,8 @@ impl<'a> MirLowering<'a> {
     }
 
     /// 把 HIR 文件降到 MIR 文件。
-    fn lower_file(&mut self, file: &hir::File) -> File {
-        let mut items = Vec::with_capacity(file.items.len());
+    fn lower_file(&mut self, file: &hir::File, member_funs: &[hir::FunDecl]) -> File {
+        let mut items = Vec::with_capacity(file.items.len() + member_funs.len());
         for item in &file.items {
             match item {
                 hir::Item::Fun(fun) => {
@@ -263,6 +265,15 @@ impl<'a> MirLowering<'a> {
                 hir::Item::Todo { span, kind } => items.push(Item::Todo { span: *span, kind }),
             }
         }
+
+        // type/object body 中可 codegen 的 member fun 在 HIR 中以 side table 形式保存；
+        // dump-mir / dump-ir 需要把它们也作为真正的 generic MIR root 发射出来。
+        for fun in member_funs {
+            let (primary, nested) = self.lower_fun(fun);
+            items.push(Item::Fun(primary));
+            items.extend(nested.into_iter().map(Item::Fun));
+        }
+
         File { items }
     }
 
@@ -2114,5 +2125,53 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
                 collect_boxed_symbols_in_block(finally, out);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::session::Session;
+    use crate::source::SourceFile;
+
+    #[test]
+    fn dump_mir_emits_type_body_generic_member_fun_roots() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_member_root_generic.scoop",
+            r#"
+package fixtures.mirlower
+
+class Box() {
+    fun <eff E = Pure> forward(): Int / E {
+        return 1
+    }
+}
+
+fun <eff E = Pure> wrap(box: Box): Int / E {
+    return box.forward<eff E>()
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun_fqns = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) => Some(fun.fqn.as_str()),
+                Item::Todo { .. } => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            fun_fqns.contains(&"fixtures.mirlower.Box.forward"),
+            "generic MIR lowering 应显式发射 type-body generic member fun root"
+        );
+        assert!(
+            fun_fqns.contains(&"fixtures.mirlower.wrap"),
+            "顶层 generic fun root 仍应继续保留"
+        );
     }
 }

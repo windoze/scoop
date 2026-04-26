@@ -886,6 +886,27 @@
       - `cargo clippy --all-targets -- -D warnings`
       - 全部通过。
   - 下一条待执行任务切换为 `T5000e1b0b 让 generic MIR template / dump-ir 收录 type-body generic member fun roots`。
+- 2026-04-26：`T5000e1b0b 让 generic MIR template / dump-ir 收录 type-body generic member fun roots` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/mir/lower.rs` 的 dump 路径入口与 `MirLowering::lower_file(...)` 已改为同时 lowering `hir::File.items` 与 `member_funs` side table；type/object 顶层 `Todo` 仍保留，但 type-body / companion object member fun 会额外生成真正的 generic MIR root；
+    - `crates/scoopc/src/mir/materialize.rs` 现已把 `lowered_hir.member_funs` 接入 generic MIR lowering，因此 template root 匹配、family 收集与 instance fixed-point 已覆盖 `Owner.method` 这类 type-body generic member fun；
+    - `crates/scoopc/src/cone/pre_specialize.rs` 已对齐新的 MIR lowering 签名，预特化单函数路径显式传入空 `member_funs`，避免入口分叉导致的编译回退。
+  - 回归与探针：
+    - 新增 `mir::lower::tests::dump_mir_emits_type_body_generic_member_fun_roots`，确认 `dump-mir` 现在会显式发射 `fixtures.mirlower.Box.forward` 这类 type-body generic member root；
+    - 新增 `mir::materialize::tests::materialize_for_dump_handles_type_body_generic_member_fun_roots`，确认 `materialize_for_dump(...)` 现在能为 `fixtures.materialize.Box.forward` 生成带非 `Pure` `eff_args` 的 `InstanceKey` 与 concrete MIR root；
+    - CLI 复现 `/tmp/t5000e1b0b_member_root.scoop` 已确认：
+      - `cargo run -q -p scoop -- dump-mir ...` 输出包含 `fixtures.monomorph.Box.forward` root；
+      - `cargo run -q -p scoop -- dump-ir ...` 不再报 `missing_mir_root_for_template`，并会 materialize `fixtures.monomorph.Box.forward::<eff fixtures.monomorph.Boom>`。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc type_body_generic_member_fun_roots -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding -- --nocapture`
+    - `cargo run -q -p scoop -- dump-ir /tmp/t5000e1b0b_member_root.scoop`
+    - `cargo run -q -p scoop -- dump-mir /tmp/t5000e1b0b_member_root.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e1b0bR Review：确认 type-body generic member fun 已进入 generic MIR template → instance materialization 主线`。
 
 ## 1. 当前判断
 

@@ -346,6 +346,7 @@ pub fn materialize_for_dump(
         builtins,
         &mut lowered_hir.types,
         &lowered_hir.file,
+        &lowered_hir.member_funs,
         &facts,
     );
     let types = lowered_hir.types;
@@ -2312,6 +2313,58 @@ fun entry(): Int / Boom {
         assert!(
             !keys[0].eff_args[0].is_pure(),
             "lambda-derived 成员 direct-call monomorph key 应保留非 Pure eff_args"
+        );
+    }
+
+    #[test]
+    fn materialize_for_dump_handles_type_body_generic_member_fun_roots() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_member_root_generic.scoop",
+            r#"
+package fixtures.materialize
+
+effect Boom {
+    fun ping(): Unit
+}
+
+class Box() {
+    fun <eff E = Pure> forward(): Int / E {
+        return 1
+    }
+}
+
+fun <eff E = Pure> wrap(box: Box): Int / E {
+    return box.forward<eff E>()
+}
+
+fun entry(): Int / Boom {
+    return wrap<eff Boom>(Box())
+}
+"#,
+        );
+
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+        let forward_instances = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.Box.forward")
+            .collect::<Vec<_>>();
+        assert_eq!(forward_instances.len(), 1);
+        assert!(forward_instances[0].type_args.is_empty());
+        assert_eq!(forward_instances[0].eff_args.len(), 1);
+        assert!(
+            !forward_instances[0].eff_args[0].is_pure(),
+            "type-body generic member fun 的实例 key 应保留非 Pure eff_args"
+        );
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun)
+                    if fun.fqn.starts_with("fixtures.materialize.Box.forward::<")
+                        && fun.fqn.contains("eff fixtures.materialize.Boom")
+            )),
+            "materialize_for_dump 应产出 Box.forward 的 concrete MIR root"
         );
     }
 }

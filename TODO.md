@@ -900,7 +900,7 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e1b0b 让 generic MIR template / dump-ir 收录 type-body generic member fun roots
+### [DONE] T5000e1b0b 让 generic MIR template / dump-ir 收录 type-body generic member fun roots
 - 范围：
   - 让 `dump-mir` / generic MIR lowering 把 type-body / companion object 内的 generic member fun 作为真正的 MIR template root 发射，而不是继续把整段 type decl 记成 `Todo { kind: "type" }`；
   - 让 materializer 能为 `Owner.method` 这类 type-body generic fun 找到对应 root/family，并完成 member direct-call 的 monomorphic fixed-point；
@@ -909,6 +909,21 @@
   - `cargo run -q -p scoop -- dump-ir <member-effect-generic case>` 不再报 `missing_mir_root_for_template`；
   - type-body generic member fun 能进入 `InstanceKey` / materializer 闭环。
 - 依赖：T5000e1b0aR
+- 完成记录（2026-04-26）：
+  - 已在 `crates/scoopc/src/mir/lower.rs` 扩展 dump 路径 MIR lowering 入口，使其同时 lowering `hir::File` 顶层 item 与 `member_funs` side table；type/object 顶层 `Todo` 占位仍保留，但 type-body / companion object member fun 现在会额外发射真实 MIR root；
+  - 已在 `crates/scoopc/src/mir/materialize.rs` 把 `lowered_hir.member_funs` 接入 generic MIR lowering，materializer 的 template root 匹配、family 收集与 member direct-call fixed-point 现已覆盖 `Owner.method` 这类 type-body generic member fun；
+  - 已在 `crates/scoopc/src/cone/pre_specialize.rs` 对齐新的 MIR lowering 入口，预特化单函数路径显式传入空 `member_funs` 切片，避免旧调用面编译失败；
+  - 已新增回归测试 `mir::lower::tests::dump_mir_emits_type_body_generic_member_fun_roots` 与 `mir::materialize::tests::materialize_for_dump_handles_type_body_generic_member_fun_roots`，分别锁定 generic MIR root 发射与 `InstanceKey` / concrete callee 闭环；
+  - 已用 CLI 复现确认 `/tmp/t5000e1b0b_member_root.scoop` 的 `dump-mir` 输出现在包含 `fixtures.monomorph.Box.forward` root，`dump-ir` 不再报 `missing_mir_root_for_template`，并会 materialize `fixtures.monomorph.Box.forward::<eff fixtures.monomorph.Boom>`；
+  - 已验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc type_body_generic_member_fun_roots -- --nocapture`
+    - `cargo test -p scoopc dump_materialization_inputs_keep_eff_args_for_member_direct_call_binding -- --nocapture`
+    - `cargo run -q -p scoop -- dump-ir /tmp/t5000e1b0b_member_root.scoop`
+    - `cargo run -q -p scoop -- dump-mir /tmp/t5000e1b0b_member_root.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ### [TODO] T5000e1b0bR Review：确认 type-body generic member fun 已进入 generic MIR template → instance materialization 主线
 - 重点：
