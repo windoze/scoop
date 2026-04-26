@@ -1345,7 +1345,7 @@
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc typechecked_compilation_unit_materialization_skips_unreachable_generic_requests_from_non_request_sources -- --nocapture`、`cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`、`cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
   - review 结论：monomorphization 的主语义、主实例身份与主缓存边界已稳定收口到 MIR/request-root 语义；program-boundary 与 sysroot 最小契约也已稳定，后续 `T5000f` 的 per-instance summary 可以直接建立在当前边界之上。
 
-### [TODO] T5000f 建立 per-instance summary 基础设施
+### [DONE] T5000f 建立 per-instance summary 基础设施
 - 范围：
   - 对每个单态实例建立最小 summary，至少覆盖：
     - `body_known`
@@ -1360,6 +1360,13 @@
   - 后续 devirt / inline / escape analysis 都能共享同一套 per-instance summary；
   - higher-order function value 的 `DirectCallOnly` / `Escapes` 等判断不再由 codegen 现场重复现算。
 - 依赖：T5000e3R
+- 完成记录（2026-04-27）：
+  - 新增 `crates/scoopc/src/mir/summary.rs`，在 `MaterializedMir` 上挂载 `MaterializedMirSummaries` stable side table，并为每个 `InstanceKey` 产出 `InstanceSummary { body_known, size_cost, recursive_scc, may_outward_effect, may_allocate_closure, param_use_summaries, result_provenance }`；
+  - 本轮先修复了一个直接阻塞 `result_provenance` / 参数逃逸判断的既有 MIR 边界缺口：`crates/scoopc/src/mir/mod.rs` 的 `TerminatorKind::Return` 现改为显式携带 `Option<Operand>` 返回值，`crates/scoopc/src/mir/lower.rs` 与 `crates/scoopc/src/mir/materialize.rs` 已同步改为保留和重写返回 operand，不再让 summary 依赖“返回前最后一个临时 local”的隐式约定；
+  - summary 计算当前以 materialized MIR 为输入：对 body-known materialized callable 做 CFG 上的局部 provenance / 参数使用 dataflow、direct-call graph/SCC 计算与 outward-effect fixed-point；对 declaration-only instance 则基于声明签名给出 `body_known = false` 的保守 summary，而不是在 codegen 查询时现场重建；
+  - `param_use_summaries` v1 已覆盖 `Unused` / `ValueOnly` / `DirectCallOnly` / `Escapes` 四态，`result_provenance` v1 已覆盖 `Unit`、`Param`、`DirectFunction`、`KnownClosure`、`TopLevelValue`、`PerformResult`、`Join` 与 `Unknown`，可直接作为后续 devirt / inline / escape analysis 的共同输入；
+  - 已新增 5 个 summary 回归测试，分别锁定“summary 按实例身份而不是按函数名工作”“函数值参数 `DirectCallOnly`”“经返回逃逸的参数”“已知 closure 返回值与 closure allocation”“declaration-only instance 的保守 summary”；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::summary -- --nocapture`、`cargo test -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000fR Review：确认 summary 已按单态实例而不是按函数名工作
 - 重点：

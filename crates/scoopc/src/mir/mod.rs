@@ -18,6 +18,7 @@
 
 mod lower;
 mod materialize;
+mod summary;
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -30,6 +31,13 @@ pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 pub use materialize::{
     InstanceKey, MaterializedMir, MirMaterializeError, TemplateKey, materialize_for_dump,
+};
+pub(crate) use summary::{
+    DeclOnlySummaryInput, InstanceRootSummaryInput, build_materialized_summary_table,
+};
+pub use summary::{
+    InstanceSummary, MaterializedMirSummaries, ParamUseSummary, ResultProvenance,
+    ResultProvenanceSource,
 };
 
 /// 为编译单元 frontend/build 路径暴露可复用的 MIR materialization 入口。
@@ -570,7 +578,10 @@ pub enum UnwindAction {
 
 #[derive(Debug, Clone)]
 pub enum TerminatorKind {
-    Return,
+    /// 从当前 callable 正常返回；`value=None` 表示 `Unit`/隐式返回。
+    Return {
+        value: Option<Operand>,
+    },
     /// cleanup block：执行完清理逻辑后继续向上传播 unwinding。
     ResumeUnwind,
     Goto {
@@ -626,7 +637,7 @@ impl TerminatorKind {
                 f(*then_target);
                 f(*else_target);
             }
-            TerminatorKind::Return
+            TerminatorKind::Return { .. }
             | TerminatorKind::ResumeUnwind
             | TerminatorKind::Unreachable
             | TerminatorKind::Perform { .. }
@@ -701,7 +712,7 @@ mod tests {
             stmts: Vec::new(),
             terminator: Terminator {
                 span: Span::new(0, 0),
-                kind: TerminatorKind::Return,
+                kind: TerminatorKind::Return { value: None },
                 unwind: UnwindAction::NoUnwind,
             },
         });

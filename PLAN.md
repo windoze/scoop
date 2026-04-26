@@ -1315,6 +1315,36 @@
     - monomorphization 的主语义、主实例身份与主缓存边界现已稳定收口到 MIR/request-root 语义；
     - program-boundary 与 sysroot 最小契约也已稳定；
     - 下一条待执行任务切换为 `T5000f 建立 per-instance summary 基础设施`。
+- 2026-04-27：`T5000f 建立 per-instance summary 基础设施` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/mir/summary.rs`，在 `MaterializedMir` 上产出 `MaterializedMirSummaries` stable side table，并按 `InstanceKey` 公开 `InstanceSummary { body_known, size_cost, recursive_scc, may_outward_effect, may_allocate_closure, param_use_summaries, result_provenance }`；
+    - `crates/scoopc/src/mir/materialize.rs` 现会在实例 family materialization 完成后立即计算 summary，并把 summary 与 `file/types/instance_keys` 一起作为 MIR 层的一等产物返回，而不是把这些分析继续留给 backend/codegen 查询现场；
+    - `crates/scoopc/src/mir/summary.rs` 中的 v1 分析已经覆盖：
+      - 基于 materialized callable direct-call graph 的递归 SCC 检测；
+      - 基于 body-known / declaration-only 区分的 outward-effect fixed-point；
+      - 基于显式 locals/operands 的参数使用四态分类；
+      - 基于返回 operand/local provenance 的 `result_provenance` 归纳；
+      - declaration-only instance 的保守 fallback。
+  - 本轮同时修复了一个直接阻塞 summary 精度的既有 MIR 缺口：
+    - `crates/scoopc/src/mir/mod.rs` 的 `TerminatorKind::Return` 之前不显式携带返回 operand，导致 `result_provenance` 与“参数经返回逃逸”只能依赖脆弱的隐式约定；
+    - 现已改为 `Return { value: Option<Operand> }`，并同步更新 `crates/scoopc/src/mir/lower.rs` 与 `crates/scoopc/src/mir/materialize.rs` 的 lowering / rewrite 路径，使返回值 provenance 成为 MIR 的显式事实。
+  - 新增验证：
+    - `mir::summary::tests::summaries_are_keyed_by_instance_identity`
+    - `mir::summary::tests::summary_marks_function_param_direct_call_only`
+    - `mir::summary::tests::summary_marks_returned_function_param_as_escape`
+    - `mir::summary::tests::summary_tracks_known_closure_result_and_allocation`
+    - `mir::summary::tests::declaration_only_instances_stay_body_unknown_and_conservative`
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::summary -- --nocapture`
+    - `cargo test -p scoopc`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 结论：
+    - per-instance summary 现已稳定挂在 monomorphic MIR instance 上，而不是按函数名/符号名临时聚合；
+    - MIR 已具备后续 `T5000fR` / `T5000g` 所需的最小 summary / provenance 前置边界；
+    - 下一条待执行任务切换为 `T5000fR Review：确认 summary 已按单态实例而不是按函数名工作`。
 
 ## 1. 当前判断
 

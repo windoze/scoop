@@ -31,9 +31,10 @@ use crate::typecheck::{
 };
 
 use super::{
-    Body, CallArg, CallKind, ConstValue, File, FunDecl, HandlerArm, Item, LocalDecl,
-    MemberAccessMetadata, MemberTarget, Operand, Pattern, PerformMetadata, Rvalue, Statement,
-    StatementKind, Terminator, TerminatorKind,
+    Body, CallArg, CallKind, ConstValue, DeclOnlySummaryInput, File, FunDecl, HandlerArm,
+    InstanceRootSummaryInput, Item, LocalDecl, MaterializedMirSummaries, MemberAccessMetadata,
+    MemberTarget, Operand, Pattern, PerformMetadata, Rvalue, Statement, StatementKind, Terminator,
+    TerminatorKind, build_materialized_summary_table,
 };
 
 /// 一个 generic MIR template 的稳定标识。
@@ -126,6 +127,7 @@ pub struct MaterializedMir {
     pub file: File,
     pub types: TypeStore,
     pub instance_keys: Vec<InstanceKey>,
+    pub summaries: MaterializedMirSummaries,
 }
 
 /// MIR 实例化错误。
@@ -449,6 +451,8 @@ struct CallableSignatureParam {
 #[derive(Clone)]
 struct CallableSignatureInfo {
     template: TemplateKey,
+    fun_ty: TypeId,
+    return_ty: TypeId,
     params: Vec<CallableSignatureParam>,
 }
 
@@ -522,6 +526,8 @@ fn collect_callable_signature_infos(
                 source_path: fun.source_path.clone(),
                 decl_span: fun.span,
             },
+            fun_ty: fun.ty,
+            return_ty: fun.return_ty,
             params: fun
                 .params
                 .iter()
@@ -2000,6 +2006,8 @@ struct TemplateSignatureInfo {
     template: TemplateKey,
     type_param_names: Vec<String>,
     eff_param_name: Option<String>,
+    fun_ty: TypeId,
+    return_ty: TypeId,
     params: Vec<CallableSignatureParam>,
 }
 
@@ -2168,6 +2176,8 @@ impl MirInstanceMaterializer {
                     template: canonical.clone(),
                     type_param_names: candidate.type_param_names.clone(),
                     eff_param_name: candidate.eff_param_name.clone(),
+                    fun_ty: candidate.root_fun.ty,
+                    return_ty: candidate.root_fun.return_ty,
                     params: candidate
                         .root_fun
                         .params
@@ -2211,6 +2221,8 @@ impl MirInstanceMaterializer {
                     template: canonical,
                     type_param_names: candidate.type_param_names,
                     eff_param_name: candidate.eff_param_name,
+                    fun_ty: candidate.signature.fun_ty,
+                    return_ty: candidate.signature.return_ty,
                     params: candidate.signature.params,
                 },
             );
@@ -2616,6 +2628,43 @@ impl MirInstanceMaterializer {
         instance_keys.sort_by_key(|a| self.instance_fqn(a));
         instance_keys.dedup();
 
+        let root_instances = materialized_instance_keys
+            .iter()
+            .cloned()
+            .map(|instance| InstanceRootSummaryInput {
+                root_fqn: self.instance_fqn(&instance),
+                instance,
+            })
+            .collect::<Vec<_>>();
+        let decl_only_instances = self
+            .declaration_only_instances
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        let decl_only_inputs = decl_only_instances
+            .iter()
+            .filter_map(|instance| {
+                let signature = self.template_signatures.get(&instance.template)?;
+                let substitution =
+                    self.build_instance_substitution_for_signature(signature, instance);
+                Some(DeclOnlySummaryInput {
+                    instance: instance.clone(),
+                    root_fqn: self.instance_fqn(instance),
+                    declared_fun_ty: substitute_type_and_effect_params(
+                        &mut self.types,
+                        signature.fun_ty,
+                        &substitution,
+                    ),
+                    declared_return_ty: substitute_type_and_effect_params(
+                        &mut self.types,
+                        signature.return_ty,
+                        &substitution,
+                    ),
+                    param_count: signature.params.len(),
+                })
+            })
+            .collect::<Vec<_>>();
+
         let mut items = Vec::new();
         for key in &materialized_instance_keys {
             let mut family = self
@@ -2630,11 +2679,19 @@ impl MirInstanceMaterializer {
             });
             items.extend(family.into_iter().map(Item::Fun));
         }
+        let file = File { items };
+        let summaries = build_materialized_summary_table(
+            &file,
+            &self.types,
+            &root_instances,
+            &decl_only_inputs,
+        );
 
         Ok(MaterializedMir {
-            file: File { items },
+            file,
             types: self.types,
             instance_keys,
+            summaries,
         })
     }
 
@@ -2749,6 +2806,26 @@ impl MirInstanceMaterializer {
         Ok(substitution)
     }
 
+    fn build_instance_substitution_for_signature(
+        &self,
+        signature: &TemplateSignatureInfo,
+        instance: &InstanceKey,
+    ) -> InstanceSubstitution {
+        let mut substitution = InstanceSubstitution {
+            type_params: signature
+                .type_param_names
+                .iter()
+                .cloned()
+                .zip(instance.type_args.iter().copied())
+                .collect(),
+            effect_params: HashMap::new(),
+        };
+        if let (Some(name), [row]) = (&signature.eff_param_name, instance.eff_args.as_slice()) {
+            substitution.effect_params.insert(name.clone(), row.clone());
+        }
+        substitution
+    }
+
     fn rewrite_body(
         &mut self,
         body: &mut Body,
@@ -2808,8 +2885,10 @@ impl MirInstanceMaterializer {
             TerminatorKind::CondBr { cond, .. } => {
                 *cond = self.rewrite_operand(cond.clone());
             }
-            TerminatorKind::Return
-            | TerminatorKind::ResumeUnwind
+            TerminatorKind::Return { value } => {
+                *value = value.take().map(|operand| self.rewrite_operand(operand));
+            }
+            TerminatorKind::ResumeUnwind
             | TerminatorKind::Goto { .. }
             | TerminatorKind::Unreachable
             | TerminatorKind::Todo(_) => {}

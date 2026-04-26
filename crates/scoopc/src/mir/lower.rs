@@ -482,7 +482,11 @@ impl<'a> FnLowering<'a> {
     /// 若函数尾部没有显式 terminator，则默认补一个 `return`（保持 body 可验证/可 dump）。
     fn finish_function(&mut self, span: Span) {
         if !self.current_is_terminated() {
-            self.set_terminator(self.current_bb, span, TerminatorKind::Return);
+            self.set_terminator(
+                self.current_bb,
+                span,
+                TerminatorKind::Return { value: None },
+            );
         }
     }
 
@@ -617,12 +621,24 @@ impl<'a> FnLowering<'a> {
             hir::StmtKind::Continue { .. } => self.lower_continue_stmt(stmt.span),
             hir::StmtKind::Return { value } => {
                 if let Some(expr) = value {
-                    let _ = self.lower_expr_to_local(expr);
+                    let result = self.lower_expr_to_local(expr);
                     if self.current_is_terminated() {
                         return;
                     }
+                    self.set_terminator(
+                        self.current_bb,
+                        stmt.span,
+                        TerminatorKind::Return {
+                            value: Some(Operand::Local(result)),
+                        },
+                    );
+                    return;
                 }
-                self.set_terminator(self.current_bb, stmt.span, TerminatorKind::Return);
+                self.set_terminator(
+                    self.current_bb,
+                    stmt.span,
+                    TerminatorKind::Return { value: None },
+                );
             }
             hir::StmtKind::Todo(kind) => self.push_stmt(stmt.span, StatementKind::Todo(kind)),
         }
