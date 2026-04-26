@@ -87,3 +87,37 @@
    - `TODO.md` 已将 `T5000e3a` 标记为 `[DONE]` 并补完成记录；
    - `PLAN.md` 已记录 `T5000e3a` 完成与两条既有编译器阻塞修复；
    - 下一步只剩按 `[T5000e3a] ...` 形式提交 git commit，然后停止。
+
+## 2026-04-26 T5000e3aR
+
+### 当前目标
+
+按 `TODO.md` 的顺序，本轮要完成首个未完成任务 `T5000e3aR Review：确认 panic/trap 语义已统一收口到 Nothing-typed intrinsic`，并在完成后回写 `TODO.md` / `PLAN.md`、提交一次 git commit，然后停止。
+
+### 初始检查
+
+1. 最新提交 `76861f6dc7ffe124b8c4860fff329c463df90954 ([T5000e3a] Add core panic intrinsic and seal trap paths)` 的提交说明没有显式新增需要先修复的遗留问题。
+2. 当前 review 需要核对的核心边界：
+   - `panic` 是否稳定留在 `scoop.core`，而不是再引入一层 process-style 过渡 surface；
+   - 返回类型是否真的是 `Nothing`，并被 lowering/codegen 视作 bottom；
+   - `sysroot/task` 与 fixtures 是否已经清干净直接 `exit(...)` 的 fatal-trap 用法。
+
+### 本轮记录
+
+1. 首轮静态复核结果：
+   - `sysroot/core.scoop` 已声明 `fun panic(message: String): Nothing`；
+   - `crates/scoopc/src/llvm/codegen/call/dispatch.rs` 已把 `scoop.core.panic` 分派到 `codegen_sysroot_panic(...)`；
+   - `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs` 中 `codegen_sysroot_panic(...)` 最终返回 `CgValue::never()`；
+   - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 与 `runtime/c/scoop_runtime.c` 已通过 `scoop_panic` 收口 runtime 边界；
+   - `sysroot/task.scoop` 中语义上属于 fatal trap 的路径已改为 `panic(...)`；
+   - `tests/fixtures/**` 中未再发现直接 `exit(...)` 调用；`tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 已显式断言 `@scoop_panic`。
+2. 本轮验证结果：
+   - `cargo test -p scoopc llvm:: --no-fail-fast` 通过；
+   - `cargo run -p scoop -- test` 通过，输出 `fixtures: ok (1214)`；
+   - `cargo test --all` 通过；
+   - `cargo clippy --all-targets -- -D warnings` 通过。
+3. Review 结论：
+   - panic surface 仍稳定位于 `scoop.core.panic(message: String): Nothing`；
+   - codegen/runtime 路径统一走 `scoop_panic`，并在 lowering 侧保持 bottom 语义，没有为兼容旧路径退回 `Unit`；
+   - `sysroot/task` 与 fixtures 中直接 `exit(...)` 的 fatal-trap 用法已清理，剩余 `scoop.process.exit` 仅作为显式 process-control surface；
+   - 未发现需要插入到 `T5000e3b` 之前的新前置缺陷任务。

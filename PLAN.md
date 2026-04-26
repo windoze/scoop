@@ -1155,6 +1155,22 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1214)`）
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e3aR Review：确认 panic/trap 语义已统一收口到 Nothing-typed intrinsic`。
+- 2026-04-26：`T5000e3aR Review：确认 panic/trap 语义已统一收口到 Nothing-typed intrinsic` 已完成。
+  - 复核结论：
+    - `sysroot/core.scoop`、`sysroot/process.scoop` 与 `sysroot/task.scoop` 的职责边界已稳定：`panic(message: String): Nothing` 只存在于 `scoop.core`，`scoop.process` 只保留显式进程控制 surface，没有再引入另一层 process-style trap API；
+    - `crates/scoopc/src/llvm/codegen/call/dispatch.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs` 与 `runtime/c/scoop_runtime.c` 现已把 `scoop.core.panic` 统一收口到专门 lowering / runtime symbol；codegen 返回 `CgValue::never()`，说明返回类型语义仍是 bottom，而不是为兼容旧路径退回 `Unit`；
+    - 全文检索 `tests/fixtures/**` 与 `sysroot/task.scoop` 中的 `exit(...)` 直接使用，只剩文档注释与 `scoop.process.exit` 声明本身；用户/fixture 面的 fatal trap 调用已清理干净，且 `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 继续断言 LLVM trap path 发射 `@scoop_panic`。
+  - 验证结果：
+    - `cargo test -p scoopc llvm:: --no-fail-fast`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1214)`）
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：
+    - panic/trap 语义已经统一收口到 `Nothing`-typed core intrinsic；
+    - 后续若 runtime 把当前实现从 `exit(3)` 切到更强的 trap/abort，只需调整 runtime 边界，不需要再回改用户 surface、fixtures 或 `sysroot/task`；
+    - 当前未发现需要插入到 `T5000e3b` 之前的新前置缺陷任务。
+  - 下一条待执行任务切换为 `T5000e3b 删除待重做的早期 sysroot 模块与对应 tests/fixtures`。
 
 ## 1. 当前判断
 

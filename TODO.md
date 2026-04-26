@@ -1206,7 +1206,7 @@
   - 收尾验证中先后修复了两个既有编译器阻塞：`crates/scoopc/src/typecheck/expr/entry.rs` 中 object member `fun` 未进入 expr typecheck 主线导致的 `object_member_call_basic.scoop` codegen 回归，以及 `crates/scoopc/src/hir/lower/expr.rs` 中 imported/sysroot `FunSig` expected-type hint 误用 caller source 导致的 `std_channels_basic.scoop` UTF-8 foreign-span panic；
   - 已验证 `cargo test -p scoopc mir::materialize --no-fail-fast`、`cargo test -p scoopc llvm:: --no-fail-fast`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过，其中完整 fixture suite 输出 `fixtures: ok (1214)`。
 
-### [TODO] T5000e3aR Review：确认 panic/trap 语义已统一收口到 `Nothing`-typed intrinsic
+### [DONE] T5000e3aR Review：确认 panic/trap 语义已统一收口到 `Nothing`-typed intrinsic
 - 重点：
   - `panic` 是否稳定落在 corelib / `scoop.core`，而不是新增另一层 process-style 过渡 surface；
   - 返回类型是否确实是 `Nothing`，没有为了兼容旧路径退回 `Unit`；
@@ -1214,6 +1214,12 @@
 - 验收：
   - 之后若 runtime 想把 panic 从 `exit(3)` 改成更强的 trap / abort 语义，不需要再回改用户 surface 与 fixtures。
 - 依赖：T5000e3a
+- 完成记录（2026-04-26）：
+  - 已复核 `sysroot/core.scoop`、`sysroot/process.scoop` 与 `sysroot/task.scoop`：`panic(message: String): Nothing` 稳定留在 `scoop.core`，而 `scoop.process` 只保留显式 process-control surface，没有新增第二层 process-style fatal trap 过渡 API；
+  - 已复核 `crates/scoopc/src/llvm/codegen/call/dispatch.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs` 与 `runtime/c/scoop_runtime.c`：`scoop.core.panic` 统一走专门 lowering / runtime symbol，codegen 端返回 `CgValue::never()`，未为兼容旧路径回退成 `Unit`；
+  - 已全文检索 `tests/fixtures/**` 与 `sysroot/task.scoop` 中的直接 `exit(...)` 调用，确认用户/fixture 面已清理干净；`tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 继续断言 trap path 发射 `@scoop_panic`；
+  - 已验证 `cargo test -p scoopc llvm:: --no-fail-fast`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过，其中 fixture suite 输出 `fixtures: ok (1214)`；
+  - review 结论：panic/trap 语义已经收口到 `Nothing`-typed core intrinsic；后续若 runtime 把实现从 `exit(3)` 切到更强的 trap/abort，只需调整 runtime 边界，不需要回改用户 surface、fixtures 或 `sysroot/task` 语义。
 
 ### [TODO] T5000e3b 删除待重做的早期 sysroot 模块与对应 tests/fixtures
 - 范围：
