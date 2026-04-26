@@ -1157,7 +1157,7 @@
   - `cargo clippy --all-targets -- -D warnings`
   - 全部通过。
 
-### [TODO] T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization
+### [DONE] T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization
 - 重点：
   - 是否仍有大块单态化逻辑残留在 HIR lowering；
   - 跨文件 template identity / cache key 是否稳定；
@@ -1165,6 +1165,19 @@
 - 验收：
   - 编译单元主路径上的实例身份、收集与物化已经归属于 MIR 层。
 - 依赖：T5000e2cR
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoop/src/commands/build.rs` 与 `crates/scoopc/src/llvm/frontend.rs`，确认 build/frontend 与 single-file LLVM frontend 都经 `lower_for_compilation_unit_multi_files_via_mir_instance_collection(...)` 进入主路径；仓库中旧的 `lower_for_compilation_unit_multi_files(...)` / `lower_for_compilation_unit_multi_files_with_type_env(...)` 现仅剩测试与测试 helper 调用，不再承担 production monomorphization 主职责；
+  - 已复核 `crates/scoopc/src/mir/materialize.rs` 与 `crates/scoopc/src/hir/lower/util.rs`，确认跨文件 template identity 继续由 `TemplateKey { fqn, source_path, decl_span }`、canonical template 选择与 `request_templates` 统一主导；HIR compatibility lowering 只按显式 `InstanceKey` 集恢复当前 LLVM codegen 仍需要的 monomorphic fun/member，不再回退到 legacy HIR eager 路径承担实例发现语义；
+  - review 过程中发现并修复了一个既有文档错配：`crates/scoop/src/commands/build.rs` 中 `FrontendOutput::monomorph_keys` / `typecheck_types` 与 monomorph key 收集处的注释仍把它们描述为 HIR eager lowering 输入；现已改为准确描述 MIR materialization request seeds 与 HIR compatibility lowering 的关系；
+  - 已新增 `crates/scoop/src/commands/build.rs` 中的 `build_frontend_does_not_eager_materialize_unused_owner_specialized_getter`，锁定“`TypeStore` 中出现 `Box<String>` 不应让 build frontend 额外产出 `Box.doubled::<String>`”的回归面；
+  - review 结论：编译单元主路径上的实例身份、收集与物化已经归属于 MIR 层；当前未发现需要插入到 `T5000e3` 之前的新前置缺陷任务。
+- 已验证：
+  - `cargo test -p scoop build_frontend_ -- --nocapture`
+  - `cargo test -p scoopc single_file_frontend_ -- --nocapture`
+  - `cargo test -p scoopc typechecked_compilation_unit_materialization_ -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 全部通过。
 
 ### [TODO] T5000e3 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径
 - 范围：

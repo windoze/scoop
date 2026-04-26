@@ -1120,6 +1120,20 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization`。
+- 2026-04-26：`T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization` 已完成。
+  - 复核结果：
+    - `crates/scoop/src/commands/build.rs` 与 `crates/scoopc/src/llvm/frontend.rs` 现都通过 `lower_for_compilation_unit_multi_files_via_mir_instance_collection(...)` 接入 build/frontend 与 single-file LLVM frontend 主路径；旧的 `lower_for_compilation_unit_multi_files(...)` / `lower_for_compilation_unit_multi_files_with_type_env(...)` 调用面已收敛到测试与测试 helper，不再承担 production monomorphization 主路径；
+    - `crates/scoopc/src/mir/materialize.rs` 继续用 `TemplateKey { fqn, source_path, decl_span }`、canonical template 选择与 `request_templates` 维护跨文件 template identity；`crates/scoopc/src/hir/lower/util.rs` 中显式实例 lowering 只消费 `InstanceKey`，不再承担实例发现主语义；
+    - 新增 `crates/scoop/src/commands/build.rs` 中的 `build_frontend_does_not_eager_materialize_unused_owner_specialized_getter`，锁定“`TypeStore` 中出现 `Box<String>` 不应让 build frontend 额外产出 `Box.doubled::<String>`”的 reachable-driven / on-demand 回归面；
+    - review 过程中顺手修复了一个既有注释错配：`FrontendOutput::monomorph_keys` / `typecheck_types` 与 monomorph key 收集注释此前仍声称这些输入直接服务 HIR eager lowering，现已改为准确描述它们作为 MIR materialization request seeds 与 HIR compatibility lowering 输入的角色；
+  - 验证结果：
+    - `cargo test -p scoop build_frontend_ -- --nocapture`
+    - `cargo test -p scoopc single_file_frontend_ -- --nocapture`
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：编译单元主路径上的实例身份、收集与物化已归属于 MIR 层，当前无需在 `T5000e3` 之前插入新的前置缺陷任务；下一条待执行任务切换为 `T5000e3 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径`。
 
 ## 1. 当前判断
 

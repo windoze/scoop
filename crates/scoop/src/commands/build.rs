@@ -60,11 +60,18 @@ struct FrontendOutput {
     asts: Vec<scoopc::ast::File>,
     #[cfg(feature = "llvm")]
     index: scoopc::resolve::Index,
-    /// T0127: 泛型函数调用的 monomorph keys，用于在 HIR lowering 时生成单态化函数变体。
+    /// T0127: typecheck 收集到的实例请求种子。
+    ///
+    /// 当前 build/frontend 主路径会把它交给 MIR materializer 建立 `InstanceKey` 集，
+    /// 而不是回到 HIR eager lowering 现场扫描并克隆具体实例。
     #[cfg(feature = "llvm")]
     monomorph_keys: Vec<scoopc::monomorph::MonomorphKey>,
-    /// T0130: typecheck 阶段的 TypeStore，用于在 HIR lowering 时将 monomorph key 中的
-    /// TypeId 重新 intern 到 HIR lowering 的 TypeStore 中。
+    /// T0130: typecheck 阶段的 `TypeStore`。
+    ///
+    /// 用途：
+    /// - 供 MIR materializer 把请求里的 `TypeId` / effect row re-intern 到实例化用的类型表；
+    /// - 供 HIR compatibility lowering 只按显式 `InstanceKey` 集恢复当前 LLVM codegen 仍需要的
+    ///   monomorphic HIR fun/member。
     #[cfg(feature = "llvm")]
     typecheck_types: scoopc::ty::TypeStore,
     #[cfg(feature = "llvm")]
@@ -662,7 +669,7 @@ fn run_frontend(
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
 
-    // T0127: 收集泛型函数调用的 monomorph keys（用于 HIR lowering 生成单态化函数变体）。
+    // T0127: 收集 typecheck 观察到的 generic/effect 实例请求，作为后续 MIR materialization 的种子。
     #[cfg(feature = "llvm")]
     let mut all_monomorph_keys: Vec<scoopc::monomorph::MonomorphKey> = Vec::new();
 
@@ -1420,5 +1427,57 @@ fun main(): Int / Pure! {
                 "build frontend lowering 应保留实例 `{fqn}`，实际函数集合为: {lowered_fun_fqns:?}"
             );
         }
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_frontend_does_not_eager_materialize_unused_owner_specialized_getter() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("main.scoop");
+
+        std::fs::write(
+            &input,
+            r#"
+package fixtures.t5000e2r
+
+import scoop.core.*
+
+struct Box<T>(val value: T) {
+    val doubled: T
+        get() = this.value
+}
+
+fun entry(): Int {
+    val box: Box<Int> = Box(1)
+    val unused: Box<String> = Box("x")
+    return box.doubled
+}
+
+fun main(): Int / Pure! {
+    val thunk: () -> Int = entry
+    return 0
+}
+"#,
+        )
+        .unwrap();
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_input = super::load_build_input(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+        let lowered_member_fqns = lowered
+            .member_funs
+            .iter()
+            .map(|fun| fun.fqn.as_str())
+            .collect::<Vec<_>>();
+
+        assert!(
+            lowered_member_fqns.contains(&"fixtures.t5000e2r.Box.doubled::<Int>"),
+            "build frontend 应保留从请求根实际可达的 getter 实例，实际成员函数集合为: {lowered_member_fqns:?}"
+        );
+        assert!(
+            !lowered_member_fqns.contains(&"fixtures.t5000e2r.Box.doubled::<String>"),
+            "build frontend 不应因为 `TypeStore` 中出现 `Box<String>` 就 eager materialize 未调用 getter，实际成员函数集合为: {lowered_member_fqns:?}"
+        );
     }
 }
