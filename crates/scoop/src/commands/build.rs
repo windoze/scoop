@@ -1363,7 +1363,7 @@ public fun main() / Pure! {
     #[test]
     fn build_frontend_handles_imported_fun_signature_hints_with_utf8_comments() {
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/run-pass/std_channels_basic.scoop");
+            .join("../../tests/fixtures/run-pass/std_sync_basic.scoop");
 
         let session = scoopc::session::Session::new().unwrap();
         let build_input = super::load_build_input(&input, None).unwrap();
@@ -1377,7 +1377,7 @@ public fun main() / Pure! {
                     scoopc::hir::Item::Fun(fun) if fun.fqn == "main" || fun.fqn.ends_with(".main")
                 )
             }),
-            "build frontend 应成功 lower `std_channels_basic.scoop`，而不是在 imported fun signature hint 上 panic"
+            "build frontend 应成功 lower `std_sync_basic.scoop`，而不是在 imported fun signature hint 上 panic"
         );
     }
 

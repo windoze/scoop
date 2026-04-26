@@ -41,10 +41,6 @@
   X(scoop_array_len) \
   X(scoop_array_set_ref) \
   X(scoop_array_set_u64) \
-  X(scoop_channels_channel_create) \
-  X(scoop_channels_close) \
-  X(scoop_channels_recv_u64) \
-  X(scoop_channels_send_u64) \
   X(scoop_continuation_alloc) \
   X(scoop_continuation_resume) \
   X(scoop_continuation_resume_into) \
@@ -79,15 +75,12 @@
   X(scoop_effect_trace_src_line) \
   X(scoop_effect_trace_unwind_len) \
   X(scoop_enter_native) \
-  X(scoop_env_get) \
   X(scoop_float32_to_int) \
   X(scoop_float32_to_string) \
   X(scoop_float64_to_int) \
   X(scoop_float64_to_string) \
   X(scoop_format_i64) \
   X(scoop_format_u64) \
-  X(scoop_fs_read_all_text_utf8) \
-  X(scoop_fs_write_all_text_utf8) \
   X(scoop_gc_collect) \
   X(scoop_gc_collect_minor) \
   X(scoop_gc_collect_safepoint) \
@@ -111,19 +104,10 @@
   X(scoop_handle_drop) \
   X(scoop_handle_get) \
   X(scoop_handle_new) \
-  X(scoop_io_stderr_write_line) \
-  X(scoop_io_stderr_write_string) \
-  X(scoop_io_stdin_read_line_utf8) \
-  X(scoop_io_stdout_write_line) \
-  X(scoop_io_stdout_write_string) \
   X(scoop_leave_native) \
   X(scoop_once_begin) \
   X(scoop_once_end) \
   X(scoop_once_guard_canonicalize) \
-  X(scoop_path_basename) \
-  X(scoop_path_dirname) \
-  X(scoop_path_join) \
-  X(scoop_path_normalize) \
   X(scoop_panic) \
   X(scoop_pin) \
   X(scoop_print) \
@@ -205,7 +189,6 @@
   X(scoop_thread_spawn_join_resume_u64) \
   X(scoop_thread_unregister) \
   X(scoop_thread_yield) \
-  X(scoop_time_now_unix_millis) \
   X(scoop_unpin)
 
 #endif // SCOOP_RUNTIME_API_H

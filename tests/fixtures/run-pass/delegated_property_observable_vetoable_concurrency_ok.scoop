@@ -6,18 +6,40 @@
 // - observable：写入后触发回调（old/new）；并发读写应具备可见性（无 data race）
 // - vetoable：写入前触发回调；返回 false 时拒绝更新；并发下 veto 失败分支不应污染可见值
 //
-// 说明：为保持 stdout golden 稳定，这里用 channel 控制两个线程的写入顺序。
+// 说明：为保持 stdout golden 稳定，这里用 `scoop.sync` 控制两个线程的写入顺序。
 
 import scoop.core.*
 import scoop.delegates.*
+import scoop.sync.*
 import scoop.thread.*
-import scoop.channels.*
+
+class SyncState(
+    val lock: Mutex,
+    val cv: CondVar,
+    var readyCount: Int,
+    var phase: Int,
+    var doneCount: Int,
+    var callbackCount: Int,
+    var callback1: Int,
+    var callback2: Int
+)
 
 class C() {
     var score: Int by observable(0) { old, new ->
         println(f"score: {old} -> {new}")
-        val notify: Channel<Int> = Shared.scoreNotify
-        val _sent: Bool = notify.send(new)
+        val st: SyncState = Shared.state
+        st.lock.lock()
+        when (st.callbackCount == 0) {
+            true -> {
+                st.callback1 = new
+            }
+            false -> {
+                st.callback2 = new
+            }
+        }
+        st.callbackCount = st.callbackCount + 1
+        st.cv.notifyAll()
+        st.lock.unlock()
     }
 
     var age: Int by vetoable(0) { old, new ->
@@ -28,78 +50,77 @@ class C() {
 
 object Shared {
     val c: C = C()
-    val ready: Channel<Int> = channelCreate<Int>()
-    val t1Go: Channel<Int> = channelCreate<Int>()
-    val t2Go: Channel<Int> = channelCreate<Int>()
-    val done: Channel<Int> = channelCreate<Int>()
-    val scoreNotify: Channel<Int> = channelCreate<Int>()
+    val state: SyncState = SyncState(mutexCreate(), condVarCreate(), 0, 0, 0, 0, 0, 0)
 }
 
 fun worker1() {
-    val ready: Channel<Int> = Shared.ready
-    val _sent: Bool = ready.send(1)
+    val st: SyncState = Shared.state
+    st.lock.lock()
+    st.readyCount = st.readyCount + 1
+    st.cv.notifyAll()
+    while (st.phase != 1) {
+        st.cv.wait(st.lock)
+    }
+    st.lock.unlock()
 
-    val _go: Int? = Shared.t1Go.recv()
     val c: C = Shared.c
     c.score = 1
     c.age = 5
 
-    val _sent2: Bool = Shared.t2Go.send(1)
-    val _done: Bool = Shared.done.send(1)
+    st.lock.lock()
+    st.phase = 2
+    st.doneCount = st.doneCount + 1
+    st.cv.notifyAll()
+    st.lock.unlock()
 }
 
 fun worker2() {
-    val ready: Channel<Int> = Shared.ready
-    val _sent: Bool = ready.send(1)
+    val st: SyncState = Shared.state
+    st.lock.lock()
+    st.readyCount = st.readyCount + 1
+    st.cv.notifyAll()
+    while (st.phase != 2) {
+        st.cv.wait(st.lock)
+    }
+    st.lock.unlock()
 
-    val _go: Int? = Shared.t2Go.recv()
     val c: C = Shared.c
     c.score = 2
     c.age = -1 // vetoable：应拒绝
 
-    val _done: Bool = Shared.done.send(1)
+    st.lock.lock()
+    st.doneCount = st.doneCount + 1
+    st.cv.notifyAll()
+    st.lock.unlock()
 }
 
 fun main(): Int {
-    val ready: Channel<Int> = Shared.ready
-    val done: Channel<Int> = Shared.done
+    val st: SyncState = Shared.state
     val c: C = Shared.c
 
     val t1: Thread = threadSpawn { worker1() }
     val t2: Thread = threadSpawn { worker2() }
 
-    val _r1: Int? = ready.recv()
-    val _r2: Int? = ready.recv()
-
+    st.lock.lock()
+    while (st.readyCount < 2) {
+        st.cv.wait(st.lock)
+    }
     println("start")
-    Shared.t1Go.send(1)
-
-    val _d1: Int? = done.recv()
-    val _d2: Int? = done.recv()
+    st.phase = 1
+    st.cv.notifyAll()
+    while (st.doneCount < 2 || st.callbackCount < 2) {
+        st.cv.wait(st.lock)
+    }
+    val callback1: Int = st.callback1
+    val callback2: Int = st.callback2
+    st.lock.unlock()
 
     t1.join()
     t2.join()
 
-    // callback 次数断言：应恰好有两次 send，并在 close 后读到 None。
-    Shared.scoreNotify.close()
-    val a: Int? = Shared.scoreNotify.recv()
-    val b: Int? = Shared.scoreNotify.recv()
-    val c3: Int? = Shared.scoreNotify.recv()
-
-    when (a) {
-        Some(x) -> when (b) {
-            Some(y) -> when (c3) {
-                None -> println(f"callbacks={x}+{y}")
-                Some(z) -> println(f"callbacks=bad:{z}")
-            }
-            None -> println("callbacks=bad")
-        }
-        None -> println("callbacks=bad")
-    }
-
+    println(f"callbacks={callback1}+{callback2}")
     println(f"final_score={c.score}")
     println(f"final_age={c.age}")
     println("ok")
     return 0
 }
-

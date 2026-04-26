@@ -6,7 +6,10 @@
 // Exercises basic math utilities from stdlib/math.scoop.
 
 import scoop.core.*
-import scoop.test.*
+
+fun assertEqInt(expected: Int, actual: Int): Unit / Raise<RuntimeError> {
+    require(expected == actual)
+}
 
 fun main(): Int {
     // --- abs ---

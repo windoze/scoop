@@ -186,27 +186,19 @@ In this repository, the sysroot is located at:
 
 ```
 sysroot/
-  channels.scoop
   collections.scoop
   core.scoop
   delegates.scoop
   unsafe.scoop
-  env.scoop
-  fs.scoop
-  path.scoop
-  io.scoop
-  net.scoop
   print.scoop
   process.scoop
   string.scoop
   sync.scoop
   task.scoop
-  test.scoop
   thread.scoop
-  time.scoop
 ```
 
-Status note (2026-04): `env.scoop`, `time.scoop`, `fs.scoop`, `path.scoop`, `process.scoop`, `io.scoop`, `net.scoop`, `test.scoop`, and `channels.scoop` are transitional early-stage surfaces scheduled for removal and redesign. When the executable entry contract grows to `fun main(args: Array<String>): Unit / Pure!`, argv should arrive through the program boundary as the full native argv vector, including `argv[0]`, and `scoop.process.args()` should disappear together with `process.scoop`.
+Status note (2026-04-26): the early-stage `channels.scoop`, `env.scoop`, `fs.scoop`, `io.scoop`, `net.scoop`, `path.scoop`, `test.scoop`, and `time.scoop` surfaces have been removed from the sysroot pending redesign. `process.scoop` remains transitional until the executable entry contract grows to `fun main(args: Array<String>): Unit / Pure!`, at which point argv should arrive through the program boundary as the full native argv vector, including `argv[0]`, and `scoop.process.args()` should disappear together with `process.scoop`.
 
 Conventions:
 

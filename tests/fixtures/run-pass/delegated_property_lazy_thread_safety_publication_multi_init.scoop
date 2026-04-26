@@ -7,87 +7,101 @@
 // - 但最终只应发布（缓存）一个值供后续读取
 //
 // 说明：当前 LLVM codegen 尚不支持 `object` 成员赋值（assignment lhs 为 member access），
-// 因此这里用 channel barrier 让两个线程都进入 initializer 后再统一放行，
+// 当前改用 `scoop.sync` barrier 让两个线程都进入 initializer 后再统一放行，
 // 间接验证 Publication 在执行 initializer 期间不会持有 lazy mutex。
 
 import scoop.core.*
 import scoop.delegates.*
+import scoop.sync.*
 import scoop.thread.*
-import scoop.channels.*
+
+class SyncState(
+    val lock: Mutex,
+    val cv: CondVar,
+    var readyCount: Int,
+    var start: Bool,
+    var initStarted: Int,
+    var initRelease: Bool,
+    var resultCount: Int,
+    var result1: Int,
+    var result2: Int
+)
 
 class C() {
     val x: Int by lazy(LazyThreadSafetyMode.Publication) {
-        val initStarted: Channel<Int> = Shared.initStarted
-        val initRelease: Channel<Int> = Shared.initRelease
-
-        initStarted.send(1)
-        val _go: Int? = initRelease.recv()
+        val st: SyncState = Shared.state
+        st.lock.lock()
+        st.initStarted = st.initStarted + 1
+        st.cv.notifyAll()
+        while (st.initRelease == false) {
+            st.cv.wait(st.lock)
+        }
+        st.lock.unlock()
         7
     }
 }
 
 object Shared {
     val c: C = C()
-
-    val ready: Channel<Int> = channelCreate<Int>()
-    val start: Channel<Int> = channelCreate<Int>()
-    val results: Channel<Int> = channelCreate<Int>()
-
-    val initStarted: Channel<Int> = channelCreate<Int>()
-    val initRelease: Channel<Int> = channelCreate<Int>()
+    val state: SyncState = SyncState(mutexCreate(), condVarCreate(), 0, false, 0, false, 0, 0, 0)
 }
 
 fun worker() {
-    val c: C = Shared.c
-    val ready: Channel<Int> = Shared.ready
-    val start: Channel<Int> = Shared.start
-    val results: Channel<Int> = Shared.results
+    val st: SyncState = Shared.state
+    st.lock.lock()
+    st.readyCount = st.readyCount + 1
+    st.cv.notifyAll()
+    while (st.start == false) {
+        st.cv.wait(st.lock)
+    }
+    st.lock.unlock()
 
-    ready.send(1)
-    val _go: Int? = start.recv()
-    val v: Int = c.x
-    val _sent: Bool = results.send(v)
+    val value: Int = Shared.c.x
+
+    st.lock.lock()
+    when (st.resultCount == 0) {
+        true -> {
+            st.result1 = value
+        }
+        false -> {
+            st.result2 = value
+        }
+    }
+    st.resultCount = st.resultCount + 1
+    st.cv.notifyAll()
+    st.lock.unlock()
 }
 
 fun main() {
-    val ready: Channel<Int> = Shared.ready
-    val start: Channel<Int> = Shared.start
-    val results: Channel<Int> = Shared.results
-    val initStarted: Channel<Int> = Shared.initStarted
-    val initRelease: Channel<Int> = Shared.initRelease
+    val st: SyncState = Shared.state
 
     val t1: Thread = threadSpawn { worker() }
     val t2: Thread = threadSpawn { worker() }
 
-    val _r1: Int? = ready.recv()
-    val _r2: Int? = ready.recv()
-
-    start.send(1)
-    start.send(1)
-
-    // 等待两个 initializer 都已开始（Publication 允许并发执行 initializer）。
-    val _i1: Int? = initStarted.recv()
-    val _i2: Int? = initStarted.recv()
-
-    // 放行两个 initializer。
-    initRelease.send(1)
-    initRelease.send(1)
-
-    val v1: Int? = results.recv()
-    val v2: Int? = results.recv()
-
-    when (v1) {
-        Some(x) -> println(x)
-        None -> println("missing")
+    st.lock.lock()
+    while (st.readyCount < 2) {
+        st.cv.wait(st.lock)
     }
-    when (v2) {
-        Some(x) -> println(x)
-        None -> println("missing")
+    st.start = true
+    st.cv.notifyAll()
+    while (st.initStarted < 2) {
+        st.cv.wait(st.lock)
     }
+    st.initRelease = true
+    st.cv.notifyAll()
+    while (st.resultCount < 2) {
+        st.cv.wait(st.lock)
+    }
+    val v1: Int = st.result1
+    val v2: Int = st.result2
+    val initStarted: Int = st.initStarted
+    st.lock.unlock()
 
     t1.join()
     t2.join()
 
-    println("init_started=2")
+    println(v1)
+    println(v2)
+    println(f"init_started={initStarted}")
     println("ok")
 }

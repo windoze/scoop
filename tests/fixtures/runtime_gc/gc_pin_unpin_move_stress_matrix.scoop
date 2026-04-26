@@ -1,13 +1,14 @@
 // EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_STRESS=1
 // RUN-STDOUT: gc_pin_unpin_move_stress_matrix.stdout.txt
 //
-// T1512d：pin/unpin + moving GC 的压力回归（可重复多轮）。
+// T1512d：pin/unpin + moving GC 的压力回归（固定覆盖 moving + stress 组合）。
 //
 // 说明：
-// - 本用例不在文件内写死 `SCOOP_GC_MOVE/SCOOP_GC_STRESS`，而是由 `scoop test` 的全局开关注入：
-//   - `scoop test --gc-move`  → `SCOOP_GC_MOVE=1`（baseline moving）
-//   - `scoop test --gc-stress` → `SCOOP_GC_STRESS=1`（每次分配前触发额外 GC）
-// - 在未开启 moving 时，仅作为 pin/unpin 的 smoke；开启 moving 时额外断言：
+// - 本轮移除 `scoop.env` 后，不再从程序内部探测测试环境变量；
+// - fixture 直接固定在 `SCOOP_GC_MOVE=1` + `SCOOP_GC_STRESS=1` 组合下运行；
+// - 覆盖点仍保持不变：
 //   - pinned 对象地址稳定（不应被搬迁）；
 //   - 未 pinned 对象会被搬迁（handle 指向地址发生变化）；
 //   - pin 计数（pin 两次/unpin 一次）期间对象仍保持 pinned。
@@ -15,19 +16,10 @@
 package fixtures.codegen
 
 import scoop.core.*
-import scoop.env.*
 
 @Unsafe
 @Extern("scoop_test_handle_get_object_addr")
 fun handleGetObjectAddr(handleRaw: UInt): Int
-
-fun envEnabled(key: String): Bool {
-    val v: String? = getOrNull(key)
-    return when (v) {
-        Some(_) -> true
-        None -> false
-    }
-}
 
 fun assertTrueCode(cond: Bool, code: Int): Unit {
     when (cond) {
@@ -36,7 +28,7 @@ fun assertTrueCode(cond: Bool, code: Int): Unit {
     }
 }
 
-fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
+fun runRounds(rounds: Int): Unit {
     var i: Int = 0
     while (i < rounds) {
         // 两个独立对象：一个会被 pin（地址必须稳定），一个不 pin（moving 下应搬迁）。
@@ -61,11 +53,8 @@ fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
         val pinnedAddr1: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
         val movableAddr1: Int = @Unsafe do { handleGetObjectAddr(movableHandle.raw) }
 
-        if (movingEnabled) {
-            assertTrueCode(pinnedAddr1 == pinnedAddr0, 11)
-            assertTrueCode(movableAddr1 != movableAddr0, 12)
-        } else {
-        }
+        assertTrueCode(pinnedAddr1 == pinnedAddr0, 11)
+        assertTrueCode(movableAddr1 != movableAddr0, 12)
 
         // unpin 一次：对象仍应保持 pinned。
         @Unsafe do { GC.unpin(p1) }
@@ -74,11 +63,8 @@ fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
         __scoop_gc_collect()
         val pinnedAddr2After: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
 
-        if (movingEnabled) {
-            assertTrueCode(pinnedAddr2Before == pinnedAddr0, 21)
-            assertTrueCode(pinnedAddr2After == pinnedAddr0, 22)
-        } else {
-        }
+        assertTrueCode(pinnedAddr2Before == pinnedAddr0, 21)
+        assertTrueCode(pinnedAddr2After == pinnedAddr0, 22)
 
         // unpin 第二次：对象应恢复为可移动（handle 地址应发生变化）。
         @Unsafe do { GC.unpin(p2) }
@@ -87,11 +73,8 @@ fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
         __scoop_gc_collect()
         val pinnedAddr3After: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
 
-        if (movingEnabled) {
-            assertTrueCode(pinnedAddr3Before == pinnedAddr0, 31)
-            assertTrueCode(pinnedAddr3After != pinnedAddr3Before, 32)
-        } else {
-        }
+        assertTrueCode(pinnedAddr3Before == pinnedAddr0, 31)
+        assertTrueCode(pinnedAddr3After != pinnedAddr3Before, 32)
 
         // 清理 stable handles（避免跨轮泄漏）。
         @Unsafe do { GC.handleDrop(pinnedHandle) }
@@ -102,15 +85,7 @@ fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
 }
 
 fun main() {
-    val movingEnabled: Bool = envEnabled("SCOOP_GC_MOVE")
-    val stressEnabled: Bool = envEnabled("SCOOP_GC_STRESS")
-
-    val rounds: Int = when (stressEnabled) {
-        true -> 10
-        false -> 1
-    }
-
-    runRounds(rounds, movingEnabled)
+    runRounds(10)
 
     println("ok")
 }

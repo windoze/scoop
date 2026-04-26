@@ -2,7 +2,6 @@
 
 mod atomic;
 mod builtin;
-mod channels;
 mod containers;
 mod sync;
 mod sysroot;

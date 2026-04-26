@@ -754,10 +754,10 @@
 - 完成记录（2026-04-26）：
   - 已在 `crates/scoopc/src/typecheck/lower.rs` 调整 `record_monomorph_call(...)` 签名，并在 `crates/scoopc/src/typecheck/expr/call.rs` 的全部泛型 direct/member/extension 调用路径上传入真实 `sig.decl_file`；`MonomorphKey.symbol` 不再把 imported / sysroot generic fun 误记成调用点文件声明。
   - 已重写 `crates/scoopc/src/mir/materialize.rs` 的 dump/debug 前端准备流程：`materialize_for_dump(...)` 现在会为当前输入文件、`session.sysroot().compilable_source_paths` 中的可编译 sysroot 源，以及 `sysroot` 声明文件建立统一 index / resolve / typecheck / lowering 上下文，再用整组文件的 generic HIR/MIR template 驱动实例化，而不再只 lower 当前源文件。
-  - `collect_generic_template_infos(...)` 现已按整组 prepared files 收集 template catalog，并纳入 declaration-only generic fun；因此 `scoop.channels.channelCreate<T>` 这类只在 sysroot 声明文件里出现的 generic fun 也能生成稳定的 `TemplateKey` / `InstanceKey`，不再触发 `missing_generic_template`。
+  - `collect_generic_template_infos(...)` 现已按整组 prepared files 收集 template catalog，并纳入 declaration-only generic fun；因此 `scoop.unsafe.stackAlloc<T>` 这类只在 sysroot 声明文件里出现的 generic fun 也能生成稳定的 `TemplateKey` / `InstanceKey`，不再触发 `missing_generic_template`。
   - 由于 `sysroot/print.scoop`、`sysroot/task.scoop` 等可编译 sysroot 源依赖 `stdlib/*.scoop`，本轮一并把 dump/debug support sources 扩到 `stdlib + compilable sysroot`；这是为了让外部 template 在调试路径上可 resolve/typecheck/lower，并未把 `T5000e2` 的编译单元主路径迁移提前并入。
-  - 已新增回归测试 `monomorph_materializes_compilable_sysroot_generic_template` 与 `monomorph_materializes_declaration_only_sysroot_generic_template`，分别覆盖 `scoop.core.print::<Int>` 与 `scoop.channels.channelCreate::<Int>` 的实例化。
-  - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo run -q -p scoop -- dump-ir <tmp print case>`、`cargo run -q -p scoop -- dump-ir <tmp channelCreate case>`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+  - 已新增回归测试 `monomorph_materializes_compilable_sysroot_generic_template` 与 `monomorph_materializes_declaration_only_sysroot_generic_template`，分别覆盖 `scoop.core.print::<Int>` 与 `scoop.unsafe.stackAlloc::<Int>` 的实例化。
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo run -q -p scoop -- dump-ir <tmp print case>`、`cargo run -q -p scoop -- dump-ir <tmp stackAlloc case>`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [DONE] T5000e1aR Review：确认 dump-ir 单文件路径的 template identity 已脱离“仅当前源文件”假设
 - 重点：
@@ -1221,7 +1221,7 @@
   - 已验证 `cargo test -p scoopc llvm:: --no-fail-fast`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过，其中 fixture suite 输出 `fixtures: ok (1214)`；
   - review 结论：panic/trap 语义已经收口到 `Nothing`-typed core intrinsic；后续若 runtime 把实现从 `exit(3)` 切到更强的 trap/abort，只需调整 runtime 边界，不需要回改用户 surface、fixtures 或 `sysroot/task` 语义。
 
-### [TODO] T5000e3b 删除待重做的早期 sysroot 模块与对应 tests/fixtures
+### [DONE] T5000e3b 删除待重做的早期 sysroot 模块与对应 tests/fixtures
 - 范围：
   - 从 sysroot 中移除以下待重做 surface：`scoop.channels`、`scoop.test`、`scoop.env`、`scoop.fs`、`scoop.io`、`scoop.net`、`scoop.path`、`scoop.time`；
   - 删除对应的 LLVM lowering、stdlib bridge、typecheck/run-pass/runtime fixture 与文档口径，不保留“先 deprecated 但继续可用”的兼容层；
@@ -1231,6 +1231,12 @@
   - 相关测试与 fixture 要么删除，要么改写到仍受支持的新主线，不留下死路径；
   - 文档能明确表达这些 surface 是“先移除、后重设计重做”，而不是仍受支持但未完整实现。
 - 依赖：T5000e3aR
+- 完成记录（2026-04-26）：
+  - 已从 `sysroot/` 中删除 `scoop.channels`、`scoop.test`、`scoop.env`、`scoop.fs`、`scoop.io`、`scoop.net`、`scoop.path`、`scoop.time`，同时删除 `stdlib/test.scoop`，并同步移除 `crates/scoopc/src/llvm/codegen/call/dispatch.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/sysroot.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`crates/scoopc/src/llvm/codegen/runtime_symbols.rs`、`runtime/c/scoop_runtime.c`、`runtime/c/scoop_runtime_api.h` 与 `crates/scoop_runtime/build.rs` 中只服务这些 surface 的 lowering / ABI / runtime 实现；
+  - 已删除对应 run-pass / typecheck fixture 与 golden；仍需保留语义覆盖的用例已迁回当前主线：`stdlib_*` smoke fixture 改为本地 `assert*` helper + `require(...)`，`gc_pin_unpin_move_stress_matrix.scoop` 改用 fixture `ENV:` 指令承载 GC stress 配置，3 条 delegated-property 并发回归已改为基于 `scoop.sync` + `scoop.thread` 的同步实现；
+  - 文档与历史记录已同步收口：`SCOOP_RUNTIME.md` 更新 sysroot/runtime 维护边界，`SCOOP_FULL_SPEC.md` 移除了 `scoop.io.*` 示例，`PLAN.md` / `TODO.md` 中旧 `scoop.channels.channelCreate::<Int>` 示例已改为仍存在的 `scoop.unsafe.stackAlloc::<Int>`；
+  - 收尾验证中顺手修复了三个暴露出的既有问题：`crates/scoop/src/commands/build.rs` 里硬编码的已删 fixture 已改为 `std_sync_basic.scoop`，`runtime/c/scoop_runtime.c` 中 3 个删除 surface 后遗留的未使用符号已清理，`tests/fixtures/hir/**/*.hir` 与 `tests/fixtures/mir/**/*.mir` 已按新的 `TypeId` 编号重生快照；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc monomorph::lower -- --nocapture`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过，其中完整 fixture suite 输出 `fixtures: ok (1197)`。
 
 ### [TODO] T5000e3bR Review：确认 sysroot surface 已实质缩回到仍承诺维护的最小集合
 - 重点：

@@ -6,9 +6,9 @@
 // - 本文件中的平台函数必须保持“内部链接”（static），避免污染 runtime ABI 导出符号集合。
 //
 // 说明：
-// - v0 覆盖 env/time/io（对齐 T1318a/T1318e）。
+// - v0 覆盖 env/time/io（早期 runtime 内部能力）。
 // - T1403a 开始补齐 sync primitives（mutex/condvar）与线程自识别（self/equal），用于把
-//   `scoop_sync_*`/`scoop_channels_*`/task executor 等从 pthread 直接调用收敛到 platform API。
+//   `scoop_sync_*`/task executor 等从 pthread 直接调用收敛到 platform API。
 
 #pragma once
 

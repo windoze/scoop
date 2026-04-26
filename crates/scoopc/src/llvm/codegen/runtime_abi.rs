@@ -368,58 +368,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    pub(super) fn declare_runtime_env_get(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_ENV_GET;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `const ScoopString* scoop_env_get(const ScoopString* key)`
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
-        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_time_now_unix_millis(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TIME_NOW_UNIX_MILLIS;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `int64_t scoop_time_now_unix_millis(void)`
-        let i64_ty = self.context.i64_type();
-        let fn_ty = i64_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_fs_read_all_text_utf8(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_FS_READ_ALL_TEXT_UTF8;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `const ScoopString* scoop_fs_read_all_text_utf8(const ScoopString* path)`
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
-        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_fs_write_all_text_utf8(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_FS_WRITE_ALL_TEXT_UTF8;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `int64_t scoop_fs_write_all_text_utf8(const ScoopString* path, const ScoopString* content)`
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [str_ptr_ty.into(), str_ptr_ty.into()];
-        let fn_ty = i64_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
     pub(super) fn declare_runtime_process_exit(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_PROCESS_EXIT;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -455,70 +403,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_process_args_array(void)`
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_io_stdin_read_line_utf8(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_IO_STDIN_READ_LINE_UTF8;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `const ScoopString* scoop_io_stdin_read_line_utf8(void)`
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_path_normalize(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_PATH_NORMALIZE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `const ScoopString* scoop_path_normalize(const ScoopString* path)`
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
-        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_path_join(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_PATH_JOIN;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `const ScoopString* scoop_path_join(const ScoopString* base, const ScoopString* child)`
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [str_ptr_ty.into(), str_ptr_ty.into()];
-        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_path_basename(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_PATH_BASENAME;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `const ScoopString* scoop_path_basename(const ScoopString* path)`
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
-        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_path_dirname(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_PATH_DIRNAME;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `const ScoopString* scoop_path_dirname(const ScoopString* path)`
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
-        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -749,63 +633,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `int64_t scoop_thread_current_id(void)`
         let i64_ty = self.context.i64_type();
         let fn_ty = i64_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    // --- std v3：channels（T1319d） ---
-
-    pub(super) fn declare_runtime_channels_channel_create(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CHANNELS_CHANNEL_CREATE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void* scoop_channels_channel_create(void)`
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_channels_send_u64(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CHANNELS_SEND_U64;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `uint32_t scoop_channels_send_u64(void* channel, uint64_t value)`
-        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i64_ty = self.context.i64_type();
-        let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
-        let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_channels_recv_u64(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CHANNELS_RECV_U64;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `uint32_t scoop_channels_recv_u64(void* channel, uint64_t* out_value)`
-        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ptr_ty.into()];
-        let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_channels_close(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CHANNELS_CLOSE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_channels_close(void* channel)`
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

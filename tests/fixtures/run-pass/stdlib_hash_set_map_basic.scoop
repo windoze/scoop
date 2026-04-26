@@ -9,7 +9,14 @@
 
 import scoop.core.*
 import scoop.collections.*
-import scoop.test.*
+
+fun assertEqInt(expected: Int, actual: Int): Unit / Raise<RuntimeError> {
+    require(expected == actual)
+}
+
+fun assertEqBool(expected: Bool, actual: Bool): Unit / Raise<RuntimeError> {
+    require(expected == actual)
+}
 
 fun main(): Int {
     println("set_collision_insert")

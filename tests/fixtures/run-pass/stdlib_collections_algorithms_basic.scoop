@@ -9,7 +9,10 @@
 import scoop.core.*
 import scoop.core.array.*
 import scoop.core.mutable_array.*
-import scoop.test.*
+
+fun assertEqInt(expected: Int, actual: Int): Unit / Raise<RuntimeError> {
+    require(expected == actual)
+}
 
 fun printMutableArray(label: String, xs: MutableArray<Int>): Unit {
     println(label)

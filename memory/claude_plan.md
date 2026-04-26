@@ -1,123 +1,83 @@
-## 当前目标
+# 当前执行计划（初始）
 
-按 `TODO.md` 的顺序，本轮要完成首个未完成任务 `T5000e3a 在 corelib / scoop.core 中新增 panic intrinsic，并收口当前直接 abort 路径`，并按 `PROMPT.md` 要求完成收尾：验证、回写 `TODO.md` / `PLAN.md`、提交一次 git commit，然后停止。
+## 目标
 
-## 最新检查结果
+本轮只完成 `TODO.md` 中第一个尚未完成的任务；如果在执行前或执行过程中发现已有缺陷、回归、规范不匹配或实现边界缺失，则优先修复该问题，或将其整理为阻塞当前任务的前置任务并更新 `TODO.md` / `PLAN.md` 后停止。
 
-1. 最新提交 `f457579c65c335585b0fa833ec43a686a51c2b16 (Update plan)` 只新增了 `MANAGED_ABI.md`，提交说明中没有新的已知阻塞问题。
-2. 之前卡住本轮的编译器既有问题已经修复：
-   - `crates/scoopc/src/mir/materialize.rs` 的 request-root HIR direct-call 实例收集会把非 concrete 的实例请求提前塞进 materializer；
-   - 这会让 `materialize_for_dump_handles_type_body_generic_member_fun_roots`、`materialize_for_dump_distinguishes_companion_member_fun_effect_instances`、`typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls` 等测试多出伪实例；
-   - 现已修正为仅把 concrete type/effect args 的实例加入初始请求集合。
-3. `panic` 相关主体改动已经存在于当前工作树：
-   - `sysroot/core.scoop` 新增 `panic(message: String): Nothing`；
-   - LLVM codegen / runtime ABI / C runtime 已新增 `scoop_panic` 入口；
-   - `sysroot/task.scoop` 已把语义上属于 fatal trap 的 `exit(3)` 改成 `panic(...)`；
-   - 相关 fixture / 文档已同步更新；
-   - 新增了 `tests/fixtures/run-pass/core_panic_intrinsic_basic.scoop`。
-4. 已完成的验证：
-   - `cargo test -p scoopc mir::materialize --no-fail-fast` 通过；
-   - `cargo test -p scoopc llvm:: --no-fail-fast` 通过；
-   - `cargo run -p scoop -- run tests/fixtures/run-pass/core_panic_intrinsic_basic.scoop` 以退出码 `3` 结束；
-   - `cargo run -p scoop -- run tests/fixtures/run-pass/std_process_args_exit_basic.scoop` 正常输出 `0`；
-   - `cargo run -p scoop -- build --emit-llvm tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop -o /tmp/task_atomic_claim_no_mutex_llvm.ll` 成功，IR 中包含 `@scoop_panic`；
-   - `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 均通过。
-5. 新暴露的既有阻塞问题：
-   - `cargo run -p scoop -- test` 不再在 `object_member_call_basic.scoop` 失败，但会在 `tests/fixtures/run-pass/std_channels_basic.scoop` 触发编译器 panic；
-   - 回溯定位到 `crates/scoopc/src/hir/lower/expr.rs` 的 expected-type hint 路径把 imported/sysroot `FunSig` 里的 `TypeRef` 仍当成“当前源文件”切片；
-   - 当 caller 文件包含 UTF-8 中文注释时，foreign span 数字可能落进当前文件的非字符边界，最终在 `crates/scoopc/src/source.rs:63` 触发 `byte index is not a char boundary` panic。
+## 可公开的推理摘要
 
-## 当前判断
+1. 用户要求在执行任何命令前先写入计划文件，因此先创建本文件。
+2. 接下来需要先检查最新提交信息，确认是否提到已知遗留问题；若有，则该问题优先于 `TODO.md` 中任务。
+3. 然后读取 `TODO.md`，定位第一个未完成任务。
+4. 如果该任务过大或存在前置缺陷，需要先拆分任务并更新 `PLAN.md` 与 `TODO.md`。
+5. 在真正实现前，需要阅读相关代码、测试和规范上下文，避免引入变通方案或偏离规范。
+6. 实现后必须运行足够测试，并补齐必要文档更新。
+7. 最后要更新 `TODO.md`、`PLAN.md`、本文件，并提交一个清晰的 Git commit，然后停止，不继续下一个任务。
 
-`T5000e3a` 主体功能已经基本就位，但在正式收尾前又暴露出一条必须先修的编译器既有 bug。因此当前阶段的优先级变为：
+## 分步执行计划
 
-1. 先修 imported/sysroot `FunSig` expected-type hint 误用 caller source 的 panic；
-2. 重新跑 `std_channels_basic.scoop` 与 `cargo run -p scoop -- test`，确认完整 fixture suite 回到全绿；
-3. 再回到 `T5000e3a` 收尾，确认：
-   - `panic` 确实是 `Nothing`-typed core intrinsic；
-   - 语义上属于 panic/trap 的 sysroot/task 路径已统一走 `scoop.core.panic`；
-   - fixture 中不再出现直接 `exit(...)` 调用；
-   - `TODO.md` / `PLAN.md` 被回写为完成态；
-   - 形成单次 commit 并停止。
+1. 查看最新一次 Git 提交，确认是否明确提到待修问题。
+2. 阅读 `TODO.md`、`PLAN.md`，找出当前最高优先级未完成项。
+3. 评估该任务范围：
+   - 如果可在本轮完整完成，直接进入实现。
+   - 如果过大，先拆成更小的子任务，更新 `TODO.md` / `PLAN.md`，并以首个子任务作为本轮任务。
+   - 如果被已有缺陷阻塞，先把该缺陷作为前置任务插入 `TODO.md` 中正确位置，更新 `PLAN.md`，提交后停止。
+4. 阅读实现相关文件、测试和必要规范说明，确认当前行为与目标行为。
+5. 修改代码实现任务，必要时补充或调整测试。
+6. 运行相关验证，至少覆盖：
+   - 与修改直接相关的测试
+   - 必要的工作区测试 / lint / 格式检查
+7. 更新进度文档：
+   - 在 `TODO.md` 中标记该任务完成，或在阻塞情况下重排任务
+   - 在 `PLAN.md` 中记录当前状态
+   - 在本文件中追加关键进展与计划变化
+8. 检查变更后状态并提交 Git commit。
+9. 停止，等待下一次调用。
 
-## 本轮执行计划
+## 进展记录
 
-1. 修复 `hir/lower/expr.rs` 中 imported/sysroot `FunSig` expected-type hint 的 foreign source 上下文问题：
-   - 不再把 foreign `TypeRef` 直接用当前 caller 的 `SourceFile` 回切；
-   - 需要 expected-type/array-literal hint 时，切回声明源文件上下文再 lower。
-2. 补一条回归测试，锁住 `std_channels_basic.scoop` 这类 UTF-8 caller + imported signature hint 的 panic。
-3. 重新运行验证：
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - `cargo run -p scoop -- run tests/fixtures/run-pass/std_channels_basic.scoop`
-   - `cargo run -p scoop -- test`
-4. 若上述验证通过，再：
-   - 将 `T5000e3a` 标记为 `[DONE]` 并补写完成记录；
-   - 更新 `PLAN.md` 记录当前完成状态与后续 `T5000e3aR` 切入点；
-   - 复查 `memory/claude_plan.md`，补记最终结果；
-   - 提交一次 `git commit`，commit subject 使用 `[T5000e3a] ...` 形式。
+- 已创建初始计划文件，尚未开始仓库检查。
+- 已查看最新提交 `1b368259f6a198fdc929ea750a1d67ad87409860`，提交信息为 `[T5000e3aR] Review panic intrinsic boundary`；提交标题本身未显式提出新的待修遗留问题。
+- 已读取 `TODO.md` / `PLAN.md` 并定位到第一个未完成任务为 `T5000e3b 删除待重做的早期 sysroot 模块与对应 tests/fixtures`。
+- 已补读 `T5000e3` 上下文与 `T5000e3aR` review，当前没有看到必须先于 `T5000e3b` 插入的新阻塞缺陷；本轮主线确定为移除以下待重做 sysroot surface：
+  - `scoop.channels`
+  - `scoop.test`
+  - `scoop.env`
+  - `scoop.fs`
+  - `scoop.io`
+  - `scoop.net`
+  - `scoop.path`
+  - `scoop.time`
 
-## 执行约束
+## 当前细化计划（针对 T5000e3b）
 
-- 不接受 workaround，也不通过缩小验证范围来规避现有问题。
-- 不回退用户已有改动；只在完成 `T5000e3a` 所需范围内补充修改。
-- 本轮只完成一个任务；提交后立即停止，不继续进入 `T5000e3aR`。
+1. 盘点上述模块在以下位置的所有残留：
+   - `sysroot/` 模块文件与任何 prelude / import 可见面；
+   - `crates/scoopc/` 中相关 lowering、builtin/sysroot 分派、类型检查或其他桥接；
+   - `stdlib/`、runtime 或工具代码中的配套桥接；
+   - `tests/fixtures/**`、Rust 测试与文档中的引用。
+2. 根据盘点结果删除这些 surface 本体，并同步移除所有仅为这些 surface 服务的实现路径。
+3. 删除或改写依赖这些模块的 fixture / 测试；若存在仍应保留的语义覆盖，则把测试迁到当前仍受支持的主线，而不是保留旧 API。
+4. 更新 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`README.md`、`TODO.md`、`PLAN.md` 中相关口径。
+5. 运行格式化、相关测试、全量测试和 `clippy`，修复所有暴露出的既有问题。
+6. 完成后把 `T5000e3b` 标记为完成，提交 Git commit，然后停止。
+## 2026-04-26 接续收尾计划
 
-## 最终结果
+- 接管上一轮已启动的 `cargo test --all` 会话，确认删除早期 sysroot surface 后工作区仍全量通过。
+- 在全量测试完成后重新运行 `cargo clippy --all-targets -- -D warnings`，确保本轮变更没有留下 warning。
+- 若验证全部通过，则更新 `TODO.md`、`PLAN.md` 与本文件，记录 `T5000e3b` 的完成状态与验证结果。
+- 最后检查工作区、提交本轮变更，提交信息使用 `[T5000e3b] Remove early sysroot surfaces pending redesign`，然后停止，不继续下一条任务。
 
-1. `std_channels_basic.scoop` 暴露的 imported/sysroot `FunSig` expected-type hint bug 已修：
-   - `crates/scoopc/src/hir/lower/expr.rs` 现会在读取 foreign `TypeRef` hint 时切回声明源文件上下文，而不是继续用 caller `SourceFile` 切片；
-   - 这修复了 UTF-8 注释场景下的 non-char-boundary panic；
-   - 新增 `crates/scoop/src/commands/build.rs` 中的 `build_frontend_handles_imported_fun_signature_hints_with_utf8_comments` 回归测试锁定该问题。
-2. `T5000e3a` 的 panic intrinsic 目标已满足：
-   - `scoop.core.panic(message: String): Nothing` 已落位；
-   - `sysroot/task.scoop` 的 fatal trap 路径已改走 `panic(...)`；
-   - fixture 中 direct `exit(...)` 用法已清理，并新增 `core_panic_intrinsic_basic.scoop`；
-   - task atomic trap IR 已确认使用 `@scoop_panic`。
-3. 本轮收尾验证全部通过：
-   - `cargo test -p scoopc mir::materialize --no-fail-fast`
-   - `cargo test -p scoopc llvm:: --no-fail-fast`
-   - `cargo run -p scoop -- run tests/fixtures/run-pass/core_panic_intrinsic_basic.scoop`
-   - `cargo run -p scoop -- run tests/fixtures/run-pass/std_process_args_exit_basic.scoop`
-   - `cargo run -p scoop -- run tests/fixtures/run-pass/std_channels_basic.scoop`
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - `cargo run -p scoop -- test`（`fixtures: ok (1214)`）
-4. 文档回写已完成：
-   - `TODO.md` 已将 `T5000e3a` 标记为 `[DONE]` 并补完成记录；
-   - `PLAN.md` 已记录 `T5000e3a` 完成与两条既有编译器阻塞修复；
-   - 下一步只剩按 `[T5000e3a] ...` 形式提交 git commit，然后停止。
+## 最终结果（T5000e3b）
 
-## 2026-04-26 T5000e3aR
-
-### 当前目标
-
-按 `TODO.md` 的顺序，本轮要完成首个未完成任务 `T5000e3aR Review：确认 panic/trap 语义已统一收口到 Nothing-typed intrinsic`，并在完成后回写 `TODO.md` / `PLAN.md`、提交一次 git commit，然后停止。
-
-### 初始检查
-
-1. 最新提交 `76861f6dc7ffe124b8c4860fff329c463df90954 ([T5000e3a] Add core panic intrinsic and seal trap paths)` 的提交说明没有显式新增需要先修复的遗留问题。
-2. 当前 review 需要核对的核心边界：
-   - `panic` 是否稳定留在 `scoop.core`，而不是再引入一层 process-style 过渡 surface；
-   - 返回类型是否真的是 `Nothing`，并被 lowering/codegen 视作 bottom；
-   - `sysroot/task` 与 fixtures 是否已经清干净直接 `exit(...)` 的 fatal-trap 用法。
-
-### 本轮记录
-
-1. 首轮静态复核结果：
-   - `sysroot/core.scoop` 已声明 `fun panic(message: String): Nothing`；
-   - `crates/scoopc/src/llvm/codegen/call/dispatch.rs` 已把 `scoop.core.panic` 分派到 `codegen_sysroot_panic(...)`；
-   - `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs` 中 `codegen_sysroot_panic(...)` 最终返回 `CgValue::never()`；
-   - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 与 `runtime/c/scoop_runtime.c` 已通过 `scoop_panic` 收口 runtime 边界；
-   - `sysroot/task.scoop` 中语义上属于 fatal trap 的路径已改为 `panic(...)`；
-   - `tests/fixtures/**` 中未再发现直接 `exit(...)` 调用；`tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 已显式断言 `@scoop_panic`。
-2. 本轮验证结果：
-   - `cargo test -p scoopc llvm:: --no-fail-fast` 通过；
-   - `cargo run -p scoop -- test` 通过，输出 `fixtures: ok (1214)`；
-   - `cargo test --all` 通过；
-   - `cargo clippy --all-targets -- -D warnings` 通过。
-3. Review 结论：
-   - panic surface 仍稳定位于 `scoop.core.panic(message: String): Nothing`；
-   - codegen/runtime 路径统一走 `scoop_panic`，并在 lowering 侧保持 bottom 语义，没有为兼容旧路径退回 `Unit`；
-   - `sysroot/task` 与 fixtures 中直接 `exit(...)` 的 fatal-trap 用法已清理，剩余 `scoop.process.exit` 仅作为显式 process-control surface；
-   - 未发现需要插入到 `T5000e3b` 之前的新前置缺陷任务。
+- `cargo test --all` 已完整通过，`cargo clippy --all-targets -- -D warnings` 也已通过，删除早期 sysroot surface 后工作区当前处于可提交状态。
+- 本轮已完成的主体收口：
+  - 删除 `scoop.channels`、`scoop.test`、`scoop.env`、`scoop.fs`、`scoop.io`、`scoop.net`、`scoop.path`、`scoop.time` 的 sysroot / stdlib surface；
+  - 删除编译器中只为这些 surface 服务的 LLVM lowering、runtime ABI / symbol 声明与 runtime C 导出；
+  - 删除对应 fixtures，并把仍有价值的覆盖迁回 `scoop.sync` / `scoop.thread` / `require(...)` 等仍受支持主线。
+- 收尾验证时顺手修复的既有问题：
+  - `crates/scoop/src/commands/build.rs` 仍引用已删除的 `std_channels_basic.scoop`；
+  - `runtime/c/scoop_runtime.c` 在 surface 删除后残留未使用符号，导致 warning；
+  - HIR/MIR golden 因 `TypeId` 重排而失配，已批量重生快照。
+- 已回写 `TODO.md` 与 `PLAN.md`：`T5000e3b` 现已标记为完成，下一条待执行任务为 `T5000e3bR Review：确认 sysroot surface 已实质缩回到仍承诺维护的最小集合`。
+- 下一步只剩检查最终 diff、提交 `[T5000e3b] Remove early sysroot surfaces pending redesign`，然后停止。

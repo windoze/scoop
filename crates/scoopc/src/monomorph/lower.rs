@@ -369,15 +369,15 @@ fun entry(): Unit {
     fn monomorph_materializes_declaration_only_sysroot_generic_template() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
-            "<mem>/monomorph_sysroot_channels.scoop",
+            "<mem>/monomorph_sysroot_unsafe.scoop",
             r#"
 package fixtures.monomorph
 
 import scoop.core.*
-import scoop.channels.*
+import scoop.unsafe.*
 
 fun entry(): Int {
-    val ch: Channel<Int> = channelCreate<Int>()
+    val ptr: Ptr<Int> = @Unsafe do { stackAlloc<Int>() }
     return 0
 }
 "#,
@@ -387,14 +387,14 @@ fun entry(): Int {
         let key = lowered
             .instance_keys
             .iter()
-            .find(|key| key.template.fqn == "scoop.channels.channelCreate")
-            .expect("expected channelCreate::<Int> instance request");
+            .find(|key| key.template.fqn == "scoop.unsafe.stackAlloc")
+            .expect("expected stackAlloc::<Int> instance request");
         assert_eq!(
             key.template
                 .source_path
                 .file_name()
                 .and_then(|name| name.to_str()),
-            Some("channels.scoop")
+            Some("unsafe.scoop")
         );
 
         let fun = lowered
@@ -402,7 +402,7 @@ fun entry(): Int {
             .items
             .iter()
             .find_map(|item| match item {
-                crate::mir::Item::Fun(fun) if fun.fqn == "scoop.channels.channelCreate::<Int>" => {
+                crate::mir::Item::Fun(fun) if fun.fqn == "scoop.unsafe.stackAlloc::<Int>" => {
                     Some(fun)
                 }
                 _ => None,

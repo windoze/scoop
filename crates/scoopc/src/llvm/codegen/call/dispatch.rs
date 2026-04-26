@@ -252,75 +252,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_sysroot_is_infinite_ext(span, callee.span, args);
             }
 
-            if fqn == "scoop.io.stdoutWriteString" {
-                return self.codegen_sysroot_io_write_string(
-                    span,
-                    callee.span,
-                    "scoop_io_stdout_write_string",
-                    args,
-                );
-            }
-            if fqn == "scoop.io.stdoutWriteLine" {
-                return self.codegen_sysroot_io_write_string(
-                    span,
-                    callee.span,
-                    "scoop_io_stdout_write_line",
-                    args,
-                );
-            }
-            if fqn == "scoop.io.stderrWriteString" {
-                return self.codegen_sysroot_io_write_string(
-                    span,
-                    callee.span,
-                    "scoop_io_stderr_write_string",
-                    args,
-                );
-            }
-            if fqn == "scoop.io.stderrWriteLine" {
-                return self.codegen_sysroot_io_write_string(
-                    span,
-                    callee.span,
-                    "scoop_io_stderr_write_line",
-                    args,
-                );
-            }
-            if fqn == "scoop.io.stdinReadLine" {
-                return self.codegen_sysroot_io_stdin_read_line_utf8(
-                    span,
-                    callee.span,
-                    args,
-                    expected,
-                );
-            }
-            if fqn == "scoop.env.getOrNull" {
-                return self.codegen_sysroot_env_get(span, args, expected);
-            }
-            if fqn == "scoop.time.nowUnixMillis" {
-                return self.codegen_sysroot_time_now_unix_millis(span, callee.span, args);
-            }
-            if fqn == "scoop.fs.readAllText" {
-                return self.codegen_sysroot_fs_read_all_text_utf8(span, args, expected);
-            }
-            if fqn == "scoop.fs.writeAllText" {
-                return self.codegen_sysroot_fs_write_all_text_utf8(span, callee.span, args);
-            }
             if fqn == "scoop.process.exit" {
                 return self.codegen_sysroot_process_exit(span, callee.span, args);
             }
             if fqn == "scoop.process.args" {
                 return self.codegen_sysroot_process_args(span, callee.span, args);
-            }
-            if fqn == "scoop.path.normalize" {
-                return self.codegen_sysroot_path_normalize(span, callee.span, args);
-            }
-            if fqn == "scoop.path.join" {
-                return self.codegen_sysroot_path_join(span, callee.span, args);
-            }
-            if fqn == "scoop.path.basename" {
-                return self.codegen_sysroot_path_basename(span, callee.span, args);
-            }
-            if fqn == "scoop.path.dirname" {
-                return self.codegen_sysroot_path_dirname(span, callee.span, args);
             }
             if fqn == "scoop.sync.mutexCreate" {
                 return self.codegen_sysroot_sync_mutex_create(span, callee.span, args);
@@ -369,18 +305,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             if fqn == "scoop.thread.currentId" {
                 return self.codegen_sysroot_thread_current_id(span, callee.span, args);
-            }
-            if fqn == "scoop.channels.channelCreate" {
-                return self.codegen_sysroot_channels_channel_create(span, callee.span, args);
-            }
-            if fqn == "scoop.channels.send" {
-                return self.codegen_sysroot_channels_send(span, callee.span, args);
-            }
-            if fqn == "scoop.channels.recv" {
-                return self.codegen_sysroot_channels_recv(span, callee.span, args, expected);
-            }
-            if fqn == "scoop.channels.close" {
-                return self.codegen_sysroot_channels_close(span, callee.span, args);
             }
             if fqn == "scoop.core.__task_transport_pack"
                 || fqn == "scoop.core.__task_transport_unpack"

@@ -16,7 +16,7 @@ use std::process::Command;
 
 use libc::c_void;
 
-const GUARD_SYMBOL: &str = "__scoop_object_guard__scoop.test.Object";
+const GUARD_SYMBOL: &str = "__scoop_object_guard__fixtures.once_guard.Object";
 
 struct Dylib {
     handle: *mut c_void,

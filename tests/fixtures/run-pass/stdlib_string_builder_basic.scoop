@@ -10,7 +10,10 @@
 
 import scoop.core.*
 import scoop.core.array.*
-import scoop.test.*
+
+fun assertEqString(expected: String, actual: String): Unit / Raise<RuntimeError> {
+    require(expected == actual)
+}
 
 fun main(): Int {
     // --- String.concat basic ---

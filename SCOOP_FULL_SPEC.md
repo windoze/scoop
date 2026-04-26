@@ -1949,7 +1949,7 @@ package scoop.collections
 // Imports
 import scoop.collections.List
 import scoop.collections.buildList
-import scoop.io.*
+import example.io.*
 
 // Visibility modifiers
 public fun <T> sort(list: List<T>): List<T> { ... }     // public API

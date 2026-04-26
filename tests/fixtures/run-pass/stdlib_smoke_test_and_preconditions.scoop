@@ -2,12 +2,23 @@
 // RUN-STDOUT: stdlib_smoke_test_and_preconditions.stdout
 // EXPECT-EXIT: 0
 //
-// stdlib smoke test: test utilities + preconditions (assertTrue, assertFalse, assertEqInt, require, check)
-// Exercises test/assertion utilities combined with try/catch for validation patterns.
+// stdlib smoke test: local assertions + preconditions (require/check)
+// Exercises supported validation patterns without depending on removed `scoop.test`.
 
 import scoop.core.*
 import scoop.core.array.*
-import scoop.test.*
+
+fun assertTrue(condition: Bool): Unit / Raise<RuntimeError> {
+    require(condition)
+}
+
+fun assertFalse(condition: Bool): Unit / Raise<RuntimeError> {
+    require(condition == false)
+}
+
+fun assertEqInt(expected: Int, actual: Int): Unit / Raise<RuntimeError> {
+    require(expected == actual)
+}
 
 fun main(): Int {
     // --- Basic assertions pass ---
