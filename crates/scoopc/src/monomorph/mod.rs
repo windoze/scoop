@@ -47,7 +47,10 @@ impl fmt::Debug for MonomorphSymbol {
 ///
 /// 说明：
 /// - 这里承载的是“调用点请求了哪个实例”的前端事实，而不是后续中端/后端共享的最终实例身份；
-/// - `type_args`：类型参数的实例（`TypeId`）；其语义与布局在后续 MIR materialization 决定；
+/// - `type_args`：实例请求携带的类型维度（`TypeId`）；
+///   - 对 standalone generic fun：对应函数自身 type params；
+///   - 对 generic owner member/getter：会先放 owner-specialization 的 concrete args，再接函数自身 type args；
+///   - 其最终语义与布局在后续 MIR materialization 决定；
 /// - `eff_args`：effect row 参数的实例（`EffectRow`），用于区分 `fun <eff E>` 下的不同调用形态。
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct MonomorphKey {

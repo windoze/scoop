@@ -1026,6 +1026,30 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e2b 让编译单元 MIR instance collection 覆盖 owner/nominal specialization`。
+- 2026-04-26：`T5000e2b 让编译单元 MIR instance collection 覆盖 owner/nominal specialization` 已完成。
+  - 本轮先确认上一提交 `[T5000e2aR]` 没有额外需要前插的新缺陷任务；随后对编译单元 MIR materialization 主线做增量扩展，而不是回退到 HIR `TypeStore` 扫描的 eager 方案。
+  - `typecheck` 侧收口结果：
+    - `crates/scoopc/src/typecheck/expr/call.rs` 现已在 owner-specialized member direct-call 记录 `MonomorphKey` / `TopLevelFunCallBinding` 时统一携带 `owner args + fun args`；
+    - `crates/scoopc/src/typecheck/expr/member.rs` 暴露 `find_member_owner_nominal_instantiation(...)` 供 direct-call 路径复用；
+    - `crates/scoopc/src/monomorph/mod.rs` 与 `crates/scoopc/src/typecheck/lower.rs` 已同步实例键语义注释，明确 generic owner member/getter 请求会以前缀形式携带 owner specialization args。
+  - `mir/materialize.rs` 侧收口结果：
+    - generic template catalog 现已把 owner type params 纳入 template `type_param_names` / signature key，generic owner member fun / getter 进入 MIR template -> `InstanceKey` materialization 主线；
+    - 新增 request-root direct-call seeding：materializer 会从请求源文件对应的 generic root 函数扫描 MIR `CallKind::Direct`，补种 owner-specialized getter 与 nested direct-call 实例，而不是通过“看到具体 nominal 类型就全量克隆所有成员”发现实例；
+    - 因而编译单元级 MIR instance collection 现在已经可以独立表达并收集 owner-specialized member/getter 实例，HIR `collect_generic_member_fun_instantiations(...)` 不再承担这一 collection 语义的主发现职责；build/frontend 对 HIR eager materialization 的主路径切换仍留待 `T5000e2c`。
+  - 本轮还先修复了一个实际暴露的既有质量问题：
+    - `MirInstanceMaterializer::new(...)` 因 8 参数命中 `clippy::too_many_arguments`；
+    - 现已新增 `MaterializerConstructionInputs` 收口构造输入，保证任务完成时 `cargo clippy --all-targets -- -D warnings` 通过。
+  - 新增验证覆盖：
+    - `mir::materialize::tests::typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls`
+    - `mir::materialize::tests::typechecked_compilation_unit_materialization_seeds_owner_specialized_getter_from_request_roots`
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls -- --nocapture`
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_seeds_owner_specialized_getter_from_request_roots -- --nocapture`
+    - `cargo test --all`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e2bR Review：确认 owner/nominal specialization 已进入 MIR instance collection 语义`。
 
 ## 1. 当前判断
 

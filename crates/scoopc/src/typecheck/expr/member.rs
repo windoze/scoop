@@ -737,7 +737,11 @@ fn instantiate_member_value_type_from_receiver_ty(
 }
 
 /// 沿 receiver 及其已具体化的 direct supertypes 查找成员所属 nominal 的具体实例。
-fn find_member_owner_nominal_instantiation(
+///
+/// 该 helper 同时服务：
+/// - member value type 的使用点重新实例化；
+/// - member direct-call 的 owner-specialization 实例请求记录。
+pub(super) fn find_member_owner_nominal_instantiation(
     receiver_ty: TypeId,
     member_fqn: &str,
     lower: &mut TypeLowering<'_>,

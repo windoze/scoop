@@ -35,6 +35,7 @@ pub use materialize::{
 /// 为编译单元 frontend/build 路径暴露可复用的 MIR materialization 入口。
 pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     compilation_unit: &[(&crate::source::SourceFile, &crate::ast::File)],
+    request_source_paths: &[std::path::PathBuf],
     index: &crate::resolve::Index,
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &crate::ty::TypeStore,
@@ -42,6 +43,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
 ) -> Result<MaterializedMir, Box<MirMaterializeError>> {
     materialize::materialize_compilation_unit_from_typechecked_inputs(
         compilation_unit,
+        request_source_paths,
         index,
         type_env,
         typecheck_types,

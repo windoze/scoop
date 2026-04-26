@@ -889,6 +889,8 @@ impl<'a> TypeLowering<'a> {
     /// - 调用点必须显式传入被选中声明的 `decl_file/decl_span`，避免 imported/sysroot generic fun
     ///   被误记成“当前文件声明”；
     /// - `type_args` 与 `eff_args` 共同构成调用点请求的实例身份；
+    ///   - 对 generic owner member/getter，`type_args` 允许以前缀形式携带 owner-specialization
+    ///     的 concrete args，再拼接函数自身 type args；
     /// - effect-only generic fun（没有 type args，只有 effect row args）也必须进入请求集合。
     pub(super) fn record_monomorph_call(
         &mut self,

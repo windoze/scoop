@@ -8,6 +8,7 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::infer::ExpectedTypeFrom;
+use super::member::find_member_owner_nominal_instantiation;
 use super::ops::{
     collect_member_method_signatures_from_index, is_symbol_visible_from_source,
     literal_absorbs_to_expected, try_extract_nominal_fqn_and_args,
@@ -4438,6 +4439,19 @@ fn late_resolve_direct_member_fun_fqn_from_receiver_ty(
     }
 }
 
+fn combined_member_instance_type_args(
+    callee_fqn: &str,
+    receiver_ty: TypeId,
+    fun_type_args: &[TypeId],
+    lower: &mut TypeLowering<'_>,
+) -> Result<Vec<TypeId>, ExprTypeError> {
+    let mut type_args = find_member_owner_nominal_instantiation(receiver_ty, callee_fqn, lower)?
+        .map(|(_, owner_args)| owner_args)
+        .unwrap_or_default();
+    type_args.extend(fun_type_args.iter().copied());
+    Ok(type_args)
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct LoweredEffectOpSig {
     pub(super) sig: FunSigOwned,
@@ -6219,18 +6233,26 @@ fn infer_member_call_expr_type(
                 lower.record_performed_effect(effect, call_expr.span);
             }
 
-            // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
+            // T0712/T5000e2b：记录带 receiver 的 direct-call 实例请求。
+            // 对 generic owner member/getter，这里需要把 owner-specialization 的 concrete args
+            // 放在函数自身 type args 之前，形成可复用的实例身份。
             let eff_args = chosen
                 .sig
                 .eff_param
                 .as_ref()
                 .map(|_| vec![chosen.eff_arg.clone()])
                 .unwrap_or_default();
+            let type_args = combined_member_instance_type_args(
+                fqn,
+                actual_receiver_ty,
+                &chosen.instantiated.type_args,
+                lower,
+            )?;
             lower.record_monomorph_call(
                 fqn.to_string(),
                 &chosen.sig.decl_file,
                 chosen.sig.decl_span,
-                &chosen.instantiated.type_args,
+                &type_args,
                 &eff_args,
             );
             lower.record_top_level_fun_call_binding(
@@ -6240,7 +6262,7 @@ fn infer_member_call_expr_type(
                     decl_file: chosen.sig.decl_file.clone(),
                     decl_span: chosen.sig.decl_span,
                     is_intrinsic: chosen.sig.is_intrinsic,
-                    type_args: chosen.instantiated.type_args.clone(),
+                    type_args,
                     eff_args,
                 },
             );
@@ -7033,17 +7055,25 @@ fn infer_member_call_expr_type(
             lower.record_performed_effect(effect, call_expr.span);
         }
 
-        // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
+        // T0712/T5000e2b：记录带 receiver 的 direct-call 实例请求。
+        // 对 generic owner member/getter，这里需要把 owner-specialization 的 concrete args
+        // 放在函数自身 type args 之前，形成可复用的实例身份。
         let eff_args = sig
             .eff_param
             .as_ref()
             .map(|_| vec![eff_arg.clone()])
             .unwrap_or_default();
+        let type_args = combined_member_instance_type_args(
+            &callee_fqn,
+            actual_receiver_ty,
+            &instantiated.type_args,
+            lower,
+        )?;
         lower.record_monomorph_call(
             callee_fqn.clone(),
             &sig.decl_file,
             sig.decl_span,
-            &instantiated.type_args,
+            &type_args,
             &eff_args,
         );
         lower.record_top_level_fun_call_binding(
@@ -7053,7 +7083,7 @@ fn infer_member_call_expr_type(
                 decl_file: sig.decl_file.clone(),
                 decl_span: sig.decl_span,
                 is_intrinsic: sig.is_intrinsic,
-                type_args: instantiated.type_args.clone(),
+                type_args,
                 eff_args,
             },
         );
@@ -7613,18 +7643,26 @@ fn infer_member_call_expr_type(
         lower.record_performed_effect(effect, call_expr.span);
     }
 
-    // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
+    // T0712/T5000e2b：记录带 receiver 的 direct-call 实例请求。
+    // 对 generic owner member/getter，这里需要把 owner-specialization 的 concrete args
+    // 放在函数自身 type args 之前，形成可复用的实例身份。
     let eff_args = chosen
         .sig
         .eff_param
         .as_ref()
         .map(|_| vec![chosen.eff_arg.clone()])
         .unwrap_or_default();
+    let type_args = combined_member_instance_type_args(
+        &callee_fqn,
+        actual_receiver_ty,
+        &chosen.instantiated.type_args,
+        lower,
+    )?;
     lower.record_monomorph_call(
         callee_fqn.clone(),
         &chosen.sig.decl_file,
         chosen.sig.decl_span,
-        &chosen.instantiated.type_args,
+        &type_args,
         &eff_args,
     );
     lower.record_top_level_fun_call_binding(
@@ -7634,7 +7672,7 @@ fn infer_member_call_expr_type(
             decl_file: chosen.sig.decl_file.clone(),
             decl_span: chosen.sig.decl_span,
             is_intrinsic: chosen.sig.is_intrinsic,
-            type_args: chosen.instantiated.type_args.clone(),
+            type_args,
             eff_args,
         },
     );

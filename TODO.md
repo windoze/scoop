@@ -1052,7 +1052,7 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e2b 让编译单元 MIR instance collection 覆盖 owner/nominal specialization
+### [DONE] T5000e2b 让编译单元 MIR instance collection 覆盖 owner/nominal specialization
 - 范围：
   - 扩展 MIR template / instance collection，使其不只覆盖独立泛型函数，还能表达 generic owner 下 member fun / getter 所需的 owner-specialized instance identity；
   - 收口当前 HIR `collect_generic_member_fun_instantiations(...)` 通过扫描 `TypeStore` 承担的 owner/nominal specialization 发现职责；
@@ -1061,6 +1061,20 @@
   - owner/nominal specialization 的实例集合已可在 MIR 层表达与收集；
   - HIR 不再是 generic owner member specialization 的主发现入口。
 - 依赖：T5000e2aR
+- 完成记录（2026-04-26）：
+  - `crates/scoopc/src/typecheck/expr/call.rs` 现已在 member direct-call 记录 `MonomorphKey` / `TopLevelFunCallBinding` 时，把 generic owner 的 concrete `type_args` 以前缀形式并入请求键，统一形成 `owner args + fun args` 的实例身份；对应注释也已同步到 `crates/scoopc/src/monomorph/mod.rs` 与 `crates/scoopc/src/typecheck/lower.rs`。
+  - `crates/scoopc/src/mir/materialize.rs` 的 generic template catalog 现已把 owner type params 纳入 `type_param_names` 与 signature key，generic owner member fun / getter 因而能成为 MIR `InstanceKey` 的一等维度，而不再只覆盖 standalone generic fun。
+  - 为了保持 request-driven / on-demand，本轮没有回退到扫描 `TypeStore` 的 eager 发现模式；相反，编译单元 materializer 新增 request-root direct-call seeding，会从请求源文件对应的 generic root 函数中扫描 MIR `CallKind::Direct`，补种 owner-specialized getter 与 nested direct-call 实例请求。
+  - 这意味着编译单元级 MIR instance collection 现在已经可以独立发现并 materialize owner-specialized member/getter 实例，不再依赖 HIR `collect_generic_member_fun_instantiations(...)` 作为该 collection 语义的主发现入口；build/frontend 仍在使用的 HIR eager materialization 主路径继续留给后续 `T5000e2c` 收口。
+  - 已新增 `mir::materialize::tests::typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls` 与 `mir::materialize::tests::typechecked_compilation_unit_materialization_seeds_owner_specialized_getter_from_request_roots`，分别锁定 owner-specialized effect-generic member call 与 getter seeding 的编译单元 materialization 语义。
+  - 过程中还暴露出一个已存在质量问题：`MirInstanceMaterializer::new(...)` 命中 `clippy::too_many_arguments`。现已通过新增 `MaterializerConstructionInputs` 收口构造输入并修复，保持本轮无告警验收门。
+- 已验证：
+  - `cargo fmt --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo test -p scoopc typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls -- --nocapture`
+  - `cargo test -p scoopc typechecked_compilation_unit_materialization_seeds_owner_specialized_getter_from_request_roots -- --nocapture`
+  - `cargo test --all`
+  - 全部通过。
 
 ### [TODO] T5000e2bR Review：确认 owner/nominal specialization 已进入 MIR instance collection 语义
 - 重点：

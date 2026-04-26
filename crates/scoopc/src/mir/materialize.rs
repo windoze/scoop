@@ -331,6 +331,7 @@ pub fn materialize_for_dump(
         .collect::<Vec<_>>();
     super::materialize_compilation_unit_from_typechecked_inputs(
         &compilation_unit,
+        &[source.path().to_path_buf()],
         &index,
         Some(&env),
         &typecheck_types,
@@ -347,6 +348,7 @@ pub fn materialize_for_dump(
 /// - dump/debug 路径目前通过它做包装，后续 build/frontend 主路径也将复用同一层。
 pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     compilation_unit: &[(&SourceFile, &ast::File)],
+    request_source_paths: &[PathBuf],
     index: &Index,
     type_env: Option<&TypeEnv>,
     typecheck_types: &TypeStore,
@@ -365,6 +367,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         type_env,
         typecheck_types,
     )?;
+    let request_root_fun_keys = collect_request_root_fun_keys(&lowered_hir, request_source_paths);
     let builtins = lowered_hir.types.intern_builtins();
     let facts = super::MirLoweringFacts::from_lowered_hir(&lowered_hir);
     let generic_file = super::lower_hir_file_for_dump_with_facts(
@@ -381,11 +384,14 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         types,
         builtins,
         MaterializeRequestSet {
-            typecheck_types,
             monomorph_keys,
-            template_infos: template_catalog,
-            top_level_fun_value_refs,
-            top_level_fun_call_bindings,
+            construction_inputs: MaterializerConstructionInputs {
+                typecheck_types,
+                template_infos: template_catalog,
+                top_level_fun_value_refs,
+                top_level_fun_call_bindings,
+                request_root_fun_keys,
+            },
         },
     )
 }
@@ -408,12 +414,60 @@ struct DumpMaterializationInputs {
 
 type SourceSiteKey = (PathBuf, Span);
 
-struct MaterializeRequestSet<'a> {
+#[derive(Clone)]
+struct RequestRootFunKey {
+    source_path: PathBuf,
+    fqn: String,
+    span: Span,
+}
+
+struct MaterializerConstructionInputs<'a> {
     typecheck_types: &'a TypeStore,
-    monomorph_keys: &'a [MonomorphKey],
     template_infos: Vec<GenericTemplateInfo>,
     top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    request_root_fun_keys: Vec<RequestRootFunKey>,
+}
+
+struct MaterializeRequestSet<'a> {
+    monomorph_keys: &'a [MonomorphKey],
+    construction_inputs: MaterializerConstructionInputs<'a>,
+}
+
+fn collect_request_root_fun_keys(
+    lowered_hir: &crate::hir::LoweredHir,
+    request_source_paths: &[PathBuf],
+) -> Vec<RequestRootFunKey> {
+    let request_sources = request_source_paths
+        .iter()
+        .cloned()
+        .collect::<HashSet<PathBuf>>();
+    let mut out = Vec::new();
+
+    for item in &lowered_hir.file.items {
+        let crate::hir::Item::Fun(fun) = item else {
+            continue;
+        };
+        if request_sources.contains(&fun.source_path) {
+            out.push(RequestRootFunKey {
+                source_path: fun.source_path.clone(),
+                fqn: fun.fqn.clone(),
+                span: fun.span,
+            });
+        }
+    }
+
+    for fun in &lowered_hir.member_funs {
+        if request_sources.contains(&fun.source_path) {
+            out.push(RequestRootFunKey {
+                source_path: fun.source_path.clone(),
+                fqn: fun.fqn.clone(),
+                span: fun.span,
+            });
+        }
+    }
+
+    out
 }
 
 fn collect_dump_materialization_inputs(
@@ -591,12 +645,21 @@ fn normalize_sig_piece(s: &str) -> String {
     s.split_whitespace().collect()
 }
 
-fn generic_template_signature_key(source: &SourceFile, fun: &ast::FunDecl) -> String {
+fn generic_template_signature_key_with_owner_params(
+    source: &SourceFile,
+    owner_type_param_names: &[String],
+    fun: &ast::FunDecl,
+) -> String {
     let mut out = String::new();
     out.push_str(match fun.kind {
         ast::FunDeclKind::Regular => "fun",
         ast::FunDeclKind::EffectOp => "effect-op",
     });
+    out.push('|');
+    for param in owner_type_param_names {
+        out.push_str(param);
+        out.push(',');
+    }
     out.push('|');
     for param in &fun.type_params {
         out.push_str(param.name.text(source));
@@ -635,9 +698,10 @@ fn push_generic_template_info(
     out: &mut Vec<GenericTemplateInfo>,
     source: &SourceFile,
     owner_fqn: &str,
+    owner_type_param_names: &[String],
     fun: &ast::FunDecl,
 ) {
-    if fun.type_params.is_empty() && fun.eff_param.is_none() {
+    if owner_type_param_names.is_empty() && fun.type_params.is_empty() && fun.eff_param.is_none() {
         return;
     }
 
@@ -654,17 +718,81 @@ fn push_generic_template_info(
             source_path: source.path().to_path_buf(),
             decl_span: fun.span,
         },
-        type_param_names: fun
-            .type_params
+        type_param_names: owner_type_param_names
             .iter()
-            .map(|param| param.name.text(source).to_string())
+            .cloned()
+            .chain(
+                fun.type_params
+                    .iter()
+                    .map(|param| param.name.text(source).to_string()),
+            )
             .collect(),
         eff_param_name: fun
             .eff_param
             .as_ref()
             .map(|param| param.name.text(source).to_string()),
-        signature_key: generic_template_signature_key(source, fun),
+        signature_key: generic_template_signature_key_with_owner_params(
+            source,
+            owner_type_param_names,
+            fun,
+        ),
         has_body: matches!(fun.body, ast::FunBody::Block(_)),
+    });
+}
+
+fn generic_value_property_getter_signature_key(
+    source: &SourceFile,
+    owner_type_param_names: &[String],
+    property: &ast::PropertyDecl,
+) -> String {
+    let mut out = String::from("value-getter|");
+    for param in owner_type_param_names {
+        out.push_str(param);
+        out.push(',');
+    }
+    out.push('|');
+    match &property.ty {
+        Some(ret) => out.push_str(&normalize_sig_piece(source.slice(ret.span()))),
+        None => out.push_str("Any"),
+    }
+    out
+}
+
+fn push_generic_value_property_getter_template_info(
+    out: &mut Vec<GenericTemplateInfo>,
+    source: &SourceFile,
+    owner_fqn: &str,
+    owner_type_param_names: &[String],
+    property: &ast::PropertyDecl,
+) {
+    if owner_type_param_names.is_empty() || property.getter.is_none() {
+        return;
+    }
+
+    let local_name = source.slice(property.name.span);
+    let fqn = if owner_fqn.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{owner_fqn}.{local_name}")
+    };
+    out.push(GenericTemplateInfo {
+        request_lookup_key: (fqn.clone(), source.path().to_path_buf(), property.name.span),
+        template: TemplateKey {
+            fqn,
+            source_path: source.path().to_path_buf(),
+            decl_span: property.span,
+        },
+        type_param_names: owner_type_param_names.to_vec(),
+        eff_param_name: None,
+        signature_key: generic_value_property_getter_signature_key(
+            source,
+            owner_type_param_names,
+            property,
+        ),
+        has_body: property
+            .getter
+            .as_ref()
+            .is_some_and(|getter| !matches!(getter.body, ast::AccessorBody::Missing)),
     });
 }
 
@@ -672,6 +800,8 @@ fn collect_generic_templates_from_type_body(
     out: &mut Vec<GenericTemplateInfo>,
     source: &SourceFile,
     owner_fqn: &str,
+    owner_type_param_names: &[String],
+    owner_kind: Option<ast::TypeKind>,
     body: Option<&ast::TypeBody>,
 ) {
     let Some(body) = body else {
@@ -679,13 +809,36 @@ fn collect_generic_templates_from_type_body(
     };
     for member in &body.members {
         match member {
-            ast::TypeMember::Fun(fun) => push_generic_template_info(out, source, owner_fqn, fun),
+            ast::TypeMember::Fun(fun) => {
+                push_generic_template_info(out, source, owner_fqn, owner_type_param_names, fun)
+            }
+            ast::TypeMember::Property(property)
+                if matches!(
+                    owner_kind,
+                    Some(ast::TypeKind::Struct | ast::TypeKind::Enum)
+                ) =>
+            {
+                push_generic_value_property_getter_template_info(
+                    out,
+                    source,
+                    owner_fqn,
+                    owner_type_param_names,
+                    property,
+                );
+            }
             ast::TypeMember::Type(ty) => {
                 let nested_owner = format!("{owner_fqn}.{}", ty.name.text(source));
+                let nested_owner_type_param_names = ty
+                    .type_params
+                    .iter()
+                    .map(|param| param.name.text(source).to_string())
+                    .collect::<Vec<_>>();
                 collect_generic_templates_from_type_body(
                     out,
                     source,
                     &nested_owner,
+                    &nested_owner_type_param_names,
+                    Some(ty.kind),
                     ty.body.as_ref(),
                 );
             }
@@ -706,13 +859,15 @@ fn collect_generic_templates_from_type_body(
                     out,
                     source,
                     &nested_owner,
+                    &[],
+                    None,
                     obj.body.as_ref(),
                 );
             }
             ast::TypeMember::EnumVariant(_)
-            | ast::TypeMember::Property(_)
             | ast::TypeMember::InitBlock(_)
-            | ast::TypeMember::SecondaryCtor(_) => {}
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Property(_) => {}
         }
     }
 }
@@ -726,7 +881,7 @@ fn collect_generic_template_infos(
         for item in &file.items {
             match item {
                 ast::Item::Fun(fun) => {
-                    push_generic_template_info(&mut out, source, &pkg_prefix, fun);
+                    push_generic_template_info(&mut out, source, &pkg_prefix, &[], fun);
                 }
                 ast::Item::Type(ty) => {
                     let owner_fqn = if pkg_prefix.is_empty() {
@@ -734,10 +889,17 @@ fn collect_generic_template_infos(
                     } else {
                         format!("{pkg_prefix}.{}", ty.name.text(source))
                     };
+                    let owner_type_param_names = ty
+                        .type_params
+                        .iter()
+                        .map(|param| param.name.text(source).to_string())
+                        .collect::<Vec<_>>();
                     collect_generic_templates_from_type_body(
                         &mut out,
                         source,
                         &owner_fqn,
+                        &owner_type_param_names,
+                        Some(ty.kind),
                         ty.body.as_ref(),
                     );
                 }
@@ -762,6 +924,8 @@ fn collect_generic_template_infos(
                         &mut out,
                         source,
                         &owner_fqn,
+                        &[],
+                        None,
                         obj.body.as_ref(),
                     );
                 }
@@ -845,21 +1009,12 @@ fn materialize_generic_mir(
     requests: MaterializeRequestSet<'_>,
 ) -> MaterializeResult<MaterializedMir> {
     let MaterializeRequestSet {
-        typecheck_types,
         monomorph_keys,
-        template_infos,
-        top_level_fun_value_refs,
-        top_level_fun_call_bindings,
+        construction_inputs,
     } = requests;
-    let mut materializer = MirInstanceMaterializer::new(
-        generic_file,
-        types,
-        builtins,
-        template_infos,
-        typecheck_types,
-        top_level_fun_value_refs,
-        top_level_fun_call_bindings,
-    )?;
+    let typecheck_types = construction_inputs.typecheck_types;
+    let mut materializer =
+        MirInstanceMaterializer::new(generic_file, types, builtins, construction_inputs)?;
     let initial_requests = materializer.seed_requests(typecheck_types, monomorph_keys)?;
     materializer.run(initial_requests)
 }
@@ -904,9 +1059,16 @@ struct RewriteContext<'a> {
     instance_root_fqn: &'a str,
 }
 
+#[derive(Clone)]
+struct RequestRootFun {
+    source_path: PathBuf,
+    fun: FunDecl,
+}
+
 struct MirInstanceMaterializer {
     types: TypeStore,
     builtins: BuiltinTypes,
+    request_root_funs: Vec<RequestRootFun>,
     request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     roots: HashMap<TemplateKey, TemplateRootInfo>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
@@ -922,11 +1084,15 @@ impl MirInstanceMaterializer {
         generic_file: File,
         types: TypeStore,
         builtins: BuiltinTypes,
-        template_infos: Vec<GenericTemplateInfo>,
-        typecheck_types: &TypeStore,
-        top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
-        top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+        construction_inputs: MaterializerConstructionInputs<'_>,
     ) -> MaterializeResult<Self> {
+        let MaterializerConstructionInputs {
+            typecheck_types,
+            template_infos,
+            top_level_fun_value_refs,
+            top_level_fun_call_bindings,
+            request_root_fun_keys,
+        } = construction_inputs;
         let mut generic_funs = Vec::new();
         for item in &generic_file.items {
             if let Item::Fun(fun) = item {
@@ -1017,9 +1183,24 @@ impl MirInstanceMaterializer {
             request_templates.insert(request_lookup_key, canonical);
         }
 
+        let request_root_funs = request_root_fun_keys
+            .into_iter()
+            .filter_map(|key| {
+                generic_funs
+                    .iter()
+                    .find(|fun| fun.fqn == key.fqn && fun.span == key.span)
+                    .cloned()
+                    .map(|fun| RequestRootFun {
+                        source_path: key.source_path,
+                        fun,
+                    })
+            })
+            .collect::<Vec<_>>();
+
         let mut materializer = Self {
             types,
             builtins,
+            request_root_funs,
             request_templates,
             roots,
             roots_by_fqn,
@@ -1181,8 +1362,93 @@ impl MirInstanceMaterializer {
                 eff_args,
             });
         }
+        initial.extend(self.seed_request_root_direct_call_instances());
         initial.sort_by_key(|a| self.instance_fqn(a));
+        initial.dedup();
         Ok(initial)
+    }
+
+    fn seed_request_root_direct_call_instances(&mut self) -> Vec<InstanceKey> {
+        if self.request_root_funs.is_empty() {
+            return Vec::new();
+        }
+        let generic_family_fqns = self
+            .roots
+            .values()
+            .flat_map(|root| root.family.iter().map(|fun| fun.fqn.clone()))
+            .collect::<HashSet<_>>();
+        let substitution = InstanceSubstitution::default();
+        let request_root_funs = self.request_root_funs.clone();
+        let mut out = Vec::new();
+
+        for request_root in request_root_funs {
+            if generic_family_fqns.contains(&request_root.fun.fqn) {
+                continue;
+            }
+            let Some(body) = &request_root.fun.body else {
+                continue;
+            };
+            out.extend(self.collect_direct_call_instances_from_body(
+                body,
+                &request_root.source_path,
+                &substitution,
+            ));
+        }
+
+        out
+    }
+
+    fn collect_direct_call_instances_from_body(
+        &mut self,
+        body: &Body,
+        template_source_path: &Path,
+        substitution: &InstanceSubstitution,
+    ) -> Vec<InstanceKey> {
+        let mut out = Vec::new();
+        let locals = &body.locals;
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                if let StatementKind::Assign { value, .. } = &stmt.kind {
+                    self.collect_direct_call_instances_from_rvalue(
+                        stmt.span,
+                        value,
+                        template_source_path,
+                        locals,
+                        substitution,
+                        &mut out,
+                    );
+                }
+            }
+        }
+        out
+    }
+
+    fn collect_direct_call_instances_from_rvalue(
+        &mut self,
+        span: Span,
+        value: &Rvalue,
+        template_source_path: &Path,
+        locals: &[LocalDecl],
+        substitution: &InstanceSubstitution,
+        out: &mut Vec<InstanceKey>,
+    ) {
+        let Rvalue::Call {
+            kind: CallKind::Direct { callee_fqn },
+            args,
+        } = value
+        else {
+            return;
+        };
+        if let Some(instance_key) = self.infer_direct_call_instance(
+            template_source_path,
+            span,
+            callee_fqn,
+            args,
+            locals,
+            substitution,
+        ) {
+            out.push(instance_key);
+        }
     }
 
     fn run(mut self, initial_requests: Vec<InstanceKey>) -> MaterializeResult<MaterializedMir> {
@@ -2457,6 +2723,7 @@ fun entry(): Unit / (Boom + Zap) {
             .collect::<Vec<_>>();
         let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
             &compilation_unit,
+            &[source.path().to_path_buf()],
             &inputs.index,
             Some(&inputs.env),
             &inputs.typecheck_types,
@@ -2522,6 +2789,7 @@ fun entry(): Int / Boom {
 }
 "#,
         );
+        let main_source_path = main_source.path().to_path_buf();
 
         let (files, index, env, types, monomorph_keys) =
             prepare_typechecked_compilation_unit_inputs(
@@ -2536,6 +2804,7 @@ fun entry(): Int / Boom {
 
         let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
             &compilation_unit,
+            &[main_source_path],
             &index,
             Some(&env),
             &types,
@@ -2572,6 +2841,133 @@ fun entry(): Int / Boom {
                     if fun.fqn == "fixtures.materialize.id::<eff fixtures.materialize.Boom>"
             )),
             "跨文件 helper 中嵌套调用的 id 应通过 helper 文件内的 site binding 继续 materialize"
+        );
+    }
+
+    #[test]
+    fn typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls()
+     {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_owner_specialized_effect_member.scoop",
+            r#"
+package fixtures.materialize
+
+effect Boom {
+    fun ping(): Unit
+}
+
+class Box<T>(val value: T) {
+    fun <eff E = Pure> forward(): T / E {
+        return value
+    }
+}
+
+fun <eff E = Pure> wrap(box: Box<Int>): Int / E {
+    return box.forward<eff E>()
+}
+
+fun entry(): Int / Boom {
+    return wrap<eff Boom>(Box(1))
+}
+"#,
+        );
+
+        let (files, index, env, types, monomorph_keys) =
+            prepare_typechecked_compilation_unit_inputs(&sess, vec![source.clone()], &[0]);
+        let compilation_unit = files
+            .iter()
+            .map(|(source, ast)| (source, ast))
+            .collect::<Vec<_>>();
+
+        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            &[source.path().to_path_buf()],
+            &index,
+            Some(&env),
+            &types,
+            &monomorph_keys,
+        )
+        .unwrap();
+
+        let forward_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.Box.forward")
+            .collect::<Vec<_>>();
+        assert_eq!(forward_keys.len(), 1);
+        assert_eq!(forward_keys[0].type_args.len(), 1);
+        assert_eq!(forward_keys[0].eff_args.len(), 1);
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun)
+                    if fun.fqn
+                        == "fixtures.materialize.Box.forward::<Int, eff fixtures.materialize.Boom>"
+            )),
+            "generic owner + effect-generic member direct-call 应产出同时携带 owner args 与 eff_args 的 concrete MIR root"
+        );
+    }
+
+    #[test]
+    fn typechecked_compilation_unit_materialization_seeds_owner_specialized_getter_from_request_roots()
+     {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_owner_specialized_getter.scoop",
+            r#"
+package fixtures.materialize
+
+struct Box<T>(val value: T) {
+    val doubled: T
+        get() = this.value
+}
+
+fun entry(): Int {
+    val box: Box<Int> = Box(1)
+    val unused: Box<String> = Box("x")
+    return box.doubled
+}
+"#,
+        );
+
+        let (files, index, env, types, monomorph_keys) =
+            prepare_typechecked_compilation_unit_inputs(&sess, vec![source.clone()], &[0]);
+        let compilation_unit = files
+            .iter()
+            .map(|(source, ast)| (source, ast))
+            .collect::<Vec<_>>();
+
+        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            &[source.path().to_path_buf()],
+            &index,
+            Some(&env),
+            &types,
+            &monomorph_keys,
+        )
+        .unwrap();
+
+        let getter_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.Box.doubled")
+            .collect::<Vec<_>>();
+        assert_eq!(getter_keys.len(), 1);
+        assert_eq!(getter_keys[0].type_args.len(), 1);
+        assert!(
+            materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun) if fun.fqn == "fixtures.materialize.Box.doubled::<Int>"
+            )),
+            "generic owner getter 应从请求根非调用式访问进入 materialization"
+        );
+        assert!(
+            !materialized.file.items.iter().any(|item| matches!(
+                item,
+                Item::Fun(fun) if fun.fqn == "fixtures.materialize.Box.doubled::<String>"
+            )),
+            "请求根扫描应保持 call-site driven，不应因为 `Box<String>` 出现在 TypeStore 中就 eager materialize 未调用 getter"
         );
     }
 
