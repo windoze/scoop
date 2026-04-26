@@ -1179,7 +1179,80 @@
   - `cargo clippy --all-targets -- -D warnings`
   - 全部通过。
 
-### [TODO] T5000e3 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径
+### T5000e3 收口当前仍阻塞 monomorphic MIR instance 成为主输入的 program-boundary / sysroot / LLVM codegen 路径
+- 说明：
+  - 经核对，`T5000e3` 当前同时覆盖四块仍会把旧边界继续拖回主线的收口工作：
+    - panic/trap 路径仍通过 `scoop.process.exit(3)` 暴露给 sysroot/task 与 fixtures，缺少 bottom-typed 的统一 `panic` intrinsic；
+    - 一批早期试验性的 sysroot surface（`scoop.channels`、`scoop.test`、`scoop.env`、`scoop.fs`、`scoop.io`、`scoop.net`、`scoop.path`、`scoop.time`、`scoop.process`）仍把未定型 API、对应 lowering 与 fixtures 留在主线；
+    - 程序边界仍只接受零参数 `main`，而 argv surface 还经待删除的 `scoop.process.args()` 暂挂；
+    - LLVM codegen 仍在按 mangled FQN 现场猜测 monomorphized target。
+  - 因此该阶段拆成 `T5000e3a`～`T5000e3d` 四个实现子任务与对应 review，按顺序推进。
+
+### [TODO] T5000e3a 在 corelib / `scoop.core` 中新增 `panic` intrinsic，并收口当前直接 abort 路径
+- 范围：
+  - 在 corelib（当前为 `scoop.core` sysroot surface）新增 `panic` intrinsic，返回类型固定为 `Nothing`；
+  - 当前阶段允许 `panic` 的 runtime 落点继续实现为 `exit(3)` / 等价的立即终止路径，但该细节必须隐藏在 intrinsic / runtime 边界后面，而不是继续暴露成用户或 fixture 直接调用的 surface；
+  - 把 sysroot/task 与其它“语义上就是 panic/trap”的现存路径从 `exit(3)` 改为 `panic(...)`；
+  - 清理 fixtures 中直接使用 `exit(...)` 的写法；需要断言失败/崩溃路径时，应改为通过 `panic` 或更合适的语言语义表达。
+- 验收：
+  - 代码库中所有“语义上是 panic”的路径都经由 `scoop.core.panic`，而不是散落的 `scoop.process.exit(3)`；
+  - `panic` 的返回类型为 `Nothing`，可被类型检查与控制流分析视为 bottom；
+  - 任意 fixture 中都不再出现 `exit(...)` 调用。
+- 依赖：T5000e2R
+
+### [TODO] T5000e3aR Review：确认 panic/trap 语义已统一收口到 `Nothing`-typed intrinsic
+- 重点：
+  - `panic` 是否稳定落在 corelib / `scoop.core`，而不是新增另一层 process-style 过渡 surface；
+  - 返回类型是否确实是 `Nothing`，没有为了兼容旧路径退回 `Unit`；
+  - fixtures 与 sysroot/task 中是否已经清干净 `exit(...)` 的直接使用。
+- 验收：
+  - 之后若 runtime 想把 panic 从 `exit(3)` 改成更强的 trap / abort 语义，不需要再回改用户 surface 与 fixtures。
+- 依赖：T5000e3a
+
+### [TODO] T5000e3b 删除待重做的早期 sysroot 模块与对应 tests/fixtures
+- 范围：
+  - 从 sysroot 中移除以下待重做 surface：`scoop.channels`、`scoop.test`、`scoop.env`、`scoop.fs`、`scoop.io`、`scoop.net`、`scoop.path`、`scoop.time`；
+  - 删除对应的 LLVM lowering、stdlib bridge、typecheck/run-pass/runtime fixture 与文档口径，不保留“先 deprecated 但继续可用”的兼容层；
+  - `scoop.process` 的移除与 argv surface 迁移绑在下一条 `T5000e3c` 中完成，避免在主线中留下“先删 argv、后补 entry args”的额外临时缺口。
+- 验收：
+  - 上述模块不再存在于 sysroot、prelude/import 可见面、fixtures 与 docs 中；
+  - 相关测试与 fixture 要么删除，要么改写到仍受支持的新主线，不留下死路径；
+  - 文档能明确表达这些 surface 是“先移除、后重设计重做”，而不是仍受支持但未完整实现。
+- 依赖：T5000e3aR
+
+### [TODO] T5000e3bR Review：确认 sysroot surface 已实质缩回到仍承诺维护的最小集合
+- 重点：
+  - 被列入本轮移除名单的模块是否真的从 sysroot / fixtures / docs 中消失；
+  - 是否还残留只为了兼容旧 fixture 而保留的 lowering / prelude 特判；
+  - 当前保留下来的 sysroot surface 是否已经与“近期继续维护”的范围一致。
+- 验收：
+  - 后续 std/runtime 重设计可以在干净边界上重做，而不是继续背着旧 API 壳。
+- 依赖：T5000e3b
+
+### [TODO] T5000e3c 扩展程序边界 `main` 签名以直接承载 argv，并移除 `scoop.process`
+- 范围：
+  - 将 executable entry `main` 的允许签名扩展为以下两种且仅以下两种：
+    - `fun main(): Unit / Pure!`
+    - `fun main(args: Array<String>): Unit / Pure!`
+  - 规定 `args` 直接承载 native 程序边界收到的完整 `argv`，包含 `argv[0]`（可执行文件名/路径）；这不是 Kotlin/Java 风格的“仅用户参数”约定；
+  - 在 driver / frontend / typecheck / docs 中同步这一 entry contract，使零参数 `main` 与带 `Array<String>` 参数的 `main` 都能成为合法程序边界；
+  - 移除 `scoop.process` sysroot surface（包括 `args()` 与旧 `exit(...)`），并删除/改写对应 tests/fixtures。
+- 验收：
+  - `main` 的 program-boundary contract 已明确且文档化：仅接受零参数或单个 `Array<String>` 参数两种形状，并继续强制 `Pure!`；
+  - 运行时传入的完整 `argv` 可稳定到达 `main(args)`，并保留 `argv[0]`；
+  - 代码库中不再存在 `scoop.process` 模块、`args()` API 与相关 fixture 依赖。
+- 依赖：T5000e3bR
+
+### [TODO] T5000e3cR Review：确认 entry-point argv contract 已替代临时 `scoop.process` surface
+- 重点：
+  - `main` 的合法签名集合是否已经稳定收口为两种约定形状；
+  - argv 是否已经从程序边界直接进入，而不是继续绕经单独的 process sysroot API；
+  - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、README/相关入口文档与 fixtures 是否已经同步。
+- 验收：
+  - 程序边界 contract 与文档口径已一致；之后不需要再为 `scoop.process.args()` 保留兼容语义。
+- 依赖：T5000e3c
+
+### [TODO] T5000e3d 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径
 - 范围：
   - 移除/收口 LLVM codegen 中按 mangled FQN 现场重定向 generic callee 的主职责；
   - 让 codegen 通过已实例化的 callee 事实 / instance identity 进入目标，而不是继续做 `try_resolve_monomorphized_*` 式推断；
@@ -1187,16 +1260,27 @@
 - 验收：
   - LLVM codegen 不再以“现场根据 mangled FQN 重定向目标”为主路径承担 monomorphization；
   - 后续中端优化面向的主要输入已经是 monomorphic MIR instances。
-- 依赖：T5000e2R
+- 依赖：T5000e3cR
 
-### [TODO] T5000e3R Review：确认 monomorphization 已成为 MIR 内部独立阶段
+### [TODO] T5000e3dR Review：确认 LLVM backend 已退出单态目标猜测主职责
+- 重点：
+  - LLVM codegen 是否已经直接消费显式 instance identity，而不是继续依赖 backend 符号名推断；
+  - 是否还残留大块 `try_resolve_monomorphized_*` / mangled-FQN 导向的现场补救逻辑；
+  - monomorphic MIR instance 是否已经成为 summary / devirt / inline / effect planning 的共同输入。
+- 验收：
+  - backend 只消费已物化实例，而不是继续承担 monomorphization 的最后一公里语义。
+- 依赖：T5000e3d
+
+### [TODO] T5000e3R Review：确认 monomorphization 与 program-boundary / sysroot 收口已形成稳定前置边界
 - 重点：
   - `InstanceKey` 是否真正独立于 backend 符号名；
   - 是否仍有大量单态化职责遗留在 LLVM codegen；
+  - `panic` / entry-point argv / sysroot surface 收口后，是否还残留会把旧 process/sysroot 约定重新长回来的兼容层；
   - 实例收集 / 缓存策略是否已经考虑 `-O0` / debug build 成本。
 - 验收：
-  - monomorphization 的主语义与主数据结构已经明确属于 MIR，而不是 HIR 或 LLVM codegen。
-- 依赖：T5000e3
+  - monomorphization 的主语义与主数据结构已经明确属于 MIR，而不是 HIR 或 LLVM codegen；
+  - 后续 summary / devirt / inline 可以建立在当前 program-boundary 与 sysroot 最小契约之上，而不是继续背着旧 surface。
+- 依赖：T5000e3dR
 
 ### [TODO] T5000f 建立 per-instance summary 基础设施
 - 范围：
