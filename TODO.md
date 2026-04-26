@@ -1135,7 +1135,7 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
 
-### [TODO] T5000e2cR Review：确认 build/frontend 主路径已切到 MIR instance collection
+### [DONE] T5000e2cR Review：确认 build/frontend 主路径已切到 MIR instance collection
 - 重点：
   - build / single-file LLVM frontend 是否已消费 MIR 产出的实例集合；
   - HIR lowering 是否已经退出主实例发现职责；
@@ -1143,6 +1143,19 @@
 - 验收：
   - 编译单元 build/frontend 路径的实例收集与实例身份已经由 MIR 层主导。
 - 依赖：T5000e2c
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoop/src/commands/build.rs` 与 `crates/scoopc/src/llvm/frontend.rs`，确认 build / single-file LLVM frontend 现都直接调用 `hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection(...)`；主路径不再通过 `lower_for_compilation_unit_multi_files_with_type_env(...)` 让 HIR 自己承担实例发现。
+  - 已复核 `crates/scoopc/src/hir/lower/mod.rs` / `util.rs`，确认 compilation-unit lowering 已显式区分 `LegacyEagerHir`、`ExplicitMirInstances` 与 `GenericTemplateOnly` 三种模式；在 build/frontend 使用的 `ExplicitMirInstances` 模式下，top-level generic fun、owner-specialized member fun/getter 的 concrete `FunDecl` 只按 MIR 产出的 `InstanceKey` 集生成，HIR 仅做兼容 lowering，不再扫描 `MonomorphKey` / `TypeStore` 作为主实例发现入口。
+  - 已复核 `crates/scoopc/src/mir/materialize.rs`，确认编译单元主路径仍以完整 compilation unit 建立 template catalog、call binding 与 callable-body 索引，再仅用 request source 子集做 request-root seeding；这保证了跨文件 template identity 仍由 MIR materializer 统一主导，而不会因为 build/frontend 只请求部分源文件而退回到局部 HIR eager clone。
+  - 已确认仓库中旧的 `lower_for_compilation_unit_multi_files_with_type_env(...)` 调用面仅剩 `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs` 的测试 helper，用于 effect/state-machine transform 的 typed-lowering 测试构造，不属于 build/frontend 主路径，因此不构成 `T5000e2cR` 的阻塞缺陷。
+  - review 结论：本轮未发现需要插入到 `T5000e2cR` 之前的新前置缺陷任务；build/frontend 编译单元主路径的实例收集、实例身份与 HIR 兼容实例生成均已切换到 MIR instance collection 主导。
+- 已验证：
+  - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+  - `cargo test -p scoopc single_file_frontend_ -- --nocapture`
+  - `cargo test -p scoopc typechecked_compilation_unit_materialization_reaches_generic_calls_through_non_generic_async_closure_body -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 全部通过。
 
 ### [TODO] T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization
 - 重点：

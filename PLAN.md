@@ -1102,6 +1102,24 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e2cR Review：确认 build/frontend 主路径已切到 MIR instance collection`。
+- 2026-04-26：`T5000e2cR Review：确认 build/frontend 主路径已切到 MIR instance collection` 已完成。
+  - 复核结果：
+    - 已再次确认 `crates/scoop/src/commands/build.rs` 与 `crates/scoopc/src/llvm/frontend.rs` 都改为调用 `hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection(...)`，因此 build / single-file LLVM frontend 的主入口已不再把 HIR eager instantiation 当作实例发现主线；
+    - 已复核 `crates/scoopc/src/hir/lower/mod.rs` / `util.rs`，确认 compilation-unit lowering 现在明确区分 `LegacyEagerHir`、`ExplicitMirInstances` 与 `GenericTemplateOnly` 三种模式；build/frontend 所走的 `ExplicitMirInstances` 仅按 MIR materializer 产出的 `InstanceKey` 集生成 monomorphic HIR fun/member，legacy eager 路径继续只保留给旧调用面与测试 helper；
+    - 已复核 `crates/scoopc/src/mir/materialize.rs`，确认 build/frontend 复用的 `materialize_compilation_unit_from_typechecked_inputs(...)` 仍以完整 compilation unit 建立 template catalog、site binding 与 callable-body facts，只把 request source 子集用于 root seeding，因此跨文件 template identity 与 request-subset reachability 仍统一由 MIR 层主导；
+    - 已检查旧的 `lower_for_compilation_unit_multi_files_with_type_env(...)` 调用点，确认实现代码中的 build/frontend 主路径已全部切走；仓库内残留调用仅见于 `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs` 的测试 helper，不构成新的主线阻塞。
+  - review 结论：
+    - build/frontend 主路径已切到 MIR instance collection；
+    - HIR lowering 已退出主实例发现职责，退回为显式 `InstanceKey` 集驱动的兼容输入层；
+    - 当前未发现需要插入到 `T5000e2R` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test -p scoopc single_file_frontend_ -- --nocapture`
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_reaches_generic_calls_through_non_generic_async_closure_body -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e2R Review：确认编译单元级 monomorphization 已脱离 HIR eager materialization`。
 
 ## 1. 当前判断
 
