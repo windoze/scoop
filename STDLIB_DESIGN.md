@@ -144,6 +144,7 @@ platform backend 指“一套可被编译期选择的运行时实现组合”，
   - 文件与路径
 - `scoop.process` / `scoop.env`
   - 进程与环境变量
+  - 说明：这是未来重设计时的目标模块，不代表当前 shipped sysroot。自 `T5000e3c` 起，现行工具链已移除 `scoop.process`，argv/退出码 contract 改由 executable `main` 程序边界直接承载。
 - `scoop.sync` / `scoop.thread` / `scoop.channels`
   - 线程、同步与通信（能力受 platform backend 约束）
 - `scoop.net`

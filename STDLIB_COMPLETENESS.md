@@ -3,7 +3,7 @@
 > 生成时间：2026-04-09
 > 基于：`KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）的能力矩阵
 > 目的：以"能力项"为粒度，对照当前仓库（sysroot/stdlib/runtime/c）的实现覆盖度，产出 DONE/TODO/Blockers 清单，并为 T1802（拆分任务）提供输入。
-> 状态修订：2026-04-26 已按 `T5000e3b` / `T5000e3bR` 回写平台与测试 surface 收口结果；`scoop.env`、`scoop.time`、`scoop.io`、`scoop.fs`、`scoop.path`、`scoop.channels`、`scoop.net` 与 `stdlib/test.scoop` 已从当前主线移除，等待重设计后再重新进入清单。
+> 状态修订：2026-04-26 已按 `T5000e3b` / `T5000e3bR` / `T5000e3c` 回写平台与程序边界收口结果；`scoop.process`、`scoop.env`、`scoop.time`、`scoop.io`、`scoop.fs`、`scoop.path`、`scoop.channels`、`scoop.net` 与 `stdlib/test.scoop` 已从当前 shipped sysroot 移除，等待重设计后再重新进入清单。可执行 argv/退出码 contract 已并入程序边界 `main`，不再作为独立 sysroot surface 维护。
 
 ## 约定
 
@@ -187,11 +187,11 @@
 
 ---
 
-## 13. Process / Env / Path
+## 13. Program Boundary / Env / Path
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `process.exit(code)` / `process.args()` | P1 | needs_runtime_lib | DONE | `sysroot/process.scoop` + `runtime/c` | `std_process_args_exit_basic` | 过渡 surface；`T5000e3c` 将改为扩展后的 `main` 程序边界（`main(): Unit/Int / Pure!`、`main(args: Array<String>): Unit/Int / Pure!`），并移除 `scoop.process` |
+| Executable `main` argv / exit-code contract | P1 | needs_runtime_lib | DONE | 程序边界 `main` + `runtime/c` | `std_process_args_exit_basic`、`entry_main_args_int_exit_basic` | `T5000e3c` 已移除 `scoop.process`；当前只接受 `main(): Unit/Int / Pure!` 与 `main(args: Array<String>): Unit/Int / Pure!` 四种形状。`args` 直接承载完整 native argv（含 `argv[0]`）；正常返回 `Unit` 映射退出码 `0`，正常返回 `Int` 映射为进程退出码 |
 | `env.getOrNull(key)` | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/env.scoop` 已在 `T5000e3b` 移除；需按新 env surface 重做 |
 | `path.normalize/join/basename/dirname` | P1 | needs_runtime_lib | TODO | — | — | 旧 `sysroot/path.scoop` 已在 `T5000e3b` 移除；需按新 path surface 重做 |
 | Subprocess / exec | P2 | needs_runtime_lib | TODO | — | — | |

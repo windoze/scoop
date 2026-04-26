@@ -3722,7 +3722,10 @@ fun main() {}
             .iter()
             .find(|fun| fun.fqn == "fixtures.t5000e3c.Box.value")
             .expect("应收集到 Box.value");
-        assert_eq!(lowered.types.display(value_method.return_ty).to_string(), "Int");
+        assert_eq!(
+            lowered.types.display(value_method.return_ty).to_string(),
+            "Int"
+        );
     }
 
     #[test]

@@ -116,6 +116,14 @@ PATH="/opt/homebrew/opt/llvm@21/bin:$PATH" \
   run tests/fixtures/spec_doctest/overview_minimal_main.scoop
 ```
 
+当前 executable `main` 只接受四种形状：`fun main(): Unit / Pure!`、`fun main(): Int / Pure!`、`fun main(args: Array<String>): Unit / Pure!`、`fun main(args: Array<String>): Int / Pure!`。若使用 `main(args)`，可在 `scoop run` 后用 `--` 继续传参；运行时会把完整 native argv 传入 `args`（包含 `argv[0]`）。正常返回 `Unit` 会映射为退出码 `0`，正常返回 `Int` 会把该值作为进程退出码。
+
+```bash
+PATH="/opt/homebrew/opt/llvm@21/bin:$PATH" \
+  cargo run -p scoop -- \
+  run tests/fixtures/run-pass/std_process_args_exit_basic.scoop -- foo bar
+```
+
 ## GC microbench（baseline vs Immix）
 
 > 用途：本地对比 GC 分配吞吐与碎片化趋势；不做跨机器阈值 gating。

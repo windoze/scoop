@@ -1224,6 +1224,35 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000e3cR Review：确认 entry-point argv contract 已替代临时 scoop.process surface`。
+- 2026-04-26：`T5000e3cR Review：确认 entry-point argv contract 已替代临时 scoop.process surface` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/typecheck/expr/stmt.rs`、`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `runtime/c/scoop_runtime.c`：
+      - executable `main` 的合法形状继续稳定收口为零参数或单个 `Array<String>` 参数、返回 `Unit` 或 `Int`；
+      - LLVM 入口继续保留 `main(argc, argv)` 的 C ABI，并且只在 `main(args)` 形状下经 `scoop_entry_argv_array(argc, argv)` 把完整 native argv（含 `argv[0]`）注入程序边界；
+      - 正常返回 `Unit` 的 `main` 继续稳定映射退出码 `0`，正常返回 `Int` 的 `main` 继续把返回值作为进程退出码。
+    - review 过程中先暴露并修复了 4 处既有文档/注释错配：
+      - `STDLIB_COMPLETENESS.md` 仍把 `scoop.process` 记为当前 DONE surface；
+      - `PLATFORM_API_SURFACE_AUDIT.md` 仍把 `scoop.process` 列为现行平台模块；
+      - `README.md` 尚未说明新的 executable `main` argv / exit-code contract；
+      - `STDLIB_DESIGN.md` 中 `scoop.process` 条目缺少“future target 而非 current shipped surface”的明确说明；
+      - 同时修正了 `crates/scoopc/src/typecheck/expr/stmt.rs` 中 entry-point effect row 注释仍写成 `Pure` 的口误。
+    - 已补一条直接锁定入口接线的 IR 回归测试：
+      - `crates/scoopc/src/llvm/tests.rs` 新增 `minimal_main_ir_with_array_string_args_calls_entry_argv_helper`，断言 `main(args: Array<String>)` 会发射 `@scoop_entry_argv_array(i32 %argc, ptr %argv)`；
+      - 现有 `minimal_main_ir_contains_main_and_ret0` 也新增断言，确保零参数 `main` 不会误接 `scoop_entry_argv_array`。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc minimal_main_ir_ -- --nocapture`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/std_process_args_exit_basic.scoop -- foo bar`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/entry_main_args_int_exit_basic.scoop -- foo bar`（退出码 `3`）
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (395)`）
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：
+    - entry-point argv / exit-code contract 已实质替代临时 `scoop.process` surface；
+    - 现行文档与 fixtures 已统一收口到程序边界 `main`，后续无需再为 `scoop.process.args()` 保留兼容语义；
+    - 当前未发现需要插入到 `T5000e3d` 之前的新前置缺陷任务。
+  - 下一条待执行任务切换为 `T5000e3d 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径`。
 
 ## 1. 当前判断
 

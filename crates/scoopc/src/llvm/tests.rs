@@ -190,9 +190,44 @@ fn minimal_main_ir_contains_main_and_ret0() {
         ir.contains("call void @scoop_runtime_init()"),
         "生成的 main 应调用 scoop_runtime_init"
     );
+    assert!(
+        !ir.contains("@scoop_entry_argv_array"),
+        "零参数 main 不应接入 entry argv helper"
+    );
     assert!(ir.contains("ret i32 0"));
     assert!(ir.contains("target datalayout ="));
     assert!(ir.contains("target triple ="));
+}
+
+#[test]
+fn minimal_main_ir_with_array_string_args_calls_entry_argv_helper() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(args: Array<String>): Int {
+    return args.size()
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("define i32 @main(i32 %argc, ptr %argv)"),
+        "entry main 应继续保留 C ABI `main(argc, argv)` 入口，实际 IR:\n{ir}"
+    );
+    assert!(
+        ir.contains("call void @scoop_runtime_init()"),
+        "生成的 main 应调用 scoop_runtime_init"
+    );
+    assert!(
+        ir.contains("@scoop_entry_argv_array(i32 %argc, ptr %argv)"),
+        "`main(args: Array<String>)` 应通过 runtime helper 把完整 argv 注入到程序边界，实际 IR:\n{ir}"
+    );
 }
 
 #[test]

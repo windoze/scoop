@@ -373,7 +373,7 @@ pub(super) fn check_required_effects_for_fun_decl(
     match program_boundary {
         ProgramBoundaryKind::None => {}
         // spec §5.10：entry point 由 runtime 在无 ambient handler 的边界调用，
-        // 因此其 effect row 必须是 `Pure`（不能显式声明 non-Pure，也不能通过 internal/private 推断出效果）。
+        // 因此其 effect row 必须收口为闭合纯行 `Pure!`（不能显式声明 non-Pure，也不能通过 internal/private 推断出效果）。
         ProgramBoundaryKind::Main => {
             if let Some(expr) = fun.effects.as_ref() {
                 let row = lower.lower_effect_row_expr(Some(expr))?;

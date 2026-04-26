@@ -1279,7 +1279,7 @@
   - 本轮收尾还修正了一个过时 fixture 断言：`tests/fixtures/typecheck/entry_point_main_param_not_array_string_is_error.scoop` 现改为匹配当前实际诊断中的完整限定类型名 `scoop.core.Array<Int>`。
   - 已验证 `target/debug/scoop test --fixtures tests/fixtures/typecheck`（`fixtures: ok (395)`）、`target/debug/scoop test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (24)`）、`target/debug/scoop test --fixtures tests/fixtures/run-pass`（`fixtures: ok (394)`）、`target/debug/scoop test --fixtures tests/fixtures/spec_doctest`（`fixtures: ok (1)`）、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000e3cR Review：确认 entry-point argv contract 已替代临时 `scoop.process` surface
+### [DONE] T5000e3cR Review：确认 entry-point argv contract 已替代临时 `scoop.process` surface
 - 重点：
   - `main` 的合法签名集合是否已经稳定收口为“两种参数形状 × 两种返回类型”的四种约定；
   - `Unit` 返回的 `main` 是否在正常返回时稳定映射到默认退出码 `0`，而 `Int` 返回的 `main` 是否把返回值作为退出码；
@@ -1288,6 +1288,12 @@
 - 验收：
   - 程序边界 contract 与文档口径已一致；之后不需要再为 `scoop.process.args()` 保留兼容语义。
 - 依赖：T5000e3c
+- 完成记录（2026-04-26）：
+  - 已复核 `crates/scoopc/src/typecheck/expr/stmt.rs`、`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `runtime/c/scoop_runtime.c`：executable `main` 的合法形状已稳定收口为零参数或单个 `Array<String>` 参数、返回 `Unit` 或 `Int`；LLVM 入口继续保留 `main(argc, argv)` 的 C ABI，并仅在 `main(args)` 形状下通过 `scoop_entry_argv_array(argc, argv)` 把完整 native argv（含 `argv[0]`）注入程序边界；正常返回 `Unit` 映射退出码 `0`，正常返回 `Int` 映射为进程退出码；
+  - review 过程中发现并修复了 4 处既有文档/注释错配：`STDLIB_COMPLETENESS.md` 仍把 `scoop.process` 记为当前 DONE surface，`PLATFORM_API_SURFACE_AUDIT.md` 仍把 `scoop.process` 列为现行平台模块，`README.md` 尚未说明新的 executable `main` argv / exit-code contract，`STDLIB_DESIGN.md` 中 `scoop.process` 条目缺少“future target 而非 current shipped surface”的明确说明；另已顺手修正 `crates/scoopc/src/typecheck/expr/stmt.rs` 中 entry-point effect row 注释仍写成 `Pure` 的口误；
+  - 已在 `crates/scoopc/src/llvm/tests.rs` 新增 `minimal_main_ir_with_array_string_args_calls_entry_argv_helper`，并让现有 `minimal_main_ir_contains_main_and_ret0` 断言零参数 `main` 不会错误接入 `scoop_entry_argv_array`，从 IR 层直接锁定 entry argv helper 的接线边界；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc minimal_main_ir_ -- --nocapture`、`cargo run -p scoop -- run tests/fixtures/run-pass/std_process_args_exit_basic.scoop -- foo bar`、`cargo run -p scoop -- run tests/fixtures/run-pass/entry_main_args_int_exit_basic.scoop -- foo bar`（退出码 `3`）、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (395)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；
+  - review 结论：entry-point argv / exit-code contract 已实质替代临时 `scoop.process` surface；现行文档与 fixtures 已统一收口到程序边界 `main`，后续无需再为 `scoop.process.args()` 保留兼容语义。
 
 ### [TODO] T5000e3d 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径
 - 范围：
