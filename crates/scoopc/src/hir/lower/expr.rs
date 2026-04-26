@@ -9,7 +9,7 @@ use crate::resolve::{ConstructorOverload, ParamSig, Visibility};
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
-use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::HirLowering;
 use super::types::*;
@@ -256,14 +256,10 @@ impl<'a> HirLowering<'a> {
                             .push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
                     }
 
-                    let callee = Expr {
-                        span: callee.span,
-                        ty: self.builtins.any,
-                        kind: ExprKind::VarRef(ValueRef::TopLevel {
-                            id: self.symbols.intern_top_level(fqn.clone()),
-                            fqn: fqn.clone(),
-                        }),
-                    };
+                    let target_fqn = self
+                        .materialized_top_level_fun_call_target_fqn(e.span)
+                        .unwrap_or_else(|| fqn.clone());
+                    let callee = self.top_level_callee_expr_with_fqn(callee.span, target_fqn);
 
                     Some((
                         ExprKind::Call {
@@ -345,14 +341,10 @@ impl<'a> HirLowering<'a> {
                         ));
                     }
 
-                    let callee = Expr {
-                        span: callee.span,
-                        ty: self.builtins.any,
-                        kind: ExprKind::VarRef(ValueRef::TopLevel {
-                            id: self.symbols.intern_top_level(fqn.clone()),
-                            fqn: fqn.clone(),
-                        }),
-                    };
+                    let target_fqn = self
+                        .materialized_top_level_fun_call_target_fqn(e.span)
+                        .unwrap_or_else(|| fqn.clone());
+                    let callee = self.top_level_callee_expr_with_fqn(callee.span, target_fqn);
 
                     Some((
                         ExprKind::Call {
@@ -414,7 +406,13 @@ impl<'a> HirLowering<'a> {
                         })
                     });
 
-                    let callee = Box::new(self.lower_expr(pkg_prefix, callee));
+                    let materialized_direct_target =
+                        self.materialized_top_level_fun_call_target_fqn(e.span);
+                    let callee = if let Some(target_fqn) = materialized_direct_target {
+                        Box::new(self.top_level_callee_expr_with_fqn(callee.span, target_fqn))
+                    } else {
+                        Box::new(self.lower_expr(pkg_prefix, callee))
+                    };
 
                     // T0113: if there's a vararg param, split args into pre-vararg,
                     // vararg, and post-vararg, and wrap the vararg args in an array literal.
@@ -998,6 +996,142 @@ impl<'a> HirLowering<'a> {
             .map(|row| self.apply_active_type_param_bindings_to_effect_row(row))
             .collect();
         Some((fun_ref.fqn, type_args, eff_args))
+    }
+
+    fn typechecked_top_level_fun_call_binding(
+        &mut self,
+        span: Span,
+    ) -> Option<crate::ast::TopLevelFunCallBinding> {
+        let typecheck_types = self.typecheck_types?;
+        let binding = self.file.top_level_fun_call_binding(span)?;
+        let type_args = binding
+            .type_args
+            .iter()
+            .copied()
+            .map(|ty| {
+                let ty = self.types.re_intern_from(typecheck_types, ty);
+                self.apply_active_type_param_bindings(ty)
+            })
+            .collect();
+        let eff_args = binding
+            .eff_args
+            .iter()
+            .map(|row| {
+                let re_interned = EffectRow::new(
+                    row.terms
+                        .iter()
+                        .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
+                        .collect(),
+                );
+                self.apply_active_type_param_bindings_to_effect_row(&re_interned)
+            })
+            .collect();
+        Some(crate::ast::TopLevelFunCallBinding {
+            fqn: binding.fqn,
+            decl_file: binding.decl_file,
+            decl_span: binding.decl_span,
+            is_intrinsic: binding.is_intrinsic,
+            type_args,
+            eff_args,
+        })
+    }
+
+    pub(super) fn type_contains_param_for_direct_call_target(&self, ty: TypeId) -> bool {
+        let mut stack = vec![ty];
+        while let Some(id) = stack.pop() {
+            match self.types.kind(id) {
+                TypeKind::Param(_) => return true,
+                TypeKind::StarProjection(star) => stack.push(star.read_ty),
+                TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                    stack.extend(nominal.args.iter().copied());
+                    if let Some(eff) = &nominal.eff {
+                        stack.extend(eff.terms.iter().copied());
+                    }
+                }
+                TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+                TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                    stack.extend(elements.iter().copied());
+                }
+                TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                    if let Some(receiver) = fun.receiver {
+                        stack.push(receiver);
+                    }
+                    stack.extend(fun.params.iter().copied());
+                    stack.push(fun.return_ty);
+                    stack.extend(fun.effects.terms.iter().copied());
+                }
+                TypeKind::Ref(RefTypeKind::Union(union)) => {
+                    stack.extend(union.variants.iter().copied());
+                }
+                TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+                | TypeKind::Value(ValueTypeKind::Unit)
+                | TypeKind::Value(ValueTypeKind::Nothing)
+                | TypeKind::Value(ValueTypeKind::Bool)
+                | TypeKind::Value(ValueTypeKind::Char)
+                | TypeKind::Value(ValueTypeKind::Float64)
+                | TypeKind::Value(ValueTypeKind::Float32)
+                | TypeKind::Value(ValueTypeKind::Int)
+                | TypeKind::Value(ValueTypeKind::UInt)
+                | TypeKind::Value(ValueTypeKind::IntN(_))
+                | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+            }
+        }
+        false
+    }
+
+    fn effect_row_contains_param_for_direct_call_target(&self, row: &EffectRow) -> bool {
+        row.terms
+            .iter()
+            .copied()
+            .any(|ty| self.type_contains_param_for_direct_call_target(ty))
+    }
+
+    fn materialized_top_level_fun_call_target_fqn(&mut self, call_span: Span) -> Option<String> {
+        if !self.materialize_direct_call_targets {
+            return None;
+        }
+
+        let binding = self.typechecked_top_level_fun_call_binding(call_span)?;
+        if binding.is_intrinsic || (binding.type_args.is_empty() && binding.eff_args.is_empty()) {
+            return None;
+        }
+        if binding
+            .type_args
+            .iter()
+            .copied()
+            .any(|ty| self.type_contains_param_for_direct_call_target(ty))
+            || binding
+                .eff_args
+                .iter()
+                .any(|row| self.effect_row_contains_param_for_direct_call_target(row))
+        {
+            return None;
+        }
+
+        let mut args = binding
+            .type_args
+            .iter()
+            .map(|&ty| self.types.display(ty).to_string())
+            .collect::<Vec<_>>();
+        args.extend(
+            binding
+                .eff_args
+                .iter()
+                .map(|row| format!("eff {}", self.format_effect_row_stable(row))),
+        );
+        Some(format!("{}::<{}>", binding.fqn, args.join(", ")))
+    }
+
+    fn top_level_callee_expr_with_fqn(&mut self, span: Span, fqn: String) -> Expr {
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn,
+            }),
+        }
     }
 
     fn apply_active_type_param_bindings(&mut self, ty: TypeId) -> TypeId {

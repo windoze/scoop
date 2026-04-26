@@ -2,6 +2,19 @@
 
 use super::super::*;
 
+/// direct-call target 已在 HIR 中物化为 `foo::<Bar>` 时，返回其模板 FQN `foo`。
+///
+/// 说明：
+/// - 普通静态 direct-call 仍应继续使用完整实例 FQN 命中 `fun_index`；
+/// - 只有 sysroot/builtin special-case dispatch、vtable/itable slot 识别等仍按模板名建模的
+///   路径需要看这个“base/template FQN”。
+fn direct_call_dispatch_fqn(fqn: &str) -> &str {
+    if !fqn.ends_with('>') {
+        return fqn;
+    }
+    fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn)
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_call_impl(
         &mut self,
@@ -163,13 +176,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-            if fqn == "scoop.unsafe.invoke" {
+            let dispatch_fqn = direct_call_dispatch_fqn(fqn);
+
+            if dispatch_fqn == "scoop.unsafe.invoke" {
                 return self.codegen_sysroot_funptr_invoke(span, callee.span, args);
             }
-            if fqn == "scoop.unsafe.funPtrToUIntPtr" {
+            if dispatch_fqn == "scoop.unsafe.funPtrToUIntPtr" {
                 return self.codegen_sysroot_funptr_to_uintptr(span, callee.span, args);
             }
-            if fqn == "scoop.unsafe.uintPtrToFunPtr" {
+            if dispatch_fqn == "scoop.unsafe.uintPtrToFunPtr" {
                 return self.codegen_sysroot_uintptr_to_funptr(span, callee.span, args);
             }
 
@@ -177,7 +192,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(v);
             }
 
-            if fqn == "scoop.core.ToString.toString"
+            if dispatch_fqn == "scoop.core.ToString.toString"
                 && let Some(v) = self.try_codegen_tostring_iface_builtin(span, callee.span, args)?
             {
                 return Ok(v);
@@ -186,36 +201,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(v) = self.try_codegen_interface_itable_call(span, callee.span, fqn, args)? {
                 return Ok(v);
             }
-            if let Some(v) = self.try_codegen_sysroot_gc_debug_intrinsics(span, fqn, args)? {
+            if let Some(v) =
+                self.try_codegen_sysroot_gc_debug_intrinsics(span, dispatch_fqn, args)?
+            {
                 return Ok(v);
             }
-            if fqn.starts_with("scoop.core.__scoop_effect_") {
-                return self.codegen_sysroot_effect_intrinsics(span, callee.span, fqn, args);
+            if dispatch_fqn.starts_with("scoop.core.__scoop_effect_") {
+                return self.codegen_sysroot_effect_intrinsics(
+                    span,
+                    callee.span,
+                    dispatch_fqn,
+                    args,
+                );
             }
-            if fqn == "scoop.core.sizeOf" {
+            if dispatch_fqn == "scoop.core.sizeOf" {
                 return self.codegen_sysroot_size_of(span, callee.span, args);
             }
-            if fqn == "scoop.core.panic" {
+            if dispatch_fqn == "scoop.core.panic" {
                 return self.codegen_sysroot_panic(span, callee.span, args);
             }
-            if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
-                return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
+            if dispatch_fqn == "scoop.core.print" || dispatch_fqn == "scoop.core.println" {
+                return self.codegen_sysroot_print_like(span, callee.span, dispatch_fqn, args);
             }
-            if fqn == "scoop.core.__scoop_print_string"
-                || fqn == "scoop.core.__scoop_println_string"
+            if dispatch_fqn == "scoop.core.__scoop_print_string"
+                || dispatch_fqn == "scoop.core.__scoop_println_string"
             {
-                return self.codegen_sysroot_internal_print_string(span, callee.span, fqn, args);
+                return self.codegen_sysroot_internal_print_string(
+                    span,
+                    callee.span,
+                    dispatch_fqn,
+                    args,
+                );
             }
-            if fqn == "scoop.core.toString" {
+            if dispatch_fqn == "scoop.core.toString" {
                 return self.codegen_sysroot_to_string_ext(span, callee.span, args);
             }
-            if fqn == "scoop.core.toInt" {
+            if dispatch_fqn == "scoop.core.toInt" {
                 return self.codegen_sysroot_to_int_ext(span, callee.span, args);
             }
-            if fqn == "scoop.core.hash" {
+            if dispatch_fqn == "scoop.core.hash" {
                 return self.codegen_sysroot_hash_ext(span, callee.span, args);
             }
-            if fqn == "scoop.core.abs"
+            if dispatch_fqn == "scoop.core.abs"
                 && matches!(
                     args.first(),
                     Some(hir::CallArg::Positional(expr))
@@ -227,7 +254,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return self.codegen_sysroot_abs_ext(span, callee.span, args);
             }
-            if fqn == "scoop.core.isNaN"
+            if dispatch_fqn == "scoop.core.isNaN"
                 && matches!(
                     args.first(),
                     Some(hir::CallArg::Positional(expr))
@@ -239,7 +266,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return self.codegen_sysroot_is_nan_ext(span, callee.span, args);
             }
-            if fqn == "scoop.core.isInfinite"
+            if dispatch_fqn == "scoop.core.isInfinite"
                 && matches!(
                     args.first(),
                     Some(hir::CallArg::Positional(expr))
@@ -252,82 +279,100 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_sysroot_is_infinite_ext(span, callee.span, args);
             }
 
-            if fqn == "scoop.sync.mutexCreate" {
+            if dispatch_fqn == "scoop.sync.mutexCreate" {
                 return self.codegen_sysroot_sync_mutex_create(span, callee.span, args);
             }
-            if fqn == "scoop.sync.lock" {
+            if dispatch_fqn == "scoop.sync.lock" {
                 return self.codegen_sysroot_sync_mutex_lock(span, callee.span, args);
             }
-            if fqn == "scoop.sync.unlock" {
+            if dispatch_fqn == "scoop.sync.unlock" {
                 return self.codegen_sysroot_sync_mutex_unlock(span, callee.span, args);
             }
-            if fqn == "scoop.sync.condVarCreate" {
+            if dispatch_fqn == "scoop.sync.condVarCreate" {
                 return self.codegen_sysroot_sync_condvar_create(span, callee.span, args);
             }
-            if fqn == "scoop.sync.wait" {
+            if dispatch_fqn == "scoop.sync.wait" {
                 return self.codegen_sysroot_sync_condvar_wait(span, callee.span, args);
             }
-            if fqn == "scoop.sync.notifyOne" {
+            if dispatch_fqn == "scoop.sync.notifyOne" {
                 return self.codegen_sysroot_sync_condvar_notify_one(span, callee.span, args);
             }
-            if fqn == "scoop.sync.notifyAll" {
+            if dispatch_fqn == "scoop.sync.notifyAll" {
                 return self.codegen_sysroot_sync_condvar_notify_all(span, callee.span, args);
             }
-            if fqn == "scoop.sync.onceCreate" {
+            if dispatch_fqn == "scoop.sync.onceCreate" {
                 return self.codegen_sysroot_sync_once_create(span, callee.span, args);
             }
-            if fqn == "scoop.sync.isDone" {
+            if dispatch_fqn == "scoop.sync.isDone" {
                 return self.codegen_sysroot_sync_once_is_done(span, callee.span, args);
             }
-            if fqn == "scoop.sync.run" {
+            if dispatch_fqn == "scoop.sync.run" {
                 return self.codegen_sysroot_sync_once_run(span, callee.span, args);
             }
-            if fqn == "scoop.sync.destroy" {
+            if dispatch_fqn == "scoop.sync.destroy" {
                 return self.codegen_sysroot_sync_destroy(span, callee.span, args);
             }
-            if fqn == "scoop.thread.threadSpawn" {
+            if dispatch_fqn == "scoop.thread.threadSpawn" {
                 return self.codegen_sysroot_thread_spawn(span, callee.span, args);
             }
-            if fqn == "scoop.thread.join" {
+            if dispatch_fqn == "scoop.thread.join" {
                 return self.codegen_sysroot_thread_join(span, callee.span, args);
             }
-            if fqn == "scoop.thread.sleepMillis" {
+            if dispatch_fqn == "scoop.thread.sleepMillis" {
                 return self.codegen_sysroot_thread_sleep_millis(span, callee.span, args);
             }
-            if fqn == "scoop.thread.yield" {
+            if dispatch_fqn == "scoop.thread.yield" {
                 return self.codegen_sysroot_thread_yield(span, callee.span, args);
             }
-            if fqn == "scoop.thread.currentId" {
+            if dispatch_fqn == "scoop.thread.currentId" {
                 return self.codegen_sysroot_thread_current_id(span, callee.span, args);
             }
-            if fqn == "scoop.core.__task_transport_pack"
-                || fqn == "scoop.core.__task_transport_unpack"
+            if dispatch_fqn == "scoop.core.__task_transport_pack"
+                || dispatch_fqn == "scoop.core.__task_transport_unpack"
             {
                 return self.codegen_sysroot_task_transport_intrinsics(
                     span,
                     callee.span,
-                    fqn,
+                    dispatch_fqn,
                     args,
                     result_ty,
                 );
             }
-            if fqn.starts_with("scoop.unsafe.__atomicInt") {
-                return self.codegen_sysroot_atomic_int_intrinsics(span, callee.span, fqn, args);
+            if dispatch_fqn.starts_with("scoop.unsafe.__atomicInt") {
+                return self.codegen_sysroot_atomic_int_intrinsics(
+                    span,
+                    callee.span,
+                    dispatch_fqn,
+                    args,
+                );
             }
-            if fqn == "scoop.core.size" || fqn == "scoop.core.get" || fqn == "scoop.core.set" {
+            if dispatch_fqn == "scoop.core.size"
+                || dispatch_fqn == "scoop.core.get"
+                || dispatch_fqn == "scoop.core.set"
+            {
                 return self.codegen_sysroot_array_intrinsics(
                     span,
                     callee.span,
-                    fqn,
+                    dispatch_fqn,
                     args,
                     expected,
                 );
             }
-            if fqn.starts_with("scoop.core.__scoop_array_builder_") {
-                return self.codegen_sysroot_array_builder_intrinsics(span, callee.span, fqn, args);
+            if dispatch_fqn.starts_with("scoop.core.__scoop_array_builder_") {
+                return self.codegen_sysroot_array_builder_intrinsics(
+                    span,
+                    callee.span,
+                    dispatch_fqn,
+                    args,
+                );
             }
-            if fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64" {
-                return self.codegen_sysroot_thread_intrinsics(span, callee.span, fqn, args);
+            if dispatch_fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64" {
+                return self.codegen_sysroot_thread_intrinsics(
+                    span,
+                    callee.span,
+                    dispatch_fqn,
+                    args,
+                );
             }
 
             if let Some(callee_hir_ty) = self.top_level_value_ty(fqn) {
@@ -552,11 +597,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let effective_fqn = self
-            .try_resolve_monomorphized_member_fqn(fqn, args)
-            .or_else(|| self.try_resolve_monomorphized_standalone_fun_fqn(fqn, args));
-        let fqn = effective_fqn.as_deref().unwrap_or(fqn);
-
         let is_extern = self.extern_funs.contains_key(fqn);
 
         let sig_fun =
@@ -782,7 +822,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some((owner_fqn, method_name)) = fqn.rsplit_once('.') else {
+        let dispatch_fqn = direct_call_dispatch_fqn(fqn);
+        let Some((owner_fqn, method_name)) = dispatch_fqn.rsplit_once('.') else {
             return Ok(None);
         };
 
@@ -829,14 +870,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(Some(v));
         }
 
-        let sig_fun =
-            self.fun_index
-                .get(fqn)
-                .copied()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "vtable call callee type",
-                    at: callee_span.into(),
-                })?;
+        let sig_fun = self
+            .fun_index
+            .get(fqn)
+            .or_else(|| self.fun_index.get(dispatch_fqn))
+            .copied()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "vtable call callee type",
+                at: callee_span.into(),
+            })?;
         let call_may_suspend = self.hir_ty_declared_effectful(Some(sig_fun.ty));
 
         if args.len() != sig_fun.params.len() {
@@ -1014,7 +1056,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let Some((owner_fqn, method_name)) = fqn.rsplit_once('.') else {
+        let dispatch_fqn = direct_call_dispatch_fqn(fqn);
+        let Some((owner_fqn, method_name)) = dispatch_fqn.rsplit_once('.') else {
             return Ok(None);
         };
 
@@ -1049,14 +1092,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let slot = first.slot;
 
-        let sig_fun =
-            self.fun_index
-                .get(fqn)
-                .copied()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "itable call callee type",
-                    at: callee_span.into(),
-                })?;
+        let sig_fun = self
+            .fun_index
+            .get(fqn)
+            .or_else(|| self.fun_index.get(dispatch_fqn))
+            .copied()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "itable call callee type",
+                at: callee_span.into(),
+            })?;
         let call_may_suspend = self.hir_ty_declared_effectful(Some(sig_fun.ty));
 
         if args.len() != sig_fun.params.len() {

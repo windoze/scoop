@@ -503,15 +503,30 @@ fn resolve_supertypes(
     resolved
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct InitCollectionCx<'a> {
+    pub source: &'a SourceFile,
+    pub file: &'a ast::File,
+    pub index: &'a Index,
+    pub type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub typecheck_types: Option<&'a TypeStore>,
+    pub builtins: BuiltinTypes,
+    pub materialize_direct_call_targets: bool,
+}
+
 pub(super) fn collect_object_inits(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    type_kinds: &HashMap<String, ast::TypeKind>,
-    typecheck_types: Option<&TypeStore>,
+    cx: InitCollectionCx<'_>,
     types: &mut TypeStore,
-    builtins: BuiltinTypes,
 ) -> (ObjectInitIndex, CtorCallSiteIndex) {
+    let InitCollectionCx {
+        source,
+        file,
+        index,
+        type_kinds,
+        typecheck_types,
+        builtins,
+        materialize_direct_call_targets,
+    } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
@@ -531,6 +546,7 @@ pub(super) fn collect_object_inits(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            materialize_direct_call_targets,
         },
     );
 
@@ -652,14 +668,18 @@ fn collect_object_decl_inits(
 }
 
 pub(super) fn collect_class_inits(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    type_kinds: &HashMap<String, ast::TypeKind>,
-    typecheck_types: Option<&TypeStore>,
+    cx: InitCollectionCx<'_>,
     types: &mut TypeStore,
-    builtins: BuiltinTypes,
 ) -> (ClassInitIndex, CtorCallSiteIndex) {
+    let InitCollectionCx {
+        source,
+        file,
+        index,
+        type_kinds,
+        typecheck_types,
+        builtins,
+        materialize_direct_call_targets,
+    } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
@@ -679,6 +699,7 @@ pub(super) fn collect_class_inits(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            materialize_direct_call_targets,
         },
     );
 
@@ -3420,6 +3441,7 @@ pub(super) fn collect_generic_member_fun_instantiations(
                             compilation_unit: pairs,
                             types,
                             builtins,
+                            materialize_direct_call_targets: true,
                         },
                         super::BoundMemberFunLoweringTarget {
                             owner_fqn: base_fqn,
@@ -3446,6 +3468,7 @@ pub(super) fn collect_generic_member_fun_instantiations(
                             compilation_unit: pairs,
                             types,
                             builtins,
+                            materialize_direct_call_targets: true,
                         },
                         super::BoundValuePropertyGetterLoweringTarget {
                             owner_fqn: base_fqn,
@@ -3595,6 +3618,7 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
                         compilation_unit,
                         types,
                         builtins,
+                        materialize_direct_call_targets: true,
                     },
                     super::BoundMemberFunLoweringTarget {
                         owner_fqn,
@@ -3656,6 +3680,7 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
                         compilation_unit,
                         types,
                         builtins,
+                        materialize_direct_call_targets: true,
                     },
                     super::BoundValuePropertyGetterLoweringTarget {
                         owner_fqn,
@@ -4197,11 +4222,22 @@ fn extract_concrete_hir_expr_ty(
         .then_some(ty)
 }
 
+fn generic_fun_dispatch_fqn(fqn: &str) -> &str {
+    if !fqn.ends_with('>') {
+        return fqn;
+    }
+    fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn)
+}
+
 fn generic_fun_callee_fqn(expr: &super::super::Expr) -> Option<&str> {
     match &expr.kind {
-        super::super::ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+        super::super::ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+            Some(generic_fun_dispatch_fqn(fqn.as_str()))
+        }
         super::super::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
-            MemberRef::Fun { fqn, .. } | MemberRef::ExtensionFun { fqn, .. } => Some(fqn.as_str()),
+            MemberRef::Fun { fqn, .. } | MemberRef::ExtensionFun { fqn, .. } => {
+                Some(generic_fun_dispatch_fqn(fqn.as_str()))
+            }
             _ => None,
         },
         _ => None,
@@ -4773,6 +4809,7 @@ pub(super) fn collect_generic_fun_instantiations(
                 compilation_unit,
                 types,
                 builtins,
+                materialize_direct_call_targets: true,
             },
             fun_decl,
             param_bindings,
@@ -4870,6 +4907,7 @@ pub(super) fn collect_generic_fun_instantiations(
                 compilation_unit,
                 types,
                 builtins,
+                materialize_direct_call_targets: true,
             },
             fun_decl,
             bindings,
@@ -4994,6 +5032,7 @@ pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
                 compilation_unit,
                 types,
                 builtins,
+                materialize_direct_call_targets: true,
             },
             template.fun,
             bindings,

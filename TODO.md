@@ -1295,7 +1295,7 @@
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc minimal_main_ir_ -- --nocapture`、`cargo run -p scoop -- run tests/fixtures/run-pass/std_process_args_exit_basic.scoop -- foo bar`、`cargo run -p scoop -- run tests/fixtures/run-pass/entry_main_args_int_exit_basic.scoop -- foo bar`（退出码 `3`）、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (395)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；
   - review 结论：entry-point argv / exit-code contract 已实质替代临时 `scoop.process` surface；现行文档与 fixtures 已统一收口到程序边界 `main`，后续无需再为 `scoop.process.args()` 保留兼容语义。
 
-### [TODO] T5000e3d 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径
+### [DONE] T5000e3d 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径
 - 范围：
   - 移除/收口 LLVM codegen 中按 mangled FQN 现场重定向 generic callee 的主职责；
   - 让 codegen 通过已实例化的 callee 事实 / instance identity 进入目标，而不是继续做 `try_resolve_monomorphized_*` 式推断；
@@ -1304,6 +1304,13 @@
   - LLVM codegen 不再以“现场根据 mangled FQN 重定向目标”为主路径承担 monomorphization；
   - 后续中端优化面向的主要输入已经是 monomorphic MIR instances。
 - 依赖：T5000e3cR
+- 完成记录（2026-04-27）：
+  - `HirLowering` / `LoweringInputs` / compilation-unit lowering 现新增 `materialize_direct_call_targets` 开关：compilation-unit 与 via-MIR-instance lowering 开启，`lower_for_dump` / `lower_typed_for_dump` / generic-template-only 路径关闭，确保只有可 codegen 的 HIR 会把非 intrinsic direct-call target 物化为最终实例 FQN；
+  - standalone / member / extension direct-call lowering 现统一回放 typecheck 写回的 `TopLevelFunCallBinding`，对非 intrinsic 且 type/effect 实参都已 concrete 的调用直接写入稳定实例 FQN；async task helper 等内部 top-level helper 调用也经 `call_top_level_fun_with_type_args` 走同一套物化规则；
+  - LLVM backend 已删除 `try_resolve_monomorphized_member_fqn` / `try_resolve_monomorphized_standalone_fun_fqn` 与相关现场推断 helper；`call/dispatch.rs` 只保留一个窄的 direct-call template-FQN 归一化入口，专供 sysroot / builtin special-case、vtable / itable 等仍按模板名建模的路径消费，普通静态 direct-call 继续直接用完整实例 FQN 命中 `fun_index`；
+  - 实现过程中暴露并修复了一个当前任务范围内的既有 backend 缺口：HIR 把 `scoop.core.println::<T>` 这类 generic sysroot direct-call 物化为实例 FQN 后，LLVM special-case dispatch 仍只按模板名分派，导致 builtin lowering 被绕过；现已通过窄归一化 helper 收口为“special-case 看模板名、普通静态调用看实例名”的稳定边界；
+  - 已新增 `compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets`、`typed_hir_dump_keeps_generic_direct_calls_as_template_targets` 与 `lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls` 回归测试，分别锁定 compilation-unit lowering、typed dump / generic-template lowering 与 LLVM builtin dispatch 的边界；
+  - 已验证 `cargo test -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000e3dR Review：确认 LLVM backend 已退出单态目标猜测主职责
 - 重点：

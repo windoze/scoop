@@ -13,8 +13,8 @@ use super::types::ExpectedExpr;
 use super::util::compute_closure_captures;
 
 use super::super::{
-    Block, CallArg, ClosureExpr, EffectOpRef, Expr, ExprKind, HandleArm, HandleArmKind,
-    HandleBinder, HandleExpr, HandleOp, Stmt, StmtKind, ValueRef,
+    Block, ClosureExpr, EffectOpRef, Expr, ExprKind, HandleArm, HandleArmKind, HandleBinder,
+    HandleExpr, HandleOp, Stmt, StmtKind, ValueRef,
 };
 
 impl<'a> HirLowering<'a> {
@@ -138,24 +138,13 @@ impl<'a> HirLowering<'a> {
             }),
         };
 
-        let fqn = Self::TASK_CREATE_FQN.to_string();
-        let callee = Expr {
-            span: at,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(fqn.clone()),
-                fqn,
-            }),
-        };
-
-        Expr {
-            span: at,
-            ty: result_ty,
-            kind: ExprKind::Call {
-                callee: Box::new(callee),
-                args: vec![CallArg::Positional(closure)],
-            },
-        }
+        self.call_top_level_fun_with_type_args(
+            at,
+            Self::TASK_CREATE_FQN,
+            &[inner_return_ty],
+            vec![closure],
+            result_ty,
+        )
     }
 
     fn lower_async_task_step_result_expr(
@@ -225,9 +214,10 @@ impl<'a> HirLowering<'a> {
                 decl_span: ready_value_span,
             }),
         };
-        let ready_expr = self.call_top_level_fun(
+        let ready_expr = self.call_top_level_fun_with_type_args(
             body_span,
             Self::TASK_STEP_READY_FQN,
+            &[inner_return_ty],
             vec![ready_value_ref],
             step_result_ty,
         );
@@ -288,9 +278,10 @@ impl<'a> HirLowering<'a> {
                 decl_span: continuation_span,
             }),
         };
-        let pending_expr = self.call_top_level_fun(
+        let pending_expr = self.call_top_level_fun_with_type_args(
             body_span,
             Self::TASK_STEP_PENDING_FQN,
+            &[inner_return_ty],
             vec![task_ref, continuation_ref],
             step_result_ty,
         );

@@ -722,6 +722,125 @@ fun main(): Int { return helper(41) }
 }
 
 #[test]
+fn lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package fixtures.t5000e3d
+
+import scoop.core.*
+
+fun main(): Int {
+    println(1)
+    return 0
+}
+"#,
+    );
+
+    let mut ast = parse_file(&source).unwrap();
+    let index = {
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            pairs.push((&file.source, &file.ast));
+        }
+        pairs.push((&source, &ast));
+        Index::build(&pairs).unwrap()
+    };
+
+    let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+    crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+    env.extend_from_file(&source, &ast, &index).unwrap();
+
+    let mut typecheck_types = TypeStore::new();
+    let builtins = typecheck_types.intern_builtins();
+    crate::typecheck::check_file_annotations(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_type_refs(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_exprs(
+        &source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+
+    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        unit.push((&file.source, &file.ast));
+    }
+    unit.push((&source, &ast));
+
+    let files_to_lower = vec![(&source, &ast)];
+    let lowered = hir::lower_for_compilation_unit_multi_files(
+        &source,
+        &index,
+        &unit,
+        &files_to_lower,
+        &[],
+        &typecheck_types,
+    )
+    .unwrap();
+
+    let main = lowered
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            hir::Item::Fun(fun) if fun.fqn == "fixtures.t5000e3d.main" => Some(fun),
+            _ => None,
+        })
+        .expect("expected lowered main");
+    let body = main.body.as_ref().expect("main should have a body");
+    let Some(hir::Stmt {
+        kind: hir::StmtKind::Expr(call),
+        ..
+    }) = body.stmts.first()
+    else {
+        panic!("expected println statement in lowered main body");
+    };
+    let hir::ExprKind::Call { callee, .. } = &call.kind else {
+        panic!("expected println statement to lower as a direct call");
+    };
+    let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+        panic!("expected println callee to lower as a top-level direct-call target");
+    };
+    assert!(
+        fqn.starts_with("scoop.core.println::<"),
+        "HIR should already materialize the generic sysroot direct-call target before LLVM dispatch: {fqn}"
+    );
+
+    let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+    let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+    assert!(
+        ir.contains("@scoop_println"),
+        "materialized generic sysroot direct-call should still route through builtin print lowering"
+    );
+}
+
+#[test]
 fn cross_file_class_ctor_literal_codegen_uses_correct_source_with_utf8_comments() {
     let session = Session::new().unwrap();
 

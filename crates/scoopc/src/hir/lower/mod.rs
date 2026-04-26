@@ -117,6 +117,11 @@ struct HirLowering<'a> {
     type_param_scopes: Vec<HashMap<String, TypeId>>,
     /// effect row parameter 作用域栈：用于 lowering `/ E` 或 `Type<eff E>` 这类 row 变量引用。
     effect_row_param_scopes: Vec<HashMap<String, EffectRowParamBinding>>,
+    /// 是否把已 concrete 的非 intrinsic direct-call target 物化为最终实例 FQN。
+    ///
+    /// compilation-unit / LLVM frontend lowering 需要开启它，以便 backend 直接消费实例身份；
+    /// dump / generic-template lowering 必须关闭它，保持 generic MIR template 不提前单态化。
+    materialize_direct_call_targets: bool,
 }
 
 /// 构造 `HirLowering` 时用到的非必需上下文集合。
@@ -132,6 +137,7 @@ struct HirLoweringSetup<'a> {
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
     value_type_computed_properties: &'a HashSet<String>,
     builtins: BuiltinTypes,
+    materialize_direct_call_targets: bool,
 }
 
 #[derive(Clone)]
@@ -181,6 +187,7 @@ impl<'a> HirLowering<'a> {
             default_arg_structs,
             value_type_computed_properties,
             builtins,
+            materialize_direct_call_targets,
         } = setup;
         Self {
             source,
@@ -209,6 +216,7 @@ impl<'a> HirLowering<'a> {
             builtins,
             type_param_scopes: Vec::new(),
             effect_row_param_scopes: Vec::new(),
+            materialize_direct_call_targets,
         }
     }
 
@@ -1269,6 +1277,49 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    fn call_top_level_fun_with_type_args(
+        &mut self,
+        span: Span,
+        fqn: &str,
+        type_args: &[TypeId],
+        args: Vec<Expr>,
+        ret_ty: TypeId,
+    ) -> Expr {
+        let fqn = if self.materialize_direct_call_targets
+            && !type_args
+                .iter()
+                .copied()
+                .any(|ty| self.type_contains_param_for_direct_call_target(ty))
+            && !type_args.is_empty()
+        {
+            let args_str = type_args
+                .iter()
+                .map(|&ty| self.types.display(ty).to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{fqn}::<{args_str}>")
+        } else {
+            fqn.to_string()
+        };
+        let callee = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn,
+            }),
+        };
+
+        Expr {
+            span,
+            ty: ret_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args: args.into_iter().map(CallArg::Positional).collect(),
+            },
+        }
+    }
+
     fn lower_val_decl(&mut self, pkg_prefix: &str, v: &ast::ValDecl, scope: ValScope) -> ValDecl {
         // T0124: lower the declared type first so we can pass it as expected type for struct literals.
         let declared_ty_early = v.ty.as_ref().map(|t| self.lower_type_ref(t));
@@ -1931,6 +1982,7 @@ fn collect_compilation_unit_object_and_class_inits(
     index: &Index,
     type_kinds: &HashMap<String, ast::TypeKind>,
     typecheck_types: Option<&TypeStore>,
+    materialize_direct_call_targets: bool,
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> (ObjectInitIndex, ClassInitIndex, CtorCallSiteIndex) {
@@ -1939,27 +1991,22 @@ fn collect_compilation_unit_object_and_class_inits(
     let mut ctor_call_sites = CtorCallSiteIndex::new();
 
     for (source, file) in compilation_unit {
-        let (file_object_inits, file_object_ctor_call_sites) = collect_object_inits(
+        let init_collection_cx = InitCollectionCx {
             source,
             file,
             index,
             type_kinds,
             typecheck_types,
-            types,
             builtins,
-        );
+            materialize_direct_call_targets,
+        };
+        let (file_object_inits, file_object_ctor_call_sites) =
+            collect_object_inits(init_collection_cx, types);
         object_inits.extend(file_object_inits);
         ctor_call_sites.extend(file_object_ctor_call_sites);
 
-        let (file_class_inits, file_class_ctor_call_sites) = collect_class_inits(
-            source,
-            file,
-            index,
-            type_kinds,
-            typecheck_types,
-            types,
-            builtins,
-        );
+        let (file_class_inits, file_class_ctor_call_sites) =
+            collect_class_inits(init_collection_cx, types);
         class_inits.extend(file_class_inits);
         ctor_call_sites.extend(file_class_ctor_call_sites);
     }
@@ -2061,6 +2108,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
                 default_arg_structs: default_arg_structs.clone(),
                 value_type_computed_properties: &value_type_computed_properties,
                 builtins,
+                materialize_direct_call_targets: false,
             },
         );
         let file = ctx.lower_file();
@@ -2093,6 +2141,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             &index,
             &type_kinds,
             None,
+            false,
             &mut types,
             builtins,
         );
@@ -2332,6 +2381,7 @@ pub fn lower_for_compilation_unit(
                 default_arg_structs: default_arg_structs.clone(),
                 value_type_computed_properties: &value_type_computed_properties,
                 builtins,
+                materialize_direct_call_targets: true,
             },
         );
         let file_hir = ctx.lower_file();
@@ -2362,6 +2412,7 @@ pub fn lower_for_compilation_unit(
             index,
             &type_kinds,
             None,
+            true,
             &mut types,
             builtins,
         );
@@ -2564,6 +2615,13 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
             instance_mode: CompilationUnitInstanceMode::GenericTemplateOnly,
         }
     }
+
+    fn materialize_direct_call_targets(&self) -> bool {
+        !matches!(
+            self.instance_mode,
+            CompilationUnitInstanceMode::GenericTemplateOnly
+        )
+    }
 }
 
 fn lower_for_compilation_unit_multi_files_internal<'a>(
@@ -2575,6 +2633,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     typecheck_types: &TypeStore,
     options: CompilationUnitLoweringOptions<'a>,
 ) -> Result<LoweredHir, HirLowerError> {
+    let materialize_direct_call_targets = options.materialize_direct_call_targets();
     let CompilationUnitLoweringOptions { instance_mode } = options;
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
@@ -2642,6 +2701,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                     default_arg_structs: default_arg_structs.clone(),
                     value_type_computed_properties: &value_type_computed_properties,
                     builtins,
+                    materialize_direct_call_targets,
                 },
             );
             let file_hir = ctx.lower_file();
@@ -2717,6 +2777,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             index,
             &type_kinds,
             Some(typecheck_types),
+            materialize_direct_call_targets,
             &mut types,
             builtins,
         );
@@ -2876,6 +2937,7 @@ pub(crate) struct LoweringInputs<'a> {
     pub(crate) compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     pub(crate) types: &'a mut TypeStore,
     pub(crate) builtins: BuiltinTypes,
+    pub(crate) materialize_direct_call_targets: bool,
 }
 
 pub(super) struct BoundMemberFunLoweringTarget<'a> {
@@ -2920,6 +2982,7 @@ pub(crate) fn lower_fun_with_bindings(
         compilation_unit,
         types,
         builtins,
+        materialize_direct_call_targets,
     } = inputs;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let delegated_properties = collect_delegated_properties(compilation_unit);
@@ -2939,6 +3002,7 @@ pub(crate) fn lower_fun_with_bindings(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            materialize_direct_call_targets,
         },
     );
     let type_bindings = type_bindings.into_iter().collect::<Vec<_>>();
@@ -3000,6 +3064,7 @@ pub(crate) fn lower_member_fun_with_bindings(
         compilation_unit,
         types,
         builtins,
+        materialize_direct_call_targets,
     } = inputs;
     let BoundMemberFunLoweringTarget {
         owner_fqn,
@@ -3025,6 +3090,7 @@ pub(crate) fn lower_member_fun_with_bindings(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            materialize_direct_call_targets,
         },
     );
     // 先绑定 owner type params（例如 class Box<T> 的 T → Int），
@@ -3079,6 +3145,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         compilation_unit,
         types,
         builtins,
+        materialize_direct_call_targets,
     } = inputs;
     let BoundValuePropertyGetterLoweringTarget {
         owner_fqn,
@@ -3104,6 +3171,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            materialize_direct_call_targets,
         },
     );
     let owner_type_bindings = owner_type_bindings.into_iter().collect::<Vec<_>>();
@@ -3671,6 +3739,246 @@ mod tests {
             &types,
         )
         .unwrap()
+    }
+
+    fn lower_typed_single_source_file_via_mir_instance_collection(
+        sess: &Session,
+        source: &SourceFile,
+    ) -> LoweredHir {
+        let mut ast = parse_file(source).unwrap();
+        {
+            let sources = [source];
+            let mut files = [&mut ast];
+            crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+                sess.sysroot(),
+                &sources,
+                &mut files,
+            )
+            .unwrap();
+        }
+
+        typecheck::check_file_headers(source, &ast).unwrap();
+        typecheck::check_file_struct_decls(source, &ast).unwrap();
+
+        let index = {
+            let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &sess.sysroot().files {
+                unit.push((&file.source, &file.ast));
+            }
+            unit.push((source, &ast));
+            Index::build(&unit).unwrap()
+        };
+        let headers = crate::resolve::check_file_headers(source, &ast, &index).unwrap();
+        crate::resolve::check_file_bodies(source, &mut ast, &index, &headers).unwrap();
+
+        let mut env = typecheck::TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(source, &ast, &index).unwrap();
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        typecheck::check_file_annotations(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_properties(source, &ast, &index, &env).unwrap();
+        typecheck::check_file_inheritance(source, &ast, &index).unwrap();
+        typecheck::check_file_interfaces(source, &ast, &index, &env).unwrap();
+        typecheck::check_file_override_effects(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_refs(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_where_clauses(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_overload_conflicts(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_exprs(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &sess.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((source, &ast));
+
+        lower_for_compilation_unit_multi_files_via_mir_instance_collection(
+            &index,
+            &unit,
+            &[(source, &ast)],
+            &[],
+            Some(&env),
+            &types,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t5000e3d_via_mir_instances>",
+            r#"
+package fixtures.t5000e3d
+
+import scoop.core.*
+
+fun <T> id(x: T): T { return x }
+
+object Box {
+    fun <T> memberId(x: T): T { return id(x) }
+}
+
+fun main(): Int {
+    val a: Int = id(1)
+    val b: Int = Box.memberId(2)
+    return a + b
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file_via_mir_instance_collection(&sess, &source);
+
+        let main = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t5000e3d.main" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t5000e3d.main");
+        let main_body = main.body.as_ref().expect("main 应有 body");
+        assert!(
+            find_top_level_call_in_block(main_body, "fixtures.t5000e3d.id::<Int>").is_some(),
+            "via-mir compilation-unit lowering 应把 standalone generic direct-call 物化为实例目标"
+        );
+        assert!(
+            find_top_level_call_in_block(main_body, "fixtures.t5000e3d.Box.memberId::<Int>")
+                .is_some(),
+            "via-mir compilation-unit lowering 应把 generic member direct-call 物化为实例目标"
+        );
+
+        let member_fun = lowered
+            .member_funs
+            .iter()
+            .find(|fun| fun.fqn == "fixtures.t5000e3d.Box.memberId::<Int>")
+            .expect("应收集到 Box.memberId::<Int> 单态成员实例");
+        let member_body = member_fun.body.as_ref().expect("memberId::<Int> 应有 body");
+        assert!(
+            find_top_level_call_in_block(member_body, "fixtures.t5000e3d.id::<Int>").is_some(),
+            "单态成员实例体内的 generic direct-call 应直接指向已实例化 target"
+        );
+    }
+
+    #[test]
+    fn typed_hir_dump_keeps_generic_direct_calls_as_template_targets() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t5000e3d_typed_dump>",
+            r#"
+package fixtures.t5000e3d
+
+import scoop.core.*
+
+fun <T> id(x: T): T { return x }
+
+object Box {
+    fun <T> memberId(x: T): T { return id(x) }
+}
+
+fun main(): Int {
+    val a: Int = id(1)
+    val b: Int = Box.memberId(2)
+    return a + b
+}
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &source).unwrap();
+
+        let main = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t5000e3d.main" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t5000e3d.main");
+        let main_body = main.body.as_ref().expect("main 应有 body");
+        assert!(
+            find_top_level_call_in_block(main_body, "fixtures.t5000e3d.id").is_some(),
+            "typed dump 仍应保留 standalone generic direct-call 的 template target"
+        );
+        assert!(
+            find_top_level_call_in_block(main_body, "fixtures.t5000e3d.id::<Int>").is_none(),
+            "typed dump 不应提前把 standalone generic direct-call 物化为实例目标"
+        );
+
+        let member_fun = lowered
+            .member_funs
+            .iter()
+            .find(|fun| fun.fqn == "fixtures.t5000e3d.Box.memberId")
+            .expect("typed dump 应保留 generic member template");
+        let member_body = member_fun
+            .body
+            .as_ref()
+            .expect("memberId template 应有 body");
+        assert!(
+            find_top_level_call_in_block(member_body, "fixtures.t5000e3d.id").is_some(),
+            "typed dump 中 generic member template 体内的 direct-call 仍应指向 template target"
+        );
+        assert!(
+            find_top_level_call_in_block(member_body, "fixtures.t5000e3d.id::<Int>").is_none(),
+            "typed dump 不应提前把 generic member template 体内的 direct-call 物化为实例目标"
+        );
     }
 
     #[test]
@@ -5186,8 +5494,8 @@ async fun fetch(): Int {
             .expect("应收集到 fixtures.t4016d.fetch");
         let fetch_body = fetch_fun.body.as_ref().expect("fetch 应有 body");
         let pending_call =
-            find_top_level_call_in_block(fetch_body, "scoop.core.__task_step_pending")
-                .expect("async lowering 应生成私有 task pending helper 调用");
+            find_top_level_call_in_block(fetch_body, "scoop.core.__task_step_pending::<Int>")
+                .expect("codegen 用 lowering 应把私有 task pending helper 物化为具体实例目标");
 
         let ExprKind::Call { args, .. } = &pending_call.kind else {
             panic!("__task_step_pending 应为 call expr");
@@ -5207,6 +5515,47 @@ async fun fetch(): Int {
         assert_eq!(
             lowered.types.display(continuation_expr.ty).to_string(),
             "scoop.core.Continuation<(Int, Any), scoop.core.__TaskStepResult<Int>>"
+        );
+    }
+
+    #[test]
+    fn typed_hir_dump_keeps_async_step_helpers_as_template_targets() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t5000e3d_async_dump>",
+            r#"
+package fixtures.t5000e3d
+
+import scoop.core.*
+
+async fun fetch(): Int {
+    val task: Task<Int> = async { 41 }
+    val value: Int = await task
+    return value + 1
+}
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &source).unwrap();
+        let fetch_fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t5000e3d.fetch" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t5000e3d.fetch");
+        let fetch_body = fetch_fun.body.as_ref().expect("fetch 应有 body");
+
+        assert!(
+            find_top_level_call_in_block(fetch_body, "scoop.core.__task_step_pending").is_some(),
+            "typed dump 应保留 async task helper 的模板目标"
+        );
+        assert!(
+            find_top_level_call_in_block(fetch_body, "scoop.core.__task_step_pending::<Int>")
+                .is_none(),
+            "typed dump 不应提前把 async task helper 物化为实例目标"
         );
     }
 

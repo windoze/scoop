@@ -349,6 +349,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
                 compilation_unit: &compilation_unit,
                 types: &mut types,
                 builtins,
+                materialize_direct_call_targets: false,
             },
             fun,
             bindings,

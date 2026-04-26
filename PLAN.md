@@ -1253,6 +1253,25 @@
     - 现行文档与 fixtures 已统一收口到程序边界 `main`，后续无需再为 `scoop.process.args()` 保留兼容语义；
     - 当前未发现需要插入到 `T5000e3d` 之前的新前置缺陷任务。
   - 下一条待执行任务切换为 `T5000e3d 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径`。
+- 2026-04-27：`T5000e3d 让 LLVM codegen 消费已实例化 target identity，并删除现场猜测 monomorphized target 的主路径` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/hir/lower/{mod,expr,block}.rs` 与 `hir/lower/util.rs` 现新增 `materialize_direct_call_targets` lowering 模式位，并将其贯穿 compilation-unit / explicit-instance / via-MIR-instance lowering 入口；只有可 codegen 的 lowering 会把非 intrinsic direct-call target 物化为稳定实例 FQN，`lower_for_dump` / `lower_typed_for_dump` / generic-template-only 路径继续保留 template target；
+    - standalone / member / extension direct-call lowering 现统一复用 typecheck 写回的 `TopLevelFunCallBinding`，在 active type/effect bindings 重放后直接生成最终实例 FQN；`task.create`、`task.stepReady`、`task.stepPending` 等 async task helper 也改为显式携带 type args，经同一 helper 进入物化逻辑；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 已删除 `try_resolve_monomorphized_member_fqn`、`try_resolve_monomorphized_standalone_fun_fqn` 及其相关现场推断辅助函数；LLVM backend 主路径不再承担“根据 mangled FQN 猜 monomorphic callee”的职责。
+  - 过程中暴露并修复的问题：
+    - HIR 把 generic direct-call callee 物化为实例 FQN 后，`crates/scoopc/src/llvm/codegen/call/dispatch.rs` 中仍有一批 sysroot / builtin special-case dispatch 只按模板名建模，像 `scoop.core.println::<Int>` 会绕过 builtin lowering 并掉到错误的静态调用路径；
+    - 现已在 `call/dispatch.rs` 中补入一个窄的 template-FQN 归一化 helper，仅供 sysroot / builtin special-case、vtable / itable slot 识别等仍看模板名的路径使用；普通静态 direct-call 继续用完整实例 FQN 命中 `fun_index`，从而保持“backend 消费实例身份、少数 legacy special-case 消费模板名”的清晰分工。
+  - 回归测试：
+    - `crates/scoopc/src/hir/lower/mod.rs` 新增 `compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets` 与 `typed_hir_dump_keeps_generic_direct_calls_as_template_targets`，分别锁定 compilation-unit lowering 物化实例 target 与 typed dump 保持 generic template 的边界；
+    - `crates/scoopc/src/llvm/tests.rs` 新增 `lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls`，直接覆盖 materialized `scoop.core.println::<T>` 仍会走 builtin print lowering 的回归场景。
+  - 验证结果：
+    - `cargo test -p scoopc lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls -- --nocapture`
+    - `cargo test -p scoopc llvm:: -- --nocapture`
+    - `cargo test -p scoopc`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000e3dR Review：确认 LLVM backend 已退出单态目标猜测主职责`。
 
 ## 1. 当前判断
 
