@@ -4084,6 +4084,73 @@ fun entry(): Int / Boom {
     }
 
     #[test]
+    fn typechecked_compilation_unit_materialization_skips_unreachable_generic_requests_from_non_request_sources()
+     {
+        let sess = Session::new().unwrap();
+        let helper_source = SourceFile::new_virtual(
+            "<mem>/materialize_unreachable_helper.scoop",
+            r#"
+package fixtures.materialize
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun helperOnly(): Int {
+    return id(1)
+}
+"#,
+        );
+        let main_source = SourceFile::new_virtual(
+            "<mem>/materialize_unreachable_main.scoop",
+            r#"
+package fixtures.materialize
+
+fun entry(): Int {
+    return 0
+}
+"#,
+        );
+        let (files, index, env, types, monomorph_keys) =
+            prepare_typechecked_compilation_unit_inputs(
+                &sess,
+                vec![helper_source, main_source.clone()],
+                &[1],
+            );
+        let compilation_unit = files
+            .iter()
+            .map(|(source, ast)| (source, ast))
+            .collect::<Vec<_>>();
+        let request_source_paths = vec![main_source.path().to_path_buf()];
+        let lowered =
+            crate::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
+            &index,
+            &compilation_unit,
+            &compilation_unit,
+            &request_source_paths,
+            &monomorph_keys,
+            Some(&env),
+            &types,
+        )
+        .unwrap();
+
+        assert!(
+            lowered.file.items.iter().any(|item| matches!(
+                item,
+                crate::hir::Item::Fun(fun) if fun.fqn == "fixtures.materialize.helperOnly"
+            )),
+            "support source 仍应参与 lowering，保证 helper 实现体继续进入 HIR 兼容输出"
+        );
+        assert!(
+            lowered.file.items.iter().all(|item| !matches!(
+                item,
+                crate::hir::Item::Fun(fun) if fun.fqn == "fixtures.materialize.id::<Int>"
+            )),
+            "未被 request-root 路径触达的 helper-only generic 实例不应被物化进 HIR 兼容输出"
+        );
+    }
+
+    #[test]
     fn typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls()
      {
         let sess = Session::new().unwrap();

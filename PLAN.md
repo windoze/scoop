@@ -1291,6 +1291,30 @@
     - MIR `InstanceKey` 与已物化实例 HIR 已可作为后续 summary / devirt / inline / effect planning 的稳定前置边界；
     - 当前未发现需要插入到 `T5000e3R` 之前的新前置缺陷任务。
   - 下一条待执行任务切换为 `T5000e3R Review：确认 monomorphization 与 program-boundary / sysroot 收口已形成稳定前置边界`。
+- 2026-04-27：`T5000e3R Review：确认 monomorphization 与 program-boundary / sysroot 收口已形成稳定前置边界` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/mir/{mod,materialize.rs}`、`crates/scoopc/src/monomorph/mod.rs`、`crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/llvm/{frontend.rs,codegen/call/dispatch.rs}`：`InstanceKey` 仍独立于 backend 符号名，由 `TemplateKey + type_args + eff_args` 组成；实例身份先在 MIR 层建立，再由 HIR 兼容输出与 LLVM backend 消费；
+    - 已重新核对 program-boundary / sysroot 收口现状：当前生产路径继续以 `scoop.core.panic` 与 executable `main(args?) -> Unit|Int` contract 为准，没有发现把旧 `scoop.process` / 早期 sysroot 约定重新长回来的兼容层；
+    - 已确认实例收集与缓存边界当前依赖 request-root 语义与 MIR per-instance cache，而不是 LLVM backend 现场补救：`collect_request_root_fun_keys(...)`、`collect_hir_direct_call_instance_requests(...)`、`instance_request_is_concrete(...)` 以及 `queued/materialized/declaration_only_instances` 去重缓存共同构成当前 `-O0` / debug build 路径的最小固定成本护栏。
+  - review 过程中暴露并修复的既有问题：
+    - single-file LLVM frontend 原先会让 stdlib/helper support sources 一并收集 `monomorph_keys`，并默认把所有 lowering 输入文件都当作 request roots；这会把 support source 中未被入口触达的 generic 调用错误提升为实例收集种子，扩大 `-O0` / debug build 固定成本；
+    - 现已在 `crates/scoopc/src/hir/lower/mod.rs` 新增 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，显式区分“参与 lowering 的文件集合”和“允许贡献实例请求的 request roots”；
+    - `crates/scoopc/src/llvm/frontend.rs` 现已只让入口源文件收集 `monomorph_keys`；support sources 继续参与 lowering / codegen，但不再作为实例请求根。
+  - 新增/更新回归：
+    - `crates/scoopc/src/mir/materialize.rs` 新增 `typechecked_compilation_unit_materialization_skips_unreachable_generic_requests_from_non_request_sources`，锁定 support source 仍进入 HIR 兼容输出，但其 helper-only generic 调用不会被 request-root 语义错误物化；
+    - 复跑 `crates/scoopc/src/llvm/tests.rs` 中的 `frontend_codegen_consumes_materialized_generic_direct_call_instances` 与 `single_file_frontend_keeps_distinct_effect_row_generic_instances`，确认前端经由 MIR 的实例物化链路未被新边界打断。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc typechecked_compilation_unit_materialization_skips_unreachable_generic_requests_from_non_request_sources -- --nocapture`
+    - `cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`
+    - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：
+    - monomorphization 的主语义、主实例身份与主缓存边界现已稳定收口到 MIR/request-root 语义；
+    - program-boundary 与 sysroot 最小契约也已稳定；
+    - 下一条待执行任务切换为 `T5000f 建立 per-instance summary 基础设施`。
 
 ## 1. 当前判断
 

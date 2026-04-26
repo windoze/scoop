@@ -24,8 +24,10 @@ pub(super) struct SingleFileCodegenUnit {
 /// - `session.sysroot().files` 继续只提供签名型 sysroot；
 /// - `stdlib/*.scoop` 与 `session.sysroot().compilable_source_paths` 中的纯 Scoop 实现文件会与当前
 ///   输入文件一起进入 resolve/typecheck/lowering；
-/// - 这样 single-file LLVM 路径就能复用 build 管线需要的 typecheck side table、monomorph keys
-///   与多文件 lowering，不再依赖 `lower_for_dump` 的最小调试路径。
+/// - 但只有入口源文件本身允许贡献 monomorphization 请求种子；support sources 只作为可被调用的
+///   实现体参与 lowering / codegen，避免把它们内部未被入口触达的 generic 调用提升为实例根；
+/// - 这样 single-file LLVM 路径就能复用 build 管线需要的 typecheck side table 与多文件 lowering，
+///   同时不再依赖 `lower_for_dump` 的最小调试路径。
 pub(super) fn prepare_single_file_codegen_unit(
     session: &Session,
     entry_source: &SourceFile,
@@ -80,7 +82,12 @@ pub(super) fn prepare_single_file_codegen_unit(
     let builtins = typecheck_types.intern_builtins();
     let mut monomorph_keys = Vec::new();
 
-    for ((source, ast), header) in input_sources.iter().zip(asts.iter()).zip(headers.iter()) {
+    for (source_index, ((source, ast), header)) in input_sources
+        .iter()
+        .zip(asts.iter())
+        .zip(headers.iter())
+        .enumerate()
+    {
         crate::typecheck::check_file_annotations(
             source,
             ast,
@@ -137,17 +144,30 @@ pub(super) fn prepare_single_file_codegen_unit(
         )
         .map_err(frontend_error)?;
 
-        let keys = crate::typecheck::check_file_exprs_with_monomorph_keys(
-            source,
-            ast,
-            &index,
-            &header.imports,
-            &env,
-            &mut typecheck_types,
-            builtins,
-        )
-        .map_err(frontend_error)?;
-        monomorph_keys.extend(keys);
+        if source_index == entry_index {
+            let keys = crate::typecheck::check_file_exprs_with_monomorph_keys(
+                source,
+                ast,
+                &index,
+                &header.imports,
+                &env,
+                &mut typecheck_types,
+                builtins,
+            )
+            .map_err(frontend_error)?;
+            monomorph_keys.extend(keys);
+        } else {
+            crate::typecheck::check_file_exprs(
+                source,
+                ast,
+                &index,
+                &header.imports,
+                &env,
+                &mut typecheck_types,
+                builtins,
+            )
+            .map_err(frontend_error)?;
+        }
     }
 
     crate::typecheck::check_file_type_layouts(&index, &env, &mut typecheck_types, builtins)
@@ -166,10 +186,13 @@ pub(super) fn prepare_single_file_codegen_unit(
         .iter()
         .zip(asts.iter())
         .collect::<Vec<(&SourceFile, &ast::File)>>();
-    let lowered = hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection(
+    let request_source_paths = vec![entry_source.path().to_path_buf()];
+    let lowered =
+        hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
         &index,
         &compilation_unit,
         &files_to_lower,
+        &request_source_paths,
         &monomorph_keys,
         Some(&env),
         &typecheck_types,

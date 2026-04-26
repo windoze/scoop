@@ -2534,9 +2534,38 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection(
         .iter()
         .map(|(source, _)| source.path().to_path_buf())
         .collect::<Vec<_>>();
+    lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
+        index,
+        compilation_unit,
+        files_to_lower,
+        &request_source_paths,
+        monomorph_keys,
+        type_env,
+        typecheck_types,
+    )
+}
+
+/// 为 build / frontend 生成“由 MIR instance collection 决定实例集合”的 HIR 兼容输入，
+/// 但允许把“参与 lowering 的文件集合”和“允许贡献实例请求的 request roots”显式分离。
+///
+/// 说明：
+/// - `files_to_lower` 仍决定哪些文件的顶层声明 / body 会进入 HIR 兼容输出；
+/// - `request_source_paths` 只决定哪些源文件可以贡献 monomorphization 请求与 request-root
+///   可达扫描；
+/// - 这样 frontend 就能把 stdlib/helper/support sources 留在 lowering / fun_index 中，
+///   同时避免把这些支持文件里未被入口触达的 generic 调用错误提升为实例收集种子。
+pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    files_to_lower: &[(&SourceFile, &ast::File)],
+    request_source_paths: &[std::path::PathBuf],
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &TypeStore,
+) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
     let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
         compilation_unit,
-        &request_source_paths,
+        request_source_paths,
         index,
         type_env,
         typecheck_types,

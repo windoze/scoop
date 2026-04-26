@@ -1327,7 +1327,7 @@
   - 已验证 `cargo test -p scoopc compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets -- --nocapture`、`cargo test -p scoopc typed_hir_dump_keeps_generic_direct_calls_as_template_targets -- --nocapture`、`cargo test -p scoopc lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls -- --nocapture`、`cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`、`cargo fmt --all`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
   - review 结论：LLVM backend 已退出 ordinary static direct-call 的单态目标猜测主职责；后续 `T5000e3R` / summary / devirt / inline / effect planning 可以把 MIR `InstanceKey` 与已物化实例 HIR 作为稳定前置边界继续推进。
 
-### [TODO] T5000e3R Review：确认 monomorphization 与 program-boundary / sysroot 收口已形成稳定前置边界
+### [DONE] T5000e3R Review：确认 monomorphization 与 program-boundary / sysroot 收口已形成稳定前置边界
 - 重点：
   - `InstanceKey` 是否真正独立于 backend 符号名；
   - 是否仍有大量单态化职责遗留在 LLVM codegen；
@@ -1337,6 +1337,13 @@
   - monomorphization 的主语义与主数据结构已经明确属于 MIR，而不是 HIR 或 LLVM codegen；
   - 后续 summary / devirt / inline 可以建立在当前 program-boundary 与 sysroot 最小契约之上，而不是继续背着旧 surface。
 - 依赖：T5000e3dR
+- 完成记录（2026-04-27）：
+  - 已复核 `crates/scoopc/src/mir/{mod,materialize.rs}`、`crates/scoopc/src/monomorph/mod.rs`、`crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/llvm/{frontend.rs,codegen/call/dispatch.rs}` 与相关回归测试：`InstanceKey` 仍由 `TemplateKey + type_args + eff_args` 构成，实例身份先在 MIR 层建立，再由 HIR 兼容输出与 LLVM backend 消费；LLVM backend 侧未重新长回按 backend 符号名承担 monomorphization 主语义的路径。
+  - review 过程中暴露并修复了一个既有前端边界缺口：single-file LLVM frontend 之前会让 stdlib/helper support sources 一并收集 `monomorph_keys`，并默认把所有 lowering 输入文件都当作 request roots；这会把 support source 中未被入口触达的 generic 调用错误提升为实例收集种子。现已在 `crates/scoopc/src/hir/lower/mod.rs` 新增 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，显式分离“参与 lowering 的文件集合”和“允许贡献实例请求的 request roots”，并在 `crates/scoopc/src/llvm/frontend.rs` 中收紧为仅入口源文件收集 `monomorph_keys`、support sources 继续参与 lowering/codegen 但不再作为实例请求根。
+  - 已在 `crates/scoopc/src/mir/materialize.rs` 新增 `typechecked_compilation_unit_materialization_skips_unreachable_generic_requests_from_non_request_sources`，锁定 support source 仍进入 HIR 兼容输出、但其 helper-only generic 调用不会被 request-root 语义错误物化；同时复跑 `frontend_codegen_consumes_materialized_generic_direct_call_instances` 与 `single_file_frontend_keeps_distinct_effect_row_generic_instances`，确认前端经由 MIR 的实例物化主链仍保持正确。
+  - 已重新核对 program-boundary / sysroot 收口现状：现行 surface 继续以 `scoop.core.panic` 与 executable `main(args?) -> Unit|Int` contract 为准，未再发现把旧 `scoop.process` / 早期 sysroot 约定重新长回生产路径的兼容层；实例收集与缓存方面，`collect_request_root_fun_keys(...)`、`collect_hir_direct_call_instance_requests(...)`、`instance_request_is_concrete(...)` 以及 `queued/materialized/declaration_only_instances` 去重缓存，现已与单文件 frontend 的 request-root 语义对齐，`-O0` / debug build 路径不会再被 support-source helper-only generic 调用平白放大。
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc typechecked_compilation_unit_materialization_skips_unreachable_generic_requests_from_non_request_sources -- --nocapture`、`cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`、`cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+  - review 结论：monomorphization 的主语义、主实例身份与主缓存边界已稳定收口到 MIR/request-root 语义；program-boundary 与 sysroot 最小契约也已稳定，后续 `T5000f` 的 per-instance summary 可以直接建立在当前边界之上。
 
 ### [TODO] T5000f 建立 per-instance summary 基础设施
 - 范围：

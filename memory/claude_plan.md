@@ -1,58 +1,72 @@
-# 当前执行记录
+# 当前执行计划
 
-## 工作思路摘要
+说明：按要求记录可审阅的推理摘要与执行计划；这里提供高层判断、风险点与步骤，不包含内部私有思维细节。
 
-- 先建立一份可追踪的执行计划文件，后续在关键步骤完成或计划调整时持续更新。
-- 优先检查最新一次 Git 提交，确认提交说明或相关改动中是否提到既有问题；如果发现已有问题，先修复该问题，再考虑 `TODO.md` 中的计划任务。
-- 读取 `TODO.md`，定位第一个未完成任务。
-- 如果该任务过大，则拆分为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
-- 对本轮目标任务执行实现、测试、文档更新、提交，完成后立即停止。
+## 目标
 
-## 分步计划
+本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行前或执行中发现更早的前置问题、最新提交提到的遗留问题、或任何现存缺陷/规约不匹配，则优先修复该问题，或将其作为前置任务插入 `TODO.md` 并停止。
 
-1. 检查最新 Git 提交，确认是否存在被明确提到但尚未修复的既有问题。
-2. 阅读 `TODO.md`，识别第一个未完成任务及其依赖关系。
-3. 视复杂度决定是否需要拆分任务，并在必要时更新 `PLAN.md` 与 `TODO.md`。
-4. 阅读与目标任务直接相关的代码、测试、规格或文档，确认当前实现边界。
-5. 实现目标任务，避免通过变通方式绕过已有缺陷；若遇到阻塞性既有问题，先修复或将其作为前置任务写回 `TODO.md`。
-6. 运行相关测试与必要的质量检查，至少覆盖本次变更涉及的路径；若需要，补充或修复测试。
-7. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md`，记录完成情况与计划变化。
-8. 提交本轮变更，提交信息对应本轮完成的任务，然后停止。
+## 初始步骤
 
-## 当前状态
+1. 检查最新一次 git 提交信息，确认是否明确提到待修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，理解现有计划与任务上下文。
+4. 结合任务相关代码、测试、规范与最近提交，判断该任务是否可在本轮完整完成。
+5. 若任务过大，则先把任务拆分为更小的子任务，更新 `PLAN.md` 和 `TODO.md`，然后只执行新的第一个子任务。
 
-- 已创建执行记录文件。
-- 已检查最新提交：`56376503f351a0e05783e580f78880a9b36c532d [T5000e3d] Materialize direct-call targets before LLVM codegen`。
-- 已读取 `TODO.md` / `PLAN.md`，当前首个未完成任务是 `T5000e3dR Review：确认 LLVM backend 已退出单态目标猜测主职责`。
+## 执行原则
 
-## 当前 review 聚焦点
+1. 不接受变通方案、夹具特判或规约偏离。
+2. 发现现存 bug、回归、缺失实现边界、错误诊断、运行时问题、测试只靠绕过才能通过等情况时，立即视为当前范围内问题。
+3. 若问题阻塞当前任务，则先修复；若本轮无法直接修复，则在 `TODO.md` 中把修复任务插到依赖它的任务之前，更新 `PLAN.md` 后提交并停止。
 
-- 核对 HIR lowering 是否已在 codegen 主路径上把 standalone / member / extension direct-call target 统一物化为稳定实例 FQN。
-- 核对 LLVM backend 中普通静态 direct-call 是否已只按完整实例 FQN 命中 `fun_index`，不再保留 `try_resolve_monomorphized_*` 一类现场补救逻辑。
-- 核对仍保留的模板名消费路径是否已经收口为窄边界，例如 sysroot/builtin special-case、vtable / itable dispatch。
-- 核对 via-MIR compilation-unit lowering 是否确实以 `InstanceKey` 驱动实例收集与 member 实例生成，而不是重新退回 backend 猜测。
+## 实施步骤
 
-## 当前观察
+1. 收集上下文：最新提交、`TODO.md`、`PLAN.md`、相关源码/测试/规范。
+2. 明确本轮目标任务及其验收标准。
+3. 修改实现。
+4. 运行相关测试；如有必要，逐步扩大到更完整的校验，包括格式化、测试、`clippy` 等。
+5. 修复测试或实现中的所有发现问题。
+6. 更新 `TODO.md` 与 `PLAN.md`，记录完成情况或依赖调整。
+7. 提交 git commit，提交信息与任务编号/内容一致。
+8. 停止，等待下一轮调用。
 
-- `hir/lower/expr.rs` 中 direct-call lowering 已统一经 `materialized_top_level_fun_call_target_fqn(...)` 回放 typecheck `TopLevelFunCallBinding`。
-- `llvm/codegen/call/dispatch.rs` 中普通静态 direct-call 已直接按完整 FQN 查 `fun_index`；模板名归一化 helper 目前只用于 sysroot/builtin special-case 与 vtable / itable 路径。
-- `hir/lower/mod.rs` 的 via-MIR compilation-unit lowering 已改为 `ExplicitMirInstances` 模式下按 `InstanceKey` 生成单态 fun/member 实例。
-- `llvm/emit.rs` 中仍可见少量模板名导向的 generic member eager inclusion 兜底，但它不再参与 ordinary static direct-call 的目标解析主线；当前 review 未发现它构成 `T5000e3dR` 前置阻塞缺陷。
+## 当前已知风险
 
-## 本轮验证结果
+1. 任务可能依赖尚未实现的语言特性、运行时能力或标准库行为。
+2. 仓库可能存在与当前任务无关但在探测中暴露的既有问题；若属于现存缺陷且影响正确性，需要先处理或排入前置。
+3. 工作区可能不是干净状态；需要避免覆盖用户已有修改。
 
-- 已新增 LLVM 回归测试 `frontend_codegen_consumes_materialized_generic_direct_call_instances`，同时从 via-MIR frontend lowering 和生成的 LLVM IR 两层锁定 `id::<Int>` / `Box.memberId::<Int>` 的实例身份。
-- 已通过定向测试：
-  - `cargo test -p scoopc compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets -- --nocapture`
-  - `cargo test -p scoopc typed_hir_dump_keeps_generic_direct_calls_as_template_targets -- --nocapture`
-  - `cargo test -p scoopc lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls -- --nocapture`
-  - `cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`
-- 已通过质量检查：
-  - `cargo fmt --all`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
+## 进度记录
 
-## 当前状态
-
-- `T5000e3dR` 的 review 结论已经形成，未发现需要插入到下一条任务之前的新前置缺陷任务。
-- 正在回写 `TODO.md` / `PLAN.md` 并准备提交本轮变更。
+- 已创建本计划文件。
+- 已检查最新提交、`TODO.md` 与 `PLAN.md`，确认最新提交未明确留下需先修复的新遗留问题；当前首个未完成任务是 `T5000e3R Review：确认 monomorphization 与 program-boundary / sysroot 收口已形成稳定前置边界`。
+- 已收集到的关键证据：
+  - `InstanceKey` 定义在 `crates/scoopc/src/mir/materialize.rs`，身份由 `TemplateKey + type_args + eff_args` 构成，未把 backend 符号名编码进 key 本身；
+  - `llvm/frontend.rs` 的单文件 codegen 主路径已经经由 `lower_for_compilation_unit_multi_files_via_mir_instance_collection(...)`，不再走 dump-only lowering；
+  - `hir/lower/mod.rs` 的 `ExplicitMirInstances` 分支仅消费 `InstanceKey` 集合来生成 HIR 兼容输出，实例发现职责已转交 MIR；
+  - `mir/materialize.rs` 已存在 request-root 过滤、concrete-only request 过滤、去重队列与 per-instance materialization cache。
+- 新发现的风险点：
+  - `seed_requests(...)` 目前会直接把整个编译单元收集到的 `monomorph_keys` 作为初始请求种子；
+  - 而单文件 frontend 会为 support sources 一并运行 `check_file_exprs_with_monomorph_keys(...)`；
+  - 如果 support source 既参与 lowering，又被错误当作 request root，则其中未被入口触达的 concrete generic 调用会被错误 materialize，破坏 request-root 裁剪并增加 `-O0` / debug build 固定成本。
+- 已验证并修复的既有问题：
+  - 通过新增回归测试确认：当“参与 lowering 的文件集合”大于“允许贡献实例请求的 request roots”时，现有主路径缺少显式分离接口，容易把 support source 一并当作 request roots；
+  - 已在 `crates/scoopc/src/hir/lower/mod.rs` 新增 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，显式区分 lowering 输入和 request roots；
+  - 已在 `crates/scoopc/src/llvm/frontend.rs` 收紧单文件 frontend：仅入口源文件收集 `monomorph_keys`，support sources 继续参与 lowering/codegen，但不再作为实例请求根；
+  - 新增/更新回归测试后，问题已被锁定且修复。
+- 当前验证进度：
+  - `cargo fmt --all` 已通过；
+  - `cargo test -p scoopc typechecked_compilation_unit_materialization_skips_unreachable_generic_requests_from_non_request_sources -- --nocapture` 已通过；
+  - `cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture` 已通过；
+  - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture` 已通过。
+- 已完成的整体验证：
+  - `cargo test --all` 已通过；
+  - `cargo clippy --all-targets -- -D warnings` 已通过。
+- 文档状态：
+  - `TODO.md` 已将 `T5000e3R` 标记为完成，并记录本轮 review 结论与修复的前置缺口；
+  - `PLAN.md` 已补充 `T5000e3R` 完成记录，并把下一条待执行任务切换为 `T5000f`。
+- 本轮最终结论：
+  - `InstanceKey` / monomorphization 主语义、program-boundary / sysroot 最小契约、以及 request-root / per-instance cache 成本边界已形成稳定前置；
+  - review 中暴露的 single-file frontend support-source request-root 泄漏已修复；
+  - 下一步只剩提交本轮改动，然后停止，等待下一轮执行 `T5000f`。
