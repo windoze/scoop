@@ -1571,6 +1571,27 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000h0dR Review：确认 pass view 已成为可承载 rewrite 后 callable body / summary 的 canonical pass 输出层`。
+- 2026-04-27：`T5000h0dR Review：确认 pass view 已成为可承载 rewrite 后 callable body / summary 的 canonical pass 输出层` 已完成。
+  - review 结论：
+    - 已复核 `crates/scoopc/src/mir/pass_view.rs`、`materialize.rs`、`callables.rs`、`summary.rs`、`hir/lower/types.rs` 以及 production 侧 `llvm/{emit,frontend}.rs`、`llvm/codegen/mod.rs`、`scoop/src/commands/build.rs` 的接线，确认 `MaterializedMirPassView` 当前查询的是 `MaterializedMirPassArtifacts` 中的 canonical callable body / summary / family 映射，而不是继续透传 raw materialized MIR；
+    - 这意味着后续 MIR pass 可以把 rewrite 后的 body/summary/family 身份稳定写入 pass side table，再由 `T5000h0e` 直接把 production codegen 接到这层 canonical 表示，而不必另起一套输出结构。
+  - review 过程中发现并修复了一个既有一致性缺陷：
+    - `crates/scoopc/src/mir/callables.rs` 中 `MaterializedCallableFamilies::replace_family(...)` 之前只在 debug 下用 `debug_assert!` 阻止 callable 跨实例迁移；如果 release 构建中的 pass 把某个 callable 重挂到另一个 family，旧 family 的 `callable_fqns` 会静默残留该 symbol，从而让同一个 callable 同时出现在两个 family；
+    - 现已把 `replace_family(...)` 改为在重写时同步从旧 owner 的 `callable_fqns` 中移除迁出的 symbol，并对新输入做稳定去重，确保 canonical pass 输出层在 debug/release 下都保持单一 owner 语义。
+  - 新增回归：
+    - `mir::pass_view::tests::pass_view_rehomes_callable_across_families_without_leaving_duplicate_membership`
+    - 该测试锁定 pass family side table 在跨实例 rehome callable 时不会留下重复成员，同时 raw materialized family 仍保持不变。
+  - 阶段结论：
+    - `MaterializedMirPassView` 已经是可承载 rewrite 后 callable body / summary / family 的 canonical pass 输出层；
+    - review 未发现需要插入到 `T5000h0e` 之前的新前置缺陷任务；
+    - 下一条待执行任务切换为 `T5000h0e 让 production LLVM codegen 真正消费 pass-rewritten callable body / summary，而不是只携带 materialized_pass_view`。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::pass_view -- --nocapture`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ## 1. 当前判断
 

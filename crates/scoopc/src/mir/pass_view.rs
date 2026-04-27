@@ -346,6 +346,29 @@ fun main(): Int {
         )
     }
 
+    fn pass_view_cross_family_rehome_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/mir_pass_view_cross_family_rehome.scoop",
+            r#"
+package fixtures.mirpass
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> wrap(x: T): T {
+    return id<T>(x)
+}
+
+fun main(): Int {
+    val text = wrap<String>("hello")
+    val number = wrap<Int>(1)
+    return number
+}
+"#,
+        )
+    }
+
     #[test]
     fn pass_view_keeps_rewritten_body_and_summary_separate_from_raw_materialized_mir() {
         let sess = Session::new().unwrap();
@@ -504,6 +527,101 @@ fun main(): Int {
         assert_eq!(
             raw_callable_fqns_after, raw_callable_fqns_before,
             "raw family mapping 不应因 pass side table 重写而变化"
+        );
+    }
+
+    #[test]
+    fn pass_view_rehomes_callable_across_families_without_leaving_duplicate_membership() {
+        let sess = Session::new().unwrap();
+        let mut materialized =
+            materialize_for_dump(&sess, &pass_view_cross_family_rehome_source()).unwrap();
+
+        let (source_key, source_root, target_key, target_root, target_fqns) = {
+            let raw_view = materialized.callable_view();
+            let wrap_families = raw_view
+                .instances()
+                .filter(|family| family.key().template.fqn == "fixtures.mirpass.wrap")
+                .collect::<Vec<_>>();
+            assert_eq!(
+                wrap_families.len(),
+                2,
+                "fixture 应 materialize 出两个 `wrap` family"
+            );
+
+            let source_family = wrap_families
+                .iter()
+                .find(|family| family.root_fqn().contains("String"))
+                .expect("应能找到 `wrap::<String>` family");
+            let target_family = wrap_families
+                .iter()
+                .find(|family| family.root_fqn().contains("Int"))
+                .expect("应能找到 `wrap::<Int>` family");
+            (
+                source_family.key().clone(),
+                source_family.root_fqn().to_string(),
+                target_family.key().clone(),
+                target_family.root_fqn().to_string(),
+                target_family
+                    .callable_fqns()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>(),
+            )
+        };
+
+        materialized.pass_artifacts_mut().replace_callable_family(
+            target_key.clone(),
+            target_root.clone(),
+            target_fqns
+                .into_iter()
+                .chain(std::iter::once(source_root.clone()))
+                .collect(),
+        );
+
+        let pass_view = materialized.pass_view();
+        assert_eq!(
+            pass_view.owner_of_callable(&source_root),
+            Some(&target_key),
+            "迁移后的 callable 应只归属目标 family"
+        );
+
+        let source_family = pass_view
+            .instance(&source_key)
+            .expect("pass view 应继续保留源 family 身份");
+        assert!(
+            !source_family.callable_fqns().any(|fqn| fqn == source_root),
+            "源 family 不应继续保留已迁走的 callable 记录"
+        );
+        assert!(
+            source_family.root_body().is_none(),
+            "源 family 的 root 在迁出后应退化为无 body 的 family 身份"
+        );
+
+        let target_family = pass_view
+            .instance(&target_key)
+            .expect("pass view 应继续保留目标 family");
+        assert!(
+            target_family.callable_fqns().any(|fqn| fqn == source_root),
+            "目标 family 应接管迁入的 callable 身份"
+        );
+
+        let duplicate_memberships = pass_view
+            .instances()
+            .filter(|family| family.callable_fqns().any(|fqn| fqn == source_root))
+            .count();
+        assert_eq!(
+            duplicate_memberships, 1,
+            "同一个 callable 在 pass family 重写后不应同时残留在两个 family"
+        );
+
+        let raw_view = materialized.callable_view();
+        let raw_source_family = raw_view
+            .instance(&source_key)
+            .expect("raw callable view 应继续保留原始源 family");
+        assert!(
+            raw_source_family
+                .callable_fqns()
+                .any(|fqn| fqn == source_root),
+            "raw materialized family 不应被 pass family 重写影响"
         );
     }
 }

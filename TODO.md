@@ -1529,7 +1529,7 @@
     以上测试分别锁定“pass body/summary override 不会隐式覆盖 raw materialization”以及“family/root 映射可在 pass side table 中独立重写”；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::pass_view -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h0dR Review：确认 pass view 已成为可承载 rewrite 后 callable body / summary 的 canonical pass 输出层
+### [DONE] T5000h0dR Review：确认 pass view 已成为可承载 rewrite 后 callable body / summary 的 canonical pass 输出层
 - 重点：
   - pass view 是否已经不再只是 raw `MaterializedMir` 的薄包装；
   - rewritten callable body / summary / family 身份是否有稳定查询入口；
@@ -1537,6 +1537,12 @@
 - 验收：
   - `T5000h0e` 可以直接消费该 pass 产物层接线 production codegen，而不必重新发明另一套 pass 输出表示。
 - 依赖：T5000h0d
+- 完成记录（2026-04-27）：
+  - 已复核 `crates/scoopc/src/mir/pass_view.rs`、`crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/mir/callables.rs`、`crates/scoopc/src/mir/summary.rs`、`crates/scoopc/src/hir/lower/types.rs` 以及 production 侧 `crates/scoopc/src/llvm/emit.rs` / `crates/scoopc/src/llvm/codegen/mod.rs` / `crates/scoopc/src/llvm/frontend.rs` / `crates/scoop/src/commands/build.rs` 的接线，确认 `MaterializedMirPassView` 当前已经显式建立在 `MaterializedMirPassArtifacts` 之上，而不是继续复用 raw `MaterializedMir` 的只读薄包装；
+  - review 过程中首先暴露并修复了一个既有一致性缺陷：`crates/scoopc/src/mir/callables.rs` 中 `MaterializedCallableFamilies::replace_family(...)` 之前只在 debug 下用 `debug_assert!` 防止 callable 跨实例迁移；一旦 release 构建里把某个 callable 重挂到另一个 family，旧 family 的 `callable_fqns` 会静默残留该 symbol，导致同一 callable 同时出现在两个 family。现已改为在重写 family 时同步从旧 owner 的 `callable_fqns` 中移除迁出的 symbol，并对输入 `callable_fqns` 做稳定去重，确保 canonical pass 输出层在 release/debug 下都保持单一归属；
+  - 已新增回归 `mir::pass_view::tests::pass_view_rehomes_callable_across_families_without_leaving_duplicate_membership`，锁定“pass family 重写可跨实例迁移 callable，且不会在旧 family 留下重复成员记录”这一边界；结合 `pass_view_keeps_rewritten_body_and_summary_separate_from_raw_materialized_mir` 与 `pass_view_can_override_family_mapping_without_mutating_raw_materialization`，现已覆盖 body/summary override、family side-table 重写、以及跨 family rehome 三类核心行为；
+  - 复核结论：pass view 现在已经提供稳定的 rewritten callable body / summary / family 查询面，后续 pass 不需要通过覆盖 raw `MaterializedMir` 或回退到 HIR side table 来传递结果；下一条 `T5000h0e` 可以直接消费这层 canonical pass 输出表示；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::pass_view -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000h0e 让 production LLVM codegen 真正消费 pass-rewritten callable body / summary，而不是只携带 `materialized_pass_view`
 - 范围：

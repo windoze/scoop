@@ -5,7 +5,7 @@
 //! - 保留 `InstanceKey -> root callable / callable family` 的稳定映射；
 //! - 明确把 raw `MaterializedMir` 与“按 callable 身份组织的查询入口”分开。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::{FunDecl, InstanceKey, InstanceSummary, Item, MaterializedMir};
 
@@ -43,33 +43,59 @@ impl MaterializedCallableFamilies {
     }
 
     pub(crate) fn replace_family(&mut self, input: MaterializedCallableFamilyInput) {
-        if let Some(previous) = self.by_instance.insert(
-            input.instance.clone(),
-            MaterializedCallableFamily {
-                root_fqn: input.root_fqn,
-                callable_fqns: input.callable_fqns.clone(),
-            },
-        ) {
+        let MaterializedCallableFamilyInput {
+            instance,
+            root_fqn,
+            callable_fqns,
+        } = input;
+        let callable_fqns = dedup_preserving_order(callable_fqns);
+
+        if let Some(previous) = self.by_instance.remove(&instance) {
             for callable_fqn in previous.callable_fqns {
                 let owned_by_instance = self
                     .owner_by_callable_fqn
                     .get(&callable_fqn)
-                    .is_some_and(|owner| owner == &input.instance);
+                    .is_some_and(|owner| owner == &instance);
                 if owned_by_instance {
                     self.owner_by_callable_fqn.remove(&callable_fqn);
                 }
             }
         }
 
-        for callable_fqn in input.callable_fqns {
+        // family 重写允许把 callable 身份迁移到新的实例；若某个 symbol 之前挂在别的 family
+        // 上，需要同步把旧 family 中的记录移除，避免 release 构建里出现“一份 body 属于两个
+        // family”的静默脏状态。
+        for callable_fqn in &callable_fqns {
+            let previous_owner = self.owner_by_callable_fqn.get(callable_fqn).cloned();
+            if let Some(previous_owner) = previous_owner
+                && previous_owner != instance
+            {
+                if let Some(previous_family) = self.by_instance.get_mut(&previous_owner) {
+                    previous_family
+                        .callable_fqns
+                        .retain(|fqn| fqn != callable_fqn);
+                }
+                self.owner_by_callable_fqn.remove(callable_fqn);
+            }
+        }
+
+        for callable_fqn in &callable_fqns {
             let previous = self
                 .owner_by_callable_fqn
-                .insert(callable_fqn.clone(), input.instance.clone());
+                .insert(callable_fqn.clone(), instance.clone());
             debug_assert!(
-                previous.is_none() || previous.as_ref() == Some(&input.instance),
+                previous.is_none() || previous.as_ref() == Some(&instance),
                 "callable body `{callable_fqn}` 应只属于一个 materialized instance family"
             );
         }
+
+        self.by_instance.insert(
+            instance,
+            MaterializedCallableFamily {
+                root_fqn,
+                callable_fqns,
+            },
+        );
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -90,6 +116,17 @@ impl MaterializedCallableFamilies {
     pub(crate) fn owner_of_callable(&self, fqn: &str) -> Option<&InstanceKey> {
         self.owner_by_callable_fqn.get(fqn)
     }
+}
+
+fn dedup_preserving_order(callable_fqns: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::with_capacity(callable_fqns.len());
+    let mut deduped = Vec::with_capacity(callable_fqns.len());
+    for callable_fqn in callable_fqns {
+        if seen.insert(callable_fqn.clone()) {
+            deduped.push(callable_fqn);
+        }
+    }
+    deduped
 }
 
 /// `MaterializedMir` 上“按 callable/instance 身份组织”的只读查询视图。

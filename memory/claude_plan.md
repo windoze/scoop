@@ -1,68 +1,83 @@
-# 执行计划与决策日志
+# 本轮执行计划
 
 ## 说明
 
-本文件记录本轮执行的可审阅计划、决策依据、关键进展与后续调整。这里不会逐字暴露模型的内部推理细节，但会完整记录足以复盘工作的步骤、判断与结论。
+按要求，本文件先于仓库探查与命令执行创建，用于记录本轮的执行计划、关键决策、阻塞点与进度更新。
+出于协作与安全边界，这里记录的是可审计的任务计划、检查项与结论摘要，不写入内部私有推理全文。
 
-## 初始执行计划
+## 初始目标
 
-1. 检查最新一次 Git 提交的信息，确认是否提到了需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划与 `TODO.md` 是否一致。
-4. 结合任务范围阅读相关代码、测试、规范或文档，确认实现边界与依赖。
-5. 如果第一个未完成任务过大，则把它拆分为更小子任务，并更新 `TODO.md` 与 `PLAN.md`，本轮只执行拆分后的第一个子任务。
-6. 如果在检查、测试、实现过程中发现任何既有缺陷、回归、规格不匹配或实现边界不完整：
-   - 先修复该问题；或
-   - 若该问题无法在本轮直接修复，则在 `TODO.md` 中把它插入为当前任务的前置任务，并更新 `PLAN.md` 说明阻塞关系，然后停止。
-7. 实现当前应执行的第一个任务。
-8. 运行相关格式化、lint 与测试，至少覆盖受影响范围，并尽量满足：
-   - `cargo fmt`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 相关单元测试、集成测试或 fixture 测试
-9. 更新文档与任务状态：
-   - 在 `TODO.md` 中把已完成任务标记完成
-   - 在 `PLAN.md` 中更新状态与后续计划
-   - 在本文件中补充关键进展与变更原因
-10. 使用清晰的提交信息提交本轮修改，然后停止，不继续下一个任务。
+本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行过程中发现更早应修复的既有问题，则先修复该问题，或将其作为前置任务插入 `TODO.md` 后停止。
+
+## 执行步骤
+
+1. 检查最新一次 Git 提交信息，确认是否提到需要优先修复的既有问题。
+2. 阅读 `TODO.md`，找出第一个未完成任务。
+3. 阅读 `PLAN.md`，确认该任务上下文、依赖与当前计划是否一致。
+4. 如果任务过大：
+   - 将任务拆分为更小的子任务；
+   - 更新 `PLAN.md`；
+   - 更新 `TODO.md`，把新的前置子任务插入到正确位置；
+   - 本轮只执行拆出的第一个子任务。
+5. 实现目标任务，并在实现过程中同步记录关键变更与发现。
+6. 运行相关验证：
+   - 至少运行与改动直接相关的测试；
+   - 如有必要，运行更广泛测试；
+   - 运行 `cargo fmt`；
+   - 运行 `cargo clippy --all-targets -- -D warnings`，确保无警告。
+7. 如果发现既有 bug、回归、规格不匹配或实现边界缺口：
+   - 立即优先修复；或
+   - 若无法在本轮直接修复，则把它作为当前任务的前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
+8. 完成后更新：
+   - `TODO.md` 中将该任务标记完成；
+   - `PLAN.md` 反映当前状态与后续顺序；
+   - 本文件记录结果与验证情况。
+9. 提交 Git，提交信息使用清晰描述并尽量带任务号。
+10. 停止，不继续下一个任务。
 
 ## 当前状态
 
-- 状态：已完成初始化与任务定位，进入实现前的代码上下文调查阶段。
-- 当前未知项：
-  - 当前 `MaterializedMirPassView` 与 raw `MaterializedMir` 的真实边界
-  - 现有 production codegen / effect analysis 已经依赖 pass view 到什么程度
-  - 实现 `T5000h0d` 时需要新增哪些 side table、查询 API 与测试
+- 状态：已完成初始化与任务定位，当前任务锁定为 `T5000h0dR Review`。
+- 已完成：
+  - 检查最新提交：`[T5000h0d] Add canonical materialized MIR pass artifacts`，提交标题未声明新的待优先修复既有问题；
+  - 读取 `TODO.md` / `PLAN.md`，确认第一个未完成任务是 `T5000h0dR`；
+  - 开始审阅 `crates/scoopc/src/mir/pass_view.rs`、`materialize.rs`、`callables.rs`、`summary.rs`、`hir/lower/types.rs` 及 production 接线位置。
+- 当前 review 关注点：
+  - pass view 是否已经脱离 raw `MaterializedMir` 的薄包装；
+  - rewritten callable body / summary / family 映射是否有稳定查询入口；
+  - production 侧是否只是“携带 pass view”，还是已经把它明确当作 canonical pass 输出边界保留下来。
+- 下一步：
+  - 继续核对 `llvm/emit.rs`、`llvm/codegen/mod.rs`、frontend/build 接线；
+  - 运行针对性测试与全量检查；
+  - 若未发现前置缺陷，则把 `T5000h0dR` 标记完成并更新 `PLAN.md` / `TODO.md` 后提交。
 
-## 进展记录
+## 执行中发现与修复
 
-- 已创建本计划文件，准备开始仓库检查。
-- 已检查最新提交 `6801dfed9d7150dbc804f34f762576e5e866c75c`：
-  - 提交主题是为 `T5000h` 插入前置任务，而不是留下一个未建账的额外实现缺陷；
-  - 提交中明确记录了当前阻塞事实：现有 `MaterializedMirPassView` 仍只是 raw materialized MIR 的薄包装，production codegen 也尚未真正消费 pass-rewritten callable body / summary。
-- 已检查 `TODO.md` / `PLAN.md`：
-  - 当前第一个未完成任务是 `T5000h0d 把 MaterializedMirPassView 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层`；
-  - `T5000h` 已被正确后移并依赖 `T5000h0eR`，当前顺序无需再重排。
-- 已完成 `T5000h0d` 实现：
-  - 在 `crates/scoopc/src/mir/pass_view.rs` 中新增 `MaterializedMirPassArtifacts`，把 callable body、per-instance summary 与 family/root 映射收口到独立 pass side table；
-  - `MaterializedMirPassView` 现在读取 canonical pass 产物层，不再只是 raw `MaterializedMir` 的薄包装；
-  - `MaterializedMir` 新增 `pass_artifacts()` / `pass_artifacts_mut()`，后续 MIR pass 可通过该层更新 pass 输出，而无需覆写 raw materialization；
-  - 新增单测覆盖“raw/pass 分层”和“family 映射可独立重写”。
-- 已完成验证：
+- review 过程中发现一个既有一致性问题：
+  - `crates/scoopc/src/mir/callables.rs` 中 `MaterializedCallableFamilies::replace_family(...)` 之前只在 debug 下通过 `debug_assert!` 假设 callable 不会跨实例 family 迁移；
+  - 但在 release 构建里，如果 pass 把某个 callable 重挂到另一个 family，旧 family 的 `callable_fqns` 会静默残留该 symbol，导致同一 callable 同时出现在两个 family。
+- 已实施修复：
+  - `replace_family(...)` 现在会在重写 family 时同步从旧 owner 的 `callable_fqns` 中移除迁出的 symbol；
+  - 对输入 `callable_fqns` 增加稳定去重，避免 pass side table 自身引入重复 callable 成员。
+- 已新增回归测试：
+  - `mir::pass_view::tests::pass_view_rehomes_callable_across_families_without_leaving_duplicate_membership`
+
+## 当前结论
+
+- `MaterializedMirPassView` 已经建立在独立的 `MaterializedMirPassArtifacts` 之上，不再只是 raw `MaterializedMir` 的薄包装；
+- rewritten callable body / summary / family 映射现在都有稳定查询入口；
+- 未发现需要插入到 `T5000h0e` 之前的新前置任务；下一步可直接进入 production codegen 真正消费 pass-rewritten callable body / summary 的接线任务。
+
+## 验证状态
+
+- 已通过：
   - `cargo fmt --all`
   - `cargo test -p scoopc mir::pass_view -- --nocapture`
   - `cargo test --all`
-  - `cargo run -p scoop -- test` → `fixtures: ok (1201)`
+  - `cargo run -p scoop -- test`
   - `cargo clippy --all-targets -- -D warnings`
-  - 结果：全部通过。
-- 已更新任务文档：
-  - `TODO.md` 已将 `T5000h0d` 标记为完成；
-  - `PLAN.md` 已记录实现结果、验证结果，并把下一条切换为 `T5000h0dR`。
-
-## 本轮细化计划
-
-1. 已完成：阅读 `crates/scoopc/src/mir/pass_view.rs`、`mir/materialize.rs`、`hir/lower/types.rs`、相关 MIR/LLVM 测试，确认现有 `MaterializedMirPassView` 的数据模型与调用面。
-2. 已完成：实现 pass 产物层，区分 raw materialized MIR 与 pass-rewritten callable body / summary / family 映射。
-3. 已完成：补充测试，覆盖 raw/pass 分层与 family 映射独立重写。
-4. 已完成：运行格式化、全量测试、fixture 与 `clippy -D warnings`。
-5. 已完成：更新 `TODO.md`、`PLAN.md` 与本文件。
-6. 待完成：检查工作区 diff，提交本轮修改，然后停止。
+- 当前剩余动作：
+  - `TODO.md` / `PLAN.md` / 本文件已更新完成；
+  - 检查 diff；
+  - 以 `T5000h0dR` 对应提交信息提交；
+  - 停止，不继续下一个任务。
