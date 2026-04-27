@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
-use crate::monomorph::MonomorphKey;
+use crate::monomorph::{MonomorphKey, MonomorphRequest};
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -106,7 +106,7 @@ struct CheckFileExprsPassResult {
     top_level_fun_call_bindings: HashMap<Span, ast::TopLevelFunCallBinding>,
     typechecked_effect_op_call_bindings: HashMap<Span, ast::EffectOpCallBinding>,
     typechecked_ctor_call_bindings: HashMap<Span, ast::CtorCallBinding>,
-    monomorph_keys: Vec<MonomorphKey>,
+    monomorph_requests: Vec<MonomorphRequest>,
     type_instantiation_keys: Vec<TypeInstantiationKey>,
 }
 
@@ -155,6 +155,22 @@ pub fn check_file_exprs_with_monomorph_keys(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<Vec<MonomorphKey>, ExprTypeError> {
+    let requests = check_file_exprs_with_monomorph_requests(
+        source, file, index, imports, env, types, builtins,
+    )?;
+    Ok(monomorph_request_keys(requests))
+}
+
+/// 对一个文件的表达式做最小类型检查，并在成功时返回带 call-site 来源的单态化请求集合。
+pub fn check_file_exprs_with_monomorph_requests(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    imports: &ImportTable,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> Result<Vec<MonomorphRequest>, ExprTypeError> {
     let (monomorph, _) = check_file_exprs_impl(
         CheckFileExprsRequest {
             source,
@@ -209,7 +225,7 @@ pub fn check_file_exprs_with_monomorph_and_type_instantiation_keys(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<(Vec<MonomorphKey>, Vec<TypeInstantiationKey>), ExprTypeError> {
-    check_file_exprs_impl(
+    let (monomorph_requests, type_insts) = check_file_exprs_impl(
         CheckFileExprsRequest {
             source,
             file,
@@ -221,7 +237,8 @@ pub fn check_file_exprs_with_monomorph_and_type_instantiation_keys(
         imports,
         env,
         types,
-    )
+    )?;
+    Ok((monomorph_request_keys(monomorph_requests), type_insts))
 }
 
 fn check_file_exprs_impl(
@@ -230,14 +247,14 @@ fn check_file_exprs_impl(
     imports: &ImportTable,
     env: &TypeEnv,
     types: &mut TypeStore,
-) -> Result<(Vec<MonomorphKey>, Vec<TypeInstantiationKey>), ExprTypeError> {
+) -> Result<(Vec<MonomorphRequest>, Vec<TypeInstantiationKey>), ExprTypeError> {
     let file = request.file;
     reset_file_expr_side_tables(file);
 
     let first_pass = check_file_exprs_pass(request, index, imports, env, types, HashMap::new())?;
     apply_check_file_exprs_pass_result(file, &first_pass);
     Ok((
-        first_pass.monomorph_keys,
+        first_pass.monomorph_requests,
         first_pass.type_instantiation_keys,
     ))
 }
@@ -407,7 +424,7 @@ fn check_file_exprs_pass(
         }
     }
 
-    let monomorph_keys = lower.take_monomorph_keys();
+    let monomorph_requests = lower.take_monomorph_requests();
     let type_instantiation_keys = lower.take_type_instantiation_keys();
     Ok(CheckFileExprsPassResult {
         inferred_expr_tys: lower.take_inferred_expr_tys(),
@@ -424,9 +441,20 @@ fn check_file_exprs_pass(
         top_level_fun_call_bindings: lower.take_top_level_fun_call_bindings(),
         typechecked_effect_op_call_bindings: lower.take_typechecked_effect_op_call_bindings(),
         typechecked_ctor_call_bindings: lower.take_typechecked_ctor_call_bindings(),
-        monomorph_keys,
+        monomorph_requests,
         type_instantiation_keys,
     })
+}
+
+fn monomorph_request_keys(requests: Vec<MonomorphRequest>) -> Vec<MonomorphKey> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for request in requests {
+        if seen.insert(request.key.clone()) {
+            out.push(request.key);
+        }
+    }
+    out
 }
 
 pub(super) fn try_infer_fun_return_ty_from_block(

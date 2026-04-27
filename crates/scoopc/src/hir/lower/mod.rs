@@ -2655,7 +2655,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
-    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    monomorph_requests: &[crate::monomorph::MonomorphRequest],
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
 ) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
@@ -2663,7 +2663,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection(
         index,
         compilation_unit,
         files_to_lower,
-        monomorph_keys,
+        monomorph_requests,
         type_env,
         typecheck_types,
         crate::opt::OptLevel::O0,
@@ -2674,7 +2674,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
-    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    monomorph_requests: &[crate::monomorph::MonomorphRequest],
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
     opt_level: crate::opt::OptLevel,
@@ -2687,7 +2687,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
         index,
         compilation_unit,
         files_to_lower,
-        monomorph_keys,
+        monomorph_requests,
         type_env,
         typecheck_types,
         MirInstanceCollectionOptions {
@@ -2718,7 +2718,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
-    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    monomorph_requests: &[crate::monomorph::MonomorphRequest],
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
     options: MirInstanceCollectionOptions<'_>,
@@ -2734,7 +2734,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
             index,
             type_env,
             typecheck_types,
-            monomorph_keys,
+            monomorph_requests,
             opt_level,
         )?;
     let mut lowered = lower_for_compilation_unit_multi_files_internal(

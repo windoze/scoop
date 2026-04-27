@@ -31,7 +31,8 @@ pub use annotations::{AnnotationError, check_file_annotations};
 pub(crate) use assignable::is_type_assignable;
 pub use expr::{
     ExprTypeError, check_file_exprs, check_file_exprs_with_monomorph_and_type_instantiation_keys,
-    check_file_exprs_with_monomorph_keys, check_file_exprs_with_type_instantiation_keys,
+    check_file_exprs_with_monomorph_keys, check_file_exprs_with_monomorph_requests,
+    check_file_exprs_with_type_instantiation_keys,
 };
 pub use headers::{TypeHeaderError, check_file_headers};
 pub use inheritance::{InheritanceError, check_file_inheritance};

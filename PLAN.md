@@ -1821,6 +1821,32 @@
     - `cargo clippy --all-targets -- -D warnings`
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - 全部通过。
+- 2026-04-28：继续优先修复最新提交记录的 `ISSUES.md` P1：`MonomorphKey` 没有 call-site source，后置过滤能力不足。
+  - 问题来源：
+    - 最新提交修复了 build frontend request roots 过宽的问题，但同一 `ISSUES.md` 仍记录裸 `MonomorphKey` 缺少 request source / call span；
+    - 如果上游任何路径把 support source 的 `MonomorphKey` 放入 initial request 集合，materializer 仍无法在 seed 阶段判断该请求是否来自 request roots。
+  - 修复结果：
+    - `crates/scoopc/src/monomorph/mod.rs` 新增 `MonomorphRequest { key, request_source_path, call_span }`，使 `MonomorphKey` 继续只表示实例身份；
+    - `crates/scoopc/src/typecheck/expr/entry.rs` 新增 `check_file_exprs_with_monomorph_requests(...)`，`TypeLowering::record_monomorph_call(...)` 现在记录当前源文件路径与调用点 span；
+    - `crates/scoop/src/commands/build.rs` 与 `crates/scoopc/src/llvm/frontend.rs` 已改为收集并传递 `MonomorphRequest`；
+    - HIR via-MIR lowering 与 MIR materializer 主入口已切到 source-aware request，`MirInstanceMaterializer::seed_requests(...)` 现在按 `request_sources` 过滤 initial monomorph seeds。
+  - 回归覆盖：
+    - 新增 `materializer_filters_initial_monomorph_requests_by_call_site_source`，确认 support source 中收集到的 request 在 main-only request roots 下会被过滤，而同一个 request 来自 request source 时仍会正常物化。
+  - 文档状态：
+    - `ISSUES.md` 已把该 P1 标记为已修复；
+    - `TODO.md` 已新增完成项 `T5000i1P2`，并让 `T5000i2` 依赖该完成项。
+  - 验证结果：
+    - `cargo check -p scoopc`
+    - `cargo test -p scoopc --no-run`
+    - `cargo test -p scoopc materializer_filters_initial_monomorph_requests_by_call_site_source -- --nocapture`
+    - `cargo test -p scoopc mir::materialize -- --nocapture`
+    - `cargo test -p scoop --no-run`
+    - `cargo test -p scoop build_frontend_ -- --nocapture`
+    - `cargo fmt --all --check`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - 全部通过。
   - 下一条待执行任务仍为 `T5000i2 基于 escape facts 接入最小 non-escaping closure simplification`。
 
 ## 1. 当前判断

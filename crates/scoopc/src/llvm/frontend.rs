@@ -93,7 +93,7 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
 
     let mut typecheck_types = TypeStore::new();
     let builtins = typecheck_types.intern_builtins();
-    let mut monomorph_keys = Vec::new();
+    let mut monomorph_requests = Vec::new();
 
     for (source_index, ((source, ast), header)) in input_sources
         .iter()
@@ -158,7 +158,7 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
         .map_err(frontend_error)?;
 
         if source_index == entry_index {
-            let keys = crate::typecheck::check_file_exprs_with_monomorph_keys(
+            let requests = crate::typecheck::check_file_exprs_with_monomorph_requests(
                 source,
                 ast,
                 &index,
@@ -168,7 +168,7 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
                 builtins,
             )
             .map_err(frontend_error)?;
-            monomorph_keys.extend(keys);
+            monomorph_requests.extend(requests);
         } else {
             crate::typecheck::check_file_exprs(
                 source,
@@ -205,7 +205,7 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
         &index,
         &compilation_unit,
         &files_to_lower,
-        &monomorph_keys,
+        &monomorph_requests,
         Some(&env),
         &typecheck_types,
         hir::MirInstanceCollectionOptions {

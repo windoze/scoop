@@ -81,7 +81,22 @@ support sources 只作为可被调用的实现体参与普通 typecheck/lowering
   - 更精确方案：从选定 `entry_main_fqn` 或 entry package 计算 request roots。
 - `lower_main_hir_for_build` 应改用 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，显式传入 request roots。
 
-## P1：`MonomorphKey` 没有 call-site source，后置过滤能力不足
+## 已修复（2026-04-28）：`MonomorphKey` 没有 call-site source，后置过滤能力不足
+
+修复记录：
+
+- `MonomorphKey` 现在继续只表示被请求实例身份；新增 `MonomorphRequest` 记录：
+  - `key`
+  - `request_source_path`
+  - `call_span`
+- typecheck 新增 `check_file_exprs_with_monomorph_requests(...)`，在记录泛型调用请求时保留当前源文件和调用点 span。
+- build frontend 与 single-file LLVM frontend 已改为传递 `MonomorphRequest`，不再把裸 `MonomorphKey` 作为 production MIR materialization 的初始请求输入。
+- MIR materializer 的 `seed_requests(...)` 现在按 `request_source_paths` 过滤 request source；即使 support source 的 request 被上游收集到，也不会在非 request-root 模式下成为 initial seed。
+- 新增回归 `materializer_filters_initial_monomorph_requests_by_call_site_source`，覆盖：
+  - support source 中收集到的 request 在 main-only request roots 下被过滤；
+  - 同一个 request 来自 request source 时仍正常物化实例。
+
+原问题记录：
 
 `MonomorphSymbol` 只记录被实例化声明的：
 
@@ -111,7 +126,7 @@ support sources 只作为可被调用的实现体参与普通 typecheck/lowering
 - 对已经收集进来的 `MonomorphKey`，materializer 缺少来源信息，无法准确过滤非 request source 请求；
 - 这使 P1 的 build frontend 过度收集更难在下游修正。
 
-建议：
+原建议：
 
 - 短期：在 frontend 收集阶段按 source 分流，不让 support source 贡献 `MonomorphKey`。
 - 中期：为 monomorph request 增加来源信息，例如：
@@ -246,7 +261,7 @@ cargo test -p scoopc production_codegen
 ## 建议收口顺序
 
 1. [DONE 2026-04-28] 修 build frontend 的 request-source 接线，先避免 stdlib/sysroot support sources 贡献 initial `MonomorphKey`。
-2. 为 monomorph request 增加 call-site/source 来源，或在 frontend 侧保留带来源 wrapper。
+2. [DONE 2026-04-28] 为 monomorph request 增加 call-site/source 来源，或在 frontend 侧保留带来源 wrapper。
 3. 统一 materializer 与 LLVM reachability 的 MIR reachable-block 扫描口径。
 4. 明确 request-root 粒度：source-file roots、entry package roots，还是 entry-main reachable roots。
 5. 逐步扩大 MIR body codegen bridge，减少 HIR compatibility body 对 production correctness 的影响。

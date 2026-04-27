@@ -63,7 +63,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     index: &crate::resolve::Index,
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &crate::ty::TypeStore,
-    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    monomorph_requests: &[crate::monomorph::MonomorphRequest],
 ) -> Result<MaterializedMir, Box<MirMaterializeError>> {
     materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
         compilation_unit,
@@ -71,7 +71,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         index,
         type_env,
         typecheck_types,
-        monomorph_keys,
+        monomorph_requests,
         crate::opt::OptLevel::O0,
     )
 }
@@ -82,7 +82,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_leve
     index: &crate::resolve::Index,
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &crate::ty::TypeStore,
-    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    monomorph_requests: &[crate::monomorph::MonomorphRequest],
     opt_level: crate::opt::OptLevel,
 ) -> Result<MaterializedMir, Box<MirMaterializeError>> {
     materialize::materialize_compilation_unit_from_typechecked_inputs(
@@ -91,7 +91,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_leve
         index,
         type_env,
         typecheck_types,
-        monomorph_keys,
+        monomorph_requests,
         opt_level,
     )
 }

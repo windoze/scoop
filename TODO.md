@@ -1726,6 +1726,26 @@
   - `ISSUES.md` 已把该 P1 标记为已修复，并保留后续 source-aware monomorph request / reachable-block 口径收口建议；
   - 已验证 `cargo fmt --all --check`、`cargo test -p scoop build_frontend_ -- --nocapture`、`cargo test -p scoopc mir::materialize -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
+### [DONE] T5000i1P2 为 monomorph request 增加 call-site source，并让 materializer seed 过滤非 request source
+- 范围：
+  - 按最新提交 `ISSUES.md` 仍开放的 P1 继续收口：`MonomorphKey` 只能表示实例身份，不能表达请求来源；
+  - 新增带来源的 request wrapper，记录 request source 与 call span；
+  - production build / single-file LLVM frontend 与 MIR materializer seed 主路径改为消费 source-aware request；
+  - support source 中即使存在被收集到的 request，也不能在不属于 request roots 时成为 initial seed。
+- 验收：
+  - `MonomorphKey` 不再被当作 production materializer 的唯一初始请求输入；
+  - `seed_requests(...)` 能按 `request_source_paths` 过滤 `MonomorphRequest`；
+  - 有回归覆盖 support-source request 被过滤，以及 request-source request 正常生效。
+- 依赖：最新提交 `ISSUES.md` P1 / T5000i1P1
+- 完成记录（2026-04-28）：
+  - 新增 `MonomorphRequest { key, request_source_path, call_span }`，`MonomorphKey` 继续只表达实例身份；
+  - typecheck 新增 `check_file_exprs_with_monomorph_requests(...)`，`TypeLowering::record_monomorph_call(...)` 现在保留当前源文件路径与调用点 span；
+  - build frontend 与 single-file LLVM frontend 已改为收集并传递 `MonomorphRequest`，HIR via-MIR lowering 与 MIR materializer 主入口也已切到 source-aware request；
+  - `MirInstanceMaterializer::seed_requests(...)` 现在按 `request_sources` 过滤 initial monomorph seeds，避免 support source 中的请求绕过 request-root 过滤；
+  - 新增 `materializer_filters_initial_monomorph_requests_by_call_site_source`，确认 support source request 在 main-only request roots 下被过滤，而同一 request 来自 request source 时仍正常物化；
+  - `ISSUES.md` 已把该 P1 标记为已修复；
+  - 已验证 `cargo check -p scoopc`、`cargo test -p scoopc --no-run`、`cargo test -p scoopc materializer_filters_initial_monomorph_requests_by_call_site_source -- --nocapture`、`cargo test -p scoopc mir::materialize -- --nocapture`、`cargo test -p scoop --no-run`、`cargo test -p scoop build_frontend_ -- --nocapture`、`cargo fmt --all --check`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）通过。
+
 ### [TODO] T5000i2 基于 escape facts 接入最小 non-escaping closure simplification
 - 范围：
   - 消费 `T5000i1` 的 MIR escape facts；
@@ -1734,7 +1754,7 @@
 - 验收：
   - closure simplification 只读取 pass-view escape facts，不重新在 LLVM codegen 现场推断；
   - escaping / unknown closure 不被错误简化。
-- 依赖：T5000i1, T5000i1P1
+- 依赖：T5000i1, T5000i1P1, T5000i1P2
 
 ### [TODO] T5000i3 让 continuation escaping analysis 进入 effect/state-machine planning 输入面
 - 范围：

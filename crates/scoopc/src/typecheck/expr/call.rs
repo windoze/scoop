@@ -1837,6 +1837,7 @@ pub(super) fn infer_top_level_fun_value_expr_type(
         selected.sig.decl_span,
         &selected.instantiated.type_args,
         &eff_args,
+        expr.span,
     );
     lower.emit_deprecated_fun_use(
         &callee_fqn,
@@ -2673,6 +2674,7 @@ pub(super) fn infer_call_expr_type(
                     sig.decl_span,
                     &instantiated.type_args,
                     &eff_args,
+                    call_expr.span,
                 );
                 lower.record_top_level_fun_call_binding(
                     call_expr.span,
@@ -3183,6 +3185,7 @@ pub(super) fn infer_call_expr_type(
                 chosen.sig.decl_span,
                 &chosen.instantiated.type_args,
                 &eff_args,
+                call_expr.span,
             );
             lower.record_top_level_fun_call_binding(
                 call_expr.span,
@@ -6254,6 +6257,7 @@ fn infer_member_call_expr_type(
                 chosen.sig.decl_span,
                 &type_args,
                 &eff_args,
+                call_expr.span,
             );
             lower.record_top_level_fun_call_binding(
                 call_expr.span,
@@ -7075,6 +7079,7 @@ fn infer_member_call_expr_type(
             sig.decl_span,
             &type_args,
             &eff_args,
+            call_expr.span,
         );
         lower.record_top_level_fun_call_binding(
             call_expr.span,
@@ -7664,6 +7669,7 @@ fn infer_member_call_expr_type(
         chosen.sig.decl_span,
         &type_args,
         &eff_args,
+        call_expr.span,
     );
     lower.record_top_level_fun_call_binding(
         call_expr.span,

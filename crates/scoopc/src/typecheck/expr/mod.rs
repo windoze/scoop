@@ -24,7 +24,8 @@ mod util;
 
 pub use entry::{
     check_file_exprs, check_file_exprs_with_monomorph_and_type_instantiation_keys,
-    check_file_exprs_with_monomorph_keys, check_file_exprs_with_type_instantiation_keys,
+    check_file_exprs_with_monomorph_keys, check_file_exprs_with_monomorph_requests,
+    check_file_exprs_with_type_instantiation_keys,
 };
 pub use error::ExprTypeError;
 

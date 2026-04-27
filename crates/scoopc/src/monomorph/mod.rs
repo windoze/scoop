@@ -1,7 +1,8 @@
 //! 单态化（monomorphization）相关的数据结构与兼容包装。
 //!
 //! 当前边界：
-//! - `MonomorphKey` 保留“typecheck 收集到的实例请求”语义；
+//! - `MonomorphKey` 保留“被请求实例的身份”语义；
+//! - `MonomorphRequest` 额外记录 call-site source/span，供 materializer 按 request roots 过滤初始种子；
 //! - 真正的 backend-agnostic `InstanceKey` 与 generic MIR template → monomorphic instance
 //!   materialization 已迁到 `crate::mir::materialize`；
 //! - 本模块继续提供旧 `dump-ir` / 测试入口的兼容导出，避免一次性打断调用面。
@@ -69,6 +70,38 @@ impl fmt::Debug for MonomorphKey {
     }
 }
 
+/// 一次前端观察到的单态化请求。
+///
+/// `MonomorphKey` 只表示“哪个实例”；request source/span 则表示“哪个调用点请求了它”。
+/// MIR materializer 必须用这里的来源信息过滤 initial seeds，避免 support source 中的泛型调用
+/// 在未被 request root 触达时被错误提升为实例根。
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct MonomorphRequest {
+    pub key: MonomorphKey,
+    pub request_source_path: PathBuf,
+    pub call_span: Span,
+}
+
+impl MonomorphRequest {
+    pub fn new(key: MonomorphKey, request_source_path: PathBuf, call_span: Span) -> Self {
+        Self {
+            key,
+            request_source_path,
+            call_span,
+        }
+    }
+}
+
+impl fmt::Debug for MonomorphRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MonomorphRequest")
+            .field("key", &self.key)
+            .field("request_source_path", &self.request_source_path)
+            .field("call_span", &self.call_span)
+            .finish()
+    }
+}
+
 struct TypeIdList<'a>(&'a [TypeId]);
 
 impl fmt::Debug for TypeIdList<'_> {
@@ -118,7 +151,7 @@ mod tests {
     use crate::span::Span;
     use crate::ty::{EffectRow, TypeStore};
 
-    use super::{MonomorphKey, MonomorphSymbol};
+    use super::{MonomorphKey, MonomorphRequest, MonomorphSymbol};
 
     #[test]
     fn monomorph_key_dedup_same_key() {
@@ -175,5 +208,32 @@ mod tests {
         set.insert(key1);
         set.insert(key2);
         assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn monomorph_request_keeps_call_site_source_separate_from_key_identity() {
+        let mut store = TypeStore::new();
+        let builtins = store.intern_builtins();
+
+        let key = MonomorphKey {
+            symbol: MonomorphSymbol {
+                fqn: "a.f".to_string(),
+                decl_file: PathBuf::from("a.scoop"),
+                decl_span: Span::new(10, 20),
+            },
+            type_args: vec![builtins.int],
+            eff_args: vec![EffectRow::pure()],
+        };
+
+        let from_main = MonomorphRequest::new(
+            key.clone(),
+            PathBuf::from("main.scoop"),
+            Span::new(100, 110),
+        );
+        let from_support =
+            MonomorphRequest::new(key, PathBuf::from("support.scoop"), Span::new(200, 210));
+
+        assert_ne!(from_main, from_support);
+        assert_eq!(from_main.key, from_support.key);
     }
 }

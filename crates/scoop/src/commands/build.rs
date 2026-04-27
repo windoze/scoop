@@ -78,12 +78,12 @@ struct FrontendOutput {
     asts: Vec<scoopc::ast::File>,
     #[cfg(feature = "llvm")]
     index: scoopc::resolve::Index,
-    /// T0127: typecheck 收集到的实例请求种子。
+    /// T0127/T5000: typecheck 收集到的带 call-site 来源的实例请求种子。
     ///
     /// 当前 build/frontend 主路径会把它交给 MIR materializer 建立 `InstanceKey` 集，
     /// 而不是回到 HIR eager lowering 现场扫描并克隆具体实例。
     #[cfg(feature = "llvm")]
-    monomorph_keys: Vec<scoopc::monomorph::MonomorphKey>,
+    monomorph_requests: Vec<scoopc::monomorph::MonomorphRequest>,
     /// T0130: typecheck 阶段的 `TypeStore`。
     ///
     /// 用途：
@@ -689,7 +689,7 @@ fn run_frontend(
 
     // T0127: 收集 typecheck 观察到的 generic/effect 实例请求，作为后续 MIR materialization 的种子。
     #[cfg(feature = "llvm")]
-    let mut all_monomorph_keys: Vec<scoopc::monomorph::MonomorphKey> = Vec::new();
+    let mut all_monomorph_requests: Vec<scoopc::monomorph::MonomorphRequest> = Vec::new();
 
     // typecheck phase：逐文件执行（共享 env/index/types）。
     for (source_index, ((source, ast), h)) in input
@@ -735,11 +735,11 @@ fn run_frontend(
         #[cfg(feature = "llvm")]
         {
             if input.is_mir_request_source_index(source_index) {
-                let keys = scoopc::typecheck::check_file_exprs_with_monomorph_keys(
+                let requests = scoopc::typecheck::check_file_exprs_with_monomorph_requests(
                     source, ast, &index, &h.imports, &env, &mut types, builtins,
                 )
                 .map_err(miette::Report::from)?;
-                all_monomorph_keys.extend(keys);
+                all_monomorph_requests.extend(requests);
             } else {
                 scoopc::typecheck::check_file_exprs(
                     source, ast, &index, &h.imports, &env, &mut types, builtins,
@@ -767,7 +767,7 @@ fn run_frontend(
         #[cfg(feature = "llvm")]
         index,
         #[cfg(feature = "llvm")]
-        monomorph_keys: all_monomorph_keys,
+        monomorph_requests: all_monomorph_requests,
         #[cfg(feature = "llvm")]
         typecheck_types: types,
         #[cfg(feature = "llvm")]
@@ -1098,7 +1098,7 @@ fn lower_main_hir_for_build(
         &front.index,
         &unit,
         &files_to_lower,
-        &front.monomorph_keys,
+        &front.monomorph_requests,
         Some(&front.type_env),
         &front.typecheck_types,
         scoopc::hir::MirInstanceCollectionOptions {
@@ -1419,9 +1419,9 @@ public fun main() / Pure! {
             "单文件 build 只能让用户入口源贡献 MIR request roots"
         );
         assert!(
-            front.monomorph_keys.is_empty(),
+            front.monomorph_requests.is_empty(),
             "不含泛型调用的单文件入口不应因为 stdlib/sysroot support sources 产生初始 monomorph seeds: {:?}",
-            front.monomorph_keys
+            front.monomorph_requests
         );
     }
 

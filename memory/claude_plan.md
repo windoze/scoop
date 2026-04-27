@@ -1,56 +1,74 @@
-# 执行计划
+# 执行计划记录
 
-## 目标
+## 边界说明
 
-本轮只完成 `TODO.md` 中第一个未完成任务；若在开始任务前或执行过程中发现最新提交提到的预存问题、已有回归、规格不符、实现边界缺口或测试失败，则先处理这些问题。完成一个逻辑任务后更新文档、运行验证、提交 Git，然后停止。
+本文件记录本次任务的可审计执行计划、关键依据、决策摘要、进度和验证结果。不会记录不可公开的内部推理流；所有影响实现的判断都会以结论和依据形式写在这里。
 
-## 工作原则
+## 初始计划
 
-- 全程使用中文记录和汇报。
-- 不绕过规格或实现缺口；任何阻塞正确实现的问题都要修复，或作为前置任务加入 `TODO.md` 并提交后停止。
-- 不回退用户已有改动；遇到脏工作区时只处理与本轮任务相关的文件。
-- 保持变更范围尽量小，遵循仓库现有结构和测试习惯。
-- 每个关键阶段完成后更新本文件，便于查看进度。
-
-## 步骤
-
-1. 检查最新 Git 提交，确认提交信息或变更中是否提示了需要先修复的既有问题。
-2. 查看仓库状态，识别已有未提交改动，避免误覆盖用户工作。
-3. 阅读 `TODO.md`，找出第一个未完成任务。
-4. 阅读 `PLAN.md` 及相关源码、测试或规格，确认该任务的真实范围和依赖。
-5. 若任务过大，先把它拆分成可执行子任务，更新 `TODO.md` 和 `PLAN.md`，提交拆分结果并停止。
-6. 若发现最新提交或现有实现中有更优先的预存问题，先修复该问题；若无法直接修复，则把它加入 `TODO.md` 的正确前置位置，更新 `PLAN.md`，提交后停止。
-7. 实现当前第一个未完成任务，必要时添加或更新最小但充分的测试夹具或 Rust 测试。
-8. 运行相关验证；若验证暴露同一任务范围内的问题，继续修复并复测。
-9. 按要求更新 `TODO.md` 标记任务完成，并同步更新 `PLAN.md`。
-10. 运行最终相关验证，视变更范围决定是否运行更完整的测试。
-11. 检查差异，确认没有无关改动或调试残留。
-12. 使用清晰的任务式提交信息提交本轮变更。
-13. 停止，不继续处理下一个任务。
+1. 检查最新 Git 提交，确认提交信息或改动中是否提到已有问题、回归、临时方案或未完成边界。
+2. 如最新提交暴露任何既有问题，优先修复这些问题；若必须作为前置任务排期，则更新 `TODO.md` 和 `PLAN.md` 后提交并停止。
+3. 阅读 `TODO.md`，定位第一个未完成任务。
+4. 判断该任务是否过大；若过大，拆分为更小任务，更新 `PLAN.md` 和 `TODO.md`，提交拆分结果并停止或执行拆出的第一个任务。
+5. 若任务可直接执行，先阅读相关实现、规格、测试和夹具，确认现有模式和正确实现边界。
+6. 实现第一个未完成任务，不采用绕过、夹具专用逻辑或弱化规格的做法。
+7. 添加或更新聚焦测试，运行相关测试；如变更风险较大，运行更广测试。
+8. 若测试、编译或审查暴露任何既有 bug、规格不匹配或实现缺口，立即转为修复该问题；若不能立即修复，则按要求把它作为前置任务加入 `TODO.md`，更新 `PLAN.md`，提交并停止。
+9. 完成后更新 `TODO.md` 标记该任务完成，并更新 `PLAN.md` 反映状态。
+10. 运行最终验证，确保没有警告或明显回归。
+11. 用清晰的任务提交信息提交全部相关变更。
+12. 停止，不继续处理下一个任务。
 
 ## 当前状态
 
-- 已检查最新提交：提交信息为 `Update plan`，但该提交修改了 `ISSUES.md` / `ISSUES-1.md`，其中 `ISSUES.md` 记录了当前 MIR materialization 与 LLVM HIR 兼容边界的 P1/P2 问题。
-- 已检查工作区：除本计划文件外暂无其它未提交改动。
-- 已阅读 `TODO.md` / `PLAN.md` 的当前进度；按正常顺序下一步会进入 `T5000i2`，但最新提交记录的既有 P1 问题优先级更高。
-- 本轮优先处理的既有问题：`ISSUES.md` 中第一条 P1，`scoop build` frontend 对 support/stdlib/sysroot sources 过度收集 `MonomorphKey`，并在 lowering 时把所有 `files_to_lower` 都当作 request roots。
-- 已阅读 `crates/scoop/src/commands/build.rs`、`crates/scoopc/src/llvm/frontend.rs`、`crates/scoopc/src/hir/lower/mod.rs` 的相关入口，确认 production build 的问题与 `ISSUES.md` 记录一致。
-- 已实现修复：
-  - `BuildInput` 新增 `is_mir_request_source_index(...)` 与 `mir_request_source_paths()`；
-  - build typecheck 阶段只对 request sources 调用 `check_file_exprs_with_monomorph_keys(...)`，support sources 走普通 `check_file_exprs(...)`；
-  - `lower_main_hir_for_build(...)` 改用 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，显式传入 request roots。
-- 已新增回归：
-  - `build_frontend_single_file_request_roots_exclude_stdlib_support_sources`；
-  - `build_frontend_cone_request_roots_exclude_stdlib_support_sources`。
-- 已更新文档：
-  - `ISSUES.md` 将该 P1 标记为已修复；
-  - `TODO.md` 新增完成项 `T5000i1P1`，并让 `T5000i2` 依赖它；
-  - `PLAN.md` 记录本次预存问题修复与验证结果。
-- 已通过验证：
-  - `cargo fmt --all --check`
-  - `cargo test -p scoop build_frontend_ -- --nocapture`
-  - `cargo test -p scoopc mir::materialize -- --nocapture`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
-- 下一步：检查最终 diff，确认无无关改动，然后提交本轮修复并停止。
+- 状态：已检查仓库状态、最新提交、`TODO.md`、`PLAN.md` 与 `ISSUES.md`。
+
+## 最新提交与任务判断
+
+- 最新提交：`da306355 [T5000i1P1] Fix build MIR request roots`。
+- 该提交已修复 `ISSUES.md` 中一个 P1：build frontend 对 stdlib/sysroot support sources 的 request roots 过宽。
+- 但同一 `ISSUES.md` 仍保留开放 P1：`MonomorphKey` 没有 call-site/source 来源，materializer 无法在 seed 阶段准确过滤非 request-source 请求。
+- 按“最新提交提到的既有问题优先修复”的要求，本轮先处理该开放 P1，而不是继续 `TODO.md` 中的 `T5000i2`。
+
+## 修复 P1 的执行计划
+
+1. [DONE] 阅读 `monomorph`、typecheck monomorph key 收集、HIR lowering/materializer request seed、single-file frontend 与 build frontend 相关代码。
+2. [DONE] 设计最小但规格正确的数据模型：
+   - 保留 `MonomorphKey` 作为实例身份；
+   - 新增带来源的 request wrapper，携带 `key`、`request_source_path` 与必要的 call-site span；
+   - 让 materializer seed 阶段优先消费带来源 request，并基于 `request_source_paths` 过滤 initial seeds。
+3. [DONE] 更新 typecheck 收集入口和 frontend 调用面，确保 request source 信息在收集阶段被保留。
+4. [DONE] 更新 HIR lowering / MIR materializer API，避免只靠裸 `MonomorphKey` 推断请求来源。
+5. [DONE] 增加回归测试：非 request support source 中的 generic 调用即使被收集到 request wrapper，也不能成为 initial seed；request source 中的同类请求仍能正常 seed。
+6. [DONE] 更新 `ISSUES.md`、`TODO.md`、`PLAN.md`：把该 P1 记为已修复，并将其作为 `T5000i2` 的前置完成项。
+7. [DONE] 运行聚焦测试、全量测试和 clippy，修复所有暴露问题。
+8. [DONE] 提交本轮修复后停止。
+
+## 提交记录
+
+- 已提交：`[T5000i1P2] Fix monomorph request source filtering`
+
+## 当前实现记录
+
+- 新增 `MonomorphRequest { key, request_source_path, call_span }`，`MonomorphKey` 继续仅表示实例身份。
+- typecheck 的 request-aware 入口 `check_file_exprs_with_monomorph_requests(...)` 会从 `TypeLowering` 当前 `SourceFile` 与调用点 span 记录来源。
+- build frontend 与 single-file LLVM frontend 已改为收集并传递 `MonomorphRequest`。
+- MIR materializer 现在在 `seed_requests(...)` 中按 `request_sources` 过滤 initial monomorph seeds；support source 中收集到的 request 不会因裸 key 进入实例根。
+- 新增回归 `materializer_filters_initial_monomorph_requests_by_call_site_source`。
+
+## 已运行验证
+
+- `cargo check -p scoopc`：通过。
+- `cargo test -p scoopc --no-run`：通过。
+- `cargo test -p scoopc materializer_filters_initial_monomorph_requests_by_call_site_source -- --nocapture`：通过。
+- `cargo test -p scoopc mir::materialize -- --nocapture`：通过。
+- `cargo test -p scoop --no-run`：通过。
+- `cargo test -p scoop build_frontend_ -- --nocapture`：通过。
+- `cargo fmt --all`：通过。
+- `cargo test --all`：通过。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+- `cargo run -p scoop -- test`：通过，`fixtures: ok (1201)`。
+- 最终变量名清理后复跑：
+  - `cargo fmt --all --check`：通过。
+  - `cargo test -p scoopc mir::materialize -- --nocapture`：通过。
+  - `cargo clippy --all-targets -- -D warnings`：通过。

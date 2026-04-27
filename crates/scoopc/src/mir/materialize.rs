@@ -15,7 +15,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::monomorph::MonomorphKey;
+use crate::monomorph::MonomorphRequest;
 use crate::opt::OptLevel;
 use crate::parser::{ParseError, parse_file};
 use crate::resolve::{Index, ResolveError};
@@ -373,7 +373,7 @@ pub fn materialize_for_dump_with_opt_level(
         index,
         env,
         typecheck_types,
-        monomorph_keys,
+        monomorph_requests,
     } = collect_dump_materialization_inputs(session, source)?;
     let compilation_unit = prepared_files
         .iter()
@@ -385,7 +385,7 @@ pub fn materialize_for_dump_with_opt_level(
         &index,
         Some(&env),
         &typecheck_types,
-        &monomorph_keys,
+        &monomorph_requests,
         opt_level,
     )
 }
@@ -394,8 +394,8 @@ pub fn materialize_for_dump_with_opt_level(
 /// instance materialization。
 ///
 /// 说明：
-/// - 该入口直接复用调用方已经准备好的 `Index` / `TypeEnv` / `TypeStore` / `MonomorphKey`
-///   与 AST side tables，不重新跑 parse/resolve/typecheck；
+/// - 该入口直接复用调用方已经准备好的 `Index` / `TypeEnv` / `TypeStore` /
+///   `MonomorphRequest` 与 AST side tables，不重新跑 parse/resolve/typecheck；
 /// - dump/debug 路径目前通过它做包装，后续 build/frontend 主路径也将复用同一层。
 pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     compilation_unit: &[(&SourceFile, &ast::File)],
@@ -403,14 +403,14 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     index: &Index,
     type_env: Option<&TypeEnv>,
     typecheck_types: &TypeStore,
-    monomorph_keys: &[MonomorphKey],
+    monomorph_requests: &[MonomorphRequest],
     opt_level: OptLevel,
 ) -> MaterializeResult<MaterializedMir> {
     let template_catalog = collect_generic_template_infos(compilation_unit);
     let callable_body_infos = collect_callable_body_infos(compilation_unit);
     // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
     // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
-    // `monomorph_keys` 决定初始请求种子，而不是把 template 提供者排除在外。
+    // `monomorph_requests` 决定初始请求种子，而不是把 template 提供者排除在外。
     let (top_level_fun_value_refs, top_level_fun_call_bindings) =
         collect_site_instance_bindings(compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
@@ -421,6 +421,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         typecheck_types,
     )?;
     let request_root_fun_keys = collect_request_root_fun_keys(&lowered_hir, request_source_paths);
+    let request_sources = request_source_paths.iter().cloned().collect::<HashSet<_>>();
     let callable_signatures = collect_callable_signature_infos(&lowered_hir);
     let hir_direct_instance_keys = collect_hir_direct_call_instance_requests(
         &mut lowered_hir,
@@ -449,7 +450,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         types,
         builtins,
         MaterializeRequestSet {
-            monomorph_keys,
+            monomorph_requests,
             hir_direct_instance_keys,
             construction_inputs: MaterializerConstructionInputs {
                 typecheck_types,
@@ -462,6 +463,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 class_itables,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
+                request_sources,
                 request_root_fun_keys,
             },
         },
@@ -482,7 +484,7 @@ struct DumpMaterializationInputs {
     index: Index,
     env: TypeEnv,
     typecheck_types: TypeStore,
-    monomorph_keys: Vec<MonomorphKey>,
+    monomorph_requests: Vec<MonomorphRequest>,
 }
 
 type SourceSiteKey = (PathBuf, Span);
@@ -527,11 +529,12 @@ struct MaterializerConstructionInputs<'a> {
     class_itables: crate::itable::ClassItableIndex,
     top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    request_sources: HashSet<PathBuf>,
     request_root_fun_keys: Vec<RequestRootFunKey>,
 }
 
 struct MaterializeRequestSet<'a> {
-    monomorph_keys: &'a [MonomorphKey],
+    monomorph_requests: &'a [MonomorphRequest],
     hir_direct_instance_keys: Vec<InstanceKey>,
     construction_inputs: MaterializerConstructionInputs<'a>,
 }
@@ -1406,7 +1409,7 @@ fn collect_dump_materialization_inputs(
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
-    let mut monomorph_keys = Vec::new();
+    let mut monomorph_requests = Vec::new();
     for (file, headers) in prepared_files.iter().zip(resolved_headers.iter()) {
         typecheck::check_file_annotations(
             &file.source,
@@ -1428,7 +1431,7 @@ fn collect_dump_materialization_inputs(
         )?;
 
         if file.collect_monomorph_keys {
-            monomorph_keys.extend(typecheck::check_file_exprs_with_monomorph_keys(
+            monomorph_requests.extend(typecheck::check_file_exprs_with_monomorph_requests(
                 &file.source,
                 &file.ast,
                 &index,
@@ -1455,7 +1458,7 @@ fn collect_dump_materialization_inputs(
         index,
         env,
         typecheck_types: types,
-        monomorph_keys,
+        monomorph_requests,
     })
 }
 
@@ -2020,7 +2023,7 @@ fn materialize_generic_mir(
     opt_level: OptLevel,
 ) -> MaterializeResult<MaterializedMir> {
     let MaterializeRequestSet {
-        monomorph_keys,
+        monomorph_requests,
         hir_direct_instance_keys,
         construction_inputs,
     } = requests;
@@ -2033,7 +2036,7 @@ fn materialize_generic_mir(
         opt_level.enables_summary_driven_mir_inlining(),
         opt_level.enables_mir_escape_analysis(),
     )?;
-    let mut initial_requests = materializer.seed_requests(typecheck_types, monomorph_keys)?;
+    let mut initial_requests = materializer.seed_requests(typecheck_types, monomorph_requests)?;
     initial_requests.extend(hir_direct_instance_keys);
     materializer.run(initial_requests)
 }
@@ -2140,6 +2143,7 @@ struct MirInstanceMaterializer {
     template_symbol_suffixes: HashMap<TemplateKey, String>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    request_sources: HashSet<PathBuf>,
     reachable_fun_bodies_by_request: HashMap<RequestTemplateKey, ReachableMirFun>,
     reachable_fun_bodies_by_fqn: HashMap<String, Vec<ReachableMirFun>>,
     all_fun_bodies_by_fqn: HashMap<String, Vec<FunDecl>>,
@@ -2175,6 +2179,7 @@ impl MirInstanceMaterializer {
             class_itables,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
+            request_sources,
             request_root_fun_keys,
         } = construction_inputs;
         let mut generic_funs = Vec::new();
@@ -2411,6 +2416,7 @@ impl MirInstanceMaterializer {
             template_symbol_suffixes,
             roots_by_fqn,
             direct_call_bindings: top_level_fun_call_bindings.clone(),
+            request_sources,
             reachable_fun_bodies_by_request,
             reachable_fun_bodies_by_fqn,
             all_fun_bodies_by_fqn,
@@ -2537,10 +2543,14 @@ impl MirInstanceMaterializer {
     fn seed_requests(
         &mut self,
         typecheck_types: &TypeStore,
-        monomorph_keys: &[MonomorphKey],
+        monomorph_requests: &[MonomorphRequest],
     ) -> MaterializeResult<Vec<InstanceKey>> {
         let mut initial = Vec::new();
-        for key in monomorph_keys {
+        for request in monomorph_requests {
+            if !self.request_sources.contains(&request.request_source_path) {
+                continue;
+            }
+            let key = &request.key;
             let Some(template) = self.resolve_request_template(
                 &key.symbol.fqn,
                 &key.symbol.decl_file,
@@ -4157,7 +4167,7 @@ mod tests {
         Index,
         TypeEnv,
         TypeStore,
-        Vec<MonomorphKey>,
+        Vec<MonomorphRequest>,
     ) {
         let mut files = files
             .into_iter()
@@ -4199,7 +4209,7 @@ mod tests {
 
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
-        let mut monomorph_keys = Vec::new();
+        let mut monomorph_requests = Vec::new();
         for (file_index, ((source, ast), headers)) in
             files.iter().zip(resolved_headers.iter()).enumerate()
         {
@@ -4225,8 +4235,8 @@ mod tests {
             .unwrap();
 
             if request_file_indices.contains(&file_index) {
-                monomorph_keys.extend(
-                    typecheck::check_file_exprs_with_monomorph_keys(
+                monomorph_requests.extend(
+                    typecheck::check_file_exprs_with_monomorph_requests(
                         source,
                         ast,
                         &index,
@@ -4251,7 +4261,88 @@ mod tests {
             }
         }
 
-        (files, index, env, types, monomorph_keys)
+        (files, index, env, types, monomorph_requests)
+    }
+
+    #[test]
+    fn materializer_filters_initial_monomorph_requests_by_call_site_source() {
+        let sess = Session::new().unwrap();
+        let main = SourceFile::new_virtual(
+            "<mem>/request_source_main.scoop",
+            r#"
+package fixtures.materialize
+
+fun main() {}
+"#,
+        );
+        let support = SourceFile::new_virtual(
+            "<mem>/request_source_support.scoop",
+            r#"
+package fixtures.materialize
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun support(): Int {
+    return id<Int>(1)
+}
+"#,
+        );
+        let (files, index, env, types, monomorph_requests) =
+            prepare_typechecked_compilation_unit_inputs(&sess, vec![main, support], &[0, 1]);
+        let main_path = files[0].0.path().to_path_buf();
+        let support_path = files[1].0.path().to_path_buf();
+        assert!(
+            monomorph_requests.iter().any(|request| {
+                request.key.symbol.fqn == "fixtures.materialize.id"
+                    && request.request_source_path == support_path
+            }),
+            "test setup 应故意收集 support source 中的 id<Int> request"
+        );
+
+        let mut compilation_unit: Vec<(&SourceFile, &ast::File)> =
+            Vec::with_capacity(sess.sysroot().files.len() + files.len());
+        for file in &sess.sysroot().files {
+            compilation_unit.push((&file.source, &file.ast));
+        }
+        for (source, ast) in &files {
+            compilation_unit.push((source, ast));
+        }
+
+        let main_only = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            std::slice::from_ref(&main_path),
+            &index,
+            Some(&env),
+            &types,
+            &monomorph_requests,
+        )
+        .unwrap();
+        assert!(
+            main_only
+                .instance_keys
+                .iter()
+                .all(|key| key.template.fqn != "fixtures.materialize.id"),
+            "support source 中收集到的 id<Int> request 不应在 main-only request roots 下成为 initial seed"
+        );
+
+        let support_roots = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+            &compilation_unit,
+            std::slice::from_ref(&support_path),
+            &index,
+            Some(&env),
+            &types,
+            &monomorph_requests,
+        )
+        .unwrap();
+        assert!(
+            support_roots
+                .instance_keys
+                .iter()
+                .any(|key| key.template.fqn == "fixtures.materialize.id"),
+            "同一个 request 来自 request source 时仍应正常进入 initial seeds"
+        );
     }
 
     #[test]
@@ -4435,7 +4526,7 @@ fun entry(): Unit / (Boom + Zap) {
             &inputs.index,
             Some(&inputs.env),
             &inputs.typecheck_types,
-            &inputs.monomorph_keys,
+            &inputs.monomorph_requests,
         )
         .unwrap();
 
@@ -4499,7 +4590,7 @@ fun entry(): Int / Boom {
         );
         let main_source_path = main_source.path().to_path_buf();
 
-        let (files, index, env, types, monomorph_keys) =
+        let (files, index, env, types, monomorph_requests) =
             prepare_typechecked_compilation_unit_inputs(
                 &sess,
                 vec![helper_source, main_source],
@@ -4516,7 +4607,7 @@ fun entry(): Int / Boom {
             &index,
             Some(&env),
             &types,
-            &monomorph_keys,
+            &monomorph_requests,
         )
         .unwrap();
 
@@ -4580,7 +4671,7 @@ fun entry(): Int {
 }
 "#,
         );
-        let (files, index, env, types, monomorph_keys) =
+        let (files, index, env, types, monomorph_requests) =
             prepare_typechecked_compilation_unit_inputs(
                 &sess,
                 vec![helper_source, main_source.clone()],
@@ -4596,7 +4687,7 @@ fun entry(): Int {
             &index,
             &compilation_unit,
             &compilation_unit,
-            &monomorph_keys,
+            &monomorph_requests,
             Some(&env),
             &types,
             crate::hir::MirInstanceCollectionOptions {
@@ -4651,7 +4742,7 @@ fun entry(): Int / Boom {
 "#,
         );
 
-        let (files, index, env, types, monomorph_keys) =
+        let (files, index, env, types, monomorph_requests) =
             prepare_typechecked_compilation_unit_inputs(&sess, vec![source.clone()], &[0]);
         let compilation_unit = files
             .iter()
@@ -4664,7 +4755,7 @@ fun entry(): Int / Boom {
             &index,
             Some(&env),
             &types,
-            &monomorph_keys,
+            &monomorph_requests,
         )
         .unwrap();
 
@@ -4709,7 +4800,7 @@ fun entry(): Int {
 "#,
         );
 
-        let (files, index, env, types, monomorph_keys) =
+        let (files, index, env, types, monomorph_requests) =
             prepare_typechecked_compilation_unit_inputs(&sess, vec![source.clone()], &[0]);
         let compilation_unit = files
             .iter()
@@ -4722,7 +4813,7 @@ fun entry(): Int {
             &index,
             Some(&env),
             &types,
-            &monomorph_keys,
+            &monomorph_requests,
         )
         .unwrap();
 
@@ -4779,7 +4870,7 @@ fun entry(): Int {
 "#,
         );
 
-        let (files, index, env, types, monomorph_keys) =
+        let (files, index, env, types, monomorph_requests) =
             prepare_typechecked_compilation_unit_inputs(&sess, vec![helper, main.clone()], &[1]);
         let compilation_unit = files
             .iter()
@@ -4792,7 +4883,7 @@ fun entry(): Int {
             &index,
             Some(&env),
             &types,
-            &monomorph_keys,
+            &monomorph_requests,
         )
         .unwrap();
 
@@ -4845,7 +4936,7 @@ fun entry(): Int {
 "#,
         );
 
-        let (files, index, env, types, monomorph_keys) =
+        let (files, index, env, types, monomorph_requests) =
             prepare_typechecked_compilation_unit_inputs(&sess, vec![helper, main.clone()], &[1]);
         let compilation_unit = files
             .iter()
@@ -4858,7 +4949,7 @@ fun entry(): Int {
             &index,
             Some(&env),
             &types,
-            &monomorph_keys,
+            &monomorph_requests,
         )
         .unwrap();
 
@@ -4911,7 +5002,7 @@ fun entry(): Int {
             &inputs.index,
             Some(&inputs.env),
             &inputs.typecheck_types,
-            &inputs.monomorph_keys,
+            &inputs.monomorph_requests,
         )
         .unwrap();
 
@@ -4979,15 +5070,15 @@ fun entry(): Int / Boom {
         );
 
         let keys = inputs
-            .monomorph_keys
+            .monomorph_requests
             .iter()
-            .filter(|key| key.symbol.fqn == "fixtures.materialize.forward")
+            .filter(|request| request.key.symbol.fqn == "fixtures.materialize.forward")
             .collect::<Vec<_>>();
         assert_eq!(keys.len(), 1);
-        assert!(keys[0].type_args.is_empty());
-        assert_eq!(keys[0].eff_args.len(), 1);
+        assert!(keys[0].key.type_args.is_empty());
+        assert_eq!(keys[0].key.eff_args.len(), 1);
         assert!(
-            !keys[0].eff_args[0].is_pure(),
+            !keys[0].key.eff_args[0].is_pure(),
             "extension direct-call 的 monomorph key 应保留非 Pure 的 eff_args"
         );
     }
@@ -5043,15 +5134,15 @@ fun entry(): Int / Boom {
         );
 
         let keys = inputs
-            .monomorph_keys
+            .monomorph_requests
             .iter()
-            .filter(|key| key.symbol.fqn == "fixtures.materialize.Box.forward")
+            .filter(|request| request.key.symbol.fqn == "fixtures.materialize.Box.forward")
             .collect::<Vec<_>>();
         assert_eq!(keys.len(), 1);
-        assert!(keys[0].type_args.is_empty());
-        assert_eq!(keys[0].eff_args.len(), 1);
+        assert!(keys[0].key.type_args.is_empty());
+        assert_eq!(keys[0].key.eff_args.len(), 1);
         assert!(
-            !keys[0].eff_args[0].is_pure(),
+            !keys[0].key.eff_args[0].is_pure(),
             "成员 direct-call 的 monomorph key 应保留非 Pure 的 eff_args"
         );
     }
@@ -5107,15 +5198,15 @@ fun entry(): Int / Boom {
         );
 
         let keys = inputs
-            .monomorph_keys
+            .monomorph_requests
             .iter()
-            .filter(|key| key.symbol.fqn == "fixtures.materialize.Box.lift")
+            .filter(|request| request.key.symbol.fqn == "fixtures.materialize.Box.lift")
             .collect::<Vec<_>>();
         assert_eq!(keys.len(), 1);
-        assert!(keys[0].type_args.is_empty());
-        assert_eq!(keys[0].eff_args.len(), 1);
+        assert!(keys[0].key.type_args.is_empty());
+        assert_eq!(keys[0].key.eff_args.len(), 1);
         assert!(
-            !keys[0].eff_args[0].is_pure(),
+            !keys[0].key.eff_args[0].is_pure(),
             "lambda-derived 成员 direct-call monomorph key 应保留非 Pure eff_args"
         );
     }
@@ -5175,12 +5266,12 @@ fun main(): Int {
         );
 
         let println_monomorph_type_args = inputs
-            .monomorph_keys
+            .monomorph_requests
             .iter()
-            .filter(|key| key.symbol.fqn == "scoop.core.println")
-            .map(|key| {
-                assert_eq!(key.type_args.len(), 1);
-                key.type_args[0]
+            .filter(|request| request.key.symbol.fqn == "scoop.core.println")
+            .map(|request| {
+                assert_eq!(request.key.type_args.len(), 1);
+                request.key.type_args[0]
             })
             .collect::<Vec<_>>();
         assert!(
@@ -5200,7 +5291,7 @@ fun main(): Int {
             &inputs.index,
             Some(&inputs.env),
             &inputs.typecheck_types,
-            &inputs.monomorph_keys,
+            &inputs.monomorph_requests,
         )
         .unwrap();
         let materialized_printlns = materialized
@@ -5304,12 +5395,12 @@ fun main() {
         );
 
         let println_monomorph_type_args = inputs
-            .monomorph_keys
+            .monomorph_requests
             .iter()
-            .filter(|key| key.symbol.fqn == "scoop.core.println")
-            .map(|key| {
-                assert_eq!(key.type_args.len(), 1);
-                key.type_args[0]
+            .filter(|request| request.key.symbol.fqn == "scoop.core.println")
+            .map(|request| {
+                assert_eq!(request.key.type_args.len(), 1);
+                request.key.type_args[0]
             })
             .collect::<Vec<_>>();
         assert!(
@@ -5332,6 +5423,9 @@ fun main() {
             .unwrap();
         let request_root_fun_keys =
             collect_request_root_fun_keys(&lowered_hir, &[source.path().to_path_buf()]);
+        let request_sources = [source.path().to_path_buf()]
+            .into_iter()
+            .collect::<HashSet<_>>();
         let callable_signatures = collect_callable_signature_infos(&lowered_hir);
         let hir_direct_instance_keys = collect_hir_direct_call_instance_requests(
             &mut lowered_hir,
@@ -5381,6 +5475,7 @@ fun main() {
                 class_itables,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
+                request_sources,
                 request_root_fun_keys,
             },
             true,
@@ -5496,7 +5591,7 @@ fun main() {
             "request-root 可达扫描不应推导出 println::<Any>：{reachable_println_calls:#?}"
         );
         let mut initial_requests = materializer
-            .seed_requests(&inputs.typecheck_types, &inputs.monomorph_keys)
+            .seed_requests(&inputs.typecheck_types, &inputs.monomorph_requests)
             .unwrap();
         let initial_println_requests = initial_requests
             .iter()

@@ -13,7 +13,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::monomorph::{MonomorphKey, MonomorphSymbol};
+use crate::monomorph::{MonomorphKey, MonomorphRequest, MonomorphSymbol};
 use crate::resolve::{ConstructorKind, ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -856,8 +856,8 @@ impl<'a> TypeLowering<'a> {
         self.monomorph_requests = Some(MonomorphRequests::default());
     }
 
-    /// 取出并清空当前收集到的 monomorph keys。
-    pub(super) fn take_monomorph_keys(&mut self) -> Vec<MonomorphKey> {
+    /// 取出并清空当前收集到的 monomorph requests。
+    pub(super) fn take_monomorph_requests(&mut self) -> Vec<MonomorphRequest> {
         self.monomorph_requests
             .take()
             .map(|r| r.into_vec())
@@ -906,6 +906,7 @@ impl<'a> TypeLowering<'a> {
         callee_decl_span: Span,
         type_args: &[TypeId],
         eff_args: &[EffectRow],
+        call_span: Span,
     ) {
         let Some(req) = self.monomorph_requests.as_mut() else {
             return;
@@ -919,11 +920,16 @@ impl<'a> TypeLowering<'a> {
             decl_file: callee_decl_file.to_path_buf(),
             decl_span: callee_decl_span,
         };
-        req.record(MonomorphKey {
+        let key = MonomorphKey {
             symbol,
             type_args: type_args.to_vec(),
             eff_args: eff_args.to_vec(),
-        });
+        };
+        req.record(MonomorphRequest::new(
+            key,
+            self.source.path().to_path_buf(),
+            call_span,
+        ));
     }
 
     pub(super) fn push_effect_row_param_binding(&mut self, name: String, row: EffectRow) {
@@ -3737,8 +3743,8 @@ fn collect_top_level_value_mutabilities(
 /// 单态化（monomorphization）请求集合：去重 + 保留稳定顺序。
 #[derive(Debug, Default)]
 struct MonomorphRequests {
-    seen: HashSet<MonomorphKey>,
-    ordered: Vec<MonomorphKey>,
+    seen: HashSet<MonomorphRequest>,
+    ordered: Vec<MonomorphRequest>,
 }
 
 /// 泛型类型实例化请求集合：去重 + 保留稳定顺序（T1109）。
@@ -3761,13 +3767,13 @@ impl TypeInstantiationRequests {
 }
 
 impl MonomorphRequests {
-    fn record(&mut self, key: MonomorphKey) {
-        if self.seen.insert(key.clone()) {
-            self.ordered.push(key);
+    fn record(&mut self, request: MonomorphRequest) {
+        if self.seen.insert(request.clone()) {
+            self.ordered.push(request);
         }
     }
 
-    fn into_vec(self) -> Vec<MonomorphKey> {
+    fn into_vec(self) -> Vec<MonomorphRequest> {
         self.ordered
     }
 }
