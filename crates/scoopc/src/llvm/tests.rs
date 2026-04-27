@@ -339,6 +339,19 @@ fun main(): Int / Pure! {
     );
     let session = Session::new().unwrap();
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("single-file frontend 应保留 materialized MIR");
+    let materialized_fun_fqns = materialized
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::mir::Item::Fun(fun) if fun.body.is_some() => Some(fun.fqn.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
     let lowered_fun_fqns = codegen_unit
         .lowered
         .file
@@ -359,6 +372,16 @@ fun main(): Int / Pure! {
         assert!(
             lowered_fun_fqns.contains(&fqn),
             "single-file frontend lowering 应保留实例 `{fqn}`，实际函数集合为: {lowered_fun_fqns:?}"
+        );
+        assert!(
+            materialized_fun_fqns.contains(&fqn),
+            "single-file frontend 应保留实例 `{fqn}` 的 materialized MIR body，实际 MIR 函数集合为: {materialized_fun_fqns:?}"
+        );
+    }
+    for key in &materialized.instance_keys {
+        assert!(
+            materialized.summaries.get(key).is_some(),
+            "single-file frontend 应为实例 `{key:?}` 保留 summary"
         );
     }
 }

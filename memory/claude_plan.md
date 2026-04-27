@@ -67,3 +67,21 @@
     2. `T5000h0b`：再在 production 产物上建立 canonical materialized callable body / summary 视图。
     3. `T5000h0c`：最后调整 LLVM build / single-file entry，显式接入该视图。
   - 本轮将先更新 `TODO.md` / `PLAN.md` 完成拆分并提交，然后继续实现 `T5000h0a`。
+- 2026-04-27：已完成任务拆分提交，commit 为 `[T5000h0] Split materialized MIR frontend prerequisite`。
+- 2026-04-27：`T5000h0a` 已实现并完成验证。
+  - 代码结果：
+    - `LoweredHir` 现已新增 `materialized_mir()` / `materialized_mir_mut()` 挂点，用于在 production 的 via-MIR lowering 产物上保留 canonical `MaterializedMir`；
+    - `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)` 现已在构造 HIR 兼容输出后，把 `MaterializedMir` 挂回 `LoweredHir`，不再在 `instance_keys` 后丢弃；
+    - build / single-file frontend 的注释边界已补齐，明确返回值仍是 HIR 兼容输入，但 production 主路径现在也稳定保留 MIR body / summary 产物。
+  - 测试结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`，结果 `fixtures: ok (1201)`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 当前收尾动作：
+    1. 把 `T5000h0a` 标记为完成并回写 `PLAN.md`。
+    2. 提交本轮实现为 `[T5000h0a] ...`。
+    3. 停止，下一轮从 `T5000h0aR` 开始。

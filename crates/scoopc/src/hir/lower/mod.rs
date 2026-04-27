@@ -2295,6 +2295,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     Ok(LoweredHir {
         file,
         member_funs,
+        materialized_mir: None,
         types,
         struct_layouts,
         enum_layouts,
@@ -2572,6 +2573,7 @@ pub fn lower_for_compilation_unit(
     Ok(LoweredHir {
         file: file_hir,
         member_funs,
+        materialized_mir: None,
         types,
         struct_layouts,
         enum_layouts,
@@ -2681,6 +2683,9 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection(
 ///   可达扫描；
 /// - 这样 frontend 就能把 stdlib/helper/support sources 留在 lowering / fun_index 中，
 ///   同时避免把这些支持文件里未被入口触达的 generic 调用错误提升为实例收集种子。
+/// - 返回值中的 `LoweredHir` 仍承载当前 LLVM codegen 所需的 HIR 兼容输入，但会额外挂住
+///   `LoweredHir::materialized_mir()`，作为 production 主路径保留的 canonical materialized
+///   MIR / summary 产物。
 pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
@@ -2698,7 +2703,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
         typecheck_types,
         monomorph_keys,
     )?;
-    Ok(lower_for_compilation_unit_multi_files_internal(
+    let mut lowered = lower_for_compilation_unit_multi_files_internal(
         index,
         compilation_unit,
         files_to_lower,
@@ -2709,7 +2714,9 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
             &materialized.instance_keys,
             &materialized.types,
         ),
-    )?)
+    )?;
+    lowered.materialized_mir = Some(materialized);
+    Ok(lowered)
 }
 
 /// 为 typed dump / MIR materializer 构造“只保留 generic template”的多文件 HIR。
@@ -3085,6 +3092,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     Ok(LoweredHir {
         file: File { items },
         member_funs,
+        materialized_mir: None,
         types,
         struct_layouts,
         enum_layouts,

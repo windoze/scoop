@@ -1414,7 +1414,7 @@
   - 已新增 LLVM 回归 `via_mir_direct_class_call_is_not_reinterpreted_as_vtable_dispatch` 与 `via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch`，分别锁定“via-MIR 已 directized 的 class/interface 调用不会在 backend 被重新识别成 vtable/itable dispatch”；同时复跑并恢复 `tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop` 的端到端行为；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm:: -- --nocapture`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h0a 为 build / single-file frontend 产物保留 `MaterializedMir` / summaries，而不是在 `instance_keys` 后丢弃
+### [DONE] T5000h0a 为 build / single-file frontend 产物保留 `MaterializedMir` / summaries，而不是在 `instance_keys` 后丢弃
 - 范围：
   - 调整 build / single-file frontend 入口使用的 lowering 产物，使 production 主路径返回值中稳定保留 `MaterializedMir.file`、`types`、`instance_keys` 与 `summaries`；
   - 保持现有 HIR 兼容 lowering 继续服务当前 LLVM codegen / side tables，但要明确它在这条路径上的角色是“兼容输入”，而不是唯一 frontend 产物；
@@ -1424,6 +1424,11 @@
   - production 入口返回值中可以直接读到 materialized callable body 集合与 `MaterializedMir.summaries`；
   - 现有基于 HIR 兼容输入的 LLVM frontend / build 行为不回退。
 - 依赖：T5000gR
+- 完成记录（2026-04-27）：
+  - `crates/scoopc/src/hir/lower/types.rs` 中的 `LoweredHir` 已新增 production 用 `materialized_mir()` / `materialized_mir_mut()` 挂点；该挂点在 dump/legacy eager HIR lowering 继续保持为空，只在 via-MIR production 主路径上保留 canonical `MaterializedMir`；
+  - `crates/scoopc/src/hir/lower/mod.rs` 的 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)` 现已不再在 `instance_keys` 后丢弃 `MaterializedMir`，而是把 `file/types/instance_keys/summaries` 连同现有 HIR 兼容输出一起返回；同时补充注释，明确 HIR 在这条路径上的角色是“兼容输入”，而不是唯一 frontend 产物；
+  - `crates/scoopc/src/llvm/frontend.rs` 与 `crates/scoop/src/commands/build.rs` 已补记新边界说明；`crates/scoopc/src/llvm/tests.rs` 与 `crates/scoop/src/commands/build.rs` 的 production 回归现已锁定 single-file/build 两条入口都能直接观察 materialized callable body 集合，并对每个 `InstanceKey` 读取 `MaterializedMir.summaries`；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000h0aR Review：确认 production frontend 已稳定保留 materialized MIR / summary 产物
 - 重点：

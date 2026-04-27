@@ -27,7 +27,10 @@ pub(super) struct SingleFileCodegenUnit {
 /// - 但只有入口源文件本身允许贡献 monomorphization 请求种子；support sources 只作为可被调用的
 ///   实现体参与 lowering / codegen，避免把它们内部未被入口触达的 generic 调用提升为实例根；
 /// - 这样 single-file LLVM 路径就能复用 build 管线需要的 typecheck side table 与多文件 lowering，
-///   同时不再依赖 `lower_for_dump` 的最小调试路径。
+///   同时不再依赖 `lower_for_dump` 的最小调试路径；
+/// - 返回的 `lowered` 仍承载当前 LLVM codegen 需要的 HIR 兼容输入，但会保留
+///   `LoweredHir::materialized_mir()`，作为 production 主路径上的 canonical materialized
+///   MIR / summary 产物。
 pub(super) fn prepare_single_file_codegen_unit(
     session: &Session,
     entry_source: &SourceFile,

@@ -1428,6 +1428,23 @@
   - 依赖调整：
     - `T5000h` 的直接依赖从原 `T5000h0R` 细化为 `T5000h0cR`；
     - 下一条待执行任务切换为 `T5000h0a 为 build / single-file frontend 产物保留 MaterializedMir / summaries，而不是在 instance_keys 后丢弃`。
+- 2026-04-27：`T5000h0a 为 build / single-file frontend 产物保留 MaterializedMir / summaries，而不是在 instance_keys 后丢弃` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/hir/lower/types.rs` 中的 `LoweredHir` 已新增 production 用 `materialized_mir()` / `materialized_mir_mut()` 挂点，并在文档里明确该字段是 production 主路径上 canonical materialized MIR / summary 产物的稳定挂点；dump/legacy eager HIR lowering 继续保持 `None`；
+    - `crates/scoopc/src/hir/lower/mod.rs` 中的 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)` 现已在 HIR 兼容 lowering 完成后把 canonical `MaterializedMir` 挂回 `LoweredHir`，而不再只把 `instance_keys` / `types` 传入后立即丢弃；
+    - `crates/scoopc/src/llvm/frontend.rs` 与 `crates/scoop/src/commands/build.rs` 已同步记录新边界，说明 single-file/build frontend 返回值虽然仍承载当前 LLVM codegen 所需 HIR 兼容输入，但 production 产物上已经稳定保留 `MaterializedMir` / summaries。
+  - 验证结果：
+    - 已增强 `crates/scoopc/src/llvm/tests.rs::single_file_frontend_keeps_distinct_effect_row_generic_instances` 与 `crates/scoop/src/commands/build.rs::build_frontend_keeps_distinct_effect_row_generic_instances`，锁定 single-file/build 两条 production 入口都能直接看到 materialized callable body 集合，并为每个 `InstanceKey` 读取 `MaterializedMir.summaries`；
+    - `cargo fmt --all`
+    - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 结论：
+    - production frontend 产物已经不再在 `instance_keys` 后丢弃 MIR；后续 `T5000h0b` 可以直接在 `LoweredHir::materialized_mir()` 上建立 canonical materialized callable body / summary 视图，而不需要重新 materialize 一次。
+    - 下一条待执行任务切换为 `T5000h0aR Review：确认 production frontend 已稳定保留 materialized MIR / summary 产物`。
 
 ## 1. 当前判断
 

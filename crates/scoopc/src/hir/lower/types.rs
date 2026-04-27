@@ -253,6 +253,15 @@ pub struct LoweredHir {
     /// - 供 LLVM 后端把 `receiver.method(args...)` / `receiver.prop`（lowering 后的顶层调用）
     ///   解析到真实函数体（T1508a/T4010b1）。
     pub member_funs: Vec<FunDecl>,
+    /// 当前 production frontend 若经由 MIR instance/materialization 主路径进入，会把 canonical
+    /// `MaterializedMir` 一并保留在这里。
+    ///
+    /// 说明：
+    /// - `file` / `member_funs` 继续承载现阶段 LLVM codegen 需要的 HIR 兼容 body 与 side tables；
+    /// - `materialized_mir` 则作为 production 主路径上 materialized callable body / summary /
+    ///   后续 MIR pass 产物的稳定挂点；
+    /// - dump/legacy eager HIR lowering 等不经过该主线路径的场景保持 `None`。
+    pub(super) materialized_mir: Option<crate::mir::MaterializedMir>,
     pub types: TypeStore,
     /// 由本次 lowering 过程中收集到的 struct 字段布局信息（供早期 LLVM codegen 查询）。
     pub struct_layouts: StructLayoutIndex,
@@ -311,6 +320,23 @@ pub struct LoweredHir {
     pub direct_supertypes: DirectSupertypesIndex,
     /// 当前 lowering 使用的 builtin TypeId 集合。
     pub builtins: BuiltinTypes,
+}
+
+impl LoweredHir {
+    /// 返回当前 lowering 产物上保留的 canonical materialized MIR（如果该 lowering 走的是
+    /// production 的 via-MIR 主路径）。
+    pub fn materialized_mir(&self) -> Option<&crate::mir::MaterializedMir> {
+        self.materialized_mir.as_ref()
+    }
+
+    /// 返回当前 lowering 产物上保留的 canonical materialized MIR 的可变引用。
+    ///
+    /// 用途：
+    /// - 供 production/codegen 接线或回归测试显式观察、改写 MIR pass 产物；
+    /// - 避免消费侧只能重新 materialize 一次才能验证“frontend 已保留 MIR 产物”。
+    pub fn materialized_mir_mut(&mut self) -> Option<&mut crate::mir::MaterializedMir> {
+        self.materialized_mir.as_mut()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

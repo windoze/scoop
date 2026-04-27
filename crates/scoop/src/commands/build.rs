@@ -1038,6 +1038,9 @@ fn lower_main_hir_for_build(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
 ) -> Result<scoopc::hir::LoweredHir> {
+    // 该返回值仍是当前 LLVM codegen 消费的 HIR 兼容输入，但在 via-MIR 主路径上会额外挂住
+    // `LoweredHir::materialized_mir()`，把 canonical materialized MIR / summary 留在 build
+    // frontend 产物里，避免后续优化只能停留在 dump/test 路径。
     // compilation unit：sysroot + 当前 cone 全部源文件（稳定顺序）。
     let mut unit: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in &session.sysroot().files {
@@ -1428,6 +1431,18 @@ fun main(): Int / Pure! {
         let build_input = super::load_build_input(&input, None).unwrap();
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+        let materialized = lowered
+            .materialized_mir()
+            .expect("build frontend 应保留 materialized MIR");
+        let materialized_fun_fqns = materialized
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                scoopc::mir::Item::Fun(fun) if fun.body.is_some() => Some(fun.fqn.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         let lowered_fun_fqns = lowered
             .file
             .items
@@ -1447,6 +1462,16 @@ fun main(): Int / Pure! {
             assert!(
                 lowered_fun_fqns.contains(&fqn),
                 "build frontend lowering 应保留实例 `{fqn}`，实际函数集合为: {lowered_fun_fqns:?}"
+            );
+            assert!(
+                materialized_fun_fqns.contains(&fqn),
+                "build frontend 应保留实例 `{fqn}` 的 materialized MIR body，实际 MIR 函数集合为: {materialized_fun_fqns:?}"
+            );
+        }
+        for key in &materialized.instance_keys {
+            assert!(
+                materialized.summaries.get(key).is_some(),
+                "build frontend 应为实例 `{key:?}` 保留 summary"
             );
         }
     }
