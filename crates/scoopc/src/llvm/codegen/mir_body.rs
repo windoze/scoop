@@ -45,15 +45,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: mir_fun.span.into(),
             })?;
 
+        self.current_source_id =
+            self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?;
+
         if self.build_fun_callee_suspend_plan(hir_fun).is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR effect-state-machine body lowering",
                 at: mir_fun.span.into(),
             });
         }
-
-        self.current_source_id =
-            self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?;
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);

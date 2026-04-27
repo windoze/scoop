@@ -1639,6 +1639,32 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务为 `T5000h0eR Review：确认 production codegen 已真正切到 pass-rewritten callable body / summary 输入面`。
+- 2026-04-27：`T5000h0eR Review：确认 production codegen 已真正切到 pass-rewritten callable body / summary 输入面` 已完成。
+  - 复核结果：
+    - `crates/scoopc/src/llvm/emit.rs` 的 production 入口会把 `MaterializedMirPassView` 传入 reachability；reachable body emission 会按 pass view body-presence 决定是否发射，并且显式 pass-overridden callable 会走 `codegen_top_level_mir_fun(...)`；
+    - `crates/scoopc/src/llvm/reachability.rs` 对 pass-visible callable 读取 canonical pass MIR body，从 MIR direct call、closure fn-ptr、top-level ref 等结构事实恢复可达输入；
+    - `crates/scoopc/src/effect_state_machine_analysis.rs` 的 known fun outward-effect / suspendability cache 只消费 pass 显式 override 的 summary，不把 raw materialized summary 提前当成完整后端 effect 事实；
+    - `crates/scoopc/src/mir/pass_view.rs` 与 `crates/scoopc/src/llvm/codegen/mir_body.rs` 共同形成 raw materialized body / summary 与 pass-overridden body / summary 的分层边界；显式 pass body rewrite 已能直接改变 production LLVM body，unsupported pass MIR 节点仍是结构化错误边界。
+  - Review 修复：
+    - 发现 `codegen_top_level_mir_fun(...)` 在调用 `build_fun_callee_suspend_plan(...)` 后才切换 `current_source_id`，与 HIR lowering 的 source-context 顺序不一致；
+    - 已将 `source_id_for_path(...)` 提前到 suspend-plan 检查之前，避免跨文件 pass-overridden callable 的 effect/suspend 分析使用入口源文件上下文。
+  - 额外验证：
+    - `member_call_virtual_dispatch_override_basic.scoop` production build 与运行输出通过；
+    - `member_call_interface_dispatch_basic.scoop` production build 与运行输出通过；
+    - 这两条确认 pass-view reachability 接线未破坏 vtable / itable 端到端路径。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc production_codegen_ -- --nocapture`
+    - `cargo test -p scoopc mir::pass_view -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 结论：
+    - `T5000h` 可以在 MIR 层实现 summary-driven rewrite，并通过 pass artifacts 直接影响 production LLVM 主路径；
+    - 不需要把等价 inlining 逻辑回抄到 HIR lowering 或 LLVM call lowering；
+    - 下一条待执行任务为 `T5000h 在 MIR 层实现 summary-driven inlining`。
 
 ## 1. 当前判断
 
