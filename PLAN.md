@@ -1551,6 +1551,26 @@
   - 任务顺序调整：
     - `T5000h` 的依赖由 `T5000h0cR` 改为 `T5000h0eR`；
     - 下一条待执行任务切换为 `T5000h0d 把 MaterializedMirPassView 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层`。
+- 2026-04-27：`T5000h0d 把 MaterializedMirPassView 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/mir/pass_view.rs` 现新增 `MaterializedMirPassArtifacts`，把 canonical pass 输出层中的 callable body、per-instance summary 与 family/root 映射显式收口为独立 side table；`MaterializedMirPassView` 不再只是 raw `MaterializedMir` + callable view 的只读包装，而是稳定读取这层 pass 产物；
+    - 同文件新增 `MaterializedPassCallableView` / `MaterializedPassCallableFamilyView`，统一暴露 pass 后 callable body / summary / owner/family 查询；raw `MaterializedMir::callable_view()` 继续仅反映 materialization 原始产物；
+    - `crates/scoopc/src/mir/materialize.rs` 中的 `MaterializedMir` 现在会在构造 raw materialization 后同步初始化 `pass_artifacts`，并通过 `pass_artifacts()` / `pass_artifacts_mut()` 暴露后续 MIR pass 应写入的 canonical 输出层，而不再鼓励直接覆写 raw `file` / `summaries`；
+    - `crates/scoopc/src/hir/lower/types.rs` 的 `materialized_pass_view()` / `materialized_mir_mut()` 文档口径已同步更新，明确区分“观察 raw materialization”与“改写 canonical pass 产物层”的入口。
+  - 新增回归：
+    - `mir::pass_view::tests::pass_view_keeps_rewritten_body_and_summary_separate_from_raw_materialized_mir`
+    - `mir::pass_view::tests::pass_view_can_override_family_mapping_without_mutating_raw_materialization`
+  - 阶段结论：
+    - 当前 pass view 已能稳定承载 rewrite 后 callable body / summary / family 映射，而不必把这些结果回写到 raw `MaterializedMir`；
+    - production codegen 尚未真正消费这层 canonical pass 产物，下一步仍需推进 `T5000h0e`，但其输入表示层现在已经稳定，不需要再重发明另一套 pass 输出格式。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::pass_view -- --nocapture`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000h0dR Review：确认 pass view 已成为可承载 rewrite 后 callable body / summary 的 canonical pass 输出层`。
 
 ## 1. 当前判断
 

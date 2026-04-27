@@ -1510,7 +1510,7 @@
   - review 未发现需要插入到 `T5000h` 之前的新前置缺陷任务；结论是 production 主路径已经具备直接承接 materialized MIR body / pass 产物的稳定边界；
   - 已验证 `cargo test -p scoopc production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view -- --nocapture`、`cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`、`cargo test -p scoop build_production_codegen_entry_consumes_materialized_pass_view -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h0d 把 `MaterializedMirPassView` 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层
+### [DONE] T5000h0d 把 `MaterializedMirPassView` 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层
 - 范围：
   - 把 raw `MaterializedMir` 与“当前 MIR pass 链对外暴露的 canonical callable body / summary”显式分层；
   - 为后续 summary-driven inlining 产出的 rewritten callable body、更新后的 per-instance summary 与必要的 family/root 映射提供稳定 side table / view；
@@ -1519,6 +1519,15 @@
   - `LoweredHir::materialized_pass_view()` 能稳定暴露“当前 pass 后”的 callable body / summary，而不是只能包裹 raw `MaterializedMir`；
   - 后续 `T5000h` 无需把 inline 结果回抄到 HIR lowering，也不必破坏 raw materialization 与 pass 产物的边界。
 - 依赖：T5000h0cR
+- 完成记录（2026-04-27）：
+  - `crates/scoopc/src/mir/pass_view.rs` 现新增 `MaterializedMirPassArtifacts`，把 canonical pass 产物层中的 callable body、per-instance summary 与 family/root 映射显式收口为独立 side table；`MaterializedMirPassView` 不再只是 raw `MaterializedMir` + callable view 的只读薄包装；
+  - `crates/scoopc/src/mir/materialize.rs` 中的 `MaterializedMir` 现会在构造 raw materialization 后同步初始化 `pass_artifacts`，并通过 `pass_artifacts()` / `pass_artifacts_mut()` 暴露后续 MIR pass 应写入的 canonical pass 输出层，而不是继续直接覆写 raw `file` / `summaries`；
+  - `crates/scoopc/src/mir/pass_view.rs` 现新增 `MaterializedPassCallableView` / `MaterializedPassCallableFamilyView`，让 `LoweredHir::materialized_pass_view()` 能稳定查询 pass 后的 callable body / summary / owner/family 身份；raw `MaterializedMir::callable_view()` 则继续只反映 materialization 原始产物；
+  - 已新增回归：
+    - `mir::pass_view::tests::pass_view_keeps_rewritten_body_and_summary_separate_from_raw_materialized_mir`
+    - `mir::pass_view::tests::pass_view_can_override_family_mapping_without_mutating_raw_materialization`
+    以上测试分别锁定“pass body/summary override 不会隐式覆盖 raw materialization”以及“family/root 映射可在 pass side table 中独立重写”；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::pass_view -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000h0dR Review：确认 pass view 已成为可承载 rewrite 后 callable body / summary 的 canonical pass 输出层
 - 重点：

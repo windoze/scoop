@@ -36,7 +36,10 @@ pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 pub use materialize::{
     InstanceKey, MaterializedMir, MirMaterializeError, TemplateKey, materialize_for_dump,
 };
-pub use pass_view::MaterializedMirPassView;
+pub use pass_view::{
+    MaterializedMirPassArtifacts, MaterializedMirPassView, MaterializedPassCallableFamilyView,
+    MaterializedPassCallableView,
+};
 pub(crate) use summary::{
     DeclOnlySummaryInput, InstanceRootSummaryInput, build_materialized_summary_table,
 };

@@ -33,9 +33,9 @@ use crate::typecheck::{
 use super::{
     Body, CallArg, CallKind, ConstValue, DeclOnlySummaryInput, File, FunDecl, HandlerArm,
     InstanceRootSummaryInput, Item, LocalDecl, MaterializedCallableFamilies,
-    MaterializedCallableFamilyInput, MaterializedMirSummaries, MemberAccessMetadata, MemberTarget,
-    Operand, Pattern, PerformMetadata, Rvalue, Statement, StatementKind, Terminator,
-    TerminatorKind, build_materialized_summary_table,
+    MaterializedCallableFamilyInput, MaterializedMirPassArtifacts, MaterializedMirSummaries,
+    MemberAccessMetadata, MemberTarget, Operand, Pattern, PerformMetadata, Rvalue, Statement,
+    StatementKind, Terminator, TerminatorKind, build_materialized_summary_table,
 };
 
 /// 一个 generic MIR template 的稳定标识。
@@ -130,6 +130,7 @@ pub struct MaterializedMir {
     pub instance_keys: Vec<InstanceKey>,
     pub summaries: MaterializedMirSummaries,
     callable_families: MaterializedCallableFamilies,
+    pass_artifacts: MaterializedMirPassArtifacts,
 }
 
 impl MaterializedMir {
@@ -141,6 +142,20 @@ impl MaterializedMir {
     /// 返回当前 materialized MIR 在 production/codegen 主路径上使用的 canonical pass 视图。
     pub fn pass_view(&self) -> super::MaterializedMirPassView<'_> {
         super::MaterializedMirPassView::new(self)
+    }
+
+    /// 返回当前 materialized MIR 上挂载的 canonical pass 产物 side table。
+    pub fn pass_artifacts(&self) -> &super::MaterializedMirPassArtifacts {
+        &self.pass_artifacts
+    }
+
+    /// 返回当前 materialized MIR 上挂载的 canonical pass 产物 side table 的可变引用。
+    ///
+    /// 说明：
+    /// - 后续 MIR pass 应优先通过这层写入 rewritten callable body / summary / family 映射；
+    /// - raw `file` / `summaries` 保留为 materialization 原始产物，不应再被 pass rewrite 隐式覆盖。
+    pub fn pass_artifacts_mut(&mut self) -> &mut super::MaterializedMirPassArtifacts {
+        &mut self.pass_artifacts
     }
 }
 
@@ -2776,6 +2791,11 @@ impl MirInstanceMaterializer {
             &root_instances,
             &decl_only_inputs,
         );
+        let pass_artifacts = MaterializedMirPassArtifacts::from_raw_materialized(
+            &file,
+            &summaries,
+            &callable_families,
+        );
 
         Ok(MaterializedMir {
             file,
@@ -2783,6 +2803,7 @@ impl MirInstanceMaterializer {
             instance_keys,
             summaries,
             callable_families,
+            pass_artifacts,
         })
     }
 

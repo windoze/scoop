@@ -67,6 +67,14 @@ impl MaterializedMirSummaries {
         self.instance_summaries.get(key)
     }
 
+    pub(crate) fn insert(
+        &mut self,
+        key: InstanceKey,
+        summary: InstanceSummary,
+    ) -> Option<InstanceSummary> {
+        self.instance_summaries.insert(key, summary)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&InstanceKey, &InstanceSummary)> {
         self.instance_summaries.iter()
     }

@@ -23,48 +23,71 @@ pub(crate) struct MaterializedCallableFamilyInput {
 }
 
 #[derive(Debug, Clone)]
-struct MaterializedCallableFamily {
-    root_fqn: String,
-    callable_fqns: Vec<String>,
+pub(crate) struct MaterializedCallableFamily {
+    pub(crate) root_fqn: String,
+    pub(crate) callable_fqns: Vec<String>,
 }
 
 impl MaterializedCallableFamilies {
     pub(crate) fn from_inputs(inputs: Vec<MaterializedCallableFamilyInput>) -> Self {
-        let callable_count = inputs.iter().map(|input| input.callable_fqns.len()).sum();
-        let mut by_instance = HashMap::with_capacity(inputs.len());
-        let mut owner_by_callable_fqn = HashMap::with_capacity(callable_count);
-
+        let mut families = Self {
+            by_instance: HashMap::with_capacity(inputs.len()),
+            owner_by_callable_fqn: HashMap::with_capacity(
+                inputs.iter().map(|input| input.callable_fqns.len()).sum(),
+            ),
+        };
         for input in inputs {
-            for callable_fqn in &input.callable_fqns {
-                let previous =
-                    owner_by_callable_fqn.insert(callable_fqn.clone(), input.instance.clone());
-                debug_assert!(
-                    previous.is_none(),
-                    "callable body `{callable_fqn}` 应只属于一个 materialized instance family"
-                );
+            families.replace_family(input);
+        }
+        families
+    }
+
+    pub(crate) fn replace_family(&mut self, input: MaterializedCallableFamilyInput) {
+        if let Some(previous) = self.by_instance.insert(
+            input.instance.clone(),
+            MaterializedCallableFamily {
+                root_fqn: input.root_fqn,
+                callable_fqns: input.callable_fqns.clone(),
+            },
+        ) {
+            for callable_fqn in previous.callable_fqns {
+                let owned_by_instance = self
+                    .owner_by_callable_fqn
+                    .get(&callable_fqn)
+                    .is_some_and(|owner| owner == &input.instance);
+                if owned_by_instance {
+                    self.owner_by_callable_fqn.remove(&callable_fqn);
+                }
             }
-            by_instance
-                .entry(input.instance)
-                .or_insert_with(|| MaterializedCallableFamily {
-                    root_fqn: input.root_fqn,
-                    callable_fqns: input.callable_fqns,
-                });
         }
 
-        Self {
-            by_instance,
-            owner_by_callable_fqn,
+        for callable_fqn in input.callable_fqns {
+            let previous = self
+                .owner_by_callable_fqn
+                .insert(callable_fqn.clone(), input.instance.clone());
+            debug_assert!(
+                previous.is_none() || previous.as_ref() == Some(&input.instance),
+                "callable body `{callable_fqn}` 应只属于一个 materialized instance family"
+            );
         }
     }
 
-    fn family_entry(
+    pub(crate) fn len(&self) -> usize {
+        self.by_instance.len()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.by_instance.is_empty()
+    }
+
+    pub(crate) fn family_entry(
         &self,
         key: &InstanceKey,
     ) -> Option<(&InstanceKey, &MaterializedCallableFamily)> {
         self.by_instance.get_key_value(key)
     }
 
-    fn owner_of_callable(&self, fqn: &str) -> Option<&InstanceKey> {
+    pub(crate) fn owner_of_callable(&self, fqn: &str) -> Option<&InstanceKey> {
         self.owner_by_callable_fqn.get(fqn)
     }
 }

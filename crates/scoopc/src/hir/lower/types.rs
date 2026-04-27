@@ -350,8 +350,8 @@ impl LoweredHir {
     /// 返回当前 lowering 产物上的 canonical materialized MIR pass 视图。
     ///
     /// 用途：
-    /// - 供 production/codegen 主路径显式接入 materialized callable body / summary /
-    ///   后续 MIR pass 产物；
+    /// - 供 production/codegen 主路径显式接入当前 pass 后的 canonical callable body /
+    ///   summary / family 映射；
     /// - 避免 LLVM 入口继续隐式退回“只有 HIR 兼容 body 可见”的旧边界。
     pub fn materialized_pass_view(&self) -> Option<crate::mir::MaterializedMirPassView<'_>> {
         self.materialized_mir
@@ -362,7 +362,8 @@ impl LoweredHir {
     /// 返回当前 lowering 产物上保留的 canonical materialized MIR 的可变引用。
     ///
     /// 用途：
-    /// - 供 production/codegen 接线或回归测试显式观察、改写 MIR pass 产物；
+    /// - 供 production/codegen 接线或回归测试显式观察 raw MIR，并经
+    ///   `MaterializedMir::pass_artifacts_mut()` 改写 canonical pass 产物；
     /// - 避免消费侧只能重新 materialize 一次才能验证“frontend 已保留 MIR 产物”。
     pub fn materialized_mir_mut(&mut self) -> Option<&mut crate::mir::MaterializedMir> {
         self.materialized_mir.as_mut()
