@@ -28,6 +28,7 @@ pub struct MaterializedMirPassArtifacts {
     callable_bodies_by_fqn: HashMap<String, FunDecl>,
     callable_families: MaterializedCallableFamilies,
     summaries: MaterializedMirSummaries,
+    overridden_body_fqns: HashSet<String>,
     overridden_summary_instances: HashSet<InstanceKey>,
 }
 
@@ -49,6 +50,7 @@ impl MaterializedMirPassArtifacts {
             callable_bodies_by_fqn,
             callable_families: callable_families.clone(),
             summaries: summaries.clone(),
+            overridden_body_fqns: HashSet::new(),
             overridden_summary_instances: HashSet::new(),
         }
     }
@@ -60,6 +62,7 @@ impl MaterializedMirPassArtifacts {
     /// - 若 `fun.body.is_none()`，则等价于把该 callable 从 pass 可见 body 集中移除；
     /// - 该操作不会修改 raw `MaterializedMir.file`。
     pub fn replace_callable_body(&mut self, fun: FunDecl) -> Option<FunDecl> {
+        self.overridden_body_fqns.insert(fun.fqn.clone());
         if fun.body.is_some() {
             self.callable_bodies_by_fqn.insert(fun.fqn.clone(), fun)
         } else {
@@ -72,6 +75,7 @@ impl MaterializedMirPassArtifacts {
     /// 说明：family 映射与 summary 不会自动删除，便于表达“callable 身份仍存在，但当前没有
     /// canonical body”的 declaration-only / helper-only 形态。
     pub fn remove_callable_body(&mut self, fqn: &str) -> Option<FunDecl> {
+        self.overridden_body_fqns.insert(fqn.to_string());
         self.callable_bodies_by_fqn.remove(fqn)
     }
 
@@ -107,6 +111,10 @@ impl MaterializedMirPassArtifacts {
 
     fn callable_body(&self, fqn: &str) -> Option<&FunDecl> {
         self.callable_bodies_by_fqn.get(fqn)
+    }
+
+    fn body_is_overridden(&self, fqn: &str) -> bool {
+        self.overridden_body_fqns.contains(fqn)
     }
 
     fn families(&self) -> &MaterializedCallableFamilies {
@@ -154,6 +162,11 @@ impl<'a> MaterializedPassCallableView<'a> {
     /// 直接按 callable FQN 查询当前 pass 后的 canonical body。
     pub fn callable(&self, fqn: &str) -> Option<&'a FunDecl> {
         self.pass_artifacts.callable_body(fqn)
+    }
+
+    /// 该 callable body 是否由 MIR pass 显式覆盖或移除。
+    pub fn body_is_overridden(&self, fqn: &str) -> bool {
+        self.pass_artifacts.body_is_overridden(fqn)
     }
 
     /// 查询某个 callable 目前归属哪个实例 family。
@@ -288,6 +301,11 @@ impl<'a> MaterializedMirPassView<'a> {
     /// 直接按 callable FQN 查询当前 pass 后的 canonical body。
     pub fn callable(&self, fqn: &str) -> Option<&'a FunDecl> {
         self.callables.callable(fqn)
+    }
+
+    /// 该 callable body 是否由 MIR pass 显式覆盖或移除。
+    pub fn callable_body_is_overridden(&self, fqn: &str) -> bool {
+        self.callables.body_is_overridden(fqn)
     }
 
     /// 查询某个 callable 当前归属哪个实例 family。

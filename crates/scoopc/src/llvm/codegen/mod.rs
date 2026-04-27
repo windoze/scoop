@@ -78,6 +78,7 @@ mod expr;
 mod gc;
 mod intrinsics;
 mod layout;
+mod mir_body;
 mod object_init;
 mod runtime_abi;
 mod runtime_symbols;
@@ -379,9 +380,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     /// production/codegen 主路径显式接入的 canonical materialized MIR/pass 视图。
     ///
-    /// reachability、callable body-presence 与 known fun suspendability 查询会优先观察
-    /// 该 pass 产物层；完整的 pass-rewritten MIR body LLVM lowering 由后续 `T5000h0e2`
-    /// 继续补齐。
+    /// reachability、callable body-presence、known fun suspendability 查询与显式
+    /// pass-rewritten callable body lowering 会优先观察该 pass 产物层。
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     /// backend-agnostic 的共享程序事实。
     program_facts: Rc<ProgramFacts>,

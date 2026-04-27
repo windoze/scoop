@@ -790,7 +790,13 @@ fn build_main_module_from_codegen_entry<'ctx>(
                 at: fun.span.into(),
             })?;
         let body_codegen = unit_codegen.fresh_main_codegen();
-        body_codegen.codegen_top_level_fun(fun, llvm_fun)?;
+        if let Some(pass_fun) =
+            pass_overridden_callable_body(fun, unit_codegen.materialized_pass_view())
+        {
+            body_codegen.codegen_top_level_mir_fun(fun, pass_fun, llvm_fun)?;
+        } else {
+            body_codegen.codegen_top_level_fun(fun, llvm_fun)?;
+        }
     }
 
     let i32_type = context.i32_type();
@@ -885,6 +891,17 @@ fn should_emit_reachable_fun_body(
     }
 
     true
+}
+
+fn pass_overridden_callable_body<'a>(
+    fun: &hir::FunDecl,
+    materialized_pass_view: Option<&'a crate::mir::MaterializedMirPassView<'a>>,
+) -> Option<&'a crate::mir::FunDecl> {
+    let pass_view = materialized_pass_view?;
+    if !pass_view.callable_body_is_overridden(&fun.fqn) {
+        return None;
+    }
+    pass_view.callable(&fun.fqn)
 }
 
 #[cfg(test)]

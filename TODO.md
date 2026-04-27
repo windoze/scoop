@@ -1568,7 +1568,7 @@
   - 验证过程中曾发现初版把 raw materialized summary 直接覆盖 HIR/effect 分析会破坏 async task resume replay IR；已收口为“只有 pass 显式 override 的 summary 才抢占 known suspendability cache”，并复跑相关回归；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
-### [TODO] T5000h0e2 补齐 pass-rewritten MIR callable body 的 production LLVM lowering
+### [DONE] T5000h0e2 补齐 pass-rewritten MIR callable body 的 production LLVM lowering
 - 范围：
   - 为 `MaterializedMirPassView` 中存在 canonical pass body 的 callable 建立实际 LLVM body lowering / HIR-compatible bridge；
   - 确保 MIR pass rewrite 对 callable body 内容的修改会直接影响 production build / single-file LLVM 输出；
@@ -1577,6 +1577,12 @@
   - 后续 `T5000h` 产出的 inline 后 MIR body 能直接成为 production LLVM body 发射输入，而不是只影响 reachability 或 summary side table；
   - production 主路径不需要把等价 inlining 逻辑回抄到 HIR lowering。
 - 依赖：T5000h0e1
+- 完成记录（2026-04-27）：
+  - `crates/scoopc/src/mir/pass_view.rs` 现会记录哪些 callable body 由 MIR pass 显式覆盖或移除，使 production codegen 能区分 raw materialization body 与真正 pass-rewritten body；
+  - 新增 `crates/scoopc/src/llvm/codegen/mir_body.rs`，为显式覆盖的 pass MIR callable body 建立 production LLVM lowering 入口，当前覆盖 inlining 主线所需的 HIR-compatible MIR 子集：local / constant operand、direct call、primitive unary / binary、基础 CFG、return / goto / condbr / unreachable；
+  - `crates/scoopc/src/llvm/emit.rs` 的 reachable body 发射在遇到显式覆盖的 pass body 时改走 `codegen_top_level_mir_fun(...)`，未被 pass 改写的 raw materialization body 继续走现有 HIR 兼容路径；遇到尚未具备明确 production lowering 语义的 pass MIR 节点会返回结构化 `UnsupportedMainBody`，不会静默回退 HIR body；
+  - 新增回归 `llvm::tests::production_codegen_lowers_overridden_pass_mir_body`，将 `wrap::<Int>` 的 pass MIR direct-call target 从 `id::<Int>` 改为 `replacement`，确认 production LLVM 中 `wrap::<Int>` 的函数体直接观察到 pass-rewritten MIR body；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc production_codegen_lowers_overridden_pass_mir_body -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000h0eR Review：确认 production codegen 已真正切到 pass-rewritten callable body / summary 输入面
 - 重点：

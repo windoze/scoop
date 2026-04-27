@@ -1232,6 +1232,96 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_lowers_overridden_pass_mir_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000h0e2_pass_mir_body.scoop",
+        r#"
+package fixtures.t5000h0e2
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun replacement(x: Int): Int {
+    return x + 10
+}
+
+fun <T> wrap(x: T): T {
+    return id<T>(x)
+}
+
+fun main(): Int {
+    return wrap(1)
+}
+"#,
+    );
+
+    let mut codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let wrap_fqn = "fixtures.t5000h0e2.wrap::<Int>";
+    let id_fqn = "fixtures.t5000h0e2.id::<Int>";
+    let replacement_fqn = "fixtures.t5000h0e2.replacement";
+    {
+        let materialized = codegen_unit
+            .lowered
+            .materialized_mir_mut()
+            .expect("production frontend 应保留 materialized MIR");
+        let mut rewritten_wrap = materialized
+            .pass_view()
+            .callable(wrap_fqn)
+            .expect("pass view 应能读取 wrap canonical body")
+            .clone();
+        let body = rewritten_wrap
+            .body
+            .as_mut()
+            .expect("wrap canonical body 应存在");
+        let mut rewrote_call_target = false;
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let crate::mir::StatementKind::Assign { value, .. } = &mut stmt.kind else {
+                    continue;
+                };
+                let crate::mir::Rvalue::Call { kind, .. } = value else {
+                    continue;
+                };
+                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                    continue;
+                };
+                if callee_fqn == id_fqn {
+                    *callee_fqn = replacement_fqn.to_string();
+                    rewrote_call_target = true;
+                }
+            }
+        }
+        assert!(
+            rewrote_call_target,
+            "test setup 应把 wrap 的 pass MIR direct-call target 从 id 改为 replacement"
+        );
+        materialized
+            .pass_artifacts_mut()
+            .replace_callable_body(rewritten_wrap);
+    }
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let wrap_ir = function_ir_named(&ir, wrap_fqn);
+
+    assert!(
+        wrap_ir.contains(&format!("@{replacement_fqn}(")),
+        "pass-rewritten MIR body 应直接改变 production LLVM body 发射，wrap 应调用 replacement:\n{wrap_ir}"
+    );
+    assert!(
+        !wrap_ir.contains(&format!("@{id_fqn}(")),
+        "若 production 仍回退 HIR body，wrap 会继续调用 id；实际 IR:\n{wrap_ir}"
+    );
+    let _replacement_ir = function_ir_named(&ir, replacement_fqn);
+}
+
+#[test]
 fn production_codegen_suspendability_observes_overridden_pass_summary() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

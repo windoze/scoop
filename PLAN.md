@@ -1618,6 +1618,27 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - 全部通过。
   - 下一条待执行任务为 `T5000h0e2 补齐 pass-rewritten MIR callable body 的 production LLVM lowering`。
+- 2026-04-27：`T5000h0e2 补齐 pass-rewritten MIR callable body 的 production LLVM lowering` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/mir/pass_view.rs` 现新增 callable body override tracking，使 production codegen 能判断某个 callable body 是否由 pass 显式覆盖或移除，而不是把 raw materialized body 与 pass rewrite 混在同一个“body 存在”状态里；
+    - 新增 `crates/scoopc/src/llvm/codegen/mir_body.rs`，为显式 pass-rewritten MIR callable body 建立 production LLVM lowering；当前覆盖 inlining 主线最先需要的 HIR-compatible MIR 子集，包括 local / constant operand、direct call、primitive unary / binary、basic CFG、return / goto / condbr / unreachable；
+    - `crates/scoopc/src/llvm/emit.rs` 的 reachable body 发射在 `MaterializedMirPassView` 指出 callable body 被显式覆盖时改走 `codegen_top_level_mir_fun(...)`，从而让 pass-rewritten MIR body 内容直接改变 production LLVM body；未被 pass 显式 rewrite 的 raw materialized body 继续走现有 HIR 兼容路径，避免把尚未具备明确 lowering 语义的 MIR 节点静默按 HIR body 发射；
+    - 对当前 MIR lowering 会为 direct call callee 保留的 dead `TopLevelRef` provenance temp，MIR body lowering 只在目标 local 无后续使用且 FQN 是函数时跳过该无副作用赋值；如果该函数值 local 后续被观察或调用，仍会走显式 unsupported 边界，而不是生成错误的函数值运行时表示。
+  - 新增回归：
+    - `llvm::tests::production_codegen_lowers_overridden_pass_mir_body`：把 `wrap::<Int>` 的 pass MIR direct-call target 从 `id::<Int>` 改成 `replacement`，并确认 production LLVM 中 `wrap::<Int>` 调用 `replacement` 而不是继续按 HIR body 调用 `id::<Int>`。
+  - 阶段结论：
+    - 后续 `T5000h` 的 MIR inlining pass 可以把 rewrite 后 callable body 写入 pass artifacts，并由 production LLVM body 发射直接观察，不需要把等价 inline 逻辑回抄到 HIR lowering；
+    - 更完整的 MIR 节点覆盖面仍应随具体 pass 需求扩展；当前 unsupported 节点会结构化报错，不构成静默 workaround。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc production_codegen_lowers_overridden_pass_mir_body -- --nocapture`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务为 `T5000h0eR Review：确认 production codegen 已真正切到 pass-rewritten callable body / summary 输入面`。
 
 ## 1. 当前判断
 
