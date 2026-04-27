@@ -367,6 +367,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     interfaces: &'a crate::itable::InterfaceIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
     effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     handle_payload_tuple_tys: &'a hir::HandlePayloadTupleSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
@@ -579,6 +580,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) interfaces: &'a crate::itable::InterfaceIndex,
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    pub(super) dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
     pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     pub(super) handle_payload_tuple_tys: &'a hir::HandlePayloadTupleSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
@@ -626,6 +628,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             interfaces,
             class_itables,
             ctor_call_sites,
+            dispatch_call_sites,
             effect_op_call_sites,
             handle_payload_tuple_tys,
             continuation_resume_call_sites,
@@ -662,6 +665,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             interfaces,
             class_itables,
             ctor_call_sites,
+            dispatch_call_sites,
             effect_op_call_sites,
             handle_payload_tuple_tys,
             continuation_resume_call_sites,
@@ -2986,21 +2990,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         self.try_codegen_class_vtable_call_impl(span, callee_span, fqn, args)
-    }
-
-    fn try_devirtualize_class_vtable_call_target(
-        &mut self,
-        receiver_ty: TypeId,
-        slot: u32,
-        method_name: &str,
-        explicit_params_len: u32,
-    ) -> Option<String> {
-        self.try_devirtualize_class_vtable_call_target_impl(
-            receiver_ty,
-            slot,
-            method_name,
-            explicit_params_len,
-        )
     }
 
     fn try_codegen_interface_itable_call(

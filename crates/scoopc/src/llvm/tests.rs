@@ -178,6 +178,76 @@ fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
     dir
 }
 
+/// 构造 legacy eager-HIR lowering，供边界回归对比“旧后端猜测路径”和主 frontend/via-MIR 路径。
+fn lower_single_source_legacy(session: &Session, source: &SourceFile) -> hir::LoweredHir {
+    let mut ast = parse_file(source).unwrap();
+    let index = {
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            pairs.push((&file.source, &file.ast));
+        }
+        pairs.push((source, &ast));
+        Index::build(&pairs).unwrap()
+    };
+
+    let headers = crate::resolve::check_file_headers(source, &ast, &index).unwrap();
+    crate::resolve::check_file_bodies(source, &mut ast, &index, &headers).unwrap();
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+    env.extend_from_file(source, &ast, &index).unwrap();
+
+    let mut typecheck_types = TypeStore::new();
+    let builtins = typecheck_types.intern_builtins();
+    crate::typecheck::check_file_annotations(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_type_refs(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_exprs(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut typecheck_types,
+        builtins,
+    )
+    .unwrap();
+    crate::typecheck::check_file_type_layouts(&index, &env, &mut typecheck_types, builtins)
+        .unwrap();
+
+    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        unit.push((&file.source, &file.ast));
+    }
+    unit.push((source, &ast));
+
+    hir::lower_for_compilation_unit_multi_files(
+        source,
+        &index,
+        &unit,
+        &[(source, &ast)],
+        &[],
+        &typecheck_types,
+    )
+    .unwrap()
+}
+
 #[test]
 fn minimal_main_ir_contains_main_and_ret0() {
     let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
@@ -340,6 +410,91 @@ fun main(): Int {
             "single-file frontend 应保留 async 闭包 continuation 所需实例 `{fqn}`，实际函数集合为: {lowered_fun_fqns:?}"
         );
     }
+}
+
+#[test]
+fn via_mir_direct_class_call_is_not_reinterpreted_as_vtable_dispatch() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000gr_class_dispatch.scoop",
+        r#"
+package fixtures.t5000gr
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int {
+        return 2
+    }
+}
+
+fun main(): Int {
+    val d: Derived = Derived()
+    return d.ping()
+}
+"#,
+    );
+
+    let frontend_ir = emit_minimal_main_ir(&session, &source).unwrap();
+    assert!(
+        !frontend_ir.contains("call_vtable"),
+        "via-MIR frontend 已把 exact receiver class call 去虚化为 direct call，backend 不应再按 FQN 猜回 vtable dispatch:\n{frontend_ir}"
+    );
+
+    let legacy_lowered = lower_single_source_legacy(&session, &source);
+    let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+    let legacy_ir =
+        emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &legacy_lowered)
+            .unwrap();
+    assert!(
+        legacy_ir.contains("call_vtable"),
+        "legacy eager-HIR lowering 仍保留 dispatch_call_sites 时，backend 应只按 side table 走 vtable dispatch，而不是因为 class member FQN 自动去虚化:\n{legacy_ir}"
+    );
+}
+
+#[test]
+fn via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000gr_interface_dispatch.scoop",
+        r#"
+package fixtures.t5000gr
+
+import scoop.core.*
+
+interface Ping {
+    fun ping(): Int {
+        return 7
+    }
+}
+
+class Box() : Ping
+
+fun <T> use(x: T): Int where T: Ping {
+    return x.ping()
+}
+
+fun main(): Int {
+    return use(Box())
+}
+"#,
+    );
+
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    assert!(
+        !ir.contains("call_itable"),
+        "via-MIR frontend 已把 exact interface dispatch 去虚化为 direct call，backend 不应再按接口 owner FQN 回退成 itable call:\n{ir}"
+    );
+    assert!(
+        ir.contains("@fixtures.t5000gr.Ping.ping"),
+        "default interface method 的 direct target 应继续保留在 IR 中，实际 IR:\n{ir}"
+    );
 }
 
 #[test]

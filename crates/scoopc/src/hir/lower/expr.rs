@@ -1205,11 +1205,15 @@ impl<'a> HirLowering<'a> {
         ))
     }
 
-    fn dispatch_call_site(&self, span: Span, receiver_ty: TypeId) -> crate::hir::DispatchCallSite {
+    pub(super) fn dispatch_call_site(
+        &self,
+        span: Span,
+        receiver_ty: TypeId,
+    ) -> crate::hir::DispatchCallSite {
         crate::hir::DispatchCallSite::new(self.source.path().to_path_buf(), span, receiver_ty)
     }
 
-    fn materialized_devirtualized_dispatch_target_fqn(
+    pub(super) fn materialized_devirtualized_dispatch_target_fqn(
         &mut self,
         call_span: Span,
         impl_member_fqn: &str,

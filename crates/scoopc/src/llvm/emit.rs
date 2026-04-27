@@ -499,6 +499,7 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
             interfaces: &lowered.interfaces,
             class_itables: &lowered.class_itables,
             ctor_call_sites: &lowered.ctor_call_sites,
+            dispatch_call_sites: &lowered.dispatch_call_sites,
             effect_op_call_sites: &lowered.effect_op_call_sites,
             handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
             continuation_resume_call_sites: &lowered.continuation_resume_call_sites,

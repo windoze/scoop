@@ -1400,7 +1400,7 @@
   - 已新增/更新 monomorph 回归，分别锁定“exact virtual receiver -> DirectCall”“存在已知子类时仍保留 `VirtualCall`”“`where T: Interface` 在实例化到 concrete receiver 后 `InterfaceCall -> DirectCall`”；同时修复并复跑 owner-specialized effect-generic member / top-level fun value effect instance 的 materialization 回归。
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判
+### [DONE] T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判
 - 重点：
   - 规则是否对所有符合条件的调用统一生效；
   - 是否仍保留 backend 侧的目标猜测或名字特判；
@@ -1408,6 +1408,11 @@
 - 验收：
   - `InterfaceCall -> DirectCall`、`VirtualCall -> DirectCall` 已是 MIR 层统一改写，而不是 codegen 侧例外路径。
 - 依赖：T5000g
+- 完成记录（2026-04-27）：
+  - review 首先暴露并修复了一个既有 backend 边界问题：`crates/scoopc/src/llvm/codegen/call/dispatch.rs` 之前仍按 class/interface member FQN 猜测“这是不是 dispatch call”，class vtable 路径甚至还保留了 `try_devirtualize_class_vtable_call_target_impl(...)` 的 backend 内部去虚化分支；现已把 `LoweredHir.dispatch_call_sites` 接入 `CompilationUnitCodegenCx`，并让 class/interface dispatch lowering 仅在当前 call site 被显式标记为 `Virtual` / `Interface` 时才走 vtable/itable，backend 不再对已 directized 的调用重新猜目标或再次去虚化；
+  - review 进一步暴露并修复了一个被旧 backend 猜测路径长期遮住的 HIR 缺口：`crates/scoopc/src/hir/lower/stmt.rs` 的 custom-iterator `for` 语法糖此前手工拼出了 `iterator()/next()` 的 top-level call，但没有同步写入 `dispatch_call_sites`；现已改为复用与普通 member-call 一致的 synthetic dispatch 分类/去虚化逻辑，使 `for_in_custom_iterator_basic` 这类 interface-driven iterator 协议不再依赖 backend 按 FQN 兜底；
+  - 已新增 LLVM 回归 `via_mir_direct_class_call_is_not_reinterpreted_as_vtable_dispatch` 与 `via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch`，分别锁定“via-MIR 已 directized 的 class/interface 调用不会在 backend 被重新识别成 vtable/itable dispatch”；同时复跑并恢复 `tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop` 的端到端行为；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm:: -- --nocapture`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000h 在 MIR 层实现 summary-driven inlining
 - 范围：

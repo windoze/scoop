@@ -18,6 +18,22 @@ fn direct_call_dispatch_fqn(fqn: &str) -> &str {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn dispatch_call_kind_for_receiver(
+        &self,
+        span: crate::span::Span,
+        receiver_ty: TypeId,
+    ) -> Result<Option<hir::DispatchCallKind>, LlvmEmitError> {
+        let source = self.current_source()?;
+        Ok(self
+            .dispatch_call_sites
+            .get(&hir::DispatchCallSite::new(
+                source.path().to_path_buf(),
+                span,
+                receiver_ty,
+            ))
+            .copied())
+    }
+
     pub(in crate::llvm::codegen) fn codegen_call_impl(
         &mut self,
         span: crate::span::Span,
@@ -842,6 +858,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let hir::CallArg::Positional(receiver_expr) = receiver_arg else {
             return Ok(None);
         };
+        if !matches!(
+            self.dispatch_call_kind_for_receiver(span, receiver_expr.ty)?,
+            Some(hir::DispatchCallKind::Virtual)
+        ) {
+            return Ok(None);
+        }
 
         let explicit_params_len = args.len().saturating_sub(1) as u32;
         let slot = slots
@@ -852,25 +874,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(slot) = slot else {
             return Ok(None);
         };
-
-        let devirt_receiver_ty = match &receiver_expr.kind {
-            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
-                .function_cx
-                .env
-                .get(*id)
-                .and_then(|l| l.hir_ty)
-                .unwrap_or(receiver_expr.ty),
-            _ => receiver_expr.ty,
-        };
-        if let Some(target_fqn) = self.try_devirtualize_class_vtable_call_target(
-            devirt_receiver_ty,
-            slot,
-            method_name,
-            explicit_params_len,
-        ) {
-            let v = self.codegen_top_level_fun_call(span, callee_span, &target_fqn, args)?;
-            return Ok(Some(v));
-        }
 
         let sig_fun = self
             .fun_index
@@ -1014,43 +1017,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(in crate::llvm::codegen) fn try_devirtualize_class_vtable_call_target_impl(
-        &mut self,
-        receiver_ty: TypeId,
-        slot: u32,
-        method_name: &str,
-        explicit_params_len: u32,
-    ) -> Option<String> {
-        let receiver_fqn = match self.types.kind(receiver_ty) {
-            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
-            _ => return None,
-        };
-        if !self.class_inits.contains_key(receiver_fqn) {
-            return None;
-        }
-        let has_known_subclass = self
-            .class_inits
-            .values()
-            .any(|c| c.super_class_fqn.as_deref() == Some(receiver_fqn));
-        if has_known_subclass {
-            return None;
-        }
-
-        let receiver_slots = self.class_vtables.get(receiver_fqn)?;
-        let slot_entry = receiver_slots.get(slot as usize)?;
-        if slot_entry.name != method_name || slot_entry.params_len != explicit_params_len {
-            return None;
-        }
-
-        let target_fqn = slot_entry.impl_member_fqn.as_str();
-        let target_fun = self.fun_index.get(target_fqn).copied()?;
-        if target_fun.body.is_none() && !self.extern_funs.contains_key(target_fqn) {
-            return None;
-        }
-
-        Some(target_fqn.to_string())
-    }
-
     pub(in crate::llvm::codegen) fn try_codegen_interface_itable_call_impl(
         &mut self,
         span: crate::span::Span,
@@ -1074,9 +1040,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some((receiver_arg, _call_args)) = args.split_first() else {
             return Ok(None);
         };
-        let hir::CallArg::Positional(_receiver_expr) = receiver_arg else {
+        let hir::CallArg::Positional(receiver_expr) = receiver_arg else {
             return Ok(None);
         };
+        if !matches!(
+            self.dispatch_call_kind_for_receiver(span, receiver_expr.ty)?,
+            Some(hir::DispatchCallKind::Interface)
+        ) {
+            return Ok(None);
+        }
 
         let explicit_params_len = args.len().saturating_sub(1) as u32;
         let mut candidates = iface

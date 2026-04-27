@@ -1380,6 +1380,31 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判`。
+- 2026-04-27：`T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判` 已完成。
+  - review 首先暴露并修复了一个既有 backend 边界问题：
+    - `crates/scoopc/src/llvm/codegen/call/dispatch.rs` 之前仍按 class/interface member FQN 猜测“这是不是 dispatch call”，而没有消费 `LoweredHir.dispatch_call_sites`；
+    - class vtable 路径甚至还保留了 `try_devirtualize_class_vtable_call_target_impl(...)` 这条 backend 内部去虚化分支，意味着 codegen 还在对已 directized 的调用重新猜目标；
+    - 现已把 `dispatch_call_sites` 接入 `CompilationUnitCodegenCx` / `CompilationUnitCodegenInputs`，并让 class/interface dispatch lowering 仅在当前 call site 被显式标记为 `Virtual` / `Interface` 时才走 vtable/itable；backend 已不再对 directized 调用重新回退成 dispatch，也不再在 class-vtable 路径内承担去虚化判定。
+  - review 过程中进一步暴露并修复了一个被旧 backend 猜测路径长期遮住的 HIR 缺口：
+    - `crates/scoopc/src/hir/lower/stmt.rs` 的 custom-iterator `for` 语法糖此前手工拼出了 `CounterIterableLike.iterator` / `CounterIteratorLike.next` 这类 top-level call，但没有同步写入 `dispatch_call_sites`；
+    - 现已新增 `lower_synthetic_dispatch_call(...)`，让这类 synthetic `iterator()/next()` 调用与普通 member-call 使用同一套 dispatch kind 判定、exact-receiver devirtualization 与 side table 写入逻辑，不再依赖 backend 按 FQN 兜底；
+    - 该修复直接恢复了 `tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop` 的运行路径，避免 interface-driven iterator 协议在链接阶段退化成未定义的 direct symbol call。
+  - 新增/复用验证：
+    - `crates/scoopc/src/llvm/tests.rs` 新增 `via_mir_direct_class_call_is_not_reinterpreted_as_vtable_dispatch`，锁定主 frontend/via-MIR 路径中已 directized 的 class member call 不会在 backend 被重新识别为 vtable dispatch，同时对比 legacy eager-HIR 路径仍会保留显式 `call_vtable`；
+    - `crates/scoopc/src/llvm/tests.rs` 新增 `via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch`，锁定 exact interface dispatch directized 到 default method 后，backend 不会再按接口 owner FQN 回退成 `call_itable`；
+    - 端到端复跑 `tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop` 并确认 stdout 恢复正确，随后 `cargo run -p scoop -- test` 全量 fixtures 再次通过。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm:: -- --nocapture`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：
+    - `VirtualCall -> DirectCall` / `InterfaceCall -> DirectCall` 现已稳定收口为 MIR 层的统一改写，backend 只消费 `dispatch_call_sites` 标出的剩余 dispatch call，而不再按热点 FQN 或 owner 形状重新猜目标；
+    - 与后续 `T5000h` 的接口已自然收敛为“Materialized MIR 上显式分类完成的 call kind + per-instance summary”，无需继续把 devirtualization 事实倒灌回 codegen；
+    - 下一条待执行任务切换为 `T5000h 在 MIR 层实现 summary-driven inlining`。
 
 ## 1. 当前判断
 
