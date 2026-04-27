@@ -137,6 +137,11 @@ impl MaterializedMir {
     pub fn callable_view(&self) -> super::MaterializedCallableView<'_> {
         super::MaterializedCallableView::new(self, &self.callable_families)
     }
+
+    /// 返回当前 materialized MIR 在 production/codegen 主路径上使用的 canonical pass 视图。
+    pub fn pass_view(&self) -> super::MaterializedMirPassView<'_> {
+        super::MaterializedMirPassView::new(self)
+    }
 }
 
 /// MIR 实例化错误。

@@ -335,7 +335,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
-                scoopc::llvm::emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
+                scoopc::llvm::emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level(
                     &source_map,
                     entry_source_id,
                     &lowered,
@@ -358,7 +358,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
-                scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
+                scoopc::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
                     &source_map,
                     entry_source_id,
                     &lowered,
@@ -381,7 +381,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
-                scoopc::llvm::emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
+                scoopc::llvm::emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level(
                     &source_map,
                     entry_source_id,
                     &lowered,
@@ -941,7 +941,7 @@ fn run_codegen_and_link(
 
     let lowered = lower_main_hir_for_build(session, front)?;
     let (source_map, entry_source_id) = build_codegen_source_map(session, front);
-    scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
+    scoopc::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
         &source_map,
         entry_source_id,
         &lowered,
@@ -1039,8 +1039,9 @@ fn lower_main_hir_for_build(
     front: &FrontendOutput,
 ) -> Result<scoopc::hir::LoweredHir> {
     // 该返回值仍是当前 LLVM codegen 消费的 HIR 兼容输入，但在 via-MIR 主路径上会额外挂住
-    // `LoweredHir::materialized_mir()`，把 canonical materialized MIR / summary 留在 build
-    // frontend 产物里，避免后续优化只能停留在 dump/test 路径。
+    // `LoweredHir::materialized_pass_view()`，把 canonical materialized body / summary /
+    // 后续 MIR pass 产物视图显式保留在 build frontend 产物里，避免 production 入口只能停留在
+    // dump/test 路径。
     // compilation unit：sysroot + 当前 cone 全部源文件（稳定顺序）。
     let mut unit: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in &session.sysroot().files {
@@ -1496,6 +1497,61 @@ fun main(): Int / Pure! {
                 family.summary().body_known == family.root_body().is_some(),
                 "canonical callable view 中的 body-known 应与 root body 是否存在一致：{}",
                 family.root_fqn()
+            );
+        }
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_production_codegen_entry_consumes_materialized_pass_view() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("main.scoop");
+
+        std::fs::write(
+            &input,
+            r#"
+package fixtures.t5000h0c
+
+import scoop.core.*
+
+fun <T> id(x: T): T {
+    return x
+}
+
+object Box {
+    fun <T> memberId(x: T): T {
+        return id(x)
+    }
+}
+
+fun main(): Int {
+    val a: Int = id(1)
+    val b: Int = Box.memberId(2)
+    return a + b
+}
+"#,
+        )
+        .unwrap();
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_input = super::load_build_input(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+        let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
+        let ir = scoopc::llvm::emit_minimal_main_ir_from_production_lowered_hir(
+            &source_map,
+            entry_source_id,
+            &lowered,
+        )
+        .expect("build frontend 的 production codegen 入口应显式消费 materialized pass view");
+
+        for fqn in [
+            "fixtures.t5000h0c.id::<Int>",
+            "fixtures.t5000h0c.Box.memberId::<Int>",
+        ] {
+            assert!(
+                ir.contains(fqn),
+                "build production codegen 入口应继续保留实例身份 `{fqn}`，实际 IR:\n{ir}"
             );
         }
     }

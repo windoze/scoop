@@ -347,6 +347,18 @@ impl LoweredHir {
             .map(crate::mir::MaterializedMir::callable_view)
     }
 
+    /// 返回当前 lowering 产物上的 canonical materialized MIR pass 视图。
+    ///
+    /// 用途：
+    /// - 供 production/codegen 主路径显式接入 materialized callable body / summary /
+    ///   后续 MIR pass 产物；
+    /// - 避免 LLVM 入口继续隐式退回“只有 HIR 兼容 body 可见”的旧边界。
+    pub fn materialized_pass_view(&self) -> Option<crate::mir::MaterializedMirPassView<'_>> {
+        self.materialized_mir
+            .as_ref()
+            .map(crate::mir::MaterializedMir::pass_view)
+    }
+
     /// 返回当前 lowering 产物上保留的 canonical materialized MIR 的可变引用。
     ///
     /// 用途：

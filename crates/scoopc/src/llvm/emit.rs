@@ -30,6 +30,30 @@ use super::{
     configure_llvm_global_options_once, target,
 };
 
+struct LoweredCodegenEntry<'a> {
+    lowered: &'a hir::LoweredHir,
+    materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+}
+
+impl<'a> LoweredCodegenEntry<'a> {
+    fn from_lowered_hir(lowered: &'a hir::LoweredHir) -> Self {
+        Self {
+            lowered,
+            materialized_pass_view: lowered.materialized_pass_view(),
+        }
+    }
+
+    fn from_production_lowered_hir(lowered: &'a hir::LoweredHir) -> Result<Self, LlvmEmitError> {
+        let materialized_pass_view = lowered
+            .materialized_pass_view()
+            .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
+        Ok(Self {
+            lowered,
+            materialized_pass_view: Some(materialized_pass_view),
+        })
+    }
+}
+
 /// 为一个 Scoop 程序生成 LLVM IR（`.ll` 文本）。
 ///
 /// 当前阶段（T0808）的输出形态：
@@ -56,8 +80,34 @@ pub fn emit_minimal_main_ir_from_lowered_hir(
     lowered: &hir::LoweredHir,
 ) -> Result<String, LlvmEmitError> {
     let context = Context::create();
-    let module =
-        build_main_module_from_lowered_hir(source_map, entry_source_id, &context, lowered, None)?;
+    let module = build_main_module_from_codegen_entry(
+        source_map,
+        entry_source_id,
+        &context,
+        LoweredCodegenEntry::from_lowered_hir(lowered),
+        None,
+    )?;
+    Ok(module.print_to_string().to_string())
+}
+
+/// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成 LLVM IR。
+///
+/// 该入口要求 `lowered` 显式携带 `LoweredHir::materialized_pass_view()`；
+/// 若调用方只提供 legacy/测试 lowering，则返回结构化错误，而不是静默回退到只看 HIR
+/// 兼容 body。
+pub fn emit_minimal_main_ir_from_production_lowered_hir(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    lowered: &hir::LoweredHir,
+) -> Result<String, LlvmEmitError> {
+    let context = Context::create();
+    let module = build_main_module_from_codegen_entry(
+        source_map,
+        entry_source_id,
+        &context,
+        LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
+        None,
+    )?;
     Ok(module.print_to_string().to_string())
 }
 
@@ -136,6 +186,35 @@ pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
         entry_source_id,
         &context,
         lowered,
+        entry_main_fqn,
+    )?;
+
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
+
+    let ir = module.print_to_string().to_string();
+    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
+        path: output.to_path_buf(),
+        source: e,
+    })?;
+    Ok(())
+}
+
+/// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成 LLVM IR，并写入到指定路径。
+pub fn emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    let context = Context::create();
+    let module = build_main_module_from_codegen_entry(
+        source_map,
+        entry_source_id,
+        &context,
+        LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
         entry_main_fqn,
     )?;
 
@@ -287,6 +366,41 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
     Ok(())
 }
 
+/// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成最小 LLVM object。
+pub fn emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_main_module_from_codegen_entry(
+        source_map,
+        entry_source_id,
+        &context,
+        LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
+        entry_main_fqn,
+    )?;
+
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
+    target_machine
+        .write_to_file(&module, FileType::Object, output)
+        .map_err(|e| LlvmEmitError::WriteObjFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
 /// 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
 pub fn emit_minimal_main_asm_to_file(
     session: &Session,
@@ -424,17 +538,52 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
     Ok(())
 }
 
+/// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成最小 LLVM assembly。
+pub fn emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_main_module_from_codegen_entry(
+        source_map,
+        entry_source_id,
+        &context,
+        LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
+        entry_main_fqn,
+    )?;
+
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
+    target_machine
+        .write_to_file(&module, FileType::Assembly, output)
+        .map_err(|e| LlvmEmitError::WriteAsmFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
 pub(crate) fn build_minimal_main_module<'ctx>(
     session: &Session,
     source: &SourceFile,
     context: &'ctx Context,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     let codegen_unit = frontend::prepare_single_file_codegen_unit(session, source)?;
-    build_main_module_from_lowered_hir(
+    build_main_module_from_codegen_entry(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         context,
-        &codegen_unit.lowered,
+        LoweredCodegenEntry::from_production_lowered_hir(&codegen_unit.lowered)?,
         None,
     )
 }
@@ -446,7 +595,29 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
     lowered: &hir::LoweredHir,
     entry_main_fqn: Option<&str>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
+    build_main_module_from_codegen_entry(
+        source_map,
+        entry_source_id,
+        context,
+        LoweredCodegenEntry::from_lowered_hir(lowered),
+        entry_main_fqn,
+    )
+}
+
+fn build_main_module_from_codegen_entry<'ctx>(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    context: &'ctx Context,
+    codegen_entry: LoweredCodegenEntry<'_>,
+    entry_main_fqn: Option<&str>,
+) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     configure_llvm_global_options_once();
+
+    let LoweredCodegenEntry {
+        lowered,
+        materialized_pass_view,
+    } = codegen_entry;
+    let has_materialized_pass_view = materialized_pass_view.is_some();
 
     let entry_source = entry_source(source_map, entry_source_id);
     let module_name = module_name_from_path(entry_source.path());
@@ -510,9 +681,15 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
             builtins: lowered.builtins,
             extern_funs: &lowered.extern_funs,
             fun_index: &fun_index,
+            materialized_pass_view,
             program_facts: Rc::clone(&program_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
+    debug_assert_eq!(
+        unit_codegen.materialized_pass_view().is_some(),
+        has_materialized_pass_view,
+        "CompilationUnitCodegenCx 应保留 LLVM production 入口显式接入的 materialized pass view 边界"
+    );
     let mut declare = unit_codegen.fresh_main_codegen();
 
     let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(

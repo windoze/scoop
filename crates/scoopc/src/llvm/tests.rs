@@ -1106,7 +1106,7 @@ fun main(): Int {
         );
     }
 
-    let ir = emit_minimal_main_ir_from_lowered_hir(
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -1128,6 +1128,37 @@ fun main(): Int {
     assert!(
         !ir.contains("@fixtures.t5000e3dr.Box.memberId("),
         "LLVM IR 不应回退到 template target `fixtures.t5000e3dr.Box.memberId`，实际 IR:\n{ir}"
+    );
+}
+
+#[test]
+fn production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000h0c_missing_pass_view.scoop",
+        r#"
+package fixtures.t5000h0c
+
+fun main(): Int {
+    return 0
+}
+"#,
+    );
+
+    let legacy_lowered = lower_single_source_legacy(&session, &source);
+    let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+    let err = emit_minimal_main_ir_from_production_lowered_hir(
+        &source_map,
+        entry_source_id,
+        &legacy_lowered,
+    )
+    .expect_err(
+        "production codegen 入口不应静默接受缺少 materialized pass view 的 legacy lowering",
+    );
+
+    assert!(
+        matches!(err, LlvmEmitError::MissingMaterializedPassView),
+        "应返回结构化错误指出 production codegen 缺少 canonical pass view，实际为: {err:?}"
     );
 }
 

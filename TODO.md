@@ -1479,7 +1479,7 @@
   - review 未发现需要插入到 `T5000h0c` 之前的新前置缺陷；结论是下一步可以直接让 LLVM build / single-file entry 显式接入 materialized body / pass 视图，而不需要再补一层 ad-hoc lookup；
   - 已验证 `cargo test -p scoopc callable_view_keeps_overloaded_generic_roots_distinct -- --nocapture`、`cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h0c 让 LLVM build / single-file entry 显式接入 materialized body / pass 视图
+### [DONE] T5000h0c 让 LLVM build / single-file entry 显式接入 materialized body / pass 视图
 - 范围：
   - 调整 build / single-file LLVM entry 的输入边界，使其显式拿到 materialized callable body / summary / 后续 pass 产物视图，而不是隐式退回只看 HIR 兼容 body；
   - 为后续 MIR rewrite 留下稳定插入点，避免再把同一套优化抄回 HIR lowering；
@@ -1488,6 +1488,12 @@
   - production/codegen 主路径已经有明确的 materialized body / pass 产物输入面；
   - 后续 `T5000h` 可以在该输入面上接入 MIR rewrite，而不是继续靠 HIR lowering workaround。
 - 依赖：T5000h0bR
+- 完成记录（2026-04-27）：
+  - 新增 `crates/scoopc/src/mir/pass_view.rs`，建立 canonical `MaterializedMirPassView`；`crates/scoopc/src/mir/materialize.rs` 与 `crates/scoopc/src/hir/lower/types.rs` 现分别通过 `MaterializedMir::pass_view()` / `LoweredHir::materialized_pass_view()` 暴露 production/codegen 主路径应显式消费的 materialized body / summary / 后续 MIR pass 查询面，而不再只保留 raw `materialized_mir()`；
+  - `crates/scoopc/src/llvm/emit.rs` 现新增 production-only LLVM entry：`emit_minimal_main_ir_from_production_lowered_hir(...)` 以及对应的 `*_to_file_from_production_lowered_hir_with_entry_with_opt_level(...)`；这些入口统一要求 `LoweredHir` 显式携带 `materialized_pass_view()`，若调用方只提供 legacy/测试 lowering，则返回结构化错误 `MissingMaterializedPassView`，不再静默退回只看 HIR 兼容 body；
+  - single-file LLVM 路径 `build_minimal_main_module(...)` 与 build 主路径 `crates/scoop/src/commands/build.rs` 中的 `--emit-llvm/--emit-obj/--emit-asm`/link 前 object 生成，现均已切到上述 production-only entry；`crates/scoopc/src/llvm/codegen/mod.rs` 中的 `CompilationUnitCodegenCx` 也开始显式保留 `materialized_pass_view` 作为后续 MIR rewrite / inlining 的稳定接缝，而不是让这层输入再次隐式消失在 frontend 与 backend 之间；
+  - 已新增/更新回归：`crates/scoopc/src/llvm/tests.rs` 中 `frontend_codegen_consumes_materialized_generic_direct_call_instances` 现直接走 production codegen entry，另新增 `production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view`；`crates/scoop/src/commands/build.rs` 中新增 `build_production_codegen_entry_consumes_materialized_pass_view`，直接锁定 build frontend 产物可被 production emit 入口消费并保留实例身份；
+  - 已验证 `cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoop build_ -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
 ### [TODO] T5000h0cR Review：确认 production 主路径已经真正消费 materialized MIR body / pass 产物
 - 重点：

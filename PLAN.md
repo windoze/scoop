@@ -1504,6 +1504,25 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000h0c 让 LLVM build / single-file entry 显式接入 materialized body / pass 视图`。
+- 2026-04-27：`T5000h0c 让 LLVM build / single-file entry 显式接入 materialized body / pass 视图` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/mir/pass_view.rs`，建立 canonical `MaterializedMirPassView`；`MaterializedMir::pass_view()` 与 `LoweredHir::materialized_pass_view()` 现把 production/codegen 主路径应显式消费的 materialized callable body / summary / 后续 MIR pass 查询面从 raw `materialized_mir()` 中分离出来；
+    - `crates/scoopc/src/llvm/emit.rs` 现新增 production-only LLVM entry：`emit_minimal_main_ir_from_production_lowered_hir(...)` 以及对应的 `*_to_file_from_production_lowered_hir_with_entry_with_opt_level(...)`；这些入口统一要求 `LoweredHir` 显式携带 `materialized_pass_view()`，否则返回 `MissingMaterializedPassView`，从入口边界上阻止 production codegen 静默退回到只看 HIR 兼容 body；
+    - single-file LLVM 路径 `build_minimal_main_module(...)` 与 build 主路径 `crates/scoop/src/commands/build.rs` 中的 `--emit-llvm/--emit-obj/--emit-asm`/link 前 object 生成，现都切到上述 production-only entry；同时 `crates/scoopc/src/llvm/codegen/mod.rs` 中的 `CompilationUnitCodegenCx` 也开始显式保留 `materialized_pass_view`，作为后续 MIR rewrite / summary-driven inlining 的稳定 codegen 接缝；
+    - 新增/更新回归：
+      - `crates/scoopc/src/llvm/tests.rs::frontend_codegen_consumes_materialized_generic_direct_call_instances`
+      - `crates/scoopc/src/llvm/tests.rs::production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view`
+      - `crates/scoop/src/commands/build.rs::build_production_codegen_entry_consumes_materialized_pass_view`
+  - 收尾说明：
+    - 实现过程中曾短暂把“entry `main` 本身必须出现在 pass view 中”当成硬约束，但验证很快表明当前 canonical pass view 主要承载 materialized callable family，而非保证覆盖每个非泛型 entry root；该过强假设已在本轮立即收口，最终保留的稳定边界是“production 入口必须显式携带 pass view”，而不是“所有 codegen 入口都必须从 pass view 反查出 `main`”。
+  - 验证结果：
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoop build_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000h0cR Review：确认 production 主路径已经真正消费 materialized MIR body / pass 产物`。
 
 ## 1. 当前判断
 

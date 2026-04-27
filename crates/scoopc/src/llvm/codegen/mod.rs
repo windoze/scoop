@@ -377,6 +377,12 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    /// production/codegen 主路径显式接入的 canonical materialized MIR/pass 视图。
+    ///
+    /// 当前阶段 LLVM backend 仍主要消费 HIR 兼容 body，但这层显式输入边界会作为后续
+    /// summary-driven inlining / 其它 MIR rewrite 的稳定插入点，避免把同一套优化回抄到
+    /// HIR lowering。
+    materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     /// backend-agnostic 的共享程序事实。
     program_facts: Rc<ProgramFacts>,
     /// 编译单元级共享 analysis/layout cache。
@@ -591,6 +597,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) builtins: BuiltinTypes,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    pub(super) materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     pub(super) program_facts: Rc<ProgramFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
@@ -639,6 +646,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             builtins,
             extern_funs,
             fun_index,
+            materialized_pass_view,
             program_facts,
             effect_op_tags,
         } = inputs;
@@ -675,6 +683,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             direct_supertypes,
             builtins,
             fun_index,
+            materialized_pass_view,
             program_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
@@ -687,6 +696,12 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
     /// 新实例会重置函数级局部状态，但继续复用编译单元级共享输入与共享事实。
     pub(super) fn fresh_main_codegen(&'a self) -> MainCodegen<'a, 'ctx> {
         MainCodegen::new(self)
+    }
+
+    pub(super) fn materialized_pass_view(
+        &self,
+    ) -> Option<&crate::mir::MaterializedMirPassView<'a>> {
+        self.materialized_pass_view.as_ref()
     }
 }
 

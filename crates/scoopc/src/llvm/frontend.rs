@@ -29,8 +29,8 @@ pub(super) struct SingleFileCodegenUnit {
 /// - 这样 single-file LLVM 路径就能复用 build 管线需要的 typecheck side table 与多文件 lowering，
 ///   同时不再依赖 `lower_for_dump` 的最小调试路径；
 /// - 返回的 `lowered` 仍承载当前 LLVM codegen 需要的 HIR 兼容输入，但会保留
-///   `LoweredHir::materialized_mir()`，作为 production 主路径上的 canonical materialized
-///   MIR / summary 产物。
+///   `LoweredHir::materialized_pass_view()`，作为 production 主路径显式接入的 canonical
+///   materialized body / summary / 后续 MIR pass 产物视图。
 pub(super) fn prepare_single_file_codegen_unit(
     session: &Session,
     entry_source: &SourceFile,

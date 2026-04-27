@@ -39,15 +39,18 @@ pub use emit::{
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level,
+    emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_asm_to_file_with_opt_level, emit_minimal_main_ir,
-    emit_minimal_main_ir_from_lowered_hir, emit_minimal_main_ir_to_file,
-    emit_minimal_main_ir_to_file_from_lowered_hir,
+    emit_minimal_main_ir_from_lowered_hir, emit_minimal_main_ir_from_production_lowered_hir,
+    emit_minimal_main_ir_to_file, emit_minimal_main_ir_to_file_from_lowered_hir,
     emit_minimal_main_ir_to_file_from_lowered_hir_with_entry,
     emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level,
+    emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_obj_to_file, emit_minimal_main_obj_to_file_from_lowered_hir,
     emit_minimal_main_obj_to_file_from_lowered_hir_with_entry,
     emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level,
+    emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_obj_to_file_with_opt_level,
 };
 pub use target::{HostTargetInfo, LlvmTargetError};
@@ -130,6 +133,12 @@ pub enum LlvmEmitError {
     )]
     #[diagnostic(code(scoop::llvm::missing_entry_main))]
     MissingEntryMain,
+
+    #[error(
+        "当前 LLVM production codegen 入口要求 canonical materialized MIR/pass 视图，但 lowering 产物未携带它"
+    )]
+    #[diagnostic(code(scoop::llvm::missing_materialized_pass_view))]
+    MissingMaterializedPassView,
 
     #[error(
         "入口函数 `{entry}` 存在多个合法候选（{count} 个）；可执行程序必须且只能有一个 entry main"
