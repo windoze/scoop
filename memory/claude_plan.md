@@ -1,83 +1,72 @@
-# 本轮执行计划
+# 执行计划
 
-## 说明
+## 当前约束
 
-按要求，本文件先于仓库探查与命令执行创建，用于记录本轮的执行计划、关键决策、阻塞点与进度更新。
-出于协作与安全边界，这里记录的是可审计的任务计划、检查项与结论摘要，不写入内部私有推理全文。
+- 本轮只处理 `TODO.md` 中第一个未完成任务；完成后提交并停止。
+- 在开始读取仓库、运行命令或修改代码之前，先记录本计划文件。
+- 需要先检查最新提交是否提到已有问题；如有，优先修复这些问题。
+- 任何发现的既有 bug、回归、规格不匹配、实现边界或临时绕过都必须优先处理；不能通过缩小范围或替代表示绕过。
+- 若当前任务过大，需要先拆分到 `PLAN.md` / `TODO.md`，提交拆分结果后停止。
 
-## 初始目标
+## 初始执行步骤
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行过程中发现更早应修复的既有问题，则先修复该问题，或将其作为前置任务插入 `TODO.md` 后停止。
+1. 检查仓库状态，确认已有未提交改动，避免覆盖用户改动。
+2. 查看最新提交信息和变更内容，判断是否提到或遗留必须先处理的问题。
+3. 阅读 `TODO.md`，定位第一个未完成任务。
+4. 阅读相关的 `PLAN.md`、规格或源码上下文，明确任务边界和验收标准。
+5. 如果发现任务依赖缺失功能或已有问题：
+   - 精确定义问题；
+   - 将前置修复任务插入 `TODO.md` 的正确位置；
+   - 更新 `PLAN.md` 说明阻塞关系；
+   - 提交文档调整并停止。
+6. 如果任务可直接完成：
+   - 实现最小但完整的规格正确变更；
+   - 添加或更新针对性测试；
+   - 运行相关测试，必要时运行更广范围测试；
+   - 修复测试、编译、lint 中暴露的真实问题；
+   - 更新 `TODO.md` 和 `PLAN.md`；
+   - 提交代码和文档变更；
+   - 停止，不继续下一个任务。
 
-## 执行步骤
+## 进度记录
 
-1. 检查最新一次 Git 提交信息，确认是否提到需要优先修复的既有问题。
-2. 阅读 `TODO.md`，找出第一个未完成任务。
-3. 阅读 `PLAN.md`，确认该任务上下文、依赖与当前计划是否一致。
-4. 如果任务过大：
-   - 将任务拆分为更小的子任务；
-   - 更新 `PLAN.md`；
-   - 更新 `TODO.md`，把新的前置子任务插入到正确位置；
-   - 本轮只执行拆出的第一个子任务。
-5. 实现目标任务，并在实现过程中同步记录关键变更与发现。
-6. 运行相关验证：
-   - 至少运行与改动直接相关的测试；
-   - 如有必要，运行更广泛测试；
-   - 运行 `cargo fmt`；
-   - 运行 `cargo clippy --all-targets -- -D warnings`，确保无警告。
-7. 如果发现既有 bug、回归、规格不匹配或实现边界缺口：
-   - 立即优先修复；或
-   - 若无法在本轮直接修复，则把它作为当前任务的前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
-8. 完成后更新：
-   - `TODO.md` 中将该任务标记完成；
-   - `PLAN.md` 反映当前状态与后续顺序；
-   - 本文件记录结果与验证情况。
-9. 提交 Git，提交信息使用清晰描述并尽量带任务号。
-10. 停止，不继续下一个任务。
-
-## 当前状态
-
-- 状态：已完成初始化与任务定位，当前任务锁定为 `T5000h0dR Review`。
-- 已完成：
-  - 检查最新提交：`[T5000h0d] Add canonical materialized MIR pass artifacts`，提交标题未声明新的待优先修复既有问题；
-  - 读取 `TODO.md` / `PLAN.md`，确认第一个未完成任务是 `T5000h0dR`；
-  - 开始审阅 `crates/scoopc/src/mir/pass_view.rs`、`materialize.rs`、`callables.rs`、`summary.rs`、`hir/lower/types.rs` 及 production 接线位置。
-- 当前 review 关注点：
-  - pass view 是否已经脱离 raw `MaterializedMir` 的薄包装；
-  - rewritten callable body / summary / family 映射是否有稳定查询入口；
-  - production 侧是否只是“携带 pass view”，还是已经把它明确当作 canonical pass 输出边界保留下来。
-- 下一步：
-  - 继续核对 `llvm/emit.rs`、`llvm/codegen/mod.rs`、frontend/build 接线；
-  - 运行针对性测试与全量检查；
-  - 若未发现前置缺陷，则把 `T5000h0dR` 标记完成并更新 `PLAN.md` / `TODO.md` 后提交。
-
-## 执行中发现与修复
-
-- review 过程中发现一个既有一致性问题：
-  - `crates/scoopc/src/mir/callables.rs` 中 `MaterializedCallableFamilies::replace_family(...)` 之前只在 debug 下通过 `debug_assert!` 假设 callable 不会跨实例 family 迁移；
-  - 但在 release 构建里，如果 pass 把某个 callable 重挂到另一个 family，旧 family 的 `callable_fqns` 会静默残留该 symbol，导致同一 callable 同时出现在两个 family。
-- 已实施修复：
-  - `replace_family(...)` 现在会在重写 family 时同步从旧 owner 的 `callable_fqns` 中移除迁出的 symbol；
-  - 对输入 `callable_fqns` 增加稳定去重，避免 pass side table 自身引入重复 callable 成员。
-- 已新增回归测试：
-  - `mir::pass_view::tests::pass_view_rehomes_callable_across_families_without_leaving_duplicate_membership`
-
-## 当前结论
-
-- `MaterializedMirPassView` 已经建立在独立的 `MaterializedMirPassArtifacts` 之上，不再只是 raw `MaterializedMir` 的薄包装；
-- rewritten callable body / summary / family 映射现在都有稳定查询入口；
-- 未发现需要插入到 `T5000h0e` 之前的新前置任务；下一步可直接进入 production codegen 真正消费 pass-rewritten callable body / summary 的接线任务。
-
-## 验证状态
-
-- 已通过：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc mir::pass_view -- --nocapture`
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`
-  - `cargo clippy --all-targets -- -D warnings`
-- 当前剩余动作：
-  - `TODO.md` / `PLAN.md` / 本文件已更新完成；
-  - 检查 diff；
-  - 以 `T5000h0dR` 对应提交信息提交；
-  - 停止，不继续下一个任务。
+- 已创建本执行计划文件，下一步将检查仓库状态、最新提交和 `TODO.md`。
+- 已检查工作区状态：当前只有本轮新增/更新的 `memory/claude_plan.md` 未提交。
+- 已检查最新提交 `753288c0d6bc1196732e7ae53e409425e43b8284`（`[T5000h0dR] Review canonical pass view output layer`）：
+  - 该提交记录中提到并已修复 `MaterializedCallableFamilies::replace_family(...)` 的既有一致性缺陷；
+  - 提交记录明确说明未发现需要插入到 `T5000h0e` 之前的新前置缺陷任务。
+- 已读取 `TODO.md` 标题序列，确认第一个未完成任务是：
+  - `T5000h0e 让 production LLVM codegen 真正消费 pass-rewritten callable body / summary，而不是只携带 materialized_pass_view`。
+- 下一步执行计划：
+  1. 阅读 `T5000h0e` 的任务详情和相邻完成记录；
+  2. 梳理当前 `MaterializedMirPassView`、frontend/build 产物、LLVM emit/codegen 入口之间的数据流；
+  3. 找出 production codegen 当前仍读取 raw materialized MIR / summary 的位置；
+  4. 改为通过 pass view 获取 rewrite 后 callable body / summary；
+  5. 增加或调整回归测试，证明 pass-rewritten body / summary 会被 production codegen 消费；
+  6. 运行相关测试和 clippy；
+  7. 更新 `TODO.md`、`PLAN.md` 与本文件，提交后停止。
+- 已将 `T5000h0e` 拆分为两个子任务：
+  - `T5000h0e1`：先让 production reachability / body-presence / effect summary 查询优先消费 pass view；
+  - `T5000h0e2`：后续补齐 pass-rewritten MIR callable body 的 production LLVM lowering。
+- 拆分理由：当前 pass view 已能承载 rewritten MIR body / summary，但 LLVM backend 尚无完整 MIR body lowering；本轮先完成可独立验证的 pass-backed codegen 查询面，避免继续只把 `materialized_pass_view` 当作未消费的参数。
+- 当前执行目标改为完成 `T5000h0e1`，然后提交并停止。
+- 已实现 `T5000h0e1` 的核心接线：
+  - `llvm/reachability.rs` 对 pass-visible callable 优先扫描 `MaterializedMirPassView` 中的 MIR body；
+  - `llvm/emit.rs` 的 reachable body 发射会尊重 pass view 中 callable body 是否仍存在；
+  - `effect_state_machine_analysis.rs` 的 known fun outward-effect / suspendability cache 会优先读取 pass summary；
+  - 新增定向 LLVM 回归，锁定 pass view 移除 reachable callable body 后不再静默按 HIR body 发射。
+- 已运行 `cargo fmt --all`。
+- 已运行定向测试 `cargo test -p scoopc production_codegen_body_emission_observes_pass_view_body_presence -- --nocapture`，结果通过。
+- 运行全工作区测试时发现 `async_task_resume_replay_ir_terminates_step_fn_on_active_effect` 回归：
+  - 原因是初版把 raw materialized summary 也用于替代 known fun suspendability；
+  - raw summary 与现有 HIR/effect state-machine 分析不是完全等价，不能在没有 pass 显式改写时抢占该路径。
+- 已修复为：effect/suspend cache 只消费 pass 显式 `set_instance_summary(...)` 覆盖过的 summary；未改写的初始 summary 继续走原有 HIR/effect 分析。
+- 已新增并通过定向测试 `cargo test -p scoopc production_codegen_suspendability_observes_overridden_pass_summary -- --nocapture`。
+- 已复跑失败测试 `cargo test -p scoopc llvm::codegen::effect::state_machine_emitter::tests::async_task_resume_replay_ir_terminates_step_fn_on_active_effect -- --nocapture`，结果通过。
+- 已完成完整验证：
+  - `cargo test -p scoopc llvm::tests -- --nocapture`：通过；
+  - `cargo test -p scoopc --no-default-features`：通过；
+  - `cargo test --all`：通过；
+  - `cargo clippy --all-targets -- -D warnings`：通过；
+  - `cargo run -p scoop -- test`：通过，`fixtures: ok (1201)`。
+- 下一步：更新 `TODO.md` / `PLAN.md` 标记 `T5000h0e1` 完成，随后检查 diff 并提交。

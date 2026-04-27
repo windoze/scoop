@@ -6699,13 +6699,36 @@ fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
     program_facts: Rc<ProgramFacts>,
+    materialized_pass_view: Option<&crate::mir::MaterializedMirPassView<'_>>,
 ) -> HashMap<String, bool> {
+    let mut pass_summary_effects = HashMap::new();
+    let mut pass_controlled_fqns = HashSet::new();
+    if let Some(pass_view) = materialized_pass_view {
+        for family in pass_view.instances() {
+            if !family.summary_is_overridden() {
+                continue;
+            }
+            let may_outward_effect = family.summary().may_outward_effect;
+            pass_summary_effects.insert(family.root_fqn().to_string(), may_outward_effect);
+            pass_controlled_fqns.insert(family.root_fqn().to_string());
+            for fqn in family.callable_fqns() {
+                pass_summary_effects.insert(fqn.to_string(), may_outward_effect);
+                pass_controlled_fqns.insert(fqn.to_string());
+            }
+        }
+    }
+
     let mut known_fun_effects = fun_index
         .iter()
         .map(|(fqn, fun)| {
             (
                 fqn.clone(),
-                fun.body.is_none() && function_ty_declared_effectful(types, fun.ty),
+                pass_summary_effects
+                    .get(fqn.as_str())
+                    .copied()
+                    .unwrap_or_else(|| {
+                        fun.body.is_none() && function_ty_declared_effectful(types, fun.ty)
+                    }),
             )
         })
         .collect::<HashMap<_, _>>();
@@ -6716,6 +6739,9 @@ fn collect_known_fun_call_suspendability(
         let mut changed = false;
         for (fqn, fun) in fun_index {
             if known_fun_effects.get(fqn).copied().unwrap_or(false) {
+                continue;
+            }
+            if pass_controlled_fqns.contains(fqn.as_str()) {
                 continue;
             }
             let Some(body) = &fun.body else {
@@ -6799,6 +6825,7 @@ fn collect_effect_analysis_context_for_fun(
         &lowered.types,
         &fun_index,
         Rc::clone(&program_facts),
+        None,
     );
 
     let mut known_local_metadata = HashMap::new();
@@ -7541,6 +7568,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.types,
             self.fun_index,
             Rc::clone(&self.shared.program_facts),
+            self.materialized_pass_view(),
         );
         *self
             .shared_caches

@@ -1544,15 +1544,39 @@
   - 复核结论：pass view 现在已经提供稳定的 rewritten callable body / summary / family 查询面，后续 pass 不需要通过覆盖 raw `MaterializedMir` 或回退到 HIR side table 来传递结果；下一条 `T5000h0e` 可以直接消费这层 canonical pass 输出表示；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::pass_view -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h0e 让 production LLVM codegen 真正消费 pass-rewritten callable body / summary，而不是只携带 `materialized_pass_view`
+### T5000h0e 让 production LLVM codegen 真正消费 pass-rewritten callable body / summary，而不是只携带 `materialized_pass_view`
+- 说明：
+  - 经核对，`T5000h0e` 同时包含 pass-backed reachability / summary 接线、production callable body-presence 选择，以及后续真正 lowered pass MIR body 的 LLVM 发射路径，单轮过大；
+  - 现先把 production codegen 的 callable / summary 查询面切到 pass view，再补齐 pass-rewritten MIR body lowering，避免继续把 `materialized_pass_view` 只当成未消费的边界标记。
+
+### [DONE] T5000h0e1 让 production reachability / body-presence / effect summary 查询优先消费 pass view
 - 范围：
-  - 收口 production entry 上的 callable body / summary 消费面，使 reachability、callable identity 与后续 effect/suspend 查询至少能优先观察 `materialized_pass_view` 中的 pass 后产物；
-  - 消除“production 入口显式保留了 pass view，但函数体发射仍只遍历 HIR `FunDecl.body`”这一边界缺口；
-  - 不在这一步混入 summary-driven inlining 规则本身，但要让后续 `T5000h` 产出的 MIR rewrite 不再停留在 dump-only / side-view-only 结果。
+  - 让 production reachability 在扫描 materialized callable 时优先读取 `materialized_pass_view` 中的 canonical pass body，而不是总是回退到 HIR `FunDecl.body`；
+  - 让 production callable body 发射至少按 pass view 中“当前 callable 是否仍有 canonical body”决定，而不是只看 HIR body 是否存在；
+  - 让 known fun outward-effect / suspendability cache 优先使用 pass view 中的 per-instance summary；
+  - 不在本子任务实现完整 MIR body -> LLVM lowering，但必须避免 pass view 已删除/声明为 body-unknown 的 callable 仍被 production codegen 静默按 HIR body 发射。
 - 验收：
-  - production codegen 不再只是把 `materialized_pass_view` 挂在 `CompilationUnitCodegenCx` 上却继续完全按 HIR body 决定 callable body 主线；
-  - 后续 `T5000h` 产出的 inline 后 callable body / summary 能成为 production 主路径可直接消费的 canonical 输入。
+  - pass view 中移除某个 reachable callable body 后，production codegen 不再继续发射该 callable 的 HIR body；
+  - effect/suspend 查询路径可从 pass summary 读取 `may_outward_effect`；
+  - 后续子任务可以在同一输入面上补齐真正的 pass-rewritten MIR body lowering。
 - 依赖：T5000h0dR
+- 完成记录（2026-04-27）：
+  - `crates/scoopc/src/llvm/reachability.rs` 现会在扫描 pass-visible callable 时优先读取 `MaterializedMirPassView` 中的 canonical MIR body，并从 MIR `Direct` / closure fn-ptr / top-level ref 等结构事实恢复 reachability 输入；未被 pass view 控制的入口、support HIR 与 legacy 测试路径继续走原有 HIR 扫描；
+  - `crates/scoopc/src/llvm/emit.rs` 的 reachable body 发射现会检查 pass view 中 callable body 是否仍存在；pass side table 已移除或声明为 body-unknown 的 callable 不再静默按 HIR body 发射；
+  - `crates/scoopc/src/mir/pass_view.rs` 现记录哪些 instance summary 是由 pass 显式覆盖的；`crates/scoopc/src/effect_state_machine_analysis.rs` 的 known fun outward-effect / suspendability cache 只消费这些显式 override，避免把初始 raw materialized summary 提前当作完整 effect/state-machine 事实；
+  - 已新增 LLVM 回归 `production_codegen_body_emission_observes_pass_view_body_presence` 与 `production_codegen_suspendability_observes_overridden_pass_summary`，分别锁定 body-presence 与 overridden summary 两条 consumption 边界；
+  - 验证过程中曾发现初版把 raw materialized summary 直接覆盖 HIR/effect 分析会破坏 async task resume replay IR；已收口为“只有 pass 显式 override 的 summary 才抢占 known suspendability cache”，并复跑相关回归；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
+
+### [TODO] T5000h0e2 补齐 pass-rewritten MIR callable body 的 production LLVM lowering
+- 范围：
+  - 为 `MaterializedMirPassView` 中存在 canonical pass body 的 callable 建立实际 LLVM body lowering / HIR-compatible bridge；
+  - 确保 MIR pass rewrite 对 callable body 内容的修改会直接影响 production build / single-file LLVM 输出；
+  - 清理 `T5000h0e1` 后仍必须依赖 HIR-compatible body 的剩余路径。
+- 验收：
+  - 后续 `T5000h` 产出的 inline 后 MIR body 能直接成为 production LLVM body 发射输入，而不是只影响 reachability 或 summary side table；
+  - production 主路径不需要把等价 inlining 逻辑回抄到 HIR lowering。
+- 依赖：T5000h0e1
 
 ### [TODO] T5000h0eR Review：确认 production codegen 已真正切到 pass-rewritten callable body / summary 输入面
 - 重点：
@@ -1561,7 +1585,7 @@
   - pass 后 callable body 身份是否已成为 production codegen 可直接观察到的 canonical 边界。
 - 验收：
   - `T5000h` 可以在 MIR 层实现 rewrite 并直接影响 production 主路径，而不是停留在 dump-only 输出。
-- 依赖：T5000h0e
+- 依赖：T5000h0e2
 
 ### [TODO] T5000h 在 MIR 层实现 summary-driven inlining
 - 范围：

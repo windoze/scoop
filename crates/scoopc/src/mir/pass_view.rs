@@ -8,7 +8,7 @@
 //! - 让 production/build/codegen 可以先接到稳定的 pass 产物层，再逐步切掉对 HIR 兼容 body
 //!   的隐式依赖。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::callables::MaterializedCallableFamily;
 use super::{
@@ -28,6 +28,7 @@ pub struct MaterializedMirPassArtifacts {
     callable_bodies_by_fqn: HashMap<String, FunDecl>,
     callable_families: MaterializedCallableFamilies,
     summaries: MaterializedMirSummaries,
+    overridden_summary_instances: HashSet<InstanceKey>,
 }
 
 impl MaterializedMirPassArtifacts {
@@ -48,6 +49,7 @@ impl MaterializedMirPassArtifacts {
             callable_bodies_by_fqn,
             callable_families: callable_families.clone(),
             summaries: summaries.clone(),
+            overridden_summary_instances: HashSet::new(),
         }
     }
 
@@ -79,6 +81,7 @@ impl MaterializedMirPassArtifacts {
         key: InstanceKey,
         summary: InstanceSummary,
     ) -> Option<InstanceSummary> {
+        self.overridden_summary_instances.insert(key.clone());
         self.summaries.insert(key, summary)
     }
 
@@ -112,6 +115,10 @@ impl MaterializedMirPassArtifacts {
 
     fn summaries(&self) -> &MaterializedMirSummaries {
         &self.summaries
+    }
+
+    fn summary_is_overridden(&self, key: &InstanceKey) -> bool {
+        self.overridden_summary_instances.contains(key)
     }
 }
 
@@ -213,6 +220,15 @@ impl<'a> MaterializedPassCallableFamilyView<'a> {
             .summaries()
             .get(self.key)
             .expect("every pass-visible callable family should have a summary")
+    }
+
+    /// 该实例 summary 是否由 MIR pass 显式覆盖。
+    ///
+    /// raw materialization 初始化的 summary 主要服务 MIR side table；LLVM production 的
+    /// effect/suspend cache 只把显式 pass override 当作 canonical rewrite 结果消费，避免把
+    /// 仍需 HIR/effect 分析补充的初始 summary 提前当成完整后端事实。
+    pub fn summary_is_overridden(&self) -> bool {
+        self.view.pass_artifacts.summary_is_overridden(self.key)
     }
 
     /// 当前实例 family 中记录的 callable FQN 集合。

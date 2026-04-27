@@ -1163,6 +1163,146 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_body_emission_observes_pass_view_body_presence() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000h0e_pass_body_presence.scoop",
+        r#"
+package fixtures.t5000h0e
+
+import scoop.core.*
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> wrap(x: T): T {
+    return id<T>(x)
+}
+
+fun main(): Int {
+    return wrap<Int>(1)
+}
+"#,
+    );
+
+    let mut codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let id_fqn = "fixtures.t5000h0e.id::<Int>";
+    {
+        let materialized = codegen_unit
+            .lowered
+            .materialized_mir_mut()
+            .expect("production frontend 应保留 materialized MIR");
+        let owner = materialized
+            .pass_view()
+            .owner_of_callable(id_fqn)
+            .expect("pass view 应能反查 id 实例归属")
+            .clone();
+        let mut summary = materialized
+            .pass_view()
+            .instance(&owner)
+            .expect("pass view 应能读取 id family")
+            .summary()
+            .clone();
+        summary.body_known = false;
+        materialized
+            .pass_artifacts_mut()
+            .remove_callable_body(id_fqn);
+        materialized
+            .pass_artifacts_mut()
+            .set_instance_summary(owner, summary);
+    }
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+
+    assert!(
+        !ir.lines()
+            .any(|line| line.starts_with("define ") && line.contains(id_fqn)),
+        "pass view 已移除 `{id_fqn}` 的 canonical body 后，production codegen 不应继续按 HIR body 发射该函数，实际 IR:\n{ir}"
+    );
+    assert!(
+        ir.contains(id_fqn),
+        "当前 wrapper HIR 兼容 body 仍会引用 `{id_fqn}` 的签名；本回归只锁定 body 发射是否已听从 pass view，实际 IR:\n{ir}"
+    );
+}
+
+#[test]
+fn production_codegen_suspendability_observes_overridden_pass_summary() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000h0e_pass_summary.scoop",
+        r#"
+package fixtures.t5000h0e
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun <T> outward(x: T): T / (Ask) {
+    val ignored: Int = Ask.ask(41)
+    return x
+}
+
+fun entry(): Int / (Ask) {
+    return outward<Int>(1)
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let mut codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let outward_fqn = "fixtures.t5000h0e.outward::<Int>";
+    {
+        let materialized = codegen_unit
+            .lowered
+            .materialized_mir_mut()
+            .expect("production frontend 应保留 materialized MIR");
+        let owner = materialized
+            .pass_view()
+            .owner_of_callable(outward_fqn)
+            .expect("pass view 应能反查 outward 实例归属")
+            .clone();
+        let mut summary = materialized
+            .pass_view()
+            .instance(&owner)
+            .expect("pass view 应能读取 outward family")
+            .summary()
+            .clone();
+        summary.may_outward_effect = false;
+        materialized
+            .pass_artifacts_mut()
+            .set_instance_summary(owner, summary);
+    }
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let entry_ir = function_ir_named(&ir, "fixtures.t5000h0e.entry");
+
+    assert!(
+        !entry_ir.contains("@__scoop_effect_call_wrapper__fixtures.t5000h0e.outward::<Int>"),
+        "pass summary 覆盖 `{outward_fqn}` 为 non-outward-effect 后，known suspendability cache 应采用 pass summary 而不是重新分析 HIR body:\n{entry_ir}"
+    );
+}
+
+#[test]
 fn cross_file_class_ctor_literal_codegen_uses_correct_source_with_utf8_comments() {
     let session = Session::new().unwrap();
 

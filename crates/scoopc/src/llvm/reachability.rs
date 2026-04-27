@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use crate::ast;
 use crate::hir;
+use crate::mir;
 use crate::span::Span;
 
 pub(super) struct ReachabilityInputs<'a> {
@@ -23,6 +24,7 @@ pub(super) struct ReachabilityInputs<'a> {
 pub(super) fn collect_reachable_top_level_funs<'a>(
     entry: &'a hir::FunDecl,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    materialized_pass_view: Option<&'a mir::MaterializedMirPassView<'a>>,
     inputs: ReachabilityInputs<'a>,
 ) -> Vec<&'a hir::FunDecl> {
     let ReachabilityInputs {
@@ -41,6 +43,7 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         ctor_call_sites,
         top_level_consts,
         top_level_immutable_values,
+        materialized_pass_view,
         seen_calls: HashSet::new(),
         fun_queue: VecDeque::new(),
         reachable_funs: HashSet::new(),
@@ -93,6 +96,7 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
 
 struct ReachabilityCollector<'a> {
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    materialized_pass_view: Option<&'a mir::MaterializedMirPassView<'a>>,
     class_inits: &'a hir::ClassInitIndex,
     class_vtables: &'a crate::vtable::ClassVtableIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
@@ -237,12 +241,138 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn scan_fun(&mut self, fun: &hir::FunDecl) {
+        if let Some(pass_view) = self.materialized_pass_view
+            && pass_view.owner_of_callable(&fun.fqn).is_some()
+        {
+            if let Some(pass_fun) = pass_view.callable(&fun.fqn) {
+                self.scan_mir_fun(pass_fun);
+            }
+            return;
+        }
+
         self.with_source_path(fun.source_path.as_path(), |this| {
             let Some(body) = fun.body.as_ref() else {
                 return;
             };
             this.scan_block(body);
         });
+    }
+
+    fn scan_mir_fun(&mut self, fun: &mir::FunDecl) {
+        let Some(body) = fun.body.as_ref() else {
+            return;
+        };
+        self.scan_mir_body(body);
+    }
+
+    fn scan_mir_body(&mut self, body: &mir::Body) {
+        match body.reachable_blocks() {
+            Ok(blocks) => {
+                for block_id in blocks {
+                    let Some(block) = body.blocks.get(block_id.as_u32() as usize) else {
+                        continue;
+                    };
+                    self.scan_mir_block(block);
+                }
+            }
+            Err(_) => {
+                for block in &body.blocks {
+                    self.scan_mir_block(block);
+                }
+            }
+        }
+    }
+
+    fn scan_mir_block(&mut self, block: &mir::BasicBlock) {
+        for stmt in &block.stmts {
+            if let mir::StatementKind::Assign { value, .. } = &stmt.kind {
+                self.scan_mir_rvalue(value);
+            }
+        }
+        self.scan_mir_terminator(&block.terminator);
+    }
+
+    fn scan_mir_terminator(&mut self, terminator: &mir::Terminator) {
+        if let mir::TerminatorKind::Perform { args, .. } = &terminator.kind {
+            for arg in args {
+                self.scan_mir_operand(&arg.value);
+            }
+        }
+    }
+
+    fn scan_mir_operand(&mut self, _operand: &mir::Operand) {
+        // MIR operands are already locals/constants; any nested top-level refs or calls are
+        // represented by earlier statements and scanned through their rvalues.
+    }
+
+    fn scan_mir_rvalue(&mut self, value: &mir::Rvalue) {
+        match value {
+            mir::Rvalue::Use(operand)
+            | mir::Rvalue::Unary { operand, .. }
+            | mir::Rvalue::TypeCheck { value: operand, .. }
+            | mir::Rvalue::Cast { value: operand, .. }
+            | mir::Rvalue::TupleGet { tuple: operand, .. }
+            | mir::Rvalue::CaptureBoxNew { value: operand }
+            | mir::Rvalue::CaptureBoxGet {
+                box_operand: operand,
+            }
+            | mir::Rvalue::PatternMatch {
+                subject: operand, ..
+            }
+            | mir::Rvalue::PatternExtract {
+                subject: operand, ..
+            } => {
+                self.scan_mir_operand(operand);
+            }
+            mir::Rvalue::PerformResult { .. }
+            | mir::Rvalue::UnresolvedName { .. }
+            | mir::Rvalue::Todo(_) => {}
+            mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) => {
+                self.scan_top_level_const(fqn);
+                self.scan_top_level_immutable_value(fqn);
+            }
+            mir::Rvalue::Binary { lhs, rhs, .. } => {
+                self.scan_mir_operand(lhs);
+                self.scan_mir_operand(rhs);
+            }
+            mir::Rvalue::MemberAccess { receiver, .. } => {
+                self.scan_mir_operand(receiver);
+            }
+            mir::Rvalue::Call { kind, args } => {
+                self.scan_mir_call_kind(kind);
+                for arg in args {
+                    self.scan_mir_operand(&arg.value);
+                }
+            }
+            mir::Rvalue::MakeTuple { elements } => {
+                for element in elements {
+                    self.scan_mir_operand(element);
+                }
+            }
+            mir::Rvalue::CaptureBoxSet { box_operand, value } => {
+                self.scan_mir_operand(box_operand);
+                self.scan_mir_operand(value);
+            }
+            mir::Rvalue::MakeClosure { env, fn_ptr } => {
+                self.scan_mir_operand(env);
+                self.enqueue_fun(fn_ptr.clone());
+            }
+        }
+    }
+
+    fn scan_mir_call_kind(&mut self, kind: &mir::CallKind) {
+        match kind {
+            mir::CallKind::Direct { callee_fqn } => self.enqueue_fun(callee_fqn.clone()),
+            mir::CallKind::Closure { callee, fn_ptr } => {
+                self.scan_mir_operand(callee);
+                self.enqueue_fun(fn_ptr.clone());
+            }
+            mir::CallKind::FunValue { callee } => self.scan_mir_operand(callee),
+            mir::CallKind::Virtual { receiver, .. } | mir::CallKind::Interface { receiver, .. } => {
+                self.scan_mir_operand(receiver);
+            }
+            mir::CallKind::Resume { continuation, .. } => self.scan_mir_operand(continuation),
+        }
     }
 
     fn scan_block(&mut self, block: &hir::Block) {

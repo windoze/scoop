@@ -8,7 +8,7 @@
 //! 它不负责定义 LLVM pass pipeline，也不在根模块中继续承载大段实现。
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -695,6 +695,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(
         hir_main,
         &fun_index,
+        unit_codegen.materialized_pass_view(),
         ReachabilityInputs {
             class_inits: &lowered.class_inits,
             class_vtables: &lowered.class_vtables,
@@ -709,8 +710,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     // are dispatched at codegen time from `Binary` expressions, which the reachability scanner
     // cannot detect since HIR types for VarRef are `Any`).
     {
-        let reachable_fqns: std::collections::HashSet<&str> =
-            reachable.iter().map(|f| f.fqn.as_str()).collect();
+        let reachable_fqns: HashSet<&str> = reachable.iter().map(|f| f.fqn.as_str()).collect();
         for struct_fqn in lowered.struct_layouts.keys() {
             let prefix = format!("{struct_fqn}.");
             for (fqn, fun) in &fun_index {
@@ -725,8 +725,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     // When a generic class method like `Box.get` is reachable, also include all its
     // monomorphized variants (e.g., `Box.get::<Int>`, `Box.get::<String>`).
     {
-        let reachable_fqns: std::collections::HashSet<&str> =
-            reachable.iter().map(|f| f.fqn.as_str()).collect();
+        let reachable_fqns: HashSet<&str> = reachable.iter().map(|f| f.fqn.as_str()).collect();
         let mut monomorphized: Vec<&hir::FunDecl> = Vec::new();
         for (fqn, fun) in &fun_index {
             // Monomorphized member methods have `::<` in their FQN.
@@ -777,7 +776,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     }
 
     for fun in &reachable {
-        if fun.body.is_none() {
+        if !should_emit_reachable_fun_body(fun, unit_codegen.materialized_pass_view()) {
             continue;
         }
         // T0126: Skip generic member methods (same as above).
@@ -869,6 +868,23 @@ fn build_main_module_from_codegen_entry<'ctx>(
         })?;
 
     Ok(module)
+}
+
+fn should_emit_reachable_fun_body(
+    fun: &hir::FunDecl,
+    materialized_pass_view: Option<&crate::mir::MaterializedMirPassView<'_>>,
+) -> bool {
+    if fun.body.is_none() {
+        return false;
+    }
+
+    if let Some(pass_view) = materialized_pass_view
+        && pass_view.owner_of_callable(&fun.fqn).is_some()
+    {
+        return pass_view.callable(&fun.fqn).is_some();
+    }
+
+    true
 }
 
 #[cfg(test)]

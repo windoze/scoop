@@ -379,9 +379,9 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     /// production/codegen 主路径显式接入的 canonical materialized MIR/pass 视图。
     ///
-    /// 当前阶段 LLVM backend 仍主要消费 HIR 兼容 body，但这层显式输入边界会作为后续
-    /// summary-driven inlining / 其它 MIR rewrite 的稳定插入点，避免把同一套优化回抄到
-    /// HIR lowering。
+    /// reachability、callable body-presence 与 known fun suspendability 查询会优先观察
+    /// 该 pass 产物层；完整的 pass-rewritten MIR body LLVM lowering 由后续 `T5000h0e2`
+    /// 继续补齐。
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     /// backend-agnostic 的共享程序事实。
     program_facts: Rc<ProgramFacts>,

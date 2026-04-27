@@ -1592,6 +1592,32 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
+- 2026-04-27：开始执行 `T5000h0e` 时确认该任务横跨两个稳定边界，已拆成两个子任务。
+  - 拆分原因：
+    - 当前 production 入口已经携带 `MaterializedMirPassView`，但 reachability、body-presence 与 known fun suspendability cache 仍需要先切到 pass view；
+    - 真正把 pass-rewritten MIR body 内容发射成 LLVM body 还需要单独补齐 MIR body lowering / HIR-compatible bridge，范围不应混入第一步接线。
+  - 拆分结果：
+    - `T5000h0e1`：先让 production reachability / body-presence / effect summary 查询优先消费 pass view；
+    - `T5000h0e2`：再补齐 pass-rewritten MIR callable body 的 production LLVM lowering。
+  - 本轮执行 `T5000h0e1`；`T5000h0eR` 的依赖调整为 `T5000h0e2`。
+- 2026-04-27：`T5000h0e1 让 production reachability / body-presence / effect summary 查询优先消费 pass view` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/llvm/reachability.rs` 的 production reachability 在遇到 pass-visible callable 时优先扫描 `MaterializedMirPassView` 中的 canonical MIR body，从 MIR direct call、closure fn-ptr 与 top-level ref 等结构事实恢复可达函数 / 顶层值输入；
+    - `crates/scoopc/src/llvm/emit.rs` 的 reachable body 发射现由 pass view 中 callable body 是否仍存在决定，pass side table 移除 body 的 reachable callable 不再被静默按 HIR body 发射；
+    - `crates/scoopc/src/mir/pass_view.rs` 现跟踪哪些 instance summary 是 pass 显式 override，`crates/scoopc/src/effect_state_machine_analysis.rs` 的 known fun outward-effect / suspendability cache 只消费这些 override，而不把 raw materialized summary 提前当成完整后端 effect 事实。
+  - 回归与修复：
+    - 新增 `llvm::tests::production_codegen_body_emission_observes_pass_view_body_presence`，锁定 pass view 移除 reachable callable body 后不再继续发射 HIR body；
+    - 新增 `llvm::tests::production_codegen_suspendability_observes_overridden_pass_summary`，锁定 pass 显式覆盖 `may_outward_effect` 后 known suspendability cache 会读取该 summary；
+    - 初版曾让 raw materialized summary 抢占 HIR/effect 分析，导致 `async_task_resume_replay_ir_terminates_step_fn_on_active_effect` 回归；已改为只消费显式 summary override，并复跑该回归通过。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - 全部通过。
+  - 下一条待执行任务为 `T5000h0e2 补齐 pass-rewritten MIR callable body 的 production LLVM lowering`。
 
 ## 1. 当前判断
 
