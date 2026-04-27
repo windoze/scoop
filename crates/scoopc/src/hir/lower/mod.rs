@@ -2692,6 +2692,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
         typecheck_types,
         MirInstanceCollectionOptions {
             request_source_paths: &request_source_paths,
+            request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
             opt_level,
         },
     )
@@ -2699,6 +2700,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
 
 pub struct MirInstanceCollectionOptions<'a> {
     pub request_source_paths: &'a [std::path::PathBuf],
+    pub request_root_mode: crate::mir::MaterializeRequestRootMode<'a>,
     pub opt_level: crate::opt::OptLevel,
 }
 
@@ -2709,6 +2711,8 @@ pub struct MirInstanceCollectionOptions<'a> {
 /// - `files_to_lower` 仍决定哪些文件的顶层声明 / body 会进入 HIR 兼容输出；
 /// - `request_source_paths` 只决定哪些源文件可以贡献 monomorphization 请求与 request-root
 ///   可达扫描；
+/// - `request_root_mode` 决定 request roots 是整个 request source 集合，还是 production
+///   executable 的 entry-main / export entry points；
 /// - 这样 frontend 就能把 stdlib/helper/support sources 留在 lowering / fun_index 中，
 ///   同时避免把这些支持文件里未被入口触达的 generic 调用错误提升为实例收集种子。
 /// - 返回值中的 `LoweredHir` 仍承载当前 LLVM codegen 所需的 HIR 兼容输入，但会额外挂住
@@ -2725,17 +2729,21 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
 ) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
     let MirInstanceCollectionOptions {
         request_source_paths,
+        request_root_mode,
         opt_level,
     } = options;
     let materialized =
-        crate::mir::materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
+        crate::mir::materialize_compilation_unit_from_typechecked_inputs_with_options(
             compilation_unit,
-            request_source_paths,
             index,
             type_env,
             typecheck_types,
             monomorph_requests,
-            opt_level,
+            crate::mir::MaterializeCompilationUnitOptions {
+                request_source_paths,
+                request_root_mode,
+                opt_level,
+            },
         )?;
     let mut lowered = lower_for_compilation_unit_multi_files_internal(
         index,

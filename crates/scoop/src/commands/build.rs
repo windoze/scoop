@@ -1093,6 +1093,11 @@ fn lower_main_hir_for_build(
         .collect::<Vec<_>>();
 
     let request_source_paths = front.input.mir_request_source_paths();
+    let entry_main_fqn = front.input.entry_main_fqn.clone().unwrap_or_else(|| {
+        let source = front.input.main_source();
+        let ast = &front.asts[front.input.main_index];
+        cone_entry_main_fqn(&package_prefix(source, ast.package.as_ref()))
+    });
 
     scoopc::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
         &front.index,
@@ -1103,6 +1108,9 @@ fn lower_main_hir_for_build(
         &front.typecheck_types,
         scoopc::hir::MirInstanceCollectionOptions {
             request_source_paths: &request_source_paths,
+            request_root_mode: scoopc::mir::MaterializeRequestRootMode::EntryMain {
+                fqn: Some(entry_main_fqn.as_str()),
+            },
             opt_level,
         },
     )
@@ -1472,6 +1480,131 @@ version = "0.0.0"
 
     #[cfg(feature = "llvm")]
     #[test]
+    fn build_frontend_entry_roots_skip_same_file_unreachable_generic_helper() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("main.scoop");
+
+        std::fs::write(
+            &input,
+            r#"
+package fixture.request_roots
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun helperOnly(): Int {
+    return id<Int>(1)
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+        )
+        .unwrap();
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_input = super::load_build_input(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        assert!(
+            front
+                .monomorph_requests
+                .iter()
+                .any(|request| request.key.symbol.fqn == "fixture.request_roots.id"),
+            "test setup 应先证明同源 helper 的泛型调用会被 typecheck 记录为 request"
+        );
+
+        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
+        let materialized = lowered
+            .materialized_mir()
+            .expect("build frontend 应保留 materialized MIR");
+        assert!(
+            materialized
+                .instance_keys
+                .iter()
+                .all(|key| key.template.fqn != "fixture.request_roots.id"),
+            "entry-main rooted materialization 不应让同源未触达 helper 的 id<Int> 成为实例 root: {:?}",
+            materialized.instance_keys
+        );
+        assert!(
+            lowered.file.items.iter().all(|item| !matches!(
+                item,
+                scoopc::hir::Item::Fun(fun) if fun.fqn == "fixture.request_roots.id::<Int>"
+            )),
+            "HIR 兼容输出不应包含未从 main 触达的 id::<Int>"
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_frontend_entry_roots_skip_unreachable_cone_source_generic_helper() {
+        let dir = tempdir().unwrap();
+        let pkg = dir.path().join("pkg");
+        let src = pkg.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+
+        std::fs::write(
+            pkg.join("Cone.toml"),
+            r#"
+[cone]
+name = "fixture-entry-roots"
+version = "0.0.0"
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("main.scoop"),
+            "package fixture.entry_roots\nfun main(): Int { return 0 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("helper.scoop"),
+            r#"
+package fixture.entry_roots
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun helperOnly(): Int {
+    return id<Int>(1)
+}
+"#,
+        )
+        .unwrap();
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_input = super::load_build_input(&pkg, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        assert!(
+            front.input.mir_request_source_paths().len() >= 2,
+            "cone build 仍应把 consumer cone sources 作为 request-source 过滤集合"
+        );
+        assert!(
+            front
+                .monomorph_requests
+                .iter()
+                .any(|request| request.key.symbol.fqn == "fixture.entry_roots.id"),
+            "test setup 应先证明非入口源文件中的泛型调用会被收集到 request 列表"
+        );
+
+        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
+        let materialized = lowered
+            .materialized_mir()
+            .expect("build frontend 应保留 materialized MIR");
+        assert!(
+            materialized
+                .instance_keys
+                .iter()
+                .all(|key| key.template.fqn != "fixture.entry_roots.id"),
+            "entry-main rooted materialization 不应让 consumer cone 内未触达 helper 的 id<Int> 成为实例 root: {:?}",
+            materialized.instance_keys
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
     fn build_frontend_handles_imported_fun_signature_hints_with_utf8_comments() {
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/run-pass/std_sync_basic.scoop");
@@ -1513,23 +1646,22 @@ effect Zap {
     fun zap(): Int
 }
 
-fun <T, eff E> id(x: T): T / E {
+fun <T, eff E> id(x: T): T {
     return x
 }
 
-fun <T, eff E> wrap(x: T): T / E {
+fun <T, eff E> wrap(x: T): T {
     return id<T, eff E>(x)
 }
 
-private fun entry(): Int / (Boom + Zap) {
+private fun entry(): Int {
     val a = wrap<Int, eff Boom>(1)
     val b = wrap<Int, eff Zap>(2)
     return a + b
 }
 
 fun main(): Int / Pure! {
-    val thunk: () -> Int / (Boom + Zap) = entry
-    return 0
+    return entry()
 }
 "#,
         )
@@ -1688,8 +1820,7 @@ fun entry(): Int {
 }
 
 fun main(): Int / Pure! {
-    val thunk: () -> Int = entry
-    return 0
+    return entry()
 }
 "#,
         )

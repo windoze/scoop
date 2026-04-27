@@ -1324,12 +1324,7 @@ impl<'a> FnLowering<'a> {
         let dispatch_target = match &callee.kind {
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 let Some((receiver_arg, remaining_args)) = args.split_first() else {
-                    self.assign(
-                        span,
-                        result,
-                        Rvalue::Todo("dispatch receiver lowering pending"),
-                    );
-                    return true;
+                    return false;
                 };
                 let receiver_expr = match receiver_arg {
                     hir::CallArg::Positional(expr) => expr,

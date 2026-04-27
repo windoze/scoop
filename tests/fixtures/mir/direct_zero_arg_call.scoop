@@ -1,0 +1,9 @@
+package a
+
+fun zero(): Int {
+  0
+}
+
+fun main() {
+  zero()
+}

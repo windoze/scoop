@@ -210,6 +210,7 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
         &typecheck_types,
         hir::MirInstanceCollectionOptions {
             request_source_paths: &request_source_paths,
+            request_root_mode: crate::mir::MaterializeRequestRootMode::EntryMain { fqn: None },
             opt_level,
         },
     )

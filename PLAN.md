@@ -1847,7 +1847,40 @@
     - `cargo clippy --all-targets -- -D warnings`
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - 全部通过。
-  - 下一条待执行任务仍为 `T5000i2 基于 escape facts 接入最小 non-escaping closure simplification`。
+- 2026-04-28：继续优先修复最新提交记录的 `ISSUES.md` P2：request-root 当前是源文件级，不是 entry-main 可达级。
+  - 问题来源：
+    - 最新提交 `ISSUES.md` 仍记录 materializer 会把 request source 中所有顶层函数与 member fun 当作 request roots；
+    - 这会让同一源文件或 consumer cone 中未从选定 `main` 触达的 helper 贡献 generic 实例，扩大 materialized MIR/HIR compatibility 输出；
+    - 该问题优先级高于继续推进 `T5000i2`。
+  - 修复结果：
+    - `crates/scoopc/src/mir/mod.rs` 新增 `MaterializeRequestRootMode` 与 `MaterializeCompilationUnitOptions`；
+    - dump / 调试路径继续使用 source-file rooted 模式，production build / single-file LLVM frontend 改用 entry-main rooted 模式；
+    - `collect_request_root_fun_keys(...)` 现只在 entry-main 模式下选择精确 entry main 与 `Index` 中的 export entry points；
+    - entry-main 模式下 initial `MonomorphRequest` seed 还必须处于已扫描到的 entry 可达函数体内，避免同源未触达 helper 的 request 直接成为实例 root；block 级精确过滤继续作为下一条 P4 跟踪；
+    - HIR-only synthetic direct-call fallback 现按实际可达 MIR function body 消费，不再预先只扫初始 source roots；这保留了 async task lowering 中 `__task_step_ready<T>` 等 HIR synthetic generic helper 的实例发现；
+    - MIR direct-call 实例推断现在可同时使用赋值目标 local 的结果类型，补齐只从返回类型才能推断 type 参数的 helper 调用；
+    - `crates/scoop/src/commands/build.rs` 的单文件 build 现在会为 package main 计算显式 entry FQN，使 materializer 与 LLVM entry 选择使用同一入口身份。
+  - 过程中修复的既有阻塞 bug：
+    - `crates/scoopc/src/mir/lower.rs` 中零参数顶层调用此前会被 `lower_dispatch_call_expr(...)` 误判成缺少 dispatch receiver，并落成 `Todo("dispatch receiver lowering pending")`；
+    - 现已让无 receiver 的顶层调用回到普通 callable lowering，`entry()` 可稳定产出 `CallKind::Direct`；
+    - 新增 `tests/fixtures/mir/direct_zero_arg_call.{scoop,mir}` 锁定该行为。
+  - 回归覆盖：
+    - 新增 `build_frontend_entry_roots_skip_same_file_unreachable_generic_helper`；
+    - 新增 `build_frontend_entry_roots_skip_unreachable_cone_source_generic_helper`；
+    - 旧的 effect-row 与 owner-specialized getter build 回归已改为从 `main` 真实触达被测实例，不再依赖 source-file root。
+    - full fixture 验证中暴露的 `async_fun_task_runtime_basic.scoop` 缺失 `__task_step_ready::<Int>` 实例问题已修复并单独复验通过。
+  - 文档状态：
+    - `ISSUES.md` 已把对应 P2 标记为已修复；
+    - `TODO.md` 已新增完成项 `T5000i1P3`；
+    - `TODO.md` 已把剩余两个 P2 插入为 `T5000i1P4` / `T5000i1P5`，并让 `T5000i2` 依赖它们。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoop build_frontend_ -- --nocapture`
+    - `cargo test -p scoopc mir::materialize -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000i1P4 让 materializer request-root 可达扫描使用 MIR reachable-block 过滤`。
 
 ## 1. 当前判断
 

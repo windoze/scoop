@@ -1746,6 +1746,51 @@
   - `ISSUES.md` 已把该 P1 标记为已修复；
   - 已验证 `cargo check -p scoopc`、`cargo test -p scoopc --no-run`、`cargo test -p scoopc materializer_filters_initial_monomorph_requests_by_call_site_source -- --nocapture`、`cargo test -p scoopc mir::materialize -- --nocapture`、`cargo test -p scoop --no-run`、`cargo test -p scoop build_frontend_ -- --nocapture`、`cargo fmt --all --check`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）通过。
 
+### [DONE] T5000i1P3 修复 production MIR request roots 仍按源文件级过度物化的问题
+- 范围：
+  - 按最新提交 `ISSUES.md` 的第一个未修复 P2，新增 entry-main rooted materialization mode；
+  - production build / single-file LLVM frontend 不再把 request source 内全部 callable 当作实例 root；
+  - `main` / export entry points 可达函数体内的 request 仍可作为 seed，未从入口触达的同源 helper 不应 materialize；
+  - dump / 调试路径继续保留 source-file rooted 模式，避免改变调试入口语义。
+- 验收：
+  - 单文件 build 中，同一源文件未从 `main` 触达的 generic helper 不会被物化；
+  - cone build 中，consumer cone 内非入口源文件的未触达 generic helper 不会被物化；
+  - 从 entry-main 真实触达的 generic/effect-row/member getter 实例仍会保留；
+  - 零参数顶层 direct call 在 MIR 中不再误落为 `Todo("dispatch receiver lowering pending")`。
+- 依赖：T5000i1P2
+- 完成记录（2026-04-28）：
+  - 新增 `MaterializeRequestRootMode` 与 `MaterializeCompilationUnitOptions`，source-file rooted 模式保留给 dump / 旧测试路径，production build / single-file LLVM frontend 显式选择 entry-main rooted 模式；
+  - `collect_request_root_fun_keys(...)` 现按模式区分：source-file 模式保持原行为，entry-main 模式只从选定 `main` 与 `Index` 中声明的 export entry points 出发；
+  - entry-main 模式下，initial `MonomorphRequest` seed 还必须位于已扫描到的 entry 可达函数体内，避免同一 request source 中未触达 helper 的泛型请求直接成为实例 root；block 级精确过滤仍留给下一条 P4；
+  - HIR-only synthetic direct-call fallback 现按实际扫描到的 reachable MIR function body 消费，不再预先只扫初始 source roots；这保留了 async task lowering 里 `__task_step_ready<T>` 等 HIR synthetic generic helper 的实例发现能力；
+  - production build 的单文件 / cone 回归已覆盖未触达 helper 不再 materialize，同时旧的 effect-row 与 owner-specialized getter build 回归已改成从 `main` 真实触达被测实例；
+  - 修复过程中暴露并一并修复了零参数顶层 direct call 的 MIR lowering bug：`entry()` 现在稳定 lowering 为 `CallKind::Direct`，新增 `tests/fixtures/mir/direct_zero_arg_call.{scoop,mir}` 锁定该行为；
+  - 修复 full fixture 验证暴露的 async task 回归：MIR direct-call instance inference 现在可从赋值目标 local 的结果类型推断只出现在返回类型中的 type 参数，配合 reachable HIR fallback 恢复 `async_fun_task_runtime_basic.scoop` 的 `__task_step_ready::<Int>` 实例；
+  - `ISSUES.md` 已把对应 P2 标记为已修复；
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoop build_frontend_ -- --nocapture`、`cargo test -p scoopc mir::materialize -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`，并单独确认 `cargo run -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop` 通过。
+
+### [TODO] T5000i1P4 让 materializer request-root 可达扫描使用 MIR reachable-block 过滤
+- 范围：
+  - 按最新提交 `ISSUES.md` 剩余 P2，修复 `scan_reachable_non_generic_fun(...)` 当前直接遍历 `body.blocks` 全量 block 的口径；
+  - 与 LLVM reachability 对齐：`body.reachable_blocks()` 成功时只扫描可达 blocks，失败时再保守扫描全部 blocks；
+  - entry-main 模式中按 reachable function span 放行 initial request 的临时粗粒度边界，也应同步收口到 reachable block / reachable statement 级别。
+- 验收：
+  - MIR 不可达 block 中的 generic direct-call 不会产生额外实例，除非 CFG reachable-block 计算失败触发保守回退；
+  - materializer 与 LLVM reachability 对 MIR block 可达性的判断口径一致；
+  - 有覆盖不可达 block generic call 的回归。
+- 依赖：T5000i1P3
+
+### [TODO] T5000i1P5 让 production LLVM body emission 默认消费 materialized MIR body
+- 范围：
+  - 按最新提交 `ISSUES.md` 剩余 P2，收口 production emit 仍主要走 HIR 兼容 body 的半切换边界；
+  - 当前 `LoweredHir::materialized_pass_view()` 已存在，reachability / body presence / summary 查询已消费 pass view，但普通 body emission 仍在未 override 时回退 HIR；
+  - 需要让 production LLVM lowering 主路径默认消费 materialized MIR callable body / pass-rewritten body，并仅在明确不支持的声明或边界上保守保留 HIR 兼容路径。
+- 验收：
+  - production LLVM codegen 不再只在 pass override 时才走 MIR body bridge；
+  - materialized MIR body / summary / pass view 成为普通 callable emission 的 canonical 输入面；
+  - 现有 HIR 兼容 body 不再掩盖 materialized MIR 与最终 codegen 可达集合之间的不一致。
+- 依赖：T5000i1P4
+
 ### [TODO] T5000i2 基于 escape facts 接入最小 non-escaping closure simplification
 - 范围：
   - 消费 `T5000i1` 的 MIR escape facts；
@@ -1754,7 +1799,7 @@
 - 验收：
   - closure simplification 只读取 pass-view escape facts，不重新在 LLVM codegen 现场推断；
   - escaping / unknown closure 不被错误简化。
-- 依赖：T5000i1, T5000i1P1, T5000i1P2
+- 依赖：T5000i1, T5000i1P1, T5000i1P2, T5000i1P3, T5000i1P4, T5000i1P5
 
 ### [TODO] T5000i3 让 continuation escaping analysis 进入 effect/state-machine planning 输入面
 - 范围：

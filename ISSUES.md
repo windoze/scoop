@@ -135,7 +135,33 @@ support sources 只作为可被调用的实现体参与普通 typecheck/lowering
   - 或新增 `MonomorphRequest { key, source_path, call_span }`，保留 `MonomorphKey` 作为实例身份。
 - materializer 入口可接收带来源的请求，并在 `request_source_paths` 之外过滤 initial seeds。
 
-## P2：request-root 当前是“源文件级”，不是 entry-main 可达级
+## 已修复（2026-04-28）：request-root 当前是“源文件级”，不是 entry-main 可达级
+
+修复记录：
+
+- 新增 `MaterializeRequestRootMode`：
+  - dump / 调试路径继续使用 source-file rooted 模式；
+  - production build / single-file LLVM frontend 使用 entry-main rooted 模式。
+- entry-main 模式下，materializer 的 request roots 只来自：
+  - 精确选定的 entry `main`；
+  - `Index` 中显式登记的 export entry points。
+- production build 的单文件 package main 现在会计算显式 entry FQN，避免 materializer 与 LLVM entry 选择使用不同入口身份。
+- entry-main 模式下，initial `MonomorphRequest` seed 还必须位于已扫描到的 entry 可达函数体内；同一 request source 中未从入口触达的 helper 不再直接贡献实例。
+- HIR-only synthetic direct-call fallback 现在随实际可达 MIR function body 消费，而不是预先只扫描初始 source roots；这保留了 async task lowering 中 `__task_step_ready<T>` 等 HIR synthetic generic helper 的实例发现。
+- MIR direct-call 实例推断现在同时使用赋值目标 local 的结果类型，补齐只从返回类型才能恢复 type 参数的 helper 调用。
+- 修复过程中同时补上零参数顶层 direct-call 的 MIR lowering 缺口：
+  - `entry()` 不再误落为 `Todo("dispatch receiver lowering pending")`；
+  - 新增 `tests/fixtures/mir/direct_zero_arg_call.{scoop,mir}`。
+- 新增 / 调整回归覆盖：
+  - `build_frontend_entry_roots_skip_same_file_unreachable_generic_helper`
+  - `build_frontend_entry_roots_skip_unreachable_cone_source_generic_helper`
+  - 既有 effect-row 与 owner-specialized getter build 回归现在从 `main` 真实触达被测实例，不再依赖源文件级 root。
+
+保留说明：
+
+- 当前 initial request 过滤仍以“entry 可达函数体 span”为粒度；MIR block 级精确过滤另见后续 P2“request-root 可达扫描不使用 MIR CFG reachable-block 过滤”。
+
+原问题记录：
 
 `collect_request_root_fun_keys(...)` 会把 request source 中的所有顶层函数和 member fun 都作为 request-root fun。
 

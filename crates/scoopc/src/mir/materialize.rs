@@ -36,7 +36,7 @@ use super::{
     InstanceRootSummaryInput, Item, LocalDecl, MaterializedCallableFamilies,
     MaterializedCallableFamilyInput, MaterializedMirPassArtifacts, MaterializedMirSummaries,
     MemberAccessMetadata, MemberTarget, Operand, Pattern, PerformMetadata, Rvalue, Statement,
-    StatementKind, Terminator, TerminatorKind, build_materialized_summary_table,
+    StatementKind, Terminator, TerminatorKind, TopLevelRef, build_materialized_summary_table,
 };
 
 /// 一个 generic MIR template 的稳定标识。
@@ -399,13 +399,17 @@ pub fn materialize_for_dump_with_opt_level(
 /// - dump/debug 路径目前通过它做包装，后续 build/frontend 主路径也将复用同一层。
 pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     compilation_unit: &[(&SourceFile, &ast::File)],
-    request_source_paths: &[PathBuf],
     index: &Index,
     type_env: Option<&TypeEnv>,
     typecheck_types: &TypeStore,
     monomorph_requests: &[MonomorphRequest],
-    opt_level: OptLevel,
+    options: super::MaterializeCompilationUnitOptions<'_>,
 ) -> MaterializeResult<MaterializedMir> {
+    let super::MaterializeCompilationUnitOptions {
+        request_source_paths,
+        request_root_mode,
+        opt_level,
+    } = options;
     let template_catalog = collect_generic_template_infos(compilation_unit);
     let callable_body_infos = collect_callable_body_infos(compilation_unit);
     // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
@@ -420,14 +424,14 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         type_env,
         typecheck_types,
     )?;
-    let request_root_fun_keys = collect_request_root_fun_keys(&lowered_hir, request_source_paths);
+    let request_root_fun_keys =
+        collect_request_root_fun_keys(&lowered_hir, request_source_paths, index, request_root_mode);
     let request_sources = request_source_paths.iter().cloned().collect::<HashSet<_>>();
     let callable_signatures = collect_callable_signature_infos(&lowered_hir);
-    let hir_direct_instance_keys = collect_hir_direct_call_instance_requests(
+    let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests(
         &mut lowered_hir,
         typecheck_types,
         &top_level_fun_call_bindings,
-        &request_root_fun_keys,
     );
     let known_receiver_subclasses =
         crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
@@ -451,7 +455,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         builtins,
         MaterializeRequestSet {
             monomorph_requests,
-            hir_direct_instance_keys,
+            hir_direct_instance_keys_by_fun,
             construction_inputs: MaterializerConstructionInputs {
                 typecheck_types,
                 template_infos: template_catalog,
@@ -464,6 +468,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 request_sources,
+                request_root_mode,
                 request_root_fun_keys,
             },
         },
@@ -530,18 +535,21 @@ struct MaterializerConstructionInputs<'a> {
     top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     request_sources: HashSet<PathBuf>,
+    request_root_mode: super::MaterializeRequestRootMode<'a>,
     request_root_fun_keys: Vec<RequestRootFunKey>,
 }
 
 struct MaterializeRequestSet<'a> {
     monomorph_requests: &'a [MonomorphRequest],
-    hir_direct_instance_keys: Vec<InstanceKey>,
+    hir_direct_instance_keys_by_fun: HashMap<(PathBuf, Span), Vec<InstanceKey>>,
     construction_inputs: MaterializerConstructionInputs<'a>,
 }
 
 fn collect_request_root_fun_keys(
     lowered_hir: &crate::hir::LoweredHir,
     request_source_paths: &[PathBuf],
+    index: &Index,
+    request_root_mode: super::MaterializeRequestRootMode<'_>,
 ) -> Vec<RequestRootFunKey> {
     let request_sources = request_source_paths
         .iter()
@@ -549,26 +557,48 @@ fn collect_request_root_fun_keys(
         .collect::<HashSet<PathBuf>>();
     let mut out = Vec::new();
 
-    for item in &lowered_hir.file.items {
-        let crate::hir::Item::Fun(fun) = item else {
-            continue;
-        };
-        if request_sources.contains(&fun.source_path) {
-            out.push(RequestRootFunKey {
-                source_path: fun.source_path.clone(),
-                fqn: fun.fqn.clone(),
-                span: fun.span,
-            });
-        }
-    }
+    match request_root_mode {
+        super::MaterializeRequestRootMode::RequestSources => {
+            for item in &lowered_hir.file.items {
+                let crate::hir::Item::Fun(fun) = item else {
+                    continue;
+                };
+                if request_sources.contains(&fun.source_path) {
+                    out.push(RequestRootFunKey {
+                        source_path: fun.source_path.clone(),
+                        fqn: fun.fqn.clone(),
+                        span: fun.span,
+                    });
+                }
+            }
 
-    for fun in &lowered_hir.member_funs {
-        if request_sources.contains(&fun.source_path) {
-            out.push(RequestRootFunKey {
-                source_path: fun.source_path.clone(),
-                fqn: fun.fqn.clone(),
-                span: fun.span,
-            });
+            for fun in &lowered_hir.member_funs {
+                if request_sources.contains(&fun.source_path) {
+                    out.push(RequestRootFunKey {
+                        source_path: fun.source_path.clone(),
+                        fqn: fun.fqn.clone(),
+                        span: fun.span,
+                    });
+                }
+            }
+        }
+        super::MaterializeRequestRootMode::EntryMain { fqn } => {
+            for item in &lowered_hir.file.items {
+                let crate::hir::Item::Fun(fun) = item else {
+                    continue;
+                };
+                if !request_sources.contains(&fun.source_path) {
+                    continue;
+                }
+                let is_entry_main = fqn.map_or(fun.name == "main", |entry| fun.fqn == entry);
+                if is_entry_main || index.is_export_entry_point(&fun.fqn) {
+                    out.push(RequestRootFunKey {
+                        source_path: fun.source_path.clone(),
+                        fqn: fun.fqn.clone(),
+                        span: fun.span,
+                    });
+                }
+            }
         }
     }
 
@@ -620,15 +650,10 @@ fn collect_hir_direct_call_instance_requests(
     lowered_hir: &mut crate::hir::LoweredHir,
     typecheck_types: &TypeStore,
     top_level_fun_call_bindings: &HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
-    request_root_fun_keys: &[RequestRootFunKey],
-) -> Vec<InstanceKey> {
+) -> HashMap<(PathBuf, Span), Vec<InstanceKey>> {
     let file_items = &lowered_hir.file.items;
     let member_funs = &lowered_hir.member_funs;
     let types = &mut lowered_hir.types;
-    let request_root_keys = request_root_fun_keys
-        .iter()
-        .map(|key| (key.source_path.clone(), key.fqn.clone(), key.span))
-        .collect::<HashSet<_>>();
     let mut templates_by_fqn: HashMap<String, Vec<HirDirectCallTemplateInfo>> = HashMap::new();
     for fun in file_items
         .iter()
@@ -672,7 +697,7 @@ fn collect_hir_direct_call_instance_requests(
         });
     }
 
-    let mut out = HashSet::new();
+    let mut out = HashMap::new();
     for fun in file_items
         .iter()
         .filter_map(|item| match item {
@@ -681,12 +706,10 @@ fn collect_hir_direct_call_instance_requests(
         })
         .chain(member_funs.iter())
     {
-        if !request_root_keys.contains(&(fun.source_path.clone(), fun.fqn.clone(), fun.span)) {
-            continue;
-        }
         let Some(body) = &fun.body else {
             continue;
         };
+        let mut fun_instances = HashSet::new();
         collect_hir_direct_call_instances_in_block(
             body,
             &fun.source_path,
@@ -694,11 +717,17 @@ fn collect_hir_direct_call_instance_requests(
             typecheck_types,
             types,
             top_level_fun_call_bindings,
-            &mut out,
+            &mut fun_instances,
         );
+        if !fun_instances.is_empty() {
+            out.insert(
+                (fun.source_path.clone(), fun.span),
+                fun_instances.into_iter().collect(),
+            );
+        }
     }
 
-    out.into_iter().collect()
+    out
 }
 
 fn collect_hir_direct_call_instances_in_block(
@@ -2024,7 +2053,7 @@ fn materialize_generic_mir(
 ) -> MaterializeResult<MaterializedMir> {
     let MaterializeRequestSet {
         monomorph_requests,
-        hir_direct_instance_keys,
+        hir_direct_instance_keys_by_fun,
         construction_inputs,
     } = requests;
     let typecheck_types = construction_inputs.typecheck_types;
@@ -2036,8 +2065,8 @@ fn materialize_generic_mir(
         opt_level.enables_summary_driven_mir_inlining(),
         opt_level.enables_mir_escape_analysis(),
     )?;
-    let mut initial_requests = materializer.seed_requests(typecheck_types, monomorph_requests)?;
-    initial_requests.extend(hir_direct_instance_keys);
+    materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;
+    let initial_requests = materializer.seed_requests(typecheck_types, monomorph_requests)?;
     materializer.run(initial_requests)
 }
 
@@ -2136,6 +2165,7 @@ struct MirInstanceMaterializer {
     interfaces: crate::itable::InterfaceIndex,
     class_itables: crate::itable::ClassItableIndex,
     request_root_funs: Vec<ReachableMirFun>,
+    hir_direct_instance_keys_by_fun: HashMap<(PathBuf, Span), Vec<InstanceKey>>,
     generic_family_fqns: HashSet<String>,
     request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     roots: HashMap<TemplateKey, TemplateRootInfo>,
@@ -2144,11 +2174,14 @@ struct MirInstanceMaterializer {
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     request_sources: HashSet<PathBuf>,
+    filter_initial_requests_to_reachable_call_sites: bool,
     reachable_fun_bodies_by_request: HashMap<RequestTemplateKey, ReachableMirFun>,
     reachable_fun_bodies_by_fqn: HashMap<String, Vec<ReachableMirFun>>,
     all_fun_bodies_by_fqn: HashMap<String, Vec<FunDecl>>,
     call_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     value_ref_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
+    reachable_request_call_sites: HashSet<SourceSiteKey>,
+    reachable_request_fun_spans: Vec<(PathBuf, Span)>,
     scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
     caller_side_pass_candidates: Vec<FunDecl>,
     enable_summary_driven_inlining: bool,
@@ -2157,6 +2190,24 @@ struct MirInstanceMaterializer {
     queue: VecDeque<InstanceKey>,
     materialized: HashMap<InstanceKey, Vec<FunDecl>>,
     declaration_only_instances: HashSet<InstanceKey>,
+}
+
+struct ReachableRvalueScanContext<'a> {
+    span: Span,
+    result_ty: Option<TypeId>,
+    template_source_path: &'a Path,
+    locals: &'a [LocalDecl],
+    substitution: &'a InstanceSubstitution,
+}
+
+struct DirectCallInferenceInput<'a> {
+    template_source_path: &'a Path,
+    call_span: Span,
+    callee_fqn: &'a str,
+    args: &'a [CallArg],
+    result_ty: Option<TypeId>,
+    locals: &'a [LocalDecl],
+    substitution: &'a InstanceSubstitution,
 }
 
 impl MirInstanceMaterializer {
@@ -2180,6 +2231,7 @@ impl MirInstanceMaterializer {
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             request_sources,
+            request_root_mode,
             request_root_fun_keys,
         } = construction_inputs;
         let mut generic_funs = Vec::new();
@@ -2409,6 +2461,7 @@ impl MirInstanceMaterializer {
             interfaces,
             class_itables,
             request_root_funs,
+            hir_direct_instance_keys_by_fun: HashMap::new(),
             generic_family_fqns,
             request_templates,
             roots,
@@ -2417,11 +2470,17 @@ impl MirInstanceMaterializer {
             roots_by_fqn,
             direct_call_bindings: top_level_fun_call_bindings.clone(),
             request_sources,
+            filter_initial_requests_to_reachable_call_sites: matches!(
+                request_root_mode,
+                super::MaterializeRequestRootMode::EntryMain { .. }
+            ),
             reachable_fun_bodies_by_request,
             reachable_fun_bodies_by_fqn,
             all_fun_bodies_by_fqn,
             call_bindings: HashMap::new(),
             value_ref_bindings: HashMap::new(),
+            reachable_request_call_sites: HashSet::new(),
+            reachable_request_fun_spans: Vec::new(),
             scanned_non_generic_funs: HashSet::new(),
             caller_side_pass_candidates: Vec::new(),
             enable_summary_driven_inlining,
@@ -2545,9 +2604,13 @@ impl MirInstanceMaterializer {
         typecheck_types: &TypeStore,
         monomorph_requests: &[MonomorphRequest],
     ) -> MaterializeResult<Vec<InstanceKey>> {
+        let request_root_instances = self.seed_request_root_direct_call_instances()?;
         let mut initial = Vec::new();
         for request in monomorph_requests {
             if !self.request_sources.contains(&request.request_source_path) {
+                continue;
+            }
+            if !self.monomorph_request_is_reachable_initial_seed(request) {
                 continue;
             }
             let key = &request.key;
@@ -2587,10 +2650,26 @@ impl MirInstanceMaterializer {
                 eff_args,
             });
         }
-        initial.extend(self.seed_request_root_direct_call_instances()?);
+        initial.extend(request_root_instances);
         initial.sort_by_key(|a| self.instance_fqn(a));
         initial.dedup();
         Ok(initial)
+    }
+
+    fn monomorph_request_is_reachable_initial_seed(&self, request: &MonomorphRequest) -> bool {
+        if !self.filter_initial_requests_to_reachable_call_sites {
+            return true;
+        }
+        let site = (request.request_source_path.clone(), request.call_span);
+        self.reachable_request_call_sites.contains(&site)
+            || self
+                .reachable_request_fun_spans
+                .iter()
+                .any(|(source_path, fun_span)| {
+                    source_path == &request.request_source_path
+                        && request.call_span.start >= fun_span.start
+                        && request.call_span.end <= fun_span.end
+                })
     }
 
     fn seed_request_root_direct_call_instances(&mut self) -> MaterializeResult<Vec<InstanceKey>> {
@@ -2616,23 +2695,34 @@ impl MirInstanceMaterializer {
             return Ok(());
         }
         let scan_key = (reachable_fun.source_path.clone(), reachable_fun.fun.span);
-        if !self.scanned_non_generic_funs.insert(scan_key) {
+        if !self.scanned_non_generic_funs.insert(scan_key.clone()) {
             return Ok(());
         }
         let Some(body) = &reachable_fun.fun.body else {
             return Ok(());
         };
+        self.reachable_request_fun_spans
+            .push((reachable_fun.source_path.clone(), reachable_fun.fun.span));
+        if let Some(hir_direct_instances) =
+            self.hir_direct_instance_keys_by_fun.get(&scan_key).cloned()
+        {
+            out.extend(hir_direct_instances);
+        }
         let substitution = InstanceSubstitution::default();
         let locals = &body.locals;
         for block in &body.blocks {
             for stmt in &block.stmts {
-                if let StatementKind::Assign { value, .. } = &stmt.kind {
+                if let StatementKind::Assign { target, value } = &stmt.kind {
+                    let result_ty = locals.get(target.as_u32() as usize).map(|local| local.ty);
                     self.collect_reachable_instances_from_rvalue(
-                        stmt.span,
                         value,
-                        &reachable_fun.source_path,
-                        locals,
-                        &substitution,
+                        ReachableRvalueScanContext {
+                            span: stmt.span,
+                            result_ty,
+                            template_source_path: &reachable_fun.source_path,
+                            locals,
+                            substitution: &substitution,
+                        },
                         out,
                     )?;
                 }
@@ -2656,11 +2746,8 @@ impl MirInstanceMaterializer {
 
     fn collect_reachable_instances_from_rvalue(
         &mut self,
-        span: Span,
         value: &Rvalue,
-        template_source_path: &Path,
-        locals: &[LocalDecl],
-        substitution: &InstanceSubstitution,
+        scan: ReachableRvalueScanContext<'_>,
         out: &mut Vec<InstanceKey>,
     ) -> MaterializeResult<()> {
         match value {
@@ -2668,28 +2755,52 @@ impl MirInstanceMaterializer {
                 kind: CallKind::Direct { callee_fqn },
                 args,
             } => {
-                if let Some(instance_key) = self.infer_direct_call_instance(
-                    template_source_path,
-                    span,
-                    callee_fqn,
-                    args,
-                    locals,
-                    substitution,
-                ) {
+                self.reachable_request_call_sites
+                    .insert((scan.template_source_path.to_path_buf(), scan.span));
+                if let Some(instance_key) =
+                    self.infer_direct_call_instance(DirectCallInferenceInput {
+                        template_source_path: scan.template_source_path,
+                        call_span: scan.span,
+                        callee_fqn,
+                        args,
+                        result_ty: scan.result_ty,
+                        locals: scan.locals,
+                        substitution: scan.substitution,
+                    })
+                {
                     out.push(instance_key);
                     return Ok(());
                 }
-                if let Some(reachable_callee) =
-                    self.resolve_non_generic_direct_callee(template_source_path, span, callee_fqn)
-                {
+                if let Some(reachable_callee) = self.resolve_non_generic_direct_callee(
+                    scan.template_source_path,
+                    scan.span,
+                    callee_fqn,
+                ) {
                     self.scan_reachable_non_generic_fun(&reachable_callee, out)?;
                 }
             }
             Rvalue::MakeClosure { fn_ptr, .. } => {
                 if let Some(reachable_closure) =
-                    self.resolve_non_generic_fun_body_by_fqn(template_source_path, fn_ptr)
+                    self.resolve_non_generic_fun_body_by_fqn(scan.template_source_path, fn_ptr)
                 {
                     self.scan_reachable_non_generic_fun(&reachable_closure, out)?;
+                }
+            }
+            Rvalue::TopLevelRef(TopLevelRef { fqn }) => {
+                self.reachable_request_call_sites
+                    .insert((scan.template_source_path.to_path_buf(), scan.span));
+                if let Some(binding) =
+                    self.site_instance_binding_for_callee(scan.template_source_path, scan.span, fqn)
+                    && let Some(instance_key) =
+                        self.instantiate_site_binding(&binding, scan.substitution)
+                {
+                    out.push(instance_key);
+                    return Ok(());
+                }
+                if let Some(reachable_fun) =
+                    self.resolve_non_generic_fun_body_by_fqn(scan.template_source_path, fqn)
+                {
+                    self.scan_reachable_non_generic_fun(&reachable_fun, out)?;
                 }
             }
             _ => {}
@@ -3318,14 +3429,15 @@ impl MirInstanceMaterializer {
         locals: &[LocalDecl],
         substitution: &InstanceSubstitution,
     ) -> MaterializeResult<()> {
-        if let Some(instance_key) = self.infer_direct_call_instance(
+        if let Some(instance_key) = self.infer_direct_call_instance(DirectCallInferenceInput {
             template_source_path,
             call_span,
             callee_fqn,
             args,
+            result_ty: None,
             locals,
             substitution,
-        ) {
+        }) {
             *callee_fqn = self.instance_fqn(&instance_key);
             self.enqueue(instance_key);
             return Ok(());
@@ -3344,20 +3456,17 @@ impl MirInstanceMaterializer {
 
     fn infer_direct_call_instance(
         &mut self,
-        template_source_path: &Path,
-        call_span: Span,
-        callee_fqn: &str,
-        args: &[CallArg],
-        locals: &[LocalDecl],
-        substitution: &InstanceSubstitution,
+        input: DirectCallInferenceInput<'_>,
     ) -> Option<InstanceKey> {
-        if let Some(binding) =
-            self.site_instance_binding_for_callee(template_source_path, call_span, callee_fqn)
-        {
-            return self.instantiate_site_binding(&binding, substitution);
+        if let Some(binding) = self.site_instance_binding_for_callee(
+            input.template_source_path,
+            input.call_span,
+            input.callee_fqn,
+        ) {
+            return self.instantiate_site_binding(&binding, input.substitution);
         }
 
-        let candidates = self.roots_by_fqn.get(callee_fqn)?;
+        let candidates = self.roots_by_fqn.get(input.callee_fqn)?;
         if candidates.len() != 1 {
             return None;
         }
@@ -3366,16 +3475,22 @@ impl MirInstanceMaterializer {
             return None;
         }
 
-        let arg_to_param = map_call_args_to_signature_params(&signature.params, args)?;
+        let arg_to_param = map_call_args_to_signature_params(&signature.params, input.args)?;
         let mut bindings = HashMap::new();
         for (arg_idx, param_idx) in arg_to_param.into_iter().enumerate() {
             let param = signature.params.get(param_idx)?;
             if !type_contains_param(&self.types, param.ty) {
                 continue;
             }
-            let arg = args.get(arg_idx)?;
-            let concrete_ty = operand_type(&self.types, self.builtins, locals, &arg.value)?;
+            let arg = input.args.get(arg_idx)?;
+            let concrete_ty = operand_type(&self.types, self.builtins, input.locals, &arg.value)?;
             collect_type_param_bindings(&self.types, param.ty, concrete_ty, &mut bindings);
+        }
+        if let Some(result_ty) = input.result_ty
+            && type_contains_param(&self.types, signature.return_ty)
+            && !type_contains_param(&self.types, result_ty)
+        {
+            collect_type_param_bindings(&self.types, signature.return_ty, result_ty, &mut bindings);
         }
 
         let mut ordered = Vec::with_capacity(signature.type_param_names.len());
@@ -4692,6 +4807,7 @@ fun entry(): Int {
             &types,
             crate::hir::MirInstanceCollectionOptions {
                 request_source_paths: &request_source_paths,
+                request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
                 opt_level: OptLevel::O2,
             },
         )
@@ -5421,18 +5537,26 @@ fun main() {
                 &inputs.typecheck_types,
             )
             .unwrap();
-        let request_root_fun_keys =
-            collect_request_root_fun_keys(&lowered_hir, &[source.path().to_path_buf()]);
+        let request_root_fun_keys = collect_request_root_fun_keys(
+            &lowered_hir,
+            &[source.path().to_path_buf()],
+            &inputs.index,
+            crate::mir::MaterializeRequestRootMode::RequestSources,
+        );
         let request_sources = [source.path().to_path_buf()]
             .into_iter()
             .collect::<HashSet<_>>();
         let callable_signatures = collect_callable_signature_infos(&lowered_hir);
-        let hir_direct_instance_keys = collect_hir_direct_call_instance_requests(
+        let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests(
             &mut lowered_hir,
             &inputs.typecheck_types,
             &call_bindings,
-            &request_root_fun_keys,
         );
+        let hir_direct_instance_keys = hir_direct_instance_keys_by_fun
+            .values()
+            .flatten()
+            .cloned()
+            .collect::<Vec<_>>();
         let hir_direct_println_requests = hir_direct_instance_keys
             .iter()
             .filter(|key| key.template.fqn == "scoop.core.println")
@@ -5476,12 +5600,14 @@ fun main() {
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 request_sources,
+                request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
                 request_root_fun_keys,
             },
             true,
             true,
         )
         .unwrap();
+        materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;
         let request_root_println_bindings = materializer
             .request_root_funs
             .iter()
@@ -5554,14 +5680,17 @@ fun main() {
                     else {
                         continue;
                     };
-                    if let Some(instance_key) = materializer.infer_direct_call_instance(
-                        &reachable_fun.source_path,
-                        stmt.span,
-                        callee_fqn,
-                        args,
-                        &body.locals,
-                        &InstanceSubstitution::default(),
-                    ) {
+                    if let Some(instance_key) =
+                        materializer.infer_direct_call_instance(DirectCallInferenceInput {
+                            template_source_path: &reachable_fun.source_path,
+                            call_span: stmt.span,
+                            callee_fqn,
+                            args,
+                            result_ty: None,
+                            locals: &body.locals,
+                            substitution: &InstanceSubstitution::default(),
+                        })
+                    {
                         reachable_generic_calls.push((
                             reachable_fun.fun.fqn.clone(),
                             reachable_fun.source_path.clone(),

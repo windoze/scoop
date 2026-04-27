@@ -55,6 +55,21 @@ pub use summary::{
     ResultProvenanceSource,
 };
 
+/// MIR materialization 的 request-root 策略。
+#[derive(Debug, Clone, Copy)]
+pub enum MaterializeRequestRootMode<'a> {
+    /// 将 request source 中的全部 callable 作为 request roots；dump / 调试路径沿用该模式。
+    RequestSources,
+    /// 只从选定 entry main 和显式 export entry points 出发做实例可达扫描。
+    EntryMain { fqn: Option<&'a str> },
+}
+
+pub(crate) struct MaterializeCompilationUnitOptions<'a> {
+    pub request_source_paths: &'a [std::path::PathBuf],
+    pub request_root_mode: MaterializeRequestRootMode<'a>,
+    pub opt_level: crate::opt::OptLevel,
+}
+
 /// 为编译单元 frontend/build 路径暴露可复用的 MIR materialization 入口。
 #[cfg(test)]
 pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
@@ -65,14 +80,17 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     typecheck_types: &crate::ty::TypeStore,
     monomorph_requests: &[crate::monomorph::MonomorphRequest],
 ) -> Result<MaterializedMir, Box<MirMaterializeError>> {
-    materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
+    materialize_compilation_unit_from_typechecked_inputs_with_options(
         compilation_unit,
-        request_source_paths,
         index,
         type_env,
         typecheck_types,
         monomorph_requests,
-        crate::opt::OptLevel::O0,
+        MaterializeCompilationUnitOptions {
+            request_source_paths,
+            request_root_mode: MaterializeRequestRootMode::RequestSources,
+            opt_level: crate::opt::OptLevel::O0,
+        },
     )
 }
 
@@ -85,14 +103,35 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_leve
     monomorph_requests: &[crate::monomorph::MonomorphRequest],
     opt_level: crate::opt::OptLevel,
 ) -> Result<MaterializedMir, Box<MirMaterializeError>> {
-    materialize::materialize_compilation_unit_from_typechecked_inputs(
+    materialize_compilation_unit_from_typechecked_inputs_with_options(
         compilation_unit,
-        request_source_paths,
         index,
         type_env,
         typecheck_types,
         monomorph_requests,
-        opt_level,
+        MaterializeCompilationUnitOptions {
+            request_source_paths,
+            request_root_mode: MaterializeRequestRootMode::RequestSources,
+            opt_level,
+        },
+    )
+}
+
+pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_options(
+    compilation_unit: &[(&crate::source::SourceFile, &crate::ast::File)],
+    index: &crate::resolve::Index,
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &crate::ty::TypeStore,
+    monomorph_requests: &[crate::monomorph::MonomorphRequest],
+    options: MaterializeCompilationUnitOptions<'_>,
+) -> Result<MaterializedMir, Box<MirMaterializeError>> {
+    materialize::materialize_compilation_unit_from_typechecked_inputs(
+        compilation_unit,
+        index,
+        type_env,
+        typecheck_types,
+        monomorph_requests,
+        options,
     )
 }
 

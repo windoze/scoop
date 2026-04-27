@@ -1,0 +1,135 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..34,
+                fqn: "a.zero",
+                name: "zero",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 31..32,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 31..32,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 11..34,
+                                    kind: Return {
+                                        value: None,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 36..59,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 51..57,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 51..55,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 51..55,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "a.zero",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 51..57,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Call {
+                                                kind: Direct {
+                                                    callee_fqn: "a.zero",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 36..59,
+                                    kind: Return {
+                                        value: None,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}
