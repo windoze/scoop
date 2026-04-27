@@ -1430,7 +1430,7 @@
   - `crates/scoopc/src/llvm/frontend.rs` 与 `crates/scoop/src/commands/build.rs` 已补记新边界说明；`crates/scoopc/src/llvm/tests.rs` 与 `crates/scoop/src/commands/build.rs` 的 production 回归现已锁定 single-file/build 两条入口都能直接观察 materialized callable body 集合，并对每个 `InstanceKey` 读取 `MaterializedMir.summaries`；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h0aR Review：确认 production frontend 已稳定保留 materialized MIR / summary 产物
+### [DONE] T5000h0aR Review：确认 production frontend 已稳定保留 materialized MIR / summary 产物
 - 重点：
   - build / single-file 主路径是否都保留了 `MaterializedMir.file` 与 `summaries`；
   - HIR 兼容 lowering 是否已经被明确收口为“side tables / 兼容输入”，而不是继续被默认视为唯一 frontend 产物；
@@ -1438,6 +1438,12 @@
 - 验收：
   - `T5000h0b` 可以直接在 production 产物上建立 canonical materialized-body / summary 视图，而不需要再改回“重新 materialize 一次”的接口。
 - 依赖：T5000h0a
+- 完成记录（2026-04-27）：
+  - 已复核 `crates/scoopc/src/hir/lower/mod.rs::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，确认 via-MIR production 主路径会先 materialize compilation unit，再把完整 `MaterializedMir` 挂回 `LoweredHir`，而不是像旧路径那样只消耗 `instance_keys`；
+  - 已复核 `crates/scoopc/src/llvm/frontend.rs::prepare_single_file_codegen_unit(...)` 与 `crates/scoop/src/commands/build.rs::lower_main_hir_for_build(...)` 两条 production 入口，确认它们都直接返回带 `LoweredHir::materialized_mir()` 的 lowering 产物，没有额外重新组装 `LoweredHir` 并把 canonical MIR / summaries 丢掉；
+  - 已复核 `crates/scoopc/src/hir/lower/types.rs` 上 `materialized_mir()` / `materialized_mir_mut()` 的边界说明，确认 HIR 兼容 lowering 已被明确收口为当前 LLVM codegen 所需的兼容输入与 side tables，而 canonical materialized body / summary 挂点则稳定保留在 production 产物上；
+  - review 过程中未发现需要插入到 `T5000h0b` 之前的新前置缺陷任务；结论是下一步可直接在现有 production 产物上建立 canonical materialized callable body / summary 视图，而不需要回到“消费侧重新 materialize 一次”的接口；
+  - 已验证 `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000h0b 建立 production 可复用的 materialized callable body / summary 视图
 - 范围：

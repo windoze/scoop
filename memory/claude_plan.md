@@ -1,87 +1,79 @@
-# 执行计划与进度记录
+# 本轮执行计划（可共享摘要）
 
-## 说明
+## 目标
 
-按要求先记录完整的可执行计划与关键决策摘要。这里保留可审计的步骤、依据、风险与进度更新；不记录不可审计的内部推理细节。
+按照 `TODO.md` 的顺序，只完成第一个未完成任务；如果在执行前或执行中发现最新提交提到的既有问题、测试暴露的既有缺陷、规格不匹配或实现边界缺失，则先修复该问题，或把它作为前置任务插入 `TODO.md` 并更新 `PLAN.md`，然后停止。
 
-## 初始目标
+## 约束
 
-本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。若发现最新提交已注明的遗留问题，或在执行中发现任何既有缺陷/规格不匹配/实现边界不完整，则优先修复该问题；如果该问题无法在本轮直接修复，则必须先把它整理成前置任务写回 `TODO.md` / `PLAN.md`，提交后停止。
+- 不绕过现有缺陷，不用临时性 workaround。
+- 只完成一个任务或一个新拆出的首个子任务。
+- 所有分析、执行记录和结论使用中文。
+- 在关键步骤完成后持续更新本文件。
 
-## 执行步骤
+## 初始步骤
 
-1. 查看最新一次 git 提交信息，确认是否明确提到了待修复的既有问题。
-2. 阅读 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务及其上下文。
-3. 判断该任务是否足够小可以在本轮完整实现。
-4. 若任务过大：
-   - 将其拆分为更小的可执行子任务。
-   - 更新 `PLAN.md`。
-   - 更新 `TODO.md`，让新的第一个子任务成为当前任务。
-   - 本轮只执行拆分后的第一个子任务。
-5. 在正式实现前，检查相关代码、测试、规格和最近变更，避免误改或绕过已有缺陷。
-6. 实现当前任务所需代码变更。
-7. 运行相关测试；若有失败，区分是本次引入还是已有问题：
-   - 若是本次变更问题，立即修复并重测。
-   - 若暴露既有问题且会阻塞当前任务，则先修复；若无法在本轮直接修复，则写入前置任务并停止。
-8. 更新文档与任务状态：
-   - 在 `TODO.md` 标记当前任务完成，或在阻塞场景下重排任务依赖。
-   - 在 `PLAN.md` 记录当前状态与后续顺序。
-   - 在本文件追加关键进度记录。
-9. 运行质量检查，至少覆盖与本任务相关的测试，以及在可行范围内运行 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`。
-10. 提交 git commit，提交信息直接描述本轮完成事项。
-11. 停止，不继续处理下一个任务。
+1. 检查最新一次 Git 提交，确认提交说明是否提到了待修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，理解该任务的上下文、依赖和预期边界。
+4. 检查当前工作树状态，避免覆盖用户已有改动。
+5. 评估该任务是否过大：
+   - 如果过大，则先拆分任务，更新 `TODO.md` 与 `PLAN.md`，提交后停止。
+   - 如果可执行，则直接进入实现。
 
-## 当前已知风险
+## 实施步骤
 
-- 尚未读取仓库现状，不能假设 `TODO.md` 的首个未完成任务规模合适。
-- 尚未确认最新提交是否包含“先修复某既有问题”的要求。
-- 尚未确认工作树是否存在用户未提交修改；执行时需要避免覆盖非本轮改动。
+1. 阅读与目标任务直接相关的代码、测试和文档。
+2. 实现任务要求的改动，必要时补充或调整测试。
+3. 运行与改动直接相关的测试。
+4. 运行必要的质量检查，至少覆盖：
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+   - 若任务涉及格式或文档同步，再补充对应命令
+5. 若测试或检查暴露既有问题：
+   - 判断是否属于当前任务前置问题；
+   - 若是，先修复，或写入 `TODO.md` 作为前置任务并停止。
 
-## 进度日志
+## 收尾步骤
 
-- 2026-04-27：已创建本文件并写入初始计划；下一步查看最新提交与任务列表。
-- 2026-04-27：已检查最新提交 `3e2584b1f3f039bed9467cc56d788b9f9450c56c`（`[T5000h0] Insert MIR body frontend prerequisite`）。
-  - 结论：该提交没有声明“另有一个尚未修复但必须先实现的代码缺陷”；它做的是任务重排，把一个已确认的前置边界缺口显式插入到 `T5000h` 之前。
-  - 当前首个未完成任务已定位为 `T5000h0 让 build/frontend 主路径消费 materialized MIR body，而不再只把 MIR 当 instance collection 发现器`。
-- 2026-04-27：针对 `T5000h0` 的当前执行计划细化如下。
-  1. 阅读 `crates/scoopc/src/mir/materialize.rs`，确认 `MaterializedMir` 当前携带哪些 body / summary / type 信息。
-  2. 阅读 `crates/scoopc/src/hir/lower/mod.rs` 及其 frontend 入口，确认 build / single-file 主路径目前如何只消费 `instance_keys`。
-  3. 追踪 LLVM frontend / codegen 接口，看 callable body 真正来自哪里，以及哪些 side tables 仍依赖 HIR 兼容 lowering。
-  4. 设计最小且正确的接线方案：
-     - 让 production 主路径显式携带 materialized MIR body；
-     - 让现有 side tables 继续可用，但明确区分“实例发现”与“body 来源”；
-     - 给后续 summary / MIR rewrite 留稳定入口。
-  5. 实现代码修改，并补齐/更新测试，优先覆盖：
-     - build / single-file 主路径确实能看到 materialized MIR body；
-     - MIR body 在进入 production 前可以被稳定读取或改写；
-     - 相关现有回归不退化。
-  6. 跑格式化、定向测试、全量测试/fixture、clippy。
-  7. 更新 `TODO.md` / `PLAN.md` / 本文件，提交 commit，然后停止。
-- 2026-04-27：进一步阅读后，确认原始 `T5000h0` 需要跨越三个边界，一次做完风险过高，已决定先拆分并执行首个子任务。
-  - 证据：
-    - `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)` 当前只把 `materialized.instance_keys` / `materialized.types` 回灌到 HIR 兼容 lowering；
-    - `llvm/emit.rs`、`llvm/reachability.rs`、`effect_state_machine_analysis.rs` 仍把 `hir::FunDecl.body` 当作 callable body 的直接来源；
-    - 仓库里不存在现成的“materialized MIR body -> 当前 production/codegen 主线”完整桥接，因此把“保留 MIR 产物”“建立 canonical 视图”“改 entry 接线”一次混做会难以保证单轮可验收。
-  - 拆分结果：
-    1. `T5000h0a`：先让 build / single-file frontend 的 production 产物稳定保留 `MaterializedMir.file/types/instance_keys/summaries`。
-    2. `T5000h0b`：再在 production 产物上建立 canonical materialized callable body / summary 视图。
-    3. `T5000h0c`：最后调整 LLVM build / single-file entry，显式接入该视图。
-  - 本轮将先更新 `TODO.md` / `PLAN.md` 完成拆分并提交，然后继续实现 `T5000h0a`。
-- 2026-04-27：已完成任务拆分提交，commit 为 `[T5000h0] Split materialized MIR frontend prerequisite`。
-- 2026-04-27：`T5000h0a` 已实现并完成验证。
-  - 代码结果：
-    - `LoweredHir` 现已新增 `materialized_mir()` / `materialized_mir_mut()` 挂点，用于在 production 的 via-MIR lowering 产物上保留 canonical `MaterializedMir`；
-    - `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)` 现已在构造 HIR 兼容输出后，把 `MaterializedMir` 挂回 `LoweredHir`，不再在 `instance_keys` 后丢弃；
-    - build / single-file frontend 的注释边界已补齐，明确返回值仍是 HIR 兼容输入，但 production 主路径现在也稳定保留 MIR body / summary 产物。
-  - 测试结果：
-    - `cargo fmt --all`
-    - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
-    - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
-    - `cargo test --all`
-    - `cargo run -p scoop -- test`，结果 `fixtures: ok (1201)`
-    - `cargo clippy --all-targets -- -D warnings`
-    - 全部通过。
-  - 当前收尾动作：
-    1. 把 `T5000h0a` 标记为完成并回写 `PLAN.md`。
-    2. 提交本轮实现为 `[T5000h0a] ...`。
-    3. 停止，下一轮从 `T5000h0aR` 开始。
+1. 更新 `TODO.md`，把本轮完成的任务标记为已完成。
+2. 更新 `PLAN.md`，反映当前状态、实现细节和后续顺序。
+3. 更新本文件，记录完成情况与执行结果。
+4. 使用清晰的 Git 提交信息提交本轮改动。
+5. 停止，不继续处理下一个任务。
+
+## 本轮目标（已确认）
+
+- `TODO.md` 中第一个未完成任务是 `T5000h0aR Review：确认 production frontend 已稳定保留 materialized MIR / summary 产物`。
+- 最新提交信息为 `[T5000h0a] Retain materialized MIR in frontend outputs`，提交说明本身未直接声明一个待先修复的既有缺陷，因此当前按 `T5000h0aR` 进入 review。
+
+## 本轮具体执行计划
+
+1. 阅读 `TODO.md` / `PLAN.md` 中 `T5000h0a` 与 `T5000h0aR` 相邻条目，明确 review 验收口径。
+2. 查看最新提交的具体 diff，锁定本次需要审查的文件和行为改动。
+3. 阅读相关实现与现有测试，重点检查：
+   - production frontend 是否真的把 `MaterializedMir` / summaries 保留到后续产物；
+   - build 与 single-file 两条路径是否一致；
+   - 是否存在只保留 `instance_keys`、丢失 body/summary 视图、或生命周期/所有权错误；
+   - 是否缺少覆盖新增行为的测试。
+4. 运行与本改动相关的测试与质量检查，必要时补充更小范围命令帮助定位问题。
+5. 根据 review 结果执行其一：
+   - 若发现既有缺陷：先修复缺陷，补测试，更新 `TODO.md` / `PLAN.md` / 本文件，再提交并停止；
+   - 若未发现阻塞问题：将 `T5000h0aR` 标为完成，更新 `TODO.md` / `PLAN.md` / 本文件，提交并停止。
+
+## 当前状态
+
+- 已完成：初始计划写入、最新提交检查、首个未完成任务定位。
+- 已完成：读取 `T5000h0a` 改动与 `T5000h0aR` 验收口径。
+- 已完成：静态检查 `LoweredHir::materialized_mir` 的赋值点、build/single-file 生产入口调用点与 `LoweredHir` 构造点，暂未发现“入口重新组装后丢失 materialized MIR”的路径。
+- 已完成：定向回归测试
+  - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+  - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+  - 结果：均通过。
+- 已完成：更大范围验证
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop -- test`
+  - 结果：全部通过，其中 fixture 套件结果为 `fixtures: ok (1201)`。
+- 已完成：回写 `TODO.md` / `PLAN.md`，将 `T5000h0aR` 标记为完成，并记录“未发现需要插入的新前置缺陷任务”的 review 结论。
+- 待执行收尾：检查工作树、提交本轮改动，然后停止。

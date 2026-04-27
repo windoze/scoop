@@ -1445,6 +1445,21 @@
   - 结论：
     - production frontend 产物已经不再在 `instance_keys` 后丢弃 MIR；后续 `T5000h0b` 可以直接在 `LoweredHir::materialized_mir()` 上建立 canonical materialized callable body / summary 视图，而不需要重新 materialize 一次。
     - 下一条待执行任务切换为 `T5000h0aR Review：确认 production frontend 已稳定保留 materialized MIR / summary 产物`。
+- 2026-04-27：`T5000h0aR Review：确认 production frontend 已稳定保留 materialized MIR / summary 产物` 已完成。
+  - review 结论：
+    - 已复核 `crates/scoopc/src/hir/lower/mod.rs::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，确认 production 的 via-MIR lowering 会把完整 `MaterializedMir` 挂回 `LoweredHir`，而不是只短暂消费 `instance_keys` / `types`；
+    - 已复核 `crates/scoopc/src/llvm/frontend.rs::prepare_single_file_codegen_unit(...)` 与 `crates/scoop/src/commands/build.rs::lower_main_hir_for_build(...)`，确认 single-file/build 两条 production 入口都直接保留该 `LoweredHir`，没有额外重组产物而重新丢弃 canonical MIR / summaries；
+    - 已复核 `crates/scoopc/src/hir/lower/types.rs` 的字段注释与 getter，确认 HIR 兼容 lowering 已被明确收口为 side tables / 兼容输入，而 canonical materialized body / summary 已有稳定挂点，足够支撑下一步 `T5000h0b` 建立 canonical 视图。
+  - 验证结果：
+    - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 结论：
+    - review 未暴露需要插入到 `T5000h0b` 前的新前置缺陷；production frontend 已稳定保留 materialized MIR / summary 产物。
+    - 下一条待执行任务切换为 `T5000h0b 建立 production 可复用的 materialized callable body / summary 视图`。
 
 ## 1. 当前判断
 
