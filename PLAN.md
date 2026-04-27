@@ -1417,6 +1417,17 @@
     - 在 `T5000h` 前新增 `T5000h0 让 build/frontend 主路径消费 materialized MIR body，而不再只把 MIR 当 instance collection 发现器` 与对应 review；
     - `T5000h` 的依赖改为 `T5000h0R`，防止后续为了让优化生效而把同一套内联逻辑再抄回 HIR lowering；
     - 下一条待执行任务切换为 `T5000h0 让 build/frontend 主路径消费 materialized MIR body，而不再只把 MIR 当 instance collection 发现器`。
+- 2026-04-27：开始执行 `T5000h0` 时，进一步确认该任务若按“一步到位让 production/codegen 改以 MIR body 为 canonical callable body”实现，会把多个跨层改动绑成过大的单条任务，已按接线边界拆分为三个可独立验收的子任务。
+  - 拆分依据：
+    - `crates/scoopc/src/hir/lower/mod.rs` 当前负责生成供 production 继续使用的 HIR 兼容输入，并在 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)` 内直接丢弃 `MaterializedMir.file` / `summaries`；
+    - `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/reachability.rs` 与 `crates/scoopc/src/effect_state_machine_analysis.rs` 仍普遍把 `hir::FunDecl.body` 视为现有 callable body 来源；若把“保留 materialized MIR”“建立 canonical body / summary 视图”“调整 LLVM entry 接线”一次性混做，会把 frontend 产物边界与 codegen 消费边界同时重写。
+  - 子任务顺序：
+    - `T5000h0a`：先让 build / single-file frontend 产物稳定保留 `MaterializedMir` / summaries，不再在 `instance_keys` 后丢弃；
+    - `T5000h0b`：再在 production 产物上建立 canonical materialized callable body / summary 视图；
+    - `T5000h0c`：最后让 LLVM build / single-file entry 显式接入该视图，为后续 MIR rewrite 留稳定插入点。
+  - 依赖调整：
+    - `T5000h` 的直接依赖从原 `T5000h0R` 细化为 `T5000h0cR`；
+    - 下一条待执行任务切换为 `T5000h0a 为 build / single-file frontend 产物保留 MaterializedMir / summaries，而不是在 instance_keys 后丢弃`。
 
 ## 1. 当前判断
 
