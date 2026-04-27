@@ -1362,6 +1362,24 @@
   - review 结论：
     - per-instance summary 的层次归属、导出 identity 与缓存边界现已足够稳定，可直接作为 `T5000g` devirtualization 的共享输入；
     - 下一条待执行任务切换为 `T5000g 在 MIR 层实现通用 devirtualization`。
+- 2026-04-27：`T5000g 在 MIR 层实现通用 devirtualization` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/devirtualize.rs`，统一承接 exact-receiver 判定与 dispatch target shrinking；当前同时消费 `known_receiver_subclasses`、class vtable 与 interface itable 事实，并在 exact class receiver 没有 vtable slot 的情况下回退到 `owner.member` singleton target，从而覆盖 final/non-override class member 这类原先会卡在 `VirtualCall` 的路径；
+    - `crates/scoopc/src/hir/lower/{mod,expr}.rs` 现已把 dispatch-call side table、known-subclass/vtable/itable 事实与 `devirtualize_dispatch_calls` 开关接入 explicit MIR instance lowering：exact receiver 的 class/interface dispatch 会直接 materialize 为 `DirectCall` target，非 exact receiver 仍保留 `DispatchCallSiteIndex`，由后续 MIR lowering 生成 `VirtualCall` / `InterfaceCall`；
+    - `crates/scoopc/src/mir/{lower,materialize}.rs` 现已统一把 HIR side tables 显式收口到 `MirLoweringFacts`，并在 instance materialization 阶段对剩余 `VirtualCall` / `InterfaceCall` 执行同一套 devirtualization 逻辑，而不是把主要判定留给 backend；
+    - 同轮还修复了一个直接阻塞 devirtualization 后实例发现的既有缺口：materialized direct-call FQN 与 `TopLevelFunCallBinding` / `TopLevelFunValueRef` 不再要求字符串完全相等，`foo::<...>` 现会正确回落到对应 template 的 site binding，而不是误丢 instance request；这同时修复了 owner-specialized effect-generic member call 与 top-level fun value effect instance 的 materialization 回归；
+    - `crates/scoopc/src/cone/pre_specialize.rs` 已补上 `lower_fun_with_type_bindings_and_mir_facts(...)` 路径，确保 HIR dispatch/effect/when side tables 在预特化单函数 lowering 中不会因旧 MIR facts 构造接口消失而掉线。
+  - 新增/更新回归：
+    - `crates/scoopc/src/monomorph/lower.rs` 新增 `monomorph_devirtualizes_exact_virtual_call_in_instantiated_body`、`monomorph_keeps_virtual_call_kind_when_receiver_has_known_subclass`、`monomorph_devirtualizes_exact_interface_bound_call_in_instantiated_body`，分别锁定 exact virtual receiver 会改写为 `DirectCall`、存在已知子类时保持 `VirtualCall`、以及 `where T: Interface` 在实例化到 concrete receiver 后 `InterfaceCall -> DirectCall`；
+    - 复跑并修正了 `mir::materialize` 既有回归：`typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls`、`materialize_for_dump_handles_type_body_generic_member_fun_roots`、`monomorph_rewrites_top_level_fun_value_effect_instance`。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判`。
 
 ## 1. 当前判断
 

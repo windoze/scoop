@@ -307,7 +307,7 @@ impl<'a> HirLowering<'a> {
 
                     // T1508a/T1508c：对 class/object/interface member method 做降糖；
                     // struct/value type 的 member call 语义留给其它任务（保持既有 HIR fixtures 稳定）。
-                    let (owner_fqn, _) = fqn.as_str().rsplit_once('.')?;
+                    let (owner_fqn, member_name) = fqn.as_str().rsplit_once('.')?;
                     let owner_is_class =
                         matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
                     let owner_is_interface = matches!(
@@ -341,9 +341,58 @@ impl<'a> HirLowering<'a> {
                         ));
                     }
 
-                    let target_fqn = self
-                        .materialized_top_level_fun_call_target_fqn(e.span)
-                        .unwrap_or_else(|| fqn.clone());
+                    let receiver_ty = match lowered_args.first() {
+                        Some(CallArg::Positional(receiver)) => receiver.ty,
+                        Some(CallArg::Named { value, .. }) => value.ty,
+                        None => self.builtins.any,
+                    };
+                    let dispatch_kind = if owner_is_interface {
+                        Some(crate::hir::DispatchCallKind::Interface)
+                    } else if owner_is_class {
+                        Some(crate::hir::DispatchCallKind::Virtual)
+                    } else {
+                        None
+                    };
+                    let target_fqn = if let Some(dispatch_kind) = dispatch_kind {
+                        if self.devirtualize_dispatch_calls {
+                            if let Some(target_fqn) =
+                                crate::devirtualize::try_devirtualize_dispatch_target(
+                                    dispatch_kind,
+                                    owner_fqn,
+                                    member_name,
+                                    args.len(),
+                                    receiver_ty,
+                                    self.types,
+                                    crate::devirtualize::DispatchTargetFacts {
+                                        known_receiver_subclasses: self.known_receiver_subclasses,
+                                        class_vtables: self.class_vtables,
+                                        interfaces: self.interfaces,
+                                        class_itables: self.class_itables,
+                                    },
+                                )
+                            {
+                                self.materialized_devirtualized_dispatch_target_fqn(
+                                    e.span,
+                                    &target_fqn,
+                                )
+                            } else {
+                                self.dispatch_call_sites.insert(
+                                    self.dispatch_call_site(e.span, receiver_ty),
+                                    dispatch_kind,
+                                );
+                                fqn.clone()
+                            }
+                        } else {
+                            self.dispatch_call_sites.insert(
+                                self.dispatch_call_site(e.span, receiver_ty),
+                                dispatch_kind,
+                            );
+                            fqn.clone()
+                        }
+                    } else {
+                        self.materialized_top_level_fun_call_target_fqn(e.span)
+                            .unwrap_or_else(|| fqn.clone())
+                    };
                     let callee = self.top_level_callee_expr_with_fqn(callee.span, target_fqn);
 
                     Some((
@@ -978,7 +1027,7 @@ impl<'a> HirLowering<'a> {
     fn typechecked_top_level_fun_value_ref(
         &mut self,
         span: Span,
-    ) -> Option<(String, Vec<TypeId>, Vec<crate::ty::EffectRow>)> {
+    ) -> Option<crate::ast::TopLevelFunValueRef> {
         let typecheck_types = self.typecheck_types?;
         let fun_ref = self.file.top_level_fun_value_ref(span)?;
         let type_args = fun_ref
@@ -995,7 +1044,13 @@ impl<'a> HirLowering<'a> {
             .iter()
             .map(|row| self.apply_active_type_param_bindings_to_effect_row(row))
             .collect();
-        Some((fun_ref.fqn, type_args, eff_args))
+        Some(crate::ast::TopLevelFunValueRef {
+            fqn: fun_ref.fqn,
+            decl_file: fun_ref.decl_file,
+            decl_span: fun_ref.decl_span,
+            type_args,
+            eff_args,
+        })
     }
 
     fn typechecked_top_level_fun_call_binding(
@@ -1034,6 +1089,38 @@ impl<'a> HirLowering<'a> {
             type_args,
             eff_args,
         })
+    }
+
+    fn materialized_instance_fqn_for_decl(
+        &self,
+        fqn: &str,
+        decl_file: &std::path::Path,
+        decl_span: Span,
+        type_args: &[TypeId],
+        eff_args: &[crate::ty::EffectRow],
+    ) -> String {
+        let template = crate::mir::TemplateKey {
+            fqn: fqn.to_string(),
+            source_path: decl_file.to_path_buf(),
+            decl_span,
+        };
+        let symbol_suffix = self
+            .generic_template_symbol_suffixes
+            .get(&template)
+            .map(String::as_str)
+            .or_else(|| {
+                self.generic_template_symbol_suffixes
+                    .iter()
+                    .find_map(|(candidate, suffix)| {
+                        (candidate.fqn == fqn
+                            && candidate.source_path.as_path() == decl_file
+                            && candidate.decl_span.start <= decl_span.start
+                            && decl_span.end <= candidate.decl_span.end)
+                            .then_some(suffix.as_str())
+                    })
+            })
+            .unwrap_or("");
+        stable_instance_fqn(self.types, &template, type_args, eff_args, symbol_suffix)
     }
 
     pub(super) fn type_contains_param_for_direct_call_target(&self, ty: TypeId) -> bool {
@@ -1109,18 +1196,81 @@ impl<'a> HirLowering<'a> {
             return None;
         }
 
-        let mut args = binding
-            .type_args
+        Some(self.materialized_instance_fqn_for_decl(
+            &binding.fqn,
+            binding.decl_file.as_path(),
+            binding.decl_span,
+            &binding.type_args,
+            &binding.eff_args,
+        ))
+    }
+
+    fn dispatch_call_site(&self, span: Span, receiver_ty: TypeId) -> crate::hir::DispatchCallSite {
+        crate::hir::DispatchCallSite::new(self.source.path().to_path_buf(), span, receiver_ty)
+    }
+
+    fn materialized_devirtualized_dispatch_target_fqn(
+        &mut self,
+        call_span: Span,
+        impl_member_fqn: &str,
+    ) -> String {
+        let Some(binding) = self.typechecked_top_level_fun_call_binding(call_span) else {
+            return impl_member_fqn.to_string();
+        };
+        if binding.type_args.is_empty() && binding.eff_args.is_empty() {
+            return impl_member_fqn.to_string();
+        }
+        let Some(overload) = self.fun_overload_by_fqn(impl_member_fqn) else {
+            return impl_member_fqn.to_string();
+        };
+        self.materialized_instance_fqn_for_decl(
+            impl_member_fqn,
+            overload.symbol.decl_file.as_path(),
+            overload.symbol.span,
+            &binding.type_args,
+            &binding.eff_args,
+        )
+    }
+
+    fn materialized_value_property_getter_target_fqn(
+        &self,
+        getter_fqn: &str,
+        receiver_ty: TypeId,
+    ) -> Option<String> {
+        if !self.materialize_direct_call_targets {
+            return None;
+        }
+
+        let (owner_fqn, _) = getter_fqn.rsplit_once('.')?;
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(receiver_ty) else {
+            return None;
+        };
+        if nominal.fqn != owner_fqn || nominal.args.is_empty() {
+            return None;
+        }
+        if nominal
+            .args
             .iter()
-            .map(|&ty| self.types.display(ty).to_string())
-            .collect::<Vec<_>>();
-        args.extend(
-            binding
-                .eff_args
+            .copied()
+            .any(|ty| self.type_contains_param_for_direct_call_target(ty))
+        {
+            return None;
+        }
+
+        let (template, symbol_suffix) =
+            self.generic_template_symbol_suffixes
                 .iter()
-                .map(|row| format!("eff {}", self.format_effect_row_stable(row))),
-        );
-        Some(format!("{}::<{}>", binding.fqn, args.join(", ")))
+                .find_map(|(template, suffix)| {
+                    (template.fqn == getter_fqn).then_some((template, suffix.as_str()))
+                })?;
+
+        Some(stable_instance_fqn(
+            self.types,
+            template,
+            &nominal.args,
+            &[],
+            symbol_suffix,
+        ))
     }
 
     fn top_level_callee_expr_with_fqn(&mut self, span: Span, fqn: String) -> Expr {
@@ -1601,6 +1751,8 @@ impl<'a> HirLowering<'a> {
     fn mangled_top_level_fun_value_fqn(
         &self,
         fqn: &str,
+        decl_file: Option<&std::path::Path>,
+        decl_span: Option<Span>,
         type_args: &[TypeId],
         eff_args: &[crate::ty::EffectRow],
     ) -> String {
@@ -1618,17 +1770,22 @@ impl<'a> HirLowering<'a> {
         {
             return fqn.to_string();
         }
-
-        let mut args = type_args
-            .iter()
-            .map(|ty| self.types.display(*ty).to_string())
-            .collect::<Vec<_>>();
-        args.extend(
-            eff_args
-                .iter()
-                .map(|row| format!("eff {}", self.format_effect_row_stable(row))),
-        );
-        format!("{fqn}::<{}>", args.join(", "))
+        match (decl_file, decl_span) {
+            (Some(decl_file), Some(decl_span)) => self
+                .materialized_instance_fqn_for_decl(fqn, decl_file, decl_span, type_args, eff_args),
+            _ => {
+                let mut args = type_args
+                    .iter()
+                    .map(|ty| self.types.display(*ty).to_string())
+                    .collect::<Vec<_>>();
+                args.extend(
+                    eff_args
+                        .iter()
+                        .map(|row| format!("eff {}", self.format_effect_row_stable(row))),
+                );
+                format!("{fqn}::<{}>", args.join(", "))
+            }
+        }
     }
 
     fn format_effect_row_stable(&self, row: &crate::ty::EffectRow) -> String {
@@ -1689,14 +1846,21 @@ impl<'a> HirLowering<'a> {
         expr: &ast::Expr,
         expected: ExpectedExpr,
     ) -> Option<(ExprKind, TypeId)> {
-        let (base_fqn, type_args, eff_args, fun_ty_id) =
-            if let Some((base_fqn, type_args, eff_args)) =
-                self.typechecked_top_level_fun_value_ref(expr.span)
-            {
+        let (base_fqn, decl_file, decl_span, type_args, eff_args, fun_ty_id) =
+            if let Some(fun_ref) = self.typechecked_top_level_fun_value_ref(expr.span) {
                 let fun_ty_id = self.typechecked_expr_ty(expr.span).or(expected.value_ty)?;
-                (base_fqn, type_args, eff_args, fun_ty_id)
+                (
+                    fun_ref.fqn,
+                    Some(fun_ref.decl_file),
+                    Some(fun_ref.decl_span),
+                    fun_ref.type_args,
+                    fun_ref.eff_args,
+                    fun_ty_id,
+                )
             } else {
-                self.fallback_top_level_fun_value_target(expr, expected)?
+                let (base_fqn, type_args, eff_args, fun_ty_id) =
+                    self.fallback_top_level_fun_value_target(expr, expected)?;
+                (base_fqn, None, None, type_args, eff_args, fun_ty_id)
             };
         let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(fun_ty_id).clone()
         else {
@@ -1753,7 +1917,13 @@ impl<'a> HirLowering<'a> {
             ordinal += 1;
         }
 
-        let callee_fqn = self.mangled_top_level_fun_value_fqn(&base_fqn, &type_args, &eff_args);
+        let callee_fqn = self.mangled_top_level_fun_value_fqn(
+            &base_fqn,
+            decl_file.as_deref(),
+            decl_span,
+            &type_args,
+            &eff_args,
+        );
         let callee = Expr {
             span: expr.span,
             ty: self.builtins.any,
@@ -3561,12 +3731,15 @@ impl<'a> HirLowering<'a> {
         if let Some(ast::ResolvedMemberRef::Value { fqn }) = resolved.as_ref()
             && self.value_type_computed_properties.contains(fqn)
         {
+            let getter_fqn = self
+                .materialized_value_property_getter_target_fqn(fqn, receiver.ty)
+                .unwrap_or_else(|| fqn.clone());
             let callee = Expr {
                 span: member.span,
                 ty: self.builtins.any,
                 kind: ExprKind::VarRef(ValueRef::TopLevel {
-                    id: self.symbols.intern_top_level(fqn.clone()),
-                    fqn: fqn.clone(),
+                    id: self.symbols.intern_top_level(getter_fqn.clone()),
+                    fqn: getter_fqn,
                 }),
             };
             return (

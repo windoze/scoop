@@ -33,17 +33,11 @@ use super::{
 /// - 避免 MIR 阶段重新回到 LLVM vtable/itable 细节或 `Continuation.resume` 名字推断。
 #[derive(Debug, Clone, Default)]
 pub(crate) struct MirLoweringFacts {
-    dispatch_targets: HashMap<DispatchTargetKey, DispatchTargetKind>,
+    dispatch_call_sites: HashMap<hir::DispatchCallSite, DispatchTargetKind>,
     continuation_resume_call_spans: HashSet<Span>,
     non_pure_continuation_resume_call_spans: HashSet<Span>,
     effect_op_call_sites: HashMap<Span, PerformCallSiteInfo>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct DispatchTargetKey {
-    callee_fqn: String,
-    explicit_arg_count: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,49 +53,9 @@ struct PerformCallSiteInfo {
 }
 
 impl MirLoweringFacts {
-    pub(crate) fn from_dispatch_tables_and_resume_spans(
-        class_vtables: &crate::vtable::ClassVtableIndex,
-        interfaces: &crate::itable::InterfaceIndex,
-        continuation_resume_call_spans: impl IntoIterator<Item = Span>,
-        non_pure_continuation_resume_call_spans: impl IntoIterator<Item = Span>,
-    ) -> Self {
-        let mut facts = Self::default();
-
-        for (owner_fqn, slots) in class_vtables {
-            for slot in slots {
-                facts.dispatch_targets.insert(
-                    DispatchTargetKey {
-                        callee_fqn: format!("{owner_fqn}.{}", slot.name),
-                        explicit_arg_count: slot.params_len as usize,
-                    },
-                    DispatchTargetKind::Virtual,
-                );
-            }
-        }
-
-        for (owner_fqn, iface) in interfaces {
-            for slot in &iface.method_slots {
-                facts.dispatch_targets.insert(
-                    DispatchTargetKey {
-                        callee_fqn: format!("{owner_fqn}.{}", slot.name),
-                        explicit_arg_count: slot.params_len as usize,
-                    },
-                    DispatchTargetKind::Interface,
-                );
-            }
-        }
-
-        facts.continuation_resume_call_spans = continuation_resume_call_spans.into_iter().collect();
-        facts.non_pure_continuation_resume_call_spans = non_pure_continuation_resume_call_spans
-            .into_iter()
-            .collect();
-        facts
-    }
-
     pub(crate) fn from_lowered_hir(lowered: &hir::LoweredHir) -> Self {
-        Self::from_dispatch_tables_and_resume_spans(
-            &lowered.class_vtables,
-            &lowered.interfaces,
+        Self::from_hir_side_tables_and_resume_spans(
+            &lowered.dispatch_call_sites,
             lowered
                 .continuation_resume_call_sites
                 .iter()
@@ -110,8 +64,35 @@ impl MirLoweringFacts {
                 .non_pure_continuation_resume_call_sites
                 .iter()
                 .map(|site| site.span),
+            &lowered.effect_op_call_sites,
+            &lowered.when_pat_binding_tys,
         )
-        .with_hir_side_tables(&lowered.effect_op_call_sites, &lowered.when_pat_binding_tys)
+    }
+
+    pub(crate) fn from_hir_side_tables_and_resume_spans(
+        dispatch_call_sites: &hir::DispatchCallSiteIndex,
+        continuation_resume_call_spans: impl IntoIterator<Item = Span>,
+        non_pure_continuation_resume_call_spans: impl IntoIterator<Item = Span>,
+        effect_op_call_sites: &hir::EffectOpCallSiteIndex,
+        when_pat_binding_tys: &hir::WhenPatBindingTypeIndex,
+    ) -> Self {
+        let mut facts = Self::default();
+
+        for (site, kind) in dispatch_call_sites {
+            facts.dispatch_call_sites.insert(
+                site.clone(),
+                match kind {
+                    hir::DispatchCallKind::Virtual => DispatchTargetKind::Virtual,
+                    hir::DispatchCallKind::Interface => DispatchTargetKind::Interface,
+                },
+            );
+        }
+
+        facts.continuation_resume_call_spans = continuation_resume_call_spans.into_iter().collect();
+        facts.non_pure_continuation_resume_call_spans = non_pure_continuation_resume_call_spans
+            .into_iter()
+            .collect();
+        facts.with_hir_side_tables(effect_op_call_sites, when_pat_binding_tys)
     }
 
     pub(crate) fn with_hir_side_tables(
@@ -138,14 +119,16 @@ impl MirLoweringFacts {
 
     fn dispatch_target_kind(
         &self,
-        callee_fqn: &str,
-        explicit_arg_count: usize,
+        source_path: &std::path::Path,
+        call_span: Span,
+        receiver_ty: TypeId,
     ) -> Option<DispatchTargetKind> {
-        self.dispatch_targets
-            .get(&DispatchTargetKey {
-                callee_fqn: callee_fqn.to_string(),
-                explicit_arg_count,
-            })
+        self.dispatch_call_sites
+            .get(&hir::DispatchCallSite::new(
+                source_path.to_path_buf(),
+                call_span,
+                receiver_ty,
+            ))
             .copied()
     }
 
@@ -279,7 +262,14 @@ impl<'a> MirLowering<'a> {
 
     /// 把一个函数降到 MIR。
     fn lower_fun(&mut self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
-        FnLowering::new(self.builtins, self.types, self.facts, fun.fqn.clone()).lower_fun(fun)
+        FnLowering::new(
+            self.builtins,
+            self.types,
+            self.facts,
+            fun.fqn.clone(),
+            fun.source_path.clone(),
+        )
+        .lower_fun(fun)
     }
 }
 
@@ -290,6 +280,7 @@ struct FnLowering<'a> {
     types: &'a mut TypeStore,
     facts: &'a MirLoweringFacts,
     owner_fqn: String,
+    source_path: std::path::PathBuf,
     body: Body,
     current_bb: BasicBlockId,
     next_temp: u32,
@@ -350,12 +341,14 @@ impl<'a> FnLowering<'a> {
         types: &'a mut TypeStore,
         facts: &'a MirLoweringFacts,
         owner_fqn: String,
+        source_path: std::path::PathBuf,
     ) -> Self {
         Self {
             builtins,
             types,
             facts,
             owner_fqn,
+            source_path,
             body: Body::new_empty(),
             current_bb: BasicBlockId(0),
             next_temp: 0,
@@ -1330,13 +1323,6 @@ impl<'a> FnLowering<'a> {
     ) -> bool {
         let dispatch_target = match &callee.kind {
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                let explicit_arg_count = match args.len().checked_sub(1) {
-                    Some(count) => count,
-                    None => return false,
-                };
-                let Some(kind) = self.facts.dispatch_target_kind(fqn, explicit_arg_count) else {
-                    return false;
-                };
                 let Some((receiver_arg, remaining_args)) = args.split_first() else {
                     self.assign(
                         span,
@@ -1349,13 +1335,23 @@ impl<'a> FnLowering<'a> {
                     hir::CallArg::Positional(expr) => expr,
                     hir::CallArg::Named { value, .. } => value,
                 };
+                let Some(kind) = self.facts.dispatch_target_kind(
+                    self.source_path.as_path(),
+                    span,
+                    receiver_expr.ty,
+                ) else {
+                    return false;
+                };
                 (kind, fqn.as_str(), receiver_expr, remaining_args)
             }
             hir::ExprKind::MemberAccess { receiver, member } => {
                 let Some(hir::MemberRef::Fun { fqn, .. }) = member.resolved.as_ref() else {
                     return false;
                 };
-                let Some(kind) = self.facts.dispatch_target_kind(fqn, args.len()) else {
+                let Some(kind) =
+                    self.facts
+                        .dispatch_target_kind(self.source_path.as_path(), span, receiver.ty)
+                else {
                     return false;
                 };
                 (kind, fqn.as_str(), receiver.as_ref(), args)
@@ -1637,13 +1633,14 @@ impl<'a> FnLowering<'a> {
 
         let (fun, nested) = {
             let types = &mut *self.types;
-            FnLowering::new(self.builtins, types, self.facts, fqn.clone()).lower_closure_fun(
+            FnLowering::new(
+                self.builtins,
+                types,
+                self.facts,
                 fqn.clone(),
-                name,
-                closure,
-                env_ty,
-                &captures,
+                self.source_path.clone(),
             )
+            .lower_closure_fun(fqn.clone(), name, closure, env_ty, &captures)
         };
         self.nested_funs.push(fun);
         self.nested_funs.extend(nested);

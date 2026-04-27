@@ -378,6 +378,11 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         &top_level_fun_call_bindings,
         &request_root_fun_keys,
     );
+    let known_receiver_subclasses =
+        crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+    let class_vtables = lowered_hir.class_vtables.clone();
+    let interfaces = lowered_hir.interfaces.clone();
+    let class_itables = lowered_hir.class_itables.clone();
     let builtins = lowered_hir.types.intern_builtins();
     let facts = super::MirLoweringFacts::from_lowered_hir(&lowered_hir);
     let generic_file = super::lower_hir_file_for_dump_with_facts(
@@ -401,6 +406,10 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 template_infos: template_catalog,
                 callable_body_infos,
                 callable_signatures,
+                known_receiver_subclasses,
+                class_vtables,
+                interfaces,
+                class_itables,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 request_root_fun_keys,
@@ -461,6 +470,10 @@ struct MaterializerConstructionInputs<'a> {
     template_infos: Vec<GenericTemplateInfo>,
     callable_body_infos: Vec<CallableBodyInfo>,
     callable_signatures: Vec<CallableSignatureInfo>,
+    known_receiver_subclasses: crate::devirtualize::KnownReceiverSubclassIndex,
+    class_vtables: crate::vtable::ClassVtableIndex,
+    interfaces: crate::itable::InterfaceIndex,
+    class_itables: crate::itable::ClassItableIndex,
     top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     request_root_fun_keys: Vec<RequestRootFunKey>,
@@ -800,13 +813,14 @@ fn collect_hir_direct_call_instances_in_expr(
             else {
                 return;
             };
-            let Some(candidates) = templates_by_fqn.get(fqn) else {
+            let binding = top_level_fun_call_bindings.get(&(source_path.to_path_buf(), expr.span));
+            let Some(candidates) = binding
+                .and_then(|binding| templates_by_fqn.get(&binding.fqn))
+                .or_else(|| templates_by_fqn.get(fqn))
+            else {
                 return;
             };
-            if let Some(binding) =
-                top_level_fun_call_bindings.get(&(source_path.to_path_buf(), expr.span))
-                && binding.fqn == *fqn
-            {
+            if let Some(binding) = binding {
                 let candidate =
                     choose_hir_direct_call_template_for_binding(candidates, binding, &*types)
                         .or_else(|| choose_hir_direct_call_template(candidates, &*types));
@@ -2041,6 +2055,10 @@ struct ReachableMirFun {
 struct MirInstanceMaterializer {
     types: TypeStore,
     builtins: BuiltinTypes,
+    known_receiver_subclasses: crate::devirtualize::KnownReceiverSubclassIndex,
+    class_vtables: crate::vtable::ClassVtableIndex,
+    interfaces: crate::itable::InterfaceIndex,
+    class_itables: crate::itable::ClassItableIndex,
     request_root_funs: Vec<ReachableMirFun>,
     generic_family_fqns: HashSet<String>,
     request_templates: HashMap<RequestTemplateKey, TemplateKey>,
@@ -2073,6 +2091,10 @@ impl MirInstanceMaterializer {
             template_infos,
             callable_body_infos,
             callable_signatures,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             request_root_fun_keys,
@@ -2299,6 +2321,10 @@ impl MirInstanceMaterializer {
         let mut materializer = Self {
             types,
             builtins,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             request_root_funs,
             generic_family_fqns,
             request_templates,
@@ -3002,7 +3028,7 @@ impl MirInstanceMaterializer {
         &mut self,
         call_span: Span,
         kind: &mut CallKind,
-        args: &[CallArg],
+        args: &mut Vec<CallArg>,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         match kind {
@@ -3015,27 +3041,14 @@ impl MirInstanceMaterializer {
                     *callee_fqn = rewritten;
                     return Ok(());
                 }
-                if let Some(instance_key) = self.infer_direct_call_instance(
+                self.materialize_direct_call_target(
                     ctx.template_source_path,
                     call_span,
                     callee_fqn,
                     args,
                     ctx.locals,
                     ctx.substitution,
-                ) {
-                    *callee_fqn = self.instance_fqn(&instance_key);
-                    self.enqueue(instance_key);
-                } else if let Some(reachable_callee) = self.resolve_non_generic_direct_callee(
-                    ctx.template_source_path,
-                    call_span,
-                    callee_fqn,
-                ) {
-                    let mut discovered = Vec::new();
-                    self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered);
-                    for instance in discovered {
-                        self.enqueue(instance);
-                    }
-                }
+                );
             }
             CallKind::Closure { callee, fn_ptr } => {
                 *callee = self.rewrite_operand(callee.clone());
@@ -3046,14 +3059,91 @@ impl MirInstanceMaterializer {
                 }
             }
             CallKind::FunValue { callee } => *callee = self.rewrite_operand(callee.clone()),
-            CallKind::Virtual { receiver, dispatch }
-            | CallKind::Interface { receiver, dispatch } => {
+            CallKind::Virtual { receiver, dispatch } => {
                 *receiver = self.rewrite_operand(receiver.clone());
                 dispatch.receiver_ty = substitute_type_and_effect_params(
                     &mut self.types,
                     dispatch.receiver_ty,
                     ctx.substitution,
                 );
+                if let Some(target_fqn) = crate::devirtualize::try_devirtualize_dispatch_target(
+                    crate::hir::DispatchCallKind::Virtual,
+                    &dispatch.owner_fqn,
+                    &dispatch.member_name,
+                    args.len(),
+                    dispatch.receiver_ty,
+                    &self.types,
+                    crate::devirtualize::DispatchTargetFacts {
+                        known_receiver_subclasses: &self.known_receiver_subclasses,
+                        class_vtables: &self.class_vtables,
+                        interfaces: &self.interfaces,
+                        class_itables: &self.class_itables,
+                    },
+                ) {
+                    args.insert(
+                        0,
+                        CallArg {
+                            span: call_span,
+                            name: None,
+                            value: receiver.clone(),
+                        },
+                    );
+                    let mut direct_fqn = target_fqn;
+                    self.materialize_direct_call_target(
+                        ctx.template_source_path,
+                        call_span,
+                        &mut direct_fqn,
+                        args,
+                        ctx.locals,
+                        ctx.substitution,
+                    );
+                    *kind = CallKind::Direct {
+                        callee_fqn: direct_fqn,
+                    };
+                }
+            }
+            CallKind::Interface { receiver, dispatch } => {
+                *receiver = self.rewrite_operand(receiver.clone());
+                dispatch.receiver_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    dispatch.receiver_ty,
+                    ctx.substitution,
+                );
+                if let Some(target_fqn) = crate::devirtualize::try_devirtualize_dispatch_target(
+                    crate::hir::DispatchCallKind::Interface,
+                    &dispatch.owner_fqn,
+                    &dispatch.member_name,
+                    args.len(),
+                    dispatch.receiver_ty,
+                    &self.types,
+                    crate::devirtualize::DispatchTargetFacts {
+                        known_receiver_subclasses: &self.known_receiver_subclasses,
+                        class_vtables: &self.class_vtables,
+                        interfaces: &self.interfaces,
+                        class_itables: &self.class_itables,
+                    },
+                ) {
+                    args.insert(
+                        0,
+                        CallArg {
+                            span: call_span,
+                            name: None,
+                            value: receiver.clone(),
+                        },
+                    );
+                    let mut direct_fqn = target_fqn;
+                    self.materialize_direct_call_target(
+                        ctx.template_source_path,
+                        call_span,
+                        &mut direct_fqn,
+                        args,
+                        ctx.locals,
+                        ctx.substitution,
+                    );
+                    *kind = CallKind::Direct {
+                        callee_fqn: direct_fqn,
+                    };
+                }
             }
             CallKind::Resume {
                 continuation,
@@ -3070,6 +3160,38 @@ impl MirInstanceMaterializer {
         Ok(())
     }
 
+    fn materialize_direct_call_target(
+        &mut self,
+        template_source_path: &Path,
+        call_span: Span,
+        callee_fqn: &mut String,
+        args: &[CallArg],
+        locals: &[LocalDecl],
+        substitution: &InstanceSubstitution,
+    ) {
+        if let Some(instance_key) = self.infer_direct_call_instance(
+            template_source_path,
+            call_span,
+            callee_fqn,
+            args,
+            locals,
+            substitution,
+        ) {
+            *callee_fqn = self.instance_fqn(&instance_key);
+            self.enqueue(instance_key);
+            return;
+        }
+        if let Some(reachable_callee) =
+            self.resolve_non_generic_direct_callee(template_source_path, call_span, callee_fqn)
+        {
+            let mut discovered = Vec::new();
+            self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered);
+            for instance in discovered {
+                self.enqueue(instance);
+            }
+        }
+    }
+
     fn infer_direct_call_instance(
         &mut self,
         template_source_path: &Path,
@@ -3079,9 +3201,8 @@ impl MirInstanceMaterializer {
         locals: &[LocalDecl],
         substitution: &InstanceSubstitution,
     ) -> Option<InstanceKey> {
-        if let Some(binding) = self
-            .lookup_site_instance_binding(template_source_path, call_span)
-            .cloned()
+        if let Some(binding) =
+            self.site_instance_binding_for_callee(template_source_path, call_span, callee_fqn)
         {
             return self.instantiate_site_binding(&binding, substitution);
         }
@@ -3135,6 +3256,54 @@ impl MirInstanceMaterializer {
         self.call_bindings
             .get(&key)
             .or_else(|| self.value_ref_bindings.get(&key))
+    }
+
+    fn site_instance_binding_for_callee(
+        &self,
+        template_source_path: &Path,
+        call_span: Span,
+        callee_fqn: &str,
+    ) -> Option<SiteInstanceBinding> {
+        let binding = self
+            .lookup_site_instance_binding(template_source_path, call_span)?
+            .clone();
+        if binding.template.fqn == callee_fqn
+            || callee_fqn
+                .strip_prefix(binding.template.fqn.as_str())
+                .is_some_and(|suffix| suffix.starts_with("::<"))
+        {
+            return Some(binding);
+        }
+        let template = self.remap_site_binding_template(&binding.template, callee_fqn)?;
+        Some(SiteInstanceBinding {
+            template,
+            type_args: binding.type_args,
+            eff_args: binding.eff_args,
+        })
+    }
+
+    fn remap_site_binding_template(
+        &self,
+        source_template: &TemplateKey,
+        target_fqn: &str,
+    ) -> Option<TemplateKey> {
+        let source_signature = self.template_signatures.get(source_template)?;
+        let candidates = self.roots_by_fqn.get(target_fqn)?;
+        let compatible = candidates
+            .iter()
+            .filter_map(|candidate| {
+                let signature = self.template_signatures.get(candidate)?;
+                (signature.params.len() == source_signature.params.len()
+                    && signature.type_param_names.len() == source_signature.type_param_names.len()
+                    && signature.eff_param_name.is_some()
+                        == source_signature.eff_param_name.is_some())
+                .then_some(candidate.clone())
+            })
+            .collect::<Vec<_>>();
+        match compatible.as_slice() {
+            [template] => Some(template.clone()),
+            _ => None,
+        }
     }
 
     fn instantiate_site_binding(
@@ -5039,6 +5208,11 @@ fun main() {
                 )
             })
             .collect::<Vec<_>>();
+        let known_receiver_subclasses =
+            crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        let class_vtables = lowered_hir.class_vtables.clone();
+        let interfaces = lowered_hir.interfaces.clone();
+        let class_itables = lowered_hir.class_itables.clone();
         let builtins = lowered_hir.types.intern_builtins();
         let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
         let generic_file = lower_hir_file_for_dump_with_facts(
@@ -5058,6 +5232,10 @@ fun main() {
                 template_infos: template_catalog,
                 callable_body_infos,
                 callable_signatures,
+                known_receiver_subclasses,
+                class_vtables,
+                interfaces,
+                class_itables,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 request_root_fun_keys,

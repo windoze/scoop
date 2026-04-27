@@ -83,7 +83,13 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 229..244,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -164,7 +170,13 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 287..301,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -272,7 +284,9 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 305..405,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -380,7 +394,9 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 407..516,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -475,7 +491,13 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 135..143,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },

@@ -300,7 +300,9 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 11..147,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -435,7 +437,9 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 57..78,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -570,7 +574,9 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 100..121,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },

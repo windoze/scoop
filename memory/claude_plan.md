@@ -1,53 +1,85 @@
-# 执行计划（决策摘要）
+# 执行计划
 
-说明：
-- 用户要求先把“完整思考过程”和执行计划写入本文件；这里记录的是可审计的执行计划、假设、检查点与决策摘要，不写入逐字内部推理。
-- 本轮目标是：先检查最新提交是否提到既有问题并优先修复；然后读取 `TODO.md` 找到第一项未完成任务；若任务过大则拆分并更新 `PLAN.md`/`TODO.md`；完成恰好一个任务后测试、更新文档、提交并停止。
+## 当前目标
 
-初始步骤：
-1. 检查仓库状态与最新提交信息，确认是否存在提交中明确提及、且尚未修复的既有问题。
-2. 读取 `TODO.md` 与 `PLAN.md`，确定第一项未完成任务及其上下文。
-3. 结合代码现状判断任务是否可直接完成；若过大，则先拆分任务并更新计划文件。
-4. 实施该任务所需的最小正确修改，不接受规避缺陷的变通方案。
-5. 运行相关测试、格式化、lint；若暴露既有问题，则先修复问题或把前置任务插入 `TODO.md` 并停止。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况与任何计划调整。
-7. 提交 git commit，然后停止，不继续处理下一项任务。
+按 `TODO.md` 的顺序完成第一个未完成任务；在此之前，先检查最新提交是否提到既有问题，如有则优先修复。整个过程中把关键决策、发现的问题、计划调整和完成状态持续记录在本文件。
 
-执行约束：
-- 若在探查、测试、评审中发现任何既有 bug / 回归 / 规范不匹配 / 未完成实现边界，必须立即优先处理，或在 `TODO.md` 中插入前置任务后停止。
-- 不回退用户已有修改；不使用破坏性 git 命令。
-- 所有输出与记录使用中文。
+## 初始步骤
 
-待检查项：
-- 最新 commit message / diff 是否包含待修复问题提示。
-- `TODO.md` 第一项未完成任务是什么。
-- 是否存在阻塞该任务的已知实现缺口。
+1. 查看最新一次 Git 提交信息，确认是否明确提到待修复的既有问题。
+2. 阅读 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务及其上下文。
+3. 评估该任务是否过大：
+   - 如果可直接完成，则继续实现。
+   - 如果过大，则先拆分任务，更新 `TODO.md` 与 `PLAN.md`，本次只执行拆出的第一个子任务。
+4. 在实现前检查相关代码、测试、规格和最近改动，确认是否存在会阻塞任务的既有缺陷。
+5. 实现任务并补充/调整测试。
+6. 运行与任务相关的验证：
+   - 至少运行定向测试；
+   - 若改动影响较广，再运行更大范围测试；
+   - 结束前确保 `cargo clippy --all-targets -- -D warnings` 无告警（若范围允许）。
+7. 更新 `TODO.md`、`PLAN.md` 和本文件，记录结果与后续状态。
+8. 提交 Git commit，然后停止，不继续处理下一个任务。
 
-进度日志：
-- 2026-04-27：已创建计划文件，下一步开始检查最新提交与任务列表。
-- 2026-04-27：已确认最新提交未直接声明待修复 issue；`TODO.md` 第一项未完成任务为 `T5000fR Review：确认 summary 已按单态实例而不是按函数名工作`。
-- 2026-04-27：review 过程中发现一个必须先修的既有问题：
-  - `MaterializedMirSummaries` 对外虽然按 `InstanceKey` 暴露，但 `crates/scoopc/src/mir/materialize.rs` 中 `instance_fqn()` 目前只用 `template.fqn + type_args + eff_args` 生成 materialized root identity；
-  - 仓库支持同名 overload，而 `TemplateKey` 之所以携带 `source_path + decl_span`，就是为了区分这些模板；
-  - 因此，若存在“同名 generic overload + 相同实例化实参”的情况，不同模板实例会落到同一个 materialized root 字符串，进而让 `crates/scoopc/src/mir/summary.rs` 中按 `root_fqn: String` 建图的 pending summaries、direct-call graph、SCC 与 outward-effect 传播发生碰撞。
-- 2026-04-27：计划调整：
-  1. 先为 overloaded generic template 引入稳定且唯一的 materialized root symbol disambiguator，确保实例投影到 MIR family symbol 时仍保持单射。
-  2. 补 materialize / summary 回归测试，覆盖“同名 overload + 相同 type args 不得共享 root identity / summary”的场景。
-  3. 跑相关测试与全量校验。
-  4. 若验证通过，再更新 `TODO.md` / `PLAN.md` 完成 `T5000fR` 并提交。
-- 2026-04-27：已完成代码修复与最小回归：
-  - 在 `crates/scoopc/src/mir/materialize.rs` 中新增 canonical template → stable overload suffix 的映射；当同一 `template.fqn` 存在多个 canonical overload 时，materialized root 会在 `::<args>` 之后追加稳定的 overload discriminator，而不是继续只用 `fqn::<args>`；
-  - `instance_fqn()` 已统一消费这层 suffix，因此 family root、nested lambda rewrite、direct-call rewrite、summary root 映射都会拿到不冲突且保留原始 `template_fqn::<...>` 前缀的实例化符号；
-  - 在 `crates/scoopc/src/mir/summary.rs` 新增回归测试 `overloaded_generic_instances_keep_distinct_summary_identity`，验证两个同名 generic overload 在相同 `Int` 实例化下仍保留不同 root symbol，并分别得到 `Param(0)` / `Param(1)` 的 summary；
-  - 已通过最小验证：
-    - `cargo test -p scoopc overloaded_generic_instances_keep_distinct_summary_identity -- --nocapture`
-    - `cargo test -p scoopc summaries_are_keyed_by_instance_identity -- --nocapture`
-- 2026-04-27：下一步执行全量格式化、测试与 clippy，然后回写 `TODO.md` / `PLAN.md` 完成 `T5000fR`。
-- 2026-04-27：全量验证已完成：
-  - `cargo fmt --all`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - 全部通过。
-- 2026-04-27：已回写 `TODO.md` / `PLAN.md`：
-  - 将 `T5000fR` 标记为完成，并记录 review 中发现并修复的 overload-aware instance identity 问题；
-  - 明确下一条待执行任务切换为 `T5000g 在 MIR 层实现通用 devirtualization`。
+## 执行原则
+
+- 不用规避方案掩盖真实缺陷；若发现规格不匹配、实现边界缺失或回归，优先修复，或将其作为前置任务插入 `TODO.md` 后停止。
+- 不回退用户已有改动；若工作树中存在无关变更，仅在必要范围内协同处理。
+- 每完成一个关键节点后更新本文件，包括：
+  - 已检查内容；
+  - 发现的问题；
+  - 当前正在执行的步骤；
+  - 是否调整计划。
+
+## 当前进展
+
+- 最新提交检查结果：
+  - `git show -1 --format=fuller --no-patch` 显示最新提交为 `9250a0f0 [T5000fR] Fix overloaded summary instance identity`；
+  - 提交信息只有标题，没有正文，没有额外标注“后续必须立即修复”的既有问题。
+- 第一个未完成任务：
+  - `TODO.md` 中首个 `[TODO]` 条目是 `T5000g 在 MIR 层实现通用 devirtualization`；
+  - 其要求是在 MIR 层统一处理 `VirtualCall` / `InterfaceCall` 的 target-set shrinking，并在 target singleton 时改写为 `DirectCall`，禁止依赖热点函数名特判。
+- 当前工作树状态：
+  - 存在大量未提交改动，集中在 `crates/scoopc/src/{hir/lower/*,mir/{lower,materialize}.rs,llvm/*}`、新文件 `crates/scoopc/src/devirtualize.rs`，以及若干 MIR fixtures；
+  - 从 diff 观察，这批改动显然是在推进 `T5000g`：新增 dispatch-call side table、known receiver subclass / vtable / itable 事实输入、以及在 MIR materialization 阶段把部分 dispatch 调用改写为 `DirectCall`；
+  - 因为这些改动与当前任务直接相关，先不视为无关噪音，而是按“当前任务的未完成状态”继续审查、补完和验证。
+
+## 接下来
+
+1. 详细审读 `devirtualize.rs` 与相关 lowering/materialization 变更，确认设计是否符合 `T5000g` 的边界要求。
+2. 运行定向测试或编译检查，找出当前未提交改动中的真实失败点。
+3. 若发现既有阻塞缺陷，先修复；若当前 devirtualization 实现不完整，则继续补齐直到 `T5000g` 可验收。
+4. 完成后更新 `TODO.md`、`PLAN.md`、本文件，并提交一次 commit。
+
+## 已完成的关键修复
+
+- 编译断点已补齐：
+  - `MirLoweringFacts` 增加了可直接从 HIR side tables + resume spans 构造的入口；
+  - `pre_specialize` 现在通过新的 `lower_fun_with_type_bindings_and_mir_facts(...)` 保留单函数 lowering 产生的 dispatch/effect/when side tables，再传给 MIR lowering；
+  - closure MIR lowering 已补上传递 `source_path`；
+  - materializer 相关测试构造点已补齐新的 devirtualization 事实输入。
+- devirtualization 主链修正：
+  - `collect_hir_direct_call_instance_requests(...)` 不再要求“HIR 里已经 materialize 的 direct-call FQN”与 `TopLevelFunCallBinding.fqn` 完全相等，而是优先按 call-site binding 回查 template；
+  - `MirInstanceMaterializer::site_instance_binding_for_callee(...)` 现在会把 `foo::<...>` 视为同一 template 的已物化 callee，直接复用 call-site binding，而不是误判为需要 remap 的另一个 template；
+  - `try_devirtualize_dispatch_target(...)` 对 exact receiver 的 class dispatch 增加了非-vtable fallback：当 receiver exact type 与 owner 一致、且没有更具体 target set 时，可直接收缩到 `owner.member`，从而覆盖没有 vtable slot 的非 override/final class member。
+- 回归覆盖已补充：
+  - exact virtual receiver 会在 monomorphized MIR 中改写为 `DirectCall`；
+  - 当 receiver 类型存在已知子类时，`VirtualCall` 会保留；
+  - `where T: Interface` 在实例化到 concrete receiver 后，interface dispatch 会在 MIR 中改写为 `DirectCall`。
+
+## 当前状态
+
+- `cargo fmt --all`：已通过。
+- `cargo test -p scoopc`：已通过（412 tests）。
+- `cargo test --all`：已通过。
+- `cargo run -p scoop -- test`：已通过（`fixtures: ok (1201)`）。
+- `cargo clippy --all-targets -- -D warnings`：已通过。
+- 文档状态：
+  - `TODO.md` 已把 `T5000g` 标记为 `[DONE]`，并补充完成记录；
+  - `PLAN.md` 已补记 `T5000g` 的实现结果、回归覆盖与验证命令；
+  - 下一条待执行任务已切换为 `T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判`。
+
+## 剩余收尾
+
+1. 检查最终 diff 与工作树状态，确认本次提交内容。
+2. 以 `T5000g` 主题提交一次 commit。
+3. 停止，不继续处理 `T5000gR`。

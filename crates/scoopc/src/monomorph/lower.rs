@@ -191,7 +191,7 @@ fun entry(): Int {
     }
 
     #[test]
-    fn monomorph_preserves_virtual_call_kind_in_instantiated_body() {
+    fn monomorph_devirtualizes_exact_virtual_call_in_instantiated_body() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<mem>/monomorph_virtual_call.scoop",
@@ -241,11 +241,139 @@ fun entry(b: Base): Int {
             .expect("expected call in monomorphized body");
 
         match stmt {
+            crate::mir::CallKind::Direct { callee_fqn } => {
+                assert_eq!(callee_fqn, "fixtures.monomorph.Base.ping");
+            }
+            other => panic!("expected devirtualized direct call, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn monomorph_keeps_virtual_call_kind_when_receiver_has_known_subclass() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/monomorph_virtual_call_non_exact.scoop",
+            r#"
+package fixtures.monomorph
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int {
+        return 2
+    }
+}
+
+fun use<T>(marker: T, b: Base): Int {
+    return b.ping()
+}
+
+fun entry(b: Base): Int {
+    return use(1, b)
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::Fun(fun) if fun.fqn.contains("use::<Int>") => Some(fun),
+                _ => None,
+            })
+            .expect("expected monomorphized use::<Int> instance");
+        let body = fun
+            .body
+            .as_ref()
+            .expect("monomorphized instance should have body");
+        let stmt = body.blocks[0]
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Call { kind, .. },
+                    ..
+                } => Some(kind),
+                _ => None,
+            })
+            .expect("expected call in monomorphized body");
+
+        match stmt {
             crate::mir::CallKind::Virtual { dispatch, .. } => {
                 assert_eq!(dispatch.owner_fqn, "fixtures.monomorph.Base");
                 assert_eq!(dispatch.member_name, "ping");
             }
             other => panic!("expected virtual call kind, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn monomorph_devirtualizes_exact_interface_bound_call_in_instantiated_body() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/monomorph_interface_call_exact.scoop",
+            r#"
+package fixtures.monomorph
+
+interface Ping {
+    fun ping(): Int
+}
+
+class Box() : Ping {
+    override fun ping(): Int {
+        return 1
+    }
+}
+
+fun <T> use(x: T): Int where T: Ping {
+    return x.ping()
+}
+
+fun entry(): Int {
+    return use(Box())
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::Fun(fun) if fun.fqn.contains("use::<fixtures.monomorph.Box>") => {
+                    Some(fun)
+                }
+                _ => None,
+            })
+            .expect("expected monomorphized use::<Box> instance");
+        let body = fun
+            .body
+            .as_ref()
+            .expect("monomorphized instance should have body");
+        let stmt = body.blocks[0]
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Call { kind, .. },
+                    ..
+                } => Some(kind),
+                _ => None,
+            })
+            .expect("expected call in monomorphized body");
+
+        match stmt {
+            crate::mir::CallKind::Direct { callee_fqn } => {
+                assert_eq!(callee_fqn, "fixtures.monomorph.Box.ping");
+            }
+            other => panic!("expected devirtualized direct interface call, got {other:?}"),
         }
     }
 

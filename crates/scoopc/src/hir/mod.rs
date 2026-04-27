@@ -30,7 +30,15 @@ pub use lower::{
     lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources,
     lower_for_compilation_unit_multi_files_with_type_env, lower_for_dump, lower_typed_for_dump,
 };
-pub(crate) use lower::{LoweringInputs, lower_fun_with_type_bindings};
+pub(crate) use lower::{LoweringInputs, generic_template_symbol_suffixes_for_compilation_unit};
+
+pub(crate) fn lower_fun_with_type_bindings_and_mir_facts(
+    inputs: LoweringInputs<'_>,
+    fun: &ast::FunDecl,
+    type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+) -> lower::LoweredFunWithMirFacts {
+    lower::lower_fun_with_type_bindings_and_mir_facts(inputs, fun, type_bindings)
+}
 
 /// HIR/generic MIR 中用于承载 `<eff E>` row 变量的内部占位 `decl_file`。
 ///
@@ -706,6 +714,36 @@ impl CallSite {
     }
 }
 
+/// 一个动态 dispatch 调用点在编译单元内的稳定位置键。
+///
+/// 说明：
+/// - `source_path + span` 负责跨文件定位同一源码调用点；
+/// - `receiver_ty` 用于区分“同一 generic call-site 在不同单态实例下收敛出的不同 receiver 精确类型”；
+/// - 这样 HIR/MIR/LLVM 都能在不回退到名字猜测的前提下，消费显式分类后的 dispatch 调用点。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DispatchCallSite {
+    pub source_path: PathBuf,
+    pub span: Span,
+    pub receiver_ty: TypeId,
+}
+
+impl DispatchCallSite {
+    pub fn new(source_path: impl Into<PathBuf>, span: Span, receiver_ty: TypeId) -> Self {
+        Self {
+            source_path: source_path.into(),
+            span,
+            receiver_ty,
+        }
+    }
+}
+
+/// HIR 上显式记录的动态 dispatch 种类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DispatchCallKind {
+    Virtual,
+    Interface,
+}
+
 /// 调用点的 ctor 绑定索引：`source_path + call span` → 已选中的 ctor 调用信息。
 ///
 /// 说明：
@@ -731,6 +769,9 @@ pub struct EffectOpCallInfo {
 
 /// effect-op 调用点索引：`source_path + call span` → 已确认的参数绑定与 transport tuple。
 pub type EffectOpCallSiteIndex = HashMap<CallSite, EffectOpCallInfo>;
+
+/// 动态 dispatch 调用点索引：`source_path + call span + receiver_ty` → dispatch kind。
+pub type DispatchCallSiteIndex = HashMap<DispatchCallSite, DispatchCallKind>;
 
 /// handler arm 多 binder payload tuple 索引：`source_path + op head span` → tuple `TypeId`。
 pub type HandlePayloadTupleSiteIndex = HashMap<CallSite, TypeId>;

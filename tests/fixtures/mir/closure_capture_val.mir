@@ -178,7 +178,9 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 11..79,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -267,7 +269,9 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 60..70,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },

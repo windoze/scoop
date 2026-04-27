@@ -291,6 +291,8 @@ pub struct LoweredHir {
     pub class_itables: crate::itable::ClassItableIndex,
     /// ctor 调用点候选集合：用于让 codegen 识别 `UnresolvedIdent` 的 ctor 调用。
     pub ctor_call_sites: CtorCallSiteIndex,
+    /// 动态 dispatch 调用点索引：供 MIR/LLVM 直接消费“已经分类好的 call site”。
+    pub dispatch_call_sites: crate::hir::DispatchCallSiteIndex,
     /// effect-op 调用点绑定信息：供 LLVM 后端把多 payload transport 收口到参数顺序主线。
     pub effect_op_call_sites: crate::hir::EffectOpCallSiteIndex,
     /// handler arm 多 binder payload 的 tuple 类型索引。

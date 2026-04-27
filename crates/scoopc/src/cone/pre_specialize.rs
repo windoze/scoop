@@ -284,7 +284,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
     let type_kinds = collect_type_decl_kinds(&compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(&compilation_unit, &index)
         .map_err(miette::Report::from)?;
-    let (interfaces, _class_itables) = crate::itable::collect_interfaces_and_class_itables(
+    let (_interfaces, _class_itables) = crate::itable::collect_interfaces_and_class_itables(
         &compilation_unit,
         &index,
         &class_vtables,
@@ -339,21 +339,35 @@ pub fn build_pre_specialize_file_for_cone_sources(
         }
 
         let compilation_unit = [(source, file)];
-        let mut hir_fun = hir::lower_fun_with_type_bindings(
+        let generic_template_symbol_suffixes =
+            hir::generic_template_symbol_suffixes_for_compilation_unit(&compilation_unit);
+        let empty_known_receiver_subclasses =
+            crate::devirtualize::KnownReceiverSubclassIndex::new();
+        let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
+        let empty_interfaces = crate::itable::InterfaceIndex::new();
+        let empty_class_itables = crate::itable::ClassItableIndex::new();
+        let lowered_fun = hir::lower_fun_with_type_bindings_and_mir_facts(
             hir::LoweringInputs {
                 source,
                 file,
                 index: &index,
                 type_kinds: &type_kinds,
+                known_receiver_subclasses: &empty_known_receiver_subclasses,
+                class_vtables: &empty_class_vtables,
+                interfaces: &empty_interfaces,
+                class_itables: &empty_class_itables,
                 typecheck_types: None,
                 compilation_unit: &compilation_unit,
                 types: &mut types,
                 builtins,
+                generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 materialize_direct_call_targets: false,
+                devirtualize_dispatch_calls: false,
             },
             fun,
             bindings,
         );
+        let mut hir_fun = lowered_fun.fun;
 
         let instance_fqn = monomorph_instance_fqn(&hir_fun.fqn, &type_args, &types);
         hir_fun.fqn = instance_fqn.clone();
@@ -361,11 +375,12 @@ pub fn build_pre_specialize_file_for_cone_sources(
         let hir_file = hir::File {
             items: vec![hir::Item::Fun(hir_fun)],
         };
-        let mir_facts = mir::MirLoweringFacts::from_dispatch_tables_and_resume_spans(
-            &class_vtables,
-            &interfaces,
+        let mir_facts = mir::MirLoweringFacts::from_hir_side_tables_and_resume_spans(
+            &lowered_fun.dispatch_call_sites,
             file.continuation_resume_call_sites(),
             file.non_pure_continuation_resume_call_sites(),
+            &lowered_fun.effect_op_call_sites,
+            &lowered_fun.when_pat_binding_tys,
         );
         let mir_file = mir::lower_hir_file_for_dump_with_facts(
             builtins,

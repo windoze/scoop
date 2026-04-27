@@ -29,6 +29,8 @@ use super::super::{
     ValueRef, WhenPat,
 };
 
+pub(crate) type GenericTemplateSymbolSuffixIndex = HashMap<TemplateKey, String>;
+
 /// 计算 closure（lambda）的 capture set（自由变量集合）。
 ///
 /// 规则（最小实现，供 T0711）：
@@ -509,23 +511,37 @@ pub(super) struct InitCollectionCx<'a> {
     pub file: &'a ast::File,
     pub index: &'a Index,
     pub type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
+    pub class_vtables: &'a crate::vtable::ClassVtableIndex,
+    pub interfaces: &'a crate::itable::InterfaceIndex,
+    pub class_itables: &'a crate::itable::ClassItableIndex,
     pub typecheck_types: Option<&'a TypeStore>,
     pub builtins: BuiltinTypes,
     pub materialize_direct_call_targets: bool,
+    pub devirtualize_dispatch_calls: bool,
 }
 
 pub(super) fn collect_object_inits(
     cx: InitCollectionCx<'_>,
     types: &mut TypeStore,
-) -> (ObjectInitIndex, CtorCallSiteIndex) {
+) -> (
+    ObjectInitIndex,
+    CtorCallSiteIndex,
+    crate::hir::DispatchCallSiteIndex,
+) {
     let InitCollectionCx {
         source,
         file,
         index,
         type_kinds,
+        known_receiver_subclasses,
+        class_vtables,
+        interfaces,
+        class_itables,
         typecheck_types,
         builtins,
         materialize_direct_call_targets,
+        devirtualize_dispatch_calls,
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
@@ -533,6 +549,8 @@ pub(super) fn collect_object_inits(
     let default_arg_structs = super::collect_default_arg_structs(&compilation_unit);
     let value_type_computed_properties =
         super::collect_value_type_computed_property_fqns(&compilation_unit);
+    let generic_template_symbol_suffixes =
+        collect_generic_template_symbol_suffixes(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -546,7 +564,13 @@ pub(super) fn collect_object_inits(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
         },
     );
 
@@ -568,7 +592,8 @@ pub(super) fn collect_object_inits(
     }
 
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
-    (out, ctor_call_sites)
+    let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
+    (out, ctor_call_sites, dispatch_call_sites)
 }
 
 fn collect_objects_in_type_decl(
@@ -670,15 +695,24 @@ fn collect_object_decl_inits(
 pub(super) fn collect_class_inits(
     cx: InitCollectionCx<'_>,
     types: &mut TypeStore,
-) -> (ClassInitIndex, CtorCallSiteIndex) {
+) -> (
+    ClassInitIndex,
+    CtorCallSiteIndex,
+    crate::hir::DispatchCallSiteIndex,
+) {
     let InitCollectionCx {
         source,
         file,
         index,
         type_kinds,
+        known_receiver_subclasses,
+        class_vtables,
+        interfaces,
+        class_itables,
         typecheck_types,
         builtins,
         materialize_direct_call_targets,
+        devirtualize_dispatch_calls,
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
@@ -686,6 +720,8 @@ pub(super) fn collect_class_inits(
     let default_arg_structs = super::collect_default_arg_structs(&compilation_unit);
     let value_type_computed_properties =
         super::collect_value_type_computed_property_fqns(&compilation_unit);
+    let generic_template_symbol_suffixes =
+        collect_generic_template_symbol_suffixes(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -699,7 +735,13 @@ pub(super) fn collect_class_inits(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
         },
     );
 
@@ -720,7 +762,8 @@ pub(super) fn collect_class_inits(
         }
     }
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
-    (out, ctor_call_sites)
+    let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
+    (out, ctor_call_sites, dispatch_call_sites)
 }
 
 fn collect_classes_in_type_decl(
@@ -3360,6 +3403,11 @@ pub(super) fn collect_generic_member_fun_instantiations(
     if generic_owners.is_empty() {
         return Vec::new();
     }
+    let generic_template_symbol_suffixes = collect_generic_template_symbol_suffixes(pairs);
+    let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
+    let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
+    let empty_interfaces = crate::itable::InterfaceIndex::new();
+    let empty_class_itables = crate::itable::ClassItableIndex::new();
 
     // 2) 收集 TypeStore 中所有具体实例化，去重
     let mut instantiations: Vec<(String, Vec<crate::ty::TypeId>)> = Vec::new();
@@ -3412,18 +3460,6 @@ pub(super) fn collect_generic_member_fun_instantiations(
             .map(|(p, &arg)| (p.name.text(source).to_string(), arg))
             .collect();
 
-        // 构建 monomorph 后缀（例如 "::<Int>"）
-        let type_args_suffix = if concrete_args.is_empty() {
-            String::new()
-        } else {
-            let args_str = concrete_args
-                .iter()
-                .map(|id| types.display(*id).to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("::<{args_str}>")
-        };
-
         // 遍历 nominal body 中的成员 callable。
         let Some(body) = &decl.body else {
             continue;
@@ -3437,11 +3473,17 @@ pub(super) fn collect_generic_member_fun_instantiations(
                             file,
                             index,
                             type_kinds,
+                            known_receiver_subclasses: &empty_known_receiver_subclasses,
+                            class_vtables: &empty_class_vtables,
+                            interfaces: &empty_interfaces,
+                            class_itables: &empty_class_itables,
                             typecheck_types,
                             compilation_unit: pairs,
                             types,
                             builtins,
+                            generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                             materialize_direct_call_targets: true,
+                            devirtualize_dispatch_calls: false,
                         },
                         super::BoundMemberFunLoweringTarget {
                             owner_fqn: base_fqn,
@@ -3451,7 +3493,21 @@ pub(super) fn collect_generic_member_fun_instantiations(
                         },
                         bindings.clone(),
                     );
-                    hir_fun.fqn = format!("{}{type_args_suffix}", hir_fun.fqn);
+                    let template = TemplateKey {
+                        fqn: format!("{base_fqn}.{}", fun.name.text(source)),
+                        source_path: source.path().to_path_buf(),
+                        decl_span: fun.span,
+                    };
+                    hir_fun.fqn = stable_instance_fqn(
+                        types,
+                        &template,
+                        concrete_args,
+                        &[],
+                        generic_template_symbol_suffixes
+                            .get(&template)
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                    );
                     out.push(hir_fun);
                 }
                 ast::TypeMember::Property(property)
@@ -3464,11 +3520,17 @@ pub(super) fn collect_generic_member_fun_instantiations(
                             file,
                             index,
                             type_kinds,
+                            known_receiver_subclasses: &empty_known_receiver_subclasses,
+                            class_vtables: &empty_class_vtables,
+                            interfaces: &empty_interfaces,
+                            class_itables: &empty_class_itables,
                             typecheck_types,
                             compilation_unit: pairs,
                             types,
                             builtins,
+                            generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                             materialize_direct_call_targets: true,
+                            devirtualize_dispatch_calls: false,
                         },
                         super::BoundValuePropertyGetterLoweringTarget {
                             owner_fqn: base_fqn,
@@ -3478,7 +3540,21 @@ pub(super) fn collect_generic_member_fun_instantiations(
                         },
                         bindings.clone(),
                     );
-                    hir_fun.fqn = format!("{}{type_args_suffix}", hir_fun.fqn);
+                    let template = TemplateKey {
+                        fqn: format!("{base_fqn}.{}", property.name.text(source)),
+                        source_path: source.path().to_path_buf(),
+                        decl_span: property.span,
+                    };
+                    hir_fun.fqn = stable_instance_fqn(
+                        types,
+                        &template,
+                        concrete_args,
+                        &[],
+                        generic_template_symbol_suffixes
+                            .get(&template)
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                    );
                     out.push(hir_fun);
                 }
                 _ => {}
@@ -3497,6 +3573,8 @@ enum ExplicitMemberTemplate<'a> {
         owner_type_params: &'a [ast::TypeParam],
         this_decl_span: Span,
         fun: &'a ast::FunDecl,
+        signature_key: String,
+        has_body: bool,
     },
     Getter {
         source: &'a SourceFile,
@@ -3505,7 +3583,146 @@ enum ExplicitMemberTemplate<'a> {
         owner_type_params: &'a [ast::TypeParam],
         this_decl_span: Span,
         property: &'a ast::PropertyDecl,
+        signature_key: String,
+        has_body: bool,
     },
+}
+
+#[derive(Clone)]
+struct TemplateSymbolCandidate {
+    template: TemplateKey,
+    signature_key: String,
+    prefers_materialized_body: bool,
+}
+
+fn normalize_sig_piece(s: &str) -> String {
+    s.split_whitespace().collect()
+}
+
+fn generic_fun_signature_key_with_owner_params(
+    source: &SourceFile,
+    owner_type_params: &[ast::TypeParam],
+    fun: &ast::FunDecl,
+) -> String {
+    let mut out = String::new();
+    out.push_str(match fun.kind {
+        ast::FunDeclKind::Regular => "fun",
+        ast::FunDeclKind::EffectOp => "effect-op",
+    });
+    out.push('|');
+    for param in owner_type_params {
+        out.push_str(param.name.text(source));
+        out.push(',');
+    }
+    out.push('|');
+    for param in &fun.type_params {
+        out.push_str(param.name.text(source));
+        out.push(',');
+    }
+    out.push('|');
+    if let Some(eff) = &fun.eff_param {
+        out.push_str(&normalize_sig_piece(source.slice(eff.span)));
+    }
+    out.push('|');
+    if let Some(receiver) = &fun.receiver {
+        out.push_str(&normalize_sig_piece(source.slice(receiver.span())));
+    }
+    out.push('|');
+    for param in &fun.params {
+        if let Some(ty) = &param.ty {
+            out.push_str(&normalize_sig_piece(source.slice(ty.span())));
+        } else {
+            out.push('_');
+        }
+        out.push(';');
+    }
+    out.push('|');
+    match &fun.return_ty {
+        Some(ret) => out.push_str(&normalize_sig_piece(source.slice(ret.span()))),
+        None => out.push_str("Unit"),
+    }
+    out.push('|');
+    if let Some(effects) = &fun.effects {
+        out.push_str(&normalize_sig_piece(source.slice(effects.span)));
+    }
+    out
+}
+
+fn generic_value_property_getter_signature_key(
+    source: &SourceFile,
+    owner_type_params: &[ast::TypeParam],
+    property: &ast::PropertyDecl,
+) -> String {
+    let mut out = String::from("value-getter|");
+    for param in owner_type_params {
+        out.push_str(param.name.text(source));
+        out.push(',');
+    }
+    out.push('|');
+    match &property.ty {
+        Some(ret) => out.push_str(&normalize_sig_piece(source.slice(ret.span()))),
+        None => out.push_str("Any"),
+    }
+    out
+}
+
+fn build_template_symbol_suffixes(
+    signature_keys: &HashMap<TemplateKey, String>,
+) -> GenericTemplateSymbolSuffixIndex {
+    let mut templates_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
+    for template in signature_keys.keys() {
+        templates_by_fqn
+            .entry(template.fqn.clone())
+            .or_default()
+            .push(template.clone());
+    }
+
+    let mut out = HashMap::new();
+    for (_, mut templates) in templates_by_fqn {
+        templates.sort_by(template_key_sort);
+        let overloaded = templates.len() > 1;
+        for template in templates {
+            let symbol_suffix = if overloaded {
+                let signature_key = signature_keys
+                    .get(&template)
+                    .expect("every overloaded generic template should have a signature key");
+                format!(
+                    "$overload${}",
+                    stable_template_symbol_suffix(&template, signature_key)
+                )
+            } else {
+                String::new()
+            };
+            out.insert(template, symbol_suffix);
+        }
+    }
+    out
+}
+
+fn template_key_sort(lhs: &TemplateKey, rhs: &TemplateKey) -> std::cmp::Ordering {
+    lhs.source_path
+        .cmp(&rhs.source_path)
+        .then_with(|| lhs.decl_span.start.cmp(&rhs.decl_span.start))
+        .then_with(|| lhs.decl_span.end.cmp(&rhs.decl_span.end))
+}
+
+fn stable_template_symbol_suffix(template: &TemplateKey, signature_key: &str) -> String {
+    let mut hash = 0xcbf29ce484222325u64;
+    stable_hash_bytes(&mut hash, template.source_path.to_string_lossy().as_bytes());
+    stable_hash_bytes(&mut hash, &[0xff]);
+    stable_hash_bytes(&mut hash, &template.decl_span.start.to_le_bytes());
+    stable_hash_bytes(&mut hash, &template.decl_span.end.to_le_bytes());
+    stable_hash_bytes(&mut hash, &[0xfe]);
+    stable_hash_bytes(&mut hash, signature_key.as_bytes());
+    format!("{hash:016x}")
+}
+
+fn stable_hash_bytes(hash: &mut u64, bytes: &[u8]) {
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    for &byte in bytes {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(FNV_PRIME);
+    }
 }
 
 pub(super) struct ExplicitGenericMemberInstantiationInputs<'a> {
@@ -3541,6 +3758,25 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
     if templates.is_empty() {
         return Ok(Vec::new());
     }
+    let generic_template_symbol_suffixes =
+        collect_generic_template_symbol_suffixes(compilation_unit);
+    let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
+    let known_receiver_subclasses =
+        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
+    let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
+    let (interfaces, class_itables) = match typecheck_types {
+        Some(typecheck_types) => crate::itable::collect_runtime_interfaces_and_class_itables(
+            compilation_unit,
+            index,
+            &class_vtables,
+            typecheck_types,
+        )?,
+        None => crate::itable::collect_interfaces_and_class_itables(
+            compilation_unit,
+            index,
+            &class_vtables,
+        )?,
+    };
 
     let mut seen: HashSet<String> = HashSet::new();
     let mut out = Vec::new();
@@ -3558,6 +3794,7 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
                 owner_type_params,
                 this_decl_span,
                 fun,
+                ..
             } => {
                 let owner_param_count = owner_type_params.len();
                 let fun_param_count = fun.type_params.len();
@@ -3593,6 +3830,10 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
                     &instance.template,
                     &[owner_args.as_slice(), fun_args.as_slice()].concat(),
                     &eff_args,
+                    generic_template_symbol_suffixes
+                        .get(&instance.template)
+                        .map(String::as_str)
+                        .unwrap_or(""),
                 );
                 if !seen.insert(instance_fqn.clone()) {
                     continue;
@@ -3614,11 +3855,17 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
                         file,
                         index,
                         type_kinds,
+                        known_receiver_subclasses: &known_receiver_subclasses,
+                        class_vtables: &class_vtables,
+                        interfaces: &interfaces,
+                        class_itables: &class_itables,
                         typecheck_types,
                         compilation_unit,
                         types,
                         builtins,
+                        generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                         materialize_direct_call_targets: true,
+                        devirtualize_dispatch_calls: true,
                     },
                     super::BoundMemberFunLoweringTarget {
                         owner_fqn,
@@ -3640,6 +3887,7 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
                 owner_type_params,
                 this_decl_span,
                 property,
+                ..
             } => {
                 if !instance.eff_args.is_empty() {
                     return Err(explicit_instance_lowering_error(format!(
@@ -3661,7 +3909,16 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
                     .iter()
                     .map(|&arg| types.re_intern_from(instance_types, arg))
                     .collect::<Vec<_>>();
-                let instance_fqn = stable_instance_fqn(types, &instance.template, &owner_args, &[]);
+                let instance_fqn = stable_instance_fqn(
+                    types,
+                    &instance.template,
+                    &owner_args,
+                    &[],
+                    generic_template_symbol_suffixes
+                        .get(&instance.template)
+                        .map(String::as_str)
+                        .unwrap_or(""),
+                );
                 if !seen.insert(instance_fqn.clone()) {
                     continue;
                 }
@@ -3676,11 +3933,17 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
                         file,
                         index,
                         type_kinds,
+                        known_receiver_subclasses: &known_receiver_subclasses,
+                        class_vtables: &class_vtables,
+                        interfaces: &interfaces,
+                        class_itables: &class_itables,
                         typecheck_types,
                         compilation_unit,
                         types,
                         builtins,
+                        generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                         materialize_direct_call_targets: true,
+                        devirtualize_dispatch_calls: true,
                     },
                     super::BoundValuePropertyGetterLoweringTarget {
                         owner_fqn,
@@ -3779,6 +4042,12 @@ fn collect_explicit_member_templates_in_type_decl<'a>(
                         owner_type_params: &decl.type_params,
                         this_decl_span: decl.name.span,
                         fun,
+                        signature_key: generic_fun_signature_key_with_owner_params(
+                            source,
+                            &decl.type_params,
+                            fun,
+                        ),
+                        has_body: !matches!(fun.body, ast::FunBody::Missing),
                     },
                 );
             }
@@ -3801,6 +4070,14 @@ fn collect_explicit_member_templates_in_type_decl<'a>(
                         owner_type_params: &decl.type_params,
                         this_decl_span: decl.name.span,
                         property,
+                        signature_key: generic_value_property_getter_signature_key(
+                            source,
+                            &decl.type_params,
+                            property,
+                        ),
+                        has_body: property.getter.as_ref().is_some_and(|getter| {
+                            !matches!(getter.body, ast::AccessorBody::Missing)
+                        }),
                     },
                 );
             }
@@ -3856,6 +4133,12 @@ fn collect_explicit_member_templates_in_object_decl<'a>(
                         owner_type_params: &[],
                         this_decl_span,
                         fun,
+                        signature_key: generic_fun_signature_key_with_owner_params(
+                            source,
+                            &[],
+                            fun,
+                        ),
+                        has_body: !matches!(fun.body, ast::FunBody::Missing),
                     },
                 );
             }
@@ -4223,10 +4506,12 @@ fn extract_concrete_hir_expr_ty(
 }
 
 fn generic_fun_dispatch_fqn(fqn: &str) -> &str {
-    if !fqn.ends_with('>') {
-        return fqn;
+    if let Some((base, _)) = fqn.rsplit_once("::<") {
+        return base;
     }
-    fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn)
+    fqn.split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(fqn)
 }
 
 fn generic_fun_callee_fqn(expr: &super::super::Expr) -> Option<&str> {
@@ -4765,6 +5050,12 @@ pub(super) fn collect_generic_fun_instantiations(
     if generic_funs.is_empty() {
         return Vec::new();
     }
+    let generic_template_symbol_suffixes =
+        collect_generic_template_symbol_suffixes(compilation_unit);
+    let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
+    let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
+    let empty_interfaces = crate::itable::InterfaceIndex::new();
+    let empty_class_itables = crate::itable::ClassItableIndex::new();
 
     let mut generic_fun_candidates_by_fqn: HashMap<String, Vec<(String, crate::span::Span)>> =
         HashMap::new();
@@ -4805,11 +5096,17 @@ pub(super) fn collect_generic_fun_instantiations(
                 file,
                 index,
                 type_kinds,
+                known_receiver_subclasses: &empty_known_receiver_subclasses,
+                class_vtables: &empty_class_vtables,
+                interfaces: &empty_interfaces,
+                class_itables: &empty_class_itables,
                 typecheck_types: Some(typecheck_types),
                 compilation_unit,
                 types,
                 builtins,
+                generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 materialize_direct_call_targets: true,
+                devirtualize_dispatch_calls: false,
             },
             fun_decl,
             param_bindings,
@@ -4880,12 +5177,21 @@ pub(super) fn collect_generic_fun_instantiations(
             continue;
         }
 
-        let args_str = re_interned_args
-            .iter()
-            .map(|id| types.display(*id).to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        let instance_fqn = format!("{}::<{args_str}>", lookup_key.0);
+        let template = TemplateKey {
+            fqn: lookup_key.0.clone(),
+            source_path: source.path().to_path_buf(),
+            decl_span: fun_decl.span,
+        };
+        let instance_fqn = stable_instance_fqn(
+            types,
+            &template,
+            &re_interned_args,
+            &[],
+            generic_template_symbol_suffixes
+                .get(&template)
+                .map(String::as_str)
+                .unwrap_or(""),
+        );
         if !seen.insert(instance_fqn.clone()) {
             continue;
         }
@@ -4903,11 +5209,17 @@ pub(super) fn collect_generic_fun_instantiations(
                 file,
                 index,
                 type_kinds,
+                known_receiver_subclasses: &empty_known_receiver_subclasses,
+                class_vtables: &empty_class_vtables,
+                interfaces: &empty_interfaces,
+                class_itables: &empty_class_itables,
                 typecheck_types: Some(typecheck_types),
                 compilation_unit,
                 types,
                 builtins,
+                generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 materialize_direct_call_targets: true,
+                devirtualize_dispatch_calls: false,
             },
             fun_decl,
             bindings,
@@ -4937,6 +5249,8 @@ struct ExplicitTopLevelGenericFunTemplate<'a> {
     source: &'a SourceFile,
     file: &'a ast::File,
     fun: &'a ast::FunDecl,
+    signature_key: String,
+    has_body: bool,
 }
 
 pub(super) struct ExplicitGenericFunInstantiationInputs<'a> {
@@ -4972,6 +5286,18 @@ pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
     if generic_funs.is_empty() {
         return Ok(Vec::new());
     }
+    let generic_template_symbol_suffixes =
+        collect_generic_template_symbol_suffixes(compilation_unit);
+    let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
+    let known_receiver_subclasses =
+        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
+    let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
+    let (interfaces, class_itables) = crate::itable::collect_runtime_interfaces_and_class_itables(
+        compilation_unit,
+        index,
+        &class_vtables,
+        typecheck_types,
+    )?;
 
     let mut seen: HashSet<String> = HashSet::new();
     let mut out = Vec::new();
@@ -5009,6 +5335,10 @@ pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
             &instance.template,
             &re_interned_type_args,
             &re_interned_eff_args,
+            generic_template_symbol_suffixes
+                .get(&instance.template)
+                .map(String::as_str)
+                .unwrap_or(""),
         );
         if !seen.insert(instance_fqn.clone()) {
             continue;
@@ -5028,11 +5358,17 @@ pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
                 file: template.file,
                 index,
                 type_kinds,
+                known_receiver_subclasses: &known_receiver_subclasses,
+                class_vtables: &class_vtables,
+                interfaces: &interfaces,
+                class_itables: &class_itables,
                 typecheck_types: Some(typecheck_types),
                 compilation_unit,
                 types,
                 builtins,
+                generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 materialize_direct_call_targets: true,
+                devirtualize_dispatch_calls: true,
             },
             template.fun,
             bindings,
@@ -5070,11 +5406,117 @@ fn collect_explicit_top_level_generic_fun_templates<'a>(
                     source_path: source.path().to_path_buf(),
                     decl_span: fun.span,
                 },
-                ExplicitTopLevelGenericFunTemplate { source, file, fun },
+                ExplicitTopLevelGenericFunTemplate {
+                    source,
+                    file,
+                    fun,
+                    signature_key: generic_fun_signature_key_with_owner_params(source, &[], fun),
+                    has_body: !matches!(fun.body, ast::FunBody::Missing),
+                },
             );
         }
     }
     out
+}
+
+pub(super) fn collect_generic_template_symbol_suffixes(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> GenericTemplateSymbolSuffixIndex {
+    let mut candidates = Vec::new();
+
+    for (template, info) in collect_explicit_top_level_generic_fun_templates(compilation_unit) {
+        candidates.push(TemplateSymbolCandidate {
+            template,
+            signature_key: info.signature_key,
+            prefers_materialized_body: info.has_body,
+        });
+    }
+
+    for (template, info) in collect_explicit_member_templates(compilation_unit) {
+        let (signature_key, prefers_materialized_body) = match info {
+            ExplicitMemberTemplate::Fun {
+                signature_key,
+                has_body,
+                ..
+            }
+            | ExplicitMemberTemplate::Getter {
+                signature_key,
+                has_body,
+                ..
+            } => (signature_key, has_body),
+        };
+        candidates.push(TemplateSymbolCandidate {
+            template,
+            signature_key,
+            prefers_materialized_body,
+        });
+    }
+
+    let canonical_templates = canonical_template_map(&candidates);
+    let mut canonical_signature_keys = HashMap::new();
+    let mut aliases = HashMap::new();
+    for candidate in candidates {
+        let group_key = (
+            candidate.template.fqn.clone(),
+            candidate.signature_key.clone(),
+        );
+        let canonical = canonical_templates
+            .get(&group_key)
+            .cloned()
+            .expect("every generic template candidate should resolve to a canonical template");
+        canonical_signature_keys
+            .entry(canonical.clone())
+            .or_insert_with(|| candidate.signature_key.clone());
+        aliases.insert(candidate.template, canonical);
+    }
+
+    let canonical_suffixes = build_template_symbol_suffixes(&canonical_signature_keys);
+    let mut out = HashMap::new();
+    for (template, canonical) in aliases {
+        out.insert(
+            template,
+            canonical_suffixes
+                .get(&canonical)
+                .cloned()
+                .unwrap_or_default(),
+        );
+    }
+    out
+}
+
+fn canonical_template_map(
+    candidates: &[TemplateSymbolCandidate],
+) -> HashMap<(String, String), TemplateKey> {
+    let mut groups: HashMap<(String, String), Vec<&TemplateSymbolCandidate>> = HashMap::new();
+    for candidate in candidates {
+        groups
+            .entry((
+                candidate.template.fqn.clone(),
+                candidate.signature_key.clone(),
+            ))
+            .or_default()
+            .push(candidate);
+    }
+
+    let mut out = HashMap::new();
+    for (group_key, group_candidates) in groups {
+        let preferred = preferred_template_candidate(group_candidates);
+        out.insert(group_key, preferred.template.clone());
+    }
+    out
+}
+
+fn preferred_template_candidate(group: Vec<&TemplateSymbolCandidate>) -> &TemplateSymbolCandidate {
+    let mut preferred = group;
+    preferred.sort_by(|lhs, rhs| {
+        rhs.prefers_materialized_body
+            .cmp(&lhs.prefers_materialized_body)
+            .then_with(|| template_key_sort(&lhs.template, &rhs.template))
+    });
+    preferred
+        .into_iter()
+        .next()
+        .expect("template candidate group must not be empty")
 }
 
 fn re_intern_effect_row_from(
@@ -5090,14 +5532,15 @@ fn re_intern_effect_row_from(
     )
 }
 
-fn stable_instance_fqn(
+pub(super) fn stable_instance_fqn(
     types: &TypeStore,
     template: &TemplateKey,
     type_args: &[TypeId],
     eff_args: &[EffectRow],
+    symbol_suffix: &str,
 ) -> String {
     if type_args.is_empty() && eff_args.is_empty() {
-        return template.fqn.clone();
+        return format!("{}{symbol_suffix}", template.fqn);
     }
     let mut args = type_args
         .iter()
@@ -5108,7 +5551,7 @@ fn stable_instance_fqn(
             .iter()
             .map(|row| format!("eff {}", stable_effect_row_string(types, row))),
     );
-    format!("{}::<{}>", template.fqn, args.join(", "))
+    format!("{}::<{}>{symbol_suffix}", template.fqn, args.join(", "))
 }
 
 fn stable_effect_row_string(types: &TypeStore, row: &EffectRow) -> String {

@@ -9,10 +9,12 @@ use super::super::*;
 /// - 只有 sysroot/builtin special-case dispatch、vtable/itable slot 识别等仍按模板名建模的
 ///   路径需要看这个“base/template FQN”。
 fn direct_call_dispatch_fqn(fqn: &str) -> &str {
-    if !fqn.ends_with('>') {
-        return fqn;
+    if let Some((base, _)) = fqn.rsplit_once("::<") {
+        return base;
     }
-    fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn)
+    fqn.split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(fqn)
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {

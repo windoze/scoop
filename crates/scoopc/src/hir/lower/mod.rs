@@ -82,6 +82,8 @@ struct HirLowering<'a> {
     /// 说明：HIR v0 仍把 ctor 调用的 callee 降为 `UnresolvedIdent`，因此需要 side table
     /// 把 resolver 的 call candidates 保留下来，供 LLVM codegen 决定“这是 ctor call”。
     ctor_call_sites: CtorCallSiteIndex,
+    /// 动态 dispatch 调用点 side table：`source_path + call span + receiver_ty` → dispatch kind。
+    dispatch_call_sites: super::DispatchCallSiteIndex,
     /// effect-op 调用点绑定信息：`source_path + call span` → arg_mapping / payload tuple。
     effect_op_call_sites: super::EffectOpCallSiteIndex,
     /// handler arm 多 binder payload tuple 索引：`source_path + op head span` → tuple `TypeId`。
@@ -117,11 +119,28 @@ struct HirLowering<'a> {
     type_param_scopes: Vec<HashMap<String, TypeId>>,
     /// effect row parameter 作用域栈：用于 lowering `/ E` 或 `Type<eff E>` 这类 row 变量引用。
     effect_row_param_scopes: Vec<HashMap<String, EffectRowParamBinding>>,
+    /// generic template 的 overload-aware 符号后缀索引。
+    ///
+    /// 说明：
+    /// - HIR 兼容 lowering 仍需要为 concrete generic direct-call / function-value target 生成实例 FQN；
+    /// - 当同一 `template.fqn` 存在多个 generic overload 时，必须与 MIR materialization 使用同一套
+    ///   stable overload suffix 规则，避免生产路径上的实例声明名与调用目标继续碰撞。
+    generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
+    /// exact receiver 判定时使用的“已知存在子类/子实现”的 nominal 集合。
+    known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
+    /// class vtable slots（供 explicit MIR instance lowering 的 devirtualization 兼容桥接使用）。
+    class_vtables: &'a crate::vtable::ClassVtableIndex,
+    /// interface metadata（供 explicit MIR instance lowering 的 devirtualization 兼容桥接使用）。
+    interfaces: &'a crate::itable::InterfaceIndex,
+    /// class itables（供 explicit MIR instance lowering 的 devirtualization 兼容桥接使用）。
+    class_itables: &'a crate::itable::ClassItableIndex,
     /// 是否把已 concrete 的非 intrinsic direct-call target 物化为最终实例 FQN。
     ///
     /// compilation-unit / LLVM frontend lowering 需要开启它，以便 backend 直接消费实例身份；
     /// dump / generic-template lowering 必须关闭它，保持 generic MIR template 不提前单态化。
     materialize_direct_call_targets: bool,
+    /// 是否在 explicit MIR instance lowering 的 HIR 兼容前端上执行 exact-receiver devirtualization。
+    devirtualize_dispatch_calls: bool,
 }
 
 /// 构造 `HirLowering` 时用到的非必需上下文集合。
@@ -137,7 +156,13 @@ struct HirLoweringSetup<'a> {
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
     value_type_computed_properties: &'a HashSet<String>,
     builtins: BuiltinTypes,
+    generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
+    known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
+    class_vtables: &'a crate::vtable::ClassVtableIndex,
+    interfaces: &'a crate::itable::InterfaceIndex,
+    class_itables: &'a crate::itable::ClassItableIndex,
     materialize_direct_call_targets: bool,
+    devirtualize_dispatch_calls: bool,
 }
 
 #[derive(Clone)]
@@ -187,7 +212,13 @@ impl<'a> HirLowering<'a> {
             default_arg_structs,
             value_type_computed_properties,
             builtins,
+            generic_template_symbol_suffixes,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
         } = setup;
         Self {
             source,
@@ -201,6 +232,7 @@ impl<'a> HirLowering<'a> {
             default_arg_structs,
             value_type_computed_properties,
             ctor_call_sites: HashMap::new(),
+            dispatch_call_sites: HashMap::new(),
             effect_op_call_sites: HashMap::new(),
             handle_payload_tuple_tys: HashMap::new(),
             top_level_vars: HashMap::new(),
@@ -216,7 +248,13 @@ impl<'a> HirLowering<'a> {
             builtins,
             type_param_scopes: Vec::new(),
             effect_row_param_scopes: Vec::new(),
+            generic_template_symbol_suffixes,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
         }
     }
 
@@ -1977,18 +2015,46 @@ fn collect_default_arg_structs_in_object_decl(
     }
 }
 
+#[derive(Clone, Copy)]
+struct CompilationUnitInitCollectionInputs<'a> {
+    index: &'a Index,
+    type_kinds: &'a HashMap<String, ast::TypeKind>,
+    known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
+    class_vtables: &'a crate::vtable::ClassVtableIndex,
+    interfaces: &'a crate::itable::InterfaceIndex,
+    class_itables: &'a crate::itable::ClassItableIndex,
+    typecheck_types: Option<&'a TypeStore>,
+    materialize_direct_call_targets: bool,
+    devirtualize_dispatch_calls: bool,
+    builtins: BuiltinTypes,
+}
+
 fn collect_compilation_unit_object_and_class_inits(
     compilation_unit: &[(&SourceFile, &ast::File)],
-    index: &Index,
-    type_kinds: &HashMap<String, ast::TypeKind>,
-    typecheck_types: Option<&TypeStore>,
-    materialize_direct_call_targets: bool,
+    inputs: CompilationUnitInitCollectionInputs<'_>,
     types: &mut TypeStore,
-    builtins: BuiltinTypes,
-) -> (ObjectInitIndex, ClassInitIndex, CtorCallSiteIndex) {
+) -> (
+    ObjectInitIndex,
+    ClassInitIndex,
+    CtorCallSiteIndex,
+    super::DispatchCallSiteIndex,
+) {
+    let CompilationUnitInitCollectionInputs {
+        index,
+        type_kinds,
+        known_receiver_subclasses,
+        class_vtables,
+        interfaces,
+        class_itables,
+        typecheck_types,
+        materialize_direct_call_targets,
+        devirtualize_dispatch_calls,
+        builtins,
+    } = inputs;
     let mut object_inits = ObjectInitIndex::new();
     let mut class_inits = ClassInitIndex::new();
     let mut ctor_call_sites = CtorCallSiteIndex::new();
+    let mut dispatch_call_sites = super::DispatchCallSiteIndex::new();
 
     for (source, file) in compilation_unit {
         let init_collection_cx = InitCollectionCx {
@@ -1996,22 +2062,34 @@ fn collect_compilation_unit_object_and_class_inits(
             file,
             index,
             type_kinds,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             typecheck_types,
             builtins,
             materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
         };
-        let (file_object_inits, file_object_ctor_call_sites) =
+        let (file_object_inits, file_object_ctor_call_sites, file_object_dispatch_call_sites) =
             collect_object_inits(init_collection_cx, types);
         object_inits.extend(file_object_inits);
         ctor_call_sites.extend(file_object_ctor_call_sites);
+        dispatch_call_sites.extend(file_object_dispatch_call_sites);
 
-        let (file_class_inits, file_class_ctor_call_sites) =
+        let (file_class_inits, file_class_ctor_call_sites, file_class_dispatch_call_sites) =
             collect_class_inits(init_collection_cx, types);
         class_inits.extend(file_class_inits);
         ctor_call_sites.extend(file_class_ctor_call_sites);
+        dispatch_call_sites.extend(file_class_dispatch_call_sites);
     }
 
-    (object_inits, class_inits, ctor_call_sites)
+    (
+        object_inits,
+        class_inits,
+        ctor_call_sites,
+        dispatch_call_sites,
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2062,6 +2140,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let type_kinds = collect_type_decl_kinds(&pairs);
     let nominal_variances = collect_nominal_variances(&pairs);
     let direct_supertypes = collect_direct_supertypes(&pairs, &index);
+    let known_receiver_subclasses =
+        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(&pairs);
     let default_arg_structs = collect_default_arg_structs(&pairs);
     let value_type_computed_properties = collect_value_type_computed_property_fqns(&pairs);
@@ -2081,6 +2161,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
+    let generic_template_symbol_suffixes = util::collect_generic_template_symbol_suffixes(&pairs);
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
     let pkg_prefix = package_prefix(source, ast.package.as_ref());
@@ -2088,6 +2169,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         file,
         member_funs,
         mut ctor_call_sites,
+        mut dispatch_call_sites,
         effect_op_call_sites,
         handle_payload_tuple_tys,
         top_level_vars,
@@ -2108,12 +2190,19 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
                 default_arg_structs: default_arg_structs.clone(),
                 value_type_computed_properties: &value_type_computed_properties,
                 builtins,
+                generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
+                known_receiver_subclasses: &known_receiver_subclasses,
+                class_vtables: &class_vtables,
+                interfaces: &interfaces,
+                class_itables: &class_itables,
                 materialize_direct_call_targets: false,
+                devirtualize_dispatch_calls: false,
             },
         );
         let file = ctx.lower_file();
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+        let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
         let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
         let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
@@ -2124,6 +2213,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             file,
             member_funs,
             ctor_call_sites,
+            dispatch_call_sites,
             effect_op_call_sites,
             handle_payload_tuple_tys,
             top_level_vars,
@@ -2135,17 +2225,25 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     // T4016T2：sysroot/task.scoop 这类“实现文件依赖同编译单元里的声明元数据”的路径，
     // 需要从整个 compilation unit 收集 object/class side tables，而不是只看当前 lowering 的文件。
-    let (object_inits, class_inits, side_table_ctor_call_sites) =
+    let (object_inits, class_inits, side_table_ctor_call_sites, side_table_dispatch_call_sites) =
         collect_compilation_unit_object_and_class_inits(
             &pairs,
-            &index,
-            &type_kinds,
-            None,
-            false,
+            CompilationUnitInitCollectionInputs {
+                index: &index,
+                type_kinds: &type_kinds,
+                known_receiver_subclasses: &known_receiver_subclasses,
+                class_vtables: &class_vtables,
+                interfaces: &interfaces,
+                class_itables: &class_itables,
+                typecheck_types: None,
+                materialize_direct_call_targets: false,
+                devirtualize_dispatch_calls: false,
+                builtins,
+            },
             &mut types,
-            builtins,
         );
     ctor_call_sites.extend(side_table_ctor_call_sites);
+    dispatch_call_sites.extend(side_table_dispatch_call_sites);
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
@@ -2211,6 +2309,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         interfaces,
         class_itables,
         ctor_call_sites,
+        dispatch_call_sites,
         effect_op_call_sites,
         handle_payload_tuple_tys,
         continuation_resume_call_sites,
@@ -2312,6 +2411,12 @@ pub fn lower_typed_for_dump(
     )
 }
 
+pub(crate) fn generic_template_symbol_suffixes_for_compilation_unit(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> util::GenericTemplateSymbolSuffixIndex {
+    util::collect_generic_template_symbol_suffixes(compilation_unit)
+}
+
 /// 在“给定编译单元（多个源文件）”的上下文中，为其中一个文件生成 HIR。
 ///
 /// 用途：
@@ -2331,6 +2436,8 @@ pub fn lower_for_compilation_unit(
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
+    let known_receiver_subclasses =
+        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let value_type_computed_properties =
@@ -2354,6 +2461,8 @@ pub fn lower_for_compilation_unit(
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
+    let generic_template_symbol_suffixes =
+        util::collect_generic_template_symbol_suffixes(compilation_unit);
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -2361,6 +2470,7 @@ pub fn lower_for_compilation_unit(
         file_hir,
         member_funs,
         mut ctor_call_sites,
+        mut dispatch_call_sites,
         effect_op_call_sites,
         handle_payload_tuple_tys,
         top_level_vars,
@@ -2381,12 +2491,19 @@ pub fn lower_for_compilation_unit(
                 default_arg_structs: default_arg_structs.clone(),
                 value_type_computed_properties: &value_type_computed_properties,
                 builtins,
+                generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
+                known_receiver_subclasses: &known_receiver_subclasses,
+                class_vtables: &class_vtables,
+                interfaces: &interfaces,
+                class_itables: &class_itables,
                 materialize_direct_call_targets: true,
+                devirtualize_dispatch_calls: false,
             },
         );
         let file_hir = ctx.lower_file();
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+        let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
         let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
         let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
@@ -2397,6 +2514,7 @@ pub fn lower_for_compilation_unit(
             file_hir,
             member_funs,
             ctor_call_sites,
+            dispatch_call_sites,
             effect_op_call_sites,
             handle_payload_tuple_tys,
             top_level_vars,
@@ -2406,17 +2524,25 @@ pub fn lower_for_compilation_unit(
         )
     };
 
-    let (object_inits, class_inits, side_table_ctor_call_sites) =
+    let (object_inits, class_inits, side_table_ctor_call_sites, side_table_dispatch_call_sites) =
         collect_compilation_unit_object_and_class_inits(
             compilation_unit,
-            index,
-            &type_kinds,
-            None,
-            true,
+            CompilationUnitInitCollectionInputs {
+                index,
+                type_kinds: &type_kinds,
+                known_receiver_subclasses: &known_receiver_subclasses,
+                class_vtables: &class_vtables,
+                interfaces: &interfaces,
+                class_itables: &class_itables,
+                typecheck_types: None,
+                materialize_direct_call_targets: true,
+                devirtualize_dispatch_calls: false,
+                builtins,
+            },
             &mut types,
-            builtins,
         );
     ctor_call_sites.extend(side_table_ctor_call_sites);
+    dispatch_call_sites.extend(side_table_dispatch_call_sites);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
     let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &mut types);
@@ -2460,6 +2586,7 @@ pub fn lower_for_compilation_unit(
         interfaces,
         class_itables,
         ctor_call_sites,
+        dispatch_call_sites,
         effect_op_call_sites,
         handle_payload_tuple_tys,
         continuation_resume_call_sites,
@@ -2664,9 +2791,15 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
 ) -> Result<LoweredHir, HirLowerError> {
     let materialize_direct_call_targets = options.materialize_direct_call_targets();
     let CompilationUnitLoweringOptions { instance_mode } = options;
+    let devirtualize_dispatch_calls = matches!(
+        instance_mode,
+        CompilationUnitInstanceMode::ExplicitMirInstances { .. }
+    );
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
+    let known_receiver_subclasses =
+        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let value_type_computed_properties =
@@ -2690,10 +2823,13 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
+    let generic_template_symbol_suffixes =
+        util::collect_generic_template_symbol_suffixes(compilation_unit);
 
     let mut items: Vec<Item> = Vec::new();
     let mut member_funs: Vec<FunDecl> = Vec::new();
     let mut ctor_call_sites: CtorCallSiteIndex = HashMap::new();
+    let mut dispatch_call_sites: super::DispatchCallSiteIndex = HashMap::new();
     let mut effect_op_call_sites: super::EffectOpCallSiteIndex = HashMap::new();
     let mut handle_payload_tuple_tys: super::HandlePayloadTupleSiteIndex = HashMap::new();
     let mut continuation_resume_call_sites: ContinuationResumeCallSiteIndex =
@@ -2710,6 +2846,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             file_hir,
             file_member_funs,
             file_ctor_call_sites,
+            file_dispatch_call_sites,
             file_effect_op_call_sites,
             file_handle_payload_tuple_tys,
             file_top_level_vars,
@@ -2730,7 +2867,13 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                     default_arg_structs: default_arg_structs.clone(),
                     value_type_computed_properties: &value_type_computed_properties,
                     builtins,
+                    generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
+                    known_receiver_subclasses: &known_receiver_subclasses,
+                    class_vtables: &class_vtables,
+                    interfaces: &interfaces,
+                    class_itables: &class_itables,
                     materialize_direct_call_targets,
+                    devirtualize_dispatch_calls,
                 },
             );
             let file_hir = ctx.lower_file();
@@ -2738,6 +2881,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             let pkg_prefix = package_prefix(source, file.package.as_ref());
             let file_member_funs = ctx.collect_member_funs(&pkg_prefix);
             let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+            let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
             let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
             let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
@@ -2749,6 +2893,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                 file_hir,
                 file_member_funs,
                 ctor_call_sites,
+                dispatch_call_sites,
                 effect_op_call_sites,
                 handle_payload_tuple_tys,
                 file_top_level_vars,
@@ -2759,6 +2904,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         };
 
         ctor_call_sites.extend(file_ctor_call_sites);
+        dispatch_call_sites.extend(file_dispatch_call_sites);
         effect_op_call_sites.extend(file_effect_op_call_sites);
         handle_payload_tuple_tys.extend(file_handle_payload_tuple_tys);
         continuation_resume_call_sites.extend(
@@ -2800,17 +2946,25 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         &mut types,
     ));
 
-    let (object_inits, mut class_inits, side_table_ctor_call_sites) =
+    let (object_inits, mut class_inits, side_table_ctor_call_sites, side_table_dispatch_call_sites) =
         collect_compilation_unit_object_and_class_inits(
             compilation_unit,
-            index,
-            &type_kinds,
-            Some(typecheck_types),
-            materialize_direct_call_targets,
+            CompilationUnitInitCollectionInputs {
+                index,
+                type_kinds: &type_kinds,
+                known_receiver_subclasses: &known_receiver_subclasses,
+                class_vtables: &class_vtables,
+                interfaces: &interfaces,
+                class_itables: &class_itables,
+                typecheck_types: Some(typecheck_types),
+                materialize_direct_call_targets,
+                devirtualize_dispatch_calls,
+                builtins,
+            },
             &mut types,
-            builtins,
         );
     ctor_call_sites.extend(side_table_ctor_call_sites);
+    dispatch_call_sites.extend(side_table_dispatch_call_sites);
     // T0125：泛型 class 的具体实例化 ClassInit（第一遍：处理文件中已有的泛型 class 实例化类型）。
     class_inits.extend(collect_generic_class_instantiation_inits(
         compilation_unit,
@@ -2945,6 +3099,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         interfaces,
         class_itables,
         ctor_call_sites,
+        dispatch_call_sites,
         effect_op_call_sites,
         handle_payload_tuple_tys,
         continuation_resume_call_sites,
@@ -2962,11 +3117,17 @@ pub(crate) struct LoweringInputs<'a> {
     pub(crate) file: &'a ast::File,
     pub(crate) index: &'a Index,
     pub(crate) type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub(crate) known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
+    pub(crate) class_vtables: &'a crate::vtable::ClassVtableIndex,
+    pub(crate) interfaces: &'a crate::itable::InterfaceIndex,
+    pub(crate) class_itables: &'a crate::itable::ClassItableIndex,
     pub(crate) typecheck_types: Option<&'a TypeStore>,
     pub(crate) compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     pub(crate) types: &'a mut TypeStore,
     pub(crate) builtins: BuiltinTypes,
+    pub(crate) generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
     pub(crate) materialize_direct_call_targets: bool,
+    pub(crate) devirtualize_dispatch_calls: bool,
 }
 
 pub(super) struct BoundMemberFunLoweringTarget<'a> {
@@ -2981,6 +3142,13 @@ pub(super) struct BoundValuePropertyGetterLoweringTarget<'a> {
     pub(super) this_decl_span: Span,
     pub(super) this_concrete_args: &'a [TypeId],
     pub(super) property: &'a ast::PropertyDecl,
+}
+
+pub(crate) struct LoweredFunWithMirFacts {
+    pub(crate) fun: FunDecl,
+    pub(crate) dispatch_call_sites: super::DispatchCallSiteIndex,
+    pub(crate) effect_op_call_sites: super::EffectOpCallSiteIndex,
+    pub(crate) when_pat_binding_tys: super::WhenPatBindingTypeIndex,
 }
 
 /// 将给定的 `ast::FunDecl` 在”已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
@@ -3002,16 +3170,39 @@ pub(crate) fn lower_fun_with_bindings(
     type_bindings: impl IntoIterator<Item = (String, TypeId)>,
     effect_binding: Option<(String, EffectRow)>,
 ) -> FunDecl {
+    lower_fun_with_bindings_and_mir_facts(inputs, fun, type_bindings, effect_binding).fun
+}
+
+pub(crate) fn lower_fun_with_type_bindings_and_mir_facts(
+    inputs: LoweringInputs<'_>,
+    fun: &ast::FunDecl,
+    type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+) -> LoweredFunWithMirFacts {
+    lower_fun_with_bindings_and_mir_facts(inputs, fun, type_bindings, None)
+}
+
+fn lower_fun_with_bindings_and_mir_facts(
+    inputs: LoweringInputs<'_>,
+    fun: &ast::FunDecl,
+    type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+    effect_binding: Option<(String, EffectRow)>,
+) -> LoweredFunWithMirFacts {
     let LoweringInputs {
         source,
         file,
         index,
         type_kinds,
+        known_receiver_subclasses,
+        class_vtables,
+        interfaces,
+        class_itables,
         typecheck_types,
         compilation_unit,
         types,
         builtins,
+        generic_template_symbol_suffixes,
         materialize_direct_call_targets,
+        devirtualize_dispatch_calls,
     } = inputs;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let delegated_properties = collect_delegated_properties(compilation_unit);
@@ -3031,7 +3222,13 @@ pub(crate) fn lower_fun_with_bindings(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            generic_template_symbol_suffixes,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
         },
     );
     let type_bindings = type_bindings.into_iter().collect::<Vec<_>>();
@@ -3052,7 +3249,12 @@ pub(crate) fn lower_fun_with_bindings(
     if type_bindings_pushed {
         ctx.pop_type_params();
     }
-    out
+    LoweredFunWithMirFacts {
+        fun: out,
+        dispatch_call_sites: std::mem::take(&mut ctx.dispatch_call_sites),
+        effect_op_call_sites: std::mem::take(&mut ctx.effect_op_call_sites),
+        when_pat_binding_tys: std::mem::take(&mut ctx.when_pat_binding_tys),
+    }
 }
 
 /// T0126: 将泛型类的成员方法在”已绑定 owner type params”的语境下降低为 HIR。
@@ -3089,11 +3291,17 @@ pub(crate) fn lower_member_fun_with_bindings(
         file,
         index,
         type_kinds,
+        known_receiver_subclasses,
+        class_vtables,
+        interfaces,
+        class_itables,
         typecheck_types,
         compilation_unit,
         types,
         builtins,
+        generic_template_symbol_suffixes,
         materialize_direct_call_targets,
+        devirtualize_dispatch_calls,
     } = inputs;
     let BoundMemberFunLoweringTarget {
         owner_fqn,
@@ -3119,7 +3327,13 @@ pub(crate) fn lower_member_fun_with_bindings(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            generic_template_symbol_suffixes,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
         },
     );
     // 先绑定 owner type params（例如 class Box<T> 的 T → Int），
@@ -3170,11 +3384,17 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         file,
         index,
         type_kinds,
+        known_receiver_subclasses,
+        class_vtables,
+        interfaces,
+        class_itables,
         typecheck_types,
         compilation_unit,
         types,
         builtins,
+        generic_template_symbol_suffixes,
         materialize_direct_call_targets,
+        devirtualize_dispatch_calls,
     } = inputs;
     let BoundValuePropertyGetterLoweringTarget {
         owner_fqn,
@@ -3200,7 +3420,13 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
             default_arg_structs,
             value_type_computed_properties: &value_type_computed_properties,
             builtins,
+            generic_template_symbol_suffixes,
+            known_receiver_subclasses,
+            class_vtables,
+            interfaces,
+            class_itables,
             materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
         },
     );
     let owner_type_bindings = owner_type_bindings.into_iter().collect::<Vec<_>>();
@@ -3943,6 +4169,149 @@ fun main(): Int {
         assert!(
             find_top_level_call_in_block(member_body, "fixtures.t5000e3d.id::<Int>").is_some(),
             "单态成员实例体内的 generic direct-call 应直接指向已实例化 target"
+        );
+    }
+
+    #[test]
+    fn compilation_unit_via_mir_instances_keeps_overloaded_generic_identity_distinct() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t5000e3d_overload_identity>",
+            r#"
+package fixtures.t5000e3d
+
+import scoop.core.*
+
+fun <T> pick(x: T): T { return x }
+fun <T> pick(x: T, y: T): T { return y }
+
+object Box {
+    fun <T> pick(x: T): T { return x }
+    fun <T> pick(x: T, y: T): T { return y }
+}
+
+fun main(): Int {
+    val a: Int = pick(1)
+    val b: Int = pick(1, 2)
+    val c: Int = Box.pick(3)
+    val d: Int = Box.pick(3, 4)
+    val f: (Int) -> Int = pick<Int>
+    val e: Int = f(5)
+    return a + b + c + d + e
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file_via_mir_instance_collection(&sess, &source);
+
+        let top_level_pick_instances = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun)
+                    if fun.fqn.starts_with("fixtures.t5000e3d.pick::<Int>")
+                        && fun.fqn != "fixtures.t5000e3d.main" =>
+                {
+                    Some((fun.fqn.clone(), fun.params.len()))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let top_level_pick_fqns = top_level_pick_instances
+            .iter()
+            .map(|(fqn, _)| fqn.clone())
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            top_level_pick_fqns.len(),
+            2,
+            "via-mir lowering 应为同名 generic overload 的相同 Int 实例保留两个不同的顶层实例名"
+        );
+        let unary_pick_fqn = top_level_pick_instances
+            .iter()
+            .find_map(|(fqn, param_count)| (*param_count == 1).then_some(fqn.clone()))
+            .expect("应收集到 unary pick::<Int> 实例");
+        let binary_pick_fqn = top_level_pick_instances
+            .iter()
+            .find_map(|(fqn, param_count)| (*param_count == 2).then_some(fqn.clone()))
+            .expect("应收集到 binary pick::<Int> 实例");
+        assert_ne!(
+            unary_pick_fqn, binary_pick_fqn,
+            "两个 overload 的实例名必须保持 distinct identity"
+        );
+
+        let member_pick_fqns = lowered
+            .member_funs
+            .iter()
+            .filter(|fun| fun.fqn.starts_with("fixtures.t5000e3d.Box.pick::<Int>"))
+            .map(|fun| fun.fqn.clone())
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            member_pick_fqns.len(),
+            2,
+            "via-mir lowering 应为同名 generic member overload 的相同 Int 实例保留两个不同的成员实例名"
+        );
+
+        let main = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t5000e3d.main" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t5000e3d.main");
+        let main_body = main.body.as_ref().expect("main 应有 body");
+        let mut main_call_fqns = Vec::new();
+        collect_top_level_call_fqns_in_block(main_body, &mut main_call_fqns);
+        let direct_top_level_calls = main_call_fqns
+            .iter()
+            .filter(|fqn| fqn.starts_with("fixtures.t5000e3d.pick::<Int>"))
+            .cloned()
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            direct_top_level_calls.len(),
+            2,
+            "main 里的 direct-call target 应区分两个 overloaded top-level generic 实例"
+        );
+        let direct_member_calls = main_call_fqns
+            .iter()
+            .filter(|fqn| fqn.starts_with("fixtures.t5000e3d.Box.pick::<Int>"))
+            .cloned()
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            direct_member_calls.len(),
+            2,
+            "main 里的 direct-call target 应区分两个 overloaded generic member 实例"
+        );
+
+        let fun_value_init = main_body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Val(ValDecl {
+                    name: Some(name),
+                    init: Some(init),
+                    ..
+                }) if name == "f" => Some(init),
+                _ => None,
+            })
+            .expect("main 应包含函数值绑定 f");
+        let ExprKind::Closure(closure) = &fun_value_init.kind else {
+            panic!(
+                "generic top-level function value 应被 lower 为 closure，实际为 {:?}",
+                fun_value_init.kind
+            );
+        };
+        let mut closure_call_fqns = Vec::new();
+        collect_top_level_call_fqns_in_expr(&closure.body, &mut closure_call_fqns);
+        assert!(
+            closure_call_fqns.contains(&unary_pick_fqn),
+            "函数值 closure 体应调用 unary overload 的 overload-aware 实例 target"
+        );
+        assert!(
+            !closure_call_fqns.contains(&binary_pick_fqn),
+            "函数值 closure 体不应误调用 binary overload 的实例 target"
         );
     }
 
@@ -5257,6 +5626,68 @@ fun use() {
                 .any(|fun| fun.fqn == "fixtures.t4010b1.Point.doubled"),
             "expected non-generic computed property getter to be collected as member callable"
         );
+    }
+
+    #[test]
+    fn via_mir_instance_collection_materializes_generic_value_property_getter_target() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t4010b1a>",
+            r#"
+package fixtures.t4010b1a
+
+import scoop.core.*
+
+struct Box<T>(val value: T) {
+    val readBack: T
+        get() = this.value
+}
+
+fun main(): Int {
+    val result: Int = Box(2).readBack
+    return result
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file_via_mir_instance_collection(&sess, &source);
+
+        let main = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t4010b1a.main" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t4010b1a.main");
+        let body = main.body.as_ref().expect("main 应有 body");
+        let result_init = body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Val(decl) if decl.name.as_deref() == Some("result") => decl.init.as_ref(),
+                _ => None,
+            })
+            .expect("main 应包含 result 初始化");
+        let ExprKind::Call { callee, args } = &result_init.kind else {
+            panic!("generic getter access 应 lowering 成 direct call: {result_init:#?}");
+        };
+        let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+            panic!("generic getter callee 应为 top-level value ref: {callee:#?}");
+        };
+        assert_eq!(fqn, "fixtures.t4010b1a.Box.readBack::<Int>");
+        assert_eq!(args.len(), 1);
+
+        let getter = lowered
+            .member_funs
+            .iter()
+            .find(|fun| fun.fqn == "fixtures.t4010b1a.Box.readBack::<Int>")
+            .expect("应收集到具体化后的 getter 实例");
+        assert!(matches!(
+            lowered.types.kind(getter.return_ty),
+            crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Int)
+        ));
     }
 
     #[test]

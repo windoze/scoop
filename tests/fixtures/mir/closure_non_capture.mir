@@ -116,7 +116,9 @@ File {
                                 ],
                                 terminator: Terminator {
                                     span: 11..69,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -183,7 +185,9 @@ File {
                                 stmts: [],
                                 terminator: Terminator {
                                     span: 49..59,
-                                    kind: Return,
+                                    kind: Return {
+                                        value: None,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },

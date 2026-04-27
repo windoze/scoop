@@ -1383,7 +1383,7 @@
   - 已验证 `cargo fmt --all`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；
   - review 结论：summary 的层次归属、导出 identity 与缓存边界现已稳定，可直接作为 `T5000g` 的共享输入。
 
-### [TODO] T5000g 在 MIR 层实现通用 devirtualization
+### [DONE] T5000g 在 MIR 层实现通用 devirtualization
 - 范围：
   - 对所有 `VirtualCall` / `InterfaceCall` 统一做 receiver exactness / target-set shrinking；
   - 只要静态 target set 为 singleton，就改写为 `DirectCall`；
@@ -1392,6 +1392,13 @@
   - 去虚化规则对“所有 receiver 类型已知且 target singleton 的 class/interface 调用”统一成立；
   - 不依赖 `Iterator.next()` / `Iterator.hasNext()` 等任何特定函数名。
 - 依赖：T5000fR
+- 完成记录（2026-04-27）：
+  - 新增 `crates/scoopc/src/devirtualize.rs`，统一承接 exact-receiver 判定与 dispatch target shrinking；当前同时消费 `known_receiver_subclasses`、class vtable 与 interface itable 事实，并在 exact class receiver 没有 vtable slot 的情况下回退到 `owner.member` singleton target，覆盖 final/non-override class member 这类原先会卡在 `VirtualCall` 的路径；
+  - `crates/scoopc/src/hir/lower/{mod,expr}.rs` 现已把 dispatch-call side table、known-subclass/vtable/itable 事实与 `devirtualize_dispatch_calls` 开关接入 explicit MIR instance lowering：exact receiver 的 class/interface dispatch 会直接 materialize 为 `DirectCall` target，非 exact receiver 仍保留 `DispatchCallSiteIndex` 供后续 MIR lowering 输出 `VirtualCall` / `InterfaceCall`；
+  - `crates/scoopc/src/mir/{lower,materialize}.rs` 现已统一把 HIR side tables 显式收口到 `MirLoweringFacts`，并在 instance materialization 阶段对剩余 `VirtualCall` / `InterfaceCall` 做同一套 devirtualization；同时修复了一个直接阻塞实例发现的既有缺口：materialized direct-call FQN 与 `TopLevelFunCallBinding` / `TopLevelFunValueRef` 不再要求字符串完全相等，`foo::<...>` 会正确回落到对应 template 的 site binding，而不是误丢 instance request；
+  - `crates/scoopc/src/cone/pre_specialize.rs` 已补上新的 `lower_fun_with_type_bindings_and_mir_facts(...)` 路径，确保 HIR dispatch/effect/when side tables 在预特化单函数 lowering 中不会因为旧 MIR facts 构造接口消失而掉线；
+  - 已新增/更新 monomorph 回归，分别锁定“exact virtual receiver -> DirectCall”“存在已知子类时仍保留 `VirtualCall`”“`where T: Interface` 在实例化到 concrete receiver 后 `InterfaceCall -> DirectCall`”；同时修复并复跑 owner-specialized effect-generic member / top-level fun value effect instance 的 materialization 回归。
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判
 - 重点：
