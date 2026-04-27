@@ -150,3 +150,45 @@
   - [x] 完成 review 结论与验证
   - [x] 更新 `TODO.md` / `PLAN.md`
   - [x] 提交 git commit
+
+## 本轮执行（T5000h）
+
+### 当前结论（第 3 轮探查后）
+
+- 最新提交：`890d125b9b65943f10f68a6de396ce7ae9800b4d`，标题为 `[T5000h0cR] Review production materialized pass view boundary`。
+- 最新提交标题没有显式声明新的既有 bug；因此当前顺序上的第一个未完成任务是 `T5000h 在 MIR 层实现 summary-driven inlining`。
+- 进一步核对 `crates/scoopc/src/mir/pass_view.rs`、`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/program_facts.rs` 与 `crates/scoopc/src/effect_state_machine_analysis.rs` 后，确认当前仍存在会直接阻塞 `T5000h` 正确落地的前置边界缺口。
+
+### 当前执行计划（围绕 T5000h）
+
+1. 复核 MIR pass 产物在 production 主线中的真实消费面，而不只看“参数有没有显式传下去”。
+2. 判断当前代码库是否已经具备“让 MIR inlining rewrite 直接影响 build/single-file/codegen 主线”的 canonical 输入边界。
+3. 若发现仍缺必要边界，则把缺口建模为前置任务写回 `TODO.md` / `PLAN.md`，而不是在 HIR/codegen 侧实现等价 workaround。
+4. 更新本文件记录本轮结论并提交任务重排。
+
+### 当前进度（T5000h）
+
+- [x] 已检查最新提交标题。
+- [x] 已定位首个未完成任务为 `T5000h`。
+- [x] 已完成对 pass view / emit / program facts / effect 查询消费面的交叉复核。
+- [x] 已确认当前任务被新的前置边界缺口阻塞。
+- [x] 已更新 `TODO.md` / `PLAN.md`，新增前置任务并调整依赖。
+- [x] 已确定本轮仅做任务重排与计划更新，不涉及代码实现或测试执行。
+- [x] 本轮收尾方式已确定为提交“任务重排”变更后停止。
+
+### 当前状态（T5000h 暂停并重排任务）
+
+- 关键观察：
+  1. `crates/scoopc/src/mir/pass_view.rs` 中的 `MaterializedMirPassView` 当前仍只是 raw `MaterializedMir` + callable view 的薄包装，没有独立承载 pass-rewritten callable body / summary 的稳定输出层。
+  2. `crates/scoopc/src/llvm/emit.rs::build_main_module_from_codegen_entry(...)` 虽然要求 production 入口显式带入 `materialized_pass_view`，但实际仍按 `lowered.file.items` / `hir::FunDecl.body` 做 entry 选择、reachable 函数收集、声明与 body codegen。
+  3. `crates/scoopc/src/program_facts.rs::ProgramFacts::from_lowered(...)` 以及 `crates/scoopc/src/effect_state_machine_analysis.rs` 内对已知函数 outward-effect / suspendability 的查询仍主要消费 `LoweredHir` / HIR body，而不是 pass-rewritten callable body。
+- 结论：
+  - 如果现在直接实现 `T5000h` 的 MIR inlining rewrite，最好的结果也只是让 dump/调试路径可见 inline 后 body；production LLVM build/single-file 主线仍会继续按 HIR body 发射与做 effect/suspend 查询。
+  - 这会直接违反 `T5000h` 的验收要求，即“codegen 不再继续承担内联后才能去掉的额外高层调用边界”。
+  - 因此本轮不直接实现 inlining，而是把阻塞边界显式建模为新的前置任务：
+    1. `T5000h0d`：把 `MaterializedMirPassView` 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层；
+    2. `T5000h0dR`：复核 pass view 是否已成为 canonical pass 输出层；
+    3. `T5000h0e`：让 production LLVM codegen 真正消费 pass-rewritten callable body / summary，而不是只携带 `materialized_pass_view`；
+    4. `T5000h0eR`：复核 production codegen 是否已切到该输入面。
+  - `T5000h` 的依赖已改为 `T5000h0eR`。
+  - 本轮只提交任务重排，不继续执行下一条实现任务。

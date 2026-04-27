@@ -1510,6 +1510,44 @@
   - review 未发现需要插入到 `T5000h` 之前的新前置缺陷任务；结论是 production 主路径已经具备直接承接 materialized MIR body / pass 产物的稳定边界；
   - 已验证 `cargo test -p scoopc production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view -- --nocapture`、`cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`、`cargo test -p scoop build_production_codegen_entry_consumes_materialized_pass_view -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
+### [TODO] T5000h0d 把 `MaterializedMirPassView` 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层
+- 范围：
+  - 把 raw `MaterializedMir` 与“当前 MIR pass 链对外暴露的 canonical callable body / summary”显式分层；
+  - 为后续 summary-driven inlining 产出的 rewritten callable body、更新后的 per-instance summary 与必要的 family/root 映射提供稳定 side table / view；
+  - 保持 raw materialization 仍可作为调试/回归载体，避免把 pass rewrite 结果隐式回写成“所有调用方都只能看到的唯一状态”。
+- 验收：
+  - `LoweredHir::materialized_pass_view()` 能稳定暴露“当前 pass 后”的 callable body / summary，而不是只能包裹 raw `MaterializedMir`；
+  - 后续 `T5000h` 无需把 inline 结果回抄到 HIR lowering，也不必破坏 raw materialization 与 pass 产物的边界。
+- 依赖：T5000h0cR
+
+### [TODO] T5000h0dR Review：确认 pass view 已成为可承载 rewrite 后 callable body / summary 的 canonical pass 输出层
+- 重点：
+  - pass view 是否已经不再只是 raw `MaterializedMir` 的薄包装；
+  - rewritten callable body / summary / family 身份是否有稳定查询入口；
+  - 是否避免让后续 pass 通过覆盖 raw materialized MIR 或回退到 HIR side table 来传递结果。
+- 验收：
+  - `T5000h0e` 可以直接消费该 pass 产物层接线 production codegen，而不必重新发明另一套 pass 输出表示。
+- 依赖：T5000h0d
+
+### [TODO] T5000h0e 让 production LLVM codegen 真正消费 pass-rewritten callable body / summary，而不是只携带 `materialized_pass_view`
+- 范围：
+  - 收口 production entry 上的 callable body / summary 消费面，使 reachability、callable identity 与后续 effect/suspend 查询至少能优先观察 `materialized_pass_view` 中的 pass 后产物；
+  - 消除“production 入口显式保留了 pass view，但函数体发射仍只遍历 HIR `FunDecl.body`”这一边界缺口；
+  - 不在这一步混入 summary-driven inlining 规则本身，但要让后续 `T5000h` 产出的 MIR rewrite 不再停留在 dump-only / side-view-only 结果。
+- 验收：
+  - production codegen 不再只是把 `materialized_pass_view` 挂在 `CompilationUnitCodegenCx` 上却继续完全按 HIR body 决定 callable body 主线；
+  - 后续 `T5000h` 产出的 inline 后 callable body / summary 能成为 production 主路径可直接消费的 canonical 输入。
+- 依赖：T5000h0dR
+
+### [TODO] T5000h0eR Review：确认 production codegen 已真正切到 pass-rewritten callable body / summary 输入面
+- 重点：
+  - reachability / callable body 选择 / effect-suspend 查询是否已经真正消费 pass view，而不是只传递该参数；
+  - 是否还残留“为了让优化生效，只能再把等价逻辑抄回 HIR/codegen”的 workaround；
+  - pass 后 callable body 身份是否已成为 production codegen 可直接观察到的 canonical 边界。
+- 验收：
+  - `T5000h` 可以在 MIR 层实现 rewrite 并直接影响 production 主路径，而不是停留在 dump-only 输出。
+- 依赖：T5000h0e
+
 ### [TODO] T5000h 在 MIR 层实现 summary-driven inlining
 - 范围：
   - 先做保守但通用的版本：
@@ -1525,7 +1563,7 @@
 - 验收：
   - 对 `map` / `filter` / `forEach` 类形状的收益来自结构，而不是名字；
   - codegen 不再继续承担“内联后才能去掉的额外高层调用边界”。
-- 依赖：T5000h0cR
+- 依赖：T5000h0eR
 
 ### [TODO] T5000hR Review：确认 inlining 已走 summary / structure 路线
 - 重点：

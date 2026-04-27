@@ -1537,7 +1537,20 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
-  - 下一条待执行任务切换为 `T5000h 在 MIR 层实现 summary-driven inlining`。
+- 2026-04-27：开始执行 `T5000h` 前重新核对 production codegen 对 pass view 的实际消费面，确认当前仍存在会直接把 inlining 降成 dump-only 的前置边界缺口。
+  - 新发现的阻塞事实：
+    - `crates/scoopc/src/mir/pass_view.rs` 中的 `MaterializedMirPassView` 目前仍只是 raw `MaterializedMir` + callable view 的只读薄包装，尚无“pass rewrite 后的 callable body / summary”独立产物层；
+    - `crates/scoopc/src/llvm/emit.rs::build_main_module_from_codegen_entry(...)` 虽然要求 production 入口显式带入 `materialized_pass_view`，但实际仍按 `lowered.file.items` / `hir::FunDecl.body` 做 entry 选择、reachable 函数收集、声明与 body codegen；
+    - `crates/scoopc/src/program_facts.rs::ProgramFacts::from_lowered(...)` 以及 `crates/scoopc/src/effect_state_machine_analysis.rs` 内的 `known_fun_body_may_outward_effect(...)` 等查询也仍主要消费 `LoweredHir` / HIR body，而不是 pass-rewritten callable body。
+  - 为什么这会阻塞当前任务：
+    - 如果现在直接实现 `T5000h` 的 MIR inlining rewrite，最好的结果也只是让 dump/调试路径能看到 inline 后 body，而 production LLVM build/single-file 主线仍继续按 HIR body 发射与做 effect/suspend 查询；
+    - 这会直接违背 `T5000h` 的验收要求，即“codegen 不再继续承担内联后才能去掉的额外高层调用边界”。
+  - 因此本轮决定先插入两个前置任务：
+    - `T5000h0d`：先把 `MaterializedMirPassView` 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层；
+    - `T5000h0e`：再让 production LLVM codegen 真正消费该 pass 产物，而不是只把 `materialized_pass_view` 当作未消费的边界标记。
+  - 任务顺序调整：
+    - `T5000h` 的依赖由 `T5000h0cR` 改为 `T5000h0eR`；
+    - 下一条待执行任务切换为 `T5000h0d 把 MaterializedMirPassView 扩展为可承载 pass-rewritten callable body / summary 的稳定产物层`。
 
 ## 1. 当前判断
 
@@ -1656,6 +1669,8 @@
 
 - 前置边界：
   - build/frontend 主路径不能只消费 `instance_keys`；必须先让 materialized MIR body / 后续 MIR pass 产物进入 production 主线，否则 inlining 只能停留在 dump/test 路径。
+  - `MaterializedMirPassView` 不能只是 raw materialized MIR 的薄包装；它必须能承载 pass-rewritten callable body / summary，作为 production 可见的 canonical pass 输出层。
+  - production codegen 不能只把 `materialized_pass_view` 挂在上下文里却继续完全按 HIR `FunDecl.body` 发射函数体；否则 inline 后调用边界不会真正影响 build/single-file 主线。
 - 先做保守但通用的版本：
   - body-known
   - 非递归
