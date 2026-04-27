@@ -1414,6 +1414,26 @@
   - 已新增 LLVM 回归 `via_mir_direct_class_call_is_not_reinterpreted_as_vtable_dispatch` 与 `via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch`，分别锁定“via-MIR 已 directized 的 class/interface 调用不会在 backend 被重新识别成 vtable/itable dispatch”；同时复跑并恢复 `tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop` 的端到端行为；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc llvm:: -- --nocapture`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
+### [TODO] T5000h0 让 build/frontend 主路径消费 materialized MIR body，而不再只把 MIR 当 instance collection 发现器
+- 范围：
+  - 为当前仍消费 HIR 兼容输入的 build / single-file LLVM frontend 建立“显式 materialized MIR body”接线，使单态 callable body 的生产来源来自 `MaterializedMir.file`，而不是继续只按 `instance_keys` 回到 AST/HIR 重新 lowering；
+  - 保持现有 LLVM codegen 所需的 side tables / 兼容输入可以继续工作，但需要明确区分“实例集合发现”与“实例 body / call shape 来源”；
+  - 让 `MaterializedMir.summaries` 与后续 MIR rewrite 产物有稳定进入 production 主路径的位置，而不是停留在 dump/test-only 输出。
+- 验收：
+  - build / single-file frontend 主路径能稳定看见 materialized MIR body 身份与后续 MIR pass rewrite 结果；
+  - `materialized.instance_keys` 不再是 MIR 在 production 主路径上的唯一可见产物；
+  - 后续 `T5000h` 可以直接在 MIR 上做 rewrite 并对 production/codegen 主线生效，而不需要把同一套内联逻辑再抄回 HIR lowering。
+- 依赖：T5000gR
+
+### [TODO] T5000h0R Review：确认 production 主路径已经真正消费 materialized MIR body / pass 产物
+- 重点：
+  - build / single-file frontend 是否已经不再把 MIR 仅当作 instance collection 发现器；
+  - materialized MIR body / summary / 后续 pass rewrite 是否有稳定的 production 消费面；
+  - 是否避免退回“在 HIR lowering 再抄一份等价优化”的 workaround。
+- 验收：
+  - 生产主路径已经具备直接承接 MIR inlining rewrite 的边界，`T5000h` 不再被 dump-only 输出边界阻塞。
+- 依赖：T5000h0
+
 ### [TODO] T5000h 在 MIR 层实现 summary-driven inlining
 - 范围：
   - 先做保守但通用的版本：
@@ -1429,7 +1449,7 @@
 - 验收：
   - 对 `map` / `filter` / `forEach` 类形状的收益来自结构，而不是名字；
   - codegen 不再继续承担“内联后才能去掉的额外高层调用边界”。
-- 依赖：T5000gR
+- 依赖：T5000h0R
 
 ### [TODO] T5000hR Review：确认 inlining 已走 summary / structure 路线
 - 重点：

@@ -1,63 +1,57 @@
-# 本轮执行计划
+# 执行计划
 
 ## 目标
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果在检查最新提交、阅读任务、实现、测试或审查过程中发现任何既有问题，则先修复该问题，或将其作为前置任务插入 `TODO.md` 并更新 `PLAN.md`，随后停止。
-
-## 约束与执行原则
-
-- 先检查最新提交是否提到需先修复的问题。
-- 必须先读取 `TODO.md`，确认第一个未完成任务。
-- 如果该任务过大，先拆分任务并更新 `TODO.md`、`PLAN.md`，本轮只做拆分后的第一个子任务。
-- 发现任何既有 bug、回归、规格不匹配、未完成实现边界或临时规避逻辑，都必须立即处理，不能绕过。
-- 实现后必须运行相关测试，并尽量补充必要测试。
-- 完成后更新 `TODO.md`、`PLAN.md`、本文件，并提交一次 git commit，然后停止。
+完成 `TODO.md` 中第一个未完成任务；如果最新提交提到已有问题，则先修复该问题；完成后更新文档、运行测试、提交 Git，然后停止。
 
 ## 初始步骤
 
-1. 查看最新一次 git commit，确认是否有明确提到尚未修复的问题。
-2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务及其上下文。
-3. 评估任务规模与依赖：
-   - 若可直接完成，则进入实现。
-   - 若过大或被前置缺陷阻塞，则先拆分/重排 `TODO.md` 与 `PLAN.md`。
-4. 阅读相关代码、测试、规格或文档，确定正确实现路径，避免引入规避方案。
-5. 修改代码并补充/调整测试。
-6. 运行相关验证：
-   - 至少运行与改动直接相关的测试。
-   - 若改动影响面较大，补充运行更高层级测试。
-   - 收尾时检查格式、编译、测试及必要的 lint。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件中的进度记录。
-8. 提交 git commit，提交信息应清晰描述本轮完成内容。
+1. 检查最新一次 Git 提交，确认是否提到了需要先处理的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对现有计划与任务依赖。
+4. 如当前任务过大或被既有问题阻塞：
+   - 细化为更小的子任务，更新 `PLAN.md`。
+   - 按依赖顺序更新 `TODO.md`。
+   - 本次只执行调整后排在最前面的那个任务，并在必要时立即停止。
 
-## 进度记录
+## 执行原则
 
-- 已创建本计划文件，尚未开始仓库检查。
-- 已检查最新提交：`[T5000g] Implement MIR devirtualization`，提交说明未额外列出需先修的问题。
-- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务是 `T5000gR Review：确认 devirtualization 已经是结构驱动而不是热点特判`。
-- review 过程中已定位一个阻塞 `T5000gR` 结论的既有边界问题：
-  - `crates/scoopc/src/llvm/codegen/call/dispatch.rs` 里的 `try_codegen_class_vtable_call_impl(...)` / `try_codegen_interface_itable_call_impl(...)` 仍按 `callee FQN` 猜测“这是不是 dispatch call”，而没有消费 `LoweredHir.dispatch_call_sites`；
-  - 因此即便主 build 路径已经通过 MIR/HIR 兼容层把某个调用去虚化为 direct target，backend 仍可能再次把它识别成 vtable/itable 路径；
-  - class vtable 路径甚至还保留了 `try_devirtualize_class_vtable_call_target_impl(...)` 这条 backend 内部去虚化分支，说明 `VirtualCall -> DirectCall` 还没有完全收口为 MIR 层统一改写。
-- 该问题属于用户要求中的“既有 bug / incomplete implementation boundary”，必须先修复后才能把 `T5000gR` 标记完成。
-- 修复计划调整为：
-  1. 将 `dispatch_call_sites` side table 接入 LLVM codegen 的编译单元共享上下文；
-  2. 让 class/interface dispatch lowering 仅在当前 call site 被显式标记为 `Virtual` / `Interface` 时才走 vtable/itable；
-  3. 删除 backend 内部的 class-vtable 去虚化猜测逻辑，避免 codegen 继续承担去虚化判定；
-  4. 添加回归，锁定“via MIR instance collection 的 directized member call 不再被 backend 重新当成 vtable/itable dispatch”；
-  5. 运行相关测试，随后更新 `TODO.md`、`PLAN.md` 与本文件。
-- 修复过程中又暴露并解决了一个被旧 backend 猜测路径遮住的 HIR 缺口：
-  - `crates/scoopc/src/hir/lower/stmt.rs` 的 custom-iterator `for` 语法糖此前手工拼出了 `iterator()/next()` top-level call，但没有同步写入 `dispatch_call_sites`；
-  - 这会在 backend 不再按 FQN 猜 dispatch 后把 interface iterator 协议错误降成 direct symbol call；
-  - 现已为这类 synthetic call 新增统一的 dispatch kind 判定 / devirtualization / side table 写入逻辑，并通过 `for_in_custom_iterator_basic.scoop` 端到端回归验证恢复行为。
-- 已完成代码与文档更新：
-  - LLVM codegen 现通过 `dispatch_call_sites` 决定 class/interface dispatch lowering，已移除 backend 内部 class-vtable 去虚化猜测；
-  - `TODO.md` / `PLAN.md` 已把 `T5000gR` 标记完成，并记录 review 发现与修复内容；
-  - 新增 LLVM 回归测试，锁定 directized class/interface 调用不会被 backend 重新解释为 dispatch。
-- 已完成验证：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc llvm:: -- --nocapture`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop`
-  - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-- 下一步：检查变更摘要并提交 git commit，然后停止本轮。
+- 不绕过既有缺陷、规格不匹配或实现边界。
+- 发现阻塞当前任务的已有问题时，先修复；若无法当场修复，则把它作为前置任务插入 `TODO.md`，更新 `PLAN.md` 后提交并停止。
+- 修改过程中持续更新本文件，记录关键步骤、判断和当前状态。
+
+## 预期收尾
+
+1. 实现当前目标任务。
+2. 运行相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`，并修复暴露的问题。
+3. 更新 `TODO.md`、`PLAN.md` 和本文件。
+4. 使用清晰的提交信息完成 Git 提交。
+5. 停止，不继续下一个任务。
+
+## 当前状态
+
+- 已完成：
+  - 检查最新提交标题，未发现直接声明需先修复的未解决既有缺陷。
+  - 读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T5000h 在 MIR 层实现 summary-driven inlining`。
+  - 核对 `crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/mir/summary.rs`、`crates/scoopc/src/hir/lower/mod.rs` 与相关计划记录，确认当前 build/frontend 主路径虽然已切到 MIR instance collection，但仍只消费 `materialized.instance_keys`，不会消费 `MaterializedMir.file` 或 `MaterializedMir.summaries`。
+
+## 新发现的前置缺口
+
+- `MaterializedMir.summaries` 当前只在 `crates/scoopc/src/mir/summary.rs` 自测中被读取；生产代码没有消费者。
+- build/frontend 主路径在 `crates/scoopc/src/hir/lower/mod.rs` 中调用 `materialize_compilation_unit_from_typechecked_inputs(...)` 后，只把 `materialized.instance_keys` 与 `materialized.types` 传给 HIR 兼容 lowering；materialized MIR body 与 summary side table 都被丢弃。
+- 这意味着如果现在直接实现 `T5000h` 的 MIR 内联：
+  - dump/test 路径可能能看到 rewrite；
+  - 但 production/codegen 主路径看不到这些 rewrite；
+  - 无法满足“codegen 不再承担内联后才能去掉的额外高层调用边界”这一验收要求。
+
+## 调整后的执行判断
+
+- `T5000h` 目前不能按原顺序直接实现，必须先补一个前置任务：
+  - 让 build/frontend 主路径消费 materialized MIR body / 后续 MIR pass 产物，而不是仅把 MIR 当作实例集合发现器。
+- 已完成：
+  - 已更新 `TODO.md`，在 `T5000h` 前插入 `T5000h0` / `T5000h0R`，并把 `T5000h` 依赖改为 `T5000h0R`。
+  - 已更新 `PLAN.md`，记录 production 主路径当前仍只消费 `instance_keys` 的阻塞证据，并把高层执行顺序调整为“先接 materialized MIR body，再做 MIR inlining”。
+- 下一步：
+  1. 复核变更与 Git 状态。
+  2. 提交本轮对 `TODO.md` / `PLAN.md` / 本文件的更新。
+  3. 停止，等待下一次调用执行新的首个未完成任务 `T5000h0`。

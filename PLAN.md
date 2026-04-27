@@ -1405,6 +1405,18 @@
     - `VirtualCall -> DirectCall` / `InterfaceCall -> DirectCall` 现已稳定收口为 MIR 层的统一改写，backend 只消费 `dispatch_call_sites` 标出的剩余 dispatch call，而不再按热点 FQN 或 owner 形状重新猜目标；
     - 与后续 `T5000h` 的接口已自然收敛为“Materialized MIR 上显式分类完成的 call kind + per-instance summary”，无需继续把 devirtualization 事实倒灌回 codegen；
     - 下一条待执行任务切换为 `T5000h 在 MIR 层实现 summary-driven inlining`。
+- 2026-04-27：执行 `T5000h` 前重新核对 MIR / frontend 接线，确认当前存在一个会直接阻塞 production 生效的前置边界缺口。
+  - 核对证据：
+    - `crates/scoopc/src/mir/materialize.rs` 返回的 `MaterializedMir` 虽然已经稳定携带 `file`、`types`、`instance_keys` 与 `summaries`，但 `crates/scoopc/src/hir/lower/mod.rs` 中 build/frontend 使用的 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)` 仍只把 `materialized.instance_keys` 与 `materialized.types` 交给 `CompilationUnitLoweringOptions::explicit_mir_instances(...)`；
+    - `MaterializedMir.summaries` / `InstanceSummary` / `ParamUseSummary` 在 production 代码中没有消费者，当前仍只停留在 `crates/scoopc/src/mir/summary.rs` 的自测断言里。
+  - 阻塞判断：
+    - 如果现在直接实现 `T5000h` 的 MIR inlining rewrite，dump/test 路径可以看到优化后的 body，但 build/frontend/codegen 主线仍会按 `instance_keys` 回到 AST/HIR 兼容 lowering 重新生成 callable body；
+    - 这会让 summary-driven inlining 停留在 dump-only 输出，无法满足 `T5000h`“codegen 不再继续承担内联后才能去掉的额外高层调用边界”的验收要求；
+    - 因而这不是实现口味问题，而是当前主线尚未把 materialized MIR body / pass 产物接进 production 的真实前置缺口。
+  - 计划调整：
+    - 在 `T5000h` 前新增 `T5000h0 让 build/frontend 主路径消费 materialized MIR body，而不再只把 MIR 当 instance collection 发现器` 与对应 review；
+    - `T5000h` 的依赖改为 `T5000h0R`，防止后续为了让优化生效而把同一套内联逻辑再抄回 HIR lowering；
+    - 下一条待执行任务切换为 `T5000h0 让 build/frontend 主路径消费 materialized MIR body，而不再只把 MIR 当 instance collection 发现器`。
 
 ## 1. 当前判断
 
@@ -1430,9 +1442,10 @@
 5. 在 MIR 层实现 monomorphization / instance materialization。
 6. 按单态实例建立 summary 基础设施。
 7. 在 MIR 层实现通用 devirtualization。
-8. 在 MIR 层实现 summary-driven inlining。
-9. 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界。
-10. 在前述主线稳定后，再扩覆盖面并继续跟踪 safepoint / `mem2reg` 方向。
+8. 让 build/frontend 主路径消费 materialized MIR body / pass 产物，而不再只把 MIR 当 instance collection 发现器。
+9. 在 MIR 层实现 summary-driven inlining。
+10. 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界。
+11. 在前述主线稳定后，再扩覆盖面并继续跟踪 safepoint / `mem2reg` 方向。
 
 ## 3. 分阶段目标
 
@@ -1520,6 +1533,8 @@
 
 ### P7. summary-driven inlining
 
+- 前置边界：
+  - build/frontend 主路径不能只消费 `instance_keys`；必须先让 materialized MIR body / 后续 MIR pass 产物进入 production 主线，否则 inlining 只能停留在 dump/test 路径。
 - 先做保守但通用的版本：
   - body-known
   - 非递归
