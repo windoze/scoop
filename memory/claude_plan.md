@@ -54,9 +54,9 @@
 - [x] 已检查最新提交。
 - [x] 已读取 `TODO.md` / `PLAN.md`。
 - [x] 已确定本轮要完成的具体任务。
-- [ ] 尚未实施代码修改。
-- [ ] 尚未运行验证。
-- [ ] 尚未提交。
+- [x] 已实施代码修改。
+- [x] 已运行验证。
+- [x] 已完成提交。
 
 ## 当前结论（第 1 轮探查后）
 
@@ -99,4 +99,54 @@
   - [x] 实现代码修改
   - [x] 运行验证
   - [x] 更新 `TODO.md` / `PLAN.md`
-  - [ ] 提交 git commit
+  - [x] 提交 git commit
+
+## 本轮执行（T5000h0cR）
+
+### 当前结论（第 2 轮探查后）
+
+- 最新提交：`79618c3c2e514886d4381cabfd0e3998ba251b7e`，标题为 `[T5000h0c] Wire production LLVM entry to materialized pass view`。
+- 最新提交正文没有额外说明需要先修的既有缺陷；因此当前顺序上的第一个未完成任务为 `T5000h0cR Review：确认 production 主路径已经真正消费 materialized MIR body / pass 产物`。
+- 在开始 review 前发现我误把本文件覆盖成新的简化模板；该问题已立即修正，现已恢复既有记录并继续追加当前轮次内容。
+
+### 当前执行计划（围绕 T5000h0cR）
+
+1. 复核 `T5000h0c` 涉及的 production 消费边界：
+   - `crates/scoopc/src/llvm/emit.rs`
+   - `crates/scoopc/src/llvm/frontend.rs`
+   - `crates/scoop/src/commands/build.rs`
+   - `crates/scoopc/src/hir/lower/types.rs`
+   - `crates/scoopc/src/mir/pass_view.rs`
+   - `crates/scoopc/src/llvm/tests.rs`
+2. 确认 build / single-file 两条主路径是否都显式经由 production-only LLVM entry 消费 `materialized_pass_view()`，而不是仅保留 `instance_keys` 或退回 HIR body。
+3. 检查是否仍存在绕开 canonical pass view 的旧入口或 ad-hoc lookup；若发现既有边界缺口，优先修复或把它登记为当前任务的前置项。
+4. 运行与 review 结论直接相关的测试，并在需要时补充更高层验证。
+5. 更新 `TODO.md`、`PLAN.md` 与本文件，然后提交本轮 commit。
+
+### 当前进度（T5000h0cR）
+
+- [x] 已检查最新提交标题与正文。
+- [x] 已定位首个未完成任务为 `T5000h0cR`。
+- [x] 已完成 production codegen / frontend 的 materialized pass view 消费边界复核。
+- [x] 已完成本轮验证。
+- [x] 已更新 `TODO.md` / `PLAN.md`。
+- [x] 已完成提交。
+
+### 当前状态（T5000h0cR review 完成）
+
+- review 结论：
+  1. `crates/scoopc/src/llvm/emit.rs` 的 production-only entry 已成为 single-file/build 两条 production 路径的显式门槛；缺少 `materialized_pass_view()` 会返回 `MissingMaterializedPassView`，不会静默退回 legacy lowered-HIR 路径。
+  2. non-test 调用面已不再让 build / single-file 主路径回到 legacy `emit_minimal_main_*_from_lowered_hir*` 或 `build_main_module_from_lowered_hir(...)`；这些 legacy 入口现在仅剩测试与通用 helper 使用。
+  3. `CompilationUnitCodegenCx` 继续显式保留 `materialized_pass_view`，因此后续 `T5000h` 可以在 codegen 入口边界直接承接 MIR rewrite / inlining，而不必把优化逻辑回抄到 HIR lowering。
+- 本轮验证：
+  - `cargo test -p scoopc production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view -- --nocapture`
+  - `cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`
+  - `cargo test -p scoop build_production_codegen_entry_consumes_materialized_pass_view -- --nocapture`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 结果：全部通过；fixture suite 输出 `fixtures: ok (1201)`。
+- 当前剩余动作：
+  - [x] 完成 review 结论与验证
+  - [x] 更新 `TODO.md` / `PLAN.md`
+  - [x] 提交 git commit

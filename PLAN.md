@@ -1523,6 +1523,21 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - 全部通过。
   - 下一条待执行任务切换为 `T5000h0cR Review：确认 production 主路径已经真正消费 materialized MIR body / pass 产物`。
+- 2026-04-27：`T5000h0cR Review：确认 production 主路径已经真正消费 materialized MIR body / pass 产物` 已完成。
+  - 复核结果：
+    - 已复核 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/frontend.rs`、`crates/scoop/src/commands/build.rs`、`crates/scoopc/src/hir/lower/types.rs`、`crates/scoopc/src/mir/pass_view.rs` 与 `crates/scoopc/src/llvm/tests.rs`，确认 production single-file/build 入口都经由 `LoweredCodegenEntry::from_production_lowered_hir(...)` 或对应 production-only emit/object/asm API 显式要求 `materialized_pass_view()`，而不是只把 MIR 当作 instance collection 发现器；
+    - 已全文检索 non-test 调用面，确认 build / single-file 主路径已经不再调用 legacy `emit_minimal_main_*_from_lowered_hir*` / `build_main_module_from_lowered_hir(...)`；legacy lowered-HIR 入口当前只剩测试与通用 helper 消费，没有重新渗回 production frontend/codegen 主线；
+    - 已确认 `crates/scoopc/src/llvm/codegen/mod.rs` 中 `CompilationUnitCodegenCx` 显式保留 `materialized_pass_view`，且 `build_main_module_from_codegen_entry(...)` 以 `debug_assert_eq!` 锁定“production 入口带进来的 pass view 是否原样进入 codegen 编译单元”；这意味着后续 `T5000h` 可以直接在该边界承接 MIR rewrite / inlining，而无需把等价优化回抄到 HIR lowering；
+    - review 未暴露需要插入到 `T5000h` 之前的新前置缺陷，结论是 production 主路径已经具备直接承接 materialized MIR body / pass 产物的稳定边界。
+  - 验证结果：
+    - `cargo test -p scoopc production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view -- --nocapture`
+    - `cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`
+    - `cargo test -p scoop build_production_codegen_entry_consumes_materialized_pass_view -- --nocapture`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000h 在 MIR 层实现 summary-driven inlining`。
 
 ## 1. 当前判断
 
