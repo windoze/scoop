@@ -1483,6 +1483,27 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - 全部通过。
   - 下一条待执行任务切换为 `T5000h0bR Review：确认 canonical materialized-body / summary 视图边界成立`。
+- 2026-04-27：`T5000h0bR Review：确认 canonical materialized-body / summary 视图边界成立` 已完成。
+  - 复核范围：
+    - `crates/scoopc/src/mir/callables.rs`
+    - `crates/scoopc/src/mir/materialize.rs`
+    - `crates/scoopc/src/hir/lower/types.rs`
+    - `crates/scoop/src/commands/build.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+  - review 结论：
+    - canonical 视图已经真正以 materialized callable body / per-instance summary 为中心：`MaterializedMir::callable_view()` 与 `LoweredHir::materialized_callable_view()` 直接暴露 `InstanceKey -> family -> root body / callable bodies / summary` 查询面，而不是继续要求消费侧拿着 `instance_keys`、`summaries` 与 raw `MaterializedMir.file.items` 自己拼装；
+    - materializer 出口保留的 `MaterializedCallableFamilies` 已把“有 body 的 family”和“declaration-only instance 的 summary 身份”分离，`MaterializedCallableFamilyView::root_body()` 返回值与 `summary().body_known` 保持一致，没有暴露新的 canonical 可见性矛盾；
+    - production 回归已经证明 build / single-file frontend 可以直接依赖该视图读取 root body、owner instance 与 family summary，当前没有发现仍必须在消费侧重复扫描 `MaterializedMir.file` 的边界泄漏；
+    - review 未暴露需要插入到 `T5000h0c` 前的新前置缺陷，所以下一步可以直接把 LLVM build / single-file entry 显式接到 materialized body / pass 视图。
+  - 验证结果：
+    - `cargo test -p scoopc callable_view_keeps_overloaded_generic_roots_distinct -- --nocapture`
+    - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000h0c 让 LLVM build / single-file entry 显式接入 materialized body / pass 视图`。
 
 ## 1. 当前判断
 

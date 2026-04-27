@@ -1464,7 +1464,7 @@
   - 已新增 `mir::callables::tests::callable_view_keeps_overloaded_generic_roots_distinct`，锁定 overloaded generic 在 view 中仍保留 distinct root/body/summary 身份；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc callable_view_keeps_overloaded_generic_roots_distinct -- --nocapture`、`cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
-### [TODO] T5000h0bR Review：确认 canonical materialized-body / summary 视图边界成立
+### [DONE] T5000h0bR Review：确认 canonical materialized-body / summary 视图边界成立
 - 重点：
   - canonical 视图是否确实以 materialized body / summary 为中心，而不是换个名字继续包 `instance_keys`；
   - 查询接口是否足够直接支撑后续 MIR rewrite 与 codegen 接线；
@@ -1472,6 +1472,12 @@
 - 验收：
   - `T5000h0c` 可以直接消费该视图接线 production/codegen 主路径，而不是再拼一套 ad-hoc lookup。
 - 依赖：T5000h0b
+- 完成记录（2026-04-27）：
+  - 已复核 `crates/scoopc/src/mir/callables.rs`、`crates/scoopc/src/mir/materialize.rs` 与 `crates/scoopc/src/hir/lower/types.rs`，确认 canonical 查询入口现在稳定落在 `MaterializedMir::callable_view()` / `LoweredHir::materialized_callable_view()`，并以 `InstanceKey -> family -> root body / callable bodies / per-instance summary` 为中心组织，而不是继续把消费方绑在 `instance_keys` + raw side table 拼装上；
+  - 已复核 materializer 出口构造的 `MaterializedCallableFamilies`，确认真实 callable body family 与 declaration-only instance summary 已在产出阶段分流：有 body 的实例会保留 root/body 列表，declaration-only 实例则只保留 family/summary 身份，`root_body()` 与 `summary().body_known` 的边界保持一致；
+  - 已复核 production 消费面与回归：`crates/scoop/src/commands/build.rs`、`crates/scoopc/src/llvm/tests.rs` 现都能直接经由 canonical callable view 读取 root body、反查 owner instance 并读取 family summary，不需要重复扫描 `MaterializedMir.file.items` 才能完成这些查询；
+  - review 未发现需要插入到 `T5000h0c` 之前的新前置缺陷；结论是下一步可以直接让 LLVM build / single-file entry 显式接入 materialized body / pass 视图，而不需要再补一层 ad-hoc lookup；
+  - 已验证 `cargo test -p scoopc callable_view_keeps_overloaded_generic_roots_distinct -- --nocapture`、`cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000h0c 让 LLVM build / single-file entry 显式接入 materialized body / pass 视图
 - 范围：
