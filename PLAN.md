@@ -1702,6 +1702,35 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务为 `T5000h2 让 caller-side MIR pass 能安全覆盖 request-root / non-generic callable body`。
+- 2026-04-27：`T5000h2 让 caller-side MIR pass 能安全覆盖 request-root / non-generic callable body` 已完成。
+  - 实现结果：
+    - `MaterializedMir` 现在保留 request-root 可达的 non-generic caller MIR body，作为 caller-side pass 的私有候选输入；
+    - 这些候选 body 不会默认进入 `MaterializedMirPassArtifacts` / `MaterializedMirPassView`，只有 pass 明确改写后才成为 production 可见的 canonical body；
+    - non-generic caller 候选在记录前会复用 materializer 的 site binding / instance FQN 重写逻辑，避免 caller body 仍引用模板 FQN 而无法匹配 pass-visible monomorphic callee；
+    - `run_summary_driven_inlining(...)` 现在可以把 small direct-call inlining 应用于 non-generic caller 候选，并且只在 rewrite 后 body 仍处于当前 production MIR body lowering 支持子集时发布；
+    - LLVM reachability 与 reachable body emission 已改为识别没有 instance owner 的显式 pass body override，从而后续 caller-side provenance pass 可以改写真正的 caller body，而不是只能改写 generic callee family。
+  - 既有边界处理：
+    - 验证过程中暴露 entry `main` 仍由专用 HIR `codegen_main_exit_code` 路径降低；当前 production entry lowering 尚未消费 pass MIR body；
+    - 因此 caller-side pass 当前不会发布 `main` 的 MIR override，避免 reachability 扫描的 body 与实际 entry lowering 使用的 body 不一致；
+    - 这不是优化触发特判，而是 production body lowering 支持边界：当前只发布 production MIR lowering 已实际消费的 non-entry callable body。
+  - 新增/调整回归：
+    - 新增 MIR 回归 `caller_side_inlining_publishes_only_rewritten_non_generic_body`，确认 non-generic caller 可被结构性 inlining 改写，未改写 non-generic body 不进入 pass view；
+    - 新增 LLVM 回归 `production_codegen_observes_caller_side_mir_inlining_for_non_generic_body`，确认 production LLVM 消费 caller-side rewritten MIR body；
+    - 新增 LLVM 回归 `production_reachability_scans_overridden_non_generic_pass_body`，确认 ownerless pass body override 中新增的 direct call 会进入 production reachability 并发射目标 body。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::inline -- --nocapture`
+    - `cargo test -p scoopc production_codegen_observes_caller_side_mir_inlining_for_non_generic_body -- --nocapture`
+    - `cargo test -p scoopc production_reachability_scans_overridden_non_generic_pass_body -- --nocapture`
+    - `cargo test -p scoopc mir::pass_view -- --nocapture`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoopc mir:: -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - 全部通过。
+  - 下一条待执行任务为 `T5000h3 接入 DirectCallOnly + known provenance 的高阶 wrapper 摊平`。
 
 ## 1. 当前判断
 

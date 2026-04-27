@@ -1627,7 +1627,7 @@
   - 验证过程中发现并修复既有 TypeStore 边界问题：pass MIR body local `TypeId` 属于 `MaterializedMir.types`，production MIR body lowering 现从 `MaterializedMirPassView::materialized().types` 读取 MIR local type，并在 aggregate 需要时映射回 codegen TypeStore；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc production_codegen_observes_summary_driven_mir_direct_call_inlining -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc mir:: -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h2 让 caller-side MIR pass 能安全覆盖 request-root / non-generic callable body
+### [DONE] T5000h2 让 caller-side MIR pass 能安全覆盖 request-root / non-generic callable body
 - 范围：
   - 为后续 call-site provenance inlining 提供 caller body rewrite 边界；
   - 只在 pass 明确改写且 production MIR lowering 覆盖该 body 子集时，把 request-root / non-generic callable body 写入 pass artifacts；
@@ -1636,6 +1636,15 @@
   - call-site provenance 优化可以改写真实 caller body，而不是只能改写 generic callee family；
   - 未被 pass 改写的 non-generic body 继续走现有 HIR 兼容 lowering。
 - 依赖：T5000h1
+- 完成记录（2026-04-27）：
+  - `MaterializedMir` 现在保留 request-root 可达的 non-generic caller MIR body 作为 caller-side pass 候选输入；这些候选不会默认写入 `MaterializedMirPassArtifacts`，因此不会无条件出现在 pass view；
+  - non-generic caller 候选在记录前会复用 materializer 的 site binding / instance FQN 重写逻辑，使 caller body 中的 generic direct-call target 与 pass-visible monomorphic callee identity 对齐；
+  - `run_summary_driven_inlining(...)` 现在除了 pass-visible monomorphic callable roots，也可以改写 caller-side non-generic 候选；只有实际发生 rewrite 且 body 保持在当前 production MIR body lowering 支持的结构子集内时，才会写入 pass artifacts；
+  - entry `main` 仍由专用 HIR `codegen_main_exit_code` 路径降低，当前不会发布 pass MIR override，避免 reachability 观察到 production entry lowering 尚未消费的 body；
+  - production LLVM reachability / body emission 现在会识别没有 instance owner 的显式 pass body override，从而能扫描并降低真正被改写的 non-generic caller body；
+  - 新增 MIR 回归 `caller_side_inlining_publishes_only_rewritten_non_generic_body`，确认 caller body 可被结构性 inline 改写、未改写 non-generic body 不进入 pass view；
+  - 新增 LLVM 回归 `production_codegen_observes_caller_side_mir_inlining_for_non_generic_body` 与 `production_reachability_scans_overridden_non_generic_pass_body`，分别确认 production LLVM 消费 caller-side rewritten MIR body，以及 reachability 会扫描 ownerless pass override 中新增的 direct call；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc production_codegen_observes_caller_side_mir_inlining_for_non_generic_body -- --nocapture`、`cargo test -p scoopc production_reachability_scans_overridden_non_generic_pass_body -- --nocapture`、`cargo test -p scoopc mir::pass_view -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc mir:: -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
 ### [TODO] T5000h3 接入 `DirectCallOnly` + known provenance 的高阶 wrapper 摊平
 - 范围：

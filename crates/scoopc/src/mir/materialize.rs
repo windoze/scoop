@@ -131,6 +131,7 @@ pub struct MaterializedMir {
     pub summaries: MaterializedMirSummaries,
     callable_families: MaterializedCallableFamilies,
     pass_artifacts: MaterializedMirPassArtifacts,
+    caller_side_pass_candidates: Vec<FunDecl>,
 }
 
 impl MaterializedMir {
@@ -156,6 +157,14 @@ impl MaterializedMir {
     /// - raw `file` / `summaries` 保留为 materialization 原始产物，不应再被 pass rewrite 隐式覆盖。
     pub fn pass_artifacts_mut(&mut self) -> &mut super::MaterializedMirPassArtifacts {
         &mut self.pass_artifacts
+    }
+
+    /// 返回 request-root 可达的 non-generic callable body，供 caller-side MIR pass 作为候选输入。
+    ///
+    /// 这些 body 不会默认进入 `MaterializedMirPassView`。只有某个 pass 明确改写并写入
+    /// `pass_artifacts` 后，production/codegen 主路径才会把它视为 canonical pass body。
+    pub(crate) fn caller_side_pass_candidate_bodies(&self) -> &[FunDecl] {
+        &self.caller_side_pass_candidates
     }
 }
 
@@ -2102,6 +2111,7 @@ struct MirInstanceMaterializer {
     call_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     value_ref_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
+    caller_side_pass_candidates: Vec<FunDecl>,
     queued: HashSet<InstanceKey>,
     queue: VecDeque<InstanceKey>,
     materialized: HashMap<InstanceKey, Vec<FunDecl>>,
@@ -2368,6 +2378,7 @@ impl MirInstanceMaterializer {
             call_bindings: HashMap::new(),
             value_ref_bindings: HashMap::new(),
             scanned_non_generic_funs: HashSet::new(),
+            caller_side_pass_candidates: Vec::new(),
             queued: HashSet::new(),
             queue: VecDeque::new(),
             materialized: HashMap::new(),
@@ -2525,40 +2536,40 @@ impl MirInstanceMaterializer {
                 eff_args,
             });
         }
-        initial.extend(self.seed_request_root_direct_call_instances());
+        initial.extend(self.seed_request_root_direct_call_instances()?);
         initial.sort_by_key(|a| self.instance_fqn(a));
         initial.dedup();
         Ok(initial)
     }
 
-    fn seed_request_root_direct_call_instances(&mut self) -> Vec<InstanceKey> {
+    fn seed_request_root_direct_call_instances(&mut self) -> MaterializeResult<Vec<InstanceKey>> {
         if self.request_root_funs.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let request_root_funs = self.request_root_funs.clone();
         let mut out = Vec::new();
 
         for request_root in request_root_funs {
-            self.scan_reachable_non_generic_fun(&request_root, &mut out);
+            self.scan_reachable_non_generic_fun(&request_root, &mut out)?;
         }
 
-        out
+        Ok(out)
     }
 
     fn scan_reachable_non_generic_fun(
         &mut self,
         reachable_fun: &ReachableMirFun,
         out: &mut Vec<InstanceKey>,
-    ) {
+    ) -> MaterializeResult<()> {
         if self.generic_family_fqns.contains(&reachable_fun.fun.fqn) {
-            return;
+            return Ok(());
         }
         let scan_key = (reachable_fun.source_path.clone(), reachable_fun.fun.span);
         if !self.scanned_non_generic_funs.insert(scan_key) {
-            return;
+            return Ok(());
         }
         let Some(body) = &reachable_fun.fun.body else {
-            return;
+            return Ok(());
         };
         let substitution = InstanceSubstitution::default();
         let locals = &body.locals;
@@ -2572,10 +2583,24 @@ impl MirInstanceMaterializer {
                         locals,
                         &substitution,
                         out,
-                    );
+                    )?;
                 }
             }
         }
+
+        let mut candidate_fun = reachable_fun.fun.clone();
+        let candidate_root_fqn = candidate_fun.fqn.clone();
+        if let Some(candidate_body) = candidate_fun.body.as_mut() {
+            self.rewrite_body(
+                candidate_body,
+                &substitution,
+                reachable_fun.source_path.as_path(),
+                &candidate_root_fqn,
+                &candidate_root_fqn,
+            )?;
+        }
+        self.caller_side_pass_candidates.push(candidate_fun);
+        Ok(())
     }
 
     fn collect_reachable_instances_from_rvalue(
@@ -2586,7 +2611,7 @@ impl MirInstanceMaterializer {
         locals: &[LocalDecl],
         substitution: &InstanceSubstitution,
         out: &mut Vec<InstanceKey>,
-    ) {
+    ) -> MaterializeResult<()> {
         match value {
             Rvalue::Call {
                 kind: CallKind::Direct { callee_fqn },
@@ -2601,23 +2626,24 @@ impl MirInstanceMaterializer {
                     substitution,
                 ) {
                     out.push(instance_key);
-                    return;
+                    return Ok(());
                 }
                 if let Some(reachable_callee) =
                     self.resolve_non_generic_direct_callee(template_source_path, span, callee_fqn)
                 {
-                    self.scan_reachable_non_generic_fun(&reachable_callee, out);
+                    self.scan_reachable_non_generic_fun(&reachable_callee, out)?;
                 }
             }
             Rvalue::MakeClosure { fn_ptr, .. } => {
                 if let Some(reachable_closure) =
                     self.resolve_non_generic_fun_body_by_fqn(template_source_path, fn_ptr)
                 {
-                    self.scan_reachable_non_generic_fun(&reachable_closure, out);
+                    self.scan_reachable_non_generic_fun(&reachable_closure, out)?;
                 }
             }
             _ => {}
         }
+        Ok(())
     }
 
     fn resolve_non_generic_fun_body_by_fqn(
@@ -2804,6 +2830,7 @@ impl MirInstanceMaterializer {
             summaries,
             callable_families,
             pass_artifacts,
+            caller_side_pass_candidates: self.caller_side_pass_candidates,
         };
         super::inline::run_summary_driven_inlining(&mut materialized);
         Ok(materialized)
@@ -3126,7 +3153,7 @@ impl MirInstanceMaterializer {
                     args,
                     ctx.locals,
                     ctx.substitution,
-                );
+                )?;
             }
             CallKind::Closure { callee, fn_ptr } => {
                 *callee = self.rewrite_operand(callee.clone());
@@ -3174,7 +3201,7 @@ impl MirInstanceMaterializer {
                         args,
                         ctx.locals,
                         ctx.substitution,
-                    );
+                    )?;
                     *kind = CallKind::Direct {
                         callee_fqn: direct_fqn,
                     };
@@ -3217,7 +3244,7 @@ impl MirInstanceMaterializer {
                         args,
                         ctx.locals,
                         ctx.substitution,
-                    );
+                    )?;
                     *kind = CallKind::Direct {
                         callee_fqn: direct_fqn,
                     };
@@ -3246,7 +3273,7 @@ impl MirInstanceMaterializer {
         args: &[CallArg],
         locals: &[LocalDecl],
         substitution: &InstanceSubstitution,
-    ) {
+    ) -> MaterializeResult<()> {
         if let Some(instance_key) = self.infer_direct_call_instance(
             template_source_path,
             call_span,
@@ -3257,17 +3284,18 @@ impl MirInstanceMaterializer {
         ) {
             *callee_fqn = self.instance_fqn(&instance_key);
             self.enqueue(instance_key);
-            return;
+            return Ok(());
         }
         if let Some(reachable_callee) =
             self.resolve_non_generic_direct_callee(template_source_path, call_span, callee_fqn)
         {
             let mut discovered = Vec::new();
-            self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered);
+            self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered)?;
             for instance in discovered {
                 self.enqueue(instance);
             }
         }
+        Ok(())
     }
 
     fn infer_direct_call_instance(

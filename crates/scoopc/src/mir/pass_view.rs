@@ -60,6 +60,8 @@ impl MaterializedMirPassArtifacts {
     /// 说明：
     /// - 若 `fun.body.is_some()`，则用该 body 替换当前 pass 产物层中的 callable；
     /// - 若 `fun.body.is_none()`，则等价于把该 callable 从 pass 可见 body 集中移除；
+    /// - `fun` 可以是 instance family 中的 callable，也可以是 pass 明确改写的
+    ///   request-root / non-generic caller body；
     /// - 该操作不会修改 raw `MaterializedMir.file`。
     pub fn replace_callable_body(&mut self, fun: FunDecl) -> Option<FunDecl> {
         self.overridden_body_fqns.insert(fun.fqn.clone());

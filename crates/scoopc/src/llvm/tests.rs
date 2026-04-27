@@ -1384,6 +1384,176 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_observes_caller_side_mir_inlining_for_non_generic_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000h2_non_generic_caller_inline.scoop",
+        r#"
+package fixtures.t5000h2
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> wrap(x: T): T {
+    return id<T>(x)
+}
+
+fun caller(x: Int): Int {
+    return wrap<Int>(x)
+}
+
+fun stable(x: Int): Int {
+    return x + 1
+}
+
+fun main(): Int {
+    return caller(1) + stable(2)
+}
+"#,
+    );
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let caller_fqn = "fixtures.t5000h2.caller";
+    let stable_fqn = "fixtures.t5000h2.stable";
+    let wrap_fqn = "fixtures.t5000h2.wrap::<Int>";
+    let id_fqn = "fixtures.t5000h2.id::<Int>";
+    {
+        let materialized = codegen_unit
+            .lowered
+            .materialized_mir()
+            .expect("production frontend 应保留 materialized MIR");
+        let pass_view = materialized.pass_view();
+        assert!(
+            pass_view.owner_of_callable(caller_fqn).is_none(),
+            "non-generic caller rewrite 不应通过伪造 instance family 生效"
+        );
+        let pass_caller = pass_view
+            .callable(caller_fqn)
+            .expect("caller-side MIR pass 应能发布真实 non-generic caller body");
+        assert!(
+            !mir_fun_contains_direct_call(pass_caller, wrap_fqn),
+            "pass caller body 不应继续调用被内联的 wrap"
+        );
+        assert!(
+            !mir_fun_contains_direct_call(pass_caller, id_fqn),
+            "pass caller body 不应继续调用 wrap 内部的 id"
+        );
+        assert!(
+            pass_view.callable(stable_fqn).is_none(),
+            "未改写的 non-generic stable body 不应默认进入 pass view"
+        );
+    }
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let caller_ir = function_ir_named(&ir, caller_fqn);
+    assert!(
+        !caller_ir.contains(&format!("@{wrap_fqn}(")),
+        "production LLVM 应消费 caller-side rewritten MIR body，caller 不应继续调用 wrap:\n{caller_ir}"
+    );
+    assert!(
+        !caller_ir.contains(&format!("@{id_fqn}(")),
+        "caller-side rewritten MIR body 经过迭代 inlining 后不应继续调用 id:\n{caller_ir}"
+    );
+    let _stable_ir = function_ir_named(&ir, stable_fqn);
+}
+
+#[test]
+fn production_reachability_scans_overridden_non_generic_pass_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000h2_non_generic_override_reachability.scoop",
+        r#"
+package fixtures.t5000h2
+
+fun original(x: Int): Int {
+    return x
+}
+
+fun replacement(x: Int): Int {
+    return x + 10
+}
+
+fun caller(x: Int): Int {
+    return original(x)
+}
+
+fun main(): Int {
+    return caller(1)
+}
+"#,
+    );
+
+    let mut codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let caller_fqn = "fixtures.t5000h2.caller";
+    let original_fqn = "fixtures.t5000h2.original";
+    let replacement_fqn = "fixtures.t5000h2.replacement";
+    {
+        let materialized = codegen_unit
+            .lowered
+            .materialized_mir_mut()
+            .expect("production frontend 应保留 materialized MIR");
+        let mut rewritten_caller = materialized
+            .caller_side_pass_candidate_bodies()
+            .iter()
+            .find(|fun| fun.fqn == caller_fqn)
+            .expect("request-root 可达 non-generic caller 应进入 caller-side pass 候选")
+            .clone();
+        let body = rewritten_caller
+            .body
+            .as_mut()
+            .expect("caller pass candidate 应保留 body");
+        let mut rewrote_call_target = false;
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let crate::mir::StatementKind::Assign { value, .. } = &mut stmt.kind else {
+                    continue;
+                };
+                let crate::mir::Rvalue::Call { kind, .. } = value else {
+                    continue;
+                };
+                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                    continue;
+                };
+                if callee_fqn == original_fqn {
+                    *callee_fqn = replacement_fqn.to_string();
+                    rewrote_call_target = true;
+                }
+            }
+        }
+        assert!(
+            rewrote_call_target,
+            "test setup 应把 caller 的 non-generic pass MIR direct-call target 从 original 改为 replacement"
+        );
+        materialized
+            .pass_artifacts_mut()
+            .replace_callable_body(rewritten_caller);
+    }
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let caller_ir = function_ir_named(&ir, caller_fqn);
+    assert!(
+        caller_ir.contains(&format!("@{replacement_fqn}(")),
+        "reachability/body emission 应消费 non-generic pass override，caller 应调用 replacement:\n{caller_ir}"
+    );
+    assert!(
+        !caller_ir.contains(&format!("@{original_fqn}(")),
+        "若 production 仍扫描旧 HIR body，caller 会继续调用 original；实际 IR:\n{caller_ir}"
+    );
+    let _replacement_ir = function_ir_named(&ir, replacement_fqn);
+}
+
+#[test]
 fn production_codegen_suspendability_observes_overridden_pass_summary() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

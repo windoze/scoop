@@ -884,10 +884,13 @@ fn should_emit_reachable_fun_body(
         return false;
     }
 
-    if let Some(pass_view) = materialized_pass_view
-        && pass_view.owner_of_callable(&fun.fqn).is_some()
-    {
-        return pass_view.callable(&fun.fqn).is_some();
+    if let Some(pass_view) = materialized_pass_view {
+        if pass_view.callable_body_is_overridden(&fun.fqn) {
+            return pass_view.callable(&fun.fqn).is_some();
+        }
+        if pass_view.owner_of_callable(&fun.fqn).is_some() {
+            return pass_view.callable(&fun.fqn).is_some();
+        }
     }
 
     true

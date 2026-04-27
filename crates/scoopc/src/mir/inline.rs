@@ -1,9 +1,10 @@
 //! Summary-driven MIR inlining passes.
 //!
-//! This first pass is deliberately conservative: it only rewrites pass-visible monomorphic
-//! callable roots, and only inlines small, non-recursive, body-known straight-line direct calls.
-//! Broader caller-side provenance and higher-order `DirectCallOnly` rewrites are tracked as later
-//! `T5000h` subtasks.
+//! This pass is deliberately conservative: callee eligibility still comes from pass-visible
+//! monomorphic callable roots, and it only inlines small, non-recursive, body-known straight-line
+//! direct calls. Caller-side rewrites may also publish request-root reachable non-generic bodies,
+//! but only after a pass actually changes them and the rewritten MIR stays inside the currently
+//! supported production pass-body subset.
 
 use std::collections::HashMap;
 
@@ -26,6 +27,7 @@ struct InlineFunction {
 #[derive(Debug)]
 struct InlineSnapshot {
     functions: Vec<InlineFunction>,
+    caller_candidates: Vec<FunDecl>,
     by_fqn: HashMap<String, usize>,
 }
 
@@ -46,7 +48,14 @@ pub(crate) fn run_summary_driven_inlining(materialized: &mut MaterializedMir) {
             }
         }
 
-        if rewrites.is_empty() {
+        let caller_rewrites = snapshot
+            .caller_candidates
+            .iter()
+            .filter_map(|fun| rewrite_callable_body_once(fun, &snapshot))
+            .filter(pass_publishable_caller_body)
+            .collect::<Vec<_>>();
+
+        if rewrites.is_empty() && caller_rewrites.is_empty() {
             break;
         }
 
@@ -54,6 +63,9 @@ pub(crate) fn run_summary_driven_inlining(materialized: &mut MaterializedMir) {
         for (key, fun, summary) in rewrites {
             pass_artifacts.replace_callable_body(fun);
             pass_artifacts.set_instance_summary(key, summary);
+        }
+        for fun in caller_rewrites {
+            pass_artifacts.replace_callable_body(fun);
         }
     }
 }
@@ -72,12 +84,29 @@ impl InlineSnapshot {
                 })
             })
             .collect::<Vec<_>>();
+        let caller_candidates = materialized
+            .caller_side_pass_candidate_bodies()
+            .iter()
+            .filter_map(|raw_fun| {
+                if pass_view.owner_of_callable(&raw_fun.fqn).is_some() {
+                    return None;
+                }
+                if pass_view.callable_body_is_overridden(&raw_fun.fqn) {
+                    return pass_view.callable(&raw_fun.fqn).cloned();
+                }
+                Some(raw_fun.clone())
+            })
+            .collect::<Vec<_>>();
         let by_fqn = functions
             .iter()
             .enumerate()
             .map(|(idx, function)| (function.fun.fqn.clone(), idx))
             .collect::<HashMap<_, _>>();
-        Self { functions, by_fqn }
+        Self {
+            functions,
+            caller_candidates,
+            by_fqn,
+        }
     }
 
     fn get(&self, fqn: &str) -> Option<&InlineFunction> {
@@ -88,7 +117,11 @@ impl InlineSnapshot {
 }
 
 fn rewrite_fun_once(function: &InlineFunction, snapshot: &InlineSnapshot) -> Option<FunDecl> {
-    let mut rewritten = function.fun.clone();
+    rewrite_callable_body_once(&function.fun, snapshot)
+}
+
+fn rewrite_callable_body_once(fun: &FunDecl, snapshot: &InlineSnapshot) -> Option<FunDecl> {
+    let mut rewritten = fun.clone();
     let body = rewritten.body.as_mut()?;
     let mut changed = false;
 
@@ -97,8 +130,7 @@ fn rewrite_fun_once(function: &InlineFunction, snapshot: &InlineSnapshot) -> Opt
         let mut new_stmts = Vec::with_capacity(old_stmts.len());
 
         for stmt in old_stmts {
-            if let Some(expanded) = try_expand_direct_call(body, &function.fun.fqn, &stmt, snapshot)
-            {
+            if let Some(expanded) = try_expand_direct_call(body, &fun.fqn, &stmt, snapshot) {
                 new_stmts.extend(expanded);
                 changed = true;
             } else {
@@ -164,6 +196,71 @@ fn body_is_inlineable(body: &Body) -> bool {
         .stmts
         .iter()
         .all(|stmt| statement_is_inlineable(&stmt.kind))
+}
+
+fn pass_publishable_caller_body(fun: &FunDecl) -> bool {
+    if fun.name == "main" {
+        // Entry `main` is still lowered through the dedicated HIR `codegen_main_exit_code` path.
+        // Publishing a MIR override here would make reachability observe a body that production
+        // entry lowering does not consume yet.
+        return false;
+    }
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    if body.validate_cfg().is_err() {
+        return false;
+    }
+    body.blocks.iter().all(|block| {
+        !block.is_cleanup
+            && matches!(&block.terminator.unwind, UnwindAction::NoUnwind)
+            && terminator_is_pass_publishable(&block.terminator.kind)
+            && block
+                .stmts
+                .iter()
+                .all(|stmt| statement_is_pass_publishable(&stmt.kind))
+    })
+}
+
+fn terminator_is_pass_publishable(kind: &TerminatorKind) -> bool {
+    matches!(
+        kind,
+        TerminatorKind::Return { .. }
+            | TerminatorKind::Goto { .. }
+            | TerminatorKind::CondBr { .. }
+            | TerminatorKind::Unreachable
+    )
+}
+
+fn statement_is_pass_publishable(kind: &StatementKind) -> bool {
+    match kind {
+        StatementKind::Nop => true,
+        StatementKind::Assign { value, .. } => rvalue_is_pass_publishable(value),
+        StatementKind::Todo(_) => false,
+    }
+}
+
+fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
+    match value {
+        Rvalue::Use(_) | Rvalue::TopLevelRef(_) | Rvalue::Unary { .. } | Rvalue::Binary { .. } => {
+            true
+        }
+        Rvalue::Call { kind, .. } => matches!(kind, CallKind::Direct { .. }),
+        Rvalue::UnresolvedName { .. }
+        | Rvalue::TypeCheck { .. }
+        | Rvalue::Cast { .. }
+        | Rvalue::MemberAccess { .. }
+        | Rvalue::MakeTuple { .. }
+        | Rvalue::TupleGet { .. }
+        | Rvalue::CaptureBoxNew { .. }
+        | Rvalue::CaptureBoxGet { .. }
+        | Rvalue::CaptureBoxSet { .. }
+        | Rvalue::PatternMatch { .. }
+        | Rvalue::PatternExtract { .. }
+        | Rvalue::MakeClosure { .. }
+        | Rvalue::PerformResult { .. }
+        | Rvalue::Todo(_) => false,
+    }
 }
 
 fn statement_is_inlineable(kind: &StatementKind) -> bool {
@@ -476,6 +573,68 @@ fun main(): Int {
         assert!(
             !fun_contains_direct_call(pass_shell, project_fqn),
             "内联应由 summary 与 MIR 结构触发，而不是依赖 id/wrap 这类函数名"
+        );
+    }
+
+    #[test]
+    fn caller_side_inlining_publishes_only_rewritten_non_generic_body() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_inline_non_generic_caller.scoop",
+            r#"
+package fixtures.mirinline
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> wrap(x: T): T {
+    return id<T>(x)
+}
+
+fun caller(x: Int): Int {
+    return wrap<Int>(x)
+}
+
+fun stable(x: Int): Int {
+    return x + 1
+}
+
+fun main(): Int {
+    return caller(1) + stable(2)
+}
+"#,
+        );
+
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+        let caller_fqn = "fixtures.mirinline.caller";
+        let stable_fqn = "fixtures.mirinline.stable";
+        let wrap_fqn = "fixtures.mirinline.wrap::<Int>";
+        let id_fqn = "fixtures.mirinline.id::<Int>";
+        let pass_view = materialized.pass_view();
+
+        assert!(
+            pass_view.owner_of_callable(caller_fqn).is_none(),
+            "non-generic caller 不应被伪装成某个 materialized instance family"
+        );
+        let pass_caller = pass_view
+            .callable(caller_fqn)
+            .expect("caller-side inlining 应把真实 non-generic caller body 写入 pass artifacts");
+        assert!(
+            !fun_contains_direct_call(pass_caller, wrap_fqn),
+            "caller pass body 不应继续保留被内联的 wrap 调用"
+        );
+        assert!(
+            !fun_contains_direct_call(pass_caller, id_fqn),
+            "迭代 inlining 后 caller pass body 不应继续保留 wrap 内部的 id 调用"
+        );
+        assert!(
+            pass_view.callable(stable_fqn).is_none(),
+            "未被 pass 改写的 non-generic body 不应无条件进入 pass view"
+        );
+        assert!(
+            !pass_view.callable_body_is_overridden(stable_fqn),
+            "未改写的 non-generic body 不应被标记为 pass override"
         );
     }
 

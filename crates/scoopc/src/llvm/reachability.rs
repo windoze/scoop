@@ -241,13 +241,19 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn scan_fun(&mut self, fun: &hir::FunDecl) {
-        if let Some(pass_view) = self.materialized_pass_view
-            && pass_view.owner_of_callable(&fun.fqn).is_some()
-        {
-            if let Some(pass_fun) = pass_view.callable(&fun.fqn) {
-                self.scan_mir_fun(pass_fun);
+        if let Some(pass_view) = self.materialized_pass_view {
+            if pass_view.callable_body_is_overridden(&fun.fqn) {
+                if let Some(pass_fun) = pass_view.callable(&fun.fqn) {
+                    self.scan_mir_fun(pass_fun);
+                }
+                return;
             }
-            return;
+            if pass_view.owner_of_callable(&fun.fqn).is_some() {
+                if let Some(pass_fun) = pass_view.callable(&fun.fqn) {
+                    self.scan_mir_fun(pass_fun);
+                }
+                return;
+            }
         }
 
         self.with_source_path(fun.source_path.as_path(), |this| {
