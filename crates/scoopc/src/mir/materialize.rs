@@ -16,6 +16,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::monomorph::MonomorphKey;
+use crate::opt::OptLevel;
 use crate::parser::{ParseError, parse_file};
 use crate::resolve::{Index, ResolveError};
 use crate::session::Session;
@@ -358,6 +359,15 @@ pub fn materialize_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> MaterializeResult<MaterializedMir> {
+    materialize_for_dump_with_opt_level(session, source, OptLevel::O2)
+}
+
+/// 为 `dump-ir` / tests 生成 monomorphic MIR instances，并显式指定 MIR pass 优化等级。
+pub fn materialize_for_dump_with_opt_level(
+    session: &Session,
+    source: &SourceFile,
+    opt_level: OptLevel,
+) -> MaterializeResult<MaterializedMir> {
     let DumpMaterializationInputs {
         prepared_files,
         index,
@@ -369,13 +379,14 @@ pub fn materialize_for_dump(
         .iter()
         .map(|file| (&file.source, &file.ast))
         .collect::<Vec<_>>();
-    super::materialize_compilation_unit_from_typechecked_inputs(
+    super::materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
         &compilation_unit,
         &[source.path().to_path_buf()],
         &index,
         Some(&env),
         &typecheck_types,
         &monomorph_keys,
+        opt_level,
     )
 }
 
@@ -393,6 +404,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     type_env: Option<&TypeEnv>,
     typecheck_types: &TypeStore,
     monomorph_keys: &[MonomorphKey],
+    opt_level: OptLevel,
 ) -> MaterializeResult<MaterializedMir> {
     let template_catalog = collect_generic_template_infos(compilation_unit);
     let callable_body_infos = collect_callable_body_infos(compilation_unit);
@@ -453,6 +465,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 request_root_fun_keys,
             },
         },
+        opt_level,
     )
 }
 
@@ -2004,6 +2017,7 @@ fn materialize_generic_mir(
     types: TypeStore,
     builtins: BuiltinTypes,
     requests: MaterializeRequestSet<'_>,
+    opt_level: OptLevel,
 ) -> MaterializeResult<MaterializedMir> {
     let MaterializeRequestSet {
         monomorph_keys,
@@ -2011,8 +2025,13 @@ fn materialize_generic_mir(
         construction_inputs,
     } = requests;
     let typecheck_types = construction_inputs.typecheck_types;
-    let mut materializer =
-        MirInstanceMaterializer::new(generic_file, types, builtins, construction_inputs)?;
+    let mut materializer = MirInstanceMaterializer::new(
+        generic_file,
+        types,
+        builtins,
+        construction_inputs,
+        opt_level.enables_summary_driven_mir_inlining(),
+    )?;
     let mut initial_requests = materializer.seed_requests(typecheck_types, monomorph_keys)?;
     initial_requests.extend(hir_direct_instance_keys);
     materializer.run(initial_requests)
@@ -2090,6 +2109,21 @@ struct ReachableMirFun {
     fun: FunDecl,
 }
 
+fn dispatch_direct_call_args(
+    call_span: Span,
+    receiver: &Operand,
+    args: &[CallArg],
+) -> Vec<CallArg> {
+    let mut direct_args = Vec::with_capacity(args.len() + 1);
+    direct_args.push(CallArg {
+        span: call_span,
+        name: None,
+        value: receiver.clone(),
+    });
+    direct_args.extend(args.iter().cloned());
+    direct_args
+}
+
 struct MirInstanceMaterializer {
     types: TypeStore,
     builtins: BuiltinTypes,
@@ -2112,6 +2146,7 @@ struct MirInstanceMaterializer {
     value_ref_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
     caller_side_pass_candidates: Vec<FunDecl>,
+    enable_summary_driven_inlining: bool,
     queued: HashSet<InstanceKey>,
     queue: VecDeque<InstanceKey>,
     materialized: HashMap<InstanceKey, Vec<FunDecl>>,
@@ -2124,6 +2159,7 @@ impl MirInstanceMaterializer {
         types: TypeStore,
         builtins: BuiltinTypes,
         construction_inputs: MaterializerConstructionInputs<'_>,
+        enable_summary_driven_inlining: bool,
     ) -> MaterializeResult<Self> {
         let MaterializerConstructionInputs {
             typecheck_types,
@@ -2379,6 +2415,7 @@ impl MirInstanceMaterializer {
             value_ref_bindings: HashMap::new(),
             scanned_non_generic_funs: HashSet::new(),
             caller_side_pass_candidates: Vec::new(),
+            enable_summary_driven_inlining,
             queued: HashSet::new(),
             queue: VecDeque::new(),
             materialized: HashMap::new(),
@@ -2832,7 +2869,9 @@ impl MirInstanceMaterializer {
             pass_artifacts,
             caller_side_pass_candidates: self.caller_side_pass_candidates,
         };
-        super::inline::run_summary_driven_inlining(&mut materialized);
+        if self.enable_summary_driven_inlining {
+            super::inline::run_summary_driven_inlining(&mut materialized);
+        }
         Ok(materialized)
     }
 
@@ -3185,23 +3224,17 @@ impl MirInstanceMaterializer {
                         class_itables: &self.class_itables,
                     },
                 ) {
-                    args.insert(
-                        0,
-                        CallArg {
-                            span: call_span,
-                            name: None,
-                            value: receiver.clone(),
-                        },
-                    );
+                    let direct_args = dispatch_direct_call_args(call_span, receiver, args);
                     let mut direct_fqn = target_fqn;
                     self.materialize_direct_call_target(
                         ctx.template_source_path,
                         call_span,
                         &mut direct_fqn,
-                        args,
+                        &direct_args,
                         ctx.locals,
                         ctx.substitution,
                     )?;
+                    *args = direct_args;
                     *kind = CallKind::Direct {
                         callee_fqn: direct_fqn,
                     };
@@ -3228,23 +3261,17 @@ impl MirInstanceMaterializer {
                         class_itables: &self.class_itables,
                     },
                 ) {
-                    args.insert(
-                        0,
-                        CallArg {
-                            span: call_span,
-                            name: None,
-                            value: receiver.clone(),
-                        },
-                    );
+                    let direct_args = dispatch_direct_call_args(call_span, receiver, args);
                     let mut direct_fqn = target_fqn;
                     self.materialize_direct_call_target(
                         ctx.template_source_path,
                         call_span,
                         &mut direct_fqn,
-                        args,
+                        &direct_args,
                         ctx.locals,
                         ctx.substitution,
                     )?;
+                    *args = direct_args;
                     *kind = CallKind::Direct {
                         callee_fqn: direct_fqn,
                     };
@@ -4562,10 +4589,13 @@ fun entry(): Int {
             &index,
             &compilation_unit,
             &compilation_unit,
-            &request_source_paths,
             &monomorph_keys,
             Some(&env),
             &types,
+            crate::hir::MirInstanceCollectionOptions {
+                request_source_paths: &request_source_paths,
+                opt_level: OptLevel::O2,
+            },
         )
         .unwrap();
 
@@ -5346,6 +5376,7 @@ fun main() {
                 top_level_fun_call_bindings,
                 request_root_fun_keys,
             },
+            true,
         )
         .unwrap();
         let request_root_println_bindings = materializer

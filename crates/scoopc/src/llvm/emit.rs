@@ -65,7 +65,7 @@ pub fn emit_minimal_main_ir(
     source: &SourceFile,
 ) -> Result<String, LlvmEmitError> {
     let context = Context::create();
-    let module = build_minimal_main_module(session, source, &context)?;
+    let module = build_minimal_main_module_with_opt_level(session, source, &context, OptLevel::O0)?;
     Ok(module.print_to_string().to_string())
 }
 
@@ -254,7 +254,7 @@ pub fn emit_minimal_main_obj_to_file_with_opt_level(
     }
 
     let context = Context::create();
-    let module = build_minimal_main_module(session, source, &context)?;
+    let module = build_minimal_main_module_with_opt_level(session, source, &context, opt_level)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_pass_pipeline(&module, &target_machine, opt_level)?;
@@ -426,7 +426,7 @@ pub fn emit_minimal_main_asm_to_file_with_opt_level(
     }
 
     let context = Context::create();
-    let module = build_minimal_main_module(session, source, &context)?;
+    let module = build_minimal_main_module_with_opt_level(session, source, &context, opt_level)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_pass_pipeline(&module, &target_machine, opt_level)?;
@@ -573,12 +573,23 @@ pub fn emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with
     Ok(())
 }
 
+#[cfg(test)]
 pub(crate) fn build_minimal_main_module<'ctx>(
     session: &Session,
     source: &SourceFile,
     context: &'ctx Context,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    let codegen_unit = frontend::prepare_single_file_codegen_unit(session, source)?;
+    build_minimal_main_module_with_opt_level(session, source, context, OptLevel::O0)
+}
+
+pub(crate) fn build_minimal_main_module_with_opt_level<'ctx>(
+    session: &Session,
+    source: &SourceFile,
+    context: &'ctx Context,
+    opt_level: OptLevel,
+) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(session, source, opt_level)?;
     build_main_module_from_codegen_entry(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,

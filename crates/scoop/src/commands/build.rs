@@ -333,7 +333,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::LlvmIr => {
             #[cfg(feature = "llvm")]
             {
-                let lowered = lower_main_hir_for_build(&session, &front)?;
+                let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::llvm::emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level(
                     &source_map,
@@ -356,7 +356,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Obj => {
             #[cfg(feature = "llvm")]
             {
-                let lowered = lower_main_hir_for_build(&session, &front)?;
+                let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
                     &source_map,
@@ -379,7 +379,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Asm => {
             #[cfg(feature = "llvm")]
             {
-                let lowered = lower_main_hir_for_build(&session, &front)?;
+                let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::llvm::emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level(
                     &source_map,
@@ -939,7 +939,7 @@ fn run_codegen_and_link(
 
     let obj = work_dir.join(layout::obj_file_name("main"));
 
-    let lowered = lower_main_hir_for_build(session, front)?;
+    let lowered = lower_main_hir_for_build(session, front, opt_level)?;
     let (source_map, entry_source_id) = build_codegen_source_map(session, front);
     scoopc::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
         &source_map,
@@ -1037,6 +1037,7 @@ fn run_codegen_and_link(
 fn lower_main_hir_for_build(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
+    opt_level: OptLevel,
 ) -> Result<scoopc::hir::LoweredHir> {
     // 该返回值仍是当前 LLVM codegen 消费的 HIR 兼容输入，但在 via-MIR 主路径上会额外挂住
     // `LoweredHir::materialized_pass_view()`，把 canonical materialized body / summary /
@@ -1059,13 +1060,14 @@ fn lower_main_hir_for_build(
         .zip(front.asts.iter())
         .collect::<Vec<_>>();
 
-    scoopc::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection(
+    scoopc::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level(
         &front.index,
         &unit,
         &files_to_lower,
         &front.monomorph_keys,
         Some(&front.type_env),
         &front.typecheck_types,
+        opt_level,
     )
     .map_err(|err| miette::Report::from(*err))
 }
@@ -1372,7 +1374,7 @@ public fun main() / Pure! {
         let session = scoopc::session::Session::new().unwrap();
         let build_input = super::load_build_input(&input, None).unwrap();
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
 
         assert!(
             lowered.file.items.iter().any(|item| {
@@ -1431,7 +1433,7 @@ fun main(): Int / Pure! {
         let session = scoopc::session::Session::new().unwrap();
         let build_input = super::load_build_input(&input, None).unwrap();
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let materialized = lowered
             .materialized_mir()
             .expect("build frontend 应保留 materialized MIR");
@@ -1536,7 +1538,7 @@ fun main(): Int {
         let session = scoopc::session::Session::new().unwrap();
         let build_input = super::load_build_input(&input, None).unwrap();
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
         let ir = scoopc::llvm::emit_minimal_main_ir_from_production_lowered_hir(
             &source_map,
@@ -1591,7 +1593,7 @@ fun main(): Int / Pure! {
         let session = scoopc::session::Session::new().unwrap();
         let build_input = super::load_build_input(&input, None).unwrap();
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
-        let lowered = super::lower_main_hir_for_build(&session, &front).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let lowered_member_fqns = lowered
             .member_funs
             .iter()

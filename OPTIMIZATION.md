@@ -96,7 +96,7 @@
 
 这组事实给后续阶段的明确约束是：
 
-- 新的 interprocedural summary / devirt / inline / escape analysis 不能默认塞进 `-O0`；
+- 新的 interprocedural summary / inline / escape analysis，以及超出 exact / singleton dispatch classification 的更激进去虚化，不能默认塞进 `-O0`；
 - 若某个分析只服务 `-O1+`，其构建成本也不应在 `-O0` 先支付一遍；
 - 调试期断言应与默认编译路径显式分层，而不是继续沿着 codegen 查询点无限叠加。
 
@@ -930,12 +930,13 @@ DirectCall ConcreteType.m(receiver, args...)
 
 - `-O0`
   - 构建 early MIR / ANF，并完成必要的按需实例化、canonicalization 与 call classification；
+  - 当前已落地的 exact / singleton dispatch directization 属于这层必要分类与实例发现边界：它让 backend 只消费已分类的调用节点，并避免 generic owner / effect member 实例在 `-O0` 下漏 materialize；
   - 不做跨函数 inlining；
-  - 不做激进去虚化；
+  - 不做 speculative / guarded / profile-driven 等更激进去虚化；
   - 优先保证调试与诊断可读性。
 - `-O1`
   - 开启保守 summaries；
-  - 开启静态 singleton target 的 devirtualization；
+  - 在现有 exact / singleton dispatch directization 之外，逐步扩大结构化 target-set shrinking 预算；
   - 开启小函数、非递归、body-known 的 summary-driven inlining。
 - `-O2`
   - 开启高阶场景的 `DirectCallOnly` 参数内联；

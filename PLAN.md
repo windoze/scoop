@@ -1753,6 +1753,27 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务为 `T5000hR Review：确认 inlining 已走 summary / structure 路线`。
+- 2026-04-27：`T5000hR Review：确认 inlining 已走 summary / structure 路线` 已完成。
+  - review 结论：
+    - `crates/scoopc/src/mir/inline.rs` 的 inlining 主路径由 per-instance summary、body-known / non-recursive / small straight-line body、`ParamUseSummary::DirectCallOnly` 与 call-site provenance 驱动；
+    - 未发现 `map` / `filter` / `forEach` 或其它函数名白名单；`@Inline` 也未成为本轮优化主机制；
+    - `DirectCallOnly + DirectFunction` provenance 会触发高阶 wrapper 摊平并继续走普通 small direct-call inlining；`KnownClosure` provenance 只收缩为结构化 `ClosureCall`，仍受 production MIR lowering 支持集约束。
+  - review 修复：
+    - `run_summary_driven_inlining(...)` 已从无条件运行改为由 `OptLevel::enables_summary_driven_mir_inlining()` 控制，`O0` 不发布 summary-driven rewritten body，`O1+` 保持现有 inlining pass；
+    - build / single-file frontend 已把 opt-level 传入 MIR materialization，新增 `production_codegen_respects_mir_inlining_opt_level_gate` 锁定 `O0` 与 `O2` 行为差异；
+    - 复核 fixture 后修正了过宽的 devirtualization gate：`T5000g` 已建立的 exact / singleton dispatch directization 仍属必要 call classification / instance discovery，`O0` 继续保留该路径；`OPTIMIZATION.md` 已同步补充该边界；
+    - 新增 `MirInstanceCollectionOptions` 收口 request-source + opt-level 参数，避免新增 API 超出 clippy 参数数量限制。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc production_codegen_respects_mir_inlining_opt_level_gate -- --nocapture`
+    - `cargo test -p scoopc mir::inline -- --nocapture`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - 全部通过。
+  - 下一条待执行任务为 `T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界`。
 
 ## 1. 当前判断
 

@@ -1666,7 +1666,7 @@
   - 新增 LLVM 回归 `production_codegen_observes_direct_call_only_provenance_wrapper_flattening`，确认 production LLVM 消费 provenance-driven caller rewrite，`caller` 不再调用高阶 wrapper 或被传入的具体 direct function；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc production_codegen_observes_direct_call_only_provenance_wrapper_flattening -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000hR Review：确认 inlining 已走 summary / structure 路线
+### [DONE] T5000hR Review：确认 inlining 已走 summary / structure 路线
 - 重点：
   - 是否仍有特定函数名 hard-code；
   - `DirectCallOnly` 与 provenance 是否真的在驱动高阶内联；
@@ -1674,6 +1674,14 @@
 - 验收：
   - 内联主路径已经是结构驱动；没有退回“为几个库函数特判”的方案。
 - 依赖：T5000h3
+- 完成记录（2026-04-27）：
+  - 已复核 `crates/scoopc/src/mir/inline.rs` 与 `crates/scoopc/src/mir/summary.rs`，确认 summary-driven inlining 的触发条件来自 `body_known`、非递归、小体量、straight-line body、`ParamUseSummary::DirectCallOnly` 与 call-site callable provenance；未发现 `map` / `filter` / `forEach` 或其它库函数名白名单；
+  - 已确认 `DirectCallOnly` 与 known provenance 是高阶 wrapper 摊平的必要条件：direct function provenance 可把 wrapper 内部 `FunValue` 调用改写为 `DirectCall`，known closure provenance 只收缩为结构化 `ClosureCall`，不会绕过当前 production MIR body lowering 支持集；
+  - 已确认 `@Inline` 没有进入本轮 inlining 主路径；当前自动优化由 MIR summary / provenance 与 `OptLevel` 控制；
+  - review 过程中修复了半成品中暴露的真实问题：`run_summary_driven_inlining(...)` 原先无条件运行，现改为 `OptLevel::enables_summary_driven_mir_inlining()` 控制，`O0` 不发布 summary-driven rewritten body，`O1+` 保持现有 inlining pass；同时把 build / single-file frontend 的 opt-level 传入 MIR materialization，新增回归 `production_codegen_respects_mir_inlining_opt_level_gate` 锁定 `O0` / `O2` 差异；
+  - review 同时修正了过宽的 opt-level gate：`T5000g` 已建立的 exact / singleton dispatch directization 属于当前必要 call classification 与 instance discovery，`O0` 仍保留该路径，避免 `member_call_devirt_final_receiver_direct_call.scoop` 与 owner-specialized effect-generic member materialization 回归；`OPTIMIZATION.md` 已同步补充这一边界；
+  - 已清理新增 opt-level API 的 clippy 问题，将 request-source + opt-level 组合为 `MirInstanceCollectionOptions`，避免扩散超长参数列表；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc production_codegen_respects_mir_inlining_opt_level_gate -- --nocapture`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
 ### [TODO] T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界
 - 范围：

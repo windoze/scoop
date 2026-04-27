@@ -2659,6 +2659,26 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection(
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
 ) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
+    lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level(
+        index,
+        compilation_unit,
+        files_to_lower,
+        monomorph_keys,
+        type_env,
+        typecheck_types,
+        crate::opt::OptLevel::O0,
+    )
+}
+
+pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level(
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    files_to_lower: &[(&SourceFile, &ast::File)],
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &TypeStore,
+    opt_level: crate::opt::OptLevel,
+) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
     let request_source_paths = files_to_lower
         .iter()
         .map(|(source, _)| source.path().to_path_buf())
@@ -2667,11 +2687,19 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection(
         index,
         compilation_unit,
         files_to_lower,
-        &request_source_paths,
         monomorph_keys,
         type_env,
         typecheck_types,
+        MirInstanceCollectionOptions {
+            request_source_paths: &request_source_paths,
+            opt_level,
+        },
     )
+}
+
+pub struct MirInstanceCollectionOptions<'a> {
+    pub request_source_paths: &'a [std::path::PathBuf],
+    pub opt_level: crate::opt::OptLevel,
 }
 
 /// 为 build / frontend 生成“由 MIR instance collection 决定实例集合”的 HIR 兼容输入，
@@ -2690,19 +2718,25 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
-    request_source_paths: &[std::path::PathBuf],
     monomorph_keys: &[crate::monomorph::MonomorphKey],
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
+    options: MirInstanceCollectionOptions<'_>,
 ) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
-    let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
-        compilation_unit,
+    let MirInstanceCollectionOptions {
         request_source_paths,
-        index,
-        type_env,
-        typecheck_types,
-        monomorph_keys,
-    )?;
+        opt_level,
+    } = options;
+    let materialized =
+        crate::mir::materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
+            compilation_unit,
+            request_source_paths,
+            index,
+            type_env,
+            typecheck_types,
+            monomorph_keys,
+            opt_level,
+        )?;
     let mut lowered = lower_for_compilation_unit_multi_files_internal(
         index,
         compilation_unit,
@@ -2713,6 +2747,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
         CompilationUnitLoweringOptions::explicit_mir_instances(
             &materialized.instance_keys,
             &materialized.types,
+            true,
         ),
     )?;
     lowered.materialized_mir = Some(materialized);
@@ -2752,30 +2787,35 @@ enum CompilationUnitInstanceMode<'a> {
 
 struct CompilationUnitLoweringOptions<'a> {
     instance_mode: CompilationUnitInstanceMode<'a>,
+    devirtualize_dispatch_calls: bool,
 }
 
 impl<'a> CompilationUnitLoweringOptions<'a> {
     fn legacy_eager_hir() -> Self {
         Self {
             instance_mode: CompilationUnitInstanceMode::LegacyEagerHir,
+            devirtualize_dispatch_calls: false,
         }
     }
 
     fn explicit_mir_instances(
         instance_keys: &'a [crate::mir::InstanceKey],
         instance_types: &'a TypeStore,
+        devirtualize_dispatch_calls: bool,
     ) -> Self {
         Self {
             instance_mode: CompilationUnitInstanceMode::ExplicitMirInstances {
                 instance_keys,
                 instance_types,
             },
+            devirtualize_dispatch_calls,
         }
     }
 
     fn generic_template_only() -> Self {
         Self {
             instance_mode: CompilationUnitInstanceMode::GenericTemplateOnly,
+            devirtualize_dispatch_calls: false,
         }
     }
 
@@ -2797,11 +2837,10 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     options: CompilationUnitLoweringOptions<'a>,
 ) -> Result<LoweredHir, HirLowerError> {
     let materialize_direct_call_targets = options.materialize_direct_call_targets();
-    let CompilationUnitLoweringOptions { instance_mode } = options;
-    let devirtualize_dispatch_calls = matches!(
+    let CompilationUnitLoweringOptions {
         instance_mode,
-        CompilationUnitInstanceMode::ExplicitMirInstances { .. }
-    );
+        devirtualize_dispatch_calls,
+    } = options;
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);

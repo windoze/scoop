@@ -51,6 +51,7 @@ pub use summary::{
 };
 
 /// 为编译单元 frontend/build 路径暴露可复用的 MIR materialization 入口。
+#[cfg(test)]
 pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     compilation_unit: &[(&crate::source::SourceFile, &crate::ast::File)],
     request_source_paths: &[std::path::PathBuf],
@@ -59,6 +60,26 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     typecheck_types: &crate::ty::TypeStore,
     monomorph_keys: &[crate::monomorph::MonomorphKey],
 ) -> Result<MaterializedMir, Box<MirMaterializeError>> {
+    materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
+        compilation_unit,
+        request_source_paths,
+        index,
+        type_env,
+        typecheck_types,
+        monomorph_keys,
+        crate::opt::OptLevel::O0,
+    )
+}
+
+pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
+    compilation_unit: &[(&crate::source::SourceFile, &crate::ast::File)],
+    request_source_paths: &[std::path::PathBuf],
+    index: &crate::resolve::Index,
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &crate::ty::TypeStore,
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    opt_level: crate::opt::OptLevel,
+) -> Result<MaterializedMir, Box<MirMaterializeError>> {
     materialize::materialize_compilation_unit_from_typechecked_inputs(
         compilation_unit,
         request_source_paths,
@@ -66,6 +87,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         type_env,
         typecheck_types,
         monomorph_keys,
+        opt_level,
     )
 }
 

@@ -338,7 +338,9 @@ fun main(): Int / Pure! {
 "#,
     );
     let session = Session::new().unwrap();
-    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
     let materialized = codegen_unit
         .lowered
         .materialized_mir()
@@ -433,7 +435,9 @@ fun main(): Int {
 "#,
     );
     let session = Session::new().unwrap();
-    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
     let lowered_fun_fqns = codegen_unit
         .lowered
         .file
@@ -489,7 +493,12 @@ fun main(): Int {
 "#,
     );
 
-    let frontend_ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let context = Context::create();
+    let frontend_ir =
+        build_minimal_main_module_with_opt_level(&session, &source, &context, OptLevel::O2)
+            .unwrap()
+            .print_to_string()
+            .to_string();
     assert!(
         !frontend_ir.contains("call_vtable"),
         "via-MIR frontend 已把 exact receiver class call 去虚化为 direct call，backend 不应再按 FQN 猜回 vtable dispatch:\n{frontend_ir}"
@@ -534,7 +543,11 @@ fun main(): Int {
 "#,
     );
 
-    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let context = Context::create();
+    let ir = build_minimal_main_module_with_opt_level(&session, &source, &context, OptLevel::O2)
+        .unwrap()
+        .print_to_string()
+        .to_string();
     assert!(
         !ir.contains("call_itable"),
         "via-MIR frontend 已把 exact interface dispatch 去虚化为 direct call，backend 不应再按接口 owner FQN 回退成 itable call:\n{ir}"
@@ -1067,7 +1080,9 @@ fun main(): Int {
 "#,
     );
 
-    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
     let main = codegen_unit
         .lowered
         .file
@@ -1322,6 +1337,75 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_respects_mir_inlining_opt_level_gate() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000hr_mir_inline_opt_gate.scoop",
+        r#"
+package fixtures.t5000hr
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> wrap(x: T): T {
+    return id<T>(x)
+}
+
+fun main(): Int {
+    return wrap<Int>(1)
+}
+"#,
+    );
+    let wrap_fqn = "fixtures.t5000hr.wrap::<Int>";
+    let id_fqn = "fixtures.t5000hr.id::<Int>";
+
+    let o0_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let o0_materialized = o0_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 O0 materialized MIR");
+    assert!(
+        !o0_materialized
+            .pass_view()
+            .callable_body_is_overridden(wrap_fqn),
+        "O0 不应运行 summary-driven MIR inlining 并覆盖 pass body"
+    );
+    let o0_wrap = o0_materialized
+        .pass_view()
+        .callable(wrap_fqn)
+        .expect("O0 pass view 仍应可读取 raw materialized body");
+    assert!(
+        mir_fun_contains_direct_call(o0_wrap, id_fqn),
+        "O0 pass view 不应消除 wrap -> id direct call"
+    );
+
+    let o2_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
+    let o2_materialized = o2_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 O2 materialized MIR");
+    assert!(
+        o2_materialized
+            .pass_view()
+            .callable_body_is_overridden(wrap_fqn),
+        "O2 应运行 summary-driven MIR inlining 并覆盖 pass body"
+    );
+    let o2_wrap = o2_materialized
+        .pass_view()
+        .callable(wrap_fqn)
+        .expect("O2 pass view 应保留 rewritten wrap body");
+    assert!(
+        !mir_fun_contains_direct_call(o2_wrap, id_fqn),
+        "O2 pass view 应消除 wrap -> id direct call"
+    );
+}
+
+#[test]
 fn production_codegen_observes_summary_driven_mir_direct_call_inlining() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -1343,7 +1427,9 @@ fun main(): Int {
 "#,
     );
 
-    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
     let wrap_fqn = "fixtures.t5000h1.wrap::<Int>";
     let id_fqn = "fixtures.t5000h1.id::<Int>";
     {
@@ -1413,7 +1499,9 @@ fun main(): Int {
 "#,
     );
 
-    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
     let caller_fqn = "fixtures.t5000h2.caller";
     let stable_fqn = "fixtures.t5000h2.stable";
     let wrap_fqn = "fixtures.t5000h2.wrap::<Int>";
@@ -1489,7 +1577,9 @@ fun main(): Int {
 "#,
     );
 
-    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
     let caller_fqn = "fixtures.t5000h3.caller";
     let apply_fqn = "fixtures.t5000h3.apply::<Int>";
     let id_fqn = "fixtures.t5000h3.id::<Int>";

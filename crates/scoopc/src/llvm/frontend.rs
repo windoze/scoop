@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::ast;
 use crate::hir;
+use crate::opt::OptLevel;
 use crate::parser::parse_file;
 use crate::resolve::Index;
 use crate::session::Session;
@@ -31,9 +32,18 @@ pub(super) struct SingleFileCodegenUnit {
 /// - 返回的 `lowered` 仍承载当前 LLVM codegen 需要的 HIR 兼容输入，但会保留
 ///   `LoweredHir::materialized_pass_view()`，作为 production 主路径显式接入的 canonical
 ///   materialized body / summary / 后续 MIR pass 产物视图。
+#[cfg(test)]
 pub(super) fn prepare_single_file_codegen_unit(
     session: &Session,
     entry_source: &SourceFile,
+) -> Result<SingleFileCodegenUnit, LlvmEmitError> {
+    prepare_single_file_codegen_unit_with_opt_level(session, entry_source, OptLevel::O0)
+}
+
+pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
+    session: &Session,
+    entry_source: &SourceFile,
+    opt_level: OptLevel,
 ) -> Result<SingleFileCodegenUnit, LlvmEmitError> {
     let mut input_sources = load_single_file_support_sources(session)?;
     let entry_index = input_sources.len();
@@ -195,10 +205,13 @@ pub(super) fn prepare_single_file_codegen_unit(
         &index,
         &compilation_unit,
         &files_to_lower,
-        &request_source_paths,
         &monomorph_keys,
         Some(&env),
         &typecheck_types,
+        hir::MirInstanceCollectionOptions {
+            request_source_paths: &request_source_paths,
+            opt_level,
+        },
     )
     .map_err(|err| frontend_error(err.to_string()))?;
 
