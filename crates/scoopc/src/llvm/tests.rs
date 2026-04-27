@@ -1226,8 +1226,8 @@ fun main(): Int {
         "pass view 已移除 `{id_fqn}` 的 canonical body 后，production codegen 不应继续按 HIR body 发射该函数，实际 IR:\n{ir}"
     );
     assert!(
-        ir.contains(id_fqn),
-        "当前 wrapper HIR 兼容 body 仍会引用 `{id_fqn}` 的签名；本回归只锁定 body 发射是否已听从 pass view，实际 IR:\n{ir}"
+        !ir.contains(&format!("@{id_fqn}(")),
+        "pass view 已移除 `{id_fqn}` 的 canonical body 后，production codegen 不应继续发射或调用该函数；实际 IR:\n{ir}"
     );
 }
 
@@ -1267,9 +1267,9 @@ fun main(): Int {
             .materialized_mir_mut()
             .expect("production frontend 应保留 materialized MIR");
         let mut rewritten_wrap = materialized
-            .pass_view()
+            .callable_view()
             .callable(wrap_fqn)
-            .expect("pass view 应能读取 wrap canonical body")
+            .expect("raw callable view 应能读取 wrap materialized body")
             .clone();
         let body = rewritten_wrap
             .body
@@ -1319,6 +1319,68 @@ fun main(): Int {
         "若 production 仍回退 HIR body，wrap 会继续调用 id；实际 IR:\n{wrap_ir}"
     );
     let _replacement_ir = function_ir_named(&ir, replacement_fqn);
+}
+
+#[test]
+fn production_codegen_observes_summary_driven_mir_direct_call_inlining() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000h1_summary_driven_direct_inline.scoop",
+        r#"
+package fixtures.t5000h1
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> wrap(x: T): T {
+    return id<T>(x)
+}
+
+fun main(): Int {
+    return wrap<Int>(1)
+}
+"#,
+    );
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let wrap_fqn = "fixtures.t5000h1.wrap::<Int>";
+    let id_fqn = "fixtures.t5000h1.id::<Int>";
+    {
+        let materialized = codegen_unit
+            .lowered
+            .materialized_mir()
+            .expect("production frontend 应保留 materialized MIR");
+        let raw_wrap = materialized
+            .callable_view()
+            .callable(wrap_fqn)
+            .expect("raw callable view 应保留 wrap body");
+        assert!(
+            mir_fun_contains_direct_call(raw_wrap, id_fqn),
+            "raw materialized MIR 应继续保留原始 direct call，证明 inlining 只写 pass artifacts"
+        );
+        let pass_wrap = materialized
+            .pass_view()
+            .callable(wrap_fqn)
+            .expect("pass view 应保留 wrap body");
+        assert!(
+            !mir_fun_contains_direct_call(pass_wrap, id_fqn),
+            "summary-driven inlining 应改写 pass-visible wrap body"
+        );
+    }
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let wrap_ir = function_ir_named(&ir, wrap_fqn);
+
+    assert!(
+        !wrap_ir.contains(&format!("@{id_fqn}(")),
+        "production LLVM 应消费 summary-driven rewritten MIR body，wrap 不应继续调用 id:\n{wrap_ir}"
+    );
 }
 
 #[test]
@@ -3155,4 +3217,26 @@ fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
         }
     }
     panic!("expected function containing {name_fragment}");
+}
+
+fn mir_fun_contains_direct_call(fun: &crate::mir::FunDecl, expected: &str) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            let crate::mir::StatementKind::Assign {
+                value:
+                    crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::Direct { callee_fqn },
+                        ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                return false;
+            };
+            callee_fqn == expected
+        })
+    })
 }

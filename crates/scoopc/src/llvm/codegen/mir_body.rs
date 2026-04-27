@@ -9,6 +9,8 @@ use std::collections::HashSet;
 
 use inkwell::values::{BasicMetadataValueEnum, FunctionValue, PointerValue};
 
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -84,7 +86,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let (return_bb, return_alloca) =
             self.setup_function_return_context(hir_fun.span, llvm_fun, declared_return_cg)?;
-        let mut local_slots = self.create_mir_local_slots(body)?;
+        let mir_types = self
+            .materialized_pass_view()
+            .map(|view| &view.materialized().types)
+            .unwrap_or(self.types);
+        let mut local_slots = self.create_mir_local_slots(body, mir_types)?;
         self.bind_mir_params(
             mir_fun,
             llvm_fun,
@@ -138,16 +144,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn create_mir_local_slots(
         &mut self,
         body: &crate::mir::Body,
+        mir_types: &TypeStore,
     ) -> Result<Vec<MirLocalSlot<'ctx>>, LlvmEmitError> {
         body.locals
             .iter()
             .map(|local| {
-                let cg_ty = self
-                    .cg_ty_of(local.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let cg_ty = self.cg_ty_of_mir_type(mir_types, local.ty).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "pass MIR local type",
                         at: local.span.into(),
-                    })?;
+                    },
+                )?;
                 let ptr = self.create_entry_alloca(
                     local.span,
                     local.name.as_deref().unwrap_or("mir_local"),
@@ -156,6 +163,56 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(MirLocalSlot { cg_ty, ptr })
             })
             .collect()
+    }
+
+    fn cg_ty_of_mir_type(&self, mir_types: &TypeStore, ty: TypeId) -> Option<CgTy> {
+        match mir_types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
+            TypeKind::Ref(_) => Some(CgTy::Ref),
+            TypeKind::StarProjection(star) => self.cg_ty_of_mir_type(mir_types, star.read_ty),
+            TypeKind::Value(ValueTypeKind::Nothing) => Some(CgTy::Never),
+            TypeKind::Value(ValueTypeKind::Unit) => Some(CgTy::Unit),
+            TypeKind::Value(ValueTypeKind::Bool) => Some(CgTy::Bool),
+            TypeKind::Value(ValueTypeKind::Char) => Some(CgTy::Int(IntTy {
+                bits: 32,
+                signed: false,
+            })),
+            TypeKind::Value(ValueTypeKind::Float64) => Some(CgTy::Float64),
+            TypeKind::Value(ValueTypeKind::Float32) => Some(CgTy::Float32),
+            TypeKind::Value(ValueTypeKind::Int) => Some(CgTy::Int(IntTy {
+                bits: self.host.word_bit_width(),
+                signed: true,
+            })),
+            TypeKind::Value(ValueTypeKind::UInt) => Some(CgTy::Int(IntTy {
+                bits: self.host.word_bit_width(),
+                signed: false,
+            })),
+            TypeKind::Value(ValueTypeKind::IntN(bits)) => Some(CgTy::Int(IntTy {
+                bits: u32::from(*bits),
+                signed: true,
+            })),
+            TypeKind::Value(ValueTypeKind::UIntN(bits)) => Some(CgTy::Int(IntTy {
+                bits: u32::from(*bits),
+                signed: false,
+            })),
+            TypeKind::Value(
+                ValueTypeKind::Option(_) | ValueTypeKind::Tuple(_) | ValueTypeKind::Nominal(_),
+            ) => self
+                .equivalent_codegen_type_id(mir_types, ty)
+                .and_then(|codegen_ty| self.cg_ty_of(codegen_ty)),
+            TypeKind::Param(_) => None,
+        }
+    }
+
+    fn equivalent_codegen_type_id(
+        &self,
+        source_types: &TypeStore,
+        source_ty: TypeId,
+    ) -> Option<TypeId> {
+        let source_display = source_types.display(source_ty).to_string();
+        self.types
+            .iter_ids()
+            .find(|&candidate| self.types.display(candidate).to_string() == source_display)
     }
 
     fn bind_mir_params(

@@ -17,6 +17,7 @@
 //! 避免在边界收口阶段退回到 panic/隐式后端推断。
 
 mod callables;
+mod inline;
 mod lower;
 mod materialize;
 mod pass_view;
@@ -42,6 +43,7 @@ pub use pass_view::{
 };
 pub(crate) use summary::{
     DeclOnlySummaryInput, InstanceRootSummaryInput, build_materialized_summary_table,
+    summarize_pass_rewritten_fun,
 };
 pub use summary::{
     InstanceSummary, MaterializedMirSummaries, ParamUseSummary, ResultProvenance,

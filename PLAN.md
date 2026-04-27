@@ -1665,6 +1665,43 @@
     - `T5000h` 可以在 MIR 层实现 summary-driven rewrite，并通过 pass artifacts 直接影响 production LLVM 主路径；
     - 不需要把等价 inlining 逻辑回抄到 HIR lowering 或 LLVM call lowering；
     - 下一条待执行任务为 `T5000h 在 MIR 层实现 summary-driven inlining`。
+- 2026-04-27：开始执行 `T5000h 在 MIR 层实现 summary-driven inlining` 时确认原任务横跨三个实现边界，已拆分。
+  - 拆分原因：
+    - 普通 small direct-call inlining 可以直接在 pass-visible materialized callable body 上完成，并通过已有 pass artifacts 进入 production LLVM；
+    - `DirectCallOnly` 高阶参数摊平需要 caller-side known provenance，不能只改写被调 wrapper 自身；
+    - 当前 pass-visible materialized body 主要覆盖 monomorphic instances；若要让非泛型 request-root caller 的 provenance 驱动高阶内联，需要先建立“只对明确改写的 request-root / non-generic body 写入 pass artifacts”的安全边界，避免把所有 HIR 兼容 body 无条件并入 pass view。
+  - 子任务顺序：
+    - `T5000h1`：在 pass-visible MIR callable body 上实现保守 small direct-call inlining；
+    - `T5000h2`：让 caller-side MIR pass 能安全覆盖 request-root / non-generic callable body；
+    - `T5000h3`：接入 `DirectCallOnly` + known provenance 的高阶 wrapper 摊平。
+  - 依赖调整：
+    - `T5000hR` 的依赖改为 `T5000h3`；
+    - 本轮执行 `T5000h1`，保持不按函数名白名单触发的原验收约束。
+- 2026-04-27：`T5000h1 在 pass-visible MIR callable body 上实现保守 small direct-call inlining` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/mir/inline.rs`，在 `MaterializedMirPassView` 可见的 monomorphic callable roots 上运行保守 inlining；
+    - eligibility 来自 per-instance summary 与 MIR 结构：`body_known`、非递归、`size_cost <= 16`、single-block straight-line return body；未按函数名或库函数白名单触发；
+    - materialization 返回前运行 `run_summary_driven_inlining(...)`，inline 结果写入 `MaterializedMirPassArtifacts` 的 rewritten body / summary，raw materialized MIR 保持原样；
+    - `summarize_pass_rewritten_fun(...)` 为 rewritten body 生成保守 summary，并保留上一版 outward-effect / recursion 上界。
+  - 既有问题修复：
+    - 自动 inlining 扩大 pass MIR body production lowering 覆盖面后，暴露 `codegen_top_level_mir_fun(...)` 仍用 HIR `lowered.types` 解码 MIR local `TypeId` 的边界错误；
+    - 已改为从 `MaterializedMirPassView::materialized().types` 读取 MIR local type，并在 aggregate 需要时映射回 codegen TypeStore，避免 materialized TypeId 与 HIR TypeStore 混用。
+  - 新增/调整回归：
+    - 新增 MIR 回归确认 `wrap<Int> -> id<Int>` 的 pass body 不再保留 direct call、raw MIR 未被覆盖，并确认非 `id/wrap` 命名形状同样可内联；
+    - 新增 LLVM 回归确认 production LLVM 的 `wrap::<Int>` 不再调用 `id::<Int>`；
+    - 更新既有 pass body-presence / manual override 回归，使其与自动 inlining 的 pass artifacts 输出共存。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::inline -- --nocapture`
+    - `cargo test -p scoopc production_codegen_observes_summary_driven_mir_direct_call_inlining -- --nocapture`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoopc mir:: -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务为 `T5000h2 让 caller-side MIR pass 能安全覆盖 request-root / non-generic callable body`。
 
 ## 1. 当前判断
 

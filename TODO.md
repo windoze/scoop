@@ -1601,22 +1601,52 @@
   - 额外验证了 `member_call_virtual_dispatch_override_basic.scoop` 与 `member_call_interface_dispatch_basic.scoop` 的 production build 和运行输出，确认 pass-view reachability 接线未破坏 vtable / itable 端到端路径；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc production_codegen_ -- --nocapture`、`cargo test -p scoopc mir::pass_view -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h 在 MIR 层实现 summary-driven inlining
+### T5000h 在 MIR 层实现 summary-driven inlining
+- 拆分记录（2026-04-27）：
+  - 经核对，原任务同时包含 pass-visible direct-call rewrite、caller-side provenance 覆盖面，以及 `DirectCallOnly` 高阶参数摊平，单轮过大；
+  - 拆为 `T5000h1` / `T5000h2` / `T5000h3` 三个可独立验收的子任务，保持原验收目标不变；
+  - 不允许按函数名白名单触发；所有收益必须来自 MIR 结构、per-instance summary 与 provenance。
+
+### [DONE] T5000h1 在 pass-visible MIR callable body 上实现保守 small direct-call inlining
 - 范围：
-  - 先做保守但通用的版本：
-    - body-known
-    - 非递归
-    - 小体量
-    - `DirectCallOnly` 参数
-    - provenance 可知
-  - 覆盖两类收益：
-    - 普通小 direct call 的边界消除；
-    - 高阶 wrapper 函数内对函数值参数的调用摊平。
-  - 不允许按函数名白名单触发。
+  - 在 `MaterializedMirPassView` 可见的 callable body 上运行 MIR inlining pass；
+  - eligibility 来自 per-instance summary：`body_known`、非递归、小体量；
+  - 先覆盖普通小 direct call 的边界消除，不按函数名白名单触发；
+  - inline 结果写入 `MaterializedMirPassArtifacts` 的 rewritten body / summary，让 production LLVM 主路径直接观察。
 - 验收：
-  - 对 `map` / `filter` / `forEach` 类形状的收益来自结构，而不是名字；
-  - codegen 不再继续承担“内联后才能去掉的额外高层调用边界”。
+  - 类似 `wrap<Int> -> id<Int>` 的 materialized wrapper body 在 production LLVM 中不再保留被内联的小 direct-call 边界；
+  - raw materialized MIR 与 pass rewritten body 继续分层；
+  - unsupported MIR 节点保持结构化边界，不静默回退 HIR workaround。
 - 依赖：T5000h0eR
+- 完成记录（2026-04-27）：
+  - 新增 `crates/scoopc/src/mir/inline.rs`，在 pass-visible monomorphic callable roots 上运行保守 summary-driven inlining；eligibility 由 `body_known`、非递归、`size_cost <= 16` 与 straight-line MIR body 结构决定，不按函数名白名单触发；
+  - materialization 返回前会运行 `run_summary_driven_inlining(...)`，将 rewritten callable body 与保守更新后的 summary 写入 `MaterializedMirPassArtifacts`，raw `MaterializedMir.file` / raw callable view 保持不变；
+  - 新增 `summarize_pass_rewritten_fun(...)`，为 rewritten body 生成 pass summary，并保留上一版 outward-effect / recursion 上界，避免单体重算少看跨函数 effect fixed point；
+  - 新增 MIR 回归确认 `wrap<Int> -> id<Int>` 的 pass body 已移除 direct call、raw MIR 未被覆盖，且非 `id/wrap` 命名的 `project/shell` 形状同样可被结构性内联；
+  - 新增 LLVM 回归 `production_codegen_observes_summary_driven_mir_direct_call_inlining`，确认 production LLVM 中 `wrap::<Int>` 不再调用 `id::<Int>`；
+  - 验证过程中发现并修复既有 TypeStore 边界问题：pass MIR body local `TypeId` 属于 `MaterializedMir.types`，production MIR body lowering 现从 `MaterializedMirPassView::materialized().types` 读取 MIR local type，并在 aggregate 需要时映射回 codegen TypeStore；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc production_codegen_observes_summary_driven_mir_direct_call_inlining -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc mir:: -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
+
+### [TODO] T5000h2 让 caller-side MIR pass 能安全覆盖 request-root / non-generic callable body
+- 范围：
+  - 为后续 call-site provenance inlining 提供 caller body rewrite 边界；
+  - 只在 pass 明确改写且 production MIR lowering 覆盖该 body 子集时，把 request-root / non-generic callable body 写入 pass artifacts；
+  - 避免把所有 non-generic HIR 兼容 body 无条件并入 pass view，防止 reachability 与 effect 查询边界扩大过快。
+- 验收：
+  - call-site provenance 优化可以改写真实 caller body，而不是只能改写 generic callee family；
+  - 未被 pass 改写的 non-generic body 继续走现有 HIR 兼容 lowering。
+- 依赖：T5000h1
+
+### [TODO] T5000h3 接入 `DirectCallOnly` + known provenance 的高阶 wrapper 摊平
+- 范围：
+  - 使用 `ParamUseSummary::DirectCallOnly` 与 call-site known provenance 驱动内联；
+  - 支持 known direct function / known closure provenance，把 wrapper 内部函数值参数调用摊平成结构化 direct MIR call；
+  - 覆盖 `map` / `filter` / `forEach` 类 wrapper 形状的结构性收益，不按函数名或库函数白名单触发。
+- 验收：
+  - 高阶 wrapper 函数内对函数值参数的调用边界来自 summary / provenance 被摊平；
+  - `@Inline` 仍只是 hint，不是主机制；
+  - codegen 不再继续承担“内联后才能去掉的额外高层调用边界”。
+- 依赖：T5000h2
 
 ### [TODO] T5000hR Review：确认 inlining 已走 summary / structure 路线
 - 重点：
@@ -1625,7 +1655,7 @@
   - `@Inline` 是否仍只是 hint，而不是主机制。
 - 验收：
   - 内联主路径已经是结构驱动；没有退回“为几个库函数特判”的方案。
-- 依赖：T5000h
+- 依赖：T5000h3
 
 ### [TODO] T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界
 - 范围：

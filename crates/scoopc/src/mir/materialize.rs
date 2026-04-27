@@ -2797,14 +2797,16 @@ impl MirInstanceMaterializer {
             &callable_families,
         );
 
-        Ok(MaterializedMir {
+        let mut materialized = MaterializedMir {
             file,
             types: self.types,
             instance_keys,
             summaries,
             callable_families,
             pass_artifacts,
-        })
+        };
+        super::inline::run_summary_driven_inlining(&mut materialized);
+        Ok(materialized)
     }
 
     fn enqueue(&mut self, key: InstanceKey) {

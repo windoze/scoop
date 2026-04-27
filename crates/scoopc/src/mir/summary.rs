@@ -236,6 +236,25 @@ fn summary_to_instance(summary: &PendingSummary) -> InstanceSummary {
     }
 }
 
+/// 为 pass-rewritten callable body 生成 conservative per-instance summary。
+///
+/// 单个 body 的局部分析无法重新求解整个 pass view 的跨函数 outward-effect fixed point，
+/// 因此这里保留上一版 summary 的 outward-effect / recursion 上界，避免 rewritten summary
+/// 因少看了仍存在的 callee 而变得不安全。
+pub(crate) fn summarize_pass_rewritten_fun(
+    fun: &FunDecl,
+    types: &TypeStore,
+    previous: Option<&InstanceSummary>,
+) -> InstanceSummary {
+    let pending = analyze_materialized_fun(fun, types);
+    let mut summary = summary_to_instance(&pending);
+    if let Some(previous) = previous {
+        summary.may_outward_effect |= previous.may_outward_effect;
+        summary.recursive_scc |= previous.recursive_scc;
+    }
+    summary
+}
+
 fn analyze_materialized_fun(fun: &FunDecl, types: &TypeStore) -> PendingSummary {
     let declared_effectful = function_ty_declared_effectful(types, fun.ty);
     let Some(body) = &fun.body else {

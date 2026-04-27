@@ -1,66 +1,88 @@
 # 执行计划
 
-## 当前目标
+## 约束
 
-- 按照用户要求，本轮只处理 `TODO.md` 中第一个未完成任务。
-- 在开始任何仓库检查和代码执行前，先记录本文件，后续如计划变化或关键步骤完成，会继续更新本文件。
-- 输出和进度记录使用中文。
+- 本次只处理 `TODO.md` 中第一个未完成任务，然后停止。
+- 在开始任务前先检查最新提交是否提到已有问题；如有，优先修复所有既有问题。
+- 发现任何已有 bug、规格不匹配、未完成边界或测试回归时，必须先修复；若无法立即修复，则把它作为前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
+- 不使用绕过、弱化测试、夹具专用逻辑或规格偏离来完成任务。
+- 执行中每次关键进展或计划变化都更新本文件。
+- 输出、记录和最终说明使用中文。
 
-## 约束与优先级
+## 初始步骤
 
-- 先检查最新提交是否提到已有问题；如果存在已有问题，必须先修复或把必要前置任务加入 `TODO.md` 后停止。
-- 再读取 `TODO.md`，定位第一个未完成任务。
-- 如第一个任务过大，先拆分为可执行子任务，更新 `PLAN.md` 和 `TODO.md`，提交后停止或执行当前拆分出的第一个子任务，取决于拆分后的任务是否已足够明确。
-- 遇到任何规格不符、已知缺陷、测试暴露的问题或实现边界，不能绕过；必须修复，或新增并排序前置任务后提交停止。
-- 本轮最多完成一个任务，完成后必须更新文档、运行相关测试并提交 Git。
-- 不回退用户已有改动，不使用破坏性 Git 命令。
+1. 查看最新提交，确认是否提到未解决问题、回归、TODO、临时方案或相关风险。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md` 和与该任务相关的源码、测试、规格或夹具，确认任务边界和依赖。
+4. 若第一个任务过大，先拆成较小子任务，更新 `PLAN.md` 与 `TODO.md`，提交拆分结果并停止。
 
-## 步骤计划
+## 执行步骤
 
-1. 查看工作区状态，确认是否已有未提交改动需要避让。
-2. 查看最新提交信息和补丁，判断是否提到或留下需要优先处理的已有问题。
-3. 读取 `TODO.md` 和 `PLAN.md`，确认第一个未完成任务及其上下文。
-4. 如果发现最新提交中的已有问题，先处理该问题；否则执行第一个未完成任务。
-5. 依据任务范围读取相关源码、测试和规范文档，定位最小正确实现边界。
-6. 如任务可直接实现，修改源码和必要测试；如任务被缺失特性阻塞，更新 `TODO.md` 与 `PLAN.md` 记录前置任务并停止。
-7. 运行相关测试；根据改动风险扩大到必要的 `cargo test` / fixture 测试 / clippy 检查。
-8. 更新 `TODO.md` 标记完成，更新 `PLAN.md` 记录状态变化。
-9. 检查 `git diff`，确认只包含本轮必要改动。
-10. 使用清晰任务标签提交。
-11. 停止，不处理下一个任务。
+1. 实现第一个未完成任务或当前拆分出的第一个子任务。
+2. 添加或更新最小但充分的测试覆盖。
+3. 运行相关测试；若有失败，定位并修复。
+4. 运行必要的质量检查，优先使用仓库既有命令；若完整检查成本过高，至少运行与改动相关的测试并记录未运行项。
+5. 更新 `TODO.md`，把本次完成的任务标记为完成。
+6. 更新 `PLAN.md`，记录实际完成内容、测试结果和后续状态。
+7. 提交所有相关修改，使用带任务编号或清晰描述的提交信息。
+8. 停止，不继续处理下一个任务。
 
 ## 当前状态
 
-- 已写入初始计划。
-- 已检查工作区状态：当前只有本轮 `memory/claude_plan.md` 改动。
-- 已检查最新提交：`[T5000h0e2] Lower pass-rewritten MIR bodies in production LLVM`，提交信息未明确提到需要优先修复的既有问题。
-- 已读取 `TODO.md` 并定位第一个未完成任务：
-  - `T5000h0eR Review：确认 production codegen 已真正切到 pass-rewritten callable body / summary 输入面`。
-- 本轮任务性质是 review。执行重点：
-  1. 复核 `MaterializedMirPassView` / pass artifacts 是否能区分 raw materialized body 与 pass-overridden body / summary。
-  2. 复核 production LLVM reachability、body emission、effect/suspend summary 查询是否都优先观察 pass view。
-  3. 复核 `T5000h0e2` 新增 MIR body lowering 是否只对显式 pass-overridden callable 生效，且 unsupported MIR 节点不会静默回退到 HIR body。
-  4. 运行定向测试与必要的全量验证。
-  5. 若发现真实问题，先修复或新增前置任务；若未发现阻塞问题，更新 `TODO.md` / `PLAN.md` 标记 review 完成并提交。
-- Review 过程中已复核：
-  - `emit.rs` 会把 `materialized_pass_view` 传入 reachability，并在 reachable body emission 时对显式 overridden callable 调用 `codegen_top_level_mir_fun(...)`；
-  - `reachability.rs` 对 pass-visible callable 会扫描 canonical MIR body；
-  - `effect_state_machine_analysis.rs` 只消费 pass 显式 override 的 summary，避免 raw summary 抢占 HIR/effect 分析；
-  - 代表性虚调用 / 接口调用 fixture 的 production build 和运行通过。
-- 已发现并修复一个 review 暴露的边界不一致：
-  - `codegen_top_level_mir_fun(...)` 原先在调用 `build_fun_callee_suspend_plan(...)` 后才切换 `current_source_id`；
-  - HIR lowering 是先切到当前函数源文件再做 suspend-plan 分析；
-  - 已将 MIR lowering 的 `source_id_for_path(...)` 提前到 suspend-plan 检查之前，避免跨文件 pass-overridden callable 的 effect/suspend 分析使用入口源文件上下文。
-- 已完成第一轮验证：
-  - `cargo fmt --all`：通过；
-  - `cargo test -p scoopc production_codegen_ -- --nocapture`：4 个 production pass-view/codegen 回归通过；
-  - `cargo test -p scoopc mir::pass_view -- --nocapture`：3 个 pass-view 回归通过；
-  - `cargo run -p scoop -- build tests/fixtures/run-pass/member_call_virtual_dispatch_override_basic.scoop -o /tmp/scoop_virtual_test`：通过，运行输出 `Derived.ping / after / 2`；
-  - `cargo run -p scoop -- build tests/fixtures/run-pass/member_call_interface_dispatch_basic.scoop -o /tmp/scoop_interface_test`：通过，运行输出 `Impl.foo / after / 42`。
+- 状态：已完成初始勘查。
+- 最新提交：`817a2aead5293aa64f037a4e7e26b86cf6251a79`，标题为 `[T5000h0eR] Review pass-view production codegen consumption`。
+- 最新提交检查结论：提交记录本身没有提到仍需优先修复的未解决问题；其中提到的 source-context 边界不一致已经在该提交中修复。
+- 工作区状态：除本文件外暂无其他未提交改动。
+- `TODO.md` 中第一个未完成任务：`T5000h 在 MIR 层实现 summary-driven inlining`。
+- 当前任务验收重点：
+  - 内联触发必须来自 MIR 结构、per-instance summary、`DirectCallOnly` 参数使用和 provenance，不能按函数名白名单。
+  - 需要覆盖普通小 direct call 边界消除，以及高阶 wrapper 中函数值参数调用摊平。
+  - inline 后 body 必须通过 `MaterializedMirPassView` 进入 production codegen，而不是只影响 dump/debug 路径。
+- 已确认原 `T5000h` 横跨三个实现边界，单轮过大，已更新 `TODO.md` / `PLAN.md` 拆为：
+  - `T5000h1`：在 pass-visible MIR callable body 上实现保守 small direct-call inlining；
+  - `T5000h2`：让 caller-side MIR pass 能安全覆盖 request-root / non-generic callable body；
+  - `T5000h3`：接入 `DirectCallOnly` + known provenance 的高阶 wrapper 摊平。
+- 拆分后的本轮任务：`T5000h1`。
+- `T5000h1` 执行计划：
+  1. 新增 MIR inlining pass 模块，遍历 `MaterializedMirPassView` 可见 callable body。
+  2. 使用 per-instance summary 做 eligibility：`body_known`、非递归、小体量，且不按函数名白名单。
+  3. 先支持单块 straight-line callable 的 direct-call inline，保守跳过 CFG、todo、effect/handler 等尚未覆盖节点。
+  4. 将 rewritten body 写入 `MaterializedMirPassArtifacts`，并写入保守更新后的 summary。
+  5. 接到 materialization 主路径，保证 production frontend 自动拥有 pass-rewritten body。
+  6. 添加 MIR/pass-view 与 LLVM production 回归，确认 `wrap<Int>` 的 pass body 不再调用 `id<Int>`，且 raw materialized MIR 不被覆盖。
+  7. 运行格式化、定向测试、相关 LLVM/MIR 测试、全量测试与 clippy。
+
+## T5000h1 进展
+
+- 已新增 `crates/scoopc/src/mir/inline.rs`：
+  - 遍历 pass-visible monomorphic callable roots；
+  - 只内联 `body_known`、非递归、`size_cost <= 16`、单块 straight-line 的 direct call callee；
+  - 不按函数名触发；
+  - inline 后通过 `replace_callable_body(...)` / `set_instance_summary(...)` 写入 pass artifacts。
+- 已在 `crates/scoopc/src/mir/materialize.rs` 的 materialization 返回前接入 `run_summary_driven_inlining(...)`。
+- 已在 `crates/scoopc/src/mir/summary.rs` 添加 `summarize_pass_rewritten_fun(...)`，为 rewritten body 生成保守 summary，并保留上一版 outward-effect / recursion 上界。
+- 已新增回归：
+  - `mir::inline::tests::small_direct_call_inlining_rewrites_pass_body_without_mutating_raw_mir`
+  - `mir::inline::tests::small_direct_call_inlining_is_not_name_based`
+  - `llvm::tests::production_codegen_observes_summary_driven_mir_direct_call_inlining`
+- 已通过：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc mir::inline -- --nocapture`
+  - `cargo test -p scoopc production_codegen_observes_summary_driven_mir_direct_call_inlining -- --nocapture`
+- 第一轮扩大验证发现并修复：
+  - 新自动 inliner 让旧的 pass body-presence / manual override 测试前置假设变化，已分别改为检查 `id` 不再被发射或调用，以及从 raw materialized body 构造手动 override；
+  - `frontend_codegen_consumes_materialized_generic_direct_call_instances` 暴露出既有 TypeStore 边界问题：pass MIR body 的 local `TypeId` 来自 `MaterializedMir.types`，而 production MIR body lowering 原先用 HIR `lowered.types` 解码；已修正 `mir_body.rs`，MIR local type lowering 改从 `MaterializedMirPassView::materialized().types` 读取，并仅在 aggregate 需要时映射回 codegen TypeStore。
+- 已继续通过：
+  - `cargo test -p scoopc frontend_codegen_consumes_materialized_generic_direct_call_instances -- --nocapture`
+  - `cargo test -p scoopc production_codegen_body_emission_observes_pass_view_body_presence -- --nocapture`
+  - `cargo test -p scoopc production_codegen_lowers_overridden_pass_mir_body -- --nocapture`
+  - `cargo test -p scoopc llvm::tests -- --nocapture`
+  - `cargo test -p scoopc mir:: -- --nocapture`
 - 已完成全量验证：
-  - `cargo test -p scoopc --no-default-features`：通过；
-  - `cargo test --all`：通过；
-  - `cargo run -p scoop -- test`：通过，`fixtures: ok (1201)`；
-  - `cargo clippy --all-targets -- -D warnings`：通过。
-- 已更新 `TODO.md` 与 `PLAN.md` 标记 `T5000h0eR` 完成，并完成最终 diff 检查。
-- 下一步：提交本轮 review 修复与任务记录，然后停止。
+  - `cargo test -p scoopc --no-default-features`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+  - `cargo clippy --all-targets -- -D warnings`
+- 已更新 `TODO.md`，将 `T5000h1` 标记为 `[DONE]`，并记录实现、既有问题修复与验证结果。
+- 已更新 `PLAN.md`，记录 `T5000h1` 完成状态、TypeStore 边界修复、测试结果和下一任务。
+- 下一步：检查最终 diff，然后提交 `[T5000h1] Implement summary-driven MIR direct-call inlining`。
