@@ -32,8 +32,9 @@ use crate::typecheck::{
 
 use super::{
     Body, CallArg, CallKind, ConstValue, DeclOnlySummaryInput, File, FunDecl, HandlerArm,
-    InstanceRootSummaryInput, Item, LocalDecl, MaterializedMirSummaries, MemberAccessMetadata,
-    MemberTarget, Operand, Pattern, PerformMetadata, Rvalue, Statement, StatementKind, Terminator,
+    InstanceRootSummaryInput, Item, LocalDecl, MaterializedCallableFamilies,
+    MaterializedCallableFamilyInput, MaterializedMirSummaries, MemberAccessMetadata, MemberTarget,
+    Operand, Pattern, PerformMetadata, Rvalue, Statement, StatementKind, Terminator,
     TerminatorKind, build_materialized_summary_table,
 };
 
@@ -128,6 +129,14 @@ pub struct MaterializedMir {
     pub types: TypeStore,
     pub instance_keys: Vec<InstanceKey>,
     pub summaries: MaterializedMirSummaries,
+    callable_families: MaterializedCallableFamilies,
+}
+
+impl MaterializedMir {
+    /// 返回当前 materialized MIR 上 canonical 的 callable body / summary 查询视图。
+    pub fn callable_view(&self) -> super::MaterializedCallableView<'_> {
+        super::MaterializedCallableView::new(self, &self.callable_families)
+    }
 }
 
 /// MIR 实例化错误。
@@ -2658,9 +2667,19 @@ impl MirInstanceMaterializer {
 
         let mut materialized_instance_keys = self.materialized.keys().cloned().collect::<Vec<_>>();
         materialized_instance_keys.sort_by_key(|a| self.instance_fqn(a));
+        let materialized_instance_set = materialized_instance_keys
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>();
+        let decl_only_instances = self
+            .declaration_only_instances
+            .iter()
+            .filter(|instance| !materialized_instance_set.contains(*instance))
+            .cloned()
+            .collect::<Vec<_>>();
 
         let mut instance_keys = materialized_instance_keys.clone();
-        instance_keys.extend(self.declaration_only_instances.iter().cloned());
+        instance_keys.extend(decl_only_instances.iter().cloned());
         instance_keys.sort_by_key(|a| self.instance_fqn(a));
         instance_keys.dedup();
 
@@ -2671,11 +2690,6 @@ impl MirInstanceMaterializer {
                 root_fqn: self.instance_fqn(&instance),
                 instance,
             })
-            .collect::<Vec<_>>();
-        let decl_only_instances = self
-            .declaration_only_instances
-            .iter()
-            .cloned()
             .collect::<Vec<_>>();
         let decl_only_inputs = decl_only_instances
             .iter()
@@ -2700,6 +2714,41 @@ impl MirInstanceMaterializer {
                 })
             })
             .collect::<Vec<_>>();
+        let mut callable_family_inputs = materialized_instance_keys
+            .iter()
+            .cloned()
+            .map(|instance| {
+                let root_fqn = self.instance_fqn(&instance);
+                let mut callable_fqns = self
+                    .materialized
+                    .get(&instance)
+                    .cloned()
+                    .expect("materialized instance should exist")
+                    .into_iter()
+                    .filter(|fun| fun.body.is_some())
+                    .map(|fun| fun.fqn)
+                    .collect::<Vec<_>>();
+                callable_fqns.sort_by(|a, b| {
+                    let a_root = a == &root_fqn;
+                    let b_root = b == &root_fqn;
+                    (!a_root).cmp(&!b_root).then_with(|| a.cmp(b))
+                });
+                callable_fqns.dedup();
+                MaterializedCallableFamilyInput {
+                    instance,
+                    root_fqn,
+                    callable_fqns,
+                }
+            })
+            .collect::<Vec<_>>();
+        callable_family_inputs.extend(decl_only_instances.iter().cloned().map(|instance| {
+            MaterializedCallableFamilyInput {
+                root_fqn: self.instance_fqn(&instance),
+                instance,
+                callable_fqns: Vec::new(),
+            }
+        }));
+        let callable_families = MaterializedCallableFamilies::from_inputs(callable_family_inputs);
 
         let mut items = Vec::new();
         for key in &materialized_instance_keys {
@@ -2728,6 +2777,7 @@ impl MirInstanceMaterializer {
             types: self.types,
             instance_keys,
             summaries,
+            callable_families,
         })
     }
 

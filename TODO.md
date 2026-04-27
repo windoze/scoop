@@ -1445,7 +1445,7 @@
   - review 过程中未发现需要插入到 `T5000h0b` 之前的新前置缺陷任务；结论是下一步可直接在现有 production 产物上建立 canonical materialized callable body / summary 视图，而不需要回到“消费侧重新 materialize 一次”的接口；
   - 已验证 `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000h0b 建立 production 可复用的 materialized callable body / summary 视图
+### [DONE] T5000h0b 建立 production 可复用的 materialized callable body / summary 视图
 - 范围：
   - 在 production frontend 产物上抽出“按 materialized callable body 身份索引”的稳定视图，供后续 MIR rewrite / summary / codegen 接线复用；
   - 让后续 pass 可以明确地区分：
@@ -1456,6 +1456,13 @@
   - production 主路径存在稳定的 materialized-body / summary 查询入口；
   - 后续 MIR pass 不需要重新扫描 `MaterializedMir.file` 或回退到 `instance_keys` 字符串集合才能落地。
 - 依赖：T5000h0aR
+- 完成记录（2026-04-27）：
+  - 新增 `crates/scoopc/src/mir/callables.rs`，建立 canonical `MaterializedCallableView` / `MaterializedCallableFamilyView` 查询层，并在 materializer 产物上保留 `InstanceKey -> root_fqn / callable family` 的稳定 side table，避免 production 消费侧继续手扫 `MaterializedMir.file.items` 或自行拼 `instance_keys + summaries.get(...)`；
+  - `crates/scoopc/src/mir/materialize.rs` 中的 `MaterializedMir` 现已原生暴露 `callable_view()`，而 `crates/scoopc/src/hir/lower/types.rs` 中的 `LoweredHir` 新增 `materialized_callable_view()`，明确区分 raw `materialized_mir()` 与 production 主路径应优先消费的 canonical callable body / summary 视图；
+  - `crates/scoop/src/commands/build.rs` 与 `crates/scoopc/src/llvm/tests.rs` 的 production 回归现已直接通过新 view 断言 root body / owner instance / family summary，而不再只验证“原始 MIR 被保留下来”；
+  - 实现/验证过程中暴露并修复了一个既有边界问题：body-less `FunDecl`（例如 declaration-only surface）此前会被新视图误当成“有 body 的 callable”；现已把 view 与 family side table 收紧为只索引 `FunDecl.body.is_some()` 的真实 callable body，并过滤“同一 `InstanceKey` 已 materialize 后又被 declaration-only 输入重复覆盖”的路径，避免 `body_known` summary 与 root body 可见性不一致；
+  - 已新增 `mir::callables::tests::callable_view_keeps_overloaded_generic_roots_distinct`，锁定 overloaded generic 在 view 中仍保留 distinct root/body/summary 身份；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc callable_view_keeps_overloaded_generic_roots_distinct -- --nocapture`、`cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
 ### [TODO] T5000h0bR Review：确认 canonical materialized-body / summary 视图边界成立
 - 重点：

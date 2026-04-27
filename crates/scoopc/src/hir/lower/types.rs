@@ -325,8 +325,26 @@ pub struct LoweredHir {
 impl LoweredHir {
     /// 返回当前 lowering 产物上保留的 canonical materialized MIR（如果该 lowering 走的是
     /// production 的 via-MIR 主路径）。
+    ///
+    /// 说明：
+    /// - 这是 raw MIR / side-table 载体；
+    /// - production 消费侧若要按 callable body / summary 身份查询，应优先使用
+    ///   `materialized_callable_view()`。
     pub fn materialized_mir(&self) -> Option<&crate::mir::MaterializedMir> {
         self.materialized_mir.as_ref()
+    }
+
+    /// 返回当前 lowering 产物上的 canonical materialized callable body / summary 视图。
+    ///
+    /// 用途：
+    /// - 供 production/frontend/codegen 主路径直接按 `InstanceKey` / callable FQN 查询根 body、
+    ///   family body 与 per-instance summary；
+    /// - 避免消费侧继续手动扫描 `MaterializedMir.file` 或自行拼装
+    ///   `instance_keys + summaries.get(...)`。
+    pub fn materialized_callable_view(&self) -> Option<crate::mir::MaterializedCallableView<'_>> {
+        self.materialized_mir
+            .as_ref()
+            .map(crate::mir::MaterializedMir::callable_view)
     }
 
     /// 返回当前 lowering 产物上保留的 canonical materialized MIR 的可变引用。

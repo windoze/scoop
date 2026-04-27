@@ -343,6 +343,10 @@ fun main(): Int / Pure! {
         .lowered
         .materialized_mir()
         .expect("single-file frontend 应保留 materialized MIR");
+    let callable_view = codegen_unit
+        .lowered
+        .materialized_callable_view()
+        .expect("single-file frontend 应暴露 materialized callable view");
     let materialized_fun_fqns = materialized
         .file
         .items
@@ -377,11 +381,32 @@ fun main(): Int / Pure! {
             materialized_fun_fqns.contains(&fqn),
             "single-file frontend 应保留实例 `{fqn}` 的 materialized MIR body，实际 MIR 函数集合为: {materialized_fun_fqns:?}"
         );
-    }
-    for key in &materialized.instance_keys {
+        let root = callable_view
+            .callable(fqn)
+            .expect("callable view 应能直接查询 single-file frontend 的 root body");
+        let owner = callable_view
+            .owner_of_callable(fqn)
+            .expect("callable view 应能从 root body 反查所属实例");
+        let family = callable_view
+            .instance(owner)
+            .expect("callable view 应能从实例读取 canonical family");
+        assert_eq!(root.fqn, fqn);
+        assert_eq!(family.root_fqn(), fqn);
         assert!(
-            materialized.summaries.get(key).is_some(),
-            "single-file frontend 应为实例 `{key:?}` 保留 summary"
+            family.summary().body_known,
+            "有 body 的 root callable 应在 canonical view 中携带 body-known summary"
+        );
+    }
+    assert_eq!(
+        callable_view.instances().count(),
+        materialized.instance_keys.len(),
+        "callable view 应覆盖 single-file frontend 保留的全部实例"
+    );
+    for family in callable_view.instances() {
+        assert!(
+            family.summary().body_known == family.root_body().is_some(),
+            "canonical callable view 中的 body-known 应与 root body 是否存在一致：{}",
+            family.root_fqn()
         );
     }
 }

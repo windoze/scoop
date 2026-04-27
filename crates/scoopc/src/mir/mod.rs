@@ -16,6 +16,7 @@
 //! 当前入口仍主要服务 `dump-mir` 与 MIR fixtures；未覆盖节点继续以 `Todo(...)` 占位，
 //! 避免在边界收口阶段退回到 panic/隐式后端推断。
 
+mod callables;
 mod lower;
 mod materialize;
 mod summary;
@@ -27,6 +28,8 @@ use crate::ast;
 use crate::span::Span;
 use crate::ty::TypeId;
 
+pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
+pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
 pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 pub use materialize::{

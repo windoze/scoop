@@ -1460,6 +1460,29 @@
   - 结论：
     - review 未暴露需要插入到 `T5000h0b` 前的新前置缺陷；production frontend 已稳定保留 materialized MIR / summary 产物。
     - 下一条待执行任务切换为 `T5000h0b 建立 production 可复用的 materialized callable body / summary 视图`。
+- 2026-04-27：`T5000h0b 建立 production 可复用的 materialized callable body / summary 视图` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/mir/callables.rs`，建立 `MaterializedCallableView` / `MaterializedCallableFamilyView`；该层以 `InstanceKey` 为入口，稳定暴露 root callable、family callable bodies 与 per-instance summary，而不是让消费侧直接手扫 `MaterializedMir.file.items` 或再自行拼 `instance_keys + summaries.get(...)`；
+    - `crates/scoopc/src/mir/materialize.rs` 现会在 materialization 产出阶段保留 `InstanceKey -> root_fqn / callable family` side table，并由 `MaterializedMir::callable_view()` 暴露 canonical 查询入口；
+    - `crates/scoopc/src/hir/lower/types.rs` 中的 `LoweredHir` 已新增 `materialized_callable_view()`，明确 raw `materialized_mir()` 只是载体，而 production/frontend/codegen 主路径应优先消费 canonical callable body / summary 视图；
+    - `crates/scoop/src/commands/build.rs` 与 `crates/scoopc/src/llvm/tests.rs` 的 production 回归已改为直接经由该 view 验证 root body、owner instance 与 family summary。
+  - 本轮同时修复的既有问题：
+    - 新视图验证首先暴露出一个真实边界 bug：body-less `FunDecl`（包括 declaration-only surface）此前会被视图误当成“有 body 的 callable”，从而让 `summary.body_known` 与 root body 可见性不一致；
+    - 现已把 view 与 materialized family side table 一并收紧为只索引 `FunDecl.body.is_some()` 的真实 callable body，并过滤“同一 `InstanceKey` 已 materialize 后又被 declaration-only 输入重复覆盖”的路径，避免 canonical view / summary 在 production 主线上出现自相矛盾的可见性。
+  - 新增验证覆盖：
+    - `mir::callables::tests::callable_view_keeps_overloaded_generic_roots_distinct`
+    - `llvm::tests::single_file_frontend_keeps_distinct_effect_row_generic_instances`（增强为经由 callable view 断言）
+    - `commands::build::tests::build_frontend_keeps_distinct_effect_row_generic_instances`（增强为经由 callable view 断言）
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc callable_view_keeps_overloaded_generic_roots_distinct -- --nocapture`
+    - `cargo test -p scoopc single_file_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test -p scoop build_frontend_keeps_distinct_effect_row_generic_instances -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000h0bR Review：确认 canonical materialized-body / summary 视图边界成立`。
 
 ## 1. 当前判断
 
