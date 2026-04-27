@@ -1,105 +1,239 @@
-# Issues
+# 当前问题记录：MIR materialization 与 LLVM HIR 兼容边界
 
-## 范围
+调研时间：2026-04-28
 
-- 本轮只记录“语言特性 / 规范兑现 / 编译链语义”上的缺口。
-- 本轮先不展开 executor framework / 调度策略 / wakeup API；除非它们直接阻塞 `Task` 形状或 effect codegen，否则统一留到下一阶段。
-- 明确不单列：纯 stdlib / sysroot API 占位、并发基础库 surface、MIR `Todo(...)`、以及通用 host-only GC / target capability 路线图；只有当它们直接阻塞某条语言规则时，才并入对应条目。
-- 以下结论已交叉验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check`。
+背景判断：production build 当前已经不是纯 HIR eager monomorphization。主路径大致是：
 
-## 已确认不再计为 issue 的历史说法
+1. typecheck 收集 `MonomorphKey`。
+2. MIR materializer 根据这些请求和 request-root 可达扫描生成 `InstanceKey` 集合、materialized MIR、summary/pass artifacts。
+3. HIR compatibility lowering 再按 `InstanceKey` 恢复当前 LLVM 仍需要消费的 monomorphic HIR fun/member。
+4. LLVM production emit 要求 `LoweredHir::materialized_pass_view()` 存在，但普通 body emission 仍主要走 HIR，只有 pass 显式 override 的 body 走 MIR bridge。
 
-- member call / interface dispatch 已经打通；`tests/fixtures/typecheck/member_call_interface_dispatch_not_supported_is_error.scoop` 现在实际是 pass fixture，只剩历史文件名。证据：`crates/scoopc/src/typecheck/expr/call.rs:4384-4828`；`tests/fixtures/typecheck/member_call_interface_dispatch_not_supported_is_error.scoop:1-18`；`tests/fixtures/run-pass/member_call_interface_dispatch_basic.scoop:1-23`。
-- class 实例字段 member access codegen 已支持；`tests/fixtures/run-pass/gc_trace_class_ref_field_basic.scoop` 里的“尚未支持 class 字段 member access codegen”注释已经过时。证据：`crates/scoopc/src/llvm/codegen/mod.rs:12801-12875`；`tests/fixtures/run-pass/gc_trace_class_ref_field_basic.scoop:4-7`。
-- `@CLayout(..., packed = n)` 已支持 `n <= 16` 且为 2 次幂；`sysroot/core.scoop` 里“v0 仅支持 packed = 1”的历史注释不再准确。证据：`crates/scoopc/src/typecheck/annotations.rs:1757-1767`；`crates/scoopc/src/llvm/codegen/ty.rs:396-407`；`sysroot/core.scoop:128-128`。
-- multi-file lowering 对“非入口文件 source-backed literals”的旧限制已解除，相关 stdlib 注释过时，不再算语言 feature 缺口。证据：`crates/scoopc/src/hir/lower/mod.rs:1509-1510`；`stdlib/array_iter.scoop:9-9`；`stdlib/mutable_array.scoop:15-15`；`stdlib/mutable_array_iter.scoop:8-8`；`stdlib/mutable_list.scoop:10-10`。
+这个半切换边界已有不少保护，但实例根、可达性和 side table 传递仍存在几个不一致点。
 
-## 1. effect / continuation 主路径已足够支撑手动 step 的 `Task`，但 richer async 组合写法仍未完全收口
+## P1：build frontend 的实例根范围比 single-file frontend 宽，可能过度物化
 
-- 现状：escape continuation 已经可以 capture、堆存、跨作用域 later-resume，并且 `Continuation.resume` surface 现已和 payload transport 对齐：`Continuation<Unit>` 支持 `k.resume()`，tuple payload 支持扁平 `k.resume(v0, v1, ...)` 与 `a0/a1/...` 命名实参，同时旧的单 payload `k.resume(value)` 继续兼容。多 effect type params、receiver effect op、handler arm head 的显式 effect/op type args，以及 escape continuation binder 的精确 effect-row 注入也都已收口，现有 FIFO/LIFO scheduler fixtures 继续证明 pure Scoop 代码可以把 `Continuation<T>` 存进普通 class 字段后手动推进计算。因此，从“Task 内部靠 continuation stepping”这个角度看，effect codegen 主路径已经可用。当前剩余缺口主要收窄为：在 async 组合子路径上，LLVM 后端对 escape continuation 的组合能力仍偏弱，`Task<Int>.andThen` 这类“一个 setup 里串两个 await”仍需要拆成两段 `handle`。与此同时，`-> resume` / ImmediateResume 的 stack-local fast path 现已被明确记录为 deferred optimization；当前实现继续统一使用 GC-managed full machine，而不是再让 spec 隐含承诺“已经有独立 stack-local storage 选择”。
-- 影响：effect / continuation 已经不再是 “Task redesign 无法开始” 的 blocker；它已经足以支撑“Task 是普通对象、内部保存并推进 continuation”的方向。真正尚未完成的是更自然的多 suspend / 多 await 组合写法，而不是 continuation 的基本表示、resume surface 或隐含的 stack-local ABI 承诺。
-- 证据：`tests/fixtures/run-pass/effect_escape_continuation_scheduler_fifo_multi_task.scoop:18-163`；`tests/fixtures/run-pass/effect_escape_continuation_scheduler_lifo_multi_task.scoop:19-155`；`tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop:1-68`；`tests/fixtures/typecheck/continuation_resume_surface_ok.scoop:1-15`；`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop:19-58`；`crates/scoopc/src/typecheck/expr/call.rs` 中 `try_infer_continuation_resume_call_expr_type`；`crates/scoopc/src/llvm/codegen/effect/mod.rs` 中 `codegen_continuation_resume_payload_value`；`SCOOP_FULL_SPEC.md` 第 5.4/5.5/5.6 节；`SCOOP_RUNTIME.md` 第 10 节。
+`crates/scoopc/src/llvm/frontend.rs` 的 single-file frontend 只让入口文件调用：
 
-## 2. `Task` core / stable handle wake-token 合同已收口
+- `check_file_exprs_with_monomorph_keys(...)`
+- `request_source_paths = [entry_source.path()]`
 
-- 现状：`Task<T>` 现已作为普通、lazy、可手动 `step()` 的 `scoop.core.Task` 对外成立；公开 surface 已收口为 `Task<T>` / `TaskStep<T>` / `Task.step()` / `Async.await`。`async {}` / `async fun` 统一 lower 到内部 task-create + step-result 主线，公开的 `scoop.task` executor surface、runtime executor implementation 与 compiler 端 `scoop.task.*` / `Executor` special-case 都已移除。进一步地，core `Task` 的最终 drive 合同也已收口为 **single-driver + atomic claim-bit + sequential cross-thread handoff**：task 对象只保留私有 `__claim` 与 `__state`，claim 冲突或在持有 claim 后观察到 `Running` 都直接 trap，不再通过 `Pending` 吸收竞争。`spawn/join` 当前只保留语法壳以便后续恢复 structured concurrency，但 typecheck 会统一报 `structured_concurrency_deferred`，不再把它们算作当前 `Task` core 的一部分。stable handle 合同也已补齐：reactor / callback / future executor 现统一以 `GcHandle.raw` 作为长期 wake token / identity，而 `Pinned` 只承担短时裸地址借出。
-- 影响：`Task` 已经真正脱离 executor 与 structured-concurrency 前提，可以单独作为通用手动 drive 的异步对象成立；同时它也不再依赖 per-task mutex、shared-subtask 或 contention-as-`Pending` 旧叙事。后续若重新展开 executor framework 或公开 structured concurrency，应作为新的独立设计任务进入，而不是回写当前 `Task` core 合同。
-- 证据：`sysroot/core.scoop`；`sysroot/task.scoop`；`sysroot/unsafe.scoop`；`SCOOP_FULL_SPEC.md` 第 5.7 节；`SCOOP_RUNTIME.md` 第 11 节；`SCOOP_TASK.md`；`crates/scoopc/src/typecheck/expr/error.rs`；`crates/scoopc/src/typecheck/expr/infer.rs`；`crates/scoopc/src/llvm/codegen/mod.rs`；`crates/scoopc/src/llvm/mod.rs` 中 `task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex`；`runtime/c/scoop_gc.h`；`crates/scoop_runtime/src/abi_exports_allowlist.rs`；`tests/fixtures/typecheck/spawn_deferred_is_error.scoop`；`tests/fixtures/typecheck/join_deferred_is_error.scoop`；`tests/fixtures/run-pass/async_await_string_basic.scoop`；`tests/fixtures/run-pass/task_step_manual_basic.scoop`；`tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`；`tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`；`tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop`；`tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`。
+support sources 只作为可被调用的实现体参与普通 typecheck/lowering，不贡献初始 monomorphization 请求根。
 
-## 3. lambda 推断与 receiver lambda 仍不完整
+相关位置：
 
-- 现状：没有 expected function type 时，未标注类型的 lambda 参数仍会直接报错；当前 expected-type 向下传播仍只覆盖 0/1/2 参数 lambda；receiver function type 虽可进入类型系统，但 lambda body 里仍不会自动注入 `this`。
-- 影响：lambda 的基本语法已经可用，但“先写 lambda 再让上下文推断”“更多参数形态”“receiver lambda 直接使用 `this`”这些常见写法仍不完整。
-- 证据：`crates/scoopc/src/typecheck/expr/infer.rs:305-321`；`crates/scoopc/src/typecheck/expr/infer.rs:2049-2065`；`crates/scoopc/src/typecheck/expr/infer.rs:2368-2369`。
+- `crates/scoopc/src/llvm/frontend.rs:160`
+- `crates/scoopc/src/llvm/frontend.rs:202`
 
-## 4. 调用语义仍有多处早期门禁
+但 `scoop build` frontend 当前对 `front.input.sources` 中所有文件都调用 `check_file_exprs_with_monomorph_keys(...)`，包括：
 
-- 现状：函数值调用仍不支持命名实参；函数指针调用同样不支持命名实参，并明确拒绝 receiver function type 作为签名；`callee<T>` 仍不能作为一等值传递；函数签名仍只支持“至多一个 vararg，且必须为最后一个形参”；`super(...)` / `this(...)` 构造器委托调用仍只允许位置参数。
-- 影响：Kotlin-like 调用规则尚未在所有 callee 形态上统一落地，调用系统仍带着较多“按 callee 形态分流”的早期特判。
-- 证据：`crates/scoopc/src/typecheck/expr/call.rs:789-800`；`crates/scoopc/src/typecheck/expr/call.rs:943-978`；`crates/scoopc/src/typecheck/expr/call.rs:1560-1564`；`crates/scoopc/src/typecheck/expr/mod.rs:147-160`；`crates/scoopc/src/typecheck/expr/entry.rs:910-911`。
+- `stdlib/*.scoop`
+- compilable sysroot sources
+- cone 当前源集中所有文件
 
-## 5. 泛型约束、参数化超类型与 star projection 已收口
+相关位置：
 
-- 现状：`where` 子句已支持带类型实参的 nominal bound；`TypeEnv` 记录 direct supertypes 时会同时保留 FQN 与原始 type args；assignable / 上转规则已改为沿“具体化后的 direct supertypes”做 DFS；spec §3.3 的 star projection 也已落到独立的 typecheck 内部表示，并在导出 / RTTI / LLVM 侧擦除为 `Any?` 读视图，而不再直接退化成裸 `Any`。
-- 影响：泛型约束、参数化子类型关系与 `List<*>` / `Array<*>` 一类 star projection 主线现已贯通，不再是后续 lambda / 调用 / 跨文件实例化任务的前置 blocker；后续只需在 `T4001R` 中继续复核“没有回退到局部特判”。
-- 证据：`crates/scoopc/src/typecheck/type_env.rs:207-215`；`crates/scoopc/src/typecheck/lower.rs:1058-1071`；`crates/scoopc/src/typecheck/lower.rs:2181-2218`；`crates/scoopc/src/typecheck/assignable.rs:44-122`；`crates/scoopc/src/llvm/codegen/mod.rs:15082-15164`；`tests/fixtures/typecheck/where_clause_parameterized_bound_method_ok.scoop:1-22`；`tests/fixtures/typecheck/where_clause_parameterized_bound_not_satisfied_is_error.scoop:1-22`；`tests/fixtures/typecheck/star_projection_value_type_requires_boxing_is_error.scoop:1-11`；`tests/fixtures/typecheck/star_projection_nullable_ref_read_view_ok.scoop:1-12`；`tests/fixtures/run-pass/parameterized_supertype_interface_dispatch.scoop:1-33`；`tests/fixtures/run-pass/star_projection_array_read_view.scoop:1-23`。
+- `crates/scoop/src/commands/build.rs:709`
 
-## 6. 顶层 pattern binding 仍不支持
+之后 `lower_main_hir_for_build` 调用的是不带 request-source 参数的 wrapper：
 
-- 现状：顶层 `val` 的声明头检查仍会直接拒绝 `val (a, b) = ...` 这类 pattern binding。
-- 影响：局部解构绑定已经逐步推进，但顶层声明还不能复用同一套语法，特性覆盖不一致。
-- 证据：`crates/scoopc/src/typecheck/headers.rs:26-32`；`crates/scoopc/src/typecheck/headers.rs:173-193`。
+- `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level(...)`
 
-## 7. 值类型语义应继续保持不可变；后续重点是增强 `with`
+这个 wrapper 会把 `files_to_lower` 全部转成 `request_source_paths`：
 
-- 现状：spec 已明确所有 value type 都是 immutable，`with` 的语义也是“创建修改后的副本”；当前实现据此拒绝 `struct` 的 `var` 字段和值类型上的 `var` property。也就是说，这里的缺口不应再理解为“还没支持 Swift-style 可变 struct”。真正仍未完成的是 immutable-friendly 的更新与声明能力：`with` 当前虽然已经支持多段字段路径与并行冲突检查，但 base 仍只支持 `struct`，还不能泛化到 tuple / enum 等其它值类型；字段默认值这类声明便利性也仍未覆盖。
-- 影响：如果把“字段级写回式 `var`”继续当成待补 feature，会把当前更接近 Valhalla-style 的 value semantics 搅混。更清晰的方向是保持整体不可变，把值对象更新统一收敛到显式 `with`，再逐步增强 `with` 的覆盖面与人体工学。
-- 证据：`SCOOP_FULL_SPEC.md:45-46`；`SCOOP_FULL_SPEC.md:371-371`；`SCOOP_FULL_SPEC.md:1588-1588`；`SCOOP_FULL_SPEC.md:1628-1628`；`crates/scoopc/src/typecheck/structs.rs:3-7`；`crates/scoopc/src/typecheck/structs.rs:35-50`；`crates/scoopc/src/typecheck/properties.rs:62-72`；`crates/scoopc/src/typecheck/expr/infer.rs:2967-3041`；`crates/scoopc/src/typecheck/expr/error.rs:925-955`。
+- `crates/scoopc/src/hir/lower/mod.rs:2682`
 
-## 8. `when` 的 or-pattern 仍应先收敛到“无 binder”子集
+这和 `with_request_sources` 接口的设计目标冲突。该接口注释明确说：
 
-- 现状：or-pattern 已可用于简单判别，但一旦在 `A(x) | B(x)` 这类模式里引入 binder，就会被直接拒绝；resolver 也不会在 `WhenPat::Or` 下声明 binder。与此同时，现有语法已经可以表达 `A(..) | B(..)` / `A(_) | B(_)` 这类“只判别、不绑定”的子集。
-- 影响：当前真正低风险、低改动的方向应是优先支持“无 binder 的 payload or-pattern”。若未来要放开 binder-sharing，则至少需要要求“各分支 binder 集合一致且每个 binder 精确同型”，不能把 `A(x) | C(x)` 这类情况宽松合流成 `Any`。另外，暂不应把 bare `A | C` 扩成“忽略 payload”的语法糖，因为 parser 当前把大写裸名解释为 0-arg variant。
-- 证据：`crates/scoopc/src/typecheck/when_pat.rs:89-103`；`crates/scoopc/src/typecheck/when_pat.rs:193-206`；`crates/scoopc/src/resolve/scopes.rs:940-950`；`crates/scoopc/src/parser/expr.rs:2077-2085`。
+- `files_to_lower` 决定哪些文件进入 HIR 兼容输出；
+- `request_source_paths` 决定哪些源文件可以贡献 monomorphization 请求与 request-root 可达扫描；
+- 这样 support sources 可以留在 lowering/fun_index 中，同时避免其内部未被入口触达的 generic 调用被提升为实例根。
 
-## 9. `@Inline` 交叉项已收口，不再计为 annotation issue
+相关位置：
 
-- 现状：annotation class 仍保持 compile-time markers only；`@Inline` 现已被编译器识别为 built-in annotation，并明确收口为“仅函数目标、无参数”的 compile-time marker。`sysroot/core.scoop` 与 `SCOOP_FULL_SPEC.md` 已同步到同一叙事：`@Inline` 只是内联提示，不承担任何控制流语义。
-- 影响：annotation 相关剩余缺口不再包含 `@Inline`；`@Target/@Retention` contract 与 built-in marker surface 在这一交叉点上已对齐。
-- 证据：`crates/scoopc/src/typecheck/builtin_annotations.rs`；`crates/scoopc/src/typecheck/annotations.rs`；`sysroot/core.scoop`；`tests/fixtures/typecheck/inline_annotation_fun_ok.scoop`；`tests/fixtures/typecheck/inline_annotation_invalid_target_is_error.scoop`。
+- `crates/scoopc/src/hir/lower/mod.rs:2705`
+- `crates/scoopc/src/hir/lower/mod.rs:2710`
 
-## 10. legacy `inline` 关键字与 non-local return 语义残留已移除
+影响：
 
-- 现状：parser 不再接受 `inline` modifier，并会通过 `scoop::parse::inline_modifier_removed` 把旧写法引导到 `@Inline fun ...`；typecheck 也已删除 inline-specific 的 lambda non-local return 例外，`return` 统一只能离开立即包裹它的命名函数体。
-- 影响：当前仓库不再保留“关键字负责语法、annotation 负责语义”或“inline 放宽控制流规则”的双轨模型。若未来重新设计 non-local return / break / continue，应作为新的 effect/handler 设计任务处理，而不是回挂到 `@Inline`。
-- 证据：`crates/scoopc/src/parser/mod.rs`；`crates/scoopc/src/parser/decls.rs`；`crates/scoopc/src/typecheck/expr/stmt.rs`；`crates/scoopc/src/typecheck/expr/error.rs`；`tests/fixtures/parse/inline_modifier_removed.scoop`；`tests/fixtures/typecheck/return_in_inline_annotation_lambda_arg_is_error.scoop`。
+- build 主路径可能把 support file 内部不可达的 generic 调用当作实例根；
+- 这会增加 materialized MIR/HIR 兼容输出中的实例集合；
+- 更严重时，support 文件中后端尚不支持的 generic body 可能被不必要地推到 LLVM 边界。
 
-## 11. ordinary `@Extern` 边界与 stable handle / `Pinned` token 模型已收口
+建议：
 
-- 现状：ordinary `@Extern` 已明确收口为 effect-impermeable native leaf boundary：调用点仅承担 `enter_native(root_slots, len) -> native leaf call -> leave_native()` 与普通 ABI 参数/返回，不再安装 `EffectCtx` / `EffectOutcome` 传播合同，也不允许 continuation / non-local control 穿越。与此同时，长期 opaque token 现已统一为 `GcHandle.raw: UIntPtr` round-trip：native 侧长期保存 word-sized token，Scoop 侧在 callback / completion / cancellation 路径上重建 `GcHandle { raw: raw }` 后执行 `GC.handleGet` / `GC.handleDrop`。`Pinned` 继续保留为含 `Any` 的 Scoop 侧 pin handle，只承担短时裸地址借出，不再被表述为 ordinary `@Extern` ABI token。
-- 影响：FFI / reactor / callback 场景中的“长期 stable identity”与“短时 raw-address borrow”现已由不同 surface 明确区分，不再混用 pin 作为 wake-token / registration token；ordinary FFI 也不再隐含 GC / effect 边界语义。
-- 证据：`crates/scoopc/src/typecheck/annotations.rs`；`crates/scoopc/src/typecheck/expr/error.rs`；`crates/scoopc/src/llvm/codegen/mod.rs`；`crates/scoopc/src/llvm/mod.rs`；`SCOOP_FULL_SPEC.md` §15.5.1 / §15.10 / §15.10.1；`SCOOP_RUNTIME.md` §4.3-§4.4；`sysroot/core.scoop:220-258`；`sysroot/unsafe.scoop:88-102`；`tests/fixtures/typecheck/extern_fun_effects_not_allowed_is_error.scoop`；`tests/fixtures/typecheck/extern_fun_eff_param_not_allowed_is_error.scoop`；`tests/fixtures/typecheck/extern_fun_signature_with_continuation_is_error.scoop`；`tests/fixtures/typecheck/extern_fun_gc_handle_raw_token_roundtrip_ok.scoop`；`tests/fixtures/typecheck/extern_fun_signature_with_pinned_is_error.scoop`；`tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop`；`tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`；`tests/fixtures/runtime_gc/gc_pin_unpin_move_stress_matrix.scoop`。
+- 单文件 build 与 `crates/scoopc/src/llvm/frontend.rs` 对齐：只有用户入口文件贡献 `MonomorphKey`，stdlib/sysroot support sources 只普通 typecheck。
+- cone build 需要明确 root 策略：
+  - 保守方案：当前 consumer cone 全源文件都是 request roots，但不让 stdlib/sysroot support sources 贡献 initial `MonomorphKey`。
+  - 更精确方案：从选定 `entry_main_fqn` 或 entry package 计算 request roots。
+- `lower_main_hir_for_build` 应改用 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，显式传入 request roots。
 
-## 12. const / comptime 纯计算主线已明显扩展，剩余缺口已收窄到更复杂纯语义
+## P1：`MonomorphKey` 没有 call-site source，后置过滤能力不足
 
-- 现状：顶层 `const fun` 调用与 package-level `comptime if` 条件现都接入 compilation-unit 的 resolve/typecheck 绑定；跨文件 / import / overload / generic 实例化以及显式类型实参都会复用普通调用主线的最终选择。解释器在裁剪 package-level `comptime if` 时，会基于“当前可见前缀 + 条件 probe”刷新临时 compilation unit 的 `TopLevelFunCallBinding`，并把 probe `TypeStore` 回填给解释器，因此同文件 overloaded `const fun`、generic `truthy<Int>(...)` 与 imported cross-file `const fun` 条件都不再退回 simple-name + arity fallback。与此同时，常量 evaluator / interpreter 现已覆盖普通 `if` / block / `do`、局部 `val/var`、assignment、`while` / 普通 `for`、`break/continue`、`comptime if/for`、字符串 builtin 与跨函数纯计算等主线；为了保证递归错误先返回结构化诊断而不是先撞上测试线程栈上限，默认递归深度门限也已收紧到保守值。`const fun` 的声明级 effect contract 现也已明确收口：函数自身只能省略 effect row，或显式声明 `/ Pure` / `/ Pure!`，且不允许声明 `<eff ...>` effect-row 参数；typecheck、comptime 解释器注释与 spec 已统一到这一保守纯契约。
-- 影响：编译期执行链路的“调用绑定 + generic 实例化 + package-level 裁剪 + 常见纯控制流 + const 声明级 effect contract”主线现已基本打通；后续重点应继续收窄到 `when`、lambda、effectful constructs 等更复杂纯语义，而不是继续围绕 package-level `comptime if` 条件的调用绑定缺口打补丁。
-- 证据：`crates/scoopc/src/typecheck/headers.rs`；`crates/scoopc/src/typecheck/expr/call.rs`；`crates/scoopc/src/comptime/eval.rs`；`crates/scoopc/src/comptime/interpreter.rs`；`crates/scoopc/src/comptime/tests.rs`；`crates/scoop/src/commands/build.rs`；`crates/scoop/src/fixtures/mod.rs`；`crates/scoopc/src/llvm/frontend.rs`；`tests/fixtures/comptime/const_fun_control_flow_locals_loops_basic.scoop`；`tests/fixtures/comptime/const_fun_closed_pure_basic.scoop`；`tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun/src/main.scoop`；`SCOOP_FULL_SPEC.md` §6.2。
+`MonomorphSymbol` 只记录被实例化声明的：
 
-## 13. Elvis `?:` 已有静态规则，但仍未进入可执行 lowering / codegen
+- `fqn`
+- `decl_file`
+- `decl_span`
 
-- 现状：parser 和 typecheck 已经接受 Elvis，且有独立的 nullable / rhs type 规则；但 HIR lowering 仍把它留在 `Any` fallback，LLVM codegen 仍直接报 `elvis operator` unsupported。
-- 影响：spec Appendix B.3.2 中已经公开的 `?:` 目前只存在于“语法 + 静态规则”层，无法成为稳定的可执行语言特性。
-- 证据：`crates/scoopc/src/typecheck/expr/infer.rs:270-270`；`crates/scoopc/src/typecheck/expr/member.rs:58-82`；`tests/fixtures/typecheck/safe_call_and_elvis_ok.scoop:1-16`；`crates/scoopc/src/hir/lower/expr.rs:3112-3113`；`crates/scoopc/src/llvm/codegen/mod.rs:13813-13816`。
+`MonomorphKey` 只补充：
 
-## 14. 跨文件 / 跨包编译链路已收口
+- `type_args`
+- `eff_args`
 
-- 现状：compilation-unit 主线现在会按整个编译单元聚合顶层值类型；`scoop build/run` 会从全部源文件收集 monomorph keys，并在 HIR lowering 阶段为跨文件顶层泛型函数生成实例；resolver/typecheck 对 extension 的候选收集已统一覆盖“同包隐式可见 + star import + 显式 import”的跨包 / 跨 cone 发现路径。
-- 影响：跨文件顶层值、跨文件泛型实例化与跨包扩展解析已不再是语言规则缺口；`T4007` 之后的工作可以直接建立在统一的 compilation-unit 语义上继续推进。单文件 `scoop dump-ir` 调试入口仍按单文件输入建模，但它不再计入这里的编译链 issue。
-- 证据：`crates/scoopc/src/typecheck/expr/collect.rs`；`crates/scoop/src/commands/build.rs`；`crates/scoopc/src/hir/lower/util.rs`；`crates/scoopc/src/resolve/scopes.rs`；`tests/fixtures/run_pass_cone/cross_file_generic_top_level_val_basic/src/main.scoop`；`tests/fixtures/typecheck_cone/cross_cone_extension_imports/app/star_import_ok.scoop`；`tests/fixtures/resolve_cone/extension_imports/app/star_import_ok.scoop`。
+相关位置：
 
-## 15. 旧 RTTI 导出 API 对泛型 / `eff` 参数化 nominal 的缺口已收口
+- `crates/scoopc/src/monomorph/mod.rs:28`
+- `crates/scoopc/src/monomorph/mod.rs:56`
 
-- 现状：旧 RTTI `dump_type_rtti` 现已支持通过当前文件 package/import 语境解析参数化 nominal query；generic struct 会按声明处文件上下文重新实例化字段类型并计算布局，parameterized interface / `eff` target 也会导出与 `type_desc` metadata 一致的 canonical name / `type_id`。
-- 影响：运行期 `is/as/as?`、`dump-rtti` 的 type descriptor 输出，以及旧 RTTI API 对参数化 nominal 的可观测 identity 现在都已对齐，不再残留“旧 API 直接拒绝 args / eff”的独立语言缺口。
-- 证据：`crates/scoopc/src/rtti/mod.rs`；`crates/scoopc/src/typecheck/lower.rs`；`crates/scoopc/src/rtti/type_desc.rs`；`tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`；`crates/scoopc/src/rtti/mod.rs` 单测 `rtti_parameterized_struct_query_instantiates_field_types` 与 `rtti_parameterized_nominal_query_matches_type_desc_metadata`。
+所以一旦 build frontend 把某个 support source 的 `MonomorphKey` 放进 `front.monomorph_keys`，materializer 的 `seed_requests(...)` 无法判断这个请求来自哪个调用点/source，只能无条件作为初始实例根处理。
+
+相关位置：
+
+- `crates/scoopc/src/mir/materialize.rs:2537`
+
+影响：
+
+- request-source 过滤只能控制 `collect_request_root_fun_keys(...)` 和 HIR direct-call fallback 扫描；
+- 对已经收集进来的 `MonomorphKey`，materializer 缺少来源信息，无法准确过滤非 request source 请求；
+- 这使 P1 的 build frontend 过度收集更难在下游修正。
+
+建议：
+
+- 短期：在 frontend 收集阶段按 source 分流，不让 support source 贡献 `MonomorphKey`。
+- 中期：为 monomorph request 增加来源信息，例如：
+  - `request_source_path`
+  - `call_span`
+  - 或新增 `MonomorphRequest { key, source_path, call_span }`，保留 `MonomorphKey` 作为实例身份。
+- materializer 入口可接收带来源的请求，并在 `request_source_paths` 之外过滤 initial seeds。
+
+## P2：request-root 当前是“源文件级”，不是 entry-main 可达级
+
+`collect_request_root_fun_keys(...)` 会把 request source 中的所有顶层函数和 member fun 都作为 request-root fun。
+
+相关位置：
+
+- `crates/scoopc/src/mir/materialize.rs:539`
+
+因此，只要某个函数定义在 request source 内，即使它并未从选定 `main` 真正可达，也会参与 request-root 可达扫描。
+
+这解释了现有测试中常见的模式：
+
+```scoop
+fun entry(): Int {
+    return wrap<Int>(1)
+}
+
+fun main(): Int / Pure! {
+    val thunk: () -> Int = entry
+    return 0
+}
+```
+
+即使 `main` 没有调用 `entry()`，`entry` 内部的 generic 实例仍会被 materialize。当前这可能是有意的“源文件级 request root”策略，但它比 production executable 的真实入口可达图更粗。
+
+影响：
+
+- 单文件 build 或 cone entry file 中的未调用 helper 仍可能贡献实例；
+- 如果这些 helper 只作为库 API 或实验代码存在，会扩大实例集合；
+- 与 LLVM `collect_reachable_top_level_funs(hir_main, ...)` 的入口语义不完全一致。
+
+建议：
+
+- 明确当前语义是否是设计选择。
+- 若目标是 executable 精确构建，应新增 entry-main rooted materialization mode：
+  - 以 `entry_main_fqn` 为初始 root；
+  - 通过 MIR/HIR call graph 扩展；
+  - 保留显式 export/native entry points 作为额外 roots。
+
+## P2：MIR materializer 的 request-root 可达扫描不使用 MIR CFG reachable-block 过滤
+
+materializer 在 `scan_reachable_non_generic_fun(...)` 中直接遍历 `body.blocks` 的所有 block：
+
+- `crates/scoopc/src/mir/materialize.rs:2617`
+
+LLVM reachability 在扫描 pass MIR body 时则先调用 `body.reachable_blocks()`，失败后才退回全块扫描：
+
+- `crates/scoopc/src/llvm/reachability.rs:274`
+
+影响：
+
+- materializer 可能从 MIR 不可达 block 中发现 generic direct-call，并物化额外实例；
+- LLVM 后续 reachability 未必按同一标准认为这些 call 可达；
+- 这是另一个“实例集合”和“最终 codegen 可达集合”口径不一致点。
+
+建议：
+
+- 将 `scan_reachable_non_generic_fun(...)` 改成与 LLVM reachability 一致：
+  - `body.reachable_blocks()` 成功时只扫描可达 blocks；
+  - 失败时再保守扫描全部 blocks。
+- 增加回归：不可达 MIR block 中存在 `id<Int>`，materializer 不应产生 `id::<Int>`，除非 CFG 验证失败触发保守回退。
+
+## P2：LLVM production 仍主要消费 HIR 兼容 body，MIR body 只在 pass override 时生效
+
+production emit 已经要求 `LoweredHir::materialized_pass_view()` 存在，并把 pass view 传给：
+
+- reachability
+- body presence 判断
+- suspendability summary cache
+
+相关位置：
+
+- `crates/scoopc/src/llvm/emit.rs:706`
+- `crates/scoopc/src/llvm/emit.rs:890`
+
+但实际 body emission 是：
+
+- 若 `pass_view.callable_body_is_overridden(fun.fqn)`，走 `codegen_top_level_mir_fun(...)`；
+- 否则走 `codegen_top_level_fun(...)` 的 HIR codegen。
+
+相关位置：
+
+- `crates/scoopc/src/llvm/emit.rs:803`
+- `crates/scoopc/src/llvm/emit.rs:910`
+
+这不是当前代码的隐藏 bug，而是明确的桥接状态：raw materialized MIR body 默认还不是 LLVM body source of truth，只有 pass 显式发布 override 后才影响 production body emission。
+
+影响：
+
+- HIR compatibility side tables 仍是多数 LLVM lowering 的真实事实源；
+- materialized MIR summary/pass artifacts 与 HIR body 之间若出现差异，只有部分消费点能观察到；
+- 后续 MIR pass 若希望影响真实 codegen，必须通过 `pass_artifacts.replace_callable_body(...)` 发布 override。
+
+建议：
+
+- 短期保持现状，但把“只有 override 才走 MIR body”的约束写入任务说明/代码注释，避免误以为 raw materialized MIR 已全面接管 LLVM。
+- 中期扩大 `codegen_top_level_mir_fun(...)` 支持子集，让更多 materialized root body 可直接作为 codegen source。
+- 长期减少 HIR compatibility lowering 对实例 body 的责任，只保留 side tables 或逐步迁移 side tables 到 MIR/program facts。
+
+## 已有保护和回归覆盖
+
+已有保护：
+
+- `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)` 已支持 `files_to_lower` 与 `request_source_paths` 分离。
+- materializer 能通过 request-root 扫描发现跨文件 helper 中实际触达的 generic/effect-generic 实例。
+- HIR compatibility lowering 已经按 materializer 产出的 `InstanceKey` 生成 monomorphic fun/member，而不是 legacy eager HIR 自行决定实例集合。
+- production LLVM 入口会拒绝没有 materialized pass view 的 legacy lowering。
+- pass override body、pass summary override、caller-side non-generic pass rewrite 已经能影响 production LLVM。
+
+本次验证过的测试：
+
+```bash
+cargo test -p scoop build_frontend
+cargo test -p scoopc typechecked_compilation_unit_materialization
+cargo test -p scoopc production_codegen
+```
+
+结果：
+
+- `cargo test -p scoop build_frontend`：4 passed。
+- `cargo test -p scoopc typechecked_compilation_unit_materialization`：8 passed。
+- `cargo test -p scoopc production_codegen`：8 passed。
+
+## 建议收口顺序
+
+1. 修 build frontend 的 request-source 接线，先避免 stdlib/sysroot support sources 贡献 initial `MonomorphKey`。
+2. 为 monomorph request 增加 call-site/source 来源，或在 frontend 侧保留带来源 wrapper。
+3. 统一 materializer 与 LLVM reachability 的 MIR reachable-block 扫描口径。
+4. 明确 request-root 粒度：source-file roots、entry package roots，还是 entry-main reachable roots。
+5. 逐步扩大 MIR body codegen bridge，减少 HIR compatibility body 对 production correctness 的影响。
