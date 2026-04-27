@@ -2031,6 +2031,7 @@ fn materialize_generic_mir(
         builtins,
         construction_inputs,
         opt_level.enables_summary_driven_mir_inlining(),
+        opt_level.enables_mir_escape_analysis(),
     )?;
     let mut initial_requests = materializer.seed_requests(typecheck_types, monomorph_keys)?;
     initial_requests.extend(hir_direct_instance_keys);
@@ -2147,6 +2148,7 @@ struct MirInstanceMaterializer {
     scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
     caller_side_pass_candidates: Vec<FunDecl>,
     enable_summary_driven_inlining: bool,
+    enable_mir_escape_analysis: bool,
     queued: HashSet<InstanceKey>,
     queue: VecDeque<InstanceKey>,
     materialized: HashMap<InstanceKey, Vec<FunDecl>>,
@@ -2160,6 +2162,7 @@ impl MirInstanceMaterializer {
         builtins: BuiltinTypes,
         construction_inputs: MaterializerConstructionInputs<'_>,
         enable_summary_driven_inlining: bool,
+        enable_mir_escape_analysis: bool,
     ) -> MaterializeResult<Self> {
         let MaterializerConstructionInputs {
             typecheck_types,
@@ -2416,6 +2419,7 @@ impl MirInstanceMaterializer {
             scanned_non_generic_funs: HashSet::new(),
             caller_side_pass_candidates: Vec::new(),
             enable_summary_driven_inlining,
+            enable_mir_escape_analysis,
             queued: HashSet::new(),
             queue: VecDeque::new(),
             materialized: HashMap::new(),
@@ -2871,6 +2875,9 @@ impl MirInstanceMaterializer {
         };
         if self.enable_summary_driven_inlining {
             super::inline::run_summary_driven_inlining(&mut materialized);
+        }
+        if self.enable_mir_escape_analysis {
+            super::escape::run_escape_analysis(&mut materialized);
         }
         Ok(materialized)
     }
@@ -5376,6 +5383,7 @@ fun main() {
                 top_level_fun_call_bindings,
                 request_root_fun_keys,
             },
+            true,
             true,
         )
         .unwrap();

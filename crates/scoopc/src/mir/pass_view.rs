@@ -13,7 +13,8 @@ use std::collections::{HashMap, HashSet};
 use super::callables::MaterializedCallableFamily;
 use super::{
     File, FunDecl, InstanceKey, InstanceSummary, Item, MaterializedCallableFamilies,
-    MaterializedCallableFamilyInput, MaterializedMir, MaterializedMirSummaries,
+    MaterializedCallableFamilyInput, MaterializedEscapeFacts, MaterializedMir,
+    MaterializedMirSummaries,
 };
 
 /// `MaterializedMir` 上“当前 pass 后 canonical callable 产物”的稳定 side table。
@@ -28,6 +29,7 @@ pub struct MaterializedMirPassArtifacts {
     callable_bodies_by_fqn: HashMap<String, FunDecl>,
     callable_families: MaterializedCallableFamilies,
     summaries: MaterializedMirSummaries,
+    escape_facts: MaterializedEscapeFacts,
     overridden_body_fqns: HashSet<String>,
     overridden_summary_instances: HashSet<InstanceKey>,
 }
@@ -50,6 +52,7 @@ impl MaterializedMirPassArtifacts {
             callable_bodies_by_fqn,
             callable_families: callable_families.clone(),
             summaries: summaries.clone(),
+            escape_facts: MaterializedEscapeFacts::default(),
             overridden_body_fqns: HashSet::new(),
             overridden_summary_instances: HashSet::new(),
         }
@@ -125,6 +128,14 @@ impl MaterializedMirPassArtifacts {
 
     fn summaries(&self) -> &MaterializedMirSummaries {
         &self.summaries
+    }
+
+    pub(crate) fn set_escape_facts(&mut self, facts: MaterializedEscapeFacts) {
+        self.escape_facts = facts;
+    }
+
+    fn escape_facts(&self) -> &MaterializedEscapeFacts {
+        &self.escape_facts
     }
 
     fn summary_is_overridden(&self, key: &InstanceKey) -> bool {
@@ -349,6 +360,11 @@ impl<'a> MaterializedMirPassView<'a> {
     /// 读取某个 materialized root callable 的 canonical summary。
     pub fn root_summary(&'a self, fqn: &str) -> Option<&'a InstanceSummary> {
         self.root_family_for_fqn(fqn).map(|family| family.summary())
+    }
+
+    /// 返回当前 pass 产物层发布的 MIR closure / continuation escape facts。
+    pub fn escape_facts(&self) -> &'a MaterializedEscapeFacts {
+        self.materialized.pass_artifacts().escape_facts()
     }
 }
 

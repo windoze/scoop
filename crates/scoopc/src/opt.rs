@@ -34,6 +34,10 @@ impl OptLevel {
         !matches!(self, OptLevel::O0)
     }
 
+    pub fn enables_mir_escape_analysis(self) -> bool {
+        !matches!(self, OptLevel::O0)
+    }
+
     pub fn parse(value: &str) -> Result<Self, InvalidOptLevel> {
         let v = value.trim();
         if v.is_empty() {

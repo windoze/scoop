@@ -1774,6 +1774,32 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - 全部通过。
   - 下一条待执行任务为 `T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界`。
+- 2026-04-28：`T5000i` 已判定为单轮过大任务，现拆成 `T5000i1`～`T5000i4` 四个实现子任务与对应 review。
+  - 拆分依据：
+    - 原任务同时包含 MIR escape facts、non-escaping closure simplification、continuation escape facts 对 effect planning 的接入，以及 `state_machine_plan / segments / transform` 迁出 LLVM backend；
+    - 若一次性迁移，容易把 effect middle-end 的新消费面重新长回 LLVM codegen 现场推断。
+  - 拆分顺序：
+    - `T5000i1`：先建立 MIR-level closure / continuation escape facts side table；
+    - `T5000i2`：再基于 escape facts 接入最小 non-escaping closure simplification；
+    - `T5000i3`：让 continuation escaping analysis 进入 effect/state-machine planning 输入面；
+    - `T5000i4`：迁移 `state_machine_plan / segments / transform` 到 MIR + shared facts 边界。
+- 2026-04-28：`T5000i1 建立 MIR-level closure / continuation escape facts side table` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/mir/escape.rs`，发布 backend-agnostic 的 `MaterializedEscapeFacts` / `CallableEscapeFacts`；
+    - escape analysis 当前以保守规则分析 `MakeClosure` 与 continuation local：只在所有模型内使用都停留在本地 `Closure` call / `Continuation.resume(...)` 时发布 `NonEscaping`，返回、传参、装入 aggregate/capture box 或命中未建模 MIR 时标记为 `Escapes` / `Unknown`；
+    - `MaterializedMirPassArtifacts` / `MaterializedMirPassView` 现提供 escape facts 查询面，后续 MIR simplification 与 effect planning 迁移可以消费同一 pass side table；
+    - 新增 `OptLevel::enables_mir_escape_analysis()`，`O1+` 在 summary-driven inlining 后运行 escape analysis，`O0` 不发布新增 facts。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::escape -- --nocapture`
+    - `cargo test -p scoopc mir:: -- --nocapture`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - 全部通过。
+  - 下一条待执行任务为 `T5000i2 基于 escape facts 接入最小 non-escaping closure simplification`。
 
 ## 1. 当前判断
 
@@ -1909,6 +1935,11 @@
   - non-escaping closure simplification；
   - continuation escaping analysis。
 - 把 `state_machine_plan / segments / transform` 从 LLVM codegen 语义边界里迁出，使 effect/state-machine planning 依赖 MIR 与 `ProgramFacts`，而不是依赖 `MainCodegen`。
+- 该阶段按以下顺序拆分，避免一次性迁移 effect middle-end 时重新制造 LLVM backend 现场推断：
+  - P8-1：先建立 MIR-level closure / continuation escape facts side table，并挂到 `MaterializedMirPassArtifacts` / `MaterializedMirPassView`；`-O0` 不运行新增 escape analysis，`O1+` 在 summary-driven inlining 后发布 facts。
+  - P8-2：再让 non-escaping closure simplification 消费 escape facts，保持保守且结构驱动。
+  - P8-3：将 continuation escape facts 接到 `ProgramFacts` / `EffectAnalysisCtx` 所驱动的 effect planning 输入面。
+  - P8-4：最后迁移 `state_machine_plan / segments / transform` 的主分析入口，使 LLVM backend 只保留 emitter 与 backend lowering 合同。
 
 ### P9. 覆盖面扩张与 safepoint 跟踪
 

@@ -1683,17 +1683,60 @@
   - 已清理新增 opt-level API 的 clippy 问题，将 request-source + opt-level 组合为 `MirInstanceCollectionOptions`，避免扩散超长参数列表；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc production_codegen_respects_mir_inlining_opt_level_gate -- --nocapture`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
-### [TODO] T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界
+### T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界
+- 说明：
+  - 经核对，原任务同时包含 MIR 逃逸事实层、non-escaping closure 简化、continuation escape 分析消费，以及 effect/state-machine planning 迁出 LLVM backend 四类改动，单轮过大；
+  - 现拆成以下实现子任务，先建立 MIR pass 产物层可消费的 escape facts，再让后续 simplification 与 effect planning 迁移共享同一事实来源。
+
+### [DONE] T5000i1 建立 MIR-level closure / continuation escape facts side table
 - 范围：
-  - 在 MIR 层加入：
-    - non-escaping closure simplification；
-    - continuation escaping analysis。
-  - 把 effect/state-machine 的 planning / segments / transform 迁出 LLVM codegen 语义边界，使其依赖 MIR 与 `ProgramFacts`。
-  - backend 只保留 emitter 与必要的 backend lowering 合同。
+  - 新增 backend-agnostic 的 MIR escape analysis 产物，覆盖最保守的：
+    - `MakeClosure` 产生的 closure value 是否只被本地直接调用；
+    - `Continuation.resume(...)` 的 continuation local 是否只被本地 resume；
+    - 被返回、传参、装入 aggregate/capture box、或进入未建模 MIR 节点时统一视为 escaping / unknown。
+  - 将结果挂到 `MaterializedMirPassArtifacts` / `MaterializedMirPassView`，作为 production MIR pass 产物层的稳定 side table。
+  - 受优化等级控制：`-O0` 不运行新增 escape analysis，`O1+` 在 summary-driven inlining 之后发布 facts。
+- 验收：
+  - pass view 能按 callable FQN 查询 closure / continuation escape facts；
+  - non-escaping 与 escaping 的最小 closure / continuation case 有单元测试覆盖；
+  - `O0` 与 `O1+` 的 escape facts 发布行为有回归覆盖。
+- 依赖：T5000hR
+- 完成记录（2026-04-28）：
+  - 新增 `crates/scoopc/src/mir/escape.rs`，以 backend-agnostic MIR pass 分析 closure / continuation escape facts；当前保守覆盖 `MakeClosure` 本地 direct closure call、`Continuation.resume(...)` 本地 resume、返回/传参/aggregate/capture-box/未建模 MIR 的 escaping 或 unknown 分类；
+  - `MaterializedMirPassArtifacts` / `MaterializedMirPassView` 现发布 `MaterializedEscapeFacts`，可按 callable FQN 查询 `CallableEscapeFacts`，后续 closure simplification 与 effect planning 可复用同一 side table；
+  - 新增 `OptLevel::enables_mir_escape_analysis()`，materialization 在 summary-driven inlining 之后、且仅 `O1+` 运行 escape analysis；`O0` 保持不发布新增 facts；
+  - 新增单元测试覆盖 non-escaping / escaping closure、non-escaping / escaping continuation，以及 production pass view 的 `O0` / `O2` 发布差异；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::escape -- --nocapture`、`cargo test -p scoopc mir:: -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
+
+### [TODO] T5000i2 基于 escape facts 接入最小 non-escaping closure simplification
+- 范围：
+  - 消费 `T5000i1` 的 MIR escape facts；
+  - 仅对已证明 non-escaping、body-known、调用形状可保持语义的 closure value 做最保守简化；
+  - 不通过函数名或 fixture 形状特判。
+- 验收：
+  - closure simplification 只读取 pass-view escape facts，不重新在 LLVM codegen 现场推断；
+  - escaping / unknown closure 不被错误简化。
+- 依赖：T5000i1
+
+### [TODO] T5000i3 让 continuation escaping analysis 进入 effect/state-machine planning 输入面
+- 范围：
+  - 将 `T5000i1` 的 continuation escape facts 与既有 `ProgramFacts` / `EffectAnalysisCtx` 对接；
+  - effect/state-machine planning 可以消费 “local resume only / escaping / unknown” 级别的 continuation 事实；
+  - 暂不改变 backend emitter ABI，只迁移分析输入边界。
+- 验收：
+  - planning 层不再需要从 `MainCodegen` 现场推断 continuation 是否逃逸；
+  - continuation facts 的缺失路径保持保守 unknown，不改变现有运行语义。
+- 依赖：T5000i2
+
+### [TODO] T5000i4 迁移 `state_machine_plan / segments / transform` 到 MIR + shared facts 边界
+- 范围：
+  - 把 effect/state-machine 的 planning / segments / transform 主分析入口迁出 LLVM codegen 语义边界；
+  - 新入口依赖 MIR pass view、`ProgramFacts`、`EffectAnalysisCtx` 与 escape facts；
+  - LLVM backend 只保留 emitter 与必要的 backend lowering 合同。
 - 验收：
   - effect/state-machine planning 不再以 `MainCodegen` 为主要输入上下文；
-  - closure / continuation 是否逃逸成为 MIR 层稳定分析结果，而不是 codegen 现场推断。
-- 依赖：T5000hR
+  - backend 不再承担 effect middle-end 主分析责任。
+- 依赖：T5000i3
 
 ### [TODO] T5000iR Review：确认 effect middle-end 已从 LLVM backend 语义边界迁出
 - 重点：

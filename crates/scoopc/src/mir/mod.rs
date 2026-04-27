@@ -17,6 +17,7 @@
 //! 避免在边界收口阶段退回到 panic/隐式后端推断。
 
 mod callables;
+mod escape;
 mod inline;
 mod lower;
 mod materialize;
@@ -32,6 +33,10 @@ use crate::ty::TypeId;
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
+pub use escape::{
+    CallableEscapeFacts, ClosureEscapeFact, ContinuationEscapeFact, EscapeStatus,
+    MaterializedEscapeFacts,
+};
 pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 pub use materialize::{
@@ -154,6 +159,10 @@ impl fmt::Debug for BasicBlockId {
 pub struct LocalId(u32);
 
 impl LocalId {
+    pub(crate) const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
     pub fn as_u32(self) -> u32 {
         self.0
     }
