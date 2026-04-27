@@ -1799,7 +1799,29 @@
     - `cargo clippy --all-targets -- -D warnings`
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - 全部通过。
-  - 下一条待执行任务为 `T5000i2 基于 escape facts 接入最小 non-escaping closure simplification`。
+- 2026-04-28：优先修复最新提交记录的 `ISSUES.md` P1：build frontend MIR request roots 对 support sources 过宽。
+  - 问题来源：
+    - 最新提交 `Update plan` 修改了 `ISSUES.md`，记录 `scoop build` frontend 会让 stdlib / sysroot support sources 贡献 initial `MonomorphKey`，并在 lowering wrapper 中把全部 `files_to_lower` 自动视为 request roots；
+    - 该问题会扩大 materialized MIR/HIR compatibility 实例集合，优先级高于继续推进 `T5000i2`。
+  - 修复结果：
+    - `crates/scoop/src/commands/build.rs` 新增 build-input 级 `mir_request_source_paths()` 与 `is_mir_request_source_index(...)`，集中表达 production build 的 MIR request-root 策略；
+    - 单文件 build 现在只让用户入口源贡献 initial monomorph seeds；cone build 暂采用 consumer-cone 全 source request roots，但 stdlib / sysroot support sources 只走普通 typecheck/lowering；
+    - `lower_main_hir_for_build(...)` 已改用 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，显式传入 request roots。
+  - 回归覆盖：
+    - 新增 `build_frontend_single_file_request_roots_exclude_stdlib_support_sources`；
+    - 新增 `build_frontend_cone_request_roots_exclude_stdlib_support_sources`。
+  - 文档状态：
+    - `ISSUES.md` 已把该 P1 标记为已修复；
+    - `TODO.md` 已新增完成项 `T5000i1P1`，并让 `T5000i2` 依赖该完成项。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoop build_frontend_ -- --nocapture`
+    - `cargo test -p scoopc mir::materialize -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - 全部通过。
+  - 下一条待执行任务仍为 `T5000i2 基于 escape facts 接入最小 non-escaping closure simplification`。
 
 ## 1. 当前判断
 

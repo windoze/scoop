@@ -11,7 +11,20 @@
 
 这个半切换边界已有不少保护，但实例根、可达性和 side table 传递仍存在几个不一致点。
 
-## P1：build frontend 的实例根范围比 single-file frontend 宽，可能过度物化
+## 已修复（2026-04-28）：build frontend 的实例根范围比 single-file frontend 宽，可能过度物化
+
+修复记录：
+
+- `scoop build` frontend 现显式区分 MIR request sources 与 support sources：
+  - 单文件 build 只有用户入口源贡献 initial `MonomorphKey` 与 request-root 可达扫描；
+  - cone build 暂按保守策略让当前 consumer cone 的全部 source 作为 request roots；
+  - stdlib / sysroot support sources 仍完整参与 typecheck / lowering / fun index，但不再贡献 initial monomorph seeds。
+- `lower_main_hir_for_build(...)` 已改用 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，不再通过 wrapper 把全部 `files_to_lower` 自动提升为 request roots。
+- 新增回归覆盖：
+  - `build_frontend_single_file_request_roots_exclude_stdlib_support_sources`
+  - `build_frontend_cone_request_roots_exclude_stdlib_support_sources`
+
+原问题记录：
 
 `crates/scoopc/src/llvm/frontend.rs` 的 single-file frontend 只让入口文件调用：
 
@@ -232,7 +245,7 @@ cargo test -p scoopc production_codegen
 
 ## 建议收口顺序
 
-1. 修 build frontend 的 request-source 接线，先避免 stdlib/sysroot support sources 贡献 initial `MonomorphKey`。
+1. [DONE 2026-04-28] 修 build frontend 的 request-source 接线，先避免 stdlib/sysroot support sources 贡献 initial `MonomorphKey`。
 2. 为 monomorph request 增加 call-site/source 来源，或在 frontend 侧保留带来源 wrapper。
 3. 统一 materializer 与 LLVM reachability 的 MIR reachable-block 扫描口径。
 4. 明确 request-root 粒度：source-file roots、entry package roots，还是 entry-main reachable roots。

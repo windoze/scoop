@@ -47,6 +47,24 @@ impl BuildInput {
         &self.sources[self.main_index]
     }
 
+    #[cfg(feature = "llvm")]
+    fn is_mir_request_source_index(&self, idx: usize) -> bool {
+        if let Some(root) = self.cone_root.as_ref() {
+            return self.sources[idx].path().starts_with(root);
+        }
+        idx == self.main_index
+    }
+
+    #[cfg(feature = "llvm")]
+    fn mir_request_source_paths(&self) -> Vec<PathBuf> {
+        self.sources
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| self.is_mir_request_source_index(*idx))
+            .map(|(_, source)| source.path().to_path_buf())
+            .collect()
+    }
+
     #[allow(dead_code)]
     fn cone_anchor_main_source(&self) -> Option<&scoopc::source::SourceFile> {
         self.cone_anchor_main_index.map(|idx| &self.sources[idx])
@@ -674,7 +692,13 @@ fn run_frontend(
     let mut all_monomorph_keys: Vec<scoopc::monomorph::MonomorphKey> = Vec::new();
 
     // typecheck phase：逐文件执行（共享 env/index/types）。
-    for ((source, ast), h) in input.sources.iter().zip(asts.iter()).zip(headers.iter()) {
+    for (source_index, ((source, ast), h)) in input
+        .sources
+        .iter()
+        .zip(asts.iter())
+        .zip(headers.iter())
+        .enumerate()
+    {
         scoopc::typecheck::check_file_annotations(
             source, ast, &index, &h.imports, &env, &mut types, builtins,
         )
@@ -706,14 +730,22 @@ fn run_frontend(
         )
         .map_err(miette::Report::from)?;
 
-        // T0127: 使用 check_file_exprs_with_monomorph_keys 收集泛型函数实例化信息。
+        // T0127/T5000: 只有 request roots 贡献初始 monomorph seeds；stdlib/sysroot
+        // support sources 仍完整 typecheck/lower，但不把内部泛型调用提升为实例根。
         #[cfg(feature = "llvm")]
         {
-            let keys = scoopc::typecheck::check_file_exprs_with_monomorph_keys(
-                source, ast, &index, &h.imports, &env, &mut types, builtins,
-            )
-            .map_err(miette::Report::from)?;
-            all_monomorph_keys.extend(keys);
+            if input.is_mir_request_source_index(source_index) {
+                let keys = scoopc::typecheck::check_file_exprs_with_monomorph_keys(
+                    source, ast, &index, &h.imports, &env, &mut types, builtins,
+                )
+                .map_err(miette::Report::from)?;
+                all_monomorph_keys.extend(keys);
+            } else {
+                scoopc::typecheck::check_file_exprs(
+                    source, ast, &index, &h.imports, &env, &mut types, builtins,
+                )
+                .map_err(miette::Report::from)?;
+            }
         }
         #[cfg(not(feature = "llvm"))]
         {
@@ -1060,14 +1092,19 @@ fn lower_main_hir_for_build(
         .zip(front.asts.iter())
         .collect::<Vec<_>>();
 
-    scoopc::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level(
+    let request_source_paths = front.input.mir_request_source_paths();
+
+    scoopc::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
         &front.index,
         &unit,
         &files_to_lower,
         &front.monomorph_keys,
         Some(&front.type_env),
         &front.typecheck_types,
-        opt_level,
+        scoopc::hir::MirInstanceCollectionOptions {
+            request_source_paths: &request_source_paths,
+            opt_level,
+        },
     )
     .map_err(|err| miette::Report::from(*err))
 }
@@ -1363,6 +1400,74 @@ public fun main() / Pure! {
 
         let ll = std::fs::read_to_string(&out).unwrap();
         assert!(ll.contains("define i32 @main("), "应输出 LLVM IR");
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_frontend_single_file_request_roots_exclude_stdlib_support_sources() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("main.scoop");
+        std::fs::write(&input, "fun main() {}\n").unwrap();
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_input = super::load_build_input(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+
+        assert_eq!(
+            front.input.mir_request_source_paths(),
+            vec![input.clone()],
+            "单文件 build 只能让用户入口源贡献 MIR request roots"
+        );
+        assert!(
+            front.monomorph_keys.is_empty(),
+            "不含泛型调用的单文件入口不应因为 stdlib/sysroot support sources 产生初始 monomorph seeds: {:?}",
+            front.monomorph_keys
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_frontend_cone_request_roots_exclude_stdlib_support_sources() {
+        let dir = tempdir().unwrap();
+        let pkg = dir.path().join("pkg");
+        let src = pkg.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+
+        std::fs::write(
+            pkg.join("Cone.toml"),
+            r#"
+[cone]
+name = "fixture-request-roots"
+version = "0.0.0"
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("main.scoop"),
+            "package fixture.request_roots\nfun main() {}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("helper.scoop"),
+            "package fixture.request_roots\nfun helper() {}\n",
+        )
+        .unwrap();
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_input = super::load_build_input(&pkg, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let cone_root = pkg.canonicalize().unwrap();
+        let roots = front.input.mir_request_source_paths();
+
+        assert_eq!(
+            roots.len(),
+            2,
+            "consumer cone 的两个 source 都应是 request roots"
+        );
+        assert!(
+            roots.iter().all(|path| path.starts_with(&cone_root)),
+            "cone build request roots 不应包含 stdlib/sysroot support sources: {roots:?}"
+        );
     }
 
     #[cfg(feature = "llvm")]

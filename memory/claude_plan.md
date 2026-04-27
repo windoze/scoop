@@ -1,40 +1,56 @@
-# 当前执行计划
+# 执行计划
 
-## 任务边界
+## 目标
 
-- 本轮只处理 `TODO.md` 中第一个未完成任务。
-- 在读取和执行任务前，先检查最新提交是否提到已有问题；若发现已有问题，优先修复或按要求加入前置任务并停止。
-- 遇到任何现有 bug、规格不一致、回归、未完成边界或临时绕过，均视为本轮优先事项，不通过缩小范围或替代实现绕过。
-- 完成后必须测试、更新 `TODO.md` 和 `PLAN.md`，并提交 Git commit，然后停止。
+本轮只完成 `TODO.md` 中第一个未完成任务；若在开始任务前或执行过程中发现最新提交提到的预存问题、已有回归、规格不符、实现边界缺口或测试失败，则先处理这些问题。完成一个逻辑任务后更新文档、运行验证、提交 Git，然后停止。
 
-## 执行步骤
+## 工作原则
 
-1. 检查仓库状态和最新提交信息，确认是否有前置问题或未提交变更需要避让。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取相关 `PLAN.md`、源码、测试和规范上下文，判断任务是否可直接完成，或是否需要拆分成更小任务。
-4. 若发现任务依赖缺失特性或已有缺陷，更新 `TODO.md` 和 `PLAN.md` 记录前置任务，提交后停止。
-5. 若任务可完成，按仓库既有结构实现，保持改动范围最小且符合规格。
-6. 添加或更新聚焦测试，运行相关测试；若改动风险较高，再运行更广的测试或检查。
-7. 更新 `TODO.md` 标记本任务完成，并同步更新 `PLAN.md`。
-8. 检查最终 diff，提交清晰的 Git commit。
+- 全程使用中文记录和汇报。
+- 不绕过规格或实现缺口；任何阻塞正确实现的问题都要修复，或作为前置任务加入 `TODO.md` 并提交后停止。
+- 不回退用户已有改动；遇到脏工作区时只处理与本轮任务相关的文件。
+- 保持变更范围尽量小，遵循仓库现有结构和测试习惯。
+- 每个关键阶段完成后更新本文件，便于查看进度。
+
+## 步骤
+
+1. 检查最新 Git 提交，确认提交信息或变更中是否提示了需要先修复的既有问题。
+2. 查看仓库状态，识别已有未提交改动，避免误覆盖用户工作。
+3. 阅读 `TODO.md`，找出第一个未完成任务。
+4. 阅读 `PLAN.md` 及相关源码、测试或规格，确认该任务的真实范围和依赖。
+5. 若任务过大，先把它拆分成可执行子任务，更新 `TODO.md` 和 `PLAN.md`，提交拆分结果并停止。
+6. 若发现最新提交或现有实现中有更优先的预存问题，先修复该问题；若无法直接修复，则把它加入 `TODO.md` 的正确前置位置，更新 `PLAN.md`，提交后停止。
+7. 实现当前第一个未完成任务，必要时添加或更新最小但充分的测试夹具或 Rust 测试。
+8. 运行相关验证；若验证暴露同一任务范围内的问题，继续修复并复测。
+9. 按要求更新 `TODO.md` 标记任务完成，并同步更新 `PLAN.md`。
+10. 运行最终相关验证，视变更范围决定是否运行更完整的测试。
+11. 检查差异，确认没有无关改动或调试残留。
+12. 使用清晰的任务式提交信息提交本轮变更。
+13. 停止，不继续处理下一个任务。
 
 ## 当前状态
 
-- 已写入初始计划。
-- 已检查 Git 状态：当前工作区只有本计划文件改动。
-- 已检查最新提交：`[T5000hR] Review summary-driven MIR inlining boundaries`，提交说明中未发现明确要求先修复的前置问题。
-- 已定位 `TODO.md` 中第一个未完成任务：`T5000i 加入 continuation / closure escaping analysis，并把 effect/state-machine planning 迁到正确边界`。
-- 已判断 `T5000i` 单轮过大，并已在 `TODO.md` / `PLAN.md` 中拆成 `T5000i1`～`T5000i4`。
-- 本轮执行的第一子任务：`T5000i1 建立 MIR-level closure / continuation escape facts side table`。
-- 已新增 MIR escape analysis 模块草案，挂接 `MaterializedMirPassArtifacts` / `MaterializedMirPassView`，并加入 `OptLevel::enables_mir_escape_analysis()` gate。
-- 已运行 `cargo fmt --all`。
-- 已运行 `cargo test -p scoopc mir::escape -- --nocapture`，5 个 escape 相关测试通过。
-- 已运行 `cargo test -p scoopc mir:: -- --nocapture`，43 个 MIR 测试通过。
-- 已运行 `cargo test -p scoopc llvm::tests -- --nocapture`，61 个 LLVM production 相关测试通过。
-- 已运行 `cargo test -p scoopc --no-default-features`，280 个无默认特性测试通过。
-- 已运行 `cargo test --all`，workspace 测试通过。
-- 已运行 `cargo clippy --all-targets -- -D warnings`，无 warning。
-- 已运行 `cargo run -p scoop -- test`，结果为 `fixtures: ok (1201)`。
-- 已将 `TODO.md` 中 `T5000i1` 标记为完成，并在 `PLAN.md` 追加拆分与完成记录。
-- 最终清理后补跑 `cargo test -p scoopc mir::escape -- --nocapture` 与 `cargo clippy --all-targets -- -D warnings`，均通过。
-- 下一步：最终 diff 检查，然后提交 `[T5000i1] Add MIR escape facts side table`。
+- 已检查最新提交：提交信息为 `Update plan`，但该提交修改了 `ISSUES.md` / `ISSUES-1.md`，其中 `ISSUES.md` 记录了当前 MIR materialization 与 LLVM HIR 兼容边界的 P1/P2 问题。
+- 已检查工作区：除本计划文件外暂无其它未提交改动。
+- 已阅读 `TODO.md` / `PLAN.md` 的当前进度；按正常顺序下一步会进入 `T5000i2`，但最新提交记录的既有 P1 问题优先级更高。
+- 本轮优先处理的既有问题：`ISSUES.md` 中第一条 P1，`scoop build` frontend 对 support/stdlib/sysroot sources 过度收集 `MonomorphKey`，并在 lowering 时把所有 `files_to_lower` 都当作 request roots。
+- 已阅读 `crates/scoop/src/commands/build.rs`、`crates/scoopc/src/llvm/frontend.rs`、`crates/scoopc/src/hir/lower/mod.rs` 的相关入口，确认 production build 的问题与 `ISSUES.md` 记录一致。
+- 已实现修复：
+  - `BuildInput` 新增 `is_mir_request_source_index(...)` 与 `mir_request_source_paths()`；
+  - build typecheck 阶段只对 request sources 调用 `check_file_exprs_with_monomorph_keys(...)`，support sources 走普通 `check_file_exprs(...)`；
+  - `lower_main_hir_for_build(...)` 改用 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`，显式传入 request roots。
+- 已新增回归：
+  - `build_frontend_single_file_request_roots_exclude_stdlib_support_sources`；
+  - `build_frontend_cone_request_roots_exclude_stdlib_support_sources`。
+- 已更新文档：
+  - `ISSUES.md` 将该 P1 标记为已修复；
+  - `TODO.md` 新增完成项 `T5000i1P1`，并让 `T5000i2` 依赖它；
+  - `PLAN.md` 记录本次预存问题修复与验证结果。
+- 已通过验证：
+  - `cargo fmt --all --check`
+  - `cargo test -p scoop build_frontend_ -- --nocapture`
+  - `cargo test -p scoopc mir::materialize -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+- 下一步：检查最终 diff，确认无无关改动，然后提交本轮修复并停止。
