@@ -1731,6 +1731,28 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
     - 全部通过。
   - 下一条待执行任务为 `T5000h3 接入 DirectCallOnly + known provenance 的高阶 wrapper 摊平`。
+- 2026-04-27：`T5000h3 接入 DirectCallOnly + known provenance 的高阶 wrapper 摊平` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/mir/inline.rs` 的 inlining pass 现在维护 basic-block 局部 callable provenance，可识别 `TopLevelRef`、`MakeClosure`、`Use` 传播，以及 direct-call result summary 中的 `DirectFunction` / `KnownClosure` / `Param` 简单来源；
+    - direct-call callee 的高阶参数只有在 per-instance summary 标记为 `ParamUseSummary::DirectCallOnly` 且调用点实参 provenance 可知时才触发摊平；
+    - callee body 内对这些参数的 `FunValue` 调用会在 inline 展开时改写为结构化 `DirectCall` 或 `ClosureCall`，继续保持结构驱动，不按 `map` / `filter` / `forEach` 或其它函数名白名单触发；
+    - 对当前 MIR 中“顶层函数值先降成 non-capturing closure wrapper”的既有形态，pass 会识别只转发到 direct function 且参数一一对应的 closure wrapper，并把该 provenance 归一化为 direct function；
+    - rewrite 后会移除因 direct provenance 摊平而变成死代码的 `TopLevelRef` / `MakeClosure` pass artifact，使 production 可发布 body 不携带无用 closure 构造；
+    - caller-side production 发布仍受 `pass_publishable_caller_body(...)` 支持集约束：direct-function provenance 已进入 production LLVM lowering；普通 known closure provenance 先收缩到 MIR 结构化 `ClosureCall`，不会绕过当前 production MIR body lowering 的支持边界。
+  - 新增回归：
+    - `mir::inline::tests::direct_call_only_param_with_direct_function_provenance_flattens_wrapper`：确认 `DirectCallOnly + provenance` 会发布 caller-side rewritten body，并消除高阶 wrapper 与具体 direct function 的调用边界；
+    - `mir::inline::tests::direct_call_only_param_with_known_closure_provenance_rewrites_to_closure_call`：确认 known closure provenance 会把 wrapper 内部模糊 `FunValue` 调用收缩为结构化 `ClosureCall`；
+    - `llvm::tests::production_codegen_observes_direct_call_only_provenance_wrapper_flattening`：确认 production LLVM 消费 provenance-driven caller rewrite，`caller` 中不再出现 wrapper / direct function 调用。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::inline -- --nocapture`
+    - `cargo test -p scoopc production_codegen_observes_direct_call_only_provenance_wrapper_flattening -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1201)`）
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - 下一条待执行任务为 `T5000hR Review：确认 inlining 已走 summary / structure 路线`。
 
 ## 1. 当前判断
 

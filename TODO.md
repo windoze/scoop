@@ -1646,7 +1646,7 @@
   - 新增 LLVM 回归 `production_codegen_observes_caller_side_mir_inlining_for_non_generic_body` 与 `production_reachability_scans_overridden_non_generic_pass_body`，分别确认 production LLVM 消费 caller-side rewritten MIR body，以及 reachability 会扫描 ownerless pass override 中新增的 direct call；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc production_codegen_observes_caller_side_mir_inlining_for_non_generic_body -- --nocapture`、`cargo test -p scoopc production_reachability_scans_overridden_non_generic_pass_body -- --nocapture`、`cargo test -p scoopc mir::pass_view -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc mir:: -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）全部通过。
 
-### [TODO] T5000h3 接入 `DirectCallOnly` + known provenance 的高阶 wrapper 摊平
+### [DONE] T5000h3 接入 `DirectCallOnly` + known provenance 的高阶 wrapper 摊平
 - 范围：
   - 使用 `ParamUseSummary::DirectCallOnly` 与 call-site known provenance 驱动内联；
   - 支持 known direct function / known closure provenance，把 wrapper 内部函数值参数调用摊平成结构化 direct MIR call；
@@ -1656,6 +1656,15 @@
   - `@Inline` 仍只是 hint，不是主机制；
   - codegen 不再继续承担“内联后才能去掉的额外高层调用边界”。
 - 依赖：T5000h2
+- 完成记录（2026-04-27）：
+  - `crates/scoopc/src/mir/inline.rs` 现为 summary-driven inlining pass 增加 block-local callable provenance，识别 `TopLevelRef`、`MakeClosure`、`Use` 传播，以及 direct-call result summary 中的 `DirectFunction` / `KnownClosure` / `Param` 简单来源；
+  - direct-call callee 的 `ParamUseSummary::DirectCallOnly` 参数现在必须在调用点具备 known provenance 才会触发高阶 wrapper 摊平；展开 callee body 时，对这些参数的 `FunValue` 调用会被重写为结构化 `DirectCall` 或 `ClosureCall`，不再靠函数名或库函数白名单触发；
+  - 对源码层顶层函数值先降成 non-capturing closure wrapper 的现有形态，inliner 会在 MIR pass 层识别“只转发到 direct function 且实参一一对应”的 closure，并把该 provenance 归一化为 direct function；随后移除由此变成死代码的 `TopLevelRef` / `MakeClosure` pass artifact，保证 production 可发布 body 不携带无用 closure 构造；
+  - caller-side pass 发布边界仍由 `pass_publishable_caller_body(...)` 保守把关：direct-function provenance 的高阶 wrapper 可以进入 production LLVM lowering，普通 known closure provenance 目前先在 MIR rewrite 层收缩为结构化 `ClosureCall`，不会绕过 production MIR body 支持集；
+  - 新增 MIR 回归 `direct_call_only_param_with_direct_function_provenance_flattens_wrapper`，确认 `DirectCallOnly + provenance` 驱动 caller-side wrapper 摊平并继续消除具体 direct function 的小调用边界；
+  - 新增 MIR 回归 `direct_call_only_param_with_known_closure_provenance_rewrites_to_closure_call`，确认 known closure provenance 会把 wrapper 内部模糊 `FunValue` 调用收缩为结构化 `ClosureCall`；
+  - 新增 LLVM 回归 `production_codegen_observes_direct_call_only_provenance_wrapper_flattening`，确认 production LLVM 消费 provenance-driven caller rewrite，`caller` 不再调用高阶 wrapper 或被传入的具体 direct function；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc production_codegen_observes_direct_call_only_provenance_wrapper_flattening -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1201)`）、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000hR Review：确认 inlining 已走 summary / structure 路线
 - 重点：

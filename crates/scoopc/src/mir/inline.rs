@@ -6,12 +6,12 @@
 //! but only after a pass actually changes them and the rewritten MIR stays inside the currently
 //! supported production pass-body subset.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::{
     Body, CallArg, CallKind, FunDecl, InstanceKey, InstanceSummary, LocalDecl, LocalId,
-    MaterializedMir, Operand, Rvalue, Statement, StatementKind, TerminatorKind, UnwindAction,
-    summarize_pass_rewritten_fun,
+    MaterializedMir, Operand, ParamUseSummary, ResultProvenance, ResultProvenanceSource, Rvalue,
+    Statement, StatementKind, TerminatorKind, UnwindAction, summarize_pass_rewritten_fun,
 };
 
 const INLINE_SIZE_THRESHOLD: u32 = 16;
@@ -29,6 +29,22 @@ struct InlineSnapshot {
     functions: Vec<InlineFunction>,
     caller_candidates: Vec<FunDecl>,
     by_fqn: HashMap<String, usize>,
+    callables_by_fqn: HashMap<String, FunDecl>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CallableProvenance {
+    DirectFunction(String),
+    KnownClosure(String),
+}
+
+/// Per-basic-block callable value provenance used only by this pass.
+///
+/// The map is intentionally local to a block: it keeps the first implementation conservative and
+/// avoids pretending that we have a full dataflow solution across branches.
+#[derive(Debug, Default)]
+struct BlockCallableProvenance {
+    locals: HashMap<LocalId, CallableProvenance>,
 }
 
 /// 在当前 materialized MIR pass artifacts 上运行保守 summary-driven inlining。
@@ -102,10 +118,20 @@ impl InlineSnapshot {
             .enumerate()
             .map(|(idx, function)| (function.fun.fqn.clone(), idx))
             .collect::<HashMap<_, _>>();
+        let mut callables_by_fqn = HashMap::new();
+        for function in &functions {
+            callables_by_fqn.insert(function.fun.fqn.clone(), function.fun.clone());
+        }
+        for fun in &caller_candidates {
+            callables_by_fqn
+                .entry(fun.fqn.clone())
+                .or_insert_with(|| fun.clone());
+        }
         Self {
             functions,
             caller_candidates,
             by_fqn,
+            callables_by_fqn,
         }
     }
 
@@ -114,6 +140,205 @@ impl InlineSnapshot {
             .get(fqn)
             .and_then(|&idx| self.functions.get(idx))
     }
+
+    fn callable(&self, fqn: &str) -> Option<&FunDecl> {
+        self.callables_by_fqn.get(fqn)
+    }
+
+    /// Recognize the current MIR shape used for a top-level function value: a non-capturing
+    /// closure wrapper that only forwards its call arguments to a direct function target.
+    fn forwarding_closure_direct_target(&self, fn_ptr: &str) -> Option<String> {
+        let closure = self.callable(fn_ptr)?;
+        let body = closure.body.as_ref()?;
+        if body.validate_cfg().is_err() || body.blocks.len() != 1 || body.start.as_u32() != 0 {
+            return None;
+        }
+        let block = &body.blocks[0];
+        if block.is_cleanup || !matches!(&block.terminator.unwind, UnwindAction::NoUnwind) {
+            return None;
+        }
+        let TerminatorKind::Return { value } = &block.terminator.kind else {
+            return None;
+        };
+
+        let mut direct_call = None;
+        for stmt in &block.stmts {
+            match &stmt.kind {
+                StatementKind::Nop => {}
+                StatementKind::Assign {
+                    value: Rvalue::TopLevelRef(_),
+                    ..
+                } => {}
+                StatementKind::Assign {
+                    target,
+                    value:
+                        Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            args,
+                        },
+                } => {
+                    if direct_call.is_some() {
+                        return None;
+                    }
+                    direct_call = Some((*target, callee_fqn, args));
+                }
+                StatementKind::Assign { .. } | StatementKind::Todo(_) => return None,
+            }
+        }
+        let (direct_target, direct_callee_fqn, direct_args) = direct_call?;
+        if let Some(Operand::Local(return_local)) = value
+            && *return_local != direct_target
+        {
+            return None;
+        }
+        if matches!(value, Some(Operand::Const(_))) {
+            return None;
+        }
+
+        let closure_args = closure.params.iter().skip(1).collect::<Vec<_>>();
+        if direct_args.len() != closure_args.len() {
+            return None;
+        }
+        for (arg, param) in direct_args.iter().zip(closure_args) {
+            if arg.name.is_some()
+                || !matches!(arg.value, Operand::Local(local) if local == param.local)
+            {
+                return None;
+            }
+        }
+        Some(direct_callee_fqn.clone())
+    }
+}
+
+impl BlockCallableProvenance {
+    fn observe_statement(&mut self, stmt: &Statement, snapshot: &InlineSnapshot) {
+        let StatementKind::Assign { target, value } = &stmt.kind else {
+            return;
+        };
+        match self.provenance_for_rvalue(value, snapshot) {
+            Some(provenance) => {
+                self.locals.insert(*target, provenance);
+            }
+            None => {
+                self.locals.remove(target);
+            }
+        }
+    }
+
+    fn provenance_of_operand(&self, operand: &Operand) -> Option<&CallableProvenance> {
+        let Operand::Local(local) = operand else {
+            return None;
+        };
+        self.locals.get(local)
+    }
+
+    fn provenance_for_rvalue(
+        &self,
+        value: &Rvalue,
+        snapshot: &InlineSnapshot,
+    ) -> Option<CallableProvenance> {
+        match value {
+            Rvalue::Use(operand) => self.provenance_of_operand(operand).cloned(),
+            Rvalue::TopLevelRef(top) => Some(CallableProvenance::DirectFunction(top.fqn.clone())),
+            Rvalue::MemberAccess { member, .. } => match member.resolved.as_ref() {
+                Some(super::MemberTarget::Fun { fqn })
+                | Some(super::MemberTarget::ExtensionFun { fqn }) => {
+                    Some(CallableProvenance::DirectFunction(fqn.clone()))
+                }
+                Some(super::MemberTarget::Value { .. })
+                | Some(super::MemberTarget::ExtensionValue { .. })
+                | None => None,
+            },
+            Rvalue::MakeClosure { fn_ptr, .. } => {
+                Some(CallableProvenance::KnownClosure(fn_ptr.clone()))
+            }
+            Rvalue::Call {
+                kind: CallKind::Direct { callee_fqn },
+                args,
+            } => {
+                let callee = snapshot.get(callee_fqn)?;
+                provenance_from_result(
+                    &callee.summary.result_provenance,
+                    &callee.fun.params,
+                    args,
+                    self,
+                )
+            }
+            Rvalue::UnresolvedName { .. }
+            | Rvalue::Unary { .. }
+            | Rvalue::Binary { .. }
+            | Rvalue::TypeCheck { .. }
+            | Rvalue::Cast { .. }
+            | Rvalue::Call { .. }
+            | Rvalue::MakeTuple { .. }
+            | Rvalue::TupleGet { .. }
+            | Rvalue::CaptureBoxNew { .. }
+            | Rvalue::CaptureBoxGet { .. }
+            | Rvalue::CaptureBoxSet { .. }
+            | Rvalue::PatternMatch { .. }
+            | Rvalue::PatternExtract { .. }
+            | Rvalue::PerformResult { .. }
+            | Rvalue::Todo(_) => None,
+        }
+    }
+}
+
+fn provenance_from_result(
+    result: &ResultProvenance,
+    params: &[super::Param],
+    args: &[CallArg],
+    caller_provenance: &BlockCallableProvenance,
+) -> Option<CallableProvenance> {
+    match result {
+        ResultProvenance::DirectFunction(fqn) => {
+            Some(CallableProvenance::DirectFunction(fqn.clone()))
+        }
+        ResultProvenance::KnownClosure(fn_ptr) => {
+            Some(CallableProvenance::KnownClosure(fn_ptr.clone()))
+        }
+        ResultProvenance::Param(index) => {
+            provenance_from_param_result(*index, params, args, caller_provenance)
+        }
+        ResultProvenance::Join(sources) if sources.len() == 1 => {
+            provenance_from_result_source(&sources[0], params, args, caller_provenance)
+        }
+        ResultProvenance::Unit
+        | ResultProvenance::TopLevelValue(_)
+        | ResultProvenance::PerformResult(_)
+        | ResultProvenance::Join(_)
+        | ResultProvenance::Unknown => None,
+    }
+}
+
+fn provenance_from_result_source(
+    source: &ResultProvenanceSource,
+    params: &[super::Param],
+    args: &[CallArg],
+    caller_provenance: &BlockCallableProvenance,
+) -> Option<CallableProvenance> {
+    match source {
+        ResultProvenanceSource::DirectFunction(fqn) => {
+            Some(CallableProvenance::DirectFunction(fqn.clone()))
+        }
+        ResultProvenanceSource::KnownClosure(fn_ptr) => {
+            Some(CallableProvenance::KnownClosure(fn_ptr.clone()))
+        }
+        ResultProvenanceSource::Param(index) => {
+            provenance_from_param_result(*index, params, args, caller_provenance)
+        }
+        ResultProvenanceSource::TopLevelValue(_) | ResultProvenanceSource::PerformResult(_) => None,
+    }
+}
+
+fn provenance_from_param_result(
+    index: usize,
+    params: &[super::Param],
+    args: &[CallArg],
+    caller_provenance: &BlockCallableProvenance,
+) -> Option<CallableProvenance> {
+    let bound_args = bind_args_to_params(params, args)?;
+    let operand = bound_args.get(index)?;
+    caller_provenance.provenance_of_operand(operand).cloned()
 }
 
 fn rewrite_fun_once(function: &InlineFunction, snapshot: &InlineSnapshot) -> Option<FunDecl> {
@@ -128,12 +353,19 @@ fn rewrite_callable_body_once(fun: &FunDecl, snapshot: &InlineSnapshot) -> Optio
     for block_index in 0..body.blocks.len() {
         let old_stmts = std::mem::take(&mut body.blocks[block_index].stmts);
         let mut new_stmts = Vec::with_capacity(old_stmts.len());
+        let mut block_provenance = BlockCallableProvenance::default();
 
         for stmt in old_stmts {
-            if let Some(expanded) = try_expand_direct_call(body, &fun.fqn, &stmt, snapshot) {
-                new_stmts.extend(expanded);
+            if let Some(expanded) =
+                try_expand_direct_call(body, &fun.fqn, &stmt, snapshot, &block_provenance)
+            {
+                for expanded_stmt in expanded {
+                    block_provenance.observe_statement(&expanded_stmt, snapshot);
+                    new_stmts.push(expanded_stmt);
+                }
                 changed = true;
             } else {
+                block_provenance.observe_statement(&stmt, snapshot);
                 new_stmts.push(stmt);
             }
         }
@@ -141,6 +373,9 @@ fn rewrite_callable_body_once(fun: &FunDecl, snapshot: &InlineSnapshot) -> Optio
         body.blocks[block_index].stmts = new_stmts;
     }
 
+    if changed {
+        remove_dead_inline_artifacts(body);
+    }
     changed.then_some(rewritten)
 }
 
@@ -149,6 +384,7 @@ fn try_expand_direct_call(
     caller_fqn: &str,
     stmt: &Statement,
     snapshot: &InlineSnapshot,
+    caller_provenance: &BlockCallableProvenance,
 ) -> Option<Vec<Statement>> {
     let StatementKind::Assign { target, value } = &stmt.kind else {
         return None;
@@ -164,21 +400,83 @@ fn try_expand_direct_call(
     }
 
     let callee = snapshot.get(callee_fqn)?;
-    if !callee_is_inline_candidate(callee) {
+    if !callee_has_inlineable_summary(callee) {
+        return None;
+    }
+    let param_operands = bind_args_to_params(&callee.fun.params, args)?;
+    let direct_call_param_provenance = direct_call_param_provenance(
+        &callee.summary,
+        &callee.fun.params,
+        &param_operands,
+        caller_provenance,
+        snapshot,
+    )?;
+    if !callee
+        .fun
+        .body
+        .as_ref()
+        .is_some_and(|body| body_is_inlineable(body, &direct_call_param_provenance))
+    {
         return None;
     }
 
-    expand_straight_line_call(caller_body, *target, stmt.span, &callee.fun, args)
+    expand_straight_line_call(
+        caller_body,
+        *target,
+        stmt.span,
+        &callee.fun,
+        &param_operands,
+        &direct_call_param_provenance,
+    )
 }
 
-fn callee_is_inline_candidate(callee: &InlineFunction) -> bool {
+fn callee_has_inlineable_summary(callee: &InlineFunction) -> bool {
     callee.summary.body_known
         && !callee.summary.recursive_scc
         && callee.summary.size_cost <= INLINE_SIZE_THRESHOLD
-        && callee.fun.body.as_ref().is_some_and(body_is_inlineable)
 }
 
-fn body_is_inlineable(body: &Body) -> bool {
+fn direct_call_param_provenance(
+    summary: &InstanceSummary,
+    params: &[super::Param],
+    param_operands: &[Operand],
+    caller_provenance: &BlockCallableProvenance,
+    snapshot: &InlineSnapshot,
+) -> Option<HashMap<LocalId, CallableProvenance>> {
+    if params.len() != param_operands.len() {
+        return None;
+    }
+    let mut out = HashMap::new();
+    for ((index, param), operand) in params.iter().enumerate().zip(param_operands) {
+        if summary.param_use_summaries.get(index) != Some(&ParamUseSummary::DirectCallOnly) {
+            continue;
+        }
+        let provenance = normalize_callable_provenance(
+            caller_provenance.provenance_of_operand(operand)?,
+            snapshot,
+        );
+        out.insert(param.local, provenance);
+    }
+    Some(out)
+}
+
+fn normalize_callable_provenance(
+    provenance: &CallableProvenance,
+    snapshot: &InlineSnapshot,
+) -> CallableProvenance {
+    match provenance {
+        CallableProvenance::KnownClosure(fn_ptr) => snapshot
+            .forwarding_closure_direct_target(fn_ptr)
+            .map(CallableProvenance::DirectFunction)
+            .unwrap_or_else(|| provenance.clone()),
+        CallableProvenance::DirectFunction(_) => provenance.clone(),
+    }
+}
+
+fn body_is_inlineable(
+    body: &Body,
+    direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
+) -> bool {
     if body.validate_cfg().is_err() || body.blocks.len() != 1 || body.start.as_u32() != 0 {
         return false;
     }
@@ -195,7 +493,7 @@ fn body_is_inlineable(body: &Body) -> bool {
     block
         .stmts
         .iter()
-        .all(|stmt| statement_is_inlineable(&stmt.kind))
+        .all(|stmt| statement_is_inlineable(&stmt.kind, direct_call_param_provenance))
 }
 
 fn pass_publishable_caller_body(fun: &FunDecl) -> bool {
@@ -263,20 +561,28 @@ fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
     }
 }
 
-fn statement_is_inlineable(kind: &StatementKind) -> bool {
+fn statement_is_inlineable(
+    kind: &StatementKind,
+    direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
+) -> bool {
     match kind {
         StatementKind::Nop => true,
-        StatementKind::Assign { value, .. } => rvalue_is_inlineable(value),
+        StatementKind::Assign { value, .. } => {
+            rvalue_is_inlineable(value, direct_call_param_provenance)
+        }
         StatementKind::Todo(_) => false,
     }
 }
 
-fn rvalue_is_inlineable(value: &Rvalue) -> bool {
+fn rvalue_is_inlineable(
+    value: &Rvalue,
+    direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
+) -> bool {
     match value {
         Rvalue::Use(_) | Rvalue::TopLevelRef(_) | Rvalue::Unary { .. } | Rvalue::Binary { .. } => {
             true
         }
-        Rvalue::Call { kind, .. } => matches!(kind, CallKind::Direct { .. }),
+        Rvalue::Call { kind, .. } => call_kind_is_inlineable(kind, direct_call_param_provenance),
         Rvalue::UnresolvedName { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
@@ -294,21 +600,174 @@ fn rvalue_is_inlineable(value: &Rvalue) -> bool {
     }
 }
 
+fn call_kind_is_inlineable(
+    kind: &CallKind,
+    direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
+) -> bool {
+    match kind {
+        CallKind::Direct { .. } => true,
+        CallKind::FunValue { callee } | CallKind::Closure { callee, .. } => {
+            operand_direct_call_provenance(callee, direct_call_param_provenance).is_some()
+        }
+        CallKind::Virtual { .. } | CallKind::Interface { .. } | CallKind::Resume { .. } => false,
+    }
+}
+
+fn remove_dead_inline_artifacts(body: &mut Body) {
+    // Provenance-driven rewrites can make the temporary function-value materialization dead.
+    // Removing only TopLevelRef/MakeClosure assignments keeps this local cleanup narrow.
+    loop {
+        let used = collect_used_locals(body);
+        let mut removed_any = false;
+        for block in &mut body.blocks {
+            let old_stmts = std::mem::take(&mut block.stmts);
+            block.stmts = old_stmts
+                .into_iter()
+                .filter(|stmt| {
+                    if dead_removable_assignment(stmt, &used) {
+                        removed_any = true;
+                        false
+                    } else {
+                        true
+                    }
+                })
+                .collect();
+        }
+        if !removed_any {
+            break;
+        }
+    }
+}
+
+fn dead_removable_assignment(stmt: &Statement, used: &HashSet<LocalId>) -> bool {
+    let StatementKind::Assign { target, value } = &stmt.kind else {
+        return false;
+    };
+    !used.contains(target) && rvalue_is_dead_removable(value)
+}
+
+fn rvalue_is_dead_removable(value: &Rvalue) -> bool {
+    matches!(value, Rvalue::TopLevelRef(_) | Rvalue::MakeClosure { .. })
+}
+
+fn collect_used_locals(body: &Body) -> HashSet<LocalId> {
+    let mut out = HashSet::new();
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            collect_statement_uses(stmt, &mut out);
+        }
+        collect_terminator_uses(&block.terminator.kind, &mut out);
+    }
+    out
+}
+
+fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
+    match &stmt.kind {
+        StatementKind::Nop | StatementKind::Todo(_) => {}
+        StatementKind::Assign { value, .. } => collect_rvalue_uses(value, out),
+    }
+}
+
+fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
+    match value {
+        Rvalue::Use(operand)
+        | Rvalue::Unary { operand, .. }
+        | Rvalue::TypeCheck { value: operand, .. }
+        | Rvalue::Cast { value: operand, .. }
+        | Rvalue::TupleGet { tuple: operand, .. }
+        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxGet {
+            box_operand: operand,
+        }
+        | Rvalue::PatternMatch {
+            subject: operand, ..
+        }
+        | Rvalue::PatternExtract {
+            subject: operand, ..
+        } => collect_operand_use(operand, out),
+        Rvalue::Binary { lhs, rhs, .. } => {
+            collect_operand_use(lhs, out);
+            collect_operand_use(rhs, out);
+        }
+        Rvalue::MemberAccess { receiver, .. } => collect_operand_use(receiver, out),
+        Rvalue::Call { kind, args } => {
+            collect_call_kind_uses(kind, out);
+            for arg in args {
+                collect_operand_use(&arg.value, out);
+            }
+        }
+        Rvalue::MakeTuple { elements } => {
+            for element in elements {
+                collect_operand_use(element, out);
+            }
+        }
+        Rvalue::CaptureBoxSet { box_operand, value } => {
+            collect_operand_use(box_operand, out);
+            collect_operand_use(value, out);
+        }
+        Rvalue::MakeClosure { env, .. } => collect_operand_use(env, out),
+        Rvalue::TopLevelRef(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::PerformResult { .. }
+        | Rvalue::Todo(_) => {}
+    }
+}
+
+fn collect_call_kind_uses(kind: &CallKind, out: &mut HashSet<LocalId>) {
+    match kind {
+        CallKind::Direct { .. } => {}
+        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+            collect_operand_use(callee, out);
+        }
+        CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
+            collect_operand_use(receiver, out);
+        }
+        CallKind::Resume { continuation, .. } => collect_operand_use(continuation, out),
+    }
+}
+
+fn collect_terminator_uses(kind: &TerminatorKind, out: &mut HashSet<LocalId>) {
+    match kind {
+        TerminatorKind::Return { value } => {
+            if let Some(value) = value {
+                collect_operand_use(value, out);
+            }
+        }
+        TerminatorKind::CondBr { cond, .. } => collect_operand_use(cond, out),
+        TerminatorKind::Perform { args, .. } => {
+            for arg in args {
+                collect_operand_use(&arg.value, out);
+            }
+        }
+        TerminatorKind::Goto { .. }
+        | TerminatorKind::ResumeUnwind
+        | TerminatorKind::Handle { .. }
+        | TerminatorKind::Unreachable
+        | TerminatorKind::Todo(_) => {}
+    }
+}
+
+fn collect_operand_use(operand: &Operand, out: &mut HashSet<LocalId>) {
+    if let Operand::Local(local) = operand {
+        out.insert(*local);
+    }
+}
+
 fn expand_straight_line_call(
     caller_body: &mut Body,
     caller_target: LocalId,
     call_span: crate::span::Span,
     callee: &FunDecl,
-    args: &[CallArg],
+    param_operands: &[Operand],
+    direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
 ) -> Option<Vec<Statement>> {
     let callee_body = callee.body.as_ref()?;
     let block = &callee_body.blocks[0];
-    let param_operands = bind_args_to_params(&callee.params, args)?;
     let mut local_operands = callee
         .params
         .iter()
         .map(|param| param.local)
-        .zip(param_operands)
+        .zip(param_operands.iter().cloned())
         .collect::<HashMap<_, _>>();
     let mut local_map = HashMap::new();
     let mut out = Vec::with_capacity(block.stmts.len() + 1);
@@ -327,7 +786,12 @@ fn expand_straight_line_call(
                     &mut local_map,
                     callee_stmt.span,
                 )?;
-                let mapped_value = remap_rvalue(value, &local_operands, &local_map)?;
+                let mapped_value = remap_rvalue(
+                    value,
+                    &local_operands,
+                    &local_map,
+                    direct_call_param_provenance,
+                )?;
                 out.push(Statement {
                     span: callee_stmt.span,
                     kind: StatementKind::Assign {
@@ -415,6 +879,7 @@ fn remap_rvalue(
     value: &Rvalue,
     local_operands: &HashMap<LocalId, Operand>,
     local_map: &HashMap<LocalId, LocalId>,
+    direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
 ) -> Option<Rvalue> {
     match value {
         Rvalue::Use(operand) => Some(Rvalue::Use(remap_operand(
@@ -432,26 +897,16 @@ fn remap_rvalue(
             op: *op,
             rhs: remap_operand(rhs, local_operands, local_map)?,
         }),
-        Rvalue::Call {
-            kind: CallKind::Direct { callee_fqn },
-            args,
-        } => Some(Rvalue::Call {
-            kind: CallKind::Direct {
-                callee_fqn: callee_fqn.clone(),
-            },
-            args: args
-                .iter()
-                .map(|arg| {
-                    Some(CallArg {
-                        span: arg.span,
-                        name: arg.name.clone(),
-                        value: remap_operand(&arg.value, local_operands, local_map)?,
-                    })
-                })
-                .collect::<Option<Vec<_>>>()?,
+        Rvalue::Call { kind, args } => Some(Rvalue::Call {
+            kind: remap_call_kind(
+                kind,
+                local_operands,
+                local_map,
+                direct_call_param_provenance,
+            )?,
+            args: remap_call_args(args, local_operands, local_map)?,
         }),
-        Rvalue::Call { .. }
-        | Rvalue::UnresolvedName { .. }
+        Rvalue::UnresolvedName { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
@@ -466,6 +921,84 @@ fn remap_rvalue(
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => None,
     }
+}
+
+fn remap_call_args(
+    args: &[CallArg],
+    local_operands: &HashMap<LocalId, Operand>,
+    local_map: &HashMap<LocalId, LocalId>,
+) -> Option<Vec<CallArg>> {
+    args.iter()
+        .map(|arg| {
+            Some(CallArg {
+                span: arg.span,
+                name: arg.name.clone(),
+                value: remap_operand(&arg.value, local_operands, local_map)?,
+            })
+        })
+        .collect()
+}
+
+fn remap_call_kind(
+    kind: &CallKind,
+    local_operands: &HashMap<LocalId, Operand>,
+    local_map: &HashMap<LocalId, LocalId>,
+    direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
+) -> Option<CallKind> {
+    match kind {
+        CallKind::Direct { callee_fqn } => Some(CallKind::Direct {
+            callee_fqn: callee_fqn.clone(),
+        }),
+        CallKind::FunValue { callee } => remap_known_callable_call_kind(
+            callee,
+            local_operands,
+            local_map,
+            direct_call_param_provenance,
+        ),
+        CallKind::Closure { callee, fn_ptr } => {
+            if let Some(kind) = remap_known_callable_call_kind(
+                callee,
+                local_operands,
+                local_map,
+                direct_call_param_provenance,
+            ) {
+                return Some(kind);
+            }
+            Some(CallKind::Closure {
+                callee: remap_operand(callee, local_operands, local_map)?,
+                fn_ptr: fn_ptr.clone(),
+            })
+        }
+        CallKind::Virtual { .. } | CallKind::Interface { .. } | CallKind::Resume { .. } => None,
+    }
+}
+
+fn remap_known_callable_call_kind(
+    callee: &Operand,
+    local_operands: &HashMap<LocalId, Operand>,
+    local_map: &HashMap<LocalId, LocalId>,
+    direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
+) -> Option<CallKind> {
+    let provenance = operand_direct_call_provenance(callee, direct_call_param_provenance)?;
+    match provenance {
+        CallableProvenance::DirectFunction(callee_fqn) => Some(CallKind::Direct {
+            callee_fqn: callee_fqn.clone(),
+        }),
+        CallableProvenance::KnownClosure(fn_ptr) => Some(CallKind::Closure {
+            callee: remap_operand(callee, local_operands, local_map)?,
+            fn_ptr: fn_ptr.clone(),
+        }),
+    }
+}
+
+fn operand_direct_call_provenance<'a>(
+    operand: &Operand,
+    direct_call_param_provenance: &'a HashMap<LocalId, CallableProvenance>,
+) -> Option<&'a CallableProvenance> {
+    let Operand::Local(local) = operand else {
+        return None;
+    };
+    direct_call_param_provenance.get(local)
 }
 
 fn remap_operand(
@@ -638,6 +1171,116 @@ fun main(): Int {
         );
     }
 
+    #[test]
+    fn direct_call_only_param_with_direct_function_provenance_flattens_wrapper() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_inline_direct_call_only_direct_function.scoop",
+            r#"
+package fixtures.mirinline
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> apply(f: (T) -> T / Pure!, x: T): T {
+    return f(x)
+}
+
+fun caller(x: Int): Int {
+    return apply<Int>(id<Int>, x)
+}
+
+fun main(): Int {
+    return caller(1)
+}
+"#,
+        );
+
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+        let apply_fqn = "fixtures.mirinline.apply::<Int>";
+        let id_fqn = "fixtures.mirinline.id::<Int>";
+        let caller_fqn = "fixtures.mirinline.caller";
+
+        let pass_view = materialized.pass_view();
+        let apply_owner = pass_view
+            .owner_of_callable(apply_fqn)
+            .expect("apply instance 应归属 pass family");
+        let apply_summary = materialized
+            .summaries
+            .get(apply_owner)
+            .expect("apply instance summary 应存在");
+        assert_eq!(
+            apply_summary.param_use_summaries.first(),
+            Some(&ParamUseSummary::DirectCallOnly),
+            "高阶 wrapper 参数必须先由 summary 标记为 DirectCallOnly"
+        );
+
+        let raw_caller = materialized
+            .caller_side_pass_candidate_bodies()
+            .iter()
+            .find(|fun| fun.fqn == caller_fqn)
+            .expect("caller 应进入 caller-side pass 候选");
+        assert!(
+            fun_contains_direct_call(raw_caller, apply_fqn),
+            "raw caller MIR 应先保留 wrapper direct call"
+        );
+
+        let pass_caller = pass_view
+            .callable(caller_fqn)
+            .expect("known direct-function provenance 应让 caller body 被 pass 发布");
+        assert!(
+            !fun_contains_direct_call(pass_caller, apply_fqn),
+            "caller pass body 不应继续调用高阶 wrapper"
+        );
+        assert!(
+            !fun_contains_direct_call(pass_caller, id_fqn),
+            "DirectCallOnly + provenance 摊平后应继续走普通 small direct-call inlining"
+        );
+        assert!(
+            !fun_contains_fun_value_call(pass_caller),
+            "pass body 中不应残留 wrapper 内部的函数值参数调用"
+        );
+    }
+
+    #[test]
+    fn direct_call_only_param_with_known_closure_provenance_rewrites_to_closure_call() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_inline_direct_call_only_known_closure.scoop",
+            r#"
+package fixtures.mirinline
+
+fun <T> apply(f: (T) -> T / Pure!, x: T): T {
+    return f(x)
+}
+
+fun caller(x: Int): Int {
+    return apply<Int>({ y -> y + 1 }, x)
+}
+"#,
+        );
+
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+        let caller = materialized
+            .caller_side_pass_candidate_bodies()
+            .iter()
+            .find(|fun| fun.fqn == "fixtures.mirinline.caller")
+            .expect("caller 应进入 caller-side pass 候选");
+        let snapshot = InlineSnapshot::from_materialized(&materialized);
+        let rewritten = rewrite_callable_body_once(caller, &snapshot)
+            .expect("known closure provenance 应可改写 caller");
+
+        assert!(
+            fun_contains_closure_call(&rewritten),
+            "known closure provenance 应把 wrapper 内部 FunValue call 收缩为结构化 ClosureCall"
+        );
+        assert!(
+            !fun_contains_fun_value_call(&rewritten),
+            "改写后的 wrapper body 不应继续保留模糊 FunValue call"
+        );
+    }
+
     fn raw_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> &'a FunDecl {
         materialized
             .file
@@ -668,6 +1311,46 @@ fun main(): Int {
                     return false;
                 };
                 callee_fqn == expected
+            })
+        })
+    }
+
+    fn fun_contains_fun_value_call(fun: &FunDecl) -> bool {
+        let Some(body) = &fun.body else {
+            return false;
+        };
+        body.blocks.iter().any(|block| {
+            block.stmts.iter().any(|stmt| {
+                matches!(
+                    &stmt.kind,
+                    StatementKind::Assign {
+                        value: Rvalue::Call {
+                            kind: CallKind::FunValue { .. },
+                            ..
+                        },
+                        ..
+                    }
+                )
+            })
+        })
+    }
+
+    fn fun_contains_closure_call(fun: &FunDecl) -> bool {
+        let Some(body) = &fun.body else {
+            return false;
+        };
+        body.blocks.iter().any(|block| {
+            block.stmts.iter().any(|stmt| {
+                matches!(
+                    &stmt.kind,
+                    StatementKind::Assign {
+                        value: Rvalue::Call {
+                            kind: CallKind::Closure { .. },
+                            ..
+                        },
+                        ..
+                    }
+                )
             })
         })
     }

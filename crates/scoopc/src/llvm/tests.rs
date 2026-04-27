@@ -1464,6 +1464,72 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_observes_direct_call_only_provenance_wrapper_flattening() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000h3_direct_call_only_provenance.scoop",
+        r#"
+package fixtures.t5000h3
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> apply(f: (T) -> T / Pure!, x: T): T {
+    return f(x)
+}
+
+fun caller(x: Int): Int {
+    return apply<Int>(id<Int>, x)
+}
+
+fun main(): Int {
+    return caller(1)
+}
+"#,
+    );
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let caller_fqn = "fixtures.t5000h3.caller";
+    let apply_fqn = "fixtures.t5000h3.apply::<Int>";
+    let id_fqn = "fixtures.t5000h3.id::<Int>";
+    {
+        let materialized = codegen_unit
+            .lowered
+            .materialized_mir()
+            .expect("production frontend 应保留 materialized MIR");
+        let pass_caller = materialized
+            .pass_view()
+            .callable(caller_fqn)
+            .expect("DirectCallOnly + provenance 应发布 caller-side rewritten MIR body");
+        assert!(
+            !mir_fun_contains_direct_call(pass_caller, apply_fqn),
+            "caller pass body 不应继续调用高阶 wrapper"
+        );
+        assert!(
+            !mir_fun_contains_direct_call(pass_caller, id_fqn),
+            "高阶 wrapper 摊平后应继续消除具体 direct function 的小调用边界"
+        );
+    }
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let caller_ir = function_ir_named(&ir, caller_fqn);
+    assert!(
+        !caller_ir.contains(&format!("@{apply_fqn}(")),
+        "production LLVM 应消费 provenance-driven caller rewrite，caller 不应继续调用 wrapper:\n{caller_ir}"
+    );
+    assert!(
+        !caller_ir.contains(&format!("@{id_fqn}(")),
+        "production LLVM 应继续消费后续 direct-call inlining，caller 不应继续调用 id:\n{caller_ir}"
+    );
+}
+
+#[test]
 fn production_reachability_scans_overridden_non_generic_pass_body() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
