@@ -2137,6 +2137,24 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
     - 全部通过。
   - 下一条待执行任务切换为 `T5000j3aR Review：确认 init 场景扩张只是放宽 canonical MIR 覆盖，而非把分析责任倒灌回 backend`。
+- 2026-04-29：`T5000j3aR Review：确认 init 场景扩张只是放宽 canonical MIR 覆盖，而非把分析责任倒灌回 backend` 已完成。
+  - review 首先暴露并修复了一个既有 reachability 缺口：
+    - `crates/scoopc/src/llvm/reachability.rs` 虽已把 `object_inits` / `top_level_vars` 纳入 raw candidate 作用域判断，但 `scan_expr` / `scan_mir_rvalue` 在顶层值引用上此前仍只递归 `top_level_consts` / `top_level_immutable_values`；
+    - 这会让“仅由 object init body 触达的 helper”被 call lowering 临时声明，却不进入 reachable body 发射集合；现已新增共享的 `scan_top_level_value_ref(...)`，并补上 `scan_object_init(...)` / `scan_top_level_var(...)` 与对应去重集合，收口 HIR 与 raw MIR 两条 reachability 路径。
+  - review 结论：
+    - `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/reachability.rs` 仍通过同一条 canonical body 选择边界消费 `MaterializedMirPassView` / caller-side raw candidate；新增 init 覆盖继续依赖既有 materialized MIR / reachability 事实，而不是新的 backend 现场分析；
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 仍把 closure / fun-value / virtual / interface / resume call、`MakeClosure` / `CaptureBox*` / `PerformResult` / `Todo`，以及 `Return { value: None }` 这类隐式 tail-return 形状保留在 HIR-compatible fallback，说明 `j3a` 没有把 higher-order 分析责任倒灌回 backend；
+    - `crates/scoopc/src/llvm/tests.rs` 已新增 production raw MIR 路径与 legacy HIR 路径的 object-init helper reachability 回归，确认 object value init 相关依赖仍由既有 `TopLevelRef -> object init side table / HIR body` 扫描收集，而不是在 lowering 现场补猜 target-set。
+  - 复核范围内未发现需要前插到 `T5000j3b` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc object_init_helper_dependency -- --nocapture`
+    - `cargo test -p scoopc production_codegen_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000j3b 扩展更多 higher-order / closure 场景到 production MIR 主线`。
 
 ## 1. 当前判断
 

@@ -56,8 +56,10 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         seen_ctors: HashSet::new(),
         ctor_queue: VecDeque::new(),
         scanned_class_init_steps: HashSet::new(),
+        scanned_top_level_vars: HashSet::new(),
         scanned_top_level_consts: HashSet::new(),
         scanned_top_level_immutable_values: HashSet::new(),
+        scanned_object_inits: HashSet::new(),
         current_source_path: None,
     };
 
@@ -120,8 +122,10 @@ struct ReachabilityCollector<'a> {
     ctor_queue: VecDeque<(String, Option<Span>)>,
 
     scanned_class_init_steps: HashSet<String>,
+    scanned_top_level_vars: HashSet<String>,
     scanned_top_level_consts: HashSet<String>,
     scanned_top_level_immutable_values: HashSet<String>,
+    scanned_object_inits: HashSet<String>,
     current_source_path: Option<PathBuf>,
 }
 
@@ -159,6 +163,20 @@ impl<'a> ReachabilityCollector<'a> {
         });
     }
 
+    fn scan_top_level_var(&mut self, fqn: &str) {
+        if !self.scanned_top_level_vars.insert(fqn.to_string()) {
+            return;
+        }
+        let Some(var) = self.top_level_vars.get(fqn).cloned() else {
+            return;
+        };
+        self.with_source_path(var.source_path.as_path(), |this| {
+            if let Some(init) = var.init.as_ref() {
+                this.scan_expr(init);
+            }
+        });
+    }
+
     fn scan_top_level_immutable_value(&mut self, fqn: &str) {
         if !self
             .scanned_top_level_immutable_values
@@ -174,6 +192,30 @@ impl<'a> ReachabilityCollector<'a> {
                 this.scan_expr(init);
             }
         });
+    }
+
+    fn scan_object_init(&mut self, fqn: &str) {
+        if !self.scanned_object_inits.insert(fqn.to_string()) {
+            return;
+        }
+        let Some(object) = self.object_inits.get(fqn).cloned() else {
+            return;
+        };
+        self.with_source_path(object.source_path.as_path(), |this| {
+            for step in &object.steps {
+                match step {
+                    hir::ObjectInitStep::PropertyInit { init, .. } => this.scan_expr(init),
+                    hir::ObjectInitStep::InitBlock { block } => this.scan_block(block),
+                }
+            }
+        });
+    }
+
+    fn scan_top_level_value_ref(&mut self, fqn: &str) {
+        self.scan_top_level_const(fqn);
+        self.scan_top_level_immutable_value(fqn);
+        self.scan_top_level_var(fqn);
+        self.scan_object_init(fqn);
     }
 
     fn enqueue_vtable_impls(&mut self, class_fqn: &str) {
@@ -475,8 +517,7 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::UnresolvedName { .. }
             | mir::Rvalue::Todo(_) => {}
             mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) => {
-                self.scan_top_level_const(fqn);
-                self.scan_top_level_immutable_value(fqn);
+                self.scan_top_level_value_ref(fqn)
             }
             mir::Rvalue::Binary { lhs, rhs, .. } => {
                 self.scan_mir_operand(lhs);
@@ -561,8 +602,7 @@ impl<'a> ReachabilityCollector<'a> {
             hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
             hir::ExprKind::Literal(_) | hir::ExprKind::UnresolvedIdent { .. } => {}
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.scan_top_level_const(fqn);
-                self.scan_top_level_immutable_value(fqn);
+                self.scan_top_level_value_ref(fqn);
             }
             hir::ExprKind::VarRef(hir::ValueRef::Local { .. }) => {}
             hir::ExprKind::StructLit { fields, .. } => {

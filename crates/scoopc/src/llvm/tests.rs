@@ -1967,6 +1967,117 @@ fun main(): Int {
 }
 
 #[test]
+fn production_reachability_emits_object_init_helper_dependency_for_raw_mir_top_level_ref() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3ar_object_init_helper_dep.scoop",
+        r#"
+package fixtures.t5000j3ar_obj
+
+object BoomObject {
+    init {
+        helper()
+    }
+}
+
+fun helper() {}
+
+fun entry(): Int {
+    val _obj = BoomObject
+    return 0
+}
+
+fun main(): Int {
+    return entry()
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let entry_fqn = "fixtures.t5000j3ar_obj.entry";
+    let helper_fqn = "fixtures.t5000j3ar_obj.helper";
+    let object_fqn = "fixtures.t5000j3ar_obj.BoomObject";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let entry_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == entry_fqn)
+        .expect("request-root 可达 non-generic entry 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_top_level_ref(entry_mir, object_fqn),
+        "test setup 需要确认 raw entry MIR 通过 TopLevelRef 访问 object value init"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let entry_ir = function_ir_named(&ir, entry_fqn);
+    let object_init_ir = function_ir_named(
+        &ir,
+        "__scoop_object_init__fixtures.t5000j3ar_obj.BoomObject",
+    );
+
+    assert!(
+        entry_ir.contains("mir.bb"),
+        "raw MIR 入口访问 object value init 时仍应走 production MIR bridge:\n{entry_ir}"
+    );
+    assert!(
+        object_init_ir.contains(helper_fqn),
+        "object init body 内部唯一调用的 helper 必须继续出现在 object init lowering 中:\n{object_init_ir}"
+    );
+    assert!(
+        ir.lines()
+            .any(|line| line.starts_with("define ") && line.contains(helper_fqn)),
+        "reachability 必须为仅在 object init body 中使用的 helper 发射定义，而不是只留下声明:\n{ir}"
+    );
+}
+
+#[test]
+fn legacy_reachability_emits_object_init_helper_dependency_for_hir_top_level_ref() {
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3ar_legacy_object_init_helper_dep.scoop",
+        r#"
+package a
+
+object BoomObject {
+    init {
+        helper()
+    }
+}
+
+fun helper() {}
+
+fun main(): Int {
+    val _obj = BoomObject
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let object_init_ir = function_ir_named(&ir, "__scoop_object_init__a.BoomObject");
+
+    assert!(
+        object_init_ir.contains("a.helper"),
+        "legacy HIR reachability 也必须保留 object init body 对 helper 的调用:\n{object_init_ir}"
+    );
+    assert!(
+        ir.lines()
+            .any(|line| line.starts_with("define ") && line.contains("a.helper")),
+        "仅由 object init body 触达的 helper 仍必须在模块中拥有定义:\n{ir}"
+    );
+}
+
+#[test]
 fn production_codegen_still_falls_back_for_raw_mir_closure_body_after_candidate_widening() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
