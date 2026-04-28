@@ -381,6 +381,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
             file.non_pure_continuation_resume_call_sites(),
             &lowered_fun.effect_op_call_sites,
             &lowered_fun.when_pat_binding_tys,
+            &lowered_fun.top_level_fun_call_sites,
         );
         let mir_file = mir::lower_hir_file_for_dump_with_facts(
             builtins,

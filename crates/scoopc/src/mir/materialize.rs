@@ -4262,6 +4262,7 @@ fn operand_type(
         Operand::Const(ConstValue::Char) => Some(builtins.char_),
         Operand::Const(ConstValue::Unit) => Some(builtins.unit),
         Operand::Const(ConstValue::Int) => Some(builtins.int),
+        Operand::Const(ConstValue::SynthInt(_)) => Some(builtins.int),
         Operand::Const(ConstValue::Float64) => Some(builtins.float64),
         Operand::Const(ConstValue::Float32) => Some(builtins.float32),
         Operand::Const(ConstValue::String) => Some(builtins.string),
@@ -5833,6 +5834,79 @@ fun entry(): Box<Int> / Boom {
         assert!(
             !keys[0].key.eff_args[0].is_pure(),
             "operator-overload monomorph key 不应把默认 `Boom` eff_arg 退回 Pure"
+        );
+    }
+
+    #[test]
+    fn dump_materialization_inputs_keep_owner_type_args_and_eff_args_for_compare_to_binding() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_compare_to_binding_effect.scoop",
+            r#"
+package fixtures.materialize
+
+effect Boom {
+    fun ping(): Unit
+}
+
+struct Box<T>(val value: Int) {
+    fun <eff E = Boom> compareTo(other: Box<T>): Int / Boom {
+        perform Boom.ping()
+        return this.value - other.value
+    }
+}
+
+fun entry(): Bool / Boom {
+    val lhs: Box<Int> = Box { value: 1 }
+    val rhs: Box<Int> = Box { value: 2 }
+    return lhs < rhs
+}
+"#,
+        );
+
+        let mut inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let (_value_refs, call_bindings) = collect_site_instance_bindings(&compilation_unit);
+        let builtins = inputs.typecheck_types.intern_builtins();
+
+        let bindings = call_bindings
+            .values()
+            .filter(|binding| binding.fqn == "fixtures.materialize.Box.compareTo")
+            .collect::<Vec<_>>();
+        assert_eq!(bindings.len(), 1);
+        let binding = bindings[0];
+        assert_eq!(binding.decl_file, source.path().to_path_buf());
+        assert!(binding.decl_span.start < binding.decl_span.end);
+        assert_eq!(binding.type_args.len(), 1);
+        assert_eq!(
+            binding.type_args[0], builtins.int,
+            "compareTo binding 应保留 owner specialization 的 Int type arg"
+        );
+        assert_eq!(binding.eff_args.len(), 1);
+        assert!(
+            !binding.eff_args[0].is_pure(),
+            "compareTo binding 不应把默认 `Boom` eff_arg 退回 Pure"
+        );
+
+        let keys = inputs
+            .monomorph_requests
+            .iter()
+            .filter(|request| request.key.symbol.fqn == "fixtures.materialize.Box.compareTo")
+            .collect::<Vec<_>>();
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].key.type_args.len(), 1);
+        assert_eq!(
+            keys[0].key.type_args[0], builtins.int,
+            "compareTo monomorph key 应保留 owner specialization 的 Int type arg"
+        );
+        assert_eq!(keys[0].key.eff_args.len(), 1);
+        assert!(
+            !keys[0].key.eff_args[0].is_pure(),
+            "compareTo monomorph key 不应把默认 `Boom` eff_arg 退回 Pure"
         );
     }
 

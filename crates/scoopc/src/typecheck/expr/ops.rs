@@ -543,7 +543,7 @@ pub(super) fn record_member_method_effects_as_performed(
     Ok(())
 }
 
-fn record_member_operator_direct_call_binding(
+fn record_member_direct_call_binding(
     lower: &mut TypeLowering<'_>,
     call_site_span: Span,
     callee_fqn: &str,
@@ -678,7 +678,7 @@ pub(super) fn infer_unary_expr_type(
                 op_span,
                 lower,
             )?;
-            record_member_operator_direct_call_binding(
+            record_member_direct_call_binding(
                 lower,
                 unary_expr.span,
                 &callee_fqn,
@@ -1065,7 +1065,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         .as_ref()
         .map(|eff_param| vec![eff_param.default.clone()])
         .unwrap_or_default();
-    record_member_operator_direct_call_binding(
+    record_member_direct_call_binding(
         lower,
         binary_expr.span,
         &callee_fqn,
@@ -1080,6 +1080,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 
 pub(super) fn infer_builtin_scalar_binary_expr_type(
     inputs: ExprInferInputs<'_>,
+    binary_expr: &ast::Expr,
     lhs: &ast::Expr,
     op: ast::BinaryOp,
     op_span: Span,
@@ -1159,45 +1160,22 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             if is_char_type(lhs_ty, inputs.builtins) && is_char_type(rhs_ty, inputs.builtins) {
                 return Ok(inputs.builtins.bool_);
             }
-            // T0111: compareTo operator overloading for user-defined types.
-            // If LHS is a nominal struct/class type, try `compareTo` method.
-            //
-            // Note: we construct the error manually instead of using the `mismatch`
-            // closure because `mismatch` borrows `lower` immutably, which conflicts
-            // with the mutable/shared borrow needed by the method lookup below.
-            if let Some((receiver_fqn, receiver_args)) =
-                try_extract_nominal_fqn_and_args(lhs_ty, lower)
-                && matches!(
-                    lower.nominal_decl_kind(&receiver_fqn),
-                    Some(ast::TypeKind::Struct | ast::TypeKind::Class)
-                ) {
-                    let method = "compareTo";
-                    let callee_fqn = format!("{receiver_fqn}.{method}");
-                    let sigs = collect_member_method_signatures_from_index(
-                        inputs.source,
-                        lhs_ty,
-                        &receiver_fqn,
-                        &receiver_args,
-                        &callee_fqn,
-                        lower,
-                        inputs.builtins,
-                    )?;
-                    for sig in &sigs {
-                        if sig.params.len() == 2
-                            && is_type_assignable(rhs_ty, sig.params[1], lower, inputs.builtins)
-                            && sig.return_ty == inputs.builtins.int
-                        {
-                            record_member_method_effects_as_performed(
-                                &receiver_fqn,
-                                &receiver_args,
-                                sig,
-                                op_span,
-                                lower,
-                            )?;
-                            return Ok(inputs.builtins.bool_);
-                        }
-                    }
-                }
+            if infer_compare_to_overload_binary_expr_type(
+                inputs,
+                CompareToBinarySite {
+                    binary_expr,
+                    lhs,
+                    rhs,
+                    lhs_ty,
+                    rhs_ty,
+                    op_span,
+                },
+                lower,
+            )?
+            .is_some()
+            {
+                return Ok(inputs.builtins.bool_);
+            }
             Err(ExprTypeError::BinaryOpOperandTypeMismatch {
                 op: binary_op_text(op).to_string(),
                 expected: "相同的整数类型、Char 或相同的 Float 类型".to_string(),
@@ -1271,4 +1249,254 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             Err(mismatch("Int"))
         }
     }
+}
+
+struct CompareToBinarySite<'a> {
+    binary_expr: &'a ast::Expr,
+    lhs: &'a ast::Expr,
+    rhs: &'a ast::Expr,
+    lhs_ty: TypeId,
+    rhs_ty: TypeId,
+    op_span: Span,
+}
+
+fn infer_compare_to_overload_binary_expr_type(
+    inputs: ExprInferInputs<'_>,
+    site: CompareToBinarySite<'_>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<()>, ExprTypeError> {
+    let CompareToBinarySite {
+        binary_expr,
+        lhs,
+        rhs,
+        lhs_ty,
+        rhs_ty,
+        op_span,
+    } = site;
+
+    let Some((receiver_fqn, receiver_args)) = try_extract_nominal_fqn_and_args(lhs_ty, lower)
+    else {
+        return Ok(None);
+    };
+    if !matches!(
+        lower.nominal_decl_kind(&receiver_fqn),
+        Some(ast::TypeKind::Struct | ast::TypeKind::Class)
+    ) {
+        return Ok(None);
+    }
+
+    let method = "compareTo";
+    let callee_fqn = format!("{receiver_fqn}.{method}");
+    let sigs = collect_member_method_signatures_from_index(
+        inputs.source,
+        lhs_ty,
+        &receiver_fqn,
+        &receiver_args,
+        &callee_fqn,
+        lower,
+        inputs.builtins,
+    )?;
+    if sigs.is_empty() {
+        return Ok(None);
+    }
+
+    let rhs_ty_for_selection = match rhs.kind {
+        ast::ExprKind::Lambda(_) => inputs.builtins.any,
+        _ => rhs_ty,
+    };
+    let call_args = vec![
+        CallArgInfo {
+            kind: CallArgKind::Positional,
+            expr: lhs,
+            ty: lhs_ty,
+            is_spread: false,
+            needs_expected_type: false,
+        },
+        CallArgInfo {
+            kind: CallArgKind::Positional,
+            expr: rhs,
+            ty: rhs_ty_for_selection,
+            is_spread: false,
+            needs_expected_type: matches!(rhs.kind, ast::ExprKind::Lambda(_)),
+        },
+    ];
+
+    let mut matched: Vec<(FunSigOwned, InstantiatedFunSig)> = Vec::new();
+    for sig in &sigs {
+        if sig.params.len() != 2 {
+            continue;
+        }
+
+        check_unsafe_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
+        check_nogc_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
+        check_const_fun_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
+
+        let Some(mapping) = map_call_args_to_params_with_defaults(
+            &call_args,
+            &sig.param_names,
+            &sig.param_has_defaults,
+        ) else {
+            continue;
+        };
+        if mapping.iter().any(Option::is_none) {
+            continue;
+        }
+
+        let instantiated = instantiate_fun_sig_for_call(
+            &callee_fqn,
+            binary_expr.span,
+            sig,
+            mapping
+                .iter()
+                .copied()
+                .enumerate()
+                .filter_map(|(param_idx, arg_idx)| {
+                    let arg_idx = arg_idx?;
+                    let arg = &call_args[arg_idx];
+                    Some(GenericArgConstraint {
+                        expected: sig.params[param_idx],
+                        found: arg.ty,
+                        found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                        from: format!("第 {} 个实参", arg_idx + 1),
+                        span: arg.expr.span,
+                    })
+                }),
+            lower,
+            inputs.builtins,
+        )?;
+
+        let mut ok = instantiated.return_ty == inputs.builtins.int;
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                ok = false;
+                break;
+            };
+            let expected_ty = instantiated.params[param_idx];
+            let arg = &call_args[arg_idx];
+            let found_ty = arg.ty;
+            let arg_matches_expected =
+                is_type_assignable(found_ty, expected_ty, lower, inputs.builtins)
+                    || literal_absorbs_to_expected(
+                        arg.expr,
+                        expected_ty,
+                        inputs.source,
+                        lower,
+                        inputs.builtins,
+                    );
+            if !arg_matches_expected {
+                ok = false;
+                break;
+            }
+        }
+
+        if ok {
+            matched.push((sig.clone(), instantiated));
+        }
+    }
+
+    let (sig, instantiated) = match matched.len() {
+        0 => return Ok(None),
+        1 => matched.remove(0),
+        _ => {
+            let candidates = matched
+                .iter()
+                .map(|(sig, _)| {
+                    let receiver_ty = sig.params.first().copied();
+                    fmt_overload_signature(
+                        method,
+                        receiver_ty,
+                        sig.params.get(1..).unwrap_or_default(),
+                        lower,
+                    )
+                })
+                .collect::<Vec<_>>();
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_fqn,
+                candidates: join_overload_signatures(candidates),
+                span: op_span.into(),
+            });
+        }
+    };
+
+    let rhs_expected = instantiated.params.get(1).copied();
+    if let Some(expected_rhs_ty) = rhs_expected {
+        let found_rhs_ty = inputs.infer_in_expected(
+            lower,
+            rhs,
+            expected_rhs_ty,
+            ExpectedTypeFrom::new(format!(
+                "`{}` 的第 2 个形参 `{}`",
+                callee_fqn,
+                sig.param_names
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| "<arg>".to_string())
+            )),
+        )?;
+        let rhs_matches_expected =
+            is_type_assignable(found_rhs_ty, expected_rhs_ty, lower, inputs.builtins)
+                || literal_absorbs_to_expected(
+                    rhs,
+                    expected_rhs_ty,
+                    inputs.source,
+                    lower,
+                    inputs.builtins,
+                );
+        if !rhs_matches_expected {
+            return Ok(None);
+        }
+
+        check_fn_value_to_any_erasure_gate(
+            found_rhs_ty,
+            expected_rhs_ty,
+            rhs.span,
+            lower,
+            inputs.builtins,
+        )?;
+        check_nogc_boxing_gate(
+            found_rhs_ty,
+            expected_rhs_ty,
+            rhs.span,
+            lower,
+            inputs.builtins,
+        )?;
+    }
+
+    let mut type_param_bindings =
+        collect_nominal_type_param_bindings(&receiver_fqn, &receiver_args, lower);
+    for p in sig.type_params.iter().copied() {
+        type_param_bindings.push((type_param_name(p, lower), p));
+    }
+    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_bindings(
+        &sig.decl_file,
+        type_param_bindings,
+        sig.effects.as_ref(),
+    );
+    let call_effects = substitute_type_args_in_effect_row(
+        lowered_effects?,
+        &sig.type_params,
+        &instantiated.type_args,
+        lower,
+        binary_expr.span,
+    )?;
+    for effect in call_effects.terms.iter().copied() {
+        lower.record_performed_effect(effect, binary_expr.span);
+    }
+
+    let eff_args = sig
+        .eff_param
+        .as_ref()
+        .map(|eff_param| vec![eff_param.default.clone()])
+        .unwrap_or_default();
+    record_member_direct_call_binding(
+        lower,
+        binary_expr.span,
+        &callee_fqn,
+        &sig,
+        lhs_ty,
+        &instantiated.type_args,
+        &eff_args,
+    )?;
+
+    Ok(Some(()))
 }

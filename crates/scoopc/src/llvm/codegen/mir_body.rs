@@ -604,6 +604,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     int_ty,
                 ))
             }
+            crate::mir::ConstValue::SynthInt(value) => {
+                let int_ty = match expected.or_else(|| self.cg_ty_of(self.builtins.int)) {
+                    Some(CgTy::Int(int_ty)) => int_ty,
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR synthesized int builtin type",
+                            at: span.into(),
+                        });
+                    }
+                };
+                Ok(CgValue::int(
+                    self.int_type(int_ty)
+                        .const_int(*value as u64, int_ty.signed),
+                    int_ty,
+                ))
+            }
             crate::mir::ConstValue::Float64 => {
                 let parsed = crate::syntax::float_literal::parse_float_literal(
                     self.current_source_slice(span)?,

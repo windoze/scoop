@@ -23,7 +23,8 @@ use super::super::{
     ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, DirectSupertypesIndex,
     EnumLayoutIndex, ExternFunIndex, File, FunDecl, NominalKindIndex, NominalVarianceIndex,
     NonPureContinuationResumeCallSiteIndex, ObjectInitIndex, StructLayoutIndex, SymbolId,
-    TopLevelConstIndex, TopLevelImmutableValueIndex, TopLevelVarIndex, WhenPatBindingTypeIndex,
+    TopLevelConstIndex, TopLevelFunCallSiteIndex, TopLevelImmutableValueIndex, TopLevelVarIndex,
+    WhenPatBindingTypeIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -281,6 +282,13 @@ pub struct LoweredHir {
     pub top_level_consts: TopLevelConstIndex,
     /// 普通顶层 immutable value 信息；供后端生成 once-init + 稳定读取主线。
     pub top_level_immutable_values: TopLevelImmutableValueIndex,
+    /// typecheck 已确认的 direct-call target 绑定（`source_path + expr span`）。
+    ///
+    /// 说明：
+    /// - 该 side table 不影响 `dump-hir` 输出稳定性；
+    /// - generic MIR lowering / production reachability 会用它恢复 operator overload /
+    ///   `compareTo` 等语法糖调用点的真实 callee 身份。
+    pub top_level_fun_call_sites: TopLevelFunCallSiteIndex,
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
     /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。

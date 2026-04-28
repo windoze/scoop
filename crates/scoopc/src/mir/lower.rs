@@ -38,6 +38,7 @@ pub(crate) struct MirLoweringFacts {
     non_pure_continuation_resume_call_spans: HashSet<Span>,
     effect_op_call_sites: HashMap<Span, PerformCallSiteInfo>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
+    top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,6 +67,7 @@ impl MirLoweringFacts {
                 .map(|site| site.span),
             &lowered.effect_op_call_sites,
             &lowered.when_pat_binding_tys,
+            &lowered.top_level_fun_call_sites,
         )
     }
 
@@ -75,6 +77,7 @@ impl MirLoweringFacts {
         non_pure_continuation_resume_call_spans: impl IntoIterator<Item = Span>,
         effect_op_call_sites: &hir::EffectOpCallSiteIndex,
         when_pat_binding_tys: &hir::WhenPatBindingTypeIndex,
+        top_level_fun_call_sites: &hir::TopLevelFunCallSiteIndex,
     ) -> Self {
         let mut facts = Self::default();
 
@@ -92,13 +95,18 @@ impl MirLoweringFacts {
         facts.non_pure_continuation_resume_call_spans = non_pure_continuation_resume_call_spans
             .into_iter()
             .collect();
-        facts.with_hir_side_tables(effect_op_call_sites, when_pat_binding_tys)
+        facts.with_hir_side_tables(
+            effect_op_call_sites,
+            when_pat_binding_tys,
+            top_level_fun_call_sites,
+        )
     }
 
     pub(crate) fn with_hir_side_tables(
         mut self,
         effect_op_call_sites: &hir::EffectOpCallSiteIndex,
         when_pat_binding_tys: &hir::WhenPatBindingTypeIndex,
+        top_level_fun_call_sites: &hir::TopLevelFunCallSiteIndex,
     ) -> Self {
         for (site, info) in effect_op_call_sites {
             self.effect_op_call_sites.insert(
@@ -113,6 +121,9 @@ impl MirLoweringFacts {
         for (site, ty) in when_pat_binding_tys {
             self.when_pat_binding_tys.insert(site.decl_span, *ty);
         }
+
+        self.top_level_fun_call_sites
+            .extend(top_level_fun_call_sites.clone());
 
         self
     }
@@ -130,6 +141,15 @@ impl MirLoweringFacts {
                 receiver_ty,
             ))
             .copied()
+    }
+
+    fn top_level_fun_call_binding(
+        &self,
+        source_path: &std::path::Path,
+        call_span: Span,
+    ) -> Option<&ast::TopLevelFunCallBinding> {
+        self.top_level_fun_call_sites
+            .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
     fn is_continuation_resume_call(&self, span: Span) -> bool {
@@ -946,6 +966,33 @@ impl<'a> FnLowering<'a> {
             ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
                 self.lower_short_circuit_binary_expr(span, result_ty, lhs, op, rhs)
             }
+            ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
+                if let Some(result) =
+                    self.try_lower_compare_to_binary_expr(span, result_ty, lhs, op, rhs)
+                {
+                    return result;
+                }
+
+                let result = self.push_temp_local(span, result_ty);
+                let lhs_local = self.lower_expr_to_local(lhs);
+                if self.current_is_terminated() {
+                    return result;
+                }
+                let rhs_local = self.lower_expr_to_local(rhs);
+                if self.current_is_terminated() {
+                    return result;
+                }
+                self.assign(
+                    span,
+                    result,
+                    Rvalue::Binary {
+                        lhs: Operand::Local(lhs_local),
+                        op,
+                        rhs: Operand::Local(rhs_local),
+                    },
+                );
+                result
+            }
             _ => {
                 let result = self.push_temp_local(span, result_ty);
                 let lhs_local = self.lower_expr_to_local(lhs);
@@ -1175,6 +1222,7 @@ impl<'a> FnLowering<'a> {
             Operand::Const(ConstValue::Char) => self.builtins.char_,
             Operand::Const(ConstValue::Unit) => self.builtins.unit,
             Operand::Const(ConstValue::Int) => self.builtins.int,
+            Operand::Const(ConstValue::SynthInt(_)) => self.builtins.int,
             Operand::Const(ConstValue::Float64) => self.builtins.float64,
             Operand::Const(ConstValue::Float32) => self.builtins.float32,
             Operand::Const(ConstValue::String) => self.builtins.string,
@@ -1558,13 +1606,76 @@ impl<'a> FnLowering<'a> {
             hir::LiteralKind::Bool(b) => ConstValue::Bool(*b),
             hir::LiteralKind::Char(_) => ConstValue::Char,
             hir::LiteralKind::Unit => ConstValue::Unit,
-            hir::LiteralKind::Int | hir::LiteralKind::SynthInt(_) => ConstValue::Int,
+            hir::LiteralKind::Int => ConstValue::Int,
+            hir::LiteralKind::SynthInt(value) => ConstValue::SynthInt(*value),
             hir::LiteralKind::Float64(_) => ConstValue::Float64,
             hir::LiteralKind::Float32(_) => ConstValue::Float32,
             hir::LiteralKind::String => ConstValue::String,
         };
         self.assign(span, tmp, Rvalue::Use(Operand::Const(c)));
         tmp
+    }
+
+    fn try_lower_compare_to_binary_expr(
+        &mut self,
+        span: Span,
+        result_ty: TypeId,
+        lhs: &hir::Expr,
+        op: ast::BinaryOp,
+        rhs: &hir::Expr,
+    ) -> Option<LocalId> {
+        let binding = self
+            .facts
+            .top_level_fun_call_binding(self.source_path.as_path(), span)?;
+        let result = self.push_temp_local(span, result_ty);
+        let lhs_local = self.lower_expr_to_local(lhs);
+        if self.current_is_terminated() {
+            return Some(result);
+        }
+        let rhs_local = self.lower_expr_to_local(rhs);
+        if self.current_is_terminated() {
+            return Some(result);
+        }
+
+        let compare_result = self.push_temp_local(span, self.builtins.int);
+        self.assign(
+            span,
+            compare_result,
+            Rvalue::Call {
+                kind: CallKind::Direct {
+                    callee_fqn: binding.fqn.clone(),
+                },
+                args: vec![
+                    CallArg {
+                        span: lhs.span,
+                        name: None,
+                        value: Operand::Local(lhs_local),
+                    },
+                    CallArg {
+                        span: rhs.span,
+                        name: None,
+                        value: Operand::Local(rhs_local),
+                    },
+                ],
+            },
+        );
+
+        let zero = self.push_temp_local(span, self.builtins.int);
+        self.assign(
+            span,
+            zero,
+            Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+        );
+        self.assign(
+            span,
+            result,
+            Rvalue::Binary {
+                lhs: Operand::Local(compare_result),
+                op,
+                rhs: Operand::Local(zero),
+            },
+        );
+        Some(result)
     }
 
     /// 降低变量引用：
@@ -2198,6 +2309,7 @@ mod tests {
     use super::*;
     use crate::session::Session;
     use crate::source::SourceFile;
+    use std::path::PathBuf;
 
     #[test]
     fn dump_mir_emits_type_body_generic_member_fun_roots() {
@@ -2325,6 +2437,166 @@ fun repeat<T>(x: T, n: Int): T {
         assert_eq!(
             cond_ty, builtins.bool_,
             "MIR comparison result local should be Bool, not an overly broad fallback type"
+        );
+    }
+
+    #[test]
+    fn dump_mir_lowers_user_defined_compare_to_as_direct_call_plus_zero_compare() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_compare_to_direct_call.scoop",
+            r#"
+package fixtures.mirlower
+
+struct Num(val value: Int) {
+    fun compareTo(other: Num): Int {
+        return this.value - other.value
+    }
+}
+
+fun entry(lhs: Num, rhs: Num): Bool {
+    return lhs < rhs
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.mirlower.entry" => Some(fun),
+                Item::Fun(_) | Item::Todo { .. } => None,
+            })
+            .expect("expected entry MIR root");
+        let body = fun.body.as_ref().expect("entry should have a MIR body");
+        let entry_block = &body.blocks[body.start.as_usize()];
+
+        assert!(
+            entry_block.stmts.iter().any(|stmt| matches!(
+                &stmt.kind,
+                StatementKind::Assign {
+                    value: Rvalue::Call {
+                        kind: CallKind::Direct { callee_fqn },
+                        args,
+                    },
+                    ..
+                } if callee_fqn == "fixtures.mirlower.Num.compareTo" && args.len() == 2
+            )),
+            "generic MIR compareTo lowering 应显式发射 direct-call target"
+        );
+        assert!(
+            entry_block.stmts.iter().any(|stmt| matches!(
+                &stmt.kind,
+                StatementKind::Assign {
+                    value: Rvalue::Binary { rhs: Operand::Local(local), .. },
+                    ..
+                } if matches!(
+                    body.locals.get(local.as_u32() as usize),
+                    Some(LocalDecl { .. })
+                )
+            )),
+            "compareTo direct-call 结果仍应继续进入普通 MIR Binary 比较主线"
+        );
+        assert!(
+            entry_block.stmts.iter().any(|stmt| matches!(
+                &stmt.kind,
+                StatementKind::Assign {
+                    value: Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+                    ..
+                }
+            )),
+            "compareTo → 0 比较应在 MIR 中保留显式的合成整数常量"
+        );
+    }
+
+    #[test]
+    fn dump_mir_lowers_compare_to_in_if_condition_as_direct_call() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_compare_to_if_condition.scoop",
+            r#"
+package fixtures.mirlower
+
+struct Num(val value: Int) {
+    fun compareTo(other: Num): Int {
+        return this.value - other.value
+    }
+}
+
+fun entry(lhs: Num, rhs: Num): Int {
+    if (lhs < rhs) {
+        return 0
+    } else {
+        return 1
+    }
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.mirlower.entry" => Some(fun),
+                Item::Fun(_) | Item::Todo { .. } => None,
+            })
+            .expect("expected entry MIR root");
+        let body = fun.body.as_ref().expect("entry should have a MIR body");
+        let direct_call_stmt = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find(|stmt| {
+                matches!(
+                    &stmt.kind,
+                    StatementKind::Assign {
+                        value: Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            args,
+                        },
+                        ..
+                    } if callee_fqn == "fixtures.mirlower.Num.compareTo" && args.len() == 2
+                )
+            });
+        assert!(
+            direct_call_stmt.is_some(),
+            "if 条件里的 compareTo 比较也应显式发射 direct-call target"
+        );
+        assert!(
+            body.blocks
+                .iter()
+                .flat_map(|block| block.stmts.iter())
+                .any(|stmt| matches!(
+                    &stmt.kind,
+                    StatementKind::Assign {
+                        value: Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+                        ..
+                    }
+                )),
+            "if 条件里的 compareTo → 0 比较应保留显式 SynthInt(0)"
+        );
+    }
+
+    #[test]
+    fn typed_hir_fixture_preserves_compare_to_direct_call_binding() {
+        let sess = Session::new().unwrap();
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/operator_overload_struct_basic.scoop")
+            .canonicalize()
+            .unwrap();
+        let source = SourceFile::load(&fixture).unwrap();
+
+        let lowered = crate::hir::lower_typed_for_dump(&sess, &source).unwrap();
+        assert!(
+            lowered
+                .top_level_fun_call_sites
+                .values()
+                .any(|binding| binding.fqn == "Num.compareTo"),
+            "typed HIR side table 应保留 fixture compareTo 站点的 direct-call binding"
         );
     }
 }

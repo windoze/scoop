@@ -514,6 +514,12 @@ pub enum ConstValue {
     Char,
     Unit,
     Int,
+    /// 编译器合成的整数字面量值（当前主要用于 desugaring / compareTo → 0 比较等场景）。
+    ///
+    /// 说明：
+    /// - 与 `Int` 不同，这里显式保留字面量值，避免后续阶段必须回切源码才能恢复 `0` / `1`；
+    /// - 目前仍只用于“编译器自身生成”的 `Int` 常量，不改变源码整数字面量继续按 `span` 回切的主路径。
+    SynthInt(i64),
     Float64,
     Float32,
     String,

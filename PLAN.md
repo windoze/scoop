@@ -2055,6 +2055,22 @@
       - `cargo clippy --all-targets -- -D warnings`
       - `cargo run -p scoop -- test`
     - 下一条待执行任务切换为 `T5000j1b 收口 user-defined compareTo 比较 target，并删除剩余 struct member eager inclusion`。
+  - 2026-04-28：`T5000j1b` 已完成。
+    - `typecheck/expr/ops.rs` 现已为 `< <= > >=` 的 user-defined `compareTo` 比较统一写回 direct-call binding / monomorph request / 默认 eff-arg；`compareTo` target identity 不再只停留在 typecheck 阶段的 `Bool` 结果上。
+    - `hir/lower/expr.rs`、`mir/lower.rs` 与 `mir/mod.rs` 现已把 `compareTo` 比较统一降为“显式 direct-call + `SynthInt(0)` 的普通整数比较”，`llvm/codegen/mir_body.rs` 也已补齐 `SynthInt` 常量发射，因此 generic MIR / production LLVM 都能直接消费同一条 compareTo 主线。
+    - `hir/lower/mod.rs`、`hir/lower/types.rs`、`hir/mod.rs` 与 `cone/pre_specialize.rs` 现已统一携带 `top_level_fun_call_sites` side table，generic MIR lowering / pre-specialize 无需回退到 backend 现场猜 compareTo target。
+    - 实现过程中暴露并修复了一个既有缺口：`typecheck/expr/stmt.rs` 的 `check_if_expr_stmt` 之前不会对条件表达式做 `infer`，导致 statement-position `if` 条件里的 compareTo / operator-overload 站点不会写回 typed side table；现已补齐该推导入口，`if (lhs < rhs)` 这类真实 fixture 路径与 `val x = lhs < rhs` 保持一致。
+    - `llvm/emit.rs` 已删除剩余仅为 operator overload 保留的 struct member eager inclusion；新增回归覆盖：
+      - `mir/lower.rs`：`dump_mir_lowers_compare_to_in_if_condition_as_direct_call`、`typed_hir_fixture_preserves_compare_to_direct_call_binding`；
+      - `mir/materialize.rs`：验证 compareTo binding / monomorph key 继续保留 owner specialization 与非 `Pure` 默认 eff-arg；
+      - `llvm/tests.rs`：验证 production LLVM 通过 direct-call reachability 发射已用 compareTo，且未使用的 compareTo 不会再被 eager inclusion 混入 IR。
+    - 已验证：
+      - `cargo fmt --all`
+      - `cargo test -p scoopc`
+      - `cargo test --all`
+      - `cargo clippy --all-targets -- -D warnings`
+      - `cargo run -p scoop -- test`
+    - 下一条待执行任务切换为 `T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化`。
 
 ## 1. 当前判断
 

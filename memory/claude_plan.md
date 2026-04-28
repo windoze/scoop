@@ -1,101 +1,70 @@
-# 本轮执行计划
+# 执行计划记录
 
-## 约束说明
+说明：按安全与协作要求，这里记录可审计的执行计划、决策摘要和进度更新，不记录不可验证的内部推理细节。
 
-- 按用户要求，本文件用于记录本轮的执行计划、关键决策、进度更新与计划变更。
-- 我不会在这里写出不可审计的隐含推理细节，但会完整记录可执行的步骤、依据、发现的问题与后续动作。
-- 本轮目标是：先检查最新提交是否提到需先修复的既有问题；然后定位 `TODO.md` 中第一个未完成任务；只完成这一个任务（或在必要时先拆分/重排依赖），完成后测试、更新文档并提交 Git commit，然后停止。
+## 初始计划
 
-## 初始步骤计划
+1. 检查最新一次 Git 提交，确认提交说明中是否提到已知问题、回归、临时修复或待补修项。
+2. 如果最新提交提到前置问题，先定位并修复该问题，再继续后续步骤。
+3. 读取 `TODO.md`，识别第一个未完成任务。
+4. 读取 `PLAN.md`，确认该任务的上下文、约束和依赖。
+5. 判断该任务是否过大：
+   - 如果可直接完成，则进入实现。
+   - 如果过大，则先拆分为更小子任务，更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
+6. 实现当前目标任务，并在实现过程中检查是否暴露出既有缺陷、规格不匹配或实现边界问题。
+7. 对任何发现的既有问题：
+   - 若可直接修复，则先修复再继续当前任务。
+   - 若构成前置依赖且本轮不宜直接完成，则在 `TODO.md` 中前置新增任务、在 `PLAN.md` 中记录原因，并按要求停止。
+8. 运行相关验证，至少覆盖：
+   - 针对变更的测试；
+   - 必要的工作区测试；
+   - `cargo clippy --all-targets -- -D warnings`（若与本次改动相关且可执行）。
+9. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记完成；
+   - 在 `PLAN.md` 中更新当前状态与后续顺序；
+   - 在本文件记录已完成步骤与任何计划调整。
+10. 生成一次 Git 提交，提交信息与任务对应，然后停止，不进入下一个任务。
 
-1. 检查最新一次 Git 提交信息，确认是否显式提到需要优先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对该任务是否已有既定分解或依赖。
-4. 结合相关代码、测试、规范与现状，判断该任务是否可以在本轮完整完成。
-5. 如果任务过大或被既有缺陷阻塞：
-   - 在 `TODO.md` 中把阻塞缺陷或必要前置项插到当前任务之前；
-   - 必要时同步细化 `PLAN.md`；
-   - 记录原因并提交后停止。
-6. 如果任务可执行：
-   - 实现任务；
-   - 运行相关测试、`cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（或与改动最相关的最小充分测试集，若失败则继续修复直到通过）；
-   - 更新 `TODO.md` 和 `PLAN.md`；
-   - 提交 Git commit；
-   - 停止。
+## 进度日志
 
-## 进度记录
-
-- 已创建本计划文件，尚未开始仓库检查。
-- 已检查 `git log -1 --stat --decorate=short`：
-  - 最新提交为 `21712e248907ce17352126d7f819da684a5c3166 [T5000iR] Review effect middle-end boundary migration`；
-  - 提交信息本身未显式提出需优先修复的新增既有问题。
-- 已阅读 `TODO.md` / `PLAN.md`：
-  - 当前第一条未完成任务是 `T5000j 扩展覆盖面，并继续跟踪 safepoint / mem2reg 方向`；
-  - 该任务同时覆盖 `when/pattern`、operator-overload、higher-order/closure/object-init/top-level-init，以及 safepoint/root-pressure 跟踪，单轮过大，必须先拆分。
-- 已完成的拆分依据收集：
-  - `OPTIMIZATION.md` 明确点名“operator overload 目标确定仍发生在 codegen 阶段”，并指出这导致 `llvm/emit.rs` 仍需 eager inclusion struct member methods；
-  - `crates/scoopc/src/llvm/emit.rs` 当前确实存在“把所有 struct member methods 补进 reachable 集”的 eager inclusion；
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 当前仍在 `codegen_binary(...)` 中现场决定 user-defined operator overload / `compareTo`；
-  - `crates/scoopc/src/mir/lower.rs` 当前把普通 overloaded binary 仍降为 `Rvalue::Binary`，没有显式 direct-call target；
-  - probing 还暴露了同一主题下的既有覆盖缺口：typecheck 已支持 unary operator overload，但 runtime/codegen 主线没有把它 materialize 到 direct-call 边界，因此不能把首个子任务狭义限定为“只修二元运算符”。
-- 当前决策：
-  - 已先把 `T5000j` 拆成围绕结构边界的子任务，并同步回写 `TODO.md` / `PLAN.md`；
-  - probing 后又把 `T5000j1` 继续细分为 `T5000j1a` / `T5000j1b`：
-    - `T5000j1a`：先处理 unary 与 arithmetic/bitwise/shifts operator overload 的 direct-call 主线；
-    - `T5000j1b`：再单独处理 user-defined `compareTo` 比较与剩余 eager inclusion 删除；
-  - 这样拆分的原因是：当前 HIR/MIR 整数字面量节点不承载可直接合成的 `0` 常量值，`compareTo` 比较不能和普通 operator overload 一样直接机械重写；
-  - 本轮实际执行目标已更新为 `T5000j1a`。
-  - 之后再分别处理 `T5000j1b`、pattern/when、更多 higher-order / init 覆盖，以及 safepoint/root-pressure 跟踪。
-
-## 2026-04-28 T5000j1a 接手记录
-
-- 已检查当前未提交改动：上一轮只修改了
-  - `crates/scoopc/src/typecheck/expr/call.rs`
-  - `crates/scoopc/src/typecheck/expr/ops.rs`
-  - `PLAN.md`
-  - `TODO.md`
-  - `memory/claude_plan.md`
-- 已确认服务端中断发生在 AI 执行阶段，而不是本地编译/测试阶段；当前需要基于这些未提交中间态继续完成 `T5000j1a`。
-- 已完成的缺口定位：
-  - 类型检查侧新增了 `record_member_operator_direct_call_binding(...)`，开始为 unary/binary operator overload 记录 `TopLevelFunCallBinding` 与 monomorph request；
-  - 但 `infer_unary_expr_type(...)` 当前把 unary binding 记在 `operand.span`，而不是一元表达式自身的 span；若不修正，HIR lowering 无法在 `~expr` 节点上取回 direct-call target；
-  - `crates/scoopc/src/hir/lower/expr.rs` 当前仍把 unary / binary operator site 直接降成 `ExprKind::Unary` / `ExprKind::Binary`，没有消费新的 direct-call binding；
-  - `crates/scoopc/src/mir/lower.rs` 因此仍会为这些 site 生成 `Rvalue::Unary` / `Rvalue::Binary`，production MIR / reachability 主线还未真正接到 operator overload target；
-  - `crates/scoopc/src/llvm/emit.rs` 仍保留“把所有 struct member methods eager inclusion 进 reachable 集”的老兜底逻辑，范围尚未缩到只剩 `compareTo`。
-- 当前实施方案：
-  1. 修正 unary operator overload 的 binding span，使其绑定到外层 unary 表达式；
-  2. 在 `crates/scoopc/src/hir/lower/expr.rs` 中为 `~` 与 arithmetic/bitwise/shifts operator overload 增加显式 direct-call lowering，把这些节点改写成统一的顶层 `ExprKind::Call` 形状；
-  3. 让改写路径继续复用已有 `materialized_top_level_fun_call_target_fqn(...)` / `TopLevelFunCallBinding`，保持 generic owner specialization 与 effect-row default eff-arg 主线不分叉；
-  4. 缩小 `crates/scoopc/src/llvm/emit.rs` 的 eager inclusion，只为尚未迁出的 `compareTo` 比较路径保留最小范围；
-  5. 增加/更新 HIR lowering 与 LLVM production regression，证明：
-     - operator overload site 已改写为显式 direct call；
-     - reachability 能只收集真正用到的 operator callee，而不会再把同 struct 的其它 member method 一起托底带入 IR；
-  6. 运行格式化、相关测试、全量 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，通过后更新 `TODO.md` / `PLAN.md` 并提交。
-
-## 2026-04-28 T5000j1a 完成记录
-
-- 代码已完成：
-  - `crates/scoopc/src/typecheck/expr/infer.rs` / `ops.rs`
-    - unary `~` operator overload 现在把 `TopLevelFunCallBinding` 绑定在外层一元表达式 span；
-    - arithmetic/bitwise/shifts operator overload 继续统一记录 direct-call binding / monomorph request。
-  - `crates/scoopc/src/hir/lower/expr.rs`
-    - `~` 与 arithmetic/bitwise/shifts operator site 现会被改写成显式顶层 `ExprKind::Call`；
-    - 改写路径复用已有 direct-call binding、owner specialization type args 与 eff-arg materialization 逻辑，没有新增 backend-only 分支。
-  - `crates/scoopc/src/llvm/emit.rs`
-    - operator-overload 兜底 eager inclusion 已缩到只剩 `compareTo` 比较路径；
-    - `plus`/`inv`/`shl` 等不再靠“把整类 struct member methods 全部塞进 reachable 集”托底。
-- 新增/更新回归：
-  - `crates/scoopc/src/mir/materialize.rs`
-    - 新测试验证 operator-overload binding / monomorph key 会保留 owner specialization 的 `Int` type arg 与非 `Pure` 默认 eff-arg。
-  - `crates/scoopc/src/llvm/tests.rs`
-    - 新测试验证 typed HIR 会把 `~` / `+` / `<<` lower 为 direct call；
-    - production LLVM IR 只包含实际用到的 `Mask.inv` / `Mask.plus` / `Mask.shl`，不会把未使用的 `Mask.minus` 一起带入。
-- 已完成验证：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - `cargo run -p scoop -- test`
-- 结论：
-  - `T5000j1a` 已满足“typed HIR / generic MIR / reachability / production LLVM body emission 改走 explicit direct-call 主线”的验收要求；
-  - 下一条待执行任务为 `T5000j1b`，负责 `compareTo` 比较 target 与剩余 eager inclusion 的最终清理。
+- 已创建本文件并写入初始执行计划。
+- 已检查最新提交 `e34593163e945367f1e2b9c5b4ac5250d9e35e24 (Update plan)`：
+  - 提交说明本身未声明新的既有缺陷需要优先修复；
+  - 提交 diff 主要是把后续若干条目显式标记为 `[TODO]`，未引入新的“先修 bug”说明。
+- 已读取 `TODO.md` 与 `PLAN.md`，确认当前第一个未完成任务为 `T5000j1b 收口 user-defined compareTo 比较 target，并删除剩余 struct member eager inclusion`。
+- 当前执行焦点：
+  1. 盘点 `< <= > >=` 经 `compareTo` 的 typed HIR / MIR / materialization / LLVM codegen 路径；
+  2. 找出 `llvm/emit.rs` 中仍因 operator overload 保留的 struct member eager inclusion；
+  3. 在不引入 workaround 的前提下完成 `T5000j1b`，然后运行验证、更新 `TODO.md` / `PLAN.md` 并提交。
+- 已完成实现策略判断：`T5000j1b` 规模可直接在本轮完成，无需再拆子任务。
+- 当前实现方案：
+  1. 在 `typecheck/expr/ops.rs` 为 user-defined `compareTo` 比较路径补齐与普通 operator direct-call 一致的 overload 选择、effect 记录、monomorph request 与 `TopLevelFunCallBinding` 写回；
+  2. 在 `hir/lower/expr.rs` 将 `< <= > >=` 的 user-defined `compareTo` 站点降为“显式 direct-call + `SynthInt(0)` 的普通整数比较”；
+  3. 删除 `llvm/emit.rs` 中仅为 `compareTo` 保留的 struct member eager inclusion；
+  4. 增加回归，覆盖 typed HIR / production LLVM / monomorph binding 三个层面；
+  5. 跑格式化、测试、clippy 与 fixture，再更新 `TODO.md` / `PLAN.md` 并提交。
+- 已完成代码修改：
+  - `typecheck/expr/ops.rs`：`compareTo` 比较现在会记录 direct-call binding / monomorph request，而不是只在 typecheck 阶段返回 `Bool`；
+  - `hir/lower/expr.rs`：`< <= > >=` 的 user-defined `compareTo` 站点现在会降为“direct-call + `SynthInt(0)` 比较”；
+  - `llvm/emit.rs`：已删除仅为 `compareTo` 保留的 struct member eager inclusion；
+  - 新增 LLVM / materialization 回归，覆盖 compareTo 的 direct-call 形状、IR reachability 以及 owner specialization / eff-arg 保留。
+- 已完成第一轮针对性验证：
+  - `cargo fmt --all`：通过；
+  - `cargo test -p scoopc compare_to -- --nocapture`：通过。
+- 在继续验证时暴露并修复了一个既有问题：
+  - `typecheck/expr/stmt.rs` 的 `check_if_expr_stmt` 之前不会对条件表达式做 `infer`；
+  - 这会导致 statement-position `if (lhs < rhs)` 里的 compareTo 站点不写回 typed side table，进而让 dump-mir / generic MIR 看不到 direct-call target；
+  - 现已在该入口补齐条件表达式推导，并新增 `dump_mir_lowers_compare_to_in_if_condition_as_direct_call` 回归覆盖该真实路径。
+- 已完成最终验证：
+  - `cargo fmt --all`：通过；
+  - `cargo test -p scoopc typed_hir_fixture_preserves_compare_to_direct_call_binding -- --nocapture`：通过；
+  - `cargo test -p scoopc dump_mir_lowers_compare_to_in_if_condition_as_direct_call -- --nocapture`：通过；
+  - `cargo test -p scoopc compare_to -- --nocapture`：通过；
+  - `cargo test -p scoopc frontend_codegen_consumes_compare_to_direct_calls_without_eager_member_inclusion -- --nocapture`：通过；
+  - `cargo test -p scoopc`：通过；
+  - `cargo test --all`：通过；
+  - `cargo clippy --all-targets -- -D warnings`：通过；
+  - `cargo run -p scoop -- test`：通过（`fixtures: ok (1202)`）。
+- 当前剩余步骤：
+  1. 复核最终 diff；
+  2. 生成与 `T5000j1b` 对应的 Git 提交并停止。

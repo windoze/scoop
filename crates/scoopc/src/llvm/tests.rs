@@ -1248,6 +1248,133 @@ fun main(): Int {
 }
 
 #[test]
+fn frontend_codegen_consumes_compare_to_direct_calls_without_eager_member_inclusion() {
+    fn find_local_init<'a>(body: &'a hir::Block, name: &str) -> &'a hir::Expr {
+        body.stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                hir::StmtKind::Val(val) if val.name.as_deref() == Some(name) => val.init.as_ref(),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected local `{name}` in lowered main body"))
+    }
+
+    fn assert_compare_to_binary(expr: &hir::Expr, op: ast::BinaryOp, expected_fqn: &str) {
+        let hir::ExprKind::Binary {
+            lhs,
+            op: actual_op,
+            rhs,
+            ..
+        } = &expr.kind
+        else {
+            panic!("compareTo site 应降成二元比较，实际为 {:?}", expr.kind);
+        };
+        assert_eq!(*actual_op, op);
+
+        let hir::ExprKind::Call { callee, args } = &lhs.kind else {
+            panic!(
+                "compareTo 比较的左侧应为显式 direct-call，实际为 {:?}",
+                lhs.kind
+            );
+        };
+        let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+            panic!(
+                "compareTo direct-call 应指向顶层 target，实际为 {:?}",
+                callee.kind
+            );
+        };
+        assert_eq!(fqn, expected_fqn);
+        assert_eq!(
+            args.len(),
+            2,
+            "compareTo direct-call 应携带隐式 receiver + rhs"
+        );
+        assert!(
+            matches!(
+                rhs.kind,
+                hir::ExprKind::Literal(hir::LiteralKind::SynthInt(0))
+            ),
+            "compareTo 比较右侧应为合成的 `0` 常量，实际为 {:?}",
+            rhs.kind
+        );
+    }
+
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j1b_compare_to_direct_call.scoop",
+        r#"
+package fixtures.t5000j1b
+
+import scoop.core.*
+
+struct Metric(val score: Int) {
+    fun compareTo(other: Metric): Int {
+        return this.score - other.score
+    }
+}
+
+struct Unused(val score: Int) {
+    fun compareTo(other: Unused): Int {
+        return this.score - other.score
+    }
+}
+
+fun main(): Int {
+    val lhs: Metric = Metric(1)
+    val rhs: Metric = Metric(2)
+    val lt: Bool = lhs < rhs
+    val ge: Bool = lhs >= rhs
+    val result: Int = if (lt && !ge) {
+        0
+    } else {
+        1
+    }
+    return result
+}
+"#,
+    );
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let main = codegen_unit
+        .lowered
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            hir::Item::Fun(fun) if fun.fqn == "fixtures.t5000j1b.main" => Some(fun),
+            _ => None,
+        })
+        .expect("expected lowered main");
+    let body = main.body.as_ref().expect("main should have a body");
+
+    assert_compare_to_binary(
+        find_local_init(body, "lt"),
+        ast::BinaryOp::Lt,
+        "fixtures.t5000j1b.Metric.compareTo",
+    );
+    assert_compare_to_binary(
+        find_local_init(body, "ge"),
+        ast::BinaryOp::Ge,
+        "fixtures.t5000j1b.Metric.compareTo",
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    assert!(
+        ir.contains("@fixtures.t5000j1b.Metric.compareTo("),
+        "production LLVM 应继续通过 direct-call reachability 发射 compareTo target，实际 IR:\n{ir}"
+    );
+    assert!(
+        !ir.contains("@fixtures.t5000j1b.Unused.compareTo("),
+        "未使用的 compareTo 不应再因 eager inclusion 混入 IR：\n{ir}"
+    );
+}
+
+#[test]
 fn production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

@@ -772,6 +772,14 @@ pub struct EffectOpCallInfo {
 /// effect-op 调用点索引：`source_path + call span` → 已确认的参数绑定与 transport tuple。
 pub type EffectOpCallSiteIndex = HashMap<CallSite, EffectOpCallInfo>;
 
+/// 由 typecheck 确认的 direct-call target 绑定索引：`source_path + expr span` → target identity。
+///
+/// 说明：
+/// - 这层保留的是“调用点已选中的顶层/成员函数身份”，而不是 backend 级符号；
+/// - 主要供 generic MIR lowering / materialization / production reachability 在不回退到
+///   backend 现场猜目标的前提下，恢复 operator overload、`compareTo` 等语法糖的真实 callee。
+pub type TopLevelFunCallSiteIndex = HashMap<CallSite, ast::TopLevelFunCallBinding>;
+
 /// 动态 dispatch 调用点索引：`source_path + call span + receiver_ty` → dispatch kind。
 pub type DispatchCallSiteIndex = HashMap<DispatchCallSite, DispatchCallKind>;
 

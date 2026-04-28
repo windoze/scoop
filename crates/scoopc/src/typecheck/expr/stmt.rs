@@ -1471,6 +1471,11 @@ fn check_if_expr_stmt(
     state: &StmtExprState<'_>,
     ctx: StmtExprContext,
 ) -> Result<(), ExprTypeError> {
+    // 条件表达式仍需走完整 `infer`：
+    // - 记录 compareTo / operator overload / effect call 等 typed side tables；
+    // - 确保 `if` 作为语句出现时不会跳过条件里的表达式检查。
+    let _ = expr_infer_inputs_with_flow(shared, state.locals, ctx.flow).infer(lower, cond)?;
+
     // smart cast（T0413）最小子集：仅识别 `if (x is T)` / `if (x !is T)` 形式，
     // 并且只对“稳定绑定”（参数 + `val`）在对应分支内做类型收窄。
     let smart_cast =

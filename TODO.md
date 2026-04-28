@@ -1920,7 +1920,7 @@
   - 新增 `crates/scoopc/src/mir/materialize.rs` 回归，验证 operator overload binding / monomorph key 会保留 owner specialization 的 `Int` type arg 与非 `Pure` 的默认 eff-arg；新增 `crates/scoopc/src/llvm/tests.rs` production regression，验证 `~` / `+` / `<<` 已经作为 direct call 进入 typed HIR 与 LLVM IR，且未使用的 `Mask.minus` 不会再因 eager inclusion 混入 IR；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过。
 
-### [TODO] T5000j1b 收口 user-defined `compareTo` 比较 target，并删除剩余 struct member eager inclusion
+### [DONE] T5000j1b 收口 user-defined `compareTo` 比较 target，并删除剩余 struct member eager inclusion
 - 范围：
   - 为 `< <= > >=` 经 `compareTo` 的用户态比较补齐稳定的 typed HIR / generic MIR 表示；
   - 让这类比较也进入 direct-call target / monomorph / reachability 主线，并删除 `llvm/emit.rs` 中剩余仅为 operator overload 保留的 struct member eager inclusion。
@@ -1928,6 +1928,13 @@
   - user-defined comparison 不再依赖 LLVM backend 现场决定 `compareTo` 目标；
   - `llvm/emit.rs` 不再需要为 operator overload 保留 struct member eager inclusion。
 - 依赖：T5000j1a
+- 完成记录（2026-04-28）：
+  - `crates/scoopc/src/typecheck/expr/ops.rs` 现已为 `< <= > >=` 的 user-defined `compareTo` 比较统一记录 `TopLevelFunCallBinding`、monomorph request 与默认 eff-arg，不再只把站点类型化为 `Bool`；
+  - `crates/scoopc/src/hir/lower/expr.rs`、`crates/scoopc/src/mir/lower.rs` 与 `crates/scoopc/src/mir/mod.rs` 现已把这类比较收口为“显式 direct-call + `SynthInt(0)` 的普通整数比较”；`crates/scoopc/src/llvm/codegen/mir_body.rs` 也已补齐 `SynthInt` 常量发射；
+  - `crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/hir/lower/types.rs`、`crates/scoopc/src/hir/mod.rs` 与 `crates/scoopc/src/cone/pre_specialize.rs` 现已统一携带 `top_level_fun_call_sites` side table，使 generic MIR lowering / pre-specialize 都能直接消费 compareTo target identity；
+  - 本轮同时修复了既有缺口：`crates/scoopc/src/typecheck/expr/stmt.rs` 之前不会对 statement-position `if` 条件做 `infer`，导致 `if (lhs < rhs)` 里的 compareTo 站点不写回 typed side table；现已补齐条件表达式推导，真实 fixture 路径不再漏记；
+  - `crates/scoopc/src/llvm/emit.rs` 已删除剩余仅为 operator overload 保留的 struct member eager inclusion；新增 `crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/llvm/tests.rs` 回归，覆盖 `if` 条件 compareTo、typed HIR binding、owner specialization / eff-arg 保留与 production LLVM reachability；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过。
 
 ### [TODO] T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化
 - 重点：

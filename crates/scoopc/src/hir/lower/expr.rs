@@ -692,6 +692,15 @@ impl<'a> HirLowering<'a> {
                     )
                 {
                     (kind, ty)
+                } else if matches!(
+                    op,
+                    ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge
+                ) && let Some((kind, ty)) = self
+                    .try_lower_typechecked_compare_to_binary_expr(
+                        pkg_prefix, e.span, *op, *op_span, lhs, rhs,
+                    )
+                {
+                    (kind, ty)
                 } else {
                     let lhs = Box::new(self.lower_expr(pkg_prefix, lhs));
                     let rhs = Box::new(self.lower_expr(pkg_prefix, rhs));
@@ -1337,24 +1346,36 @@ impl<'a> HirLowering<'a> {
             .cloned()
     }
 
+    fn typechecked_direct_call_expr(
+        &mut self,
+        span: Span,
+        binding: &crate::ast::TopLevelFunCallBinding,
+        args: Vec<CallArg>,
+        ty: TypeId,
+    ) -> Expr {
+        let target_fqn = self
+            .materialized_direct_call_target_fqn_for_binding(binding)
+            .unwrap_or_else(|| binding.fqn.clone());
+        let callee = self.top_level_callee_expr_with_fqn(span, target_fqn);
+        Expr {
+            span,
+            ty,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args,
+            },
+        }
+    }
+
     fn lower_typechecked_operator_direct_call_expr(
         &mut self,
         span: Span,
         binding: crate::ast::TopLevelFunCallBinding,
         args: Vec<CallArg>,
     ) -> (ExprKind, TypeId) {
-        let target_fqn = self
-            .materialized_direct_call_target_fqn_for_binding(&binding)
-            .unwrap_or_else(|| binding.fqn.clone());
-        let callee = self.top_level_callee_expr_with_fqn(span, target_fqn);
         let ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
-        (
-            ExprKind::Call {
-                callee: Box::new(callee),
-                args,
-            },
-            ty,
-        )
+        let call = self.typechecked_direct_call_expr(span, &binding, args, ty);
+        (call.kind, call.ty)
     }
 
     fn try_lower_typechecked_operator_overload_unary_expr(
@@ -1388,6 +1409,42 @@ impl<'a> HirLowering<'a> {
             span,
             binding,
             vec![CallArg::Positional(lhs), CallArg::Positional(rhs)],
+        ))
+    }
+
+    fn try_lower_typechecked_compare_to_binary_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        op: ast::BinaryOp,
+        op_span: Span,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+    ) -> Option<(ExprKind, TypeId)> {
+        let binding = self.typechecked_top_level_fun_call_binding(span)?;
+        let overload = self.fun_overload_for_call_binding(&binding);
+        let lhs = self.lower_expr(pkg_prefix, lhs);
+        let rhs_expected = self.expected_expr_for_fun_call_arg(overload.as_ref(), rhs, 0);
+        let rhs = self.lower_expr_with_expected(pkg_prefix, rhs, rhs_expected);
+        let compare_to_call = self.typechecked_direct_call_expr(
+            span,
+            &binding,
+            vec![CallArg::Positional(lhs), CallArg::Positional(rhs)],
+            self.builtins.int,
+        );
+        let zero = Expr {
+            span,
+            ty: self.builtins.int,
+            kind: ExprKind::Literal(LiteralKind::SynthInt(0)),
+        };
+        Some((
+            ExprKind::Binary {
+                lhs: Box::new(compare_to_call),
+                op,
+                op_span,
+                rhs: Box::new(zero),
+            },
+            self.builtins.bool_,
         ))
     }
 

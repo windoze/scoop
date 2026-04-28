@@ -40,6 +40,18 @@ use super::{
 use types::*;
 use util::*;
 
+fn collect_top_level_fun_call_sites(
+    files: &[(&SourceFile, &ast::File)],
+) -> crate::hir::TopLevelFunCallSiteIndex {
+    let mut sites = HashMap::new();
+    for (source, file) in files {
+        for (span, binding) in file.top_level_fun_call_bindings() {
+            sites.insert(CallSite::new(source.path().to_path_buf(), span), binding);
+        }
+    }
+    sites
+}
+
 /// HIR lowering 的上下文（按单文件构建，用于 `dump-hir` 与 HIR fixtures）。
 struct HirLowering<'a> {
     source: &'a SourceFile,
@@ -2292,6 +2304,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ));
         ci
     };
+    let top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, &ast)]);
     Ok(LoweredHir {
         file,
         member_funs,
@@ -2304,6 +2317,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        top_level_fun_call_sites,
         object_inits,
         class_inits,
         class_vtables,
@@ -2569,6 +2583,7 @@ pub fn lower_for_compilation_unit(
         ));
         ci
     };
+    let top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
 
     Ok(LoweredHir {
         file: file_hir,
@@ -2582,6 +2597,7 @@ pub fn lower_for_compilation_unit(
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        top_level_fun_call_sites,
         object_inits,
         class_inits,
         class_vtables,
@@ -3136,6 +3152,8 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         CompilationUnitInstanceMode::GenericTemplateOnly => {}
     }
 
+    let top_level_fun_call_sites = collect_top_level_fun_call_sites(files_to_lower);
+
     Ok(LoweredHir {
         file: File { items },
         member_funs,
@@ -3148,6 +3166,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        top_level_fun_call_sites,
         object_inits,
         class_inits,
         class_vtables,
@@ -3204,6 +3223,7 @@ pub(crate) struct LoweredFunWithMirFacts {
     pub(crate) dispatch_call_sites: super::DispatchCallSiteIndex,
     pub(crate) effect_op_call_sites: super::EffectOpCallSiteIndex,
     pub(crate) when_pat_binding_tys: super::WhenPatBindingTypeIndex,
+    pub(crate) top_level_fun_call_sites: super::TopLevelFunCallSiteIndex,
 }
 
 /// 将给定的 `ast::FunDecl` 在”已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
@@ -3309,6 +3329,7 @@ fn lower_fun_with_bindings_and_mir_facts(
         dispatch_call_sites: std::mem::take(&mut ctx.dispatch_call_sites),
         effect_op_call_sites: std::mem::take(&mut ctx.effect_op_call_sites),
         when_pat_binding_tys: std::mem::take(&mut ctx.when_pat_binding_tys),
+        top_level_fun_call_sites: collect_top_level_fun_call_sites(&[(source, file)]),
     }
 }
 

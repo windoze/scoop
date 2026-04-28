@@ -317,6 +317,7 @@ pub(super) fn infer_expr_type(
             ),
             _ => infer_builtin_scalar_binary_expr_type(
                 inputs,
+                expr,
                 lhs.as_ref(),
                 *op,
                 *op_span,
