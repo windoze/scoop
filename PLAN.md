@@ -2071,6 +2071,19 @@
       - `cargo clippy --all-targets -- -D warnings`
       - `cargo run -p scoop -- test`
     - 下一条待执行任务切换为 `T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化`。
+  - 2026-04-28：`T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化` 已完成。
+    - review 结论：
+      - operator-overload / `compareTo` target identity 的来源边界已前移到 typecheck：`typecheck/expr/ops.rs` 写回 `TopLevelFunCallBinding` / monomorph request，typed HIR 再将 unary/binary overload 站点改写为显式顶层 `ExprKind::Call`，并将 `compareTo` 比较改写为“direct-call + `SynthInt(0)` 的普通整数比较”；
+      - `mir/lower.rs`、`mir/materialize.rs` 与 `llvm/reachability.rs` 继续沿显式 `CallKind::Direct` 与 `top_level_fun_call_sites` / direct-call binding side table 消费这些 target，production reachable callee 的发现已经脱离 LLVM backend 现场猜测；
+      - `llvm/emit.rs` 已删除仅为 operator-overload 保留的 struct member eager inclusion；entry `main` 和 raw-MIR HIR-compat body emission 即使仍通过 HIR 表达式 lowering，也是在消费已改写的 typed HIR direct-call 形状，而不是再由 `llvm/codegen` 临时决定 operator-overload target。
+    - 复核范围内未发现需要插到 `T5000j2` 之前的新前置缺陷任务。
+    - 已验证：
+      - `cargo test -p scoopc compare_to -- --nocapture`
+      - `cargo test -p scoopc operator_overload -- --nocapture`
+      - `cargo test --all`
+      - `cargo clippy --all-targets -- -D warnings`
+      - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - 下一条待执行任务切换为 `T5000j2 扩展 when / pattern 到 production MIR body / summary 主线`。
 
 ## 1. 当前判断
 

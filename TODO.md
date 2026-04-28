@@ -1936,7 +1936,7 @@
   - `crates/scoopc/src/llvm/emit.rs` 已删除剩余仅为 operator overload 保留的 struct member eager inclusion；新增 `crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/llvm/tests.rs` 回归，覆盖 `if` 条件 compareTo、typed HIR binding、owner specialization / eff-arg 保留与 production LLVM reachability；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过。
 
-### [TODO] T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化
+### [DONE] T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化
 - 重点：
   - operator-overload target 是否已在 typed HIR / generic MIR 主线中显式化；
   - `llvm/emit.rs` 是否已经去掉仅为 operator overload 保留的 struct member eager inclusion；
@@ -1944,6 +1944,11 @@
 - 验收：
   - 可以明确说出 operator-overload target 的来源边界，并证明 reachability / production codegen 不再依赖 backend 现场猜目标。
 - 依赖：T5000j1b
+- 完成记录（2026-04-28）：
+  - review 确认 operator-overload / `compareTo` target identity 的来源边界已前移到 typecheck：`typecheck/expr/ops.rs` 写回 `TopLevelFunCallBinding` / monomorph request，`hir/lower/expr.rs` 将 unary/binary operator-overload 与 `compareTo` 比较改写为显式顶层 direct-call 或 `direct-call + SynthInt(0)` 的普通整数比较，`mir/lower.rs` / `mir/materialize.rs` / `llvm/reachability.rs` 继续沿显式 `CallKind::Direct` 与 side table 主线消费这些 target；
+  - review 确认 `llvm/emit.rs` 已删除仅为 operator-overload 保留的 struct member eager inclusion；production reachability 现在只扫描 entry `main` 的已改写 typed HIR 和 canonical materialized MIR body，不再依赖 backend 现场补猜 operator-overload callee；
+  - review 同时确认 entry `main` 与 raw-MIR HIR-compat body emission 虽仍可落回 HIR 表达式 lowering，但这些路径消费的已经是 typed HIR 中显式改写后的 direct-call 形状，因此 compareTo / operator-overload target 不再由 `llvm/codegen` 现场决定；
+  - 已验证 `cargo test -p scoopc compare_to -- --nocapture`、`cargo test -p scoopc operator_overload -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
 ### [TODO] T5000j2 扩展 `when` / pattern 到 production MIR body / summary 主线
 - 范围：

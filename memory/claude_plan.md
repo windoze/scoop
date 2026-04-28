@@ -1,70 +1,68 @@
-# 执行计划记录
+# 当前执行计划
 
-说明：按安全与协作要求，这里记录可审计的执行计划、决策摘要和进度更新，不记录不可验证的内部推理细节。
+更新时间：2026-04-28
 
-## 初始计划
+说明：按要求在执行命令前先记录计划。这里记录的是可审计的执行计划、观察、决策与进度摘要，不包含不可导出的内部推理细节。
 
-1. 检查最新一次 Git 提交，确认提交说明中是否提到已知问题、回归、临时修复或待补修项。
-2. 如果最新提交提到前置问题，先定位并修复该问题，再继续后续步骤。
-3. 读取 `TODO.md`，识别第一个未完成任务。
-4. 读取 `PLAN.md`，确认该任务的上下文、约束和依赖。
-5. 判断该任务是否过大：
-   - 如果可直接完成，则进入实现。
-   - 如果过大，则先拆分为更小子任务，更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
-6. 实现当前目标任务，并在实现过程中检查是否暴露出既有缺陷、规格不匹配或实现边界问题。
-7. 对任何发现的既有问题：
-   - 若可直接修复，则先修复再继续当前任务。
-   - 若构成前置依赖且本轮不宜直接完成，则在 `TODO.md` 中前置新增任务、在 `PLAN.md` 中记录原因，并按要求停止。
-8. 运行相关验证，至少覆盖：
-   - 针对变更的测试；
-   - 必要的工作区测试；
-   - `cargo clippy --all-targets -- -D warnings`（若与本次改动相关且可执行）。
-9. 更新文档与任务状态：
-   - 在 `TODO.md` 中标记完成；
-   - 在 `PLAN.md` 中更新当前状态与后续顺序；
-   - 在本文件记录已完成步骤与任何计划调整。
-10. 生成一次 Git 提交，提交信息与任务对应，然后停止，不进入下一个任务。
+## 目标
 
-## 进度日志
+本轮只完成 `TODO.md` 中第一个未完成任务；如果在检查、测试或实现过程中发现更早的既有问题，则优先修复该问题，或将其作为前置任务插入 `TODO.md` 后停止。
 
-- 已创建本文件并写入初始执行计划。
-- 已检查最新提交 `e34593163e945367f1e2b9c5b4ac5250d9e35e24 (Update plan)`：
-  - 提交说明本身未声明新的既有缺陷需要优先修复；
-  - 提交 diff 主要是把后续若干条目显式标记为 `[TODO]`，未引入新的“先修 bug”说明。
-- 已读取 `TODO.md` 与 `PLAN.md`，确认当前第一个未完成任务为 `T5000j1b 收口 user-defined compareTo 比较 target，并删除剩余 struct member eager inclusion`。
-- 当前执行焦点：
-  1. 盘点 `< <= > >=` 经 `compareTo` 的 typed HIR / MIR / materialization / LLVM codegen 路径；
-  2. 找出 `llvm/emit.rs` 中仍因 operator overload 保留的 struct member eager inclusion；
-  3. 在不引入 workaround 的前提下完成 `T5000j1b`，然后运行验证、更新 `TODO.md` / `PLAN.md` 并提交。
-- 已完成实现策略判断：`T5000j1b` 规模可直接在本轮完成，无需再拆子任务。
-- 当前实现方案：
-  1. 在 `typecheck/expr/ops.rs` 为 user-defined `compareTo` 比较路径补齐与普通 operator direct-call 一致的 overload 选择、effect 记录、monomorph request 与 `TopLevelFunCallBinding` 写回；
-  2. 在 `hir/lower/expr.rs` 将 `< <= > >=` 的 user-defined `compareTo` 站点降为“显式 direct-call + `SynthInt(0)` 的普通整数比较”；
-  3. 删除 `llvm/emit.rs` 中仅为 `compareTo` 保留的 struct member eager inclusion；
-  4. 增加回归，覆盖 typed HIR / production LLVM / monomorph binding 三个层面；
-  5. 跑格式化、测试、clippy 与 fixture，再更新 `TODO.md` / `PLAN.md` 并提交。
-- 已完成代码修改：
-  - `typecheck/expr/ops.rs`：`compareTo` 比较现在会记录 direct-call binding / monomorph request，而不是只在 typecheck 阶段返回 `Bool`；
-  - `hir/lower/expr.rs`：`< <= > >=` 的 user-defined `compareTo` 站点现在会降为“direct-call + `SynthInt(0)` 比较”；
-  - `llvm/emit.rs`：已删除仅为 `compareTo` 保留的 struct member eager inclusion；
-  - 新增 LLVM / materialization 回归，覆盖 compareTo 的 direct-call 形状、IR reachability 以及 owner specialization / eff-arg 保留。
-- 已完成第一轮针对性验证：
-  - `cargo fmt --all`：通过；
-  - `cargo test -p scoopc compare_to -- --nocapture`：通过。
-- 在继续验证时暴露并修复了一个既有问题：
-  - `typecheck/expr/stmt.rs` 的 `check_if_expr_stmt` 之前不会对条件表达式做 `infer`；
-  - 这会导致 statement-position `if (lhs < rhs)` 里的 compareTo 站点不写回 typed side table，进而让 dump-mir / generic MIR 看不到 direct-call target；
-  - 现已在该入口补齐条件表达式推导，并新增 `dump_mir_lowers_compare_to_in_if_condition_as_direct_call` 回归覆盖该真实路径。
-- 已完成最终验证：
-  - `cargo fmt --all`：通过；
-  - `cargo test -p scoopc typed_hir_fixture_preserves_compare_to_direct_call_binding -- --nocapture`：通过；
-  - `cargo test -p scoopc dump_mir_lowers_compare_to_in_if_condition_as_direct_call -- --nocapture`：通过；
-  - `cargo test -p scoopc compare_to -- --nocapture`：通过；
-  - `cargo test -p scoopc frontend_codegen_consumes_compare_to_direct_calls_without_eager_member_inclusion -- --nocapture`：通过；
-  - `cargo test -p scoopc`：通过；
-  - `cargo test --all`：通过；
-  - `cargo clippy --all-targets -- -D warnings`：通过；
-  - `cargo run -p scoop -- test`：通过（`fixtures: ok (1202)`）。
-- 当前剩余步骤：
-  1. 复核最终 diff；
-  2. 生成与 `T5000j1b` 对应的 Git 提交并停止。
+## 初始步骤
+
+1. 检查最新一次 git 提交信息，确认是否提到已知未修复问题；若有，先修复该问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认现有计划与依赖关系。
+4. 评估该任务是否可在本轮完整交付。
+5. 若任务过大，则拆分为更小子任务，并更新 `TODO.md` 与 `PLAN.md`，然后执行拆分后的第一个子任务。
+6. 实现任务。
+7. 运行相关测试，并补齐必要测试。
+8. 运行质量检查，至少包括与改动相关的测试，以及在可行时运行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+9. 更新 `TODO.md` 与 `PLAN.md` 记录结果。
+10. 使用清晰的提交信息提交改动，并停止。
+
+## 执行约束
+
+- 不接受绕过实现缺陷的临时方案。
+- 如果发现阻塞当前任务的既有缺陷，必须先修复，或将其添加为前置任务后停止。
+- 本轮只完成一个任务，不推进到下一个任务。
+- 不回退或覆盖我未创建的现有改动。
+
+## 进度记录
+
+- 2026-04-28：已创建计划文件，下一步开始检查最新提交与任务列表。
+- 2026-04-28：已检查最新提交标题与 `TODO.md` / `PLAN.md`，当前首个未完成任务为 `T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化`。
+- 2026-04-28：已完成静态 review。结论是 operator-overload / `compareTo` target identity 已前移到 typecheck + typed HIR / generic MIR 主线：typecheck 记录 `TopLevelFunCallBinding`，typed HIR 将 operator-overload 站点改写为显式 direct-call，`compareTo` 则改写为 `direct-call + SynthInt(0)` 的整数比较；production reachability 与 MIR materialization 继续消费显式 direct-call，不再依赖 LLVM backend 现场猜目标。
+- 2026-04-28：测试已完成且通过：
+  - `cargo test -p scoopc compare_to -- --nocapture`
+  - `cargo test -p scoopc operator_overload -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+- 2026-04-28：未发现需要插入到 `T5000j2` 之前的新前置缺陷任务；下一步更新 `TODO.md` / `PLAN.md` 并提交。
+
+## 本轮执行细化
+
+1. 阅读 `T5000j1R` 相邻的 `TODO.md` / `PLAN.md` 条目，提炼本轮 review 的验收条件。
+2. 检查最新提交及其相关代码路径：
+   - `typecheck` 中 operator-overload / `compareTo` 绑定路径；
+   - typed HIR lowering；
+   - generic MIR / materialization；
+   - production LLVM codegen 是否仍存在 compareTo/operator-overload 的现场猜测或 eager inclusion。
+3. 运行与该路径直接相关的测试，优先覆盖：
+   - `compareTo` 比较；
+   - operator-overload fixture / LLVM tests；
+   - 如有必要，补充回归测试。
+4. 若发现既有缺陷：
+   - 先修复该缺陷，再更新 `TODO.md` / `PLAN.md` / 本文件，并继续完成当前 review；
+   - 如果无法在本轮安全修复，则把缺陷插入为前置任务并停止。
+5. 若未发现阻塞缺陷：
+   - 将 `T5000j1R` 标记完成；
+   - 更新 `PLAN.md` 与本文件记录 review 结论、证据和测试结果；
+   - 提交本轮改动并停止。
+
+## 当前状态
+
+- `T5000j1R` 的技术结论已确认。
+- `TODO.md` / `PLAN.md` 已更新为完成状态。
+- 下一步：检查工作区差异并提交本轮文档改动。
