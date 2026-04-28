@@ -1859,7 +1859,7 @@
   - `llvm/codegen/effect/mod.rs` 现只保留 emitter、bridge 与必要的 lowering 辅助；effect/state-machine 的 planning / segments / transform 主分析入口已迁到 shared MIR + facts 边界，LLVM backend 不再承担 effect middle-end 主分析责任。
   - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::codegen::effect -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
-### [TODO] T5000iR Review：确认 effect middle-end 已从 LLVM backend 语义边界迁出
+### [DONE] T5000iR Review：确认 effect middle-end 已从 LLVM backend 语义边界迁出
 - 重点：
   - `state_machine_plan / segments / transform` 是否已经脱离 LLVM codegen 主职责；
   - effect planning 是否真正依赖 MIR 与 shared facts，而不是依赖 backend context；
@@ -1867,6 +1867,12 @@
 - 验收：
   - LLVM backend 只剩 emitter 与 backend lowering，而不再承担 effect middle-end 的主分析责任。
 - 依赖：T5000i
+- 完成记录（2026-04-28）：
+  - 已复核 `crates/scoopc/src/effect/**`、`crates/scoopc/src/effect/analysis.rs` 与 `crates/scoopc/src/effect/step_summary.rs`；shared effect 模块现只依赖 HIR/MIR、`ProgramFacts`、`TypeStore` 与 shared metadata，未再直接引用 `MainCodegen`、`crate::llvm`、`inkwell` 或其它 LLVM backend 语义类型，说明 `state_machine plan / segments / transform` 已稳定离开 LLVM codegen 主职责；
+  - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs` 与 `state_machine_emitter.rs`；backend 侧现在由 bridge 负责把 `ProgramFacts`、`MaterializedMirPassView` summary/escape facts 与函数级局部 metadata 注入 `EffectAnalysisCtx`，emitter 则只消费 `crate::effect::state_machine::UnifiedHandleLoweringContract` 发射 LLVM IR，职责边界已收口为 bridge + emitter + 必要 lowering helper；
+  - 已复核 `crates/scoopc/src/effect/state_machine/analysis.rs`、`crates/scoopc/src/mir/pass_view.rs`、`crates/scoopc/src/mir/summary.rs` 与 `crates/scoopc/src/mir/inline.rs` 的接缝：known-fun suspendability 现在直接读取 pass-view summary override 的 `may_outward_effect`，continuation escape 通过 `ContinuationEscapeFacts::from_pass_view_for_callable(...)` 按 call site 投影进 `EffectAnalysisCtx`，说明 closure / continuation escape 与 summary / call kind / provenance 已通过同一 MIR pass facts 层进入 planning，而不是回退到 backend 现场重新推断；
+  - 已验证 `cargo test -p scoopc llvm::codegen::effect -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；
+  - review 结论：未发现需要插入到 `T5000j` 之前的新前置缺陷任务；LLVM backend 当前只剩 emitter 与 backend lowering，effect middle-end 已迁出 LLVM backend 语义边界。
 
 ### T5000j 扩展覆盖面，并继续跟踪 safepoint / `mem2reg` 方向
 - 范围：

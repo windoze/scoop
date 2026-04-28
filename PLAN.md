@@ -2011,6 +2011,20 @@
     - `cargo clippy --all-targets -- -D warnings`
     - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
     - 全部通过。
+- 2026-04-28：`T5000iR Review：确认 effect middle-end 已从 LLVM backend 语义边界迁出` 已完成。
+  - 复核结论：
+    - `crates/scoopc/src/effect/**`、`crates/scoopc/src/effect/analysis.rs` 与 `crates/scoopc/src/effect/step_summary.rs` 当前只依赖 HIR/MIR、`ProgramFacts`、`TypeStore` 与 shared metadata；全文检索未再发现 shared effect 模块直接引用 `MainCodegen`、`crate::llvm`、`inkwell` 或其它 LLVM backend 类型，说明 `state_machine plan / segments / transform` 已真正迁出 LLVM codegen 主职责；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs` 现成为唯一 `MainCodegen -> EffectAnalysisCtx` 桥接，负责注入 `ProgramFacts`、`MaterializedMirPassView` summary/escape facts 与函数级局部 metadata；`state_machine_emitter.rs` 则只从 `crate::effect::state_machine::UnifiedHandleLoweringContract` 读取统一合同发射 LLVM IR，backend 侧职责已收口为 bridge、emitter 与必要 lowering helper；
+    - 已复核 `crates/scoopc/src/effect/state_machine/analysis.rs`、`crates/scoopc/src/mir/pass_view.rs`、`crates/scoopc/src/mir/summary.rs`、`crates/scoopc/src/mir/inline.rs` 的接缝：known-fun suspendability 通过 pass-view summary override 的 `may_outward_effect` 进入 shared analysis，continuation escape 通过 `ContinuationEscapeFacts::from_pass_view_for_callable(...)` 以 call-site 粒度投影进 `EffectAnalysisCtx`，说明 closure / continuation escape 与 summary / call kind / provenance 已通过同一 MIR facts 层统一进入 planning，没有重新长回 backend 现场推断；
+  - review 结论：
+    - `crate::effect` 现已形成稳定的 backend-agnostic effect middle-end 边界，no-LLVM `step_summary` 与 LLVM effect lowering 共享同一套 planning/summary 事实源；
+    - 未发现需要插入到 `T5000j` 之前的新前置缺陷任务；下一条待执行任务切换为 `T5000j 扩展覆盖面，并继续跟踪 safepoint / mem2reg 方向`。
+  - 验证结果：
+    - `cargo test -p scoopc llvm::codegen::effect -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ## 1. 当前判断
 
