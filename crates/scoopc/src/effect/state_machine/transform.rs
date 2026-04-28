@@ -1,9 +1,9 @@
 type UnifiedStateId = HandleSegmentId;
 
 /// Production-facing lowering contract: the single structured input that
-/// a downstream LLVM emitter receives for an effect `handle` expression.
+/// a downstream emitter receives for an effect `handle` expression.
 ///
-/// Constructed exclusively via `MainCodegen::build_unified_lowering_contract`.
+/// Constructed by the shared effect state-machine contract builder.
 /// All emitter-visible metadata is accessed through the enclosed
 /// `UnifiedHandleStateMachine` and its typed accessors.
 #[derive(Debug, Clone)]

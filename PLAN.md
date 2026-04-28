@@ -1994,6 +1994,23 @@
     - `cargo clippy --all-targets -- -D warnings`
     - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
     - 全部通过。
+- 2026-04-28：`T5000i4 迁移 state_machine_plan / segments / transform 到 MIR + shared facts 边界` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/effect/mod.rs` 与 `crates/scoopc/src/effect/state_machine/{mod,analysis,segments,transform}.rs`，把 shared effect analysis、state-machine plan/segments/transform skeleton 与 no-LLVM step summary 统一收口到 `crate::effect` 目录模块；`lib.rs` 不再继续暴露散落在 crate root 的 `effect_analysis` / `effect_step_summary` 声明；
+    - `crates/scoopc/src/effect/state_machine/analysis.rs` 现直接提供 shared `CalleeSuspendPlan`、`SuspendCallAnalysis`、known-fun suspendability 与 unified lowering contract helper，并移除混在 shared 分析文件中的 `MainCodegen` impl；LLVM backend 对这些 shared 分析入口的桥接现集中在新文件 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs`；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 已删除，`llvm/codegen/effect/mod.rs` 不再通过 backend-local `include!` 组装 planning skeleton；`state_machine_emitter.rs` 和 no-LLVM `effect/step_summary.rs` 现在都直接消费 `crate::effect::state_machine` 的 shared contract / types / summary API。
+  - 阶段结论：
+    - effect/state-machine planning / segments / transform 现已真正迁到 MIR + shared facts 边界，LLVM backend 只保留 emitter、bridge 与必要 lowering helper；
+    - 这一步也顺手把 shared effect middle-end 的目录组织整理到 `crates/scoopc/src/effect/` 下，避免继续在 crate root 保留历史 shim 文件。
+    - 下一条待执行任务切换为 `T5000iR Review：确认 effect middle-end 已从 LLVM backend 语义边界迁出`。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc llvm::codegen::effect -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - 全部通过。
 
 ## 1. 当前判断
 

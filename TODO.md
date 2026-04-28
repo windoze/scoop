@@ -1843,7 +1843,7 @@
   - 新增单元测试覆盖 facts 缺失时为 `Unknown`、本地 `Continuation.resume` 投影为 `LocalResumeOnly`、传参逃逸 continuation 投影为 `Escaping`，并确认 handle planning 把这些状态记录到 suspend site；
   - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc continuation_escape -- --nocapture`、`cargo test -p scoopc escaping_continuation_facts_enter_handle_planning_input -- --nocapture`、`cargo test -p scoopc mir::escape -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
-### [TODO] T5000i4 迁移 `state_machine_plan / segments / transform` 到 MIR + shared facts 边界
+### [DONE] T5000i4 迁移 `state_machine_plan / segments / transform` 到 MIR + shared facts 边界
 - 范围：
   - 把 effect/state-machine 的 planning / segments / transform 主分析入口迁出 LLVM codegen 语义边界；
   - 新入口依赖 MIR pass view、`ProgramFacts`、`EffectAnalysisCtx` 与 escape facts；
@@ -1852,6 +1852,12 @@
   - effect/state-machine planning 不再以 `MainCodegen` 为主要输入上下文；
   - backend 不再承担 effect middle-end 主分析责任。
 - 依赖：T5000i3
+- 完成记录（2026-04-28）：
+  - 新增 `crates/scoopc/src/effect/mod.rs` 与 `crates/scoopc/src/effect/state_machine/{mod,analysis,segments,transform}.rs`，把 shared effect analysis、state-machine planning skeleton 与 no-LLVM step summary 统一收口到 `crate::effect` 目录模块；`crates/scoopc/src/lib.rs` 不再继续声明散落在 crate root 的 `effect_analysis` / `effect_step_summary` 入口。
+  - `crates/scoopc/src/effect/state_machine/analysis.rs` 现直接承载 shared `CalleeSuspendPlan` / `SuspendCallAnalysis` / known-fun suspendability helper，并删除原先混在 shared analysis 文件末尾的 `MainCodegen` impl；这些 backend bridge 入口现迁入新文件 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs`。
+  - LLVM backend 已删除 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` wrapper 与 backend-local `unified_state_machine_skeleton`；`state_machine_emitter.rs` 现在直接消费 `crate::effect::state_machine` 的 unified contract / frame schema / state-machine types，`effect/step_summary.rs` 也直接复用同一 shared analysis，而不是继续 `include!` LLVM-side planning 文件。
+  - `llvm/codegen/effect/mod.rs` 现只保留 emitter、bridge 与必要的 lowering 辅助；effect/state-machine 的 planning / segments / transform 主分析入口已迁到 shared MIR + facts 边界，LLVM backend 不再承担 effect middle-end 主分析责任。
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc llvm::codegen::effect -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
 ### [TODO] T5000iR Review：确认 effect middle-end 已从 LLVM backend 语义边界迁出
 - 重点：

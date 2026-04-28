@@ -18,7 +18,7 @@
 //! “只做 backend lowering”的边界收口。后续 `T5000d+` 将让 early MIR / summary 直接复用
 //! 同一层共享事实，而不是回到 LLVM 现场拼装分析输入。
 
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::path::Path;
@@ -52,6 +52,7 @@ use inkwell::values::PointerValue;
 use sha2::{Digest as _, Sha256};
 
 use crate::ast;
+use crate::effect::state_machine::{CalleeSuspendPlan, CalleeSuspendResumeSite};
 use crate::expr_facts::ExprFactResolver;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
@@ -269,56 +270,6 @@ impl<'ctx> Env<'ctx> {
 pub(super) const CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX: u32 = 4;
 pub(super) const CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX: u32 =
     CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX + 1;
-
-/// 普通 indirect callee 的 suspend-state 里需要保存的一个局部绑定。
-#[derive(Debug, Clone)]
-struct CalleeSuspendSavedLocal {
-    id: hir::SymbolId,
-    name: String,
-    ty: TypeId,
-    mutable: bool,
-}
-
-/// 一个 ordinary callee 的最小 resumed-body 恢复计划。
-///
-/// 每个 resume site 都有自己独立的 `resume_slot` / `resume_tail` 与要恢复的 locals；
-/// plan 本身则保存“所有 site 的 union locals”，用于定义 callee suspend-state 的
-/// 统一堆对象布局。
-#[derive(Debug, Clone)]
-struct CalleeSuspendResumeSite {
-    site_id: u32,
-    span: crate::span::Span,
-    saved_locals: Vec<CalleeSuspendSavedLocal>,
-    resume_slot_id: hir::SymbolId,
-    resume_slot_name: String,
-    resume_slot_ty: TypeId,
-    resume_tail: hir::Block,
-}
-
-impl CalleeSuspendResumeSite {
-    fn site_tag(&self) -> u32 {
-        self.site_id
-    }
-}
-
-#[derive(Debug, Clone)]
-struct CalleeSuspendPlan {
-    saved_locals: Vec<CalleeSuspendSavedLocal>,
-    resume_sites: Vec<CalleeSuspendResumeSite>,
-}
-
-impl CalleeSuspendPlan {
-    fn resume_site_for_span(&self, span: crate::span::Span) -> Option<&CalleeSuspendResumeSite> {
-        self.resume_sites.iter().find(|site| site.span == span)
-    }
-
-    fn saved_local_field_index(&self, local_id: hir::SymbolId) -> Option<u32> {
-        self.saved_locals
-            .iter()
-            .position(|local| local.id == local_id)
-            .map(|index| CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX + index as u32)
-    }
-}
 
 /// 单个编译单元内可跨多个 `MainCodegen` 复用的共享 cache。
 ///

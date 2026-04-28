@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::effect_analysis::{
+use crate::effect::analysis::{
     ContinuationEscapeFacts, ContinuationEscapeState, EffectAnalysisCtx, KnownLocalMetadata,
     collect_known_local_metadata_in_block, collect_known_local_metadata_in_expr,
     collect_known_local_metadata_in_fun, collect_known_local_metadata_in_handle,
@@ -1335,6 +1335,53 @@ impl FrameSlot {
             ^ ((usize::from(self.mutable)) << 2)
             ^ ((usize::from(self.seed_from_outer_scope)) << 3)
             ^ self.owner_arm.unwrap_or(0) as usize
+    }
+}
+
+/// 单个 ordinary callee suspend-state 中需要保存的一个局部绑定。
+#[derive(Debug, Clone)]
+pub(crate) struct CalleeSuspendSavedLocal {
+    pub(crate) id: hir::SymbolId,
+    pub(crate) name: String,
+    pub(crate) ty: TypeId,
+    pub(crate) mutable: bool,
+}
+
+/// 一个 ordinary callee 的最小 resumed-body 恢复 site。
+#[derive(Debug, Clone)]
+pub(crate) struct CalleeSuspendResumeSite {
+    pub(crate) site_id: u32,
+    pub(crate) span: Span,
+    pub(crate) saved_locals: Vec<CalleeSuspendSavedLocal>,
+    pub(crate) resume_slot_id: hir::SymbolId,
+    pub(crate) resume_slot_name: String,
+    pub(crate) resume_slot_ty: TypeId,
+    pub(crate) resume_tail: hir::Block,
+}
+
+impl CalleeSuspendResumeSite {
+    pub(crate) fn site_tag(&self) -> u32 {
+        self.site_id
+    }
+}
+
+/// Shared ordinary callee suspend/resume plan consumed by backend emitters.
+#[derive(Debug, Clone)]
+pub(crate) struct CalleeSuspendPlan {
+    pub(crate) saved_locals: Vec<CalleeSuspendSavedLocal>,
+    pub(crate) resume_sites: Vec<CalleeSuspendResumeSite>,
+}
+
+impl CalleeSuspendPlan {
+    pub(crate) fn resume_site_for_span(&self, span: Span) -> Option<&CalleeSuspendResumeSite> {
+        self.resume_sites.iter().find(|site| site.span == span)
+    }
+
+    pub(crate) fn saved_local_index(&self, local_id: hir::SymbolId) -> Option<u32> {
+        self.saved_locals
+            .iter()
+            .position(|local| local.id == local_id)
+            .map(|index| index as u32)
     }
 }
 
@@ -6286,7 +6333,7 @@ fn collect_outer_scope_slots(
     slots
 }
 
-fn function_ty_declared_effectful(types: &TypeStore, ty: TypeId) -> bool {
+pub(crate) fn function_ty_declared_effectful(types: &TypeStore, ty: TypeId) -> bool {
     matches!(
         types.kind(ty),
         TypeKind::Ref(RefTypeKind::Function(fun_ty)) if !fun_ty.effects.is_pure()
@@ -6297,13 +6344,13 @@ fn function_ty_may_suspend(types: &TypeStore, ty: TypeId) -> bool {
     function_ty_declared_effectful(types, ty)
 }
 
-fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
+pub(crate) fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
     matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
 }
 
-struct SuspendCallAnalysis<'a> {
-    types: &'a TypeStore,
-    context: &'a EffectAnalysisCtx,
+pub(crate) struct SuspendCallAnalysis<'a> {
+    pub(crate) types: &'a TypeStore,
+    pub(crate) context: &'a EffectAnalysisCtx,
 }
 
 impl<'a> SuspendCallAnalysis<'a> {
@@ -6662,7 +6709,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             .may_suspend_outward()
     }
 
-    fn function_value_may_suspend_when_called(
+    pub(crate) fn function_value_may_suspend_when_called(
         &self,
         expr: &hir::Expr,
         known_locals: &HashMap<hir::SymbolId, bool>,
@@ -6728,7 +6775,7 @@ impl<'a> SuspendCallAnalysis<'a> {
     }
 }
 
-fn collect_known_fun_call_suspendability(
+pub(crate) fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
     program_facts: Rc<ProgramFacts>,
@@ -7473,279 +7520,103 @@ fn handle_arm_kind_signature(kind: hir::HandleArmKind) -> usize {
     }
 }
 
-#[cfg(feature = "llvm")]
-impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn effect_analysis_ctx(&self) -> EffectAnalysisCtx {
-        let known_fun_effects = self.known_fun_call_suspendability_map().clone();
-        let mut known_local_fun_effects = HashMap::new();
-        let mut known_local_metadata = HashMap::new();
-        for scope in &self.function_cx.env.scopes {
-            for (&id, local) in scope {
-                let Some(hir_ty) = local.hir_ty else {
-                    continue;
-                };
-                known_local_metadata.insert(
-                    id,
-                    KnownLocalMetadata {
-                        ty: hir_ty,
-                        mutable: local.mutable,
-                    },
-                );
-                if hir_ty_is_function_value(self.types, hir_ty) {
-                    known_local_fun_effects.insert(id, local.call_may_suspend);
-                }
-            }
-        }
-        let current_source_path = self
-            .current_source()
-            .expect("codegen context should always have a current source")
-            .path()
-            .to_path_buf();
-        EffectAnalysisCtx::new(
-            known_fun_effects,
-            known_local_fun_effects,
-            known_local_metadata,
-            current_source_path,
-            Rc::clone(&self.shared.program_facts),
-        )
-        .with_continuation_escape_facts(ContinuationEscapeFacts::from_pass_view_for_callable(
-            self.materialized_pass_view(),
-            self.function_cx.current_callable_fqn.as_deref(),
-            self.current_source()
-                .expect("codegen context should always have a current source")
-                .path(),
-        ))
+
+/// Build the shared ordinary callee suspend/resume plan from a function or closure body.
+pub(crate) fn build_ordinary_callee_suspend_plan_with_context(
+    types: &TypeStore,
+    body: &hir::Block,
+    declared_return_ty: TypeId,
+    context: &mut EffectAnalysisCtx,
+) -> Option<CalleeSuspendPlan> {
+    let synthetic_handle = hir::HandleExpr {
+        body: body.clone(),
+        arms: Vec::new(),
+        finally: None,
+    };
+
+    context.extend_known_local_metadata_from_handle(&synthetic_handle);
+
+    let mut builder = HandlePlanBuilder::new(types, &synthetic_handle, context);
+    let outer_slots = collect_outer_scope_slots(&synthetic_handle, &context.known_local_metadata);
+    let mut env = ScopeEnv::with_outer(outer_slots.clone());
+    for slot in &outer_slots {
+        builder.frame_slots.insert(slot.id, slot.clone());
     }
 
-    pub(in super::super) fn build_ordinary_callee_suspend_plan_from_unified_contract(
-        &self,
-        body: &hir::Block,
-        declared_return_ty: TypeId,
-    ) -> Option<CalleeSuspendPlan> {
-        let synthetic_handle = hir::HandleExpr {
-            body: body.clone(),
-            arms: Vec::new(),
-            finally: None,
-        };
+    let entry_state = builder.new_state("ordinary.body.entry");
+    let _body_end_state = builder.build_block(&synthetic_handle.body, entry_state, &mut env);
+    builder.attach_suspend_source_paths();
+    builder.attach_suspend_resume_paths();
 
-        let mut context = self.effect_analysis_ctx();
-        context.extend_known_local_metadata_from_handle(&synthetic_handle);
+    if builder.suspend_sites.is_empty() {
+        return None;
+    }
 
-        let mut builder = HandlePlanBuilder::new(self.types, &synthetic_handle, &context);
-        let outer_slots =
-            collect_outer_scope_slots(&synthetic_handle, &context.known_local_metadata);
-        let mut env = ScopeEnv::with_outer(outer_slots.clone());
-        for slot in &outer_slots {
-            builder.frame_slots.insert(slot.id, slot.clone());
-        }
+    let mut allocate_synthetic_symbol_id = || context.allocate_synthetic_symbol_id();
+    let mut resume_sites = Vec::new();
 
-        let entry_state = builder.new_state("ordinary.body.entry");
-        let _body_end_state = builder.build_block(&synthetic_handle.body, entry_state, &mut env);
-        builder.attach_suspend_source_paths();
-        builder.attach_suspend_resume_paths();
-
-        if builder.suspend_sites.is_empty() {
+    for site in &builder.suspend_sites {
+        if !matches!(site.kind, SuspendSiteKind::Perform { .. }) {
             return None;
         }
 
-        let mut allocate_synthetic_symbol_id = || context.allocate_synthetic_symbol_id();
-        let mut resume_sites = Vec::new();
-
-        for site in &builder.suspend_sites {
-            if !matches!(site.kind, SuspendSiteKind::Perform { .. }) {
-                return None;
-            }
-
-            let source_path = site.source_path.as_ref()?;
-            let resume_path = site.resume_path.as_ref()?;
-            let source_expr = builder.resume_source_exprs.get(&site.id)?;
-            let resume_slot = builder.resume_slot_for_site(site.id)?;
-            let resume_slot_ty = ordinary_callee_resume_slot_type(
-                body,
-                source_path,
-                resume_path,
-                declared_return_ty,
-                &resume_slot,
-            );
-            let resume_tail = build_ordinary_callee_resume_tail_block(
-                &synthetic_handle.body,
-                source_path,
-                source_expr,
-                resume_path,
-                &resume_slot,
-                &mut allocate_synthetic_symbol_id,
-            )?;
-
-            let saved_locals = site
-                .available_locals
-                .iter()
-                .filter_map(|id| builder.frame_slots.get(id))
-                .map(|slot| CalleeSuspendSavedLocal {
-                    id: slot.id(),
-                    name: slot.name().to_string(),
-                    ty: slot.ty(),
-                    mutable: slot.mutable(),
-                })
-                .collect::<Vec<_>>();
-
-            resume_sites.push(CalleeSuspendResumeSite {
-                site_id: site.id,
-                span: site.span,
-                saved_locals,
-                resume_slot_id: resume_slot.id(),
-                resume_slot_name: resume_slot.name().to_string(),
-                resume_slot_ty,
-                resume_tail,
-            });
-        }
-
-        let mut seen_local_ids = HashSet::new();
-        let mut saved_locals = Vec::new();
-        for site in &resume_sites {
-            for local in &site.saved_locals {
-                if seen_local_ids.insert(local.id) {
-                    saved_locals.push(local.clone());
-                }
-            }
-        }
-
-        Some(CalleeSuspendPlan {
-            saved_locals,
-            resume_sites,
-        })
-    }
-
-    fn ensure_known_fun_body_may_outward_effect_cache(&self) {
-        if self
-            .shared_caches
-            .known_fun_call_suspend_cache
-            .borrow()
-            .is_some()
-        {
-            return;
-        }
-
-        let known_fun_effects = collect_known_fun_call_suspendability(
-            self.types,
-            self.fun_index,
-            Rc::clone(&self.shared.program_facts),
-            self.materialized_pass_view(),
+        let source_path = site.source_path.as_ref()?;
+        let resume_path = site.resume_path.as_ref()?;
+        let source_expr = builder.resume_source_exprs.get(&site.id)?;
+        let resume_slot = builder.resume_slot_for_site(site.id)?;
+        let resume_slot_ty = ordinary_callee_resume_slot_type(
+            body,
+            source_path,
+            resume_path,
+            declared_return_ty,
+            &resume_slot,
         );
-        *self
-            .shared_caches
-            .known_fun_call_suspend_cache
-            .borrow_mut() = Some(known_fun_effects);
+        let resume_tail = build_ordinary_callee_resume_tail_block(
+            &synthetic_handle.body,
+            source_path,
+            source_expr,
+            resume_path,
+            &resume_slot,
+            &mut allocate_synthetic_symbol_id,
+        )?;
+
+        let saved_locals = site
+            .available_locals
+            .iter()
+            .filter_map(|id| builder.frame_slots.get(id))
+            .map(|slot| CalleeSuspendSavedLocal {
+                id: slot.id(),
+                name: slot.name().to_string(),
+                ty: slot.ty(),
+                mutable: slot.mutable(),
+            })
+            .collect::<Vec<_>>();
+
+        resume_sites.push(CalleeSuspendResumeSite {
+            site_id: site.id,
+            span: site.span,
+            saved_locals,
+            resume_slot_id: resume_slot.id(),
+            resume_slot_name: resume_slot.name().to_string(),
+            resume_slot_ty,
+            resume_tail,
+        });
     }
 
-    fn ensure_known_fun_call_suspend_cache(&self) {
-        self.ensure_known_fun_body_may_outward_effect_cache();
-    }
-
-    fn known_fun_body_may_outward_effect_map(&self) -> Ref<'_, HashMap<String, bool>> {
-        self.ensure_known_fun_body_may_outward_effect_cache();
-        Ref::map(
-            self.shared_caches.known_fun_call_suspend_cache.borrow(),
-            |cache| {
-                cache.as_ref()
-                    .expect("known fun outward-effect cache should be initialized")
-            },
-        )
-    }
-
-    fn known_fun_call_suspendability_map(&self) -> Ref<'_, HashMap<String, bool>> {
-        self.known_fun_body_may_outward_effect_map()
-    }
-
-    pub(in crate::llvm::codegen) fn known_fun_body_may_outward_effect(
-        &self,
-        fqn: &str,
-        declared_fun_ty: TypeId,
-    ) -> bool {
-        let known_fun_effects = self.known_fun_body_may_outward_effect_map();
-        known_fun_effects
-            .get(fqn)
-            .copied()
-            .unwrap_or_else(|| function_ty_declared_effectful(self.types, declared_fun_ty))
-    }
-
-    pub(in crate::llvm::codegen) fn hir_ty_declared_effectful(
-        &self,
-        hir_ty: Option<TypeId>,
-    ) -> bool {
-        hir_ty.is_some_and(|ty| function_ty_declared_effectful(self.types, ty))
-    }
-
-    pub(in crate::llvm::codegen) fn local_call_may_suspend_from_hir_ty(
-        &self,
-        hir_ty: Option<TypeId>,
-    ) -> bool {
-        self.hir_ty_declared_effectful(hir_ty)
-    }
-
-    pub(in crate::llvm::codegen) fn function_value_expr_body_may_outward_effect_when_called_for_local(
-        &self,
-        expr: &hir::Expr,
-    ) -> bool {
-        let context = self.effect_analysis_ctx();
-        SuspendCallAnalysis {
-            types: self.types,
-            context: &context,
-        }
-        .function_value_may_suspend_when_called(expr, &context.known_local_fun_effects)
-    }
-
-    pub(in crate::llvm::codegen) fn function_value_expr_may_suspend_when_called_for_local(
-        &self,
-        expr: &hir::Expr,
-    ) -> bool {
-        self.function_value_expr_body_may_outward_effect_when_called_for_local(expr)
-    }
-
-    /// Build the unified lowering contract for a `handle` expression.
-    ///
-    /// Pipeline: HandleExpr → plan → segments (+ validation) → unified state machine → contract.
-    /// The returned contract is the single structured input consumed by the downstream LLVM emitter.
-    pub(super) fn build_unified_lowering_contract(
-        &self,
-        handle: &hir::HandleExpr,
-    ) -> UnifiedHandleLoweringContract {
-        let mut context = self.effect_analysis_ctx();
-        context.extend_known_local_metadata_from_handle(handle);
-        let source_plan = HandleStateMachinePlan::build_with_context(self.types, handle, &context);
-
-        // Phase 1 → segments: project the plan into segments and validate the builder contract.
-        let segment_list = source_plan.build_segment_list();
-        #[cfg(debug_assertions)]
-        if let Err(message) = segment_list.validate_builder_contract() {
-            panic!("invalid handle segment builder contract: {message}");
-        }
-
-        // Debug: verify segment round-trip stability.
-        #[cfg(debug_assertions)]
-        {
-            let segment_signature = segment_list.structural_signature();
-            let rebuilt_plan = HandleStateMachinePlan::build_from_segments(&segment_list)
-                .unwrap_or_else(|message| {
-                    panic!("failed to rebuild handle state machine plan: {message}")
-                });
-            let rebuilt_segment_list = rebuilt_plan.build_segment_list();
-            let rebuilt_segment_signature = rebuilt_segment_list.structural_signature();
-            if rebuilt_segment_signature != segment_signature {
-                panic!(
-                    "segment round-trip mismatch: source={segment_signature} rebuilt={rebuilt_segment_signature}"
-                );
+    let mut seen_local_ids = HashSet::new();
+    let mut saved_locals = Vec::new();
+    for site in &resume_sites {
+        for local in &site.saved_locals {
+            if seen_local_ids.insert(local.id) {
+                saved_locals.push(local.clone());
             }
         }
-
-        // Phase 2 → unified state machine: transform segments into the canonical full machine.
-        let machine = segment_list
-            .build_unified_state_machine()
-            .unwrap_or_else(|message| {
-                panic!("failed to build unified state machine: {message}")
-            });
-
-        UnifiedHandleLoweringContract { machine }
     }
+
+    Some(CalleeSuspendPlan {
+        saved_locals,
+        resume_sites,
+    })
 }
 
 /// `T4008b1`：为当前 `handle` 中的 escape continuation arm 计算 resumed-step effect row。

@@ -15,13 +15,11 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::unified_state_machine_skeleton::FrameSlot;
 use super::*;
-
-use super::unified_state_machine_skeleton::{
-    HandleBranchCondition, HandleStateOp, ResumeAfterSiteReason, SuspendSiteKind, UnifiedArm,
-    UnifiedFrameField, UnifiedFrameSystemField, UnifiedHandleLoweringContract, UnifiedState,
-    UnifiedStateContext, UnifiedStateTerminator, UnifiedSuspendSite,
+use crate::effect::state_machine::{
+    FrameSlot, HandleBranchCondition, HandleStateOp, ResumeAfterSiteReason, SuspendSiteKind,
+    UnifiedArm, UnifiedFrameField, UnifiedFrameSystemField, UnifiedHandleLoweringContract,
+    UnifiedState, UnifiedStateContext, UnifiedStateTerminator, UnifiedSuspendSite,
 };
 
 /// System field indices in the frame struct.

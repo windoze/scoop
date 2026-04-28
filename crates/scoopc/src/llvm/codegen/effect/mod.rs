@@ -1,6 +1,7 @@
 //! 统一 state-machine effect codegen。
 //!
-//! - plan builder / segment 投影 / transform / lowering contract 在 `unified_state_machine_skeleton` 模块
+//! - plan builder / segment 投影 / transform / lowering contract 在 `crate::effect::state_machine`
+//!   shared 模块
 //! - LLVM emitter 在 `state_machine_emitter` 模块
 //! - lowering 只从统一合同（`UnifiedHandleLoweringContract`）出发。
 
@@ -9,22 +10,12 @@ use super::*;
 mod contract;
 use contract::EffectOutcome;
 
+// Backend bridge：从 MainCodegen 收集当前函数级上下文，并调用 shared state-machine skeleton。
+mod state_machine_bridge;
+
 // State machine LLVM emitter：从 UnifiedHandleLoweringContract 生成
 // LLVM IR（frame type、step function、handle 入口）。
 mod state_machine_emitter;
-
-// State machine 骨架（plan builder、segment 投影、transform、lowering contract）。
-// 生产入口（state_machine_emitter）直接从此模块导入所需类型。
-// blanket #[allow(dead_code)]：模块内包含大量仅用于测试的 structural_signature 方法、
-// accessor 和中间辅助结构，这些是 include! 文件内测试基础设施的一部分。
-#[allow(dead_code)]
-mod unified_state_machine_skeleton {
-    use super::*;
-
-    include!("state_machine_plan.rs");
-    include!("state_machine_segments.rs");
-    include!("state_machine_transform.rs");
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EffectTransportKind {
@@ -852,12 +843,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "callee resume local type",
                     at: at.into(),
                 })?;
-            let field_index = plan.saved_local_field_index(local_plan.id).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
+            let field_index = plan
+                .saved_local_index(local_plan.id)
+                .map(|index| CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX + index)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "callee resume local field index",
                     at: at.into(),
-                },
-            )?;
+                })?;
             let field_ptr = self.builder.build_struct_gep(
                 resume_state.state_ty,
                 resume_state.state_ptr,
