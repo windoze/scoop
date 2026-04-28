@@ -85,6 +85,11 @@ File {
                                             },
                                         ],
                                         has_finally: false,
+                                        body_target: bb1,
+                                        arm_targets: [
+                                            bb2,
+                                        ],
+                                        finally_target: None,
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -146,29 +151,6 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 83..84,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 58..88,
-                                    kind: Todo(
-                                        "handle body exit pending",
-                                    ),
-                                    unwind: NoUnwind,
-                                },
-                            },
-                            BasicBlock {
-                                is_cleanup: false,
-                                stmts: [
-                                    Statement {
                                         span: 118..119,
                                         kind: Assign {
                                             target: l4,
@@ -184,6 +166,29 @@ File {
                                     span: 100..119,
                                     kind: Todo(
                                         "handle arm exit pending",
+                                    ),
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 83..84,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 58..88,
+                                    kind: Todo(
+                                        "handle body exit pending",
                                     ),
                                     unwind: NoUnwind,
                                 },

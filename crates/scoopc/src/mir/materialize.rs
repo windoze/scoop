@@ -428,6 +428,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         collect_request_root_fun_keys(&lowered_hir, request_source_paths, index, request_root_mode);
     let request_sources = request_source_paths.iter().cloned().collect::<HashSet<_>>();
     let callable_signatures = collect_callable_signature_infos(&lowered_hir);
+    let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests(
         &mut lowered_hir,
         typecheck_types,
@@ -467,6 +468,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 class_itables,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
+                top_level_immutable_values,
                 request_sources,
                 request_root_mode,
                 request_root_fun_keys,
@@ -534,6 +536,7 @@ struct MaterializerConstructionInputs<'a> {
     class_itables: crate::itable::ClassItableIndex,
     top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex,
     request_sources: HashSet<PathBuf>,
     request_root_mode: super::MaterializeRequestRootMode<'a>,
     request_root_fun_keys: Vec<RequestRootFunKey>,
@@ -1226,6 +1229,136 @@ fn collect_hir_direct_call_instances_in_expr(
                     top_level_fun_call_bindings,
                     out,
                 );
+            }
+        }
+        crate::hir::ExprKind::Missing
+        | crate::hir::ExprKind::Literal(_)
+        | crate::hir::ExprKind::VarRef(_)
+        | crate::hir::ExprKind::UnresolvedIdent { .. }
+        | crate::hir::ExprKind::Todo(_) => {}
+    }
+}
+
+fn collect_top_level_value_refs_in_block(block: &crate::hir::Block, out: &mut Vec<String>) {
+    for stmt in &block.stmts {
+        collect_top_level_value_refs_in_stmt(stmt, out);
+    }
+}
+
+fn collect_top_level_value_refs_in_stmt(stmt: &crate::hir::Stmt, out: &mut Vec<String>) {
+    match &stmt.kind {
+        crate::hir::StmtKind::Expr(expr) => collect_top_level_value_refs_in_expr(expr, out),
+        crate::hir::StmtKind::Val(decl) => {
+            if let Some(init) = &decl.init {
+                collect_top_level_value_refs_in_expr(init, out);
+            }
+        }
+        crate::hir::StmtKind::Assign { lhs, rhs, .. } => {
+            collect_top_level_value_refs_in_expr(lhs, out);
+            collect_top_level_value_refs_in_expr(rhs, out);
+        }
+        crate::hir::StmtKind::While { cond, body } => {
+            collect_top_level_value_refs_in_expr(cond, out);
+            collect_top_level_value_refs_in_block(body, out);
+        }
+        crate::hir::StmtKind::Return { value } => {
+            if let Some(value) = value {
+                collect_top_level_value_refs_in_expr(value, out);
+            }
+        }
+        crate::hir::StmtKind::Empty
+        | crate::hir::StmtKind::Break { .. }
+        | crate::hir::StmtKind::Continue { .. }
+        | crate::hir::StmtKind::Todo(_) => {}
+    }
+}
+
+fn collect_top_level_value_refs_in_args(args: &[crate::hir::CallArg], out: &mut Vec<String>) {
+    for arg in args {
+        match arg {
+            crate::hir::CallArg::Positional(value) => {
+                collect_top_level_value_refs_in_expr(value, out);
+            }
+            crate::hir::CallArg::Named { value, .. } => {
+                collect_top_level_value_refs_in_expr(value, out);
+            }
+        }
+    }
+}
+
+fn collect_top_level_value_refs_in_expr(expr: &crate::hir::Expr, out: &mut Vec<String>) {
+    match &expr.kind {
+        crate::hir::ExprKind::VarRef(crate::hir::ValueRef::TopLevel { fqn, .. }) => {
+            out.push(fqn.clone());
+        }
+        crate::hir::ExprKind::Call { callee, args } => {
+            collect_top_level_value_refs_in_expr(callee, out);
+            collect_top_level_value_refs_in_args(args, out);
+        }
+        crate::hir::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_top_level_value_refs_in_expr(&field.value, out);
+            }
+        }
+        crate::hir::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_top_level_value_refs_in_expr(element, out);
+            }
+        }
+        crate::hir::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_top_level_value_refs_in_expr(expr, out);
+                }
+            }
+        }
+        crate::hir::ExprKind::Unary { expr, .. } => {
+            collect_top_level_value_refs_in_expr(expr, out);
+        }
+        crate::hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_top_level_value_refs_in_expr(lhs, out);
+            collect_top_level_value_refs_in_expr(rhs, out);
+        }
+        crate::hir::ExprKind::TypeCheck { expr, .. } | crate::hir::ExprKind::Cast { expr, .. } => {
+            collect_top_level_value_refs_in_expr(expr, out);
+        }
+        crate::hir::ExprKind::Block(block) => collect_top_level_value_refs_in_block(block, out),
+        crate::hir::ExprKind::Closure(closure) => {
+            collect_top_level_value_refs_in_expr(&closure.body, out);
+        }
+        crate::hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_top_level_value_refs_in_expr(cond, out);
+            collect_top_level_value_refs_in_expr(then_branch, out);
+            if let Some(else_branch) = else_branch {
+                collect_top_level_value_refs_in_expr(else_branch, out);
+            }
+        }
+        crate::hir::ExprKind::When { subject, arms } => {
+            collect_top_level_value_refs_in_expr(subject, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_top_level_value_refs_in_expr(guard, out);
+                }
+                collect_top_level_value_refs_in_expr(&arm.body, out);
+            }
+        }
+        crate::hir::ExprKind::MemberAccess { receiver, .. } => {
+            collect_top_level_value_refs_in_expr(receiver, out);
+        }
+        crate::hir::ExprKind::Perform { args, .. } => {
+            collect_top_level_value_refs_in_args(args, out);
+        }
+        crate::hir::ExprKind::Handle(handle) => {
+            collect_top_level_value_refs_in_block(&handle.body, out);
+            for arm in &handle.arms {
+                collect_top_level_value_refs_in_expr(&arm.body, out);
+            }
+            if let Some(finally) = &handle.finally {
+                collect_top_level_value_refs_in_block(finally, out);
             }
         }
         crate::hir::ExprKind::Missing
@@ -2157,6 +2290,16 @@ fn dispatch_direct_call_args(
     direct_args
 }
 
+fn reachable_body_block_indices(body: &Body) -> Vec<usize> {
+    match body.reachable_blocks() {
+        Ok(blocks) => blocks
+            .into_iter()
+            .map(|block| block.as_u32() as usize)
+            .collect(),
+        Err(_) => (0..body.blocks.len()).collect(),
+    }
+}
+
 struct MirInstanceMaterializer {
     types: TypeStore,
     builtins: BuiltinTypes,
@@ -2173,6 +2316,7 @@ struct MirInstanceMaterializer {
     template_symbol_suffixes: HashMap<TemplateKey, String>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex,
     request_sources: HashSet<PathBuf>,
     filter_initial_requests_to_reachable_call_sites: bool,
     reachable_fun_bodies_by_request: HashMap<RequestTemplateKey, ReachableMirFun>,
@@ -2181,7 +2325,8 @@ struct MirInstanceMaterializer {
     call_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     value_ref_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     reachable_request_call_sites: HashSet<SourceSiteKey>,
-    reachable_request_fun_spans: Vec<(PathBuf, Span)>,
+    reachable_request_stmt_spans: Vec<(PathBuf, Span)>,
+    scanned_top_level_immutable_values: HashSet<String>,
     scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
     caller_side_pass_candidates: Vec<FunDecl>,
     enable_summary_driven_inlining: bool,
@@ -2230,6 +2375,7 @@ impl MirInstanceMaterializer {
             class_itables,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
+            top_level_immutable_values,
             request_sources,
             request_root_mode,
             request_root_fun_keys,
@@ -2469,6 +2615,7 @@ impl MirInstanceMaterializer {
             template_symbol_suffixes,
             roots_by_fqn,
             direct_call_bindings: top_level_fun_call_bindings.clone(),
+            top_level_immutable_values,
             request_sources,
             filter_initial_requests_to_reachable_call_sites: matches!(
                 request_root_mode,
@@ -2480,7 +2627,8 @@ impl MirInstanceMaterializer {
             call_bindings: HashMap::new(),
             value_ref_bindings: HashMap::new(),
             reachable_request_call_sites: HashSet::new(),
-            reachable_request_fun_spans: Vec::new(),
+            reachable_request_stmt_spans: Vec::new(),
+            scanned_top_level_immutable_values: HashSet::new(),
             scanned_non_generic_funs: HashSet::new(),
             caller_side_pass_candidates: Vec::new(),
             enable_summary_driven_inlining,
@@ -2663,12 +2811,12 @@ impl MirInstanceMaterializer {
         let site = (request.request_source_path.clone(), request.call_span);
         self.reachable_request_call_sites.contains(&site)
             || self
-                .reachable_request_fun_spans
+                .reachable_request_stmt_spans
                 .iter()
-                .any(|(source_path, fun_span)| {
+                .any(|(source_path, stmt_span)| {
                     source_path == &request.request_source_path
-                        && request.call_span.start >= fun_span.start
-                        && request.call_span.end <= fun_span.end
+                        && request.call_span.start >= stmt_span.start
+                        && request.call_span.end <= stmt_span.end
                 })
     }
 
@@ -2701,8 +2849,6 @@ impl MirInstanceMaterializer {
         let Some(body) = &reachable_fun.fun.body else {
             return Ok(());
         };
-        self.reachable_request_fun_spans
-            .push((reachable_fun.source_path.clone(), reachable_fun.fun.span));
         if let Some(hir_direct_instances) =
             self.hir_direct_instance_keys_by_fun.get(&scan_key).cloned()
         {
@@ -2710,8 +2856,13 @@ impl MirInstanceMaterializer {
         }
         let substitution = InstanceSubstitution::default();
         let locals = &body.locals;
-        for block in &body.blocks {
+        for block_idx in reachable_body_block_indices(body) {
+            let Some(block) = body.blocks.get(block_idx) else {
+                continue;
+            };
             for stmt in &block.stmts {
+                self.reachable_request_stmt_spans
+                    .push((reachable_fun.source_path.clone(), stmt.span));
                 if let StatementKind::Assign { target, value } = &stmt.kind {
                     let result_ty = locals.get(target.as_u32() as usize).map(|local| local.ty);
                     self.collect_reachable_instances_from_rvalue(
@@ -2732,7 +2883,7 @@ impl MirInstanceMaterializer {
         let mut candidate_fun = reachable_fun.fun.clone();
         let candidate_root_fqn = candidate_fun.fqn.clone();
         if let Some(candidate_body) = candidate_fun.body.as_mut() {
-            self.rewrite_body(
+            self.rewrite_reachable_body(
                 candidate_body,
                 &substitution,
                 reachable_fun.source_path.as_path(),
@@ -2802,10 +2953,35 @@ impl MirInstanceMaterializer {
                 {
                     self.scan_reachable_non_generic_fun(&reachable_fun, out)?;
                 }
+                self.scan_reachable_top_level_immutable_value(fqn);
             }
             _ => {}
         }
         Ok(())
+    }
+
+    fn scan_reachable_top_level_immutable_value(&mut self, fqn: &str) {
+        if !self
+            .scanned_top_level_immutable_values
+            .insert(fqn.to_string())
+        {
+            return;
+        }
+        let Some(value) = self.top_level_immutable_values.get(fqn).cloned() else {
+            return;
+        };
+        let Some(init) = value.init else {
+            return;
+        };
+
+        self.reachable_request_stmt_spans
+            .push((value.source_path.clone(), init.span));
+
+        let mut refs = Vec::new();
+        collect_top_level_value_refs_in_expr(&init, &mut refs);
+        for dep_fqn in refs {
+            self.scan_reachable_top_level_immutable_value(&dep_fqn);
+        }
     }
 
     fn resolve_non_generic_fun_body_by_fqn(
@@ -3142,6 +3318,43 @@ impl MirInstanceMaterializer {
         template_root_fqn: &str,
         instance_root_fqn: &str,
     ) -> MaterializeResult<()> {
+        self.rewrite_body_blocks(
+            body,
+            substitution,
+            template_source_path,
+            template_root_fqn,
+            instance_root_fqn,
+            None,
+        )
+    }
+
+    fn rewrite_reachable_body(
+        &mut self,
+        body: &mut Body,
+        substitution: &InstanceSubstitution,
+        template_source_path: &Path,
+        template_root_fqn: &str,
+        instance_root_fqn: &str,
+    ) -> MaterializeResult<()> {
+        self.rewrite_body_blocks(
+            body,
+            substitution,
+            template_source_path,
+            template_root_fqn,
+            instance_root_fqn,
+            Some(reachable_body_block_indices(body)),
+        )
+    }
+
+    fn rewrite_body_blocks(
+        &mut self,
+        body: &mut Body,
+        substitution: &InstanceSubstitution,
+        template_source_path: &Path,
+        template_root_fqn: &str,
+        instance_root_fqn: &str,
+        block_indices: Option<Vec<usize>>,
+    ) -> MaterializeResult<()> {
         for local in &mut body.locals {
             local.ty = substitute_type_and_effect_params(&mut self.types, local.ty, substitution);
         }
@@ -3153,13 +3366,30 @@ impl MirInstanceMaterializer {
             template_root_fqn,
             instance_root_fqn,
         };
-        for block in &mut body.blocks {
-            for stmt in &mut block.stmts {
-                self.rewrite_statement(stmt, &ctx)?;
+        if let Some(block_indices) = block_indices {
+            for block_idx in block_indices {
+                let Some(block) = body.blocks.get_mut(block_idx) else {
+                    continue;
+                };
+                self.rewrite_block(block, &ctx)?;
             }
-            self.rewrite_terminator(&mut block.terminator, &ctx)?;
+        } else {
+            for block in &mut body.blocks {
+                self.rewrite_block(block, &ctx)?;
+            }
         }
         Ok(())
+    }
+
+    fn rewrite_block(
+        &mut self,
+        block: &mut super::BasicBlock,
+        ctx: &RewriteContext<'_>,
+    ) -> MaterializeResult<()> {
+        for stmt in &mut block.stmts {
+            self.rewrite_statement(stmt, ctx)?;
+        }
+        self.rewrite_terminator(&mut block.terminator, ctx)
     }
 
     fn rewrite_statement(
@@ -4830,6 +5060,208 @@ fun entry(): Int {
     }
 
     #[test]
+    fn request_root_scan_ignores_generic_calls_in_unreachable_mir_blocks() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_unreachable_mir_block.scoop",
+            r#"
+package fixtures.materialize
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+        );
+        let source_path = source.path().to_path_buf();
+
+        let (files, index, env, typecheck_types, monomorph_requests) =
+            prepare_typechecked_compilation_unit_inputs(&sess, vec![source.clone()], &[0]);
+        assert!(
+            monomorph_requests
+                .iter()
+                .all(|request| request.key.symbol.fqn != "fixtures.materialize.id"),
+            "test setup 不应通过源代码本身收集 id<T> request"
+        );
+
+        let compilation_unit = files
+            .iter()
+            .map(|(source, ast)| (source, ast))
+            .collect::<Vec<_>>();
+        let template_infos = collect_generic_template_infos(&compilation_unit);
+        let callable_body_infos = collect_callable_body_infos(&compilation_unit);
+        let (top_level_fun_value_refs, top_level_fun_call_bindings) =
+            collect_site_instance_bindings(&compilation_unit);
+        let mut lowered_hir =
+            crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+                &index,
+                &compilation_unit,
+                &compilation_unit,
+                Some(&env),
+                &typecheck_types,
+            )
+            .unwrap();
+        let request_root_fun_keys = collect_request_root_fun_keys(
+            &lowered_hir,
+            std::slice::from_ref(&source_path),
+            &index,
+            crate::mir::MaterializeRequestRootMode::EntryMain { fqn: None },
+        );
+        assert_eq!(
+            request_root_fun_keys
+                .iter()
+                .map(|key| key.fqn.as_str())
+                .collect::<Vec<_>>(),
+            vec!["fixtures.materialize.main"],
+            "entry-main 模式下测试应只从 main 扫描 request roots"
+        );
+        let request_sources = [source_path.clone()].into_iter().collect::<HashSet<_>>();
+        let callable_signatures = collect_callable_signature_infos(&lowered_hir);
+        let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests(
+            &mut lowered_hir,
+            &typecheck_types,
+            &top_level_fun_call_bindings,
+        );
+        assert!(
+            hir_direct_instance_keys_by_fun
+                .values()
+                .flatten()
+                .all(|key| key.template.fqn != "fixtures.materialize.id"),
+            "test setup 不应通过 HIR fallback 预先发现 id<T> 实例"
+        );
+        let known_receiver_subclasses =
+            crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        let class_vtables = lowered_hir.class_vtables.clone();
+        let interfaces = lowered_hir.interfaces.clone();
+        let class_itables = lowered_hir.class_itables.clone();
+        let builtins = lowered_hir.types.intern_builtins();
+        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
+        let mut generic_file = lower_hir_file_for_dump_with_facts(
+            builtins,
+            &mut lowered_hir.types,
+            &lowered_hir.file,
+            &lowered_hir.member_funs,
+            &facts,
+        );
+        append_unreachable_id_call_to_main(&mut generic_file, builtins);
+        let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
+        let types = lowered_hir.types;
+
+        let mut materializer = MirInstanceMaterializer::new(
+            generic_file,
+            types,
+            builtins,
+            MaterializerConstructionInputs {
+                typecheck_types: &typecheck_types,
+                template_infos,
+                callable_body_infos,
+                callable_signatures,
+                known_receiver_subclasses,
+                class_vtables,
+                interfaces,
+                class_itables,
+                top_level_fun_value_refs,
+                top_level_fun_call_bindings,
+                top_level_immutable_values,
+                request_sources,
+                request_root_mode: crate::mir::MaterializeRequestRootMode::EntryMain { fqn: None },
+                request_root_fun_keys,
+            },
+            false,
+            false,
+        )
+        .unwrap();
+        materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;
+        let initial_requests = materializer
+            .seed_requests(&typecheck_types, &monomorph_requests)
+            .unwrap();
+        let initial_id_keys = initial_requests
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.id")
+            .collect::<Vec<_>>();
+        assert!(
+            initial_id_keys.is_empty(),
+            "MIR 不可达 block 中的 id<Int> direct-call 不应进入 initial requests：{initial_id_keys:#?}"
+        );
+        assert!(
+            initial_requests.is_empty(),
+            "test setup 不应产生任何 initial requests：{initial_requests:#?}"
+        );
+        let materialized = materializer.run(initial_requests).unwrap();
+
+        let id_keys = materialized
+            .instance_keys
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.id")
+            .collect::<Vec<_>>();
+        assert!(
+            id_keys.is_empty(),
+            "MIR 不可达 block 中的 id<Int> direct-call 不应产生额外实例：{id_keys:#?}"
+        );
+        assert!(
+            materialized.file.items.iter().all(|item| !matches!(
+                item,
+                Item::Fun(fun) if fun.fqn == "fixtures.materialize.id::<Int>"
+            )),
+            "MIR 不可达 block 中的 id<Int> direct-call 不应物化为 callable body"
+        );
+    }
+
+    fn append_unreachable_id_call_to_main(generic_file: &mut File, builtins: BuiltinTypes) {
+        let main_fun = generic_file
+            .items
+            .iter_mut()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.materialize.main" => Some(fun),
+                _ => None,
+            })
+            .expect("test setup should contain fixtures.materialize.main");
+        let body = main_fun.body.as_mut().expect("main should have MIR body");
+        let call_span = Span::new(10_000, 10_010);
+        let result = body.push_local(LocalDecl {
+            span: call_span,
+            name: Some("unreachable_id_result".to_string()),
+            ty: builtins.int,
+        });
+        let unreachable_block = body.push_block(crate::mir::BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: call_span,
+                kind: StatementKind::Assign {
+                    target: result,
+                    value: Rvalue::Call {
+                        kind: CallKind::Direct {
+                            callee_fqn: "fixtures.materialize.id".to_string(),
+                        },
+                        args: vec![CallArg {
+                            span: call_span,
+                            name: None,
+                            value: Operand::Const(ConstValue::Int),
+                        }],
+                    },
+                },
+            }],
+            terminator: Terminator {
+                span: call_span,
+                kind: TerminatorKind::Return {
+                    value: Some(Operand::Local(result)),
+                },
+                unwind: crate::mir::UnwindAction::NoUnwind,
+            },
+        });
+
+        assert!(
+            body.unreachable_blocks()
+                .unwrap()
+                .contains(&unreachable_block),
+            "test setup 应追加一个结构上不可达的 MIR block"
+        );
+    }
+
+    #[test]
     fn typechecked_compilation_unit_materialization_handles_owner_specialized_effect_generic_member_calls()
      {
         let sess = Session::new().unwrap();
@@ -5583,6 +6015,7 @@ fun main() {
             &lowered_hir.member_funs,
             &facts,
         );
+        let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
         let types = lowered_hir.types;
         let mut materializer = MirInstanceMaterializer::new(
             generic_file,
@@ -5599,6 +6032,7 @@ fun main() {
                 class_itables,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
+                top_level_immutable_values,
                 request_sources,
                 request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
                 request_root_fun_keys,

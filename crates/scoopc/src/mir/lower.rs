@@ -1456,7 +1456,8 @@ impl<'a> FnLowering<'a> {
     /// - 把 handler boundary 以 `TerminatorKind::Handle { .. }` 占位落在当前块末尾；
     /// - 同时把 handle 的 body/arms/finally 降到**独立的新 block**里，便于 `dump-mir`/fixtures
     ///   观察内部的 `perform`/控制流形态；
-    /// - 这些 block 暂未与主 CFG 连接（后续会在更完整的 effect lowering 中展开为显式 CFG）。
+    /// - 这些 block 作为保守 CFG successor 暴露给 MIR reachability；后续会在更完整的 effect
+    ///   lowering 中展开为精确 cleanup/handler CFG。
     fn lower_handle_expr(&mut self, span: Span, ty: TypeId, handle: &hir::HandleExpr) -> LocalId {
         let outer_bb = self.current_bb;
 
@@ -1472,17 +1473,29 @@ impl<'a> FnLowering<'a> {
             })
             .collect();
 
+        let body_bb = self.push_block(handle.body.span);
+        let arm_bbs = handle
+            .arms
+            .iter()
+            .map(|arm| self.push_block(arm.span))
+            .collect::<Vec<_>>();
+        let finally_bb = handle
+            .finally
+            .as_ref()
+            .map(|finally| self.push_block(finally.span));
+
         self.set_terminator(
             outer_bb,
             span,
             TerminatorKind::Handle {
                 arms,
                 has_finally: handle.finally.is_some(),
+                body_target: body_bb,
+                arm_targets: arm_bbs.clone(),
+                finally_target: finally_bb,
             },
         );
 
-        // 额外 lower handle 内部结构到独立 block（不连接到主 CFG）。
-        let body_bb = self.push_block(handle.body.span);
         self.current_bb = body_bb;
         self.lower_block_as_stmt(&handle.body);
         if !self.current_is_terminated() {
@@ -1493,8 +1506,7 @@ impl<'a> FnLowering<'a> {
             );
         }
 
-        for arm in &handle.arms {
-            let arm_bb = self.push_block(arm.span);
+        for (arm, arm_bb) in handle.arms.iter().zip(arm_bbs) {
             self.current_bb = arm_bb;
             let _ = self.lower_expr_to_local(&arm.body);
             if !self.current_is_terminated() {
@@ -1506,8 +1518,7 @@ impl<'a> FnLowering<'a> {
             }
         }
 
-        if let Some(finally) = &handle.finally {
-            let finally_bb = self.push_block(finally.span);
+        if let Some((finally, finally_bb)) = handle.finally.as_ref().zip(finally_bb) {
             self.current_bb = finally_bb;
             self.lower_block_as_stmt(finally);
             if !self.current_is_terminated() {

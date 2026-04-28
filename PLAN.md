@@ -1881,6 +1881,42 @@
     - `cargo run -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000i1P4 让 materializer request-root 可达扫描使用 MIR reachable-block 过滤`。
+- 2026-04-28：`T5000i1P4 让 materializer request-root 可达扫描使用 MIR reachable-block 过滤` 已完成。
+  - 问题来源：
+    - 最新提交保留的 `ISSUES.md` P2 指出 materializer 的 `scan_reachable_non_generic_fun(...)` 仍直接遍历 `body.blocks` 全量 block；
+    - 这会让 MIR 不可达 block 中的 generic direct-call 贡献额外实例，并与 LLVM reachability 的 `reachable_blocks()` 口径不一致；
+    - 过程中进一步确认 request-root caller-side pass candidate rewrite 也会重写全 body，可能在扫描过滤之后再次从不可达 block enqueue 泛型实例，因此必须同属本条修复范围。
+  - 修复结果：
+    - `crates/scoopc/src/mir/materialize.rs` 新增 `reachable_body_block_indices(...)`，优先使用 `Body::reachable_blocks()`，失败时保守回退全 block；
+    - `scan_reachable_non_generic_fun(...)` 现在只扫描 reachable blocks；
+    - entry-main initial request seed 的 fallback 从“可达函数 span”收口为“可达语句 span”；
+    - request-root caller-side pass candidate rewrite 改为只重写 reachable blocks，避免不可达 block 在 rewrite 阶段绕过扫描过滤并 enqueue 泛型实例。
+  - 过程中修复的既有阻塞 bug：
+    - `TerminatorKind::Handle` 此前没有把 handler body / arms / finally 暴露为 CFG successor；
+    - `Body::reachable_blocks()` 因此会把 handle 内部语义上可执行的 block 判为不可达，导致 `T5000i1P4` 的 reachable-block 过滤漏掉 `handle { entry() }` 这类入口路径；
+    - 现已为 handle terminator 增加保守 successor targets，并同步更新 `tests/fixtures/mir/handle_perform.mir`。
+    - 完整 fixture 验证随后暴露顶层 immutable `val` initializer 的可达性缺口：入口路径读取的顶层值会 lazy init，其 initializer 中的 generic call 必须参与实例请求过滤；
+    - materializer 现在会在可达 MIR `TopLevelRef` 命中顶层 immutable value 时，递归标记该 initializer span 及其引用的顶层值 initializer span，从而保留实际入口路径会触发的 initializer monomorph requests。
+  - 回归覆盖：
+    - 新增 `request_root_scan_ignores_generic_calls_in_unreachable_mir_blocks`；
+    - 测试手动向 `main` MIR 追加结构不可达的 `id<Int>` direct-call，并确认该 call 不会进入 initial requests、不会产生 instance key，也不会物化 `id::<Int>` body。
+    - 既有 run-pass-cone `cross_file_generic_top_level_val_basic` 继续覆盖跨文件顶层 `val` initializer 与被入口调用 helper 中的泛型实例都能被保留。
+  - 文档状态：
+    - `ISSUES.md` 已把对应 P2 标记为已修复；
+    - `TODO.md` 已把 `T5000i1P4` 标记为完成；
+    - 下一条待执行任务保持为 `T5000i1P5 让 production LLVM body emission 默认消费 materialized MIR body`。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc request_root_scan_ignores_generic_calls_in_unreachable_mir_blocks -- --nocapture`
+    - `cargo test -p scoopc production_codegen_suspendability_observes_overridden_pass_summary -- --nocapture`
+    - `cargo test -p scoopc mir::tests:: -- --nocapture`
+    - `cargo test -p scoopc mir::materialize -- --nocapture`
+    - `cargo test -p scoop build_frontend_ -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/cross_file_generic_top_level_val_basic`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ## 1. 当前判断
 

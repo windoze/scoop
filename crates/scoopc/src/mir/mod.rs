@@ -685,11 +685,15 @@ pub enum TerminatorKind {
     },
     /// effect handler 区域（对应 HIR 的 `ExprKind::Handle`）。
     ///
-    /// 注意：该变体目前只是一个“结构占位”，并不携带 CFG target；后续会在 lowering 中把 handle
-    /// 展开为显式基本块与 cleanup/handler 栈管理。
+    /// 注意：该变体目前仍是“结构占位”，但会携带保守 CFG target，确保 MIR reachability
+    /// 能看见 handler body / arms / finally 中保形保留下来的调用点。更晚的 effect lowering
+    /// 仍会把 handle 展开为完整的 cleanup/handler 栈管理。
     Handle {
         arms: Vec<HandlerArm>,
         has_finally: bool,
+        body_target: BasicBlockId,
+        arm_targets: Vec<BasicBlockId>,
+        finally_target: Option<BasicBlockId>,
     },
     /// 未实现控制流占位（例如 if/switch/call/cleanup 等）。
     Todo(&'static str),
@@ -717,11 +721,24 @@ impl TerminatorKind {
                 f(*then_target);
                 f(*else_target);
             }
+            TerminatorKind::Handle {
+                body_target,
+                arm_targets,
+                finally_target,
+                ..
+            } => {
+                f(*body_target);
+                for target in arm_targets {
+                    f(*target);
+                }
+                if let Some(target) = finally_target {
+                    f(*target);
+                }
+            }
             TerminatorKind::Return { .. }
             | TerminatorKind::ResumeUnwind
             | TerminatorKind::Unreachable
             | TerminatorKind::Perform { .. }
-            | TerminatorKind::Handle { .. }
             | TerminatorKind::Todo(_) => {}
         }
     }

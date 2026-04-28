@@ -200,7 +200,24 @@ fun main(): Int / Pure! {
   - 通过 MIR/HIR call graph 扩展；
   - 保留显式 export/native entry points 作为额外 roots。
 
-## P2：MIR materializer 的 request-root 可达扫描不使用 MIR CFG reachable-block 过滤
+## 已修复（2026-04-28）：MIR materializer 的 request-root 可达扫描不使用 MIR CFG reachable-block 过滤
+
+修复记录：
+
+- 新增 `reachable_body_block_indices(...)`，materializer request-root 扫描现在与 LLVM reachability 使用同一口径：
+  - `body.reachable_blocks()` 成功时只扫描可达 blocks；
+  - CFG 验证失败时保守扫描全部 blocks。
+- `scan_reachable_non_generic_fun(...)` 不再直接遍历 `body.blocks`，不可达 block 中的 generic direct-call / top-level ref 不再贡献额外实例。
+- entry-main 模式下 initial `MonomorphRequest` seed 的 fallback 已从“可达函数 span”收口到“可达语句 span”。
+- request-root caller-side pass candidate rewrite 也同步限制在 reachable blocks 内，避免不可达 block 在 rewrite 阶段绕过扫描过滤并 enqueue 泛型实例。
+- 修复过程中暴露出既有 MIR CFG 边界问题：`TerminatorKind::Handle` 曾把 handler body / arms / finally 保形降低到独立 block，却没有把这些 block 暴露为 CFG successor，导致 `reachable_blocks()` 会把语义上可执行的 handle 内部 block 判为不可达；现已为 handle terminator 增加保守 successor targets，并更新 `handle_perform.mir` golden。
+- 完整 fixture 验证继续暴露顶层 immutable `val` initializer 的可达性缺口：入口路径读取的顶层值会在运行时 lazy init，因此其 initializer 中的 generic call 也必须参与 request-root 实例过滤。materializer 现在在可达 MIR `TopLevelRef` 命中顶层 immutable value 时，会递归标记该 initializer span 及其引用的顶层值 initializer span。
+- 新增回归 `request_root_scan_ignores_generic_calls_in_unreachable_mir_blocks`：
+  - 测试手动向 `main` MIR 追加结构不可达的 `id<Int>` direct-call；
+  - 断言该 call 不会进入 initial requests、不会生成 `InstanceKey`，也不会物化 `id::<Int>` callable body。
+- 既有 run-pass-cone 回归 `cross_file_generic_top_level_val_basic` 继续覆盖跨文件顶层 `val` initializer 中的 `id<Int>` 与被入口调用的 helper 中的 `id<String>` 都能被保留。
+
+原问题记录：
 
 materializer 在 `scan_reachable_non_generic_fun(...)` 中直接遍历 `body.blocks` 的所有 block：
 
