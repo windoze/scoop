@@ -438,7 +438,11 @@ File {
                                 terminator: Terminator {
                                     span: 57..78,
                                     kind: Return {
-                                        value: None,
+                                        value: Some(
+                                            Local(
+                                                l4,
+                                            ),
+                                        ),
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -575,7 +579,11 @@ File {
                                 terminator: Terminator {
                                     span: 100..121,
                                     kind: Return {
-                                        value: None,
+                                        value: Some(
+                                            Local(
+                                                l4,
+                                            ),
+                                        ),
                                     },
                                     unwind: NoUnwind,
                                 },

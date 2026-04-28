@@ -941,12 +941,13 @@ impl<'a> FnLowering<'a> {
         op: ast::BinaryOp,
         rhs: &hir::Expr,
     ) -> LocalId {
+        let result_ty = self.binary_result_ty(ty, op);
         match op {
             ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
-                self.lower_short_circuit_binary_expr(span, ty, lhs, op, rhs)
+                self.lower_short_circuit_binary_expr(span, result_ty, lhs, op, rhs)
             }
             _ => {
-                let result = self.push_temp_local(span, ty);
+                let result = self.push_temp_local(span, result_ty);
                 let lhs_local = self.lower_expr_to_local(lhs);
                 if self.current_is_terminated() {
                     return result;
@@ -966,6 +967,20 @@ impl<'a> FnLowering<'a> {
                 );
                 result
             }
+        }
+    }
+
+    fn binary_result_ty(&self, fallback_ty: TypeId, op: ast::BinaryOp) -> TypeId {
+        match op {
+            ast::BinaryOp::Lt
+            | ast::BinaryOp::Le
+            | ast::BinaryOp::Gt
+            | ast::BinaryOp::Ge
+            | ast::BinaryOp::Eq
+            | ast::BinaryOp::Ne
+            | ast::BinaryOp::LogAnd
+            | ast::BinaryOp::LogOr => self.builtins.bool_,
+            _ => fallback_ty,
         }
     }
 
@@ -1719,9 +1734,18 @@ impl<'a> FnLowering<'a> {
             });
         }
 
-        // 3) lower lambda body（当前阶段只关注 CFG 形态）。
-        let _ = self.lower_expr_to_local(closure.body.as_ref());
-        self.finish_function(closure.span);
+        // 3) lower lambda body. A closure body is an expression, so its value is the callable
+        // result unless the body already terminated through an explicit control-flow edge.
+        let body_result = self.lower_expr_to_local(closure.body.as_ref());
+        if !self.current_is_terminated() {
+            self.set_terminator(
+                self.current_bb,
+                closure.span,
+                TerminatorKind::Return {
+                    value: Some(Operand::Local(body_result)),
+                },
+            );
+        }
 
         let out = FunDecl {
             span: closure.span,
@@ -2256,6 +2280,51 @@ fun <eff E = Pure> wrap(): Int / E {
         assert!(
             fun_fqns.contains(&"fixtures.mirlower.wrap"),
             "顶层 generic fun root 仍应继续保留"
+        );
+    }
+
+    #[test]
+    fn dump_mir_types_comparison_condition_as_bool_in_generic_template() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_generic_compare_bool.scoop",
+            r#"
+package fixtures.mirlower
+
+fun repeat<T>(x: T, n: Int): T {
+    if (n <= 0) {
+        return x
+    }
+    return repeat(x, n - 1)
+}
+"#,
+        );
+
+        let mut lowered = lower_for_dump(&sess, &source).unwrap();
+        let builtins = lowered.types.intern_builtins();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.mirlower.repeat" => Some(fun),
+                Item::Fun(_) | Item::Todo { .. } => None,
+            })
+            .expect("expected generic repeat MIR root");
+        let body = fun.body.as_ref().expect("repeat should have a MIR body");
+        let TerminatorKind::CondBr { cond, .. } =
+            &body.blocks[body.start.as_usize()].terminator.kind
+        else {
+            panic!("expected repeat entry block to branch on comparison");
+        };
+        let Operand::Local(cond_local) = cond else {
+            panic!("comparison condition should be stored in a local");
+        };
+        let cond_ty = body.locals[cond_local.as_u32() as usize].ty;
+
+        assert_eq!(
+            cond_ty, builtins.bool_,
+            "MIR comparison result local should be Bool, not an overly broad fallback type"
         );
     }
 }

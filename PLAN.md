@@ -1942,6 +1942,34 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
+- 2026-04-28：`T5000i2 基于 escape facts 接入最小 non-escaping closure simplification` 已完成。
+  - 实现结果：
+    - 新增 `crates/scoopc/src/mir/closure_simplify.rs`，作为 backend-agnostic MIR pass 消费 `MaterializedMirPassView::escape_facts()`；
+    - 当前 pass 只处理最保守形状：closure local 已证明 `NonEscaping`、同一 callable 内 direct closure call 次数为 1、`MakeClosure` 的 env 为 `Unit`、closure body 在 pass view 中 body-known，且 body 可按现有直线 inline 子集展开；
+    - pass 不在 LLVM codegen 现场重新分析逃逸，也不依赖函数名白名单或 fixture 形状；escaping / unknown closure 均保持原样；
+    - materialization pipeline 现在在 `O1+` escape analysis 后运行 closure simplification，发生改写时刷新 escape facts，并为实例改写同步刷新 summary。
+  - 一并修复的前置缺口：
+    - closure MIR lowering 现在在表达式 lambda body 正常完成时显式 `return body_result`，避免 body-known closure 只有语句而没有返回值；
+    - 验证完整 fixture 时发现 `generic_fun_recursion.scoop` 在 `O0` raw materialized MIR bridge 上失败，根因是比较表达式结果 local 仍可能保留为过宽 `Any`；MIR lowering 现将比较 / 相等 / 逻辑二元表达式的结果 local 明确标成 `Bool`，并新增回归锁定 generic template 的 branch condition 类型。
+  - 回归覆盖：
+    - 新增 closure simplification 单元测试覆盖 non-escaping Unit-env closure 被展开、escaping closure 不改写、`O0` 无 escape facts 时不运行；
+    - 新增 MIR lowering 单元测试覆盖 generic template 中 `n <= 0` 的 branch condition local 为 `Bool`；
+    - 更新 closure MIR golden fixture，反映 closure body 显式 return。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc mir::closure_simplify -- --nocapture`
+    - `cargo test -p scoopc mir::escape -- --nocapture`
+    - `cargo test -p scoopc mir::inline -- --nocapture`
+    - `cargo test -p scoopc mir::lower::tests::dump_mir_types_comparison_condition_as_bool_in_generic_template -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/generic_fun_recursion.scoop`
+    - `cargo test -p scoopc production_codegen -- --nocapture`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - 全部通过。
 
 ## 1. 当前判断
 

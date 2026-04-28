@@ -496,7 +496,11 @@ fn body_is_inlineable(
         .all(|stmt| statement_is_inlineable(&stmt.kind, direct_call_param_provenance))
 }
 
-fn pass_publishable_caller_body(fun: &FunDecl) -> bool {
+pub(super) fn body_is_inlineable_without_callable_provenance(body: &Body) -> bool {
+    body_is_inlineable(body, &HashMap::new())
+}
+
+pub(super) fn pass_publishable_caller_body(fun: &FunDecl) -> bool {
     if fun.name == "main" {
         // Entry `main` is still lowered through the dedicated HIR `codegen_main_exit_code` path.
         // Publishing a MIR override here would make reachability observe a body that production
@@ -821,6 +825,23 @@ fn expand_straight_line_call(
 
     local_operands.clear();
     Some(out)
+}
+
+pub(super) fn expand_straight_line_call_without_callable_provenance(
+    caller_body: &mut Body,
+    caller_target: LocalId,
+    call_span: crate::span::Span,
+    callee: &FunDecl,
+    param_operands: &[Operand],
+) -> Option<Vec<Statement>> {
+    expand_straight_line_call(
+        caller_body,
+        caller_target,
+        call_span,
+        callee,
+        param_operands,
+        &HashMap::new(),
+    )
 }
 
 fn bind_args_to_params(params: &[super::Param], args: &[CallArg]) -> Option<Vec<Operand>> {

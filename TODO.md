@@ -1807,7 +1807,7 @@
   - 新增回归 `production_codegen_lowers_raw_materialized_mir_body_without_pass_override`，确认 O0 下未被 pass override 的 `wrap::<Int>` raw materialized MIR body 也通过 MIR bridge 发射，并直接消费 materialized `id::<Int>` call target；
   - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc production_codegen -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc mir::materialize -- --nocapture`、`cargo test -p scoop build_frontend_ -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。
 
-### [TODO] T5000i2 基于 escape facts 接入最小 non-escaping closure simplification
+### [DONE] T5000i2 基于 escape facts 接入最小 non-escaping closure simplification
 - 范围：
   - 消费 `T5000i1` 的 MIR escape facts；
   - 仅对已证明 non-escaping、body-known、调用形状可保持语义的 closure value 做最保守简化；
@@ -1816,6 +1816,14 @@
   - closure simplification 只读取 pass-view escape facts，不重新在 LLVM codegen 现场推断；
   - escaping / unknown closure 不被错误简化。
 - 依赖：T5000i1, T5000i1P1, T5000i1P2, T5000i1P3, T5000i1P4, T5000i1P5
+- 完成记录（2026-04-28）：
+  - 新增 `crates/scoopc/src/mir/closure_simplify.rs`，在 MIR materialization pass 链中消费 `MaterializedMirPassView::escape_facts()`；当前只简化已证明 `NonEscaping`、同一 callable 内 direct closure call 次数为 1、`Unit` env、body-known 且 closure body 可直线展开的最小形状；
+  - pass 不在 LLVM codegen 现场重新推断 escape 状态，也不依赖函数名或 fixture 形状；escaping / unknown closure 保守不改写；
+  - materialization 现在于 `O1+` escape analysis 后运行 non-escaping closure simplification，若发生改写则刷新 escape facts，并为被改写实例重算 summary；
+  - 修复 closure MIR lowering 既有缺口：表达式 lambda body 正常完成时显式生成 `Return(Some(body_result))`，从而让 body-known closure 有可保持语义的 MIR body；
+  - 验证过程中发现并修复一个前置 MIR 类型缺口：比较 / 相等 / 逻辑二元表达式的 MIR 结果 local 现在明确为 `Bool`，避免 raw materialized MIR bridge 在 `generic_fun_recursion.scoop` 这类基础控制流实例上看到 `Any` 分支条件；
+  - 新增单元测试覆盖 non-escaping closure 被简化、escaping closure 不被简化、`O0` 无 escape facts 时不简化，以及 generic template 中比较条件 local 为 `Bool`；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::closure_simplify -- --nocapture`、`cargo test -p scoopc mir::escape -- --nocapture`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc mir::lower::tests::dump_mir_types_comparison_condition_as_bool_in_generic_template -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo run -p scoop -- run tests/fixtures/run-pass/generic_fun_recursion.scoop`、`cargo test -p scoopc production_codegen -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
 ### [TODO] T5000i3 让 continuation escaping analysis 进入 effect/state-machine planning 输入面
 - 范围：

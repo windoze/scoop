@@ -462,7 +462,11 @@ File {
                                 terminator: Terminator {
                                     span: 121..123,
                                     kind: Return {
-                                        value: None,
+                                        value: Some(
+                                            Local(
+                                                l2,
+                                            ),
+                                        ),
                                     },
                                     unwind: NoUnwind,
                                 },

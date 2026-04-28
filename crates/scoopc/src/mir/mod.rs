@@ -17,6 +17,7 @@
 //! 避免在边界收口阶段退回到 panic/隐式后端推断。
 
 mod callables;
+mod closure_simplify;
 mod escape;
 mod inline;
 mod lower;

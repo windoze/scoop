@@ -3175,6 +3175,9 @@ impl MirInstanceMaterializer {
         }
         if self.enable_mir_escape_analysis {
             super::escape::run_escape_analysis(&mut materialized);
+            if super::closure_simplify::run_non_escaping_closure_simplification(&mut materialized) {
+                super::escape::run_escape_analysis(&mut materialized);
+            }
         }
         Ok(materialized)
     }
