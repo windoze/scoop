@@ -1,87 +1,65 @@
-# 执行计划
+# Claude Plan
 
-## 当前目标
+## 约束说明
 
-按照本次调用要求，只处理 `TODO.md` 中第一个未完成任务；在开始任务前先检查最新提交是否提到已有问题，并优先修复或排入前置任务。完成一个任务后提交 Git commit 并停止。
+- 本文件记录可共享的执行计划、检查点、关键发现和进度更新。
+- 不记录隐藏推理过程；后续如果计划变化或关键步骤完成，会继续更新本文件。
+- 本轮只处理 `TODO.md` 中第一个未完成任务；完成后提交 Git commit 并停止。
 
-## 执行原则
+## 初始执行计划
 
-- 使用中文记录进度与结果。
-- 不采用临时绕过、夹具专用 hack 或弱化规格的实现。
-- 若发现已有 bug、规格不匹配、未完成边界或测试暴露的回归，先处理该问题；若无法立即修复，则将其作为前置任务插入 `TODO.md`，更新 `PLAN.md`，提交后停止。
-- 每次关键步骤完成或计划改变时更新本文件。
-- 只完成一个未完成任务，不继续推进下一个任务。
+1. 检查最新 Git commit，确认提交信息或变更中是否提到已有问题、回归、规格不匹配或临时处理。
+2. 如最新 commit 暴露已有问题，优先修复该问题；否则继续读取 `TODO.md`。
+3. 读取 `TODO.md`，定位第一个未完成任务。
+4. 评估该任务复杂度：
+   - 若可直接完成，则实现该任务。
+   - 若任务过大，则将其拆分为更小子任务，更新 `PLAN.md` 和 `TODO.md`，提交后停止。
+5. 实现第一个任务或子任务，严格避免 workaround、fixture-only hack 或规格偏离。
+6. 运行相关测试，并根据改动风险扩大到必要的测试范围；若发现已有问题或规格缺口，按要求优先修复或插入前置任务。
+7. 更新 `TODO.md` 将本轮任务标记为完成，并更新 `PLAN.md` 记录进度。
+8. 运行格式化/检查；目标是无编译和 lint 警告。
+9. 提交所有本轮相关变更，提交信息使用清晰任务标签。
+10. 停止，不继续处理下一个任务。
 
-## 初始步骤
+## 当前状态
 
-1. 检查最新提交，确认是否提到预存问题或回归。
-2. 阅读 `TODO.md`，找出第一个未完成任务。
-3. 阅读 `PLAN.md` 和相关源码、测试、规格文件，确认任务边界。
-4. 如果任务过大，先拆分任务并更新 `TODO.md` / `PLAN.md`，提交后停止或执行拆出的第一个子任务，按文件中的依赖顺序处理。
-5. 实现当前任务或前置修复。
-6. 添加或更新最小但充分的测试。
-7. 运行相关测试；必要时运行更广的 `cargo test --all` 或指定检查。
-8. 更新 `TODO.md` 和 `PLAN.md`，将本次完成的任务标记为完成并记录状态。
-9. 检查工作区差异，提交清晰的 Git commit。
-10. 停止，不处理后续任务。
+- 已写入初始计划。
+- 已检查最新 commit：`36c43f5b [T5000i1P4] Filter materializer roots by reachable MIR blocks`。
+- commit message 本身没有额外问题说明；最新提交改动的 `ISSUES.md` 记录了 P2：production LLVM body emission 仍默认走 HIR 兼容 body，只有 pass override 时走 MIR body。
+- 已读取 `TODO.md`，第一条未完成任务为 `T5000i1P5 让 production LLVM body emission 默认消费 materialized MIR body`，与最新 issue 记录一致，作为本轮执行目标。
 
-## 进度记录
+## T5000i1P5 执行计划
 
-- 已检查最新提交：`05f1e6d9 [T5000i1P3] Fix entry-root MIR request roots`。
-- 最新提交已将上一轮 P2 的剩余问题排入 `TODO.md`：
-  - `T5000i1P4`：materializer request-root 可达扫描需要使用 MIR reachable-block 过滤；
-  - `T5000i1P5`：production LLVM body emission 默认消费 materialized MIR body。
-- 已读取任务列表；当前第一个未完成任务是 `T5000i1P4`，本轮只处理该任务。
+1. 阅读 `TODO.md` 中 `T5000i1P5` 的范围/验收，以及 `PLAN.md` 中对应进度说明。
+2. 阅读 LLVM production emit/body emission 相关代码，重点检查：
+   - `crates/scoopc/src/llvm/emit.rs`
+   - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+   - `MaterializedMirPassView` / callable body 查询接口
+   - 现有 production LLVM 回归测试
+3. 明确当前 `pass_view.callable_body_is_overridden(...)` gate 的行为，并改为 production 默认优先消费 materialized/pass-visible MIR body；仅在缺失 MIR body 或暂未支持的结构化边界下使用明确诊断，避免静默 HIR workaround。
+4. 补充或调整回归测试，覆盖“未 pass override 的 materialized MIR body 也被 production LLVM body emission 消费”。
+5. 运行聚焦测试；根据风险继续运行 `cargo fmt --all`、相关 crate 测试、必要 fixture，以及 `cargo clippy --all-targets -- -D warnings`。
+6. 更新 `TODO.md` 标记 `T5000i1P5` 完成，并更新 `PLAN.md` / `ISSUES.md` 对 P2 的状态记录。
+7. 提交本轮变更并停止。
 
-## T5000i1P4 执行计划
+## T5000i1P5 进度更新
 
-1. 阅读 `TODO.md` / `PLAN.md` 中 `T5000i1P4` 的完整上下文，以及 `ISSUES.md` 中对应 P2 记录。
-2. 定位 MIR materializer 中 `scan_reachable_non_generic_fun(...)`、entry-main request seed 过滤、MIR body reachable-block API 与 LLVM 侧已有 reachability 口径。
-3. 将 materializer 对 reachable function body 的扫描从遍历 `body.blocks` 改为：
-   - 优先使用 `body.reachable_blocks()` 的可达 block 集合；
-   - 若 CFG reachable-block 计算失败，则保守回退扫描全部 blocks。
-4. 同步收口 entry-main 模式下 initial `MonomorphRequest` seed 的放行粒度：
-   - 从“可达函数体 span”缩小到 reachable block / reachable statement 级别；
-   - 保持 source-file rooted dump/debug 模式原语义。
-5. 添加不可达 block 中 generic direct-call 不应产生额外实例的回归测试。
-6. 运行聚焦测试；再根据影响面运行 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
-7. 更新 `TODO.md` 标记 `T5000i1P4` 完成，更新 `PLAN.md` 与本文件，提交 `[T5000i1P4] Filter materializer roots by reachable MIR blocks` 后停止。
-
-## T5000i1P4 当前进度
-
-- 已定位实现问题：
-  - `scan_reachable_non_generic_fun(...)` 原先遍历 `body.blocks` 全量 block；
-  - entry-main initial request seed 还保留按可达函数 span 放行的粗粒度 fallback；
-  - request-root caller-side pass candidate rewrite 也会重写全 body，并可能从不可达 block enqueue 泛型调用。
-- 已完成代码改动：
-  - 新增 `reachable_body_block_indices(...)`，与 LLVM reachability 一样优先使用 `body.reachable_blocks()`，失败时保守回退全 block；
-  - request-root 扫描改为只遍历可达 block；
-  - entry-main seed fallback 从可达函数 span 改为可达语句 span；
-  - request-root candidate rewrite 改为只重写可达 block，避免不可达 block 在 rewrite 阶段绕过扫描过滤 enqueue 泛型实例。
-- 全量测试中暴露并已修复既有 MIR CFG 边界问题：
-  - `TerminatorKind::Handle` 原先没有把 handler body / arms / finally 暴露为 CFG successor；
-  - 这会让 `reachable_blocks()` 把 handle 内部语义上可执行的 block 判为不可达；
-  - 现已为 handle terminator 增加保守 successor targets，并更新 `tests/fixtures/mir/handle_perform.mir`。
-- 完整 fixture suite 继续暴露并已修复顶层 immutable `val` initializer 可达性缺口：
-  - 入口路径读取的顶层值会 runtime lazy init；
-  - 其 initializer 中的 generic call 不能被 entry-main request filtering 误删；
-  - materializer 现在在可达 MIR `TopLevelRef` 命中顶层 immutable value 时，递归标记该 initializer span 及其引用的顶层值 initializer span。
-- 已新增回归：
-  - `request_root_scan_ignores_generic_calls_in_unreachable_mir_blocks` 手动向 `main` MIR 追加结构不可达的 `id<Int>` direct-call，并确认不会生成额外实例或 materialized body。
-- 已通过：
+- 已定位 production body emission 的旧 gate：`crates/scoopc/src/llvm/emit.rs` 只有 `callable_body_is_overridden(...)` 为真时才走 `codegen_top_level_mir_fun(...)`。
+- 已完成第一版切换：对于 pass view 中存在 canonical callable body 的 materialized instance，production body emission 默认走 MIR bridge；pass view 明确移除 body 时继续不发射；没有 pass-visible body 的非泛型边界仍走 HIR 兼容路径。
+- 已新增回归 `production_codegen_lowers_raw_materialized_mir_body_without_pass_override`，覆盖 O0 下未被 pass override 的 raw materialized `wrap::<Int>` 也通过 MIR bridge 发射。
+- 扩大到 `production_codegen` 测试时暴露 effect/state-machine raw MIR body 的已知 bridge 边界；已收口为：未被 pass override 的 raw materialized effect/state-machine body 继续走现有 HIR effect lowering，显式 pass override 仍不静默回退。
+- 已验证：
   - `cargo fmt --all --check`
-  - `cargo test -p scoopc request_root_scan_ignores_generic_calls_in_unreachable_mir_blocks -- --nocapture`
-- 已继续通过：
+  - `cargo test -p scoopc production_codegen -- --nocapture`
+  - `cargo test -p scoop build_frontend_ -- --nocapture`
+- 更大范围验证中发现 raw materialized body 还会暴露函数值 `TopLevelRef`、async/task MIR rvalue 等当前 bridge 不支持的形状；这些属于未被 pass override 的 raw body 兼容边界，已新增结构预检，确保只有 bridge 已支持形状默认走 MIR，unsupported raw body 保守走 HIR，显式 pass override 仍严格走 MIR。
+- 已更新 `TODO.md` 标记 `T5000i1P5` 完成，并更新 `PLAN.md` / `ISSUES.md`。
+- 最终已验证：
+  - `cargo fmt --all --check`
+  - `cargo test -p scoopc production_codegen -- --nocapture`
+  - `cargo test -p scoopc llvm::tests -- --nocapture`
   - `cargo test -p scoopc mir::materialize -- --nocapture`
   - `cargo test -p scoop build_frontend_ -- --nocapture`
-  - `cargo test -p scoopc production_codegen_suspendability_observes_overridden_pass_summary -- --nocapture`
-  - `cargo test -p scoopc mir::tests:: -- --nocapture`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/cross_file_generic_top_level_val_basic`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 已更新：
-  - `TODO.md`：`T5000i1P4` 标记为 DONE，并记录实现与验证；
-  - `PLAN.md`：补充本条完成记录；
-  - `ISSUES.md`：对应 P2 标记为已修复。
-- 下一步：最终检查 diff / status，提交 `[T5000i1P4] Filter materializer roots by reachable MIR blocks` 后停止，不处理 `T5000i1P5`。
+- 下一步：检查 git diff/status，然后提交本轮变更。

@@ -240,42 +240,40 @@ LLVM reachability 在扫描 pass MIR body 时则先调用 `body.reachable_blocks
   - 失败时再保守扫描全部 blocks。
 - 增加回归：不可达 MIR block 中存在 `id<Int>`，materializer 不应产生 `id::<Int>`，除非 CFG 验证失败触发保守回退。
 
-## P2：LLVM production 仍主要消费 HIR 兼容 body，MIR body 只在 pass override 时生效
+## 已修复（2026-04-28）：LLVM production body emission 默认消费可支持的 materialized MIR body
 
-production emit 已经要求 `LoweredHir::materialized_pass_view()` 存在，并把 pass view 传给：
+修复记录：
 
-- reachability
-- body presence 判断
-- suspendability summary cache
+- production body emission 现在通过 `canonical_materialized_callable_body(...)` 读取
+  `MaterializedMirPassView` 中的 canonical callable body：
+  - pass view 中存在的 materialized instance raw body 默认进入 `codegen_top_level_mir_fun(...)`；
+  - 显式 pass-rewritten body 继续进入 `codegen_top_level_mir_fun(...)`；
+  - pass view 明确移除 body 的 callable 不再由 HIR 兼容 body 重新发射。
+- 对未被 pass override 的 raw materialized body，production emit 新增 bridge 支持性预检：
+  - 当前 MIR bridge 已支持的纯 scalar / direct-call / 基础控制流 body 默认走 MIR；
+  - effect/state-machine body、函数值 `TopLevelRef`、closure/fun-value/dynamic dispatch、
+    tuple/member/capture/pattern/perform 等尚未支持的 MIR 节点继续走 HIR 兼容发射边界。
+- 显式 pass override 不使用上述 HIR 兼容回退：
+  - 如果 pass 发布了当前 MIR bridge 仍不支持的 body，production LLVM 会继续暴露结构化
+    `UnsupportedMainBody`；
+  - 这样 pass rewrite 不会被静默吞回旧 HIR body。
+- 新增回归 `production_codegen_lowers_raw_materialized_mir_body_without_pass_override`，确认
+  O0 下未被 pass override 的 `wrap::<Int>` raw materialized MIR body 会通过 MIR bridge 发射，
+  并直接调用 materialized `id::<Int>`。
 
-相关位置：
+原问题记录：
 
-- `crates/scoopc/src/llvm/emit.rs:706`
-- `crates/scoopc/src/llvm/emit.rs:890`
+production emit 已经要求 `LoweredHir::materialized_pass_view()` 存在，并把 pass view 传给
+reachability、body presence 判断与 suspendability summary cache，但实际 body emission 只有
+`pass_view.callable_body_is_overridden(fun.fqn)` 为真时才走 `codegen_top_level_mir_fun(...)`；
+否则继续走 `codegen_top_level_fun(...)` 的 HIR codegen。这使 raw materialized MIR body 默认还
+不是 LLVM body source of truth，只有 pass 显式发布 override 后才影响 production body emission。
 
-但实际 body emission 是：
+保留边界：
 
-- 若 `pass_view.callable_body_is_overridden(fun.fqn)`，走 `codegen_top_level_mir_fun(...)`；
-- 否则走 `codegen_top_level_fun(...)` 的 HIR codegen。
-
-相关位置：
-
-- `crates/scoopc/src/llvm/emit.rs:803`
-- `crates/scoopc/src/llvm/emit.rs:910`
-
-这不是当前代码的隐藏 bug，而是明确的桥接状态：raw materialized MIR body 默认还不是 LLVM body source of truth，只有 pass 显式发布 override 后才影响 production body emission。
-
-影响：
-
-- HIR compatibility side tables 仍是多数 LLVM lowering 的真实事实源；
-- materialized MIR summary/pass artifacts 与 HIR body 之间若出现差异，只有部分消费点能观察到；
-- 后续 MIR pass 若希望影响真实 codegen，必须通过 `pass_artifacts.replace_callable_body(...)` 发布 override。
-
-建议：
-
-- 短期保持现状，但把“只有 override 才走 MIR body”的约束写入任务说明/代码注释，避免误以为 raw materialized MIR 已全面接管 LLVM。
-- 中期扩大 `codegen_top_level_mir_fun(...)` 支持子集，让更多 materialized root body 可直接作为 codegen source。
-- 长期减少 HIR compatibility lowering 对实例 body 的责任，只保留 side tables 或逐步迁移 side tables 到 MIR/program facts。
+- HIR compatibility lowering 仍需为当前 MIR bridge 尚未支持的 raw body 形状提供兼容发射边界；
+- 后续仍应继续扩大 `codegen_top_level_mir_fun(...)` 支持面，最终减少 HIR compatibility body
+  对 production correctness 的责任。
 
 ## 已有保护和回归覆盖
 
@@ -285,26 +283,33 @@ production emit 已经要求 `LoweredHir::materialized_pass_view()` 存在，并
 - materializer 能通过 request-root 扫描发现跨文件 helper 中实际触达的 generic/effect-generic 实例。
 - HIR compatibility lowering 已经按 materializer 产出的 `InstanceKey` 生成 monomorphic fun/member，而不是 legacy eager HIR 自行决定实例集合。
 - production LLVM 入口会拒绝没有 materialized pass view 的 legacy lowering。
-- pass override body、pass summary override、caller-side non-generic pass rewrite 已经能影响 production LLVM。
+- pass override body、pass summary override、caller-side non-generic pass rewrite，以及 bridge
+  已支持形状的 raw materialized instance body 已经能影响 production LLVM。
 
 本次验证过的测试：
 
 ```bash
-cargo test -p scoop build_frontend
-cargo test -p scoopc typechecked_compilation_unit_materialization
-cargo test -p scoopc production_codegen
+cargo test -p scoop build_frontend_ -- --nocapture
+cargo test -p scoopc mir::materialize -- --nocapture
+cargo test -p scoopc production_codegen -- --nocapture
+cargo test -p scoopc llvm::tests -- --nocapture
+cargo test --all
+cargo clippy --all-targets -- -D warnings
 ```
 
 结果：
 
-- `cargo test -p scoop build_frontend`：4 passed。
-- `cargo test -p scoopc typechecked_compilation_unit_materialization`：8 passed。
-- `cargo test -p scoopc production_codegen`：8 passed。
+- `cargo test -p scoop build_frontend_ -- --nocapture`：8 passed。
+- `cargo test -p scoopc mir::materialize -- --nocapture`：19 passed。
+- `cargo test -p scoopc production_codegen -- --nocapture`：9 passed。
+- `cargo test -p scoopc llvm::tests -- --nocapture`：62 passed。
+- `cargo test --all`：通过。
+- `cargo clippy --all-targets -- -D warnings`：通过。
 
 ## 建议收口顺序
 
 1. [DONE 2026-04-28] 修 build frontend 的 request-source 接线，先避免 stdlib/sysroot support sources 贡献 initial `MonomorphKey`。
 2. [DONE 2026-04-28] 为 monomorph request 增加 call-site/source 来源，或在 frontend 侧保留带来源 wrapper。
-3. 统一 materializer 与 LLVM reachability 的 MIR reachable-block 扫描口径。
-4. 明确 request-root 粒度：source-file roots、entry package roots，还是 entry-main reachable roots。
-5. 逐步扩大 MIR body codegen bridge，减少 HIR compatibility body 对 production correctness 的影响。
+3. [DONE 2026-04-28] 统一 materializer 与 LLVM reachability 的 MIR reachable-block 扫描口径。
+4. [DONE 2026-04-28] 明确 production request-root 粒度为 entry-main reachable roots。
+5. [DONE 2026-04-28] 让 production LLVM body emission 默认消费 bridge 已支持形状的 materialized MIR body，并保留明确 unsupported MIR boundary 的 HIR 兼容发射。

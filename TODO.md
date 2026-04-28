@@ -1790,7 +1790,7 @@
   - `ISSUES.md` 已把对应 P2 标记为已修复；
   - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc request_root_scan_ignores_generic_calls_in_unreachable_mir_blocks -- --nocapture`、`cargo test -p scoopc production_codegen_suspendability_observes_overridden_pass_summary -- --nocapture`、`cargo test -p scoopc mir::tests:: -- --nocapture`、`cargo test -p scoopc mir::materialize -- --nocapture`、`cargo test -p scoop build_frontend_ -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/cross_file_generic_top_level_val_basic`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。
 
-### [TODO] T5000i1P5 让 production LLVM body emission 默认消费 materialized MIR body
+### [DONE] T5000i1P5 让 production LLVM body emission 默认消费 materialized MIR body
 - 范围：
   - 按最新提交 `ISSUES.md` 剩余 P2，收口 production emit 仍主要走 HIR 兼容 body 的半切换边界；
   - 当前 `LoweredHir::materialized_pass_view()` 已存在，reachability / body presence / summary 查询已消费 pass view，但普通 body emission 仍在未 override 时回退 HIR；
@@ -1800,6 +1800,12 @@
   - materialized MIR body / summary / pass view 成为普通 callable emission 的 canonical 输入面；
   - 现有 HIR 兼容 body 不再掩盖 materialized MIR 与最终 codegen 可达集合之间的不一致。
 - 依赖：T5000i1P4
+- 完成记录（2026-04-28）：
+  - production body emission 现在通过 `canonical_materialized_callable_body(...)` 读取 `MaterializedMirPassView` 中的 canonical callable body；materialized instance 的 raw body 与显式 pass-rewritten body 都可进入 MIR bridge，不再只有 `callable_body_is_overridden(...)` 时才走 `codegen_top_level_mir_fun(...)`；
+  - 对未被 pass override 的 raw materialized body，新增 bridge 支持性预检：当前 MIR bridge 已支持的纯 scalar / direct-call / 基础控制流形状默认走 MIR；effect/state-machine body、函数值 `TopLevelRef`、closure/fun-value/dynamic dispatch、tuple/member/capture/pattern/perform 等尚未支持的 MIR 节点继续走 HIR 兼容发射边界；
+  - 显式 pass override 不走上述 HIR 兼容回退：若 pass 发布了当前 bridge 仍不支持的 MIR body，仍会暴露结构化 `UnsupportedMainBody`，避免把 pass rewrite 静默吞回 HIR；
+  - 新增回归 `production_codegen_lowers_raw_materialized_mir_body_without_pass_override`，确认 O0 下未被 pass override 的 `wrap::<Int>` raw materialized MIR body 也通过 MIR bridge 发射，并直接消费 materialized `id::<Int>` call target；
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc production_codegen -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc mir::materialize -- --nocapture`、`cargo test -p scoop build_frontend_ -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。
 
 ### [TODO] T5000i2 基于 escape facts 接入最小 non-escaping closure simplification
 - 范围：

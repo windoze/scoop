@@ -1247,6 +1247,69 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_lowers_raw_materialized_mir_body_without_pass_override() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000i1p5_raw_mir_body.scoop",
+        r#"
+package fixtures.t5000i1p5
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> wrap(x: T): T {
+    return id<T>(x)
+}
+
+fun main(): Int {
+    return wrap<Int>(1)
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let wrap_fqn = "fixtures.t5000i1p5.wrap::<Int>";
+    let id_fqn = "fixtures.t5000i1p5.id::<Int>";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let wrap_mir = materialized
+        .pass_view()
+        .callable(wrap_fqn)
+        .expect("raw materialized wrap body 应进入 pass view");
+    assert!(
+        !materialized
+            .pass_view()
+            .callable_body_is_overridden(wrap_fqn),
+        "O0 下 wrap body 应是 raw materialized MIR，而不是 pass override"
+    );
+    assert!(
+        mir_fun_contains_direct_call(wrap_mir, id_fqn),
+        "raw materialized wrap MIR 应仍包含 wrap -> id direct call"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let wrap_ir = function_ir_named(&ir, wrap_fqn);
+    assert!(
+        wrap_ir.contains("pass_mir_call"),
+        "未被 pass override 的 materialized body 也应经 MIR bridge 发射；若仍走 HIR 兼容 body，则不会出现 MIR bridge call 名称:\n{wrap_ir}"
+    );
+    assert!(
+        wrap_ir.contains(id_fqn),
+        "raw materialized wrap MIR 的 direct call target 应被 production LLVM 直接消费:\n{wrap_ir}"
+    );
+}
+
+#[test]
 fn production_codegen_lowers_overridden_pass_mir_body() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

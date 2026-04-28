@@ -1917,6 +1917,31 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
+- 2026-04-28：`T5000i1P5 让 production LLVM body emission 默认消费 materialized MIR body` 已完成。
+  - 问题来源：
+    - 最新提交保留的 `ISSUES.md` P2 指出 production emit 虽已要求 `LoweredHir::materialized_pass_view()`，但 body emission 仍只有 `callable_body_is_overridden(...)` 为真时才走 MIR bridge；
+    - 这会让 raw materialized MIR body / pass view 只影响 reachability、body presence 与 summary 查询，却不能成为普通 callable emission 的 canonical 输入面。
+  - 修复结果：
+    - `crates/scoopc/src/llvm/emit.rs` 新增 `canonical_materialized_callable_body(...)`，body emission 现在对 pass view 中存在 canonical callable body 的 materialized instance 默认调用 `codegen_top_level_mir_fun(...)`；
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 的模块边界已更新为 production-visible MIR body bridge，而不再只描述 pass-rewritten body；
+    - 对未被 pass override 的 raw materialized body，新增 `raw_materialized_mir_body_requires_hir_compat_boundary(...)` 预检：当前 bridge 已支持的纯 scalar / direct-call / 基础控制流 body 默认走 MIR；effect/state-machine body、函数值 `TopLevelRef`、closure/fun-value/dynamic dispatch、tuple/member/capture/pattern/perform 等尚未支持 MIR 节点继续走 HIR 兼容发射；
+    - 显式 pass override 不使用该 raw-body HIR 兼容回退，pass 发布的 unsupported MIR body 仍会结构化报错，避免把 pass rewrite 静默吞回 HIR。
+  - 回归覆盖：
+    - 新增 `production_codegen_lowers_raw_materialized_mir_body_without_pass_override`；
+    - 测试在 O0 下确认 `wrap::<Int>` 未被 pass override，pass view 中仍有 raw materialized body，production LLVM 中 `wrap::<Int>` 通过 MIR bridge 发射并直接调用 materialized `id::<Int>`。
+  - 文档状态：
+    - `ISSUES.md` 已把对应 P2 标记为已修复；
+    - `TODO.md` 已把 `T5000i1P5` 标记为完成；
+    - 下一条待执行任务为 `T5000i2 基于 escape facts 接入最小 non-escaping closure simplification`。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc production_codegen -- --nocapture`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo test -p scoopc mir::materialize -- --nocapture`
+    - `cargo test -p scoop build_frontend_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
 
 ## 1. 当前判断
 

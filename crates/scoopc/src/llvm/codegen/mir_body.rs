@@ -1,9 +1,10 @@
-//! LLVM lowering for pass-rewritten MIR callable bodies.
+//! LLVM lowering for production-visible MIR callable bodies.
 //!
-//! This module is intentionally a production bridge for explicit MIR pass output, not a
-//! replacement for every legacy HIR-compatible body yet. When a MIR pass explicitly rewrites a
-//! callable body, production emit lowers that canonical body here so the pass result affects real
-//! LLVM output instead of only reachability or summaries.
+//! Production emit lowers callable bodies from `MaterializedMirPassView` through this bridge when
+//! their MIR shape is inside the currently supported lowering subset. Explicit pass rewrites enter
+//! here strictly; raw materialized bodies outside this subset, declaration-only callables, and
+//! non-generic bodies that have not been published into the pass view continue to use their
+//! existing HIR-compatible boundary.
 
 use std::collections::HashSet;
 
@@ -20,6 +21,20 @@ struct MirLocalSlot<'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(crate) fn raw_materialized_mir_body_requires_hir_compat_boundary(
+        &self,
+        hir_fun: &hir::FunDecl,
+        mir_fun: &crate::mir::FunDecl,
+    ) -> bool {
+        if self.build_fun_callee_suspend_plan(hir_fun).is_some() {
+            return true;
+        }
+        let Some(body) = mir_fun.body.as_ref() else {
+            return true;
+        };
+        body.validate_cfg().is_err() || !self.raw_materialized_mir_body_is_supported(body)
+    }
+
     pub(crate) fn codegen_top_level_mir_fun(
         mut self,
         hir_fun: &hir::FunDecl,
@@ -163,6 +178,114 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(MirLocalSlot { cg_ty, ptr })
             })
             .collect()
+    }
+
+    fn raw_materialized_mir_body_is_supported(&self, body: &crate::mir::Body) -> bool {
+        let used_locals = collect_mir_local_uses(body);
+        body.blocks.iter().all(|block| {
+            block
+                .stmts
+                .iter()
+                .all(|stmt| self.raw_materialized_mir_statement_is_supported(stmt, &used_locals))
+                && self.raw_materialized_mir_terminator_is_supported(&block.terminator.kind)
+        })
+    }
+
+    fn raw_materialized_mir_statement_is_supported(
+        &self,
+        stmt: &crate::mir::Statement,
+        used_locals: &HashSet<crate::mir::LocalId>,
+    ) -> bool {
+        match &stmt.kind {
+            crate::mir::StatementKind::Nop => true,
+            crate::mir::StatementKind::Assign { target, value } => {
+                if !used_locals.contains(target)
+                    && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) = value
+                    && self.fun_index.contains_key(fqn)
+                {
+                    return true;
+                }
+                self.raw_materialized_mir_rvalue_is_supported(value)
+            }
+            crate::mir::StatementKind::Todo(_) => false,
+        }
+    }
+
+    fn raw_materialized_mir_terminator_is_supported(
+        &self,
+        terminator: &crate::mir::TerminatorKind,
+    ) -> bool {
+        match terminator {
+            crate::mir::TerminatorKind::Return { value } => value
+                .as_ref()
+                .is_none_or(|operand| self.raw_materialized_mir_operand_is_supported(operand)),
+            crate::mir::TerminatorKind::Goto { .. } | crate::mir::TerminatorKind::Unreachable => {
+                true
+            }
+            crate::mir::TerminatorKind::CondBr { cond, .. } => {
+                self.raw_materialized_mir_operand_is_supported(cond)
+            }
+            crate::mir::TerminatorKind::ResumeUnwind
+            | crate::mir::TerminatorKind::Perform { .. }
+            | crate::mir::TerminatorKind::Handle { .. }
+            | crate::mir::TerminatorKind::Todo(_) => false,
+        }
+    }
+
+    fn raw_materialized_mir_rvalue_is_supported(&self, value: &crate::mir::Rvalue) -> bool {
+        match value {
+            crate::mir::Rvalue::Use(operand) | crate::mir::Rvalue::Unary { operand, .. } => {
+                self.raw_materialized_mir_operand_is_supported(operand)
+            }
+            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) => {
+                self.object_inits.contains_key(fqn)
+                    || self.top_level_consts.contains_key(fqn)
+                    || self.top_level_immutable_values.contains_key(fqn)
+                    || self.top_level_vars.contains_key(fqn)
+            }
+            crate::mir::Rvalue::Binary { lhs, rhs, .. } => {
+                self.raw_materialized_mir_operand_is_supported(lhs)
+                    && self.raw_materialized_mir_operand_is_supported(rhs)
+            }
+            crate::mir::Rvalue::Call { kind, args } => {
+                self.raw_materialized_mir_call_kind_is_supported(kind)
+                    && args
+                        .iter()
+                        .all(|arg| self.raw_materialized_mir_operand_is_supported(&arg.value))
+            }
+            crate::mir::Rvalue::UnresolvedName { .. }
+            | crate::mir::Rvalue::TypeCheck { .. }
+            | crate::mir::Rvalue::Cast { .. }
+            | crate::mir::Rvalue::MemberAccess { .. }
+            | crate::mir::Rvalue::MakeTuple { .. }
+            | crate::mir::Rvalue::TupleGet { .. }
+            | crate::mir::Rvalue::CaptureBoxNew { .. }
+            | crate::mir::Rvalue::CaptureBoxGet { .. }
+            | crate::mir::Rvalue::CaptureBoxSet { .. }
+            | crate::mir::Rvalue::PatternMatch { .. }
+            | crate::mir::Rvalue::PatternExtract { .. }
+            | crate::mir::Rvalue::MakeClosure { .. }
+            | crate::mir::Rvalue::PerformResult { .. }
+            | crate::mir::Rvalue::Todo(_) => false,
+        }
+    }
+
+    fn raw_materialized_mir_call_kind_is_supported(&self, kind: &crate::mir::CallKind) -> bool {
+        match kind {
+            crate::mir::CallKind::Direct { callee_fqn } => self.fun_index.contains_key(callee_fqn),
+            crate::mir::CallKind::Closure { .. }
+            | crate::mir::CallKind::FunValue { .. }
+            | crate::mir::CallKind::Virtual { .. }
+            | crate::mir::CallKind::Interface { .. }
+            | crate::mir::CallKind::Resume { .. } => false,
+        }
+    }
+
+    fn raw_materialized_mir_operand_is_supported(&self, operand: &crate::mir::Operand) -> bool {
+        match operand {
+            crate::mir::Operand::Local(_) => true,
+            crate::mir::Operand::Const(_) => true,
+        }
     }
 
     fn cg_ty_of_mir_type(&self, mir_types: &TypeStore, ty: TypeId) -> Option<CgTy> {

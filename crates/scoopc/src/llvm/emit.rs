@@ -801,10 +801,19 @@ fn build_main_module_from_codegen_entry<'ctx>(
                 at: fun.span.into(),
             })?;
         let body_codegen = unit_codegen.fresh_main_codegen();
-        if let Some(pass_fun) =
-            pass_overridden_callable_body(fun, unit_codegen.materialized_pass_view())
+        if let Some(mir_fun) =
+            canonical_materialized_callable_body(fun, unit_codegen.materialized_pass_view())
         {
-            body_codegen.codegen_top_level_mir_fun(fun, pass_fun, llvm_fun)?;
+            let body_is_overridden = unit_codegen
+                .materialized_pass_view()
+                .is_some_and(|view| view.callable_body_is_overridden(&fun.fqn));
+            if !body_is_overridden
+                && body_codegen.raw_materialized_mir_body_requires_hir_compat_boundary(fun, mir_fun)
+            {
+                body_codegen.codegen_top_level_fun(fun, llvm_fun)?;
+            } else {
+                body_codegen.codegen_top_level_mir_fun(fun, mir_fun, llvm_fun)?;
+            }
         } else {
             body_codegen.codegen_top_level_fun(fun, llvm_fun)?;
         }
@@ -907,15 +916,17 @@ fn should_emit_reachable_fun_body(
     true
 }
 
-fn pass_overridden_callable_body<'a>(
+fn canonical_materialized_callable_body<'a>(
     fun: &hir::FunDecl,
     materialized_pass_view: Option<&'a crate::mir::MaterializedMirPassView<'a>>,
 ) -> Option<&'a crate::mir::FunDecl> {
     let pass_view = materialized_pass_view?;
-    if !pass_view.callable_body_is_overridden(&fun.fqn) {
-        return None;
+    if pass_view.callable_body_is_overridden(&fun.fqn)
+        || pass_view.owner_of_callable(&fun.fqn).is_some()
+    {
+        return pass_view.callable(&fun.fqn);
     }
-    pass_view.callable(&fun.fqn)
+    None
 }
 
 #[cfg(test)]
