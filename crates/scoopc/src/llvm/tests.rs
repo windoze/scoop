@@ -1147,6 +1147,107 @@ fun main(): Int {
 }
 
 #[test]
+fn frontend_codegen_consumes_operator_overload_direct_calls_without_eager_member_inclusion() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j1a_operator_direct_call.scoop",
+        r#"
+package fixtures.t5000j1a
+
+import scoop.core.*
+
+struct Mask(val bits: Int) {
+    fun inv(): Mask {
+        return Mask(~this.bits)
+    }
+
+    fun plus(other: Mask): Mask {
+        return Mask(this.bits + other.bits)
+    }
+
+    fun shl(bits: Int): Mask {
+        return Mask(this.bits << bits)
+    }
+
+    fun minus(other: Mask): Mask {
+        return Mask(this.bits - other.bits)
+    }
+}
+
+fun main(): Int {
+    val a: Mask = Mask(3)
+    val b: Mask = Mask(4)
+    val c: Mask = ~a
+    val d: Mask = a + b
+    val e: Mask = a << 2
+    return c.bits + d.bits + e.bits
+}
+"#,
+    );
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let main = codegen_unit
+        .lowered
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            hir::Item::Fun(fun) if fun.fqn == "fixtures.t5000j1a.main" => Some(fun),
+            _ => None,
+        })
+        .expect("expected lowered main");
+    let body = main.body.as_ref().expect("main should have a body");
+
+    let direct_call_targets = body
+        .stmts
+        .iter()
+        .filter_map(|stmt| match &stmt.kind {
+            hir::StmtKind::Val(val) => val.init.as_ref(),
+            _ => None,
+        })
+        .filter_map(|expr| match &expr.kind {
+            hir::ExprKind::Call { callee, .. } => match &callee.kind {
+                hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    for expected in [
+        "fixtures.t5000j1a.Mask.inv",
+        "fixtures.t5000j1a.Mask.plus",
+        "fixtures.t5000j1a.Mask.shl",
+    ] {
+        assert!(
+            direct_call_targets.contains(&expected),
+            "operator overload site 应在 typed HIR 中改写成 direct-call target `{expected}`，实际为 {direct_call_targets:?}"
+        );
+    }
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    for expected in [
+        "@fixtures.t5000j1a.Mask.inv(",
+        "@fixtures.t5000j1a.Mask.plus(",
+        "@fixtures.t5000j1a.Mask.shl(",
+    ] {
+        assert!(
+            ir.contains(expected),
+            "production LLVM 应继续消费 operator direct-call target `{expected}`，实际 IR:\n{ir}"
+        );
+    }
+    assert!(
+        !ir.contains("@fixtures.t5000j1a.Mask.minus("),
+        "reachability 不应再因 operator overload 兜底把未使用的 `Mask.minus` 带进 IR：\n{ir}"
+    );
+}
+
+#[test]
 fn production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

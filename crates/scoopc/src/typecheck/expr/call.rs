@@ -4442,7 +4442,7 @@ fn late_resolve_direct_member_fun_fqn_from_receiver_ty(
     }
 }
 
-fn combined_member_instance_type_args(
+pub(super) fn combined_member_instance_type_args(
     callee_fqn: &str,
     receiver_ty: TypeId,
     fun_type_args: &[TypeId],

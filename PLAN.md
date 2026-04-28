@@ -2025,6 +2025,36 @@
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
+- 2026-04-28：`T5000j 扩展覆盖面，并继续跟踪 safepoint / mem2reg 方向` 已判定为单轮过大任务，现拆成 `T5000j1`～`T5000j4` 四个实现子任务与对应 review。
+  - 新增拆分依据：
+    - `OPTIMIZATION.md` 已明确记录 operator-overload target 仍在 codegen 阶段物化，并导致 `llvm/emit.rs` 仍需 eager inclusion struct member methods；
+    - probing 已确认 `crates/scoopc/src/llvm/codegen/mod.rs` 仍在 `codegen_binary(...)` 现场决定 user-defined binary / `compareTo` overload，同主题下 unary operator overload 虽已被 typecheck 接受，但尚未进入 production codegen / materialization 主线；
+    - `when/pattern`、更多 higher-order / closure / object-init / top-level-init 场景，以及 safepoint/root-pressure 跟踪，则属于后续覆盖扩张与观测面的另一组独立改动，若与 operator target 边界收口捆成一轮会失去可执行性。
+  - 拆分顺序：
+    - `T5000j1`：先收口 operator-overload target 的 typed HIR / generic MIR 主线，再按语义形状继续拆分：
+      - `T5000j1a`：先把 unary 与 arithmetic/bitwise/shifts operator overload target 收口到 explicit direct-call 主线；
+      - `T5000j1b`：再补 user-defined `compareTo` 比较的稳定表示，并删除剩余 struct member eager inclusion；
+    - `T5000j2`：再扩 `when` / pattern 到 production MIR body / summary 主线；
+    - `T5000j3`：再扩更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线；
+    - `T5000j4`：最后建立 safepoint 数量 / roots 压力的可复验跟踪基线，并评估后续 `mem2reg` / register-root 研究窗口。
+  - 进一步拆分依据：
+    - continued probing 发现 `compareTo` 型比较与普通 unary/binary overload 不能机械合并：前者需要“调用结果与 0 比较”的稳定表示，而当前 HIR/MIR 的整数字面量节点并不承载可直接合成的 `0` 常量值；
+    - 因此 `T5000j1` 再拆成 `T5000j1a` / `T5000j1b`，避免在表示层尚未补齐时把两类改动捆成一轮并误报完成。
+  - 下一条待执行任务切换为 `T5000j1a 把 unary 与 arithmetic/bitwise/shifts operator overload target 收口到 typed HIR / generic MIR direct-call 主线`。
+  - 2026-04-28：`T5000j1a` 已完成。
+    - `typecheck/expr/ops.rs` 现已为 unary `~` 与 arithmetic/bitwise/shifts operator overload 统一记录 direct-call binding / monomorph request，并修正 unary binding span 到外层表达式；
+    - `hir/lower/expr.rs` 现会把这些 operator site 改写成显式顶层 `ExprKind::Call`，继续复用已有 `TopLevelFunCallBinding` 与 materialized target identity，因此 generic owner specialization 与默认 eff-arg 不再绕回 backend 现场猜测；
+    - `llvm/emit.rs` 已把 operator-overload 相关 eager inclusion 缩到只剩 `compareTo` 比较路径；production LLVM reachability / body emission 现在可以直接消费 `~` / arithmetic/bitwise/shifts 的显式 direct-call target；
+    - 已新增两类回归：
+      - `mir/materialize.rs`：验证 operator-overload binding / monomorph key 会保留 owner specialization 的 `Int` type arg 与非 `Pure` 默认 eff-arg；
+      - `llvm/tests.rs`：验证 typed HIR 与 production LLVM IR 都已显式调用 `Mask.inv` / `Mask.plus` / `Mask.shl`，且未使用的 `Mask.minus` 不会再被 eager inclusion 带入 IR；
+    - 已验证：
+      - `cargo fmt --all`
+      - `cargo test -p scoopc`
+      - `cargo test --all`
+      - `cargo clippy --all-targets -- -D warnings`
+      - `cargo run -p scoop -- test`
+    - 下一条待执行任务切换为 `T5000j1b 收口 user-defined compareTo 比较 target，并删除剩余 struct member eager inclusion`。
 
 ## 1. 当前判断
 

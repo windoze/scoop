@@ -717,17 +717,16 @@ fn build_main_module_from_codegen_entry<'ctx>(
         },
     );
 
-    // T0111: Eagerly include struct member methods (operator overloads like `plus`, `compareTo`
-    // are dispatched at codegen time from `Binary` expressions, which the reachability scanner
-    // cannot detect since HIR types for VarRef are `Any`).
+    // T5000j1a: arithmetic/bitwise/shifts 与 unary `~` operator overload 已改写成显式 direct call，
+    // reachability 可以直接看到这些 callee。这里仅为尚未迁出的 `compareTo` 比较路径保留最小 eager inclusion。
     {
         let reachable_fqns: HashSet<&str> = reachable.iter().map(|f| f.fqn.as_str()).collect();
         for struct_fqn in lowered.struct_layouts.keys() {
-            let prefix = format!("{struct_fqn}.");
-            for (fqn, fun) in &fun_index {
-                if fqn.starts_with(&prefix) && !reachable_fqns.contains(fqn.as_str()) {
-                    reachable.push(fun);
-                }
+            let compare_to_fqn = format!("{struct_fqn}.compareTo");
+            if !reachable_fqns.contains(compare_to_fqn.as_str())
+                && let Some(fun) = fun_index.get(compare_to_fqn.as_str())
+            {
+                reachable.push(fun);
             }
         }
     }

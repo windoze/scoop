@@ -1875,6 +1875,13 @@
   - review 结论：未发现需要插入到 `T5000j` 之前的新前置缺陷任务；LLVM backend 当前只剩 emitter 与 backend lowering，effect middle-end 已迁出 LLVM backend 语义边界。
 
 ### T5000j 扩展覆盖面，并继续跟踪 safepoint / `mem2reg` 方向
+- 说明：
+  - 当前任务同时覆盖 `when/pattern`、operator-overload target materialization、更多 higher-order / closure / object-init / top-level-init 场景，以及 safepoint/root-pressure 跟踪，单轮过大；
+  - probing 已确认本阶段最靠前的既有边界泄漏仍是 operator-overload target 仍在 LLVM backend 现场决定：
+    - `crates/scoopc/src/llvm/emit.rs` 仍为 struct member methods 做 eager inclusion；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 仍在 `codegen_binary(...)` 现场决定 user-defined binary / `compareTo` overload；
+    - 同主题下还暴露出 unary operator overload 已被 typecheck 接受，但尚未进入 production codegen / materialization 主线；
+  - 因此先按“operator target 边界 → pattern/when 覆盖 → 更多 higher-order/init 场景 → safepoint 观测”顺序拆分。
 - 范围：
   - 在主线稳定后，继续扩展：
     - `when` / pattern lowering
@@ -1889,6 +1896,96 @@
   - safepoint / root-pressure 的变化有可复验结论，可为后续 GC / `mem2reg` 研究提供真实输入。
 - 依赖：T5000iR
 
+### T5000j1 收口 operator-overload target 的 typed HIR / generic MIR 主线
+- 说明：
+  - probing 进一步确认 `compareTo` 型比较与普通 unary/binary operator 不能在同一轮机械合并：
+    - arithmetic/bitwise/unary overload 可以直接重写为显式 direct-call；
+    - 但 `< <= > >=` 的 user-defined `compareTo` 路径还需要一个“调用结果与 0 比较”的稳定表示，而当前 HIR/MIR 的整数字面量节点并不承载可直接合成的 `0` 常量值；
+  - 因此先拆成 `T5000j1a` / `T5000j1b`，避免在未补齐表示层前提下宣称同一轮完整收口。
+
+### [DONE] T5000j1a 把 unary 与 arithmetic/bitwise/shifts operator overload target 收口到 typed HIR / generic MIR direct-call 主线
+- 范围：
+  - 让 unary `~` 与 user-defined binary arithmetic/bitwise/shifts operator overload，在 typecheck 阶段写回统一的 direct-call binding / monomorph request；
+  - 让 HIR lowering 把这些 operator site 收口为显式顶层 direct-call 形状，并让 generic/effect-row/owner specialization 继续走现有 materialized target identity 主线；
+  - 让 MIR lowering / reachability / production LLVM body emission 直接消费这些 explicit direct-call target；若 `llvm/emit.rs` 仍需为剩余 `compareTo` 路径保留最小 eager inclusion，范围必须显式缩到只覆盖尚未迁出的比较路径。
+- 验收：
+  - unary/binary arithmetic/bitwise/shifts operator-overload target identity 不再主要由 LLVM `codegen_binary` / reachability 现场猜测；
+  - generic owner method / effect-row aware operator overload 会进入正常的 monomorph/materialization / summary / direct-call 主线；
+  - production regression 能证明上述 operator overload 已通过 MIR/reachability 主线触达真实 callee，而不是靠 backend eager inclusion 托底。
+- 依赖：T5000iR
+- 完成记录（2026-04-28）：
+  - `crates/scoopc/src/typecheck/expr/ops.rs` 现已为 unary `~` 与 user-defined arithmetic/bitwise/shifts operator overload 统一记录 `TopLevelFunCallBinding` / monomorph request，且 unary overload 的 binding span 已从 operand 修正到外层一元表达式；
+  - `crates/scoopc/src/hir/lower/expr.rs` 现会把上述 operator site 改写成显式顶层 `ExprKind::Call`，继续复用已有 direct-call binding 与 materialized target identity；generic owner specialization 与默认 eff-arg 都沿现有主线进入 HIR/MIR；
+  - `crates/scoopc/src/llvm/emit.rs` 已把仅为 operator overload 保留的 eager inclusion 缩到 `compareTo` 比较路径，不再把整类 struct member methods 一起托底带入 reachable 集；
+  - 新增 `crates/scoopc/src/mir/materialize.rs` 回归，验证 operator overload binding / monomorph key 会保留 owner specialization 的 `Int` type arg 与非 `Pure` 的默认 eff-arg；新增 `crates/scoopc/src/llvm/tests.rs` production regression，验证 `~` / `+` / `<<` 已经作为 direct call 进入 typed HIR 与 LLVM IR，且未使用的 `Mask.minus` 不会再因 eager inclusion 混入 IR；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过。
+
+### T5000j1b 收口 user-defined `compareTo` 比较 target，并删除剩余 struct member eager inclusion
+- 范围：
+  - 为 `< <= > >=` 经 `compareTo` 的用户态比较补齐稳定的 typed HIR / generic MIR 表示；
+  - 让这类比较也进入 direct-call target / monomorph / reachability 主线，并删除 `llvm/emit.rs` 中剩余仅为 operator overload 保留的 struct member eager inclusion。
+- 验收：
+  - user-defined comparison 不再依赖 LLVM backend 现场决定 `compareTo` 目标；
+  - `llvm/emit.rs` 不再需要为 operator overload 保留 struct member eager inclusion。
+- 依赖：T5000j1a
+
+### [TODO] T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化
+- 重点：
+  - operator-overload target 是否已在 typed HIR / generic MIR 主线中显式化；
+  - `llvm/emit.rs` 是否已经去掉仅为 operator overload 保留的 struct member eager inclusion；
+  - unary/binary/`compareTo` 的 owner specialization / materialized target identity 是否仍沿现有 `InstanceKey` / direct-call 主线工作。
+- 验收：
+  - 可以明确说出 operator-overload target 的来源边界，并证明 reachability / production codegen 不再依赖 backend 现场猜目标。
+- 依赖：T5000j1b
+
+### T5000j2 扩展 `when` / pattern 到 production MIR body / summary 主线
+- 范围：
+  - 在 `T5000d3` 已正规化 MIR `PatternMatch` / `PatternExtract` 的基础上，继续把非 effect 的 `when` / pattern 场景推进到 production MIR body / summary 主线；
+  - 减少这类 body 因 MIR 节点不支持而退回 HIR-compatible emission 的覆盖空洞。
+- 验收：
+  - `when` / pattern 的更多常见结构可直接被 MIR reachability / body emission / summary 消费，而不是重新落回 HIR 现场解释。
+- 依赖：T5000j1R
+
+### [TODO] T5000j2R Review：确认 `when` / pattern 覆盖扩张仍沿 MIR 结构主线推进
+- 重点：
+  - 新覆盖是否建立在已有 `PatternMatch` / `PatternExtract` / provenance 结构之上；
+  - 是否重新把 pattern 语义判断塞回 LLVM codegen。
+- 验收：
+  - pattern/when 覆盖扩张不依赖新的 backend 特判。
+- 依赖：T5000j2
+
+### T5000j3 扩展更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线
+- 范围：
+  - 补齐目前仍经常退回 HIR-compatible emission 的 higher-order / closure / object-init / top-level-init 场景；
+  - 继续扩大 pass-visible materialized body / summary 对 production codegen 的实际覆盖面。
+- 验收：
+  - 新覆盖继续建立在 materialized MIR / summary / escape facts 之上，而不是重新把高阶分析长回 backend。
+- 依赖：T5000j2R
+
+### [TODO] T5000j3R Review：确认 higher-order / init 场景扩张没有把分析责任倒灌回 backend
+- 重点：
+  - higher-order / closure / object-init / top-level-init 的新覆盖是否仍消费 shared facts / pass artifacts；
+  - LLVM backend 是否只保留 lowering，而不是重新承担分析或 target-set 收缩职责。
+- 验收：
+  - 可以明确指出 production 主线新增覆盖依赖的是哪一层中端事实。
+- 依赖：T5000j3
+
+### T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线
+- 范围：
+  - 基于当前 inline / devirt / closure simplification / effect planning 主线，选定一组可复验 workload；
+  - 记录调用边界减少后 safepoint 数量、roots 压力与后续 `mem2reg` 研究窗口的观察口径。
+- 验收：
+  - safepoint / root-pressure 变化有可复验结论，可供后续 GC / `mem2reg` 研究引用。
+- 依赖：T5000j3R
+
+### [TODO] T5000j4R Review：确认 safepoint / root-pressure 跟踪口径可持续复用
+- 重点：
+  - 观测方法是否可复验、可重跑，而不是一次性的手工结论；
+  - 是否已经能回答“当前更值得继续减少调用边界，还是已经出现值得研究 `mem2reg` / register-root 的窗口”。
+- 验收：
+  - 后续 GC / `mem2reg` 研究可以直接复用本轮口径与 workload。
+- 依赖：T5000j4
+
 ### [TODO] T5000jR Review：确认优化主线已形成可持续扩展的中端体系
 - 重点：
   - 后续扩展是否仍沿 MIR / summary / structure 方向推进；
@@ -1896,4 +1993,4 @@
   - 是否已经为未来 C / JVM / CLR backend 预留了稳定消费边界。
 - 验收：
   - 本轮结束后，优化主线已明确从“LLVM codegen 现场推断”转向“backend-agnostic 中端 + backend lowering 分层”。
-- 依赖：T5000j
+- 依赖：T5000j4R

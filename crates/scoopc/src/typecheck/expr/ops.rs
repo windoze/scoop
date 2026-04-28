@@ -10,9 +10,9 @@ use crate::ty::{
 use super::call::{
     CallArgInfo, CallArgKind, GenericArgConstraint, InstantiatedFunSig, check_const_fun_call_gate,
     check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate, check_nogc_call_gate,
-    check_unsafe_call_gate, instantiate_fun_sig_for_call, map_call_args_to_params_with_defaults,
-    substitute_type_args_in_effect_row, type_param_name, type_ref_fn_effect_eff_base,
-    type_ref_nominal_eff_eff_base,
+    check_unsafe_call_gate, combined_member_instance_type_args, instantiate_fun_sig_for_call,
+    map_call_args_to_params_with_defaults, substitute_type_args_in_effect_row, type_param_name,
+    type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base,
 };
 use super::infer::ExpectedTypeFrom;
 use super::util::{fmt_overload_signature, join_overload_signatures};
@@ -543,8 +543,42 @@ pub(super) fn record_member_method_effects_as_performed(
     Ok(())
 }
 
+fn record_member_operator_direct_call_binding(
+    lower: &mut TypeLowering<'_>,
+    call_site_span: Span,
+    callee_fqn: &str,
+    sig: &FunSigOwned,
+    receiver_ty: TypeId,
+    fun_type_args: &[TypeId],
+    eff_args: &[EffectRow],
+) -> Result<(), ExprTypeError> {
+    let type_args =
+        combined_member_instance_type_args(callee_fqn, receiver_ty, fun_type_args, lower)?;
+    lower.record_monomorph_call(
+        callee_fqn.to_string(),
+        &sig.decl_file,
+        sig.decl_span,
+        &type_args,
+        eff_args,
+        call_site_span,
+    );
+    lower.record_top_level_fun_call_binding(
+        call_site_span,
+        ast::TopLevelFunCallBinding {
+            fqn: callee_fqn.to_string(),
+            decl_file: sig.decl_file.clone(),
+            decl_span: sig.decl_span,
+            is_intrinsic: sig.is_intrinsic,
+            type_args,
+            eff_args: eff_args.to_vec(),
+        },
+    );
+    Ok(())
+}
+
 pub(super) fn infer_unary_expr_type(
     inputs: ExprInferInputs<'_>,
+    unary_expr: &ast::Expr,
     op: ast::UnaryOp,
     op_span: Span,
     operand: &ast::Expr,
@@ -643,6 +677,15 @@ pub(super) fn infer_unary_expr_type(
                 &sig,
                 op_span,
                 lower,
+            )?;
+            record_member_operator_direct_call_binding(
+                lower,
+                unary_expr.span,
+                &callee_fqn,
+                &sig,
+                operand_ty,
+                &[],
+                &[],
             )?;
 
             Ok(sig.return_ty)
@@ -1017,6 +1060,20 @@ pub(super) fn infer_operator_overload_binary_expr_type(
     for effect in call_effects.terms.iter().copied() {
         lower.record_performed_effect(effect, binary_expr.span);
     }
+    let eff_args = sig
+        .eff_param
+        .as_ref()
+        .map(|eff_param| vec![eff_param.default.clone()])
+        .unwrap_or_default();
+    record_member_operator_direct_call_binding(
+        lower,
+        binary_expr.span,
+        &callee_fqn,
+        &sig,
+        lhs_ty,
+        &instantiated.type_args,
+        &eff_args,
+    )?;
 
     Ok(instantiated.return_ty)
 }

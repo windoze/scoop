@@ -188,7 +188,7 @@ pub(super) fn infer_expr_type(
             op,
             op_span,
             expr: inner,
-        } => infer_unary_expr_type(inputs, *op, *op_span, inner.as_ref(), lower),
+        } => infer_unary_expr_type(inputs, expr, *op, *op_span, inner.as_ref(), lower),
         ast::ExprKind::TypeCheck {
             expr: inner, ty, ..
         } => {
