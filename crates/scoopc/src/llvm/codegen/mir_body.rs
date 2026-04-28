@@ -64,6 +64,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.current_source_id =
             self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?;
+        self.function_cx.current_callable_fqn = Some(hir_fun.fqn.clone());
 
         if self.build_fun_callee_suspend_plan(hir_fun).is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {

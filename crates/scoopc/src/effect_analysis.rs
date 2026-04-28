@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::hir;
+use crate::mir;
 use crate::program_facts::ProgramFacts;
 use crate::span::Span;
 use crate::ty::TypeId;
@@ -14,6 +15,113 @@ use crate::ty::TypeId;
 pub(crate) struct KnownLocalMetadata {
     pub(crate) ty: TypeId,
     pub(crate) mutable: bool,
+}
+
+/// Continuation escape state exposed to effect/state-machine planning.
+///
+/// This is deliberately coarser than the MIR-local fact: planning only needs to know whether a
+/// `Continuation.resume(...)` call site is proven to stay local, is known to involve an escaping
+/// continuation, or has no trustworthy fact and must be treated conservatively.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum ContinuationEscapeState {
+    LocalResumeOnly,
+    Escaping,
+    #[default]
+    Unknown,
+}
+
+impl ContinuationEscapeState {
+    #[cfg(test)]
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::LocalResumeOnly => "local-resume-only",
+            Self::Escaping => "escaping",
+            Self::Unknown => "unknown",
+        }
+    }
+
+    pub(crate) fn structural_signature(self) -> usize {
+        match self {
+            Self::LocalResumeOnly => 1,
+            Self::Escaping => 2,
+            Self::Unknown => 3,
+        }
+    }
+
+    fn from_mir_status(status: mir::EscapeStatus) -> Self {
+        match status {
+            mir::EscapeStatus::NonEscaping => Self::LocalResumeOnly,
+            mir::EscapeStatus::Escapes => Self::Escaping,
+            mir::EscapeStatus::Unknown => Self::Unknown,
+        }
+    }
+
+    fn combine(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Escaping, _) | (_, Self::Escaping) => Self::Escaping,
+            (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
+            (Self::LocalResumeOnly, Self::LocalResumeOnly) => Self::LocalResumeOnly,
+        }
+    }
+}
+
+/// Call-site keyed continuation escape facts consumed by shared effect analysis.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ContinuationEscapeFacts {
+    by_call_site: HashMap<hir::CallSite, ContinuationEscapeState>,
+}
+
+impl ContinuationEscapeFacts {
+    pub(crate) fn from_pass_view_for_callable(
+        pass_view: Option<&mir::MaterializedMirPassView<'_>>,
+        callable_fqn: Option<&str>,
+        source_path: &Path,
+    ) -> Self {
+        let Some(pass_view) = pass_view else {
+            return Self::default();
+        };
+        let Some(callable_fqn) = callable_fqn else {
+            return Self::default();
+        };
+
+        let mut out = Self::default();
+        for (fact_fqn, callable_facts) in pass_view.escape_facts().callables() {
+            if !callable_fqn_matches_owner(fact_fqn, callable_fqn) {
+                continue;
+            }
+            for continuation in callable_facts.continuations() {
+                let state = ContinuationEscapeState::from_mir_status(continuation.status);
+                for span in &continuation.resume_call_spans {
+                    out.insert(hir::CallSite::new(source_path.to_path_buf(), *span), state);
+                }
+            }
+        }
+        out
+    }
+
+    pub(crate) fn status_for_call_site(
+        &self,
+        call_site: &hir::CallSite,
+    ) -> ContinuationEscapeState {
+        self.by_call_site
+            .get(call_site)
+            .copied()
+            .unwrap_or(ContinuationEscapeState::Unknown)
+    }
+
+    fn insert(&mut self, call_site: hir::CallSite, state: ContinuationEscapeState) {
+        self.by_call_site
+            .entry(call_site)
+            .and_modify(|existing| *existing = existing.combine(state))
+            .or_insert(state);
+    }
+}
+
+fn callable_fqn_matches_owner(candidate: &str, owner: &str) -> bool {
+    candidate == owner
+        || candidate
+            .strip_prefix(owner)
+            .is_some_and(|suffix| suffix.starts_with("::<") || suffix.starts_with('.'))
 }
 
 /// Backend-agnostic shared analysis input for effect/state-machine planning.
@@ -25,6 +133,7 @@ pub(crate) struct EffectAnalysisCtx {
     next_synthetic_symbol_raw: Cell<u32>,
     current_source_path: PathBuf,
     pub(crate) program_facts: Rc<ProgramFacts>,
+    continuation_escape_facts: ContinuationEscapeFacts,
 }
 
 impl EffectAnalysisCtx {
@@ -49,6 +158,7 @@ impl EffectAnalysisCtx {
             next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             current_source_path,
             program_facts,
+            continuation_escape_facts: ContinuationEscapeFacts::default(),
         }
     }
 
@@ -58,6 +168,23 @@ impl EffectAnalysisCtx {
 
     pub(crate) fn call_site(&self, span: Span) -> hir::CallSite {
         hir::CallSite::new(self.current_source_path.clone(), span)
+    }
+
+    pub(crate) fn with_continuation_escape_facts(mut self, facts: ContinuationEscapeFacts) -> Self {
+        self.continuation_escape_facts = facts;
+        self
+    }
+
+    pub(crate) fn continuation_escape_facts(&self) -> &ContinuationEscapeFacts {
+        &self.continuation_escape_facts
+    }
+
+    pub(crate) fn continuation_escape_state_for_call_span(
+        &self,
+        span: Span,
+    ) -> ContinuationEscapeState {
+        self.continuation_escape_facts
+            .status_for_call_site(&self.call_site(span))
     }
 
     pub(crate) fn reserve_synthetic_symbol_floor(&self, floor: u32) {

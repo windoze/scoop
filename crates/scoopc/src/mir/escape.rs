@@ -50,6 +50,7 @@ pub struct ContinuationEscapeFact {
     pub local_name: Option<String>,
     pub status: EscapeStatus,
     pub resume_call_count: usize,
+    pub resume_call_spans: Vec<crate::span::Span>,
 }
 
 /// Escape facts for one pass-visible callable body.
@@ -111,7 +112,7 @@ enum EscapeOrigin {
 
 enum OperandUse<'a> {
     LocalClosureCall { fn_ptr: &'a str },
-    LocalContinuationResume,
+    LocalContinuationResume { span: crate::span::Span },
     Escaping,
 }
 
@@ -202,6 +203,7 @@ fn collect_initial_facts(body: &Body, types: &TypeStore) -> CallableEscapeFacts 
                     local_name: local.name.clone(),
                     status: EscapeStatus::NonEscaping,
                     resume_call_count: 0,
+                    resume_call_spans: Vec::new(),
                 },
             );
         }
@@ -266,6 +268,7 @@ fn collect_resume_continuation_candidate_from_call_kind(
             local_name: local_name(body, *local),
             status: EscapeStatus::NonEscaping,
             resume_call_count: 0,
+            resume_call_spans: Vec::new(),
         });
 }
 
@@ -327,11 +330,12 @@ fn analyze_statement_uses(
         }
         return;
     };
-    analyze_rvalue_uses(value, aliases, facts, saw_unknown_mir);
+    analyze_rvalue_uses(value, stmt.span, aliases, facts, saw_unknown_mir);
 }
 
 fn analyze_rvalue_uses(
     value: &Rvalue,
+    span: crate::span::Span,
     aliases: &HashMap<LocalId, EscapeOrigin>,
     facts: &mut CallableEscapeFacts,
     saw_unknown_mir: &mut bool,
@@ -360,7 +364,7 @@ fn analyze_rvalue_uses(
             mark_operand_use(receiver, OperandUse::Escaping, aliases, facts);
         }
         Rvalue::Call { kind, args } => {
-            analyze_call_kind_uses(kind, aliases, facts);
+            analyze_call_kind_uses(kind, span, aliases, facts);
             for arg in args {
                 mark_operand_use(&arg.value, OperandUse::Escaping, aliases, facts);
             }
@@ -378,12 +382,17 @@ fn analyze_rvalue_uses(
             mark_operand_use(env, OperandUse::Escaping, aliases, facts);
         }
         Rvalue::TopLevelRef(_) | Rvalue::UnresolvedName { .. } | Rvalue::PerformResult { .. } => {}
-        Rvalue::Todo(_) => *saw_unknown_mir = true,
+        Rvalue::Todo(reason) => {
+            if !is_structural_handle_result_todo(reason) {
+                *saw_unknown_mir = true;
+            }
+        }
     }
 }
 
 fn analyze_call_kind_uses(
     kind: &CallKind,
+    span: crate::span::Span,
     aliases: &HashMap<LocalId, EscapeOrigin>,
     facts: &mut CallableEscapeFacts,
 ) {
@@ -403,7 +412,7 @@ fn analyze_call_kind_uses(
         }
         CallKind::Resume { continuation, .. } => mark_operand_use(
             continuation,
-            OperandUse::LocalContinuationResume,
+            OperandUse::LocalContinuationResume { span },
             aliases,
             facts,
         ),
@@ -430,11 +439,30 @@ fn analyze_terminator_uses(
                 mark_operand_use(&arg.value, OperandUse::Escaping, aliases, facts);
             }
         }
-        TerminatorKind::Handle { .. } | TerminatorKind::Todo(_) => *saw_unknown_mir = true,
+        // `Handle` is a structural boundary whose body/arms/finally are already exposed as
+        // successor blocks. The synthetic handle-exit `Todo` terminators likewise do not carry a
+        // value use; treating them as unknown would hide facts discovered inside those blocks.
+        TerminatorKind::Handle { .. } => {}
+        TerminatorKind::Todo(reason) => {
+            if !is_structural_handle_exit_todo(reason) {
+                *saw_unknown_mir = true;
+            }
+        }
         TerminatorKind::Goto { .. }
         | TerminatorKind::ResumeUnwind
         | TerminatorKind::Unreachable => {}
     }
+}
+
+fn is_structural_handle_exit_todo(reason: &str) -> bool {
+    matches!(
+        reason,
+        "handle body exit pending" | "handle arm exit pending" | "handle finally exit pending"
+    )
+}
+
+fn is_structural_handle_result_todo(reason: &str) -> bool {
+    matches!(reason, "handle result pending")
 }
 
 fn mark_operand_use(
@@ -461,9 +489,12 @@ fn mark_operand_use(
                 fact.status = EscapeStatus::Escapes;
             }
         }
-        (EscapeOrigin::Continuation(origin), OperandUse::LocalContinuationResume) => {
+        (EscapeOrigin::Continuation(origin), OperandUse::LocalContinuationResume { span }) => {
             if let Some(fact) = facts.continuations_by_local.get_mut(&origin) {
                 fact.resume_call_count += 1;
+                if !fact.resume_call_spans.contains(&span) {
+                    fact.resume_call_spans.push(span);
+                }
             }
         }
         (EscapeOrigin::Closure(origin), _)
@@ -651,6 +682,7 @@ mod tests {
         let continuation_fact = facts.continuation(continuation).expect("continuation fact");
         assert_eq!(continuation_fact.status, EscapeStatus::NonEscaping);
         assert_eq!(continuation_fact.resume_call_count, 1);
+        assert_eq!(continuation_fact.resume_call_spans, vec![SPAN]);
     }
 
     #[test]

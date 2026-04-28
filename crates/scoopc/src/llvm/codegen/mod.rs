@@ -416,6 +416,7 @@ struct FunctionBodyCodegenCx<'ctx> {
     extra_gc_root_slots: Vec<ExtraGcRootSlot<'ctx>>,
     next_extra_gc_root_slot_id: u32,
     current_fun_return_ty: Option<CgTy>,
+    current_callable_fqn: Option<String>,
     loop_context_stack: Vec<LoopContext<'ctx>>,
     return_context: Option<ReturnContext<'ctx>>,
     current_sret_return_ptr: Option<PointerValue<'ctx>>,
@@ -2681,6 +2682,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         self.current_source_id = self.source_id_for_path(fun.source_path.as_path(), fun.span)?;
+        self.function_cx.current_callable_fqn = Some(fun.fqn.clone());
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);

@@ -1825,7 +1825,7 @@
   - 新增单元测试覆盖 non-escaping closure 被简化、escaping closure 不被简化、`O0` 无 escape facts 时不简化，以及 generic template 中比较条件 local 为 `Bool`；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc mir::closure_simplify -- --nocapture`、`cargo test -p scoopc mir::escape -- --nocapture`、`cargo test -p scoopc mir::inline -- --nocapture`、`cargo test -p scoopc mir::lower::tests::dump_mir_types_comparison_condition_as_bool_in_generic_template -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo run -p scoop -- run tests/fixtures/run-pass/generic_fun_recursion.scoop`、`cargo test -p scoopc production_codegen -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
-### [TODO] T5000i3 让 continuation escaping analysis 进入 effect/state-machine planning 输入面
+### [DONE] T5000i3 让 continuation escaping analysis 进入 effect/state-machine planning 输入面
 - 范围：
   - 将 `T5000i1` 的 continuation escape facts 与既有 `ProgramFacts` / `EffectAnalysisCtx` 对接；
   - effect/state-machine planning 可以消费 “local resume only / escaping / unknown” 级别的 continuation 事实；
@@ -1834,6 +1834,14 @@
   - planning 层不再需要从 `MainCodegen` 现场推断 continuation 是否逃逸；
   - continuation facts 的缺失路径保持保守 unknown，不改变现有运行语义。
 - 依赖：T5000i2
+- 完成记录（2026-04-28）：
+  - `ContinuationEscapeFact` 现在记录 `resume_call_spans`，使 MIR escape facts 能按 HIR `CallSite` 稳定投影到 effect/state-machine planning 输入面；
+  - `crates/scoopc/src/effect_analysis.rs` 新增 backend-agnostic `ContinuationEscapeState::{LocalResumeOnly, Escaping, Unknown}` 与 call-site keyed `ContinuationEscapeFacts`，并挂入 `EffectAnalysisCtx`；缺失 pass view、缺失 callable FQN 或缺失 call-site fact 时统一保守返回 `Unknown`；
+  - shared / production analysis context 现在从 `MaterializedMirPassView::escape_facts()` 为当前 callable 投影 continuation facts，nested handle suspendability analysis 继承同一 side table；
+  - `SuspendSitePlan` 与 state-machine segment suspend-site side table 现在记录 `Continuation.resume` hidden suspend site 的 continuation escape 状态，并把该状态纳入 planning/segment structural signature；本轮不改变 backend emitter ABI；
+  - 修复接入回归暴露的 MIR escape 精度缺口：`TerminatorKind::Handle`、handle body/arm/finally exit `Todo`、以及 `Rvalue::Todo("handle result pending")` 均是已结构化暴露的 handle 占位，不再错误降级为 unknown；其它未建模 `Todo` 继续保守 unknown；
+  - 新增单元测试覆盖 facts 缺失时为 `Unknown`、本地 `Continuation.resume` 投影为 `LocalResumeOnly`、传参逃逸 continuation 投影为 `Escaping`，并确认 handle planning 把这些状态记录到 suspend site；
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc continuation_escape -- --nocapture`、`cargo test -p scoopc escaping_continuation_facts_enter_handle_planning_input -- --nocapture`、`cargo test -p scoopc mir::escape -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect -- --nocapture`、`cargo test -p scoopc --no-default-features`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
 ### [TODO] T5000i4 迁移 `state_machine_plan / segments / transform` 到 MIR + shared facts 边界
 - 范围：

@@ -6,9 +6,10 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::effect_analysis::{
-    EffectAnalysisCtx, KnownLocalMetadata, collect_known_local_metadata_in_block,
-    collect_known_local_metadata_in_expr, collect_known_local_metadata_in_fun,
-    collect_known_local_metadata_in_handle, collect_known_local_metadata_in_handle_arm,
+    ContinuationEscapeFacts, ContinuationEscapeState, EffectAnalysisCtx, KnownLocalMetadata,
+    collect_known_local_metadata_in_block, collect_known_local_metadata_in_expr,
+    collect_known_local_metadata_in_fun, collect_known_local_metadata_in_handle,
+    collect_known_local_metadata_in_handle_arm,
 };
 use crate::expr_facts::ExprFactResolver;
 use crate::hir;
@@ -262,6 +263,12 @@ impl HandleStateMachinePlan {
                     out.push_str(&format!(
                         "{pad}    resume-path={}\n",
                         resume_path.label()
+                    ));
+                }
+                if site.kind.is_continuation_resume_boundary() {
+                    out.push_str(&format!(
+                        "{pad}    continuation-escape={}\n",
+                        site.continuation_escape.label()
                     ));
                 }
             }
@@ -741,6 +748,7 @@ struct SuspendSitePlan {
     capture_locals: Vec<hir::SymbolId>,
     source_path: Option<SuspendSourcePath>,
     resume_path: Option<SuspendResumePath>,
+    continuation_escape: ContinuationEscapeState,
 }
 
 /// statement-position `val` 绑定 suspend site 在 `handle` body 中的源码路径。
@@ -1173,6 +1181,15 @@ impl SuspendSiteKind {
         }
     }
 
+    fn is_continuation_resume_boundary(&self) -> bool {
+        matches!(
+            self,
+            SuspendSiteKind::CallMaySuspend { callee }
+                | SuspendSiteKind::RuntimeRaise { reason: callee }
+                if callee == "Continuation.resume"
+        )
+    }
+
     fn structural_signature(&self) -> usize {
         match self {
             SuspendSiteKind::Perform { op_fqn } => 0x11 ^ op_fqn.len(),
@@ -1341,7 +1358,8 @@ impl SuspendSitePlan {
             ^ self.span.end
             ^ (self.owner_state as usize)
             ^ self.resume_target as usize
-            ^ self.kind.structural_signature();
+            ^ self.kind.structural_signature()
+            ^ (self.continuation_escape.structural_signature() << 3);
         if let Some(escape_resume_target) = self.escape_resume_target {
             acc ^= (escape_resume_target as usize) << 2;
         }
@@ -3798,6 +3816,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     ) -> SuspendSiteId {
         let id = self.next_site_id;
         self.next_site_id = self.next_site_id.saturating_add(1);
+        let continuation_escape = self.continuation_escape_state_for_suspend_site(span, &kind);
         self.suspend_sites.push(SuspendSitePlan {
             id,
             span,
@@ -3810,8 +3829,21 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             capture_locals: Vec::new(),
             source_path: None,
             resume_path: None,
+            continuation_escape,
         });
         id
+    }
+
+    fn continuation_escape_state_for_suspend_site(
+        &self,
+        span: Span,
+        kind: &SuspendSiteKind,
+    ) -> ContinuationEscapeState {
+        if kind.is_continuation_resume_boundary() {
+            self.context.continuation_escape_state_for_call_span(span)
+        } else {
+            ContinuationEscapeState::Unknown
+        }
     }
 
     fn set_suspend_resume_target(&mut self, site_id: SuspendSiteId, resume_target: PlanStateId) {
@@ -6623,7 +6655,8 @@ impl<'a> SuspendCallAnalysis<'a> {
             known_local_metadata,
             self.context.current_source_path().to_path_buf(),
             Rc::clone(&self.context.program_facts),
-        );
+        )
+        .with_continuation_escape_facts(self.context.continuation_escape_facts().clone());
 
         HandleStateMachinePlan::build_with_context(self.types, handle, &context)
             .may_suspend_outward()
@@ -6755,7 +6788,12 @@ fn collect_known_fun_call_suspendability(
                 known_local_metadata,
                 fun.source_path.clone(),
                 Rc::clone(&program_facts),
-            );
+            )
+            .with_continuation_escape_facts(ContinuationEscapeFacts::from_pass_view_for_callable(
+                materialized_pass_view,
+                Some(fqn.as_str()),
+                fun.source_path.as_path(),
+            ));
             let analysis = SuspendCallAnalysis {
                 types,
                 context: &context,
@@ -6809,6 +6847,15 @@ fn collect_effect_analysis_context_for_fun(
     lowered: &hir::LoweredHir,
     owner_fun: &hir::FunDecl,
 ) -> EffectAnalysisCtx {
+    collect_effect_analysis_context_for_fun_with_pass_view(lowered, owner_fun, None)
+}
+
+#[cfg(test)]
+fn collect_effect_analysis_context_for_fun_with_pass_view(
+    lowered: &hir::LoweredHir,
+    owner_fun: &hir::FunDecl,
+    materialized_pass_view: Option<&crate::mir::MaterializedMirPassView<'_>>,
+) -> EffectAnalysisCtx {
     let fun_index = lowered
         .file
         .items
@@ -6825,18 +6872,24 @@ fn collect_effect_analysis_context_for_fun(
         &lowered.types,
         &fun_index,
         Rc::clone(&program_facts),
-        None,
+        materialized_pass_view,
     );
 
     let mut known_local_metadata = HashMap::new();
     collect_known_local_metadata_in_fun(owner_fun, &mut known_local_metadata);
+    let continuation_escape_facts = ContinuationEscapeFacts::from_pass_view_for_callable(
+        materialized_pass_view,
+        Some(owner_fun.fqn.as_str()),
+        owner_fun.source_path.as_path(),
+    );
     let analysis_seed = EffectAnalysisCtx::new(
         known_fun_effects.clone(),
         HashMap::new(),
         known_local_metadata.clone(),
         owner_fun.source_path.clone(),
         Rc::clone(&program_facts),
-    );
+    )
+    .with_continuation_escape_facts(continuation_escape_facts.clone());
     let analysis = SuspendCallAnalysis {
         types: &lowered.types,
         context: &analysis_seed,
@@ -6851,6 +6904,7 @@ fn collect_effect_analysis_context_for_fun(
         owner_fun.source_path.clone(),
         program_facts,
     )
+    .with_continuation_escape_facts(continuation_escape_facts)
 }
 
 fn collect_declared_local_ids_in_stmt(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
@@ -7454,6 +7508,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current_source_path,
             Rc::clone(&self.shared.program_facts),
         )
+        .with_continuation_escape_facts(ContinuationEscapeFacts::from_pass_view_for_callable(
+            self.materialized_pass_view(),
+            self.function_cx.current_callable_fqn.as_deref(),
+            self.current_source()
+                .expect("codegen context should always have a current source")
+                .path(),
+        ))
     }
 
     pub(in super::super) fn build_ordinary_callee_suspend_plan_from_unified_contract(
@@ -8908,6 +8969,125 @@ mod plan_tests {
     use crate::typecheck;
 
     use super::*;
+
+    #[test]
+    fn continuation_escape_facts_enter_handle_planning_input() {
+        let source_text = r#"
+package a
+
+import scoop.core.*
+
+fun demo(k: Continuation<Int, Int>): Int {
+    val result: Int = try {
+        k.resume(1)
+        11
+    } catch (e: RuntimeError) {
+        22
+    }
+    result
+}
+"#;
+        let lowered = lower_typed_single_source(source_text);
+        let source = SourceFile::new_virtual("<mem>", source_text);
+        let session = Session::new().expect("session");
+        let materialized = crate::mir::materialize_for_dump(&session, &source)
+            .expect("materialized MIR should be available");
+        let pass_view = materialized.pass_view();
+
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
+        let resume_call_site = lowered
+            .continuation_resume_call_sites
+            .iter()
+            .next()
+            .expect("expected a Continuation.resume call site");
+
+        let context_without_facts = collect_effect_analysis_context_for_fun(&lowered, fun);
+        assert_eq!(
+            context_without_facts.continuation_escape_state_for_call_span(resume_call_site.span),
+            ContinuationEscapeState::Unknown,
+            "missing MIR escape facts must stay conservative"
+        );
+
+        let context = collect_effect_analysis_context_for_fun_with_pass_view(
+            &lowered,
+            fun,
+            Some(&pass_view),
+        );
+        assert_eq!(
+            context.continuation_escape_state_for_call_span(resume_call_site.span),
+            ContinuationEscapeState::LocalResumeOnly,
+            "MIR escape facts should be projected into EffectAnalysisCtx by call site"
+        );
+
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let resume_site = plan
+            .suspend_sites
+            .iter()
+            .find(|site| site.kind.is_continuation_resume_boundary())
+            .expect("Continuation.resume should create a hidden suspend site");
+        assert_eq!(
+            resume_site.continuation_escape,
+            ContinuationEscapeState::LocalResumeOnly,
+            "handle planning should record the continuation escape state on the suspend site"
+        );
+    }
+
+    #[test]
+    fn escaping_continuation_facts_enter_handle_planning_input() {
+        let source_text = r#"
+package a
+
+import scoop.core.*
+
+fun consume(k: Continuation<Int, Int>) {}
+
+fun demo(k: Continuation<Int, Int>): Int {
+    consume(k)
+    val result: Int = try {
+        k.resume(1)
+        11
+    } catch (e: RuntimeError) {
+        22
+    }
+    result
+}
+"#;
+        let lowered = lower_typed_single_source(source_text);
+        let source = SourceFile::new_virtual("<mem>", source_text);
+        let session = Session::new().expect("session");
+        let materialized = crate::mir::materialize_for_dump(&session, &source)
+            .expect("materialized MIR should be available");
+        let pass_view = materialized.pass_view();
+
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
+        let resume_call_site = lowered
+            .continuation_resume_call_sites
+            .iter()
+            .next()
+            .expect("expected a Continuation.resume call site");
+        let context = collect_effect_analysis_context_for_fun_with_pass_view(
+            &lowered,
+            fun,
+            Some(&pass_view),
+        );
+        assert_eq!(
+            context.continuation_escape_state_for_call_span(resume_call_site.span),
+            ContinuationEscapeState::Escaping,
+            "a continuation passed across a call boundary should project as escaping"
+        );
+
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let resume_site = plan
+            .suspend_sites
+            .iter()
+            .find(|site| site.kind.is_continuation_resume_boundary())
+            .expect("Continuation.resume should create a hidden suspend site");
+        assert_eq!(
+            resume_site.continuation_escape,
+            ContinuationEscapeState::Escaping,
+            "handle planning should retain escaping continuation facts"
+        );
+    }
 
     #[test]
     fn direct_step_effect_rows_include_direct_effectful_call_after_escape_site() {

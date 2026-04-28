@@ -120,6 +120,7 @@ struct HandleSegmentSuspendSite {
     capture_locals: Vec<hir::SymbolId>,
     source_path: Option<SuspendSourcePath>,
     resume_path: Option<SuspendResumePath>,
+    continuation_escape: ContinuationEscapeState,
 }
 
 #[derive(Debug, Clone)]
@@ -1812,6 +1813,7 @@ impl HandleSegmentSuspendSite {
             capture_locals: site.capture_locals.clone(),
             source_path: site.source_path.clone(),
             resume_path: site.resume_path.clone(),
+            continuation_escape: site.continuation_escape,
         }
     }
 
@@ -1840,6 +1842,7 @@ impl HandleSegmentSuspendSite {
         if let Some(resume_path) = &self.resume_path {
             acc ^= resume_path.structural_signature();
         }
+        acc ^= self.continuation_escape.structural_signature() << 3;
         acc
     }
 
@@ -1856,6 +1859,7 @@ impl HandleSegmentSuspendSite {
             capture_locals: self.capture_locals.clone(),
             source_path: self.source_path.clone(),
             resume_path: self.resume_path.clone(),
+            continuation_escape: self.continuation_escape,
         }
     }
 }

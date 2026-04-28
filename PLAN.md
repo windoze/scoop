@@ -1970,6 +1970,30 @@
     - `cargo clippy --all-targets -- -D warnings`
     - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
     - 全部通过。
+- 2026-04-28：`T5000i3 让 continuation escaping analysis 进入 effect/state-machine planning 输入面` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/mir/escape.rs` 的 `ContinuationEscapeFact` 现在记录本地 `Continuation.resume(...)` 的 call span 列表，使 MIR escape facts 可稳定投影到 HIR `CallSite`；
+    - `crates/scoopc/src/effect_analysis.rs` 新增 `ContinuationEscapeState` 与 `ContinuationEscapeFacts`，作为 backend-agnostic、call-site keyed 的 continuation escape side table 挂入 `EffectAnalysisCtx`；
+    - `EffectAnalysisCtx` 的默认缺失路径保持 `Unknown`，shared analysis 与 production `MainCodegen` 路径会从 `MaterializedMirPassView::escape_facts()` 投影当前 callable 的 facts，nested handle suspendability analysis 继承同一 side table；
+    - `HandlePlanBuilder` 创建 `Continuation.resume` hidden suspend site 时记录 local-resume-only / escaping / unknown 状态，`state_machine_segments.rs` 同步保存并 round-trip 该状态；本轮只迁移 planning 输入边界，不改变 unified emitter ABI。
+  - 一并修复的前置缺口：
+    - 新增回归暴露 handle MIR 中的结构性占位会把本地 continuation resume 错误降级为 `Unknown`；
+    - escape analysis 现在把 `TerminatorKind::Handle`、handle body/arm/finally exit `Todo` 与 `Rvalue::Todo("handle result pending")` 视为不携带值使用的结构占位，其它未建模 `Todo` 仍保守 unknown。
+  - 回归覆盖：
+    - 新增 planning 单元测试覆盖无 pass facts 时为 `Unknown`；
+    - 覆盖本地 resume-only continuation 投影为 `LocalResumeOnly` 并进入 suspend-site plan；
+    - 覆盖传参逃逸 continuation 投影为 `Escaping` 并进入 suspend-site plan。
+  - 验证结果：
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc continuation_escape -- --nocapture`
+    - `cargo test -p scoopc escaping_continuation_facts_enter_handle_planning_input -- --nocapture`
+    - `cargo test -p scoopc mir::escape -- --nocapture`
+    - `cargo test -p scoopc llvm::codegen::effect -- --nocapture`
+    - `cargo test -p scoopc --no-default-features`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - 全部通过。
 
 ## 1. 当前判断
 
