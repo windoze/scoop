@@ -1,64 +1,70 @@
-# 当前执行记录
+# 执行计划
 
-## 约束与目标
+## 约束说明
 
-- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后停止。
-- 在开始任何仓库检查与执行前，先建立本文件，记录计划与后续进展。
-- 若最新提交提到既有问题，需优先修复。
-- 若在执行中发现任何既有缺陷、规格不匹配、回归、实现边界不完整或依赖缺失，必须先修复，或将其作为前置任务插入 `TODO.md` 后停止。
-- 不接受通过规避路径、缩小范围、夹具特判或其他临时方案绕过问题。
+- 本次只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在推进计划任务前，先检查最新提交是否提到需要优先修复的既有问题；若有，则先修复该问题。
+- 任何在排查、测试、实现过程中发现的既有 bug、回归、规范不一致、未完成边界，均视为当前范围内问题，必须先修复，或在 `TODO.md` 中前置为依赖任务后停止。
+- 不接受规避方案、夹层兼容、仅针对夹具的特殊处理，必须按规范正确实现。
+- 需要同步维护 `TODO.md`、`PLAN.md`，并在关键步骤完成后更新本文件。
+- 最终需要提交 git commit；如果任务被阻塞，则提交任务重排与计划更新；如果任务完成，则提交实现与测试结果。
 
-## 初始执行计划
+## 初始步骤计划
 
-1. 查看最新一次 Git 提交信息，确认是否显式提到待修复的既有问题。
+1. 查看最新一次 git 提交，确认是否提到任何已知问题、临时修复、后续待修项，若有则优先处理。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，理解现有计划、依赖与任务背景。
-4. 结合代码现状评估该任务是否可以在本轮完整落地。
-5. 若任务过大，先将其拆分为更小的前置子任务，并同步更新 `TODO.md` 与 `PLAN.md`，然后执行拆分后的第一个子任务。
-6. 实现任务所需代码修改。
-7. 运行相关测试、格式化、lint 与必要验证，修复执行中发现的所有既有问题。
-8. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成状态与任何计划调整。
-9. 提交 Git commit，提交信息需清晰描述本轮完成内容。
-10. 停止，不继续处理下一个任务。
+3. 阅读 `PLAN.md` 与相关上下文，确认该任务是否已经有细化方案、依赖说明或已知风险。
+4. 评估该任务规模：
+   - 如果任务可直接完成：开始实现。
+   - 如果任务过大或存在明确前置依赖：先细化为更小子任务，更新 `PLAN.md` 与 `TODO.md`，并执行第一个子任务，或在被阻塞时提交依赖重排后停止。
+5. 实现当前目标任务，过程中检查相关模块、测试、规范和既有实现边界。
+6. 运行与该任务相关的测试；若修改影响面较大，还需运行更广范围验证，并根据结果修复问题。
+7. 运行格式化/静态检查/告警检查，至少确保与本次改动相关部分无警告；若仓库要求可行，则执行 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`。
+8. 更新 `TODO.md`、`PLAN.md`、本文件，记录完成情况或阻塞原因。
+9. 使用清晰提交信息创建 git commit。
+10. 停止，不进入下一个任务。
 
-## 进度日志
+## 当前任务识别
 
-- 已创建本文件，准备开始仓库检查。
-- 已检查最新提交 `e6ff6bf`（`[T5000j1R] Review operator-overload target boundary`）；提交说明未显式声明新的遗留 bug 需要优先修复。
-- 已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务为 `T5000j2 扩展 when / pattern 到 production MIR body / summary 主线`。
-- 已完成针对 `T5000j2` 的定点探查，当前结论如下：
-  - generic MIR lowering 已经把 `when` 收口为显式 CFG + `Rvalue::PatternMatch` / `Rvalue::PatternExtract`；
-  - `mir::summary`、materialization、escape / inline 等 shared/middle-end 路径已经能稳定消费这两个节点；
-  - 当前主要缺口集中在 `crates/scoopc/src/llvm/codegen/mir_body.rs`：raw materialized MIR body 支持检查与 production MIR bridge 仍把 `PatternMatch` / `PatternExtract` 统一判为 unsupported，导致非 effect 的 `when`/pattern body 继续退回 HIR-compatible emission；
-  - probing 同时暴露了一个既有 production 缺口：`when` pattern 的 `is Type` 形状在 parser/typecheck/HIR/MIR 均已存在，但当前 production lowering 主线没有真正打通。
-- 已完成 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/reachability.rs` 与 `crates/scoopc/src/llvm/tests.rs` 的实现与回归补齐：
-  - raw materialized MIR body 现已支持 `PatternMatch` / `PatternExtract`，并覆盖 wildcard / bind / rest / or / tuple / variant / literal / `is` 等常见非 effect pattern 形状；
-  - raw non-generic pattern body 现已纳入 production reachability / body emission 的 canonical materialized body 主线；
-  - 已新增 production LLVM 回归，覆盖 declaration-only direct-call fallback、variant payload binder、`when is Type`、generic pattern summary 暴露与 indirect GC aggregate pattern param ABI load。
-- 全量验证过程中发现并修复了一个既有回归：
-  - `cargo run -p scoop -- test` 首次失败于 `tests/fixtures/run-pass/option_nested_ref_no_nested_niche_basic.scoop`；
-  - 根因是 `bind_mir_params` 忽略了 ordinary param ABI 的 indirect GC aggregate 分支，把 `Option<Option<String>>` 这类 pattern 参数的 ABI 指针误当作 enum 值解释；
-  - 已修为“先按 ABI load 间接参数，再进入 MIR pattern lowering”，fixture 输出恢复为 `hi / inner-none / outer-none`。
-- 修复后的最终验证已全部通过：
-  - `cargo fmt --all`
+- 最新提交：`[T5000j2] Expand production MIR when pattern coverage`
+- 最新提交未在 commit message 中显式声明需要优先修复的既有缺陷；但仍需在 review 与测试过程中继续留意是否有遗留问题。
+- `TODO.md` 中首个未完成任务为：`T5000j2R Review：确认 when / pattern 覆盖扩张仍沿 MIR 结构主线推进`。
+
+## T5000j2R 具体执行计划
+
+1. 阅读 `TODO.md` / `PLAN.md` 中 `T5000j2` 与 `T5000j2R` 的上下文，明确 review 验收点。
+2. 检查最新提交涉及的核心文件：
+   - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+   - `crates/scoopc/src/llvm/emit.rs`
+   - `crates/scoopc/src/llvm/reachability.rs`
+   - `crates/scoopc/src/llvm/tests.rs`
+   - 必要时补看相关 MIR 定义与 lowering 路径
+3. 重点核对以下问题：
+   - production MIR body 是否直接消费既有 `PatternMatch` / `PatternExtract` / provenance 等 MIR 结构；
+   - reachability / summary / body emission 是否仍通过 canonical materialized MIR body / pass view 推进，而不是新增 backend 特判；
+   - 是否有新的 pattern 语义判断、目标推断或覆盖逻辑被塞回 LLVM codegen；
+   - 新增 fallback 是否只是保守边界，而不是重新把主路径切回 HIR 解释。
+4. 运行与本任务最相关的测试与质量检查；如果 review 暴露问题，立即修复后再重新验证。
+5. 若 review 通过：
+   - 更新 `TODO.md` 将 `T5000j2R` 标记完成；
+   - 更新 `PLAN.md` 记录复核结论与验证命令；
+   - 更新本文件记录完成状态；
+   - 提交 git commit 并停止。
+6. 若 review 暴露阻塞性既有问题：
+   - 先修复；若无法在本轮直接修复，则按要求在 `TODO.md` / `PLAN.md` 中前置依赖任务，提交后停止。
+
+## 进行中状态
+
+- 当前状态：`T5000j2R` 已完成。
+- 复核结论摘要：
+  - `when` / pattern 继续以 `Pattern` / `PatternMatch` / `PatternExtract` 作为既有 MIR 结构主线，未新增 backend 专用表示。
+  - production LLVM 侧只是在 `mir_body.rs` 中直接 lower 这些既有 MIR 节点，并在 `emit.rs` / `reachability.rs` 中把 raw non-generic pattern body 纳入 canonical materialized body 选择；不支持形状仍保守回退到 HIR-compatible 边界。
+  - 未发现需要前插到 `T5000j3` 之前的新缺陷任务。
+- 已完成验证：
   - `cargo test -p scoopc production_codegen_ -- --nocapture`
+  - `cargo test -p scoopc compare_to -- --nocapture`
+  - `cargo test -p scoopc operator_overload -- --nocapture`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
   - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
-- 当前已完成 `T5000j2` 的实现、测试与文档更新，下一步只剩提交本轮改动并停止。
-
-## 细化实施计划
-
-1. 直接完成 `T5000j2`，不再拆分子任务。
-   - 理由：缺口已收敛到 production MIR bridge 的 pattern lowering 支持面，属于单一实现面，可在一轮内完整处理。
-2. 扩展 `crates/scoopc/src/llvm/codegen/mir_body.rs`：
-   - 让 raw materialized MIR body 支持检查按实际 pattern 形状与 subject/target 类型判定，而不是一律拒绝；
-   - 为 `PatternMatch` / `PatternExtract` 增加 production MIR lowering；
-   - 支持常见非 effect `when` pattern 形状直接走 MIR 主线：literal / wildcard / bind / rest / or / tuple / variant / `is`。
-3. 如有必要，复用现有 enum/tuple/type-check lowering helper，避免把 pattern 语义判断重新塞回 backend 现场猜测路径。
-4. 添加回归测试，至少覆盖：
-   - production raw MIR body 中的 variant payload binder（验证 `PatternExtract`）；
-   - production raw MIR body 中的 `when is Type`（验证既有 production 缺口已打通）；
-   - 若实现过程中暴露其它既有缺陷，一并修复并补回归。
-5. 运行格式化、相关测试、全量测试与 clippy。
-6. 完成后更新 `TODO.md`、`PLAN.md`、本文件并提交。
+- 下一步：更新 git 状态，提交本轮 review 结果，然后停止。

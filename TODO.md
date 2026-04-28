@@ -1966,13 +1966,19 @@
     - `crates/scoopc/src/llvm/tests.rs`：验证 raw non-generic pattern body 若仍需 HIR-compatible reachability 扫描（如 async helper 依赖定义），production reachability 仍会补齐 helper definition；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc production_codegen_ -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
-### [TODO] T5000j2R Review：确认 `when` / pattern 覆盖扩张仍沿 MIR 结构主线推进
+### [DONE] T5000j2R Review：确认 `when` / pattern 覆盖扩张仍沿 MIR 结构主线推进
 - 重点：
   - 新覆盖是否建立在已有 `PatternMatch` / `PatternExtract` / provenance 结构之上；
   - 是否重新把 pattern 语义判断塞回 LLVM codegen。
 - 验收：
   - pattern/when 覆盖扩张不依赖新的 backend 特判。
 - 依赖：T5000j2
+- 完成记录（2026-04-29）：
+  - 已复核 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/mir/materialize.rs` 与 `crates/scoopc/src/mir/summary.rs`，确认 `when` / pattern 语义继续以 backend-agnostic 的 `Pattern` / `PatternMatch` / `PatternExtract` / `PatternBindingStep` 结构存在于 generic MIR template、instance materialization 与 summary 主线上；本轮 production 覆盖扩张没有新增平行的 backend 专用 pattern 表示；
+  - 已复核 `crates/scoopc/src/llvm/codegen/mir_body.rs`，确认新增逻辑只是在 raw materialized MIR bridge 中按既有 MIR 节点做支持判定与 LLVM lowering：variant payload 复用既有 `extract_matched_when_variant_field_value`，`when is Type` 复用既有运行期 `isa` / ref type-check helper，string / enum / tuple / literal pattern 也都以 MIR pattern 树递归消费；未发现重新按 HIR 语法形状、函数名或 ad-hoc backend 特判恢复 pattern 语义的路径；
+  - 已复核 `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/reachability.rs`，确认它们只是把 raw non-generic pattern body 纳入 canonical materialized body 选择与扫描主线，同时继续通过 `raw_materialized_mir_body_requires_hir_compat_boundary` / `mir_fun_requires_hir_compat_scan` 对 declaration-only direct call、closure、virtual/interface/resume、perform/handle 等不支持形状保留 HIR-compatible fallback；扩张的是“哪些既有 MIR body 可直接走 production 主线”，不是把 pattern 分析职责倒灌回 backend；
+  - review 过程中未发现需要前插到 `T5000j3` 之前的新既有缺陷任务；
+  - 已验证 `cargo test -p scoopc production_codegen_ -- --nocapture`、`cargo test -p scoopc compare_to -- --nocapture`、`cargo test -p scoopc operator_overload -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
 ### [TODO] T5000j3 扩展更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线
 - 范围：
