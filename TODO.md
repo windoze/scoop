@@ -1920,7 +1920,7 @@
   - 新增 `crates/scoopc/src/mir/materialize.rs` 回归，验证 operator overload binding / monomorph key 会保留 owner specialization 的 `Int` type arg 与非 `Pure` 的默认 eff-arg；新增 `crates/scoopc/src/llvm/tests.rs` production regression，验证 `~` / `+` / `<<` 已经作为 direct call 进入 typed HIR 与 LLVM IR，且未使用的 `Mask.minus` 不会再因 eager inclusion 混入 IR；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过。
 
-### T5000j1b 收口 user-defined `compareTo` 比较 target，并删除剩余 struct member eager inclusion
+### [TODO] T5000j1b 收口 user-defined `compareTo` 比较 target，并删除剩余 struct member eager inclusion
 - 范围：
   - 为 `< <= > >=` 经 `compareTo` 的用户态比较补齐稳定的 typed HIR / generic MIR 表示；
   - 让这类比较也进入 direct-call target / monomorph / reachability 主线，并删除 `llvm/emit.rs` 中剩余仅为 operator overload 保留的 struct member eager inclusion。
@@ -1938,7 +1938,7 @@
   - 可以明确说出 operator-overload target 的来源边界，并证明 reachability / production codegen 不再依赖 backend 现场猜目标。
 - 依赖：T5000j1b
 
-### T5000j2 扩展 `when` / pattern 到 production MIR body / summary 主线
+### [TODO] T5000j2 扩展 `when` / pattern 到 production MIR body / summary 主线
 - 范围：
   - 在 `T5000d3` 已正规化 MIR `PatternMatch` / `PatternExtract` 的基础上，继续把非 effect 的 `when` / pattern 场景推进到 production MIR body / summary 主线；
   - 减少这类 body 因 MIR 节点不支持而退回 HIR-compatible emission 的覆盖空洞。
@@ -1954,7 +1954,7 @@
   - pattern/when 覆盖扩张不依赖新的 backend 特判。
 - 依赖：T5000j2
 
-### T5000j3 扩展更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线
+### [TODO] T5000j3 扩展更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线
 - 范围：
   - 补齐目前仍经常退回 HIR-compatible emission 的 higher-order / closure / object-init / top-level-init 场景；
   - 继续扩大 pass-visible materialized body / summary 对 production codegen 的实际覆盖面。
@@ -1970,7 +1970,7 @@
   - 可以明确指出 production 主线新增覆盖依赖的是哪一层中端事实。
 - 依赖：T5000j3
 
-### T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线
+### [TODO] T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线
 - 范围：
   - 基于当前 inline / devirt / closure simplification / effect planning 主线，选定一组可复验 workload；
   - 记录调用边界减少后 safepoint 数量、roots 压力与后续 `mem2reg` 研究窗口的观察口径。
