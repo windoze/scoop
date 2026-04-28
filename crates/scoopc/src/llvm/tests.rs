@@ -1822,6 +1822,418 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_lowers_raw_mir_top_level_immutable_init_access() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3a_top_level_immutable_init.scoop",
+        r#"
+package fixtures.t5000j3a_top
+
+import scoop.core.*
+
+val Broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
+
+fun helper(): Int / Raise<RuntimeError> {
+    return Broken
+}
+
+fun main(): Int {
+    return try {
+        helper()
+    } catch (e: RuntimeError) {
+        11
+    }
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let helper_fqn = "fixtures.t5000j3a_top.helper";
+    let broken_fqn = "fixtures.t5000j3a_top.Broken";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let helper_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == helper_fqn)
+        .expect("request-root 可达 non-generic helper 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_top_level_ref(helper_mir, broken_fqn),
+        "test setup 需要确认 raw helper MIR 通过 TopLevelRef 访问 top-level immutable init"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let helper_ir = function_ir_named(&ir, helper_fqn);
+
+    assert!(
+        helper_ir.contains("mir.bb"),
+        "top-level immutable init access 应通过 raw materialized MIR bridge 发射，而不是退回 HIR-compatible body:\n{helper_ir}"
+    );
+    assert!(
+        helper_ir.contains("@__scoop_top_level_val_init__fixtures.t5000j3a_top.Broken"),
+        "production MIR bridge 应继续通过 top-level init helper 触发初始化:\n{helper_ir}"
+    );
+    assert!(
+        helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && helper_ir.contains("@scoop_effect_outcome_publish")
+            && !helper_ir.contains("@scoop_effect_is_active"),
+        "top-level immutable init access 经 production MIR 主线后仍应保持显式 outcome boundary，而不是退回 TLS probing:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_lowers_raw_mir_object_value_init_access() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3a_object_value_init.scoop",
+        r#"
+package fixtures.t5000j3a_obj
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val marker: Int = 1
+}
+
+fun helper(): Int / Raise<RuntimeError> {
+    val _obj = BoomObject
+    return 7
+}
+
+fun main(): Int {
+    return try {
+        helper()
+    } catch (e: RuntimeError) {
+        11
+    }
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let helper_fqn = "fixtures.t5000j3a_obj.helper";
+    let object_fqn = "fixtures.t5000j3a_obj.BoomObject";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let helper_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == helper_fqn)
+        .expect("request-root 可达 non-generic helper 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_top_level_ref(helper_mir, object_fqn),
+        "test setup 需要确认 raw helper MIR 通过 TopLevelRef 访问 object value init"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let helper_ir = function_ir_named(&ir, helper_fqn);
+
+    assert!(
+        helper_ir.contains("mir.bb"),
+        "object value init access 应通过 raw materialized MIR bridge 发射，而不是退回 HIR-compatible body:\n{helper_ir}"
+    );
+    assert!(
+        helper_ir.contains("@__scoop_object_init__fixtures.t5000j3a_obj.BoomObject"),
+        "production MIR bridge 应继续通过 object init helper 触发初始化:\n{helper_ir}"
+    );
+    assert!(
+        helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && helper_ir.contains("@scoop_effect_outcome_publish")
+            && !helper_ir.contains("@scoop_effect_is_active"),
+        "object value init access 经 production MIR 主线后仍应保持显式 outcome boundary，而不是退回 TLS probing:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_still_falls_back_for_raw_mir_closure_body_after_candidate_widening() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3a_closure_fallback.scoop",
+        r#"
+package fixtures.t5000j3a_fallback
+
+fun helper(): Int {
+    val thunk: () -> Int = { 7 }
+    return thunk()
+}
+
+fun main(): Int {
+    return helper()
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let helper_fqn = "fixtures.t5000j3a_fallback.helper";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let helper_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == helper_fqn)
+        .expect("request-root 可达 non-generic helper 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_make_closure(helper_mir),
+        "test setup 需要确认 helper 的 raw MIR 仍包含 MakeClosure 形状"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let helper_ir = function_ir_named(&ir, helper_fqn);
+
+    assert!(
+        !helper_ir.contains("mir.bb"),
+        "MakeClosure / closure-call 仍未由 production MIR bridge 支持，扩大 raw candidate 选择面后也应继续退回 HIR-compatible body:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_still_falls_back_for_raw_mir_implicit_tail_return_body_after_candidate_widening()
+ {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3a_implicit_tail_return_fallback.scoop",
+        r#"
+package fixtures.t5000j3a_tail
+
+import scoop.core.*
+
+fun keepLooping(i: Int): Bool {
+    println("while_cond")
+    println(i)
+    i < 1
+}
+
+fun main(): Int {
+    return if (keepLooping(0)) 1 else 0
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let helper_fqn = "fixtures.t5000j3a_tail.keepLooping";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let helper_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == helper_fqn)
+        .expect("request-root 可达 non-generic helper 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_has_implicit_tail_return(helper_mir),
+        "test setup 需要确认 helper 的 raw MIR 仍以 Return(None) 保留尾表达式返回约定"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let helper_ir = function_ir_named(&ir, helper_fqn);
+
+    assert!(
+        !helper_ir.contains("mir.bb"),
+        "隐式尾表达式返回目前尚未形成稳定 raw MIR return 契约，扩大 candidate 选择面后也应继续退回 HIR-compatible body:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_still_falls_back_for_raw_mir_non_init_non_pattern_body_after_candidate_widening()
+ {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3a_non_init_non_pattern_fallback.scoop",
+        r#"
+package fixtures.t5000j3a_scope
+
+fun add(a: Int, b: Int): Int {
+    return a + b
+}
+
+fun main(): Int {
+    return if (add(1, 2) == 3) 3 else 1
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let add_fqn = "fixtures.t5000j3a_scope.add";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let add_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == add_fqn)
+        .expect("request-root 可达 non-generic helper 应进入 caller-side pass 候选");
+    assert!(
+        !mir_fun_has_pattern(add_mir),
+        "test setup 需要确认 add 不属于 pattern 扩张范围"
+    );
+    assert!(
+        !mir_fun_contains_top_level_value_ref(add_mir),
+        "test setup 需要确认 add 不属于 top-level/object init 扩张范围"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let add_ir = function_ir_named(&ir, add_fqn);
+
+    assert!(
+        !add_ir.contains("mir.bb"),
+        "普通 arithmetic helper 不应因为 j3a 的 init candidate 放宽而误切到 raw MIR bridge:\n{add_ir}"
+    );
+}
+
+#[test]
+fn production_reachability_falls_back_for_raw_mir_ctor_call_todo_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3a_ctor_call_fallback.scoop",
+        r#"
+import scoop.core.*
+
+fun cSuper(x: Int): Int {
+    println("C.super_arg")
+    return x + 1
+}
+
+fun bSuper(y: Int): Int {
+    println("B.super_arg")
+    return y + 1
+}
+
+fun callArg(): Int {
+    println("call.arg")
+    return 10
+}
+
+open class A(val a: Int) {
+    val x: Int = @Safe do {
+        println("A.prop")
+        a
+    }
+
+    init {
+        println("A.init")
+    }
+}
+
+open class B(val b: Int) : A(bSuper(b)) {
+    val y: Int = @Safe do {
+        println("B.prop")
+        b
+    }
+
+    init {
+        println("B.init")
+    }
+}
+
+class C(val c: Int) : B(cSuper(c)) {
+    val z: Int = @Safe do {
+        println("C.prop")
+        c
+    }
+
+    init {
+        println("C.init")
+    }
+}
+
+fun entry(): Int {
+    val _x: C = C(callArg())
+    return 0
+}
+
+fun main(): Int {
+    return entry()
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let entry_fqn = "entry";
+    let c_super_fqn = "cSuper";
+    let b_super_fqn = "bSuper";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let entry_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == entry_fqn)
+        .expect("request-root 可达 non-generic entry 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_todo(entry_mir),
+        "test setup 需要确认 entry 的 raw MIR 仍包含 ctor call lowering pending 的 Todo 形状"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let entry_ir = function_ir_named(&ir, entry_fqn);
+
+    assert!(
+        !entry_ir.contains("mir.bb"),
+        "包含 ctor-call Todo 形状的 raw entry body 应继续退回 HIR-compatible body，避免遗漏 ctor side-table reachability:\n{entry_ir}"
+    );
+    assert!(
+        ir.contains(&format!("define i64 @{c_super_fqn}("))
+            && ir.contains(&format!("define i64 @{b_super_fqn}(")),
+        "HIR-compatible reachability fallback 应继续保留 ctor super-arg helper definitions；否则 class init super-arg 求值顺序 fixture 会在链接阶段丢失 `{c_super_fqn}` / `{b_super_fqn}`"
+    );
+}
+
+#[test]
 fn production_codegen_lowers_overridden_pass_mir_body() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -4187,5 +4599,104 @@ fn mir_fun_contains_direct_call(fun: &crate::mir::FunDecl, expected: &str) -> bo
             };
             callee_fqn == expected
         })
+    })
+}
+
+fn mir_fun_contains_top_level_ref(fun: &crate::mir::FunDecl, expected: &str) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            let crate::mir::StatementKind::Assign {
+                value: crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }),
+                ..
+            } = &stmt.kind
+            else {
+                return false;
+            };
+            fqn == expected
+        })
+    })
+}
+
+fn mir_fun_contains_top_level_value_ref(fun: &crate::mir::FunDecl) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            matches!(
+                stmt.kind,
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::TopLevelRef(_),
+                    ..
+                }
+            )
+        })
+    })
+}
+
+fn mir_fun_has_pattern(fun: &crate::mir::FunDecl) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            matches!(
+                stmt.kind,
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::PatternMatch { .. }
+                        | crate::mir::Rvalue::PatternExtract { .. },
+                    ..
+                }
+            )
+        })
+    })
+}
+
+fn mir_fun_contains_make_closure(fun: &crate::mir::FunDecl) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            matches!(
+                stmt.kind,
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::MakeClosure { .. },
+                    ..
+                }
+            )
+        })
+    })
+}
+
+fn mir_fun_contains_todo(fun: &crate::mir::FunDecl) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            matches!(
+                stmt.kind,
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Todo(_),
+                    ..
+                }
+            )
+        }) || matches!(block.terminator.kind, crate::mir::TerminatorKind::Todo(_))
+    })
+}
+
+fn mir_fun_has_implicit_tail_return(fun: &crate::mir::FunDecl) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        matches!(
+            block.terminator.kind,
+            crate::mir::TerminatorKind::Return { value: None }
+        )
     })
 }

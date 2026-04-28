@@ -17,8 +17,10 @@ pub(super) struct ReachabilityInputs<'a> {
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+    pub(super) object_inits: &'a hir::ObjectInitIndex,
 }
 
 pub(super) fn collect_reachable_top_level_funs<'a>(
@@ -32,8 +34,10 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         class_vtables,
         class_itables,
         ctor_call_sites,
+        top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        object_inits,
     } = inputs;
     let mut collector = ReachabilityCollector {
         fun_index,
@@ -41,8 +45,10 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         class_vtables,
         class_itables,
         ctor_call_sites,
+        top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        object_inits,
         materialized_pass_view,
         seen_calls: HashSet::new(),
         fun_queue: VecDeque::new(),
@@ -101,8 +107,10 @@ struct ReachabilityCollector<'a> {
     class_vtables: &'a crate::vtable::ClassVtableIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_consts: &'a hir::TopLevelConstIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+    object_inits: &'a hir::ObjectInitIndex,
 
     seen_calls: HashSet<String>,
     fun_queue: VecDeque<String>,
@@ -295,11 +303,11 @@ impl<'a> ReachabilityCollector<'a> {
             .find(|candidate| {
                 candidate.fqn == fun.fqn
                     && candidate.body.is_some()
-                    && self.raw_non_generic_pattern_candidate(candidate)
+                    && self.raw_non_generic_candidate_matches_published_scope(candidate)
             })
     }
 
-    fn raw_non_generic_pattern_candidate(&self, fun: &mir::FunDecl) -> bool {
+    fn raw_non_generic_candidate_matches_published_scope(&self, fun: &mir::FunDecl) -> bool {
         let Some(body) = fun.body.as_ref() else {
             return false;
         };
@@ -308,10 +316,16 @@ impl<'a> ReachabilityCollector<'a> {
                 let mir::StatementKind::Assign { value, .. } = &stmt.kind else {
                     return false;
                 };
-                matches!(
-                    value,
-                    mir::Rvalue::PatternMatch { .. } | mir::Rvalue::PatternExtract { .. }
-                )
+                match value {
+                    mir::Rvalue::PatternMatch { .. } | mir::Rvalue::PatternExtract { .. } => true,
+                    mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) => {
+                        self.object_inits.contains_key(fqn)
+                            || self.top_level_consts.contains_key(fqn)
+                            || self.top_level_immutable_values.contains_key(fqn)
+                            || self.top_level_vars.contains_key(fqn)
+                    }
+                    _ => false,
+                }
             })
         })
     }
@@ -348,9 +362,25 @@ impl<'a> ReachabilityCollector<'a> {
 
     fn mir_rvalue_requires_hir_compat_scan(&self, value: &mir::Rvalue) -> bool {
         match value {
+            mir::Rvalue::Use(_)
+            | mir::Rvalue::TopLevelRef(_)
+            | mir::Rvalue::Unary { .. }
+            | mir::Rvalue::Binary { .. }
+            | mir::Rvalue::PatternMatch { .. }
+            | mir::Rvalue::PatternExtract { .. } => false,
             mir::Rvalue::Call { kind, .. } => self.mir_call_kind_requires_hir_compat_scan(kind),
-            mir::Rvalue::MakeClosure { .. } => true,
-            _ => false,
+            mir::Rvalue::UnresolvedName { .. }
+            | mir::Rvalue::TypeCheck { .. }
+            | mir::Rvalue::Cast { .. }
+            | mir::Rvalue::MemberAccess { .. }
+            | mir::Rvalue::MakeTuple { .. }
+            | mir::Rvalue::TupleGet { .. }
+            | mir::Rvalue::CaptureBoxNew { .. }
+            | mir::Rvalue::CaptureBoxGet { .. }
+            | mir::Rvalue::CaptureBoxSet { .. }
+            | mir::Rvalue::MakeClosure { .. }
+            | mir::Rvalue::PerformResult { .. }
+            | mir::Rvalue::Todo(_) => true,
         }
     }
 
@@ -360,21 +390,26 @@ impl<'a> ReachabilityCollector<'a> {
                 .fun_index
                 .get(callee_fqn)
                 .is_some_and(|fun| fun.body.is_none()),
-            mir::CallKind::Virtual { .. }
+            mir::CallKind::Closure { .. }
+            | mir::CallKind::FunValue { .. }
+            | mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. }
             | mir::CallKind::Resume { .. } => true,
-            mir::CallKind::Closure { .. } | mir::CallKind::FunValue { .. } => false,
         }
     }
 
     fn mir_terminator_requires_hir_compat_scan(&self, kind: &mir::TerminatorKind) -> bool {
-        matches!(
-            kind,
+        match kind {
+            mir::TerminatorKind::Return { value } => value.is_none(),
+            mir::TerminatorKind::Goto { .. } | mir::TerminatorKind::Unreachable => false,
+            mir::TerminatorKind::CondBr { cond, .. } => {
+                !matches!(cond, mir::Operand::Local(_) | mir::Operand::Const(_))
+            }
             mir::TerminatorKind::ResumeUnwind
-                | mir::TerminatorKind::Perform { .. }
-                | mir::TerminatorKind::Handle { .. }
-                | mir::TerminatorKind::Todo(_)
-        )
+            | mir::TerminatorKind::Perform { .. }
+            | mir::TerminatorKind::Handle { .. }
+            | mir::TerminatorKind::Todo(_) => true,
+        }
     }
 
     fn scan_mir_body(&mut self, body: &mir::Body) {

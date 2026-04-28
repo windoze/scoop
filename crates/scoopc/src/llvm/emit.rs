@@ -712,8 +712,10 @@ fn build_main_module_from_codegen_entry<'ctx>(
             class_vtables: &lowered.class_vtables,
             class_itables: &lowered.class_itables,
             ctor_call_sites: &lowered.ctor_call_sites,
+            top_level_vars: &lowered.top_level_vars,
             top_level_consts: &lowered.top_level_consts,
             top_level_immutable_values: &lowered.top_level_immutable_values,
+            object_inits: &lowered.object_inits,
         },
     );
 
@@ -772,7 +774,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     }
 
     for fun in &reachable {
-        if !should_emit_reachable_fun_body(fun, unit_codegen.materialized_pass_view()) {
+        if !should_emit_reachable_fun_body(fun, &unit_codegen) {
             continue;
         }
         // T0126: Skip generic member methods (same as above).
@@ -786,9 +788,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
                 at: fun.span.into(),
             })?;
         let mut body_codegen = unit_codegen.fresh_main_codegen();
-        if let Some(mir_fun) =
-            canonical_materialized_callable_body(fun, unit_codegen.materialized_pass_view())
-        {
+        if let Some(mir_fun) = canonical_materialized_callable_body(fun, &unit_codegen) {
             let body_is_overridden = unit_codegen
                 .materialized_pass_view()
                 .is_some_and(|view| view.callable_body_is_overridden(&fun.fqn));
@@ -883,69 +883,39 @@ fn build_main_module_from_codegen_entry<'ctx>(
 
 fn should_emit_reachable_fun_body(
     fun: &hir::FunDecl,
-    materialized_pass_view: Option<&crate::mir::MaterializedMirPassView<'_>>,
+    unit_codegen: &crate::llvm::codegen::CompilationUnitCodegenCx<'_, '_>,
 ) -> bool {
     if fun.body.is_none() {
         return false;
     }
 
-    if let Some(pass_view) = materialized_pass_view {
+    if let Some(pass_view) = unit_codegen.materialized_pass_view() {
         if pass_view.callable_body_is_overridden(&fun.fqn) {
-            return canonical_materialized_callable_body(fun, Some(pass_view)).is_some();
+            return canonical_materialized_callable_body(fun, unit_codegen).is_some();
         }
         if pass_view.owner_of_callable(&fun.fqn).is_some()
-            || raw_non_generic_callable_candidate_body(fun, pass_view).is_some()
+            || unit_codegen
+                .raw_non_generic_callable_candidate_body(fun, pass_view)
+                .is_some()
         {
-            return canonical_materialized_callable_body(fun, Some(pass_view)).is_some();
+            return canonical_materialized_callable_body(fun, unit_codegen).is_some();
         }
     }
 
     true
 }
 
-fn canonical_materialized_callable_body<'a>(
+fn canonical_materialized_callable_body<'a, 'ctx>(
     fun: &hir::FunDecl,
-    materialized_pass_view: Option<&'a crate::mir::MaterializedMirPassView<'a>>,
+    unit_codegen: &'a crate::llvm::codegen::CompilationUnitCodegenCx<'a, 'ctx>,
 ) -> Option<&'a crate::mir::FunDecl> {
-    let pass_view = materialized_pass_view?;
+    let pass_view = unit_codegen.materialized_pass_view()?;
     if pass_view.callable_body_is_overridden(&fun.fqn)
         || pass_view.owner_of_callable(&fun.fqn).is_some()
     {
         return pass_view.callable(&fun.fqn);
     }
-    raw_non_generic_callable_candidate_body(fun, pass_view)
-}
-
-fn raw_non_generic_callable_candidate_body<'a>(
-    fun: &hir::FunDecl,
-    pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
-) -> Option<&'a crate::mir::FunDecl> {
-    pass_view
-        .materialized()
-        .caller_side_pass_candidate_bodies()
-        .iter()
-        .find(|candidate| {
-            candidate.fqn == fun.fqn
-                && candidate.body.is_some()
-                && raw_non_generic_pattern_candidate(candidate)
-        })
-}
-
-fn raw_non_generic_pattern_candidate(fun: &crate::mir::FunDecl) -> bool {
-    let Some(body) = fun.body.as_ref() else {
-        return false;
-    };
-    body.blocks.iter().any(|block| {
-        block.stmts.iter().any(|stmt| {
-            let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind else {
-                return false;
-            };
-            matches!(
-                value,
-                crate::mir::Rvalue::PatternMatch { .. } | crate::mir::Rvalue::PatternExtract { .. }
-            )
-        })
-    })
+    unit_codegen.raw_non_generic_callable_candidate_body(fun, pass_view)
 }
 
 #[cfg(test)]

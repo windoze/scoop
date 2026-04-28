@@ -242,7 +242,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match terminator {
             crate::mir::TerminatorKind::Return { value } => value
                 .as_ref()
-                .is_none_or(|operand| self.raw_materialized_mir_operand_is_supported(operand)),
+                // 现阶段 generic MIR 仍会把“函数体尾表达式”保留成 `Return { value: None }`
+                // 的隐式约定；production raw MIR bridge 还没有独立的 tail-value 契约，
+                // 因此这类 body 必须继续留在 HIR-compatible fallback，避免把隐式尾值
+                // 误降成类型默认值（例如 Bool -> false）。
+                .is_some_and(|operand| self.raw_materialized_mir_operand_is_supported(operand)),
             crate::mir::TerminatorKind::Goto { .. } | crate::mir::TerminatorKind::Unreachable => {
                 true
             }

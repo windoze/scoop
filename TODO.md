@@ -1980,13 +1980,49 @@
   - review 过程中未发现需要前插到 `T5000j3` 之前的新既有缺陷任务；
   - 已验证 `cargo test -p scoopc production_codegen_ -- --nocapture`、`cargo test -p scoopc compare_to -- --nocapture`、`cargo test -p scoopc operator_overload -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
-### [TODO] T5000j3 扩展更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线
+### T5000j3 扩展更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线
+- 说明：
+  - 经核对，当前任务同时包含 `top-level-init / object-init` 的 raw non-generic canonical body 扩张，以及 higher-order / closure 相关 pass-visible 形状扩张两类改动，单轮过大；
+  - 现按“当前 MIR bridge 已支持的 init 形状”和“仍需依赖 summary / escape facts / caller-side rewrite 收口的 higher-order / closure 形状”拆成以下子任务，避免把两类边界问题混在同一轮实现。
+
+### [DONE] T5000j3a 扩展 `top-level-init / object-init` 相关 raw non-generic body 到 production MIR 主线
 - 范围：
-  - 补齐目前仍经常退回 HIR-compatible emission 的 higher-order / closure / object-init / top-level-init 场景；
-  - 继续扩大 pass-visible materialized body / summary 对 production codegen 的实际覆盖面。
+  - 放宽 canonical raw non-generic callable body 选择，不再仅限 pattern candidate，而是覆盖当前 MIR bridge / reachability 已支持的 `top-level-init / object-init` 相关形状；
+  - 为 production codegen 补齐 `top-level immutable init` / object init access 场景回归，确认这些函数可直接走 raw materialized MIR bridge；
+  - 保持 closure / fun-value / `MakeClosure` / `Perform` / `Handle` 等仍未支持的形状继续留在 HIR-compatible fallback 边界。
 - 验收：
-  - 新覆盖继续建立在 materialized MIR / summary / escape facts 之上，而不是重新把高阶分析长回 backend。
+  - `top-level-init / object-init` 新覆盖继续建立在 materialized MIR 主线之上；
+  - 扩大 candidate 选择面后，不会错误把仍不支持的 higher-order / effect 形状推进到 production MIR body lowering。
 - 依赖：T5000j2R
+- 完成记录（2026-04-29）：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 为 caller-side raw non-generic body 新增了按作用域收口的 canonical 选择 helper；production 入口现在只把两类 raw body 纳入 canonical materialized MIR 主线：既有 pattern body，以及通过 `TopLevelRef` 访问 `top_level_consts` / `top_level_immutable_values` / `top_level_vars` / `object_inits` 的 init 相关 body，不再把普通 arithmetic/direct-call helper 一并误推进 raw MIR bridge；
+  - `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/reachability.rs` 现统一复用这条 candidate 选择边界；`reachability` 也同步扩展了 `top_level_vars` / `object_inits` 输入，并继续把 closure、fun-value、`Todo`、implicit tail-return 等 unsupported shape 保留在 HIR-compatible fallback；
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs` 现明确把 `Return { value: None }` 判为 raw MIR unsupported，避免 generic MIR 仍以隐式尾表达式约定表示返回值时，被 production bridge 错降成类型默认值；这次回归里暴露出的 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 与 `fun_call_add_basic.scoop` 都随之恢复；
+  - `crates/scoopc/src/llvm/tests.rs` 已补齐 `top-level immutable init`、object value init、closure fallback、implicit tail-return fallback、non-init/non-pattern helper fallback 与 ctor-call `Todo` reachability fallback 回归，确认 `j3a` 的 candidate 放宽只覆盖目标 init 场景。
+
+### [TODO] T5000j3aR Review：确认 init 场景扩张只是放宽 canonical MIR 覆盖，而非把分析责任倒灌回 backend
+- 重点：
+  - `top-level-init / object-init` 的新增 production 覆盖是否仍然只是消费既有 MIR body / reachability facts；
+  - canonical raw body 选择放宽后，unsupported 形状是否仍稳定留在 HIR-compatible 边界。
+- 验收：
+  - 可以明确指出 init 场景新增覆盖依赖的是现有 materialized MIR / reachability 事实，而不是新的 backend 现场分析。
+- 依赖：T5000j3a
+
+### [TODO] T5000j3b 扩展更多 higher-order / closure 场景到 production MIR 主线
+- 范围：
+  - 补齐目前仍经常退回 HIR-compatible emission 的 higher-order / closure 场景；
+  - 继续扩大 pass-visible materialized body / summary / escape facts 对 production codegen 的实际覆盖面。
+- 验收：
+  - higher-order / closure 新覆盖继续建立在 materialized MIR / summary / escape facts 之上，而不是重新把高阶分析长回 backend。
+- 依赖：T5000j3aR
+
+### [TODO] T5000j3bR Review：确认 higher-order / closure 场景扩张没有把分析责任倒灌回 backend
+- 重点：
+  - higher-order / closure 的新覆盖是否仍消费 shared facts / pass artifacts；
+  - LLVM backend 是否只保留 lowering，而不是重新承担分析或 target-set 收缩职责。
+- 验收：
+  - 可以明确指出 production 主线新增的 higher-order / closure 覆盖依赖的是哪一层中端事实。
+- 依赖：T5000j3b
 
 ### [TODO] T5000j3R Review：确认 higher-order / init 场景扩张没有把分析责任倒灌回 backend
 - 重点：
@@ -1994,7 +2030,7 @@
   - LLVM backend 是否只保留 lowering，而不是重新承担分析或 target-set 收缩职责。
 - 验收：
   - 可以明确指出 production 主线新增覆盖依赖的是哪一层中端事实。
-- 依赖：T5000j3
+- 依赖：T5000j3bR
 
 ### [TODO] T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线
 - 范围：

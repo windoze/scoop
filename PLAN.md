@@ -2098,20 +2098,45 @@
       - `cargo clippy --all-targets -- -D warnings`
       - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
     - 下一条待执行任务切换为 `T5000j2R Review：确认 when / pattern 覆盖扩张仍沿 MIR 结构主线推进`。
-  - 2026-04-29：`T5000j2R Review：确认 when / pattern 覆盖扩张仍沿 MIR 结构主线推进` 已完成。
-    - review 结论：
+- 2026-04-29：`T5000j2R Review：确认 when / pattern 覆盖扩张仍沿 MIR 结构主线推进` 已完成。
+  - review 结论：
       - `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/lower.rs`、`crates/scoopc/src/mir/materialize.rs` 与 `crates/scoopc/src/mir/summary.rs` 继续把 `when` / pattern 语义承载在 backend-agnostic 的 `Pattern` / `PatternMatch` / `PatternExtract` / `PatternBindingStep` 结构之上；production 覆盖扩张没有新造 backend 专用 pattern 表示，也没有把 summary / materialization 主线绕回 HIR 解释。
       - `crates/scoopc/src/llvm/codegen/mir_body.rs` 中新增逻辑只是在 raw materialized MIR bridge 内对既有 MIR pattern 节点做支持判定与 lowering：variant payload 复用 `extract_matched_when_variant_field_value`，`when is Type` 复用运行期 `isa` helper，tuple / enum / string / bool / int / char pattern 都按 MIR pattern 树递归消费；没有发现按 HIR 语法形状、函数名白名单或 backend 现场猜测恢复 pattern 语义的路径。
       - `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/reachability.rs` 只是把 raw non-generic pattern body 纳入 canonical materialized body 选择与扫描主线，并继续通过 `raw_materialized_mir_body_requires_hir_compat_boundary` / `mir_fun_requires_hir_compat_scan` 对 declaration-only direct call、closure、virtual/interface/resume、perform/handle 等不支持形状保留 HIR-compatible fallback；说明本轮扩张仍是在“让更多既有 MIR body 走 production 主线”，而不是把 pattern 分析责任倒灌回 backend。
     - 复核范围内未发现需要插到 `T5000j3` 之前的新前置缺陷任务。
     - 已验证：
       - `cargo test -p scoopc production_codegen_ -- --nocapture`
-      - `cargo test -p scoopc compare_to -- --nocapture`
-      - `cargo test -p scoopc operator_overload -- --nocapture`
-      - `cargo test --all`
-      - `cargo clippy --all-targets -- -D warnings`
-      - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - `cargo test -p scoopc compare_to -- --nocapture`
+    - `cargo test -p scoopc operator_overload -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
     - 下一条待执行任务切换为 `T5000j3 扩展更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线`。
+- 2026-04-29：`T5000j3 扩展更多 higher-order / closure / object-init / top-level-init 场景到 production MIR 主线` 已判定为单轮过大任务，现拆成 `T5000j3a`～`T5000j3b` 两个实现子任务与对应 review。
+  - 拆分依据：
+    - `crates/scoopc/src/llvm/emit.rs` / `reachability.rs` 中 raw non-generic canonical body 选择当前仍被 `raw_non_generic_pattern_candidate(...)` 限制为 pattern candidate，而 `crates/scoopc/src/llvm/codegen/mir_body.rs` 实际已经支持更宽的一批 raw MIR 形状，其中包括 `TopLevelRef` 驱动的 `top_level_consts`、`top_level_immutable_values`、`object_inits` 与 `top_level_vars`；
+    - 与之相对，`CallKind::Closure` / `CallKind::FunValue`、`MakeClosure`、`CaptureBox*` 目前在 MIR bridge 中仍显式返回 unsupported，higher-order / closure 仍需单独处理，不适合与 init 场景混在同一轮；
+    - 因此第一刀应先把“已有 lowering / reachability 支持但尚未被 canonical 选择放开”的 init 场景接入 production MIR 主线，再继续处理 higher-order / closure。
+  - 拆分顺序：
+    - `T5000j3a`：先扩展 `top-level-init / object-init` 相关 raw non-generic body 到 production MIR 主线；
+    - `T5000j3b`：再扩展更多 higher-order / closure 场景到 production MIR 主线。
+  - 下一条待执行任务切换为 `T5000j3a 扩展 top-level-init / object-init 相关 raw non-generic body 到 production MIR 主线`。
+- 2026-04-29：`T5000j3a 扩展 top-level-init / object-init 相关 raw non-generic body 到 production MIR 主线` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 现为 caller-side raw non-generic body 提供按作用域收口的 canonical 选择 helper：继续保留既有 pattern body，并新增通过 `TopLevelRef` 访问 `top_level_consts` / `top_level_immutable_values` / `top_level_vars` / `object_inits` 的 init 相关 body；普通 arithmetic/direct-call helper 不再因为“所有 raw non-generic body 都可进 canonical 选择”而误切到 production raw MIR bridge；
+    - `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/reachability.rs` 已统一改经这条 candidate 选择边界；`ReachabilityInputs` 同步补入 `top_level_vars` 与 `object_inits`，让 init 相关 body 的 canonical body 选择与 canonical reachability 扫描保持一致；
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 现明确把 `Return { value: None }` 视为 raw MIR unsupported。generic MIR 仍以隐式尾表达式约定保留返回值时，production bridge 不再把它错降成类型默认值，而是保守退回 HIR-compatible body；本轮排查中暴露的 `keepLooping` / `fun_call_add_basic` 类误发射因此消失；
+    - `crates/scoopc/src/llvm/tests.rs` 新增并整理了 `top-level immutable init`、object value init、closure fallback、implicit tail-return fallback、non-init/non-pattern helper fallback 与 ctor-call `Todo` reachability fallback 回归，覆盖 `j3a` 目标场景与新增边界保护。
+  - 阶段结论：
+    - `j3a` 的 production 覆盖现在只是在 canonical materialized MIR 主线上放宽到 init 相关 raw body，没有把普通 helper、higher-order shape 或隐式 tail-return body 一并倒灌进 backend 现场推断；
+    - 本轮验证中未发现需要插入到 `T5000j3aR` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo test -p scoopc production_codegen_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000j3aR Review：确认 init 场景扩张只是放宽 canonical MIR 覆盖，而非把分析责任倒灌回 backend`。
 
 ## 1. 当前判断
 
