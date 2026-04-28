@@ -1158,7 +1158,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 注意：
     /// - 该 helper 假设调用者已经先做了 tag 判别；
     /// - 对 boxed payload 必须在 tag 命中后再解引用，避免错误解引用其它 variant 的 payload 指针。
-    fn extract_matched_when_variant_field_value(
+    pub(super) fn extract_matched_when_variant_field_value(
         &mut self,
         enum_ty: TypeId,
         repr: CgEnumRepr,

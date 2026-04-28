@@ -2084,6 +2084,20 @@
       - `cargo clippy --all-targets -- -D warnings`
       - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
     - 下一条待执行任务切换为 `T5000j2 扩展 when / pattern 到 production MIR body / summary 主线`。
+  - 2026-04-29：`T5000j2 扩展 when / pattern 到 production MIR body / summary 主线` 已完成。
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 已把 raw materialized MIR body 的支持判定与实际 lowering 扩展到 `PatternMatch` / `PatternExtract`，并按 subject/target 类型覆盖 wildcard / bind / rest / or / tuple / variant / literal / `is` 等常见非 effect `when` pattern 形状；production MIR bridge 不再因这两类节点一律退回 HIR-compatible emission。
+    - `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/reachability.rs` 已把 raw non-generic pattern body 纳入 canonical materialized body 选择与扫描主线：raw pattern callable 可直接走 MIR reachability / body emission / summary 对齐路径；若 raw body 仍包含 declaration-only direct call、closure、virtual/interface/resume、perform/handle 等当前不支持形状，则继续保守退回 HIR-compatible 边界，而不是错误地把 backend 细节硬编码进 MIR 判定。
+    - 本轮同时修复了 probing 暴露出的既有 ABI 缺口：`bind_mir_params` 之前忽略了 ordinary param ABI 的 indirect GC aggregate 分支，导致 `Option<Option<String>>` 这类 pattern 参数会把 ABI 指针误当作 enum 原始值解释；现已改为先按 ABI load 间接参数，再进入 MIR pattern lowering，`tests/fixtures/run-pass/option_nested_ref_no_nested_niche_basic.scoop` 恢复为三态语义正确输出。
+    - 新增/更新回归覆盖：
+      - `crates/scoopc/src/llvm/tests.rs`：验证 declaration-only direct call raw body fallback、variant payload binder 的 `PatternExtract`、`when is Type` lowering、generic pattern instance 的 body-known summary 暴露、indirect GC aggregate pattern param ABI load，以及 async helper definition 仍可经 HIR-compatible reachability 扫描补齐；
+      - `cargo run -p scoop -- test` 现再次覆盖 `option_nested_ref_no_nested_niche_basic.scoop` 等 run-pass fixture，确认修复后的 production 路径无回归。
+    - 已验证：
+      - `cargo fmt --all`
+      - `cargo test -p scoopc production_codegen_ -- --nocapture`
+      - `cargo test --all`
+      - `cargo clippy --all-targets -- -D warnings`
+      - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - 下一条待执行任务切换为 `T5000j2R Review：确认 when / pattern 覆盖扩张仍沿 MIR 结构主线推进`。
 
 ## 1. 当前判断
 

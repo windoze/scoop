@@ -1538,6 +1538,290 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_falls_back_from_raw_mir_body_for_declaration_only_direct_calls() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j2_decl_only_direct_call_fallback.scoop",
+        r#"
+package fixtures.t5000j2decl
+
+import scoop.core.*
+
+fun mk(): Array<Int> {
+    return [4, 5, 6]
+}
+
+fun main(): Int {
+    val xs = mk()
+    return xs.get(0)
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let mk_fqn = "fixtures.t5000j2decl.mk";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let mk_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == mk_fqn)
+        .expect("raw non-generic mk body 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_direct_call(mk_mir, "scoop.core.__scoop_array_builder_new"),
+        "test setup 需要确认 mk 的 raw MIR 仍包含 declaration-only array builder direct call"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let mk_ir = function_ir_named(&ir, mk_fqn);
+    assert!(
+        !mk_ir.contains("mir.bb"),
+        "包含 declaration-only direct call 的 raw non-generic body 应继续退回 HIR-compatible emission，避免把 sysroot/runtime intrinsic 当普通函数链接；实际 IR:\n{mk_ir}"
+    );
+    assert!(
+        mk_ir.contains("@scoop_array_builder_new"),
+        "HIR-compatible fallback 应继续把 array builder lowering 到 runtime intrinsic:\n{mk_ir}"
+    );
+    assert!(
+        !mk_ir.contains("@scoop.core.__scoop_array_builder_new("),
+        "fallback 后不应继续把 declaration-only helper 当普通顶层函数调用:\n{mk_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_lowers_raw_mir_when_variant_pattern_and_extract() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j2_when_variant_pattern.scoop",
+        r#"
+package fixtures.t5000j2a
+
+import scoop.core.*
+
+enum Step {
+    Hit(val value: Int),
+    Miss,
+}
+
+fun pick(step: Option<Step>): Int {
+    return when (step) {
+        Some(Hit(v)) -> v
+        Some(Miss) -> 7
+        None -> 0
+    }
+}
+
+fun main(): Int {
+    return pick(Some(Hit(41)))
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let pick_fqn = "fixtures.t5000j2a.pick";
+    assert!(
+        codegen_unit.lowered.materialized_mir().is_some(),
+        "production frontend 应保留 materialized MIR"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let pick_ir = function_ir_named(&ir, pick_fqn);
+    assert!(
+        pick_ir.contains("mir.bb"),
+        "`pick` 应通过 production MIR bridge 发射，而不是退回 HIR 兼容 body:\n{pick_ir}"
+    );
+    assert!(
+        pick_ir.contains("pass_mir_variant_match"),
+        "variant pattern match 应在 MIR bridge 内直接 lower 到 LLVM:\n{pick_ir}"
+    );
+    assert!(
+        pick_ir.contains("pass_mir_extract_subject"),
+        "variant payload binder 的 PatternExtract 应在 MIR bridge 内直接发射:\n{pick_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_lowers_raw_mir_when_is_pattern() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j2_when_is_pattern.scoop",
+        r#"
+package fixtures.t5000j2b
+
+import scoop.core.*
+
+open class Base()
+
+class Impl() : Base()
+
+class Other() : Base()
+
+fun classify(x: Any): Int {
+    return when (x) {
+        is Impl -> 1
+        is Other -> 2
+        else -> 0
+    }
+}
+
+fun main(): Int {
+    return classify(Impl())
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let classify_fqn = "fixtures.t5000j2b.classify";
+    assert!(
+        codegen_unit.lowered.materialized_mir().is_some(),
+        "production frontend 应保留 materialized MIR"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let classify_ir = function_ir_named(&ir, classify_fqn);
+    assert!(
+        classify_ir.contains("mir.bb"),
+        "`classify` 应通过 production MIR bridge 发射，而不是退回 HIR 兼容 body:\n{classify_ir}"
+    );
+    assert!(
+        classify_ir.contains("isa_obj_nonnull"),
+        "`when is Type` 应复用运行期 isa/type-check lowering:\n{classify_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_exposes_summary_for_generic_pattern_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j2_summary_pattern_family.scoop",
+        r#"
+package fixtures.t5000j2c
+
+import scoop.core.*
+
+fun <T> has_some(step: Option<T>): Bool {
+    return when (step) {
+        Some(_) -> true
+        None -> false
+    }
+}
+
+fun main(): Int {
+    return if (has_some<Int>(Some(41))) 1 else 0
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let has_some_fqn = "fixtures.t5000j2c.has_some::<Int>";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let pass_view = materialized.pass_view();
+    let owner = pass_view
+        .owner_of_callable(has_some_fqn)
+        .expect("generic pattern callable 应归属某个 canonical instance family");
+    let family = pass_view
+        .instance(owner)
+        .expect("pass view 应能查询 generic pattern family");
+    assert_eq!(family.root_fqn(), has_some_fqn);
+    assert!(
+        family.summary().body_known,
+        "generic pattern instance 应在 canonical pass view 上暴露 body-known summary"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let has_some_ir = function_ir_named(&ir, has_some_fqn);
+    assert!(
+        has_some_ir.contains("mir.bb"),
+        "generic pattern body 应通过 production MIR bridge 发射，而不是退回 HIR 兼容 body:\n{has_some_ir}"
+    );
+    assert!(
+        has_some_ir.contains("pass_mir_variant_tag_eq"),
+        "generic pattern body 的 canonical summary/body 应对应到 MIR variant-tag lowering:\n{has_some_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_loads_indirect_gc_aggregate_pattern_params_before_matching() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j2_nested_option_param.scoop",
+        r#"
+package fixtures.t5000j2d
+
+import scoop.core.*
+
+fun show(x: Option<Option<String> >): String {
+    return when (x) {
+        Some(inner) -> when (inner) {
+            Some(s) -> s
+            None -> "inner-none"
+        }
+        None -> "outer-none"
+    }
+}
+
+fun main(): Int {
+    val result = show(Some(Some("hi")))
+    return if (result == "hi") 1 else 0
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let show_fqn = "fixtures.t5000j2d.show";
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let show_ir = function_ir_named(&ir, show_fqn);
+    assert!(
+        show_ir.contains("load %scoop.core.Option, ptr %0"),
+        "indirect GC aggregate param 应先从 ABI 指针实参 load 成真实 enum 值，再进入 MIR pattern lowering:\n{show_ir}"
+    );
+    assert!(
+        !show_ir.contains("ptrtoint ptr %0 to i64"),
+        "MIR bridge 不应把 indirect enum param 指针本身错当成 payload/tag 原始值:\n{show_ir}"
+    );
+}
+
+#[test]
 fn production_codegen_lowers_overridden_pass_mir_body() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -3098,6 +3382,54 @@ fun main(): Int {
             && !ir.contains("@scoop_task_poll")
             && !ir.contains("@scoop_task_join"),
         "minimal LLVM 路径里的 async / await 主线不应再回退到 legacy task runtime ABI"
+    );
+}
+
+#[test]
+fn production_codegen_emits_async_task_helper_definitions_reached_via_hir_compat_scan() {
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j2_async_helper_defs.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val resultTask: Task<Int> = async {
+        val t: Task<Int> = async { 41 }
+        val x: Int = await t
+        x + 1
+    }
+
+    return handle {
+        Async.await(resultTask)
+    } with {
+        Async.await(taskArg: Task<Int>) -> __task_join(taskArg)
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+
+    assert!(
+        ir.lines().any(|line| line.starts_with("define ")
+            && line.contains("scoop.core.__task_step_ready::<Int>")),
+        "production/codegen reachability 应继续发射 async helper 依赖的 `__task_step_ready::<Int>` 定义，而不是只留下声明:\n{ir}"
+    );
+    assert!(
+        ir.lines().any(|line| line.starts_with("define ")
+            && line.contains("scoop.core.__task_step_pending::<Int>")),
+        "production/codegen reachability 应继续发射 async helper 依赖的 `__task_step_pending::<Int>` 定义，而不是只留下声明:\n{ir}"
     );
 }
 

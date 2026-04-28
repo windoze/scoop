@@ -242,20 +242,33 @@ impl<'a> ReachabilityCollector<'a> {
 
     fn scan_fun(&mut self, fun: &hir::FunDecl) {
         if let Some(pass_view) = self.materialized_pass_view {
-            if pass_view.callable_body_is_overridden(&fun.fqn) {
-                if let Some(pass_fun) = pass_view.callable(&fun.fqn) {
+            let body_is_overridden = pass_view.callable_body_is_overridden(&fun.fqn);
+            if body_is_overridden {
+                if let Some(pass_fun) = self.canonical_mir_fun(fun) {
                     self.scan_mir_fun(pass_fun);
                 }
                 return;
             }
-            if pass_view.owner_of_callable(&fun.fqn).is_some() {
-                if let Some(pass_fun) = pass_view.callable(&fun.fqn) {
-                    self.scan_mir_fun(pass_fun);
+            if pass_view.owner_of_callable(&fun.fqn).is_some()
+                || self.raw_non_generic_candidate_body(fun).is_some()
+            {
+                if let Some(pass_fun) = self.canonical_mir_fun(fun) {
+                    if self.mir_fun_requires_hir_compat_scan(pass_fun) {
+                        self.scan_hir_fun_body(fun);
+                    } else {
+                        self.scan_mir_fun(pass_fun);
+                    }
+                } else {
+                    self.scan_hir_fun_body(fun);
                 }
                 return;
             }
         }
 
+        self.scan_hir_fun_body(fun);
+    }
+
+    fn scan_hir_fun_body(&mut self, fun: &hir::FunDecl) {
         self.with_source_path(fun.source_path.as_path(), |this| {
             let Some(body) = fun.body.as_ref() else {
                 return;
@@ -264,11 +277,104 @@ impl<'a> ReachabilityCollector<'a> {
         });
     }
 
+    fn canonical_mir_fun(&self, fun: &hir::FunDecl) -> Option<&'a mir::FunDecl> {
+        let pass_view = self.materialized_pass_view?;
+        if pass_view.callable_body_is_overridden(&fun.fqn)
+            || pass_view.owner_of_callable(&fun.fqn).is_some()
+        {
+            return pass_view.callable(&fun.fqn);
+        }
+        self.raw_non_generic_candidate_body(fun)
+    }
+
+    fn raw_non_generic_candidate_body(&self, fun: &hir::FunDecl) -> Option<&'a mir::FunDecl> {
+        self.materialized_pass_view?
+            .materialized()
+            .caller_side_pass_candidate_bodies()
+            .iter()
+            .find(|candidate| {
+                candidate.fqn == fun.fqn
+                    && candidate.body.is_some()
+                    && self.raw_non_generic_pattern_candidate(candidate)
+            })
+    }
+
+    fn raw_non_generic_pattern_candidate(&self, fun: &mir::FunDecl) -> bool {
+        let Some(body) = fun.body.as_ref() else {
+            return false;
+        };
+        body.blocks.iter().any(|block| {
+            block.stmts.iter().any(|stmt| {
+                let mir::StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return false;
+                };
+                matches!(
+                    value,
+                    mir::Rvalue::PatternMatch { .. } | mir::Rvalue::PatternExtract { .. }
+                )
+            })
+        })
+    }
+
     fn scan_mir_fun(&mut self, fun: &mir::FunDecl) {
         let Some(body) = fun.body.as_ref() else {
             return;
         };
         self.scan_mir_body(body);
+    }
+
+    fn mir_fun_requires_hir_compat_scan(&self, fun: &mir::FunDecl) -> bool {
+        let Some(body) = fun.body.as_ref() else {
+            return true;
+        };
+        body.blocks.iter().any(|block| {
+            block
+                .stmts
+                .iter()
+                .any(|stmt| self.mir_statement_requires_hir_compat_scan(stmt))
+                || self.mir_terminator_requires_hir_compat_scan(&block.terminator.kind)
+        })
+    }
+
+    fn mir_statement_requires_hir_compat_scan(&self, stmt: &mir::Statement) -> bool {
+        match &stmt.kind {
+            mir::StatementKind::Nop => false,
+            mir::StatementKind::Assign { value, .. } => {
+                self.mir_rvalue_requires_hir_compat_scan(value)
+            }
+            mir::StatementKind::Todo(_) => true,
+        }
+    }
+
+    fn mir_rvalue_requires_hir_compat_scan(&self, value: &mir::Rvalue) -> bool {
+        match value {
+            mir::Rvalue::Call { kind, .. } => self.mir_call_kind_requires_hir_compat_scan(kind),
+            mir::Rvalue::MakeClosure { .. } => true,
+            _ => false,
+        }
+    }
+
+    fn mir_call_kind_requires_hir_compat_scan(&self, kind: &mir::CallKind) -> bool {
+        match kind {
+            mir::CallKind::Direct { callee_fqn } => self
+                .fun_index
+                .get(callee_fqn)
+                .is_some_and(|fun| fun.body.is_none()),
+            mir::CallKind::Virtual { .. }
+            | mir::CallKind::Interface { .. }
+            | mir::CallKind::Resume { .. } => true,
+            mir::CallKind::Closure { .. } | mir::CallKind::FunValue { .. } => false,
+        }
+    }
+
+    fn mir_terminator_requires_hir_compat_scan(&self, kind: &mir::TerminatorKind) -> bool {
+        matches!(
+            kind,
+            mir::TerminatorKind::ResumeUnwind
+                | mir::TerminatorKind::Perform { .. }
+                | mir::TerminatorKind::Handle { .. }
+                | mir::TerminatorKind::Todo(_)
+        )
     }
 
     fn scan_mir_body(&mut self, body: &mir::Body) {

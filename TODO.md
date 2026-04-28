@@ -1950,13 +1950,21 @@
   - review 同时确认 entry `main` 与 raw-MIR HIR-compat body emission 虽仍可落回 HIR 表达式 lowering，但这些路径消费的已经是 typed HIR 中显式改写后的 direct-call 形状，因此 compareTo / operator-overload target 不再由 `llvm/codegen` 现场决定；
   - 已验证 `cargo test -p scoopc compare_to -- --nocapture`、`cargo test -p scoopc operator_overload -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
-### [TODO] T5000j2 扩展 `when` / pattern 到 production MIR body / summary 主线
+### [DONE] T5000j2 扩展 `when` / pattern 到 production MIR body / summary 主线
 - 范围：
   - 在 `T5000d3` 已正规化 MIR `PatternMatch` / `PatternExtract` 的基础上，继续把非 effect 的 `when` / pattern 场景推进到 production MIR body / summary 主线；
   - 减少这类 body 因 MIR 节点不支持而退回 HIR-compatible emission 的覆盖空洞。
 - 验收：
   - `when` / pattern 的更多常见结构可直接被 MIR reachability / body emission / summary 消费，而不是重新落回 HIR 现场解释。
 - 依赖：T5000j1R
+- 完成记录（2026-04-29）：
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs` 现已把 raw materialized MIR body 的支持判定与实际 lowering 扩展到 `PatternMatch` / `PatternExtract`，可直接消费 wildcard / bind / rest / or / tuple / variant / literal / `is` 等常见非 effect `when` pattern 形状，而不是一律退回 HIR-compatible emission；
+  - `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/reachability.rs` 现已把 raw non-generic pattern body 纳入 canonical materialized MIR body 选择与扫描主线，同时保留 declaration-only direct call 的 HIR-compatible fallback，以及 raw body 遇到 closure / virtual/interface/resume / perform/handle 等仍需 HIR 兼容扫描的保守边界；
+  - 实现过程中暴露并修复了一个既有 ABI 回归：production MIR bridge 的参数绑定此前忽略了 ordinary param ABI 的 indirect GC aggregate 分支，导致 `Option<Option<String>>` 这类 `when`/pattern 参数会把 ABI 指针误当作 enum 原始值解释；`bind_mir_params` 现已按 ordinary param ABI 先 load 间接参数，再进入 MIR pattern lowering，`tests/fixtures/run-pass/option_nested_ref_no_nested_niche_basic.scoop` 的三态语义已恢复；
+  - 已新增回归覆盖：
+    - `crates/scoopc/src/llvm/tests.rs`：验证 declaration-only direct call raw body 继续退回 HIR-compatible emission、variant payload binder 的 `PatternExtract` 直接经 MIR bridge 发射、`when is Type` 复用运行期 `isa` lowering、generic pattern instance 在 pass view 中暴露 body-known summary、以及 indirect GC aggregate pattern param 会先按 ABI load 再匹配；
+    - `crates/scoopc/src/llvm/tests.rs`：验证 raw non-generic pattern body 若仍需 HIR-compatible reachability 扫描（如 async helper 依赖定义），production reachability 仍会补齐 helper definition；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc production_codegen_ -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
 ### [TODO] T5000j2R Review：确认 `when` / pattern 覆盖扩张仍沿 MIR 结构主线推进
 - 重点：

@@ -22,7 +22,7 @@ struct MirLocalSlot<'ctx> {
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(crate) fn raw_materialized_mir_body_requires_hir_compat_boundary(
-        &self,
+        &mut self,
         hir_fun: &hir::FunDecl,
         mir_fun: &crate::mir::FunDecl,
     ) -> bool {
@@ -32,7 +32,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(body) = mir_fun.body.as_ref() else {
             return true;
         };
-        body.validate_cfg().is_err() || !self.raw_materialized_mir_body_is_supported(body)
+        let mir_types = self
+            .materialized_pass_view()
+            .map(|view| &view.materialized().types)
+            .unwrap_or(self.types);
+        body.validate_cfg().is_err()
+            || !self.raw_materialized_mir_body_is_supported(body, mir_types)
     }
 
     pub(crate) fn codegen_top_level_mir_fun(
@@ -108,6 +113,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or(self.types);
         let mut local_slots = self.create_mir_local_slots(body, mir_types)?;
         self.bind_mir_params(
+            hir_fun,
             mir_fun,
             llvm_fun,
             u32::from(uses_hidden_sret),
@@ -136,7 +142,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for (idx, block) in body.blocks.iter().enumerate() {
             self.builder.position_at_end(llvm_blocks[idx]);
             for stmt in &block.stmts {
-                self.codegen_mir_statement(stmt, body, &local_slots, &used_locals)?;
+                self.codegen_mir_statement(stmt, body, mir_types, &local_slots, &used_locals)?;
             }
             self.codegen_mir_terminator(
                 &block.terminator,
@@ -181,20 +187,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect()
     }
 
-    fn raw_materialized_mir_body_is_supported(&self, body: &crate::mir::Body) -> bool {
+    fn raw_materialized_mir_body_is_supported(
+        &mut self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+    ) -> bool {
         let used_locals = collect_mir_local_uses(body);
         body.blocks.iter().all(|block| {
-            block
-                .stmts
-                .iter()
-                .all(|stmt| self.raw_materialized_mir_statement_is_supported(stmt, &used_locals))
-                && self.raw_materialized_mir_terminator_is_supported(&block.terminator.kind)
+            block.stmts.iter().all(|stmt| {
+                self.raw_materialized_mir_statement_is_supported(
+                    stmt,
+                    body,
+                    mir_types,
+                    &used_locals,
+                )
+            }) && self.raw_materialized_mir_terminator_is_supported(&block.terminator.kind)
         })
     }
 
     fn raw_materialized_mir_statement_is_supported(
-        &self,
+        &mut self,
         stmt: &crate::mir::Statement,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
         used_locals: &HashSet<crate::mir::LocalId>,
     ) -> bool {
         match &stmt.kind {
@@ -206,7 +221,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 {
                     return true;
                 }
-                self.raw_materialized_mir_rvalue_is_supported(value)
+                let Some(target_cg) = self.mir_local_cg_ty(body, mir_types, *target) else {
+                    return false;
+                };
+                self.raw_materialized_mir_rvalue_is_supported(
+                    body,
+                    mir_types,
+                    value,
+                    Some(target_cg),
+                )
             }
             crate::mir::StatementKind::Todo(_) => false,
         }
@@ -233,7 +256,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn raw_materialized_mir_rvalue_is_supported(&self, value: &crate::mir::Rvalue) -> bool {
+    fn raw_materialized_mir_rvalue_is_supported(
+        &mut self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        value: &crate::mir::Rvalue,
+        target_cg: Option<CgTy>,
+    ) -> bool {
         match value {
             crate::mir::Rvalue::Use(operand) | crate::mir::Rvalue::Unary { operand, .. } => {
                 self.raw_materialized_mir_operand_is_supported(operand)
@@ -254,6 +283,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .iter()
                         .all(|arg| self.raw_materialized_mir_operand_is_supported(&arg.value))
             }
+            crate::mir::Rvalue::PatternMatch { subject, pattern } => {
+                let Some(subject_ty) = self.mir_operand_cg_ty(body, mir_types, subject) else {
+                    return false;
+                };
+                self.raw_materialized_mir_operand_is_supported(subject)
+                    && self
+                        .raw_materialized_mir_pattern_is_supported(mir_types, pattern, subject_ty)
+            }
+            crate::mir::Rvalue::PatternExtract { subject, path } => {
+                let Some(target_cg) = target_cg else {
+                    return false;
+                };
+                self.raw_materialized_mir_operand_is_supported(subject)
+                    && self.raw_materialized_mir_pattern_extract_is_supported(
+                        body, mir_types, subject, path, target_cg,
+                    )
+            }
             crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
@@ -263,8 +309,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | crate::mir::Rvalue::CaptureBoxNew { .. }
             | crate::mir::Rvalue::CaptureBoxGet { .. }
             | crate::mir::Rvalue::CaptureBoxSet { .. }
-            | crate::mir::Rvalue::PatternMatch { .. }
-            | crate::mir::Rvalue::PatternExtract { .. }
             | crate::mir::Rvalue::MakeClosure { .. }
             | crate::mir::Rvalue::PerformResult { .. }
             | crate::mir::Rvalue::Todo(_) => false,
@@ -273,13 +317,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn raw_materialized_mir_call_kind_is_supported(&self, kind: &crate::mir::CallKind) -> bool {
         match kind {
-            crate::mir::CallKind::Direct { callee_fqn } => self.fun_index.contains_key(callee_fqn),
+            crate::mir::CallKind::Direct { callee_fqn } => {
+                self.raw_materialized_mir_direct_call_is_supported(callee_fqn)
+            }
             crate::mir::CallKind::Closure { .. }
             | crate::mir::CallKind::FunValue { .. }
             | crate::mir::CallKind::Virtual { .. }
             | crate::mir::CallKind::Interface { .. }
             | crate::mir::CallKind::Resume { .. } => false,
         }
+    }
+
+    fn raw_materialized_mir_direct_call_is_supported(&self, callee_fqn: &str) -> bool {
+        if self.extern_funs.contains_key(callee_fqn) {
+            return true;
+        }
+        self.fun_index
+            .get(callee_fqn)
+            .is_some_and(|fun| fun.body.is_some())
     }
 
     fn raw_materialized_mir_operand_is_supported(&self, operand: &crate::mir::Operand) -> bool {
@@ -339,27 +394,257 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .find(|&candidate| self.types.display(candidate).to_string() == source_display)
     }
 
+    fn mir_local_cg_ty(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        local: crate::mir::LocalId,
+    ) -> Option<CgTy> {
+        let local = body.locals.get(local.as_u32() as usize)?;
+        self.cg_ty_of_mir_type(mir_types, local.ty)
+    }
+
+    fn mir_operand_cg_ty(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        operand: &crate::mir::Operand,
+    ) -> Option<CgTy> {
+        match operand {
+            crate::mir::Operand::Local(local) => self.mir_local_cg_ty(body, mir_types, *local),
+            crate::mir::Operand::Const(value) => self.mir_const_cg_ty(value),
+        }
+    }
+
+    fn mir_const_cg_ty(&self, value: &crate::mir::ConstValue) -> Option<CgTy> {
+        match value {
+            crate::mir::ConstValue::Bool(_) => Some(CgTy::Bool),
+            crate::mir::ConstValue::Char => Some(CgTy::Int(IntTy {
+                bits: 32,
+                signed: false,
+            })),
+            crate::mir::ConstValue::Unit => Some(CgTy::Unit),
+            crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => {
+                self.cg_ty_of(self.builtins.int)
+            }
+            crate::mir::ConstValue::Float64 => Some(CgTy::Float64),
+            crate::mir::ConstValue::Float32 => Some(CgTy::Float32),
+            crate::mir::ConstValue::String => Some(CgTy::String),
+        }
+    }
+
+    fn raw_materialized_mir_pattern_is_supported(
+        &mut self,
+        mir_types: &TypeStore,
+        pattern: &crate::mir::Pattern,
+        subject_ty: CgTy,
+    ) -> bool {
+        match pattern {
+            crate::mir::Pattern::Else
+            | crate::mir::Pattern::Wildcard
+            | crate::mir::Pattern::Rest
+            | crate::mir::Pattern::Bind { .. } => true,
+            crate::mir::Pattern::Or { pats } => pats.iter().all(|pat| {
+                self.raw_materialized_mir_pattern_is_supported(mir_types, pat, subject_ty)
+            }),
+            crate::mir::Pattern::Is { ty } => {
+                matches!(subject_ty, CgTy::Ref | CgTy::String)
+                    && self
+                        .equivalent_codegen_type_id(mir_types, *ty)
+                        .and_then(|target_ty| self.cg_ty_of(target_ty))
+                        .is_some_and(|target_cg| matches!(target_cg, CgTy::Ref | CgTy::String))
+            }
+            crate::mir::Pattern::Tuple { elements } => {
+                let CgTy::Tuple(tuple_ty) = subject_ty else {
+                    return false;
+                };
+                self.raw_materialized_mir_tuple_pattern_is_supported(mir_types, tuple_ty, elements)
+            }
+            crate::mir::Pattern::Variant { name, args } => {
+                let CgTy::Enum(enum_ty) = subject_ty else {
+                    return false;
+                };
+                self.raw_materialized_mir_variant_pattern_is_supported(
+                    mir_types, enum_ty, name, args,
+                )
+            }
+            crate::mir::Pattern::IntLit { .. } | crate::mir::Pattern::CharLit { .. } => {
+                matches!(subject_ty, CgTy::Int(_))
+            }
+            crate::mir::Pattern::StringLit { .. } => subject_ty == CgTy::String,
+            crate::mir::Pattern::BoolLit { .. } => subject_ty == CgTy::Bool,
+        }
+    }
+
+    fn raw_materialized_mir_tuple_pattern_is_supported(
+        &mut self,
+        mir_types: &TypeStore,
+        tuple_ty: TypeId,
+        elements: &[crate::mir::Pattern],
+    ) -> bool {
+        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty) else {
+            return false;
+        };
+
+        let (prefix_pats, has_rest) = match elements.last() {
+            Some(crate::mir::Pattern::Rest) => {
+                (&elements[..elements.len().saturating_sub(1)], true)
+            }
+            _ => (elements, false),
+        };
+        let pat_arity = prefix_pats.len();
+        if (!has_rest && pat_arity != tuple_elems.len())
+            || (has_rest && pat_arity > tuple_elems.len())
+        {
+            return false;
+        }
+
+        prefix_pats.iter().enumerate().all(|(idx, pat)| {
+            let Some(elem_ty) = self.tuple_element_cg_ty(tuple_ty, idx) else {
+                return false;
+            };
+            self.raw_materialized_mir_pattern_is_supported(mir_types, pat, elem_ty)
+        })
+    }
+
+    fn raw_materialized_mir_variant_pattern_is_supported(
+        &mut self,
+        mir_types: &TypeStore,
+        enum_ty: TypeId,
+        variant_name: &str,
+        args: &[crate::mir::Pattern],
+    ) -> bool {
+        let dummy_span = crate::span::Span::new(0, 0);
+        let Ok(layout) = self.cg_enum_layout(dummy_span, enum_ty) else {
+            return false;
+        };
+        let Some(variant) = layout
+            .variants
+            .iter()
+            .find(|variant| variant.name == variant_name)
+        else {
+            return false;
+        };
+        let (prefix_pats, has_rest) = match args.last() {
+            Some(crate::mir::Pattern::Rest) => (&args[..args.len().saturating_sub(1)], true),
+            _ => (args, false),
+        };
+        let expected_arity = variant.fields.len();
+        let found_arity = prefix_pats.len();
+        if (!has_rest && expected_arity != found_arity)
+            || (has_rest && found_arity > expected_arity)
+        {
+            return false;
+        }
+
+        prefix_pats.iter().enumerate().all(|(idx, pat)| {
+            let Some(field_ty) = variant.fields.get(idx).copied() else {
+                return false;
+            };
+            self.raw_materialized_mir_pattern_is_supported(mir_types, pat, field_ty)
+        })
+    }
+
+    fn raw_materialized_mir_pattern_extract_is_supported(
+        &mut self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        subject: &crate::mir::Operand,
+        path: &[crate::mir::PatternBindingStep],
+        target_ty: CgTy,
+    ) -> bool {
+        let Some(mut current_ty) = self.mir_operand_cg_ty(body, mir_types, subject) else {
+            return false;
+        };
+        for step in path {
+            let Some(next_ty) = self.mir_pattern_binding_step_result_ty(current_ty, step) else {
+                return false;
+            };
+            current_ty = next_ty;
+        }
+        current_ty == target_ty
+    }
+
+    fn mir_pattern_binding_step_result_ty(
+        &mut self,
+        current_ty: CgTy,
+        step: &crate::mir::PatternBindingStep,
+    ) -> Option<CgTy> {
+        match step {
+            crate::mir::PatternBindingStep::TupleIndex(index) => {
+                let CgTy::Tuple(tuple_ty) = current_ty else {
+                    return None;
+                };
+                self.tuple_element_cg_ty(tuple_ty, *index)
+            }
+            crate::mir::PatternBindingStep::VariantField {
+                variant,
+                field_index,
+            } => {
+                let CgTy::Enum(enum_ty) = current_ty else {
+                    return None;
+                };
+                let layout = self
+                    .cg_enum_layout(crate::span::Span::new(0, 0), enum_ty)
+                    .ok()?;
+                let variant = layout.variants.iter().find(|item| item.name == *variant)?;
+                variant.fields.get(*field_index).copied()
+            }
+        }
+    }
+
+    fn tuple_element_cg_ty(&self, tuple_ty: TypeId, index: usize) -> Option<CgTy> {
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
+            return None;
+        };
+        let elem_ty = *elements.get(index)?;
+        self.cg_ty_of(elem_ty)
+    }
+
     fn bind_mir_params(
         &mut self,
+        hir_fun: &hir::FunDecl,
         mir_fun: &crate::mir::FunDecl,
         llvm_fun: FunctionValue<'ctx>,
         param_offset: u32,
         slots: &mut [MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
         for (idx, param) in mir_fun.params.iter().enumerate() {
+            let hir_param = hir_fun
+                .params
+                .get(idx)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR param arity",
+                    at: param.span.into(),
+                })?;
             let slot = slots.get(param.local.as_u32() as usize).copied().ok_or(
                 LlvmEmitError::UnsupportedMainBody {
                     kind: "pass MIR param local",
                     at: param.span.into(),
                 },
             )?;
-            let init = self.cg_value_from_llvm_param(
-                param.span,
-                llvm_fun,
-                idx as u32 + param_offset,
-                slot.cg_ty,
-                "missing pass MIR llvm param",
-            )?;
+            let abi = self.ordinary_param_abi(param.span, hir_param.ty)?;
+            let init = if let Some(pointee_ty) = abi.pointee_ty() {
+                let param_ptr = llvm_fun
+                    .get_nth_param(idx as u32 + param_offset)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "missing pass MIR llvm param",
+                        at: param.span.into(),
+                    })?
+                    .into_pointer_value();
+                let loaded =
+                    self.builder
+                        .build_load(pointee_ty, param_ptr, "pass_mir_param_load")?;
+                self.cg_value_from_loaded(param.span, slot.cg_ty, loaded)?
+            } else {
+                self.cg_value_from_llvm_param(
+                    param.span,
+                    llvm_fun,
+                    idx as u32 + param_offset,
+                    slot.cg_ty,
+                    "missing pass MIR llvm param",
+                )?
+            };
             let _ = self.store_local_value(param.span, slot.ptr, slot.cg_ty, init)?;
         }
         Ok(())
@@ -369,6 +654,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         stmt: &crate::mir::Statement,
         body: &crate::mir::Body,
+        mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         used_locals: &HashSet<crate::mir::LocalId>,
     ) -> Result<(), LlvmEmitError> {
@@ -390,7 +676,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(());
                 }
                 let slot = self.mir_local_slot(stmt.span, slots, *target)?;
-                let value = self.codegen_mir_rvalue(stmt.span, value, body, slots, slot.cg_ty)?;
+                let value =
+                    self.codegen_mir_rvalue(stmt.span, value, body, mir_types, slots, slot.cg_ty)?;
                 let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
                 Ok(())
             }
@@ -490,6 +777,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         value: &crate::mir::Rvalue,
         body: &crate::mir::Body,
+        mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -512,6 +800,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Call { kind, args } => {
                 self.codegen_mir_call(span, kind, args, body, slots)
             }
+            crate::mir::Rvalue::PatternMatch { subject, pattern } => {
+                self.codegen_mir_pattern_match(span, mir_types, subject, pattern, slots)
+            }
+            crate::mir::Rvalue::PatternExtract { subject, path } => {
+                self.codegen_mir_pattern_extract(span, subject, path, slots, target_cg)
+            }
             crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
@@ -521,8 +815,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | crate::mir::Rvalue::CaptureBoxNew { .. }
             | crate::mir::Rvalue::CaptureBoxGet { .. }
             | crate::mir::Rvalue::CaptureBoxSet { .. }
-            | crate::mir::Rvalue::PatternMatch { .. }
-            | crate::mir::Rvalue::PatternExtract { .. }
             | crate::mir::Rvalue::MakeClosure { .. }
             | crate::mir::Rvalue::PerformResult { .. }
             | crate::mir::Rvalue::Todo(_) => {
@@ -642,6 +934,524 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_mir_pattern_match(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        subject: &crate::mir::Operand,
+        pattern: &crate::mir::Pattern,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let subject = self.codegen_mir_operand(span, subject, slots)?;
+        let cond = self.codegen_mir_pattern_match_value(span, mir_types, subject, pattern)?;
+        Ok(CgValue::bool(cond))
+    }
+
+    fn codegen_mir_pattern_match_value(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        subject: CgValue<'ctx>,
+        pattern: &crate::mir::Pattern,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match pattern {
+            crate::mir::Pattern::Else
+            | crate::mir::Pattern::Wildcard
+            | crate::mir::Pattern::Rest
+            | crate::mir::Pattern::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
+            crate::mir::Pattern::Or { pats } => {
+                let mut cond = self.context.bool_type().const_int(0, false);
+                for pat in pats {
+                    let pat_cond =
+                        self.codegen_mir_pattern_match_value(span, mir_types, subject, pat)?;
+                    cond = self
+                        .builder
+                        .build_or(cond, pat_cond, "pass_mir_pattern_or")?;
+                }
+                Ok(cond)
+            }
+            crate::mir::Pattern::Is { ty } => {
+                self.codegen_mir_is_pattern_match(span, mir_types, subject, *ty)
+            }
+            crate::mir::Pattern::Tuple { elements } => {
+                self.codegen_mir_tuple_pattern_match(span, mir_types, subject, elements)
+            }
+            crate::mir::Pattern::Variant { name, args } => {
+                self.codegen_mir_variant_pattern_match(span, mir_types, subject, name, args)
+            }
+            crate::mir::Pattern::IntLit { raw } => {
+                let (value, int_ty) =
+                    subject.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR pattern int subject",
+                        at: span.into(),
+                    })?;
+                let expected = self.int_literal_bits_from_text_for_ty(span, raw, int_ty)?;
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    value,
+                    self.int_type(int_ty).const_int(expected, false),
+                    "pass_mir_pattern_int_eq",
+                )?)
+            }
+            crate::mir::Pattern::CharLit { value: expected } => {
+                let (value, int_ty) =
+                    subject.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR pattern char subject",
+                        at: span.into(),
+                    })?;
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    value,
+                    self.int_type(int_ty).const_int(*expected as u64, false),
+                    "pass_mir_pattern_char_eq",
+                )?)
+            }
+            crate::mir::Pattern::StringLit { value } => {
+                let CgTy::String = subject.ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR pattern string subject",
+                        at: span.into(),
+                    });
+                };
+                let Some(BasicValueEnum::PointerValue(subject_ptr)) = subject.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR pattern string value",
+                        at: span.into(),
+                    });
+                };
+                let expected = self.codegen_string_literal_from_text(span, value)?;
+                let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR pattern string literal",
+                        at: span.into(),
+                    });
+                };
+                let fn_val = self.declare_runtime_string_equals();
+                let call = self.builder.build_call(
+                    fn_val,
+                    &[subject_ptr.into(), expected_ptr.into()],
+                    "pass_mir_pattern_str_eq",
+                )?;
+                let raw_result = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR pattern string equals return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(eq_i64) = raw_result else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR pattern string equals return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::NE,
+                    eq_i64,
+                    self.context.i64_type().const_zero(),
+                    "pass_mir_pattern_str_eq_bool",
+                )?)
+            }
+            crate::mir::Pattern::BoolLit { value: expected } => {
+                let value = subject
+                    .as_bool()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR pattern bool subject",
+                        at: span.into(),
+                    })?;
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    value,
+                    self.context.bool_type().const_int(*expected as u64, false),
+                    "pass_mir_pattern_bool_eq",
+                )?)
+            }
+        }
+    }
+
+    fn codegen_mir_is_pattern_match(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        subject: CgValue<'ctx>,
+        target_ty: TypeId,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let target_ty = self
+            .equivalent_codegen_type_id(mir_types, target_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR pattern is target type",
+                at: span.into(),
+            })?;
+        let target_cg = self
+            .cg_ty_of(target_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR pattern is target type",
+                at: span.into(),
+            })?;
+        if !matches!(target_cg, CgTy::Ref | CgTy::String) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR pattern is target runtime type",
+                at: span.into(),
+            });
+        }
+
+        let subject = match subject.ty {
+            CgTy::Ref => subject,
+            CgTy::String => self.coerce_value(span, subject, CgTy::Ref)?,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR pattern is subject type",
+                    at: span.into(),
+                });
+            }
+        };
+        let Some(BasicValueEnum::PointerValue(subject_ptr)) = subject.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR pattern is subject value",
+                at: span.into(),
+            });
+        };
+        self.codegen_ref_is_instance_of(span, subject_ptr, target_ty)
+    }
+
+    fn codegen_mir_tuple_pattern_match(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        subject: CgValue<'ctx>,
+        elements: &[crate::mir::Pattern],
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let CgTy::Tuple(tuple_ty) = subject.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR tuple pattern subject type",
+                at: span.into(),
+            });
+        };
+        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR tuple pattern tuple type",
+                at: span.into(),
+            });
+        };
+        let Some(raw) = subject.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR tuple pattern subject value",
+                at: span.into(),
+            });
+        };
+        let tuple_v = raw.into_struct_value();
+        let (prefix_pats, has_rest) = match elements.last() {
+            Some(crate::mir::Pattern::Rest) => {
+                (&elements[..elements.len().saturating_sub(1)], true)
+            }
+            _ => (elements, false),
+        };
+        let pat_arity = prefix_pats.len();
+        if (!has_rest && pat_arity != tuple_elems.len())
+            || (has_rest && pat_arity > tuple_elems.len())
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR tuple pattern arity",
+                at: span.into(),
+            });
+        }
+
+        let mut cond = self.context.bool_type().const_int(1, false);
+        for (idx, pat) in prefix_pats.iter().enumerate() {
+            let elem_ty = self.tuple_element_cg_ty(tuple_ty, idx).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR tuple pattern element type",
+                    at: span.into(),
+                },
+            )?;
+            let elem_value = self.extract_mir_tuple_element_value(span, tuple_v, idx, elem_ty)?;
+            let elem_cond =
+                self.codegen_mir_pattern_match_value(span, mir_types, elem_value, pat)?;
+            cond = self
+                .builder
+                .build_and(cond, elem_cond, "pass_mir_tuple_pattern_and")?;
+        }
+        Ok(cond)
+    }
+
+    fn codegen_mir_variant_pattern_match(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        subject: CgValue<'ctx>,
+        variant_name: &str,
+        args: &[crate::mir::Pattern],
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let CgTy::Enum(enum_ty) = subject.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR variant pattern subject type",
+                at: span.into(),
+            });
+        };
+        let Some(raw) = subject.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR variant pattern subject value",
+                at: span.into(),
+            });
+        };
+        let (repr, variant) = {
+            let layout = self.cg_enum_layout(span, enum_ty)?;
+            let repr = layout.repr;
+            let variant = layout
+                .variants
+                .iter()
+                .find(|variant| variant.name == variant_name)
+                .cloned()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR unknown enum variant",
+                    at: span.into(),
+                })?;
+            (repr, variant)
+        };
+        let (prefix_pats, has_rest) = match args.last() {
+            Some(crate::mir::Pattern::Rest) => (&args[..args.len().saturating_sub(1)], true),
+            _ => (args, false),
+        };
+        let expected_arity = variant.fields.len();
+        let found_arity = prefix_pats.len();
+        if (!has_rest && expected_arity != found_arity)
+            || (has_rest && found_arity > expected_arity)
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR variant pattern arity",
+                at: span.into(),
+            });
+        }
+
+        let tag = self.extract_mir_enum_tag_value(span, enum_ty, repr, raw)?;
+        let expected = tag.get_type().const_int(variant.tag, false);
+        let tag_eq = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            tag,
+            expected,
+            "pass_mir_variant_tag_eq",
+        )?;
+        if !prefix_pats
+            .iter()
+            .any(Self::mir_pattern_needs_payload_match)
+        {
+            return Ok(tag_eq);
+        }
+
+        let subject_ptr = self.create_entry_alloca(span, "pass_mir_variant_subject", subject.ty)?;
+        let _ = self.store_local_value(span, subject_ptr, subject.ty, subject)?;
+        let current_bb =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = current_bb
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let payload_bb = self
+            .context
+            .append_basic_block(func, "pass_mir_variant_payload");
+        let merge_bb = self
+            .context
+            .append_basic_block(func, "pass_mir_variant_merge");
+        self.builder
+            .build_conditional_branch(tag_eq, payload_bb, merge_bb)?;
+
+        self.builder.position_at_end(payload_bb);
+        let mut payload_cond = self.context.bool_type().const_int(1, false);
+        for (idx, pat) in prefix_pats.iter().enumerate() {
+            if !Self::mir_pattern_needs_payload_match(pat) {
+                continue;
+            }
+            let extracted = self.extract_matched_when_variant_field_value(
+                enum_ty,
+                repr,
+                &variant,
+                idx,
+                span,
+                subject_ptr,
+            )?;
+            let field_cond =
+                self.codegen_mir_pattern_match_value(span, mir_types, extracted, pat)?;
+            payload_cond =
+                self.builder
+                    .build_and(payload_cond, field_cond, "pass_mir_variant_payload_and")?;
+        }
+
+        let payload_tail =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR variant payload tail",
+                    at: span.into(),
+                })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(merge_bb);
+        let phi = self
+            .builder
+            .build_phi(self.context.bool_type(), "pass_mir_variant_match")?;
+        let no_match = self.context.bool_type().const_int(0, false);
+        phi.add_incoming(&[(&no_match, current_bb), (&payload_cond, payload_tail)]);
+        Ok(phi.as_basic_value().into_int_value())
+    }
+
+    fn codegen_mir_pattern_extract(
+        &mut self,
+        span: crate::span::Span,
+        subject: &crate::mir::Operand,
+        path: &[crate::mir::PatternBindingStep],
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let mut current = self.codegen_mir_operand(span, subject, slots)?;
+        for step in path {
+            current = match step {
+                crate::mir::PatternBindingStep::TupleIndex(index) => {
+                    let CgTy::Tuple(tuple_ty) = current.ty else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR pattern extract tuple subject type",
+                            at: span.into(),
+                        });
+                    };
+                    let Some(raw) = current.value else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR pattern extract tuple subject value",
+                            at: span.into(),
+                        });
+                    };
+                    let elem_ty = self.tuple_element_cg_ty(tuple_ty, *index).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR pattern extract tuple field type",
+                            at: span.into(),
+                        },
+                    )?;
+                    self.extract_mir_tuple_element_value(
+                        span,
+                        raw.into_struct_value(),
+                        *index,
+                        elem_ty,
+                    )?
+                }
+                crate::mir::PatternBindingStep::VariantField {
+                    variant,
+                    field_index,
+                } => {
+                    let CgTy::Enum(enum_ty) = current.ty else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR pattern extract variant subject type",
+                            at: span.into(),
+                        });
+                    };
+                    let layout = self.cg_enum_layout(span, enum_ty)?;
+                    let variant = layout
+                        .variants
+                        .iter()
+                        .find(|item| item.name == *variant)
+                        .cloned()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR pattern extract unknown enum variant",
+                            at: span.into(),
+                        })?;
+                    let subject_ptr =
+                        self.create_entry_alloca(span, "pass_mir_extract_subject", current.ty)?;
+                    let _ = self.store_local_value(span, subject_ptr, current.ty, current)?;
+                    self.extract_matched_when_variant_field_value(
+                        enum_ty,
+                        layout.repr,
+                        &variant,
+                        *field_index,
+                        span,
+                        subject_ptr,
+                    )?
+                }
+            };
+        }
+        self.coerce_value(span, current, target_cg)
+    }
+
+    fn extract_mir_tuple_element_value(
+        &mut self,
+        span: crate::span::Span,
+        tuple_v: inkwell::values::StructValue<'ctx>,
+        index: usize,
+        elem_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if elem_ty == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+        let raw = self
+            .builder
+            .build_extract_value(tuple_v, index as u32, "pass_mir_tuple_elem")?;
+        self.cg_value_from_loaded(span, elem_ty, raw)
+    }
+
+    fn extract_mir_enum_tag_value(
+        &mut self,
+        span: crate::span::Span,
+        enum_ty: TypeId,
+        repr: CgEnumRepr,
+        raw: BasicValueEnum<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match repr {
+            CgEnumRepr::TaggedUnion => Ok(self
+                .builder
+                .build_extract_value(raw.into_struct_value(), 0, "pass_mir_when_tag")?
+                .into_int_value()),
+            CgEnumRepr::Niche {
+                storage,
+                none_value,
+            } => {
+                let is_none = match storage {
+                    NicheStorage::Pointer => {
+                        let ptr = raw.into_pointer_value();
+                        if none_value != 0 {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "pass MIR niche pointer none_value",
+                                at: span.into(),
+                            });
+                        }
+                        self.builder.build_is_null(ptr, "pass_mir_option_is_none")?
+                    }
+                    NicheStorage::U8 => {
+                        let value = raw.into_int_value();
+                        let expected = self.context.i8_type().const_int(none_value, false);
+                        self.builder.build_int_compare(
+                            IntPredicate::EQ,
+                            value,
+                            expected,
+                            "pass_mir_option_is_none",
+                        )?
+                    }
+                };
+                let some_tag = self.context.i32_type().const_int(0, false);
+                let none_tag = self.context.i32_type().const_int(1, false);
+                Ok(self
+                    .builder
+                    .build_select(is_none, none_tag, some_tag, "pass_mir_option_tag")?
+                    .into_int_value())
+            }
+            CgEnumRepr::ValueOnly { .. } => {
+                let _ = enum_ty;
+                Ok(raw.into_int_value())
+            }
+        }
+    }
+
+    fn mir_pattern_needs_payload_match(pattern: &crate::mir::Pattern) -> bool {
+        !matches!(
+            pattern,
+            crate::mir::Pattern::Else
+                | crate::mir::Pattern::Wildcard
+                | crate::mir::Pattern::Rest
+                | crate::mir::Pattern::Bind { .. }
+        )
+    }
+
     fn codegen_mir_call(
         &mut self,
         span: crate::span::Span,
@@ -682,6 +1492,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "pass MIR call callee type",
                     at: span.into(),
                 })?;
+        if !is_extern && sig_fun.body.is_none() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR declaration-only direct call",
+                at: span.into(),
+            });
+        }
         let call_may_suspend = self.known_fun_body_may_outward_effect(fqn, sig_fun.ty);
         let explicit_effect_call = call_may_suspend && !is_extern;
 

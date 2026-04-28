@@ -1,68 +1,64 @@
-# 当前执行计划
+# 当前执行记录
 
-更新时间：2026-04-28
+## 约束与目标
 
-说明：按要求在执行命令前先记录计划。这里记录的是可审计的执行计划、观察、决策与进度摘要，不包含不可导出的内部推理细节。
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后停止。
+- 在开始任何仓库检查与执行前，先建立本文件，记录计划与后续进展。
+- 若最新提交提到既有问题，需优先修复。
+- 若在执行中发现任何既有缺陷、规格不匹配、回归、实现边界不完整或依赖缺失，必须先修复，或将其作为前置任务插入 `TODO.md` 后停止。
+- 不接受通过规避路径、缩小范围、夹具特判或其他临时方案绕过问题。
 
-## 目标
+## 初始执行计划
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果在检查、测试或实现过程中发现更早的既有问题，则优先修复该问题，或将其作为前置任务插入 `TODO.md` 后停止。
-
-## 初始步骤
-
-1. 检查最新一次 git 提交信息，确认是否提到已知未修复问题；若有，先修复该问题。
+1. 查看最新一次 Git 提交信息，确认是否显式提到待修复的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，确认现有计划与依赖关系。
-4. 评估该任务是否可在本轮完整交付。
-5. 若任务过大，则拆分为更小子任务，并更新 `TODO.md` 与 `PLAN.md`，然后执行拆分后的第一个子任务。
-6. 实现任务。
-7. 运行相关测试，并补齐必要测试。
-8. 运行质量检查，至少包括与改动相关的测试，以及在可行时运行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
-9. 更新 `TODO.md` 与 `PLAN.md` 记录结果。
-10. 使用清晰的提交信息提交改动，并停止。
+3. 阅读 `PLAN.md`，理解现有计划、依赖与任务背景。
+4. 结合代码现状评估该任务是否可以在本轮完整落地。
+5. 若任务过大，先将其拆分为更小的前置子任务，并同步更新 `TODO.md` 与 `PLAN.md`，然后执行拆分后的第一个子任务。
+6. 实现任务所需代码修改。
+7. 运行相关测试、格式化、lint 与必要验证，修复执行中发现的所有既有问题。
+8. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成状态与任何计划调整。
+9. 提交 Git commit，提交信息需清晰描述本轮完成内容。
+10. 停止，不继续处理下一个任务。
 
-## 执行约束
+## 进度日志
 
-- 不接受绕过实现缺陷的临时方案。
-- 如果发现阻塞当前任务的既有缺陷，必须先修复，或将其添加为前置任务后停止。
-- 本轮只完成一个任务，不推进到下一个任务。
-- 不回退或覆盖我未创建的现有改动。
-
-## 进度记录
-
-- 2026-04-28：已创建计划文件，下一步开始检查最新提交与任务列表。
-- 2026-04-28：已检查最新提交标题与 `TODO.md` / `PLAN.md`，当前首个未完成任务为 `T5000j1R Review：确认 operator-overload target 已脱离 LLVM backend 现场物化`。
-- 2026-04-28：已完成静态 review。结论是 operator-overload / `compareTo` target identity 已前移到 typecheck + typed HIR / generic MIR 主线：typecheck 记录 `TopLevelFunCallBinding`，typed HIR 将 operator-overload 站点改写为显式 direct-call，`compareTo` 则改写为 `direct-call + SynthInt(0)` 的整数比较；production reachability 与 MIR materialization 继续消费显式 direct-call，不再依赖 LLVM backend 现场猜目标。
-- 2026-04-28：测试已完成且通过：
-  - `cargo test -p scoopc compare_to -- --nocapture`
-  - `cargo test -p scoopc operator_overload -- --nocapture`
+- 已创建本文件，准备开始仓库检查。
+- 已检查最新提交 `e6ff6bf`（`[T5000j1R] Review operator-overload target boundary`）；提交说明未显式声明新的遗留 bug 需要优先修复。
+- 已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务为 `T5000j2 扩展 when / pattern 到 production MIR body / summary 主线`。
+- 已完成针对 `T5000j2` 的定点探查，当前结论如下：
+  - generic MIR lowering 已经把 `when` 收口为显式 CFG + `Rvalue::PatternMatch` / `Rvalue::PatternExtract`；
+  - `mir::summary`、materialization、escape / inline 等 shared/middle-end 路径已经能稳定消费这两个节点；
+  - 当前主要缺口集中在 `crates/scoopc/src/llvm/codegen/mir_body.rs`：raw materialized MIR body 支持检查与 production MIR bridge 仍把 `PatternMatch` / `PatternExtract` 统一判为 unsupported，导致非 effect 的 `when`/pattern body 继续退回 HIR-compatible emission；
+  - probing 同时暴露了一个既有 production 缺口：`when` pattern 的 `is Type` 形状在 parser/typecheck/HIR/MIR 均已存在，但当前 production lowering 主线没有真正打通。
+- 已完成 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/reachability.rs` 与 `crates/scoopc/src/llvm/tests.rs` 的实现与回归补齐：
+  - raw materialized MIR body 现已支持 `PatternMatch` / `PatternExtract`，并覆盖 wildcard / bind / rest / or / tuple / variant / literal / `is` 等常见非 effect pattern 形状；
+  - raw non-generic pattern body 现已纳入 production reachability / body emission 的 canonical materialized body 主线；
+  - 已新增 production LLVM 回归，覆盖 declaration-only direct-call fallback、variant payload binder、`when is Type`、generic pattern summary 暴露与 indirect GC aggregate pattern param ABI load。
+- 全量验证过程中发现并修复了一个既有回归：
+  - `cargo run -p scoop -- test` 首次失败于 `tests/fixtures/run-pass/option_nested_ref_no_nested_niche_basic.scoop`；
+  - 根因是 `bind_mir_params` 忽略了 ordinary param ABI 的 indirect GC aggregate 分支，把 `Option<Option<String>>` 这类 pattern 参数的 ABI 指针误当作 enum 值解释；
+  - 已修为“先按 ABI load 间接参数，再进入 MIR pattern lowering”，fixture 输出恢复为 `hi / inner-none / outer-none`。
+- 修复后的最终验证已全部通过：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc production_codegen_ -- --nocapture`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
   - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
-- 2026-04-28：未发现需要插入到 `T5000j2` 之前的新前置缺陷任务；下一步更新 `TODO.md` / `PLAN.md` 并提交。
+- 当前已完成 `T5000j2` 的实现、测试与文档更新，下一步只剩提交本轮改动并停止。
 
-## 本轮执行细化
+## 细化实施计划
 
-1. 阅读 `T5000j1R` 相邻的 `TODO.md` / `PLAN.md` 条目，提炼本轮 review 的验收条件。
-2. 检查最新提交及其相关代码路径：
-   - `typecheck` 中 operator-overload / `compareTo` 绑定路径；
-   - typed HIR lowering；
-   - generic MIR / materialization；
-   - production LLVM codegen 是否仍存在 compareTo/operator-overload 的现场猜测或 eager inclusion。
-3. 运行与该路径直接相关的测试，优先覆盖：
-   - `compareTo` 比较；
-   - operator-overload fixture / LLVM tests；
-   - 如有必要，补充回归测试。
-4. 若发现既有缺陷：
-   - 先修复该缺陷，再更新 `TODO.md` / `PLAN.md` / 本文件，并继续完成当前 review；
-   - 如果无法在本轮安全修复，则把缺陷插入为前置任务并停止。
-5. 若未发现阻塞缺陷：
-   - 将 `T5000j1R` 标记完成；
-   - 更新 `PLAN.md` 与本文件记录 review 结论、证据和测试结果；
-   - 提交本轮改动并停止。
-
-## 当前状态
-
-- `T5000j1R` 的技术结论已确认。
-- `TODO.md` / `PLAN.md` 已更新为完成状态。
-- 下一步：检查工作区差异并提交本轮文档改动。
+1. 直接完成 `T5000j2`，不再拆分子任务。
+   - 理由：缺口已收敛到 production MIR bridge 的 pattern lowering 支持面，属于单一实现面，可在一轮内完整处理。
+2. 扩展 `crates/scoopc/src/llvm/codegen/mir_body.rs`：
+   - 让 raw materialized MIR body 支持检查按实际 pattern 形状与 subject/target 类型判定，而不是一律拒绝；
+   - 为 `PatternMatch` / `PatternExtract` 增加 production MIR lowering；
+   - 支持常见非 effect `when` pattern 形状直接走 MIR 主线：literal / wildcard / bind / rest / or / tuple / variant / `is`。
+3. 如有必要，复用现有 enum/tuple/type-check lowering helper，避免把 pattern 语义判断重新塞回 backend 现场猜测路径。
+4. 添加回归测试，至少覆盖：
+   - production raw MIR body 中的 variant payload binder（验证 `PatternExtract`）；
+   - production raw MIR body 中的 `when is Type`（验证既有 production 缺口已打通）；
+   - 若实现过程中暴露其它既有缺陷，一并修复并补回归。
+5. 运行格式化、相关测试、全量测试与 clippy。
+6. 完成后更新 `TODO.md`、`PLAN.md`、本文件并提交。
