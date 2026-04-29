@@ -73,3 +73,4 @@ For the first incomplete task (or subtask) in `TODO.md`:
 - Use Git commits after every logical step (including plan updates or task decomposition) to maintain a clear history.
 - Never accept a workaround as “done”: every spec mismatch or workaround must be turned into an explicit `TODO.md` task before proceeding.
 - If `PROMPT.md` is changed unexpectedly, include it in your commit as well, do not ignore or revert changes to it.
+- Every single test case or fixture should run in under 1 minute. If you find any test case that gets stuck for a long time, it indicates a problem that must be addressed immediately.
