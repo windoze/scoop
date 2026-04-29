@@ -219,7 +219,7 @@
 - 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`call/abi.rs`、`mir_body.rs`、`effect/mod.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归。确认 HIR/direct-ref 路径、deferred spill/call-arg 路径，以及 effect/resume/state-machine 中复用 `local_ptr_for_use(...)` / `materialize_deferred_cg_value(...)` 的读取点，已统一把 explicit frame home slot 作为 post-safepoint reload source-of-truth。review 期间发现一处真实缺口：production MIR bridge 的 `load_mir_local(...)` 仍直接从 `slot.ptr` 读取，导致 raw/materialized MIR body 在 safepoint 后可能继续复用旧 local 槽位；现已修复为同样经 `local_ptr_for_use(...)` 走 reload helper，并新增 LLVM 回归 `production_mir_function_reloads_direct_gc_local_from_explicit_frame_after_safepoint` 锁定 ordinary managed call 之后的 MIR local reload 行为。另已通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001e1
 
-### [TODO] T5001e2 补齐 aggregate refresh / rebuild contract，覆盖 args、returns、payload transport
+### [DONE] T5001e2 补齐 aggregate refresh / rebuild contract，覆盖 args、returns、payload transport
 - 范围：
   - 对含 ref 的 aggregate，建立“reload 最新 ref 字段 + 复用非 ref 字段 + 重组 fresh aggregate”的 lowering contract。
   - 覆盖 direct arg、indirect arg、sret result、return alloca、effect payload、continuation payload、state-machine transport 等路径。
@@ -227,6 +227,7 @@
 - 验收：
   - 含 ref 的 aggregate 在 safepoint 后继续复制、传值、返回、transport 时，不再依赖 stale 副本；
   - 相关 ABI 路径与 runtime payload 路径都能统一解释为基于最新 home slots 刷新后的值。
+- 完成记录：LLVM codegen 新增基于 explicit-frame leaf home slots 的 aggregate rebuild helper：对带 GC leaf 的 storage slot，会按“ref leaf 从 frame home slot reload、非 ref leaf 从原 storage slot 读取”重建 fresh aggregate，并在需要地址的场景落到临时 rebuild alloca。`local_ptr_for_use(...)`、deferred call-arg materialize、indirect aggregate call-arg pointer materialize 与 hidden-sret result load 已统一改走该 contract，因此 direct/indirect args、hidden sret returns、effect boxed payload transport 以及复用这些入口的 continuation/state-machine transport 不再整体复用 stale local/spill/sret 镜像。另新增三条 LLVM 回归，分别锁定 aggregate call arg、hidden-sret aggregate result 与 boxed effect payload 都会从 explicit-frame home slots 重建 fresh aggregate，并已通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo test --all` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001e1R
 
 ### [TODO] T5001e2R Review：确认 aggregate 不再持有 post-safepoint 的旧 source-of-truth

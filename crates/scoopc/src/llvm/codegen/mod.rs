@@ -1028,6 +1028,180 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(Some(frame_slot))
     }
 
+    fn rebuild_value_from_storage_slot_with_explicit_frame(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        frame_slots: &[PointerValue<'ctx>],
+        frame_index: &mut usize,
+        name_prefix: &str,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+        Ok(match value_ty {
+            BasicTypeEnum::PointerType(ptr_ty) => {
+                if ptr_ty.get_address_space() == self.gc_address_space() {
+                    let frame_slot = frame_slots.get(*frame_index).copied().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "aggregate explicit frame rebuild slot",
+                            at: at.into(),
+                        },
+                    )?;
+                    *frame_index += 1;
+                    self.builder.build_load(
+                        ptr_ty,
+                        frame_slot,
+                        &format!("{name_prefix}_frame_reload"),
+                    )?
+                } else {
+                    self.builder.build_load(
+                        ptr_ty,
+                        slot,
+                        &format!("{name_prefix}_scalar_reload"),
+                    )?
+                }
+            }
+            BasicTypeEnum::StructType(struct_ty) => {
+                if struct_ty.is_opaque() {
+                    self.builder.build_load(
+                        struct_ty,
+                        slot,
+                        &format!("{name_prefix}_opaque_reload"),
+                    )?
+                } else {
+                    let mut agg = struct_ty.get_undef();
+                    for (idx, field_ty) in struct_ty.get_field_types().into_iter().enumerate() {
+                        let field_slot = self.builder.build_struct_gep(
+                            struct_ty,
+                            slot,
+                            idx as u32,
+                            &format!("{name_prefix}_field_gep_{idx}"),
+                        )?;
+                        let field = self.rebuild_value_from_storage_slot_with_explicit_frame(
+                            at,
+                            field_slot,
+                            field_ty,
+                            frame_slots,
+                            frame_index,
+                            name_prefix,
+                        )?;
+                        agg = self
+                            .builder
+                            .build_insert_value(
+                                agg,
+                                field,
+                                idx as u32,
+                                &format!("{name_prefix}_field_insert_{idx}"),
+                            )?
+                            .into_struct_value();
+                    }
+                    agg.into()
+                }
+            }
+            BasicTypeEnum::ArrayType(array_ty) => {
+                let mut agg = array_ty.get_undef();
+                let i32_ty = self.context.i32_type();
+                let zero = i32_ty.const_zero();
+                for idx in 0..array_ty.len() {
+                    let elem_slot = unsafe {
+                        self.builder.build_in_bounds_gep(
+                            array_ty,
+                            slot,
+                            &[zero, i32_ty.const_int(idx as u64, false)],
+                            &format!("{name_prefix}_elem_gep_{idx}"),
+                        )?
+                    };
+                    let elem = self.rebuild_value_from_storage_slot_with_explicit_frame(
+                        at,
+                        elem_slot,
+                        array_ty.get_element_type(),
+                        frame_slots,
+                        frame_index,
+                        name_prefix,
+                    )?;
+                    agg = self
+                        .builder
+                        .build_insert_value(
+                            agg,
+                            elem,
+                            idx,
+                            &format!("{name_prefix}_elem_insert_{idx}"),
+                        )?
+                        .into_array_value();
+                }
+                agg.into()
+            }
+            BasicTypeEnum::IntType(int_ty) => {
+                self.builder
+                    .build_load(int_ty, slot, &format!("{name_prefix}_int_reload"))?
+            }
+            BasicTypeEnum::FloatType(float_ty) => {
+                self.builder
+                    .build_load(float_ty, slot, &format!("{name_prefix}_float_reload"))?
+            }
+            BasicTypeEnum::VectorType(vector_ty) => {
+                self.builder
+                    .build_load(vector_ty, slot, &format!("{name_prefix}_vector_reload"))?
+            }
+            BasicTypeEnum::ScalableVectorType(vector_ty) => self.builder.build_load(
+                vector_ty,
+                slot,
+                &format!("{name_prefix}_scalable_vector_reload"),
+            )?,
+        })
+    }
+
+    fn storage_slot_for_use(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        cg_ty: CgTy,
+        name_prefix: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let slot = self.rematerialize_ptr_in_current_block(at, slot, name_prefix)?;
+        let llvm_ty = self.llvm_basic_type_of(at, cg_ty)?;
+        if let Some(frame_slot) = self.explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(
+            at,
+            slot,
+            llvm_ty,
+            name_prefix,
+        )? {
+            return Ok(frame_slot);
+        }
+        if !self.basic_type_contains_gc_ptrs(at, llvm_ty)? {
+            return Ok(slot);
+        }
+        let Some(frame_slots) = self
+            .explicit_frame_slot_mirrors_for(slot)
+            .map(|slots| slots.to_vec())
+        else {
+            return Ok(slot);
+        };
+        if frame_slots.is_empty() {
+            return Ok(slot);
+        }
+
+        let scratch =
+            self.create_entry_scratch_alloca_raw(at, &format!("{name_prefix}_rebuild"), llvm_ty)?;
+        let mut frame_index = 0;
+        let rebuilt = self.rebuild_value_from_storage_slot_with_explicit_frame(
+            at,
+            slot,
+            llvm_ty,
+            frame_slots.as_slice(),
+            &mut frame_index,
+            name_prefix,
+        )?;
+        if frame_index != frame_slots.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "aggregate explicit frame rebuild arity",
+                at: at.into(),
+            });
+        }
+        let _ = self.builder.build_store(scratch, rebuilt)?;
+        self.apply_alloca_alignment_for_ty(at, scratch, cg_ty)?;
+        Ok(scratch)
+    }
+
     fn sync_storage_slot_into_explicit_frame(
         &mut self,
         at: crate::span::Span,
@@ -2102,19 +2276,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         );
     }
 
-    fn load_sret_result_from_ptr(
-        &mut self,
-        at: crate::span::Span,
-        ret_cg: CgTy,
-        result_ptr: PointerValue<'ctx>,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let llvm_ret_ty = self.llvm_basic_type_of(at, ret_cg)?;
-        let loaded = self
-            .builder
-            .build_load(llvm_ret_ty, result_ptr, "sret_result")?;
-        self.cg_value_from_loaded(at, ret_cg, loaded)
-    }
-
     fn track_gc_root_slots_for_spill_slot(
         &mut self,
         at: crate::span::Span,
@@ -2183,7 +2344,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let llvm_ret_ty = self.llvm_basic_type_of(at, ret_cg)?;
         self.sync_hidden_sret_result_roots(at, ret_cg, result_ptr, name_prefix)?;
-        let result = self.load_sret_result_from_ptr(at, ret_cg, result_ptr)?;
+        let reload_slot = self.storage_slot_for_use(at, result_ptr, ret_cg, name_prefix)?;
+        let loaded = self
+            .builder
+            .build_load(llvm_ret_ty, reload_slot, "sret_result")?;
+        let result = self.cg_value_from_loaded(at, ret_cg, loaded)?;
         self.clear_spill_slot_root_homes(at, result_ptr, llvm_ret_ty, name_prefix)?;
         Ok(result)
     }
@@ -2513,14 +2678,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         local: CgLocal<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let slot = self.rematerialize_ptr_in_current_block(at, local.ptr, name)?;
-        let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
-        if let Some(frame_slot) =
-            self.explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(at, slot, llvm_ty, name)?
-        {
-            return Ok(frame_slot);
-        }
-        Ok(slot)
+        self.storage_slot_for_use(at, local.ptr, local.ty, name)
     }
 
     fn clear_spill_slot_root_homes(
@@ -2652,17 +2810,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let Some(spill) = value.spill {
-            let slot =
-                self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
-            let reload_slot = self
-                .explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(
-                    at,
-                    slot,
-                    spill.value_ty,
-                    name,
-                )?
-                .unwrap_or(slot);
-            let loaded = self.builder.build_load(spill.value_ty, reload_slot, name)?;
+            let reload_slot = self.storage_slot_for_use(at, spill.slot, value.ty, name)?;
+            let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
+            let loaded = self.builder.build_load(llvm_ty, reload_slot, name)?;
             self.clear_spill_slot_root_homes(at, spill.slot, spill.value_ty, name)?;
             return Ok(CgValue {
                 ty: value.ty,
@@ -7236,6 +7386,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let slot = alloca_builder.build_alloca(alloca_ty, name)?;
         self.record_explicit_frame_slot_mirrors(slot, frame_slots);
         Ok(slot)
+    }
+
+    fn create_entry_scratch_alloca_raw(
+        &self,
+        at: crate::span::Span,
+        name: &str,
+        alloca_ty: BasicTypeEnum<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let alloca_builder = self.context.create_builder();
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+        let entry = func
+            .get_first_basic_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function has no entry block",
+                at: at.into(),
+            })?;
+
+        match entry.get_first_instruction() {
+            Some(inst) => alloca_builder.position_before(&inst),
+            None => alloca_builder.position_at_end(entry),
+        }
+
+        Ok(alloca_builder.build_alloca(alloca_ty, name)?)
     }
 
     fn apply_alloca_alignment_for_ty(

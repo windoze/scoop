@@ -5355,6 +5355,150 @@ fun main() {
 }
 
 #[test]
+fn aggregate_call_arg_rebuilds_from_explicit_frame_after_safepoint() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+fun take(named: Named): String {
+    return named.name
+}
+
+fun run(named: Named): String {
+    __scoop_gc_collect()
+    return take(named)
+}
+
+fun main() {
+    println(run(Named { name: "hi", score: 1 }))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let run_ir = function_ir_named(&ir, "@a.run(");
+    let call_idx = run_ir
+        .find("@a.take(")
+        .expect("expected call to take() in run() IR");
+    let reload_window_start = call_idx.saturating_sub(1600);
+    let reload_window = &run_ir[reload_window_start..call_idx + 200];
+
+    assert!(
+        run_ir.contains("call_arg_reload_0_rebuild = alloca"),
+        "aggregate call arg should rebuild a fresh by-value copy before the call\n{run_ir}"
+    );
+    assert!(
+        reload_window.contains(
+            "call_arg_reload_0_frame_reload = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
+        ),
+        "aggregate call arg rebuild should reload GC leaf fields from explicit frame home slots\n{reload_window}"
+    );
+    assert!(
+        reload_window.contains("@a.take(ptr %call_arg_reload_0_rebuild")
+            || reload_window.contains("@a.take(ptr noundef %call_arg_reload_0_rebuild"),
+        "aggregate call arg should pass the rebuilt slot instead of the stale original spill\n{reload_window}"
+    );
+}
+
+#[test]
+fn hidden_sret_aggregate_result_rebuilds_from_explicit_frame_slots() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+fun bounce(named: Named): Named {
+    return named
+}
+
+fun run(named: Named): String {
+    return bounce(named).name
+}
+
+fun main() {
+    println(run(Named { name: "hi", score: 1 }))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let run_ir = function_ir_named(&ir, "@a.run(");
+    let call_idx = run_ir
+        .find("@a.bounce(")
+        .expect("expected call to bounce() in run() IR");
+    let reload_window = &run_ir[call_idx..std::cmp::min(call_idx + 1800, run_ir.len())];
+
+    assert!(
+        run_ir.contains("call_sret_rebuild = alloca"),
+        "hidden sret aggregate result should rebuild a fresh aggregate slot before use\n{run_ir}"
+    );
+    assert!(
+        reload_window.contains("load ptr addrspace(1), ptr %explicit_root_frame_slot_"),
+        "hidden sret aggregate result should reload GC leaf fields from explicit frame home slots\n{reload_window}"
+    );
+}
+
+#[test]
+fn boxed_effect_payload_rebuilds_aggregate_from_explicit_frame_after_safepoint() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+effect Ping {
+    fun pong(value: Named): String
+}
+
+fun go(named: Named): String / Ping {
+    __scoop_gc_collect()
+    return Ping.pong(named)
+}
+
+fun main(): Int {
+    val value = handle {
+        go(Named { name: "hi", score: 1 })
+    } with {
+        Ping.pong(value: Named) -> value.name
+    }
+    return if (value == "hi") 0 else 1
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let go_ir = function_ir_named(&ir, "@a.go(");
+    let box_idx = go_ir
+        .find("effect_value_box_payload_gep")
+        .expect("expected boxed effect payload store in go() IR");
+    let reload_window_start = box_idx.saturating_sub(1400);
+    let reload_window = &go_ir[reload_window_start..std::cmp::min(box_idx + 400, go_ir.len())];
+
+    assert!(
+        go_ir.contains("effect_transport_box_value_reload_rebuild = alloca"),
+        "boxed composite payload should rebuild a fresh aggregate before boxing\n{go_ir}"
+    );
+    assert!(
+        reload_window.contains(
+            "effect_transport_box_value_reload_frame_reload = load ptr addrspace(1), ptr %explicit_root_frame"
+        ),
+        "boxed composite payload rebuild should reload GC leaf fields from explicit frame home slots\n{reload_window}"
+    );
+}
+
+#[test]
 fn production_mir_function_reloads_direct_gc_local_from_explicit_frame_after_safepoint() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -5398,7 +5542,8 @@ fun main() {
         .expect("expected MIR bridge direct call site in keep() IR");
     let reload_window = &keep_ir[call_idx..];
     assert!(
-        reload_window.contains("pass_mir_load = load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
+        reload_window
+            .contains("pass_mir_load = load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
         "production MIR local load should reload from explicit frame home slot after safepoint\n{reload_window}"
     );
 }

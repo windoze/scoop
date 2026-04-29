@@ -156,17 +156,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let Some(spill) = value.spill {
-            let slot =
-                self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
             let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
-            let reload_slot = self
-                .explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(
-                    at,
-                    slot,
-                    spill.value_ty,
-                    name,
-                )?
-                .unwrap_or(slot);
+            let reload_slot = self.storage_slot_for_use(at, spill.slot, value.ty, name)?;
             let loaded = self.builder.build_load(llvm_ty, reload_slot, name)?;
             return Ok((
                 CgValue {
@@ -196,8 +187,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind: "indirect aggregate call arg spill",
             at: at.into(),
         })?;
-        let slot =
-            self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
+        let slot = self.storage_slot_for_use(at, spill.slot, value.ty, name)?;
         Ok((slot, vec![spill]))
     }
 
