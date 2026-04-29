@@ -235,13 +235,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
         let mut child = self.fresh_child_codegen();
-        child.current_source_id = self.current_source_id;
+        child.current_source_id = child.materialized_mir_callable_source_id(fn_ptr, span)?;
         let llvm_fun = child.declare_materialized_mir_closure_fun(span, mir_fun, mir_types)?;
         if llvm_fun.count_basic_blocks() == 0 {
             child.codegen_materialized_mir_closure_fun(mir_fun, mir_types, llvm_fun)?;
         }
         self.builder.position_at_end(saved_block);
         Ok(llvm_fun)
+    }
+
+    fn materialized_mir_callable_source_id(
+        &self,
+        fqn: &str,
+        span: crate::span::Span,
+    ) -> Result<SourceId, LlvmEmitError> {
+        let mut owner_fqn = fqn;
+        loop {
+            if let Some(hir_fun) = self.fun_index.get(owner_fqn).copied() {
+                return self.source_id_for_path(hir_fun.source_path.as_path(), span);
+            }
+            let Some((parent, _)) = owner_fqn.rsplit_once(".$lambda") else {
+                break;
+            };
+            owner_fqn = parent;
+        }
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "pass MIR callable source path",
+            at: span.into(),
+        })
     }
 
     fn declare_materialized_mir_closure_fun(

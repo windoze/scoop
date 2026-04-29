@@ -2174,11 +2174,28 @@
     - `cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`
     - `cargo test -p scoopc production_codegen_lowers_pass_visible_known_closure_call_body -- --nocapture`
     - `cargo fmt --all --check`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop -- test`
+  - 全部通过。
+  - 下一条待执行任务切换为 `T5000j3b1R Review：确认结构已知 closure/env 形状已进入 production MIR 主线`。
+- 2026-04-29：`T5000j3b1R Review：确认结构已知 closure/env 形状已进入 production MIR 主线` 已完成。
+  - 复核结论：
+    - 已复核 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/reachability.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/mir/inline.rs`，确认本轮新增的 `MakeTuple` / `TupleGet` / `MakeClosure` / `CallKind::Closure` production 覆盖仍只消费 materialized MIR body、pass-visible `ClosureCall` 形状与既有 callable/reachability 事实；LLVM backend 继续只承担 lowering，而没有重新在现场收缩 higher-order target-set；
+    - review 过程中首先暴露并修复了一个既有源文件绑定缺口：materialized MIR closure body 发射原先直接继承调用者的 `current_source_id`，跨文件 closure 会把字面量解析和 source-backed call-site 查询绑定到错误源码；`crates/scoopc/src/llvm/codegen/mir_body.rs` 现已沿 closure `fn_ptr` 的 `.$lambda` owner 链回退到最近的非 lambda 宿主函数，并据此恢复 closure 自身定义文件的 source context；
+    - 已在 `crates/scoopc/src/llvm/tests.rs` 新增 `production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body`，直接锁定跨文件 raw MIR closure body 会按定义源文件解析字面量；结合既有 `production_codegen_lowers_raw_mir_non_capturing_closure_body`、`production_codegen_lowers_raw_mir_immutable_capture_closure_body` 与 `production_codegen_lowers_pass_visible_known_closure_call_body`，当前 raw candidate、lambda body 与 pass artifact 三条入口都已被覆盖；
+    - 已再次确认 `CaptureBox*`、opaque `CallKind::FunValue`、`Return { value: None }`、effect/handle 等未支持形状仍继续留在 `raw_materialized_mir_*_is_supported(...)` / `mir_*_requires_hir_compat_scan(...)` 的 HIR-compatible fallback；review 没有发现需要前插到 `T5000j3b2` 之前的新前置缺陷任务。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo fmt --all --check`
+    - `cargo test -p scoopc production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
-    - `cargo run -p scoop -- test`
     - 全部通过。
-  - 下一条待执行任务切换为 `T5000j3b1R Review：确认结构已知 closure/env 形状已进入 production MIR 主线`。
+  - 下一条待执行任务切换为 `T5000j3b2 扩展 CaptureBox* / 剩余 opaque higher-order 调用到 production MIR 主线`。
 
 ## 1. 当前判断
 

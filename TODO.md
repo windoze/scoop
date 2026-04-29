@@ -2043,13 +2043,19 @@
   - `crates/scoopc/src/mir/inline.rs` 已补充 known-closure provenance 发布 `ClosureCall` 形状的回归，作为 production codegen 新覆盖依赖的 pass artifact 事实校验；
   - 已验证 `cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_pass_visible_known_closure_call_body -- --nocapture`、`cargo fmt --all --check`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过。
 
-### [TODO] T5000j3b1R Review：确认结构已知 closure/env 形状已进入 production MIR 主线
+### [DONE] T5000j3b1R Review：确认结构已知 closure/env 形状已进入 production MIR 主线
 - 重点：
   - `MakeTuple` / `TupleGet` / `MakeClosure` / `ClosureCall` 的新增 production 覆盖是否仍只消费既有 MIR body / shared facts；
   - raw candidate 与 reachability 放宽后，`CaptureBox*` / opaque `FunValueCall` 等未支持形状是否仍稳定留在 fallback。
 - 验收：
   - 可以明确指出新增 closure 覆盖依赖的是哪一层 MIR 结构事实，以及哪些 higher-order 形状仍待后续任务处理。
 - 依赖：T5000j3b1
+- 完成记录（2026-04-29）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/reachability.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/mir/inline.rs` 与相关 LLVM 回归，确认 `MakeTuple` / `TupleGet` / `MakeClosure` / `CallKind::Closure` 的 production 覆盖仍建立在 materialized MIR body、pass-visible `ClosureCall` 形状与既有 callable/reachability 事实之上；backend 只消费这些结构事实做 lowering，没有重新在现场推断 higher-order target-set；
+  - review 过程中发现并修复了一个既有源文件绑定缺口：materialized MIR closure body 发射原先直接继承调用者的 `current_source_id`，跨文件 closure 会把字面量解析与 source-backed call-site 查询绑到错误源码；现已改为沿 `fn_ptr` 的 `.$lambda` owner 链回退到最近的非 lambda 宿主函数，并据此恢复 closure 自身定义文件的 source context；
+  - 已新增 `crates/scoopc/src/llvm/tests.rs::production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body`，锁定跨文件 raw MIR closure body 会按定义源文件解析字面量；结合既有 non-capturing / immutable-capturing / pass-visible known-closure 回归，现已覆盖 raw candidate、lambda body 与 pass artifact 三条主路径；
+  - 已确认 `CaptureBox*`、opaque `CallKind::FunValue`、`Return { value: None }`、effect/handle 等未支持形状仍继续留在 `raw_materialized_mir_*_is_supported(...)` / `mir_*_requires_hir_compat_scan(...)` 的 HIR-compatible fallback，没有把剩余分析责任倒灌回 backend；
+  - 已验证 `cargo fmt --all`、`cargo fmt --all --check`、`cargo test -p scoopc production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000j3b2 扩展 `CaptureBox*` / 剩余 opaque higher-order 调用到 production MIR 主线
 - 范围：

@@ -2188,6 +2188,152 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body() {
+    let session = Session::new().unwrap();
+    let src_lib = SourceFile::new_virtual(
+        "<lib>/t5000j3b_cross_file_closure.scoop",
+        r#"
+package fixtures.t5000j3b_cross_file
+
+fun helper(): Int {
+    // 让 closure 字面量 span 明显晚于 main 文件长度，锁定不能继续借用 caller source。
+    // 12345678901234567890123456789012345678901234567890
+    val thunk: () -> Int = { 123456789 }
+    return thunk()
+}
+"#,
+    );
+    let src_main = SourceFile::new_virtual(
+        "<main>/t5000j3b_cross_file_main.scoop",
+        r#"
+package fixtures.t5000j3b_cross_file
+
+fun main(): Int { return helper() }
+"#,
+    );
+
+    let mut ast_lib = parse_file(&src_lib).unwrap();
+    let mut ast_main = parse_file(&src_main).unwrap();
+
+    let index = {
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            pairs.push((&file.source, &file.ast));
+        }
+        pairs.push((&src_lib, &ast_lib));
+        pairs.push((&src_main, &ast_main));
+        Index::build(&pairs).unwrap()
+    };
+
+    let headers_lib = crate::resolve::check_file_headers(&src_lib, &ast_lib, &index).unwrap();
+    crate::resolve::check_file_bodies(&src_lib, &mut ast_lib, &index, &headers_lib).unwrap();
+
+    let headers_main = crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
+    crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main).unwrap();
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+    env.extend_from_file(&src_lib, &ast_lib, &index).unwrap();
+    env.extend_from_file(&src_main, &ast_main, &index).unwrap();
+
+    let mut typecheck_types = TypeStore::new();
+    let builtins = typecheck_types.intern_builtins();
+    for (source, ast, header) in [
+        (&src_lib, &ast_lib, &headers_lib),
+        (&src_main, &ast_main, &headers_main),
+    ] {
+        crate::typecheck::check_file_annotations(
+            source,
+            ast,
+            &index,
+            &header.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        crate::typecheck::check_file_type_refs(
+            source,
+            ast,
+            &index,
+            &header.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        crate::typecheck::check_file_exprs(
+            source,
+            ast,
+            &index,
+            &header.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+    }
+    crate::typecheck::check_file_type_layouts(&index, &env, &mut typecheck_types, builtins)
+        .unwrap();
+
+    let mut compilation_unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for file in &session.sysroot().files {
+        compilation_unit.push((&file.source, &file.ast));
+    }
+    compilation_unit.push((&src_lib, &ast_lib));
+    compilation_unit.push((&src_main, &ast_main));
+    let files_to_lower = vec![(&src_lib, &ast_lib), (&src_main, &ast_main)];
+    let request_source_paths = vec![src_main.path().to_path_buf()];
+    let lowered = hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
+        &index,
+        &compilation_unit,
+        &files_to_lower,
+        &[],
+        Some(&env),
+        &typecheck_types,
+        hir::MirInstanceCollectionOptions {
+            request_source_paths: &request_source_paths,
+            request_root_mode: crate::mir::MaterializeRequestRootMode::EntryMain { fqn: None },
+            opt_level: OptLevel::O0,
+        },
+    )
+    .unwrap();
+
+    let helper_fqn = "fixtures.t5000j3b_cross_file.helper";
+    let materialized = lowered
+        .materialized_mir()
+        .expect("production lowering 应保留 materialized MIR");
+    let helper_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == helper_fqn)
+        .expect("跨文件 helper 应进入 caller-side pass 候选");
+    let lambda_fqn = mir_fun_first_make_closure_fn_ptr(helper_mir)
+        .expect("helper raw MIR 应暴露 closure fn_ptr");
+
+    let mut source_map = SourceMap::new();
+    for file in &session.sysroot().files {
+        let _ = source_map.add_source_clone(&file.source);
+    }
+    let _ = source_map.add_source_clone(&src_lib);
+    let entry_source_id = source_map.add_source_clone(&src_main);
+
+    let ir =
+        emit_minimal_main_ir_from_production_lowered_hir(&source_map, entry_source_id, &lowered)
+            .unwrap();
+    let helper_ir = function_ir_named(&ir, helper_fqn);
+    let lambda_ir = function_ir_named(&ir, lambda_fqn);
+
+    assert!(
+        helper_ir.contains("mir.bb"),
+        "跨文件 helper 的 raw MIR body 现应直接走 production MIR bridge:\n{helper_ir}"
+    );
+    assert!(
+        lambda_ir.contains("123456789"),
+        "closure body 应按定义源文件解析字面量，而不是继续借用 caller source:\n{lambda_ir}"
+    );
+}
+
+#[test]
 fn production_codegen_still_falls_back_for_raw_mir_implicit_tail_return_body_after_candidate_widening()
  {
     let session = Session::new().unwrap();
