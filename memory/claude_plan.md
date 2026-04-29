@@ -1,40 +1,32 @@
 # 执行计划
 
-1. 检查最新一次 git 提交信息，确认是否提到需要先修复的既有问题；若有，优先处理。
-2. 阅读 `TODO.md` 与 `PLAN.md`，确定第一个未完成任务，并判断是否需要拆分。
-3. 如任务可直接完成，定位相关代码与测试，实施最小正确修改；如被既有问题阻塞，则先把前置修复任务插入 `TODO.md`/`PLAN.md`。
-4. 运行与该任务相关的测试，以及必要的格式化、lint、编译检查；修复发现的问题。
-5. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md` 记录进展。
-6. 按仓库提交规范创建一次 git commit，然后停止，不继续下一个任务。
+说明：我不会记录不可审计的详细内在推理，但会持续维护一份可检查的、可执行的步骤计划与关键进展。
 
-## 当前执行
+## 当前计划
 
-- 当前首个未完成任务：`T5001d3R Review`。
-- 本轮 review 将重点核对三件事：
-  1. 所有跨 safepoint roots 是否都已经拥有稳定 explicit frame home slot；
-  2. `extra_gc_root_slots` / root-slot-id 旧机制是否仍以别名形式残留；
-  3. effect / continuation / state-machine / resume 路径是否与 ordinary lowering 使用同一 home-slot 合同。
-- 若 review 发现真实 correctness 缺口，本轮优先修复该缺口；若无法在本轮直接修复，则先把前置任务插入 `TODO.md`/`PLAN.md` 后停止。
+1. 检查最新提交信息，确认是否明确提到需要先修复的既有问题。
+2. 阅读 `TODO.md` 与 `PLAN.md`，确定第一个未完成任务。
+3. 如果首个任务过大，先把它拆成更小的子任务，并同步更新 `TODO.md` 与 `PLAN.md`。
+4. 实现当前应执行的首个任务，只做这一项。
+5. 运行与改动直接相关的测试；若暴露既有问题，先修复该问题或把它登记为前置任务并调整顺序。
+6. 完成后更新 `TODO.md` 与 `PLAN.md`，记录结果与剩余依赖。
+7. 按仓库提交风格创建一次 git 提交，然后停止。
 
-## 当前发现
+## 进度记录
 
-- 最新提交 `[T5001d3]` 未在提交信息中留下额外待修问题，可继续执行当前 review。
-- 已复核 `TODO.md` / `PLAN.md`：当前首个未完成任务仍是 `T5001d3R Review`，不需要再拆分子任务。
-- 已确认一处真实 correctness 缺口：`crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 `resume_continuation_with_encoded_payload(...)` 此前直接发射 `scoop_continuation_resume_with` runtime call，没有经过 `build_call_preserving_gc_local_roots(...)`，导致 `Continuation.resume` / replay / state-machine tail-resume 路径未统一走与 ordinary safepoint 相同的 explicit-frame home-slot keepalive 合同。
-- 已保留并继续整理中的修复：让 `resume_continuation_with_encoded_payload(...)` 接收 `span` 并统一走 `build_call_preserving_gc_local_roots(...)`；调用点已同步补传 `span`。
-- 正在补一条 LLVM 回归，锁定 `Continuation.resume` 运行时调用窗口必须出现 GC keepalive、explicit frame home-slot 参与以及调用后 write-back 痕迹。
-
-## 已完成
-
-- 已完成代码修复：`resume_continuation_with_encoded_payload(...)` 现统一通过 `build_call_preserving_gc_local_roots(...)` 发射 runtime call，`Continuation.resume` fresh/replay/tail-resume 调用点均已补传 `span`。
-- 已完成 LLVM 回归：`state_machine_multi_payload_perform_uses_tuple_transport` 现额外锁定 `Continuation.resume` 调用窗口存在 `gc_root_keepalive_*`、`explicit_gc_root_slot_*` 与调用后 write-back 痕迹。
-- 已完成验证：
-  - `cargo test -p scoopc state_machine_multi_payload_perform_uses_tuple_transport`
-  - `cargo test -p scoopc when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume`
-  - `cargo test -p scoopc --lib`
-  - `cargo clippy -p scoopc --all-targets -- -D warnings`
-- 下一步仅剩按仓库规范检查差异并创建本轮提交，然后停止。
-
-## 说明
-
-出于安全与协作边界，我不会记录详细内部推理，但会在此文件持续记录可执行计划、关键发现、阻塞原因与完成状态。
+- 已创建本计划文件，后续会在关键步骤完成或计划调整时更新。
+- 已检查最新提交 `e23657f [T5001d3R] Review explicit frame home-slot coverage`。提交信息本身没有额外声明一个尚未处理、必须先于计划任务修复的遗留 issue。
+- 已读取 `TODO.md` 与 `PLAN.md`。当前首个未完成任务是 `T5001e1 收紧 safepoint clobber / reload contract，打通 post-safepoint ref 使用主线`。
+- 当前判断：先检查现有 safepoint lowering、runtime helper call、effect/resume 边界与 LLVM 回归，确认是否还存在 post-safepoint 直接复用旧 SSA / register 的路径；若任务范围过大，再先拆分并回写 `TODO.md` / `PLAN.md`。
+- 已确认一个需要当前任务修复的真实缺口：`with_conservative_gc_local_root_spills(...)` 已在 safepoint 前后把 relocated roots 写回 explicit frame home slots，但 `codegen_var_ref(...)`、`materialize_deferred_cg_value(...)`、`materialize_deferred_cg_value_for_call_arg_impl(...)` 这类 post-safepoint 消费路径仍优先从旧 local/spill slot reload，而不是从 explicit frame home slot reload。
+- 执行调整：
+  1. 为“单个 pointer-shaped GC 值”增加统一的 explicit-frame reload helper。
+  2. 让普通 local 读取与 deferred scalar GC 值 materialize 优先从 home slot reload。
+  3. 补充 LLVM 回归，锁定 direct local return 与 deferred call arg 两条 post-safepoint reload 路径。
+  4. 运行相关测试与 lint；若暴露其它既有问题，先修复再继续。
+- 已完成代码修改：
+  1. `local_ptr_for_use(...)` 在 explicit frame 已启用且值是单槽 GC pointer 时，改为返回 explicit frame home slot。
+  2. `materialize_deferred_cg_value(...)` 与 `materialize_deferred_cg_value_for_call_arg_impl(...)` 对同类值改为从 home slot reload。
+  3. 新增两条 LLVM 回归，锁定 ordinary safepoint 后 direct local reload 与 deferred call arg 经后续 safepoint 后的 reload source。
+- 已完成验证：`cargo test -p scoopc managed_function_reloads_direct_gc_local_from_explicit_frame_after_safepoint`、`cargo test -p scoopc deferred_call_arg_reloads_from_explicit_frame_after_later_safepoint`、`cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo clippy -p scoopc --all-targets -- -D warnings` 均已通过。
+- 下一步：检查 git diff / status，更新任务文档后创建一次提交，并停止。

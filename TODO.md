@@ -197,7 +197,7 @@
 - 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`gc.rs`、`mir_body.rs`、`call/abi.rs`、`call/dispatch.rs`、`effect/mod.rs` 与 `effect/state_machine_emitter.rs`。确认 `extra_gc_root_slots` / root-slot-id 动态注册路径已从当前 lowering 中移除，ordinary locals、indirect aggregate params、hidden sret、deferred spill / call-arg spill 以及 effect/state-machine/continuation lowering 产生的 stack-backed temporaries 都已统一映射到 explicit frame home slots。review 期间发现一处真实缺口：共享 `Continuation.resume` runtime helper `resume_continuation_with_encoded_payload(...)` 之前直接发射 `scoop_continuation_resume_with` 调用，没有走 `build_call_preserving_gc_local_roots(...)`，导致 replay / tail-resume / ordinary resume 路径未完全遵守与 ordinary safepoint 一致的 keepalive + home-slot write-back 合同；现已修复为统一经该 helper 包装，并新增 LLVM 回归锁定调用窗口必须出现 GC keepalive、explicit frame home-slot 参与以及调用后 write-back 痕迹。另已通过 `cargo test -p scoopc state_machine_multi_payload_perform_uses_tuple_transport`、`cargo test -p scoopc when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume`、`cargo test -p scoopc --lib` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001d3
 
-### [TODO] T5001e1 收紧 safepoint clobber / reload contract，打通 post-safepoint ref 使用主线
+### [DONE] T5001e1 收紧 safepoint clobber / reload contract，打通 post-safepoint ref 使用主线
 - 范围：
   - 明确所有 safepoint 都是 GC ref clobber 边界。
   - post-safepoint 的 ref 使用必须从 explicit frame home slot reload。
@@ -206,6 +206,7 @@
 - 验收：
   - post-safepoint ref 使用路径可审计地来自 home slot reload；
   - 不再存在“GC 已更新 slot，但后续仍从旧 SSA 值继续运行”的 correctness 缺口。
+- 完成记录：已为单槽 pointer-shaped GC 值补上统一的 explicit-frame reload helper，并让 `local_ptr_for_use(...)`、`materialize_deferred_cg_value(...)` 与 call-arg materialize 路径在 explicit frame 已启用时优先从 home slot reload，而不再从原 local/spill slot 取回 post-safepoint 值；这覆盖了 ordinary local 读取、runtime helper / ordinary call 之后的 deferred scalar GC 值消费，以及由 effect/resume lowering 复用 `local_ptr_for_use(...)` 的 direct ref 路径。另新增两条 LLVM 回归，分别锁定 direct local safepoint 后 reload 与“先求值 call arg 遇到后续 safepoint”两类窗口，并通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001d3R
 
 ### [TODO] T5001e1R Review：确认 safepoint 已成为真实的 clobber 边界

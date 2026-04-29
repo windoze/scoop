@@ -5271,6 +5271,90 @@ fun main() {
 }
 
 #[test]
+fn managed_function_reloads_direct_gc_local_from_explicit_frame_after_safepoint() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun keep(name: String): String {
+    __scoop_gc_collect()
+    return name
+}
+
+fun main() {
+    println(keep("hi"))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let keep_ir = function_ir_named(&ir, "@a.keep(");
+    let call_idx = keep_ir
+        .find("@scoop_gc_collect_safepoint")
+        .expect("expected explicit safepoint helper call in keep() IR");
+    let reload_window = &keep_ir[call_idx..];
+
+    assert!(
+        reload_window.contains("load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
+        "post-safepoint direct local use should reload from explicit frame home slot\n{reload_window}"
+    );
+    assert!(
+        !reload_window.contains("load ptr addrspace(1), ptr %name"),
+        "post-safepoint direct local use should not fall back to the original local alloca\n{reload_window}"
+    );
+}
+
+#[test]
+fn deferred_call_arg_reloads_from_explicit_frame_after_later_safepoint() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun take(a: String, b: String): String {
+    return a
+}
+
+fun later(): String {
+    __scoop_gc_collect()
+    return "b"
+}
+
+fun run(): String {
+    return take("a", later())
+}
+
+fun main() {
+    println(run())
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let run_ir = function_ir_named(&ir, "@a.run(");
+    let take_idx = run_ir
+        .find("call ptr addrspace(1) @a.take(")
+        .expect("expected call to take() in run() IR");
+    let reload_window_start = take_idx.saturating_sub(800);
+    let reload_window = &run_ir[reload_window_start..take_idx + 200];
+
+    assert!(
+        reload_window
+            .contains("call_arg_reload_0 = load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
+        "deferred GC call arg should rematerialize from explicit frame home slot after later safepoint\n{reload_window}"
+    );
+    assert!(
+        !reload_window.contains("call_arg_reload_0 = load ptr addrspace(1), ptr %call_arg_0"),
+        "deferred GC call arg should not reload from the original spill slot after later safepoint\n{reload_window}"
+    );
+}
+
+#[test]
 fn never_returning_managed_function_pops_explicit_root_frame_before_unreachable() {
     let source = SourceFile::new_virtual(
         "<mem>",

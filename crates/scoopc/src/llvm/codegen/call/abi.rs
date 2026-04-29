@@ -159,7 +159,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let slot =
                 self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
             let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
-            let loaded = self.builder.build_load(llvm_ty, slot, name)?;
+            let reload_slot = self
+                .explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(
+                    at,
+                    slot,
+                    spill.value_ty,
+                    name,
+                )?
+                .unwrap_or(slot);
+            let loaded = self.builder.build_load(llvm_ty, reload_slot, name)?;
             return Ok((
                 CgValue {
                     ty: value.ty,

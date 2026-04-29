@@ -994,6 +994,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect())
     }
 
+    /// 对单个 pointer-shaped GC 值，返回 post-safepoint 应优先 reload 的 explicit-frame home slot。
+    ///
+    /// aggregate / multi-leaf 值仍交给后续 refresh/rebuild contract 处理；这里先收紧 direct
+    /// ref / string / niche-pointer 这类“单槽 GC 值”的 reload source-of-truth。
+    fn explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        name_prefix: &str,
+    ) -> Result<Option<PointerValue<'ctx>>, LlvmEmitError> {
+        let BasicTypeEnum::PointerType(ptr_ty) = value_ty else {
+            return Ok(None);
+        };
+        if ptr_ty.get_address_space() != self.gc_address_space() {
+            return Ok(None);
+        }
+
+        let mut pairs =
+            self.explicit_frame_leaf_slot_pairs_for_storage_slot(at, slot, value_ty, name_prefix)?;
+        if pairs.is_empty() {
+            return Ok(None);
+        }
+        if pairs.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "single gc ptr explicit frame reload slot",
+                at: at.into(),
+            });
+        }
+
+        let (_, _, frame_slot) = pairs.remove(0);
+        Ok(Some(frame_slot))
+    }
+
     fn sync_storage_slot_into_explicit_frame(
         &mut self,
         at: crate::span::Span,
@@ -2479,7 +2513,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         local: CgLocal<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        self.rematerialize_ptr_in_current_block(at, local.ptr, name)
+        let slot = self.rematerialize_ptr_in_current_block(at, local.ptr, name)?;
+        let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
+        if let Some(frame_slot) =
+            self.explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(at, slot, llvm_ty, name)?
+        {
+            return Ok(frame_slot);
+        }
+        Ok(slot)
     }
 
     fn clear_spill_slot_root_homes(
@@ -2613,7 +2654,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(spill) = value.spill {
             let slot =
                 self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
-            let loaded = self.builder.build_load(spill.value_ty, slot, name)?;
+            let reload_slot = self
+                .explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(
+                    at,
+                    slot,
+                    spill.value_ty,
+                    name,
+                )?
+                .unwrap_or(slot);
+            let loaded = self.builder.build_load(spill.value_ty, reload_slot, name)?;
             self.clear_spill_slot_root_homes(at, spill.slot, spill.value_ty, name)?;
             return Ok(CgValue {
                 ty: value.ty,

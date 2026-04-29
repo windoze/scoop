@@ -126,6 +126,7 @@
 - 对含 ref 的 aggregate：
   - 旧 aggregate 副本不再是 source of truth；
   - direct call arg、indirect arg、sret result、effect payload、continuation payload 等路径，必须按“reload 最新 ref 字段 + 复用非 ref 字段 + 重组 fresh aggregate”的 contract lowering。
+- 当前状态（T5001e1，2026-04-29）：pointer-shaped GC 值的 post-safepoint reload 主线已收紧到 explicit frame home slot。compiler 现已新增单槽 GC pointer 的统一 reload helper，并让 `local_ptr_for_use(...)`、`materialize_deferred_cg_value(...)` 与 `materialize_deferred_cg_value_for_call_arg_impl(...)` 在 explicit frame 已启用时优先从 home slot 取回值，因此 ordinary local 读取、runtime helper / ordinary call 后的 deferred scalar GC 值消费，以及 effect/resume lowering 中复用 `local_ptr_for_use(...)` 的 direct ref 路径，均不再默认回落到原 local/spill slot。配套新增两条 LLVM 回归，分别锁定 direct local safepoint 后 reload 与 deferred call arg 经后续 safepoint 后的 reload source，并通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 
 ### P6. 默认 explicit mode 切换与 stackmap 退居可选优化
 
