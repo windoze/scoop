@@ -2281,6 +2281,12 @@
   - 已再次验证 `cargo test -p scoop_tools`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (19)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；
   - review 结论：该口径已经足够支撑后续 GC / `mem2reg` 研究直接复用，且当前结论仍然稳定指向“优先继续减少 task/effect/runtime 路径中的调用边界与 roots 压力”；未发现需要前插到 `T5000jR` 之前的新缺陷任务；
   - 下一条待执行任务切换为 `T5000jR Review：确认优化主线已形成可持续扩展的中端体系`。
+- 2026-04-29：`T5000jR Review：确认优化主线已形成可持续扩展的中端体系` 已完成。
+  - 已复核 `OPTIMIZATION.md` 与本轮主线关键模块：`crates/scoopc/src/program_facts.rs`、`crates/scoopc/src/effect/analysis.rs`、`crates/scoopc/src/effect/state_machine/**`、`crates/scoopc/src/mir/**`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs`，确认优化主线当前确实以 backend-agnostic 的 `ProgramFacts` / `EffectAnalysisCtx` / `MaterializedMirPassView` / per-instance summary / escape facts 为中枢，而 LLVM backend 只承担 lowering 与 bridge 职责；
+  - 已额外核对依赖方向：`effect/**` 与 `mir/**` 中当前没有 `crate::llvm` / `inkwell` 反向依赖；`effect/state_machine/mod.rs` 的 `include!` 只聚合 shared `effect/` 目录内源码，不再跨回 LLVM backend 文件，因此未来 C / JVM / CLR backend 复用同一中端分析层的消费边界已经成立；
+  - 已结合 `T5000j1`～`T5000j4R` 的收尾状态再次确认：operator-overload target、pattern/when、higher-order/closure/init 覆盖扩张与 safepoint 跟踪都继续沿 MIR / summary / structure 推进，没有重新引入函数名白名单、backend eager inclusion 或“在 LLVM 现场重新推断 target-set”的回退；
+  - 已验证 `cargo test --all`、`cargo test -p scoopc --no-default-features`、`cargo run -p scoop -- test`（`fixtures: ok (1204)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过；本轮未发现需要回插的新前置缺陷任务；
+  - 当前 `TODO.md` 的本轮优化主线条目已全部完成；若下一轮进入 release / 新 round，应从“全量完成后的最终 review 与发布动作”或新的任务清单继续推进。
 
 ## 1. 当前判断
 

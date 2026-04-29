@@ -2143,7 +2143,7 @@
   - 已再次验证 `cargo test -p scoop_tools`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (19)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过，说明这条跟踪口径可持续重跑，且未因最近主线变更失效；
   - review 结论：当前基线已足够支持后续 GC / `mem2reg` 研究直接复用；现阶段更值得继续减少 task/effect/runtime 路径中的调用边界与 live-root 压力，而不是把 `mem2reg` / register-root 提升为主线优先级；未发现需要插入到 `T5000jR` 之前的新前置缺陷任务。
 
-### [TODO] T5000jR Review：确认优化主线已形成可持续扩展的中端体系
+### [DONE] T5000jR Review：确认优化主线已形成可持续扩展的中端体系
 - 重点：
   - 后续扩展是否仍沿 MIR / summary / structure 方向推进；
   - 是否重新出现“把新分析长回 LLVM codegen”的回退；
@@ -2151,3 +2151,8 @@
 - 验收：
   - 本轮结束后，优化主线已明确从“LLVM codegen 现场推断”转向“backend-agnostic 中端 + backend lowering 分层”。
 - 依赖：T5000j4R
+- 完成记录（2026-04-29）：
+  - 已复核 `OPTIMIZATION.md`、`crates/scoopc/src/program_facts.rs`、`crates/scoopc/src/effect/analysis.rs`、`crates/scoopc/src/effect/state_machine/**`、`crates/scoopc/src/mir/**`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs`，确认当前优化主线的共享事实、effect analysis、MIR pass 产物与 state-machine planning 都已落在 backend-agnostic 中端层；LLVM backend 侧只消费 `ProgramFacts` / `EffectAnalysisCtx` / `MaterializedMirPassView` 等稳定输入做 lowering 与桥接，没有重新承担中端主分析职责；
+  - 已额外核对共享中端模块依赖方向：`crates/scoopc/src/effect/**` 与 `crates/scoopc/src/mir/**` 中已无对 `crate::llvm` 或 `inkwell` 的直接依赖；`effect/state_machine/mod.rs` 内部 `include!("analysis.rs")` / `segments.rs` / `transform.rs` 也只是在 shared `effect/` 目录内聚合源码，不再复用 backend 路径，说明 shared analysis 没有重新反向绑定 LLVM 实现；
+  - 已确认 production 主路径当前通过 `MaterializedMirPassView`、per-instance summary、escape facts、`ProgramFacts` 与 `EffectAnalysisCtx` 串起了 instance materialization、devirtualization、summary-driven inlining、closure/continuation escape 与 effect planning；扩覆盖任务 `T5000j1`～`T5000j4R` 继续沿 MIR / summary / structure 推进，没有退回函数名白名单或 backend eager inclusion；
+  - 已验证 `cargo test --all`、`cargo test -p scoopc --no-default-features`、`cargo run -p scoop -- test`（`fixtures: ok (1204)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过；本轮未发现需要回插到 `TODO.md` 前序位置的新既有缺陷任务。
