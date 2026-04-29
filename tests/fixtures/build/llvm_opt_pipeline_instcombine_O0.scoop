@@ -1,11 +1,11 @@
 // EXPECT: pass
 // ARGS: --emit-llvm -O0
 // BUILD-LLVM-CONTAINS: 123456789
-// BUILD-LLVM-CONTAINS: llvm.experimental.gc.statepoint
+// BUILD-LLVM-NOT-CONTAINS: llvm.experimental.gc.statepoint
 //
 // 目标：T1602（O0 vs O2）回归证据
 // - O0：不启用 LLVM 默认优化 pipeline，应保留可被 instcombine 简化的模式。
-// - 同时确保 statepoint rewrite 仍然生效（能看到 gc.statepoint）。
+// - T5001f 后默认 explicit mode 不再走 statepoint rewrite，因此 IR 中也不应出现 gc.statepoint。
 
 package fixtures.build
 

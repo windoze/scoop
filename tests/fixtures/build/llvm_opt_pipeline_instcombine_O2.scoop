@@ -1,11 +1,12 @@
 // EXPECT: pass
 // ARGS: --emit-llvm -O2
 // BUILD-LLVM-NOT-CONTAINS: 123456789
-// BUILD-LLVM-CONTAINS: llvm.experimental.gc.statepoint
+// BUILD-LLVM-NOT-CONTAINS: llvm.experimental.gc.statepoint
 //
 // 目标：T1602（O0 vs O2）回归证据
 // - O2：启用 `default<O2>` pipeline 后，应能通过 instcombine/simplifycfg 等把 `(x+C)-C` 简化为 `x`，
 //   因此 IR 中不应再出现常量 `123456789`。
+// - T5001f 后默认 explicit mode 不再走 statepoint rewrite，因此优化级别变化不应重新引入 gc.statepoint。
 
 package fixtures.build
 

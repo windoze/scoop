@@ -63,23 +63,11 @@ pub(crate) use emit::{
 #[cfg(test)]
 pub(crate) use pipeline::run_pass_pipeline;
 
-/// LLVM statepoint GC 策略名（内置于 LLVM）。
-///
-/// 说明：
-/// - `rewrite-statepoints-for-gc` 只会重写带 `gc "<strategy>"` 的函数；
-/// - 当前阶段先复用 LLVM 内置的 `statepoint-example`，后续若需要更精细的 roots 策略再引入自定义 GC strategy。
-pub(crate) const LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE: &str = "statepoint-example";
-
 fn configure_llvm_global_options_once() {
     // 说明：
-    // - 我们使用 LLVM statepoint + stackmap 做 moving GC roots 枚举/更新；
-    // - runtime 目前只支持更新“可写回的 spill slots roots”（栈槽 `void**`），不支持把 GC 指针放在寄存器里；
-    // - LLVM 后端在某些情况下会把 GC pointers 放进 callee-saved registers，并依赖
-    //   `fixup-statepoint-caller-saved` 等机器层 pass 做额外处理；
-    // - 在 `SCOOP_GC_STRESS=1` 下（频繁触发 compaction），若存在寄存器 roots，
-    //   可能导致 roots 未被更新而产生 use-after-move（典型症状：值“偶发变回 None/0”，T1606c）。
-    //
-    // v0 策略：强制禁用 “GC Ptrs in registers”，让所有 roots 走 spill slots，从而匹配 runtime 能力边界。
+    // - 默认 explicit mode 已不再给托管函数打 `gc "statepoint-example"`，因此默认产物不会进入
+    //   statepoint/stackmap 路径；
+    // - 这里仍保留 LLVM 全局选项初始化，供未来按显式开关重新启用 stackmap/statepoint 模式时复用。
     #[cfg(feature = "llvm")]
     {
         use std::sync::Once;

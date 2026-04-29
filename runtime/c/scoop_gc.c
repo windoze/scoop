@@ -2003,16 +2003,11 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
       }
       if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
         ScoopGcManagedRootMap in_native_root_map = scoop_gc_managed_root_map_from_thread_record(it);
-        if (in_native_root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
-          (void)fprintf(stderr,
-                        "[scooprt][gc][managed-roots] missing in-native managed root source for initiator roots update\n");
-          abort();
-        }
         (void)scoop_gc_native_roots_visit_slots(it->native_roots,
                                                 it->native_roots_len,
                                                 scoop_gc_baseline_update_slot_visitor,
                                                 (void *)&update_ctx);
-        {
+        if (in_native_root_map.kind != SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
           ScoopGcRootMapVisitResult root_map_result = {0};
           (void)scoop_gc_root_map_visit_slots(
               &in_native_root_map,
@@ -2040,18 +2035,11 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
 
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
       ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
-      if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
-        (void)fprintf(stderr,
-                      "[scooprt][gc][move] missing in-native managed root source for roots update (thread=0x%" PRIxPTR
-                      ")\n",
-                      (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
-        abort();
-      }
       (void)scoop_gc_native_roots_visit_slots(it->native_roots,
                                               it->native_roots_len,
                                               scoop_gc_baseline_update_slot_visitor,
                                               (void *)&update_ctx);
-      {
+      if (root_map.kind != SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
         ScoopGcRootMapVisitResult root_map_result = {0};
         (void)scoop_gc_root_map_visit_slots(
             &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
@@ -2214,17 +2202,9 @@ void scoop_gc_collect(void) {
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
       ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
-      if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
-        (void)fprintf(stderr,
-                      "[scooprt][gc][managed-roots] missing in-native managed root source for mark roots (thread=0x%" PRIxPTR
-                      ")\n",
-                      (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
-        abort();
-      }
-
       (void)scoop_gc_native_roots_visit_slots(
           it->native_roots, it->native_roots_len, scoop_gc_mark_visitor, (void *)&ctx);
-      {
+      if (root_map.kind != SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
         ScoopGcRootMapVisitResult root_map_result = {0};
         (void)scoop_gc_root_map_visit_slots(
             &root_map, scoop_gc_mark_visitor, (void *)&ctx, &root_map_result);

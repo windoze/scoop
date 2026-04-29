@@ -25,10 +25,7 @@ use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 use super::frontend;
 use super::pipeline::run_pass_pipeline;
 use super::reachability::{ReachabilityInputs, collect_reachable_top_level_funs};
-use super::{
-    LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE, LlvmEmitError, codegen,
-    configure_llvm_global_options_once, target,
-};
+use super::{LlvmEmitError, codegen, configure_llvm_global_options_once, target};
 
 struct LoweredCodegenEntry<'a> {
     lowered: &'a hir::LoweredHir,
@@ -809,10 +806,6 @@ fn build_main_module_from_codegen_entry<'ctx>(
     let fn_type = i32_type.fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false);
 
     let main = module.add_function("main", fn_type, None);
-    // statepoint 只对带 `gc "<strategy>"` 的函数生效；入口 main 里包含用户代码的最小 codegen，
-    // 因此这里需要显式标注 GC strategy，让 `rewrite-statepoints-for-gc` 能把 `scoop_alloc_typed` 等调用点
-    // 重写为 statepoint 并产出 stackmap records。
-    main.set_gc(LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
     let entry = context.append_basic_block(main, "entry");
     builder.position_at_end(entry);
 
@@ -843,6 +836,9 @@ fn build_main_module_from_codegen_entry<'ctx>(
         });
     builder.build_call(rt_init, &[], "rt_init")?;
 
+    let mut main_codegen = unit_codegen.fresh_main_codegen();
+    main_codegen.begin_function_explicit_frame_layout(main)?;
+
     let entry_argv_array = match selected_main.arg_shape {
         EntryMainArgShape::None => None,
         EntryMainArgShape::ArrayString => {
@@ -868,9 +864,9 @@ fn build_main_module_from_codegen_entry<'ctx>(
         }
     };
 
-    let main_codegen = unit_codegen.fresh_main_codegen();
     let exit_code = main_codegen.codegen_main_exit_code(hir_main, entry_argv_array)?;
     builder.build_return(Some(&exit_code))?;
+    main_codegen.finish_function_explicit_frame_layout(hir_main.span)?;
 
     module
         .verify()

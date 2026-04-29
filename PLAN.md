@@ -137,6 +137,12 @@
 - runtime 默认 explicit mode 不再读取 stackmap registry。
 - 编译器默认 explicit mode 不再生成 stackmap sections / records。
 - stackmap 路径保留为未来可选模式，但必须从“默认 correctness 依赖”降级为“可审计的优化后端”。
+- 当前状态（T5001f，2026-04-30）：默认 explicit mode 已切换完成。compiler 现已移除默认托管函数与 synthetic `main` 的 `gc "statepoint-example"` 标记，closure/object-init/raw-MIR/effect runtime/callee-resume 等托管入口也不再进入 LLVM statepoint rewrite；synthetic `main` 同时接入 explicit root frame lifecycle，并修复了 frame storage alloca 必须固定在 entry alloca 区的 dominance 缺口。runtime 现已停止在 `scoop_runtime_init()` 时默认注册当前进程 stackmap registry，`InNative` 线程上的 managed roots 枚举/更新/mark 也允许“仅 native_roots、无 managed frame root map”的默认 explicit-frame 场景，因此 stackmap 已不再是默认路径的 runtime 前提。
+- 已锁定的回归：
+  - LLVM/object 断言默认产物不再出现 `gc "statepoint-example"`、`llvm.experimental.gc.statepoint`、`llvm.experimental.stackmap` 与 stackmap section；
+  - `stackmap_registry` runtime 测试改为断言默认 init 不自动注册，但手动注册当前进程 stackmaps 仍可用；
+  - build fixtures 删除了只服务旧默认 stackmap 路径的 dump/registry smoke，并新增 `explicit_root_frame_default_mode_no_stackmaps.scoop` 锁定 synthetic `main` 也走 explicit root frame。
+- 配套验证已通过 `cargo test -p scoopc minimal_main_obj_omits_stackmap_section_by_default`、`cargo test -p scoopc minimal_main_obj_with_live_gc_roots_still_omits_stackmap_section`、`cargo test -p scoopc default_explicit_mode_omits_statepoint_intrinsics_and_gc_strategy`、`cargo test -p scoopc thread_join_preserves_live_gc_locals_via_explicit_root_frame`、`cargo test -p scoopc effect_runtime_functions_use_explicit_root_frame_without_statepoints`、`cargo test -p scoop_runtime`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy --all-targets -- -D warnings`。
 
 ### P7. 稳定化、回归与后续优化入口
 

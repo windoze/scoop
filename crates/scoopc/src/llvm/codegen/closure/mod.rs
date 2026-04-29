@@ -1,8 +1,6 @@
 //! Closure expression/env/body lowering split out of `codegen/mod.rs`.
 
 use super::*;
-use crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE;
-
 /// Closure lowering 后，codegen 需要分别知道：
 /// - receiver lambda 的隐式 `this` 绑定（来自 LLVM receiver 参数，而非 capture env）；
 /// - 普通显式参数 / 隐式 `it` 绑定；
@@ -140,7 +138,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let llvm_fun = self.module.add_function(&fun_name, fn_ty, None);
             llvm_fun.set_call_conventions(0);
-            llvm_fun.set_gc(LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
             if let Some(result_ty) = hidden_sret_result_ty {
                 self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
             }

@@ -452,12 +452,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.module
                 .add_function(&format!("scoop.effect.step.{suffix:x}"), fn_ty, None);
         step_fn.set_call_conventions(0);
-        step_fn.set_gc(crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
         let dispatch_loop_fn =
             self.module
                 .add_function(&format!("scoop.effect.dispatch.{suffix:x}"), fn_ty, None);
         dispatch_loop_fn.set_call_conventions(0);
-        dispatch_loop_fn.set_gc(crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
         // Save caller's codegen context.
         let saved_block = self.builder.get_insert_block();
@@ -4440,7 +4438,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn effect_runtime_functions_use_gc_statepoint_strategy() {
+    fn effect_runtime_functions_use_explicit_root_frame_without_statepoints() {
         let (source, lowered) = lower_typed_single_source_with_source(
             r#"
 package a
@@ -4493,22 +4491,16 @@ fun main(): Int {
 
         let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
         assert!(
-            step_ir.contains(r#"gc "statepoint-example""#),
-            "effect step function must opt into the GC statepoint strategy so escaped continuation locals stay relocatable across GC safepoints"
-        );
-        assert!(
-            step_ir.contains("@llvm.experimental.gc.statepoint"),
-            "effect step function should contain rewritten statepoints once the GC strategy is enabled"
+            !step_ir.contains(r#"gc "statepoint-example""#)
+                && !step_ir.contains("@llvm.experimental.gc.statepoint"),
+            "default explicit mode should not leave effect step on the LLVM statepoint path"
         );
 
         let dispatch_ir = find_function_ir(&ir, "define void @scoop.effect.dispatch.");
         assert!(
-            dispatch_ir.contains(r#"gc "statepoint-example""#),
-            "effect dispatch loop must opt into the GC statepoint strategy so resume/dispatch paths keep GC roots visible"
-        );
-        assert!(
-            dispatch_ir.contains("@llvm.experimental.gc.statepoint"),
-            "effect dispatch loop should also contain rewritten statepoints after the GC strategy is enabled"
+            !dispatch_ir.contains(r#"gc "statepoint-example""#)
+                && !dispatch_ir.contains("@llvm.experimental.gc.statepoint"),
+            "default explicit mode should not leave effect dispatch on the LLVM statepoint path"
         );
     }
 

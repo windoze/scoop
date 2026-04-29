@@ -26,6 +26,7 @@ unsafe extern "C" {
     fn scoop_runtime_init();
 
     fn scoop_stackmap_registry_reset();
+    fn scoop_stackmap_registry_register_current_process() -> u32;
     fn scoop_stackmap_registry_register_section(bytes: *const u8, len: usize) -> u32;
     fn scoop_stackmap_registry_record_count() -> u32;
     fn scoop_stackmap_registry_lookup(
@@ -294,14 +295,10 @@ static EMBEDDED_STACKMAP_SECTION: StackMapSectionEmbedded = StackMapSectionEmbed
 };
 
 #[test]
-fn runtime_init_registers_stackmaps_from_current_process() {
+fn runtime_init_keeps_stackmap_registry_empty_by_default_but_manual_registration_still_works() {
     let _lock = STACKMAP_REGISTRY_TEST_LOCK.lock().unwrap();
-    // 当前实现：
-    // - macOS：通过 dyld + getsectiondata* 扫描已加载 images
-    // - ELF：尝试 `__start_llvm_stackmaps`/`__stop_llvm_stackmaps`（weak）
-    // - Windows：暂未实现自动发现
-    //
-    // 因此本 smoke test 仅在“已实现自动发现”的平台上强制断言。
+    // T5001f 后，默认 explicit mode 不再把 stackmap registry 当作 runtime init 前提；
+    // 但保留“按需手动注册当前进程 stackmaps”的可选实现边界。
     if !(cfg!(target_vendor = "apple") || cfg!(target_os = "linux")) {
         return;
     }
@@ -311,9 +308,16 @@ fn runtime_init_registers_stackmaps_from_current_process() {
         scoop_runtime_init();
 
         let n = scoop_stackmap_registry_record_count();
+        assert_eq!(n, 0, "runtime_init 不应再默认注册当前进程 stackmaps");
+
+        let added = scoop_stackmap_registry_register_current_process();
         assert!(
-            n > 0,
-            "runtime_init 后 stackmap registry 仍为空（records={n}）"
+            added > 0,
+            "手动注册当前进程 stackmaps 后应至少发现 1 条 record（added={added}）"
+        );
+        assert!(
+            scoop_stackmap_registry_record_count() > 0,
+            "手动注册当前进程 stackmaps 后 registry 不应为空"
         );
 
         let ra = EMBEDDED_SYNTHETIC_RA;

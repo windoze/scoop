@@ -316,7 +316,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let llvm_fun = self.module.add_function(&mir_fun.fqn, fn_ty, None);
         llvm_fun.set_call_conventions(0);
-        llvm_fun.set_gc(crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
         }

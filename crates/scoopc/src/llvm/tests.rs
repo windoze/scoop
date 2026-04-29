@@ -4517,7 +4517,7 @@ fun main(): Int {
 }
 
 #[test]
-fn thread_join_statepoint_preserves_live_gc_locals() {
+fn thread_join_preserves_live_gc_locals_via_explicit_root_frame() {
     let source = SourceFile::new_virtual(
         "<mem>",
         include_str!(concat!(
@@ -4543,19 +4543,21 @@ fn thread_join_statepoint_preserves_live_gc_locals() {
 
     assert!(
         join_window.matches("gc_root_keepalive_").count() >= 3,
-        "thread.join statepoint 应从多个 stable home slots 保留至少三个 GC keepalive，而不是只保留 receiver 参数\n{join_window}"
+        "thread.join 调用前应从多个 stable home slots 保留至少三个 GC keepalive，而不是只保留 receiver 参数\n{join_window}"
     );
     assert!(
-        join_window.contains("ptr %call_arg_"),
-        "thread.join statepoint 应继续从 call-arg/home-slot spill 中取回 live GC roots\n{join_window}"
-    );
-    assert!(
-        join_window.contains(r#"[ "gc-live"("#),
-        "thread.join 调用点应继续走 LLVM statepoint `gc-live` roots 合同\n{join_window}"
+        join_window.contains("%tracked_explicit_gc_root_slot_")
+            || join_window.contains("%explicit_gc_root_slot_"),
+        "thread.join 调用前应继续从 call-arg/home-slot spill 中取回 live GC roots\n{join_window}"
     );
     assert!(
         join_window.contains("store ptr addrspace(1) %gc_root_keepalive_"),
-        "thread.join 返回后应把 relocated keepalive 写回真实 home slot / spill 槽位\n{join_window}"
+        "thread.join 返回后应继续把 keepalive 写回真实 stack-backed home slot / spill 槽位\n{join_window}"
+    );
+    assert!(
+        !join_window.contains(r#"[ "gc-live"("#)
+            && !join_window.contains("@llvm.experimental.gc.statepoint"),
+        "默认 explicit mode 下 thread.join 调用点不应再依赖 LLVM statepoint roots 合同\n{join_window}"
     );
 }
 
@@ -4982,8 +4984,8 @@ fn minimal_main_obj_written_is_non_empty() {
 }
 
 #[test]
-fn minimal_main_obj_contains_stackmap_section_and_header_is_parseable() {
-    let dir = make_temp_dir("minimal_main_obj_contains_stackmap_section");
+fn minimal_main_obj_omits_stackmap_section_by_default() {
+    let dir = make_temp_dir("minimal_main_obj_omits_stackmap_section");
     let output = dir.join("main.o");
 
     let source = SourceFile::new_virtual(
@@ -5005,31 +5007,17 @@ fun main() {
     let bytes = std::fs::read(&output).unwrap();
     let obj = object::File::parse(&*bytes).expect("failed to parse object file");
 
-    let stackmap_section = obj
-        .sections()
-        .find(|s| s.name().ok().is_some_and(|n| n.contains("llvm_stackmaps")))
-        .expect("missing stackmap section (llvm_stackmaps)");
-    let section_data = stackmap_section
-        .data()
-        .expect("failed to read stackmap section data");
-
-    let header = super::stackmap::StackMapHeader::parse(section_data)
-        .expect("stackmap header should be parseable");
     assert!(
-        header.num_records > 0,
-        "expected stackmap section to contain at least one record"
+        !object_contains_stackmap_section(&obj),
+        "default explicit mode should not emit a stackmap section"
     );
 
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
 #[test]
-fn minimal_main_obj_stackmap_roots_contract_is_verifyable() {
-    // GC-FIX Phase A1：
-    // - 解析 stackmap records；
-    // - 固化“roots locations 是可计算的连续后缀”契约；
-    // - 单测层面保证：至少出现一个带 roots 的 record（否则校验形同虚设）。
-    let dir = make_temp_dir("minimal_main_obj_stackmap_roots_contract_is_verifyable");
+fn minimal_main_obj_with_live_gc_roots_still_omits_stackmap_section() {
+    let dir = make_temp_dir("minimal_main_obj_with_live_gc_roots_still_omits_stackmap_section");
     let output = dir.join("main.o");
 
     let source = SourceFile::new_virtual(
@@ -5056,87 +5044,16 @@ fun main(): Unit {
 
     let bytes = std::fs::read(&output).unwrap();
     let obj = object::File::parse(&*bytes).expect("failed to parse object file");
-    let stackmap_section = obj
-        .sections()
-        .find(|s| s.name().ok().is_some_and(|n| n.contains("llvm_stackmaps")))
-        .expect("missing stackmap section (llvm_stackmaps)");
-    let section_data = stackmap_section
-        .data()
-        .expect("failed to read stackmap section data");
-
-    let section = crate::stackmap::StackMapSection::parse(section_data)
-        .expect("stackmap section should be parseable (v3)");
-
-    let cfg = if cfg!(target_arch = "x86_64") {
-        crate::stackmap::StackMapRootsContractConfig {
-            pointer_size: 8,
-            sp_dwarf_reg: 7,
-            fp_dwarf_reg: Some(6),
-        }
-    } else if cfg!(target_arch = "aarch64") {
-        crate::stackmap::StackMapRootsContractConfig {
-            pointer_size: 8,
-            sp_dwarf_reg: 31,
-            fp_dwarf_reg: Some(29),
-        }
-    } else {
-        panic!("unsupported test target_arch for stackmap roots contract");
-    };
-
-    section
-        .verify_roots_contract(cfg)
-        .expect("stackmap roots contract should hold");
-
-    let roots_records = section
-        .records
-        .iter()
-        .filter(|rec| {
-            rec.locations.iter().any(|loc| {
-                matches!(
-                    loc.kind,
-                    crate::stackmap::StackMapLocationKind::Direct
-                        | crate::stackmap::StackMapLocationKind::Indirect
-                ) && loc.size == cfg.pointer_size
-                    && (loc.dwarf_reg == cfg.sp_dwarf_reg
-                        || cfg.fp_dwarf_reg.is_some_and(|fp| fp == loc.dwarf_reg))
-            })
-        })
-        .count();
-    let sample = section
-        .records
-        .iter()
-        .take(3)
-        .enumerate()
-        .map(|(i, rec)| {
-            let locs = rec
-                .locations
-                .iter()
-                .enumerate()
-                .map(|(j, loc)| {
-                    format!(
-                        "loc[{j}] kind={:?} size={} reg={} off={}",
-                        loc.kind, loc.size, loc.dwarf_reg, loc.offset
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!(
-                "record[{i}] patchpoint_id=0x{:x} inst_off=0x{:x} locs=[{locs}]",
-                rec.patchpoint_id, rec.instruction_offset
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
     assert!(
-        roots_records > 0,
-        "expected at least one record to contain GC roots locations\n{sample}"
+        !object_contains_stackmap_section(&obj),
+        "default explicit mode should omit stackmap sections even when a live GC root crosses collect"
     );
 
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
 #[test]
-fn statepoint_pipeline_rewrites_scoop_alloc_typed_callsites() {
+fn default_explicit_mode_omits_statepoint_intrinsics_and_gc_strategy() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -5160,16 +5077,17 @@ fun main(): Int {
 
     let ir = module.print_to_string().to_string();
     assert!(
-        ir.contains("llvm.experimental.gc.statepoint"),
-        "expected rewrite-statepoints-for-gc to emit gc.statepoint intrinsics"
-    );
-    assert!(
         ir.contains("scoop_alloc_typed"),
-        "expected statepoint pipeline to cover scoop_alloc_typed (alloc safepoint boundary)"
+        "expected allocation path to remain present in LLVM IR"
     );
     assert!(
-        !ir.contains("llvm.experimental.stackmap"),
-        "expected stackmap records to come from statepoints, not manual stackmap probes"
+        !ir.contains(r#"gc "statepoint-example""#),
+        "default explicit mode should not tag functions with the LLVM statepoint GC strategy"
+    );
+    assert!(
+        !ir.contains("llvm.experimental.gc.statepoint")
+            && !ir.contains("llvm.experimental.stackmap"),
+        "default explicit mode should not emit statepoint/stackmap intrinsics"
     );
 }
 
@@ -5217,6 +5135,10 @@ fun main() {
     assert!(
         ir.contains("@__scoop_explicit_root_offsets__a_keep = internal constant [1 x i32]"),
         "expected keep to contribute one direct ref root slot\n{ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_explicit_root_offsets__a_keep = internal constant [1 x i32] [i32 16]"),
+        "expected the first explicit root slot to start after the two-pointer frame header\n{ir}"
     );
 }
 
@@ -5744,6 +5666,11 @@ fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
         }
     }
     panic!("expected function containing {name_fragment}");
+}
+
+fn object_contains_stackmap_section(obj: &object::File<'_>) -> bool {
+    obj.sections()
+        .any(|section| section.name().ok().is_some_and(|name| name.contains("llvm_stackmaps")))
 }
 
 fn mir_fun_contains_direct_call(fun: &crate::mir::FunDecl, expected: &str) -> bool {

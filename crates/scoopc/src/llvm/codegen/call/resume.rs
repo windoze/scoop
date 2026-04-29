@@ -2,8 +2,6 @@
 
 use super::super::closure::closure_callee_resume_entry_fn_name;
 use super::super::*;
-use crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE;
-
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn declare_callee_resume_entry_function_impl(
         &mut self,
@@ -33,7 +31,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let resume_fun = self.module.add_function(name, fn_ty, None);
         resume_fun.set_call_conventions(0);
-        resume_fun.set_gc(LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(resume_fun, 0, result_ty);
         }
@@ -113,7 +110,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let wrapper = self.module.add_function(&wrapper_name, fn_ty, None);
         wrapper.set_call_conventions(0);
-        wrapper.set_gc(LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(wrapper, 0, result_ty);
         }

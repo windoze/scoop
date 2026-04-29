@@ -1,9 +1,10 @@
 // EXPECT: pass
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: @fixtures.build.Derived.ping, i32 1
+// BUILD-LLVM-CONTAINS: call i64 @fixtures.build.Derived.ping(ptr addrspace(1)
 // BUILD-LLVM-NOT-CONTAINS: call_vtable
 //
 // T1603：去虚化：当 receiver 的静态类型为“无已知子类”的 class 时，虚调用应降级为 direct call。
+// T5001f 后默认 explicit mode 不再经 statepoint 包装，因此这里直接断言 ordinary LLVM call。
 
 package fixtures.build
 

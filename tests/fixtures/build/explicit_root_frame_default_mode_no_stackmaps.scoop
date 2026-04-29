@@ -1,0 +1,26 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: @__scoop_explicit_root_desc__main = internal constant
+// BUILD-LLVM-CONTAINS: @__scoop_explicit_root_frame_top = external thread_local global ptr
+// BUILD-LLVM-NOT-CONTAINS: gc "statepoint-example"
+// BUILD-LLVM-NOT-CONTAINS: @llvm.experimental.gc.statepoint
+// BUILD-LLVM-NOT-CONTAINS: @llvm.experimental.stackmap
+//
+// 目标：T5001f 默认 explicit mode：
+// - 继续发射 explicit root frame TLS 生命周期；
+// - synthetic entry `main` 也要接入 explicit root frame，而不是靠旧 stackmap 兜底；
+// - 默认 LLVM IR 不再打 statepoint GC strategy；
+// - 默认 LLVM IR 不再包含 statepoint/stackmap intrinsics。
+
+package fixtures.build
+
+import scoop.core.*
+
+fun keepAlive(value: Any): Unit {
+}
+
+fun main(): Unit {
+    val keep: Any = 1
+    __scoop_gc_collect()
+    keepAlive(keep)
+}

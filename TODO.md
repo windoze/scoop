@@ -240,7 +240,7 @@
 - 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`call/abi.rs`、`call/resume.rs`、`effect/mod.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归。确认 aggregate 读取主线已统一经 `storage_slot_for_use(...)` / rebuild helper 收口：direct/indirect call args、hidden-sret aggregate result、effect boxed payload，以及复用 `encode_effect_transport_value(...)` 的 continuation / state-machine payload transport，都会按“GC ref leaf 从 explicit-frame home slot reload、非 ref leaf 从原 storage 或 heap field 读取”的合同重建 fresh aggregate；未再发现直接传播 post-safepoint stale aggregate 镜像的现存路径。另通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 复核。
 - 依赖：T5001e2
 
-### [TODO] T5001f 切换默认 explicit mode 到 explicit root frame，并停止默认路径的 stackmap 生成与使用
+### [DONE] T5001f 切换默认 explicit mode 到 explicit root frame，并停止默认路径的 stackmap 生成与使用
 - 范围：
   - 默认 explicit mode 的 managed roots 完全切到 explicit root frame。
   - runtime 默认 explicit mode 不再读取 stackmap registry；编译器默认 explicit mode 不再生成 stackmap sections / records。
@@ -249,6 +249,7 @@
 - 验收：
   - 默认 explicit mode 已可独立运行并通过回归，不依赖 stackmap；
   - 默认 explicit mode 的产物已不再生成 stackmap section。
+- 完成记录：默认 explicit mode 现已全面切到 explicit root frame。编译器侧已移除托管函数、closure/object-init/raw-MIR/effect state-machine/callee-resume 以及 synthetic `main` 的 `gc "statepoint-example"` 标记，默认 lowering 不再生成 statepoint/stackmap intrinsics；同时让 synthetic `main` 也走 explicit frame layout，并修复其 frame storage alloca 必须固定插在 entry alloca 区的 dominance 缺口。runtime 侧 `scoop_runtime_init()` 不再默认注册当前进程 stackmap registry，GC 在 `InNative` 线程上也允许“只有 native_roots、没有 managed frame root map”的默认 explicit-mode 场景，不再把 stackmap ctx 视为必备前提。测试侧删除了默认矩阵里仅服务 stackmap 默认路径的 dump/registry fixture，新增 `tests/fixtures/build/explicit_root_frame_default_mode_no_stackmaps.scoop`，并把 LLVM/object/runtime 断言统一改为锁定“默认产物无 `.llvm_stackmaps` / `__llvm_stackmaps`、无 `gc.statepoint`、stackmap registry 仅在手动注册时可用”的合同；另同步更新了 `extern_enter_native_no_statepoint_writeback` 与 `thread_join` 相关断言，使其匹配 explicit-frame home-slot source-of-truth。已通过 `cargo test -p scoopc minimal_main_obj_omits_stackmap_section_by_default`、`cargo test -p scoopc minimal_main_obj_with_live_gc_roots_still_omits_stackmap_section`、`cargo test -p scoopc default_explicit_mode_omits_statepoint_intrinsics_and_gc_strategy`、`cargo test -p scoopc thread_join_preserves_live_gc_locals_via_explicit_root_frame`、`cargo test -p scoopc effect_runtime_functions_use_explicit_root_frame_without_statepoints`、`cargo test -p scoop_runtime`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001e2R
 
 ### [TODO] T5001fR Review：确认默认 correctness 路线已真正切到 explicit root frame

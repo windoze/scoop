@@ -732,11 +732,23 @@ impl<'a, 'ctx> Deref for MainCodegen<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn begin_function_explicit_frame_layout(
+    pub(crate) fn begin_function_explicit_frame_layout(
         &mut self,
         llvm_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let storage = self.builder.build_array_alloca(
+        let entry = llvm_fun
+            .get_first_basic_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function has no entry block",
+                at: crate::span::Span::new(0, 0).into(),
+            })?;
+        let entry_builder = self.context.create_builder();
+        match entry.get_first_instruction() {
+            Some(inst) => entry_builder.position_before(&inst),
+            None => entry_builder.position_at_end(entry),
+        }
+
+        let storage = entry_builder.build_array_alloca(
             self.llvm_ptr_type(AddressSpace::default()),
             self.context.i32_type().const_int(2, false),
             "explicit_root_frame_storage",
@@ -755,7 +767,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn finish_function_explicit_frame_layout(
+    pub(crate) fn finish_function_explicit_frame_layout(
         &mut self,
         at: crate::span::Span,
     ) -> Result<(), LlvmEmitError> {
@@ -863,12 +875,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn explicit_root_frame_header_size_bytes(&self) -> Result<u64, LlvmEmitError> {
         let header_ty = self.llvm_explicit_root_frame_header_type();
-        self.target_data.offset_of_element(&header_ty, 1).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
+        let size = self.target_data.get_store_size(&header_ty);
+        if size == 0 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "explicit root frame header size",
                 at: crate::span::Span::new(0, 0).into(),
-            },
-        )
+            });
+        }
+        Ok(size)
     }
 
     fn explicit_root_frame_slot_offset_bytes(
@@ -2071,8 +2085,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|e| e.symbol.as_str())
             .unwrap_or(fun.fqn.as_str());
 
-        let has_body = fun.body.is_some() && !is_extern;
-
         // `@Extern` 调用点会在进入 native 前把 managed roots 暴露为 `native_roots` slots；
         // 从 LLVM GC/statepoint 的视角看，这些调用必须视作 leaf：
         // - native 内部即使触发 GC，也应以 slots 更新为准；
@@ -2105,9 +2117,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
         if let Some(existing) = self.module.get_function(llvm_name) {
-            if has_body {
-                existing.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
-            }
             if is_gc_leaf {
                 self.mark_gc_leaf_function(existing);
             }
@@ -2156,9 +2165,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
         // `@CallingConvention(...)`：缺省为 C ABI（LLVM callconv 0）。
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
-        if has_body {
-            llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
-        }
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
         }
@@ -3043,7 +3049,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .module
             .get_function(&name)
             .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
-        llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
         if llvm_fun.get_first_basic_block().is_some() {
             return Ok(llvm_fun);
@@ -3576,7 +3581,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(crate) fn codegen_main_exit_code(
-        mut self,
+        &mut self,
         fun: &hir::FunDecl,
         entry_argv_array: Option<PointerValue<'ctx>>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
