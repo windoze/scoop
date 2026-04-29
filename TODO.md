@@ -166,13 +166,14 @@
 - 完成记录：编译器现在会在每个 managed function 的 entry 先预留稳定的 activation frame storage，并在函数收尾把其补成 `ScoopExplicitRootFrame$...` 对象：header 固定在首字段、descriptor/offset table 与 frame slot 地址统一按 `header + pointer-size slot` 解释。entry 路径会安装 `hdr.prev` / `hdr.desc`、把所有 frame slots 初始化为 `NULL` 并 push 到 `@__scoop_explicit_root_frame_top`；所有 `ret` 终结点前都会先清空 frame slots 并恢复上一层 TLS top，因此 ordinary return、top-level/object-init 提前返回、closure、resume wrapper/entry 与 effect state-machine step/dispatch 的退出路径都统一走同一 pop 合同。现有保守 safepoint spill 也已接上 frame mirror：调用前把 live GC slot 写入 explicit frame，调用后写回 spill slot 并把 frame slot 清回 `NULL`，避免 inactive slot 长期保活。另新增 LLVM 回归锁定 TLS push/pop 与 safepoint slot clear，并通过 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/build` 验证。
 - 依赖：T5001d1R
 
-### [TODO] T5001d2R Review：确认 frame 生命周期与 NULL discipline 成立
+### [DONE] T5001d2R Review：确认 frame 生命周期与 NULL discipline 成立
 - 重点：
   - frame 是否统一是 entry-block alloca；
   - push/pop 是否覆盖 ordinary return、effect propagation、continuation resume、state-machine runtime function 等全部边界；
   - dead/inactive slots 是否真正清零，而不是只在入口初始化一次。
 - 验收：
   - 后续 post-safepoint reload 与 moving update 可以把 frame fields 当成唯一可信 source of truth。
+- 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`gc.rs`、`call/resume.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归，确认 managed body 的 explicit frame storage 统一经 `begin_function_explicit_frame_layout(...)` 在 entry-block 预留，top-level/object-init/closure/callee-resume/effect state-machine/dispatch 等入口都在函数收尾统一执行 `finish_function_explicit_frame_layout(...)`。review 期间发现并修复了一处现存缺口：此前 teardown 仅插入到 `ret` 终结点，导致 `CgTy::Never` 共享返回块发射 `unreachable` 时会漏掉 frame slot 清零与 TLS pop；现已改为同时覆盖 `ret` / `unreachable` 终结点，并新增 LLVM 回归 `never_returning_managed_function_pops_explicit_root_frame_before_unreachable`。另复核 safepoint spill mirror 路径仍会在调用后把 explicit frame mirror slot 清回 `NULL`，普通函数退出也会在 teardown 中统一清槽。已通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001d2
 
 ### [TODO] T5001d3 把源码级 roots 与编译器内部临时 roots 全部收敛到 frame home slots

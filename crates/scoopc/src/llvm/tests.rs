@@ -5216,6 +5216,47 @@ fun main() {
 }
 
 #[test]
+fn never_returning_managed_function_pops_explicit_root_frame_before_unreachable() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun stop(name: String): Nothing / Raise<RuntimeError> {
+    __scoop_gc_collect()
+    Raise.raise(RuntimeError.NullAssertionFailed)
+}
+
+fun main(): Int {
+    return try {
+        stop("hi")
+    } catch (e: RuntimeError) {
+        1
+    }
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let stop_ir = function_ir_named(&ir, "@a.stop(");
+
+    assert!(
+        stop_ir.contains("store ptr %explicit_root_frame_storage, ptr @__scoop_explicit_root_frame_top"),
+        "expected never-returning function entry to push explicit root frame\n{stop_ir}"
+    );
+    assert!(
+        stop_ir.contains("store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_0"),
+        "expected unreachable exit to clear explicit frame slots\n{stop_ir}"
+    );
+    assert!(
+        stop_ir.contains("store ptr %explicit_root_frame_pop_prev, ptr @__scoop_explicit_root_frame_top"),
+        "expected unreachable exit to restore previous explicit root frame\n{stop_ir}"
+    );
+}
+
+#[test]
 fn explicit_frame_layout_flattens_indirect_gc_aggregate_params() {
     let source = SourceFile::new_virtual(
         "<mem>",

@@ -1060,7 +1060,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let Some(term) = bb.get_terminator() else {
                 continue;
             };
-            if term.get_opcode() != inkwell::values::InstructionOpcode::Return {
+            let opcode = term.get_opcode();
+            if opcode != inkwell::values::InstructionOpcode::Return
+                && opcode != inkwell::values::InstructionOpcode::Unreachable
+            {
                 continue;
             }
             let builder = self.context.create_builder();
