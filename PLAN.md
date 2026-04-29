@@ -2218,6 +2218,19 @@
     - `cargo run -p scoop -- test`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000j3b2R Review：确认 capture-box / 剩余 higher-order 场景扩张没有把分析责任倒灌回 backend`。
+- 2026-04-29：`T5000j3b2R Review：确认 capture-box / 剩余 higher-order 场景扩张没有把分析责任倒灌回 backend` 已完成。
+  - 复核结论：
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 中 `CaptureBoxNew/Get/Set` 与 `CallKind::FunValue` 的 production MIR bridge 继续只消费 canonical materialized MIR body、pass-view callable identity，以及 `mir_types -> codegen TypeStore` 的等价类型映射；backend 负责的是 typed capture-box object lowering、indirect-call ABI 组装与 effect-boundary 安装，没有重新承担 target-set 缩减、escape 推断或 provenance 收缩职责；
+    - `crates/scoopc/src/llvm/reachability.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 只是在 canonical raw candidate / MIR-compatible scan 边界上把 `CaptureBox*`、`MakeClosure`、`ClosureCall`、`FunValueCall` 纳入可发布形状；`Virtual` / `Interface` / `Resume`、effect/handle、`Return { value: None }` 等未收口 higher-order / control-transfer 形状仍继续落在 HIR-compatible fallback，因此没有把中端 higher-order 分析倒灌回 backend；
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs` 继续通过 shared `collect_known_fun_call_suspendability(...)`、pass summary override 与 pass-view escape facts 构造 effect/suspendability 输入，说明 higher-order/effect 相关事实仍来自 shared facts / pass artifacts，而不是 LLVM lowering 现场重算。
+  - 验证结果：
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_mutable_capture_closure_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 全部通过。
+  - review 结论：capture-box / 剩余 higher-order 场景扩张仍建立在 materialized MIR、pass artifacts 与 shared effect facts 之上；当前未发现需要插入到 `T5000j3bR` 之前的新前置缺陷任务。
+  - 下一条待执行任务切换为 `T5000j3bR Review：确认 higher-order / closure 场景扩张没有把分析责任倒灌回 backend`。
 
 ## 1. 当前判断
 

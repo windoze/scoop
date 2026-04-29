@@ -45,3 +45,17 @@
 ## 收尾
 - 已更新 `TODO.md` 与 `PLAN.md`：`T5000j3b2` 标记为完成，下一条待执行任务切换为 `T5000j3b2R`。
 - 剩余动作：检查 git 状态与差异，按仓库风格创建本轮提交，然后停止。
+
+## 追加进度（2026-04-29）
+- 已检查最新提交：`[T5000j3b2] Lower capture-box and fun-value MIR in production path`；提交信息本身没有新增待先修的遗留问题。
+- 已完成 `T5000j3b2R` 复核，未发现需要前插到 `T5000j3bR` 之前的新缺陷任务。
+- 本轮 review 结论：
+  1. `CaptureBox*` lowering 只消费 materialized MIR 结构、pass view 与共享类型/运行时布局事实。
+  2. `FunValueCall` 仍作为 opaque indirect call 进入 production MIR bridge，backend 没有重新承担 higher-order target-set 收缩。
+  3. effect/suspendability 相关判断继续通过 shared facts 与 pass summary/escape facts 进入 backend bridge，而不是在 LLVM lowering 现场重算。
+- 已补跑验证：
+  1. `cargo test -p scoopc production_codegen_lowers_raw_mir_mutable_capture_closure_body -- --nocapture`
+  2. `cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`
+  3. `cargo test --all`
+  4. `cargo clippy --all-targets -- -D warnings`
+- 下一条待执行任务已更新为 `T5000j3bR`；本轮到此停止。

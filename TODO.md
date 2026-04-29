@@ -2072,13 +2072,18 @@
   - 已新增回归覆盖：`crates/scoopc/src/llvm/tests.rs::production_codegen_lowers_raw_mir_mutable_capture_closure_body` 与 `production_codegen_lowers_raw_mir_fun_value_call_body`，并在全量验证中同时锁定 async/task sysroot helper 不会因这次 higher-order 覆盖扩张而再次触发 `value coercion` 回归；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc production_codegen_lowers_raw_mir_mutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
-### [TODO] T5000j3b2R Review：确认 capture-box / 剩余 higher-order 场景扩张没有把分析责任倒灌回 backend
+### [DONE] T5000j3b2R Review：确认 capture-box / 剩余 higher-order 场景扩张没有把分析责任倒灌回 backend
 - 重点：
   - `CaptureBox*` / 剩余 higher-order 的新覆盖是否仍消费 shared facts / pass artifacts；
   - LLVM backend 是否只保留 lowering，而不是重新承担分析或 target-set 收缩职责。
 - 验收：
   - 可以明确指出剩余 higher-order / closure 覆盖依赖的是哪一层中端事实。
 - 依赖：T5000j3b2
+- 完成记录（2026-04-29）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/mir_body.rs`，确认 `CaptureBoxNew/Get/Set` 与 `CallKind::FunValue` 的 production MIR bridge 只消费 materialized MIR body、`MaterializedMirPassView`、以及 `mir_types -> codegen TypeStore` 的等价映射；backend 当前只负责 typed capture-box object lowering、indirect call ABI 组装与 effect-boundary 安装，没有重新在现场推断 closure/fun-value target-set、escape 或 provenance 收缩。
+  - 已复核 `crates/scoopc/src/llvm/reachability.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 raw non-generic candidate 放宽只是在 canonical materialized MIR 主线上把 `CaptureBox*`、`MakeClosure`、`ClosureCall`、`FunValueCall` 纳入可发布形状；`Virtual` / `Interface` / `Resume`、effect/handle、`Return { value: None }` 等仍继续通过 `mir_*_requires_hir_compat_scan(...)` / fallback 边界留在 HIR-compatible 路径，没有把 target-set shrinking 或高阶分析重新长回 backend。
+  - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs` 与 `crates/scoopc/src/mir/pass_view.rs`，确认 backend 对 higher-order/effect 相关判断继续读取 shared facts：known-fun outward-effect 经 shared `collect_known_fun_call_suspendability(...)` 与 pass summary override 进入 `known_fun_body_may_outward_effect(...)`，continuation/closure escape 事实仍停留在 pass-view / shared effect analysis 层，而不是在 LLVM lowering 现场重算。
+  - 已回归 `cargo test -p scoopc production_codegen_lowers_raw_mir_mutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；本轮未发现需要插入到 `T5000j3bR` 之前的新前置缺陷任务。
 
 ### [TODO] T5000j3bR Review：确认 higher-order / closure 场景扩张没有把分析责任倒灌回 backend
 - 重点：
