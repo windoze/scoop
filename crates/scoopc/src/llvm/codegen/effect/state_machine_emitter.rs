@@ -3770,7 +3770,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         llvm_index,
                         "cont_slot",
                     )?;
-                    self.builder.build_store(slot_ptr, cont_ptr)?;
+                    // Route escaped continuations through the ordinary local-store path so
+                    // the explicit-frame home slot stays in sync with the frame field.
+                    let _ = self.store_local_value_exact(
+                        span,
+                        slot_ptr,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(cont_ptr.into()),
+                        },
+                    )?;
                     self.function_cx.env.insert(
                         continuation,
                         CgLocal {
@@ -3783,7 +3793,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     );
                 } else {
                     let alloca = self.create_entry_alloca(span, "cont_local", CgTy::Ref)?;
-                    self.builder.build_store(alloca, cont_ptr)?;
+                    let _ = self.store_local_value_exact(
+                        span,
+                        alloca,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(cont_ptr.into()),
+                        },
+                    )?;
                     self.function_cx.env.insert(
                         continuation,
                         CgLocal {
@@ -5100,6 +5118,59 @@ fun main(): Int {
                 .count(),
             1,
             "async task closure should materialize exactly one ready step helper on normal completion:\n{async_closure_ir}"
+        );
+    }
+
+    #[test]
+    fn async_task_pending_path_stores_escape_continuation_before_waiting_helper() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val inner: Task<Int> = async { 41 }
+    val outer: Task<Int> = async {
+        val x: Int = await inner
+        x + 1
+    }
+    when (outer.step()) {
+        TaskStep.Pending -> 0
+        TaskStep.Ready(value) -> value
+    }
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+        let async_closure_ir = ir
+            .split("\ndefine ")
+            .skip(1)
+            .find_map(|chunk| {
+                let function = format!("define {chunk}");
+                let body_end = function.find("\n}")?;
+                let function = &function[..body_end + 2];
+                (function.contains("scoop.core.__task_step_pending::<")
+                    && function.contains("load_continuation")
+                    && function.contains("continuation_val"))
+                .then_some(function.to_string())
+            })
+            .expect("expected async task closure function in IR");
+        let load_idx = async_closure_ir
+            .find("%load_continuation =")
+            .expect("await pending path should load escaped continuation from the effect frame");
+        let pending_idx = async_closure_ir
+            .find("call void @\"scoop.core.__task_step_pending::<Int>\"")
+            .expect("await pending path should call __task_step_pending helper");
+        let pending_window = &async_closure_ir[load_idx..pending_idx];
+
+        assert!(
+            pending_window.contains("store ptr addrspace(1) %continuation_val, ptr %cont_local")
+                && pending_window.contains("ptr %explicit_root_frame_slot_"),
+            "await pending path must store the escaped continuation into its tracked local and explicit-frame home slot before calling __task_step_pending, otherwise waiting resumes will see null continuation:\n{async_closure_ir}"
         );
     }
 

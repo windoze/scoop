@@ -262,7 +262,7 @@
 - 完成记录：已复核 `runtime/c/scoop_runtime.c`、`runtime/c/scoop_gc*.c`、`crates/scoopc/src/llvm/mod.rs`、`crates/scoopc/src/llvm/codegen/gc.rs`、`runtime_abi.rs`、`sysroot/core.scoop` 与现有 LLVM/object/registry 回归，确认默认 `scoop_runtime_init()` 不再自动注册 stackmap registry，GC 在默认 explicit mode 下会优先以 explicit root frame 作为 managed roots source-of-truth，而默认 LLVM 产物继续锁定“无 `gc "statepoint-example"`、无 `llvm.experimental.gc.statepoint`、无 stackmap section”。review 期间发现并修复一处真实回归：保留中的显式 stackmap smoke helper `__scoop_stackmap_statepoint_smoke()` 在默认移除 GC strategy 后已无法再为调用点产出真实 record；现已改为仅对显式调用该 helper 的函数恢复 statepoint GC strategy，从而把 stackmap 保持为按需 opt-in 的可选实现边界，而不重新污染默认 correctness 路线。另新增两条 LLVM 回归，分别锁定该 helper 会重新进入 statepoint pipeline、并可按需产出 stackmap section；已通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001f
 
-### [TODO] T5001f1 修复 async/task waiting path 的 transport-await regression
+### [DONE] T5001f1 修复 async/task waiting path 的 transport-await regression
 - 范围：
   - 修复 `await` internal handler 与 `Task.step()` waiting path 在 run-pass/runtime 下的真实回归：当前最小复现中，外层 task 首次 `step()` 返回 `Pending` 后，再次 drive 会卡住，`async_await_minimal_int_basic.scoop`、`async_await_string_basic.scoop`、`async_fun_task_runtime_basic.scoop` 与 `task_step_manual_basic.scoop` 均受影响。
   - 精确查清并修复 `Async.await` 降低出来的 awaited-task transport 合同，确保 waiting task 驱动的 source-of-truth 与 `Continuation<(Int, Any), __TaskStepResult<T>>` resume payload contract 一致，不能继续依赖当前会把 post-await drive 卡死的错误路径。
@@ -274,6 +274,7 @@
   - `task_step_manual_basic.scoop` 恢复输出 `step1=ready` / `step2=ready`；
   - `async_await_minimal_int_basic.scoop`、`async_await_string_basic.scoop`、`async_fun_task_runtime_basic.scoop` 重新稳定通过；
   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 不再在这些 async/task fixtures 上卡住或失败。
+- 完成记录：`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 await waiting-path 现已在把 escaped continuation 从 effect frame 取出后，统一经 `store_local_value_exact(...)` 写回 continuation local，并同步刷新 explicit-frame home slot，再调用 `__task_step_pending(...)`；从而 `Task.step()` 的 Waiting transport 不再把 `null` continuation 记进 waiting state，post-await drive 能正确恢复外层 continuation。另新增 LLVM 回归 `async_task_pending_path_stores_escape_continuation_before_waiting_helper` 锁定 `load_continuation -> local store -> explicit-frame store -> __task_step_pending(...)` 序列，并已通过 `cargo test -p scoopc async_task_pending_path_stores_escape_continuation_before_waiting_helper -- --nocapture`、`cargo run -p scoop -- run tests/fixtures/run-pass/task_step_manual_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_string_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`、`cargo test -p scoopc --lib` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001fR
 
 ### [TODO] T5001f1R Review：确认 await/task waiting transport 合同重新闭合
