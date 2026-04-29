@@ -1,39 +1,22 @@
-# Claude Plan
+## 当前执行计划
 
-## Note
+1. 检查最近一次提交信息，确认是否提到了需要先修复的既有问题；如果有，先处理该问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 评估该任务是否可在一次迭代内完整完成；若过大，则拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+4. 实现当前目标任务，避免引入规避性方案；若发现既有缺陷或规格不匹配，先修复或将其作为前置任务插入 `TODO.md`。
+5. 运行与本次改动相关的测试、格式化与必要检查，至少覆盖受影响范围；若用户要求或仓库规范要求，则补充更全面验证。
+6. 更新 `memory/claude_plan.md`、`PLAN.md`、`TODO.md`，记录完成状态或阻塞原因。
+7. 按仓库约定创建一次提交，然后停止，不继续处理下一个任务。
 
-User asked for a complete thought process. I will not record private chain-of-thought, but I will keep a concise, high-level execution plan and progress log here.
+## 当前进度
 
-## Initial Plan
+- 已确认首个未完成任务为 `T5001c2R`。
+- 已检查最近提交；提交信息未额外声明待先修复问题。
+- 审查中发现一个既有文档化问题：`runtime/c/scoop_gc_backend_immix.c` 中仍有旧注释把 `InNative` 的高层 managed frame 枚举描述为依赖捕获的 unwind ctx；这与 `T5001c2` 现状不符，需先修正注释，再完成 review 结论与验证。
+- 已修正上述过期注释，使其与当前合同一致：explicit-frame 路径保留 `explicit_root_frame_top`，仅 stackmap mode 依赖 captured ctx。
+- 已完成验证：`cargo test --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings` 通过。
+- 下一步：更新 `TODO.md` / `PLAN.md` 标记 `T5001c2R` 完成，随后提交并停止。
 
-1. Inspect the latest git commit to see whether it mentions a pre-existing issue that must be fixed first.
-2. Read `TODO.md` and identify the first incomplete task.
-3. Read `PLAN.md` to understand the intended task ordering and current project context.
-4. If the first incomplete task is too large, decompose it into smaller subtasks, update `PLAN.md`, update `TODO.md`, and execute only the first resulting subtask.
-5. Implement the selected task with the smallest correct code change.
-6. Run the relevant tests, plus formatting/linting if required by the task or impacted code.
-7. Update `TODO.md`, `PLAN.md`, and this file to reflect progress and any newly discovered prerequisite issues.
-8. Commit exactly the changes for this iteration with a task-aligned commit message, then stop.
+## 说明
 
-## Progress Log
-
-- Created this plan file before running repository inspection commands.
-- Inspected the latest commit, `TODO.md`, and `PLAN.md`.
-- Latest commit is a review commit for `T5001c1R` and does not describe a separate pre-existing bug to fix first.
-- The first incomplete task is `T5001c2`: switch explicit mode managed root enumeration to the TLS explicit frame chain and narrow `InNative` / `native_roots` responsibilities.
-- Confirmed `T5001c2` was implementable without decomposition.
-- Updated runtime thread records to snapshot `explicit_root_frame_top` during STW parking and `enter_native`, and to prefer explicit-frame root maps before stackmap fallback.
-- Updated baseline and Immix GC mark/update/verify paths to consume the new managed-root snapshot logic.
-- Added a runtime smoke helper and Rust test covering `enter_native + explicit root frame` behavior.
-- During full verification, found a regression in `gc_verify_roots` for stackmap-mode `InNative` threads; fixed verify to keep the historical stackmap behavior while still validating explicit-frame snapshots when present.
-- Verification completed successfully with `cargo test -p scoop_runtime --test explicit_root_frame`, `cargo test -p scoop_runtime --test gc_verify_roots`, `cargo test --all`, `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`, and `cargo clippy --all-targets -- -D warnings`.
-
-## Current Execution Focus
-
-1. Inspect runtime code paths for explicit mode root enumeration, `InNative`, `native_roots`, and stackmap lookup usage.
-2. Decide whether `T5001c2` is directly implementable in one step or needs decomposition in `TODO.md` / `PLAN.md`.
-3. If implementable, change the runtime so explicit mode uses the TLS explicit frame chain for managed roots, while keeping stackmap mode available.
-4. Update tests or add targeted coverage for the new explicit-mode behavior.
-5. Run relevant tests and lint.
-6. Update `TODO.md`, `PLAN.md`, and this file.
-7. Commit and stop.
+这里记录的是可执行计划与进度，不包含内部推理细节。

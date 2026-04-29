@@ -391,8 +391,10 @@ static void scoop_gc_stop_the_world_end_unlocked(void) {
       it->state = SCOOP_GC_THREAD_RUNNING;
     }
     it->parked_epoch = 0;
-    // T1512c：InNative 线程需要保留 enter_native 时捕获的 ctx，用于 native 期间枚举更高层
-    // managed caller frames；其余线程的 roots snapshot 只在当前 STW 内有效，结束后必须清空。
+    // InNative 线程需要保留 enter_native 时保存的 managed roots snapshot：
+    // - explicit-frame 路径保留 `explicit_root_frame_top`；
+    // - stackmap mode 才保留 captured ctx。
+    // 其余线程的 roots snapshot 只在当前 STW 内有效，结束后必须清空。
     if (it->state != SCOOP_GC_THREAD_IN_NATIVE) {
       it->explicit_root_frame_top = 0;
       scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
@@ -1976,7 +1978,8 @@ void scoop_enter_native(void ***root_slots, uint32_t root_slots_len) {
 
   // 若当前正处于 stop-the-world，则 enter_native 可以直接把自己切到 InNative ready 状态：
   // - 当前 call-site roots 由 `native_roots` 提供；
-  // - 更高层 managed caller frames 由 enter_native 时捕获的 ctx 提供；
+  // - 更高层 managed caller frames 优先由 `explicit_root_frame_top` 提供，仅 stackmap mode
+  //   才依赖 enter_native 时捕获的 ctx；
   // - `parked_count` 仍需补记一次，告诉 GC “这个线程已就绪，不必再等它 park”。
   if (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
     if (rec->parked_epoch != scoop_gc_stw.epoch) {

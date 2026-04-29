@@ -121,13 +121,14 @@
 - 完成记录：`runtime/c/scoop_gc.c` 与 `runtime/c/scoop_gc_backend_immix.c` 现已在 STW park 和 `enter_native` 时把 `explicit_root_frame_top` 快照进线程记录，并在 managed roots 枚举/更新/verify 时优先走 explicit-frame root map，仅在没有 explicit frame snapshot 时退回 stackmap ctx；`native_roots` 保留为 native 边界临时 roots。另新增 `scoop_test_explicit_root_frame_enter_native_smoke` 与 `crates/scoop_runtime/tests/explicit_root_frame.rs` 回归，锁定 `enter_native` 不再为 explicit-frame 路径捕获 unwind ctx，同时通过 `cargo test --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001c1R
 
-### [TODO] T5001c2R Review：确认 explicit mode 已从 stackmap roots lookup 解耦
+### [DONE] T5001c2R Review：确认 explicit mode 已从 stackmap roots lookup 解耦
 - 重点：
   - explicit mode 下是否还有 runtime 代码默认假定 stackmap registry 可用；
   - `native_roots` 职责是否已收窄，没有继续承载 caller managed frame 枚举；
   - stackmap mode 是否仍保留为清晰的可选实现，而不是被顺手删坏。
 - 验收：
   - 后续编译器切默认 explicit mode 时，不会被 runtime roots lookup 再次阻塞。
+- 完成记录：已复核 `runtime/c/scoop_gc.c`、`runtime/c/scoop_gc_backend_immix.c`、`runtime/c/scoop_gc_root_map_internal.h` 与 `crates/scoop_runtime/tests/explicit_root_frame.rs`。确认 explicit mode 下 runtime 在 STW park、`enter_native`、verify-roots、moving update 与 mark 阶段均优先消费 `explicit_root_frame_top -> explicit-frame root map`，只有在没有 explicit frame snapshot 时才退回 stackmap ctx；`native_roots` 继续仅承载 native 边界临时 roots，未再负责 caller managed frame 回溯；stackmap mode 仍通过并列 root-map 实现与现有 smoke/registry 测试保留。另修正了 `runtime/c/scoop_gc_backend_immix.c` 中两处已过期注释，并通过 `cargo test --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001c2
 
 ### [TODO] T5001d1 规划 per-function explicit frame layout，并生成 descriptor / offset table
