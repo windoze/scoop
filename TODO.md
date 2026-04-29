@@ -277,14 +277,34 @@
 - 完成记录：`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 await waiting-path 现已在把 escaped continuation 从 effect frame 取出后，统一经 `store_local_value_exact(...)` 写回 continuation local，并同步刷新 explicit-frame home slot，再调用 `__task_step_pending(...)`；从而 `Task.step()` 的 Waiting transport 不再把 `null` continuation 记进 waiting state，post-await drive 能正确恢复外层 continuation。另新增 LLVM 回归 `async_task_pending_path_stores_escape_continuation_before_waiting_helper` 锁定 `load_continuation -> local store -> explicit-frame store -> __task_step_pending(...)` 序列，并已通过 `cargo test -p scoopc async_task_pending_path_stores_escape_continuation_before_waiting_helper -- --nocapture`、`cargo run -p scoop -- run tests/fixtures/run-pass/task_step_manual_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_string_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`、`cargo test -p scoopc --lib` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001fR
 
-### [TODO] T5001f1R Review：确认 await/task waiting transport 合同重新闭合
+### [DONE] T5001f1R Review：确认 await/task waiting transport 合同重新闭合
 - 重点：
   - awaited task drive 是否真正与 `(Int, Any)` transport / continuation resume contract 对齐；
   - 是否还残留“首次 `Pending` 成功、后续 drive 卡死”或 resume 重放 await site 的路径；
   - run-pass 回归是否已覆盖最小 await、manual `Task.step()` 与 handled `Async.await` 三类主线。
 - 验收：
   - `T5001g` 可在不再被 async/task runtime regression 阻塞的前提下继续做全量验收。
+- 完成记录：已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与相关 LLVM/fixture 回归。确认 await waiting path 在从 effect frame 取出 escaped continuation 后，会先经 `store_local_value_exact(...)` 写回 continuation local 与 explicit-frame home slot，再调用 `__task_step_pending(...)`；因此 awaited task 的 waiting transport 已重新与 `(Int, Any)` / continuation resume payload 合同对齐，不会再把 `null` continuation 记进 waiting state。另已通过 `cargo test -p scoopc async_task_pending_path_stores_escape_continuation_before_waiting_helper -- --nocapture`、`cargo test -p scoopc async_task_resume_ir_does_not_replay_original_await_site -- --nocapture`、`cargo test -p scoopc single_file_minimal_ir_supports_handled_async_await -- --nocapture`、`cargo run -p scoop -- run tests/fixtures/run-pass/task_step_manual_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_string_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。review 期间确认 run-pass 已越过原 async/task waiting regression；当前剩余阻塞已切换为独立的 `class_init_order_primary_secondary_basic.scoop` 类初始化顺序问题，因此在 `T5001g` 前新增 `T5001f2/T5001f2R`。
 - 依赖：T5001f1
+
+### [TODO] T5001f2 修复 class init order regression，解除 run-pass 全量验收阻塞
+- 范围：
+  - 修复 `tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop` 当前回归：程序目前仅输出 `start` / `Primary.a` 后即提前异常退出，未继续执行 `println(this.x)`、后续 primary init steps 与 secondary ctor body。
+  - 查清 primary ctor 参数属性、property initializer、`init {}` 与 secondary ctor body 的 lowering / runtime 执行顺序及 `this` 可见性合同，按 Appendix B.2.2 恢复实现。
+  - 为 primary/secondary ctor 初始化顺序补最小定向回归，至少覆盖 primary 参数属性在 property initializer / init block 中可见，以及 secondary ctor body 晚于 primary init steps。
+- 验收：
+  - `class_init_order_primary_secondary_basic.scoop` 恢复输出预期 14 行；
+  - `cargo run -p scoop -- test` 不再在该 fixture 处失败。
+- 依赖：T5001f1R
+
+### [TODO] T5001f2R Review：确认类初始化顺序合同重新闭合
+- 重点：
+  - primary ctor 参数属性是否已在 property initializer / init block 执行前完成绑定；
+  - property initializer 与 `init {}` 是否按源码顺序交错执行；
+  - secondary ctor body 是否严格晚于 primary init steps，且没有再引入 `this` 可见性或对象布局回归。
+- 验收：
+  - `T5001g` 可在不再被 `class_init_order_primary_secondary_basic.scoop` 阻塞的前提下继续做全量验收。
+- 依赖：T5001f2
 
 ### [TODO] T5001g 全量回归、GC stress、verify-roots 与文档收尾
 - 范围：
@@ -304,7 +324,7 @@
 - 验收：
   - 全量回归与定向回归都能支撑“默认 explicit mode 已切换成功”的结论；
   - 文档、实现注释与实际行为已对齐。
-- 依赖：T5001f1R
+- 依赖：T5001f2R
 
 ### [TODO] T5001gR Review：确认本轮 correctness 收口完成，并为后续优化划清边界
 - 重点：
