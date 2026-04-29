@@ -2249,6 +2249,25 @@
     - 全部通过。
   - review 结论：higher-order / closure 场景扩张仍建立在 materialized MIR、pass artifacts 与 shared effect facts 之上；当前未发现需要插入到 `T5000j3R` 之前的新前置缺陷任务。
   - 下一条待执行任务切换为 `T5000j3R Review：确认 higher-order / init 场景扩张没有把分析责任倒灌回 backend`。
+- 2026-04-29：`T5000j3R Review：确认 higher-order / init 场景扩张没有把分析责任倒灌回 backend` 已完成。
+  - 复核结论：
+    - 已复核 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/reachability.rs`，确认 production 主线路径只是在 canonical materialized callable body / raw non-generic candidate / MIR-compatible scan 边界上放宽 `top-level-init`、`object-init`、`MakeClosure`、`CaptureBox*`、`ClosureCall`、`FunValueCall` 与 pattern 相关已收口形状；`Virtual` / `Interface` / `Resume`、effect/handle、`Return { value: None }` 等未收口形状仍继续经 HIR-compatible fallback 处理，没有把 target-set 收缩或结构分析长回 backend；
+    - 已复核 `crates/scoopc/src/llvm/codegen/mir_body.rs` 与 `crates/scoopc/src/llvm/codegen/object_init.rs`，确认 top-level/object init 访问、closure object / capture-box lowering 与 function-value indirect-call 继续只消费 canonical materialized MIR body、`MaterializedMirPassView`、`mir_types -> codegen TypeStore` 等价类型映射，以及既有 object-init / top-level-init side tables；backend 保留的是 lowering、ABI 组装与显式 outcome boundary 安装，而不是现场重建 higher-order 或 init 依赖事实；
+    - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs`、`crates/scoopc/src/effect/analysis.rs`、`crates/scoopc/src/effect/state_machine/analysis.rs` 与 `crates/scoopc/src/mir/pass_view.rs`，确认 outward-effect、continuation-escape 与 known-fun suspendability 输入继续来自 shared `collect_known_fun_call_suspendability(...)`、`EffectAnalysisCtx`、`ProgramFacts` 与 pass-view summary / escape facts；LLVM lowering 侧只消费这些 shared facts，不在现场重算 higher-order / init 相关分析；
+  - 验证结果：
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_object_value_init_access -- --nocapture`
+    - `cargo test -p scoopc production_reachability_emits_object_init_helper_dependency_for_raw_mir_top_level_ref -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
+    - 全部通过。
+  - review 结论：higher-order / init 场景扩张仍建立在 materialized MIR、pass artifacts、`ProgramFacts` 与 shared effect facts 之上；当前未发现需要插入到 `T5000j4` 之前的新前置缺陷任务。
+  - 下一条待执行任务切换为 `T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线`。
 
 ## 1. 当前判断
 
