@@ -78,13 +78,14 @@
 - 完成记录：新增 `runtime/c/scoop_gc_root_map_internal.h`，以 `ScoopGcManagedRootMap + scoop_gc_root_map_visit_slots(...)` 收口 managed roots 入口；`scoop_gc_backend_immix.c` 与 `scoop_gc.c` 的 verify-roots、mark、major/minor roots update 以及 stackmap smoke 测试已统一改走该抽象，stackmap 细节退回 root-map 实现内部，并预留 `SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME` 边界。
 - 依赖：T5001aR
 
-### [TODO] T5001bR Review：确认 runtime 上层已围绕 slot visitor 收口
+### [DONE] T5001bR Review：确认 runtime 上层已围绕 slot visitor 收口
 - 重点：
   - GC/verify-roots 是否已改为统一消费 `void** slot` visitor；
   - stackmap 细节是否已退到具体 root-map 实现内部；
   - 是否还残留“给我 return address，我给你 roots”的上层接口假设。
 - 验收：
   - 后续 explicit root frame 接入时，不需要再先拆一轮 runtime 上层入口。
+- 完成记录：已复核 `runtime/c/scoop_gc_root_map_internal.h` 与 `runtime/c/scoop_gc*.c`。runtime 上层的 managed roots 枚举、moving update 与 verify-roots 已统一经由 `ScoopGcManagedRootMap + scoop_gc_root_map_visit_slots(...)` 消费 `void** slot` visitor；`scoop_stackmap_registry_lookup(...)` 与 `scoop_stackmap_record_visit_root_slots(...)` 仅残留在 root-map 实现内部及专用测试中，未再作为 GC 上层接口泄漏。并已通过 `cargo test --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001b
 
 ### [TODO] T5001c1 引入 explicit root frame 的 runtime 数据结构与 TLS frame chain
