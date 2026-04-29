@@ -1,0 +1,272 @@
+# TODO（Scoop：Root Map 抽象与 explicit root frame 落地）
+
+> 生成时间：2026-04-29  
+> 历史归档：`docs/archive/plans/TODO-7.md` / `docs/archive/plans/PLAN-7.md`  
+> 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
+> 本轮主线：按 [`ROOT_FRAME_REFACTOR.md`](./ROOT_FRAME_REFACTOR.md) 把 runtime/GC 的 managed roots 统一抽象为 root map slot visitor，并将 `explicit root frame` 落地为新的默认 explicit mode；默认 explicit mode 完成切换后，不再使用、也不再生成 LLVM stackmap，stackmap 仅保留为未来可选优化模式。
+
+## 全局约束
+
+- [`ROOT_FRAME_REFACTOR.md`](./ROOT_FRAME_REFACTOR.md) 是本轮设计基线；若实现改变主张，必须先回写该文档，再继续实现。
+- `PLAN.md` / 当前 `TODO.md` 是本轮唯一计划记录；`docs/archive/plans/*` 只作历史归档，不回写旧 round。
+- 本轮先收口 correctness，再讨论优化。
+  - roots 必须可见、可更新、post-safepoint 可 reload；live-set 精度、扫描成本与 mem2reg 不是先决条件。
+- root map 的统一抽象必须围绕 `void** slot` visitor 建立。
+  - 不允许继续把上层 GC 入口设计成 `return_address -> stackmap record` 专用接口。
+- 默认 explicit mode 完成切换后：
+  - managed roots 统一来自 explicit root frame；
+  - runtime 不再以 LLVM stackmap 作为默认 explicit mode 的 roots 输入；
+  - 编译器不再为默认 explicit mode 生成 `.llvm_stackmaps` / `__llvm_stackmaps`。
+- 不做“半 stackmap、半 explicit”的同路径混搭。
+  - 同一条 lowering 主线内，managed frame roots 只能有一套 source of truth。
+- explicit frame 只表示 stack-backed managed root home slots。
+  - 它不是“函数所有 locals 的大 struct”；
+  - heap-backed traced fields、heap object 自身引用字段、effect/continuation heap frame 字段不进入 explicit frame。
+- 对含 ref 的 aggregate，frame layout 必须按 ref leaf home slots 建模。
+  - 非 ref 字段不进 descriptor；
+  - safepoint 后若要按值复制/传参，必须先从 home slots 刷新或重组 fresh aggregate。
+- safepoint 是 GC ref 的 clobber 边界。
+  - safepoint 后不得继续信任 safepoint 前的 GC SSA / register 值；
+  - post-safepoint 使用必须来自 home slot reload。
+- NULL discipline 是 correctness 合同的一部分。
+  - entry 初始化为 `NULL`；
+  - dead / inactive slot 必须及时清回 `NULL`。
+- `native_roots` 可以保留，但只服务 native 过渡边界；不再承担 explicit mode 找回更高层 managed frames 的职责。
+- `mem2reg` / SSA promotion 不是本轮主线。
+  - 只能在 explicit root frame 稳定后，作为单独优化任务按 allowlist/denylist 重新评估。
+- 每个实现任务后必须紧跟 review 任务。
+  - review 重点是 source-of-truth 是否收口正确、是否仍残留旧 stackmap 假设、以及是否破坏 safepoint / aggregate / state-machine 合同。
+- 若任务改变公开语义或运行时合同，必须同步 `SCOOP_RUNTIME.md`、相关实现注释与必要 fixture。
+
+## T5001：Root Map 抽象与 explicit root frame 落地
+
+### [TODO] T5001a 建立当前 roots 主线基线，盘清 stackmap / native_roots / extra root slots / effect 路径
+- 范围：
+  - 盘清 runtime 当前 managed roots 枚举、moving update、verify-roots、stackmap registry、`native_roots`、pinned/global roots 的入口与依赖面。
+  - 盘清编译器当前会生成 GC roots 的主要 lowering 路径，至少覆盖：
+    - ordinary call / safepoint；
+    - `@Extern` / `enter_native` / `leave_native`；
+    - `extra_gc_root_slots` 与其它编译器内部临时 roots；
+    - sret / indirect arg / return alloca；
+    - effect / continuation / resume / state-machine 路径。
+  - 形成一份最小但可复验的 baseline，明确哪些位置后续必须接入 explicit frame push/pop、slot init/clear 与 post-safepoint reload。
+- 验收：
+  - 能明确回答“runtime 当前哪些路径仍直接依赖 stackmap”“哪些 roots 已天然按 `void** slot` visitor 工作”“哪些 lowering 路径会生成必须进入 explicit frame 的 roots”。
+  - 后续任务可直接引用这份 baseline，不再在实现中临时摸索入口。
+- 依赖：无
+
+### [TODO] T5001aR Review：确认 baseline 足以支撑后续切换顺序
+- 重点：
+  - 是否已覆盖 runtime roots 入口、stackmap 依赖面、native 边界、effect/state-machine 特殊路径四类关键热点；
+  - 是否已经能支持“先抽 root map，再上 runtime substrate，再接编译器”的顺序；
+  - 是否仍遗漏会直接影响 explicit frame push/pop 或 reload contract 的结构性入口。
+- 验收：
+  - baseline 可作为后续 `T5001b+` 的统一前提，不需要每轮重新定位 roots 来源。
+- 依赖：T5001a
+
+### [TODO] T5001b 抽出统一 runtime root map / slot visitor 抽象
+- 范围：
+  - 把 runtime 当前“managed frame roots 来源”的入口从 stackmap 专用逻辑中抽离，统一到围绕 `void** slot` 的 visitor 接口。
+  - 让 mark/update/verify-roots 只依赖统一 visitor，而不是分别嵌着 stackmap 细节。
+  - 为 stackmap root map 与 explicit-frame root map 预留并列实现边界。
+  - 保持现有行为不变，不在本任务中切换默认模式。
+- 验收：
+  - runtime 上层逻辑已不再直接依赖 stackmap record 解释细节；
+  - 新接口已经足以承接后续 explicit frame 实现，而不是继续把 explicit mode 伪装成 stackmap 特例。
+- 依赖：T5001aR
+
+### [TODO] T5001bR Review：确认 runtime 上层已围绕 slot visitor 收口
+- 重点：
+  - GC/verify-roots 是否已改为统一消费 `void** slot` visitor；
+  - stackmap 细节是否已退到具体 root-map 实现内部；
+  - 是否还残留“给我 return address，我给你 roots”的上层接口假设。
+- 验收：
+  - 后续 explicit root frame 接入时，不需要再先拆一轮 runtime 上层入口。
+- 依赖：T5001b
+
+### [TODO] T5001c1 引入 explicit root frame 的 runtime 数据结构与 TLS frame chain
+- 范围：
+  - 在 runtime 中引入 `ScoopRootFrameDesc`、`ScoopRootFrameHeader` 与 TLS `__scoop_explicit_root_frame_top`。
+  - 建立按 `header -> desc -> offsets` 解释 explicit frame 的基础能力。
+  - 明确并实现 `hdr` 必须是 frame object 首字段的 layout contract。
+  - 为 `slot_count == 0` 的函数定义清晰行为：允许首阶段不构造 frame，但不得让 runtime 进入未定义状态。
+- 验收：
+  - runtime 已具备显式 frame descriptor + header + TLS top 的基础表示；
+  - 后续编译器只需按合同发射 frame object / descriptor，即可被 runtime 扫描。
+- 依赖：T5001bR
+
+### [TODO] T5001c1R Review：确认 explicit frame substrate 边界成立
+- 重点：
+  - header / desc / offset 的职责边界是否清晰；
+  - runtime 是否真正按 frame base + offset 恢复 `void** slot`，而不是重新依赖 SP/FP/栈布局猜测；
+  - 零 roots 函数路径是否明确定义，没有留下灰色行为。
+- 验收：
+  - 后续编译器发射 descriptor 时不需要再调整 runtime 数据结构语义。
+- 依赖：T5001c1
+
+### [TODO] T5001c2 让 explicit mode 的 managed roots 枚举走 TLS frame chain，并收窄 `InNative` 依赖
+- 范围：
+  - 在 explicit mode 下，把 managed frame roots 枚举切到 TLS explicit frame chain。
+  - `native_roots` 保留给 native 边界临时根；不再要求 `enter_native` 为找回更高层 caller managed frames 捕获 unwind ctx。
+  - 保持 stackmap mode 仍可用，但使其退回并列实现，而不是默认显式路径前提。
+- 验收：
+  - explicit mode 的 managed roots 枚举不再依赖 unwind ctx + stackmap registry lookup；
+  - `InNative` 协议已简化到只处理 native 边界临时 roots，而不是继续承担 managed caller frame 回溯。
+- 依赖：T5001c1R
+
+### [TODO] T5001c2R Review：确认 explicit mode 已从 stackmap roots lookup 解耦
+- 重点：
+  - explicit mode 下是否还有 runtime 代码默认假定 stackmap registry 可用；
+  - `native_roots` 职责是否已收窄，没有继续承载 caller managed frame 枚举；
+  - stackmap mode 是否仍保留为清晰的可选实现，而不是被顺手删坏。
+- 验收：
+  - 后续编译器切默认 explicit mode 时，不会被 runtime roots lookup 再次阻塞。
+- 依赖：T5001c2
+
+### [TODO] T5001d1 规划 per-function explicit frame layout，并生成 descriptor / offset table
+- 范围：
+  - 为每个 managed 函数规划固定 explicit frame layout。
+  - descriptor 只记录 root home slots 的固定 offsets，不记录机器 SP/FP 偏移。
+  - 对含 ref 的 aggregate，按 ref leaf slots 展开，而不是把整个 aggregate 直接放进 frame。
+  - 明确哪些内部 roots 要进入 frame layout，至少覆盖 `extra_gc_root_slots`、hidden sret result roots、call/effect lowering 产生的临时 GC roots。
+- 验收：
+  - 每个 managed 函数都能得到可审计的 frame layout 与 descriptor；
+  - explicit frame 的建模粒度已经与 runtime `void** slot` 语义对齐，而不是“把 locals 打包成大 struct”。
+- 依赖：T5001c2R
+
+### [TODO] T5001d1R Review：确认 frame layout 语义与 leaf-slot 展开规则成立
+- 重点：
+  - descriptor 是否仅描述 stable home slots；
+  - aggregate flattening 是否按 ref leaf slots 建模；
+  - 是否仍有 heap-backed 字段、非 root 普通局部或机器栈偏移误入 descriptor。
+- 验收：
+  - 后续 frame 发射与 runtime 更新可直接依赖该 layout 语义，不需要补额外特判。
+- 依赖：T5001d1
+
+### [TODO] T5001d2 发射 activation frame object，接入 entry alloca、TLS push/pop 与 slot NULL discipline
+- 范围：
+  - 为 managed 函数发射 entry-block alloca 的 frame object，并把 header 放在首字段。
+  - entry 时完成：slot `NULL` 初始化、`hdr.desc` / `hdr.prev` 安装、TLS push。
+  - 所有返回、early return、error/raise、effect propagation、resume dispatch 等离开 activation 的路径都必须完成 TLS pop。
+  - dead / inactive slot 必须显式清回 `NULL`，避免长期残留旧对象地址。
+- 验收：
+  - frame 地址在整个 activation 内稳定；
+  - push/pop 与 NULL discipline 在所有退出路径上一致成立；
+  - 没有“普通 return 正常、异常/恢复边界漏 pop”的残留路径。
+- 依赖：T5001d1R
+
+### [TODO] T5001d2R Review：确认 frame 生命周期与 NULL discipline 成立
+- 重点：
+  - frame 是否统一是 entry-block alloca；
+  - push/pop 是否覆盖 ordinary return、effect propagation、continuation resume、state-machine runtime function 等全部边界；
+  - dead/inactive slots 是否真正清零，而不是只在入口初始化一次。
+- 验收：
+  - 后续 post-safepoint reload 与 moving update 可以把 frame fields 当成唯一可信 source of truth。
+- 依赖：T5001d2
+
+### [TODO] T5001d3 把源码级 roots 与编译器内部临时 roots 全部收敛到 frame home slots
+- 范围：
+  - 把跨 safepoint 的源码级 refs、aggregate ref leaves、内部临时 roots、hidden sret / indirect arg / return scratch roots 统一映射到 frame fields。
+  - 清理仍依赖“运行时动态注册某个 root slot id”或“事后让 LLVM spill 出可更新位置”的旧路径。
+  - 让 effect / state-machine / continuation lowering 产生的临时 GC roots 同样走固定 home slot 合同。
+- 验收：
+  - 任何跨 safepoint 存活的 GC ref 都能指出对应的 stable home slot；
+  - runtime moving update 后，不再存在必须依赖旧 SSA / register / 临时数组镜像的 source-of-truth。
+- 依赖：T5001d2R
+
+### [TODO] T5001d3R Review：确认“所有跨 safepoint roots 都有 stable home slot”
+- 重点：
+  - 是否仍残留某些 temporaries / hidden roots 未进入 frame；
+  - `extra_gc_root_slots` 等旧机制是否只是换名保留，而未真正收口到 frame fields；
+  - effect / continuation / state-machine 临时 roots 是否与 ordinary 路径一致遵守同一合同。
+- 验收：
+  - 后续 safepoint reload contract 可以默认“home slot 是唯一 source of truth”。
+- 依赖：T5001d3
+
+### [TODO] T5001e1 收紧 safepoint clobber / reload contract，打通 post-safepoint ref 使用主线
+- 范围：
+  - 明确所有 safepoint 都是 GC ref clobber 边界。
+  - post-safepoint 的 ref 使用必须从 explicit frame home slot reload。
+  - 清理仍沿用 safepoint 前 SSA / register 值的路径，至少覆盖 ordinary call、runtime helper call、effect boundary 与 resume 后继续执行路径。
+  - 必要时补充更强的 lowering / memory-clobber 语义，避免 LLVM 把 safepoint 前的 load/CSE 结果错误复用到 safepoint 后。
+- 验收：
+  - post-safepoint ref 使用路径可审计地来自 home slot reload；
+  - 不再存在“GC 已更新 slot，但后续仍从旧 SSA 值继续运行”的 correctness 缺口。
+- 依赖：T5001d3R
+
+### [TODO] T5001e1R Review：确认 safepoint 已成为真实的 clobber 边界
+- 重点：
+  - 是否还残留 post-safepoint 直接复用旧 SSA / register 的路径；
+  - LLVM 是否仍可能把 safepoint 前值 CSE 到 safepoint 后；
+  - ordinary call、effect boundary、resume replay 等路径的 reload 语义是否一致。
+- 验收：
+  - safepoint clobber / reload contract 已能作为 aggregate refresh 之前的稳定前提。
+- 依赖：T5001e1
+
+### [TODO] T5001e2 补齐 aggregate refresh / rebuild contract，覆盖 args、returns、payload transport
+- 范围：
+  - 对含 ref 的 aggregate，建立“reload 最新 ref 字段 + 复用非 ref 字段 + 重组 fresh aggregate”的 lowering contract。
+  - 覆盖 direct arg、indirect arg、sret result、return alloca、effect payload、continuation payload、state-machine transport 等路径。
+  - 杜绝盲目复制 pre-safepoint 旧 aggregate 副本或用旧镜像 `memcpy` 继续传播。
+- 验收：
+  - 含 ref 的 aggregate 在 safepoint 后继续复制、传值、返回、transport 时，不再依赖 stale 副本；
+  - 相关 ABI 路径与 runtime payload 路径都能统一解释为基于最新 home slots 刷新后的值。
+- 依赖：T5001e1R
+
+### [TODO] T5001e2R Review：确认 aggregate 不再持有 post-safepoint 的旧 source-of-truth
+- 重点：
+  - 是否仍有 aggregate copy / arg / return 路径直接复用旧镜像；
+  - 非 ref 字段与 ref 字段的来源是否清晰分离；
+  - effect / continuation / state-machine payload 是否也遵守同一 refresh/rebuild 合同。
+- 验收：
+  - 切默认 explicit mode 前，aggregate 相关 correctness 缺口已被系统性封住。
+- 依赖：T5001e2
+
+### [TODO] T5001f 切换默认 explicit mode 到 explicit root frame，并停止默认路径的 stackmap 生成与使用
+- 范围：
+  - 默认 explicit mode 的 managed roots 完全切到 explicit root frame。
+  - runtime 默认 explicit mode 不再读取 stackmap registry；编译器默认 explicit mode 不再生成 stackmap sections / records。
+  - stackmap mode 保留为未来可选实现，但不能再成为默认 explicit mode 的 correctness 前提。
+  - 补充定向 build/fixture 断言，锁定默认 explicit mode 产物中不再出现 `.llvm_stackmaps` / `__llvm_stackmaps`。
+- 验收：
+  - 默认 explicit mode 已可独立运行并通过回归，不依赖 stackmap；
+  - 默认 explicit mode 的产物已不再生成 stackmap section。
+- 依赖：T5001e2R
+
+### [TODO] T5001fR Review：确认默认 correctness 路线已真正切到 explicit root frame
+- 重点：
+  - 默认 explicit mode 下是否还有隐含 stackmap 依赖；
+  - stackmap 是否已退到可选优化实现，而不是默认路径必需物；
+  - build/fixture 断言是否真正锁住“不再生成 stackmap section”的合同。
+- 验收：
+  - 可以明确声称：默认 explicit mode 的 source of truth 已是 explicit root frame，而非 stackmap。
+- 依赖：T5001f
+
+### [TODO] T5001g 全量回归、GC stress、verify-roots 与文档收尾
+- 范围：
+  - 运行并整理最小验收矩阵，至少覆盖：
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build`
+  - 补最小定向回归，锁定：
+    - explicit frame push/pop 与 TLS chain；
+    - dead slot 会清零；
+    - post-safepoint reload；
+    - aggregate refresh/rebuild；
+    - 默认 explicit mode 不再生成 stackmap section。
+  - 同步 `SCOOP_RUNTIME.md` 与必要实现注释，说明默认 explicit mode 现已采用 explicit root frame。
+  - 记录 object / binary size 与 steady-state / GC pause 的观察结果，但不把性能调优作为本任务 blocker。
+- 验收：
+  - 全量回归与定向回归都能支撑“默认 explicit mode 已切换成功”的结论；
+  - 文档、实现注释与实际行为已对齐。
+- 依赖：T5001fR
+
+### [TODO] T5001gR Review：确认本轮 correctness 收口完成，并为后续优化划清边界
+- 重点：
+  - 是否还残留默认 explicit mode 的 correctness 缺口；
+  - regression 是否已覆盖 push/pop、NULL discipline、reload、aggregate rebuild 与“无 stackmap section”五类核心合同；
+  - stackmap selective comeback、`mem2reg` allowlist/denylist 是否已被明确留到后续独立任务，而不是混入本轮验收。
+- 验收：
+  - 本轮结论可明确表述为：默认 explicit mode 已切到 explicit root frame；stackmap 已退到可选优化路线；`mem2reg` 仍是后续单独任务。
+- 依赖：T5001g
