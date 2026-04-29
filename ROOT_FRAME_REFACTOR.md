@@ -222,6 +222,55 @@ stackmap 的 live-set 精度优势是后续优化点，不应阻塞 correctness 
 - 它服务的是 native 过渡边界
 - 不是为了继续维持 managed frames 的 stackmap roots 枚举
 
+### 4.4 当前实现基线（T5001a，2026-04-29）
+
+这部分只记录“今天代码已经在做什么”，供后续 `T5001b+` 直接引用；不重复展开目标态设计。
+
+#### Runtime：当前 roots 来源与 visitor 入口
+
+- `runtime/c/scoop_gc_backend_immix.c`
+  - `scoop_gc_stackmap_visit_roots_from_ctx(...)` 通过 unwind ctx 逐帧走 `return_address -> stackmap record -> root slots`，是当前 managed frame roots 的主路径。
+  - major mark / minor mark / compaction roots update / `verify-roots` 都直接调用该路径；initiator 与 `Parked` 线程默认依赖它枚举 managed frame roots。
+- `runtime/c/scoop_gc_backend_immix.c`
+  - `scoop_gc_native_roots_visit_slots(...)` 已经是纯 `void** slot` visitor 形状；它消费 `enter_native` 传入的 `void***` 数组。
+  - `scoop_enter_native(...)` 目前不只登记 call-site `native_roots`，还会捕获并保留 `stack_walking_ctx`；因此 `InNative` 线程当前实际上依赖“`native_roots` + caller stackmap ctx”二者共同覆盖 roots。
+- `runtime/c/scoop_runtime.c`
+  - `scoop_runtime_init()` 每次 init 都会调用 `scoop_stackmap_registry_register_current_process()`；默认运行路径把 stackmap registry 视为可用前提。
+- `runtime/c/scoop_gc_backend_immix.c`
+  - pinned roots、stable handles、module-global roots 已经不是 stackmap 专用接口：
+    - pinned / handles 直接保存对象引用；
+    - globals 通过 `scoop_gc_global_roots_visit_unlocked(...)` + type descriptor trace 暴露对象内 `void** slot`。
+- `runtime/c/scoop_runtime.c`
+  - continuation、resume replay state、effect frame result 等 heap object 自身的 traced fields 已经通过 type descriptor / custom trace fn 走 `visitor(void** slot)`；它们不是本轮 explicit frame 要承载的 activation stack roots。
+
+#### 编译器：当前会产生 roots 的 lowering 热点
+
+- `crates/scoopc/src/llvm/codegen/gc.rs`
+  - ordinary safepoint 目前靠 `with_conservative_gc_local_root_spills(...)` 保守收集 roots。
+  - `collect_conservative_gc_root_slots(...)` 会收集当前 env locals 里底层 LLVM 形状就是 GC 指针的槽位，再拼上 `extra_gc_root_slots`。
+  - safepoint 前后对 stack-backed 槽位执行 `load -> call/statepoint -> writeback`，让 statepoint/stackmap 能看到并更新这些 roots。
+- `crates/scoopc/src/llvm/codegen/call/dispatch.rs`
+  - `@Extern` 调用点走 `emit_enter_native_for_extern_call_impl(...)`：把当前保守 roots 槽位地址组装成 `void***` 数组，传给 `scoop_enter_native(...)`；因此 extern/native 边界当前直接依赖 `native_roots` 协议。
+- `crates/scoopc/src/llvm/codegen/mod.rs` + `mir_body.rs`
+  - `extra_gc_root_slots` 当前承担“编译器内部临时 roots”角色。
+  - hidden sret 返回值会先落到 entry alloca，再由 `register_hidden_sret_result_roots(...)` 把其中的 GC leaf slots 注册进 `extra_gc_root_slots`。
+- `crates/scoopc/src/llvm/codegen/call/abi.rs`
+  - 含 GC refs 的 aggregate 实参当前会降成 indirect ABI，并通过 spill slot 指针传参；这些 spill/home slots 也是后续 explicit frame layout 必须接管的对象。
+- `crates/scoopc/src/llvm/codegen/mod.rs`
+  - 普通函数与 MIR body 都会建立 function-level `return_alloca` / shared return block；它定义了返回值在 activation 内的固定存储点，但当前 roots keepalive 仍主要围绕 env locals 与 `extra_gc_root_slots`，尚未形成统一 frame descriptor 语义。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
+  - effect/state-machine 的长生命周期状态已经主要放进 heap-backed frame object；其 traced fields 由 heap object descriptor 负责，不应迁入 activation explicit frame。
+  - 但 ordinary callee resume / continuation replay / arm binder fallback 等路径，仍会额外创建 entry alloca 或保守 spill，以继续满足 statepoint roots 合同。
+- `crates/scoopc/src/llvm/codegen/call/resume.rs`
+  - ordinary callee resume entry 调用、间接调用、closure call 仍统一包在 `with_conservative_gc_local_root_spills(...)` 下；说明 resume 继续执行路径当前仍共享 stackmap/statepoint roots 语义。
+
+#### 直接导出的后续任务约束
+
+- `T5001b` 要先把 runtime 上层收口到统一 slot visitor，重点对象就是：stackmap roots、`native_roots`、globals/handles/pins，而不是先改编译器布局。
+- `T5001c1` / `T5001c2` 要替换的是“managed frame roots = unwind ctx + stackmap registry”这条默认路径；heap object trace、pinned、handles、globals 不属于要被 explicit frame 取代的部分。
+- `T5001d1` / `T5001d2` / `T5001d3` 至少要覆盖今天由 env locals、`extra_gc_root_slots`、hidden sret spill、indirect aggregate spill、ordinary resume 临时槽位承载的那些 stack-backed roots。
+- effect/state-machine heap frame、continuation heap object 字段继续留在 heap trace 合同里，不进入 activation explicit frame descriptor。
+
 ## 5. Explicit Root Frame 设计
 
 ### 5.1 总体形态

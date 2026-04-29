@@ -53,6 +53,10 @@
   - 哪些 runtime visitor 已天然按 `void** slot` 工作；
   - 哪些 lowering 路径会生成跨 safepoint 的源码级 roots 与编译器内部 roots；
   - 哪些退出路径、resume 路径、state-machine 路径后续必须一起接入 push/pop 与 reload contract。
+- `T5001a` 完成后，baseline 已固化到 `ROOT_FRAME_REFACTOR.md` 的“4.4 当前实现基线”一节。
+  - runtime 现状：managed frame roots 仍以 `stackmap + unwind ctx` 为主，`InNative` 线程额外叠加 `native_roots`；pinned / handles / globals / heap object trace 已天然围绕 `void** slot` visitor。
+  - 编译器现状：ordinary safepoint 依赖 `with_conservative_gc_local_root_spills(...)`；`extra_gc_root_slots`、hidden sret spill、indirect aggregate spill、ordinary resume 临时槽位是后续 explicit frame layout 必须吸收的 stack-backed roots。
+  - effect/state-machine 现状：长生命周期状态主要位于 heap-backed frame / continuation object，不属于 activation explicit frame 要接管的那部分 roots。
 
 ### P1. 统一 runtime root map 抽象
 

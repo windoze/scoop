@@ -40,7 +40,7 @@
 
 ## T5001：Root Map 抽象与 explicit root frame 落地
 
-### [TODO] T5001a 建立当前 roots 主线基线，盘清 stackmap / native_roots / extra root slots / effect 路径
+### [DONE] T5001a 建立当前 roots 主线基线，盘清 stackmap / native_roots / extra root slots / effect 路径
 - 范围：
   - 盘清 runtime 当前 managed roots 枚举、moving update、verify-roots、stackmap registry、`native_roots`、pinned/global roots 的入口与依赖面。
   - 盘清编译器当前会生成 GC roots 的主要 lowering 路径，至少覆盖：
@@ -53,6 +53,7 @@
 - 验收：
   - 能明确回答“runtime 当前哪些路径仍直接依赖 stackmap”“哪些 roots 已天然按 `void** slot` visitor 工作”“哪些 lowering 路径会生成必须进入 explicit frame 的 roots”。
   - 后续任务可直接引用这份 baseline，不再在实现中临时摸索入口。
+- 完成记录：baseline 已固化到 `ROOT_FRAME_REFACTOR.md` 的“4.4 当前实现基线（T5001a，2026-04-29）”。
 - 依赖：无
 
 ### [TODO] T5001aR Review：确认 baseline 足以支撑后续切换顺序
