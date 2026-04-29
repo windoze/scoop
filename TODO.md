@@ -2057,7 +2057,7 @@
   - 已确认 `CaptureBox*`、opaque `CallKind::FunValue`、`Return { value: None }`、effect/handle 等未支持形状仍继续留在 `raw_materialized_mir_*_is_supported(...)` / `mir_*_requires_hir_compat_scan(...)` 的 HIR-compatible fallback，没有把剩余分析责任倒灌回 backend；
   - 已验证 `cargo fmt --all`、`cargo fmt --all --check`、`cargo test -p scoopc production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000j3b2 扩展 `CaptureBox*` / 剩余 opaque higher-order 调用到 production MIR 主线
+### [DONE] T5000j3b2 扩展 `CaptureBox*` / 剩余 opaque higher-order 调用到 production MIR 主线
 - 范围：
   - 在 `T5000j3b1` 已收口的结构已知 closure/env 基础上，继续处理：
     - `CaptureBoxNew/Get/Set` 与 mutable-capture 相关 closure 场景；
@@ -2065,6 +2065,12 @@
 - 验收：
   - 新覆盖继续建立在 materialized MIR / summary / escape facts 之上，而不是重新把高阶分析长回 backend。
 - 依赖：T5000j3b1R
+- 完成记录（2026-04-29）：
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs` 现已为 production MIR bridge 接入 `CaptureBoxNew/Get/Set` lowering：mutable capture closure 会显式分配 typed capture-box heap object，并按共享 type-descriptor / trace-bitmap 合同读写 boxed value，不再因为 capture-box MIR 形状而整段退回 HIR-compatible body；
+  - 同文件现也已接入 `CallKind::FunValue` 的 supported-shape 判定与 LLVM lowering，并补上 materialized MIR `FunctionType` 到 codegen `TypeStore` 的等价映射；这次实现中暴露出的既有缺口是 sysroot/task helper 的 raw MIR function-value call 之前直接复用了 materialized `TypeId`，会在 production bridge 中把 task helper 推进后触发错误 `value coercion`，现已统一改为先映射 receiver / params / return / effect-row 到 codegen type store 后再做 indirect-call lowering；
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/reachability.rs` 已同步放宽 raw non-generic candidate / MIR-compatible scan 边界：`CaptureBox*` 与 opaque `FunValueCall` 现在可以进入 production MIR 主线，而 virtual/interface/resume、`Return { value: None }`、effect/handle 等未收口形状仍继续 fallback；
+  - 已新增回归覆盖：`crates/scoopc/src/llvm/tests.rs::production_codegen_lowers_raw_mir_mutable_capture_closure_body` 与 `production_codegen_lowers_raw_mir_fun_value_call_body`，并在全量验证中同时锁定 async/task sysroot helper 不会因这次 higher-order 覆盖扩张而再次触发 `value coercion` 回归；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoopc production_codegen_lowers_raw_mir_mutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
 ### [TODO] T5000j3b2R Review：确认 capture-box / 剩余 higher-order 场景扩张没有把分析责任倒灌回 backend
 - 重点：

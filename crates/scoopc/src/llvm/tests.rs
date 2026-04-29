@@ -2188,6 +2188,126 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_lowers_raw_mir_mutable_capture_closure_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3b_mutable_capture_closure.scoop",
+        r#"
+package fixtures.t5000j3b_mut_capture
+
+fun helper(): Int {
+    var x = 1
+    val bump: () -> Int = {
+        x = x + 1
+        x
+    }
+    val a = bump()
+    val b = bump()
+    return a * 10 + b
+}
+
+fun main(): Int {
+    return helper()
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let helper_fqn = "fixtures.t5000j3b_mut_capture.helper";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let helper_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == helper_fqn)
+        .expect("mutable capture helper 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_capture_box(helper_mir),
+        "test setup 需要确认 helper 的 raw MIR 已显式包含 CaptureBox* 形状"
+    );
+    let lambda_fqn = mir_fun_first_make_closure_fn_ptr(helper_mir)
+        .expect("mutable capture helper 的 raw MIR 应暴露 closure fn_ptr");
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let helper_ir = function_ir_named(&ir, helper_fqn);
+    let lambda_ir = function_ir_named(&ir, lambda_fqn);
+
+    assert!(
+        helper_ir.contains("mir.bb"),
+        "mutable-capturing closure 的外层 helper 现应直接走 production MIR bridge:\n{helper_ir}"
+    );
+    assert!(
+        lambda_ir.contains("mir.bb"),
+        "mutable-capturing closure 的 lambda body（含 CaptureBoxGet/Set）现也应直接走 production MIR bridge:\n{lambda_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_lowers_raw_mir_fun_value_call_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3b_fun_value_call.scoop",
+        r#"
+package fixtures.t5000j3b_fun_value
+
+fun applyTwice(f: (Int) -> Int / Pure!, x: Int): Int {
+    val y = f(x)
+    return f(y)
+}
+
+fun inc(x: Int): Int {
+    return x + 1
+}
+
+fun main(): Int {
+    val f: (Int) -> Int = inc
+    return applyTwice(f, 1)
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let apply_fqn = "fixtures.t5000j3b_fun_value.applyTwice";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let apply_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == apply_fqn)
+        .expect("opaque higher-order helper 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_fun_value_call(apply_mir),
+        "test setup 需要确认 helper 的 raw MIR 仍保留 CallKind::FunValue"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let apply_ir = function_ir_named(&ir, apply_fqn);
+
+    assert!(
+        apply_ir.contains("mir.bb"),
+        "opaque higher-order FunValueCall helper 现应直接走 production MIR bridge:\n{apply_ir}"
+    );
+}
+
+#[test]
 fn production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body() {
     let session = Session::new().unwrap();
     let src_lib = SourceFile::new_virtual(
@@ -5122,6 +5242,25 @@ fn mir_fun_contains_make_closure(fun: &crate::mir::FunDecl) -> bool {
     })
 }
 
+fn mir_fun_contains_capture_box(fun: &crate::mir::FunDecl) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            matches!(
+                stmt.kind,
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::CaptureBoxNew { .. }
+                        | crate::mir::Rvalue::CaptureBoxGet { .. }
+                        | crate::mir::Rvalue::CaptureBoxSet { .. },
+                    ..
+                }
+            )
+        })
+    })
+}
+
 fn mir_fun_first_make_closure_fn_ptr(fun: &crate::mir::FunDecl) -> Option<&str> {
     let body = fun.body.as_ref()?;
     for block in &body.blocks {
@@ -5150,6 +5289,26 @@ fn mir_fun_contains_closure_call(fun: &crate::mir::FunDecl) -> bool {
                 crate::mir::StatementKind::Assign {
                     value: crate::mir::Rvalue::Call {
                         kind: crate::mir::CallKind::Closure { .. },
+                        ..
+                    },
+                    ..
+                }
+            )
+        })
+    })
+}
+
+fn mir_fun_contains_fun_value_call(fun: &crate::mir::FunDecl) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            matches!(
+                stmt.kind,
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::FunValue { .. },
                         ..
                     },
                     ..

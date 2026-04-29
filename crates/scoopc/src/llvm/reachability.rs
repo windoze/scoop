@@ -476,9 +476,16 @@ impl<'a> ReachabilityCollector<'a> {
                     mir::Rvalue::PatternMatch { .. } | mir::Rvalue::PatternExtract { .. } => true,
                     mir::Rvalue::MakeTuple { .. }
                     | mir::Rvalue::TupleGet { .. }
-                    | mir::Rvalue::MakeClosure { .. } => true,
+                    | mir::Rvalue::MakeClosure { .. }
+                    | mir::Rvalue::CaptureBoxNew { .. }
+                    | mir::Rvalue::CaptureBoxGet { .. }
+                    | mir::Rvalue::CaptureBoxSet { .. } => true,
                     mir::Rvalue::Call {
                         kind: mir::CallKind::Closure { .. },
+                        ..
+                    }
+                    | mir::Rvalue::Call {
+                        kind: mir::CallKind::FunValue { .. },
                         ..
                     } => true,
                     mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) => {
@@ -532,6 +539,9 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::MakeTuple { .. }
             | mir::Rvalue::TupleGet { .. }
             | mir::Rvalue::MakeClosure { .. }
+            | mir::Rvalue::CaptureBoxNew { .. }
+            | mir::Rvalue::CaptureBoxGet { .. }
+            | mir::Rvalue::CaptureBoxSet { .. }
             | mir::Rvalue::PatternMatch { .. }
             | mir::Rvalue::PatternExtract { .. } => false,
             mir::Rvalue::Call { kind, .. } => self.mir_call_kind_requires_hir_compat_scan(kind),
@@ -539,9 +549,6 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::TypeCheck { .. }
             | mir::Rvalue::Cast { .. }
             | mir::Rvalue::MemberAccess { .. }
-            | mir::Rvalue::CaptureBoxNew { .. }
-            | mir::Rvalue::CaptureBoxGet { .. }
-            | mir::Rvalue::CaptureBoxSet { .. }
             | mir::Rvalue::PerformResult { .. }
             | mir::Rvalue::Todo(_) => true,
         }
@@ -554,8 +561,8 @@ impl<'a> ReachabilityCollector<'a> {
                 .get(callee_fqn)
                 .is_some_and(|fun| fun.body.is_none()),
             mir::CallKind::Closure { .. } => false,
-            mir::CallKind::FunValue { .. }
-            | mir::CallKind::Virtual { .. }
+            mir::CallKind::FunValue { .. } => false,
+            mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. }
             | mir::CallKind::Resume { .. } => true,
         }

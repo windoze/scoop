@@ -689,9 +689,16 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
                     | crate::mir::Rvalue::PatternExtract { .. } => true,
                     crate::mir::Rvalue::MakeTuple { .. }
                     | crate::mir::Rvalue::TupleGet { .. }
-                    | crate::mir::Rvalue::MakeClosure { .. } => true,
+                    | crate::mir::Rvalue::MakeClosure { .. }
+                    | crate::mir::Rvalue::CaptureBoxNew { .. }
+                    | crate::mir::Rvalue::CaptureBoxGet { .. }
+                    | crate::mir::Rvalue::CaptureBoxSet { .. } => true,
                     crate::mir::Rvalue::Call {
                         kind: crate::mir::CallKind::Closure { .. },
+                        ..
+                    }
+                    | crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::FunValue { .. },
                         ..
                     } => true,
                     crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) => {

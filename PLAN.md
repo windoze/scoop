@@ -2196,6 +2196,28 @@
     - `cargo clippy --all-targets -- -D warnings`
     - 全部通过。
   - 下一条待执行任务切换为 `T5000j3b2 扩展 CaptureBox* / 剩余 opaque higher-order 调用到 production MIR 主线`。
+- 2026-04-29：`T5000j3b2 扩展 CaptureBox* / 剩余 opaque higher-order 调用到 production MIR 主线` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 现已为 production MIR bridge 接入 `CaptureBoxNew/Get/Set` lowering：mutable-capturing closure 会显式分配 typed capture-box heap object，并通过新的 `scoop.mir.capture_box$...` type descriptor / trace bitmap 维护 boxed value；
+    - 同文件现也已接入 `CallKind::FunValue` 的 supported-shape 判定与 LLVM lowering，opaque higher-order raw body 不再因为保留 `FunValueCall` 就整段退回 HIR-compatible emission；
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/reachability.rs` 已同步放宽 raw non-generic candidate / MIR-compatible scan 边界，让 `CaptureBox*` 与 opaque `FunValueCall` 可以进入 production MIR 主线，同时继续把 virtual/interface/resume、effect/handle 与 `Return { value: None }` 等未收口形状保留在 fallback。
+  - 同轮修复的既有缺口：
+    - 这次放宽 `FunValueCall` 后，sysroot/task helper 的 raw MIR body 被推进到 production bridge，随即暴露出一个既有 type-store 边界问题：`mir_body.rs` 之前直接拿 materialized MIR `FunctionType` 中的 `TypeId` 去做 codegen，导致 sysroot/generic helper 的 indirect-call lowering 在 production 路径上触发错误 `value coercion`；
+    - 当前已新增 `equivalent_codegen_function_type(...)` / effect-row 映射，把 MIR callable operand 的 receiver / params / return / effect terms 先映射回 codegen `TypeStore`，从而恢复 async/task helper、`Task.step()` 与 thread-join 相关 production 回归。
+  - 新增回归：
+    - `crates/scoopc/src/llvm/tests.rs::production_codegen_lowers_raw_mir_mutable_capture_closure_body`：锁定 mutable-capturing closure 的外层 helper 与 lambda body（含 `CaptureBoxGet/Set`）都可直接走 production MIR bridge；
+    - `crates/scoopc/src/llvm/tests.rs::production_codegen_lowers_raw_mir_fun_value_call_body`：锁定 raw non-generic higher-order helper 在保留 `CallKind::FunValue` 时也可直接走 production MIR bridge。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_mutable_capture_closure_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`
+    - `cargo test -p scoopc single_file_minimal_ir_supports_handled_async_await -- --nocapture`
+    - `cargo test -p scoopc task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000j3b2R Review：确认 capture-box / 剩余 higher-order 场景扩张没有把分析责任倒灌回 backend`。
 
 ## 1. 当前判断
 
