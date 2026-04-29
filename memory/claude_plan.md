@@ -36,3 +36,14 @@ I will keep this file as a concise execution log and plan rather than private hi
   1. Update `TODO.md` and `PLAN.md` to mark `T5001f4` done.
   2. Insert the newly exposed blocker as the next prerequisite task before pending review items.
   3. Commit the current changes and stop.
+- `T5001f5` reproduction confirmed: normal mode passes, but `SCOOP_GC_STRESS=1` corrupts the first direct `mapper("go")` result into `!!` / `2`.
+- `T5001f5` root cause identified from emitted LLVM IR: inside the higher-order closure body, builtin `String.concat` keeps the receiver in stale SSA (`%load_str`) while evaluating the later `"!"` argument, whose string allocation may trigger moving GC. The concat call then consumes the stale receiver pointer, so the returned `Labelled.text` / `Labelled.score` are already wrong before the higher-order aggregate return is read back.
+- Planned fix for `T5001f5`: in builtin string-method lowering, spill the receiver through `defer_gc_sensitive_cg_value(...)` and reload it from explicit-frame-backed storage after later argument evaluation, then add an LLVM regression that locks the reload-before-`scoop_string_concat` sequence in the higher-order aggregate-return path.
+- Implemented `T5001f5` fix: `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs` now defers the `String` receiver before string-method lowering consumes later arguments, and materializes it from explicit-frame-backed storage right before use. This closes the stale-receiver window for `concat` and the same arg-evaluation pattern in other string methods.
+- Added LLVM regression `higher_order_aggregate_return_reloads_string_receiver_after_gc_sensitive_arg_eval` to lock the closure-lowered `String.concat` path: after the `"!"` allocation, the receiver must reload from an explicit-frame slot before calling `scoop_string_concat`.
+- Verification completed for `T5001f5`:
+  1. `cargo test -p scoopc higher_order_aggregate_return_reloads_string_receiver_after_gc_sensitive_arg_eval -- --nocapture`
+  2. `env SCOOP_GC_STRESS=1 cargo run -p scoop -- run tests/fixtures/run-pass/higher_order_aggregate_return_struct_mapper.scoop`
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/higher_order_aggregate_return_struct_mapper.scoop`
+  4. `cargo clippy -p scoop -p scoopc --all-targets -- -D warnings`
+- Full suite re-run result after `T5001f5`: `cargo run -p scoop -- test` now passes the higher-order aggregate fixture and the next blocker is `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`. This needs to be inserted as the next prerequisite task before the pending reviews.

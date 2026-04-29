@@ -5339,6 +5339,53 @@ fun main() {
 }
 
 #[test]
+fn higher_order_aggregate_return_reloads_string_receiver_after_gc_sensitive_arg_eval() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Labelled(val text: String, val score: Int)
+
+fun main() {
+    val mapper: (String) -> Labelled = { input: String ->
+        val tagged = input.concat("!")
+        Labelled { text: tagged, score: tagged.length() }
+    }
+    println(mapper("go").text)
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let lambda_ir = function_ir_named(&ir, "@\"scoop.lambda$0\"(");
+    let alloc_idx = lambda_ir
+        .find("@__scoop_type_desc_runtime__ScoopString")
+        .expect("expected concat arg string allocation in closure IR");
+    let call_idx = lambda_ir[alloc_idx..]
+        .find("@scoop_string_concat")
+        .map(|idx| alloc_idx + idx)
+        .expect("expected runtime concat call in closure IR");
+    let reload_window = &lambda_ir[alloc_idx..call_idx];
+
+    assert!(
+        reload_window.contains(
+            "string_method_concat_recv_reload = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
+        ),
+        "String.concat receiver should reload from the explicit frame after GC-sensitive arg evaluation\n{reload_window}"
+    );
+    assert!(
+        lambda_ir[call_idx..].contains(
+            "@scoop_string_concat(ptr addrspace(1) %string_method_concat_recv_reload, ptr addrspace(1) %rt_alloc_string_lit)"
+        ),
+        "runtime concat call should consume the reloaded receiver instead of the pre-GC SSA\n{}",
+        &lambda_ir[call_idx..]
+    );
+}
+
+#[test]
 fn class_ctor_factory_keeps_allocated_object_rooted_across_gc_sensitive_arg_eval() {
     let source = SourceFile::new_virtual(
         "<mem>",

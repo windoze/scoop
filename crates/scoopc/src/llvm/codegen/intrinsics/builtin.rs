@@ -838,9 +838,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: receiver.span.into(),
             });
         };
+        let deferred_recv = self.defer_gc_sensitive_cg_value(
+            receiver.span,
+            &format!("string_method_{method_name}_recv"),
+            CgValue {
+                ty: CgTy::String,
+                value: Some(recv_ptr.into()),
+            },
+        )?;
 
         match method_name {
             "length" => {
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 // scoop_string_length(s) -> i64
                 let rt_fun = self.declare_runtime_string_length();
                 let call =
@@ -868,6 +881,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             // T0122/T0143: substring/indexOf/contains/startsWith/endsWith/split 已迁移到 sysroot/string.scoop
             "toInt" => {
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 // scoop_string_to_int(s) -> i64
                 let rt_fun = self.declare_runtime_string_to_int();
                 let call =
@@ -922,6 +940,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 let rt_fun = self.declare_runtime_string_concat();
                 let call = self.build_call_preserving_gc_local_roots(
                     span,
@@ -948,6 +971,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             // T1817: String.hash() — FNV-1a via C runtime.
             "hash" => {
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 let rt_fun = self.declare_runtime_string_hash();
                 let call = self
                     .builder
@@ -975,6 +1003,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // T0122/T0143: trim/trimStart/trimEnd 已迁移到 sysroot/string.scoop
             // T0115: String.isEmpty() — 0 args → Bool (i64 0/1 → i1)
             "isEmpty" => {
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 let rt_fun = self.declare_runtime_string_is_empty();
                 let call =
                     self.builder
@@ -1049,6 +1082,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 let rt_fun = self.declare_runtime_string_replace();
                 let call = self.builder.build_call(
                     rt_fun,
@@ -1097,6 +1135,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "String.charAt index value",
                     at: span.into(),
                 })?;
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 let rt_fun = self.declare_runtime_string_char_at();
                 let call = self.builder.build_call(
                     rt_fun,
@@ -1148,6 +1191,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "String.repeat n value",
                     at: span.into(),
                 })?;
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 let rt_fun = self.declare_runtime_string_repeat();
                 let call = self.builder.build_call(
                     rt_fun,
@@ -1200,6 +1248,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 let rt_fun = self.declare_runtime_string_compare_to();
                 let call = self.builder.build_call(
                     rt_fun,
@@ -1228,6 +1281,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             // T0120: String.byteLength() — 0 args → Int (inline LLVM IR: read ScoopString.len)
             "byteLength" => {
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 if !args.is_empty() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.byteLength arity mismatch",
@@ -1289,6 +1347,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
 
                 let scoop_str_ty = self.llvm_scoop_string_type();
                 let i64_ty = self.context.i64_type();
@@ -1436,6 +1499,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "String.unsafeSliceBytes len value",
                     at: span.into(),
                 })?;
+                let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
+                    receiver.span,
+                    method_name,
+                    deferred_recv.clone(),
+                )?;
                 let rt_fun = self.declare_runtime_string_unsafe_slice_bytes();
                 let call = self.builder.build_call(
                     rt_fun,
@@ -1464,6 +1532,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             }),
         }
+    }
+
+    fn materialize_gc_sensitive_string_method_receiver(
+        &mut self,
+        at: crate::span::Span,
+        method_name: &str,
+        deferred: DeferredCgValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let reloaded = self.materialize_deferred_cg_value(
+            at,
+            &format!("string_method_{method_name}_recv_reload"),
+            deferred,
+        )?;
+        let Some(raw) = reloaded.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "String method receiver reload value",
+                at: at.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(reloaded_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "String method receiver reload type",
+                at: at.into(),
+            });
+        };
+        Ok(reloaded_ptr)
     }
 
     /// T0146c2 / T0114 / T1812: Unified `toString()` dispatch。
