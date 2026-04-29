@@ -2275,6 +2275,12 @@
   - 当前结论已可复验回答：小 direct-call wrapper 与 non-escaping closure 在 `O2` 下都会显著减少 safepoint 与 `gc-live` roots，而 task/effect/thread handoff 高压路径虽已降低总 roots 与峰值 roots，但绝对 safepoint / roots 压力仍高，因此近期更值得继续减少调用边界，而不是把 `mem2reg` / register-root 提升为主线优先级；
   - 验证结果：`cargo fmt --all`、`cargo test -p scoop_tools`、`cargo run -p scoop_tools -- safepoint-baseline`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (19)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；
   - 下一条待执行任务切换为 `T5000j4R Review：确认 safepoint / root-pressure 跟踪口径可持续复用`。
+- 2026-04-29：`T5000j4R Review：确认 safepoint / root-pressure 跟踪口径可持续复用` 已完成。
+  - 已复核 `tools/scoop_tools/src/safepoint_baseline.rs`、CLI 接线、文档与 3 个 workload fixture，确认观测口径、输入样本与重跑入口均已固化在仓库内；
+  - 已重跑 `cargo run -p scoop_tools -- safepoint-baseline`，输出与 `docs/safepoint_baseline.md` 的当前快照一致，说明这条基线不是一次性的手工结论；
+  - 已再次验证 `cargo test -p scoop_tools`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (19)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；
+  - review 结论：该口径已经足够支撑后续 GC / `mem2reg` 研究直接复用，且当前结论仍然稳定指向“优先继续减少 task/effect/runtime 路径中的调用边界与 roots 压力”；未发现需要前插到 `T5000jR` 之前的新缺陷任务；
+  - 下一条待执行任务切换为 `T5000jR Review：确认优化主线已形成可持续扩展的中端体系`。
 
 ## 1. 当前判断
 

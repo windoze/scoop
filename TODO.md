@@ -2130,13 +2130,18 @@
   - 已同步更新 `README.md` 与 `tools/README.md` 的重跑入口说明；
   - 已验证 `cargo fmt --all`、`cargo test -p scoop_tools`、`cargo run -p scoop_tools -- safepoint-baseline`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (19)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
-### [TODO] T5000j4R Review：确认 safepoint / root-pressure 跟踪口径可持续复用
+### [DONE] T5000j4R Review：确认 safepoint / root-pressure 跟踪口径可持续复用
 - 重点：
   - 观测方法是否可复验、可重跑，而不是一次性的手工结论；
   - 是否已经能回答“当前更值得继续减少调用边界，还是已经出现值得研究 `mem2reg` / register-root 的窗口”。
 - 验收：
   - 后续 GC / `mem2reg` 研究可以直接复用本轮口径与 workload。
 - 依赖：T5000j4
+- 完成记录（2026-04-29）：
+  - 已复核 `tools/scoop_tools/src/safepoint_baseline.rs`、`tools/scoop_tools/src/main.rs`、`docs/safepoint_baseline.md`、`README.md`、`tools/README.md` 与 3 个 workload fixture，确认基线方法、CLI 入口、文档口径与输入样本都已固化在仓库内，而不是停留在一次性手工统计；
+  - 已重跑 `cargo run -p scoop_tools -- safepoint-baseline`，输出与 `docs/safepoint_baseline.md` 当前快照一致：`inline_wrapper_string` 与 `non_escaping_closure` 在 `O0 -> O2` 下都显著减少 safepoint / roots，而 `task_handoff_gc_stress` 仍保持高绝对 safepoint / roots 压力；
+  - 已再次验证 `cargo test -p scoop_tools`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (19)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过，说明这条跟踪口径可持续重跑，且未因最近主线变更失效；
+  - review 结论：当前基线已足够支持后续 GC / `mem2reg` 研究直接复用；现阶段更值得继续减少 task/effect/runtime 路径中的调用边界与 live-root 压力，而不是把 `mem2reg` / register-root 提升为主线优先级；未发现需要插入到 `T5000jR` 之前的新前置缺陷任务。
 
 ### [TODO] T5000jR Review：确认优化主线已形成可持续扩展的中端体系
 - 重点：
