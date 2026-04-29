@@ -2113,13 +2113,22 @@
   - 已验证 `cargo test -p scoopc production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_object_value_init_access -- --nocapture`、`cargo test -p scoopc production_reachability_emits_object_init_helper_dependency_for_raw_mir_top_level_ref -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`、`cargo test -p scoopc production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过；
   - review 结论：higher-order / init 场景扩张仍建立在 materialized MIR、pass artifacts、`ProgramFacts` 与 shared effect facts 之上；本轮未发现需要插入到 `T5000j4` 之前的新前置缺陷任务。
 
-### [TODO] T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线
+### [DONE] T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线
 - 范围：
   - 基于当前 inline / devirt / closure simplification / effect planning 主线，选定一组可复验 workload；
   - 记录调用边界减少后 safepoint 数量、roots 压力与后续 `mem2reg` 研究窗口的观察口径。
 - 验收：
   - safepoint / root-pressure 变化有可复验结论，可供后续 GC / `mem2reg` 研究引用。
 - 依赖：T5000j3R
+- 完成记录（2026-04-29）：
+  - 新增 `tools/scoop_tools/src/safepoint_baseline.rs` 与 CLI 入口 `cargo run -p scoop_tools -- safepoint-baseline`，自动对内置 workload 生成 `-O0` / `-O2` LLVM IR，并统计实际 `llvm.experimental.gc.statepoint` 数量、带 `gc-live` metadata 的 rooted statepoint 数量、`gc-live` roots 总数与单点峰值；相关方法与当前快照已固化到 `docs/safepoint_baseline.md`；
+  - 新增 `tests/fixtures/build/safepoint_inline_wrapper_string_basic.scoop` 与 `tests/fixtures/build/safepoint_non_escaping_closure_basic.scoop`，分别锁定 summary-driven inlining / `DirectCallOnly` provenance 摊平，以及 non-escaping closure simplification 对调用边界的影响；高压 workload 复用既有 `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`；
+  - 当前基线结论已可复验回答：
+    - `inline_wrapper_string` 在 `O0 -> O2` 间 `statepoints 12 -> 5`、`total gc-live roots 13 -> 0`；
+    - `non_escaping_closure` 在 `O0 -> O2` 间 `statepoints 6 -> 1`、`total gc-live roots 3 -> 0`；
+    - `task_handoff_gc_stress` 虽在 `O2` 下把 `total gc-live roots 435 -> 380`、`max gc-live roots 5 -> 4`，但绝对 safepoint / roots 压力仍高（`statepoints = 290`、`rooted statepoints = 241`），因此当前更值得继续沿 task/effect/runtime 路径减少调用边界，而不是把 `mem2reg` / register-root 提升为主线优先级；
+  - 已同步更新 `README.md` 与 `tools/README.md` 的重跑入口说明；
+  - 已验证 `cargo fmt --all`、`cargo test -p scoop_tools`、`cargo run -p scoop_tools -- safepoint-baseline`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (19)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 
 ### [TODO] T5000j4R Review：确认 safepoint / root-pressure 跟踪口径可持续复用
 - 重点：

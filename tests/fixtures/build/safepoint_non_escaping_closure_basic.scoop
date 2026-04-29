@@ -1,0 +1,14 @@
+// EXPECT: pass
+
+package fixtures.build
+
+import scoop.core.*
+
+fun applyLocal(x: Int): Int {
+    val f: (Int) -> Int = { y -> y + 1 }
+    return f(x)
+}
+
+fun main(): Int {
+    return applyLocal(41)
+}

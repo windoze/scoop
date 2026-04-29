@@ -2268,6 +2268,13 @@
     - 全部通过。
   - review 结论：higher-order / init 场景扩张仍建立在 materialized MIR、pass artifacts、`ProgramFacts` 与 shared effect facts 之上；当前未发现需要插入到 `T5000j4` 之前的新前置缺陷任务。
   - 下一条待执行任务切换为 `T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线`。
+- 2026-04-29：`T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线` 已完成。
+  - 新增 `cargo run -p scoop_tools -- safepoint-baseline`（`tools/scoop_tools/src/safepoint_baseline.rs`），自动对内置 workload 生成 `-O0` / `-O2` LLVM IR，并统计 `statepoints`、`rooted statepoints`、`total gc-live roots` 与 `max gc-live roots`；
+  - 新增 workload：`tests/fixtures/build/safepoint_inline_wrapper_string_basic.scoop`、`tests/fixtures/build/safepoint_non_escaping_closure_basic.scoop`，并复用 `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop` 作为 task/effect/thread handoff 压力样本；
+  - 方法、workload 与当前快照已固化到 `docs/safepoint_baseline.md`，`README.md` / `tools/README.md` 也已补充重跑入口；
+  - 当前结论已可复验回答：小 direct-call wrapper 与 non-escaping closure 在 `O2` 下都会显著减少 safepoint 与 `gc-live` roots，而 task/effect/thread handoff 高压路径虽已降低总 roots 与峰值 roots，但绝对 safepoint / roots 压力仍高，因此近期更值得继续减少调用边界，而不是把 `mem2reg` / register-root 提升为主线优先级；
+  - 验证结果：`cargo fmt --all`、`cargo test -p scoop_tools`、`cargo run -p scoop_tools -- safepoint-baseline`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (19)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；
+  - 下一条待执行任务切换为 `T5000j4R Review：确认 safepoint / root-pressure 跟踪口径可持续复用`。
 
 ## 1. 当前判断
 

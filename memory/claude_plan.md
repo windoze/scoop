@@ -1,45 +1,35 @@
-## 当前计划
+## 工作计划
 
-1. 查看最新一次 git 提交信息，确认是否提到任何已知问题；若有，先复现、修复并验证。
-2. 阅读 `TODO.md`，确定第一个未完成任务。
-3. 如该任务过大，则把它拆解为更小的可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本次只执行第一个子任务。
-4. 在动手修改前阅读相关代码与测试，确认实现边界，并检查是否存在会阻塞当前任务的既有问题。
-5. 实现当前任务所需的最小正确改动；若发现既有缺陷或规格不匹配，先修复，或将其作为前置任务插入 `TODO.md` 后停止。
-6. 运行相关验证，包括针对性测试，以及必要时运行更广泛的检查（如 `cargo test` / `cargo clippy --all-targets -- -D warnings`）。
-7. 更新文档进度：勾掉 `TODO.md` 中已完成任务，并同步更新 `PLAN.md`。
-8. 按仓库提交风格创建一次 git commit，然后停止，不继续下一个任务。
+说明：我不会记录或暴露私有推理细节，但会在这里维护可执行的步骤计划、关键判断依据与进度更新，便于你随时查看。
 
-## 说明
+### 初始计划
 
-- 我会在关键节点更新本文件，记录计划调整、阻塞项与完成状态。
-- 这里记录的是执行摘要与步骤，不包含冗长的内部推理。
+1. 检查最新一次 git 提交信息，确认是否显式提到需要先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认当前项目计划与该任务的上下文。
+4. 如首个未完成任务过大，先拆分任务，并更新 `TODO.md` 与 `PLAN.md`。
+5. 实现当前应执行的首个任务。
+6. 运行相关测试、格式化、lint；若发现既有问题，立即优先修复或把它作为前置任务写回 `TODO.md`。
+7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况。
+8. 按仓库约定创建一次 git 提交，然后停止。
 
-## 当前任务定位（更新）
+### 进度
 
-- 最新提交是 `T5000j3bR` 的 review 记录，没有单独点名新的待修缺陷。
-- `TODO.md` 中首个未完成条目是 `T5000j3R Review：确认 higher-order / init 场景扩张没有把分析责任倒灌回 backend`。
-- 本轮将重点复核以下边界：
-  1. `llvm/codegen/mir_body.rs` 是否只消费 materialized MIR / pass artifacts 做 lowering；
-  2. `llvm/reachability.rs` 与 `llvm/emit.rs` 是否只做 canonical body 选择与可达性收集，而不是现场重建 target-set；
-  3. `object-init` / `top-level-init` / closure / fun-value 扩张是否仍依赖 shared facts、side tables 与 pass view；
-  4. 若 review 暴露既有问题，先修复或将其插入 `TODO.md` 作为前置任务后停止。
-
-## 执行结果（更新）
-
-- 已完成 `T5000j3R Review` 的代码审计，未发现需要前插到 `T5000j4` 之前的新既有缺陷任务。
-- 审计结论摘要：
-  1. `llvm/emit.rs` / `llvm/reachability.rs` / `llvm/codegen/mod.rs` 继续只负责 canonical body 选择、可达性扫描与 lowering 入口，不在 backend 现场重建 higher-order / init target-set；
-  2. `llvm/codegen/mir_body.rs` / `object_init.rs` 继续只消费 materialized MIR、pass view、类型映射与现有 init side tables，负责 lowering / ABI / outcome boundary，而不是重算 shared facts；
-  3. effect / suspendability / continuation-escape 输入继续来自 `ProgramFacts`、`EffectAnalysisCtx`、pass summary 与 escape facts。
-- 已完成验证：
-  - `cargo test -p scoopc production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --nocapture`
-  - `cargo test -p scoopc production_codegen_lowers_raw_mir_object_value_init_access -- --nocapture`
-  - `cargo test -p scoopc production_reachability_emits_object_init_helper_dependency_for_raw_mir_top_level_ref -- --nocapture`
-  - `cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`
-  - `cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`
-  - `cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`
-  - `cargo test -p scoopc production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body -- --nocapture`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - `cargo run -p scoop -- test`
-- 文档状态：`TODO.md` 与 `PLAN.md` 已更新为本任务完成，下一条待执行任务已切换为 `T5000j4`。
+- 已创建计划文件，准备开始仓库检查。
+- 已检查最新提交：`[T5000j3R] Review higher-order and init backend boundary`，提交说明未显式声明需要先修复的新既有缺陷。
+- 已读取 `TODO.md` / `PLAN.md`，定位首个未完成任务为 `T5000j4 建立 safepoint 数量 / roots 压力的可复验跟踪基线`。
+- 当前执行计划更新：
+  1. 调查仓库里现有的 safepoint / roots / GC 压力观测入口、脚本、文档与测试载体。
+  2. 选择最小但可复验的 workload 与观测口径，并实现文档/脚本/测试支撑。
+  3. 运行相关验证，若暴露既有问题则先修复。
+  4. 回写 `TODO.md`、`PLAN.md` 与本文件，提交后停止。
+- 已完成 `T5000j4` 实现：
+  1. 新增 `cargo run -p scoop_tools -- safepoint-baseline`，自动构建内置 workload 并统计 `statepoints` / `gc-live` roots。
+  2. 新增两个 build workload fixture，并复用现有 `task_step_cross_thread_sequential_handoff_gc_stress.scoop` 作为高压样本。
+  3. 已把方法与当前快照固化到 `docs/safepoint_baseline.md`，并更新 `README.md` / `tools/README.md`。
+  4. 已完成验证：`cargo fmt --all`、`cargo test -p scoop_tools`、`cargo run -p scoop_tools -- safepoint-baseline`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+- 当前结论：
+  - 小 direct-call wrapper 与 non-escaping closure 在 `O2` 下明显减少 safepoint 与 roots 压力；
+  - task/effect/thread handoff 高压路径虽然降低了总 roots / 峰值 roots，但绝对压力仍高；
+  - 因而当前更值得继续减少调用边界，而不是把 `mem2reg` / register-root 提升为下一优先级。
+- 待做：按用户要求仅完成一个任务后停止；下一次调用应从 `T5000j4R` 开始。

@@ -5,6 +5,7 @@
 //! - 提供可在 CI 强制执行的一致性检查（check mode）
 
 mod fixtures_matrix;
+mod safepoint_baseline;
 mod spec_fixtures;
 
 use std::path::PathBuf;
@@ -54,6 +55,9 @@ enum Command {
         #[arg(long, default_value = "tests/fixtures")]
         fixtures_root: PathBuf,
     },
+
+    /// 生成当前 safepoint / gc-live roots 基线报告（自动构建内置 workload）
+    SafepointBaseline,
 }
 
 fn main() -> Result<()> {
@@ -99,6 +103,11 @@ fn main() -> Result<()> {
             }
             other => return Err(miette::miette!("未知 mode：{other}")),
         },
+
+        Command::SafepointBaseline => {
+            let report = safepoint_baseline::run().wrap_err("safepoint baseline 生成失败")?;
+            eprintln!("{report}");
+        }
     }
 
     Ok(())

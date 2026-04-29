@@ -145,6 +145,16 @@ cargo run -p scoop_runtime --release --bin gc_microbench -- \
   fragmentation --object-size 256 --initial 200000 --pin-stride 100
 ```
 
+## Safepoint 基线
+
+> 用途：可重复观察当前优化主线对 LLVM statepoint 数量与 `gc-live` roots 压力的影响，不做阈值 gating。
+
+```bash
+cargo run -p scoop_tools -- safepoint-baseline
+```
+
+该命令会自动编译一组内置 workload，并输出 `-O0` / `-O2` 下的 safepoint / roots 统计 Markdown 表。当前方法、workload 与最新快照记录在 `docs/safepoint_baseline.md`。
+
 ## 目录结构（简述）
 
 - `crates/scoop/`：命令行工具（driver）
