@@ -57,6 +57,10 @@
   - runtime 现状：managed frame roots 仍以 `stackmap + unwind ctx` 为主，`InNative` 线程额外叠加 `native_roots`；pinned / handles / globals / heap object trace 已天然围绕 `void** slot` visitor。
   - 编译器现状：ordinary safepoint 依赖 `with_conservative_gc_local_root_spills(...)`；`extra_gc_root_slots`、hidden sret spill、indirect aggregate spill、ordinary resume 临时槽位是后续 explicit frame layout 必须吸收的 stack-backed roots。
   - effect/state-machine 现状：长生命周期状态主要位于 heap-backed frame / continuation object，不属于 activation explicit frame 要接管的那部分 roots。
+- `T5001aR` 复核结论：baseline 已覆盖后续切换顺序需要的四类关键热点。
+  - runtime roots 入口：`scoop_gc_stackmap_visit_roots_from_ctx(...)`、`scoop_gc_native_roots_visit_slots(...)`、`scoop_runtime_init()` 中的 stackmap registry init、globals/handles/pins/heap trace 入口均已在 baseline 中定位。
+  - 编译器 roots 热点：ordinary safepoint、`@Extern` native 边界、`extra_gc_root_slots` / hidden sret / indirect aggregate spill、ordinary resume 与 effect/state-machine replay 边界均已纳入 baseline。
+  - 顺序判断：`T5001b` 可以先只处理 runtime root source 抽象，不需要在抽象前额外回头补做新的基线盘点。
 
 ### P1. 统一 runtime root map 抽象
 

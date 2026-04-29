@@ -56,13 +56,14 @@
 - 完成记录：baseline 已固化到 `ROOT_FRAME_REFACTOR.md` 的“4.4 当前实现基线（T5001a，2026-04-29）”。
 - 依赖：无
 
-### [TODO] T5001aR Review：确认 baseline 足以支撑后续切换顺序
+### [DONE] T5001aR Review：确认 baseline 足以支撑后续切换顺序
 - 重点：
   - 是否已覆盖 runtime roots 入口、stackmap 依赖面、native 边界、effect/state-machine 特殊路径四类关键热点；
   - 是否已经能支持“先抽 root map，再上 runtime substrate，再接编译器”的顺序；
   - 是否仍遗漏会直接影响 explicit frame push/pop 或 reload contract 的结构性入口。
 - 验收：
   - baseline 可作为后续 `T5001b+` 的统一前提，不需要每轮重新定位 roots 来源。
+- 完成记录：已对照 `ROOT_FRAME_REFACTOR.md` 第 4.4 节与当前代码入口复核 runtime/编译器热点；确认 `T5001b` 可直接围绕 stackmap roots、`native_roots`、globals/handles/pins 抽象统一 slot visitor，而 effect/state-machine 相关 heap-backed traced fields 仍可留在现有 heap trace 合同内。
 - 依赖：T5001a
 
 ### [TODO] T5001b 抽出统一 runtime root map / slot visitor 抽象
