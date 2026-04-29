@@ -298,7 +298,7 @@
 - 完成记录：`crates/scoopc/src/llvm/codegen/class_ctor.rs` 现已把 ctor-inline `this` local 的初始化从裸 `store` 收口为 `store_local_value_exact(...)`，确保 `create_entry_alloca(...)` 为 `this` 预留的 explicit-frame home slot 会在进入 property initializer / init block 前同步写入。这样当 `Primary.a` 内的 `println("Primary.a")` 先触发 safepoint 后，后续 `this.x` 读取会按既有 post-safepoint contract 从 explicit frame reload，而不会再从未同步的 `this` 局部槽位取到空值并在运行期段错误。另新增 LLVM 回归 `class_ctor_this_local_reloads_from_explicit_frame_after_safepoint`，锁定 ctor-inline `this` 在 safepoint 后必须走 explicit frame home slot reload；并已通过 `cargo test -p scoopc class_ctor_this_local_reloads_from_explicit_frame_after_safepoint -- --nocapture` 与 `cargo run -p scoop -- run tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop` 验证。继续执行 `cargo run -p scoop -- test` 时，suite 已越过该 fixture，当前新的既有阻塞已切换为 `effect_escape_continuation_gc_stress_multi_string.scoop`，因此按要求在本条后插入 `T5001f3/T5001f3R`。
 - 依赖：T5001f1R
 
-### [TODO] T5001f3 修复 effect escape continuation GC-stress golden regression，解除 run-pass 后续阻塞
+### [DONE] T5001f3 修复 effect escape continuation GC-stress golden regression，解除 run-pass 后续阻塞
 - 范围：
   - 修复 `tests/fixtures/run-pass/effect_escape_continuation_gc_stress_multi_string.scoop` 当前回归：在 `T5001f2` 验证过程中，`cargo run -p scoop -- test` 已越过 class-init fixture，但在该 effect/continuation GC-stress fixture 处出现 stdout 与 golden 不一致。
   - 查清 escaped continuation、effect transport、GC-stress 驱动与 golden 预期之间的真实 source-of-truth 偏差，不能通过放宽 fixture 或修改 golden 来回避实现问题。
@@ -306,7 +306,27 @@
 - 验收：
   - `effect_escape_continuation_gc_stress_multi_string.scoop` 恢复与 golden 一致；
   - `cargo run -p scoop -- test` 不再在该 fixture 处失败。
+- 完成记录：`crates/scoopc/src/llvm/codegen/effect/mod.rs` 现已把 fresh `Continuation.resume(...)` receiver 收口为与普通 GC-sensitive call arg 一致的 contract：receiver 先经 `defer_gc_sensitive_cg_value(...)` spill 成 tracked root，再在 payload materialize 完成后通过 `continuation_resume_receiver_reload` reload，最后才调用 `scoop_continuation_resume_with(...)`。这样 `k1.resume("alpha")` 这类“先读 continuation、后分配 String payload”的路径在 `SCOOP_GC_STRESS=1` 下不再把 stale continuation 指针传进 runtime，也不会错误触发 `ContinuationAlreadyResumed`。另新增 LLVM 回归 `continuation_resume_reloads_receiver_after_gc_sensitive_payload_materialization`，锁定 payload 分配后必须 reload continuation receiver 的 IR 顺序；并已通过 `cargo test -p scoopc continuation_resume_reloads_receiver_after_gc_sensitive_payload_materialization -- --nocapture`、`cargo test -p scoopc when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume -- --nocapture`、`SCOOP_GC_STRESS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_gc_stress_multi_string.scoop` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。继续执行 `cargo run -p scoop -- test` 时，suite 已越过该 fixture，当前新的既有阻塞已切换为 `gc_cross_function_class_object_graph.scoop`，因此按要求在本条后插入 `T5001f4/T5001f4R`。
 - 依赖：T5001f2
+
+### [TODO] T5001f4 修复 cross-function class object graph GC-stress regression，解除 run-pass 后续阻塞
+- 范围：
+  - 修复 `tests/fixtures/run-pass/gc_cross_function_class_object_graph.scoop` 当前回归：`cargo run -p scoop -- test` 已越过 `effect_escape_continuation_gc_stress_multi_string.scoop`，但在该 fixture 处失败；默认环境单跑可通过，而 suite 使用的 `SCOOP_GC_STRESS=1` 下会卡住/异常退出。
+  - 查清跨函数传递的 `Node`/`String`/`Node?` object graph 在 GC-stress 下的真实 source-of-truth 缺口，重点覆盖 factory return、setter 调用、对象字段写入与 transitive readback 主线，不能通过放宽 fixture 或修改 golden 来回避实现问题。
+  - 为最小 cross-function class object graph 路径补定向回归，至少覆盖 class->class、class->String 引用跨 `makeNode` / `setLeft` / `setRight` / `printNode` 边界后在 `SCOOP_GC_STRESS=1` 下仍保持正确。
+- 验收：
+  - `gc_cross_function_class_object_graph.scoop` 恢复通过；
+  - `cargo run -p scoop -- test` 不再在该 fixture 处失败。
+- 依赖：T5001f3
+
+### [TODO] T5001f4R Review：确认 cross-function class object graph 的 GC-stress 合同重新闭合
+- 重点：
+  - 跨函数返回 / 传参 / 对象字段写入路径是否仍残留 stale object 或 stale field source-of-truth；
+  - class field write/read、factory return 与 setter call 是否都遵守 explicit-frame / post-safepoint reload 合同；
+  - run-pass 回归是否已覆盖 object graph 构造、连边、GC 后读取三类关键窗口。
+- 验收：
+  - `T5001f3R` / `T5001g` 可在不再被该 object-graph GC-stress 回归阻塞的前提下继续推进。
+- 依赖：T5001f4
 
 ### [TODO] T5001f3R Review：确认 effect escape continuation 的 GC-stress 合同重新闭合
 - 重点：
@@ -315,7 +335,7 @@
   - run-pass 回归是否已覆盖 escape + resume + GC-stress 的最小闭环。
 - 验收：
   - `T5001f2R` / `T5001g` 可在不再被该 effect GC-stress 回归阻塞的前提下继续推进。
-- 依赖：T5001f3
+- 依赖：T5001f4R
 
 ### [TODO] T5001f2R Review：确认类初始化顺序合同重新闭合
 - 重点：

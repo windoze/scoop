@@ -2563,6 +2563,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         match inst.get_opcode() {
+            inkwell::values::InstructionOpcode::Load => {
+                let base = inst
+                    .get_operand(0)
+                    .and_then(|operand| operand.value())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "local slot load base operand",
+                        at: at.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(base_ptr) = base else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "local slot load base pointer type",
+                        at: at.into(),
+                    });
+                };
+                let base_ptr =
+                    self.rematerialize_ptr_in_current_block(at, base_ptr, &format!("{name}_base"))?;
+                let rebuilt = self.builder.build_load(ptr.get_type(), base_ptr, name)?;
+                return Ok(rebuilt.into_pointer_value());
+            }
             inkwell::values::InstructionOpcode::BitCast
             | inkwell::values::InstructionOpcode::AddrSpaceCast => {
                 let base = inst

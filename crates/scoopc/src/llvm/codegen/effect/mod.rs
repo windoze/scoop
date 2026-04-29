@@ -1149,18 +1149,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let continuation = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
         let continuation = self.coerce_value(receiver.span, continuation, CgTy::Ref)?;
-        let Some(raw_continuation) = continuation.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume receiver value",
-                at: receiver.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(cont_ptr) = raw_continuation else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume receiver type",
-                at: receiver.span.into(),
-            });
-        };
+        let deferred_continuation = self.defer_gc_sensitive_cg_value(
+            receiver.span,
+            "continuation_resume_receiver",
+            continuation,
+        )?;
 
         // `Continuation.resume(...)` 的 authoritative payload / answer type 都来自
         // receiver 的 `Continuation<Resume, Answer, eff E>` 实参。
@@ -1180,6 +1173,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             out_word_slot,
             out_gc_ref_slot,
             outcome_slot,
+        };
+        let continuation = self.materialize_deferred_cg_value(
+            receiver.span,
+            "continuation_resume_receiver_reload",
+            deferred_continuation,
+        )?;
+        let Some(raw_continuation) = continuation.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(cont_ptr) = raw_continuation else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver type",
+                at: receiver.span.into(),
+            });
         };
         self.resume_continuation_with_payload(
             span,
@@ -1252,18 +1262,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let continuation = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
         let continuation = self.coerce_value(receiver.span, continuation, CgTy::Ref)?;
-        let Some(raw_continuation) = continuation.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume receiver value",
-                at: receiver.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(cont_ptr) = raw_continuation else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume receiver type",
-                at: receiver.span.into(),
-            });
-        };
+        let deferred_continuation = self.defer_gc_sensitive_cg_value(
+            receiver.span,
+            "continuation_resume_receiver",
+            continuation,
+        )?;
 
         let receiver_ty = self
             .resolve_expr_concrete_type(receiver)
@@ -1291,6 +1294,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             out_word_slot: null_slot,
             out_gc_ref_slot: null_slot,
             outcome_slot,
+        };
+        let continuation = self.materialize_deferred_cg_value(
+            receiver.span,
+            "continuation_resume_receiver_reload",
+            deferred_continuation,
+        )?;
+        let Some(raw_continuation) = continuation.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(cont_ptr) = raw_continuation else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver type",
+                at: receiver.span.into(),
+            });
         };
         self.resume_continuation_with_payload(
             span,

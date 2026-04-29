@@ -1022,19 +1022,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(term) = insert_block.get_terminator() {
             let builder = self.context.create_builder();
             builder.position_before(&term);
-            for (slot, frame_slot, value, _value_ptr_ty) in spills {
-                let _ = builder.build_store(slot, value)?;
+            for (slot, frame_slot, value, value_ptr_ty) in spills {
                 if explicit_frame_enabled {
-                    let _ = builder.build_store(frame_slot, value)?;
+                    let reloaded = builder
+                        .build_load(value_ptr_ty, frame_slot, "gc_root_keepalive_reload")?
+                        .into_pointer_value();
+                    let _ = builder.build_store(slot, reloaded)?;
+                } else {
+                    let _ = builder.build_store(slot, value)?;
                 }
             }
             return Ok(result);
         }
 
-        for (slot, frame_slot, value, _value_ptr_ty) in spills {
-            let _ = self.builder.build_store(slot, value)?;
+        for (slot, frame_slot, value, value_ptr_ty) in spills {
             if explicit_frame_enabled {
-                let _ = self.builder.build_store(frame_slot, value)?;
+                let reloaded = self
+                    .builder
+                    .build_load(value_ptr_ty, frame_slot, "gc_root_keepalive_reload")?
+                    .into_pointer_value();
+                let _ = self.builder.build_store(slot, reloaded)?;
+            } else {
+                let _ = self.builder.build_store(slot, value)?;
             }
         }
 
@@ -1950,7 +1959,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(value)
     }
 
-    fn store_gc_pointer_slot_with_write_barrier(
+    pub(super) fn store_gc_pointer_slot_with_write_barrier(
         &mut self,
         at: crate::span::Span,
         ptr: PointerValue<'ctx>,

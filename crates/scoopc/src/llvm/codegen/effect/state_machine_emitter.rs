@@ -530,6 +530,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?
             .into_pointer_value();
+        let state_ptr_slot = self
+            .reserve_explicit_frame_leaf_slots_for_storage_type(
+                span,
+                self.llvm_gc_i8_ptr_type().into(),
+            )?
+            .into_iter()
+            .next()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "step frame ptr explicit root slot",
+                at: span.into(),
+            })?;
+        self.builder.build_store(state_ptr_slot, state_ptr)?;
         let resume_word_param = step_fn
             .get_nth_param(1)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -561,6 +573,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         self.with_effect_function_return_context(step_function_return_ctx, |cg| {
+            let state_ptr =
+                cg.load_effect_frame_ptr_for_use(span, state_ptr_slot, "step_entry_frame_ptr")?;
             // Store resume values into frame.
             let resume_word_gep = cg.builder.build_struct_gep(
                 frame_layout.frame_type,
@@ -576,8 +590,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 frame_layout.resume_gc_ref_index(),
                 "resume_gc_ref_ptr",
             )?;
-            cg.builder
-                .build_store(resume_gc_ref_gep, resume_gc_ref_param)?;
+            cg.store_gc_ref_field(
+                span,
+                resume_gc_ref_gep,
+                resume_gc_ref_param,
+            )?;
 
             // Load state_tag for dispatch.
             let state_tag_gep = cg.builder.build_struct_gep(
@@ -627,6 +644,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // Fresh env scope for this state's locals.
                 cg.function_cx.env.push_scope();
 
+                let state_ptr = cg.load_effect_frame_ptr_for_use(
+                    span,
+                    state_ptr_slot,
+                    &format!("state_{}_frame_ptr", state.id()),
+                )?;
+
                 if matches!(state.context(), UnifiedStateContext::Cleanup { .. }) {
                     cg.write_cleanup_flag(state_ptr, frame_layout, true, "cleanup_entered")?;
                 }
@@ -638,6 +661,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 let last_value =
                     cg.emit_state_ops(span, state, state_ptr, frame_layout, contract)?;
+
+                let state_ptr = cg.load_effect_frame_ptr_for_use(
+                    span,
+                    state_ptr_slot,
+                    &format!("state_{}_terminator_frame_ptr", state.id()),
+                )?;
 
                 cg.emit_state_terminator(
                     span,
@@ -702,6 +731,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?
             .into_pointer_value();
+        let frame_ptr_slot = self
+            .reserve_explicit_frame_leaf_slots_for_storage_type(
+                span,
+                self.llvm_gc_i8_ptr_type().into(),
+            )?
+            .into_iter()
+            .next()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "dispatch frame ptr explicit root slot",
+                at: span.into(),
+            })?;
+        self.builder.build_store(frame_ptr_slot, frame_ptr)?;
         let resume_word_param = dispatch_loop_fn
             .get_nth_param(1)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -741,6 +782,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.with_effect_function_return_context(dispatch_function_return_ctx, |cg| {
             let i64_zero = cg.context.i64_type().const_int(0, false);
             let gc_null = cg.llvm_gc_i8_ptr_type().const_null();
+            let frame_ptr =
+                cg.load_effect_frame_ptr_for_use(span, frame_ptr_slot, "dispatch_step_frame_ptr")?;
 
             cg.builder.build_call(
                 step_fn,
@@ -874,7 +917,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         );
                         let arm_bb = cg.emit_dispatch_arm_execution(
                             dispatch_loop_fn,
-                            frame_ptr,
+                            frame_ptr_slot,
                             frame_layout,
                             step_fn,
                             i64_zero,
@@ -956,10 +999,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "cleanup_propagate_resume_word",
                     "cleanup_propagate_resume_gc_ref",
                 )?;
+                let cleanup_frame_ptr = cg.load_effect_frame_ptr_for_use(
+                    span,
+                    frame_ptr_slot,
+                    "cleanup_propagate_step_frame_ptr",
+                )?;
                 cg.builder.build_call(
                     step_fn,
                     &[
-                        frame_ptr.into(),
+                        cleanup_frame_ptr.into(),
                         cleanup_resume_word.into(),
                         cleanup_resume_gc_ref.into(),
                     ],
@@ -1001,10 +1049,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "cleanup_done_resume_word",
                     "cleanup_done_resume_gc_ref",
                 )?;
+                let cleanup_frame_ptr = cg.load_effect_frame_ptr_for_use(
+                    span,
+                    frame_ptr_slot,
+                    "cleanup_done_step_frame_ptr",
+                )?;
                 cg.builder.build_call(
                     step_fn,
                     &[
-                        frame_ptr.into(),
+                        cleanup_frame_ptr.into(),
                         cleanup_resume_word.into(),
                         cleanup_resume_gc_ref.into(),
                     ],
@@ -1055,6 +1108,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })?;
         self.finish_function_explicit_frame_layout(span)?;
         Ok(())
+    }
+
+    fn rematerialize_effect_frame_ptr(
+        &mut self,
+        frame_ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.rematerialize_ptr_in_current_block(crate::span::Span::new(0, 0), frame_ptr, name)
+    }
+
+    fn store_gc_ref_field(
+        &mut self,
+        at: crate::span::Span,
+        slot_ptr: PointerValue<'ctx>,
+        value: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        self.store_gc_pointer_slot_with_write_barrier(at, slot_ptr, value)?;
+        Ok(())
+    }
+
+    fn load_effect_frame_ptr_for_use(
+        &mut self,
+        _at: crate::span::Span,
+        frame_ptr_slot: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        Ok(self
+            .builder
+            .build_load(self.llvm_gc_i8_ptr_type(), frame_ptr_slot, name)?
+            .into_pointer_value())
     }
 
     /// Pre-populate the env with GEP pointers for all frame user slots.
@@ -1116,6 +1199,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut last_value: Option<CgValue<'ctx>> = None;
 
         for op in state.ops() {
+            let state_ptr = self.rematerialize_effect_frame_ptr(
+                state_ptr,
+                &format!("state_{}_op_frame_ptr", state.id()),
+            )?;
             match op {
                 // --- No-ops / markers ---
                 HandleStateOp::StmtEmpty { .. } => {}
@@ -1446,6 +1533,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         let llvm_index = frame_layout.user_slot_llvm_index(field_index);
 
+        // The initializer may already have crossed a safepoint, so rematerialize
+        // the current heap frame pointer before forming the slot address.
+        let state_ptr =
+            self.rematerialize_effect_frame_ptr(state_ptr, &format!("bind_local_{}_frame", id.as_u32()))?;
+
         // GEP into frame + store.
         let slot_ptr = self.builder.build_struct_gep(
             frame_layout.frame_type,
@@ -1507,6 +1599,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             })?;
 
+        let state_ptr =
+            self.rematerialize_effect_frame_ptr(state_ptr, &format!("read_local_{}_frame", id.as_u32()))?;
+
         // GEP into frame.
         let slot_ptr = self.builder.build_struct_gep(
             frame_layout.frame_type,
@@ -1528,9 +1623,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         );
 
-        // Load and return.
+        // Load and return through the standard post-safepoint reload path so
+        // heap frame slots also rebuild from the current relocated base.
+        let reload_slot = self.local_ptr_for_use(
+            at,
+            CgLocal {
+                hir_ty: Some(type_id),
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(type_id)),
+                ty: cg_ty,
+                ptr: slot_ptr,
+                mutable: unified_slot.slot().mutable(),
+            },
+            &format!("read_local_{}_slot", id.as_u32()),
+        )?;
         let llvm_ty = self.llvm_basic_type_of(at, cg_ty)?;
-        let loaded = self.builder.build_load(llvm_ty, slot_ptr, "slot_val")?;
+        let loaded = self.builder.build_load(llvm_ty, reload_slot, "slot_val")?;
         self.cg_value_from_loaded(at, cg_ty, loaded)
     }
 
@@ -1551,6 +1658,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             })?;
         let llvm_index = frame_layout.user_slot_llvm_index(field_index);
+        let state_ptr = self.rematerialize_effect_frame_ptr(
+            state_ptr,
+            &format!("resume_slot_frame_{}", resume_slot.id().as_u32()),
+        )?;
         let slot_ptr = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -2098,6 +2209,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if slot.owner_arm().is_some() || !slot.seed_from_outer_scope() || !slot.mutable() {
                 continue;
             }
+            let frame_ptr = self.rematerialize_effect_frame_ptr(
+                frame_ptr,
+                &format!("writeback_outer_frame_{}", slot.id().as_u32()),
+            )?;
 
             let storage_index = frame_layout.outer_scope_storage_index(slot.id()).ok_or(
                 LlvmEmitError::UnsupportedMainBody {
@@ -2443,7 +2558,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             &format!("site{site_id}_captured_callee_resume_token"),
                         )?
                         .into_pointer_value();
-                    self.builder.build_store(
+                    self.store_gc_ref_field(
+                        span,
                         cont_callee_suspend_state_gep,
                         captured_callee_suspend_state,
                     )?;
@@ -2458,7 +2574,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     frame_layout.continuation_index(),
                     "frame_continuation_ptr",
                 )?;
-                self.builder.build_store(cont_gep, cont)?;
+                self.store_gc_ref_field(span, cont_gep, cont)?;
 
                 // `Continuation.resume(...)` resumed body 内的 suspend 只有在当前站点
                 // 会把 fresh continuation 继续暴露给更外层 future resume 时，才需要
@@ -2744,6 +2860,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         tag_value: u32,
         name: &str,
     ) -> Result<(), LlvmEmitError> {
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, &format!("{name}_frame"))?;
         let gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -2762,6 +2879,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         frame_layout: &FrameLayout<'ctx>,
         name: &str,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, &format!("{name}_frame"))?;
         let gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -2781,6 +2899,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         word_name: &str,
         gc_name: &str,
     ) -> Result<(IntValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
+        let state_ptr =
+            self.rematerialize_effect_frame_ptr(state_ptr, &format!("{word_name}_frame"))?;
         let resume_word_gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -2816,6 +2936,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(cleanup_flag_index) = frame_layout.cleanup_flag_index() else {
             return Ok(());
         };
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, &format!("{name}_frame"))?;
         let gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -2836,6 +2957,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(cleanup_flag_index) = frame_layout.cleanup_flag_index() else {
             return Ok(self.context.bool_type().const_zero());
         };
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, &format!("{name}_frame"))?;
         let gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -2864,6 +2986,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(completion_tag_index) = frame_layout.completion_tag_index() else {
             return Ok(());
         };
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, &format!("{name}_frame"))?;
         let gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -2883,6 +3006,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(completion_tag_index) = frame_layout.completion_tag_index() else {
             return Ok(self.context.i32_type().const_zero());
         };
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, &format!("{name}_frame"))?;
         let gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -2967,6 +3091,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("{name}_restored_state_tag"),
             )?
             .into_int_value();
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, &format!("{name}_frame"))?;
         let state_tag_gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -3007,6 +3132,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("{name}_value"),
             )?
             .into_int_value();
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, &format!("{name}_frame"))?;
         let state_tag_gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -3105,6 +3231,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         frame_layout: &FrameLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let (word, gc_ref) = self.encode_effect_transport_value(span, val)?;
+        let state_ptr = self.rematerialize_effect_frame_ptr(state_ptr, "store_result_frame")?;
         let word_gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             state_ptr,
@@ -3118,7 +3245,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             frame_layout.resume_gc_ref_index(),
             "result_gc_ref",
         )?;
-        self.builder.build_store(gc_ref_gep, gc_ref)?;
+        self.store_gc_ref_field(span, gc_ref_gep, gc_ref)?;
         Ok(())
     }
 
@@ -3480,7 +3607,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn emit_dispatch_arm_execution(
         &mut self,
         current_fn: FunctionValue<'ctx>,
-        frame_ptr: PointerValue<'ctx>,
+        frame_ptr_slot: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         step_fn: FunctionValue<'ctx>,
         i64_zero: IntValue<'ctx>,
@@ -3503,6 +3630,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .append_basic_block(current_fn, &format!("arm_{arm_id}_complete"));
 
         self.builder.position_at_end(arm_bb);
+        let frame_ptr =
+            self.load_effect_frame_ptr_for_use(span, frame_ptr_slot, &format!("arm_{arm_id}_frame"))?;
 
         let clear_active_fn = self.declare_runtime_effect_clear_active();
         self.builder.build_call(clear_active_fn, &[], "")?;
@@ -3513,6 +3642,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             unified_arm.entry_state(),
             &format!("set_arm_state_{arm_id}"),
         )?;
+        let frame_ptr =
+            self.rematerialize_effect_frame_ptr(frame_ptr, &format!("arm_{arm_id}_step_frame"))?;
 
         self.builder.build_call(
             step_fn,
@@ -3696,6 +3827,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // If there's a frame slot for this binder, store to frame.
             if let Some(field_index) = contract.frame().get_slot_field_index(binder.id) {
+                let state_ptr = self.rematerialize_effect_frame_ptr(
+                    state_ptr,
+                    &format!("arm_binder_frame_{}", binder.id.as_u32()),
+                )?;
                 let llvm_index = frame_layout.user_slot_llvm_index(field_index);
                 let slot_ptr = self.builder.build_struct_gep(
                     frame_layout.frame_type,
@@ -3749,6 +3884,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .and_then(|local| local.hir_ty);
                 let continuation_call_may_suspend =
                     self.local_call_may_suspend_from_hir_ty(continuation_hir_ty);
+                let state_ptr = self.rematerialize_effect_frame_ptr(
+                    state_ptr,
+                    &format!("arm_continuation_frame_{arm_id}"),
+                )?;
                 let cont_gep = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     state_ptr,
@@ -3763,6 +3902,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // Find or alloc frame slot for the continuation local.
                 if let Some(field_index) = contract.frame().get_slot_field_index(continuation) {
+                    let state_ptr = self.rematerialize_effect_frame_ptr(
+                        state_ptr,
+                        &format!("arm_cont_slot_frame_{}", continuation.as_u32()),
+                    )?;
                     let llvm_index = frame_layout.user_slot_llvm_index(field_index);
                     let slot_ptr = self.builder.build_struct_gep(
                         frame_layout.frame_type,
@@ -3835,6 +3978,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 let type_id = slot.slot().ty();
                 if let Some(cg_ty) = self.cg_ty_of(type_id) {
+                    let state_ptr = self.rematerialize_effect_frame_ptr(
+                        state_ptr,
+                        &format!("arm_capture_frame_{}", local_id.as_u32()),
+                    )?;
                     let llvm_index = frame_layout.user_slot_llvm_index(field_index);
                     let slot_ptr = self.builder.build_struct_gep(
                         frame_layout.frame_type,
@@ -5308,6 +5455,85 @@ fun main(): Int {
         assert!(
             !ir.contains("continuation_resume_replay_state_raw"),
             "Continuation.resume replay should no longer materialize the legacy TLS replay-state reader"
+        );
+    }
+
+    #[test]
+    fn continuation_resume_reloads_receiver_after_gc_sensitive_payload_materialization() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+class Cell(var k: Continuation<String, Unit>?)
+
+fun main(): Int {
+    val none_k: Continuation<String, Unit>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        val _: String = Ask.ask()
+    } with {
+        Ask.ask(), k -> {
+            cell.k = Some(k)
+        }
+    }
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("resume_err")
+            }
+        }
+        None -> println("missing")
+    }
+
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+        let resume_step_ir = ir
+            .split("\ndefine ")
+            .skip(1)
+            .find_map(|chunk| {
+                let function = format!("define {chunk}");
+                let body_end = function.find("\n}")?;
+                let function = &function[..body_end + 2];
+                (function.contains("@scoop_continuation_resume_with")
+                    && function.contains("continuation_resume_receiver_reload"))
+                .then_some(function.to_string())
+            })
+            .expect("expected nested continuation resume step function in IR");
+        let state_0 = find_block_ir(&resume_step_ir, "state_0");
+        let payload_alloc_idx = state_0
+            .find("call ptr addrspace(1) @scoop_alloc_typed")
+            .expect("expected String payload allocation before resume");
+        let receiver_reload_idx = state_0
+            .find("continuation_resume_receiver_reload = load ptr addrspace(1)")
+            .expect("expected continuation receiver reload");
+        let resume_call_idx = state_0
+            .find("call i32 @scoop_continuation_resume_with")
+            .expect("expected continuation resume runtime call");
+
+        assert!(
+            payload_alloc_idx < receiver_reload_idx && receiver_reload_idx < resume_call_idx,
+            "Continuation.resume must reload the receiver after GC-sensitive payload materialization and before the runtime resume call, otherwise GC-stress may pass a stale continuation pointer:\n{state_0}"
         );
     }
 
