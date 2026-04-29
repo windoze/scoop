@@ -66,7 +66,7 @@
 - 完成记录：已对照 `ROOT_FRAME_REFACTOR.md` 第 4.4 节与当前代码入口复核 runtime/编译器热点；确认 `T5001b` 可直接围绕 stackmap roots、`native_roots`、globals/handles/pins 抽象统一 slot visitor，而 effect/state-machine 相关 heap-backed traced fields 仍可留在现有 heap trace 合同内。
 - 依赖：T5001a
 
-### [TODO] T5001b 抽出统一 runtime root map / slot visitor 抽象
+### [DONE] T5001b 抽出统一 runtime root map / slot visitor 抽象
 - 范围：
   - 把 runtime 当前“managed frame roots 来源”的入口从 stackmap 专用逻辑中抽离，统一到围绕 `void** slot` 的 visitor 接口。
   - 让 mark/update/verify-roots 只依赖统一 visitor，而不是分别嵌着 stackmap 细节。
@@ -75,6 +75,7 @@
 - 验收：
   - runtime 上层逻辑已不再直接依赖 stackmap record 解释细节；
   - 新接口已经足以承接后续 explicit frame 实现，而不是继续把 explicit mode 伪装成 stackmap 特例。
+- 完成记录：新增 `runtime/c/scoop_gc_root_map_internal.h`，以 `ScoopGcManagedRootMap + scoop_gc_root_map_visit_slots(...)` 收口 managed roots 入口；`scoop_gc_backend_immix.c` 与 `scoop_gc.c` 的 verify-roots、mark、major/minor roots update 以及 stackmap smoke 测试已统一改走该抽象，stackmap 细节退回 root-map 实现内部，并预留 `SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME` 边界。
 - 依赖：T5001aR
 
 ### [TODO] T5001bR Review：确认 runtime 上层已围绕 slot visitor 收口

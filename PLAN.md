@@ -67,6 +67,7 @@
 - 把 runtime 中“managed frame roots 来源”的入口从 stackmap 专用逻辑抽出来。
 - 上层 GC/verify-roots/更新逻辑只消费统一的 `visitor(void** slot)` 接口。
 - stackmap root map 与 explicit-frame root map 成为同层实现，而不是让 explicit mode 继续伪装成 stackmap 特例。
+- 当前状态（T5001b，2026-04-29）：已新增内部头文件 `runtime/c/scoop_gc_root_map_internal.h`，定义 `ScoopGcManagedRootMap`、`ScoopGcRootMapVisitResult` 与统一入口 `scoop_gc_root_map_visit_slots(...)`；默认实现为 stackmap root map，并预留 `SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME` kind。`scoop_gc_backend_immix.c` 与 baseline `scoop_gc.c` 的 verify-roots、major/minor mark、roots update 和 stackmap smoke 测试均已切到该抽象，上层不再直接展开 stackmap record 遍历。
 
 ### P2. explicit root frame runtime substrate
 

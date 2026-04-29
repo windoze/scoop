@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "scoop_gc_root_map_internal.h"
 #include "platform/unwind.h"
 #include "scoop_gc_stw_internal.h"
 #include "scoop_stackmap.h"
@@ -1271,95 +1272,6 @@ static uint64_t scoop_gc_native_roots_visit_slots(void *native_roots,
   return visited;
 }
 
-typedef struct ScoopGcStackmapRootsVisitCtx {
-  ScoopGcTraceVisitor visitor;
-  void *visitor_ctx;
-
-  uint64_t slots_visited;
-  uint32_t records_hit;
-  uint32_t visit_error;
-} ScoopGcStackmapRootsVisitCtx;
-
-static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp,
-                                                      uintptr_t ra,
-                                                      uintptr_t fp,
-                                                      void *user_data) {
-  if (user_data == 0) {
-    return 0;
-  }
-
-  ScoopGcStackmapRootsVisitCtx *ctx = (ScoopGcStackmapRootsVisitCtx *)user_data;
-  if (ctx->visit_error != SCOOP_STACKMAP_VISIT_OK) {
-    return 0;
-  }
-
-  ScoopStackmapRecordRef rec = {0};
-  if (!scoop_stackmap_registry_lookup(ra, &rec)) {
-    // T1606c fix：总是继续 walk 非 managed 帧（例如 C runtime 函数如
-    // scoop_continuation_resume_u64），以找到调用链上所有 managed 帧的 roots。
-    // 旧逻辑（T1506b）在首个 managed 帧后遇到非 managed 帧即停止，
-    // 导致 main → resume_u64(C) → step_fn 场景下 main 帧的 roots 未被枚举/更新。
-    return 1;
-  }
-
-  ctx->records_hit += 1;
-
-  uint32_t visit_err = SCOOP_STACKMAP_VISIT_OK;
-  ctx->slots_visited += scoop_stackmap_record_visit_root_slots(
-      &rec, sp, fp, ctx->visitor, ctx->visitor_ctx, &visit_err);
-
-  if (visit_err != SCOOP_STACKMAP_VISIT_OK) {
-    ctx->visit_error = visit_err;
-    return 0;
-  }
-
-  return 1;
-}
-
-// Parked 线程 stackmap roots 枚举（T1506b）：
-// - 输入为 `stack_walking_ctx`（park 前捕获的 opaque ctx）；
-// - 用 `(sp, ra)` 做 stackmap lookup，并把 locations→`void** slot` 交给 visitor；
-// - 返回 visitor 调用次数（non-null roots slots 数）。
-static uint64_t scoop_gc_stackmap_visit_roots_from_ctx(void *stack_walking_ctx,
-                                                       ScoopGcTraceVisitor visitor,
-                                                       void *ctx,
-                                                       uint32_t *out_error,
-                                                       uint32_t *out_records_hit) {
-  if (out_error != 0) {
-    *out_error = SCOOP_STACKMAP_VISIT_OK;
-  }
-  if (out_records_hit != 0) {
-    *out_records_hit = 0;
-  }
-
-  if (stack_walking_ctx == 0 || visitor == 0) {
-    if (out_error != 0) {
-      *out_error = SCOOP_STACKMAP_VISIT_ERR_INVALID_ARGUMENT;
-    }
-    return 0;
-  }
-
-  ScoopGcStackmapRootsVisitCtx walk = {
-      .visitor = visitor,
-      .visitor_ctx = ctx,
-      .slots_visited = 0,
-      .records_hit = 0,
-      .visit_error = SCOOP_STACKMAP_VISIT_OK,
-  };
-
-  const uint32_t skip_frames = 0;
-  (void)scoop_platform_unwind_ctx_walk_frames(
-      stack_walking_ctx, skip_frames, scoop_gc_stackmap_roots_frame_visitor, (void *)&walk);
-
-  if (out_error != 0) {
-    *out_error = walk.visit_error;
-  }
-  if (out_records_hit != 0) {
-    *out_records_hit = walk.records_hit;
-  }
-  return walk.slots_visited;
-}
-
 // --- GC roots 强校验（GC-FIX Phase B2c） ---
 //
 // 目的：
@@ -1571,10 +1483,14 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
     if (pthread_equal(it->thread, initiator)) {
       if (initiator_stack_walking_ctx != 0) {
         ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
-        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        ScoopGcManagedRootMap root_map =
+            scoop_gc_managed_root_map_from_stackmap_ctx(initiator_stack_walking_ctx);
+        ScoopGcRootMapVisitResult root_map_result = {0};
         uint32_t records_hit = 0;
-        (void)scoop_gc_stackmap_visit_roots_from_ctx(
-            initiator_stack_walking_ctx, scoop_gc_verify_root_slot_visitor, (void *)&v, &err, &records_hit);
+        (void)scoop_gc_root_map_visit_slots(
+            &root_map, scoop_gc_verify_root_slot_visitor, (void *)&v, &root_map_result);
+        uint32_t err = root_map_result.visit_error;
+        records_hit = root_map_result.units_hit;
         if (err != SCOOP_STACKMAP_VISIT_OK) {
           scoop_gc_verify_roots_record_error(
               &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
@@ -1590,10 +1506,14 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
               &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "in-native thread missing stack_walking_ctx");
         } else {
           ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
-          uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+          ScoopGcManagedRootMap root_map =
+              scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+          ScoopGcRootMapVisitResult root_map_result = {0};
           uint32_t records_hit = 0;
-          (void)scoop_gc_stackmap_visit_roots_from_ctx(
-              it->stack_walking_ctx, scoop_gc_verify_root_slot_visitor, (void *)&v, &err, &records_hit);
+          (void)scoop_gc_root_map_visit_slots(
+              &root_map, scoop_gc_verify_root_slot_visitor, (void *)&v, &root_map_result);
+          uint32_t err = root_map_result.visit_error;
+          records_hit = root_map_result.units_hit;
           if (err != SCOOP_STACKMAP_VISIT_OK) {
             scoop_gc_verify_roots_record_error(
                 &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
@@ -1613,10 +1533,14 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
             &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "in-native thread missing stack_walking_ctx");
       } else {
         ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
-        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        ScoopGcManagedRootMap root_map =
+            scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+        ScoopGcRootMapVisitResult root_map_result = {0};
         uint32_t records_hit = 0;
-        (void)scoop_gc_stackmap_visit_roots_from_ctx(
-            it->stack_walking_ctx, scoop_gc_verify_root_slot_visitor, (void *)&v, &err, &records_hit);
+        (void)scoop_gc_root_map_visit_slots(
+            &root_map, scoop_gc_verify_root_slot_visitor, (void *)&v, &root_map_result);
+        uint32_t err = root_map_result.visit_error;
+        records_hit = root_map_result.units_hit;
         if (err != SCOOP_STACKMAP_VISIT_OK) {
           scoop_gc_verify_roots_record_error(
               &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
@@ -1637,10 +1561,14 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
       }
 
       ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
-      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      ScoopGcManagedRootMap root_map =
+          scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+      ScoopGcRootMapVisitResult root_map_result = {0};
       uint32_t records_hit = 0;
-      (void)scoop_gc_stackmap_visit_roots_from_ctx(
-          it->stack_walking_ctx, scoop_gc_verify_root_slot_visitor, (void *)&v, &err, &records_hit);
+      (void)scoop_gc_root_map_visit_slots(
+          &root_map, scoop_gc_verify_root_slot_visitor, (void *)&v, &root_map_result);
+      uint32_t err = root_map_result.visit_error;
+      records_hit = root_map_result.units_hit;
       if (err != SCOOP_STACKMAP_VISIT_OK) {
         scoop_gc_verify_roots_record_error(
             &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
@@ -1875,16 +1803,16 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
 
   // 4a) initiator stackmap roots update（moving GC 的关键语义：spill slots 原地改写为新地址）。
   {
-    uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+    ScoopGcManagedRootMap root_map =
+        scoop_gc_managed_root_map_from_stackmap_ctx(initiator_stack_walking_ctx);
+    ScoopGcRootMapVisitResult root_map_result = {0};
+    uint32_t err = SCOOP_GC_ROOT_MAP_VISIT_ERR_INVALID_ARGUMENT;
     uint32_t records_hit = 0;
     if (initiator_stack_walking_ctx != 0) {
-      (void)scoop_gc_stackmap_visit_roots_from_ctx(initiator_stack_walking_ctx,
-                                                   scoop_gc_baseline_update_slot_visitor,
-                                                   (void *)&update_ctx,
-                                                   &err,
-                                                   &records_hit);
-    } else {
-      err = SCOOP_STACKMAP_VISIT_ERR_INVALID_ARGUMENT;
+      (void)scoop_gc_root_map_visit_slots(
+          &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
+      err = root_map_result.visit_error;
+      records_hit = root_map_result.units_hit;
     }
 
     if (err != SCOOP_STACKMAP_VISIT_OK) {
@@ -1922,13 +1850,14 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
                                                 scoop_gc_baseline_update_slot_visitor,
                                                 (void *)&update_ctx);
         {
-          uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+          ScoopGcManagedRootMap root_map =
+              scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+          ScoopGcRootMapVisitResult root_map_result = {0};
           uint32_t records_hit = 0;
-          (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
-                                                       scoop_gc_baseline_update_slot_visitor,
-                                                       (void *)&update_ctx,
-                                                       &err,
-                                                       &records_hit);
+          (void)scoop_gc_root_map_visit_slots(
+              &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
+          uint32_t err = root_map_result.visit_error;
+          records_hit = root_map_result.units_hit;
           if (err != SCOOP_STACKMAP_VISIT_OK) {
             (void)fprintf(stderr,
                           "[scooprt][gc][move] initiator in-native caller roots update failed: err=%u\n",
@@ -1959,13 +1888,14 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
                                               scoop_gc_baseline_update_slot_visitor,
                                               (void *)&update_ctx);
       {
-        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        ScoopGcManagedRootMap root_map =
+            scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+        ScoopGcRootMapVisitResult root_map_result = {0};
         uint32_t records_hit = 0;
-        (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
-                                                     scoop_gc_baseline_update_slot_visitor,
-                                                     (void *)&update_ctx,
-                                                     &err,
-                                                     &records_hit);
+        (void)scoop_gc_root_map_visit_slots(
+            &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
+        uint32_t err = root_map_result.visit_error;
+        records_hit = root_map_result.units_hit;
         if (err != SCOOP_STACKMAP_VISIT_OK) {
           (void)fprintf(stderr,
                         "[scooprt][gc][move] in-native caller roots update failed: err=%u "
@@ -1979,13 +1909,14 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
     }
 
     if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
-      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      ScoopGcManagedRootMap root_map =
+          scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+      ScoopGcRootMapVisitResult root_map_result = {0};
       uint32_t records_hit = 0;
-      (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
-                                                   scoop_gc_baseline_update_slot_visitor,
-                                                   (void *)&update_ctx,
-                                                   &err,
-                                                   &records_hit);
+      (void)scoop_gc_root_map_visit_slots(
+          &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
+      uint32_t err = root_map_result.visit_error;
+      records_hit = root_map_result.units_hit;
       if (err != SCOOP_STACKMAP_VISIT_OK) {
         (void)fprintf(stderr,
                       "[scooprt][gc][stackmap] update roots failed: err=%u (thread=0x%" PRIxPTR
@@ -2142,10 +2073,14 @@ void scoop_gc_collect(void) {
       (void)scoop_gc_native_roots_visit_slots(
           it->native_roots, it->native_roots_len, scoop_gc_mark_visitor, (void *)&ctx);
       {
-        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        ScoopGcManagedRootMap root_map =
+            scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+        ScoopGcRootMapVisitResult root_map_result = {0};
         uint32_t records_hit = 0;
-        (void)scoop_gc_stackmap_visit_roots_from_ctx(
-            it->stack_walking_ctx, scoop_gc_mark_visitor, (void *)&ctx, &err, &records_hit);
+        (void)scoop_gc_root_map_visit_slots(
+            &root_map, scoop_gc_mark_visitor, (void *)&ctx, &root_map_result);
+        uint32_t err = root_map_result.visit_error;
+        records_hit = root_map_result.units_hit;
 
         if (err != SCOOP_STACKMAP_VISIT_OK) {
           (void)fprintf(stderr,
@@ -2162,10 +2097,14 @@ void scoop_gc_collect(void) {
     // B2a：initiator roots 同样必须来自 stackmap（覆盖完整 managed 栈）。
     if (initiator_needs_stackmap_roots && initiator_stack_walking_ctx != 0 &&
         pthread_equal(it->thread, self)) {
-      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      ScoopGcManagedRootMap root_map =
+          scoop_gc_managed_root_map_from_stackmap_ctx(initiator_stack_walking_ctx);
+      ScoopGcRootMapVisitResult root_map_result = {0};
       uint32_t records_hit = 0;
-      (void)scoop_gc_stackmap_visit_roots_from_ctx(
-          initiator_stack_walking_ctx, scoop_gc_mark_visitor, (void *)&ctx, &err, &records_hit);
+      (void)scoop_gc_root_map_visit_slots(
+          &root_map, scoop_gc_mark_visitor, (void *)&ctx, &root_map_result);
+      uint32_t err = root_map_result.visit_error;
+      records_hit = root_map_result.units_hit;
 
       if (err != SCOOP_STACKMAP_VISIT_OK) {
         (void)fprintf(stderr,
@@ -2178,10 +2117,14 @@ void scoop_gc_collect(void) {
 
     // T1506b：Parked 线程若提供了 stack_walking_ctx，则走 stackmap roots。
     if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
-      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      ScoopGcManagedRootMap root_map =
+          scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+      ScoopGcRootMapVisitResult root_map_result = {0};
       uint32_t records_hit = 0;
-      (void)scoop_gc_stackmap_visit_roots_from_ctx(
-          it->stack_walking_ctx, scoop_gc_mark_visitor, (void *)&ctx, &err, &records_hit);
+      (void)scoop_gc_root_map_visit_slots(
+          &root_map, scoop_gc_mark_visitor, (void *)&ctx, &root_map_result);
+      uint32_t err = root_map_result.visit_error;
+      records_hit = root_map_result.units_hit;
 
       if (err != SCOOP_STACKMAP_VISIT_OK) {
         // locations 解析失败/遇到寄存器 roots 等：视为编译器/管线错误，fail-fast。
@@ -2605,11 +2548,13 @@ intptr_t scoop_test_gc_stackmap_roots_enum_smoke(void) {
   uint64_t slot_visits = 0;
   uint32_t visit_err = SCOOP_STACKMAP_VISIT_OK;
   uint32_t records_hit = 0;
-  (void)scoop_gc_stackmap_visit_roots_from_ctx(worker_rec->stack_walking_ctx,
-                                               scoop_test_gc_stackmap_roots_count_visitor,
-                                               (void *)&slot_visits,
-                                               &visit_err,
-                                               &records_hit);
+  ScoopGcManagedRootMap root_map =
+      scoop_gc_managed_root_map_from_stackmap_ctx(worker_rec->stack_walking_ctx);
+  ScoopGcRootMapVisitResult root_map_result = {0};
+  (void)scoop_gc_root_map_visit_slots(
+      &root_map, scoop_test_gc_stackmap_roots_count_visitor, (void *)&slot_visits, &root_map_result);
+  visit_err = root_map_result.visit_error;
+  records_hit = root_map_result.units_hit;
   if (visit_err != SCOOP_STACKMAP_VISIT_OK) {
     rc = -28;
     goto done;
@@ -3046,11 +2991,13 @@ intptr_t scoop_test_gc_stackmap_multiframe_keepalive(void) {
   uint64_t slot_visits = 0;
   uint32_t visit_err = SCOOP_STACKMAP_VISIT_OK;
   uint32_t records_hit = 0;
-  (void)scoop_gc_stackmap_visit_roots_from_ctx(worker_rec->stack_walking_ctx,
-                                               scoop_test_gc_stackmap_roots_count_visitor,
-                                               (void *)&slot_visits,
-                                               &visit_err,
-                                               &records_hit);
+  ScoopGcManagedRootMap root_map =
+      scoop_gc_managed_root_map_from_stackmap_ctx(worker_rec->stack_walking_ctx);
+  ScoopGcRootMapVisitResult root_map_result = {0};
+  (void)scoop_gc_root_map_visit_slots(
+      &root_map, scoop_test_gc_stackmap_roots_count_visitor, (void *)&slot_visits, &root_map_result);
+  visit_err = root_map_result.visit_error;
+  records_hit = root_map_result.units_hit;
   if (visit_err != SCOOP_STACKMAP_VISIT_OK) {
     rc = -29;
     goto done;
