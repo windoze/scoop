@@ -287,7 +287,7 @@
 - 完成记录：已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与相关 LLVM/fixture 回归。确认 await waiting path 在从 effect frame 取出 escaped continuation 后，会先经 `store_local_value_exact(...)` 写回 continuation local 与 explicit-frame home slot，再调用 `__task_step_pending(...)`；因此 awaited task 的 waiting transport 已重新与 `(Int, Any)` / continuation resume payload 合同对齐，不会再把 `null` continuation 记进 waiting state。另已通过 `cargo test -p scoopc async_task_pending_path_stores_escape_continuation_before_waiting_helper -- --nocapture`、`cargo test -p scoopc async_task_resume_ir_does_not_replay_original_await_site -- --nocapture`、`cargo test -p scoopc single_file_minimal_ir_supports_handled_async_await -- --nocapture`、`cargo run -p scoop -- run tests/fixtures/run-pass/task_step_manual_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_string_basic.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。review 期间确认 run-pass 已越过原 async/task waiting regression；当前剩余阻塞已切换为独立的 `class_init_order_primary_secondary_basic.scoop` 类初始化顺序问题，因此在 `T5001g` 前新增 `T5001f2/T5001f2R`。
 - 依赖：T5001f1
 
-### [TODO] T5001f2 修复 class init order regression，解除 run-pass 全量验收阻塞
+### [DONE] T5001f2 修复 class init order regression，解除 run-pass 全量验收阻塞
 - 范围：
   - 修复 `tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop` 当前回归：程序目前仅输出 `start` / `Primary.a` 后即提前异常退出，未继续执行 `println(this.x)`、后续 primary init steps 与 secondary ctor body。
   - 查清 primary ctor 参数属性、property initializer、`init {}` 与 secondary ctor body 的 lowering / runtime 执行顺序及 `this` 可见性合同，按 Appendix B.2.2 恢复实现。
@@ -295,7 +295,27 @@
 - 验收：
   - `class_init_order_primary_secondary_basic.scoop` 恢复输出预期 14 行；
   - `cargo run -p scoop -- test` 不再在该 fixture 处失败。
+- 完成记录：`crates/scoopc/src/llvm/codegen/class_ctor.rs` 现已把 ctor-inline `this` local 的初始化从裸 `store` 收口为 `store_local_value_exact(...)`，确保 `create_entry_alloca(...)` 为 `this` 预留的 explicit-frame home slot 会在进入 property initializer / init block 前同步写入。这样当 `Primary.a` 内的 `println("Primary.a")` 先触发 safepoint 后，后续 `this.x` 读取会按既有 post-safepoint contract 从 explicit frame reload，而不会再从未同步的 `this` 局部槽位取到空值并在运行期段错误。另新增 LLVM 回归 `class_ctor_this_local_reloads_from_explicit_frame_after_safepoint`，锁定 ctor-inline `this` 在 safepoint 后必须走 explicit frame home slot reload；并已通过 `cargo test -p scoopc class_ctor_this_local_reloads_from_explicit_frame_after_safepoint -- --nocapture` 与 `cargo run -p scoop -- run tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop` 验证。继续执行 `cargo run -p scoop -- test` 时，suite 已越过该 fixture，当前新的既有阻塞已切换为 `effect_escape_continuation_gc_stress_multi_string.scoop`，因此按要求在本条后插入 `T5001f3/T5001f3R`。
 - 依赖：T5001f1R
+
+### [TODO] T5001f3 修复 effect escape continuation GC-stress golden regression，解除 run-pass 后续阻塞
+- 范围：
+  - 修复 `tests/fixtures/run-pass/effect_escape_continuation_gc_stress_multi_string.scoop` 当前回归：在 `T5001f2` 验证过程中，`cargo run -p scoop -- test` 已越过 class-init fixture，但在该 effect/continuation GC-stress fixture 处出现 stdout 与 golden 不一致。
+  - 查清 escaped continuation、effect transport、GC-stress 驱动与 golden 预期之间的真实 source-of-truth 偏差，不能通过放宽 fixture 或修改 golden 来回避实现问题。
+  - 为最小 effect escape continuation GC-stress 路径补定向回归，至少覆盖 multi-string payload 在 escape/resume 后的输出顺序与值保持正确。
+- 验收：
+  - `effect_escape_continuation_gc_stress_multi_string.scoop` 恢复与 golden 一致；
+  - `cargo run -p scoop -- test` 不再在该 fixture 处失败。
+- 依赖：T5001f2
+
+### [TODO] T5001f3R Review：确认 effect escape continuation 的 GC-stress 合同重新闭合
+- 重点：
+  - escaped continuation 在 GC-stress 下是否仍正确保留 multi-string payload 与恢复顺序；
+  - effect transport / resume 主线是否还有 stale payload、重复恢复或 golden 只靠偶然顺序通过的残留路径；
+  - run-pass 回归是否已覆盖 escape + resume + GC-stress 的最小闭环。
+- 验收：
+  - `T5001f2R` / `T5001g` 可在不再被该 effect GC-stress 回归阻塞的前提下继续推进。
+- 依赖：T5001f3
 
 ### [TODO] T5001f2R Review：确认类初始化顺序合同重新闭合
 - 重点：
@@ -304,7 +324,7 @@
   - secondary ctor body 是否严格晚于 primary init steps，且没有再引入 `this` 可见性或对象布局回归。
 - 验收：
   - `T5001g` 可在不再被 `class_init_order_primary_secondary_basic.scoop` 阻塞的前提下继续做全量验收。
-- 依赖：T5001f2
+- 依赖：T5001f3R
 
 ### [TODO] T5001g 全量回归、GC stress、verify-roots 与文档收尾
 - 范围：

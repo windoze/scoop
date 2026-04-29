@@ -623,7 +623,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // this local（注意：每一层都有独立的 this SymbolId）。
             let this_ptr = self.create_entry_alloca(span, "this", CgTy::Ref)?;
-            let _ = self.builder.build_store(this_ptr, obj_ptr)?;
+            let _ = self.store_local_value_exact(
+                span,
+                this_ptr,
+                CgTy::Ref,
+                CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(obj_ptr.into()),
+                },
+            )?;
             self.function_cx.env.insert(
                 class.this_id,
                 CgLocal {

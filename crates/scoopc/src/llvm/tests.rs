@@ -5201,7 +5201,9 @@ fun main() {
         "expected keep to contribute one direct ref root slot\n{ir}"
     );
     assert!(
-        ir.contains("@__scoop_explicit_root_offsets__a_keep = internal constant [1 x i32] [i32 16]"),
+        ir.contains(
+            "@__scoop_explicit_root_offsets__a_keep = internal constant [1 x i32] [i32 16]"
+        ),
         "expected the first explicit root slot to start after the two-pointer frame header\n{ir}"
     );
 }
@@ -5290,6 +5292,49 @@ fun main() {
     assert!(
         !reload_window.contains("load ptr addrspace(1), ptr %name"),
         "post-safepoint direct local use should not fall back to the original local alloca\n{reload_window}"
+    );
+}
+
+#[test]
+fn class_ctor_this_local_reloads_from_explicit_frame_after_safepoint() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+class Box(val name: String) {
+    val copy: String = @Safe do {
+        __scoop_gc_collect()
+        this.name
+    }
+}
+
+fun entry(): String {
+    return Box("hi").copy
+}
+
+fun main() {
+    println(entry())
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_named(&ir, "@a.entry(");
+    let call_idx = entry_ir
+        .find("@scoop_gc_collect_safepoint")
+        .expect("expected ctor property initializer to emit a safepoint");
+    let reload_window = &entry_ir[call_idx..];
+
+    assert!(
+        reload_window.contains("load ptr addrspace(1), ptr %explicit_root_frame_slot_"),
+        "ctor-inlined `this` should reload from explicit frame home slot after safepoint\n{reload_window}"
+    );
+    assert!(
+        !reload_window.contains("load ptr addrspace(1), ptr %this"),
+        "ctor-inlined `this` should not reload from the original local slot after safepoint\n{reload_window}"
     );
 }
 
@@ -5733,8 +5778,12 @@ fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
 }
 
 fn object_contains_stackmap_section(obj: &object::File<'_>) -> bool {
-    obj.sections()
-        .any(|section| section.name().ok().is_some_and(|name| name.contains("llvm_stackmaps")))
+    obj.sections().any(|section| {
+        section
+            .name()
+            .ok()
+            .is_some_and(|name| name.contains("llvm_stackmaps"))
+    })
 }
 
 fn mir_fun_contains_direct_call(fun: &crate::mir::FunDecl, expected: &str) -> bool {
