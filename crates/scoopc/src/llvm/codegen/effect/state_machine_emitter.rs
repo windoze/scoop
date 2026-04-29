@@ -522,6 +522,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let entry_bb = self.context.append_basic_block(step_fn, "entry");
         self.builder.position_at_end(entry_bb);
+        self.begin_function_explicit_frame_layout(step_fn);
 
         // Extract parameters.
         let state_ptr = step_fn
@@ -550,10 +551,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let return_bb = self.context.append_basic_block(step_fn, "function_return");
             let return_alloca = match return_ty {
                 CgTy::Unit | CgTy::Never => None,
-                _ => Some(self.builder.build_alloca(
-                    self.llvm_basic_type_of(span, return_ty)?,
-                    "step_function_return_val",
-                )?),
+                _ => Some(self.create_entry_alloca(span, "step_function_return_val", return_ty)?),
             };
             Some(EffectFunctionReturnContext {
                 return_bb,
@@ -675,7 +673,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             Ok(())
-        })
+        })?;
+        self.finish_function_explicit_frame_layout(span)?;
+        Ok(())
     }
 
     /// Emit the reusable handler dispatch loop around `step_fn`.
@@ -695,6 +695,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let entry_bb = self.context.append_basic_block(dispatch_loop_fn, "entry");
         self.builder.position_at_end(entry_bb);
+        self.begin_function_explicit_frame_layout(dispatch_loop_fn);
 
         let frame_ptr = dispatch_loop_fn
             .get_nth_param(0)
@@ -724,9 +725,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .append_basic_block(dispatch_loop_fn, "function_return");
             let return_alloca = match return_ty {
                 CgTy::Unit | CgTy::Never => None,
-                _ => Some(self.builder.build_alloca(
-                    self.llvm_basic_type_of(span, return_ty)?,
+                _ => Some(self.create_entry_alloca(
+                    span,
                     "dispatch_function_return_val",
+                    return_ty,
                 )?),
             };
             Some(EffectFunctionReturnContext {
@@ -1052,7 +1054,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             Ok(())
-        })
+        })?;
+        self.finish_function_explicit_frame_layout(span)?;
+        Ok(())
     }
 
     /// Pre-populate the env with GEP pointers for all frame user slots.
@@ -3333,10 +3337,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let result_slot = match result_cg_ty {
             CgTy::Unit | CgTy::Never => None,
-            _ => {
-                let llvm_ty = self.llvm_basic_type_of(span, result_cg_ty)?;
-                Some(self.builder.build_alloca(llvm_ty, "handle_result_slot")?)
-            }
+            _ => Some(self.create_entry_alloca(span, "handle_result_slot", result_cg_ty)?),
         };
         let handle_propagate_bb = self
             .context

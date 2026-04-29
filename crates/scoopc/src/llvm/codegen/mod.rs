@@ -2423,6 +2423,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let done_bb = self.context.append_basic_block(llvm_fun, "done");
 
         self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(llvm_fun);
         self.function_cx.current_fun_return_ty = Some(CgTy::Unit);
 
         let guard = self.declare_top_level_immutable_value_guard(&value.fqn);
@@ -2489,6 +2490,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(done_bb);
         self.builder.build_return(None)?;
+        self.finish_function_explicit_frame_layout(err_span)?;
         Ok(())
     }
 

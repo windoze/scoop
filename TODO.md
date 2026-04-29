@@ -143,13 +143,14 @@
 - 完成记录：编译器现已在各类 managed body lowering（top-level/HIR、raw MIR、closure、object init、effect-call wrapper、callee resume entry）开始时建立函数级 explicit-frame layout 规划，并在函数收尾时统一发射 `ScoopExplicitRootFrame$...` 结构类型、`__scoop_explicit_root_offsets__*` offset table 与 `__scoop_explicit_root_desc__*` descriptor。layout 以 GC leaf slot 为粒度：entry allocas 会按 LLVM storage type 展开 ref leaves；ordinary indirect GC aggregate params 也会额外纳入同一规划，因此 `Named(String, Int)` 这类 aggregate 只生成 `String` leaf slot，而不会把整个 aggregate 打进 descriptor。另新增三条 `crates/scoopc/src/llvm/tests.rs` 回归，分别锁定 direct ref local、indirect aggregate flattening 与 hidden-sret caller temp 三类路径，并已通过 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001c2R
 
-### [TODO] T5001d1R Review：确认 frame layout 语义与 leaf-slot 展开规则成立
+### [DONE] T5001d1R Review：确认 frame layout 语义与 leaf-slot 展开规则成立
 - 重点：
   - descriptor 是否仅描述 stable home slots；
   - aggregate flattening 是否按 ref leaf slots 建模；
   - 是否仍有 heap-backed 字段、非 root 普通局部或机器栈偏移误入 descriptor。
 - 验收：
   - 后续 frame 发射与 runtime 更新可直接依赖该 layout 语义，不需要补额外特判。
+- 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`call/abi.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归。确认 descriptor 仍只由 tracked entry-home slots 构成，aggregate 继续按 GC leaf slots 展开，未把 heap-backed traced fields 或机器栈偏移塞进 descriptor；同时补上两处遗漏的 managed function 覆盖面：顶层不可变值初始化函数，以及 effect state-machine 的 `step/dispatch` 托管函数。其返回/result 临时槽位现也改走 tracked entry alloca，从而不会在后续 `T5001d2` 中漏掉 descriptor/TLS 接线。另新增 LLVM 回归锁定上述函数会发 explicit-frame descriptor，并通过 `cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 验证。
 - 依赖：T5001d1
 
 ### [TODO] T5001d2 发射 activation frame object，接入 entry alloca、TLS push/pop 与 slot NULL discipline

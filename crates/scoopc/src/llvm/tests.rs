@@ -5247,6 +5247,70 @@ fun main() {
     );
 }
 
+#[test]
+fn top_level_immutable_init_emits_explicit_root_frame_descriptor() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+val greeting: String = "hi"
+
+fun main() {
+    println(greeting)
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@__scoop_explicit_root_desc____scoop_top_level_val_init__a_greeting"),
+        "expected top-level immutable initializer to emit a descriptor global\n{ir}"
+    );
+}
+
+#[test]
+fn effect_state_machine_functions_emit_explicit_root_frame_descriptors() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ping {
+    fun pong(value: Int): Int
+}
+
+fun go(): Int / Ping {
+    return Ping.pong(7)
+}
+
+fun main(): Int {
+    return handle {
+        go()
+    } with {
+        Ping.pong(value: Int) -> value
+    }
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@__scoop_explicit_root_desc__scoop_effect_step_"),
+        "expected effect step function to emit a descriptor global\n{ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_explicit_root_desc__scoop_effect_dispatch_"),
+        "expected effect dispatch function to emit a descriptor global\n{ir}"
+    );
+}
+
 fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
     for chunk in ir.split("\ndefine ").skip(1) {
         let end = chunk.find("\n}").expect("expected end of function body") + 2;

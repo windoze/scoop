@@ -100,6 +100,7 @@
   - `Named(String, Int)` 这类 indirect aggregate param 仅生成一个 `String` leaf slot；
   - hidden-sret caller temp 会进入 descriptor 规划。
 - 这一阶段尚未开始把这些逻辑 slots 绑定到真实 activation frame object/TLS push-pop；该部分仍留给 `T5001d2`。
+- Review 状态（T5001d1R，2026-04-29）：已复核 `mod.rs`、`call/abi.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归，确认当前 descriptor 仍只描述 tracked stable home slots，aggregate flattening 继续按 GC leaf slots 建模，没有把 heap-backed traced fields、普通非 root 局部或机器栈偏移混入 descriptor。review 期间还修复了两处覆盖面缺口：顶层不可变值初始化函数此前虽设置 GC strategy，但未开启/结束 explicit frame layout；effect state-machine 的 `step/dispatch` 托管函数及其返回/result 临时槽位也未统一走 tracked entry alloca。现这两类路径都已补齐 descriptor 发射，并新增 LLVM 回归锁定。配套验证已通过 `cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/build`。
 
 ### P4. 把所有跨 safepoint roots 收敛到 stable home slots
 
