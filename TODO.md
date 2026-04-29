@@ -2085,13 +2085,19 @@
   - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs` 与 `crates/scoopc/src/mir/pass_view.rs`，确认 backend 对 higher-order/effect 相关判断继续读取 shared facts：known-fun outward-effect 经 shared `collect_known_fun_call_suspendability(...)` 与 pass summary override 进入 `known_fun_body_may_outward_effect(...)`，continuation/closure escape 事实仍停留在 pass-view / shared effect analysis 层，而不是在 LLVM lowering 现场重算。
   - 已回归 `cargo test -p scoopc production_codegen_lowers_raw_mir_mutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；本轮未发现需要插入到 `T5000j3bR` 之前的新前置缺陷任务。
 
-### [TODO] T5000j3bR Review：确认 higher-order / closure 场景扩张没有把分析责任倒灌回 backend
+### [DONE] T5000j3bR Review：确认 higher-order / closure 场景扩张没有把分析责任倒灌回 backend
 - 重点：
   - higher-order / closure 的新覆盖是否仍消费 shared facts / pass artifacts；
   - LLVM backend 是否只保留 lowering，而不是重新承担分析或 target-set 收缩职责。
 - 验收：
   - 可以明确指出 production 主线新增的 higher-order / closure 覆盖依赖的是哪一层中端事实。
 - 依赖：T5000j3b2R
+- 完成记录（2026-04-29）：
+  - 已复核 `crates/scoopc/src/llvm/codegen/mir_body.rs`，确认本轮 higher-order / closure 扩张继续只消费 canonical materialized MIR body、`MaterializedMirPassView`、`mir_types -> codegen TypeStore` 等价类型映射，以及 `known_fun_body_may_outward_effect(...)` 提供的 shared suspendability 事实；backend 仍只负责 closure object / capture-box lowering、indirect-call ABI 组装与 effect-boundary 安装，没有重新承担 target-set 缩减、escape 推断或 provenance 分析职责；
+  - 已复核 `crates/scoopc/src/llvm/reachability.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 raw candidate / MIR-compatible 边界目前只把 `MakeTuple` / `TupleGet` / `MakeClosure` / `CaptureBox*` / `ClosureCall` / `FunValueCall` 这些已收口形状纳入 production MIR 主线；`Virtual` / `Interface` / `Resume`、effect/handle、`Return { value: None }` 等未收口 higher-order / control-transfer 形状仍继续经 HIR-compatible fallback 处理；
+  - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs`、`crates/scoopc/src/effect/analysis.rs` 与 `crates/scoopc/src/mir/pass_view.rs`，确认 effect/suspendability/continuation-escape 相关输入继续来自 shared `collect_known_fun_call_suspendability(...)`、`EffectAnalysisCtx`、`ProgramFacts` 与 pass-view escape facts，而不是在 LLVM lowering 现场重算；
+  - 已验证 `cargo fmt --all --check`、`cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_mutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_fun_value_call_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_pass_visible_known_closure_call_body -- --nocapture`、`cargo test -p scoopc production_codegen_uses_closure_definition_source_for_cross_file_raw_mir_body -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过；
+  - review 结论：higher-order / closure 场景扩张仍建立在 materialized MIR、pass artifacts 与 shared effect facts 之上；本轮未发现需要插入到 `T5000j3R` 之前的新前置缺陷任务。
 
 ### [TODO] T5000j3R Review：确认 higher-order / init 场景扩张没有把分析责任倒灌回 backend
 - 重点：
