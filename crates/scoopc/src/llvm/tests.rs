@@ -3956,6 +3956,10 @@ fun main(): Int {
             && !entry_ir.contains("@scoop_effect_is_active"),
         "outward-effect closure call 应在 higher-order boundary 上显式 consume/publish outcome，而不是 post-call TLS probing:\n{entry_ir}"
     );
+    assert!(
+        entry_ir.contains("closure_call_obj_reload"),
+        "function-value call 应在参数求值/legacy boundary 之后重新加载 closure receiver，避免继续使用旧 SSA:\n{entry_ir}"
+    );
 }
 
 #[test]
@@ -4051,6 +4055,10 @@ fun main(): Int {
             && !helper_ir.contains("@scoop_effect_is_active"),
         "outward-effect vtable call 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
     );
+    assert!(
+        helper_ir.contains("vtable_call_receiver_reload"),
+        "vtable receiver 应在 legacy effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
+    );
 }
 
 #[test]
@@ -4099,6 +4107,10 @@ fun main(): Int {
             && helper_ir.contains("@scoop_effect_outcome_publish")
             && !helper_ir.contains("@scoop_effect_is_active"),
         "outward-effect itable call 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+    );
+    assert!(
+        helper_ir.contains("itable_call_receiver_reload"),
+        "itable receiver 应在 legacy effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
     );
 }
 
@@ -4559,6 +4571,32 @@ fn thread_join_preserves_live_gc_locals_via_explicit_root_frame() {
             && !join_window.contains("@llvm.experimental.gc.statepoint"),
         "默认 explicit mode 下 thread.join 调用点不应再依赖 LLVM statepoint roots 合同\n{join_window}"
     );
+}
+
+#[test]
+fn async_task_effect_return_slots_start_null_before_resume_writes() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/fixtures/runtime_gc/task_step_manual_gc_aggregate_transport_basic.scoop"
+        )),
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    for needle in [
+        "%step_function_return.fca.2.insert = insertvalue %scoop.core.TaskStep %step_function_return.fca.1.insert, ptr addrspace(1) undef, 2",
+        "%dispatch_function_return.fca.2.insert = insertvalue %scoop.core.TaskStep %dispatch_function_return.fca.1.insert, ptr addrspace(1) undef, 2",
+        "%step_function_return.fca.2.insert = insertvalue %scoop.core.__TaskStepResult %step_function_return.fca.1.insert, ptr addrspace(1) undef, 2",
+        "%dispatch_function_return.fca.2.insert = insertvalue %scoop.core.__TaskStepResult %dispatch_function_return.fca.1.insert, ptr addrspace(1) undef, 2",
+    ] {
+        assert!(
+            !ir.contains(needle),
+            "effect state-machine return slot must not feed undef gc refs into explicit-frame sync:\n{ir}"
+        );
+    }
 }
 
 #[test]

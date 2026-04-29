@@ -2821,6 +2821,63 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn defer_gc_ref_pointer(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        ptr: PointerValue<'ctx>,
+    ) -> Result<DeferredCgValue<'ctx>, LlvmEmitError> {
+        self.defer_gc_sensitive_cg_value(
+            at,
+            name,
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(ptr.into()),
+            },
+        )
+    }
+
+    fn reload_deferred_gc_ref_without_clearing(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        value: &DeferredCgValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if let Some(spill) = &value.spill {
+            let reload_slot = self.storage_slot_for_use(at, spill.slot, value.ty, name)?;
+            let loaded = self
+                .builder
+                .build_load(self.llvm_gc_i8_ptr_type(), reload_slot, name)?;
+            return Ok(loaded.into_pointer_value());
+        }
+
+        let Some(raw) = value.immediate else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "deferred gc ref reload",
+                at: at.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "deferred gc ref reload type",
+                at: at.into(),
+            });
+        };
+        Ok(ptr)
+    }
+
+    fn clear_deferred_cg_value_root_homes(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        value: &DeferredCgValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        if let Some(spill) = &value.spill {
+            self.clear_spill_slot_root_homes(at, spill.slot, spill.value_ty, name)?;
+        }
+        Ok(())
+    }
+
     fn materialize_deferred_cg_value(
         &mut self,
         at: crate::span::Span,

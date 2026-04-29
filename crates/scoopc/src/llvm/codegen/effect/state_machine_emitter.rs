@@ -561,7 +561,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let return_bb = self.context.append_basic_block(step_fn, "function_return");
             let return_alloca = match return_ty {
                 CgTy::Unit | CgTy::Never => None,
-                _ => Some(self.create_entry_alloca(span, "step_function_return_val", return_ty)?),
+                _ => {
+                    let return_alloca =
+                        self.create_entry_alloca(span, "step_function_return_val", return_ty)?;
+                    let default = self.default_value(span, return_ty)?;
+                    let _ = self.store_local_value_exact(
+                        span,
+                        return_alloca,
+                        return_ty,
+                        default,
+                    )?;
+                    Some(return_alloca)
+                }
             };
             Some(EffectFunctionReturnContext {
                 return_bb,
@@ -764,11 +775,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .append_basic_block(dispatch_loop_fn, "function_return");
             let return_alloca = match return_ty {
                 CgTy::Unit | CgTy::Never => None,
-                _ => Some(self.create_entry_alloca(
-                    span,
-                    "dispatch_function_return_val",
-                    return_ty,
-                )?),
+                _ => {
+                    let return_alloca = self.create_entry_alloca(
+                        span,
+                        "dispatch_function_return_val",
+                        return_ty,
+                    )?;
+                    let default = self.default_value(span, return_ty)?;
+                    let _ = self.store_local_value_exact(
+                        span,
+                        return_alloca,
+                        return_ty,
+                        default,
+                    )?;
+                    Some(return_alloca)
+                }
             };
             Some(EffectFunctionReturnContext {
                 return_bb,
@@ -2112,7 +2133,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn seed_outer_scope_frame_slots(
         &mut self,
         at: crate::span::Span,
-        frame_ptr: PointerValue<'ctx>,
+        frame_root: &DeferredCgValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
     ) -> Result<(), LlvmEmitError> {
@@ -2136,6 +2157,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         kind: "effect frame seed slot type",
                         at: at.into(),
                     })?;
+            let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+                at,
+                &format!("seed_outer_frame_{}", slot.id().as_u32()),
+                frame_root,
+            )?;
             let field_index = frame_layout.user_slot_llvm_index(unified_slot.field_index());
             let slot_ptr = self.builder.build_struct_gep(
                 frame_layout.frame_type,
@@ -2168,6 +2194,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if slot.mutable()
                 && let Some(storage_index) = frame_layout.outer_scope_storage_index(slot.id())
             {
+                let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+                    at,
+                    &format!("seed_outer_frame_storage_{}", slot.id().as_u32()),
+                    frame_root,
+                )?;
                 let storage_ptr_gep = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     frame_ptr,
@@ -3385,6 +3416,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_ptr_type(self.gc_address_space()),
             "effect_frame_ptr",
         )?;
+        let deferred_frame = self.defer_gc_ref_pointer(span, "effect_frame_obj_root", frame_ptr)?;
 
         // 4. Initialize the frame payload: keep the runtime-written object
         //    header intact, and clear the state-machine fields / user slots.
@@ -3416,9 +3448,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_memset(payload_i8, 1, zero, payload_size_val)?;
         }
 
-        self.seed_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
+        self.seed_outer_scope_frame_slots(span, &deferred_frame, &frame_layout, &contract)?;
 
         // Set state_tag to entry state.
+        let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "effect_frame_entry_state",
+            &deferred_frame,
+        )?;
         let state_tag_gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
             frame_ptr,
@@ -3440,6 +3477,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 5. Call the reusable dispatch-loop entry for initial body execution.
         let i64_zero = self.context.i64_type().const_int(0, false);
         let gc_null = self.llvm_gc_i8_ptr_type().const_null();
+        let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "effect_frame_dispatch",
+            &deferred_frame,
+        )?;
         self.builder.build_call(
             dispatch_loop_fn,
             &[frame_ptr.into(), i64_zero.into(), gc_null.into()],
@@ -3488,9 +3530,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.pop_registered_handler_frames(&handler_frames)?;
         }
 
+        let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "effect_frame_propagate",
+            &deferred_frame,
+        )?;
         self.write_back_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
 
         if self.ordinary_effect_propagation_enabled() {
+            self.clear_deferred_cg_value_root_homes(
+                span,
+                "effect_frame_propagate_drop",
+                &deferred_frame,
+            )?;
             self.emit_ordinary_non_resuming_effect_exit(span, "handle_outward_effect")?;
         }
 
@@ -3498,6 +3550,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let default = self.default_value(span, result_cg_ty)?;
             self.store_local_value(span, result_slot, result_cg_ty, default)?;
         }
+        self.clear_deferred_cg_value_root_homes(span, "effect_frame_propagate_drop", &deferred_frame)?;
         self.builder.build_unconditional_branch(handle_exit_bb)?;
 
         // --- handle_done: the reusable dispatch loop should already have
@@ -3512,6 +3565,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.pop_registered_handler_frames(&handler_frames)?;
         }
 
+        let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "effect_frame_done",
+            &deferred_frame,
+        )?;
         self.write_back_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
 
         let post_state_tag = self.read_state_tag(frame_ptr, &frame_layout, "post_state_tag")?;
@@ -3536,17 +3594,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "handle function return type",
                     at: span.into(),
                 })?;
+        let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "effect_frame_function_return",
+            &deferred_frame,
+        )?;
         let return_value =
             self.read_result_from_frame(span, declared_return_cg, frame_ptr, &frame_layout)?;
+        self.clear_deferred_cg_value_root_homes(
+            span,
+            "effect_frame_function_return_drop",
+            &deferred_frame,
+        )?;
         self.finish_enclosing_function_return_path(span, declared_return_cg, return_value)?;
 
         self.builder.position_at_end(handle_complete_bb);
 
         if let Some(result_slot) = result_slot {
+            let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                "effect_frame_complete",
+                &deferred_frame,
+            )?;
             let result =
                 self.read_result_from_frame(span, result_cg_ty, frame_ptr, &frame_layout)?;
             self.store_local_value(span, result_slot, result_cg_ty, result)?;
         }
+        self.clear_deferred_cg_value_root_homes(span, "effect_frame_complete_drop", &deferred_frame)?;
         self.builder.build_unconditional_branch(handle_exit_bb)?;
 
         self.builder.position_at_end(handle_exit_bb);
@@ -5534,6 +5608,83 @@ fun main(): Int {
         assert!(
             payload_alloc_idx < receiver_reload_idx && receiver_reload_idx < resume_call_idx,
             "Continuation.resume must reload the receiver after GC-sensitive payload materialization and before the runtime resume call, otherwise GC-stress may pass a stale continuation pointer:\n{state_0}"
+        );
+    }
+
+    #[test]
+    fn continuation_resume_boxed_payload_reloads_box_object_before_runtime_call() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+effect GetNamed {
+    fun get(): Named
+}
+
+fun main(): Int {
+    var saved: Continuation<Named, Unit>? = None()
+
+    val _: Unit = handle {
+        val _: Named = GetNamed.get()
+    } with {
+        GetNamed.get(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(Named { name: "alice", score: 42 })
+            } catch (e: RuntimeError) {
+                println("resume_err")
+            }
+        }
+        None -> println("missing")
+    }
+
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+        let resume_step_ir = ir
+            .split("\ndefine ")
+            .skip(1)
+            .find_map(|chunk| {
+                let function = format!("define {chunk}");
+                let body_end = function.find("\n}")?;
+                let function = &function[..body_end + 2];
+                (function.contains("@scoop_continuation_resume_with")
+                    && function.contains("effect_transport_box_obj_reload"))
+                .then_some(function.to_string())
+            })
+            .expect("expected continuation resume function with boxed payload in IR");
+        let state_0 = find_block_ir(&resume_step_ir, "state_0");
+        let payload_box_alloc_idx = state_0
+            .find("rt_alloc_effect_value_box = call ptr addrspace(1) @scoop_alloc_typed")
+            .expect("expected boxed payload allocation before resume");
+        let box_reload_idx = state_0
+            .find("effect_transport_box_obj_reload = load ptr addrspace(1)")
+            .expect("expected boxed payload object reload");
+        let resume_call_idx = state_0
+            .find("call i32 @scoop_continuation_resume_with")
+            .expect("expected continuation resume runtime call");
+
+        assert!(
+            payload_box_alloc_idx < box_reload_idx && box_reload_idx < resume_call_idx,
+            "Continuation.resume boxed payload path must reload the freshly allocated transport box before the runtime resume call, otherwise GC-stress may pass a stale boxed payload pointer:\n{state_0}"
         );
     }
 

@@ -2636,15 +2636,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_ptr =
             self.builder
                 .build_pointer_cast(obj_i8, obj_ptr_ty, "pass_mir_closure_obj_ptr")?;
+        let deferred_obj = self.defer_gc_ref_pointer(span, "pass_mir_closure_obj_root", obj_ptr)?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_closure_obj_init",
+            &deferred_obj,
+        )?;
         let env_gep = self.builder.build_struct_gep(
             closure_obj_ty,
             obj_ptr,
             1,
             "pass_mir_closure_env_gep",
         )?;
-        let fn_gep =
-            self.builder
-                .build_struct_gep(closure_obj_ty, obj_ptr, 2, "pass_mir_closure_fn_gep")?;
         let _ = self.store_local_value(
             span,
             env_gep,
@@ -2692,6 +2695,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let env_ptr =
                 self.builder
                     .build_pointer_cast(env_i8, env_ptr_ty, "pass_mir_closure_env_ptr")?;
+            let deferred_env_obj =
+                self.defer_gc_ref_pointer(span, "pass_mir_closure_env_root", env_ptr)?;
             let env_value = self.materialize_deferred_cg_value(
                 span,
                 "pass_mir_closure_env_reload",
@@ -2705,6 +2710,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?
                 .into_struct_value();
             for (idx, field_cg) in capture_field_cgs.iter().enumerate() {
+                let env_ptr = self.reload_deferred_gc_ref_without_clearing(
+                    span,
+                    "pass_mir_closure_env_field_reload",
+                    &deferred_env_obj,
+                )?;
                 let field_gep = self.builder.build_struct_gep(
                     env_ty,
                     env_ptr,
@@ -2717,6 +2727,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             env_i8
         };
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_closure_obj_store_env",
+            &deferred_obj,
+        )?;
+        let env_gep = self.builder.build_struct_gep(
+            closure_obj_ty,
+            obj_ptr,
+            1,
+            "pass_mir_closure_env_gep",
+        )?;
         let _ = self.store_local_value(
             span,
             env_gep,
@@ -2733,10 +2754,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             i8_ptr_ty,
             "pass_mir_closure_fn_i8",
         )?;
-        let _ = self.builder.build_store(fn_gep, fn_i8)?;
-        let obj_i8 =
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_closure_obj_store_fn",
+            &deferred_obj,
+        )?;
+        let fn_gep =
             self.builder
-                .build_pointer_cast(obj_ptr, gc_i8_ptr_ty, "pass_mir_closure_obj_i8")?;
+                .build_struct_gep(closure_obj_ty, obj_ptr, 2, "pass_mir_closure_fn_gep")?;
+        let _ = self.builder.build_store(fn_gep, fn_i8)?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_closure_obj_return",
+            &deferred_obj,
+        )?;
+        let obj_i8 = self.builder.build_pointer_cast(
+            obj_ptr,
+            gc_i8_ptr_ty,
+            "pass_mir_closure_obj_i8",
+        )?;
         Ok(CgValue {
             ty: CgTy::Ref,
             value: Some(obj_i8.into()),
@@ -2816,6 +2852,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_ptr =
             self.builder
                 .build_pointer_cast(obj_i8, obj_ptr_ty, "pass_mir_capture_box_obj_ptr")?;
+        let deferred_obj =
+            self.defer_gc_ref_pointer(span, "pass_mir_capture_box_obj_root", obj_ptr)?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_capture_box_obj_reload",
+            &deferred_obj,
+        )?;
         let field_gep = self.builder.build_struct_gep(
             box_obj_ty,
             obj_ptr,
@@ -2829,6 +2872,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .transpose()?
             .unwrap_or_else(CgValue::unit);
         let _ = self.store_local_value(span, field_gep, value_cg, stored_value)?;
+        let obj_i8 = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_capture_box_return",
+            &deferred_obj,
+        )?;
         Ok(CgValue {
             ty: CgTy::Ref,
             value: Some(obj_i8.into()),

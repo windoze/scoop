@@ -269,6 +269,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 将 subject 落到一个栈 slot：便于在各 arm 中做 payload 解构（避免跨 block 的 dominance 细节）。
         let subject_ptr = self.create_entry_alloca(span, "when_subject", subject_ty)?;
         let _ = self.store_local_value(span, subject_ptr, subject_ty, subject_v)?;
+        let subject_llvm_ty = self.llvm_basic_type_of(span, subject_ty)?;
 
         let insert_block =
             self.builder
@@ -353,6 +354,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 self.function_cx.env.push_scope();
                 self.bind_when_pat(span, subject_ty, &arm.pat, subject_ptr)?;
+                self.clear_spill_slot_root_homes(
+                    span,
+                    subject_ptr,
+                    subject_llvm_ty,
+                    "when_subject_after_bind",
+                )?;
 
                 if let Some(guard) = &arm.guard {
                     let gv = self.codegen_expr_in_expected_context(guard, Some(CgTy::Bool))?;
@@ -780,6 +787,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             self.function_cx.env.push_scope();
             self.bind_when_pat(span, subject_ty, &arm.pat, subject_ptr)?;
+            self.clear_spill_slot_root_homes(
+                span,
+                subject_ptr,
+                subject_llvm_ty,
+                "when_subject_after_bind",
+            )?;
 
             let mut v = match expected_out_ty {
                 Some(target) => {

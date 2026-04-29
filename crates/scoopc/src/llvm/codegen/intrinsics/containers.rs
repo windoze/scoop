@@ -75,6 +75,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: builder_expr.span.into(),
                     });
                 };
+                let deferred_builder =
+                    self.defer_gc_ref_pointer(builder_expr.span, "array_builder_push_builder", builder_ptr)?;
 
                 let value_v = self.codegen_expr(value_expr)?;
                 match value_v.ty {
@@ -94,6 +96,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             });
                         };
 
+                        let builder_ptr = self.reload_deferred_gc_ref_without_clearing(
+                            builder_expr.span,
+                            "array_builder_push_builder_reload",
+                            &deferred_builder,
+                        )?;
+
                         let rt = self.declare_runtime_array_builder_push_ref();
                         let _ = self.builder.build_call(
                             rt,
@@ -104,6 +112,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     _ => {
                         // word 元素：沿用旧 ABI（u64）。
                         let word_u64 = self.coerce_u64_word(value_expr.span, value_v)?;
+                        let builder_ptr = self.reload_deferred_gc_ref_without_clearing(
+                            builder_expr.span,
+                            "array_builder_push_builder_reload",
+                            &deferred_builder,
+                        )?;
                         let rt = self.declare_runtime_array_builder_push_u64();
                         let _ = self.builder.build_call(
                             rt,
@@ -146,6 +159,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: builder_expr.span.into(),
                     });
                 };
+                let deferred_builder = self.defer_gc_ref_pointer(
+                    builder_expr.span,
+                    "array_builder_build_builder",
+                    builder_ptr,
+                )?;
 
                 let rt = match fqn {
                     "scoop.core.__scoop_array_builder_build_array"
@@ -159,8 +177,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
 
                 let call =
-                    self.builder
-                        .build_call(rt, &[builder_ptr.into()], "array_builder_build")?;
+                    self.builder.build_call(
+                        rt,
+                        &[self
+                            .reload_deferred_gc_ref_without_clearing(
+                                builder_expr.span,
+                                "array_builder_build_builder_reload",
+                                &deferred_builder,
+                            )?
+                            .into()],
+                        "array_builder_build",
+                    )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "array_builder_build return value",

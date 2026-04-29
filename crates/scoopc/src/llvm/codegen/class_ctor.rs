@@ -3,35 +3,6 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn reload_deferred_gc_ref_without_clearing(
-        &mut self,
-        at: crate::span::Span,
-        name: &str,
-        value: &DeferredCgValue<'ctx>,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        if let Some(spill) = &value.spill {
-            let reload_slot = self.storage_slot_for_use(at, spill.slot, value.ty, name)?;
-            let loaded = self
-                .builder
-                .build_load(self.llvm_gc_i8_ptr_type(), reload_slot, name)?;
-            return Ok(loaded.into_pointer_value());
-        }
-
-        let Some(raw) = value.immediate else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "deferred gc ref reload",
-                at: at.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "deferred gc ref reload type",
-                at: at.into(),
-            });
-        };
-        Ok(ptr)
-    }
-
     /// 生成 class 构造调用（Appendix B.2.2，Kotlin-like 初始化顺序）。
     ///
     /// 当前阶段的约束（为保持 run-pass 可落地且实现量可控）：

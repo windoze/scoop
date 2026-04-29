@@ -46,6 +46,26 @@ pub(super) struct ContinuationResumeResultSlots<'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn clear_continuation_resume_receiver_local_if_any(
+        &mut self,
+        receiver: &hir::Expr,
+    ) -> Result<(), LlvmEmitError> {
+        let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind else {
+            return Ok(());
+        };
+        let Some(local) = self.function_cx.env.get(*id) else {
+            return Ok(());
+        };
+        let cleared = self.default_value(receiver.span, local.ty)?;
+        let _ = self.store_local_value_exact(
+            receiver.span,
+            local.ptr,
+            local.ty,
+            cleared,
+        )?;
+        Ok(())
+    }
+
     pub(super) fn ordinary_effect_propagation_enabled(&self) -> bool {
         self.function_cx.current_fun_return_ty.is_some()
     }
@@ -1191,6 +1211,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: receiver.span.into(),
             });
         };
+        self.clear_continuation_resume_receiver_local_if_any(receiver)?;
         self.resume_continuation_with_payload(
             span,
             cont_ptr,
@@ -1312,6 +1333,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: receiver.span.into(),
             });
         };
+        self.clear_continuation_resume_receiver_local_if_any(receiver)?;
         self.resume_continuation_with_payload(
             span,
             cont_ptr,
@@ -2060,9 +2082,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_ptr_type(self.gc_address_space()),
             "effect_value_box_obj_ptr",
         )?;
-        let payload_gep =
-            self.builder
-                .build_struct_gep(obj_ty, obj_ptr, 1, "effect_value_box_payload_gep")?;
+        let deferred_box = self.defer_gc_ref_pointer(at, "effect_transport_box_obj", obj_ptr)?;
         let materialized =
             self.materialize_deferred_cg_value(at, "effect_transport_box_value_reload", deferred)?;
         let raw = materialized
@@ -2071,6 +2091,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "effect transport boxed payload value",
                 at: at.into(),
             })?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            at,
+            "effect_transport_box_obj_reload",
+            &deferred_box,
+        )?;
+        let obj_ptr = self.builder.build_pointer_cast(
+            obj_ptr,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "effect_value_box_obj_ptr_reload",
+        )?;
+        let payload_gep =
+            self.builder
+                .build_struct_gep(obj_ty, obj_ptr, 1, "effect_value_box_payload_gep")?;
         let _ = self.store_local_value_exact(
             at,
             payload_gep,
@@ -2080,8 +2113,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value: Some(raw),
             },
         )?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            at,
+            "effect_transport_box_obj_return",
+            &deferred_box,
+        )?;
         Ok(self.builder.build_pointer_cast(
-            raw_ptr,
+            obj_ptr,
             self.llvm_gc_i8_ptr_type(),
             "effect_value_box_as_gc_i8",
         )?)

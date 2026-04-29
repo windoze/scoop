@@ -47,3 +47,49 @@ I will keep this file as a concise execution log and plan rather than private hi
   3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/higher_order_aggregate_return_struct_mapper.scoop`
   4. `cargo clippy -p scoop -p scoopc --all-targets -- -D warnings`
 - Full suite re-run result after `T5001f5`: `cargo run -p scoop -- test` now passes the higher-order aggregate fixture and the next blocker is `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`. This needs to be inserted as the next prerequisite task before the pending reviews.
+
+## Current Iteration Plan
+
+- I will keep this file as a concise execution log and plan summary rather than private hidden reasoning.
+- Goal for this invocation: complete exactly the first undone item in `TODO.md`, after first checking whether the latest commit indicates an older issue that must be fixed ahead of the planned queue.
+
+### Planned Steps
+
+1. Inspect the latest commit message and, if needed, its referenced issue context.
+2. Read `TODO.md` and `PLAN.md` to identify the first incomplete task and whether it already has prerequisite notes.
+3. If the task is too large, decompose it into smaller ordered subtasks and update `TODO.md` plus `PLAN.md` before implementation.
+4. Inspect only the code and tests needed for the active task, while treating any pre-existing bug or spec mismatch discovered during that work as immediately in scope.
+5. Implement the smallest correct fix or feature change.
+6. Run focused tests first, then broader required verification for touched components, including `cargo clippy --all-targets -- -D warnings` if feasible for the affected crates.
+7. Update `memory/claude_plan.md`, `TODO.md`, and `PLAN.md` to reflect the result.
+8. Create one git commit for this iteration and stop.
+
+### Progress Log
+
+- Initial plan for this invocation written before running repository inspection commands.
+- Latest commit checked: `08807f5bcd3406736ca8459666b51118a8188cf0` (`[T5001f5] Reload String receivers after arg GC`). It documents the completed `T5001f5` fix and does not introduce a separate older blocker that must preempt the queue.
+- First incomplete task identified from `TODO.md`: `T5001f6` (`task_step_cross_thread_sequential_handoff_gc_stress.scoop`). Current plan is to reproduce that runtime GC-stress regression, inspect the task/await handoff implementation, make the smallest correct fix, run focused verification plus required lint/tests for touched crates, then update `TODO.md` / `PLAN.md` and commit.
+- Reproduction narrowed the failure to a pre-existing explicit-frame root corruption that is not unique to cross-thread handoff: `task_step_manual_gc_aggregate_transport_basic.scoop` also fails under `SCOOP_GC_VERIFY_ROOTS=1` with invalid explicit-frame roots.
+- Root cause identified from fresh LLVM IR: effect state-machine `step_function_return_val` / `dispatch_function_return_val` allocas for `TaskStep<...>` and `__TaskStepResult<...>` were created without deterministic initialization. Some resume/dispatch paths later loaded these return slots before a concrete write on every path, so their GC-pointer fields were `undef` and then got mirrored into explicit-frame root slots.
+- Implemented fix: initialize those effect-function return allocas with `default_value(...)` immediately after entry alloca creation, using `store_local_value_exact(...)` so the stack slot and explicit-frame home slots start as `NULL`/zeroed source-of-truth instead of undefined GC refs.
+- Added LLVM regression `async_task_effect_return_slots_start_null_before_resume_writes` to lock that async/task state-machine return slots no longer materialize `ptr addrspace(1) undef` for `TaskStep` / `__TaskStepResult` return values.
+- Scope widened after validation: besides the return-slot bug, current worktree still exposed a broader class of “fresh GC object / GC receiver crosses safepoint but later consumers keep using stale SSA” paths. I audited and fixed the ones directly reachable from this task and the user-requested follow-up checks: effect frame allocation, effect transport boxed payload, array builder receiver, closure / MIR closure allocation, MIR capture box allocation, function-value call closure receiver, vtable/itable receivers, and `Continuation.resume` boxed payload sequencing. I also removed the duplicated class-ctor-only reload helper by moving the shared helpers into `codegen/mod.rs`.
+- Focused compiler/runtime verification completed for the repaired `T5001f6` path:
+  1. `cargo test -p scoopc async_task_effect_return_slots_start_null_before_resume_writes -- --nocapture`
+  2. `cargo test -p scoopc array_of_string_uses_ref_element_runtime_apis_without_ptr_to_u64 -- --nocapture`
+  3. `cargo test -p scoopc closure_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`
+  4. `cargo test -p scoopc virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`
+  5. `cargo test -p scoopc interface_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`
+  6. `cargo test -p scoopc continuation_resume_boxed_payload_reloads_box_object_before_runtime_call -- --nocapture`
+  7. `cargo test -p scoopc continuation_resume_reloads_receiver_after_gc_sensitive_payload_materialization -- --nocapture`
+  8. `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/runtime_gc/task_step_manual_gc_aggregate_transport_basic.scoop`
+  9. `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`
+  10. `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/task_step_manual_gc_aggregate_transport_basic.scoop`
+  11. `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`
+- Main task status: `T5001f6` is now fixed. Both the manual task-step transport fixture and the cross-thread sequential handoff fixture pass again, including under `GC_MOVE + GC_STRESS + VERIFY_ROOTS` direct runs.
+- New blocker discovered while checking the requested neighboring paths: `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop` still aborts after `after_handle / alice` with two stale explicit-frame roots. I verified that `when_subject` root clearing, `Continuation.resume` receiver reload, and boxed payload object reload are now present in IR, so the remaining bug is a separate consumed-continuation/root-lifetime correctness issue rather than the original `T5001f6` handoff regression.
+- Wrap-up plan for this invocation per `PROMPT.md`:
+  1. Mark `T5001f6` done in `TODO.md`.
+  2. Insert a new prerequisite task before `T5001f6R` for the newly exposed `Continuation.resume` consumed-root verify-roots regression.
+  3. Update `PLAN.md` to record both the completed handoff fix and the new blocker.
+  4. Run final lint/verification for touched crates, then create one git commit and stop.

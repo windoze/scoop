@@ -220,14 +220,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_ptr = self
             .builder
             .build_pointer_cast(obj_i8, obj_ptr_ty, "closure_obj_ptr")?;
+        let deferred_obj = self.defer_gc_ref_pointer(span, "closure_obj_root", obj_ptr)?;
+
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "closure_obj_init",
+            &deferred_obj,
+        )?;
 
         let env_gep =
             self.builder
                 .build_struct_gep(closure_obj_ty, obj_ptr, 1, "closure_env_gep")?;
-        let fn_gep = self
-            .builder
-            .build_struct_gep(closure_obj_ty, obj_ptr, 2, "closure_fn_gep")?;
-
         // 重要：先把 env_ptr 初始化为 NULL。
         //
         // 说明：
@@ -302,6 +305,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let env_ptr = self
                 .builder
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
+            let deferred_env = self.defer_gc_ref_pointer(span, "closure_env_root", env_ptr)?;
 
             for (idx, (id, name, ty_id)) in capture_bindings.iter().enumerate() {
                 let Some(local) = self.function_cx.env.get(*id) else {
@@ -334,6 +338,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder
                         .build_load(llvm_ty, local_ptr, &format!("capture_load_{name}"))?;
 
+                let env_ptr = self.reload_deferred_gc_ref_without_clearing(
+                    span,
+                    &format!("closure_env_reload_{name}"),
+                    &deferred_env,
+                )?;
                 let field_gep = self.builder.build_struct_gep(
                     env_ty,
                     env_ptr,
@@ -353,6 +362,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             env_i8
         };
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "closure_obj_store_env",
+            &deferred_obj,
+        )?;
+        let env_gep =
+            self.builder
+                .build_struct_gep(closure_obj_ty, obj_ptr, 1, "closure_env_gep")?;
         let _ = self.store_local_value(
             span,
             env_gep,
@@ -367,11 +384,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let fn_i8 = self
             .builder
             .build_pointer_cast(fn_ptr, i8_ptr_ty, "closure_fn_i8")?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "closure_obj_store_fn",
+            &deferred_obj,
+        )?;
+        let fn_gep = self
+            .builder
+            .build_struct_gep(closure_obj_ty, obj_ptr, 2, "closure_fn_gep")?;
         let _ = self.builder.build_store(fn_gep, fn_i8)?;
 
-        let obj_i8 = self
-            .builder
-            .build_pointer_cast(obj_ptr, gc_i8_ptr_ty, "closure_obj_i8")?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "closure_obj_return",
+            &deferred_obj,
+        )?;
+        let obj_i8 = self.builder.build_pointer_cast(obj_ptr, gc_i8_ptr_ty, "closure_obj_i8")?;
 
         Ok(CgValue {
             ty: CgTy::Ref,
