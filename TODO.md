@@ -230,13 +230,14 @@
 - 完成记录：LLVM codegen 新增基于 explicit-frame leaf home slots 的 aggregate rebuild helper：对带 GC leaf 的 storage slot，会按“ref leaf 从 frame home slot reload、非 ref leaf 从原 storage slot 读取”重建 fresh aggregate，并在需要地址的场景落到临时 rebuild alloca。`local_ptr_for_use(...)`、deferred call-arg materialize、indirect aggregate call-arg pointer materialize 与 hidden-sret result load 已统一改走该 contract，因此 direct/indirect args、hidden sret returns、effect boxed payload transport 以及复用这些入口的 continuation/state-machine transport 不再整体复用 stale local/spill/sret 镜像。另新增三条 LLVM 回归，分别锁定 aggregate call arg、hidden-sret aggregate result 与 boxed effect payload 都会从 explicit-frame home slots 重建 fresh aggregate，并已通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo test --all` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001e1R
 
-### [TODO] T5001e2R Review：确认 aggregate 不再持有 post-safepoint 的旧 source-of-truth
+### [DONE] T5001e2R Review：确认 aggregate 不再持有 post-safepoint 的旧 source-of-truth
 - 重点：
   - 是否仍有 aggregate copy / arg / return 路径直接复用旧镜像；
   - 非 ref 字段与 ref 字段的来源是否清晰分离；
   - effect / continuation / state-machine payload 是否也遵守同一 refresh/rebuild 合同。
 - 验收：
   - 切默认 explicit mode 前，aggregate 相关 correctness 缺口已被系统性封住。
+- 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`call/abi.rs`、`call/resume.rs`、`effect/mod.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归。确认 aggregate 读取主线已统一经 `storage_slot_for_use(...)` / rebuild helper 收口：direct/indirect call args、hidden-sret aggregate result、effect boxed payload，以及复用 `encode_effect_transport_value(...)` 的 continuation / state-machine payload transport，都会按“GC ref leaf 从 explicit-frame home slot reload、非 ref leaf 从原 storage 或 heap field 读取”的合同重建 fresh aggregate；未再发现直接传播 post-safepoint stale aggregate 镜像的现存路径。另通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 复核。
 - 依赖：T5001e2
 
 ### [TODO] T5001f 切换默认 explicit mode 到 explicit root frame，并停止默认路径的 stackmap 生成与使用
