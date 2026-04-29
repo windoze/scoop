@@ -1,8 +1,6 @@
 //! Object singleton, property access, and init-body lowering split out of `codegen/mod.rs`.
 
 use super::*;
-use crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE;
-
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn lookup_object_property_by_fqn(
         &self,
@@ -159,7 +157,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .module
             .get_function(&name)
             .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
-        llvm_fun.set_gc(LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
         // 已有 body：无需重复生成。
         if llvm_fun.get_first_basic_block().is_some() {
