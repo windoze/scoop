@@ -2078,12 +2078,12 @@ fun main(): Int {
 }
 
 #[test]
-fn production_codegen_still_falls_back_for_raw_mir_closure_body_after_candidate_widening() {
+fn production_codegen_lowers_raw_mir_non_capturing_closure_body() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
-        "<mem>/t5000j3a_closure_fallback.scoop",
+        "<mem>/t5000j3b_non_capturing_closure.scoop",
         r#"
-package fixtures.t5000j3a_fallback
+package fixtures.t5000j3b_non_capture
 
 fun helper(): Int {
     val thunk: () -> Int = { 7 }
@@ -2099,7 +2099,7 @@ fun main(): Int {
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();
-    let helper_fqn = "fixtures.t5000j3a_fallback.helper";
+    let helper_fqn = "fixtures.t5000j3b_non_capture.helper";
     let materialized = codegen_unit
         .lowered
         .materialized_mir()
@@ -2123,8 +2123,67 @@ fun main(): Int {
     let helper_ir = function_ir_named(&ir, helper_fqn);
 
     assert!(
-        !helper_ir.contains("mir.bb"),
-        "MakeClosure / closure-call 仍未由 production MIR bridge 支持，扩大 raw candidate 选择面后也应继续退回 HIR-compatible body:\n{helper_ir}"
+        helper_ir.contains("mir.bb"),
+        "non-capturing closure 的 raw MIR body 现应直接走 production MIR bridge，而不是继续退回 HIR-compatible body:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn production_codegen_lowers_raw_mir_immutable_capture_closure_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3b_immutable_capture_closure.scoop",
+        r#"
+package fixtures.t5000j3b_capture
+
+fun helper(x: Int): Int {
+    val y = 3
+    val addY: (Int) -> Int = { z -> z + y }
+    return addY(x)
+}
+
+fun main(): Int {
+    return helper(4)
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let helper_fqn = "fixtures.t5000j3b_capture.helper";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let helper_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == helper_fqn)
+        .expect("immutable capture helper 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_make_closure(helper_mir),
+        "test setup 需要确认 helper 的 raw MIR 仍包含 MakeClosure 形状"
+    );
+    let lambda_fqn = mir_fun_first_make_closure_fn_ptr(helper_mir)
+        .expect("immutable capture helper 的 raw MIR 应暴露 closure fn_ptr");
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let helper_ir = function_ir_named(&ir, helper_fqn);
+    let lambda_ir = function_ir_named(&ir, lambda_fqn);
+
+    assert!(
+        helper_ir.contains("mir.bb"),
+        "immutable-capturing closure 的外层 helper 现应直接走 production MIR bridge:\n{helper_ir}"
+    );
+    assert!(
+        lambda_ir.contains("mir.bb"),
+        "immutable-capturing closure 的 lambda body（含 TupleGet env 解包）现也应直接走 production MIR bridge:\n{lambda_ir}"
     );
 }
 
@@ -2647,6 +2706,64 @@ fun main(): Int {
         "caller-side rewritten MIR body 经过迭代 inlining 后不应继续调用 id:\n{caller_ir}"
     );
     let _stable_ir = function_ir_named(&ir, stable_fqn);
+}
+
+#[test]
+fn production_codegen_lowers_pass_visible_known_closure_call_body() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3b_pass_known_closure.scoop",
+        r#"
+package fixtures.t5000j3b_pass
+
+fun apply(f: (Int) -> Int / Pure!, x: Int): Int {
+    return f(x)
+}
+
+fun caller(x: Int): Int {
+    val delta = 1
+    return apply({ y -> y + delta }, x)
+}
+
+fun main(): Int {
+    return caller(1)
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
+    let caller_fqn = "fixtures.t5000j3b_pass.caller";
+    let apply_fqn = "fixtures.t5000j3b_pass.apply";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let pass_caller = materialized
+        .pass_view()
+        .callable(caller_fqn)
+        .expect("known closure provenance 应发布 caller 的 pass-visible MIR body");
+    assert!(
+        mir_fun_contains_closure_call(pass_caller),
+        "test setup 需要确认 caller 的 pass-visible MIR body 已包含结构化 ClosureCall"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let caller_ir = function_ir_named(&ir, caller_fqn);
+    assert!(
+        caller_ir.contains("mir.bb"),
+        "known-closure provenance 生成的 pass-visible body 现应直接走 production MIR bridge:\n{caller_ir}"
+    );
+    assert!(
+        !caller_ir.contains(&format!("@{apply_fqn}(")),
+        "caller 的 pass-visible MIR body 不应退回高阶 wrapper apply:\n{caller_ir}"
+    );
 }
 
 #[test]
@@ -3993,6 +4110,82 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_keeps_task_step_manual_async_helpers_defined() {
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3b_task_step_manual_helpers.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val inner: Task<Int> = async {
+        println("inner")
+        41
+    }
+
+    val outer: Task<Int> = async {
+        println("outer-before")
+        val x: Int = await inner
+        println("outer-after")
+        println(x)
+        x + 1
+    }
+
+    val step0: TaskStep<Int> = outer.step()
+    when (step0) {
+        TaskStep.Pending -> println("step0=pending")
+        TaskStep.Ready(value) -> {
+            println("step0=ready")
+            println(value)
+        }
+    }
+
+    when (outer.step()) {
+        TaskStep.Pending -> println("step1=pending")
+        TaskStep.Ready(value) -> {
+            println("step1=ready")
+            println(value)
+        }
+    }
+
+    when (outer.step()) {
+        TaskStep.Pending -> println("step2=pending")
+        TaskStep.Ready(value) -> {
+            println("step2=ready")
+            println(value)
+        }
+    }
+
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+
+    assert!(
+        ir.lines().any(|line| line.starts_with("define ")
+            && line.contains("scoop.core.__task_step_ready::<Int>")),
+        "manual Task.step() 驱动路径中的 async helper 依赖必须保留 `__task_step_ready::<Int>` 定义，而不是只留下声明:\n{ir}"
+    );
+    assert!(
+        ir.lines().any(|line| line.starts_with("define ")
+            && line.contains("scoop.core.__task_step_pending::<Int>")),
+        "manual Task.step() 驱动路径中的 async helper 依赖必须保留 `__task_step_pending::<Int>` 定义，而不是只留下声明:\n{ir}"
+    );
+}
+
+#[test]
 fn task_step_ir_uses_seqcst_atomic_claim_and_trap_without_mutex() {
     let source = SourceFile::new_virtual(
         "<mem>",
@@ -4776,6 +4969,43 @@ fn mir_fun_contains_make_closure(fun: &crate::mir::FunDecl) -> bool {
                 stmt.kind,
                 crate::mir::StatementKind::Assign {
                     value: crate::mir::Rvalue::MakeClosure { .. },
+                    ..
+                }
+            )
+        })
+    })
+}
+
+fn mir_fun_first_make_closure_fn_ptr(fun: &crate::mir::FunDecl) -> Option<&str> {
+    let body = fun.body.as_ref()?;
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let crate::mir::StatementKind::Assign {
+                value: crate::mir::Rvalue::MakeClosure { fn_ptr, .. },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            return Some(fn_ptr.as_str());
+        }
+    }
+    None
+}
+
+fn mir_fun_contains_closure_call(fun: &crate::mir::FunDecl) -> bool {
+    let Some(body) = &fun.body else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            matches!(
+                stmt.kind,
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::Closure { .. },
+                        ..
+                    },
                     ..
                 }
             )

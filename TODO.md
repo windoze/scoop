@@ -2014,13 +2014,59 @@
   - review 结论：`j3a` 的 init 覆盖扩张仍然只是放宽 canonical MIR 覆盖面并复用既有 materialized MIR / reachability 事实；本轮未再发现需要前插到 `T5000j3b` 之前的新前置缺陷任务；
   - 已验证 `cargo fmt --all`、`cargo test -p scoopc object_init_helper_dependency -- --nocapture`、`cargo test -p scoopc production_codegen_ -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test`（`fixtures: ok (1202)`）全部通过。
 
-### [TODO] T5000j3b 扩展更多 higher-order / closure 场景到 production MIR 主线
+### T5000j3b 扩展更多 higher-order / closure 场景到 production MIR 主线
+- 说明：
+  - 经核对，当前任务同时包含：
+    - non-capturing / immutable-capturing closure 的 raw MIR body 接入；
+    - pass-visible known-closure higher-order call 形状接入；
+    - `CaptureBox*` / mutable-capture；
+    - 以及仍不透明的 `FunValueCall` 主线扩张。
+  - 这些路径分别依赖 tuple/env lowering、closure object lowering、capture-box 运行时表示以及 higher-order provenance 边界，单轮过大；
+  - 现按“先收口结构已知的 closure/env 形状，再处理 capture-box 与剩余 opaque fun-value 调用”拆成以下子任务。
+
+### [DONE] T5000j3b1 接入 non-capturing / immutable-capturing closure 到 production MIR 主线
 - 范围：
-  - 补齐目前仍经常退回 HIR-compatible emission 的 higher-order / closure 场景；
-  - 继续扩大 pass-visible materialized body / summary / escape facts 对 production codegen 的实际覆盖面。
+  - 为 production MIR bridge 补齐结构已知 closure 形状的 lowering，至少覆盖：
+    - `MakeTuple` / `TupleGet`；
+    - `MakeClosure`；
+    - `CallKind::Closure`；
+  - 放宽 raw non-generic callable candidate / reachability 边界，使 non-capturing 或仅捕获不可变值的 closure body 可直接走 production MIR 主线；
+  - 保持 `CaptureBox*`、opaque `CallKind::FunValue`、`Return { value: None }`、effect/handle 等仍未收口形状继续留在 HIR-compatible fallback。
 - 验收：
-  - higher-order / closure 新覆盖继续建立在 materialized MIR / summary / escape facts 之上，而不是重新把高阶分析长回 backend。
+  - non-capturing / immutable-capturing closure 的 raw 或 pass-visible materialized MIR body 可在 production LLVM lowering 中直接发射；
+  - 新覆盖继续建立在 materialized MIR / pass artifacts 之上，而不是在 backend 现场重新推断高阶 target-set。
 - 依赖：T5000j3aR
+- 完成记录（2026-04-29）：
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs` 已为 production MIR bridge 接入 `MakeTuple`、`TupleGet`、`MakeClosure` 与 `CallKind::Closure` 的 supported-shape 判定和 LLVM lowering；其中 closure object / env object 会直接基于现有 runtime object layout 与 materialized MIR callable 发射，不再把 non-capturing / immutable-capturing closure 统一压回 HIR-compatible body；
+  - `crates/scoopc/src/llvm/reachability.rs` 已同步放宽 raw non-generic candidate 与 MIR-compatible 扫描边界：结构已知的 tuple/env/closure/closure-call 形状现在可直接走 production MIR 主线，并会把对应 lambda body 纳入 reachability；`CaptureBox*`、opaque `CallKind::FunValue`、`Return { value: None }`、effect/handle 等未收口形状仍继续 fallback；
+  - `crates/scoopc/src/llvm/tests.rs` 已补齐 non-capturing closure、immutable-capturing closure 与 pass-visible known-closure call 的 production 回归，确认 raw candidate 与 pass artifacts 两条入口都会消费新的 MIR bridge；
+  - `crates/scoopc/src/mir/inline.rs` 已补充 known-closure provenance 发布 `ClosureCall` 形状的回归，作为 production codegen 新覆盖依赖的 pass artifact 事实校验；
+  - 已验证 `cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_pass_visible_known_closure_call_body -- --nocapture`、`cargo fmt --all --check`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test` 全部通过。
+
+### [TODO] T5000j3b1R Review：确认结构已知 closure/env 形状已进入 production MIR 主线
+- 重点：
+  - `MakeTuple` / `TupleGet` / `MakeClosure` / `ClosureCall` 的新增 production 覆盖是否仍只消费既有 MIR body / shared facts；
+  - raw candidate 与 reachability 放宽后，`CaptureBox*` / opaque `FunValueCall` 等未支持形状是否仍稳定留在 fallback。
+- 验收：
+  - 可以明确指出新增 closure 覆盖依赖的是哪一层 MIR 结构事实，以及哪些 higher-order 形状仍待后续任务处理。
+- 依赖：T5000j3b1
+
+### [TODO] T5000j3b2 扩展 `CaptureBox*` / 剩余 opaque higher-order 调用到 production MIR 主线
+- 范围：
+  - 在 `T5000j3b1` 已收口的结构已知 closure/env 基础上，继续处理：
+    - `CaptureBoxNew/Get/Set` 与 mutable-capture 相关 closure 场景；
+    - 仍需要 shared provenance / summary / escape facts 才能安全收口的剩余 higher-order `FunValueCall` 场景。
+- 验收：
+  - 新覆盖继续建立在 materialized MIR / summary / escape facts 之上，而不是重新把高阶分析长回 backend。
+- 依赖：T5000j3b1R
+
+### [TODO] T5000j3b2R Review：确认 capture-box / 剩余 higher-order 场景扩张没有把分析责任倒灌回 backend
+- 重点：
+  - `CaptureBox*` / 剩余 higher-order 的新覆盖是否仍消费 shared facts / pass artifacts；
+  - LLVM backend 是否只保留 lowering，而不是重新承担分析或 target-set 收缩职责。
+- 验收：
+  - 可以明确指出剩余 higher-order / closure 覆盖依赖的是哪一层中端事实。
+- 依赖：T5000j3b2
 
 ### [TODO] T5000j3bR Review：确认 higher-order / closure 场景扩张没有把分析责任倒灌回 backend
 - 重点：
@@ -2028,7 +2074,7 @@
   - LLVM backend 是否只保留 lowering，而不是重新承担分析或 target-set 收缩职责。
 - 验收：
   - 可以明确指出 production 主线新增的 higher-order / closure 覆盖依赖的是哪一层中端事实。
-- 依赖：T5000j3b
+- 依赖：T5000j3b2R
 
 ### [TODO] T5000j3R Review：确认 higher-order / init 场景扩张没有把分析责任倒灌回 backend
 - 重点：

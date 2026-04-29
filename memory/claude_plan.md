@@ -1,60 +1,80 @@
-# 本轮执行计划
+# 执行计划
 
-## 约束说明
+## 约束与原则
 
-出于信息安全与可维护性考虑，这里记录的是可审计的执行计划、判断依据摘要、关键决策与进度更新，不记录完整私有推理细节。
+- 本文件记录可审阅的执行计划、当前发现和进度更新。
+- 为保护推理安全，这里不写逐字内部思考过程，只写结论、步骤和关键依据。
+- 本轮只处理 `TODO.md` 中第一个未完成任务；若发现前置缺陷，会先修复缺陷或把前置任务插入 `TODO.md` 后停止。
 
-## 当前目标
+## 初始步骤
 
-按照 `TODO.md` 的顺序执行首个未完成任务；若在检查最新提交、代码、测试或实现边界时发现既有问题，则先修复该问题，或把它作为前置任务加入 `TODO.md` / `PLAN.md` 后停止。
+1. 检查最新一次 Git 提交，确认是否提到任何已知问题；若提到，优先修复。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，理解当前计划与该任务的上下文。
+4. 评估任务复杂度：
+   - 若可在本轮完整落地，则直接实现。
+   - 若过大，则先拆分任务，更新 `PLAN.md` 与 `TODO.md`，执行拆分后的第一个子任务。
+5. 在实现过程中，如发现任何既有 bug、回归、规范不匹配、实现边界缺口或依赖缺失：
+   - 立即视为当前范围内问题；
+   - 先修复，或在 `TODO.md` 中插入前置任务并调整顺序；
+   - 更新本文件与 `PLAN.md`，然后按要求决定继续或停止。
 
-## 步骤计划
+## 执行与验证
 
-1. 检查最新一次 Git 提交，确认是否明确提到尚未修复的问题、回归、临时方案或待补工作。
-2. 阅读 `TODO.md`，识别第一个未完成任务。
-3. 阅读 `PLAN.md`，核对任务背景、依赖与当前实施状态。
-4. 评估当前任务规模：
-   - 如果任务足够小，直接实现。
-   - 如果任务过大，先把它拆分为更小子任务，并更新 `TODO.md` 与 `PLAN.md`，本轮只执行新的首个子任务。
-5. 在实现前补充必要上下文：定位相关模块、现有测试、规范或最近改动。
-6. 实现任务，同时避免引入规避性修补；若暴露既有缺陷，优先修复或把缺陷登记为阻塞前置任务。
-7. 运行与本任务直接相关的测试，再逐步扩大到必要的全量校验，至少包括：
-   - 相关单元/集成/fixture 测试
-   - `cargo fmt --check`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 必要时执行更广的 `cargo test --all` 或项目约定命令
-8. 更新文档与任务状态：
-   - 在 `TODO.md` 标记完成，或在阻塞场景下重排任务依赖
-   - 更新 `PLAN.md`
-   - 持续更新本文件中的“进度记录”
-9. 提交 Git commit，提交信息聚焦本轮完成事项，然后停止。
+1. 实现首个未完成任务或其首个子任务。
+2. 运行相关测试，至少覆盖：
+   - 受影响模块的定向测试；
+   - 必要的回归测试；
+   - `cargo fmt --check`；
+   - `cargo clippy --all-targets -- -D warnings`；
+   - 若改动影响范围较大，再补充更广的 `cargo test --all` 或对应子集。
+3. 若测试失败，先修复失败与相关根因，再重新验证。
+
+## 收尾
+
+1. 更新 `TODO.md`，将本轮完成的任务标记为完成。
+2. 更新 `PLAN.md`，反映当前状态、拆分结果或依赖调整。
+3. 同步更新本文件，记录关键进展与最终结论。
+4. 提交 Git commit，提交信息与任务编号/内容对应。
+5. 停止，不继续下一个任务。
 
 ## 进度记录
 
-- 已初始化本文件。
-- 已检查最新 Git 提交 `920e287cabf3e3e31e6f58c641e56860a75d6644`，提交标题为 `[T5000j3a] Expand init raw MIR production coverage`；提交信息本身未直接声明一个尚未修复的既有问题。
-- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T5000j3aR Review：确认 init 场景扩张只是放宽 canonical MIR 覆盖，而非把分析责任倒灌回 backend`。
-- 当前复核重点：
-  1. `emit` / `reachability` 是否仅消费既有 MIR materialization 与候选选择事实；
-  2. `raw non-generic candidate` 放宽后，closure / fun-value / implicit tail return / ctor-call todo 等 unsupported shape 是否仍稳定 fallback；
-  3. 是否存在需要先修复的新既有缺陷；若有，先修复或前插任务，再决定是否能完成 `T5000j3aR`。
-- 复核中发现一个既有 reachability 缺口：
-  - `crates/scoopc/src/llvm/reachability.rs` 虽已把 `object_inits` / `top_level_vars` 纳入 raw candidate 作用域判断，但实际扫描 `TopLevelRef` 时仍只递归 `top_level_consts` / `top_level_immutable_values`；
-  - 这会导致“仅由 object init body 内部调用的 helper”可能只被声明、不被收进 reachable body 发射集合，属于必须先修的真实问题。
-- 已实施修复：
-  - 在 `reachability.rs` 中新增共享的顶层值引用扫描入口，并补上 `object init` / `top-level var` 的递归扫描与去重集合；
-  - 已在 `crates/scoopc/src/llvm/tests.rs` 新增 production raw MIR 路径与 legacy HIR 路径的 object-init helper reachability 回归。
-- 已完成验证：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc object_init_helper_dependency -- --nocapture`
-  - `cargo test -p scoopc production_codegen_ -- --nocapture`
+- 2026-04-29：已创建本文件并写入初始执行计划；下一步检查最新提交与任务清单。
+- 2026-04-29：已检查最新提交 `3ea47570b674d474f83f29de3b7dace36644730a`，提交信息仅为 `Update plan`，未显式提到需优先修复的既有 issue。
+- 2026-04-29：已定位首个未完成任务为 `T5000j3b 扩展更多 higher-order / closure 场景到 production MIR 主线`。
+- 2026-04-29：已完成现状探测，关键结论如下：
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs` 当前仍把 `MakeTuple`、`TupleGet`、`MakeClosure`、`CaptureBox*`、`CallKind::Closure`、`CallKind::FunValue` 视为 unsupported；
+  - `crates/scoopc/src/llvm/reachability.rs` 已能扫描这些 MIR 节点，但 `mir_fun_requires_hir_compat_scan(...)` 仍会把它们整体压回 HIR-compatible boundary；
+  - `mir::inline` 已会生成 pass-visible `ClosureCall` 形状，说明 production MIR 主线确实缺少 higher-order / closure 覆盖；
+  - mutable capture 目前在 HIR closure lowering 侧仍明确报 `mutable capture (not supported yet)`，与 non-capturing / immutable-capturing closure 属于不同复杂度边界。
+- 2026-04-29：据此判定 `T5000j3b` 单轮过大，准备拆分为更细子任务后执行第一个子任务。
+- 2026-04-29：已确认工作区中的未提交代码已经实现 `T5000j3b1` 主体：
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs` 已补齐 `MakeTuple` / `TupleGet` / `MakeClosure` / `CallKind::Closure` 的 production MIR bridge；
+  - `crates/scoopc/src/llvm/reachability.rs` 已允许结构已知 closure/env 形状直接走 production MIR 主线，并继续把 `CaptureBox*` / opaque `FunValueCall` / implicit tail-return 等保留在 fallback；
+  - `crates/scoopc/src/llvm/tests.rs` 与 `crates/scoopc/src/mir/inline.rs` 已补齐对应回归。
+- 2026-04-29：已完成定向与全量验证：
+  - `cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`
+  - `cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`
+  - `cargo test -p scoopc production_codegen_lowers_pass_visible_known_closure_call_body -- --nocapture`
+  - `cargo fmt --all --check`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-  - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
-- 已完成文档更新：
-  - `TODO.md` 已将 `T5000j3aR` 标记为完成，并记录 review 发现/修复的 reachability 缺口与验证结果；
-  - `PLAN.md` 已补记同样的 review 结论，并将下一条待执行任务推进到 `T5000j3b`。
-- 当前剩余收尾：
-  1. 检查工作区改动；
-  2. 提交 Git commit；
-  3. 停止，等待下一轮执行。
+  - `cargo run -p scoop -- test`
+  - 结果：全部通过，未发现需要前插到 `T5000j3b1R` 之前的新阻塞缺陷。
+- 2026-04-29：下一步只剩收尾：更新 `TODO.md` / `PLAN.md` 的完成记录，提交 `[T5000j3b1]` 对应 commit，然后停止。
+
+## 当前拆分草案
+
+1. `T5000j3b1`：先接入 non-capturing / immutable-capturing closure 的 production MIR lowering。
+   - 目标：
+     - 支持 `MakeTuple` / `TupleGet` / `MakeClosure` / `CallKind::Closure` 的 MIR bridge lowering；
+     - 放宽 raw candidate / reachability 边界，使非捕获或只捕获不可变值的 closure body 可直接走 production MIR 主线；
+     - 保持 `CaptureBox*`、opaque `FunValueCall`、隐式 tail-return 等仍在 fallback 边界。
+2. 后续子任务：再处理 `CaptureBox*` / mutable-capture 与剩余 opaque higher-order fun-value 场景。
+
+## 下一步
+
+1. 检查文档更新后的 diff，确保任务状态与验证记录准确。
+2. 创建 `[T5000j3b1]` commit。
+3. 停止，等待下一轮执行 `T5000j3b1R`。

@@ -24,11 +24,17 @@ struct InlineFunction {
     summary: InstanceSummary,
 }
 
+#[derive(Debug, Clone)]
+struct InlineCallable {
+    fun: FunDecl,
+    summary: InstanceSummary,
+}
+
 #[derive(Debug)]
 struct InlineSnapshot {
     functions: Vec<InlineFunction>,
     caller_candidates: Vec<FunDecl>,
-    by_fqn: HashMap<String, usize>,
+    inline_targets_by_fqn: HashMap<String, InlineCallable>,
     callables_by_fqn: HashMap<String, FunDecl>,
 }
 
@@ -113,16 +119,29 @@ impl InlineSnapshot {
                 Some(raw_fun.clone())
             })
             .collect::<Vec<_>>();
-        let by_fqn = functions
+        let mut inline_targets_by_fqn = functions
             .iter()
-            .enumerate()
-            .map(|(idx, function)| (function.fun.fqn.clone(), idx))
+            .map(|function| {
+                (
+                    function.fun.fqn.clone(),
+                    InlineCallable {
+                        fun: function.fun.clone(),
+                        summary: function.summary.clone(),
+                    },
+                )
+            })
             .collect::<HashMap<_, _>>();
         let mut callables_by_fqn = HashMap::new();
         for function in &functions {
             callables_by_fqn.insert(function.fun.fqn.clone(), function.fun.clone());
         }
         for fun in &caller_candidates {
+            inline_targets_by_fqn
+                .entry(fun.fqn.clone())
+                .or_insert_with(|| InlineCallable {
+                    fun: fun.clone(),
+                    summary: summarize_pass_rewritten_fun(fun, &materialized.types, None),
+                });
             callables_by_fqn
                 .entry(fun.fqn.clone())
                 .or_insert_with(|| fun.clone());
@@ -130,15 +149,13 @@ impl InlineSnapshot {
         Self {
             functions,
             caller_candidates,
-            by_fqn,
+            inline_targets_by_fqn,
             callables_by_fqn,
         }
     }
 
-    fn get(&self, fqn: &str) -> Option<&InlineFunction> {
-        self.by_fqn
-            .get(fqn)
-            .and_then(|&idx| self.functions.get(idx))
+    fn get(&self, fqn: &str) -> Option<&InlineCallable> {
+        self.inline_targets_by_fqn.get(fqn)
     }
 
     fn callable(&self, fqn: &str) -> Option<&FunDecl> {
@@ -430,7 +447,7 @@ fn try_expand_direct_call(
     )
 }
 
-fn callee_has_inlineable_summary(callee: &InlineFunction) -> bool {
+fn callee_has_inlineable_summary(callee: &InlineCallable) -> bool {
     callee.summary.body_known
         && !callee.summary.recursive_scc
         && callee.summary.size_cost <= INLINE_SIZE_THRESHOLD
@@ -547,19 +564,19 @@ fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
         Rvalue::Use(_) | Rvalue::TopLevelRef(_) | Rvalue::Unary { .. } | Rvalue::Binary { .. } => {
             true
         }
-        Rvalue::Call { kind, .. } => matches!(kind, CallKind::Direct { .. }),
+        Rvalue::Call { kind, .. } => {
+            matches!(kind, CallKind::Direct { .. } | CallKind::Closure { .. })
+        }
+        Rvalue::MakeTuple { .. } | Rvalue::TupleGet { .. } | Rvalue::MakeClosure { .. } => true,
         Rvalue::UnresolvedName { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
-        | Rvalue::MakeTuple { .. }
-        | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
         | Rvalue::CaptureBoxGet { .. }
         | Rvalue::CaptureBoxSet { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. }
-        | Rvalue::MakeClosure { .. }
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => false,
     }
@@ -1299,6 +1316,56 @@ fun caller(x: Int): Int {
         assert!(
             !fun_contains_fun_value_call(&rewritten),
             "改写后的 wrapper body 不应继续保留模糊 FunValue call"
+        );
+    }
+
+    #[test]
+    fn non_generic_direct_call_only_wrapper_with_known_closure_provenance_is_published() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_inline_non_generic_known_closure_publish.scoop",
+            r#"
+package fixtures.mirinline
+
+fun apply(f: (Int) -> Int / Pure!, x: Int): Int {
+    return f(x)
+}
+
+fun caller(x: Int): Int {
+    val delta = 1
+    return apply({ y -> y + delta }, x)
+}
+
+fun main(): Int {
+    return caller(1)
+}
+"#,
+        );
+
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+        let caller_fqn = "fixtures.mirinline.caller";
+        let apply_fqn = "fixtures.mirinline.apply";
+        let raw_caller = materialized
+            .caller_side_pass_candidate_bodies()
+            .iter()
+            .find(|fun| fun.fqn == caller_fqn)
+            .expect("caller 应进入 caller-side pass 候选");
+        assert!(
+            fun_contains_direct_call(raw_caller, apply_fqn),
+            "raw caller MIR 应先保留 direct call 到 non-generic wrapper"
+        );
+
+        let pass_caller = materialized
+            .pass_view()
+            .callable(caller_fqn)
+            .expect("known closure provenance 应发布 caller 的 pass-visible MIR body");
+        assert!(
+            fun_contains_closure_call(pass_caller),
+            "pass-visible caller body 应把 wrapper 内部 FunValue call 收缩为结构化 ClosureCall"
+        );
+        assert!(
+            !fun_contains_fun_value_call(pass_caller),
+            "pass-visible caller body 不应继续保留模糊 FunValue call"
         );
     }
 

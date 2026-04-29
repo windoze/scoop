@@ -2774,6 +2774,9 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
             true,
         ),
     )?;
+    for ty in materialized.types.iter_ids() {
+        let _ = lowered.types.re_intern_from(&materialized.types, ty);
+    }
     lowered.materialized_mir = Some(materialized);
     Ok(lowered)
 }

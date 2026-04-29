@@ -2155,6 +2155,30 @@
     - `cargo run -p scoop -- test`（`fixtures: ok (1202)`）
     - 全部通过。
   - 下一条待执行任务切换为 `T5000j3b 扩展更多 higher-order / closure 场景到 production MIR 主线`。
+- 2026-04-29：`T5000j3b 扩展更多 higher-order / closure 场景到 production MIR 主线` 已判定为单轮过大任务，现拆成 `T5000j3b1`～`T5000j3b2` 两个实现子任务与对应 review。
+  - 拆分依据：
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 当前同时缺少 `MakeTuple` / `TupleGet`、`MakeClosure`、`CallKind::Closure`、`CaptureBox*` 与 `CallKind::FunValue` 的 lowering，属于多条独立边界；
+    - `crates/scoopc/src/llvm/reachability.rs` 已能扫描这些 MIR 节点，但 `mir_fun_requires_hir_compat_scan(...)` 仍把它们整体压回 HIR-compatible boundary，说明 production 覆盖缺口不只是一处开关；
+    - `mir::inline` 已会发布 `ClosureCall` 形状，而 HIR closure lowering 侧仍明确把 mutable capture 视为 unsupported，说明“结构已知 closure/env”与“capture-box / 剩余 opaque higher-order”不是同一复杂度层级。
+  - 拆分顺序：
+    - `T5000j3b1`：先接入 non-capturing / immutable-capturing closure 的 production MIR lowering；
+    - `T5000j3b2`：再处理 `CaptureBox*` / 剩余 opaque higher-order `FunValueCall` 场景。
+  - 下一条待执行任务切换为 `T5000j3b1 接入 non-capturing / immutable-capturing closure 到 production MIR 主线`。
+- 2026-04-29：`T5000j3b1 接入 non-capturing / immutable-capturing closure 到 production MIR 主线` 已完成。
+  - 实现结果：
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 已补齐 `MakeTuple` / `TupleGet` / `MakeClosure` / `CallKind::Closure` 的 supported-shape 判定、tuple/env lowering、closure object/env object 构造，以及 materialized MIR lambda callable 的声明与 body 发射；
+    - `crates/scoopc/src/llvm/reachability.rs` 已同步放宽 raw candidate 与 MIR-compatible 扫描边界，使 non-capturing / immutable-capturing closure 的 raw 或 pass-visible MIR body 可直接进入 production 主线，并把相关 lambda body 计入 reachability；
+    - `CaptureBox*`、opaque `CallKind::FunValue`、`Return { value: None }`、effect/handle 等仍未形成稳定 production 契约的形状继续保留在 HIR-compatible fallback，没有把剩余 higher-order 分析责任倒灌回 backend。
+  - 测试与验证：
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_non_capturing_closure_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_raw_mir_immutable_capture_closure_body -- --nocapture`
+    - `cargo test -p scoopc production_codegen_lowers_pass_visible_known_closure_call_body -- --nocapture`
+    - `cargo fmt --all --check`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test`
+    - 全部通过。
+  - 下一条待执行任务切换为 `T5000j3b1R Review：确认结构已知 closure/env 形状已进入 production MIR 主线`。
 
 ## 1. 当前判断
 

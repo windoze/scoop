@@ -292,6 +292,10 @@ impl<'a> ReachabilityCollector<'a> {
 
     fn scan_fun(&mut self, fun: &hir::FunDecl) {
         if let Some(pass_view) = self.materialized_pass_view {
+            if self.hir_fun_requires_hir_compat_scan(fun) {
+                self.scan_hir_fun_body(fun);
+                return;
+            }
             let body_is_overridden = pass_view.callable_body_is_overridden(&fun.fqn);
             if body_is_overridden {
                 if let Some(pass_fun) = self.canonical_mir_fun(fun) {
@@ -327,6 +331,116 @@ impl<'a> ReachabilityCollector<'a> {
         });
     }
 
+    fn hir_fun_requires_hir_compat_scan(&self, fun: &hir::FunDecl) -> bool {
+        let Some(body) = fun.body.as_ref() else {
+            return false;
+        };
+        self.hir_block_contains_hir_compat_only_effects(body)
+    }
+
+    fn hir_block_contains_hir_compat_only_effects(&self, block: &hir::Block) -> bool {
+        block
+            .stmts
+            .iter()
+            .any(|stmt| self.hir_stmt_contains_hir_compat_only_effects(stmt))
+    }
+
+    fn hir_stmt_contains_hir_compat_only_effects(&self, stmt: &hir::Stmt) -> bool {
+        match &stmt.kind {
+            hir::StmtKind::Empty | hir::StmtKind::Break { .. } | hir::StmtKind::Continue { .. } => {
+                false
+            }
+            hir::StmtKind::Expr(expr) => self.hir_expr_contains_hir_compat_only_effects(expr),
+            hir::StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .is_some_and(|expr| self.hir_expr_contains_hir_compat_only_effects(expr)),
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                self.hir_expr_contains_hir_compat_only_effects(lhs)
+                    || self.hir_expr_contains_hir_compat_only_effects(rhs)
+            }
+            hir::StmtKind::While { cond, body } => {
+                self.hir_expr_contains_hir_compat_only_effects(cond)
+                    || self.hir_block_contains_hir_compat_only_effects(body)
+            }
+            hir::StmtKind::Return { value } => value
+                .as_ref()
+                .is_some_and(|expr| self.hir_expr_contains_hir_compat_only_effects(expr)),
+            hir::StmtKind::Todo(_) => true,
+        }
+    }
+
+    fn hir_expr_contains_hir_compat_only_effects(&self, expr: &hir::Expr) -> bool {
+        match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Todo(_) => false,
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .any(|field| self.hir_expr_contains_hir_compat_only_effects(&field.value)),
+            hir::ExprKind::TupleLit { elements } => elements
+                .iter()
+                .any(|element| self.hir_expr_contains_hir_compat_only_effects(element)),
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                parts.iter().any(|part| match part {
+                    hir::InterpolatedStringPart::Text { .. } => false,
+                    hir::InterpolatedStringPart::Expr { expr } => {
+                        self.hir_expr_contains_hir_compat_only_effects(expr)
+                    }
+                })
+            }
+            hir::ExprKind::Unary { expr, .. }
+            | hir::ExprKind::TypeCheck { expr, .. }
+            | hir::ExprKind::Cast { expr, .. } => {
+                self.hir_expr_contains_hir_compat_only_effects(expr)
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.hir_expr_contains_hir_compat_only_effects(lhs)
+                    || self.hir_expr_contains_hir_compat_only_effects(rhs)
+            }
+            hir::ExprKind::Block(block) => self.hir_block_contains_hir_compat_only_effects(block),
+            hir::ExprKind::Closure(closure) => {
+                self.hir_expr_contains_hir_compat_only_effects(&closure.body)
+            }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.hir_expr_contains_hir_compat_only_effects(cond)
+                    || self.hir_expr_contains_hir_compat_only_effects(then_branch)
+                    || else_branch
+                        .as_ref()
+                        .is_some_and(|expr| self.hir_expr_contains_hir_compat_only_effects(expr))
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.hir_expr_contains_hir_compat_only_effects(subject)
+                    || arms.iter().any(|arm| {
+                        arm.guard.as_ref().is_some_and(|guard| {
+                            self.hir_expr_contains_hir_compat_only_effects(guard)
+                        }) || self.hir_expr_contains_hir_compat_only_effects(&arm.body)
+                    })
+            }
+            hir::ExprKind::MemberAccess { receiver, .. } => {
+                self.hir_expr_contains_hir_compat_only_effects(receiver)
+            }
+            hir::ExprKind::Call { callee, args } => {
+                self.hir_expr_contains_hir_compat_only_effects(callee)
+                    || args.iter().any(|arg| match arg {
+                        hir::CallArg::Positional(expr) => {
+                            self.hir_expr_contains_hir_compat_only_effects(expr)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.hir_expr_contains_hir_compat_only_effects(value)
+                        }
+                    })
+            }
+            hir::ExprKind::Perform { .. } | hir::ExprKind::Handle(_) => true,
+        }
+    }
+
     fn canonical_mir_fun(&self, fun: &hir::FunDecl) -> Option<&'a mir::FunDecl> {
         let pass_view = self.materialized_pass_view?;
         if pass_view.callable_body_is_overridden(&fun.fqn)
@@ -360,6 +474,13 @@ impl<'a> ReachabilityCollector<'a> {
                 };
                 match value {
                     mir::Rvalue::PatternMatch { .. } | mir::Rvalue::PatternExtract { .. } => true,
+                    mir::Rvalue::MakeTuple { .. }
+                    | mir::Rvalue::TupleGet { .. }
+                    | mir::Rvalue::MakeClosure { .. } => true,
+                    mir::Rvalue::Call {
+                        kind: mir::CallKind::Closure { .. },
+                        ..
+                    } => true,
                     mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) => {
                         self.object_inits.contains_key(fqn)
                             || self.top_level_consts.contains_key(fqn)
@@ -408,6 +529,9 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::TopLevelRef(_)
             | mir::Rvalue::Unary { .. }
             | mir::Rvalue::Binary { .. }
+            | mir::Rvalue::MakeTuple { .. }
+            | mir::Rvalue::TupleGet { .. }
+            | mir::Rvalue::MakeClosure { .. }
             | mir::Rvalue::PatternMatch { .. }
             | mir::Rvalue::PatternExtract { .. } => false,
             mir::Rvalue::Call { kind, .. } => self.mir_call_kind_requires_hir_compat_scan(kind),
@@ -415,12 +539,9 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::TypeCheck { .. }
             | mir::Rvalue::Cast { .. }
             | mir::Rvalue::MemberAccess { .. }
-            | mir::Rvalue::MakeTuple { .. }
-            | mir::Rvalue::TupleGet { .. }
             | mir::Rvalue::CaptureBoxNew { .. }
             | mir::Rvalue::CaptureBoxGet { .. }
             | mir::Rvalue::CaptureBoxSet { .. }
-            | mir::Rvalue::MakeClosure { .. }
             | mir::Rvalue::PerformResult { .. }
             | mir::Rvalue::Todo(_) => true,
         }
@@ -432,8 +553,8 @@ impl<'a> ReachabilityCollector<'a> {
                 .fun_index
                 .get(callee_fqn)
                 .is_some_and(|fun| fun.body.is_none()),
-            mir::CallKind::Closure { .. }
-            | mir::CallKind::FunValue { .. }
+            mir::CallKind::Closure { .. } => false,
+            mir::CallKind::FunValue { .. }
             | mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. }
             | mir::CallKind::Resume { .. } => true,

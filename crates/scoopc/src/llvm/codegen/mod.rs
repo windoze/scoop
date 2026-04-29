@@ -687,6 +687,13 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
                 match value {
                     crate::mir::Rvalue::PatternMatch { .. }
                     | crate::mir::Rvalue::PatternExtract { .. } => true,
+                    crate::mir::Rvalue::MakeTuple { .. }
+                    | crate::mir::Rvalue::TupleGet { .. }
+                    | crate::mir::Rvalue::MakeClosure { .. } => true,
+                    crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::Closure { .. },
+                        ..
+                    } => true,
                     crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) => {
                         self.object_inits.contains_key(fqn)
                             || self.top_level_consts.contains_key(fqn)
