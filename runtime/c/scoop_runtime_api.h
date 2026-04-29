@@ -153,6 +153,7 @@
   X(scoop_sync_once_run) \
   X(scoop_test_add_int) \
   X(scoop_test_callee_suspend_state_set) \
+  X(scoop_test_explicit_root_frame_enter_native_smoke) \
   X(scoop_test_continuation_resume_replay_state_create) \
   X(scoop_test_explicit_root_frame_root_map_smoke) \
   X(scoop_test_explicit_root_frame_top) \

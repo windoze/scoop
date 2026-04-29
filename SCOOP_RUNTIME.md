@@ -193,12 +193,14 @@ Current ABI contract:
   - `slot_offsets`: offsets, relative to the frame base, for each `void*` root home slot.
 - Because `hdr` is the first field, a `ScoopRootFrameHeader*` is also the frame base used with `slot_offsets`; runtime traversal must recover slots by `frame_base + offset`, not by inferring SP/FP layout.
 - The current thread's chain top is exported as `__scoop_explicit_root_frame_top` and is cleared on thread teardown.
+- During stop-the-world parking and `enter_native`, runtime snapshots the current thread's explicit frame top into the GC thread record. When that snapshot is non-NULL, managed-root enumeration must use the explicit frame chain directly instead of requiring stack walking / stackmap lookup for higher managed caller frames.
 
 Defined edge cases:
 
 - `__scoop_explicit_root_frame_top == NULL` means the current thread has no explicit managed frames and is a valid steady state.
 - A frame with `slot_count == 0` is valid. It still participates in the chain shape, but visiting it yields zero root slots.
 - A non-NULL frame must provide a non-NULL `desc`; if `slot_count > 0`, `slot_offsets` must also be non-NULL. Violating either condition is a runtime contract error.
+- `native_roots` remains a separate buffer for native-boundary temporary roots only. It is not the mechanism for recovering higher managed caller frames when an explicit frame snapshot is available.
 
 This substrate is intentionally narrower than a full activation-record model:
 

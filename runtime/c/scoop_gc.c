@@ -44,6 +44,9 @@ static uint32_t scoop_gc_thread_count = 0;
 
 static ScoopGcStwState scoop_gc_stw = {0};
 
+void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
+void scoop_leave_native(void);
+
 static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     if (pthread_equal(it->thread, t)) {
@@ -51,6 +54,48 @@ static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {
     }
   }
   return 0;
+}
+
+static inline void *scoop_gc_current_explicit_root_frame_top(void) {
+  return (void *)__scoop_explicit_root_frame_top;
+}
+
+static inline ScoopGcManagedRootMap scoop_gc_managed_root_map_from_snapshot(
+    void *explicit_root_frame_top,
+    void *stack_walking_ctx) {
+  if (explicit_root_frame_top != 0) {
+    return scoop_gc_managed_root_map_from_explicit_frame_top(explicit_root_frame_top);
+  }
+  if (stack_walking_ctx != 0) {
+    return scoop_gc_managed_root_map_from_stackmap_ctx(stack_walking_ctx);
+  }
+  return scoop_gc_managed_root_map_none();
+}
+
+static inline ScoopGcManagedRootMap scoop_gc_managed_root_map_from_thread_record(
+    const ScoopGcThreadRecord *rec) {
+  if (rec == 0) {
+    return scoop_gc_managed_root_map_none();
+  }
+  return scoop_gc_managed_root_map_from_snapshot(rec->explicit_root_frame_top, rec->stack_walking_ctx);
+}
+
+static inline ScoopGcManagedRootMap scoop_gc_managed_root_map_from_current_thread(
+    void *stack_walking_ctx) {
+  return scoop_gc_managed_root_map_from_snapshot(
+      scoop_gc_current_explicit_root_frame_top(), stack_walking_ctx);
+}
+
+static inline const char *scoop_gc_managed_root_map_kind_name(
+    ScoopGcManagedRootMapKind kind) {
+  switch (kind) {
+  case SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP:
+    return "stackmap";
+  case SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME:
+    return "explicit_frame";
+  default:
+    return "managed_roots";
+  }
 }
 
 // runtime 侧在 `scoop_thread_register/unregister` 中调用这些函数，把线程纳入 GC 的 STW 范围。
@@ -69,6 +114,7 @@ void scoop_gc_thread_register(ScoopThreadTls *tls) {
     existing->state = SCOOP_GC_THREAD_RUNNING;
     existing->last_safepoint_epoch = scoop_gc_stw.epoch;
     existing->parked_epoch = 0;
+    existing->explicit_root_frame_top = 0;
     (void)pthread_mutex_unlock(&scoop_gc_lock);
     return;
   }
@@ -88,6 +134,7 @@ void scoop_gc_thread_register(ScoopThreadTls *tls) {
   rec->state = SCOOP_GC_THREAD_RUNNING;
   rec->last_safepoint_epoch = scoop_gc_stw.epoch;
   rec->parked_epoch = 0;
+  rec->explicit_root_frame_top = 0;
   rec->stack_walking_ctx = 0;
   rec->native_roots = 0;
   rec->native_roots_len = 0;
@@ -155,7 +202,11 @@ static void scoop_gc_safepoint_common(uint32_t capture_stack_walking_ctx) {
     rec->last_safepoint_epoch = scoop_gc_stw.epoch;
 
     if (rec->parked_epoch != scoop_gc_stw.epoch) {
-      if (capture_stack_walking_ctx) {
+      rec->explicit_root_frame_top = scoop_gc_current_explicit_root_frame_top();
+      if (rec->explicit_root_frame_top != 0) {
+        scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
+        rec->stack_walking_ctx = 0;
+      } else if (capture_stack_walking_ctx) {
         // T1505b：在进入 Parked 前捕获当前线程的 unwind 上下文，用于后续 stack walking。
         // 说明：此处只保存 opaque ctx；逐帧 unwind 在 T1411b 接入 platform/unwind 完成。
         scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
@@ -214,11 +265,15 @@ void scoop_enter_native(void ***root_slots, uint32_t root_slots_len) {
     return;
   }
 
-  // T1512c：InNative 线程除了当前 call-site 的 `native_roots` 外，还必须保留 enter_native
-  // 边界之上的 managed caller frames；否则 GC 会看不到跨 wait/join 等 native 调用继续存活的上层 roots。
+  // 显式 frame 模式下，managed caller frames 直接由 TLS explicit frame chain 表示；
+  // 仅当当前线程没有 explicit frame chain 时，才退回捕获 stack walking ctx 供 stackmap mode 使用。
+  rec->explicit_root_frame_top = scoop_gc_current_explicit_root_frame_top();
   scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
-  rec->stack_walking_ctx = scoop_platform_unwind_ctx_capture();
-  if (rec->stack_walking_ctx == 0) {
+  rec->stack_walking_ctx = 0;
+  if (rec->explicit_root_frame_top == 0) {
+    rec->stack_walking_ctx = scoop_platform_unwind_ctx_capture();
+  }
+  if (rec->explicit_root_frame_top == 0 && rec->stack_walking_ctx == 0) {
     (void)pthread_mutex_unlock(&scoop_gc_lock);
     (void)fprintf(stderr, "[scooprt][gc][stackmap] enter_native failed to capture unwind ctx\n");
     abort();
@@ -291,6 +346,7 @@ void scoop_leave_native(void) {
 
   rec->native_roots = 0;
   rec->native_roots_len = 0;
+  rec->explicit_root_frame_top = 0;
   rec->state = SCOOP_GC_THREAD_RUNNING;
   rec->parked_epoch = 0;
   scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
@@ -312,6 +368,7 @@ static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
     // 否则 GC 可能会错误等待它 park，导致死锁。
     if (it->state != SCOOP_GC_THREAD_IN_NATIVE) {
       it->state = SCOOP_GC_THREAD_RUNNING;
+      it->explicit_root_frame_top = 0;
       scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
       it->stack_walking_ctx = 0;
     }
@@ -355,6 +412,7 @@ static void scoop_gc_stop_the_world_end_unlocked(void) {
     }
     it->parked_epoch = 0;
     if (it->state != SCOOP_GC_THREAD_IN_NATIVE) {
+      it->explicit_root_frame_top = 0;
       scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
       it->stack_walking_ctx = 0;
     }
@@ -483,6 +541,118 @@ done:
 
   __atomic_store_n(&stop, 1, __ATOMIC_SEQ_CST);
   (void)pthread_join(worker, 0);
+  scoop_thread_unregister();
+  return rc;
+}
+
+typedef struct ScoopTestExplicitEnterNativeFrame {
+  ScoopRootFrameHeader hdr;
+  void *slot0;
+} ScoopTestExplicitEnterNativeFrame;
+
+typedef struct ScoopTestExplicitEnterNativeCapture {
+  void **slot;
+  void *value;
+  uint32_t count;
+} ScoopTestExplicitEnterNativeCapture;
+
+static void scoop_test_explicit_enter_native_capture_slot(void **slot, void *ctx) {
+  if (slot == 0 || ctx == 0) {
+    return;
+  }
+
+  ScoopTestExplicitEnterNativeCapture *capture =
+      (ScoopTestExplicitEnterNativeCapture *)ctx;
+  capture->slot = slot;
+  capture->value = *slot;
+  capture->count += 1;
+}
+
+intptr_t scoop_test_explicit_root_frame_enter_native_smoke(void) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  void scoop_thread_unregister(void);
+
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  static const uint32_t slot_offsets[] = {
+      offsetof(ScoopTestExplicitEnterNativeFrame, slot0),
+  };
+  static const ScoopRootFrameDesc desc = {
+      .slot_count = 1,
+      .slot_offsets = slot_offsets,
+  };
+
+  ScoopTestExplicitEnterNativeFrame frame = {0};
+  frame.hdr.prev = 0;
+  frame.hdr.desc = &desc;
+  frame.slot0 = (void *)(uintptr_t)0x1234u;
+
+  ScoopRootFrameHeader *saved_top = __scoop_explicit_root_frame_top;
+  __scoop_explicit_root_frame_top = &frame.hdr;
+
+  intptr_t rc = 1;
+  scoop_enter_native(0, 0);
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(pthread_self());
+  if (rec == 0) {
+    rc = -1;
+    goto done;
+  }
+  if (rec->state != SCOOP_GC_THREAD_IN_NATIVE) {
+    rc = -2;
+    goto done;
+  }
+  if (rec->explicit_root_frame_top != &frame.hdr) {
+    rc = -3;
+    goto done;
+  }
+  if (rec->stack_walking_ctx != 0) {
+    rc = -4;
+    goto done;
+  }
+
+  ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(rec);
+  ScoopTestExplicitEnterNativeCapture capture = {0};
+  ScoopGcRootMapVisitResult visit_result = {0};
+  (void)scoop_gc_root_map_visit_slots(
+      &root_map,
+      scoop_test_explicit_enter_native_capture_slot,
+      (void *)&capture,
+      &visit_result);
+  if (root_map.kind != SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME) {
+    rc = -5;
+    goto done;
+  }
+  if (visit_result.visit_error != SCOOP_GC_ROOT_MAP_VISIT_OK) {
+    rc = -6;
+    goto done;
+  }
+  if (capture.count != 1 || capture.slot != &frame.slot0 || capture.value != frame.slot0) {
+    rc = -7;
+    goto done;
+  }
+
+done:
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_leave_native();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  rec = scoop_gc_find_thread_unlocked(pthread_self());
+  if (rc > 0) {
+    if (rec == 0) {
+      rc = -8;
+    } else if (rec->state != SCOOP_GC_THREAD_RUNNING) {
+      rc = -9;
+    } else if (rec->explicit_root_frame_top != 0 || rec->stack_walking_ctx != 0) {
+      rc = -10;
+    }
+  }
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+
+  __scoop_explicit_root_frame_top = saved_top;
   scoop_thread_unregister();
   return rc;
 }
@@ -1479,44 +1649,41 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     const uintptr_t tid = scoop_gc_thread_id_for_diag(it->thread);
 
-    // initiator：若捕获了 stack walking ctx，则同时校验 stackmap roots（moving GC 依赖 spill slots 更新）。
+    // initiator：优先走当前线程的 explicit frame chain；没有 explicit frame 时再退回 stackmap ctx。
     if (pthread_equal(it->thread, initiator)) {
-      if (initiator_stack_walking_ctx != 0) {
-        ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
-        ScoopGcManagedRootMap root_map =
-            scoop_gc_managed_root_map_from_stackmap_ctx(initiator_stack_walking_ctx);
+      ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_none();
+      if (it->state != SCOOP_GC_THREAD_IN_NATIVE) {
+        root_map = scoop_gc_managed_root_map_from_current_thread(initiator_stack_walking_ctx);
+      }
+      if (root_map.kind != SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
+        const char *root_kind = scoop_gc_managed_root_map_kind_name(root_map.kind);
+        ScoopGcVerifySlotCtx v = {.state = &st, .kind = root_kind, .thread_id = tid};
         ScoopGcRootMapVisitResult root_map_result = {0};
-        uint32_t records_hit = 0;
         (void)scoop_gc_root_map_visit_slots(
             &root_map, scoop_gc_verify_root_slot_visitor, (void *)&v, &root_map_result);
         uint32_t err = root_map_result.visit_error;
-        records_hit = root_map_result.units_hit;
-        if (err != SCOOP_STACKMAP_VISIT_OK) {
+        if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
           scoop_gc_verify_roots_record_error(
-              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
-        } else if (records_hit == 0) {
+              &st, root_kind, tid, /*slot_addr=*/0, /*value=*/0, "managed roots visit failed");
+        } else if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP &&
+                   root_map_result.units_hit == 0) {
           scoop_gc_verify_roots_record_error(
               &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
         }
       }
 
       if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
-        if (it->stack_walking_ctx == 0) {
-          scoop_gc_verify_roots_record_error(
-              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "in-native thread missing stack_walking_ctx");
-        } else {
-          ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
-          ScoopGcManagedRootMap root_map =
-              scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+        ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
+        if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME) {
+          const char *root_kind = scoop_gc_managed_root_map_kind_name(root_map.kind);
+          ScoopGcVerifySlotCtx v = {.state = &st, .kind = root_kind, .thread_id = tid};
           ScoopGcRootMapVisitResult root_map_result = {0};
-          uint32_t records_hit = 0;
           (void)scoop_gc_root_map_visit_slots(
               &root_map, scoop_gc_verify_root_slot_visitor, (void *)&v, &root_map_result);
           uint32_t err = root_map_result.visit_error;
-          records_hit = root_map_result.units_hit;
-          if (err != SCOOP_STACKMAP_VISIT_OK) {
+          if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
             scoop_gc_verify_roots_record_error(
-                &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
+                &st, root_kind, tid, /*slot_addr=*/0, /*value=*/0, "managed roots visit failed");
           }
         }
 
@@ -1528,22 +1695,17 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
     }
 
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
-      if (it->stack_walking_ctx == 0) {
-        scoop_gc_verify_roots_record_error(
-            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "in-native thread missing stack_walking_ctx");
-      } else {
-        ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
-        ScoopGcManagedRootMap root_map =
-            scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+      ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
+      if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME) {
+        const char *root_kind = scoop_gc_managed_root_map_kind_name(root_map.kind);
+        ScoopGcVerifySlotCtx v = {.state = &st, .kind = root_kind, .thread_id = tid};
         ScoopGcRootMapVisitResult root_map_result = {0};
-        uint32_t records_hit = 0;
         (void)scoop_gc_root_map_visit_slots(
             &root_map, scoop_gc_verify_root_slot_visitor, (void *)&v, &root_map_result);
         uint32_t err = root_map_result.visit_error;
-        records_hit = root_map_result.units_hit;
-        if (err != SCOOP_STACKMAP_VISIT_OK) {
+        if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
           scoop_gc_verify_roots_record_error(
-              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
+              &st, root_kind, tid, /*slot_addr=*/0, /*value=*/0, "managed roots visit failed");
         }
       }
 
@@ -1554,26 +1716,30 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
     }
 
     if (it->state == SCOOP_GC_THREAD_PARKED) {
-      if (it->stack_walking_ctx == 0) {
-        scoop_gc_verify_roots_record_error(
-            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "parked thread missing stack_walking_ctx");
+      ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
+      if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
+        scoop_gc_verify_roots_record_error(&st,
+                                           "managed_roots",
+                                           tid,
+                                           /*slot_addr=*/0,
+                                           /*value=*/0,
+                                           "parked thread missing managed root source");
         continue;
       }
 
-      ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
-      ScoopGcManagedRootMap root_map =
-          scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+      const char *root_kind = scoop_gc_managed_root_map_kind_name(root_map.kind);
+      ScoopGcVerifySlotCtx v = {.state = &st, .kind = root_kind, .thread_id = tid};
       ScoopGcRootMapVisitResult root_map_result = {0};
-      uint32_t records_hit = 0;
       (void)scoop_gc_root_map_visit_slots(
           &root_map, scoop_gc_verify_root_slot_visitor, (void *)&v, &root_map_result);
       uint32_t err = root_map_result.visit_error;
-      records_hit = root_map_result.units_hit;
-      if (err != SCOOP_STACKMAP_VISIT_OK) {
+      if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
         scoop_gc_verify_roots_record_error(
-            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
-      } else if (records_hit == 0) {
-        scoop_gc_verify_roots_record_error(&st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
+            &st, root_kind, tid, /*slot_addr=*/0, /*value=*/0, "managed roots visit failed");
+      } else if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP &&
+                 root_map_result.units_hit == 0) {
+        scoop_gc_verify_roots_record_error(
+            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
       }
       continue;
     }
@@ -1796,36 +1962,32 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
   };
 
   // 4) roots update：
-  // - initiator：使用本次 GC 内部捕获的 ctx（可枚举完整 managed 调用栈的 stackmap roots slots）；
-  // - Parked：使用 park 前捕获到 TLS 的 ctx；
-  // - InNative：使用 native_roots buffer；
+  // - initiator：优先使用当前线程 explicit frame chain；没有 explicit frame 时退回本次 GC 捕获的 stackmap ctx；
+  // - Parked：使用 park 前保存到线程记录里的 managed roots snapshot；
+  // - InNative：使用 native_roots buffer + enter_native 时保存的 managed roots snapshot；
   // - B2a：baseline 不再更新 shadow stack roots（GC roots 不再来源于 `ScoopGcFrame`）。
 
-  // 4a) initiator stackmap roots update（moving GC 的关键语义：spill slots 原地改写为新地址）。
+  // 4a) initiator managed roots update（moving GC 的关键语义：home slots / spill slots 原地改写为新地址）。
   {
     ScoopGcManagedRootMap root_map =
-        scoop_gc_managed_root_map_from_stackmap_ctx(initiator_stack_walking_ctx);
+        scoop_gc_managed_root_map_from_current_thread(initiator_stack_walking_ctx);
     ScoopGcRootMapVisitResult root_map_result = {0};
-    uint32_t err = SCOOP_GC_ROOT_MAP_VISIT_ERR_INVALID_ARGUMENT;
-    uint32_t records_hit = 0;
-    if (initiator_stack_walking_ctx != 0) {
-      (void)scoop_gc_root_map_visit_slots(
-          &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
-      err = root_map_result.visit_error;
-      records_hit = root_map_result.units_hit;
-    }
+    (void)scoop_gc_root_map_visit_slots(
+        &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
+    uint32_t err = root_map_result.visit_error;
 
-    if (err != SCOOP_STACKMAP_VISIT_OK) {
+    if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
       (void)fprintf(stderr,
-                    "[scooprt][gc][move] initiator stackmap roots update failed: err=%u\n",
+                    "[scooprt][gc][move][%s] initiator roots update failed: err=%u\n",
+                    scoop_gc_managed_root_map_kind_name(root_map.kind),
                     (unsigned)err);
       abort();
     }
 
-    // 重要：moving GC 必须更新 stackmap spill slots（statepoint + gc.relocate 依赖它）。
+    // 重要：stackmap mode 下 moving GC 仍必须更新 stackmap spill slots（statepoint + gc.relocate 依赖它）。
     // 若未命中任何 record，说明当前进程未生成/未注册 stackmaps，或线程未停在可识别的 managed 帧；
     // 在这种情况下继续搬迁会导致 mutator 恢复后仍持有旧指针（悬挂指针），因此直接 fail-fast。
-    if (records_hit == 0) {
+    if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP && root_map_result.units_hit == 0) {
       (void)fprintf(stderr,
                     "[scooprt][gc][move] initiator stackmap roots update hit 0 records; "
                     "moving GC requires statepoint stackmaps (set SCOOP_GC_MOVE=0 to disable)\n");
@@ -1840,9 +2002,10 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
         continue;
       }
       if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
-        if (it->stack_walking_ctx == 0) {
+        ScoopGcManagedRootMap in_native_root_map = scoop_gc_managed_root_map_from_thread_record(it);
+        if (in_native_root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
           (void)fprintf(stderr,
-                        "[scooprt][gc][stackmap] missing in-native ctx for initiator roots update\n");
+                        "[scooprt][gc][managed-roots] missing in-native managed root source for initiator roots update\n");
           abort();
         }
         (void)scoop_gc_native_roots_visit_slots(it->native_roots,
@@ -1850,17 +2013,17 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
                                                 scoop_gc_baseline_update_slot_visitor,
                                                 (void *)&update_ctx);
         {
-          ScoopGcManagedRootMap root_map =
-              scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
           ScoopGcRootMapVisitResult root_map_result = {0};
-          uint32_t records_hit = 0;
           (void)scoop_gc_root_map_visit_slots(
-              &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
+              &in_native_root_map,
+              scoop_gc_baseline_update_slot_visitor,
+              (void *)&update_ctx,
+              &root_map_result);
           uint32_t err = root_map_result.visit_error;
-          records_hit = root_map_result.units_hit;
-          if (err != SCOOP_STACKMAP_VISIT_OK) {
+          if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
             (void)fprintf(stderr,
-                          "[scooprt][gc][move] initiator in-native caller roots update failed: err=%u\n",
+                          "[scooprt][gc][move][%s] initiator in-native caller roots update failed: err=%u\n",
+                          scoop_gc_managed_root_map_kind_name(in_native_root_map.kind),
                           (unsigned)err);
             abort();
           }
@@ -1876,9 +2039,10 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
     }
 
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
-      if (it->stack_walking_ctx == 0) {
+      ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
+      if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
         (void)fprintf(stderr,
-                      "[scooprt][gc][move] missing in-native ctx for roots update (thread=0x%" PRIxPTR
+                      "[scooprt][gc][move] missing in-native managed root source for roots update (thread=0x%" PRIxPTR
                       ")\n",
                       (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
         abort();
@@ -1888,18 +2052,15 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
                                               scoop_gc_baseline_update_slot_visitor,
                                               (void *)&update_ctx);
       {
-        ScoopGcManagedRootMap root_map =
-            scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
         ScoopGcRootMapVisitResult root_map_result = {0};
-        uint32_t records_hit = 0;
         (void)scoop_gc_root_map_visit_slots(
             &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
         uint32_t err = root_map_result.visit_error;
-        records_hit = root_map_result.units_hit;
-        if (err != SCOOP_STACKMAP_VISIT_OK) {
+        if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
           (void)fprintf(stderr,
-                        "[scooprt][gc][move] in-native caller roots update failed: err=%u "
+                        "[scooprt][gc][move][%s] in-native caller roots update failed: err=%u "
                         "(thread=0x%" PRIxPTR ")\n",
+                        scoop_gc_managed_root_map_kind_name(root_map.kind),
                         (unsigned)err,
                         (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
           abort();
@@ -1908,19 +2069,20 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
       continue;
     }
 
-    if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
-      ScoopGcManagedRootMap root_map =
-          scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+    if (it->state == SCOOP_GC_THREAD_PARKED) {
+      ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
+      if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
+        continue;
+      }
       ScoopGcRootMapVisitResult root_map_result = {0};
-      uint32_t records_hit = 0;
       (void)scoop_gc_root_map_visit_slots(
           &root_map, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx, &root_map_result);
       uint32_t err = root_map_result.visit_error;
-      records_hit = root_map_result.units_hit;
-      if (err != SCOOP_STACKMAP_VISIT_OK) {
+      if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
         (void)fprintf(stderr,
-                      "[scooprt][gc][stackmap] update roots failed: err=%u (thread=0x%" PRIxPTR
+                      "[scooprt][gc][%s] update roots failed: err=%u (thread=0x%" PRIxPTR
                       ")\n",
+                      scoop_gc_managed_root_map_kind_name(root_map.kind),
                       (unsigned)err,
                       (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
         abort();
@@ -2030,62 +2192,49 @@ void scoop_gc_collect(void) {
   ScoopGcHeap *heap = &scoop_gc_heap;
   uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
 
-  // T1511：baseline moving 模式（可通过 env 强制开启），需要在 GC 内捕获 initiator 的 stack walking ctx，
-  // 用于 stackmap spill slots 更新（statepoint + gc.relocate 依赖该语义）。
+  // T1511：baseline moving 模式（可通过 env 强制开启）要求 initiator 也提供可更新的 managed roots source。
   uint32_t moving_enabled = scoop_gc_baseline_moving_enabled();
-  // B2a：baseline roots 枚举不再扫描 shadow stack（`ScoopGcFrame`）。
-  //
-  // 约定：
-  // - in-native 线程：roots 来自 `native_roots` slots（enter_native 注册），以及 pinned/handles；
-  // - 其余线程：roots 来自 stackmap（需要可用的 unwind ctx）。
-  uint32_t initiator_needs_stackmap_roots = 1;
-  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
-    if (!pthread_equal(it->thread, self)) {
-      continue;
-    }
-    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
-      initiator_needs_stackmap_roots = 0;
-    }
-    break;
-  }
+
   void *initiator_stack_walking_ctx = 0;
-  if (moving_enabled || initiator_needs_stackmap_roots) {
+  ScoopGcManagedRootMap initiator_root_map = scoop_gc_managed_root_map_none();
+  if (scoop_gc_current_explicit_root_frame_top() != 0) {
+    initiator_root_map = scoop_gc_managed_root_map_from_current_thread(/*stack_walking_ctx=*/0);
+  } else {
     initiator_stack_walking_ctx = scoop_platform_unwind_ctx_capture();
     if (initiator_stack_walking_ctx == 0) {
       (void)fprintf(stderr, "[scooprt][gc][stackmap] failed to capture unwind ctx\n");
       abort();
     }
+    initiator_root_map = scoop_gc_managed_root_map_from_current_thread(initiator_stack_walking_ctx);
   }
 
   ScoopGcMarkStack stack = {0};
   ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
 
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
-    // T1505c：InNative 线程不要求 park，roots 来自 TLS `native_roots` buffer。
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
-      if (it->stack_walking_ctx == 0) {
+      ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
+      if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
         (void)fprintf(stderr,
-                      "[scooprt][gc][stackmap] missing in-native ctx for mark roots (thread=0x%" PRIxPTR
+                      "[scooprt][gc][managed-roots] missing in-native managed root source for mark roots (thread=0x%" PRIxPTR
                       ")\n",
                       (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
         abort();
       }
+
       (void)scoop_gc_native_roots_visit_slots(
           it->native_roots, it->native_roots_len, scoop_gc_mark_visitor, (void *)&ctx);
       {
-        ScoopGcManagedRootMap root_map =
-            scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
         ScoopGcRootMapVisitResult root_map_result = {0};
-        uint32_t records_hit = 0;
         (void)scoop_gc_root_map_visit_slots(
             &root_map, scoop_gc_mark_visitor, (void *)&ctx, &root_map_result);
         uint32_t err = root_map_result.visit_error;
-        records_hit = root_map_result.units_hit;
 
-        if (err != SCOOP_STACKMAP_VISIT_OK) {
+        if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
           (void)fprintf(stderr,
-                        "[scooprt][gc][stackmap] visit in-native caller roots failed: err=%u "
+                        "[scooprt][gc][%s] visit in-native managed roots failed: err=%u "
                         "(thread=0x%" PRIxPTR ")\n",
+                        scoop_gc_managed_root_map_kind_name(root_map.kind),
                         (unsigned)err,
                         (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
           abort();
@@ -2094,43 +2243,37 @@ void scoop_gc_collect(void) {
       continue;
     }
 
-    // B2a：initiator roots 同样必须来自 stackmap（覆盖完整 managed 栈）。
-    if (initiator_needs_stackmap_roots && initiator_stack_walking_ctx != 0 &&
-        pthread_equal(it->thread, self)) {
-      ScoopGcManagedRootMap root_map =
-          scoop_gc_managed_root_map_from_stackmap_ctx(initiator_stack_walking_ctx);
+    if (pthread_equal(it->thread, self)) {
       ScoopGcRootMapVisitResult root_map_result = {0};
-      uint32_t records_hit = 0;
       (void)scoop_gc_root_map_visit_slots(
-          &root_map, scoop_gc_mark_visitor, (void *)&ctx, &root_map_result);
+          &initiator_root_map, scoop_gc_mark_visitor, (void *)&ctx, &root_map_result);
       uint32_t err = root_map_result.visit_error;
-      records_hit = root_map_result.units_hit;
 
-      if (err != SCOOP_STACKMAP_VISIT_OK) {
+      if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
         (void)fprintf(stderr,
-                      "[scooprt][gc][stackmap] visit initiator roots failed: err=%u\n",
+                      "[scooprt][gc][%s] visit initiator roots failed: err=%u\n",
+                      scoop_gc_managed_root_map_kind_name(initiator_root_map.kind),
                       (unsigned)err);
         abort();
       }
       continue;
     }
 
-    // T1506b：Parked 线程若提供了 stack_walking_ctx，则走 stackmap roots。
-    if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
-      ScoopGcManagedRootMap root_map =
-          scoop_gc_managed_root_map_from_stackmap_ctx(it->stack_walking_ctx);
+    if (it->state == SCOOP_GC_THREAD_PARKED) {
+      ScoopGcManagedRootMap root_map = scoop_gc_managed_root_map_from_thread_record(it);
+      if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_NONE) {
+        continue;
+      }
       ScoopGcRootMapVisitResult root_map_result = {0};
-      uint32_t records_hit = 0;
       (void)scoop_gc_root_map_visit_slots(
           &root_map, scoop_gc_mark_visitor, (void *)&ctx, &root_map_result);
       uint32_t err = root_map_result.visit_error;
-      records_hit = root_map_result.units_hit;
 
-      if (err != SCOOP_STACKMAP_VISIT_OK) {
-        // locations 解析失败/遇到寄存器 roots 等：视为编译器/管线错误，fail-fast。
+      if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
         (void)fprintf(stderr,
-                      "[scooprt][gc][stackmap] visit roots failed: err=%u (thread=0x%" PRIxPTR
+                      "[scooprt][gc][%s] visit roots failed: err=%u (thread=0x%" PRIxPTR
                       ")\n",
+                      scoop_gc_managed_root_map_kind_name(root_map.kind),
                       (unsigned)err,
                       (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
         abort();

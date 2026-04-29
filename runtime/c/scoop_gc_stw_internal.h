@@ -33,7 +33,7 @@ typedef enum ScoopGcThreadState {
   SCOOP_GC_THREAD_IN_NATIVE = 2,
 } ScoopGcThreadState;
 
-// GC 线程记录（v0：线程状态机 + 为 stackmap/native roots 预留字段）。
+// GC 线程记录（v0：线程状态机 + managed root source snapshot）。
 typedef struct ScoopGcThreadRecord {
   struct ScoopGcThreadRecord *next;
   pthread_t thread;
@@ -64,7 +64,11 @@ typedef struct ScoopGcThreadRecord {
   // 该线程进入 Parked 的 epoch（用于避免重复计数）。
   uint64_t parked_epoch;
 
-  // 预留：未来 stack walking 上下文 / native roots（T1505/T1506/T1510）。
+  // 当前 STW/native 期间可用的 managed root source snapshot：
+  // - explicit mode：保存显式 frame chain 的 top；
+  // - stackmap mode：保存 stack walking ctx；
+  // - `native_roots` 仅保存 native 边界临时根，不再承担找回更高层 managed frames 的职责。
+  void *explicit_root_frame_top;
   void *stack_walking_ctx;
   void *native_roots;
   uint32_t native_roots_len;

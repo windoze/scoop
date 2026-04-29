@@ -110,7 +110,7 @@
 - 完成记录：已复核 `runtime/c/scoop_root_frame.h`、`runtime/c/scoop_gc_root_map_internal.h`、`runtime/c/scoop_runtime.c` 与 `crates/scoop_runtime/tests/explicit_root_frame.rs`。确认 `ScoopRootFrameHeader`/`ScoopRootFrameDesc` 的边界已固定为“frame base + descriptor offsets -> void** slot”，runtime 未重新依赖 SP/FP 猜测；`top == NULL` 与 `slot_count == 0` 的语义也已通过定向 smoke test 固化。另补齐 `SCOOP_RUNTIME.md` 的 explicit root frame ABI 说明，并通过 `cargo test -p scoop_runtime --test explicit_root_frame`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 复核。
 - 依赖：T5001c1
 
-### [TODO] T5001c2 让 explicit mode 的 managed roots 枚举走 TLS frame chain，并收窄 `InNative` 依赖
+### [DONE] T5001c2 让 explicit mode 的 managed roots 枚举走 TLS frame chain，并收窄 `InNative` 依赖
 - 范围：
   - 在 explicit mode 下，把 managed frame roots 枚举切到 TLS explicit frame chain。
   - `native_roots` 保留给 native 边界临时根；不再要求 `enter_native` 为找回更高层 caller managed frames 捕获 unwind ctx。
@@ -118,6 +118,7 @@
 - 验收：
   - explicit mode 的 managed roots 枚举不再依赖 unwind ctx + stackmap registry lookup；
   - `InNative` 协议已简化到只处理 native 边界临时 roots，而不是继续承担 managed caller frame 回溯。
+- 完成记录：`runtime/c/scoop_gc.c` 与 `runtime/c/scoop_gc_backend_immix.c` 现已在 STW park 和 `enter_native` 时把 `explicit_root_frame_top` 快照进线程记录，并在 managed roots 枚举/更新/verify 时优先走 explicit-frame root map，仅在没有 explicit frame snapshot 时退回 stackmap ctx；`native_roots` 保留为 native 边界临时 roots。另新增 `scoop_test_explicit_root_frame_enter_native_smoke` 与 `crates/scoop_runtime/tests/explicit_root_frame.rs` 回归，锁定 `enter_native` 不再为 explicit-frame 路径捕获 unwind ctx，同时通过 `cargo test --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001c1R
 
 ### [TODO] T5001c2R Review：确认 explicit mode 已从 stackmap roots lookup 解耦
