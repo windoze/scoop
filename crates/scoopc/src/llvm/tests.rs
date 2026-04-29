@@ -5355,6 +5355,55 @@ fun main() {
 }
 
 #[test]
+fn production_mir_function_reloads_direct_gc_local_from_explicit_frame_after_safepoint() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5001e1r_pass_mir_safepoint_reload.scoop",
+        r#"
+package fixtures.t5001e1r
+
+import scoop.core.*
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> keep(name: T): T {
+    id<T>(name)
+    return name
+}
+
+fun main() {
+    println(keep<String>("hi"))
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let keep_ir = function_ir_named(&ir, "fixtures.t5001e1r.keep::<String>");
+    assert!(
+        keep_ir.contains("pass_mir_call"),
+        "test setup should lower keep() through the production MIR bridge\n{keep_ir}"
+    );
+    let call_idx = keep_ir
+        .find("pass_mir_call")
+        .expect("expected MIR bridge direct call site in keep() IR");
+    let reload_window = &keep_ir[call_idx..];
+    assert!(
+        reload_window.contains("pass_mir_load = load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
+        "production MIR local load should reload from explicit frame home slot after safepoint\n{reload_window}"
+    );
+}
+
+#[test]
 fn never_returning_managed_function_pops_explicit_root_frame_before_unreachable() {
     let source = SourceFile::new_virtual(
         "<mem>",

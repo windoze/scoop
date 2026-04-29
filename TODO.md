@@ -209,13 +209,14 @@
 - 完成记录：已为单槽 pointer-shaped GC 值补上统一的 explicit-frame reload helper，并让 `local_ptr_for_use(...)`、`materialize_deferred_cg_value(...)` 与 call-arg materialize 路径在 explicit frame 已启用时优先从 home slot reload，而不再从原 local/spill slot 取回 post-safepoint 值；这覆盖了 ordinary local 读取、runtime helper / ordinary call 之后的 deferred scalar GC 值消费，以及由 effect/resume lowering 复用 `local_ptr_for_use(...)` 的 direct ref 路径。另新增两条 LLVM 回归，分别锁定 direct local safepoint 后 reload 与“先求值 call arg 遇到后续 safepoint”两类窗口，并通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001d3R
 
-### [TODO] T5001e1R Review：确认 safepoint 已成为真实的 clobber 边界
+### [DONE] T5001e1R Review：确认 safepoint 已成为真实的 clobber 边界
 - 重点：
   - 是否还残留 post-safepoint 直接复用旧 SSA / register 的路径；
   - LLVM 是否仍可能把 safepoint 前值 CSE 到 safepoint 后；
   - ordinary call、effect boundary、resume replay 等路径的 reload 语义是否一致。
 - 验收：
   - safepoint clobber / reload contract 已能作为 aggregate refresh 之前的稳定前提。
+- 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`call/abi.rs`、`mir_body.rs`、`effect/mod.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归。确认 HIR/direct-ref 路径、deferred spill/call-arg 路径，以及 effect/resume/state-machine 中复用 `local_ptr_for_use(...)` / `materialize_deferred_cg_value(...)` 的读取点，已统一把 explicit frame home slot 作为 post-safepoint reload source-of-truth。review 期间发现一处真实缺口：production MIR bridge 的 `load_mir_local(...)` 仍直接从 `slot.ptr` 读取，导致 raw/materialized MIR body 在 safepoint 后可能继续复用旧 local 槽位；现已修复为同样经 `local_ptr_for_use(...)` 走 reload helper，并新增 LLVM 回归 `production_mir_function_reloads_direct_gc_local_from_explicit_frame_after_safepoint` 锁定 ordinary managed call 之后的 MIR local reload 行为。另已通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001e1
 
 ### [TODO] T5001e2 补齐 aggregate refresh / rebuild contract，覆盖 args、returns、payload transport

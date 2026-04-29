@@ -3674,10 +3674,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
             _ => {
+                let local_ptr = self.local_ptr_for_use(
+                    span,
+                    CgLocal {
+                        hir_ty: None,
+                        call_may_suspend: false,
+                        ty: slot.cg_ty,
+                        ptr: slot.ptr,
+                        mutable: false,
+                    },
+                    "pass_mir_load_slot",
+                )?;
                 let llvm_ty = self.llvm_basic_type_of(span, slot.cg_ty)?;
                 let loaded = self
                     .builder
-                    .build_load(llvm_ty, slot.ptr, "pass_mir_load")?;
+                    .build_load(llvm_ty, local_ptr, "pass_mir_load")?;
                 self.cg_value_from_loaded(span, slot.cg_ty, loaded)
             }
         }
