@@ -309,7 +309,7 @@
 - 完成记录：`crates/scoopc/src/llvm/codegen/effect/mod.rs` 现已把 fresh `Continuation.resume(...)` receiver 收口为与普通 GC-sensitive call arg 一致的 contract：receiver 先经 `defer_gc_sensitive_cg_value(...)` spill 成 tracked root，再在 payload materialize 完成后通过 `continuation_resume_receiver_reload` reload，最后才调用 `scoop_continuation_resume_with(...)`。这样 `k1.resume("alpha")` 这类“先读 continuation、后分配 String payload”的路径在 `SCOOP_GC_STRESS=1` 下不再把 stale continuation 指针传进 runtime，也不会错误触发 `ContinuationAlreadyResumed`。另新增 LLVM 回归 `continuation_resume_reloads_receiver_after_gc_sensitive_payload_materialization`，锁定 payload 分配后必须 reload continuation receiver 的 IR 顺序；并已通过 `cargo test -p scoopc continuation_resume_reloads_receiver_after_gc_sensitive_payload_materialization -- --nocapture`、`cargo test -p scoopc when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume -- --nocapture`、`SCOOP_GC_STRESS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_gc_stress_multi_string.scoop` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。继续执行 `cargo run -p scoop -- test` 时，suite 已越过该 fixture，当前新的既有阻塞已切换为 `gc_cross_function_class_object_graph.scoop`，因此按要求在本条后插入 `T5001f4/T5001f4R`。
 - 依赖：T5001f2
 
-### [TODO] T5001f4 修复 cross-function class object graph GC-stress regression，解除 run-pass 后续阻塞
+### [DONE] T5001f4 修复 cross-function class object graph GC-stress regression，解除 run-pass 后续阻塞
 - 范围：
   - 修复 `tests/fixtures/run-pass/gc_cross_function_class_object_graph.scoop` 当前回归：`cargo run -p scoop -- test` 已越过 `effect_escape_continuation_gc_stress_multi_string.scoop`，但在该 fixture 处失败；默认环境单跑可通过，而 suite 使用的 `SCOOP_GC_STRESS=1` 下会卡住/异常退出。
   - 查清跨函数传递的 `Node`/`String`/`Node?` object graph 在 GC-stress 下的真实 source-of-truth 缺口，重点覆盖 factory return、setter 调用、对象字段写入与 transitive readback 主线，不能通过放宽 fixture 或修改 golden 来回避实现问题。
@@ -317,7 +317,27 @@
 - 验收：
   - `gc_cross_function_class_object_graph.scoop` 恢复通过；
   - `cargo run -p scoop -- test` 不再在该 fixture 处失败。
+- 完成记录：`crates/scoopc/src/llvm/codegen/class_ctor.rs` 现已把 freshly allocated class object 本身也收口为 tracked GC root：class ctor call 在 `scoop_alloc_typed(...)` 返回后，会先经 `defer_gc_sensitive_cg_value(...)` 把新对象 spill 到 `class_ctor_obj_root`，随后在 ctor 实参求值前、进入 ctor init 前以及 factory return 前都通过 explicit-frame-backed reload 重新取回当前对象指针，而不再继续依赖 pre-GC 的 `%rt_alloc_class` SSA。这样 `makeNode("root", 1)` 这类“先分配 class object、再分配 `String` ctor arg / 执行 ctor init”的路径在 `SCOOP_GC_STRESS=1` 下不会再把 stale object 指针传进字段初始化、setter/readback 或最终 return，`gc_cross_function_class_object_graph.scoop` 的首个 `__scoop_gc_collect()` 也不再卡住。另新增 LLVM 回归 `class_ctor_factory_keeps_allocated_object_rooted_across_gc_sensitive_arg_eval`，锁定 factory ctor path 会把 `rt_alloc_class` 先落到 tracked root，并在 GC-sensitive ctor arg eval/ctor return 之前从 explicit frame reload；并已通过 `cargo test -p scoopc class_ctor_factory_keeps_allocated_object_rooted_across_gc_sensitive_arg_eval -- --nocapture`、`cargo test -p scoopc class_ctor_this_local_reloads_from_explicit_frame_after_safepoint -- --nocapture`、`SCOOP_GC_STRESS=1 cargo run -p scoop -- run tests/fixtures/run-pass/gc_cross_function_class_object_graph.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_cross_function_class_object_graph.scoop` 与 `cargo clippy -p scoop -p scoopc --all-targets -- -D warnings` 验证。继续执行 `cargo run -p scoop -- test` 时，suite 已越过该 fixture，当前新的既有阻塞已切换为 `higher_order_aggregate_return_struct_mapper.scoop`，因此按要求在本条后插入 `T5001f5/T5001f5R`。
 - 依赖：T5001f3
+
+### [TODO] T5001f5 修复 higher-order aggregate return struct mapper 的 GC-stress regression，解除 run-pass 后续阻塞
+- 范围：
+  - 修复 `tests/fixtures/run-pass/higher_order_aggregate_return_struct_mapper.scoop` 当前回归：`cargo run -p scoop -- test` 已越过 `gc_cross_function_class_object_graph.scoop`，但在该 fixture 处失败；`SCOOP_GC_STRESS=1` 下 direct higher-order 调用 `mapper("go")` 目前会错误输出 `!!` / `2`，而不是 golden 中的 `go!` / `3`。
+  - 查清带 `String` 字段的 `Labelled` struct 经由 higher-order 间接调用返回后，在后续分配、再次 higher-order 调用与最终 direct readback 链路中的真实 source-of-truth 缺口，重点覆盖 aggregate return、GC ref field refresh/rebuild 与 higher-order call-result materialize 主线，不能通过放宽 fixture 或修改 golden 来回避实现问题。
+  - 为最小 higher-order aggregate return 路径补定向回归，至少覆盖 direct `mapper(...)` 返回值与 `runMapper(...)` 内的二次 higher-order 调用在 `SCOOP_GC_STRESS=1` 下都能保持 `Labelled.text` / `Labelled.score` 正确。
+- 验收：
+  - `higher_order_aggregate_return_struct_mapper.scoop` 恢复通过；
+  - `cargo run -p scoop -- test` 不再在该 fixture 处失败。
+- 依赖：T5001f4
+
+### [TODO] T5001f5R Review：确认 higher-order aggregate return 的 GC-stress 合同重新闭合
+- 重点：
+  - higher-order 间接调用返回 aggregate 时，是否仍残留 stale aggregate、stale GC ref field 或 stale call-result source-of-truth；
+  - `Labelled` 这类带 `String` field 的 aggregate return 是否在 direct call、二次 higher-order call 与后续 readback 上都遵守 explicit-frame / aggregate rebuild 合同；
+  - run-pass 回归是否已覆盖 direct higher-order return、后续分配与再次 higher-order 调用三类关键窗口。
+- 验收：
+  - `T5001f4R` / `T5001g` 可在不再被该 higher-order aggregate GC-stress 回归阻塞的前提下继续推进。
+- 依赖：T5001f5
 
 ### [TODO] T5001f4R Review：确认 cross-function class object graph 的 GC-stress 合同重新闭合
 - 重点：
@@ -326,7 +346,7 @@
   - run-pass 回归是否已覆盖 object graph 构造、连边、GC 后读取三类关键窗口。
 - 验收：
   - `T5001f3R` / `T5001g` 可在不再被该 object-graph GC-stress 回归阻塞的前提下继续推进。
-- 依赖：T5001f4
+- 依赖：T5001f5R
 
 ### [TODO] T5001f3R Review：确认 effect escape continuation 的 GC-stress 合同重新闭合
 - 重点：

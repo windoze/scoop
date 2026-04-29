@@ -3,6 +3,35 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn reload_deferred_gc_ref_without_clearing(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        value: &DeferredCgValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if let Some(spill) = &value.spill {
+            let reload_slot = self.storage_slot_for_use(at, spill.slot, value.ty, name)?;
+            let loaded = self
+                .builder
+                .build_load(self.llvm_gc_i8_ptr_type(), reload_slot, name)?;
+            return Ok(loaded.into_pointer_value());
+        }
+
+        let Some(raw) = value.immediate else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "deferred gc ref reload",
+                at: at.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "deferred gc ref reload type",
+                at: at.into(),
+            });
+        };
+        Ok(ptr)
+    }
+
     /// 生成 class 构造调用（Appendix B.2.2，Kotlin-like 初始化顺序）。
     ///
     /// 当前阶段的约束（为保持 run-pass 可落地且实现量可控）：
@@ -118,6 +147,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
         }
 
+        let deferred_obj = self.defer_gc_sensitive_cg_value(
+            span,
+            "class_ctor_obj_root",
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(obj_ptr.into()),
+            },
+        )?;
+
         // 6) 执行构造调用：支持 super ctor args + secondary ctor delegation（T1327c）。
         //
         // 语义（Kotlin-like，Appendix B.2.2）：
@@ -136,18 +174,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "class ctor call arg eval",
         )?;
 
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "class_ctor_obj_before_invoke",
+            &deferred_obj,
+        )?;
+
         self.codegen_class_ctor_invoke(
             span,
             callee_span,
             &class,
             selected_ctor,
             evaluated_args.as_slice(),
-            obj_ptr,
+            current_obj,
+        )?;
+
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "class_ctor_obj_return",
+            &deferred_obj,
         )?;
 
         Ok(CgValue {
             ty: CgTy::Ref,
-            value: Some(obj_ptr.into()),
+            value: Some(current_obj.into()),
         })
     }
 

@@ -5339,6 +5339,56 @@ fun main() {
 }
 
 #[test]
+fn class_ctor_factory_keeps_allocated_object_rooted_across_gc_sensitive_arg_eval() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+class Box(val name: String)
+
+fun make(name: String): Box {
+    return Box(f"{name}_boxed")
+}
+
+fun main() {
+    println(make("hi").name)
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let make_ir = function_ir_named(&ir, "@a.make(");
+    let string_alloc_idx = make_ir
+        .find("@__scoop_type_desc_runtime__ScoopString")
+        .expect("expected ctor arg f-string allocation in make() IR");
+    let reload_window = &make_ir[string_alloc_idx..];
+
+    assert!(
+        make_ir.contains("store ptr addrspace(1) %rt_alloc_class, ptr %class_ctor_obj_root"),
+        "factory class ctor should spill the freshly allocated object before any GC-sensitive arg evaluation\n{make_ir}"
+    );
+    assert!(
+        reload_window.contains(
+            "class_ctor_obj_before_invoke = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
+        ),
+        "ctor arg evaluation should reload the allocated object from its explicit-frame-backed root before invoking ctor init\n{reload_window}"
+    );
+    assert!(
+        reload_window.contains(
+            "class_ctor_obj_return = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
+        ),
+        "factory return should reload the allocated object from its explicit-frame-backed root after ctor init\n{reload_window}"
+    );
+    assert!(
+        !reload_window.contains("ptr addrspace(1) %rt_alloc_class, i32 0, i32 1"),
+        "ctor path should not keep using the pre-GC raw class allocation SSA after GC-sensitive arg evaluation\n{reload_window}"
+    );
+}
+
+#[test]
 fn deferred_call_arg_reloads_from_explicit_frame_after_later_safepoint() {
     let source = SourceFile::new_virtual(
         "<mem>",

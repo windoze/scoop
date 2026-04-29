@@ -26,7 +26,7 @@ pub fn run(fixtures: Option<PathBuf>, options: TestOptions) -> Result<()> {
     let root = fixtures.unwrap_or_else(|| PathBuf::from("tests/fixtures"));
     let root = root.canonicalize().into_diagnostic().wrap_err_with(|| {
         format!(
-            "无法定位 fixtures 目录：{}（可用 --fixtures 指定）",
+            "无法定位 fixtures 路径：{}（可用 --fixtures 指定目录或单个 fixture）",
             root.display()
         )
     })?;

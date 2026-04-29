@@ -24,7 +24,7 @@ pub enum Command {
 
     /// 运行 fixtures（当前阶段仅做最小 smoke）
     Test {
-        /// fixtures 根目录（默认：`tests/fixtures`）
+        /// fixtures 目录或单个 fixture 文件（默认：`tests/fixtures`）
         #[arg(long)]
         fixtures: Option<PathBuf>,
 

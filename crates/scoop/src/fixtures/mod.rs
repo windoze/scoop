@@ -113,6 +113,14 @@ pub fn run_all(
     opt_level: Option<OptLevel>,
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<usize> {
+    if fixtures_root.is_file() {
+        let session = scoopc::session::Session::new()?;
+        let rel_root = fixtures_root.parent().unwrap_or(fixtures_root);
+        run_one(&session, rel_root, fixtures_root, opt_level, run_pass_env)
+            .wrap_err_with(|| format!("fixture 失败：{}", fixtures_root.display()))?;
+        return Ok(1);
+    }
+
     if is_typecheck_multi_case_root(fixtures_root) {
         let session = scoopc::session::Session::new()?;
         return run_typecheck_multi_case(&session, fixtures_root, fixtures_root)
@@ -2987,5 +2995,21 @@ val bad: Int = Box("oops").bodyCopy
 
         let ok = run_all(&case_dir, None, &RunPassEnvOverrides::new()).unwrap();
         assert_eq!(ok, 2);
+    }
+
+    #[test]
+    fn run_all_accepts_single_fixture_file() {
+        let dir = tempdir().unwrap();
+        let fixture_dir = dir.path().join("parse");
+        fs::create_dir_all(&fixture_dir).unwrap();
+        let fixture = fixture_dir.join("single_file_subset.scoop");
+        fs::write(
+            &fixture,
+            "// EXPECT: pass\npackage fixtures.parse.single_file_subset\npublic fun main() / Pure! {}\n",
+        )
+        .unwrap();
+
+        let ok = run_all(&fixture, None, &RunPassEnvOverrides::new()).unwrap();
+        assert_eq!(ok, 1);
     }
 }
