@@ -88,7 +88,7 @@
 - 完成记录：已复核 `runtime/c/scoop_gc_root_map_internal.h` 与 `runtime/c/scoop_gc*.c`。runtime 上层的 managed roots 枚举、moving update 与 verify-roots 已统一经由 `ScoopGcManagedRootMap + scoop_gc_root_map_visit_slots(...)` 消费 `void** slot` visitor；`scoop_stackmap_registry_lookup(...)` 与 `scoop_stackmap_record_visit_root_slots(...)` 仅残留在 root-map 实现内部及专用测试中，未再作为 GC 上层接口泄漏。并已通过 `cargo test --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001b
 
-### [TODO] T5001c1 引入 explicit root frame 的 runtime 数据结构与 TLS frame chain
+### [DONE] T5001c1 引入 explicit root frame 的 runtime 数据结构与 TLS frame chain
 - 范围：
   - 在 runtime 中引入 `ScoopRootFrameDesc`、`ScoopRootFrameHeader` 与 TLS `__scoop_explicit_root_frame_top`。
   - 建立按 `header -> desc -> offsets` 解释 explicit frame 的基础能力。
@@ -97,6 +97,7 @@
 - 验收：
   - runtime 已具备显式 frame descriptor + header + TLS top 的基础表示；
   - 后续编译器只需按合同发射 frame object / descriptor，即可被 runtime 扫描。
+- 完成记录：新增 `runtime/c/scoop_root_frame.h`，固化 `ScoopRootFrameDesc` / `ScoopRootFrameHeader`、`__scoop_explicit_root_frame_top` TLS 符号，以及 `scoop_root_frame_visit_slots(...)` 的 `header -> desc -> offsets` 解释 helper；`runtime/c/scoop_gc_root_map_internal.h` 已补上 explicit-frame root map visitor，并明确 `slot_count == 0` frame 合法但不访问任何 slot；另通过 `scoop_test_explicit_root_frame_*` 与 `crates/scoop_runtime/tests/explicit_root_frame.rs` 锁定 TLS top 清零、zero-slot frame 与 descriptor walk 行为。
 - 依赖：T5001bR
 
 ### [TODO] T5001c1R Review：确认 explicit frame substrate 边界成立

@@ -12,6 +12,7 @@
 
 #include "platform/unwind.h"
 #include "scoop_gc.h"
+#include "scoop_root_frame.h"
 #include "scoop_stackmap.h"
 
 typedef enum ScoopGcManagedRootMapKind {
@@ -31,6 +32,8 @@ typedef struct ScoopGcManagedRootMap {
 typedef enum ScoopGcRootMapVisitError {
   SCOOP_GC_ROOT_MAP_VISIT_OK = 0,
   SCOOP_GC_ROOT_MAP_VISIT_ERR_INVALID_ARGUMENT = 1,
+  SCOOP_GC_ROOT_MAP_VISIT_ERR_MISSING_FRAME_DESC = 2048,
+  SCOOP_GC_ROOT_MAP_VISIT_ERR_MISSING_FRAME_SLOT_OFFSETS = 2049,
   SCOOP_GC_ROOT_MAP_VISIT_ERR_UNSUPPORTED_KIND = 1024,
 } ScoopGcRootMapVisitError;
 
@@ -58,6 +61,14 @@ static inline ScoopGcManagedRootMap scoop_gc_managed_root_map_from_stackmap_ctx(
   ScoopGcManagedRootMap map = {0};
   map.kind = SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP;
   map.source.stack_walking_ctx = stack_walking_ctx;
+  return map;
+}
+
+static inline ScoopGcManagedRootMap scoop_gc_managed_root_map_from_explicit_frame_top(
+    void *explicit_root_frame_top) {
+  ScoopGcManagedRootMap map = {0};
+  map.kind = SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME;
+  map.source.explicit_root_frame_top = explicit_root_frame_top;
   return map;
 }
 
@@ -137,6 +148,48 @@ static inline uint64_t scoop_gc_stackmap_root_map_visit_slots(
   return walk.result.slots_visited;
 }
 
+static inline uint32_t scoop_gc_root_map_visit_error_from_root_frame_error(uint32_t visit_error) {
+  switch (visit_error) {
+  case SCOOP_ROOT_FRAME_VISIT_OK:
+    return SCOOP_GC_ROOT_MAP_VISIT_OK;
+  case SCOOP_ROOT_FRAME_VISIT_ERR_INVALID_ARGUMENT:
+    return SCOOP_GC_ROOT_MAP_VISIT_ERR_INVALID_ARGUMENT;
+  case SCOOP_ROOT_FRAME_VISIT_ERR_MISSING_DESC:
+    return SCOOP_GC_ROOT_MAP_VISIT_ERR_MISSING_FRAME_DESC;
+  case SCOOP_ROOT_FRAME_VISIT_ERR_MISSING_SLOT_OFFSETS:
+    return SCOOP_GC_ROOT_MAP_VISIT_ERR_MISSING_FRAME_SLOT_OFFSETS;
+  default:
+    return SCOOP_GC_ROOT_MAP_VISIT_ERR_INVALID_ARGUMENT;
+  }
+}
+
+static inline uint64_t scoop_gc_explicit_root_frame_root_map_visit_slots(
+    void *explicit_root_frame_top,
+    ScoopGcTraceVisitor visitor,
+    void *ctx,
+    ScoopGcRootMapVisitResult *out_result) {
+  scoop_gc_root_map_visit_result_reset(out_result);
+
+  if (visitor == 0) {
+    if (out_result != 0) {
+      out_result->visit_error = SCOOP_GC_ROOT_MAP_VISIT_ERR_INVALID_ARGUMENT;
+    }
+    return 0;
+  }
+
+  ScoopRootFrameVisitResult visit_result = {0};
+  const uint64_t slots_visited = scoop_root_frame_visit_slots(
+      (ScoopRootFrameHeader *)explicit_root_frame_top, visitor, ctx, &visit_result);
+
+  if (out_result != 0) {
+    out_result->slots_visited = visit_result.slots_visited;
+    out_result->units_hit = visit_result.frames_visited;
+    out_result->visit_error =
+        scoop_gc_root_map_visit_error_from_root_frame_error(visit_result.visit_error);
+  }
+  return slots_visited;
+}
+
 static inline uint64_t scoop_gc_root_map_visit_slots(const ScoopGcManagedRootMap *root_map,
                                                      ScoopGcTraceVisitor visitor,
                                                      void *ctx,
@@ -157,6 +210,8 @@ static inline uint64_t scoop_gc_root_map_visit_slots(const ScoopGcManagedRootMap
     return scoop_gc_stackmap_root_map_visit_slots(
         root_map->source.stack_walking_ctx, visitor, ctx, out_result);
   case SCOOP_GC_MANAGED_ROOT_MAP_EXPLICIT_FRAME:
+    return scoop_gc_explicit_root_frame_root_map_visit_slots(
+        root_map->source.explicit_root_frame_top, visitor, ctx, out_result);
   default:
     if (out_result != 0) {
       out_result->visit_error = SCOOP_GC_ROOT_MAP_VISIT_ERR_UNSUPPORTED_KIND;

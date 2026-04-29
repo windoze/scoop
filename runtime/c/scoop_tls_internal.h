@@ -17,6 +17,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// runtime/c 共享的 TLS 存储类宏。
+//
+// 说明：
+// - 运行时的 GC / effect / explicit frame 状态都需要 thread-local storage；
+// - 放在 internal header 中，避免每个 C 编译单元各自复制一份条件编译分支。
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define SCOOP_THREAD_LOCAL _Thread_local
+#elif defined(_MSC_VER)
+#define SCOOP_THREAD_LOCAL __declspec(thread)
+#elif defined(__GNUC__) || defined(__clang__)
+#define SCOOP_THREAD_LOCAL __thread
+#else
+#define SCOOP_THREAD_LOCAL
+#endif
+
 // 每线程 TLS 状态（early stage：占位 + 渐进扩展）。
 //
 // 注意：

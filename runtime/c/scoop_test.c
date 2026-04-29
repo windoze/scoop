@@ -11,6 +11,8 @@
 #include "platform/platform.h"
 #include "platform/unwind.h"
 #include "scoop_gc.h"
+#include "scoop_gc_root_map_internal.h"
+#include "scoop_root_frame.h"
 #include "scoop_stackmap.h"
 
 // 运行时 GC helper（由具体 backend 提供实现）。
@@ -61,6 +63,140 @@ static uint32_t scoop_test_unwind_dump_frames_visitor(uintptr_t sp,
   }
 
   st->frame_index += 1;
+  return 1;
+}
+
+typedef struct ScoopTestExplicitRootFrameTwoSlots {
+  ScoopRootFrameHeader hdr;
+  void *slot0;
+  void *slot1;
+} ScoopTestExplicitRootFrameTwoSlots;
+
+typedef struct ScoopTestExplicitRootFrameZeroSlots {
+  ScoopRootFrameHeader hdr;
+} ScoopTestExplicitRootFrameZeroSlots;
+
+typedef struct ScoopTestExplicitRootFrameOneSlot {
+  ScoopRootFrameHeader hdr;
+  void *slot0;
+} ScoopTestExplicitRootFrameOneSlot;
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(offsetof(ScoopTestExplicitRootFrameTwoSlots, hdr) == 0,
+               "explicit test frame header must be the first field");
+_Static_assert(offsetof(ScoopTestExplicitRootFrameZeroSlots, hdr) == 0,
+               "explicit zero-slot test frame header must be the first field");
+_Static_assert(offsetof(ScoopTestExplicitRootFrameOneSlot, hdr) == 0,
+               "explicit one-slot test frame header must be the first field");
+#endif
+
+static const uint32_t scoop_test_explicit_root_frame_two_slots_offsets[] = {
+    offsetof(ScoopTestExplicitRootFrameTwoSlots, slot0),
+    offsetof(ScoopTestExplicitRootFrameTwoSlots, slot1),
+};
+
+static const uint32_t scoop_test_explicit_root_frame_one_slot_offsets[] = {
+    offsetof(ScoopTestExplicitRootFrameOneSlot, slot0),
+};
+
+static const ScoopRootFrameDesc scoop_test_explicit_root_frame_two_slots_desc = {
+    .slot_count = 2,
+    .slot_offsets = scoop_test_explicit_root_frame_two_slots_offsets,
+};
+
+static const ScoopRootFrameDesc scoop_test_explicit_root_frame_zero_slots_desc = {
+    .slot_count = 0,
+    .slot_offsets = 0,
+};
+
+static const ScoopRootFrameDesc scoop_test_explicit_root_frame_one_slot_desc = {
+    .slot_count = 1,
+    .slot_offsets = scoop_test_explicit_root_frame_one_slot_offsets,
+};
+
+typedef struct ScoopTestExplicitRootFrameCapture {
+  void **slots[3];
+  void *values[3];
+  uint32_t count;
+} ScoopTestExplicitRootFrameCapture;
+
+static void scoop_test_explicit_root_frame_capture_slot(void **slot, void *ctx) {
+  if (slot == 0 || ctx == 0) {
+    return;
+  }
+
+  ScoopTestExplicitRootFrameCapture *capture = (ScoopTestExplicitRootFrameCapture *)ctx;
+  if (capture->count >= 3) {
+    return;
+  }
+
+  capture->slots[capture->count] = slot;
+  capture->values[capture->count] = *slot;
+  capture->count += 1;
+}
+
+uintptr_t scoop_test_explicit_root_frame_top(void) {
+  return (uintptr_t)__scoop_explicit_root_frame_top;
+}
+
+intptr_t scoop_test_explicit_root_frame_root_map_smoke(void) {
+  ScoopGcManagedRootMap empty_map = scoop_gc_managed_root_map_from_explicit_frame_top(0);
+  ScoopGcRootMapVisitResult empty_result = {0};
+  const uint64_t empty_visited = scoop_gc_root_map_visit_slots(
+      &empty_map, scoop_test_explicit_root_frame_capture_slot, 0, &empty_result);
+  if (empty_visited != 0 || empty_result.slots_visited != 0 || empty_result.units_hit != 0 ||
+      empty_result.visit_error != SCOOP_GC_ROOT_MAP_VISIT_OK) {
+    return -1;
+  }
+
+  ScoopTestExplicitRootFrameTwoSlots bottom = {0};
+  ScoopTestExplicitRootFrameZeroSlots middle = {0};
+  ScoopTestExplicitRootFrameOneSlot top = {0};
+
+  bottom.hdr.prev = 0;
+  bottom.hdr.desc = &scoop_test_explicit_root_frame_two_slots_desc;
+  bottom.slot0 = (void *)(uintptr_t)0x1111u;
+  bottom.slot1 = (void *)(uintptr_t)0x2222u;
+
+  middle.hdr.prev = &bottom.hdr;
+  middle.hdr.desc = &scoop_test_explicit_root_frame_zero_slots_desc;
+
+  top.hdr.prev = &middle.hdr;
+  top.hdr.desc = &scoop_test_explicit_root_frame_one_slot_desc;
+  top.slot0 = (void *)(uintptr_t)0x3333u;
+
+  ScoopRootFrameHeader *saved_top = __scoop_explicit_root_frame_top;
+  __scoop_explicit_root_frame_top = &top.hdr;
+
+  ScoopTestExplicitRootFrameCapture capture = {0};
+  ScoopGcManagedRootMap map =
+      scoop_gc_managed_root_map_from_explicit_frame_top(__scoop_explicit_root_frame_top);
+  ScoopGcRootMapVisitResult result = {0};
+  const uint64_t visited = scoop_gc_root_map_visit_slots(
+      &map, scoop_test_explicit_root_frame_capture_slot, (void *)&capture, &result);
+
+  __scoop_explicit_root_frame_top = saved_top;
+
+  if (visited != 3 || result.slots_visited != 3) {
+    return -2;
+  }
+  if (result.units_hit != 3) {
+    return -3;
+  }
+  if (result.visit_error != SCOOP_GC_ROOT_MAP_VISIT_OK) {
+    return -4;
+  }
+  if (capture.count != 3) {
+    return -5;
+  }
+  if (capture.slots[0] != &top.slot0 || capture.slots[1] != &bottom.slot0 ||
+      capture.slots[2] != &bottom.slot1) {
+    return -6;
+  }
+  if (capture.values[0] != top.slot0 || capture.values[1] != bottom.slot0 ||
+      capture.values[2] != bottom.slot1) {
+    return -7;
+  }
   return 1;
 }
 

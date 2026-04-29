@@ -17,26 +17,11 @@
 #include "scoop_gc.h"
 #include "scoop_gc_backend.h"
 #include "scoop_gc_immix_internal.h"
+#include "scoop_root_frame.h"
 #include "scoop_stackmap.h"
 #include "scoop_tls_internal.h"
 #include "platform/platform.h"
 #include "platform/unwind.h"
-
-// TLS（thread-local storage）抽象层。
-//
-// 说明：
-// - 运行时的 GC/effect 状态必须是线程本地的（见 PLAN.md §9 / TODO T0903/T0905/T0906）。
-// - 早期阶段我们只需要“有 TLS 骨架且可链接”，具体字段会在后续任务中逐步补齐。
-// - 优先使用 C11 `_Thread_local`；否则降级到常见编译器扩展。
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#define SCOOP_THREAD_LOCAL _Thread_local
-#elif defined(_MSC_VER)
-#define SCOOP_THREAD_LOCAL __declspec(thread)
-#elif defined(__GNUC__) || defined(__clang__)
-#define SCOOP_THREAD_LOCAL __thread
-#else
-#define SCOOP_THREAD_LOCAL
-#endif
 
 // 运行时 debug 日志（编译期开关）。
 //
@@ -485,6 +470,9 @@ SCOOP_THREAD_LOCAL ScoopEffectHandlerFrame *__scoop_effect_handler_stack_top = 0
 // flag-based unwinding：每线程 active flag（0=inactive，1=active）。
 SCOOP_THREAD_LOCAL uint32_t __scoop_effect_active = 0;
 
+// explicit root frame：每线程 frame chain 栈顶。
+SCOOP_THREAD_LOCAL ScoopRootFrameHeader *__scoop_explicit_root_frame_top = 0;
+
 // flag-based unwinding：每线程 perform slot（后续由 `perform` 写入）。
 SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
 
@@ -804,6 +792,7 @@ void scoop_thread_unregister(void) {
   // 先释放 effect slot 持有的 pin，再把线程标记为未注册。
   __scoop_effect_active = 0;
   __scoop_effect_handler_stack_top = 0;
+  __scoop_explicit_root_frame_top = 0;
   __scoop_callee_suspend_state = 0;
   __scoop_continuation_resume_scope = 0;
   scoop_effect_perform_slot_reset();

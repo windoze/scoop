@@ -31,6 +31,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_root_map_internal.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_stw_internal.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_immix_internal.h");
+    println!("cargo:rerun-if-changed=../../runtime/c/scoop_root_frame.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_tls_internal.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_test.c");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/platform.h");

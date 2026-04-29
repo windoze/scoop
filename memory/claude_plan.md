@@ -55,3 +55,36 @@ I cannot provide private chain-of-thought. This file records an explicit executi
 - `cargo test --all`: passed.
 - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`: passed (`fixtures: ok (24)`).
 - `cargo clippy --all-targets -- -D warnings`: passed.
+
+## Current Run Plan
+
+1. Inspect the latest commit message and latest-commit diff summary to see whether it mentions or introduces any pre-existing issue that must be fixed first.
+2. Read `TODO.md` and identify the first unfinished task for this invocation.
+3. Read `PLAN.md` and the task-specific files needed to understand scope and dependencies.
+4. If the first unfinished task is too large for one iteration, decompose it into smaller subtasks and update `TODO.md` plus `PLAN.md` before doing implementation work.
+5. Implement or review only that first active task with minimal, spec-correct changes.
+6. Run relevant tests and required validation commands, including `cargo clippy --all-targets -- -D warnings` if the change touches code paths that require full validation.
+7. Update `TODO.md`, `PLAN.md`, and this file to reflect completion or any newly discovered prerequisite issue.
+8. Commit exactly this iteration's logical change and stop.
+
+## Current Run Progress
+
+- Started a new invocation and recorded the execution plan before further repository inspection.
+- Checked the latest commit `ef0606b3` (`[T5001bR] Review runtime root-map slot visitor boundary`); it did not mention a pre-existing issue that had to be fixed before the next task.
+- Read `TODO.md` and `PLAN.md`; identified `T5001c1` as the first unfinished task.
+- Implemented the runtime substrate for explicit root frames:
+  - added `runtime/c/scoop_root_frame.h` with `ScoopRootFrameDesc`, `ScoopRootFrameHeader`, TLS symbol declaration, and `scoop_root_frame_visit_slots(...)`;
+  - moved the shared `SCOOP_THREAD_LOCAL` macro into `runtime/c/scoop_tls_internal.h` so the explicit-frame TLS symbol can be declared across C translation units;
+  - defined `__scoop_explicit_root_frame_top` in `runtime/c/scoop_runtime.c` and clear it during thread unregister;
+  - taught `runtime/c/scoop_gc_root_map_internal.h` to construct and visit an explicit-frame root map without switching the runtime's default root source yet.
+- Added test coverage for the substrate:
+  - `runtime/c/scoop_test.c` now exports a smoke helper that builds a manual explicit frame chain, including a zero-slot frame, and verifies the descriptor walk order and TLS-top restoration;
+  - `crates/scoop_runtime/tests/explicit_root_frame.rs` verifies the TLS top starts empty, the smoke helper passes, and thread unregister clears the TLS top.
+
+## Current Run Validation
+
+- `cargo fmt`: passed.
+- `cargo test -p scoop_runtime explicit_root_frame`: passed.
+- `cargo test --all`: passed.
+- `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`: passed (`fixtures: ok (24)`).
+- `cargo clippy --all-targets -- -D warnings`: passed.
