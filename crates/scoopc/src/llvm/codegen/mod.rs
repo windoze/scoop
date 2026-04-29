@@ -846,7 +846,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut frame_slots = Vec::with_capacity(leaf_tys.len());
         for leaf_ty in leaf_tys {
             let slot_index = self.function_cx.explicit_frame_layout.slot_tys.len();
-            self.function_cx.explicit_frame_layout.slot_tys.push(leaf_ty);
+            self.function_cx
+                .explicit_frame_layout
+                .slot_tys
+                .push(leaf_ty);
             frame_slots.push(self.explicit_root_frame_slot_pointer(
                 at,
                 frame_storage,
@@ -860,16 +863,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn explicit_root_frame_header_size_bytes(&self) -> Result<u64, LlvmEmitError> {
         let header_ty = self.llvm_explicit_root_frame_header_type();
-        self.target_data
-            .offset_of_element(&header_ty, 1)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+        self.target_data.offset_of_element(&header_ty, 1).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "explicit root frame header size",
                 at: crate::span::Span::new(0, 0).into(),
-            })
+            },
+        )
     }
 
-    fn explicit_root_frame_slot_offset_bytes(&self, slot_index: usize) -> Result<u64, LlvmEmitError> {
-        Ok(self.explicit_root_frame_header_size_bytes()? + (slot_index as u64 * self.target_layout().pointer_size.max(1)))
+    fn explicit_root_frame_slot_offset_bytes(
+        &self,
+        slot_index: usize,
+    ) -> Result<u64, LlvmEmitError> {
+        Ok(self.explicit_root_frame_header_size_bytes()?
+            + (slot_index as u64 * self.target_layout().pointer_size.max(1)))
     }
 
     fn explicit_root_frame_slot_pointer(
@@ -900,7 +907,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             builder.position_at_end(entry);
         }
 
-        let frame_i8 = builder.build_pointer_cast(frame_storage, self.llvm_i8_ptr_type(), &format!("{name}_base"))?;
+        let frame_i8 = builder.build_pointer_cast(
+            frame_storage,
+            self.llvm_i8_ptr_type(),
+            &format!("{name}_base"),
+        )?;
         let i64_ty = self.context.i64_type();
         let offset = self.explicit_root_frame_slot_offset_bytes(slot_index)?;
         let slot_addr = unsafe {
@@ -947,8 +958,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slot: PointerValue<'ctx>,
         value_ty: BasicTypeEnum<'ctx>,
         name_prefix: &str,
-    ) -> Result<Vec<(PointerValue<'ctx>, PointerType<'ctx>, PointerValue<'ctx>)>, LlvmEmitError> {
-        if self.function_cx.explicit_frame_layout.frame_storage.is_none() {
+    ) -> Result<Vec<(PointerValue<'ctx>, PointerType<'ctx>, PointerValue<'ctx>)>, LlvmEmitError>
+    {
+        if self
+            .function_cx
+            .explicit_frame_layout
+            .frame_storage
+            .is_none()
+        {
             return Ok(Vec::new());
         }
 
@@ -1005,20 +1022,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(frame_storage) = plan.frame_storage else {
             return Ok(());
         };
-        let frame_storage_inst = frame_storage.as_instruction_value().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "explicit root frame storage alloca",
-            at: at.into(),
-        })?;
-        let total_words = self.context.i32_type().const_int((2 + plan.slot_tys.len()) as u64, false);
+        let frame_storage_inst =
+            frame_storage
+                .as_instruction_value()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "explicit root frame storage alloca",
+                    at: at.into(),
+                })?;
+        let total_words = self
+            .context
+            .i32_type()
+            .const_int((2 + plan.slot_tys.len()) as u64, false);
         unsafe {
-            llvm_sys::core::LLVMSetOperand(frame_storage_inst.as_value_ref(), 0, total_words.as_value_ref());
+            llvm_sys::core::LLVMSetOperand(
+                frame_storage_inst.as_value_ref(),
+                0,
+                total_words.as_value_ref(),
+            );
         }
 
-        let desc_global = self.module.get_global(desc_global_name).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "explicit root frame descriptor global",
-            at: at.into(),
-        })?;
-        self.emit_explicit_root_frame_entry_setup(at, frame_storage, plan.slot_tys.len(), desc_global)?;
+        let desc_global =
+            self.module
+                .get_global(desc_global_name)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "explicit root frame descriptor global",
+                    at: at.into(),
+                })?;
+        self.emit_explicit_root_frame_entry_setup(
+            at,
+            frame_storage,
+            plan.slot_tys.len(),
+            desc_global,
+        )?;
         self.emit_explicit_root_frame_return_pops(at, frame_storage, plan.slot_tys.as_slice())?;
         Ok(())
     }
@@ -1057,8 +1092,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_ptr_type(AddressSpace::default()),
             "explicit_root_frame_header",
         )?;
-        let prev_ptr = builder.build_struct_gep(frame_header_ty, frame_header, 0, "explicit_root_frame_prev_ptr")?;
-        let desc_ptr = builder.build_struct_gep(frame_header_ty, frame_header, 1, "explicit_root_frame_desc_ptr")?;
+        let prev_ptr = builder.build_struct_gep(
+            frame_header_ty,
+            frame_header,
+            0,
+            "explicit_root_frame_prev_ptr",
+        )?;
+        let desc_ptr = builder.build_struct_gep(
+            frame_header_ty,
+            frame_header,
+            1,
+            "explicit_root_frame_desc_ptr",
+        )?;
         let prev = builder.build_load(
             self.llvm_ptr_type(AddressSpace::default()),
             top_tls.as_pointer_value(),
@@ -1068,7 +1113,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         builder.build_store(desc_ptr, desc_global.as_pointer_value())?;
 
         let null_gc = self.llvm_gc_i8_ptr_type().const_null();
-        let frame_i8 = builder.build_pointer_cast(frame_storage, self.llvm_i8_ptr_type(), "explicit_root_frame_i8")?;
+        let frame_i8 = builder.build_pointer_cast(
+            frame_storage,
+            self.llvm_i8_ptr_type(),
+            "explicit_root_frame_i8",
+        )?;
         let i64_ty = self.context.i64_type();
         for slot_index in 0..slot_count {
             let offset = self.explicit_root_frame_slot_offset_bytes(slot_index)?;
@@ -1126,13 +1175,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.llvm_ptr_type(AddressSpace::default()),
                 "explicit_root_frame_pop_header",
             )?;
-            let prev_ptr = builder.build_struct_gep(frame_header_ty, frame_header, 0, "explicit_root_frame_pop_prev_ptr")?;
+            let prev_ptr = builder.build_struct_gep(
+                frame_header_ty,
+                frame_header,
+                0,
+                "explicit_root_frame_pop_prev_ptr",
+            )?;
             let prev = builder.build_load(
                 self.llvm_ptr_type(AddressSpace::default()),
                 prev_ptr,
                 "explicit_root_frame_pop_prev",
             )?;
-            let frame_i8 = builder.build_pointer_cast(frame_storage, self.llvm_i8_ptr_type(), "explicit_root_frame_pop_i8")?;
+            let frame_i8 = builder.build_pointer_cast(
+                frame_storage,
+                self.llvm_i8_ptr_type(),
+                "explicit_root_frame_pop_i8",
+            )?;
             let i64_ty = self.context.i64_type();
             for (slot_index, _slot_ty) in slot_tys.iter().enumerate() {
                 let offset = self.explicit_root_frame_slot_offset_bytes(slot_index)?;
@@ -2034,8 +2092,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.rematerialize_ptr_in_current_block(at, slot, &format!("{name_prefix}_slot"))?;
         let mut gc_leaf_slots = Vec::new();
         self.collect_gc_ptr_leaf_slots_in_spill(slot, value_ty, name_prefix, &mut gc_leaf_slots)?;
-        let explicit_frame_enabled = self.function_cx.explicit_frame_layout.frame_storage.is_some();
-        let frame_slots = self.explicit_frame_slot_mirrors_for(slot).map(|slots| slots.to_vec());
+        let explicit_frame_enabled = self
+            .function_cx
+            .explicit_frame_layout
+            .frame_storage
+            .is_some();
+        let frame_slots = self
+            .explicit_frame_slot_mirrors_for(slot)
+            .map(|slots| slots.to_vec());
         if explicit_frame_enabled && frame_slots.is_none() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "spill slot explicit frame mirrors",
@@ -2051,11 +2115,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         for (index, (slot, value_ptr_ty)) in gc_leaf_slots.into_iter().enumerate() {
             let frame_slot = frame_slots.get(index).copied().unwrap_or(slot);
-            self.function_cx.tracked_gc_root_slots.push(TrackedGcRootSlot {
-                slot,
-                value_ptr_ty,
-                frame_slot,
-            });
+            self.function_cx
+                .tracked_gc_root_slots
+                .push(TrackedGcRootSlot {
+                    slot,
+                    value_ptr_ty,
+                    frame_slot,
+                });
         }
         Ok(())
     }
@@ -2307,16 +2373,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: at.into(),
                     });
                 };
-                let base_ptr = self.rematerialize_ptr_in_current_block(
-                    at,
-                    base_ptr,
-                    &format!("{name}_base"),
-                )?;
+                let base_ptr =
+                    self.rematerialize_ptr_in_current_block(at, base_ptr, &format!("{name}_base"))?;
                 let target_ty = ptr.get_type();
                 return if base_ptr.get_type().get_address_space() == target_ty.get_address_space() {
                     Ok(self.builder.build_pointer_cast(base_ptr, target_ty, name)?)
                 } else {
-                    Ok(self.builder.build_address_space_cast(base_ptr, target_ty, name)?)
+                    Ok(self
+                        .builder
+                        .build_address_space_cast(base_ptr, target_ty, name)?)
                 };
             }
             inkwell::values::InstructionOpcode::GetElementPtr => {}
@@ -2350,7 +2415,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let mut indices = inst.get_indices();
                 if indices.is_empty() {
                     for operand_index in 1..inst.get_num_operands() {
-                        let Some(operand) = inst.get_operand(operand_index).and_then(|op| op.value())
+                        let Some(operand) =
+                            inst.get_operand(operand_index).and_then(|op| op.value())
                         else {
                             return Ok(ptr);
                         };
@@ -2426,7 +2492,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for (_, value_ptr_ty, frame_slot) in
             self.explicit_frame_leaf_slot_pairs_for_storage_slot(at, slot, value_ty, name_prefix)?
         {
-            let _ = self.builder.build_store(frame_slot, value_ptr_ty.const_null())?;
+            let _ = self
+                .builder
+                .build_store(frame_slot, value_ptr_ty.const_null())?;
         }
         Ok(())
     }
@@ -2522,7 +2590,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(DeferredCgValue {
             ty,
             immediate: None,
-            spill: Some(DeferredGcSensitiveSpill { slot, value_ty: llvm_ty }),
+            spill: Some(DeferredGcSensitiveSpill {
+                slot,
+                value_ty: llvm_ty,
+            }),
         })
     }
 

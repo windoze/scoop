@@ -187,13 +187,14 @@
 - 完成记录：编译器现已把 explicit frame 从“按需 safepoint mirror”收口为稳定 home-slot 合同。`store_local_value_exact(...)` 会在 stack-backed store 后同步写入 explicit frame leaf home slots；ordinary indirect GC aggregate params 现会在绑定时建立 incoming slot -> frame slot 持久映射并把 ref leaves 预热到 frame；deferred spill / call-arg spill 等内部临时 roots 不再走 `extra_gc_root_slots` + root-slot-id 动态注册，而是直接跟踪固定 spill/home-slot 并在消费后清回 `NULL`。ordinary safepoint 的 keepalive 源也已切到 explicit frame home slots，调用后同时写回原 spill/local 与 frame home slot；hidden sret 结果则在 call 返回后立即同步进 frame，并在 load 后清理其 home slot。另新增 LLVM 回归锁定 indirect aggregate param 会在 safepoint 前写入 explicit frame home slot，并更新既有 safepoint/statepoint 断言以匹配“frame home slot 持续为 source of truth、仅在 activation teardown 时清零”的新合同。已通过 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/build` 验证。
 - 依赖：T5001d2R
 
-### [TODO] T5001d3R Review：确认“所有跨 safepoint roots 都有 stable home slot”
+### [DONE] T5001d3R Review：确认“所有跨 safepoint roots 都有 stable home slot”
 - 重点：
   - 是否仍残留某些 temporaries / hidden roots 未进入 frame；
   - `extra_gc_root_slots` 等旧机制是否只是换名保留，而未真正收口到 frame fields；
   - effect / continuation / state-machine 临时 roots 是否与 ordinary 路径一致遵守同一合同。
 - 验收：
   - 后续 safepoint reload contract 可以默认“home slot 是唯一 source of truth”。
+- 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`gc.rs`、`mir_body.rs`、`call/abi.rs`、`call/dispatch.rs`、`effect/mod.rs` 与 `effect/state_machine_emitter.rs`。确认 `extra_gc_root_slots` / root-slot-id 动态注册路径已从当前 lowering 中移除，ordinary locals、indirect aggregate params、hidden sret、deferred spill / call-arg spill 以及 effect/state-machine/continuation lowering 产生的 stack-backed temporaries 都已统一映射到 explicit frame home slots。review 期间发现一处真实缺口：共享 `Continuation.resume` runtime helper `resume_continuation_with_encoded_payload(...)` 之前直接发射 `scoop_continuation_resume_with` 调用，没有走 `build_call_preserving_gc_local_roots(...)`，导致 replay / tail-resume / ordinary resume 路径未完全遵守与 ordinary safepoint 一致的 keepalive + home-slot write-back 合同；现已修复为统一经该 helper 包装，并新增 LLVM 回归锁定调用窗口必须出现 GC keepalive、explicit frame home-slot 参与以及调用后 write-back 痕迹。另已通过 `cargo test -p scoopc state_machine_multi_payload_perform_uses_tuple_transport`、`cargo test -p scoopc when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume`、`cargo test -p scoopc --lib` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001d3
 
 ### [TODO] T5001e1 收紧 safepoint clobber / reload contract，打通 post-safepoint ref 使用主线

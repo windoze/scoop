@@ -868,7 +868,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn collect_conservative_gc_root_slots(
         &mut self,
         at: crate::span::Span,
-    ) -> Result<Vec<(u32, PointerValue<'ctx>, PointerType<'ctx>, PointerValue<'ctx>)>, LlvmEmitError> {
+    ) -> Result<
+        Vec<(
+            u32,
+            PointerValue<'ctx>,
+            PointerType<'ctx>,
+            PointerValue<'ctx>,
+        )>,
+        LlvmEmitError,
+    > {
         let mut locals = Vec::new();
         for frame in &self.function_cx.env.scopes {
             for (id, local) in frame {
@@ -877,7 +885,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let mut slots = Vec::new();
-        let explicit_frame_enabled = self.function_cx.explicit_frame_layout.frame_storage.is_some();
+        let explicit_frame_enabled = self
+            .function_cx
+            .explicit_frame_layout
+            .frame_storage
+            .is_some();
         for (local_id, local) in locals {
             if let Some(value_ptr_ty) = self.local_gc_root_value_ptr_type(at, &local)? {
                 let slot_ptr =
@@ -927,7 +939,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } else {
                 slot
             };
-            slots.push((u32::MAX - index as u32, slot, extra.value_ptr_ty, frame_slot));
+            slots.push((
+                u32::MAX - index as u32,
+                slot,
+                extra.value_ptr_ty,
+                frame_slot,
+            ));
         }
         slots.sort_by_key(|(id, _, _, _)| *id);
         Ok(slots)
@@ -955,13 +972,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     where
         F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
     {
-        let explicit_frame_enabled = self.function_cx.explicit_frame_layout.frame_storage.is_some();
+        let explicit_frame_enabled = self
+            .function_cx
+            .explicit_frame_layout
+            .frame_storage
+            .is_some();
         let spills = self
             .collect_conservative_gc_root_slots(at)?
             .into_iter()
             .filter(|(_, slot, _, _)| self.conservative_gc_root_slot_needs_spill_writeback(*slot))
             .map(|(local_id, slot, value_ptr_ty, frame_slot)| {
-                let source_slot = if explicit_frame_enabled { frame_slot } else { slot };
+                let source_slot = if explicit_frame_enabled {
+                    frame_slot
+                } else {
+                    slot
+                };
                 let loaded = self
                     .builder
                     .build_load(

@@ -1,40 +1,40 @@
-## 当前执行计划
+# 执行计划
 
-说明：按要求记录简明执行计划与进度；不写入完整内部推理，仅记录可审计的步骤、发现与变更。
+1. 检查最新一次 git 提交信息，确认是否提到需要先修复的既有问题；若有，优先处理。
+2. 阅读 `TODO.md` 与 `PLAN.md`，确定第一个未完成任务，并判断是否需要拆分。
+3. 如任务可直接完成，定位相关代码与测试，实施最小正确修改；如被既有问题阻塞，则先把前置修复任务插入 `TODO.md`/`PLAN.md`。
+4. 运行与该任务相关的测试，以及必要的格式化、lint、编译检查；修复发现的问题。
+5. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md` 记录进展。
+6. 按仓库提交规范创建一次 git commit，然后停止，不继续下一个任务。
 
-1. 查看最新一次 Git 提交信息，确认是否提到需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 评估该任务是否过大；若过大，则更新 `PLAN.md` 与 `TODO.md`，拆成更小子任务，并执行第一个子任务。
-4. 实现当前目标任务，期间如果发现既有 bug / 回归 / 规格不匹配 / 缺失能力：
-   - 先修复该问题；或
-   - 若当前无法直接修复，则在 `TODO.md` 中把它加入为前置任务并调整顺序，然后停止。
-5. 运行相关验证；至少覆盖与本任务直接相关的测试，并在可能时运行更高层级检查。
-6. 更新 `TODO.md` 与 `PLAN.md`，记录完成情况或阻塞依赖。
-7. 按仓库提交信息风格创建一次 Git 提交，然后停止，不继续下一个任务。
+## 当前执行
 
-## 进度
+- 当前首个未完成任务：`T5001d3R Review`。
+- 本轮 review 将重点核对三件事：
+  1. 所有跨 safepoint roots 是否都已经拥有稳定 explicit frame home slot；
+  2. `extra_gc_root_slots` / root-slot-id 旧机制是否仍以别名形式残留；
+  3. effect / continuation / state-machine / resume 路径是否与 ordinary lowering 使用同一 home-slot 合同。
+- 若 review 发现真实 correctness 缺口，本轮优先修复该缺口；若无法在本轮直接修复，则先把前置任务插入 `TODO.md`/`PLAN.md` 后停止。
 
-- 已检查最新提交：`[T5001d2R] Fix explicit frame teardown on unreachable exits`，未发现提交信息中仍声明有待先修复的问题。
-- 已读取 `TODO.md` / `PLAN.md`：当前首个未完成任务为 `T5001d3 把源码级 roots 与编译器内部临时 roots 全部收敛到 frame home slots`。
-- 已完成首轮代码定位，发现当前实现中的关键缺口：
-  - explicit frame slot 目前主要还是 safepoint 前后的临时 mirror，不是长期稳定 home slot；
-  - `extra_gc_root_slots` 仍承担内部临时 roots 的动态 register/unregister 角色；
-  - indirect GC aggregate params 目前只预留了 frame layout，但没有把 incoming slot 与 frame slot 建立持久映射；
-  - hidden sret / deferred spill / native 边界保守 roots 仍部分依赖旧的 spill/native slot 路径补洞。
-- 当前执行方案：
-  1. 让 stack-backed GC root 的 store / 初始化路径同步写入 explicit frame leaf home slots。
-  2. 把内部临时 roots 从“动态 extra root slot id”收口成固定 spill/home-slot 跟踪，并在失活时清 `NULL`。
-  3. 补 indirect aggregate param 与 hidden sret 等缺口的 frame 同步。
-  4. 增加 LLVM 回归，覆盖“参数/临时根确实写入 frame home slots、native 边界不再依赖旧 caller slot 数组形态”的关键合同。
-- 已完成代码修改：
-  - 源码级 stack-backed locals / aggregates 的 store 后会同步写入 explicit frame home slots；
-  - indirect GC aggregate params 会在 entry 建立 slot 映射并预热到 frame；
-  - 内部临时 roots 已从 `extra_gc_root_slots` / root-slot-id 动态注册切换为固定 spill/home-slot 跟踪；
-  - ordinary safepoint keepalive 已改为从 frame home slot 读取，并在返回后同时写回原槽位与 frame home slot；
-  - hidden sret 结果会在 call 返回后立即同步进 frame，并在 load 后清理其 home slot。
+## 当前发现
+
+- 最新提交 `[T5001d3]` 未在提交信息中留下额外待修问题，可继续执行当前 review。
+- 已复核 `TODO.md` / `PLAN.md`：当前首个未完成任务仍是 `T5001d3R Review`，不需要再拆分子任务。
+- 已确认一处真实 correctness 缺口：`crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 `resume_continuation_with_encoded_payload(...)` 此前直接发射 `scoop_continuation_resume_with` runtime call，没有经过 `build_call_preserving_gc_local_roots(...)`，导致 `Continuation.resume` / replay / state-machine tail-resume 路径未统一走与 ordinary safepoint 相同的 explicit-frame home-slot keepalive 合同。
+- 已保留并继续整理中的修复：让 `resume_continuation_with_encoded_payload(...)` 接收 `span` 并统一走 `build_call_preserving_gc_local_roots(...)`；调用点已同步补传 `span`。
+- 正在补一条 LLVM 回归，锁定 `Continuation.resume` 运行时调用窗口必须出现 GC keepalive、explicit frame home-slot 参与以及调用后 write-back 痕迹。
+
+## 已完成
+
+- 已完成代码修复：`resume_continuation_with_encoded_payload(...)` 现统一通过 `build_call_preserving_gc_local_roots(...)` 发射 runtime call，`Continuation.resume` fresh/replay/tail-resume 调用点均已补传 `span`。
+- 已完成 LLVM 回归：`state_machine_multi_payload_perform_uses_tuple_transport` 现额外锁定 `Continuation.resume` 调用窗口存在 `gc_root_keepalive_*`、`explicit_gc_root_slot_*` 与调用后 write-back 痕迹。
 - 已完成验证：
+  - `cargo test -p scoopc state_machine_multi_payload_perform_uses_tuple_transport`
+  - `cargo test -p scoopc when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume`
   - `cargo test -p scoopc --lib`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/build`
-- 下一步：更新 `TODO.md` / `PLAN.md` 完成记录，检查工作区差异并创建本次提交，然后停止。
+  - `cargo clippy -p scoopc --all-targets -- -D warnings`
+- 下一步仅剩按仓库规范检查差异并创建本轮提交，然后停止。
+
+## 说明
+
+出于安全与协作边界，我不会记录详细内部推理，但会在此文件持续记录可执行计划、关键发现、阻塞原因与完成状态。

@@ -2238,22 +2238,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            _ => if let Some(result_ptr) = sret_result_slot {
-                self.load_hidden_sret_result_from_ptr(
-                    span,
-                    ret_cg,
-                    result_ptr,
-                    "pass_mir_call_sret",
-                )
-            } else {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR call return value",
-                        at: span.into(),
-                    },
-                )?;
-                self.cg_value_from_loaded(span, ret_cg, raw)
-            },
+            _ => {
+                if let Some(result_ptr) = sret_result_slot {
+                    self.load_hidden_sret_result_from_ptr(
+                        span,
+                        ret_cg,
+                        result_ptr,
+                        "pass_mir_call_sret",
+                    )
+                } else {
+                    let raw = call_site.try_as_basic_value().basic().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR call return value",
+                            at: span.into(),
+                        },
+                    )?;
+                    self.cg_value_from_loaded(span, ret_cg, raw)
+                }
+            }
         }
     }
 
@@ -2311,12 +2313,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(abi) = param_abi
                     && abi.pointee_ty().is_some()
                 {
-                    let (slot_ptr, cleanup_spills) = self
-                        .deferred_gc_spill_slot_for_call_arg(
-                            arg_span,
-                            &format!("pass_mir_call_arg_reload_{param_idx}"),
-                            deferred,
-                        )?;
+                    let (slot_ptr, cleanup_spills) = self.deferred_gc_spill_slot_for_call_arg(
+                        arg_span,
+                        &format!("pass_mir_call_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
                     return Ok(EvaluatedCallArg {
                         value: slot_ptr.into(),
                         pointer_value: None,
@@ -3236,12 +3237,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let param_ty = param_tys[param_idx];
                 let param_abi = self.ordinary_param_abi(span, param_ty)?;
                 if param_abi.pointee_ty().is_some() {
-                    let (slot_ptr, cleanup_spills) = self
-                        .deferred_gc_spill_slot_for_call_arg(
-                            arg_span,
-                            &format!("pass_mir_closure_arg_reload_{param_idx}"),
-                            deferred,
-                        )?;
+                    let (slot_ptr, cleanup_spills) = self.deferred_gc_spill_slot_for_call_arg(
+                        arg_span,
+                        &format!("pass_mir_closure_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
                     return Ok(EvaluatedCallArg {
                         value: slot_ptr.into(),
                         pointer_value: None,

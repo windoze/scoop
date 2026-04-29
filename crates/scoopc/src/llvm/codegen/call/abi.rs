@@ -113,7 +113,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: at.into(),
                 })?
                 .into_pointer_value();
-            let frame_slots = self.reserve_explicit_frame_leaf_slots_for_storage_type(at, storage_ty)?;
+            let frame_slots =
+                self.reserve_explicit_frame_leaf_slots_for_storage_type(at, storage_ty)?;
             self.record_explicit_frame_slot_mirrors(ptr, frame_slots);
             self.sync_storage_slot_into_explicit_frame(at, ptr, storage_ty, name)?;
             ptr
@@ -393,12 +394,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(abi) = param_abi
                     && abi.pointee_ty().is_some()
                 {
-                    let (slot_ptr, cleanup_spills) = self
-                        .deferred_gc_spill_slot_for_call_arg(
-                            expr_span,
-                            &format!("call_arg_reload_{param_idx}"),
-                            deferred,
-                        )?;
+                    let (slot_ptr, cleanup_spills) = self.deferred_gc_spill_slot_for_call_arg(
+                        expr_span,
+                        &format!("call_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
                     return Ok(EvaluatedCallArg {
                         value: slot_ptr.into(),
                         pointer_value: None,

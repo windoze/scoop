@@ -743,17 +743,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            _ => if let Some(result_ptr) = sret_result_slot {
-                self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "call_sret")
-            } else {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "call return value",
-                        at: span.into(),
-                    },
-                )?;
-                self.cg_value_from_loaded(span, ret_cg, raw)
-            },
+            _ => {
+                if let Some(result_ptr) = sret_result_slot {
+                    self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "call_sret")
+                } else {
+                    let raw = call_site.try_as_basic_value().basic().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "call return value",
+                            at: span.into(),
+                        },
+                    )?;
+                    self.cg_value_from_loaded(span, ret_cg, raw)
+                }
+            }
         }
     }
 
@@ -764,13 +766,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let slot_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let slots_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
-        let explicit_frame_enabled = self.function_cx.explicit_frame_layout.frame_storage.is_some();
+        let explicit_frame_enabled = self
+            .function_cx
+            .explicit_frame_layout
+            .frame_storage
+            .is_some();
 
         let slots = self
             .collect_conservative_gc_root_slots(at)?
             .into_iter()
             .map(|(id, slot, _, frame_slot)| {
-                let root_slot = if explicit_frame_enabled { frame_slot } else { slot };
+                let root_slot = if explicit_frame_enabled {
+                    frame_slot
+                } else {
+                    slot
+                };
                 (id, root_slot)
             })
             .collect::<Vec<_>>();
@@ -808,11 +818,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let enter = self.declare_runtime_enter_native();
         let enter_args: [inkwell::values::BasicMetadataValueEnum<'ctx>; 2] =
             [slots_base.into(), slots_len.into()];
-        let _ = self.builder.build_call(
-            enter,
-            &enter_args,
-            "enter_native",
-        )?;
+        let _ = self
+            .builder
+            .build_call(enter, &enter_args, "enter_native")?;
         Ok(())
     }
 
@@ -998,12 +1006,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
             _ => Ok(Some(if let Some(result_ptr) = sret_result_slot {
-                self.load_hidden_sret_result_from_ptr(
-                    span,
-                    ret_cg,
-                    result_ptr,
-                    "vtable_call_sret",
-                )?
+                self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "vtable_call_sret")?
             } else {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
@@ -1220,12 +1223,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
             _ => Ok(Some(if let Some(result_ptr) = sret_result_slot {
-                self.load_hidden_sret_result_from_ptr(
-                    span,
-                    ret_cg,
-                    result_ptr,
-                    "itable_call_sret",
-                )?
+                self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "itable_call_sret")?
             } else {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {

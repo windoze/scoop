@@ -2571,6 +2571,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?;
                 } else {
                     self.resume_continuation_with_encoded_payload(
+                        span,
                         cont_ptr,
                         self.context.i64_type().const_zero(),
                         self.llvm_gc_i8_ptr_type().const_null(),

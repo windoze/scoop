@@ -1124,6 +1124,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 outcome_slot,
             };
             self.resume_continuation_with_encoded_payload(
+                span,
                 replay.token,
                 replay.resume_word,
                 replay.resume_gc_ref,
@@ -1226,6 +1227,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 outcome_slot,
             };
             self.resume_continuation_with_encoded_payload(
+                span,
                 replay.token,
                 replay.resume_word,
                 replay.resume_gc_ref,
@@ -2153,6 +2155,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let (word, gc_ref) = self.encode_effect_transport_value(span, val)?;
         self.resume_continuation_with_encoded_payload(
+            span,
             cont_ptr,
             word,
             gc_ref,
@@ -2163,6 +2166,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn resume_continuation_with_encoded_payload(
         &mut self,
+        span: crate::span::Span,
         cont_ptr: PointerValue<'ctx>,
         word: IntValue<'ctx>,
         gc_ref: PointerValue<'ctx>,
@@ -2170,18 +2174,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call_name: &str,
     ) -> Result<(), LlvmEmitError> {
         let resume_fn = self.declare_runtime_continuation_resume_with();
-        self.builder.build_call(
-            resume_fn,
-            &[
-                cont_ptr.into(),
-                word.into(),
-                gc_ref.into(),
-                result_slots.out_word_slot.into(),
-                result_slots.out_gc_ref_slot.into(),
-                result_slots.outcome_slot.into(),
-            ],
-            call_name,
-        )?;
+        let args = [
+            cont_ptr.into(),
+            word.into(),
+            gc_ref.into(),
+            result_slots.out_word_slot.into(),
+            result_slots.out_gc_ref_slot.into(),
+            result_slots.outcome_slot.into(),
+        ];
+        let _ = self.build_call_preserving_gc_local_roots(span, resume_fn, &args, call_name)?;
         Ok(())
     }
 

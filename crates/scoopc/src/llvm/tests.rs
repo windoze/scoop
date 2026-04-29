@@ -3709,6 +3709,24 @@ fun main(): Int {
         ir.contains("@scoop_continuation_resume_with"),
         "Continuation.resume lowering should route through the shared payload+answer helper entry"
     );
+    let resume_idx = ir
+        .find("call i32 @scoop_continuation_resume_with")
+        .expect("expected Continuation.resume runtime call in emitted IR");
+    let resume_window_start = resume_idx.saturating_sub(500);
+    let resume_window_end = std::cmp::min(resume_idx + 2200, ir.len());
+    let resume_window = &ir[resume_window_start..resume_window_end];
+    assert!(
+        resume_window.contains("gc_root_keepalive_"),
+        "Continuation.resume call should preserve live GC roots around the runtime helper call\n{resume_window}"
+    );
+    assert!(
+        resume_window.contains("explicit_gc_root_slot_"),
+        "Continuation.resume keepalive should come from explicit frame home slots in explicit mode\n{resume_window}"
+    );
+    assert!(
+        resume_window.contains("store ptr addrspace(1) %gc_root_keepalive_"),
+        "Continuation.resume return path should write relocated keepalive values back to their home slots\n{resume_window}"
+    );
     assert!(
         !ir.contains("@scoop_continuation_resume_into"),
         "Continuation.resume lowering should no longer stage payload by calling the lower-level answer-only helper directly"
@@ -5230,15 +5248,20 @@ fun main() {
         "expected explicit root frame TLS declaration\n{ir}"
     );
     assert!(
-        keep_ir.contains("store ptr %explicit_root_frame_storage, ptr @__scoop_explicit_root_frame_top"),
+        keep_ir.contains(
+            "store ptr %explicit_root_frame_storage, ptr @__scoop_explicit_root_frame_top"
+        ),
         "expected function entry to push explicit root frame\n{keep_ir}"
     );
     assert!(
-        keep_ir.contains("store ptr %explicit_root_frame_pop_prev, ptr @__scoop_explicit_root_frame_top"),
+        keep_ir.contains(
+            "store ptr %explicit_root_frame_pop_prev, ptr @__scoop_explicit_root_frame_top"
+        ),
         "expected function return to restore previous explicit root frame\n{keep_ir}"
     );
     assert!(
-        keep_ir.contains("store ptr addrspace(1) %gc_root_keepalive_0, ptr %explicit_gc_root_slot_0"),
+        keep_ir
+            .contains("store ptr addrspace(1) %gc_root_keepalive_0, ptr %explicit_gc_root_slot_0"),
         "expected safepoint to keep the relocated root in explicit frame home storage\n{keep_ir}"
     );
     assert!(
@@ -5275,7 +5298,9 @@ fun main(): Int {
     let stop_ir = function_ir_named(&ir, "@a.stop(");
 
     assert!(
-        stop_ir.contains("store ptr %explicit_root_frame_storage, ptr @__scoop_explicit_root_frame_top"),
+        stop_ir.contains(
+            "store ptr %explicit_root_frame_storage, ptr @__scoop_explicit_root_frame_top"
+        ),
         "expected never-returning function entry to push explicit root frame\n{stop_ir}"
     );
     assert!(
@@ -5283,7 +5308,9 @@ fun main(): Int {
         "expected unreachable exit to clear explicit frame slots\n{stop_ir}"
     );
     assert!(
-        stop_ir.contains("store ptr %explicit_root_frame_pop_prev, ptr @__scoop_explicit_root_frame_top"),
+        stop_ir.contains(
+            "store ptr %explicit_root_frame_pop_prev, ptr @__scoop_explicit_root_frame_top"
+        ),
         "expected unreachable exit to restore previous explicit root frame\n{stop_ir}"
     );
 }
