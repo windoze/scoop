@@ -109,6 +109,14 @@
 - 源码级 locals、aggregate 内 ref leaf、sret/indirect arg scratch、effect/state-machine lowering 生成的临时 GC roots、`extra_gc_root_slots` 一类内部根，都必须映射到 explicit frame 的固定 fields。
 - descriptor 记录 slot offset；frame field 本身保存对象头指针值。
 - 不允许继续依赖“LLVM 之后会帮我 spill 成可更新 location”这一旧合同。
+- 当前状态（T5001d3，2026-04-29）：compiler 侧现已把 explicit frame home slot 变成真正的长期 source of truth，而不再只是 ordinary safepoint 的临时 mirror。
+  - `store_local_value_exact(...)` 对 stack-backed managed locals / aggregates 的写入后，会同步把 GC leaf refs 写进对应 explicit frame home slots；因此源码级 local root 与 aggregate ref leaf 已不再只停留在原始 alloca/spill 里。
+  - ordinary indirect GC aggregate params 现在会在参数绑定时建立 incoming slot -> explicit frame slot 的持久映射，并在 entry 立刻把 ref leaves 同步进 frame，补上了此前“descriptor 已预留，但 incoming aggregate roots 没有真正进入 frame”的缺口。
+  - `DeferredGcSensitiveSpill`、call-arg spill 等编译器内部临时根不再走 `extra_gc_root_slots` / root-slot-id 动态注册；已改为直接跟踪固定 spill/home-slot，并在值 materialize/消费后清掉对应 frame home slot，避免 inactive root 长期残留。
+  - ordinary safepoint 的 keepalive 源也已切到 explicit frame home slots：调用前从 frame home slot load，调用后同时写回原 spill/local 与 frame home slot；因此 moving update 后不会再依赖“先前 spill/local 还是旧 source-of-truth，frame 只是临时数组镜像”的旧路径。
+  - hidden sret 结果现在会在 call 返回后立即同步进 frame home slot，并在 load 结果后清理该 home slot；function-value/closure/vtable/itable/raw-MIR/callee-resume 等 hidden-sret 路径均已接入同一合同。
+  - `emit_enter_native_for_extern_call_impl(...)` 在 explicit frame 已启用时也改为暴露 home-slot 指针，而不再偏向旧 local/spill 槽位形态。
+  - 配套 LLVM 回归已新增/更新：一条新断言锁定 indirect aggregate param 会在 safepoint 前写入 explicit frame home slot；既有 safepoint/statepoint 断言则已更新为“home slot 在 safepoint 后保持最新 relocated 值，仅在 activation teardown 时清零”的合同。验证已通过 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/build`。
 
 ### P5. safepoint clobber / reload 与 aggregate contract 收紧
 

@@ -100,7 +100,7 @@ use types::{
 struct EvaluatedCallArg<'ctx> {
     value: inkwell::values::BasicMetadataValueEnum<'ctx>,
     pointer_value: Option<PointerValue<'ctx>>,
-    cleanup_root_slot_ids: Vec<u32>,
+    cleanup_spills: Vec<DeferredGcSensitiveSpill<'ctx>>,
 }
 
 /// 一个“已求值，但不能继续依赖 SSA 跨后续子表达式存活”的中间值。
@@ -112,7 +112,7 @@ struct EvaluatedCallArg<'ctx> {
 #[derive(Clone)]
 struct DeferredGcSensitiveSpill<'ctx> {
     slot: PointerValue<'ctx>,
-    root_slot_ids: Vec<u32>,
+    value_ty: BasicTypeEnum<'ctx>,
 }
 
 #[derive(Clone)]
@@ -203,8 +203,7 @@ struct CgLocal<'ctx> {
 }
 
 #[derive(Clone, Copy)]
-struct ExtraGcRootSlot<'ctx> {
-    id: u32,
+struct TrackedGcRootSlot<'ctx> {
     slot: PointerValue<'ctx>,
     value_ptr_ty: PointerType<'ctx>,
     frame_slot: PointerValue<'ctx>,
@@ -373,8 +372,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
 #[derive(Default)]
 struct FunctionBodyCodegenCx<'ctx> {
     env: Env<'ctx>,
-    extra_gc_root_slots: Vec<ExtraGcRootSlot<'ctx>>,
-    next_extra_gc_root_slot_id: u32,
+    tracked_gc_root_slots: Vec<TrackedGcRootSlot<'ctx>>,
     explicit_frame_layout: ExplicitFrameLayoutPlan<'ctx>,
     explicit_frame_slot_mirrors: HashMap<usize, Vec<PointerValue<'ctx>>>,
     current_fun_return_ty: Option<CgTy>,
@@ -941,6 +939,61 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .explicit_frame_slot_mirrors
             .get(&pointer_value_key(slot))
             .map(Vec::as_slice)
+    }
+
+    fn explicit_frame_leaf_slot_pairs_for_storage_slot(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        name_prefix: &str,
+    ) -> Result<Vec<(PointerValue<'ctx>, PointerType<'ctx>, PointerValue<'ctx>)>, LlvmEmitError> {
+        if self.function_cx.explicit_frame_layout.frame_storage.is_none() {
+            return Ok(Vec::new());
+        }
+
+        let slot =
+            self.rematerialize_ptr_in_current_block(at, slot, &format!("{name_prefix}_slot"))?;
+        let Some(frame_slots) = self
+            .explicit_frame_slot_mirrors_for(slot)
+            .map(|slots| slots.to_vec())
+        else {
+            return Ok(Vec::new());
+        };
+
+        let mut gc_leaf_slots = Vec::new();
+        self.collect_gc_ptr_leaf_slots_in_spill(slot, value_ty, name_prefix, &mut gc_leaf_slots)?;
+        if frame_slots.len() != gc_leaf_slots.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "spill slot/frame slot count mismatch",
+                at: at.into(),
+            });
+        }
+
+        Ok(gc_leaf_slots
+            .into_iter()
+            .zip(frame_slots)
+            .map(|((leaf_slot, value_ptr_ty), frame_slot)| (leaf_slot, value_ptr_ty, frame_slot))
+            .collect())
+    }
+
+    fn sync_storage_slot_into_explicit_frame(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        name_prefix: &str,
+    ) -> Result<(), LlvmEmitError> {
+        for (leaf_slot, value_ptr_ty, frame_slot) in
+            self.explicit_frame_leaf_slot_pairs_for_storage_slot(at, slot, value_ty, name_prefix)?
+        {
+            let loaded = self
+                .builder
+                .build_load(value_ptr_ty, leaf_slot, &format!("{name_prefix}_reload"))?
+                .into_pointer_value();
+            let _ = self.builder.build_store(frame_slot, loaded)?;
+        }
+        Ok(())
     }
 
     fn finalize_function_explicit_frame_lifecycle(
@@ -1970,13 +2023,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.cg_value_from_loaded(at, ret_cg, loaded)
     }
 
-    fn register_gc_root_slots_for_spill_slot(
+    fn track_gc_root_slots_for_spill_slot(
         &mut self,
         at: crate::span::Span,
         slot: PointerValue<'ctx>,
         value_ty: BasicTypeEnum<'ctx>,
         name_prefix: &str,
-    ) -> Result<Vec<u32>, LlvmEmitError> {
+    ) -> Result<(), LlvmEmitError> {
         let slot =
             self.rematerialize_ptr_in_current_block(at, slot, &format!("{name_prefix}_slot"))?;
         let mut gc_leaf_slots = Vec::new();
@@ -1996,34 +2049,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             });
         }
-        Ok(gc_leaf_slots
-            .into_iter()
-            .enumerate()
-            .map(|(index, (slot, value_ptr_ty))| {
-                let frame_slot = frame_slots.get(index).copied().unwrap_or(slot);
-                self.register_extra_gc_root_slot(slot, value_ptr_ty, frame_slot)
-            })
-            .collect())
+        for (index, (slot, value_ptr_ty)) in gc_leaf_slots.into_iter().enumerate() {
+            let frame_slot = frame_slots.get(index).copied().unwrap_or(slot);
+            self.function_cx.tracked_gc_root_slots.push(TrackedGcRootSlot {
+                slot,
+                value_ptr_ty,
+                frame_slot,
+            });
+        }
+        Ok(())
     }
 
-    fn register_hidden_sret_result_roots(
+    fn sync_hidden_sret_result_roots(
         &mut self,
         at: crate::span::Span,
         ret_cg: CgTy,
         result_ptr: PointerValue<'ctx>,
         name_prefix: &str,
-    ) -> Result<Vec<u32>, LlvmEmitError> {
+    ) -> Result<(), LlvmEmitError> {
         let llvm_ret_ty = self.llvm_basic_type_of(at, ret_cg)?;
         if !self.basic_type_contains_gc_ptrs(at, llvm_ret_ty)? {
-            return Ok(Vec::new());
+            return Ok(());
         }
-        self.register_gc_root_slots_for_spill_slot(at, result_ptr, llvm_ret_ty, name_prefix)
+        self.sync_storage_slot_into_explicit_frame(at, result_ptr, llvm_ret_ty, name_prefix)
     }
 
-    fn release_gc_root_slot_ids(&mut self, root_slot_ids: &[u32]) {
-        for root_slot_id in root_slot_ids {
-            self.unregister_extra_gc_root_slot(*root_slot_id);
-        }
+    fn load_hidden_sret_result_from_ptr(
+        &mut self,
+        at: crate::span::Span,
+        ret_cg: CgTy,
+        result_ptr: PointerValue<'ctx>,
+        name_prefix: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let llvm_ret_ty = self.llvm_basic_type_of(at, ret_cg)?;
+        self.sync_hidden_sret_result_roots(at, ret_cg, result_ptr, name_prefix)?;
+        let result = self.load_sret_result_from_ptr(at, ret_cg, result_ptr)?;
+        self.clear_spill_slot_root_homes(at, result_ptr, llvm_ret_ty, name_prefix)?;
+        Ok(result)
     }
 
     fn declare_top_level_var_global(
@@ -2354,28 +2416,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.rematerialize_ptr_in_current_block(at, local.ptr, name)
     }
 
-    fn register_extra_gc_root_slot(
+    fn clear_spill_slot_root_homes(
         &mut self,
+        at: crate::span::Span,
         slot: PointerValue<'ctx>,
-        value_ptr_ty: PointerType<'ctx>,
-        frame_slot: PointerValue<'ctx>,
-    ) -> u32 {
-        let id = 0x8000_0000u32 | self.function_cx.next_extra_gc_root_slot_id;
-        self.function_cx.next_extra_gc_root_slot_id =
-            self.function_cx.next_extra_gc_root_slot_id.wrapping_add(1);
-        self.function_cx.extra_gc_root_slots.push(ExtraGcRootSlot {
-            id,
-            slot,
-            value_ptr_ty,
-            frame_slot,
-        });
-        id
-    }
-
-    fn unregister_extra_gc_root_slot(&mut self, id: u32) {
-        self.function_cx
-            .extra_gc_root_slots
-            .retain(|slot| slot.id != id);
+        value_ty: BasicTypeEnum<'ctx>,
+        name_prefix: &str,
+    ) -> Result<(), LlvmEmitError> {
+        for (_, value_ptr_ty, frame_slot) in
+            self.explicit_frame_leaf_slot_pairs_for_storage_slot(at, slot, value_ty, name_prefix)?
+        {
+            let _ = self.builder.build_store(frame_slot, value_ptr_ty.const_null())?;
+        }
+        Ok(())
     }
 
     fn collect_gc_ptr_leaf_slots_in_spill(
@@ -2464,15 +2517,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let slot = self.create_entry_alloca(at, name, ty)?;
         let _ = self.store_local_value_exact(at, slot, ty, value)?;
-        let root_slot_ids = self.register_gc_root_slots_for_spill_slot(at, slot, llvm_ty, name)?;
+        self.track_gc_root_slots_for_spill_slot(at, slot, llvm_ty, name)?;
 
         Ok(DeferredCgValue {
             ty,
             immediate: None,
-            spill: Some(DeferredGcSensitiveSpill {
-                slot,
-                root_slot_ids,
-            }),
+            spill: Some(DeferredGcSensitiveSpill { slot, value_ty: llvm_ty }),
         })
     }
 
@@ -2490,13 +2540,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let Some(spill) = value.spill {
-            for root_slot_id in spill.root_slot_ids {
-                self.unregister_extra_gc_root_slot(root_slot_id);
-            }
             let slot =
                 self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
-            let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
-            let loaded = self.builder.build_load(llvm_ty, slot, name)?;
+            let loaded = self.builder.build_load(spill.value_ty, slot, name)?;
+            self.clear_spill_slot_root_homes(at, spill.slot, spill.value_ty, name)?;
             return Ok(CgValue {
                 ty: value.ty,
                 value: Some(loaded),
@@ -3722,7 +3769,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         name: &str,
         value: DeferredCgValue<'ctx>,
-    ) -> Result<(CgValue<'ctx>, Vec<u32>), LlvmEmitError> {
+    ) -> Result<(CgValue<'ctx>, Vec<DeferredGcSensitiveSpill<'ctx>>), LlvmEmitError> {
         self.materialize_deferred_cg_value_for_call_arg_impl(at, name, value)
     }
 
@@ -3731,7 +3778,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         name: &str,
         value: DeferredCgValue<'ctx>,
-    ) -> Result<(PointerValue<'ctx>, Vec<u32>), LlvmEmitError> {
+    ) -> Result<(PointerValue<'ctx>, Vec<DeferredGcSensitiveSpill<'ctx>>), LlvmEmitError> {
         self.deferred_gc_spill_slot_for_call_arg_impl(at, name, value)
     }
 

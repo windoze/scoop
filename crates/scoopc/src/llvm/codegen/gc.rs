@@ -904,19 +904,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 slots.push((local_id, slot_ptr, value_ptr_ty, frame_slot));
             }
         }
-        for extra in self.function_cx.extra_gc_root_slots.clone() {
+        for (index, extra) in self
+            .function_cx
+            .tracked_gc_root_slots
+            .clone()
+            .into_iter()
+            .enumerate()
+        {
+            let slot = self.rematerialize_ptr_in_current_block(
+                at,
+                extra.slot,
+                &format!("tracked_gc_root_slot_{index}"),
+            )?;
             let frame_slot = if explicit_frame_enabled
-                && self.conservative_gc_root_slot_needs_spill_writeback(extra.slot)
+                && self.conservative_gc_root_slot_needs_spill_writeback(slot)
             {
                 self.rematerialize_ptr_in_current_block(
                     at,
                     extra.frame_slot,
-                    &format!("extra_explicit_gc_root_slot_{}", extra.id),
+                    &format!("tracked_explicit_gc_root_slot_{index}"),
                 )?
             } else {
-                extra.slot
+                slot
             };
-            slots.push((extra.id, extra.slot, extra.value_ptr_ty, frame_slot));
+            slots.push((u32::MAX - index as u32, slot, extra.value_ptr_ty, frame_slot));
         }
         slots.sort_by_key(|(id, _, _, _)| *id);
         Ok(slots)
@@ -950,13 +961,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_iter()
             .filter(|(_, slot, _, _)| self.conservative_gc_root_slot_needs_spill_writeback(*slot))
             .map(|(local_id, slot, value_ptr_ty, frame_slot)| {
+                let source_slot = if explicit_frame_enabled { frame_slot } else { slot };
                 let loaded = self
                     .builder
-                    .build_load(value_ptr_ty, slot, &format!("gc_root_keepalive_{local_id}"))?
+                    .build_load(
+                        value_ptr_ty,
+                        source_slot,
+                        &format!("gc_root_keepalive_{local_id}"),
+                    )?
                     .into_pointer_value();
-                if explicit_frame_enabled {
-                    let _ = self.builder.build_store(frame_slot, loaded)?;
-                }
                 Ok((slot, frame_slot, loaded, value_ptr_ty))
             })
             .collect::<Result<Vec<_>, LlvmEmitError>>()?;
@@ -969,19 +982,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(term) = insert_block.get_terminator() {
             let builder = self.context.create_builder();
             builder.position_before(&term);
-            for (slot, frame_slot, value, value_ptr_ty) in spills {
+            for (slot, frame_slot, value, _value_ptr_ty) in spills {
                 let _ = builder.build_store(slot, value)?;
                 if explicit_frame_enabled {
-                    let _ = builder.build_store(frame_slot, value_ptr_ty.const_null())?;
+                    let _ = builder.build_store(frame_slot, value)?;
                 }
             }
             return Ok(result);
         }
 
-        for (slot, frame_slot, value, value_ptr_ty) in spills {
+        for (slot, frame_slot, value, _value_ptr_ty) in spills {
             let _ = self.builder.build_store(slot, value)?;
             if explicit_frame_enabled {
-                let _ = self.builder.build_store(frame_slot, value_ptr_ty.const_null())?;
+                let _ = self.builder.build_store(frame_slot, value)?;
             }
         }
 
@@ -1857,6 +1870,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         store_inst.set_alignment(pack_n)?;
                     }
                 }
+                if ptr.get_type().get_address_space() == AddressSpace::default() {
+                    let storage_ty = self.llvm_basic_type_of(at, ty)?;
+                    self.sync_storage_slot_into_explicit_frame(at, ptr, storage_ty, "store_local")?;
+                }
             }
             CgTy::Enum(enum_ty) => {
                 let Some(raw) = value.value else {
@@ -1883,6 +1900,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.store_gc_pointer_slot_with_write_barrier(at, ptr, value_ptr)?;
                 } else {
                     let _ = self.builder.build_store(ptr, raw)?;
+                }
+                if ptr.get_type().get_address_space() == AddressSpace::default() {
+                    let storage_ty = self.llvm_basic_type_of(at, ty)?;
+                    self.sync_storage_slot_into_explicit_frame(at, ptr, storage_ty, "store_enum")?;
                 }
             }
         }

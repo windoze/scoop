@@ -726,11 +726,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        let sret_root_slot_ids = if let Some(result_ptr) = sret_result_slot {
-            self.register_hidden_sret_result_roots(span, ret_cg, result_ptr, "call_sret")?
-        } else {
-            Vec::new()
-        };
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "call_sret")?;
+        }
         if let Some(outcome_slot) = effect_outcome_slot {
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -745,21 +743,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            _ => {
-                let result = if let Some(result_ptr) = sret_result_slot {
-                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
-                } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "call return value",
-                            at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
-                };
-                self.release_gc_root_slot_ids(&sret_root_slot_ids);
-                result
-            }
+            _ => if let Some(result_ptr) = sret_result_slot {
+                self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "call_sret")
+            } else {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "call return value",
+                        at: span.into(),
+                    },
+                )?;
+                self.cg_value_from_loaded(span, ret_cg, raw)
+            },
         }
     }
 
@@ -770,11 +764,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let slot_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let slots_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
+        let explicit_frame_enabled = self.function_cx.explicit_frame_layout.frame_storage.is_some();
 
         let slots = self
             .collect_conservative_gc_root_slots(at)?
             .into_iter()
-            .map(|(id, slot, _, _)| (id, slot))
+            .map(|(id, slot, _, frame_slot)| {
+                let root_slot = if explicit_frame_enabled { frame_slot } else { slot };
+                (id, root_slot)
+            })
             .collect::<Vec<_>>();
 
         let (slots_base, slots_len) = if slots.is_empty() {
@@ -983,11 +981,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        let sret_root_slot_ids = if let Some(result_ptr) = sret_result_slot {
-            self.register_hidden_sret_result_roots(span, ret_cg, result_ptr, "vtable_call_sret")?
-        } else {
-            Vec::new()
-        };
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "vtable_call_sret")?;
+        }
         if let Some(boundary) = effect_boundary {
             let outcome_slot = self.finish_legacy_effect_boundary(span, boundary, "vtable_call")?;
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
@@ -1001,21 +997,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
-            _ => {
-                let result = if let Some(result_ptr) = sret_result_slot {
-                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
-                } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "vtable call return value",
-                            at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
-                };
-                self.release_gc_root_slot_ids(&sret_root_slot_ids);
-                Ok(Some(result?))
-            }
+            _ => Ok(Some(if let Some(result_ptr) = sret_result_slot {
+                self.load_hidden_sret_result_from_ptr(
+                    span,
+                    ret_cg,
+                    result_ptr,
+                    "vtable_call_sret",
+                )?
+            } else {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "vtable call return value",
+                        at: span.into(),
+                    },
+                )?;
+                self.cg_value_from_loaded(span, ret_cg, raw)?
+            })),
         }
     }
 
@@ -1206,11 +1203,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        let sret_root_slot_ids = if let Some(result_ptr) = sret_result_slot {
-            self.register_hidden_sret_result_roots(span, ret_cg, result_ptr, "itable_call_sret")?
-        } else {
-            Vec::new()
-        };
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "itable_call_sret")?;
+        }
         if let Some(boundary) = effect_boundary {
             let outcome_slot = self.finish_legacy_effect_boundary(span, boundary, "itable_call")?;
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
@@ -1224,21 +1219,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
-            _ => {
-                let result = if let Some(result_ptr) = sret_result_slot {
-                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
-                } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "itable call return value",
-                            at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
-                };
-                self.release_gc_root_slot_ids(&sret_root_slot_ids);
-                Ok(Some(result?))
-            }
+            _ => Ok(Some(if let Some(result_ptr) = sret_result_slot {
+                self.load_hidden_sret_result_from_ptr(
+                    span,
+                    ret_cg,
+                    result_ptr,
+                    "itable_call_sret",
+                )?
+            } else {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call return value",
+                        at: span.into(),
+                    },
+                )?;
+                self.cg_value_from_loaded(span, ret_cg, raw)?
+            })),
         }
     }
 
@@ -1657,6 +1653,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "funptr_call_sret")?;
+        }
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "funptr_call")?;
             let _ = self.swap_effect_handler_stack_top(span, saved_top, "funptr_call_restore")?;
@@ -1675,7 +1674,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Never => Ok(CgValue::never()),
             _ => {
                 if let Some(result_ptr) = sret_result_slot {
-                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
+                    self.load_hidden_sret_result_from_ptr(
+                        span,
+                        ret_cg,
+                        result_ptr,
+                        "funptr_call_sret",
+                    )
                 } else {
                     let raw = call_site.try_as_basic_value().basic().ok_or(
                         LlvmEmitError::UnsupportedMainBody {
@@ -1852,6 +1856,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "closure_call_sret")?;
+        }
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "closure_call")?;
             let _ = self.swap_effect_handler_stack_top(span, saved_top, "closure_call_restore")?;
@@ -1870,7 +1877,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Never => Ok(CgValue::never()),
             _ => {
                 if let Some(result_ptr) = sret_result_slot {
-                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
+                    self.load_hidden_sret_result_from_ptr(
+                        span,
+                        ret_cg,
+                        result_ptr,
+                        "closure_call_sret",
+                    )
                 } else {
                     let raw = call_site.try_as_basic_value().basic().ok_or(
                         LlvmEmitError::UnsupportedMainBody {

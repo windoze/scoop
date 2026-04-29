@@ -421,13 +421,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             call_site.set_call_convention(0);
             Ok(call_site)
         })?;
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(span, result_cg, result_ptr, label)?;
+        }
 
         match result_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
             _ => {
                 if let Some(result_ptr) = sret_result_slot {
-                    self.load_sret_result_from_ptr(span, result_cg, result_ptr)
+                    self.load_hidden_sret_result_from_ptr(
+                        span,
+                        result_cg,
+                        result_ptr,
+                        &format!("{label}_sret"),
+                    )
                 } else {
                     let raw = call_site.try_as_basic_value().basic().ok_or(
                         LlvmEmitError::UnsupportedMainBody {

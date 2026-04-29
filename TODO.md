@@ -176,7 +176,7 @@
 - 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`gc.rs`、`call/resume.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归，确认 managed body 的 explicit frame storage 统一经 `begin_function_explicit_frame_layout(...)` 在 entry-block 预留，top-level/object-init/closure/callee-resume/effect state-machine/dispatch 等入口都在函数收尾统一执行 `finish_function_explicit_frame_layout(...)`。review 期间发现并修复了一处现存缺口：此前 teardown 仅插入到 `ret` 终结点，导致 `CgTy::Never` 共享返回块发射 `unreachable` 时会漏掉 frame slot 清零与 TLS pop；现已改为同时覆盖 `ret` / `unreachable` 终结点，并新增 LLVM 回归 `never_returning_managed_function_pops_explicit_root_frame_before_unreachable`。另复核 safepoint spill mirror 路径仍会在调用后把 explicit frame mirror slot 清回 `NULL`，普通函数退出也会在 teardown 中统一清槽。已通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001d2
 
-### [TODO] T5001d3 把源码级 roots 与编译器内部临时 roots 全部收敛到 frame home slots
+### [DONE] T5001d3 把源码级 roots 与编译器内部临时 roots 全部收敛到 frame home slots
 - 范围：
   - 把跨 safepoint 的源码级 refs、aggregate ref leaves、内部临时 roots、hidden sret / indirect arg / return scratch roots 统一映射到 frame fields。
   - 清理仍依赖“运行时动态注册某个 root slot id”或“事后让 LLVM spill 出可更新位置”的旧路径。
@@ -184,6 +184,7 @@
 - 验收：
   - 任何跨 safepoint 存活的 GC ref 都能指出对应的 stable home slot；
   - runtime moving update 后，不再存在必须依赖旧 SSA / register / 临时数组镜像的 source-of-truth。
+- 完成记录：编译器现已把 explicit frame 从“按需 safepoint mirror”收口为稳定 home-slot 合同。`store_local_value_exact(...)` 会在 stack-backed store 后同步写入 explicit frame leaf home slots；ordinary indirect GC aggregate params 现会在绑定时建立 incoming slot -> frame slot 持久映射并把 ref leaves 预热到 frame；deferred spill / call-arg spill 等内部临时 roots 不再走 `extra_gc_root_slots` + root-slot-id 动态注册，而是直接跟踪固定 spill/home-slot 并在消费后清回 `NULL`。ordinary safepoint 的 keepalive 源也已切到 explicit frame home slots，调用后同时写回原 spill/local 与 frame home slot；hidden sret 结果则在 call 返回后立即同步进 frame，并在 load 后清理其 home slot。另新增 LLVM 回归锁定 indirect aggregate param 会在 safepoint 前写入 explicit frame home slot，并更新既有 safepoint/statepoint 断言以匹配“frame home slot 持续为 source of truth、仅在 activation teardown 时清零”的新合同。已通过 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/build` 验证。
 - 依赖：T5001d2R
 
 ### [TODO] T5001d3R Review：确认“所有跨 safepoint roots 都有 stable home slot”

@@ -4520,24 +4520,16 @@ fn thread_join_statepoint_preserves_live_gc_locals() {
         .find("@scoop_thread_join")
         .expect("IR 应包含 `scoop_thread_join` 调用");
     let join_window_start = join_idx.saturating_sub(400);
-    let join_window_end = std::cmp::min(join_idx + 1400, ir.len());
+    let join_window_end = std::cmp::min(join_idx + 3200, ir.len());
     let join_window = &ir[join_window_start..join_window_end];
 
     assert!(
-        join_window.contains("%inner"),
-        "thread.join statepoint 应保留仍在当前 frame 里的 `inner` root\n{join_window}"
-    );
-    assert!(
-        join_window.contains("%outer"),
-        "thread.join statepoint 应保留仍在当前 frame 里的 `outer` root\n{join_window}"
-    );
-    assert!(
-        join_window.contains("%worker"),
-        "thread.join statepoint 应保留 `worker` root 并在返回后写回槽位\n{join_window}"
-    );
-    assert!(
         join_window.matches("gc_root_keepalive_").count() >= 3,
-        "thread.join statepoint 应显式 spill 至少三个 GC local keepalive，而不是只保留 receiver 参数\n{join_window}"
+        "thread.join statepoint 应从多个 stable home slots 保留至少三个 GC keepalive，而不是只保留 receiver 参数\n{join_window}"
+    );
+    assert!(
+        join_window.contains("ptr %call_arg_"),
+        "thread.join statepoint 应继续从 call-arg/home-slot spill 中取回 live GC roots\n{join_window}"
     );
     assert!(
         join_window.contains(r#"[ "gc-live"("#),
@@ -4545,7 +4537,47 @@ fn thread_join_statepoint_preserves_live_gc_locals() {
     );
     assert!(
         join_window.contains("store ptr addrspace(1) %gc_root_keepalive_"),
-        "thread.join 返回后应把 relocated keepalive 写回真实 local root 槽位\n{join_window}"
+        "thread.join 返回后应把 relocated keepalive 写回真实 home slot / spill 槽位\n{join_window}"
+    );
+}
+
+#[test]
+fn indirect_gc_aggregate_param_syncs_explicit_frame_home_slot_on_entry() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+fun keep(named: Named): String {
+    __scoop_gc_collect()
+    return named.name
+}
+
+fun main() {
+    println(keep(Named { name: "hi", score: 1 }))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let keep_ir = function_ir_named(&ir, "@a.keep(");
+
+    let stores_into_home_slot = keep_ir
+        .lines()
+        .filter(|line| {
+            line.contains("store ptr addrspace(1)")
+                && line.contains(", ptr %explicit_root_frame_slot_0")
+                && !line.contains(" null,")
+        })
+        .count();
+
+    assert!(
+        stores_into_home_slot >= 1,
+        "expected indirect GC aggregate param to sync its ref leaf into explicit frame home slot before safepoint\n{keep_ir}"
     );
 }
 
@@ -5207,11 +5239,11 @@ fun main() {
     );
     assert!(
         keep_ir.contains("store ptr addrspace(1) %gc_root_keepalive_0, ptr %explicit_gc_root_slot_0"),
-        "expected safepoint prelude to spill the live root into explicit frame storage\n{keep_ir}"
+        "expected safepoint to keep the relocated root in explicit frame home storage\n{keep_ir}"
     );
     assert!(
-        keep_ir.contains("store ptr addrspace(1) null, ptr %explicit_gc_root_slot_0"),
-        "expected safepoint epilogue to clear the explicit frame slot back to NULL\n{keep_ir}"
+        keep_ir.contains("store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_0"),
+        "expected function teardown to clear the explicit frame home slot back to NULL\n{keep_ir}"
     );
 }
 

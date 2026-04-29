@@ -2221,11 +2221,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        let sret_root_slot_ids = if let Some(result_ptr) = sret_result_slot {
-            self.register_hidden_sret_result_roots(span, ret_cg, result_ptr, "pass_mir_call_sret")?
-        } else {
-            Vec::new()
-        };
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "pass_mir_call_sret")?;
+        }
         if let Some(outcome_slot) = effect_outcome_slot {
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -2240,21 +2238,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            _ => {
-                let result = if let Some(result_ptr) = sret_result_slot {
-                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
-                } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR call return value",
-                            at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
-                };
-                self.release_gc_root_slot_ids(&sret_root_slot_ids);
-                result
-            }
+            _ => if let Some(result_ptr) = sret_result_slot {
+                self.load_hidden_sret_result_from_ptr(
+                    span,
+                    ret_cg,
+                    result_ptr,
+                    "pass_mir_call_sret",
+                )
+            } else {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR call return value",
+                        at: span.into(),
+                    },
+                )?;
+                self.cg_value_from_loaded(span, ret_cg, raw)
+            },
         }
     }
 
@@ -2312,7 +2311,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(abi) = param_abi
                     && abi.pointee_ty().is_some()
                 {
-                    let (slot_ptr, cleanup_root_slot_ids) = self
+                    let (slot_ptr, cleanup_spills) = self
                         .deferred_gc_spill_slot_for_call_arg(
                             arg_span,
                             &format!("pass_mir_call_arg_reload_{param_idx}"),
@@ -2321,11 +2320,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(EvaluatedCallArg {
                         value: slot_ptr.into(),
                         pointer_value: None,
-                        cleanup_root_slot_ids,
+                        cleanup_spills,
                     });
                 }
 
-                let (materialized, cleanup_root_slot_ids) = self
+                let (materialized, cleanup_spills) = self
                     .materialize_deferred_cg_value_for_call_arg(
                         arg_span,
                         &format!("pass_mir_call_arg_reload_{param_idx}"),
@@ -2342,7 +2341,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(EvaluatedCallArg {
                     value,
                     pointer_value,
-                    cleanup_root_slot_ids,
+                    cleanup_spills,
                 })
             })
             .collect()
@@ -3140,6 +3139,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(
+                span,
+                ret_cg,
+                result_ptr,
+                "pass_mir_closure_call_sret",
+            )?;
+        }
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "pass_mir_closure_call")?;
             let _ = self.swap_effect_handler_stack_top(
@@ -3162,7 +3169,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Never => Ok(CgValue::never()),
             _ => {
                 if let Some(result_ptr) = sret_result_slot {
-                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
+                    self.load_hidden_sret_result_from_ptr(
+                        span,
+                        ret_cg,
+                        result_ptr,
+                        "pass_mir_closure_call_sret",
+                    )
                 } else {
                     let raw = call_site.try_as_basic_value().basic().ok_or(
                         LlvmEmitError::UnsupportedMainBody {
@@ -3224,7 +3236,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let param_ty = param_tys[param_idx];
                 let param_abi = self.ordinary_param_abi(span, param_ty)?;
                 if param_abi.pointee_ty().is_some() {
-                    let (slot_ptr, cleanup_root_slot_ids) = self
+                    let (slot_ptr, cleanup_spills) = self
                         .deferred_gc_spill_slot_for_call_arg(
                             arg_span,
                             &format!("pass_mir_closure_arg_reload_{param_idx}"),
@@ -3233,11 +3245,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(EvaluatedCallArg {
                         value: slot_ptr.into(),
                         pointer_value: None,
-                        cleanup_root_slot_ids,
+                        cleanup_spills,
                     });
                 }
 
-                let (materialized, cleanup_root_slot_ids) = self
+                let (materialized, cleanup_spills) = self
                     .materialize_deferred_cg_value_for_call_arg(
                         arg_span,
                         &format!("pass_mir_closure_arg_reload_{param_idx}"),
@@ -3251,7 +3263,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(EvaluatedCallArg {
                     value,
                     pointer_value,
-                    cleanup_root_slot_ids,
+                    cleanup_spills,
                 })
             })
             .collect()

@@ -106,14 +106,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let target_ty = abi.cg_ty();
         let ptr = if abi.pointee_ty().is_some() {
             let storage_ty = self.llvm_basic_type_of(at, target_ty)?;
-            let _ = self.reserve_explicit_frame_leaf_slots_for_storage_type(at, storage_ty)?;
-            llvm_fun
+            let ptr = llvm_fun
                 .get_nth_param(param_index)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: missing_kind,
                     at: at.into(),
                 })?
-                .into_pointer_value()
+                .into_pointer_value();
+            let frame_slots = self.reserve_explicit_frame_leaf_slots_for_storage_type(at, storage_ty)?;
+            self.record_explicit_frame_slot_mirrors(ptr, frame_slots);
+            self.sync_storage_slot_into_explicit_frame(at, ptr, storage_ty, name)?;
+            ptr
         } else {
             let ptr = self.create_entry_alloca(at, name, target_ty)?;
             let init =
@@ -140,7 +143,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         name: &str,
         value: DeferredCgValue<'ctx>,
-    ) -> Result<(CgValue<'ctx>, Vec<u32>), LlvmEmitError> {
+    ) -> Result<(CgValue<'ctx>, Vec<DeferredGcSensitiveSpill<'ctx>>), LlvmEmitError> {
         if let Some(raw) = value.immediate {
             return Ok((
                 CgValue {
@@ -161,7 +164,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: value.ty,
                     value: Some(loaded),
                 },
-                spill.root_slot_ids,
+                vec![spill],
             ));
         }
 
@@ -179,14 +182,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         name: &str,
         value: DeferredCgValue<'ctx>,
-    ) -> Result<(PointerValue<'ctx>, Vec<u32>), LlvmEmitError> {
+    ) -> Result<(PointerValue<'ctx>, Vec<DeferredGcSensitiveSpill<'ctx>>), LlvmEmitError> {
         let spill = value.spill.ok_or(LlvmEmitError::UnsupportedMainBody {
             kind: "indirect aggregate call arg spill",
             at: at.into(),
         })?;
         let slot =
             self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
-        Ok((slot, spill.root_slot_ids))
+        Ok((slot, vec![spill]))
     }
 
     pub(in crate::llvm::codegen) fn release_evaluated_call_arg_roots_impl(
@@ -194,7 +197,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[EvaluatedCallArg<'ctx>],
     ) {
         for arg in args {
-            self.release_gc_root_slot_ids(&arg.cleanup_root_slot_ids);
+            for spill in &arg.cleanup_spills {
+                let _ = self.clear_spill_slot_root_homes(
+                    crate::span::Span::new(0, 0),
+                    spill.slot,
+                    spill.value_ty,
+                    "call_arg_cleanup",
+                );
+            }
         }
     }
 
@@ -383,7 +393,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(abi) = param_abi
                     && abi.pointee_ty().is_some()
                 {
-                    let (slot_ptr, cleanup_root_slot_ids) = self
+                    let (slot_ptr, cleanup_spills) = self
                         .deferred_gc_spill_slot_for_call_arg(
                             expr_span,
                             &format!("call_arg_reload_{param_idx}"),
@@ -392,11 +402,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(EvaluatedCallArg {
                         value: slot_ptr.into(),
                         pointer_value: None,
-                        cleanup_root_slot_ids,
+                        cleanup_spills,
                     });
                 }
 
-                let (materialized, cleanup_root_slot_ids) = self
+                let (materialized, cleanup_spills) = self
                     .materialize_deferred_cg_value_for_call_arg(
                         expr_span,
                         &format!("call_arg_reload_{param_idx}"),
@@ -413,7 +423,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(EvaluatedCallArg {
                     value,
                     pointer_value,
-                    cleanup_root_slot_ids,
+                    cleanup_spills,
                 })
             })
             .collect()
