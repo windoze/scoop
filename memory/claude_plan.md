@@ -88,3 +88,21 @@ I cannot provide private chain-of-thought. This file records an explicit executi
 - `cargo test --all`: passed.
 - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`: passed (`fixtures: ok (24)`).
 - `cargo clippy --all-targets -- -D warnings`: passed.
+## 本轮执行计划
+
+1. 检查最新一次 Git 提交信息，确认是否显式提到需要先修复的既有问题。
+2. 阅读 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并确认是否需要先拆分。
+3. 如果存在提交中提到的既有问题或在验证中发现阻塞性既有问题，优先修复它；否则实现当前首个未完成任务。
+4. 运行与改动直接相关的测试，再运行必要的格式化、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 等验证命令，若发现问题立即修复。
+5. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态或新的前置依赖。
+6. 按仓库约定创建一次 Git 提交，然后停止，不继续处理下一个任务。
+
+## 进度记录
+
+- 已写入初始计划。
+- 已检查最新提交 `7e18dc21cc9a1b6d6b9f77efc981de5db03dad3f`（`[T5001c1] Add explicit root frame runtime substrate`），提交说明未显式记录需要先修复的既有问题。
+- 已阅读 `TODO.md` 与 `PLAN.md`；当前首个未完成任务是 `T5001c1R Review：确认 explicit frame substrate 边界成立`。
+- 已审查 `runtime/c/scoop_root_frame.h`、`runtime/c/scoop_gc_root_map_internal.h`、`runtime/c/scoop_runtime.c` 与相关测试；未发现实现层面的阻塞缺口。
+- 审查过程中发现一个应先修复的既有问题：`T5001c1` 已引入 explicit root frame ABI/TLS contract，但 `SCOOP_RUNTIME.md` 尚未同步记录。该问题现已纳入本轮处理并修复。
+- 已完成验证：`cargo test -p scoop_runtime --test explicit_root_frame`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+- 下一步：更新 `TODO.md`/`PLAN.md` 标记 `T5001c1R` 完成，检查工作区差异并创建本轮提交，然后停止。

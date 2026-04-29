@@ -76,6 +76,7 @@
 - 让 runtime 能从 TLS top 沿 `prev` 链遍历 explicit frame chain，并按 `header -> desc -> offsets` 恢复每个 `void** slot`。
 - `InNative` 线程在 explicit mode 下不再依赖 captured unwind ctx 回找 caller managed frames；`native_roots` 只保留 native 边界临时根语义。
 - 当前状态（T5001c1，2026-04-29）：已新增 `runtime/c/scoop_root_frame.h`，定义 `ScoopRootFrameDesc`、`ScoopRootFrameHeader`、TLS 符号 `__scoop_explicit_root_frame_top`，以及基础 helper `scoop_root_frame_visit_slots(...)`；该 helper 已明确 `top == NULL` 为合法空链，`slot_count == 0` frame 为合法 frame（计入 frame walk，但不访问 slot），并在 `runtime/c/scoop_gc_root_map_internal.h` 中接入为 explicit-frame root map 的并列实现。当前尚未把 GC 默认 managed roots 枚举切到 TLS frame chain；该切换仍留给 `T5001c2`。
+- Review 状态（T5001c1R，2026-04-29）：已复核 explicit frame substrate 的职责边界，确认 runtime 只通过 `frame base + descriptor offsets` 恢复 `void** slot`，没有重新引入 SP/FP 或栈布局猜测；`top == NULL` 与 zero-slot frame 均有明确 contract，并已由 `crates/scoop_runtime/tests/explicit_root_frame.rs` 与 runtime smoke helper 覆盖。另已把该 ABI/TLS contract 补记到 `SCOOP_RUNTIME.md`，避免后续编译器发射 descriptor 时依赖隐式约定。
 
 ### P3. 编译器发射 explicit frame object 与 descriptor
 

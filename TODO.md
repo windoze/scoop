@@ -100,13 +100,14 @@
 - 完成记录：新增 `runtime/c/scoop_root_frame.h`，固化 `ScoopRootFrameDesc` / `ScoopRootFrameHeader`、`__scoop_explicit_root_frame_top` TLS 符号，以及 `scoop_root_frame_visit_slots(...)` 的 `header -> desc -> offsets` 解释 helper；`runtime/c/scoop_gc_root_map_internal.h` 已补上 explicit-frame root map visitor，并明确 `slot_count == 0` frame 合法但不访问任何 slot；另通过 `scoop_test_explicit_root_frame_*` 与 `crates/scoop_runtime/tests/explicit_root_frame.rs` 锁定 TLS top 清零、zero-slot frame 与 descriptor walk 行为。
 - 依赖：T5001bR
 
-### [TODO] T5001c1R Review：确认 explicit frame substrate 边界成立
+### [DONE] T5001c1R Review：确认 explicit frame substrate 边界成立
 - 重点：
   - header / desc / offset 的职责边界是否清晰；
   - runtime 是否真正按 frame base + offset 恢复 `void** slot`，而不是重新依赖 SP/FP/栈布局猜测；
   - 零 roots 函数路径是否明确定义，没有留下灰色行为。
 - 验收：
   - 后续编译器发射 descriptor 时不需要再调整 runtime 数据结构语义。
+- 完成记录：已复核 `runtime/c/scoop_root_frame.h`、`runtime/c/scoop_gc_root_map_internal.h`、`runtime/c/scoop_runtime.c` 与 `crates/scoop_runtime/tests/explicit_root_frame.rs`。确认 `ScoopRootFrameHeader`/`ScoopRootFrameDesc` 的边界已固定为“frame base + descriptor offsets -> void** slot”，runtime 未重新依赖 SP/FP 猜测；`top == NULL` 与 `slot_count == 0` 的语义也已通过定向 smoke test 固化。另补齐 `SCOOP_RUNTIME.md` 的 explicit root frame ABI 说明，并通过 `cargo test -p scoop_runtime --test explicit_root_frame`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 复核。
 - 依赖：T5001c1
 
 ### [TODO] T5001c2 让 explicit mode 的 managed roots 枚举走 TLS frame chain，并收窄 `InNative` 依赖

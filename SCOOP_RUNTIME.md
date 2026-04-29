@@ -178,6 +178,34 @@ The exact symbol allowlist is tracked in `TODO.md` and will be enforced by tooli
 
 as part of the toolchain contract, and update them in lockstep with fixtures when changes are required.
 
+### 7.1 Explicit root frame substrate contract
+
+The runtime now exposes an explicit root frame substrate for the managed-root path that is being migrated away from stackmap-only lookup.
+
+Current ABI contract:
+
+- Each activation frame object that participates in explicit root tracking begins with `ScoopRootFrameHeader` as its first field.
+- `ScoopRootFrameHeader` stores:
+  - `prev`: previous frame in the current thread's explicit frame chain.
+  - `desc`: pointer to a `ScoopRootFrameDesc` describing the frame's managed root home slots.
+- `ScoopRootFrameDesc` stores:
+  - `slot_count`: number of managed root slots in the frame.
+  - `slot_offsets`: offsets, relative to the frame base, for each `void*` root home slot.
+- Because `hdr` is the first field, a `ScoopRootFrameHeader*` is also the frame base used with `slot_offsets`; runtime traversal must recover slots by `frame_base + offset`, not by inferring SP/FP layout.
+- The current thread's chain top is exported as `__scoop_explicit_root_frame_top` and is cleared on thread teardown.
+
+Defined edge cases:
+
+- `__scoop_explicit_root_frame_top == NULL` means the current thread has no explicit managed frames and is a valid steady state.
+- A frame with `slot_count == 0` is valid. It still participates in the chain shape, but visiting it yields zero root slots.
+- A non-NULL frame must provide a non-NULL `desc`; if `slot_count > 0`, `slot_offsets` must also be non-NULL. Violating either condition is a runtime contract error.
+
+This substrate is intentionally narrower than a full activation-record model:
+
+- It describes only stack-backed managed root home slots.
+- It does not describe arbitrary locals, machine spill slots, heap-backed continuation/effect frame fields, or stack layout reconstruction rules.
+- Later compiler work may choose not to materialize an explicit frame for functions with zero managed root slots, but that choice must remain explicit and preserve the `NULL` top / zero-slot contracts above.
+
 ## 8. Sysroot Directory Structure
 
 The **sysroot** is a directory of `.scoop` source files shipped with the toolchain. It defines the built-in API surface that the compiler recognizes (intrinsics, core types, effect declarations).
