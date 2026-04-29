@@ -157,6 +157,8 @@
 - 在 correctness 稳定后，才单独启动两类后续优化任务：
   - stackmap selective comeback；
   - `mem2reg` allowlist/denylist rollout。
+- 当前阻塞（2026-04-30）：执行 `T5001g` 验收矩阵时，`cargo test --all` 已通过，但 `cargo run -p scoop -- test` 在首个 run-pass fixture `tests/fixtures/run-pass/async_await_minimal_int_basic.scoop` 失败；进一步复现显示 `task_step_manual_basic.scoop` 与最小 `outer.step() -> Pending; outer.step()` await/task waiting 路径会卡住，说明 async/task runtime 在 post-await drive 主线上存在真实 regression。
+- 阻塞判断：这不是 fixture 形状或验收矩阵问题，而是会直接阻断全量回归结论的实现缺口；因此在 `T5001g` 之前新增 `T5001f1/T5001f1R`，先修复 await/task waiting transport 合同，再继续做本轮全量验收与文档收尾。
 
 ## 3. 本轮关键判断
 

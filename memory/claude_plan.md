@@ -1,20 +1,53 @@
-## 执行计划
+## 执行记录
 
-1. 检查最新一次提交信息，确认是否提到需要先修复的既有问题；若有，优先处理。
-2. 读取 `TODO.md`，定位第一个未完成任务，并结合 `PLAN.md` 判断是否需要拆分为更小子任务。
-3. 如果任务过大或存在前置缺口，先更新 `TODO.md` 与 `PLAN.md`，确保依赖顺序正确，然后在本轮只处理新的第一个任务。
-4. 实现当前目标任务，尽量做最小且正确的修改，不绕过已有缺陷或规范缺口。
-5. 运行与改动相关的测试，以及必要的质量检查；若发现既有问题，立即先修复或把它提升为前置任务。
-6. 完成后更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md`，然后创建一次提交并停止，不继续处理下一个任务。
+说明：此文件记录可公开的执行计划、关键判断、进度与变更；不包含不可公开的内部推理细节。
 
-## 进度记录
+### 初始计划
 
-- 已写入初始执行计划。
-- 已检查最新提交 `9a9bbbb1af058a233d5c6000f253f965db09f0bb`，提交信息未声明需先修复的既有问题。
-- 已读取 `TODO.md` 与 `PLAN.md`，当前首个未完成任务为 `T5001fR Review：确认默认 correctness 路线已真正切到 explicit root frame`。
-- 当前执行策略：围绕默认 explicit mode 的 stackmap 残留依赖做代码审查与定向验证；若发现真实缺口，先修复缺口，再回写计划与任务文件。
-- 审查中发现一处真实缺口：`__scoop_stackmap_statepoint_smoke()` 仍被保留为可选 stackmap smoke helper，但默认去掉所有 `gc "statepoint-example"` 后，它已无法再为调用点产出真实 statepoint/stackmap record。
-- 已实施最小修复：仅对显式调用该 helper 的函数恢复 LLVM statepoint GC strategy，避免影响默认 explicit-root-frame 路线；同时补充 LLVM 回归锁定该 opt-in 边界。
-- 已完成验证：`cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo clippy -p scoopc --all-targets -- -D warnings` 全部通过。
-- 已回写 `TODO.md` 与 `PLAN.md`：`T5001fR` 已标记完成，并记录本次 review 中发现并修复的 opt-in stackmap smoke 回归。
-- 下一步：检查工作区差异，准备按 `[T5001fR] ...` 创建提交，然后停止，不继续处理 `T5001g`。
+1. 查看最新提交，确认是否提到需要优先修复的既有问题。
+2. 阅读 `TODO.md` 与 `PLAN.md`，确定第一个未完成任务。
+3. 如果该任务过大，先拆分任务，并同步更新 `TODO.md` / `PLAN.md`。
+4. 实现当前应执行的首个任务。
+5. 运行相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`，修复发现的问题。
+6. 更新 `TODO.md`、`PLAN.md` 与本文件中的进度记录。
+7. 按仓库约定创建一次提交，然后停止，不继续处理下一个任务。
+
+### 当前状态
+
+- 已创建初始执行记录。
+- 已检查最新提交：`[T5001fR] Review default explicit root-frame route`，提交标题未声明需要优先处理的遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`。
+- 当前首个未完成任务：`T5001g 全量回归、GC stress、verify-roots 与文档收尾`。
+
+### T5001g 执行步骤
+
+1. 运行任务要求的最小验收矩阵：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+   - `cargo run -p scoop -- test --fixtures tests/fixtures/build`
+2. 运行质量门禁：
+   - `cargo clippy --all-targets -- -D warnings`
+3. 若回归或门禁失败：先定位并修复失败，再重新验证。
+4. 复核并补齐文档：重点检查 `SCOOP_RUNTIME.md`、必要实现注释，以及默认 explicit mode 的行为说明是否与现状一致。
+5. 记录对象体积 / 二进制体积与 steady-state / GC pause 的观察；若只能得到有限观测，则如实记录，不把性能调优作为 blocker。
+6. 更新 `TODO.md`、`PLAN.md` 与本文件后提交一次变更，并停止。
+
+### 进度更新
+
+- `cargo test --all` 已通过。
+- `cargo run -p scoop -- test` 失败，首个失败 fixture：`tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`。
+- 该失败属于执行过程中发现的现存问题，已转为当前优先处理项；下一步先最小复现并定位根因。
+
+### blocker 结论
+
+- 已用更小复现确认：
+  - 简单 `async { 41 }` + 单次 `task.step()` 正常；
+  - 一旦进入 `await` / waiting path，外层 task 首次 `step()` 返回 `Pending` 后，后续 drive 会卡住。
+- 影响范围至少包括：
+  - `tests/fixtures/run-pass/task_step_manual_basic.scoop`
+  - `tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`
+  - `tests/fixtures/run-pass/async_await_string_basic.scoop`
+  - `tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`
+- 这说明当前并不是 `T5001g` 验收矩阵本身的问题，而是 async/task waiting transport 主线存在真实 regression，会阻断全量回归结论。
+- 处理决定：按照依赖顺序，把该问题显式插入 `TODO.md` / `PLAN.md` 作为 `T5001f1/T5001f1R` 前置任务；本次提交只记录 blocker 与重排，不继续越过它做 `T5001g`。
