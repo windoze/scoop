@@ -453,6 +453,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let entry = self.context.append_basic_block(spec.llvm_fun, "entry");
         self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(spec.llvm_fun);
 
         self.function_cx.env.push_scope();
 
@@ -613,6 +614,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return_bb,
             return_alloca,
         )?;
+        self.finish_function_explicit_frame_layout(closure.span)?;
         if let (Some(plan), Some(resume_fun)) =
             (spec.callee_suspend_plan, spec.callee_resume_entry_fn)
         {

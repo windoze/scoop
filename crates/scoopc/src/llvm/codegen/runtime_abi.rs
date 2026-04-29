@@ -11,6 +11,35 @@ use super::MainCodegen;
 use super::runtime_symbols;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(super) fn llvm_explicit_root_frame_desc_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopRootFrameDesc";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        ty.set_body(
+            &[
+                self.context.i32_type().into(),
+                self.llvm_ptr_type(AddressSpace::default()).into(),
+            ],
+            false,
+        );
+        ty
+    }
+
+    pub(super) fn llvm_explicit_root_frame_header_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopRootFrameHeader";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        ty.set_body(&[ptr_ty.into(), ptr_ty.into()], false);
+        ty
+    }
+
     pub(super) fn llvm_effect_handler_frame_type(&self) -> StructType<'ctx> {
         // 说明：
         // - 该类型对应 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）；

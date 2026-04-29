@@ -148,6 +148,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let entry = self.context.append_basic_block(wrapper_fun, "entry");
         self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(wrapper_fun);
 
         let return_cg = self
             .cg_ty_of(fun.return_ty)
@@ -239,6 +240,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(Some(&raw))?;
             }
         }
+        self.finish_function_explicit_frame_layout(fun.span)?;
         Ok(())
     }
 
@@ -317,6 +319,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let result = (|| {
             let entry = self.context.append_basic_block(resume_fun, "entry");
             self.builder.position_at_end(entry);
+            self.begin_function_explicit_frame_layout(resume_fun);
 
             self.function_cx.current_fun_return_ty = Some(declared_return_cg);
             let uses_hidden_sret = self
@@ -358,6 +361,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
 
             self.emit_function_return_block(at, declared_return_cg, return_bb, return_alloca)?;
+            self.finish_function_explicit_frame_layout(at)?;
             self.function_cx.current_sret_return_ptr = None;
             self.function_cx.env.pop_scope();
             Ok(())

@@ -87,6 +87,19 @@
 - entry 时完成：frame alloca、slot `NULL` 初始化、`hdr.desc` / `hdr.prev` 安装、TLS push。
 - 所有退出路径都必须完成 TLS pop。
 - 无 roots 函数可在第一阶段跳过 frame 构造，但该选择必须是显式且可审计的，而不是偶然漏发射。
+- 当前状态（T5001d1，2026-04-29）：编译器已具备“函数级 explicit frame layout 规划事实”。`MainCodegen` 现在会在 top-level/HIR body、raw MIR body、closure body、object init、effect-call wrapper 与 callee resume entry 进入时启动 layout 收集，并在函数收尾统一发射：
+  - 具名 frame 结构类型 `scoop.runtime.ScoopExplicitRootFrame$...`；
+  - `__scoop_explicit_root_offsets__*` 常量 offset table；
+  - `__scoop_explicit_root_desc__*` 常量 descriptor。
+- 当前布局规划仍是 correctness-first 的静态 superset：
+  - 所有 entry alloca 都按其 LLVM storage type 展开 GC leaf pointer fields；
+  - ordinary indirect GC aggregate params 额外按 pointee storage type 展开并纳入同一 frame layout；
+  - 因此 descriptor 已明确围绕 leaf-slot，而不是“整个 aggregate/local 大字段”。
+- 已锁定的回归：
+  - direct ref local 会得到 descriptor + 单槽 offsets；
+  - `Named(String, Int)` 这类 indirect aggregate param 仅生成一个 `String` leaf slot；
+  - hidden-sret caller temp 会进入 descriptor 规划。
+- 这一阶段尚未开始把这些逻辑 slots 绑定到真实 activation frame object/TLS push-pop；该部分仍留给 `T5001d2`。
 
 ### P4. 把所有跨 safepoint roots 收敛到 stable home slots
 

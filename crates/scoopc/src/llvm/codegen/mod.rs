@@ -208,6 +208,12 @@ struct ExtraGcRootSlot<'ctx> {
     value_ptr_ty: PointerType<'ctx>,
 }
 
+#[derive(Default)]
+struct ExplicitFrameLayoutPlan<'ctx> {
+    function_symbol: Option<String>,
+    slot_tys: Vec<PointerType<'ctx>>,
+}
+
 #[derive(Clone, Copy)]
 struct OrdinaryParamLocalBinding<'ctx, 'a> {
     at: crate::span::Span,
@@ -366,6 +372,7 @@ struct FunctionBodyCodegenCx<'ctx> {
     env: Env<'ctx>,
     extra_gc_root_slots: Vec<ExtraGcRootSlot<'ctx>>,
     next_extra_gc_root_slot_id: u32,
+    explicit_frame_layout: ExplicitFrameLayoutPlan<'ctx>,
     current_fun_return_ty: Option<CgTy>,
     current_callable_fqn: Option<String>,
     loop_context_stack: Vec<LoopContext<'ctx>>,
@@ -723,6 +730,152 @@ impl<'a, 'ctx> Deref for MainCodegen<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn begin_function_explicit_frame_layout(&mut self, llvm_fun: FunctionValue<'ctx>) {
+        self.function_cx.explicit_frame_layout = ExplicitFrameLayoutPlan {
+            function_symbol: Some(
+                llvm_fun
+                    .get_name()
+                    .to_str()
+                    .unwrap_or("anonymous")
+                    .to_string(),
+            ),
+            slot_tys: Vec::new(),
+        };
+    }
+
+    fn finish_function_explicit_frame_layout(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<(), LlvmEmitError> {
+        let plan = std::mem::take(&mut self.function_cx.explicit_frame_layout);
+        let Some(function_symbol) = plan.function_symbol else {
+            return Ok(());
+        };
+
+        let slot_count = plan.slot_tys.len();
+        let frame_ty_name = explicit_root_frame_type_name(&function_symbol);
+        let frame_ty = self
+            .context
+            .get_struct_type(&frame_ty_name)
+            .unwrap_or_else(|| self.context.opaque_struct_type(&frame_ty_name));
+        let header_ty = self.llvm_explicit_root_frame_header_type();
+
+        let mut field_tys: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(1 + slot_count);
+        field_tys.push(header_ty.into());
+        field_tys.extend(
+            plan.slot_tys
+                .iter()
+                .copied()
+                .map(BasicTypeEnum::PointerType),
+        );
+        frame_ty.set_body(&field_tys, false);
+
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let i32_ty = self.context.i32_type();
+        let offset_ptr = if slot_count == 0 {
+            ptr_ty.const_null()
+        } else {
+            let offset_global_name = explicit_root_frame_offsets_global_name(&function_symbol);
+            let offsets_gv = if let Some(existing) = self.module.get_global(&offset_global_name) {
+                existing
+            } else {
+                let mut offsets = Vec::with_capacity(slot_count);
+                for field_index in 0..slot_count {
+                    let offset = self
+                        .target_data
+                        .offset_of_element(&frame_ty, (field_index + 1) as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "explicit root frame slot offset",
+                            at: at.into(),
+                        })?;
+                    offsets.push(i32_ty.const_int(offset, false));
+                }
+
+                let arr_ty = i32_ty.array_type(slot_count as u32);
+                let gv = self.module.add_global(arr_ty, None, &offset_global_name);
+                gv.set_initializer(&i32_ty.const_array(&offsets));
+                gv.set_constant(true);
+                gv.set_linkage(Linkage::Internal);
+                gv
+            };
+            offsets_gv.as_pointer_value().const_cast(ptr_ty)
+        };
+
+        let desc_global_name = explicit_root_frame_desc_global_name(&function_symbol);
+        if self.module.get_global(&desc_global_name).is_none() {
+            let desc_ty = self.llvm_explicit_root_frame_desc_type();
+            let init = desc_ty.const_named_struct(&[
+                i32_ty.const_int(slot_count as u64, false).into(),
+                offset_ptr.into(),
+            ]);
+            let gv = self.module.add_global(desc_ty, None, &desc_global_name);
+            gv.set_initializer(&init);
+            gv.set_constant(true);
+            gv.set_linkage(Linkage::Internal);
+        }
+        Ok(())
+    }
+
+    fn track_explicit_frame_storage_type(
+        &mut self,
+        at: crate::span::Span,
+        storage_ty: BasicTypeEnum<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        if self
+            .function_cx
+            .explicit_frame_layout
+            .function_symbol
+            .is_none()
+        {
+            return Ok(());
+        }
+
+        let mut slot_tys = Vec::new();
+        self.collect_gc_ptr_leaf_pointer_types_in_basic_type(at, storage_ty, &mut slot_tys)?;
+        self.function_cx
+            .explicit_frame_layout
+            .slot_tys
+            .extend(slot_tys);
+        Ok(())
+    }
+
+    fn collect_gc_ptr_leaf_pointer_types_in_basic_type(
+        &self,
+        _at: crate::span::Span,
+        ty: BasicTypeEnum<'ctx>,
+        out: &mut Vec<PointerType<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        match ty {
+            BasicTypeEnum::PointerType(ptr_ty) => {
+                if ptr_ty.get_address_space() == self.gc_address_space() {
+                    out.push(ptr_ty);
+                }
+            }
+            BasicTypeEnum::StructType(st) => {
+                if st.is_opaque() {
+                    return Ok(());
+                }
+                for field_ty in st.get_field_types() {
+                    self.collect_gc_ptr_leaf_pointer_types_in_basic_type(_at, field_ty, out)?;
+                }
+            }
+            BasicTypeEnum::ArrayType(arr) => {
+                for _ in 0..arr.len() {
+                    self.collect_gc_ptr_leaf_pointer_types_in_basic_type(
+                        _at,
+                        arr.get_element_type(),
+                        out,
+                    )?;
+                }
+            }
+            BasicTypeEnum::IntType(_)
+            | BasicTypeEnum::FloatType(_)
+            | BasicTypeEnum::VectorType(_)
+            | BasicTypeEnum::ScalableVectorType(_) => {}
+        }
+        Ok(())
+    }
+
     fn new(shared: &'a CompilationUnitCodegenCx<'a, 'ctx>) -> Self {
         Self {
             shared,
@@ -2694,6 +2847,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(llvm_fun);
 
         let Some(declared_return_cg) = self.cg_ty_of(fun.return_ty) else {
             tracing::warn!(
@@ -2748,6 +2902,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
 
         self.emit_function_return_block(fun.span, declared_return_cg, return_bb, return_alloca)?;
+        self.finish_function_explicit_frame_layout(fun.span)?;
         if let (Some(plan), Some(resume_fun)) =
             (callee_suspend_plan.as_ref(), callee_resume_entry_fn)
         {
@@ -6539,11 +6694,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn create_entry_alloca_raw(
-        &self,
+        &mut self,
         at: crate::span::Span,
         name: &str,
         alloca_ty: BasicTypeEnum<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.track_explicit_frame_storage_type(at, alloca_ty)?;
         let alloca_builder = self.context.create_builder();
         let insert_block =
             self.builder
@@ -6700,6 +6856,27 @@ fn sanitize_llvm_ident(text: &str) -> String {
         }
     }
     if out.is_empty() { "_".to_string() } else { out }
+}
+
+fn explicit_root_frame_type_name(function_symbol: &str) -> String {
+    format!(
+        "scoop.runtime.ScoopExplicitRootFrame${}",
+        sanitize_llvm_ident(function_symbol)
+    )
+}
+
+fn explicit_root_frame_offsets_global_name(function_symbol: &str) -> String {
+    format!(
+        "__scoop_explicit_root_offsets__{}",
+        sanitize_llvm_ident(function_symbol)
+    )
+}
+
+fn explicit_root_frame_desc_global_name(function_symbol: &str) -> String {
+    format!(
+        "__scoop_explicit_root_desc__{}",
+        sanitize_llvm_ident(function_symbol)
+    )
 }
 
 fn mask_to_bits(value: u128, bits: u32) -> u128 {

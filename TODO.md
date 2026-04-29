@@ -131,7 +131,7 @@
 - 完成记录：已复核 `runtime/c/scoop_gc.c`、`runtime/c/scoop_gc_backend_immix.c`、`runtime/c/scoop_gc_root_map_internal.h` 与 `crates/scoop_runtime/tests/explicit_root_frame.rs`。确认 explicit mode 下 runtime 在 STW park、`enter_native`、verify-roots、moving update 与 mark 阶段均优先消费 `explicit_root_frame_top -> explicit-frame root map`，只有在没有 explicit frame snapshot 时才退回 stackmap ctx；`native_roots` 继续仅承载 native 边界临时 roots，未再负责 caller managed frame 回溯；stackmap mode 仍通过并列 root-map 实现与现有 smoke/registry 测试保留。另修正了 `runtime/c/scoop_gc_backend_immix.c` 中两处已过期注释，并通过 `cargo test --all`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001c2
 
-### [TODO] T5001d1 规划 per-function explicit frame layout，并生成 descriptor / offset table
+### [DONE] T5001d1 规划 per-function explicit frame layout，并生成 descriptor / offset table
 - 范围：
   - 为每个 managed 函数规划固定 explicit frame layout。
   - descriptor 只记录 root home slots 的固定 offsets，不记录机器 SP/FP 偏移。
@@ -140,6 +140,7 @@
 - 验收：
   - 每个 managed 函数都能得到可审计的 frame layout 与 descriptor；
   - explicit frame 的建模粒度已经与 runtime `void** slot` 语义对齐，而不是“把 locals 打包成大 struct”。
+- 完成记录：编译器现已在各类 managed body lowering（top-level/HIR、raw MIR、closure、object init、effect-call wrapper、callee resume entry）开始时建立函数级 explicit-frame layout 规划，并在函数收尾时统一发射 `ScoopExplicitRootFrame$...` 结构类型、`__scoop_explicit_root_offsets__*` offset table 与 `__scoop_explicit_root_desc__*` descriptor。layout 以 GC leaf slot 为粒度：entry allocas 会按 LLVM storage type 展开 ref leaves；ordinary indirect GC aggregate params 也会额外纳入同一规划，因此 `Named(String, Int)` 这类 aggregate 只生成 `String` leaf slot，而不会把整个 aggregate 打进 descriptor。另新增三条 `crates/scoopc/src/llvm/tests.rs` 回归，分别锁定 direct ref local、indirect aggregate flattening 与 hidden-sret caller temp 三类路径，并已通过 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001c2R
 
 ### [TODO] T5001d1R Review：确认 frame layout 语义与 leaf-slot 展开规则成立

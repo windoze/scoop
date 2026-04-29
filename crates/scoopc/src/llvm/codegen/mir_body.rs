@@ -82,6 +82,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(llvm_fun);
 
         let Some(declared_return_cg) = self.cg_ty_of(hir_fun.return_ty) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -161,6 +162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return_bb,
             return_alloca,
         )?;
+        self.finish_function_explicit_frame_layout(hir_fun.span)?;
         self.function_cx.current_sret_return_ptr = None;
         Ok(())
     }
@@ -345,6 +347,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(llvm_fun);
         self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
             .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
@@ -412,6 +415,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return_bb,
             return_alloca,
         )?;
+        self.finish_function_explicit_frame_layout(mir_fun.span)?;
         self.function_cx.current_sret_return_ptr = None;
         Ok(())
     }

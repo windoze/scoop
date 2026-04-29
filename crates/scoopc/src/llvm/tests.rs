@@ -5138,6 +5138,115 @@ fn minimal_main_asm_written_is_non_empty() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+#[test]
+fn managed_function_emits_explicit_root_frame_descriptor() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun keep(name: String): String {
+    __scoop_gc_collect()
+    return name
+}
+
+fun main() {
+    println(keep("hi"))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@__scoop_explicit_root_desc__a_keep"),
+        "expected managed function descriptor global\n{ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_explicit_root_offsets__a_keep = internal constant [1 x i32]"),
+        "expected keep to contribute one direct ref root slot\n{ir}"
+    );
+}
+
+#[test]
+fn explicit_frame_layout_flattens_indirect_gc_aggregate_params() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+fun first(named: Named): String {
+    return named.name
+}
+
+fun main() {
+    println(first(Named { name: "hi", score: 1 }))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let context = Context::create();
+    let module = build_minimal_main_module(&session, &source, &context).unwrap();
+    let ir = module.print_to_string().to_string();
+
+    let frame_ty = context
+        .get_struct_type("scoop.runtime.ScoopExplicitRootFrame$a_first")
+        .expect("missing explicit frame type for a.first");
+    assert_eq!(
+        frame_ty.get_field_types().len(),
+        2,
+        "expected header + one leaf ref slot for Named.name"
+    );
+    assert!(
+        ir.contains("@__scoop_explicit_root_offsets__a_first = internal constant [1 x i32]"),
+        "expected indirect aggregate param to flatten to one root slot\n{ir}"
+    );
+}
+
+#[test]
+fn explicit_frame_layout_covers_hidden_sret_call_temps() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+fun make(name: String): Named {
+    return Named { name: name, score: 1 }
+}
+
+fun useIt(name: String): String {
+    val named = make(name)
+    return named.name
+}
+
+fun main() {
+    println(useIt("hi"))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@__scoop_explicit_root_desc__a_useIt"),
+        "expected descriptor for hidden-sret caller\n{ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_explicit_root_offsets__a_useIt"),
+        "expected hidden-sret caller to emit root offsets table\n{ir}"
+    );
+}
+
 fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
     for chunk in ir.split("\ndefine ").skip(1) {
         let end = chunk.find("\n}").expect("expected end of function body") + 2;

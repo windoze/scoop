@@ -200,6 +200,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let done_bb = self.context.append_basic_block(llvm_fun, "done");
 
         self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(llvm_fun);
         // object init 是一个内部 `void` 函数：设置 current_fun_return_ty 以便 codegen_return_stmt 使用正确的返回类型。
         self.function_cx.current_fun_return_ty = Some(CgTy::Unit);
 
@@ -306,6 +307,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(done_bb);
         self.builder.build_return(None)?;
+        self.finish_function_explicit_frame_layout(err_span)?;
         Ok(())
     }
 

@@ -105,6 +105,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let abi = self.ordinary_param_abi(at, ty_id)?;
         let target_ty = abi.cg_ty();
         let ptr = if abi.pointee_ty().is_some() {
+            let storage_ty = self.llvm_basic_type_of(at, target_ty)?;
+            self.track_explicit_frame_storage_type(at, storage_ty)?;
             llvm_fun
                 .get_nth_param(param_index)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
