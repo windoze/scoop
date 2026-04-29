@@ -774,7 +774,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let slots = self
             .collect_conservative_gc_root_slots(at)?
             .into_iter()
-            .map(|(id, slot, _)| (id, slot))
+            .map(|(id, slot, _, _)| (id, slot))
             .collect::<Vec<_>>();
 
         let (slots_base, slots_len) = if slots.is_empty() {
@@ -808,9 +808,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let enter = self.declare_runtime_enter_native();
+        let enter_args: [inkwell::values::BasicMetadataValueEnum<'ctx>; 2] =
+            [slots_base.into(), slots_len.into()];
         let _ = self.builder.build_call(
             enter,
-            &[slots_base.into(), slots_len.into()],
+            &enter_args,
             "enter_native",
         )?;
         Ok(())

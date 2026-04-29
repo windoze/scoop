@@ -1,21 +1,33 @@
-## 当前执行计划
+# Claude Plan
 
-1. 记录本轮目标与约束，只处理 `TODO.md` 中第一个未完成任务。
-2. 检查最新一次提交，确认是否提到需要先修复的既有问题；若有，优先处理。
-3. 阅读 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并判断是否需要拆分。
-4. 如任务过大，则先更新 `PLAN.md` 与 `TODO.md`，把任务拆成更小的前置子任务；本轮仅执行拆分后的第一个子任务。
-5. 实现当前目标，必要时补充或调整测试。
-6. 运行相关验证命令；若发现既有缺陷、回归或规格不匹配，优先修复或把其作为前置任务写入 `TODO.md` 后停止。
-7. 完成后更新 `memory/claude_plan.md`、`PLAN.md`、`TODO.md`，然后按仓库约定提交一次 git commit，并停止。
+## 约束说明
 
-## 进度记录
+- 不写入详细内部思维过程；此文件只记录可执行计划、决策和进度。
 
-- 已创建本计划文件。
-- 已检查最新提交 `69b6b65c9de84fb059b1f9b219930a774410d48b`，提交信息未声明需要先修复的既有问题。
-- 已读取 `TODO.md` 与 `PLAN.md`，确认首个未完成任务是 `T5001d1R Review`，当前无需先拆分任务。
-- 已完成首轮审查，确认两个阻塞 `T5001d2` 的缺口：
-  - 顶层不可变值初始化函数设置了 GC 策略，但没有开启/结束 explicit frame layout 规划，因此不会发 descriptor。
-  - effect state-machine 的 `step/dispatch` 托管函数同样缺少 layout 规划；其函数级返回槽位与 `handle_result_slot` 也绕过了 tracked entry alloca 路径。
-- 已修复上述缺口，并补充 LLVM 回归测试覆盖顶层值初始化函数与 effect state-machine 托管函数的 descriptor 发射。
-- 已完成验证：`cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 全部通过。
-- 下一步：回写 `TODO.md` / `PLAN.md` 后整理提交，提交完成即停止本轮。
+## 当前计划
+
+1. 检查最新一次 git 提交信息，确认是否提到需要先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 如任务过大，先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+4. 实现当前应执行的首个任务。
+5. 运行相关测试与必要的质量检查，修复发现的问题。
+6. 更新 `memory/claude_plan.md`、`PLAN.md`、`TODO.md` 记录进度。
+7. 按仓库风格提交一次 git commit，然后停止。
+
+## 关键实现决策
+
+- 最新提交 `[T5001d1R] Review explicit frame layout coverage` 未记录新的待修 pre-existing issue；当前首个未完成任务仍为 `T5001d2`。
+- 不拆分 `T5001d2`：延续当前“入口先发射占位 raw frame alloca，函数收尾补全 descriptor / frame 大小，并统一注入 entry setup / return pop”的实现路线。
+- 本轮先以 correctness 为准：在 safepoint/native 边界前把 conservative roots 写入 explicit frame slot，边界返回后写回 spill slot 并把 frame slot 清回 `NULL`。
+- 若测试表明存在某类退出路径、临时 roots 或已有 lowering 无法映射到 frame slot，则先把它当作真实 blocker 修复，不以缩小覆盖面规避。
+
+## 进度
+
+- 已创建计划文件。
+- 已检查最新提交、`TODO.md`、`PROMPT.md` 与 `PLAN.md`；当前目标为 `T5001d2`。
+- 已确认当前未提交改动已覆盖 activation frame object/TLS 生命周期的大部分骨架，并新增了对应 LLVM 回归。
+- 已复核最新提交 `[T5001d1R] Review explicit frame layout coverage`，未发现提交说明中带出的待修既有问题。
+- 已确认当前实现路线为：给 tracked stack-backed root slot 预留 explicit frame mirror，在 safepoint 前写入 frame slot，离开 safepoint与函数返回时清回 `NULL`，并在函数 entry/return 自动接入 TLS push/pop。
+- 已通过定向 LLVM 回归确认 managed function 会发射 TLS push/pop，并在 safepoint 前后正确写入/清理 explicit frame slot。
+- 已通过 `cargo check -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/build` 验证当前实现。
+- 下一步更新 `PLAN.md` / `TODO.md`，将 `T5001d2` 标记完成并准备提交。

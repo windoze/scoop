@@ -5171,6 +5171,51 @@ fun main() {
 }
 
 #[test]
+fn managed_function_emits_explicit_root_frame_tls_lifecycle_and_slot_clear() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun keep(name: String): String {
+    __scoop_gc_collect()
+    return name
+}
+
+fun main() {
+    println(keep("hi"))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let keep_ir = function_ir_named(&ir, "@a.keep(");
+
+    assert!(
+        ir.contains("@__scoop_explicit_root_frame_top = external thread_local global ptr"),
+        "expected explicit root frame TLS declaration\n{ir}"
+    );
+    assert!(
+        keep_ir.contains("store ptr %explicit_root_frame_storage, ptr @__scoop_explicit_root_frame_top"),
+        "expected function entry to push explicit root frame\n{keep_ir}"
+    );
+    assert!(
+        keep_ir.contains("store ptr %explicit_root_frame_pop_prev, ptr @__scoop_explicit_root_frame_top"),
+        "expected function return to restore previous explicit root frame\n{keep_ir}"
+    );
+    assert!(
+        keep_ir.contains("store ptr addrspace(1) %gc_root_keepalive_0, ptr %explicit_gc_root_slot_0"),
+        "expected safepoint prelude to spill the live root into explicit frame storage\n{keep_ir}"
+    );
+    assert!(
+        keep_ir.contains("store ptr addrspace(1) null, ptr %explicit_gc_root_slot_0"),
+        "expected safepoint epilogue to clear the explicit frame slot back to NULL\n{keep_ir}"
+    );
+}
+
+#[test]
 fn explicit_frame_layout_flattens_indirect_gc_aggregate_params() {
     let source = SourceFile::new_virtual(
         "<mem>",

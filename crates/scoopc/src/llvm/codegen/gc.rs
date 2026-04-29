@@ -868,7 +868,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn collect_conservative_gc_root_slots(
         &mut self,
         at: crate::span::Span,
-    ) -> Result<Vec<(u32, PointerValue<'ctx>, PointerType<'ctx>)>, LlvmEmitError> {
+    ) -> Result<Vec<(u32, PointerValue<'ctx>, PointerType<'ctx>, PointerValue<'ctx>)>, LlvmEmitError> {
         let mut locals = Vec::new();
         for frame in &self.function_cx.env.scopes {
             for (id, local) in frame {
@@ -877,17 +877,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let mut slots = Vec::new();
+        let explicit_frame_enabled = self.function_cx.explicit_frame_layout.frame_storage.is_some();
         for (local_id, local) in locals {
             if let Some(value_ptr_ty) = self.local_gc_root_value_ptr_type(at, &local)? {
                 let slot_ptr =
                     self.local_ptr_for_use(at, local, &format!("gc_root_slot_{local_id}"))?;
-                slots.push((local_id, slot_ptr, value_ptr_ty));
+                let needs_spill = self.conservative_gc_root_slot_needs_spill_writeback(slot_ptr);
+                let frame_slot = if explicit_frame_enabled && needs_spill {
+                    self.explicit_frame_slot_mirrors_for(local.ptr)
+                        .and_then(|slots| slots.first().copied())
+                        .map(|slot| {
+                            self.rematerialize_ptr_in_current_block(
+                                at,
+                                slot,
+                                &format!("explicit_gc_root_slot_{local_id}"),
+                            )
+                        })
+                        .transpose()?
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "local explicit frame root slot",
+                            at: at.into(),
+                        })?
+                } else {
+                    slot_ptr
+                };
+                slots.push((local_id, slot_ptr, value_ptr_ty, frame_slot));
             }
         }
-        for extra in &self.function_cx.extra_gc_root_slots {
-            slots.push((extra.id, extra.slot, extra.value_ptr_ty));
+        for extra in self.function_cx.extra_gc_root_slots.clone() {
+            let frame_slot = if explicit_frame_enabled
+                && self.conservative_gc_root_slot_needs_spill_writeback(extra.slot)
+            {
+                self.rematerialize_ptr_in_current_block(
+                    at,
+                    extra.frame_slot,
+                    &format!("extra_explicit_gc_root_slot_{}", extra.id),
+                )?
+            } else {
+                extra.slot
+            };
+            slots.push((extra.id, extra.slot, extra.value_ptr_ty, frame_slot));
         }
-        slots.sort_by_key(|(id, _, _)| *id);
+        slots.sort_by_key(|(id, _, _, _)| *id);
         Ok(slots)
     }
 
@@ -913,16 +944,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     where
         F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
     {
+        let explicit_frame_enabled = self.function_cx.explicit_frame_layout.frame_storage.is_some();
         let spills = self
             .collect_conservative_gc_root_slots(at)?
             .into_iter()
-            .filter(|(_, slot, _)| self.conservative_gc_root_slot_needs_spill_writeback(*slot))
-            .map(|(local_id, slot, value_ptr_ty)| {
+            .filter(|(_, slot, _, _)| self.conservative_gc_root_slot_needs_spill_writeback(*slot))
+            .map(|(local_id, slot, value_ptr_ty, frame_slot)| {
                 let loaded = self
                     .builder
                     .build_load(value_ptr_ty, slot, &format!("gc_root_keepalive_{local_id}"))?
                     .into_pointer_value();
-                Ok((slot, loaded))
+                if explicit_frame_enabled {
+                    let _ = self.builder.build_store(frame_slot, loaded)?;
+                }
+                Ok((slot, frame_slot, loaded, value_ptr_ty))
             })
             .collect::<Result<Vec<_>, LlvmEmitError>>()?;
 
@@ -931,12 +966,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(insert_block) = self.builder.get_insert_block() else {
             return Ok(result);
         };
-        if insert_block.get_terminator().is_some() {
+        if let Some(term) = insert_block.get_terminator() {
+            let builder = self.context.create_builder();
+            builder.position_before(&term);
+            for (slot, frame_slot, value, value_ptr_ty) in spills {
+                let _ = builder.build_store(slot, value)?;
+                if explicit_frame_enabled {
+                    let _ = builder.build_store(frame_slot, value_ptr_ty.const_null())?;
+                }
+            }
             return Ok(result);
         }
 
-        for (slot, value) in spills {
+        for (slot, frame_slot, value, value_ptr_ty) in spills {
             let _ = self.builder.build_store(slot, value)?;
+            if explicit_frame_enabled {
+                let _ = self.builder.build_store(frame_slot, value_ptr_ty.const_null())?;
+            }
         }
 
         Ok(result)

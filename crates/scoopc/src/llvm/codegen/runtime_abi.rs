@@ -6,6 +6,7 @@ use inkwell::AddressSpace;
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::StructType;
 use inkwell::values::FunctionValue;
+use inkwell::values::GlobalValue;
 
 use super::MainCodegen;
 use super::runtime_symbols;
@@ -38,6 +39,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         ty.set_body(&[ptr_ty.into(), ptr_ty.into()], false);
         ty
+    }
+
+    pub(super) fn declare_runtime_explicit_root_frame_top_tls(&self) -> GlobalValue<'ctx> {
+        const NAME: &str = "__scoop_explicit_root_frame_top";
+        if let Some(existing) = self.module.get_global(NAME) {
+            return existing;
+        }
+
+        let gv = self
+            .module
+            .add_global(self.llvm_ptr_type(AddressSpace::default()), None, NAME);
+        gv.set_linkage(inkwell::module::Linkage::External);
+        gv.set_thread_local(true);
+        gv
     }
 
     pub(super) fn llvm_effect_handler_frame_type(&self) -> StructType<'ctx> {

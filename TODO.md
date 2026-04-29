@@ -153,7 +153,7 @@
 - 完成记录：已复核 `crates/scoopc/src/llvm/codegen/mod.rs`、`call/abi.rs`、`effect/state_machine_emitter.rs` 与 LLVM 回归。确认 descriptor 仍只由 tracked entry-home slots 构成，aggregate 继续按 GC leaf slots 展开，未把 heap-backed traced fields 或机器栈偏移塞进 descriptor；同时补上两处遗漏的 managed function 覆盖面：顶层不可变值初始化函数，以及 effect state-machine 的 `step/dispatch` 托管函数。其返回/result 临时槽位现也改走 tracked entry alloca，从而不会在后续 `T5001d2` 中漏掉 descriptor/TLS 接线。另新增 LLVM 回归锁定上述函数会发 explicit-frame descriptor，并通过 `cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 验证。
 - 依赖：T5001d1
 
-### [TODO] T5001d2 发射 activation frame object，接入 entry alloca、TLS push/pop 与 slot NULL discipline
+### [DONE] T5001d2 发射 activation frame object，接入 entry alloca、TLS push/pop 与 slot NULL discipline
 - 范围：
   - 为 managed 函数发射 entry-block alloca 的 frame object，并把 header 放在首字段。
   - entry 时完成：slot `NULL` 初始化、`hdr.desc` / `hdr.prev` 安装、TLS push。
@@ -163,6 +163,7 @@
   - frame 地址在整个 activation 内稳定；
   - push/pop 与 NULL discipline 在所有退出路径上一致成立；
   - 没有“普通 return 正常、异常/恢复边界漏 pop”的残留路径。
+- 完成记录：编译器现在会在每个 managed function 的 entry 先预留稳定的 activation frame storage，并在函数收尾把其补成 `ScoopExplicitRootFrame$...` 对象：header 固定在首字段、descriptor/offset table 与 frame slot 地址统一按 `header + pointer-size slot` 解释。entry 路径会安装 `hdr.prev` / `hdr.desc`、把所有 frame slots 初始化为 `NULL` 并 push 到 `@__scoop_explicit_root_frame_top`；所有 `ret` 终结点前都会先清空 frame slots 并恢复上一层 TLS top，因此 ordinary return、top-level/object-init 提前返回、closure、resume wrapper/entry 与 effect state-machine step/dispatch 的退出路径都统一走同一 pop 合同。现有保守 safepoint spill 也已接上 frame mirror：调用前把 live GC slot 写入 explicit frame，调用后写回 spill slot 并把 frame slot 清回 `NULL`，避免 inactive slot 长期保活。另新增 LLVM 回归锁定 TLS push/pop 与 safepoint slot clear，并通过 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/build` 验证。
 - 依赖：T5001d1R
 
 ### [TODO] T5001d2R Review：确认 frame 生命周期与 NULL discipline 成立

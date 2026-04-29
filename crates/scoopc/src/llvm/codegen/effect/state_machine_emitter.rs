@@ -522,7 +522,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let entry_bb = self.context.append_basic_block(step_fn, "entry");
         self.builder.position_at_end(entry_bb);
-        self.begin_function_explicit_frame_layout(step_fn);
+        self.begin_function_explicit_frame_layout(step_fn)?;
 
         // Extract parameters.
         let state_ptr = step_fn
@@ -695,7 +695,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let entry_bb = self.context.append_basic_block(dispatch_loop_fn, "entry");
         self.builder.position_at_end(entry_bb);
-        self.begin_function_explicit_frame_layout(dispatch_loop_fn);
+        self.begin_function_explicit_frame_layout(dispatch_loop_fn)?;
 
         let frame_ptr = dispatch_loop_fn
             .get_nth_param(0)

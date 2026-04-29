@@ -453,7 +453,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let entry = self.context.append_basic_block(spec.llvm_fun, "entry");
         self.builder.position_at_end(entry);
-        self.begin_function_explicit_frame_layout(spec.llvm_fun);
+        self.begin_function_explicit_frame_layout(spec.llvm_fun)?;
 
         self.function_cx.env.push_scope();
 
