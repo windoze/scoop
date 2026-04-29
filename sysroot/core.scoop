@@ -209,8 +209,9 @@ fun __scoop_println_string(value: String): Unit
 // - `__scoop_gc_debug_alloc_garbage(n)` 用于制造垃圾对象（不写入 roots）；
 // - `__scoop_gc_debug_heap_object_count()` 用于验证 sweep 是否回收；
 // - `__scoop_stackmap_statepoint_smoke()` 是 stackmap registry 的端到端 smoke：
-//   编译器必须把它 lowering 成 ordinary managed runtime 调用，
-//   这样调用点本身会保留真实 statepoint/stackmap record。
+//   它是显式 opt-in 的可选 stackmap 路径，不属于默认 explicit-root-frame correctness 主线；
+// - 编译器会仅对包含该调用点的函数恢复 statepoint GC strategy，并把它 lowering 成 ordinary
+//   managed runtime 调用，这样调用点本身会重新保留真实 statepoint/stackmap record。
 fun __scoop_gc_collect(): Unit
 fun __scoop_gc_debug_heap_object_count(): Int
 fun __scoop_gc_debug_alloc_garbage(count: Int): Unit

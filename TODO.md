@@ -252,13 +252,14 @@
 - 完成记录：默认 explicit mode 现已全面切到 explicit root frame。编译器侧已移除托管函数、closure/object-init/raw-MIR/effect state-machine/callee-resume 以及 synthetic `main` 的 `gc "statepoint-example"` 标记，默认 lowering 不再生成 statepoint/stackmap intrinsics；同时让 synthetic `main` 也走 explicit frame layout，并修复其 frame storage alloca 必须固定插在 entry alloca 区的 dominance 缺口。runtime 侧 `scoop_runtime_init()` 不再默认注册当前进程 stackmap registry，GC 在 `InNative` 线程上也允许“只有 native_roots、没有 managed frame root map”的默认 explicit-mode 场景，不再把 stackmap ctx 视为必备前提。测试侧删除了默认矩阵里仅服务 stackmap 默认路径的 dump/registry fixture，新增 `tests/fixtures/build/explicit_root_frame_default_mode_no_stackmaps.scoop`，并把 LLVM/object/runtime 断言统一改为锁定“默认产物无 `.llvm_stackmaps` / `__llvm_stackmaps`、无 `gc.statepoint`、stackmap registry 仅在手动注册时可用”的合同；另同步更新了 `extern_enter_native_no_statepoint_writeback` 与 `thread_join` 相关断言，使其匹配 explicit-frame home-slot source-of-truth。已通过 `cargo test -p scoopc minimal_main_obj_omits_stackmap_section_by_default`、`cargo test -p scoopc minimal_main_obj_with_live_gc_roots_still_omits_stackmap_section`、`cargo test -p scoopc default_explicit_mode_omits_statepoint_intrinsics_and_gc_strategy`、`cargo test -p scoopc thread_join_preserves_live_gc_locals_via_explicit_root_frame`、`cargo test -p scoopc effect_runtime_functions_use_explicit_root_frame_without_statepoints`、`cargo test -p scoop_runtime`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy --all-targets -- -D warnings` 验证。
 - 依赖：T5001e2R
 
-### [TODO] T5001fR Review：确认默认 correctness 路线已真正切到 explicit root frame
+### [DONE] T5001fR Review：确认默认 correctness 路线已真正切到 explicit root frame
 - 重点：
   - 默认 explicit mode 下是否还有隐含 stackmap 依赖；
   - stackmap 是否已退到可选优化实现，而不是默认路径必需物；
   - build/fixture 断言是否真正锁住“不再生成 stackmap section”的合同。
 - 验收：
   - 可以明确声称：默认 explicit mode 的 source of truth 已是 explicit root frame，而非 stackmap。
+- 完成记录：已复核 `runtime/c/scoop_runtime.c`、`runtime/c/scoop_gc*.c`、`crates/scoopc/src/llvm/mod.rs`、`crates/scoopc/src/llvm/codegen/gc.rs`、`runtime_abi.rs`、`sysroot/core.scoop` 与现有 LLVM/object/registry 回归，确认默认 `scoop_runtime_init()` 不再自动注册 stackmap registry，GC 在默认 explicit mode 下会优先以 explicit root frame 作为 managed roots source-of-truth，而默认 LLVM 产物继续锁定“无 `gc "statepoint-example"`、无 `llvm.experimental.gc.statepoint`、无 stackmap section”。review 期间发现并修复一处真实回归：保留中的显式 stackmap smoke helper `__scoop_stackmap_statepoint_smoke()` 在默认移除 GC strategy 后已无法再为调用点产出真实 record；现已改为仅对显式调用该 helper 的函数恢复 statepoint GC strategy，从而把 stackmap 保持为按需 opt-in 的可选实现边界，而不重新污染默认 correctness 路线。另新增两条 LLVM 回归，分别锁定该 helper 会重新进入 statepoint pipeline、并可按需产出 stackmap section；已通过 `cargo test -p scoopc --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/build` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 验证。
 - 依赖：T5001f
 
 ### [TODO] T5001g 全量回归、GC stress、verify-roots 与文档收尾

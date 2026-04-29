@@ -116,8 +116,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             // 重要：
-            // - 该 test helper 需要“调用点本身”保留真实 statepoint/stackmap record；
-            // - 因此这里只能走 ordinary managed runtime call，不能复用 `@Extern` 的 native/leaf lowering。
+            // - 默认 explicit mode 不再给托管函数统一打 `gc "statepoint-example"`；
+            // - 该 helper 是保留下来的“显式 opt-in stackmap smoke”边界，因此需要仅对当前函数
+            //   恢复 LLVM statepoint GC strategy，让调用点重新产出真实 statepoint/stackmap record；
+            // - 这里只给显式调用该 helper 的函数开启该策略，避免把默认 explicit-root-frame 路线
+            //   再次退回到隐式 stackmap 依赖。
+            let current_fun = self
+                .builder
+                .get_insert_block()
+                .and_then(|bb| bb.get_parent())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "stackmap statepoint smoke caller function",
+                    at: span.into(),
+                })?;
+            current_fun.set_gc("statepoint-example");
+
+            // 该 helper 仍必须经 ordinary managed runtime call 进入 IR；不能走 `@Extern` 的
+            // native/leaf lowering，否则调用点本身不会留下 stackmap record。
             let rt = self.declare_runtime_stackmap_statepoint_smoke();
             let call = self.build_call_preserving_gc_local_roots(
                 span,

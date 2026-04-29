@@ -1030,9 +1030,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `intptr_t scoop_test_stackmap_statepoint_smoke(void)`
         //
         // 说明：
-        // - 该 helper 必须以 ordinary managed runtime 调用进入 LLVM IR；
-        // - 不能走 `@Extern` + enter_native/leave_native leaf lowering，否则调用点本身不会再产出
-        //   statepoint/stackmap record，helper 内部的 `__builtin_return_address(0)` 也无法命中 registry。
+        // - 该 helper 只服务“显式 opt-in 的 stackmap smoke”；
+        // - lowering 侧会在包含该调用点的函数上单独恢复 `gc "statepoint-example"`，从而让
+        //   调用点重新产出真实 statepoint/stackmap record；
+        // - 同时它仍必须以 ordinary managed runtime 调用进入 LLVM IR；若改走 `@Extern` +
+        //   enter_native/leave_native leaf lowering，则调用点本身不会留下 stackmap record，
+        //   helper 内部的 `__builtin_return_address(0)` 也无法命中 registry。
         let fn_ty = self.context.i64_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }

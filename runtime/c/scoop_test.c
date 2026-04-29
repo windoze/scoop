@@ -294,10 +294,11 @@ intptr_t scoop_test_unwind_dump_frames_and_stackmap_hits(void) {
 //
 // 设计意图（T1504b）：
 // - 该函数由 sysroot 内部测试 helper `__scoop_stackmap_statepoint_smoke()` 调用；
-// - 编译器必须把该 helper lowering 成 ordinary managed runtime 调用；
-// - 不能走 `@Extern` + `enter_native/leave_native` leaf lowering：T1510c1 已明确这类调用点不再生成
-//   statepoint，因此无法继续作为 stackmap registry smoke 的载体；
-// - 当调用点保持为 ordinary managed call 时，entry `main` 上的 `rewrite-statepoints-for-gc` 会把它
+// - 该 helper 属于显式 opt-in 的 stackmap smoke：编译器只会对包含该调用点的函数恢复
+//   `gc "statepoint-example"`，从而让该调用点重新进入 statepoint/stackmap pipeline；
+// - 同时仍必须保持为 ordinary managed runtime 调用，不能走 `@Extern` +
+//   `enter_native/leave_native` leaf lowering；T1510c1 已明确这类调用点不再生成 statepoint；
+// - 当调用点按上述 contract 保持为 ordinary managed call 时，`rewrite-statepoints-for-gc` 会把它
 //   重写为 statepoint，从而在 `.llvm_stackmaps` 中产生对应 record；
 // - 在本函数内部读取 `__builtin_return_address(0)` 即得到该调用点的 return address；
 // - 用该地址查询 registry，验证 return address ↔ record 的映射规则在真实产物上成立。

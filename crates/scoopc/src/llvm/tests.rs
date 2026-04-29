@@ -5092,6 +5092,70 @@ fun main(): Int {
 }
 
 #[test]
+fn stackmap_statepoint_smoke_helper_opt_in_reenables_stackmap_pipeline() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    return __scoop_stackmap_statepoint_smoke()
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+
+    let context = Context::create();
+    let module = build_minimal_main_module(&session, &source, &context).unwrap();
+    let (target_machine, _target_info) =
+        target::host_target_machine_with_opt_level(OptLevel::O0).unwrap();
+    run_pass_pipeline(&module, &target_machine, OptLevel::O0).unwrap();
+
+    let ir = module.print_to_string().to_string();
+    assert!(
+        ir.contains(r#"gc "statepoint-example""#),
+        "explicit stackmap smoke helper should opt its caller back into the LLVM statepoint GC strategy"
+    );
+    assert!(
+        ir.contains("@llvm.experimental.gc.statepoint")
+            && ir.contains("@scoop_test_stackmap_statepoint_smoke"),
+        "explicit stackmap smoke helper should still lower to a real managed statepoint call"
+    );
+}
+
+#[test]
+fn stackmap_statepoint_smoke_helper_emits_stackmap_section_when_requested() {
+    let dir = make_temp_dir("stackmap_statepoint_smoke_helper_emits_stackmap_section");
+    let output = dir.join("main.o");
+
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    return __scoop_stackmap_statepoint_smoke()
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
+
+    let bytes = std::fs::read(&output).unwrap();
+    let obj = object::File::parse(&*bytes).expect("failed to parse object file");
+    assert!(
+        object_contains_stackmap_section(&obj),
+        "explicit stackmap smoke helper should still be able to emit a stackmap section on demand"
+    );
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
 fn minimal_main_asm_written_is_non_empty() {
     let dir = make_temp_dir("minimal_main_asm_written_is_non_empty");
     let output = dir.join("main.s");
