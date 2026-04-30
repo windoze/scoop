@@ -30,4 +30,15 @@
 - [x] 实施任务
 - [x] 运行测试与 clippy
 - [x] 更新 `TODO.md`/`PLAN.md`
-- [ ] Git 提交并停止
+- [x] Git 提交并停止
+
+## 本次调用结果
+
+- 已完成任务：`T5001f8b`
+- 提交：`973dedd0`（`[T5001f8b] Materialize stable exec homes for state-machine frame locals`）
+- 关键验证：
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
