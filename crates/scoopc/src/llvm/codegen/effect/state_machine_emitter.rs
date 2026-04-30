@@ -2328,16 +2328,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.cg_value_from_loaded(at, slot_cg_ty, loaded)?
                 }
             };
-            if let Some(local) = self.function_cx.env.get(slot.id()) {
-                self.store_local_value(at, local.ptr, slot_cg_ty, value)?;
-            } else {
-                let storage_ptr = self.builder.build_pointer_cast(
-                    storage_ptr,
-                    self.llvm_ptr_type(AddressSpace::default()),
-                    &format!("writeback_outer_slot_target_{}", slot.id().as_u32()),
-                )?;
-                self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
-            }
+            let storage_ptr = self.builder.build_pointer_cast(
+                storage_ptr,
+                self.llvm_ptr_type(AddressSpace::default()),
+                &format!("writeback_outer_slot_target_{}", slot.id().as_u32()),
+            )?;
+            self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
         }
         Ok(())
     }

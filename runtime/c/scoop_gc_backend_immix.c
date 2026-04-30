@@ -5352,10 +5352,18 @@ uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
 }
 
 void *scoop_alloc(uint64_t size);
+uint32_t scoop_pin(void *raw_obj);
+uint32_t scoop_unpin(void *raw_obj);
 
 void scoop_gc_debug_alloc_garbage(int64_t count) {
   if (count <= 0) {
     return;
+  }
+
+  void **pinned = 0;
+  size_t pinned_len = 0;
+  if ((uint64_t)count <= (SIZE_MAX / sizeof(void *))) {
+    pinned = (void **)malloc((size_t)count * sizeof(void *));
   }
 
   uint64_t obj_size = (uint64_t)sizeof(ScoopGcObjectHeader);
@@ -5364,6 +5372,17 @@ void scoop_gc_debug_alloc_garbage(int64_t count) {
     if (p == 0) {
       break;
     }
+    if (pinned != 0) {
+      scoop_pin(p);
+      pinned[pinned_len++] = p;
+    }
+  }
+
+  for (size_t i = 0; i < pinned_len; i++) {
+    scoop_unpin(pinned[i]);
+  }
+  if (pinned != 0) {
+    free(pinned);
   }
 }
 

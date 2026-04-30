@@ -436,6 +436,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: once_expr.span.into(),
             });
         };
+        let deferred_once = self.defer_gc_ref_pointer(once_expr.span, "sync_once_run_receiver", once_ptr)?;
 
         let block_v = match &block_expr.kind {
             hir::ExprKind::Closure(closure) => {
@@ -498,11 +499,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_pointer_cast(fn_ptr_raw, init_fn_ptr_ty, "once_fn_typed")?;
 
+        let once_ptr = self.reload_deferred_gc_ref_without_clearing(
+            once_expr.span,
+            "sync_once_run_receiver_reload",
+            &deferred_once,
+        )?;
+
         let rt = self.declare_runtime_sync_once_run();
         let _ = self.builder.build_call(
             rt,
             &[once_ptr.into(), env_ptr.into(), init_fn_ptr.into()],
             "sync_once_run",
+        )?;
+        self.clear_deferred_cg_value_root_homes(
+            once_expr.span,
+            "sync_once_run_receiver_drop",
+            &deferred_once,
         )?;
         Ok(CgValue::unit())
     }

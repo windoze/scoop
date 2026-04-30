@@ -12,6 +12,9 @@
 //   - 用户可通过显式 `destroy()` 提前释放平台资源；
 //   - 若对象在未显式 `destroy()` 的情况下变为不可达，则通过 type descriptor 的 release_fn
 //     在 sweep 前做同一份 cleanup。
+// - 底层 pthread 原语必须拥有稳定地址，不能跟随 moving GC 搬动；因此 GC 对象本身只保存
+//   一个指向 unmanaged sidecar 的裸指针，真正的 `pthread_mutex_t/pthread_cond_t` 与 once
+//   状态都放在 sidecar 里，通过 `destroy()/release_fn` 统一销毁并 free。
 // - 这里的 release_fn 只是受限 GC cleanup，不等价于通用 finalizer：不保证顺序，且不允许复活对象。
 // - `Once.run(block)` 当前只支持非捕获 lambda（由后端保证）；并提供最小的“同线程重入不死锁”
 //   语义：初始化线程在 init 过程中再次 run 同一 once，会直接返回。
@@ -19,12 +22,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "platform/platform.h"
 #include "scoop_gc.h"
 
 // `scoop_alloc` / 线程注册 API 由 `scoop_runtime.c` 提供；这里仅做前置声明。
-void *scoop_alloc(uint64_t size);
 void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes);
 void scoop_thread_register(void);
 
@@ -61,19 +64,33 @@ intptr_t scoop_test_sync_once_destroy_count(void) {
 
 typedef struct ScoopSyncMutex {
   ScoopGcObjectHeader header;
+  void *native;
+} ScoopSyncMutex;
+
+typedef struct ScoopSyncMutexNative {
   ScoopPlatformMutex mutex;
   uint32_t destroyed;
   uint32_t initialized;
-} ScoopSyncMutex;
+} ScoopSyncMutexNative;
+
+static ScoopSyncMutexNative *scoop_sync_mutex_native(ScoopSyncMutex *m) {
+  if (m == 0 || m->native == 0) {
+    return 0;
+  }
+  return (ScoopSyncMutexNative *)m->native;
+}
 
 static void scoop_sync_mutex_destroy_impl(ScoopSyncMutex *m) {
-  if (m == 0 || m->destroyed || !m->initialized) {
+  ScoopSyncMutexNative *native = scoop_sync_mutex_native(m);
+  if (native == 0 || native->destroyed || !native->initialized) {
     return;
   }
 
-  m->destroyed = 1;
-  scoop_platform_sync_mutex_destroy(&m->mutex);
-  m->initialized = 0;
+  native->destroyed = 1;
+  scoop_platform_sync_mutex_destroy(&native->mutex);
+  native->initialized = 0;
+  free(native);
+  m->native = 0;
   (void)__atomic_fetch_add(&scoop_test_sync_mutex_destroy_calls, 1u, __ATOMIC_SEQ_CST);
 }
 
@@ -107,13 +124,23 @@ void *scoop_sync_mutex_create(void) {
     return 0;
   }
 
-  m->destroyed = 1;
-  m->initialized = 0;
-  if (!scoop_platform_sync_mutex_init(&m->mutex)) {
+  m->native = 0;
+
+  ScoopSyncMutexNative *native =
+      (ScoopSyncMutexNative *)malloc(sizeof(ScoopSyncMutexNative));
+  if (native == 0) {
     return 0;
   }
-  m->destroyed = 0;
-  m->initialized = 1;
+
+  native->destroyed = 1;
+  native->initialized = 0;
+  if (!scoop_platform_sync_mutex_init(&native->mutex)) {
+    free(native);
+    return 0;
+  }
+  native->destroyed = 0;
+  native->initialized = 1;
+  m->native = native;
   return (void *)m;
 }
 
@@ -124,11 +151,17 @@ void scoop_sync_mutex_lock(void *mutex_obj) {
 
   scoop_thread_register();
 
-  ScoopSyncMutex *m = (ScoopSyncMutex *)mutex_obj;
-  if (m->destroyed || !m->initialized) {
+  ScoopSyncMutexNative *native = scoop_sync_mutex_native((ScoopSyncMutex *)mutex_obj);
+  if (native == 0 || native->destroyed || !native->initialized) {
     return;
   }
-  scoop_platform_sync_mutex_lock(&m->mutex);
+
+  // 与 condvar_wait 同理：mutex lock 在竞争时也可能长时间阻塞于内核/平台等待队列。
+  // 若另一个线程在此期间触发 GC，当前线程必须已切到 IN_NATIVE，避免 STW 误等一个
+  // 永远到不了 safepoint 的阻塞线程。
+  scoop_enter_native(0, 0);
+  scoop_platform_sync_mutex_lock(&native->mutex);
+  scoop_leave_native();
 }
 
 void scoop_sync_mutex_unlock(void *mutex_obj) {
@@ -138,11 +171,11 @@ void scoop_sync_mutex_unlock(void *mutex_obj) {
 
   scoop_thread_register();
 
-  ScoopSyncMutex *m = (ScoopSyncMutex *)mutex_obj;
-  if (m->destroyed || !m->initialized) {
+  ScoopSyncMutexNative *native = scoop_sync_mutex_native((ScoopSyncMutex *)mutex_obj);
+  if (native == 0 || native->destroyed || !native->initialized) {
     return;
   }
-  scoop_platform_sync_mutex_unlock(&m->mutex);
+  scoop_platform_sync_mutex_unlock(&native->mutex);
 }
 
 void scoop_sync_mutex_destroy(void *mutex_obj) {
@@ -159,19 +192,33 @@ void scoop_sync_mutex_destroy(void *mutex_obj) {
 
 typedef struct ScoopSyncCondVar {
   ScoopGcObjectHeader header;
+  void *native;
+} ScoopSyncCondVar;
+
+typedef struct ScoopSyncCondVarNative {
   ScoopPlatformCondVar cond;
   uint32_t destroyed;
   uint32_t initialized;
-} ScoopSyncCondVar;
+} ScoopSyncCondVarNative;
+
+static ScoopSyncCondVarNative *scoop_sync_condvar_native(ScoopSyncCondVar *cv) {
+  if (cv == 0 || cv->native == 0) {
+    return 0;
+  }
+  return (ScoopSyncCondVarNative *)cv->native;
+}
 
 static void scoop_sync_condvar_destroy_impl(ScoopSyncCondVar *cv) {
-  if (cv == 0 || cv->destroyed || !cv->initialized) {
+  ScoopSyncCondVarNative *native = scoop_sync_condvar_native(cv);
+  if (native == 0 || native->destroyed || !native->initialized) {
     return;
   }
 
-  cv->destroyed = 1;
-  scoop_platform_sync_condvar_destroy(&cv->cond);
-  cv->initialized = 0;
+  native->destroyed = 1;
+  scoop_platform_sync_condvar_destroy(&native->cond);
+  native->initialized = 0;
+  free(native);
+  cv->native = 0;
   (void)__atomic_fetch_add(&scoop_test_sync_condvar_destroy_calls, 1u, __ATOMIC_SEQ_CST);
 }
 
@@ -205,13 +252,23 @@ void *scoop_sync_condvar_create(void) {
     return 0;
   }
 
-  cv->destroyed = 1;
-  cv->initialized = 0;
-  if (!scoop_platform_sync_condvar_init(&cv->cond)) {
+  cv->native = 0;
+
+  ScoopSyncCondVarNative *native =
+      (ScoopSyncCondVarNative *)malloc(sizeof(ScoopSyncCondVarNative));
+  if (native == 0) {
     return 0;
   }
-  cv->destroyed = 0;
-  cv->initialized = 1;
+
+  native->destroyed = 1;
+  native->initialized = 0;
+  if (!scoop_platform_sync_condvar_init(&native->cond)) {
+    free(native);
+    return 0;
+  }
+  native->destroyed = 0;
+  native->initialized = 1;
+  cv->native = native;
   return (void *)cv;
 }
 
@@ -222,9 +279,9 @@ void scoop_sync_condvar_wait(void *condvar_obj, void *mutex_obj) {
 
   scoop_thread_register();
 
-  ScoopSyncCondVar *cv = (ScoopSyncCondVar *)condvar_obj;
-  ScoopSyncMutex *m = (ScoopSyncMutex *)mutex_obj;
-  if (cv->destroyed || !cv->initialized || m->destroyed || !m->initialized) {
+  ScoopSyncCondVarNative *cv = scoop_sync_condvar_native((ScoopSyncCondVar *)condvar_obj);
+  ScoopSyncMutexNative *m = scoop_sync_mutex_native((ScoopSyncMutex *)mutex_obj);
+  if (cv == 0 || m == 0 || cv->destroyed || !cv->initialized || m->destroyed || !m->initialized) {
     return;
   }
 
@@ -247,8 +304,8 @@ void scoop_sync_condvar_notify_one(void *condvar_obj) {
 
   scoop_thread_register();
 
-  ScoopSyncCondVar *cv = (ScoopSyncCondVar *)condvar_obj;
-  if (cv->destroyed || !cv->initialized) {
+  ScoopSyncCondVarNative *cv = scoop_sync_condvar_native((ScoopSyncCondVar *)condvar_obj);
+  if (cv == 0 || cv->destroyed || !cv->initialized) {
     return;
   }
   scoop_platform_sync_condvar_signal(&cv->cond);
@@ -261,8 +318,8 @@ void scoop_sync_condvar_notify_all(void *condvar_obj) {
 
   scoop_thread_register();
 
-  ScoopSyncCondVar *cv = (ScoopSyncCondVar *)condvar_obj;
-  if (cv->destroyed || !cv->initialized) {
+  ScoopSyncCondVarNative *cv = scoop_sync_condvar_native((ScoopSyncCondVar *)condvar_obj);
+  if (cv == 0 || cv->destroyed || !cv->initialized) {
     return;
   }
   scoop_platform_sync_condvar_broadcast(&cv->cond);
@@ -290,12 +347,23 @@ typedef void (*ScoopSyncOnceInitFn)(void *env);
 
 typedef struct ScoopSyncOnce {
   ScoopGcObjectHeader header;
+  void *native;
+} ScoopSyncOnce;
+
+typedef struct ScoopSyncOnceNative {
   ScoopPlatformMutex lock;
   ScoopPlatformCondVar cond;
   uint32_t state;
   uint32_t init_flags;
   ScoopPlatformThread owner;
-} ScoopSyncOnce;
+} ScoopSyncOnceNative;
+
+static ScoopSyncOnceNative *scoop_sync_once_native(ScoopSyncOnce *o) {
+  if (o == 0 || o->native == 0) {
+    return 0;
+  }
+  return (ScoopSyncOnceNative *)o->native;
+}
 
 enum {
   SCOOP_SYNC_ONCE_INIT_FLAG_LOCK = 1u << 0,
@@ -303,20 +371,23 @@ enum {
 };
 
 static void scoop_sync_once_destroy_impl(ScoopSyncOnce *o) {
-  if (o == 0 || o->init_flags == 0u) {
+  ScoopSyncOnceNative *native = scoop_sync_once_native(o);
+  if (native == 0 || native->init_flags == 0u) {
     return;
   }
 
-  if ((o->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND) != 0u) {
-    scoop_platform_sync_condvar_destroy(&o->cond);
-    o->init_flags &= ~(uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND;
+  if ((native->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND) != 0u) {
+    scoop_platform_sync_condvar_destroy(&native->cond);
+    native->init_flags &= ~(uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND;
   }
-  if ((o->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK) != 0u) {
-    scoop_platform_sync_mutex_destroy(&o->lock);
-    o->init_flags &= ~(uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK;
+  if ((native->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK) != 0u) {
+    scoop_platform_sync_mutex_destroy(&native->lock);
+    native->init_flags &= ~(uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK;
   }
-  o->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
-  (void)memset(&o->owner, 0, sizeof(o->owner));
+  native->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
+  (void)memset(&native->owner, 0, sizeof(native->owner));
+  free(native);
+  o->native = 0;
   (void)__atomic_fetch_add(&scoop_test_sync_once_destroy_calls, 1u, __ATOMIC_SEQ_CST);
 }
 
@@ -350,19 +421,30 @@ void *scoop_sync_once_create(void) {
     return 0;
   }
 
-  o->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
-  o->init_flags = 0u;
-  (void)memset(&o->owner, 0, sizeof(o->owner));
-  if (!scoop_platform_sync_mutex_init(&o->lock)) {
+  o->native = 0;
+
+  ScoopSyncOnceNative *native =
+      (ScoopSyncOnceNative *)malloc(sizeof(ScoopSyncOnceNative));
+  if (native == 0) {
     return 0;
   }
-  o->init_flags |= (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK;
-  if (!scoop_platform_sync_condvar_init(&o->cond)) {
-    scoop_platform_sync_mutex_destroy(&o->lock);
-    o->init_flags = 0u;
+
+  native->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
+  native->init_flags = 0u;
+  (void)memset(&native->owner, 0, sizeof(native->owner));
+  if (!scoop_platform_sync_mutex_init(&native->lock)) {
+    free(native);
     return 0;
   }
-  o->init_flags |= (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND;
+  native->init_flags |= (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK;
+  if (!scoop_platform_sync_condvar_init(&native->cond)) {
+    scoop_platform_sync_mutex_destroy(&native->lock);
+    native->init_flags = 0u;
+    free(native);
+    return 0;
+  }
+  native->init_flags |= (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND;
+  o->native = native;
   return (void *)o;
 }
 
@@ -373,8 +455,8 @@ bool scoop_sync_once_is_done(void *once_obj) {
 
   scoop_thread_register();
 
-  ScoopSyncOnce *o = (ScoopSyncOnce *)once_obj;
-  if ((o->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK) == 0u) {
+  ScoopSyncOnceNative *o = scoop_sync_once_native((ScoopSyncOnce *)once_obj);
+  if (o == 0 || (o->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK) == 0u) {
     return false;
   }
   scoop_platform_sync_mutex_lock(&o->lock);
@@ -390,8 +472,8 @@ void scoop_sync_once_run(void *once_obj, void *env_ptr, ScoopSyncOnceInitFn fn) 
 
   scoop_thread_register();
 
-  ScoopSyncOnce *o = (ScoopSyncOnce *)once_obj;
-  if ((o->init_flags & ((uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK |
+  ScoopSyncOnceNative *o = scoop_sync_once_native((ScoopSyncOnce *)once_obj);
+  if (o == 0 || (o->init_flags & ((uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK |
                         (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND)) !=
       ((uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK | (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND)) {
     return;

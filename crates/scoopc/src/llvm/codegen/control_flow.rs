@@ -1918,6 +1918,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 span,
                 value: expected_text,
             } => {
+                let deferred_value = self.defer_gc_ref_pointer(at, "when_str_subject", value)?;
                 let expected = self.codegen_string_literal_from_text(*span, expected_text)?;
                 let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1925,6 +1926,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: (*span).into(),
                     });
                 };
+                let value = self.reload_deferred_gc_ref_without_clearing(
+                    at,
+                    "when_str_subject_reload",
+                    &deferred_value,
+                )?;
                 let fn_val = self.declare_runtime_string_equals();
                 let call = self.builder.build_call(
                     fn_val,
@@ -2171,6 +2177,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .builder
                     .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
                     .into_pointer_value();
+                let deferred_raw = self.defer_gc_ref_pointer(*span, "when_tuple_str_subject", raw)?;
                 let expected = self.codegen_string_literal_from_text(*span, value)?;
                 let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -2178,6 +2185,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: (*span).into(),
                     });
                 };
+                let raw = self.reload_deferred_gc_ref_without_clearing(
+                    *span,
+                    "when_tuple_str_subject_reload",
+                    &deferred_raw,
+                )?;
                 let fn_val = self.declare_runtime_string_equals();
                 let call = self.builder.build_call(
                     fn_val,

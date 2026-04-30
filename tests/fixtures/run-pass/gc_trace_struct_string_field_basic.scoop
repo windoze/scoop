@@ -20,7 +20,11 @@ fun main(): Unit {
     // 预期：仅有 1 个 live 对象（ScoopString）。
     println(__scoop_gc_debug_heap_object_count())
 
-    // 制造 1000 个不可达对象：应变为 1 + 1000。
+    // 清掉上一次 `println(Int)` 产生的临时字符串垃圾，避免后续计数依赖 stress collect
+    // 是否在 `debug_alloc_garbage()` 前发生。
+    __scoop_gc_collect()
+
+    // 制造 1000 个不可达对象：应变为 1 + 1000 = 1001。
     __scoop_gc_debug_alloc_garbage(1000)
     println(__scoop_gc_debug_heap_object_count())
 
@@ -31,4 +35,3 @@ fun main(): Unit {
     // 在 safepoint 之后读取字段：若 w.s 未被 roots 扫描保活，这里会读到悬挂指针/错误对象。
     println(w.s)
 }
-

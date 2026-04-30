@@ -19,7 +19,11 @@ fun main(): Unit {
     // 1) 仅有 keep：应为 1
     println(__scoop_gc_debug_heap_object_count())
 
-    // 2) 制造垃圾对象：应变为 1 + 1000
+    // 清掉上一次 `println(Int)` 产生的临时字符串垃圾，避免后续计数依赖是否在
+    // `debug_alloc_garbage()` 前发生了 stress collect。
+    __scoop_gc_collect()
+
+    // 2) 制造垃圾对象：应变为 1 + 1000 = 1001
     __scoop_gc_debug_alloc_garbage(1000)
     println(__scoop_gc_debug_heap_object_count())
 

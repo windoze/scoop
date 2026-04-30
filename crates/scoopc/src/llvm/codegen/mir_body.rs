@@ -1642,6 +1642,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
+                let deferred_subject =
+                    self.defer_gc_ref_pointer(span, "pass_mir_pattern_str_subject", subject_ptr)?;
                 let expected = self.codegen_string_literal_from_text(span, value)?;
                 let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1649,6 +1651,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
+                let subject_ptr = self.reload_deferred_gc_ref_without_clearing(
+                    span,
+                    "pass_mir_pattern_str_subject_reload",
+                    &deferred_subject,
+                )?;
                 let fn_val = self.declare_runtime_string_equals();
                 let call = self.builder.build_call(
                     fn_val,
