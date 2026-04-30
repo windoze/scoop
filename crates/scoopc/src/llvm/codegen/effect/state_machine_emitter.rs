@@ -2328,12 +2328,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.cg_value_from_loaded(at, slot_cg_ty, loaded)?
                 }
             };
-            let storage_ptr = self.builder.build_pointer_cast(
-                storage_ptr,
-                self.llvm_ptr_type(AddressSpace::default()),
-                &format!("writeback_outer_slot_target_{}", slot.id().as_u32()),
-            )?;
-            self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
+            if let Some(local) = self.function_cx.env.get(slot.id()) {
+                self.store_local_value(at, local.ptr, slot_cg_ty, value)?;
+            } else {
+                let storage_ptr = self.builder.build_pointer_cast(
+                    storage_ptr,
+                    self.llvm_ptr_type(AddressSpace::default()),
+                    &format!("writeback_outer_slot_target_{}", slot.id().as_u32()),
+                )?;
+                self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
+            }
         }
         Ok(())
     }
@@ -3542,6 +3546,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit | CgTy::Never => None,
             _ => Some(self.create_entry_alloca(span, "handle_result_slot", result_cg_ty)?),
         };
+        let keep_continuation = handle
+            .arms
+            .iter()
+            .any(|arm| matches!(arm.kind, hir::HandleArmKind::EscapeContinuation { .. }));
         let handle_propagate_bb = self
             .context
             .append_basic_block(current_fn, "handle_propagate");
@@ -3638,12 +3646,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "effect_frame_function_return",
             &deferred_frame,
         )?;
-        self.discard_effect_frame_continuation(
-            span,
-            frame_ptr,
-            &frame_layout,
-            "effect_frame_function_return",
-        )?;
+        if !keep_continuation {
+            self.discard_effect_frame_continuation(
+                span,
+                frame_ptr,
+                &frame_layout,
+                "effect_frame_function_return",
+            )?;
+        }
         let return_value =
             self.read_result_from_frame(span, declared_return_cg, frame_ptr, &frame_layout)?;
         self.clear_deferred_cg_value_root_homes(
@@ -3661,12 +3671,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "effect_frame_complete",
                 &deferred_frame,
             )?;
-            self.discard_effect_frame_continuation(
-                span,
-                frame_ptr,
-                &frame_layout,
-                "effect_frame_complete",
-            )?;
+            if !keep_continuation {
+                self.discard_effect_frame_continuation(
+                    span,
+                    frame_ptr,
+                    &frame_layout,
+                    "effect_frame_complete",
+                )?;
+            }
             let result =
                 self.read_result_from_frame(span, result_cg_ty, frame_ptr, &frame_layout)?;
             self.store_local_value(span, result_slot, result_cg_ty, result)?;
@@ -3676,12 +3688,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "effect_frame_complete",
                 &deferred_frame,
             )?;
-            self.discard_effect_frame_continuation(
-                span,
-                frame_ptr,
-                &frame_layout,
-                "effect_frame_complete",
-            )?;
+            if !keep_continuation {
+                self.discard_effect_frame_continuation(
+                    span,
+                    frame_ptr,
+                    &frame_layout,
+                    "effect_frame_complete",
+                )?;
+            }
         }
         self.clear_deferred_cg_value_root_homes(
             span,

@@ -1225,6 +1225,7 @@ struct ArmPlan {
     capture_locals: Vec<hir::SymbolId>,
     body_entry_state: PlanStateId,
     body_may_suspend_outward: bool,
+    escape_continuation: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2920,6 +2921,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 capture_locals,
                 body_entry_state,
                 body_may_suspend_outward,
+                escape_continuation: matches!(
+                    arm.kind,
+                    hir::HandleArmKind::EscapeContinuation { .. }
+                ),
             });
         }
     }

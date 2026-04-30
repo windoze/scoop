@@ -1346,6 +1346,10 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   k->resume_gc_ref = 0;
   k->captured_callee_suspend_state = 0;
 
+  // Escape continuation 在被外层保存、稍后才 resume 的窗口期仍可能经历 GC。
+  // 先用一个长期 pin 把 continuation 本体保住，直到第一次成功 resume 或被显式丢弃。
+  scoop_pin((void *)k);
+
   if (state != 0) {
     scoop_unpin(state);
   }
@@ -1369,6 +1373,7 @@ void scoop_continuation_discard(void *continuation) {
   }
   k->resume_gc_ref = 0;
   k->captured_callee_suspend_state = 0;
+  scoop_unpin(continuation);
 }
 
 uint32_t scoop_continuation_try_resume(void *continuation) {
@@ -1595,12 +1600,20 @@ static uint32_t scoop_continuation_resume_try(void *continuation) {
     scoop_thread_register();
   }
 
+  // GC 安全性：public resume 入口在真正进入 `resume_common()` 之前仍会经过
+  // one-shot 检查 / 失败发布 Raise 等 runtime 逻辑。这里先把 continuation 本身 pin 住，
+  // 避免这些前置路径里的 GC 让 raw C 形参失效。
+  scoop_pin(continuation);
+
   if (!scoop_continuation_try_resume(continuation)) {
     const uint64_t RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED = 2u;
     scoop_effect_raise_runtime_error_variant(
         RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED);
+    scoop_unpin(continuation);
     return 0;
   }
+  // 释放 alloc 时附加的长期 pin；后续 resume_common 只保留动态范围 pin。
+  scoop_unpin(continuation);
   return 1;
 }
 
@@ -1646,7 +1659,7 @@ static void scoop_continuation_store_resume_payload(void *continuation,
 
   ScoopContinuation *k = (ScoopContinuation *)continuation;
   k->resume_word = resume_word;
-  k->resume_gc_ref = resume_gc_ref;
+  k->resume_gc_ref = (void *)scoop_gc_write_barrier((void *)&k->resume_gc_ref, resume_gc_ref);
 }
 
 static uint32_t scoop_continuation_resume_after_try(void *continuation,
@@ -1729,16 +1742,32 @@ uint32_t scoop_continuation_resume_with(void *continuation,
   if (outcome != 0) {
     *outcome = scoop_effect_outcome_make_complete();
   }
+
+  // GC 安全性：`resume_gc_ref` 作为普通 C 形参进入 runtime；若后续路径在把它写进
+  // continuation 的 traced 字段之前触发 GC（例如 one-shot 失败发布 Raise，或未来
+  // runtime 内部新增分配），该裸参数不会被 relocate。这里先做动态范围 pin，直到
+  // payload 已安全写入 continuation / 本次调用结束。
+  if (resume_gc_ref != 0) {
+    scoop_pin(resume_gc_ref);
+  }
+
   if (!scoop_continuation_resume_try(continuation)) {
     if (outcome != 0 && __scoop_effect_active != 0) {
       scoop_effect_outcome_consume_current(outcome);
+    }
+    if (resume_gc_ref != 0) {
+      scoop_unpin(resume_gc_ref);
     }
     return 0;
   }
 
   scoop_continuation_store_resume_payload(continuation, resume_word, resume_gc_ref);
-  return scoop_continuation_resume_after_try(continuation, out_word, out_gc_ref,
-                                             outcome);
+  uint32_t resumed = scoop_continuation_resume_after_try(continuation, out_word, out_gc_ref,
+                                                         outcome);
+  if (resume_gc_ref != 0) {
+    scoop_unpin(resume_gc_ref);
+  }
+  return resumed;
 }
 
 // 兼容入口：保留旧 ABI 形状，仅负责驱动 resume；不要求 caller 消费 answer transport。

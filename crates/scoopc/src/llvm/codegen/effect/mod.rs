@@ -1189,24 +1189,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             out_gc_ref_slot,
             outcome_slot,
         };
-        let continuation = self.materialize_deferred_cg_value(
+        let cont_ptr = self.reload_deferred_gc_ref_without_clearing(
             receiver.span,
             "continuation_resume_receiver_reload",
-            deferred_continuation,
+            &deferred_continuation,
         )?;
-        let Some(raw_continuation) = continuation.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume receiver value",
-                at: receiver.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(cont_ptr) = raw_continuation else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume receiver type",
-                at: receiver.span.into(),
-            });
-        };
-        self.clear_continuation_resume_receiver_local_if_any(receiver)?;
         self.resume_continuation_with_payload(
             span,
             cont_ptr,
@@ -1214,6 +1201,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             resume_slots,
             "continuation_resume",
         )?;
+        self.clear_deferred_cg_value_root_homes(
+            receiver.span,
+            "continuation_resume_receiver_drop",
+            &deferred_continuation,
+        )?;
+        self.clear_continuation_resume_receiver_local_if_any(receiver)?;
 
         self.maybe_record_active_suspend_site_effect_outcome(span, resume_slots.outcome_slot);
         self.emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -1311,24 +1304,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             out_gc_ref_slot: null_slot,
             outcome_slot,
         };
-        let continuation = self.materialize_deferred_cg_value(
+        let cont_ptr = self.reload_deferred_gc_ref_without_clearing(
             receiver.span,
             "continuation_resume_receiver_reload",
-            deferred_continuation,
+            &deferred_continuation,
         )?;
-        let Some(raw_continuation) = continuation.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume receiver value",
-                at: receiver.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(cont_ptr) = raw_continuation else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume receiver type",
-                at: receiver.span.into(),
-            });
-        };
-        self.clear_continuation_resume_receiver_local_if_any(receiver)?;
         self.resume_continuation_with_payload(
             span,
             cont_ptr,
@@ -1336,6 +1316,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             resume_slots,
             "continuation_resume",
         )?;
+        self.clear_deferred_cg_value_root_homes(
+            receiver.span,
+            "continuation_resume_receiver_drop",
+            &deferred_continuation,
+        )?;
+        self.clear_continuation_resume_receiver_local_if_any(receiver)?;
 
         self.maybe_record_active_suspend_site_effect_outcome(span, resume_slots.outcome_slot);
         self.emit_ordinary_call_effect_propagation_check_from_outcome(
