@@ -94,7 +94,7 @@
   - closure / funptr / vtable / itable boundary 在 legacy call 前都会显式 `publish` incoming token（当前 fresh path 为 `null`），并在 `consume_current_effect_outcome(...)` 之后 `clear` TLS token scratch，不再继续完全依赖 TLS 初值的隐式“无 token”状态。
   - LLVM 回归已覆盖 closure / funptr / vtable / itable 的 `null incoming_resume_token_ref` IR 与 boundary publish/consume/clear 合同；`cargo clippy --all-targets -- -D warnings` 已通过。
 
-### [TODO] T5002b2a1 补齐 production pass-MIR effectful closure body lowering，使 materialized MIR closure review 可完成
+### [DONE] T5002b2a1 补齐 production pass-MIR effectful closure body lowering，使 materialized MIR closure review 可完成
 - 范围：
   - 修复 production MIR bridge 对 effectful materialized closure body 的剩余缺口，使 closure body 直接 perform effect 的场景不再在 `mir_body.rs` 上报 `UnsupportedMainBody { kind: "pass MIR rvalue" }` / `pass MIR terminator`。
   - 确认 pass-visible caller body 与 materialized MIR closure body 在 effectful closure 场景下都能继续遵守 ordinary indirect-call 的显式 `incoming_resume_token_ref` 合同，而不是只在 HIR closure 或“closure body 只做 direct call”的窄形状上成立。
@@ -106,8 +106,12 @@
   - materialized MIR closure caller IR 继续显式体现 `null incoming_resume_token_ref` 与 boundary `publish -> consume -> clear`；
   - 至少一组相关 fixture/最小程序可证明 materialized MIR closure 不只是声明形状正确，而是 end-to-end 可运行。
 - 依赖：T5002b2a
+- 完成记录：
+  - `codegen_mir_perform_terminator(...)` 现在会在 `emit_ordinary_non_resuming_effect_exit(...)` 之后立即为 terminator-only dead landing block 补 `unreachable`，不再留下 LLVM verifier-invalid 的 unterminated `pass_mir_effect_perform_dead` block。
+  - LLVM 回归现已同时覆盖 raw materialized closure body 与 pass-visible caller body：`production_codegen_lowers_raw_mir_effectful_closure_body_direct_perform` 锁定 direct-`perform` closure body 的 `Perform` terminator 收尾；`production_pass_mir_effectful_closure_body_direct_perform_lowering` 锁定 pass-visible caller 的显式 `incoming_resume_token_ref` / outcome boundary 以及 closure body lowering 不再报 unsupported。
+  - 新增 end-to-end fixture `tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`；已在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过。
 
-### [TODO] T5002b2aR Review：确认 ordinary indirect-call surface 已统一改走显式 token
+### [DONE] T5002b2aR Review：确认 ordinary indirect-call surface 已统一改走显式 token
 - 重点：
   - closure / funptr / vtable / itable 是否都显式携带 `incoming_resume_token_ref`，而不是只在 call-site 临时 publish；
   - boundary helper 是否都在 consume outcome 后清空 TLS token scratch，避免 fresh token 被旧 incoming token 残留污染；
@@ -116,6 +120,11 @@
   - 可在不再被 ordinary indirect-call ABI 形状阻塞的前提下继续推进 callee resume / step-dispatch token 收口；
   - review 阶段必须同时检查 IR 断言与至少一组 closure/funptr/vtable/itable 相关 fixture/最小程序，而不是只看函数声明。
 - 依赖：T5002b2a1
+- 完成记录：
+  - 已复核 top-level callable、HIR closure 与 materialized MIR closure 的签名构造/参数绑定路径：`incoming_resume_token_ref` 都在 hidden sret 之后、普通参数之前进入 generated callable ABI，不再只是 caller boundary 临时 publish 的旁路。
+  - 已复核 ordinary indirect-call boundary（closure / funptr / vtable / itable）与 pass-MIR closure caller：都会在 legacy call 前 `publish` incoming token，并在 `consume_current_effect_outcome(...)` 之后立刻 `clear` TLS token scratch，再恢复 handler stack top。
+  - LLVM 回归已通过：`explicit_outcome_boundary`、`production_pass_mir_closure_call_reloads_closure_after_effect_boundary`、`production_codegen_lowers_raw_mir_effectful_closure_body_direct_perform`、`production_pass_mir_effectful_closure_body_direct_perform_lowering`。
+  - run-pass fixture `effect_indirect_perform_nonresuming_function_value_local.scoop`、`effect_indirect_perform_materialized_mir_closure_basic.scoop`、`effect_handle_hidden_suspend_virtual_helper_basic.scoop`、`effect_handle_hidden_suspend_interface_helper_basic.scoop` 已在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过；`cargo clippy --all-targets -- -D warnings` 已通过。
 
 ### [TODO] T5002b2b 把显式 `incoming_resume_token_ref` 扩到 callee resume entry
 - 范围：
