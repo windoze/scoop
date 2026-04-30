@@ -267,7 +267,6 @@ pub(crate) struct UnifiedArm {
     body_states: Vec<UnifiedStateId>,
     binder_slots: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
-    escape_continuation: bool,
     cleanup_scope_stack: Vec<CleanupScopeId>,
 }
 
@@ -298,10 +297,6 @@ impl UnifiedArm {
 
     pub(crate) fn capture_locals(&self) -> &[hir::SymbolId] {
         &self.capture_locals
-    }
-
-    pub(crate) fn escape_continuation(&self) -> bool {
-        self.escape_continuation
     }
 
     pub(crate) fn cleanup_scope_stack(&self) -> &[CleanupScopeId] {
@@ -1652,7 +1647,6 @@ impl UnifiedArm {
             body_states: sorted_segment_ids(&arm.body_segments),
             binder_slots: sorted_symbol_ids(&arm.binder_slots),
             capture_locals: sorted_symbol_ids(&arm.capture_locals),
-            escape_continuation: arm.escape_continuation,
             cleanup_scope_stack: arm.cleanup_scope_stack.clone(),
         }
     }
