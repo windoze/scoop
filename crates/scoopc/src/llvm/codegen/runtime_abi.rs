@@ -1222,6 +1222,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_continuation_set_captured_callee_suspend_state(
+        &self,
+    ) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_SET_CAPTURED_CALLEE_SUSPEND_STATE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [gc_i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     /// continuation payload+answer ABI：调用方提供 payload，并通过同一入口接收
     /// answer transport 与显式 effect outcome。
     pub(super) fn declare_runtime_continuation_resume_with(&self) -> FunctionValue<'ctx> {
@@ -1268,9 +1283,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// `resume_word` / `resume_gc_ref` / captured callee suspend state）。
     ///
     /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
-    ///   { ScoopGcObjectHeader, i32 resumed, i32 resume_state_tag, ptr captured_handler_stack_top,
-    ///     ptr addrspace(1) state, ptr step_fn, i64 resume_word, ptr addrspace(1) resume_gc_ref,
-    ///     ptr addrspace(1) captured_callee_suspend_state }
+        ///   { ScoopGcObjectHeader, i32 resumed, i32 resume_state_tag, ptr captured_handler_stack_top,
+        ///     i64 state_handle, ptr step_fn, i64 resume_word, ptr addrspace(1) resume_gc_ref,
+        ///     i64 captured_callee_suspend_state_handle }
     pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {
@@ -1291,11 +1306,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 i32_ty.into(),       // 1: resumed (_Atomic uint32_t)
                 i32_ty.into(),       // 2: resume_state_tag
                 i8_ptr_ty.into(),    // 3: captured_handler_stack_top
-                gc_i8_ptr_ty.into(), // 4: state
+                i64_ty.into(),       // 4: state_handle
                 i8_ptr_ty.into(),    // 5: step_fn
                 i64_ty.into(),       // 6: resume_word
                 gc_i8_ptr_ty.into(), // 7: resume_gc_ref
-                gc_i8_ptr_ty.into(), // 8: captured_callee_suspend_state
+                i64_ty.into(),       // 8: captured_callee_suspend_state_handle
             ],
             false,
         );

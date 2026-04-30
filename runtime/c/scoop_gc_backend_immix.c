@@ -2278,6 +2278,26 @@ uint32_t scoop_handle_drop(uint64_t handle) {
   return 0;
 }
 
+uint32_t scoop_handle_drop_in_release(uint64_t handle) {
+  if (handle == 0) {
+    return 0;
+  }
+
+  ScoopGcHandleRecord *needle = (ScoopGcHandleRecord *)(uintptr_t)handle;
+  ScoopGcHandleRecord **link = &scoop_gc_handle_records;
+  while (*link != 0) {
+    ScoopGcHandleRecord *it = *link;
+    if (it != needle) {
+      link = &it->next;
+      continue;
+    }
+    *link = it->next;
+    free(it);
+    return 1;
+  }
+  return 0;
+}
+
 void scoop_gc_register_global_root(void *base, const ScoopTypeDescriptor *type_desc) {
   if (base == 0 || type_desc == 0) {
     return;

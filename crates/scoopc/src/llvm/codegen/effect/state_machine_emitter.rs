@@ -662,8 +662,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // SSA dominance: GEPs from sibling state BBs are not usable).
                 cg.populate_frame_slots_in_env(span, state_ptr, frame_layout, contract)?;
 
-                let last_value =
-                    cg.emit_state_ops(span, state, state_ptr, frame_layout, contract)?;
+                let last_value = cg.emit_state_ops(
+                    span,
+                    state,
+                    state_ptr,
+                    frame_layout,
+                    contract,
+                    dispatch_loop_fn,
+                )?;
 
                 let state_ptr = cg.load_effect_frame_ptr_for_use(
                     span,
@@ -1229,6 +1235,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
+        dispatch_loop_fn: inkwell::values::FunctionValue<'ctx>,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let mut last_value: Option<CgValue<'ctx>> = None;
 
@@ -1479,6 +1486,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         frame_layout,
                         contract,
                         span,
+                        dispatch_loop_fn,
                     )?;
                     last_value = Some(val);
                 }
@@ -1902,7 +1910,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 outcome_slot,
                 &format!("site{site_id}_suspend_call_callee_resume"),
             )?;
-            cg.builder.build_store(token_slot, replay_resume_token)?;
+            cg.store_gc_ref_field(source_span, token_slot, replay_resume_token)?;
             cg.emit_ordinary_call_effect_propagation_check_from_outcome(
                 source_span,
                 outcome_slot,
@@ -2132,8 +2140,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 outcome_slot,
                 &format!("site{site_id}_callee_resume"),
             )?;
-            cg.builder
-                .build_store(replay_token_slot, replay_resume_token)?;
+            cg.store_gc_ref_field(source_span, replay_token_slot, replay_resume_token)?;
             cg.emit_ordinary_call_effect_propagation_check_from_outcome(
                 source_span,
                 outcome_slot,
@@ -2177,14 +2184,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if slot.owner_arm().is_some() || !slot.seed_from_outer_scope() {
                 continue;
             }
-            let local =
-                self.function_cx
-                    .env
-                    .get(slot.id())
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+            let local = self
+                .function_cx
+                .env
+                .get(slot.id())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "effect frame seed outer-scope local",
                         at: at.into(),
-                    })?;
+                })?;
 
             let target_cg_ty =
                 self.cg_ty_of(slot.ty())
@@ -2240,18 +2247,71 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     storage_index,
                     &format!("seed_outer_slot_storage_{}", slot.id().as_u32()),
                 )?;
-                let local_ptr = self.local_ptr_for_use(
-                    at,
-                    local,
-                    &format!("seed_outer_slot_storage_ptr_src_{}", slot.id().as_u32()),
-                )?;
                 let storage_ptr = self.builder.build_pointer_cast(
-                    local_ptr,
+                    local.ptr,
                     self.llvm_i8_ptr_type(),
                     &format!("seed_outer_slot_storage_ptr_{}", slot.id().as_u32()),
                 )?;
                 self.builder.build_store(storage_ptr_gep, storage_ptr)?;
             }
+        }
+        Ok(())
+    }
+
+    fn promote_outer_scope_mutable_locals_to_backing_slots(
+        &mut self,
+        at: crate::span::Span,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<(), LlvmEmitError> {
+        for unified_slot in contract.frame().slots() {
+            let slot = unified_slot.slot();
+            if slot.owner_arm().is_some() || !slot.seed_from_outer_scope() || !slot.mutable() {
+                continue;
+            }
+
+            let local = self
+                .function_cx
+                .env
+                .get(slot.id())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect frame promote outer-scope local",
+                    at: at.into(),
+                })?;
+
+            let backing = self.create_entry_alloca(
+                at,
+                &format!("handle_outer_backing_{}", slot.id().as_u32()),
+                local.ty,
+            )?;
+            let current = match local.ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
+                _ => {
+                    let local_ptr = self.local_ptr_for_use(
+                        at,
+                        local,
+                        &format!("promote_outer_slot_ptr_{}", slot.id().as_u32()),
+                    )?;
+                    let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
+                    let loaded = self.builder.build_load(
+                        llvm_ty,
+                        local_ptr,
+                        &format!("promote_outer_load_{}", slot.id().as_u32()),
+                    )?;
+                    self.cg_value_from_loaded(at, local.ty, loaded)?
+                }
+            };
+            let _ = self.store_local_value_exact(at, backing, local.ty, current)?;
+            self.function_cx.env.insert(
+                slot.id(),
+                CgLocal {
+                    hir_ty: local.hir_ty,
+                    call_may_suspend: local.call_may_suspend,
+                    ty: local.ty,
+                    ptr: backing,
+                    mutable: local.mutable,
+                },
+            );
         }
         Ok(())
     }
@@ -2334,6 +2394,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("writeback_outer_slot_target_{}", slot.id().as_u32()),
             )?;
             self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
+            let storage_llvm_ty = self.llvm_basic_type_of(at, slot_cg_ty)?;
+            if self.basic_type_contains_gc_ptrs(at, storage_llvm_ty)? {
+                self.sync_storage_slot_into_explicit_frame(
+                    at,
+                    storage_ptr,
+                    storage_llvm_ty,
+                    &format!("writeback_outer_slot_sync_{}", slot.id().as_u32()),
+                )?;
+            }
         }
         Ok(())
     }
@@ -2526,7 +2595,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 token_index,
                                 &format!("site{site_id}_callee_resume_token_ptr"),
                             )?;
-                            self.builder.build_store(token_slot, resume_token)?;
+                            self.store_gc_ref_field(span, token_slot, resume_token)?;
                         }
                         if let Some(token_index) =
                             frame_layout.continuation_resume_replay_token_index(*site_id)
@@ -2542,7 +2611,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 token_index,
                                 &format!("site{site_id}_continuation_resume_replay_token_ptr"),
                             )?;
-                            self.builder.build_store(token_slot, resume_token)?;
+                            self.store_gc_ref_field(span, token_slot, resume_token)?;
                         }
                         self.publish_effect_outcome_from_slot(
                             span,
@@ -2584,11 +2653,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     })?
                     .into_pointer_value();
+                let deferred_cont = self.defer_gc_ref_pointer(
+                    span,
+                    &format!("site{site_id}_escape_continuation"),
+                    cont,
+                )?;
 
                 // Record the body resume state on the continuation itself.
                 // Handler dispatch reuses frame.state_tag for arm execution,
                 // so the continuation cannot rely on the mutable frame field
                 // remaining pointed at the suspended body state.
+                let cont = self.reload_deferred_gc_ref_without_clearing(
+                    span,
+                    &format!("site{site_id}_escape_continuation_reload_state"),
+                    &deferred_cont,
+                )?;
                 let cont_ty = self.llvm_continuation_struct_type();
                 let cont_resume_state_gep = self.builder.build_struct_gep(
                     cont_ty,
@@ -2604,12 +2683,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_store(cont_resume_state_gep, resume_state_val)?;
                 if let Some(token_index) = frame_layout.ordinary_callee_resume_token_index(*site_id)
                 {
-                    let cont_callee_suspend_state_gep = self.builder.build_struct_gep(
-                        cont_ty,
-                        cont,
-                        8, // captured_callee_suspend_state
-                        "cont_captured_callee_suspend_state",
-                    )?;
                     let token_slot = self.builder.build_struct_gep(
                         frame_layout.frame_type,
                         state_ptr,
@@ -2624,10 +2697,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             &format!("site{site_id}_captured_callee_resume_token"),
                         )?
                         .into_pointer_value();
-                    self.store_gc_ref_field(
+                    let set_captured =
+                        self.declare_runtime_continuation_set_captured_callee_suspend_state();
+                    let cont = self.reload_deferred_gc_ref_without_clearing(
                         span,
-                        cont_callee_suspend_state_gep,
-                        captured_callee_suspend_state,
+                        &format!("site{site_id}_escape_continuation_reload_capture"),
+                        &deferred_cont,
+                    )?;
+                    self.builder.build_call(
+                        set_captured,
+                        &[cont.into(), captured_callee_suspend_state.into()],
+                        "cont_set_captured_callee_suspend_state",
                     )?;
                 }
 
@@ -2640,6 +2720,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     frame_layout.continuation_index(),
                     "frame_continuation_ptr",
                 )?;
+                let cont = self.reload_deferred_gc_ref_without_clearing(
+                    span,
+                    &format!("site{site_id}_escape_continuation_reload_frame_store"),
+                    &deferred_cont,
+                )?;
                 self.store_gc_ref_field(span, cont_gep, cont)?;
 
                 // `Continuation.resume(...)` resumed body 内的 suspend 只有在当前站点
@@ -2648,11 +2733,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // 由 `ArmMaterializeContinuation` terminator 精确发布；这里仅处理
                 // call-like boundary 与无本地 matching arm 的 outward perform。
                 if Self::suspend_site_publishes_pending_continuation_during_suspend(site) {
+                    let cont = self.reload_deferred_gc_ref_without_clearing(
+                        span,
+                        &format!("site{site_id}_escape_continuation_reload_publish"),
+                        &deferred_cont,
+                    )?;
                     self.emit_publish_pending_continuation(
                         cont,
                         "publish_pending_continuation_resume_inner_continuation",
                     )?;
                 }
+                self.clear_deferred_cg_value_root_homes(
+                    span,
+                    &format!("site{site_id}_escape_continuation_drop"),
+                    &deferred_cont,
+                )?;
 
                 // Direct `perform` sites only wrote the TLS payload; they
                 // still need to publish the active flag and source trace here.
@@ -3415,6 +3510,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 1. Build the unified lowering contract.
         let contract = self.build_unified_lowering_contract(handle);
 
+        // Outer mutable locals captured by a heap-backed handle frame need a stable backing slot
+        // in the enclosing function; using the current explicit-root scratch slot as long-lived
+        // storage lets later temporaries clobber the caller-visible value after the handle exits.
+        self.promote_outer_scope_mutable_locals_to_backing_slots(span, &contract)?;
+
         // 2. Generate frame layout, raw state-machine step function, and the
         //    reusable dispatch-loop entry used by both initial execution and
         //    escaped-continuation resume.
@@ -3933,6 +4033,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
         span: crate::span::Span,
+        dispatch_loop_fn: inkwell::values::FunctionValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // Find the unified arm metadata.
         let unified_arm = contract
@@ -4048,10 +4149,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     frame_layout.continuation_index(),
                     "load_continuation",
                 )?;
-                let cont_ptr = self
-                    .builder
-                    .build_load(self.llvm_gc_i8_ptr_type(), cont_gep, "continuation_val")?
-                    .into_pointer_value();
+                let cont_ptr = self.resolve_escape_continuation_for_arm(
+                    span,
+                    arm_id,
+                    state_ptr,
+                    cont_gep,
+                    frame_layout,
+                    contract,
+                    dispatch_loop_fn,
+                )?;
                 self.retarget_escaped_continuation_resume_state(arm_id, cont_ptr, contract)?;
 
                 // Find or alloc frame slot for the continuation local.
@@ -4068,10 +4174,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "cont_slot",
                     )?;
                     // Route escaped continuations through the ordinary local-store path so
-                    // the explicit-frame home slot stays in sync with the frame field.
+                    // the frame field stays authoritative for persistence across future resumes.
                     let _ = self.store_local_value_exact(
                         span,
                         slot_ptr,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(cont_ptr.into()),
+                        },
+                    )?;
+                    let alloca = self.create_entry_alloca(span, "cont_local_exec", CgTy::Ref)?;
+                    let _ = self.store_local_value_exact(
+                        span,
+                        alloca,
                         CgTy::Ref,
                         CgValue {
                             ty: CgTy::Ref,
@@ -4084,7 +4200,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             hir_ty: continuation_hir_ty,
                             call_may_suspend: continuation_call_may_suspend,
                             ty: CgTy::Ref,
-                            ptr: slot_ptr,
+                            ptr: alloca,
                             mutable: false,
                         },
                     );
@@ -4251,6 +4367,269 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.build_store(resume_state_gep, replay_tag)?;
         Ok(())
+    }
+
+    fn resolve_escape_continuation_for_arm(
+        &mut self,
+        span: crate::span::Span,
+        arm_id: u32,
+        state_ptr: PointerValue<'ctx>,
+        cont_gep: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+        dispatch_loop_fn: inkwell::values::FunctionValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let existing = self
+            .builder
+            .build_load(self.llvm_gc_i8_ptr_type(), cont_gep, "continuation_val")?
+            .into_pointer_value();
+
+        let matching_sites: Vec<_> = contract.suspend_sites().iter().collect();
+        if matching_sites.is_empty() {
+            return Ok(existing);
+        }
+
+        let direct_site = matching_sites.iter().copied().find(|site| {
+            frame_layout.ordinary_callee_resume_token_index(site.id()).is_none()
+        });
+        let indirect_sites: Vec<_> = matching_sites
+            .iter()
+            .copied()
+            .filter(|site| frame_layout.ordinary_callee_resume_token_index(site.id()).is_some())
+            .collect();
+
+        let current_fn = self
+            .builder
+            .get_insert_block()
+            .and_then(|bb| bb.get_parent())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "escape continuation current function",
+                at: span.into(),
+            })?;
+
+        let existing_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("arm{arm_id}_cont_existing"));
+        let mut next_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("arm{arm_id}_cont_from_token"));
+        let merge_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("arm{arm_id}_cont_merge"));
+
+        let has_existing = self.ptr_is_non_null(span, existing, &format!("arm{arm_id}_cont_has_existing"))?;
+        self.builder
+            .build_conditional_branch(has_existing, existing_bb, next_bb)?;
+
+        self.builder.position_at_end(existing_bb);
+        let existing_bb_end = self
+            .builder
+            .get_insert_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "escape continuation existing block",
+                at: span.into(),
+            })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        let mut incoming: Vec<(PointerValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
+            vec![(existing, existing_bb_end)];
+
+        for (index, site) in indirect_sites.iter().enumerate() {
+            self.builder.position_at_end(next_bb);
+
+            let token_index = frame_layout
+                .ordinary_callee_resume_token_index(site.id())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "escape continuation ordinary token index",
+                    at: span.into(),
+                })?;
+            let escape_resume_state = site.escape_resume_state().unwrap_or(site.resume_state());
+            let token_slot = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                state_ptr,
+                token_index,
+                &format!("site{}_arm_callee_resume_token_ptr", site.id()),
+            )?;
+            let token = self
+                .builder
+                .build_load(
+                    self.llvm_gc_i8_ptr_type(),
+                    token_slot,
+                    &format!("site{}_arm_callee_resume_token", site.id()),
+                )?
+                .into_pointer_value();
+            let has_token = self.ptr_is_non_null(
+                span,
+                token,
+                &format!("site{}_arm_has_callee_resume_token", site.id()),
+            )?;
+
+            let materialize_bb = self.context.append_basic_block(
+                current_fn,
+                &format!("site{}_arm_cont_materialize", site.id()),
+            );
+            let else_bb = if index + 1 == indirect_sites.len() {
+                self.context.append_basic_block(current_fn, &format!("arm{arm_id}_cont_missing"))
+            } else {
+                self.context.append_basic_block(
+                    current_fn,
+                    &format!("site{}_arm_cont_next", site.id()),
+                )
+            };
+            self.builder
+                .build_conditional_branch(has_token, materialize_bb, else_bb)?;
+
+            self.builder.position_at_end(materialize_bb);
+            let dispatch_loop_fn_ptr = dispatch_loop_fn.as_global_value().as_pointer_value();
+            let cont_alloc = self.declare_runtime_continuation_alloc();
+            let cont = self
+                .builder
+                .build_call(
+                    cont_alloc,
+                    &[state_ptr.into(), dispatch_loop_fn_ptr.into()],
+                    &format!("site{}_arm_continuation", site.id()),
+                )?
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "arm continuation_alloc return value",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+            let deferred_cont = self.defer_gc_ref_pointer(
+                span,
+                &format!("site{}_arm_continuation_root", site.id()),
+                cont,
+            )?;
+            let cont = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                &format!("site{}_arm_continuation_reload", site.id()),
+                &deferred_cont,
+            )?;
+
+            let cont_ty = self.llvm_continuation_struct_type();
+            let cont_resume_state_gep = self.builder.build_struct_gep(
+                cont_ty,
+                cont,
+                2,
+                &format!("site{}_arm_cont_resume_state_tag", site.id()),
+            )?;
+            let resume_state_val = self
+                .context
+                .i32_type()
+                .const_int(escape_resume_state as u64, false);
+            self.builder
+                .build_store(cont_resume_state_gep, resume_state_val)?;
+            let set_captured = self.declare_runtime_continuation_set_captured_callee_suspend_state();
+            self.builder.build_call(
+                set_captured,
+                &[cont.into(), token.into()],
+                &format!("site{}_arm_set_captured_state", site.id()),
+            )?;
+            self.store_gc_ref_field(span, cont_gep, cont)?;
+            let cont = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                &format!("site{}_arm_continuation_return", site.id()),
+                &deferred_cont,
+            )?;
+            self.clear_deferred_cg_value_root_homes(
+                span,
+                &format!("site{}_arm_continuation_drop", site.id()),
+                &deferred_cont,
+            )?;
+            let materialize_bb_end = self
+                .builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "escape continuation materialize block",
+                    at: span.into(),
+                })?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+            incoming.push((cont, materialize_bb_end));
+
+            next_bb = else_bb;
+        }
+
+        self.builder.position_at_end(next_bb);
+        if let Some(site) = direct_site {
+            let dispatch_loop_fn_ptr = dispatch_loop_fn.as_global_value().as_pointer_value();
+            let cont_alloc = self.declare_runtime_continuation_alloc();
+            let cont = self
+                .builder
+                .build_call(
+                    cont_alloc,
+                    &[state_ptr.into(), dispatch_loop_fn_ptr.into()],
+                    &format!("site{}_arm_direct_continuation", site.id()),
+                )?
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "arm direct continuation_alloc return value",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+            let deferred_cont = self.defer_gc_ref_pointer(
+                span,
+                &format!("site{}_arm_direct_continuation_root", site.id()),
+                cont,
+            )?;
+            let cont = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                &format!("site{}_arm_direct_continuation_reload", site.id()),
+                &deferred_cont,
+            )?;
+            let cont_ty = self.llvm_continuation_struct_type();
+            let cont_resume_state_gep = self.builder.build_struct_gep(
+                cont_ty,
+                cont,
+                2,
+                &format!("site{}_arm_direct_cont_resume_state_tag", site.id()),
+            )?;
+            let resume_state_val = self.context.i32_type().const_int(
+                site.escape_resume_state().unwrap_or(site.resume_state()) as u64,
+                false,
+            );
+            self.builder
+                .build_store(cont_resume_state_gep, resume_state_val)?;
+            self.store_gc_ref_field(span, cont_gep, cont)?;
+            let cont = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                &format!("site{}_arm_direct_continuation_return", site.id()),
+                &deferred_cont,
+            )?;
+            self.clear_deferred_cg_value_root_homes(
+                span,
+                &format!("site{}_arm_direct_continuation_drop", site.id()),
+                &deferred_cont,
+            )?;
+            let direct_bb_end = self
+                .builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "escape continuation direct materialize block",
+                    at: span.into(),
+                })?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+            incoming.push((cont, direct_bb_end));
+        } else {
+            let missing_bb_end = self
+                .builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "escape continuation missing block",
+                    at: span.into(),
+                })?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+            incoming.push((self.llvm_gc_i8_ptr_type().const_null(), missing_bb_end));
+        }
+
+        self.builder.position_at_end(merge_bb);
+        let phi = self
+            .builder
+            .build_phi(self.llvm_gc_i8_ptr_type(), &format!("arm{arm_id}_resolved_continuation"))?;
+        let refs: Vec<_> = incoming.iter().map(|(ptr, bb)| (ptr as &dyn inkwell::values::BasicValue<'ctx>, *bb)).collect();
+        phi.add_incoming(&refs);
+        Ok(phi.as_basic_value().into_pointer_value())
     }
 
     /// Read a binder value from the TLS perform slot.

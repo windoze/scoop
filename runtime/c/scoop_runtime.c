@@ -1157,7 +1157,7 @@ typedef struct ScoopContinuation {
   ScoopEffectHandlerFrame *captured_handler_stack_top;
 
   // heap state machine 指针（由编译器生成；应当是 GC-managed heap 对象）。
-  void *state;
+  uint64_t state_handle;
 
   // step 函数（由编译器生成的 trampoline），用于推进 state machine。
   ScoopContinuationStepFn step_fn;
@@ -1174,7 +1174,7 @@ typedef struct ScoopContinuation {
   // - 该对象语义上是 GC-managed suspend state；
   // - TLS `__scoop_callee_suspend_state` 只承担“当前运行中的 resumed body”临时寄存职责；
   // - continuation 才是跨 `handle` 返回 / 跨线程 `resume` 的 authoritative owner。
-  void *captured_callee_suspend_state;  // GC-traced（见 scoop_continuation_trace）
+  uint64_t captured_callee_suspend_state_handle;  // stable handle owner
 } ScoopContinuation;
 
 typedef struct ScoopEffectFrameBase {
@@ -1215,9 +1215,9 @@ _Static_assert(offsetof(ScoopContinuation, resume_gc_ref) ==
                    offsetof(ScoopContinuation, resume_word) + sizeof(uint64_t),
                "ScoopContinuation.resume_gc_ref must follow resume_word");
 _Static_assert(
-    offsetof(ScoopContinuation, captured_callee_suspend_state) ==
+    offsetof(ScoopContinuation, captured_callee_suspend_state_handle) ==
         offsetof(ScoopContinuation, resume_gc_ref) + sizeof(void *),
-    "ScoopContinuation.captured_callee_suspend_state must follow resume_gc_ref");
+    "ScoopContinuation.captured_callee_suspend_state_handle must follow resume_gc_ref");
 _Static_assert((sizeof(ScoopContinuation) % sizeof(void *)) == 0,
                "ScoopContinuation size must be pointer-aligned");
 _Static_assert(offsetof(ScoopEffectFrameResultPrefix, state_tag) ==
@@ -1236,23 +1236,9 @@ static uint64_t scoop_continuation_trace(void *object, ScoopGcTraceVisitor visit
   ScoopContinuation *k = (ScoopContinuation *)object;
   uint64_t refs = 0;
 
-  // `state` 预期指向一个 GC-managed heap 对象；把该槽位暴露给 visitor 以便 mark 更新/追踪。
-  if (k->state != 0) {
-    void **slot = (void **)&k->state;
-    visitor(slot, ctx);
-    refs++;
-  }
-
   // T1607：`resume_gc_ref` 可能持有 GC-managed 的 resume payload（String/Ref/boxed compound）。
   if (k->resume_gc_ref != 0) {
     void **slot = (void **)&k->resume_gc_ref;
-    visitor(slot, ctx);
-    refs++;
-  }
-
-  // T3009b2a：continuation 正式持有 indirect callee suspend state。
-  if (k->captured_callee_suspend_state != 0) {
-    void **slot = (void **)&k->captured_callee_suspend_state;
     visitor(slot, ctx);
     refs++;
   }
@@ -1284,8 +1270,13 @@ static void scoop_continuation_release(void *object) {
   }
 
   ScoopContinuation *k = (ScoopContinuation *)object;
-  if (k->state != 0) {
-    scoop_unpin(k->state);
+  if (k->state_handle != 0) {
+    scoop_handle_drop_in_release(k->state_handle);
+    k->state_handle = 0;
+  }
+  if (k->captured_callee_suspend_state_handle != 0) {
+    scoop_handle_drop_in_release(k->captured_callee_suspend_state_handle);
+    k->captured_callee_suspend_state_handle = 0;
   }
   scoop_effect_handler_stack_snapshot_free(k->captured_handler_stack_top);
   k->captured_handler_stack_top = 0;
@@ -1297,21 +1288,20 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
     scoop_thread_register();
   }
 
-  // GC 安全性（T1606c）：
-  // `state` 是 GC heap 上的对象（ContState），但本函数接收的是 raw void*——
-  // 如果 scoop_alloc 触发 GC 并搬迁了 state，本函数持有的局部变量 `state` 不会被更新
-  // （C 函数没有 statepoint 信息），导致下面 `k->state = state` 存入悬空指针。
-  // 通过在分配前 pin 住 state，阻止 GC 搬迁它。
+  uint64_t state_handle = 0;
   if (state != 0) {
-    scoop_pin(state);
+    state_handle = scoop_handle_new(state);
+    if (state_handle == 0) {
+      return 0;
+    }
   }
 
   ScoopEffectCtx current_ctx = scoop_effect_ctx_make(__scoop_effect_handler_stack_top);
   ScoopEffectCtx captured_ctx = scoop_effect_ctx_make(
       scoop_effect_handler_stack_snapshot_clone(current_ctx.handler_top));
   if (current_ctx.handler_top != 0 && captured_ctx.handler_top == 0) {
-    if (state != 0) {
-      scoop_unpin(state);
+    if (state_handle != 0) {
+      scoop_handle_drop(state_handle);
     }
     return 0;
   }
@@ -1320,8 +1310,8 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
       (ScoopContinuation *)scoop_alloc((uint64_t)sizeof(ScoopContinuation));
   if (k == 0) {
     scoop_effect_handler_stack_snapshot_free(captured_ctx.handler_top);
-    if (state != 0) {
-      scoop_unpin(state);
+    if (state_handle != 0) {
+      scoop_handle_drop(state_handle);
     }
     return 0;
   }
@@ -1334,28 +1324,29 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   // effect frame continuation 会在 suspend 时显式写入 body resume state。
   k->resume_state_tag = SCOOP_CONTINUATION_RESUME_STATE_UNSET;
   k->captured_handler_stack_top = captured_ctx.handler_top;
-  k->state = state;
-  if (state != 0) {
-    // Continuation 持久持有 raw `state` 指针，并会在未来多次以普通 C 参数形态把它
-    // 交给 step/dispatch helpers。当前 runtime 还没有把这类长期 raw owner 收口成
-    // 可搬迁 handle，因此先把 effect frame state 与 continuation 生命周期绑定为
-    // pinned，直到 continuation 自身释放时再解 pin。
-    scoop_pin(state);
-  }
+  k->state_handle = state_handle;
   k->step_fn = step_fn;
   k->resume_word = 0;
   k->resume_gc_ref = 0;
-  k->captured_callee_suspend_state = 0;
-
-  // Escape continuation 在被外层保存、稍后才 resume 的窗口期仍可能经历 GC。
-  // 先用一个长期 pin 把 continuation 本体保住，直到第一次成功 resume 或被显式丢弃。
-  scoop_pin((void *)k);
-
-  if (state != 0) {
-    scoop_unpin(state);
-  }
+  k->captured_callee_suspend_state_handle = 0;
 
   return (void *)k;
+}
+
+void scoop_continuation_set_captured_callee_suspend_state(void *continuation, void *state) {
+  if (continuation == 0) {
+    return;
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)continuation;
+  uint64_t new_handle = 0;
+  if (state != 0) {
+    new_handle = scoop_handle_new(state);
+  }
+  if (k->captured_callee_suspend_state_handle != 0) {
+    scoop_handle_drop(k->captured_callee_suspend_state_handle);
+  }
+  k->captured_callee_suspend_state_handle = new_handle;
 }
 
 void scoop_continuation_discard(void *continuation) {
@@ -1364,17 +1355,19 @@ void scoop_continuation_discard(void *continuation) {
   }
 
   ScoopContinuation *k = (ScoopContinuation *)continuation;
-  if (k->state != 0) {
-    scoop_unpin(k->state);
-    k->state = 0;
+  if (k->state_handle != 0) {
+    scoop_handle_drop(k->state_handle);
+    k->state_handle = 0;
   }
   if (k->captured_handler_stack_top != 0) {
     scoop_effect_handler_stack_snapshot_free(k->captured_handler_stack_top);
     k->captured_handler_stack_top = 0;
   }
   k->resume_gc_ref = 0;
-  k->captured_callee_suspend_state = 0;
-  scoop_unpin(continuation);
+  if (k->captured_callee_suspend_state_handle != 0) {
+    scoop_handle_drop(k->captured_callee_suspend_state_handle);
+    k->captured_callee_suspend_state_handle = 0;
+  }
 }
 
 uint32_t scoop_continuation_try_resume(void *continuation) {
@@ -1400,8 +1393,8 @@ typedef struct ScoopContinuationResumeReplayState {
   uint64_t resume_word;
   void *resume_gc_ref;
   uint32_t site_tag;
-  void *pending_continuation;
-  void *prev_callee_suspend_state;
+  uint64_t pending_continuation_handle;
+  uint64_t prev_callee_suspend_state_handle;
 } ScoopContinuationResumeReplayState;
 
 static uint64_t scoop_continuation_resume_replay_state_trace(
@@ -1420,19 +1413,23 @@ static uint64_t scoop_continuation_resume_replay_state_trace(
     refs++;
   }
 
-  if (state->pending_continuation != 0) {
-    void **slot = (void **)&state->pending_continuation;
-    visitor(slot, ctx);
-    refs++;
-  }
-
-  if (state->prev_callee_suspend_state != 0) {
-    void **slot = (void **)&state->prev_callee_suspend_state;
-    visitor(slot, ctx);
-    refs++;
-  }
-
   return refs;
+}
+
+static void scoop_continuation_resume_replay_state_release(void *object) {
+  if (object == 0) {
+    return;
+  }
+  ScoopContinuationResumeReplayState *state =
+      (ScoopContinuationResumeReplayState *)object;
+  if (state->pending_continuation_handle != 0) {
+    scoop_handle_drop_in_release(state->pending_continuation_handle);
+    state->pending_continuation_handle = 0;
+  }
+  if (state->prev_callee_suspend_state_handle != 0) {
+    scoop_handle_drop_in_release(state->prev_callee_suspend_state_handle);
+    state->prev_callee_suspend_state_handle = 0;
+  }
 }
 
 static const ScoopTypeDescriptor SCOOP_CONTINUATION_RESUME_REPLAY_STATE_TYPE_DESC = {
@@ -1445,16 +1442,40 @@ static const ScoopTypeDescriptor SCOOP_CONTINUATION_RESUME_REPLAY_STATE_TYPE_DES
     ._reserved_u32 = 0,
     .trace_bitmap = 0,
     .trace_fn = scoop_continuation_resume_replay_state_trace,
-    .release_fn = 0,
+    .release_fn = scoop_continuation_resume_replay_state_release,
 };
 
 static ScoopContinuationResumeReplayState *
 scoop_continuation_resume_replay_state_alloc(void *pending_continuation,
                                              void *prev_callee_suspend_state) {
+  uint64_t pending_handle = 0;
+  uint64_t prev_handle = 0;
+  if (pending_continuation != 0) {
+    pending_handle = scoop_handle_new(pending_continuation);
+    if (pending_handle == 0) {
+      return 0;
+    }
+  }
+  if (prev_callee_suspend_state != 0) {
+    prev_handle = scoop_handle_new(prev_callee_suspend_state);
+    if (prev_handle == 0) {
+      if (pending_handle != 0) {
+        scoop_handle_drop(pending_handle);
+      }
+      return 0;
+    }
+  }
+
   ScoopContinuationResumeReplayState *state =
       (ScoopContinuationResumeReplayState *)scoop_alloc(
           (uint64_t)sizeof(ScoopContinuationResumeReplayState));
   if (state == 0) {
+    if (prev_handle != 0) {
+      scoop_handle_drop(prev_handle);
+    }
+    if (pending_handle != 0) {
+      scoop_handle_drop(pending_handle);
+    }
     return 0;
   }
 
@@ -1462,9 +1483,8 @@ scoop_continuation_resume_replay_state_alloc(void *pending_continuation,
   state->resume_word = 0;
   state->resume_gc_ref = 0;
   state->site_tag = UINT32_MAX;
-  state->pending_continuation = pending_continuation;
-  state->prev_callee_suspend_state = prev_callee_suspend_state;
-  scoop_pin(state);
+  state->pending_continuation_handle = pending_handle;
+  state->prev_callee_suspend_state_handle = prev_handle;
   return state;
 }
 
@@ -1541,7 +1561,10 @@ scoop_continuation_resume_common(void *continuation) {
       .pending_continuation = 0,
   };
   void *saved_callee_suspend_state = __scoop_callee_suspend_state;
-  void *captured_callee_suspend_state = k->captured_callee_suspend_state;
+  void *captured_callee_suspend_state =
+      (k->captured_callee_suspend_state_handle != 0)
+          ? scoop_handle_get(k->captured_callee_suspend_state_handle)
+          : 0;
   __scoop_continuation_resume_scope = &resume_scope;
 
   // T3009b2a：TLS 只承担“当前 resumed body 正在消费哪个 callee state”的临时职责；
@@ -1552,14 +1575,18 @@ scoop_continuation_resume_common(void *continuation) {
   }
   __scoop_callee_suspend_state = captured_callee_suspend_state;
 
-  if (k->state != 0 &&
+  void *state_ptr = (k->state_handle != 0) ? scoop_handle_get(k->state_handle) : 0;
+  if (state_ptr != 0) {
+    scoop_pin(state_ptr);
+  }
+  if (state_ptr != 0 &&
       k->resume_state_tag != SCOOP_CONTINUATION_RESUME_STATE_UNSET) {
-    ScoopEffectFrameBase *frame = (ScoopEffectFrameBase *)k->state;
+    ScoopEffectFrameBase *frame = (ScoopEffectFrameBase *)state_ptr;
     frame->state_tag = k->resume_state_tag;
   }
 
   if (k->step_fn != 0) {
-    k->step_fn(k->state, k->resume_word, k->resume_gc_ref);
+    k->step_fn(state_ptr, k->resume_word, k->resume_gc_ref);
   }
 
   // resumed body 可能会显式消费/替换 continuation-captured 的 callee
@@ -1582,9 +1609,16 @@ scoop_continuation_resume_common(void *continuation) {
   if (captured_callee_suspend_state != 0) {
     scoop_unpin(captured_callee_suspend_state);
   }
+  if (state_ptr != 0) {
+    scoop_unpin(state_ptr);
+  }
   (void)scoop_effect_handler_stack_swap_top(saved_ctx.handler_top);
   scoop_effect_handler_stack_snapshot_free(captured_ctx.handler_top);
   k->captured_handler_stack_top = 0;
+  if (k->captured_callee_suspend_state_handle != 0) {
+    scoop_handle_drop(k->captured_callee_suspend_state_handle);
+    k->captured_callee_suspend_state_handle = 0;
+  }
   scoop_unpin(continuation);
   ScoopContinuationResumeCommonResult result;
   result.pending_continuation = pending_continuation;
@@ -1632,11 +1666,12 @@ static uint32_t scoop_continuation_read_answer_transport(void *continuation,
   }
 
   ScoopContinuation *k = (ScoopContinuation *)continuation;
-  if (k->state == 0) {
+  void *state_ptr = (k->state_handle != 0) ? scoop_handle_get(k->state_handle) : 0;
+  if (state_ptr == 0) {
     exit(3);
   }
 
-  ScoopEffectFrameResultPrefix *frame = (ScoopEffectFrameResultPrefix *)k->state;
+  ScoopEffectFrameResultPrefix *frame = (ScoopEffectFrameResultPrefix *)state_ptr;
   if (frame->state_tag != SCOOP_EFFECT_FRAME_STATE_TAG_HANDLE_RETURNED &&
       frame->state_tag != SCOOP_EFFECT_FRAME_STATE_TAG_FUNCTION_RETURNED) {
     exit(3);
@@ -1814,7 +1849,7 @@ void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
 // - 语义：在一个新线程中调用 `scoop_continuation_resume`，并 join 等待其完成。
 // - 线程会在执行结束后调用 `scoop_thread_unregister`，避免 STW 线程表残留已退出线程的 TLS 槽位。
 typedef struct ScoopThreadResumeU64Args {
-  void *continuation;
+  uint64_t continuation_handle;
   uint64_t resume_value;
 } ScoopThreadResumeU64Args;
 
@@ -1828,9 +1863,14 @@ static void *scoop_thread_entry_resume_u64(void *arg) {
   scoop_thread_register();
 
   ScoopThreadResumeU64Args *args = (ScoopThreadResumeU64Args *)arg;
+  void *continuation = scoop_handle_get(args->continuation_handle);
   // T1607：payload 已由调用方写入 continuation 的 resume_word/resume_gc_ref 槽位。
   // 这里直接走新 ABI 的公共路径。
-  scoop_continuation_resume_u64(args->continuation, args->resume_value);
+  scoop_continuation_resume_u64(continuation, args->resume_value);
+  if (args->continuation_handle != 0) {
+    scoop_handle_drop(args->continuation_handle);
+    args->continuation_handle = 0;
+  }
 
   // worker 线程在 resume 返回后已经回到纯 runtime/C 边界；若它在先前某次 GC park 时
   // 捕获过 stackmap unwind ctx，这里需要先清掉该 snapshot，避免在注销前的短窗口里被
@@ -1855,12 +1895,19 @@ void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_valu
   if (args == 0) {
     exit(3);
   }
-  args->continuation = continuation;
+  args->continuation_handle = scoop_handle_new(continuation);
+  if (continuation != 0 && args->continuation_handle == 0) {
+    free(args);
+    exit(3);
+  }
   args->resume_value = resume_value;
 
   pthread_t t;
   int rc = pthread_create(&t, 0, scoop_thread_entry_resume_u64, (void *)args);
   if (rc != 0) {
+    if (args->continuation_handle != 0) {
+      scoop_handle_drop(args->continuation_handle);
+    }
     free(args);
     exit(3);
   }

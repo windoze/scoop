@@ -47,6 +47,7 @@
   X(scoop_continuation_resume) \
   X(scoop_continuation_resume_into) \
   X(scoop_continuation_resume_publish_pending_continuation) \
+  X(scoop_continuation_set_captured_callee_suspend_state) \
   X(scoop_continuation_resume_u64) \
   X(scoop_continuation_resume_with) \
   X(scoop_continuation_try_resume) \
@@ -104,6 +105,7 @@
   X(scoop_gc_type_descriptor_trace) \
   X(scoop_gc_write_barrier) \
   X(scoop_handle_drop) \
+  X(scoop_handle_drop_in_release) \
   X(scoop_handle_get) \
   X(scoop_handle_new) \
   X(scoop_leave_native) \

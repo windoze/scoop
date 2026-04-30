@@ -37,6 +37,14 @@
 - 每个实现任务后必须紧跟 review 任务。
   - review 重点是 source-of-truth 是否收口正确、是否仍残留旧 stackmap 假设、以及是否破坏 safepoint / aggregate / state-machine 合同。
 - 若任务改变公开语义或运行时合同，必须同步 `SCOOP_RUNTIME.md`、相关实现注释与必要 fixture。
+- `TODO.md` 中的每一步都必须是可验证的。
+  - 不接受“先做一大坨实现，最后再整体看”的不可拆分任务描述；
+  - 每个步骤都要明确对应的定向验证命令、LLVM 断言、runtime test 或 fixture。
+- 每个复杂逻辑都必须有相应 fixture（或最小等价回归）验证正确性。
+  - 特别是 effect/state-machine、continuation resume、outer mutable local writeback、sync sidecar、GC debug helper、class init cleanup 等复杂路径，不能只靠已有大 fixture 偶然覆盖。
+- 最终 review / full verification 必须在以下环境下完整执行 fixture：
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1`
+  - 且必须完整覆盖 `run-pass`、`runtime_gc`、`build` 等相关 fixture 集合，而不是只跑最小 smoke。
 
 ## T5001：Root Map 抽象与 explicit root frame 落地
 
@@ -353,78 +361,71 @@
 - 完成记录：本轮先沿 verify-roots 把坏 slot 精确定位到 resumed outer handle 的 `step/dispatch` frame slot0，再对照 runtime `Continuation` ABI 收口到真正的长期 owner：`runtime/c/scoop_runtime.c` 里的 `ScoopContinuation.state`。此前 continuation 只把 effect frame state 当作普通 raw 指针保存；一旦后续 GC 搬迁该 frame，未来 `Continuation.resume(...)` 重新进入 `step/dispatch` 时就会把 stale `k->state` 写进两层 explicit frame slot0，并在 `continuation_resume_struct_with_ref.scoop` 的 resumed-body `println` 窗口触发 verify-roots invalid root。现已把 continuation state 与 continuation 生命周期绑定为 pinned：`scoop_continuation_alloc(...)` 在写入 `k->state` 后保留一个长期 pin，`scoop_continuation_release(...)` 在 continuation 释放时对称 `unpin`。这样 resumed body 期间的 raw `step(state, ...)` / `dispatch(state, ...)` 指针窗口不再依赖 moving update。定向验证已通过 `cargo build -p scoop_runtime`、`env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop` 与 `cargo clippy --all-targets -- -D warnings`。继续执行 `cargo run -p scoop -- test` 时，suite 已越过该 fixture，新的首个失败切换为 `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`，因此按要求在本条后插入 `T5001f8/T5001f8R`。
 - 依赖：T5001f6
 
-### [TODO] T5001f8 修复 class init Raise cleanup 的 GC retention regression，解除 `T5001f7R` / 后续验收阻塞
+### [TODO] T5001f8 将 state-machine 的 frame-backed locals 收口为“稳定执行期 local home + 统一 flush-back”设计
 - 范围：
-  - 修复 `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop` 当前新暴露回归：全量 `cargo run -p scoop -- test` 已越过 `continuation_resume_struct_with_ref.scoop`，但在该 fixture 处失败；程序当前输出 `3`，而 golden 期望为 `0`，说明 class init 的 `Raise.raise(...)` unwind/cleanup 之后仍错误保留了 3 个 heap object。
-  - 查清失败构造路径里到底是 ctor call 临时 GC frame、class object、init-block effect cleanup，还是 outer try/catch 边界的 unwind pop/clear 合同没有闭合；不能通过放宽 golden、跳过 `__scoop_gc_collect()`、或把失败构造对象视为“可接受泄漏”来回避实现问题。
-  - 为最小 class-init-raise cleanup 路径补定向回归，至少覆盖 `init { Raise.raise(...) }` 被外层 `try/catch` 捕获后，`__scoop_gc_collect()` 不再保留失败构造对象及其临时 runtime roots。
+  - 修复当前 state-machine 仍把 heap frame field 的 GEP 直接放进 env 当 `CgLocal.ptr` 的设计问题；一旦 state/arm body 中发生分配并触发 moving GC，这些预先算好的 slot pointer 会整体 stale，后续对 local/outer slot 的读写都会落到旧 frame 地址。
+  - 为所有 frame-backed local（至少覆盖 handle body locals、arm binder、capture locals、escape continuation binder、outer mutable locals）建立统一 contract：
+    1. 进入 state 时从 heap frame 读出值；
+    2. 落到稳定的 entry alloca / scratch local home；
+    3. state body 内所有读写只操作该稳定 local home；
+    4. 在状态终结点（return / arm-exit / suspend / cleanup edge）统一 flush 回 heap frame。
+  - outer mutable local 的持久化不能继续借用 caller 当前的临时 explicit-root scratch slot；需要一个真正稳定的 caller-side backing slot，并让 frame 的 `outer_scope_storage_ptr` 明确指向它。
+  - 以系统性设计修复当前两个 blocker：
+    - `tests/fixtures/run-pass/continuation_resume_enum.scoop`
+    - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+- 拆分为可验证步骤：
+  1. 把 outer mutable local promotion 前移到 `codegen_handle_expr_via_state_machine(...)` 入口，并让 frame storage 记录稳定 backing slot 指针。
+  2. 把 state/arm body 中的 frame-backed locals 从 heap frame GEP 改成稳定 local home。
+  3. 在 suspend / return / arm-exit / cleanup 边界统一 flush mutable locals 回 frame。
+  4. 为 direct escape、indirect ordinary suspend、outer mutable local writeback 分别补最小 fixture/LLVM 回归。
 - 验收：
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop` 恢复输出 `0`；
-  - `cargo run -p scoop -- test` / `T5001f7R` 不再被该 class-init cleanup retention 回归阻塞。
+  - `continuation_resume_enum.scoop` 恢复输出 `ok / 42` 与 `err2 / 99` 主线，不再出现 `missing1/missing2`；
+  - `effect_multi_escape_indirect_direct_while.scoop` 恢复 golden，不再出现 `missing1..missing4` 或顺序错乱；
+  - IR 中不再把 heap frame field GEP 长期作为 env local home 暴露给后续会分配/GC 的 state/arm body。
+  - 至少新增/更新一条最小 fixture，单独锁定 “outer mutable local 经 handle 写回后，handle 之后的 caller 读取仍能看到最新值”。
 - 依赖：T5001f7
 
-### [TODO] T5001f8R Review：确认 class init Raise cleanup 的 unwind/root 合同重新闭合
+### [TODO] T5001f8R Review：确认 state-machine local-home / flush-back 合同已经真正取代 stale heap-slot pointer 设计
 - 重点：
-  - ctor call temporary root frame、failed class object、init-block effect propagation 与 outer try/catch cleanup 路径，是否仍残留未 pop / 未 clear / 误保活对象；
-  - `class_init_raise_cleanup_init_block_gc_basic.scoop` 是否真正锁住“失败构造后 `__scoop_gc_collect()` 无残留对象”这一合同，而不是靠偶然对象复用通过；
-  - 该修复是否与既有 class init order / continuation runtime / explicit-frame teardown 合同保持一致。
+  - state/arm body 内是否仍残留“直接把 heap frame field GEP 绑定到 env local”这种 stale pointer 设计；
+  - outer mutable local、arm binder、capture local、escape continuation binder 是否统一经稳定 local home + flush-back 路径收口；
+  - `continuation_resume_enum.scoop`、`effect_multi_escape_indirect_direct_while.scoop` 是否锁住了 direct escape、indirect ordinary suspend、outer var writeback 三类关键窗口。
 - 验收：
-  - `T5001f7R` / `T5001g` 可在不再被该 class-init cleanup retention 回归阻塞的前提下继续推进。
+  - `T5001f9` / `T5001g` 可在不再被 state-machine stale heap-slot pointer 设计阻塞的前提下继续推进。
+  - review 阶段必须用 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 重跑相关 direct/indirect/outer-writeback fixture。
 - 依赖：T5001f8
 
-### [TODO] T5001f7R Review：确认 Continuation.resume consumed-root 的 verify-roots 合同重新闭合
-- 重点：
-  - consumed continuation 在 `when` binder、resume receiver local、nested handle/state-machine frame 与后续 print/GC collect 窗口里，是否仍残留 stale root、漏更新 root 或过早失效对象地址；
-  - boxed payload、function-value / dispatch receiver reload、array builder / fresh object defer-reload 等本轮顺手收口的路径，是否与该 consumed-root 修复形成一致 contract，而不是彼此打架；
-  - verify-roots 回归是否已覆盖 `Continuation.resume` + boxed payload + resumed-body alloc/print 的关键窗口。
+### [TODO] T5001f9 将 continuation / replay-state 的长期对象 owner 从长期 pin 收口为 stable GC handle
+- 范围：
+  - 清理 runtime 中所有“长期 raw owner 只能靠长期 pin 保住对象地址”的 continuation 相关路径，明确哪些所有权是短窗口（可继续动态 pin），哪些是跨 resume / 跨线程 / 跨 handle-return 的长期 owner（必须用 stable handle）。
+  - 至少覆盖：
+    - `Continuation.state`
+    - `Continuation.captured_callee_suspend_state`
+    - `ContinuationResumeReplayState.pending_continuation`
+    - `ContinuationResumeReplayState.prev_callee_suspend_state`
+  - 确保 release_fn / discard / successful resume / replay-state 替换路径对 handle 生命周期与 drop 时机是对称的，并避免在 GC release 上下文里重入 GC 锁。
+  - 保持 TLS `__scoop_callee_suspend_state` 只是短期 scratch transport，而不是新的长期 owner。
+- 拆分为可验证步骤：
+  1. `Continuation.state` 改为 stable handle，并验证 direct resumed body 在 GC env 下不再依赖长期 pin。
+  2. `Continuation.captured_callee_suspend_state` 改为 stable handle，并验证 indirect ordinary resume / replay 主线。
+  3. `ReplayState.pending_continuation` / `prev_callee_suspend_state` 改为 stable handle，并验证 replacement/release 路径不再 stale/self-deadlock。
+  4. 清理 release_fn 上下文中的 handle drop 语义，确保不会重入 GC 锁。
+  5. 为 direct resume、indirect resume、cross-thread resume、boxed payload resume、mixed direct/indirect escape 各补最小 fixture/回归。
 - 验收：
-  - `T5001f6R` / `T5001g` 可在不再被该 `Continuation.resume` verify-roots 回归阻塞的前提下继续推进。
+  - 运行时不再依赖长期 `pin` 维持 continuation/replay-state 的长期所有权；
+  - `continuation_resume_struct_with_ref.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_multi_perform_cross_thread.scoop`、`task_step_cross_thread_sequential_handoff_gc_stress.scoop` 在 GC env 下继续稳定通过；
+  - runtime 侧 handle release / discard / replay-state release 不再出现 release_fn 自锁或 stale raw owner。
 - 依赖：T5001f8R
 
-### [TODO] T5001f6R Review：确认 cross-thread sequential task handoff 的 GC-stress 合同重新闭合
+### [TODO] T5001f9R Review：确认 continuation/replay-state 的长期 owner 已稳定收口到 handle，而不是 pin 或裸指针
 - 重点：
-  - worker thread 接手 `outer.step()` 后，waiting/completed 状态、awaited payload 与 continuation source-of-truth 是否仍有 stale 值或丢失 handoff；
-  - `worker-ready` 与后续 `main-final-ready` 是否共享同一稳定完成结果，而不是偶然重算或竞争；
-  - runtime_gc 回归是否已覆盖跨线程 handoff、GC collect 与最终 completed readback 三类关键窗口。
+  - continuation / replay-state 的长期 owner 是否已全部 handle 化；
+  - 剩余 pin 是否都只是短窗口（如 `step_fn` 执行期、payload runtime call 窗口、native wait 窗口）；
+  - release_fn / discard / cross-thread worker / replay-state replacement 是否仍存在锁重入、handle 泄漏或过早 drop。
 - 验收：
-  - `T5001f5R` / `T5001g` 可在不再被该 cross-thread task handoff regression 阻塞的前提下继续推进。
-- 依赖：T5001f7R
-
-### [TODO] T5001f5R Review：确认 higher-order aggregate return 的 GC-stress 合同重新闭合
-- 重点：
-  - higher-order 间接调用返回 aggregate 时，是否仍残留 stale aggregate、stale GC ref field 或 stale call-result source-of-truth；
-  - `Labelled` 这类带 `String` field 的 aggregate return 是否在 direct call、二次 higher-order call 与后续 readback 上都遵守 explicit-frame / aggregate rebuild 合同；
-  - run-pass 回归是否已覆盖 direct higher-order return、后续分配与再次 higher-order 调用三类关键窗口。
-- 验收：
-  - `T5001f4R` / `T5001g` 可在不再被该 higher-order aggregate GC-stress 回归阻塞的前提下继续推进。
-- 依赖：T5001f6R
-
-### [TODO] T5001f4R Review：确认 cross-function class object graph 的 GC-stress 合同重新闭合
-- 重点：
-  - 跨函数返回 / 传参 / 对象字段写入路径是否仍残留 stale object 或 stale field source-of-truth；
-  - class field write/read、factory return 与 setter call 是否都遵守 explicit-frame / post-safepoint reload 合同；
-  - run-pass 回归是否已覆盖 object graph 构造、连边、GC 后读取三类关键窗口。
-- 验收：
-  - `T5001f3R` / `T5001g` 可在不再被该 object-graph GC-stress 回归阻塞的前提下继续推进。
-- 依赖：T5001f5R
-
-### [TODO] T5001f3R Review：确认 effect escape continuation 的 GC-stress 合同重新闭合
-- 重点：
-  - escaped continuation 在 GC-stress 下是否仍正确保留 multi-string payload 与恢复顺序；
-  - effect transport / resume 主线是否还有 stale payload、重复恢复或 golden 只靠偶然顺序通过的残留路径；
-  - run-pass 回归是否已覆盖 escape + resume + GC-stress 的最小闭环。
-- 验收：
-  - `T5001f2R` / `T5001g` 可在不再被该 effect GC-stress 回归阻塞的前提下继续推进。
-- 依赖：T5001f4R
-
-### [TODO] T5001f2R Review：确认类初始化顺序合同重新闭合
-- 重点：
-  - primary ctor 参数属性是否已在 property initializer / init block 执行前完成绑定；
-  - property initializer 与 `init {}` 是否按源码顺序交错执行；
-  - secondary ctor body 是否严格晚于 primary init steps，且没有再引入 `this` 可见性或对象布局回归。
-- 验收：
-  - `T5001g` 可在不再被 `class_init_order_primary_secondary_basic.scoop` 阻塞的前提下继续做全量验收。
-- 依赖：T5001f3R
+  - `T5001g` 可在不再被 continuation 长期 owner 设计阻塞的前提下继续做全量验收。
+  - review 阶段必须在三项 GC env 全开条件下重跑所有 continuation/effect/task handoff 邻近 fixture，而不是只看单条 smoke。
+- 依赖：T5001f9
 
 ### [TODO] T5001g 全量回归、GC stress、verify-roots 与文档收尾
 - 范围：
@@ -441,10 +442,15 @@
     - 默认 explicit mode 不再生成 stackmap section。
   - 同步 `SCOOP_RUNTIME.md` 与必要实现注释，说明默认 explicit mode 现已采用 explicit root frame。
   - 记录 object / binary size 与 steady-state / GC pause 的观察结果，但不把性能调优作为本任务 blocker。
+  - 使用单个 fixture 顺序执行的方式，在 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 条件下完整验证：
+    - `tests/fixtures/run-pass/**`
+    - `tests/fixtures/runtime_gc/**`
+    - `tests/fixtures/build/**`
+  - 任何复杂逻辑若在本轮实现中新增了独立设计点，但还没有最小 fixture 覆盖，必须在进入 `T5001gR` 前补齐。
 - 验收：
   - 全量回归与定向回归都能支撑“默认 explicit mode 已切换成功”的结论；
   - 文档、实现注释与实际行为已对齐。
-- 依赖：T5001f2R
+- 依赖：T5001f9R
 
 ### [TODO] T5001gR Review：确认本轮 correctness 收口完成，并为后续优化划清边界
 - 重点：

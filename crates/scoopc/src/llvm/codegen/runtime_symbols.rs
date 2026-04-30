@@ -18,6 +18,8 @@ pub(super) const SCOOP_CALLEE_SUSPEND_STATE_PUBLISH: &str = "scoop_callee_suspen
 pub(super) const SCOOP_CONTINUATION_ALLOC: &str = "scoop_continuation_alloc";
 pub(super) const SCOOP_CONTINUATION_DISCARD: &str = "scoop_continuation_discard";
 pub(super) const SCOOP_CONTINUATION_RESUME_WITH: &str = "scoop_continuation_resume_with";
+pub(super) const SCOOP_CONTINUATION_SET_CAPTURED_CALLEE_SUSPEND_STATE: &str =
+    "scoop_continuation_set_captured_callee_suspend_state";
 pub(super) const SCOOP_CONTINUATION_RESUME_PUBLISH_PENDING_CONTINUATION: &str =
     "scoop_continuation_resume_publish_pending_continuation";
 pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";

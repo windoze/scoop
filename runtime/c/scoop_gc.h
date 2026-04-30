@@ -270,6 +270,10 @@ uint64_t scoop_handle_new(void *obj);
 void *scoop_handle_get(uint64_t handle);
 uint32_t scoop_handle_drop(uint64_t handle);
 
+// 仅供 GC release_fn 使用：要求调用方已处于 GC 持锁上下文，不会再次尝试注册线程/加锁。
+// 返回语义与 `scoop_handle_drop` 相同。
+uint32_t scoop_handle_drop_in_release(uint64_t handle);
+
 // --- Module-global roots（T4016b4a0） ---
 //
 // 说明：
