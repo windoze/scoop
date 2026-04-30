@@ -361,29 +361,82 @@
 - 完成记录：本轮先沿 verify-roots 把坏 slot 精确定位到 resumed outer handle 的 `step/dispatch` frame slot0，再对照 runtime `Continuation` ABI 收口到真正的长期 owner：`runtime/c/scoop_runtime.c` 里的 `ScoopContinuation.state`。此前 continuation 只把 effect frame state 当作普通 raw 指针保存；一旦后续 GC 搬迁该 frame，未来 `Continuation.resume(...)` 重新进入 `step/dispatch` 时就会把 stale `k->state` 写进两层 explicit frame slot0，并在 `continuation_resume_struct_with_ref.scoop` 的 resumed-body `println` 窗口触发 verify-roots invalid root。现已把 continuation state 与 continuation 生命周期绑定为 pinned：`scoop_continuation_alloc(...)` 在写入 `k->state` 后保留一个长期 pin，`scoop_continuation_release(...)` 在 continuation 释放时对称 `unpin`。这样 resumed body 期间的 raw `step(state, ...)` / `dispatch(state, ...)` 指针窗口不再依赖 moving update。定向验证已通过 `cargo build -p scoop_runtime`、`env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop` 与 `cargo clippy --all-targets -- -D warnings`。继续执行 `cargo run -p scoop -- test` 时，suite 已越过该 fixture，新的首个失败切换为 `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`，因此按要求在本条后插入 `T5001f8/T5001f8R`。
 - 依赖：T5001f6
 
-### [TODO] T5001f8 将 state-machine 的 frame-backed locals 收口为“稳定执行期 local home + 统一 flush-back”设计
+### T5001f8 将 state-machine 的 frame-backed locals 收口为“稳定执行期 local home + 统一 flush-back”设计（已拆分）
+- 背景：
+  - 当前 state-machine 仍会把 heap frame field 的 GEP 直接放进 env 当 `CgLocal.ptr`；一旦 state/arm body 中发生分配并触发 moving GC，这些预先算好的 slot pointer 会整体 stale，后续对 local/outer slot 的读写都会落到旧 frame 地址。
+  - outer mutable local 的 caller-side source-of-truth 也还未完全收口：即使 frame 已记录 backing slot 指针，后续 writeback 若绕开 caller 当前稳定 local home / explicit-frame home slot，同样会让 handle 之后的 caller 读取继续看到旧值。
+  - 当前 blocker 仍以 `continuation_resume_enum.scoop` 与 `effect_multi_escape_indirect_direct_while.scoop` 为主，故先拆成顺序子任务逐步收口。
+
+### [TODO] T5001f8a0 修复 state-body 预填充 frame-slot locals 的 stale heap-slot pointer，解除 `T5001f8a` 阻塞
 - 范围：
-  - 修复当前 state-machine 仍把 heap frame field 的 GEP 直接放进 env 当 `CgLocal.ptr` 的设计问题；一旦 state/arm body 中发生分配并触发 moving GC，这些预先算好的 slot pointer 会整体 stale，后续对 local/outer slot 的读写都会落到旧 frame 地址。
-  - 为所有 frame-backed local（至少覆盖 handle body locals、arm binder、capture locals、escape continuation binder、outer mutable locals）建立统一 contract：
-    1. 进入 state 时从 heap frame 读出值；
-    2. 落到稳定的 entry alloca / scratch local home；
-    3. state body 内所有读写只操作该稳定 local home；
-    4. 在状态终结点（return / arm-exit / suspend / cleanup edge）统一 flush 回 heap frame。
-  - outer mutable local 的持久化不能继续借用 caller 当前的临时 explicit-root scratch slot；需要一个真正稳定的 caller-side backing slot，并让 frame 的 `outer_scope_storage_ptr` 明确指向它。
-  - 以系统性设计修复当前两个 blocker：
+  - 修复 `populate_frame_slots_in_env(...)` 当前把 frame slot 的 heap-field GEP 直接塞进 env 当 `CgLocal.ptr` 的设计，至少先覆盖 outer mutable locals 在 state body 中的主线。
+  - 让 `continuation_resume_enum.scoop` 第一段 handle 的 state-body `saved = Some(k)` 在 GC env 下也走稳定执行期 local home，而不是继续在 `Some(k)` 构造/分配后把写入落到 stale heap-slot pointer。
+  - 与当前已完成的 caller-side writeback/readback 加固衔接：先保证 state body 产出的 frame slot 内容在 GC env 下是正确的，再继续做 `T5001f8a` 的 caller-return source-of-truth 收口。
+- 验收：
+  - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop` 恢复输出 `ok / 42` 与 `err2 / 99`，不再出现 `missing1/missing2`；
+  - 至少补一条最小 LLVM/fixture 回归，锁定 outer mutable local 在 state body 中不再长期直接使用 heap-frame GEP 作为执行期 local home。
+- 依赖：T5001f7
+
+### [TODO] T5001f8a0R Review：确认 state-body outer mutable local 已不再直接依赖 stale heap-slot pointer
+- 重点：
+  - `populate_frame_slots_in_env(...)` 是否已停止把 outer mutable local 直接暴露成 heap-frame GEP env local；
+  - `continuation_resume_enum.scoop` 在 GC env 下恢复是否来自新的稳定执行期 local home，而不是偶然规避；
+  - 新增回归是否真正锁住 state-body 写回窗口。
+- 验收：
+  - `T5001f8a` 可在不再被 state-body stale heap-slot pointer 阻塞的前提下继续推进。
+- 依赖：T5001f8a0
+
+### [TODO] T5001f8a 修复 outer mutable local 在原 caller handle-return 路径的稳定 writeback / readback 合同
+- 范围：
+  - 收紧 `write_back_outer_scope_frame_slots(...)`：当 handle 在原 caller activation 内完成时，outer mutable local 必须优先写回 caller 当前稳定 backing slot / local home，而不是只经由 frame 中记录的裸 storage pointer 回写。
+  - 确保 caller handle-return 后立即读取 outer mutable local 时，读到的是刚写回的新值，而不是 caller explicit frame 中的旧 home-slot 镜像。
+  - 以最小修复解除当前首个 blocker：
     - `tests/fixtures/run-pass/continuation_resume_enum.scoop`
-    - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
-- 拆分为可验证步骤：
-  1. 把 outer mutable local promotion 前移到 `codegen_handle_expr_via_state_machine(...)` 入口，并让 frame storage 记录稳定 backing slot 指针。
-  2. 把 state/arm body 中的 frame-backed locals 从 heap frame GEP 改成稳定 local home。
-  3. 在 suspend / return / arm-exit / cleanup 边界统一 flush mutable locals 回 frame。
-  4. 为 direct escape、indirect ordinary suspend、outer mutable local writeback 分别补最小 fixture/LLVM 回归。
+  - 新增最小回归，单独锁定“escape-continuation arm 把 outer mutable local 写成 `Some(k)` 后，handle 结束返回 caller，caller 立刻读取能看到最新值”。
 - 验收：
   - `continuation_resume_enum.scoop` 恢复输出 `ok / 42` 与 `err2 / 99` 主线，不再出现 `missing1/missing2`；
+  - 至少新增/更新一条最小 fixture，单独锁定 outer mutable local 的 caller-side writeback/readback；
+  - 当前修复不依赖放宽 fixture、关闭 explicit-frame reload，或让 caller 退回读取旧 local slot。
+- 依赖：T5001f8a0R
+
+### [TODO] T5001f8aR Review：确认 outer mutable local 的 caller-side source-of-truth 已闭合
+- 重点：
+  - handle 完成并返回原 caller 时，writeback 是否优先经过 caller 当前稳定 backing slot / local home；
+  - caller 紧随 handle 之后的读取是否已经看到最新值，而不是 caller explicit frame 中的旧镜像；
+  - 新增最小回归是否真正锁住了“handle-return 后立刻读回”的窗口。
+- 验收：
+  - `T5001f8b` 可在不再被 outer mutable local caller-side writeback/readback 缺口阻塞的前提下继续推进。
+- 依赖：T5001f8a
+
+### [TODO] T5001f8b 把 state/arm body 中的 frame-backed locals 从 heap-frame GEP 收口为稳定执行期 local home
+- 范围：
+  - 为 handle body locals、arm binder、capture locals、escape continuation binder 建立统一 contract：进入 state/arm 时从 heap frame 读出，落到稳定的 entry alloca / scratch local home，body 内后续读写只操作该稳定 local home。
+  - 清理 `populate_frame_slots_in_env(...)`、`emit_bind_local_to_frame(...)`、`emit_read_local_from_frame(...)` 与 arm capture/binder 恢复里长期把 heap frame GEP 暴露给 env 的设计。
+  - 重点解除“state/arm body 发生分配或 moving GC 后继续读写 stale heap-slot pointer”的剩余 correctness 缺口。
+- 验收：
+  - IR 中不再把 heap frame field GEP 长期作为 env local home 暴露给后续会分配/GC 的 state/arm body；
+  - 至少补一条最小 LLVM 回归，锁定 state/arm body local 会先落到稳定执行期 local home。
+- 依赖：T5001f8aR
+
+### [TODO] T5001f8bR Review：确认 state/arm body 已不再长期持有 stale heap-slot pointer
+- 重点：
+  - handle body locals、arm binder、capture locals、escape continuation binder 是否都已收口到稳定执行期 local home；
+  - 是否还残留“env local 直接指向 heap frame field GEP”的路径；
+  - LLVM 回归是否锁住了新的 local-home contract。
+- 验收：
+  - `T5001f8c` 可在不再被 stale heap-slot pointer 设计阻塞的前提下继续推进。
+- 依赖：T5001f8b
+
+### [TODO] T5001f8c 在 suspend / return / arm-exit / cleanup 边界统一 flush mutable locals 回 frame，并补齐 direct/indirect mixed 回归
+- 范围：
+  - 在 suspend / return / arm-exit / cleanup edge 统一 flush mutable locals 回 heap frame，使 frame 成为跨 resume / cleanup 的稳定持久化 source-of-truth。
+  - 以系统性设计修复当前剩余 blocker：
+    - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - 为 direct escape、indirect ordinary suspend、outer mutable local writeback 三类窗口补最小 fixture/LLVM 回归。
+- 验收：
   - `effect_multi_escape_indirect_direct_while.scoop` 恢复 golden，不再出现 `missing1..missing4` 或顺序错乱；
-  - IR 中不再把 heap frame field GEP 长期作为 env local home 暴露给后续会分配/GC 的 state/arm body。
-  - 至少新增/更新一条最小 fixture，单独锁定 “outer mutable local 经 handle 写回后，handle 之后的 caller 读取仍能看到最新值”。
-- 依赖：T5001f7
+  - mutable local 的 frame flush-back contract 已覆盖 suspend / return / arm-exit / cleanup 四类边界。
+- 依赖：T5001f8bR
 
 ### [TODO] T5001f8R Review：确认 state-machine local-home / flush-back 合同已经真正取代 stale heap-slot pointer 设计
 - 重点：
@@ -393,7 +446,7 @@
 - 验收：
   - `T5001f9` / `T5001g` 可在不再被 state-machine stale heap-slot pointer 设计阻塞的前提下继续推进。
   - review 阶段必须用 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 重跑相关 direct/indirect/outer-writeback fixture。
-- 依赖：T5001f8
+- 依赖：T5001f8c
 
 ### [TODO] T5001f9 将 continuation / replay-state 的长期对象 owner 从长期 pin 收口为 stable GC handle
 - 范围：

@@ -1,0 +1,27 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_outer_mutable_writeback_basic.stdout
+// Outer mutable local written by an escape-continuation arm must be visible
+// to the caller immediately after the handle returns.
+
+import scoop.core.*
+
+effect Query {
+    fun query(): Int
+}
+
+fun main() {
+    var saved: Continuation<Int, Unit>? = None()
+
+    val _: Unit = handle {
+        val _: Int = Query.query()
+    } with {
+        Query.query(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    when (saved) {
+        Some(_) -> println("stored")
+        None -> println("missing")
+    }
+}

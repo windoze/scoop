@@ -2184,14 +2184,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if slot.owner_arm().is_some() || !slot.seed_from_outer_scope() {
                 continue;
             }
-            let local = self
-                .function_cx
-                .env
-                .get(slot.id())
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
+            let local =
+                self.function_cx
+                    .env
+                    .get(slot.id())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "effect frame seed outer-scope local",
                         at: at.into(),
-                })?;
+                    })?;
 
             let target_cg_ty =
                 self.cg_ty_of(slot.ty())
@@ -2269,14 +2269,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
 
-            let local = self
-                .function_cx
-                .env
-                .get(slot.id())
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "effect frame promote outer-scope local",
-                    at: at.into(),
-                })?;
+            let local =
+                self.function_cx
+                    .env
+                    .get(slot.id())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect frame promote outer-scope local",
+                        at: at.into(),
+                    })?;
 
             let backing = self.create_entry_alloca(
                 at,
@@ -2388,20 +2388,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.cg_value_from_loaded(at, slot_cg_ty, loaded)?
                 }
             };
-            let storage_ptr = self.builder.build_pointer_cast(
-                storage_ptr,
-                self.llvm_ptr_type(AddressSpace::default()),
-                &format!("writeback_outer_slot_target_{}", slot.id().as_u32()),
-            )?;
-            self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
-            let storage_llvm_ty = self.llvm_basic_type_of(at, slot_cg_ty)?;
-            if self.basic_type_contains_gc_ptrs(at, storage_llvm_ty)? {
-                self.sync_storage_slot_into_explicit_frame(
-                    at,
+            let caller_local_storage = self.function_cx.env.get(slot.id()).and_then(|local| {
+                (local.ty == slot_cg_ty
+                    && local.ptr.get_type().get_address_space() == AddressSpace::default())
+                .then_some(local.ptr)
+            });
+
+            if let Some(storage_ptr) = caller_local_storage {
+                // When the handle is still returning inside its original caller,
+                // write back through the caller's stable backing slot so the
+                // caller-facing explicit-frame home slots are refreshed too.
+                self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
+            } else {
+                let storage_ptr = self.builder.build_pointer_cast(
                     storage_ptr,
-                    storage_llvm_ty,
-                    &format!("writeback_outer_slot_sync_{}", slot.id().as_u32()),
+                    self.llvm_ptr_type(AddressSpace::default()),
+                    &format!("writeback_outer_slot_target_{}", slot.id().as_u32()),
                 )?;
+                self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
+                let storage_llvm_ty = self.llvm_basic_type_of(at, slot_cg_ty)?;
+                if self.basic_type_contains_gc_ptrs(at, storage_llvm_ty)? {
+                    self.sync_storage_slot_into_explicit_frame(
+                        at,
+                        storage_ptr,
+                        storage_llvm_ty,
+                        &format!("writeback_outer_slot_sync_{}", slot.id().as_u32()),
+                    )?;
+                }
             }
         }
         Ok(())
@@ -4259,6 +4272,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         llvm_index,
                         &format!("capture_{}", local_id.as_u32()),
                     )?;
+
                     self.function_cx.env.insert(
                         local_id,
                         CgLocal {
@@ -4369,6 +4383,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resolve_escape_continuation_for_arm(
         &mut self,
         span: crate::span::Span,
@@ -4390,12 +4405,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let direct_site = matching_sites.iter().copied().find(|site| {
-            frame_layout.ordinary_callee_resume_token_index(site.id()).is_none()
+            frame_layout
+                .ordinary_callee_resume_token_index(site.id())
+                .is_none()
         });
         let indirect_sites: Vec<_> = matching_sites
             .iter()
             .copied()
-            .filter(|site| frame_layout.ordinary_callee_resume_token_index(site.id()).is_some())
+            .filter(|site| {
+                frame_layout
+                    .ordinary_callee_resume_token_index(site.id())
+                    .is_some()
+            })
             .collect();
 
         let current_fn = self
@@ -4417,18 +4438,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .append_basic_block(current_fn, &format!("arm{arm_id}_cont_merge"));
 
-        let has_existing = self.ptr_is_non_null(span, existing, &format!("arm{arm_id}_cont_has_existing"))?;
+        let has_existing =
+            self.ptr_is_non_null(span, existing, &format!("arm{arm_id}_cont_has_existing"))?;
         self.builder
             .build_conditional_branch(has_existing, existing_bb, next_bb)?;
 
         self.builder.position_at_end(existing_bb);
-        let existing_bb_end = self
-            .builder
-            .get_insert_block()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "escape continuation existing block",
-                at: span.into(),
-            })?;
+        let existing_bb_end =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "escape continuation existing block",
+                    at: span.into(),
+                })?;
         self.builder.build_unconditional_branch(merge_bb)?;
 
         let mut incoming: Vec<(PointerValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
@@ -4469,12 +4491,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("site{}_arm_cont_materialize", site.id()),
             );
             let else_bb = if index + 1 == indirect_sites.len() {
-                self.context.append_basic_block(current_fn, &format!("arm{arm_id}_cont_missing"))
+                self.context
+                    .append_basic_block(current_fn, &format!("arm{arm_id}_cont_missing"))
             } else {
-                self.context.append_basic_block(
-                    current_fn,
-                    &format!("site{}_arm_cont_next", site.id()),
-                )
+                self.context
+                    .append_basic_block(current_fn, &format!("site{}_arm_cont_next", site.id()))
             };
             self.builder
                 .build_conditional_branch(has_token, materialize_bb, else_bb)?;
@@ -4520,7 +4541,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .const_int(escape_resume_state as u64, false);
             self.builder
                 .build_store(cont_resume_state_gep, resume_state_val)?;
-            let set_captured = self.declare_runtime_continuation_set_captured_callee_suspend_state();
+            let set_captured =
+                self.declare_runtime_continuation_set_captured_callee_suspend_state();
             self.builder.build_call(
                 set_captured,
                 &[cont.into(), token.into()],
@@ -4537,13 +4559,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("site{}_arm_continuation_drop", site.id()),
                 &deferred_cont,
             )?;
-            let materialize_bb_end = self
-                .builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "escape continuation materialize block",
-                    at: span.into(),
-                })?;
+            let materialize_bb_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "escape continuation materialize block",
+                        at: span.into(),
+                    })?;
             self.builder.build_unconditional_branch(merge_bb)?;
             incoming.push((cont, materialize_bb_end));
 
@@ -4602,32 +4624,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("site{}_arm_direct_continuation_drop", site.id()),
                 &deferred_cont,
             )?;
-            let direct_bb_end = self
-                .builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "escape continuation direct materialize block",
-                    at: span.into(),
-                })?;
+            let direct_bb_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "escape continuation direct materialize block",
+                        at: span.into(),
+                    })?;
             self.builder.build_unconditional_branch(merge_bb)?;
             incoming.push((cont, direct_bb_end));
         } else {
-            let missing_bb_end = self
-                .builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "escape continuation missing block",
-                    at: span.into(),
-                })?;
+            let missing_bb_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "escape continuation missing block",
+                        at: span.into(),
+                    })?;
             self.builder.build_unconditional_branch(merge_bb)?;
             incoming.push((self.llvm_gc_i8_ptr_type().const_null(), missing_bb_end));
         }
 
         self.builder.position_at_end(merge_bb);
-        let phi = self
-            .builder
-            .build_phi(self.llvm_gc_i8_ptr_type(), &format!("arm{arm_id}_resolved_continuation"))?;
-        let refs: Vec<_> = incoming.iter().map(|(ptr, bb)| (ptr as &dyn inkwell::values::BasicValue<'ctx>, *bb)).collect();
+        let phi = self.builder.build_phi(
+            self.llvm_gc_i8_ptr_type(),
+            &format!("arm{arm_id}_resolved_continuation"),
+        )?;
+        let refs: Vec<_> = incoming
+            .iter()
+            .map(|(ptr, bb)| (ptr as &dyn inkwell::values::BasicValue<'ctx>, *bb))
+            .collect();
         phi.add_incoming(&refs);
         Ok(phi.as_basic_value().into_pointer_value())
     }
