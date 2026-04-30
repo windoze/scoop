@@ -68,3 +68,4 @@ Complete exactly the first unfinished task in `TODO.md` (or the first unfinished
   - cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop
   - cargo test -p scoopc --lib
   - cargo clippy --all-targets -- -D warnings
+- 2026-05-01: 继续执行 `T5001f8a`：复验 `continuation_resume_enum.scoop`（默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1`）与最小回归 `effect_escape_continuation_outer_mutable_writeback_basic.scoop`（默认/GC env）；并再次通过 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。准备更新 `TODO.md`/`PLAN.md` 并提交。

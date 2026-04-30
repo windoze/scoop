@@ -400,7 +400,7 @@
     - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T5001f8a0
 
-### [TODO] T5001f8a 修复 outer mutable local 在原 caller handle-return 路径的稳定 writeback / readback 合同
+### [DONE] T5001f8a 修复 outer mutable local 在原 caller handle-return 路径的稳定 writeback / readback 合同
 - 范围：
   - 收紧 `write_back_outer_scope_frame_slots(...)`：当 handle 在原 caller activation 内完成时，outer mutable local 必须优先写回 caller 当前稳定 backing slot / local home，而不是只经由 frame 中记录的裸 storage pointer 回写。
   - 确保 caller handle-return 后立即读取 outer mutable local 时，读到的是刚写回的新值，而不是 caller explicit frame 中的旧 home-slot 镜像。
@@ -411,6 +411,16 @@
   - `continuation_resume_enum.scoop` 恢复输出 `ok / 42` 与 `err2 / 99` 主线，不再出现 `missing1/missing2`；
   - 至少新增/更新一条最小 fixture，单独锁定 outer mutable local 的 caller-side writeback/readback；
   - 当前修复不依赖放宽 fixture、关闭 explicit-frame reload，或让 caller 退回读取旧 local slot。
+- 完成记录：
+  - compiler：`write_back_outer_scope_frame_slots(...)` 在 handle 仍位于原 caller activation 内时，会优先通过 caller 当前 env 中的稳定 local home/backing slot 执行 writeback，从而走 `store_local_value(...)` 的统一 store + explicit-frame 同步合同，避免只写回 frame 记录的裸 storage pointer 而导致 caller explicit frame home-slot 镜像仍旧。
+  - fixture：新增/确认最小回归 `tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`，锁定“escape-continuation arm 写入 outer mutable local 后，handle 返回 caller 立即读回可见”的窗口。
+  - 定向验证：
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
+    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T5001f8a0R
 
 ### [TODO] T5001f8aR Review：确认 outer mutable local 的 caller-side source-of-truth 已闭合
