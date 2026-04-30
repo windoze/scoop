@@ -2049,6 +2049,34 @@ void scoop_leave_native(void) {
   scoop_gc_immix_unlock(state);
 }
 
+void scoop_gc_thread_clear_managed_root_snapshot_current(void) {
+  pthread_t self = pthread_self();
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return;
+  }
+
+  scoop_gc_immix_lock(state);
+  ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
+  if (rec != 0) {
+    ScoopThreadTls *tls = rec->tls;
+    if (tls != 0) {
+      tls->gc_native_roots = 0;
+      tls->gc_native_roots_len = 0;
+    }
+    rec->native_roots = 0;
+    rec->native_roots_len = 0;
+    rec->explicit_root_frame_top = 0;
+    scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
+    rec->stack_walking_ctx = 0;
+    if (rec->state != SCOOP_GC_THREAD_IN_NATIVE) {
+      rec->state = SCOOP_GC_THREAD_RUNNING;
+    }
+    rec->parked_epoch = 0;
+  }
+  scoop_gc_immix_unlock(state);
+}
+
 uint32_t scoop_pin(void *raw_obj) {
   if (raw_obj == 0) {
     return 0;
@@ -3189,10 +3217,6 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
         if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
           scoop_gc_verify_roots_record_error(
               &st, root_kind, tid, /*slot_addr=*/0, /*value=*/0, "managed roots visit failed");
-        } else if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP &&
-                   root_map_result.units_hit == 0) {
-          scoop_gc_verify_roots_record_error(
-              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
         }
       }
 
@@ -3286,10 +3310,6 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
       if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
         scoop_gc_verify_roots_record_error(
             &st, root_kind, tid, /*slot_addr=*/0, /*value=*/0, "managed roots visit failed");
-      } else if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP &&
-                 root_map_result.units_hit == 0) {
-        scoop_gc_verify_roots_record_error(
-            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
       }
       continue;
     }

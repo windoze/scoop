@@ -170,6 +170,8 @@ void scoop_leave_native(void) {
   scoop_thread_register();
 }
 
+void scoop_gc_thread_clear_managed_root_snapshot_current(void) {}
+
 // Test-only export（T1505b）：hosted backend 无 STW/park，因此该 smoke 统一返回 0。
 intptr_t scoop_test_gc_stack_walking_ctx_smoke(void) { return 0; }
 

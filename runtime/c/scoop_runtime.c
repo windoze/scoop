@@ -704,6 +704,7 @@ void scoop_runtime_init(void);
 // before blocking system calls, allowing STW GC to skip this thread.
 void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
 void scoop_leave_native(void);
+void scoop_gc_thread_clear_managed_root_snapshot_current(void);
 
 // 线程注册接口（占位）。
 //
@@ -1674,9 +1675,15 @@ static uint32_t scoop_continuation_resume_after_try(void *continuation,
       if (outcome->tag == SCOOP_EFFECT_OUTCOME_PROPAGATE) {
         outcome->signal.resume_token = result.pending_continuation;
       }
+      if (__scoop_explicit_root_frame_top == 0) {
+        scoop_gc_thread_clear_managed_root_snapshot_current();
+      }
       return 0;
     }
 
+    if (__scoop_explicit_root_frame_top == 0) {
+      scoop_gc_thread_clear_managed_root_snapshot_current();
+    }
     scoop_continuation_resume_install_legacy_replay_state(
         result.pending_continuation);
     return 0;
@@ -1687,11 +1694,18 @@ static uint32_t scoop_continuation_resume_after_try(void *continuation,
   }
 
   if (outcome == 0 && result.pending_continuation != 0) {
+    if (__scoop_explicit_root_frame_top == 0) {
+      scoop_gc_thread_clear_managed_root_snapshot_current();
+    }
     scoop_continuation_resume_install_legacy_replay_state(
         result.pending_continuation);
   }
 
-  return scoop_continuation_read_answer_transport(continuation, out_word, out_gc_ref);
+  uint32_t rc = scoop_continuation_read_answer_transport(continuation, out_word, out_gc_ref);
+  if (__scoop_explicit_root_frame_top == 0) {
+    scoop_gc_thread_clear_managed_root_snapshot_current();
+  }
+  return rc;
 }
 
 // 显式 continuation answer channel。
@@ -1809,10 +1823,19 @@ static void *scoop_thread_entry_resume_u64(void *arg) {
     return 0;
   }
 
+  // 新线程必须先注册到 runtime/GC，确保 verify-roots / STW 始终走线程当前的
+  // managed-root-map（explicit root frames），而不是回退到空 stackmap ctx。
+  scoop_thread_register();
+
   ScoopThreadResumeU64Args *args = (ScoopThreadResumeU64Args *)arg;
   // T1607：payload 已由调用方写入 continuation 的 resume_word/resume_gc_ref 槽位。
   // 这里直接走新 ABI 的公共路径。
   scoop_continuation_resume_u64(args->continuation, args->resume_value);
+
+  // worker 线程在 resume 返回后已经回到纯 runtime/C 边界；若它在先前某次 GC park 时
+  // 捕获过 stackmap unwind ctx，这里需要先清掉该 snapshot，避免在注销前的短窗口里被
+  // 后续 GC/verify-roots 误判为 stackmap 线程。
+  scoop_gc_thread_clear_managed_root_snapshot_current();
 
   // 清理线程注册信息：避免 GC 的线程枚举残留无效条目。
   scoop_thread_unregister();

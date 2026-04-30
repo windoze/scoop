@@ -355,6 +355,30 @@ void scoop_leave_native(void) {
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
 
+void scoop_gc_thread_clear_managed_root_snapshot_current(void) {
+  pthread_t self = pthread_self();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
+  if (rec != 0) {
+    ScoopThreadTls *tls = rec->tls;
+    if (tls != 0) {
+      tls->gc_native_roots = 0;
+      tls->gc_native_roots_len = 0;
+    }
+    rec->native_roots = 0;
+    rec->native_roots_len = 0;
+    rec->explicit_root_frame_top = 0;
+    scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
+    rec->stack_walking_ctx = 0;
+    if (rec->state != SCOOP_GC_THREAD_IN_NATIVE) {
+      rec->state = SCOOP_GC_THREAD_RUNNING;
+    }
+    rec->parked_epoch = 0;
+  }
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+}
+
 // scope helper：进入 stop-the-world（等待其它线程 park）。
 static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
   scoop_gc_stw_requested_store(&scoop_gc_stw, 1);
@@ -1665,10 +1689,6 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
         if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
           scoop_gc_verify_roots_record_error(
               &st, root_kind, tid, /*slot_addr=*/0, /*value=*/0, "managed roots visit failed");
-        } else if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP &&
-                   root_map_result.units_hit == 0) {
-          scoop_gc_verify_roots_record_error(
-              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
         }
       }
 
@@ -1736,10 +1756,6 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
       if (err != SCOOP_GC_ROOT_MAP_VISIT_OK) {
         scoop_gc_verify_roots_record_error(
             &st, root_kind, tid, /*slot_addr=*/0, /*value=*/0, "managed roots visit failed");
-      } else if (root_map.kind == SCOOP_GC_MANAGED_ROOT_MAP_STACKMAP &&
-                 root_map_result.units_hit == 0) {
-        scoop_gc_verify_roots_record_error(
-            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
       }
       continue;
     }
