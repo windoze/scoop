@@ -1859,6 +1859,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 result_cg,
                 &format!("site{site_id}_suspend_call_callee_resume"),
             )?;
+            let deferred_call_result = cg.defer_gc_sensitive_cg_value(
+                source_span,
+                &format!("site{site_id}_suspend_call_callee_resume_result"),
+                call_result,
+            )?;
             cg.consume_current_effect_outcome_into(
                 source_span,
                 outcome_slot,
@@ -1875,7 +1880,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 outcome_slot,
                 &format!("site{site_id}_suspend_call_callee_resume"),
             )?;
-            Ok(call_result)
+            cg.materialize_deferred_cg_value(
+                source_span,
+                &format!("site{site_id}_suspend_call_callee_resume_result_reload"),
+                deferred_call_result,
+            )
         })?;
         self.store_value_to_frame_slot(
             source_span,
@@ -2080,6 +2089,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 result_cg,
                 &format!("site{site_id}_call_callee_resume"),
             )?;
+            let deferred_call_result = cg.defer_gc_sensitive_cg_value(
+                source_span,
+                &format!("site{site_id}_call_callee_resume_result"),
+                call_result,
+            )?;
             cg.consume_current_effect_outcome_into(
                 source_span,
                 outcome_slot,
@@ -2097,7 +2111,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 outcome_slot,
                 &format!("site{site_id}_callee_resume"),
             )?;
-            Ok(call_result)
+            cg.materialize_deferred_cg_value(
+                source_span,
+                &format!("site{site_id}_call_callee_resume_result_reload"),
+                deferred_call_result,
+            )
         })?;
         self.store_value_to_frame_slot(
             source_span,

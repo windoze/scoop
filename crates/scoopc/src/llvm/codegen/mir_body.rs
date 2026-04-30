@@ -2223,6 +2223,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ptr) = sret_result_slot {
             self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "pass_mir_call_sret")?;
         }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(
+                span,
+                ret_cg,
+                call_site,
+                "pass_mir_call_direct_result",
+            )?
+        } else {
+            None
+        };
         if let Some(outcome_slot) = effect_outcome_slot {
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -2246,13 +2256,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "pass_mir_call_sret",
                     )
                 } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR call return value",
+                    self.materialize_deferred_cg_value(
+                        span,
+                        "pass_mir_call_direct_result_reload",
+                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR deferred call return value",
                             at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
+                        })?,
+                    )
                 }
             }
         }
@@ -3193,6 +3204,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "pass_mir_closure_call_sret",
             )?;
         }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(
+                span,
+                ret_cg,
+                call_site,
+                "pass_mir_closure_call_direct_result",
+            )?
+        } else {
+            None
+        };
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "pass_mir_closure_call")?;
             let _ = self.swap_effect_handler_stack_top(
@@ -3222,13 +3243,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "pass_mir_closure_call_sret",
                     )
                 } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR closure call return value",
+                    self.materialize_deferred_cg_value(
+                        span,
+                        "pass_mir_closure_call_direct_result_reload",
+                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR deferred closure call return value",
                             at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
+                        })?,
+                    )
                 }
             }
         }

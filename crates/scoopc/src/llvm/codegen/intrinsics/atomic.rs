@@ -89,11 +89,54 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let ptr = self.codegen_atomic_int_lvalue_ptr(
-                    target_expr.span,
-                    target_expr,
-                    AtomicIntLvalueMode::ReadWrite,
-                )?;
+                let deferred_class_place = if let hir::ExprKind::MemberAccess { receiver, member } =
+                    &target_expr.kind
+                {
+                    if let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() {
+                        let receiver_hir_ty = self
+                            .resolve_expr_concrete_type(receiver)
+                            .unwrap_or(receiver.ty);
+                        self.defer_class_field_place(
+                            receiver,
+                            member.span,
+                            fqn,
+                            receiver_hir_ty,
+                            "atomic_int_store",
+                        )?
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                let fallback_ptr = if let Some(place) = deferred_class_place.as_ref() {
+                    if !place.writable {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "atomicInt requires mutable lvalue",
+                            at: target_expr.span.into(),
+                        });
+                    }
+                    let CgTy::Int(int_ty) = place.field_cg else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "atomicInt target type",
+                            at: target_expr.span.into(),
+                        });
+                    };
+                    if int_ty != atomic_word {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "atomicInt target width",
+                            at: target_expr.span.into(),
+                        });
+                    }
+                    None
+                } else {
+                    Some(self.codegen_atomic_int_lvalue_ptr(
+                        target_expr.span,
+                        target_expr,
+                        AtomicIntLvalueMode::ReadWrite,
+                    )?)
+                };
 
                 let v = self
                     .codegen_expr_in_expected_context(value_expr, Some(CgTy::Int(atomic_word)))?;
@@ -103,6 +146,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: value_expr.span.into(),
                 })?;
                 let raw_int = self.cast_int(raw_int, from, atomic_word)?;
+
+                let ptr = if let Some(place) = deferred_class_place.as_ref() {
+                    self.reload_deferred_class_field_place_ptr(
+                        target_expr.span,
+                        place,
+                        "atomic_int_store",
+                    )?
+                } else {
+                    fallback_ptr.expect("non-class atomic store pointer")
+                };
 
                 let inst = self.builder.build_store(ptr, raw_int)?;
                 inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
@@ -139,11 +192,54 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let ptr = self.codegen_atomic_int_lvalue_ptr(
-                    target_expr.span,
-                    target_expr,
-                    AtomicIntLvalueMode::ReadWrite,
-                )?;
+                let deferred_class_place = if let hir::ExprKind::MemberAccess { receiver, member } =
+                    &target_expr.kind
+                {
+                    if let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() {
+                        let receiver_hir_ty = self
+                            .resolve_expr_concrete_type(receiver)
+                            .unwrap_or(receiver.ty);
+                        self.defer_class_field_place(
+                            receiver,
+                            member.span,
+                            fqn,
+                            receiver_hir_ty,
+                            "atomic_int_cmpxchg",
+                        )?
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                let fallback_ptr = if let Some(place) = deferred_class_place.as_ref() {
+                    if !place.writable {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "atomicInt requires mutable lvalue",
+                            at: target_expr.span.into(),
+                        });
+                    }
+                    let CgTy::Int(int_ty) = place.field_cg else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "atomicInt target type",
+                            at: target_expr.span.into(),
+                        });
+                    };
+                    if int_ty != atomic_word {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "atomicInt target width",
+                            at: target_expr.span.into(),
+                        });
+                    }
+                    None
+                } else {
+                    Some(self.codegen_atomic_int_lvalue_ptr(
+                        target_expr.span,
+                        target_expr,
+                        AtomicIntLvalueMode::ReadWrite,
+                    )?)
+                };
 
                 let expected_v = self.codegen_expr_in_expected_context(
                     expected_expr,
@@ -172,6 +268,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: desired_expr.span.into(),
                         })?;
                 let desired_raw = self.cast_int(desired_raw, desired_from, atomic_word)?;
+
+                let ptr = if let Some(place) = deferred_class_place.as_ref() {
+                    self.reload_deferred_class_field_place_ptr(
+                        target_expr.span,
+                        place,
+                        "atomic_int_cmpxchg",
+                    )?
+                } else {
+                    fallback_ptr.expect("non-class atomic cmpxchg pointer")
+                };
 
                 // LLVM: `cmpxchg ptr, expected, desired` returns `{ T, i1 }`.
                 let cx = self.builder.build_cmpxchg(

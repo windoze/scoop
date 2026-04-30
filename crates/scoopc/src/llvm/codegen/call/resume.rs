@@ -213,6 +213,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.add_sret_attribute_to_call(call_site, 0, result_ty);
         }
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(&fun.fqn));
+        let deferred_direct_result = if sret_param.is_none() {
+            self.defer_direct_call_result(
+                fun.span,
+                return_cg,
+                call_site,
+                "effect_wrapper_direct_result",
+            )?
+        } else {
+            None
+        };
 
         self.consume_current_effect_outcome_into(fun.span, outcome_param, "effect_wrapper")?;
         let _ =
@@ -226,12 +236,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(None)?;
             }
             other => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
+                let raw = self
+                    .materialize_deferred_cg_value(
+                        fun.span,
+                        "effect_wrapper_direct_result_reload",
+                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "effect call wrapper deferred return value",
+                            at: fun.span.into(),
+                        })?,
+                    )?
+                    .value
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "effect call wrapper return value",
                         at: fun.span.into(),
-                    },
-                )?;
+                    })?;
                 let _ = other;
                 self.builder.build_return(Some(&raw))?;
             }

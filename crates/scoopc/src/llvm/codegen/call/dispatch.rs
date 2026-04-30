@@ -729,6 +729,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ptr) = sret_result_slot {
             self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "call_sret")?;
         }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(span, ret_cg, call_site, "call_direct_result")?
+        } else {
+            None
+        };
         if let Some(outcome_slot) = effect_outcome_slot {
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -747,13 +752,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(result_ptr) = sret_result_slot {
                     self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "call_sret")
                 } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "call return value",
+                    self.materialize_deferred_cg_value(
+                        span,
+                        "call_direct_result_reload",
+                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "call deferred return value",
                             at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
+                        })?,
+                    )
                 }
             }
         }
@@ -1000,6 +1006,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ptr) = sret_result_slot {
             self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "vtable_call_sret")?;
         }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(span, ret_cg, call_site, "vtable_call_direct_result")?
+        } else {
+            None
+        };
         if let Some(boundary) = effect_boundary {
             let outcome_slot = self.finish_legacy_effect_boundary(span, boundary, "vtable_call")?;
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
@@ -1016,13 +1027,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => Ok(Some(if let Some(result_ptr) = sret_result_slot {
                 self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "vtable_call_sret")?
             } else {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call return value",
+                self.materialize_deferred_cg_value(
+                    span,
+                    "vtable_call_direct_result_reload",
+                    deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "vtable call deferred return value",
                         at: span.into(),
-                    },
-                )?;
-                self.cg_value_from_loaded(span, ret_cg, raw)?
+                    })?,
+                )?
             })),
         }
     }
@@ -1225,6 +1237,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ptr) = sret_result_slot {
             self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "itable_call_sret")?;
         }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(span, ret_cg, call_site, "itable_call_direct_result")?
+        } else {
+            None
+        };
         if let Some(boundary) = effect_boundary {
             let outcome_slot = self.finish_legacy_effect_boundary(span, boundary, "itable_call")?;
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
@@ -1241,13 +1258,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => Ok(Some(if let Some(result_ptr) = sret_result_slot {
                 self.load_hidden_sret_result_from_ptr(span, ret_cg, result_ptr, "itable_call_sret")?
             } else {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable call return value",
+                self.materialize_deferred_cg_value(
+                    span,
+                    "itable_call_direct_result_reload",
+                    deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call deferred return value",
                         at: span.into(),
-                    },
-                )?;
-                self.cg_value_from_loaded(span, ret_cg, raw)?
+                    })?,
+                )?
             })),
         }
     }
@@ -1670,6 +1688,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ptr) = sret_result_slot {
             self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "funptr_call_sret")?;
         }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(span, ret_cg, call_site, "funptr_call_direct_result")?
+        } else {
+            None
+        };
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "funptr_call")?;
             let _ = self.swap_effect_handler_stack_top(span, saved_top, "funptr_call_restore")?;
@@ -1695,13 +1718,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "funptr_call_sret",
                     )
                 } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "funptr call return value",
+                    self.materialize_deferred_cg_value(
+                        span,
+                        "funptr_call_direct_result_reload",
+                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "funptr call deferred return value",
                             at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
+                        })?,
+                    )
                 }
             }
         }
@@ -1878,6 +1902,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ptr) = sret_result_slot {
             self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "closure_call_sret")?;
         }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(span, ret_cg, call_site, "closure_call_direct_result")?
+        } else {
+            None
+        };
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "closure_call")?;
             let _ = self.swap_effect_handler_stack_top(span, saved_top, "closure_call_restore")?;
@@ -1903,13 +1932,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "closure_call_sret",
                     )
                 } else {
-                    let raw = call_site.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "function value call return value",
+                    self.materialize_deferred_cg_value(
+                        span,
+                        "closure_call_direct_result_reload",
+                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "function value deferred return value",
                             at: span.into(),
-                        },
-                    )?;
-                    self.cg_value_from_loaded(span, ret_cg, raw)
+                        })?,
+                    )
                 }
             }
         }

@@ -127,8 +127,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     receiver.ty
                 };
 
-                let Some((class, field_idx, field_cg)) =
-                    self.lookup_class_field_by_fqn(fqn, member.span, Some(receiver_hir_ty))?
+                let Some(field_place) = self.defer_class_field_place(
+                    receiver,
+                    member.span,
+                    fqn,
+                    receiver_hir_ty,
+                    "assign_class_field",
+                )?
                 else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "assignment lhs",
@@ -136,38 +141,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let field = class.fields.get(field_idx as usize).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "assignment class field index",
-                        at: lhs.span.into(),
-                    },
-                )?;
-                if !field.mutable {
+                if !field_place.writable {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "assignment to immutable class field",
                         at: eq_span.into(),
                     });
                 }
 
-                let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
-                let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
-                let Some(raw) = recv.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "assignment class receiver value",
-                        at: receiver.span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "assignment class receiver type",
-                        at: receiver.span.into(),
-                    });
-                };
-
-                let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(field_cg))?;
-                let field_ptr =
-                    self.codegen_class_field_ptr(eq_span, &class, obj_ptr, field_idx)?;
-                let _stored = self.store_local_value(eq_span, field_ptr, field_cg, rhs_v)?;
+                let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(field_place.field_cg))?;
+                let field_ptr = self.reload_deferred_class_field_place_ptr(
+                    eq_span,
+                    &field_place,
+                    "assign_class_field",
+                )?;
+                let _stored =
+                    self.store_local_value(eq_span, field_ptr, field_place.field_cg, rhs_v)?;
                 Ok(())
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {

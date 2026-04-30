@@ -235,6 +235,15 @@ struct AddressablePlace<'ctx> {
     writable: bool,
 }
 
+#[derive(Clone)]
+struct DeferredClassFieldPlace<'ctx> {
+    class: hir::ClassInit,
+    field_idx: u32,
+    field_cg: CgTy,
+    writable: bool,
+    receiver: DeferredCgValue<'ctx>,
+}
+
 #[derive(Debug, Default, Clone)]
 struct Env<'ctx> {
     scopes: Vec<HashMap<hir::SymbolId, CgLocal<'ctx>>>,
@@ -2358,6 +2367,110 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let result = self.cg_value_from_loaded(at, ret_cg, loaded)?;
         self.clear_spill_slot_root_homes(at, result_ptr, llvm_ret_ty, name_prefix)?;
         Ok(result)
+    }
+
+    fn defer_direct_call_result(
+        &mut self,
+        at: crate::span::Span,
+        ret_cg: CgTy,
+        call_site: CallSiteValue<'ctx>,
+        name: &str,
+    ) -> Result<Option<DeferredCgValue<'ctx>>, LlvmEmitError> {
+        match ret_cg {
+            CgTy::Unit | CgTy::Never => Ok(None),
+            _ => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "call return value",
+                        at: at.into(),
+                    },
+                )?;
+                let value = self.cg_value_from_loaded(at, ret_cg, raw)?;
+                Ok(Some(self.defer_gc_sensitive_cg_value(at, name, value)?))
+            }
+        }
+    }
+
+    fn clear_gc_locals_in_current_scope(
+        &mut self,
+        at: crate::span::Span,
+        name_prefix: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(scope) = self.function_cx.env.scopes.last() else {
+            return Ok(());
+        };
+
+        let locals: Vec<CgLocal<'ctx>> = scope.values().copied().collect();
+        for local in locals {
+            let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
+            if !self.basic_type_contains_gc_ptrs(at, llvm_ty)? {
+                continue;
+            }
+            self.clear_spill_slot_root_homes(at, local.ptr, llvm_ty, name_prefix)?;
+        }
+        Ok(())
+    }
+
+    fn defer_class_field_place(
+        &mut self,
+        receiver: &hir::Expr,
+        member_span: crate::span::Span,
+        field_fqn: &str,
+        receiver_hir_ty: TypeId,
+        name_prefix: &str,
+    ) -> Result<Option<DeferredClassFieldPlace<'ctx>>, LlvmEmitError> {
+        let Some((class, field_idx, field_cg)) =
+            self.lookup_class_field_by_fqn(field_fqn, member_span, Some(receiver_hir_ty))?
+        else {
+            return Ok(None);
+        };
+        let field = class.fields.get(field_idx as usize).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "class field index",
+                at: member_span.into(),
+            },
+        )?;
+        let writable = field.mutable;
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
+        let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
+        let Some(raw) = recv.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "class field receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "class field receiver type",
+                at: receiver.span.into(),
+            });
+        };
+
+        Ok(Some(DeferredClassFieldPlace {
+            class,
+            field_idx,
+            field_cg,
+            writable,
+            receiver: self.defer_gc_ref_pointer(
+                receiver.span,
+                &format!("{name_prefix}_receiver"),
+                obj_ptr,
+            )?,
+        }))
+    }
+
+    fn reload_deferred_class_field_place_ptr(
+        &mut self,
+        at: crate::span::Span,
+        place: &DeferredClassFieldPlace<'ctx>,
+        name_prefix: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let receiver = self.reload_deferred_gc_ref_without_clearing(
+            at,
+            &format!("{name_prefix}_receiver_reload"),
+            &place.receiver,
+        )?;
+        self.codegen_class_field_ptr(at, &place.class, receiver, place.field_idx)
     }
 
     fn declare_top_level_var_global(

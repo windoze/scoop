@@ -160,6 +160,94 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current_obj,
         )?;
 
+        self.emit_ordinary_call_effect_propagation_check(span, "class_ctor_call_effect")?;
+
+        if !self.ordinary_effect_propagation_enabled() {
+            let current_fn = self
+                .builder
+                .get_insert_block()
+                .and_then(|bb| bb.get_parent())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor call current function",
+                    at: span.into(),
+                })?;
+            let active_bb = self
+                .context
+                .append_basic_block(current_fn, "class_ctor_call_active");
+            let inactive_bb = self
+                .context
+                .append_basic_block(current_fn, "class_ctor_call_inactive");
+            let merge_bb = self
+                .context
+                .append_basic_block(current_fn, "class_ctor_call_merge");
+            let active_raw = self
+                .build_call_preserving_gc_local_roots(
+                    span,
+                    self.declare_runtime_effect_is_active(),
+                    &[],
+                    "class_ctor_call_effect_is_active",
+                )?
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor call effect active return",
+                    at: span.into(),
+                })?
+                .into_int_value();
+            let is_propagating = self.builder.build_int_compare(
+                IntPredicate::NE,
+                active_raw,
+                self.context.i32_type().const_zero(),
+                "class_ctor_call_effect_is_propagating",
+            )?;
+            self.builder
+                .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
+
+            self.builder.position_at_end(active_bb);
+            self.clear_deferred_cg_value_root_homes(
+                span,
+                "class_ctor_obj_active_drop",
+                &deferred_obj,
+            )?;
+            let active_bb_end = self
+                .builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor call active block",
+                    at: span.into(),
+                })?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+
+            self.builder.position_at_end(inactive_bb);
+            let current_obj = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                "class_ctor_obj_return",
+                &deferred_obj,
+            )?;
+            let inactive_bb_end = self
+                .builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor call inactive block",
+                    at: span.into(),
+                })?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+
+            self.builder.position_at_end(merge_bb);
+            let result_phi = self
+                .builder
+                .build_phi(self.llvm_gc_i8_ptr_type(), "class_ctor_call_result")?;
+            result_phi.add_incoming(&[
+                (&self.llvm_gc_i8_ptr_type().const_null(), active_bb_end),
+                (&current_obj, inactive_bb_end),
+            ]);
+
+            return Ok(CgValue {
+                ty: CgTy::Ref,
+                value: Some(result_phi.as_basic_value()),
+            });
+        }
+
         let current_obj = self.reload_deferred_gc_ref_without_clearing(
             span,
             "class_ctor_obj_return",
@@ -405,6 +493,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .collect::<Result<Vec<_>, _>>()
         })();
 
+        self.clear_gc_locals_in_current_scope(callee_span, "class_ctor_arg_scope_drop")?;
         self.function_cx.env.pop_scope();
         result
     }
@@ -446,7 +535,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         class: &hir::ClassInit,
         super_args: &[hir::CallArg],
         super_call: Option<&hir::CtorCallInfo>,
-        obj_ptr: PointerValue<'ctx>,
         stack: &mut HashSet<(String, crate::span::Span)>,
         kind: &'static str,
     ) -> Result<(), LlvmEmitError> {
@@ -476,6 +564,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             super_ctor_params,
             kind,
         )?;
+        let obj_ptr = self.current_class_ctor_this_ptr(callee_span, class)?;
 
         self.codegen_class_ctor_invoke_inner(
             span,
@@ -496,7 +585,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee_span: crate::span::Span,
         class: &hir::ClassInit,
         ctor_params: &[hir::ClassCtorParam],
-        obj_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         // primary ctor 参数属性赋值（在 super ctor 之后执行，Kotlin-like）。
         for param in ctor_params {
@@ -538,6 +626,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("load_class_ctor_param_{}", param.name),
             )?;
             let arg_v = self.cg_value_from_loaded(span, param_cg, loaded)?;
+            let obj_ptr = self.current_class_ctor_this_ptr(span, class)?;
             let field_ptr = self.codegen_class_field_ptr(span, class, obj_ptr, field_idx)?;
             let _ = self.store_local_value_exact(span, field_ptr, param_cg, arg_v)?;
         }
@@ -566,6 +655,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             })?;
 
                     let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
+                    let obj_ptr = self.current_class_ctor_this_ptr(init.span, class)?;
                     let field_ptr =
                         self.codegen_class_field_ptr(init.span, class, obj_ptr, field_idx)?;
                     let _ = self.store_local_value(init.span, field_ptr, field_cg, v)?;
@@ -721,6 +811,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             target_params,
                             "class this delegation arg eval",
                         )?;
+                        let current_obj = self.current_class_ctor_this_ptr(callee_span, class)?;
 
                         self.codegen_class_ctor_invoke_inner(
                             span,
@@ -728,7 +819,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             class,
                             target,
                             target_values.as_slice(),
-                            obj_ptr,
+                            current_obj,
                             stack,
                         )?;
 
@@ -736,6 +827,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let _ = self.codegen_block_value(body)?;
                         }
 
+                        self.clear_gc_locals_in_current_scope(
+                            callee_span,
+                            "class_ctor_invoke_scope_drop",
+                        )?;
                         self.function_cx.env.pop_scope();
                         return Ok(());
                     }
@@ -746,7 +841,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             class,
                             deleg.args.as_slice(),
                             deleg.call.as_ref(),
-                            obj_ptr,
                             stack,
                             "class super delegation overload mismatch/ambiguous",
                         )?;
@@ -756,13 +850,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             callee_span,
                             class,
                             ctor_params,
-                            obj_ptr,
                         )?;
 
                         if let Some(body) = ctor_body {
                             let _ = self.codegen_block_value(body)?;
                         }
 
+                        self.clear_gc_locals_in_current_scope(
+                            callee_span,
+                            "class_ctor_invoke_scope_drop",
+                        )?;
                         self.function_cx.env.pop_scope();
                         return Ok(());
                     }
@@ -776,12 +873,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 class,
                 class.super_ctor_args.as_slice(),
                 class.super_ctor_call.as_ref(),
-                obj_ptr,
                 stack,
                 "class super ctor call overload mismatch/ambiguous",
             )?;
 
-            self.codegen_class_ctor_run_init_steps(span, callee_span, class, ctor_params, obj_ptr)?;
+            self.codegen_class_ctor_run_init_steps(span, callee_span, class, ctor_params)?;
 
             if ctor_kind == hir::ClassCtorKind::Secondary
                 && let Some(body) = ctor_body
@@ -789,6 +885,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.codegen_block_value(body)?;
             }
 
+            self.clear_gc_locals_in_current_scope(callee_span, "class_ctor_invoke_scope_drop")?;
             self.function_cx.env.pop_scope();
             Ok(())
         })();
@@ -796,5 +893,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_source_id = saved_source_id;
         stack.remove(&key);
         result
+    }
+
+    fn current_class_ctor_this_ptr(
+        &mut self,
+        at: crate::span::Span,
+        class: &hir::ClassInit,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let this_local = self
+            .function_cx
+            .env
+            .get(class.this_id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "class ctor this local",
+                at: at.into(),
+            })?;
+        let this_slot = self.local_ptr_for_use(at, this_local, "class_ctor_this_reload")?;
+        Ok(self
+            .builder
+            .build_load(self.llvm_gc_i8_ptr_type(), this_slot, "class_ctor_this_obj")?
+            .into_pointer_value())
     }
 }
