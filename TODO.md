@@ -94,6 +94,19 @@
   - closure / funptr / vtable / itable boundary 在 legacy call 前都会显式 `publish` incoming token（当前 fresh path 为 `null`），并在 `consume_current_effect_outcome(...)` 之后 `clear` TLS token scratch，不再继续完全依赖 TLS 初值的隐式“无 token”状态。
   - LLVM 回归已覆盖 closure / funptr / vtable / itable 的 `null incoming_resume_token_ref` IR 与 boundary publish/consume/clear 合同；`cargo clippy --all-targets -- -D warnings` 已通过。
 
+### [TODO] T5002b2a1 补齐 production pass-MIR effectful closure body lowering，使 materialized MIR closure review 可完成
+- 范围：
+  - 修复 production MIR bridge 对 effectful materialized closure body 的剩余缺口，使 closure body 直接 perform effect 的场景不再在 `mir_body.rs` 上报 `UnsupportedMainBody { kind: "pass MIR rvalue" }` / `pass MIR terminator`。
+  - 确认 pass-visible caller body 与 materialized MIR closure body 在 effectful closure 场景下都能继续遵守 ordinary indirect-call 的显式 `incoming_resume_token_ref` 合同，而不是只在 HIR closure 或“closure body 只做 direct call”的窄形状上成立。
+  - 吸收本次 review 已发现并修复的两个既有缺口作为同一前置收口的一部分：
+    - `pass_mir_closure_call` 在 effect boundary 后重新加载 closure object，而不是继续使用 boundary 前读取的 `env_ptr/fn_ptr` SSA；
+    - top-level pass MIR body 绑定参数时要同时跳过 hidden sret 与 hidden incoming token，不能把 token slot 错当成用户参数。
+- 验收：
+  - 新增 production-lowered LLVM 回归覆盖“pass-visible caller body 调用 effectful materialized MIR closure，且 closure body 直接 perform effect”的最小程序，并确认不再报 unsupported；
+  - materialized MIR closure caller IR 继续显式体现 `null incoming_resume_token_ref` 与 boundary `publish -> consume -> clear`；
+  - 至少一组相关 fixture/最小程序可证明 materialized MIR closure 不只是声明形状正确，而是 end-to-end 可运行。
+- 依赖：T5002b2a
+
 ### [TODO] T5002b2aR Review：确认 ordinary indirect-call surface 已统一改走显式 token
 - 重点：
   - closure / funptr / vtable / itable 是否都显式携带 `incoming_resume_token_ref`，而不是只在 call-site 临时 publish；
@@ -102,7 +115,7 @@
 - 验收：
   - 可在不再被 ordinary indirect-call ABI 形状阻塞的前提下继续推进 callee resume / step-dispatch token 收口；
   - review 阶段必须同时检查 IR 断言与至少一组 closure/funptr/vtable/itable 相关 fixture/最小程序，而不是只看函数声明。
-- 依赖：T5002b2a
+- 依赖：T5002b2a1
 
 ### [TODO] T5002b2b 把显式 `incoming_resume_token_ref` 扩到 callee resume entry
 - 范围：

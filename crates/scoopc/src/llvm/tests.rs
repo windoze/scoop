@@ -3991,6 +3991,86 @@ fun main(): Int {
 }
 
 #[test]
+fn production_pass_mir_closure_call_reloads_closure_after_effect_boundary() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5002b2ar_pass_mir_closure_call.scoop",
+        r#"
+package fixtures.t5002b2ar
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun outward(seed: Int): Int / (Ask) {
+    return Ask.ask(seed)
+}
+
+fun apply(f: (Int) -> Int / (Ask), x: Int): Int / (Ask) {
+    return f(x)
+}
+
+fun caller(x: Int): Int / (Ask) {
+    val delta = 1
+    return apply({ y -> outward(y + delta) }, x)
+}
+
+fun main(): Int {
+    return handle {
+        caller(40)
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
+    let caller_fqn = "fixtures.t5002b2ar.caller";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let pass_caller = materialized
+        .pass_view()
+        .callable(caller_fqn)
+        .expect("known closure provenance 应发布 caller 的 pass-visible MIR body");
+    assert!(
+        mir_fun_contains_closure_call(pass_caller),
+        "test setup 需要确认 caller 的 pass-visible MIR body 已包含结构化 ClosureCall"
+    );
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let caller_ir = function_ir_named(&ir, caller_fqn);
+    let closure_call = caller_ir
+        .lines()
+        .find(|line| line.contains("pass_mir_call_closure"))
+        .expect("expected pass MIR closure call in caller IR");
+
+    assert!(
+        caller_ir.contains("@scoop_effect_outcome_consume_current")
+            && caller_ir.contains("@scoop_callee_suspend_state_publish"),
+        "production-lowered MIR closure call 应继续走显式 incoming token + outcome boundary:\n{caller_ir}"
+    );
+    assert!(
+        caller_ir.contains("pass_mir_closure_call_obj_reload"),
+        "materialized MIR closure call 应在 ordinary effect boundary 之后重新加载 closure object，避免继续使用旧 SSA/旧地址:\n{caller_ir}"
+    );
+    assert!(
+        closure_call.contains("ptr addrspace(1) null"),
+        "fresh pass MIR closure outward-effect call 应显式传入 null incoming_resume_token_ref:\n{closure_call}"
+    );
+}
+
+#[test]
 fn effectful_funptr_call_uses_explicit_outcome_boundary() {
     let source = SourceFile::new_virtual(
         "<mem>",

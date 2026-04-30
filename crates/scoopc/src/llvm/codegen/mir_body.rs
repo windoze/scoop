@@ -94,6 +94,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(hir_fun.span, declared_return_cg)?
             .is_some();
+        let uses_hidden_incoming_resume_token =
+            self.top_level_fun_uses_hidden_incoming_resume_token(hir_fun);
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 llvm_fun
@@ -119,7 +121,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir_fun,
             mir_fun,
             llvm_fun,
-            u32::from(uses_hidden_sret),
+            u32::from(uses_hidden_sret) + u32::from(uses_hidden_incoming_resume_token),
             &mut local_slots,
         )?;
         let used_locals = collect_mir_local_uses(body);
@@ -3099,35 +3101,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
+        let deferred_closure =
+            self.defer_gc_ref_pointer(span, "pass_mir_closure_call_obj", closure_obj_i8)?;
         let closure_ty = self.llvm_closure_object_type();
         let closure_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
-        let closure_ptr = self.builder.build_pointer_cast(
-            closure_obj_i8,
-            closure_ptr_ty,
-            "pass_mir_closure_call_obj_ptr",
-        )?;
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let env_ptr_gep = self.builder.build_struct_gep(
-            closure_ty,
-            closure_ptr,
-            1,
-            "pass_mir_closure_call_env_gep",
-        )?;
-        let fn_ptr_gep = self.builder.build_struct_gep(
-            closure_ty,
-            closure_ptr,
-            2,
-            "pass_mir_closure_call_fn_gep",
-        )?;
-        let env_ptr = self
-            .builder
-            .build_load(gc_i8_ptr_ty, env_ptr_gep, "pass_mir_closure_env")?
-            .into_pointer_value();
-        let fn_ptr_raw = self
-            .builder
-            .build_load(i8_ptr_ty, fn_ptr_gep, "pass_mir_closure_fn")?
-            .into_pointer_value();
 
         let ret_cg = self
             .cg_ty_of(fun_ty.return_ty)
@@ -3172,12 +3151,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "aggregate closure-call returns should have been lowered through hidden sret"
             ),
         };
-        let typed_fn_ptr = self.builder.build_pointer_cast(
-            fn_ptr_raw,
-            self.llvm_ptr_type(AddressSpace::default()),
-            "pass_mir_closure_fn_typed",
-        )?;
-
         let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
             1 + args.len()
                 + usize::from(hidden_sret_result_ty.is_some())
@@ -3194,11 +3167,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if call_may_suspend {
             llvm_args.push(incoming_resume_token.into());
         }
-        llvm_args.push(env_ptr.into());
         let evaluated_args = self.codegen_mir_callable_value_args(span, fun_ty, args, slots)?;
-        for arg in &evaluated_args {
-            llvm_args.push(arg.value);
-        }
 
         let effect_boundary = if call_may_suspend {
             let (ctx_slot, outcome_slot) =
@@ -3220,6 +3189,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None
         };
 
+        let closure_obj_i8 = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_closure_call_obj_reload",
+            &deferred_closure,
+        )?;
+        let closure_ptr = self.builder.build_pointer_cast(
+            closure_obj_i8,
+            closure_ptr_ty,
+            "pass_mir_closure_call_obj_ptr",
+        )?;
+        let env_ptr_gep = self.builder.build_struct_gep(
+            closure_ty,
+            closure_ptr,
+            1,
+            "pass_mir_closure_call_env_gep",
+        )?;
+        let fn_ptr_gep = self.builder.build_struct_gep(
+            closure_ty,
+            closure_ptr,
+            2,
+            "pass_mir_closure_call_fn_gep",
+        )?;
+        let env_ptr = self
+            .builder
+            .build_load(gc_i8_ptr_ty, env_ptr_gep, "pass_mir_closure_env")?
+            .into_pointer_value();
+        let fn_ptr_raw = self
+            .builder
+            .build_load(i8_ptr_ty, fn_ptr_gep, "pass_mir_closure_fn")?
+            .into_pointer_value();
+        let typed_fn_ptr = self.builder.build_pointer_cast(
+            fn_ptr_raw,
+            self.llvm_ptr_type(AddressSpace::default()),
+            "pass_mir_closure_fn_typed",
+        )?;
+        llvm_args.push(env_ptr.into());
+        for arg in &evaluated_args {
+            llvm_args.push(arg.value);
+        }
         let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
             let call_site = cg.builder.build_indirect_call(
                 llvm_fun_ty,
