@@ -1283,6 +1283,9 @@ static void scoop_continuation_release(void *object) {
   }
 
   ScoopContinuation *k = (ScoopContinuation *)object;
+  if (k->state != 0) {
+    scoop_unpin(k->state);
+  }
   scoop_effect_handler_stack_snapshot_free(k->captured_handler_stack_top);
   k->captured_handler_stack_top = 0;
 }
@@ -1331,6 +1334,13 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   k->resume_state_tag = SCOOP_CONTINUATION_RESUME_STATE_UNSET;
   k->captured_handler_stack_top = captured_ctx.handler_top;
   k->state = state;
+  if (state != 0) {
+    // Continuation 持久持有 raw `state` 指针，并会在未来多次以普通 C 参数形态把它
+    // 交给 step/dispatch helpers。当前 runtime 还没有把这类长期 raw owner 收口成
+    // 可搬迁 handle，因此先把 effect frame state 与 continuation 生命周期绑定为
+    // pinned，直到 continuation 自身释放时再解 pin。
+    scoop_pin(state);
+  }
   k->step_fn = step_fn;
   k->resume_word = 0;
   k->resume_gc_ref = 0;

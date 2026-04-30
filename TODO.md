@@ -342,7 +342,7 @@
 - 完成记录：本轮先从当前未提交变更与 fresh LLVM IR 复核 root source-of-truth，确认 `Task.step()` 顺序 handoff 的 runtime GC-stress 回归并非仅限 cross-thread，而是暴露出一组更普遍的 post-safepoint stale SSA 路径。`crates/scoopc/src/llvm/codegen/mod.rs` 现已抽出统一的 GC-sensitive fresh-ref defer/reload helper；`effect/state_machine_emitter.rs` 把 fresh effect frame 自身先落到 tracked root，再在 seed / entry-state / dispatch / result-read 各窗口从 explicit-frame-backed home slot reload；`intrinsics/containers.rs` 为 array builder receiver 补上 defer/reload；`call/dispatch.rs` 为 function-value call、vtable 与 itable receiver 补上 legacy boundary / arg-eval 后的 reload；`closure/mod.rs`、`mir_body.rs` 与 `effect/mod.rs` 也分别为 closure object、MIR closure/capture box、effect transport box 接上同一 contract，并新增 LLVM 回归锁定 `TaskStep` return slot 初始化、closure call receiver reload、virtual/interface receiver reload、`Continuation.resume` boxed payload reload 等顺序。定向验证已通过 `cargo test -p scoopc async_task_effect_return_slots_start_null_before_resume_writes -- --nocapture`、`cargo test -p scoopc array_of_string_uses_ref_element_runtime_apis_without_ptr_to_u64 -- --nocapture`、`cargo test -p scoopc closure_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`、`cargo test -p scoopc virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`、`cargo test -p scoopc interface_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`、`cargo test -p scoopc continuation_resume_boxed_payload_reloads_box_object_before_runtime_call -- --nocapture`、`cargo test -p scoopc continuation_resume_reloads_receiver_after_gc_sensitive_payload_materialization -- --nocapture`、`env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/runtime_gc/task_step_manual_gc_aggregate_transport_basic.scoop`、`env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`，以及两条 fixture harness：`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/task_step_manual_gc_aggregate_transport_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`。继续额外排查 `Continuation.resume` boxed payload / verify-roots 路径时，又暴露出新的既有 blocker `continuation_resume_struct_with_ref.scoop`，因此按要求在本条后插入 `T5001f7/T5001f7R`，并把 `T5001f6R` 顺延到其后。
 - 依赖：T5001f5
 
-### [TODO] T5001f7 修复 Continuation.resume consumed-root verify-roots regression，解除 `T5001f6R` / 后续验收阻塞
+### [DONE] T5001f7 修复 Continuation.resume consumed-root verify-roots regression，解除 `T5001f6R` / 后续验收阻塞
 - 范围：
   - 修复 `tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop` 在 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下的新暴露回归：当前程序已越过 `after_handle / alice`，但随后会报 explicit-frame invalid root，说明 `Continuation.resume(...)` 相关 consumed continuation roots 在 moving GC + verify-roots 组合下仍有 stale source-of-truth 或漏更新路径。
   - 查清问题究竟来自 `when` binder / subject roots、resume receiver capture、state-machine outer-slot seed / writeback，还是 runtime 对 consumed continuation 生命周期与 root 更新的契约缺口；不能通过关闭 verify-roots、缩小 fixture、或假定 consumed continuation “用户本就不该再持有” 来回避实现问题。
@@ -350,7 +350,27 @@
 - 验收：
   - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop` 恢复通过；
   - `cargo run -p scoop -- test` / `T5001f6R` 不再被该 `Continuation.resume` verify-roots 回归阻塞。
+- 完成记录：本轮先沿 verify-roots 把坏 slot 精确定位到 resumed outer handle 的 `step/dispatch` frame slot0，再对照 runtime `Continuation` ABI 收口到真正的长期 owner：`runtime/c/scoop_runtime.c` 里的 `ScoopContinuation.state`。此前 continuation 只把 effect frame state 当作普通 raw 指针保存；一旦后续 GC 搬迁该 frame，未来 `Continuation.resume(...)` 重新进入 `step/dispatch` 时就会把 stale `k->state` 写进两层 explicit frame slot0，并在 `continuation_resume_struct_with_ref.scoop` 的 resumed-body `println` 窗口触发 verify-roots invalid root。现已把 continuation state 与 continuation 生命周期绑定为 pinned：`scoop_continuation_alloc(...)` 在写入 `k->state` 后保留一个长期 pin，`scoop_continuation_release(...)` 在 continuation 释放时对称 `unpin`。这样 resumed body 期间的 raw `step(state, ...)` / `dispatch(state, ...)` 指针窗口不再依赖 moving update。定向验证已通过 `cargo build -p scoop_runtime`、`env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop` 与 `cargo clippy --all-targets -- -D warnings`。继续执行 `cargo run -p scoop -- test` 时，suite 已越过该 fixture，新的首个失败切换为 `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`，因此按要求在本条后插入 `T5001f8/T5001f8R`。
 - 依赖：T5001f6
+
+### [TODO] T5001f8 修复 class init Raise cleanup 的 GC retention regression，解除 `T5001f7R` / 后续验收阻塞
+- 范围：
+  - 修复 `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop` 当前新暴露回归：全量 `cargo run -p scoop -- test` 已越过 `continuation_resume_struct_with_ref.scoop`，但在该 fixture 处失败；程序当前输出 `3`，而 golden 期望为 `0`，说明 class init 的 `Raise.raise(...)` unwind/cleanup 之后仍错误保留了 3 个 heap object。
+  - 查清失败构造路径里到底是 ctor call 临时 GC frame、class object、init-block effect cleanup，还是 outer try/catch 边界的 unwind pop/clear 合同没有闭合；不能通过放宽 golden、跳过 `__scoop_gc_collect()`、或把失败构造对象视为“可接受泄漏”来回避实现问题。
+  - 为最小 class-init-raise cleanup 路径补定向回归，至少覆盖 `init { Raise.raise(...) }` 被外层 `try/catch` 捕获后，`__scoop_gc_collect()` 不再保留失败构造对象及其临时 runtime roots。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop` 恢复输出 `0`；
+  - `cargo run -p scoop -- test` / `T5001f7R` 不再被该 class-init cleanup retention 回归阻塞。
+- 依赖：T5001f7
+
+### [TODO] T5001f8R Review：确认 class init Raise cleanup 的 unwind/root 合同重新闭合
+- 重点：
+  - ctor call temporary root frame、failed class object、init-block effect propagation 与 outer try/catch cleanup 路径，是否仍残留未 pop / 未 clear / 误保活对象；
+  - `class_init_raise_cleanup_init_block_gc_basic.scoop` 是否真正锁住“失败构造后 `__scoop_gc_collect()` 无残留对象”这一合同，而不是靠偶然对象复用通过；
+  - 该修复是否与既有 class init order / continuation runtime / explicit-frame teardown 合同保持一致。
+- 验收：
+  - `T5001f7R` / `T5001g` 可在不再被该 class-init cleanup retention 回归阻塞的前提下继续推进。
+- 依赖：T5001f8
 
 ### [TODO] T5001f7R Review：确认 Continuation.resume consumed-root 的 verify-roots 合同重新闭合
 - 重点：
@@ -359,7 +379,7 @@
   - verify-roots 回归是否已覆盖 `Continuation.resume` + boxed payload + resumed-body alloc/print 的关键窗口。
 - 验收：
   - `T5001f6R` / `T5001g` 可在不再被该 `Continuation.resume` verify-roots 回归阻塞的前提下继续推进。
-- 依赖：T5001f7
+- 依赖：T5001f8R
 
 ### [TODO] T5001f6R Review：确认 cross-thread sequential task handoff 的 GC-stress 合同重新闭合
 - 重点：

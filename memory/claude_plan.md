@@ -93,3 +93,40 @@ I will keep this file as a concise execution log and plan rather than private hi
   2. Insert a new prerequisite task before `T5001f6R` for the newly exposed `Continuation.resume` consumed-root verify-roots regression.
   3. Update `PLAN.md` to record both the completed handoff fix and the new blocker.
   4. Run final lint/verification for touched crates, then create one git commit and stop.
+
+## Next Invocation Setup
+
+- I will continue using this file as a concise execution log and plan summary rather than private hidden reasoning.
+- Goal for this invocation: inspect the latest committed state, identify the first still-undone task in `TODO.md`, complete exactly that one item, update planning docs, commit, and stop.
+
+### Planned Steps
+
+1. Check the latest commit message for any older issue explicitly called out as needing priority handling.
+2. Read `TODO.md` and `PLAN.md` to confirm the first incomplete task and whether the previous invocation already inserted prerequisite work.
+3. Reproduce the active task or blocker with the smallest focused command set.
+4. Inspect only the relevant implementation and tests, while treating any pre-existing bug or spec mismatch uncovered there as immediately in scope.
+5. Make the minimal correct fix.
+6. Run focused verification, then broader required verification for touched crates, including linting.
+7. Update `memory/claude_plan.md`, `TODO.md`, and `PLAN.md` with results.
+8. Create one git commit for this invocation and stop.
+
+### Progress Log
+
+- Initial setup for this invocation has been written before running shell commands. Next step: inspect `git log -1`, then read `TODO.md` and `PLAN.md` to determine the active task.
+- Latest commit checked: `77ec88f1` (`[T5001f6] Fix task handoff stale GC roots`). It does not call out a separate older blocker that must preempt the queue.
+- First incomplete task confirmed from `TODO.md`: `T5001f7` (`Continuation.resume` consumed-root verify-roots regression).
+- Reproduced `T5001f7` with `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`: program reached `after_handle / alice` and then aborted with two `explicit_frame invalid root` diagnostics.
+- Root cause identified in runtime continuation ownership rather than frontend lowering: the stale value was `ScoopContinuation.state`, which future `Continuation.resume(...)` calls pass back into effect `dispatch/step` as a raw C pointer. That effect-frame state was only pinned transiently during `scoop_continuation_alloc(...)`; later moving GC could relocate it, leaving future resumes to re-seed stale state pointers into explicit frame slot 0.
+- Implemented fix: `runtime/c/scoop_runtime.c` now pins `ScoopContinuation.state` for the continuation lifetime and releases that pin in `scoop_continuation_release(...)`. This stabilizes the raw effect-frame owner across future resumed-body GC windows.
+- Verification completed for `T5001f7`:
+  1. `cargo build -p scoop_runtime`
+  2. `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
+  4. `cargo clippy --all-targets -- -D warnings`
+- Main task status: `T5001f7` is fixed. The consumed-root verify-roots regression no longer blocks the queue.
+- Full fixture suite re-run result: `cargo run -p scoop -- test` now passes `continuation_resume_struct_with_ref.scoop` and the next blocker is `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`, which currently prints `3` instead of the golden `0`.
+- Wrap-up plan for this invocation:
+  1. Mark `T5001f7` done in `TODO.md`.
+  2. Insert a new prerequisite task before `T5001f7R` for `class_init_raise_cleanup_init_block_gc_basic.scoop`.
+  3. Update `PLAN.md` to record both the completed continuation-state fix and the new class-init cleanup blocker.
+  4. Commit the current changes and stop.
