@@ -6933,6 +6933,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
 
         let lhs_v = self.codegen_expr(lhs)?;
+        if lhs_v.ty == CgTy::String {
+            let deferred_lhs =
+                self.defer_gc_sensitive_cg_value(lhs.span, "string_eq_lhs", lhs_v)?;
+            let rhs_v = self.codegen_expr(rhs)?;
+            let lhs_v =
+                self.materialize_deferred_cg_value(lhs.span, "string_eq_lhs_reload", deferred_lhs)?;
+
+            if matches!((lhs_v.ty, rhs_v.ty), (CgTy::String, CgTy::String)) {
+                let BasicValueEnum::PointerValue(l) =
+                    lhs_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "equality lhs string value",
+                        at: span.into(),
+                    })?
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "equality lhs string type",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(r) =
+                    rhs_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "equality rhs string value",
+                        at: span.into(),
+                    })?
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "equality rhs string type",
+                        at: span.into(),
+                    });
+                };
+                let fn_val = self.declare_runtime_string_equals();
+                let call = self
+                    .builder
+                    .build_call(fn_val, &[l.into(), r.into()], "str_eq")?;
+                let raw_result =
+                    call.try_as_basic_value()
+                        .basic()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "String equals return value",
+                            at: span.into(),
+                        })?;
+                let BasicValueEnum::IntValue(eq_i64) = raw_result else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String equals return type",
+                        at: span.into(),
+                    });
+                };
+                let is_eq = self.builder.build_int_compare(
+                    IntPredicate::NE,
+                    eq_i64,
+                    self.context.i64_type().const_zero(),
+                    "str_eq_bool",
+                )?;
+                let result = match op {
+                    ast::BinaryOp::Eq => is_eq,
+                    ast::BinaryOp::Ne => self.builder.build_not(is_eq, "str_ne_bool")?,
+                    _ => unreachable!("filtered by caller"),
+                };
+                return Ok(CgValue::bool(result));
+            }
+
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "string equality operand type",
+                at: span.into(),
+            });
+        }
         let rhs_v = self.codegen_expr(rhs)?;
 
         // Bool == Bool
