@@ -18,6 +18,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if hidden_sret_result_ty.is_some() {
             llvm_params.push(self.context.ptr_type(AddressSpace::default()).into());
         }
+        // ordinary callee replay 复用 suspend-state object 作为显式 incoming token。
         llvm_params.push(self.llvm_gc_i8_ptr_type().into());
 
         let fn_ty = match (hidden_sret_result_ty, return_cg) {
@@ -297,9 +298,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plan: &CalleeSuspendPlan,
         base_env: &Env<'ctx>,
         declared_return_cg: CgTy,
-        resume_state_raw: PointerValue<'ctx>,
+        incoming_resume_token: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let resume_state = self.begin_callee_suspend_resume(at, plan, resume_state_raw)?;
+        let resume_state = self.begin_callee_suspend_resume(at, plan, incoming_resume_token)?;
         let invalid_bb = self
             .context
             .append_basic_block(llvm_fun, "resume_invalid_site");
@@ -378,13 +379,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.function_cx.env.push_scope();
             let (return_bb, return_alloca) =
                 self.setup_function_return_context(at, resume_fun, declared_return_cg)?;
-            let state_param = resume_fun
+            let incoming_resume_token = resume_fun
                 .get_nth_param(u32::from(uses_hidden_sret))
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "missing callee resume entry state param",
+                    kind: "missing callee resume entry incoming token param",
                     at: at.into(),
                 })?
                 .into_pointer_value();
+            self.publish_incoming_resume_token(at, incoming_resume_token, "callee_resume_entry")?;
             let base_env = self.function_cx.env.clone();
 
             self.codegen_callee_resume_dispatch(
@@ -393,7 +395,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 plan,
                 &base_env,
                 declared_return_cg,
-                state_param,
+                incoming_resume_token,
             )?;
 
             self.emit_function_return_block(at, declared_return_cg, return_bb, return_alloca)?;
@@ -406,10 +408,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result
     }
 
-    pub(in crate::llvm::codegen) fn call_callee_resume_entry_from_state_impl(
+    pub(in crate::llvm::codegen) fn call_callee_resume_entry_with_token_impl(
         &mut self,
         span: crate::span::Span,
-        state_raw: PointerValue<'ctx>,
+        incoming_resume_token: PointerValue<'ctx>,
         result_cg: CgTy,
         label: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -438,9 +440,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        llvm_args.push(state_raw.into());
+        llvm_args.push(incoming_resume_token.into());
 
-        let resume_fn_raw = self.load_callee_suspend_resume_entry_fn_ptr(state_raw)?;
+        let resume_fn_raw = self.load_callee_suspend_resume_entry_fn_ptr(incoming_resume_token)?;
         let typed_fn_ptr = self.builder.build_pointer_cast(
             resume_fn_raw,
             self.llvm_ptr_type(AddressSpace::default()),

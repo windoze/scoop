@@ -126,14 +126,27 @@
   - LLVM 回归已通过：`explicit_outcome_boundary`、`production_pass_mir_closure_call_reloads_closure_after_effect_boundary`、`production_codegen_lowers_raw_mir_effectful_closure_body_direct_perform`、`production_pass_mir_effectful_closure_body_direct_perform_lowering`。
   - run-pass fixture `effect_indirect_perform_nonresuming_function_value_local.scoop`、`effect_indirect_perform_materialized_mir_closure_basic.scoop`、`effect_handle_hidden_suspend_virtual_helper_basic.scoop`、`effect_handle_hidden_suspend_interface_helper_basic.scoop` 已在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过；`cargo clippy --all-targets -- -D warnings` 已通过。
 
-### [TODO] T5002b2b 把显式 `incoming_resume_token_ref` 扩到 callee resume entry
+### [DONE] T5002b2b1 对齐 callee resume entry 的显式 `incoming_resume_token_ref` contract
 - 范围：
-  - 收口 callee resume entry 的 hidden ABI 与调用 helper，使 replay token 以统一的 `incoming_resume_token_ref` 约定流经 ordinary callee resumed path。
-  - 对齐 callee-suspend state 中记录的 resume-entry 函数声明与 replay call IR，避免 direct/indirect ordinary path 对“token 即 resumed-state”的约定继续各自散落。
+  - 把 callee resume entry helper / replay call surface 的 hidden 参数语义收口为显式 `incoming_resume_token_ref`，不再继续以“特例 state 参数”命名和理解 replay token。
+  - callee resume entry 入口显式 `publish` incoming token，再从该 token 读取 suspend-state 并做 resume-site dispatch。
 - 验收：
-  - callee resume entry 相关 production signature 与 replay call IR 已按统一 token 约定收口；
-  - ordinary callee resumed path 不再保留额外的“只在 resume helper 内隐式理解 token”的独立 ABI 形状。
+  - callee resume entry replay call IR 明确继续把 replay token 作为显式 incoming token 传入；
+  - callee resume entry IR 明确出现 `@scoop_callee_suspend_state_publish`，ordinary resumed path 不再只在 helper 内隐式理解 token。
 - 依赖：T5002b2aR
+- 完成记录：
+  - `call_callee_resume_entry_with_token(...)` / `call_callee_resume_entry_with_token_impl(...)` 已替代旧的 `...from_state(...)` 命名，replay call IR 直接把保存的 replay token 作为显式 incoming token 实参传给 callee resume entry。
+  - `codegen_callee_resume_entry_function_impl(...)` 现在会在 entry 先 `publish_incoming_resume_token(...)`，再以该 token 作为 suspend-state 输入做 resume-site dispatch。
+  - LLVM 回归 `suspend_ir_stores_callee_resume_token_on_frame_and_replays_via_resume_thunk` 与 `cargo clippy --all-targets -- -D warnings` 已通过。
+
+### [TODO] T5002b2b2 修复 resumed ordinary callee 经 nested-handle boundary 再次 outward suspend 时 replay chain 丢失
+- 范围：
+  - 修复“ordinary callee resumed path 第二次 outward suspend 穿过 `NestedHandleBoundary` 后，outer `k.resume(...)` 直接把外层 resume payload 当成最终 answer、跳过 inner callee tail”的现有错误行为。
+  - 明确 inner/outer handle、pending continuation 与 ordinary callee replay token 在该路径上的 owner 与恢复顺序，避免只靠当前 `callee resume entry` publish 仍然无法 end-to-end 重放 resumed tail。
+- 验收：
+  - 最小 nested-handle immediate-resume 程序可证明：第一次 `k.resume(...)` 后 resumed ordinary callee 命中第二次 outward suspend；第二次 `k.resume(...)` 后会继续执行 inner callee tail，而不是提前把 outer payload 当成最终 answer；
+  - 至少一条 focused LLVM / run-pass 回归锁定该 replay-chain 行为。
+- 依赖：T5002b2b1
 
 ### [TODO] T5002b2bR Review：确认 callee resume entry token contract 已与 ordinary call boundary 对齐
 - 重点：
@@ -141,7 +154,7 @@
   - callee resume entry 是否还残留“语义上是 token、但 ABI 上仍是特例 state 参数”的旁路。
 - 验收：
   - 可在不再被 callee resume entry ABI 特例阻塞的前提下继续推进 step/dispatch token 收口。
-- 依赖：T5002b2b
+- 依赖：T5002b2b2
 
 ### [TODO] T5002b2c 把显式 `incoming_resume_token_ref` 扩到 state-machine step/dispatch 与 runtime continuation bridge
 - 范围：

@@ -2002,7 +2002,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: source_span.into(),
                 })?;
         let call_result = self.with_local_never_return_semantics(|cg| {
-            let call_result = cg.call_callee_resume_entry_from_state(
+            let call_result = cg.call_callee_resume_entry_with_token(
                 source_span,
                 replay_token,
                 result_cg,
@@ -2232,7 +2232,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: source_span.into(),
                 })?;
         let call_result = self.with_local_never_return_semantics(|cg| {
-            let call_result = cg.call_callee_resume_entry_from_state(
+            let call_result = cg.call_callee_resume_entry_with_token(
                 source_span,
                 replay_token,
                 result_cg,
@@ -5232,6 +5232,19 @@ fun main(): Int {
         assert!(
             ir.contains("site0_call_callee_resume"),
             "resume replay path should call the stored resume thunk directly from the explicit frame token"
+        );
+        let replay_call = ir
+            .lines()
+            .find(|line| line.contains("site0_call_callee_resume"))
+            .expect("expected ordinary callee replay call in IR");
+        assert!(
+            replay_call.contains("site0_replay_token"),
+            "replay call should pass the saved replay token as the explicit incoming token argument:\n{replay_call}"
+        );
+        let resume_entry_ir = find_function_ir(&ir, "define i64 @__scoop_callee_resume__a.callIt");
+        assert!(
+            resume_entry_ir.contains("@scoop_callee_suspend_state_publish"),
+            "callee resume entry should publish its explicit incoming token before dispatching resumed tails:\n{resume_entry_ir}"
         );
         assert!(
             ir.contains("site0_captured_callee_resume_token")

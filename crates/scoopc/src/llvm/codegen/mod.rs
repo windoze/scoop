@@ -3699,7 +3699,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plan: &CalleeSuspendPlan,
         base_env: &Env<'ctx>,
         declared_return_cg: CgTy,
-        resume_state_raw: PointerValue<'ctx>,
+        incoming_resume_token: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         self.codegen_callee_resume_dispatch_impl(
             at,
@@ -3707,7 +3707,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             plan,
             base_env,
             declared_return_cg,
-            resume_state_raw,
+            incoming_resume_token,
         )
     }
 
@@ -4174,14 +4174,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_function_value_call_from_closure_obj_impl(closure_obj_i8, call)
     }
 
-    fn call_callee_resume_entry_from_state(
+    fn call_callee_resume_entry_with_token(
         &mut self,
         span: crate::span::Span,
-        state_raw: PointerValue<'ctx>,
+        incoming_resume_token: PointerValue<'ctx>,
         result_cg: CgTy,
         label: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.call_callee_resume_entry_from_state_impl(span, state_raw, result_cg, label)
+        self.call_callee_resume_entry_with_token_impl(
+            span,
+            incoming_resume_token,
+            result_cg,
+            label,
+        )
     }
 
     // 控制流 codegen（if/when 等）已拆分到子模块（T0102d）。
