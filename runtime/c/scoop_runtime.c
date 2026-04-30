@@ -1353,6 +1353,24 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   return (void *)k;
 }
 
+void scoop_continuation_discard(void *continuation) {
+  if (continuation == 0) {
+    return;
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)continuation;
+  if (k->state != 0) {
+    scoop_unpin(k->state);
+    k->state = 0;
+  }
+  if (k->captured_handler_stack_top != 0) {
+    scoop_effect_handler_stack_snapshot_free(k->captured_handler_stack_top);
+    k->captured_handler_stack_top = 0;
+  }
+  k->resume_gc_ref = 0;
+  k->captured_callee_suspend_state = 0;
+}
+
 uint32_t scoop_continuation_try_resume(void *continuation) {
   if (continuation == 0) {
     return 0;

@@ -43,6 +43,7 @@
   X(scoop_array_set_ref) \
   X(scoop_array_set_u64) \
   X(scoop_continuation_alloc) \
+  X(scoop_continuation_discard) \
   X(scoop_continuation_resume) \
   X(scoop_continuation_resume_into) \
   X(scoop_continuation_resume_publish_pending_continuation) \

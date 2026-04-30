@@ -1,0 +1,22 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_raise_cleanup_gc_basic.stdout
+// - 最小回归：本层 catch 吃掉 `Raise.raise(...)` 后，隐藏 continuation / effect frame
+//   不能继续作为 GC roots 泄漏到后续 `__scoop_gc_collect()`。
+
+import scoop.core.*
+
+fun main(): Int {
+    val before: Int = __scoop_gc_debug_heap_object_count()
+
+    try {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    } catch (e: RuntimeError) {
+        // ignore
+    }
+
+    __scoop_gc_collect()
+
+    val after: Int = __scoop_gc_debug_heap_object_count()
+    println(after - before)
+    return 0
+}

@@ -1210,6 +1210,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_continuation_discard(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_DISCARD;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     /// continuation payload+answer ABI：调用方提供 payload，并通过同一入口接收
     /// answer transport 与显式 effect outcome。
     pub(super) fn declare_runtime_continuation_resume_with(&self) -> FunctionValue<'ctx> {

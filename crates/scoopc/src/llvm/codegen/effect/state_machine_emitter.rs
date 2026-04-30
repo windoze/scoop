@@ -1134,6 +1134,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn discard_effect_frame_continuation(
+        &mut self,
+        at: crate::span::Span,
+        frame_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let cont_gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            frame_ptr,
+            frame_layout.continuation_index(),
+            &format!("{label}_continuation_ptr"),
+        )?;
+        let continuation = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                cont_gep,
+                &format!("{label}_continuation"),
+            )?
+            .into_pointer_value();
+        let discard = self.declare_runtime_continuation_discard();
+        self.builder
+            .build_call(discard, &[continuation.into()], &format!("{label}_discard"))?;
+        self.store_gc_ref_field(at, cont_gep, self.llvm_gc_i8_ptr_type().const_null())?;
+        Ok(())
+    }
+
     fn load_effect_frame_ptr_for_use(
         &mut self,
         _at: crate::span::Span,
@@ -3610,6 +3638,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "effect_frame_function_return",
             &deferred_frame,
         )?;
+        self.discard_effect_frame_continuation(
+            span,
+            frame_ptr,
+            &frame_layout,
+            "effect_frame_function_return",
+        )?;
         let return_value =
             self.read_result_from_frame(span, declared_return_cg, frame_ptr, &frame_layout)?;
         self.clear_deferred_cg_value_root_homes(
@@ -3627,9 +3661,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "effect_frame_complete",
                 &deferred_frame,
             )?;
+            self.discard_effect_frame_continuation(
+                span,
+                frame_ptr,
+                &frame_layout,
+                "effect_frame_complete",
+            )?;
             let result =
                 self.read_result_from_frame(span, result_cg_ty, frame_ptr, &frame_layout)?;
             self.store_local_value(span, result_slot, result_cg_ty, result)?;
+        } else {
+            let frame_ptr = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                "effect_frame_complete",
+                &deferred_frame,
+            )?;
+            self.discard_effect_frame_continuation(
+                span,
+                frame_ptr,
+                &frame_layout,
+                "effect_frame_complete",
+            )?;
         }
         self.clear_deferred_cg_value_root_homes(
             span,
