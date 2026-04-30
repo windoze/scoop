@@ -423,13 +423,23 @@
     - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T5001f8a0R
 
-### [TODO] T5001f8aR Review：确认 outer mutable local 的 caller-side source-of-truth 已闭合
+### [DONE] T5001f8aR Review：确认 outer mutable local 的 caller-side source-of-truth 已闭合
 - 重点：
   - handle 完成并返回原 caller 时，writeback 是否优先经过 caller 当前稳定 backing slot / local home；
   - caller 紧随 handle 之后的读取是否已经看到最新值，而不是 caller explicit frame 中的旧镜像；
   - 新增最小回归是否真正锁住了“handle-return 后立刻读回”的窗口。
 - 验收：
   - `T5001f8b` 可在不再被 outer mutable local caller-side writeback/readback 缺口阻塞的前提下继续推进。
+- 完成记录：
+  - 已复核 `write_back_outer_scope_frame_slots(...)`：当 handle-return 仍位于原 caller activation 且 env 中存在对应的稳定 local home/backing slot（default addrspace）时，writeback 会优先经该 local home 执行 `store_local_value(...)`，从而同步 caller explicit-frame home slots；若当前上下文并非原 caller（例如 step_fn/state BB 里 env 仅有 heap-frame GEP，且处于 GC addrspace），则会回退到 frame 中记录的裸 storage pointer 回写路径。
+  - 已复核 `codegen_handle_expr_via_state_machine(...)` 会在 `handle_done` 与 `handle_propagate` 两条 caller-side 退出路径都执行 `write_back_outer_scope_frame_slots(...)`，确保离开 handle expression 前，caller 侧 readback 已看到最新值。
+  - 定向验证：
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
+    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T5001f8a
 
 ### [TODO] T5001f8b 把 state/arm body 中的 frame-backed locals 从 heap-frame GEP 收口为稳定执行期 local home
