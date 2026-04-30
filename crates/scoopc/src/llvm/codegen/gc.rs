@@ -1863,6 +1863,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: CgTy,
         value: CgValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // safepoint 是 GC ref 的 clobber 边界：若 `ptr` 由某个可被 moving GC 更新的
+        // base 指针（例如 explicit-frame-backed 的 heap frame ptr load）推导而来，
+        // 则不能继续信任旧 SSA/GEP；在真正写入前需要在当前 block 里重建指针链。
+        let ptr = self.rematerialize_ptr_in_current_block(at, ptr, "store_local_slot")?;
+
         if value.ty != ty && value.ty != CgTy::Never {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "store exact value type mismatch",

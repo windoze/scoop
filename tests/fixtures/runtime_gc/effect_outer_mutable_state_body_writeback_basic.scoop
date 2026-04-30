@@ -1,0 +1,35 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_STRESS=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: effect_outer_mutable_state_body_writeback_basic.stdout.txt
+//
+// T5001f8a0: state-machine state/arm body 内对 outer mutable local 的赋值不能依赖
+// 预先计算的 heap-frame field GEP 指针；在 RHS 求值触发 moving GC 后，写入必须仍落到
+// 当前 relocated 的 heap frame 上。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Int
+}
+
+fun main(): Int {
+    var saved: String = "none"
+
+    val result: Int = handle {
+        Suspend.pause()
+    } with {
+        Suspend.pause(), k -> {
+            // RHS 分配在 GC stress 下会触发 moving；如果 store 仍使用 stale slot pointer，
+            // handle-return 后读取会错误地看到旧值。
+            saved = "ok".concat("!")
+            0
+        }
+    }
+
+    println(saved)
+    return result
+}

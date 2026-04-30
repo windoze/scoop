@@ -62,3 +62,4 @@ Complete exactly the first unfinished task in `TODO.md` (or the first unfinished
 - 2026-05-01: Fixed `scoop_runtime` continuation tests to pass GC-managed state to `scoop_continuation_alloc` and to use `scoop_continuation_set_captured_callee_suspend_state` (tests were stale vs runtime ABI).
 - 2026-05-01: Fixed two brittle `scoopc` LLVM IR tests (updated assertions to match current IR naming/windowing).
 - 2026-05-01: Verified: `cargo test --all` and `cargo clippy --all-targets -- -D warnings` both pass.
+- 2026-05-01: Started TODO task `T5001f8a0`: fixed state-machine outer mutable local stores after GC by rematerializing store pointers (`store_local_value_exact`), added runtime_gc fixture `effect_outer_mutable_state_body_writeback_basic`, and verified `continuation_resume_enum.scoop` passes under `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1`.

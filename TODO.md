@@ -367,7 +367,7 @@
   - outer mutable local 的 caller-side source-of-truth 也还未完全收口：即使 frame 已记录 backing slot 指针，后续 writeback 若绕开 caller 当前稳定 local home / explicit-frame home slot，同样会让 handle 之后的 caller 读取继续看到旧值。
   - 当前 blocker 仍以 `continuation_resume_enum.scoop` 与 `effect_multi_escape_indirect_direct_while.scoop` 为主，故先拆成顺序子任务逐步收口。
 
-### [TODO] T5001f8a0 修复 state-body 预填充 frame-slot locals 的 stale heap-slot pointer，解除 `T5001f8a` 阻塞
+### [DONE] T5001f8a0 修复 state-body 预填充 frame-slot locals 的 stale heap-slot pointer，解除 `T5001f8a` 阻塞
 - 范围：
   - 修复 `populate_frame_slots_in_env(...)` 当前把 frame slot 的 heap-field GEP 直接塞进 env 当 `CgLocal.ptr` 的设计，至少先覆盖 outer mutable locals 在 state body 中的主线。
   - 让 `continuation_resume_enum.scoop` 第一段 handle 的 state-body `saved = Some(k)` 在 GC env 下也走稳定执行期 local home，而不是继续在 `Some(k)` 构造/分配后把写入落到 stale heap-slot pointer。
@@ -375,6 +375,14 @@
 - 验收：
   - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop` 恢复输出 `ok / 42` 与 `err2 / 99`，不再出现 `missing1/missing2`；
   - 至少补一条最小 LLVM/fixture 回归，锁定 outer mutable local 在 state body 中不再长期直接使用 heap-frame GEP 作为执行期 local home。
+- 完成记录：修复根因不是 frame slot 值本身，而是 state/arm body 内对 outer mutable local 的 `store` 仍直接使用 `populate_frame_slots_in_env(...)` 预先塞进 env 的 heap-frame field GEP 指针；RHS 求值触发 moving GC 后，这些 slot pointer 会 stale，导致写入落到旧 frame 地址。
+  - compiler：在 `store_local_value_exact(...)` 写入前统一调用 `rematerialize_ptr_in_current_block(...)` 重建指针链，确保 heap-frame GEP 的 base（explicit-frame-backed frame ptr load）会在当前 block 重新 load，从而把 store 重新指向 relocated heap frame slot。
+  - fixture：新增 `tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop`（固定 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1`），锁定 arm 内对 outer `saved` 的赋值在 GC stress 下仍能在 handle-return 后读回。
+  - 验证：
+    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T5001f7
 
 ### [TODO] T5001f8a0R Review：确认 state-body outer mutable local 已不再直接依赖 stale heap-slot pointer
