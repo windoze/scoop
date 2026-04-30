@@ -59,12 +59,12 @@
 ### P1. Managed `EffectCtx` / `EffectHandlerNode` 与 hidden effect ABI
 
 - 对应 `CONTINUATION_RUNTIME_REFACTOR.md` 的“2.2 `ScoopEffectCtx`”“2.3 `ScoopEffectHandlerNode`”“3. Hidden ABI”“4. Effect Context Construction”。
-- 当前 `runtime/c/scoop_runtime.c:434-468` 的 raw TLS handler stack、以及 `state_machine_emitter.rs:4848-4910` 的栈上 handler frame push/pop 必须退出生产路径。
-- 新路径要做到：
-  - handle 入口分配 managed handler node，而不是 stack alloca frame；
-  - body/arm/finally/ordinary call/resume 全部显式接收 `current_effect_ctx_ref`；
-  - arm self-inactive 通过 derived ctx，而不是 runtime 原地改 active bit；
-  - 外层 redispatch 通过 captured ctx graph，而不是 TLS top swap。
+- 当前 `runtime/c/scoop_runtime.c:434-468` 的 raw TLS handler stack、以及 `state_machine_emitter.rs:4848-4910` 的栈上 handler frame push/pop 仍深度耦合 ordinary call boundary、state-machine dispatch、handle 入口和 cross-thread resume；直接整块落地 `T5002b` 风险过高，因此拆为四个前置子任务顺序推进：
+  1. `T5002b1` 先把 direct-call wrapper 的 `incoming_resume_token_ref` 显式化，至少把最外层 ordinary direct-call boundary 从“完全依赖 TLS token 缺省值”收口为显式 hidden input。
+  2. `T5002b2` 再把同一 token contract 扩到 closure/funptr/vtable/itable/callee-resume/step-dispatch 等剩余 hidden ABI surface，避免 direct/indirect path 长期并存两套 token 约定。
+  3. `T5002b3` 随后引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 最终布局与 descriptor，并把 handle 入口从 stack handler frame + runtime push/pop 切到 managed handler node graph。
+  4. `T5002b4` 最后收口 arm derived ctx、captured outer redispatch 与 cross-thread resume，彻底移除 raw TLS top/swap 生产依赖。
+- 进展更新（2026-05-01）：`T5002b1` 已完成。top-level outward-effect direct-call wrapper 现在显式接收 `incoming_resume_token_ref`，fresh direct call 会传 `null` token，wrapper 内则在 legacy call 前后执行 `publish -> consume outcome -> clear`。这一步还没有删除 raw TLS handler stack，但已经把最外层 direct-call token contract 从隐式 TLS 缺省值收口为显式 hidden input。下一步按顺序进入 `T5002b2`。
 
 ### P2. Codegen-owned `ScoopContinuation` 与 generated resume driver
 

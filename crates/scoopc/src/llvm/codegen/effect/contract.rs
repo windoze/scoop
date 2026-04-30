@@ -275,7 +275,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(resume_token)
     }
 
-    pub(super) fn null_effect_resume_token(&self) -> PointerValue<'ctx> {
+    pub(in crate::llvm::codegen) fn null_effect_resume_token(&self) -> PointerValue<'ctx> {
         self.llvm_gc_i8_ptr_type().const_null()
     }
 

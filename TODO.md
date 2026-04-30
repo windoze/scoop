@@ -64,26 +64,54 @@
   - 已通过 LLVM 回归 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`、`escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract`。
   - 已在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下复验 `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop`、`effect_escape_continuation_indirect_perform_binder_string_use.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`。
 
-### [TODO] T5002b 引入 managed `EffectCtx` / `EffectHandlerNode` 与显式 hidden effect ABI
+### [DONE] T5002b1 显式引入 direct-call wrapper 的 `incoming_resume_token_ref`
 - 范围：
-  - 按 `CONTINUATION_RUNTIME_REFACTOR.md` 的“2.2 `ScoopEffectCtx`”“2.3 `ScoopEffectHandlerNode`”“3. Hidden ABI”“4. Effect Context Construction”落地新的 effect context 形状。
-  - 在 codegen 中引入 codegen-owned `ScoopEffectCtx` / `ScoopEffectHandlerNode` 布局与 type descriptor。
-  - 把 ordinary effect-capable call、state-machine step/dispatch、nested handle/arm body 的 hidden ABI 收口为显式：
-    - `current_effect_ctx_ref`
-    - `incoming_resume_token_ref`
-    - `ScoopEffectOutcome*`
-  - handle 入口不再为 production path 生成 stack `alloca` handler frame + runtime `push/pop`；改为分配 managed handler node graph。
+  - 把 top-level ordinary outward-effect direct call wrapper 的 hidden ABI 从 `current_effect_ctx_ref + ScoopEffectOutcome*` 扩成 `current_effect_ctx_ref + incoming_resume_token_ref + ScoopEffectOutcome*`。
+  - fresh direct call（HIR path 与 raw-MIR direct-call bridge）显式传入 `null` incoming token，而不是继续把“无 token”这一状态完全隐含在 TLS scratch 缺省值里。
+  - wrapper 内在安装 ctx 后，显式 `publish` incoming token；在 `consume_current_effect_outcome(...)` 之后再清空 TLS token scratch，避免丢失本次传播生成的 fresh token。
+- 验收：
+  - direct-call wrapper IR 明确出现 `@scoop_callee_suspend_state_publish`；
+  - fresh direct outward-effect call IR 明确把 `ptr addrspace(1) null` 作为 `incoming_resume_token_ref` 传给 wrapper；
+  - 原有 explicit outcome wrapper 合同继续成立，不回退到 post-call TLS active probing。
+- 依赖：T5002aR
+- 完成记录：
+  - `declare_top_level_fun_effect_call_wrapper_impl(...)` 与 `codegen_top_level_fun_effect_call_wrapper_impl(...)` 现已显式接收 `incoming_resume_token_ref`，并在 wrapper 内围绕 legacy call 做 `publish -> consume outcome -> clear`。
+  - HIR direct call 与 raw-MIR direct call 在构造 wrapper 实参时都会显式传入 `null_effect_resume_token()`，不再把 fresh-call 的 token 缺省值完全隐含在 runtime TLS 初值里。
+  - LLVM 回归 `effect_contract_struct_types_are_registered_for_effect_codegen`、`direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome` 已通过；`cargo clippy --all-targets -- -D warnings` 已通过。
+
+### [TODO] T5002b2 把显式 `incoming_resume_token_ref` 扩到剩余 hidden effect ABI surface
+- 范围：
+  - 把 closure call、funptr call、vtable/itable call、callee resume entry、state-machine step/dispatch 的 hidden effect ABI 全部扩成显式承接 `incoming_resume_token_ref`。
+  - 收口当前 boundary helper 的参数编排与函数声明，避免 direct call 已显式、其余路径仍隐式依赖 TLS scratch 的半切换状态。
+- 验收：
+  - closure / funptr / vtable / itable / callee-resume / step-dispatch 相关 production signature 与 indirect call IR 都已显式携带 `incoming_resume_token_ref`；
+  - direct 与 indirect remaining path 不再混用“显式 token / 隐式 TLS token”两套 ABI 形状；
+  - 仍未切走 raw TLS handler stack 的路径仅限后续 `T5002b3/T5002b4` 明确覆盖的部分。
+- 依赖：T5002b1
+
+### [TODO] T5002b3 引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 并替换 handle 入口注册路径
+- 范围：
+  - 在 codegen 中落地 `ScoopEffectCtx { hdr, handler_top_ref }` / `ScoopEffectHandlerNode { hdr, prev_ref, op_tag, flags, owner_frame_ref, dispatch_fn }` 的最终 managed object 布局与 bitmap descriptor。
+  - handle 入口改为分配 rooted managed `ScoopEffectHandlerNode` 链与 `ScoopEffectCtx`，不再为 production path 生成 stack `alloca` handler frame + runtime `push/pop`。
+  - nested handle/body/finally/ordinary effect-capable call 统一显式接收当前 managed ctx。
+  - `runtime_abi.rs` 中 raw handler-frame ABI 退出 production lowering 主路径。
+- 验收：
+  - production IR 不再调用 `@scoop_effect_handler_stack_push` / `@scoop_effect_handler_stack_pop`；
+  - `__scoop_type_desc_runtime__ScoopEffectCtx*` / `__scoop_type_desc_runtime__ScoopEffectHandlerNode*` 由 production codegen 生成，trace bitmap 只覆盖 GC refs 字段；
+  - handle 入口相关 IR 断言改为检查 managed node / ctx 分配与 rooted storage；
+  - `effect_escape_continuation_arm_performs_outer_effect.scoop` 在默认环境与所需 GC env 下通过。
+- 依赖：T5002b2
+
+### [TODO] T5002b4 用 derived ctx / ctx graph dispatch 收口 arm self-inactive、outer redispatch 与 cross-thread resume
+- 范围：
   - arm self-inactive 改为 derived effect context，而不是 runtime mutable `active` 位。
   - captured outer redispatch 改为基于 ctx graph 的显式 dispatch，而不是 runtime TLS `handler_stack_top` swap。
+  - cross-thread resume 改为依赖 captured managed ctx graph 与显式 token/outcome，而不是 raw TLS handler stack。
 - 验收：
-  - production IR 不再调用：
-    - `@scoop_effect_handler_stack_push`
-    - `@scoop_effect_handler_stack_pop`
-    - `@scoop_effect_handler_stack_top`
-    - `@scoop_effect_handler_stack_swap_top`
-  - `runtime_abi.rs` 中 raw handler-frame ABI 不再被 production lowering 依赖；
-  - `tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`、`effect_escape_continuation_arm_performs_outer_effect.scoop`、`effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 在默认环境与需要的 GC env 下继续通过。
-- 依赖：T5002aR
+  - production IR 不再调用 `@scoop_effect_handler_stack_top` / `@scoop_effect_handler_stack_swap_top`；
+  - `tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`、`effect_escape_continuation_arm_performs_outer_effect.scoop`、`effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 在默认环境与需要的 GC env 下继续通过；
+  - `T5002b` 的语义目标已收口完成，可进入 review。
+- 依赖：T5002b3
 
 ### [TODO] T5002bR Review：确认 production path 已不再依赖 raw TLS handler stack
 - 重点：
@@ -93,7 +121,7 @@
 - 验收：
   - `T5002c` 可在新的 effect context contract 上继续推进；
   - review 阶段必须同时复核 IR 断言和 end-to-end fixture，而不是只看类型声明改动。
-- 依赖：T5002b
+- 依赖：T5002b4
 
 ### [TODO] T5002c 将 continuation object / generated resume driver 收回 codegen
 - 范围：

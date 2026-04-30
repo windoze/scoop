@@ -3443,7 +3443,7 @@ fun main(): Int {
     );
 
     let context = Context::create();
-    let _module = build_minimal_main_module(&session, &source, &context).unwrap();
+    let module = build_minimal_main_module(&session, &source, &context).unwrap();
 
     let effect_ctx = context
         .get_struct_type("scoop.runtime.ScoopEffectCtx")
@@ -3478,6 +3478,16 @@ fun main(): Int {
         effect_outcome.get_field_types()[3].into_struct_type(),
         effect_signal,
         "EffectOutcome.propagate 分支应显式承载 EffectSignal"
+    );
+
+    let ir = module.print_to_string().to_string();
+    let wrapper_call = ir
+        .lines()
+        .find(|line| line.contains("call") && line.contains("@__scoop_effect_call_wrapper__a.go"))
+        .expect("expected direct effect wrapper call for a.go");
+    assert!(
+        wrapper_call.contains("ptr addrspace(1) null"),
+        "fresh direct effect call 应显式传入 null incoming_resume_token_ref，而不是完全依赖 TLS scratch:\n{wrapper_call}"
     );
 }
 
@@ -3911,8 +3921,17 @@ fun main(): Int {
     );
     assert!(
         wrapper_ir.contains("@scoop_effect_handler_stack_swap_top")
-            && wrapper_ir.contains("@scoop_effect_outcome_consume_current"),
-        "direct-call wrapper 应负责安装 ctx 并把 legacy TLS signal 收口到显式 outcome:\n{wrapper_ir}"
+            && wrapper_ir.contains("@scoop_effect_outcome_consume_current")
+            && wrapper_ir.contains("@scoop_callee_suspend_state_publish"),
+        "direct-call wrapper 应负责安装 ctx、显式发布 incoming resume token，并把 legacy TLS signal 收口到显式 outcome:\n{wrapper_ir}"
+    );
+    let wrapper_call = entry_ir
+        .lines()
+        .find(|line| line.contains("@__scoop_effect_call_wrapper__a.outward"))
+        .expect("expected outward wrapper call in entry IR");
+    assert!(
+        wrapper_call.contains("ptr addrspace(1) null"),
+        "fresh outward-effect direct call 应显式传入 null incoming_resume_token_ref:\n{wrapper_call}"
     );
 }
 

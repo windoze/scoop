@@ -2182,7 +2182,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
             evaluated_args.len()
                 + usize::from(hidden_sret_result_ty.is_some())
-                + usize::from(explicit_effect_call) * 2,
+                + usize::from(explicit_effect_call) * 3,
         );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(span, "pass_mir_call_sret", ret_cg)?;
@@ -2193,6 +2193,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         if let (Some(ctx_slot), Some(outcome_slot)) = (effect_ctx_slot, effect_outcome_slot) {
             llvm_args.push(ctx_slot.into());
+            llvm_args.push(self.null_effect_resume_token().into());
             llvm_args.push(outcome_slot.into());
         }
         llvm_args.extend(evaluated_args.iter().map(|slot| slot.value));
