@@ -2768,11 +2768,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "pass_mir_closure_obj_return",
             &deferred_obj,
         )?;
-        let obj_i8 = self.builder.build_pointer_cast(
-            obj_ptr,
-            gc_i8_ptr_ty,
-            "pass_mir_closure_obj_i8",
-        )?;
+        let obj_i8 =
+            self.builder
+                .build_pointer_cast(obj_ptr, gc_i8_ptr_ty, "pass_mir_closure_obj_i8")?;
         Ok(CgValue {
             ty: CgTy::Ref,
             value: Some(obj_i8.into()),

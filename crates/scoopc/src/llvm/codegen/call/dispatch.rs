@@ -1834,11 +1834,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "closure_call_obj_reload",
             &deferred_closure,
         )?;
-        let closure_ptr = self.builder.build_pointer_cast(
-            closure_obj_i8,
-            closure_ptr_ty,
-            "closure_obj_ptr",
-        )?;
+        let closure_ptr =
+            self.builder
+                .build_pointer_cast(closure_obj_i8, closure_ptr_ty, "closure_obj_ptr")?;
         let env_ptr_gep =
             self.builder
                 .build_struct_gep(closure_ty, closure_ptr, 1, "closure_env_gep")?;

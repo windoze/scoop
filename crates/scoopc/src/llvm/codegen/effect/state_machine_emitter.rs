@@ -565,12 +565,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let return_alloca =
                         self.create_entry_alloca(span, "step_function_return_val", return_ty)?;
                     let default = self.default_value(span, return_ty)?;
-                    let _ = self.store_local_value_exact(
-                        span,
-                        return_alloca,
-                        return_ty,
-                        default,
-                    )?;
+                    let _ =
+                        self.store_local_value_exact(span, return_alloca, return_ty, default)?;
                     Some(return_alloca)
                 }
             };
@@ -601,11 +597,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 frame_layout.resume_gc_ref_index(),
                 "resume_gc_ref_ptr",
             )?;
-            cg.store_gc_ref_field(
-                span,
-                resume_gc_ref_gep,
-                resume_gc_ref_param,
-            )?;
+            cg.store_gc_ref_field(span, resume_gc_ref_gep, resume_gc_ref_param)?;
 
             // Load state_tag for dispatch.
             let state_tag_gep = cg.builder.build_struct_gep(
@@ -776,18 +768,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let return_alloca = match return_ty {
                 CgTy::Unit | CgTy::Never => None,
                 _ => {
-                    let return_alloca = self.create_entry_alloca(
-                        span,
-                        "dispatch_function_return_val",
-                        return_ty,
-                    )?;
+                    let return_alloca =
+                        self.create_entry_alloca(span, "dispatch_function_return_val", return_ty)?;
                     let default = self.default_value(span, return_ty)?;
-                    let _ = self.store_local_value_exact(
-                        span,
-                        return_alloca,
-                        return_ty,
-                        default,
-                    )?;
+                    let _ =
+                        self.store_local_value_exact(span, return_alloca, return_ty, default)?;
                     Some(return_alloca)
                 }
             };
@@ -1556,8 +1541,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // The initializer may already have crossed a safepoint, so rematerialize
         // the current heap frame pointer before forming the slot address.
-        let state_ptr =
-            self.rematerialize_effect_frame_ptr(state_ptr, &format!("bind_local_{}_frame", id.as_u32()))?;
+        let state_ptr = self.rematerialize_effect_frame_ptr(
+            state_ptr,
+            &format!("bind_local_{}_frame", id.as_u32()),
+        )?;
 
         // GEP into frame + store.
         let slot_ptr = self.builder.build_struct_gep(
@@ -1620,8 +1607,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             })?;
 
-        let state_ptr =
-            self.rematerialize_effect_frame_ptr(state_ptr, &format!("read_local_{}_frame", id.as_u32()))?;
+        let state_ptr = self.rematerialize_effect_frame_ptr(
+            state_ptr,
+            &format!("read_local_{}_frame", id.as_u32()),
+        )?;
 
         // GEP into frame.
         let slot_ptr = self.builder.build_struct_gep(
@@ -3550,7 +3539,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let default = self.default_value(span, result_cg_ty)?;
             self.store_local_value(span, result_slot, result_cg_ty, default)?;
         }
-        self.clear_deferred_cg_value_root_homes(span, "effect_frame_propagate_drop", &deferred_frame)?;
+        self.clear_deferred_cg_value_root_homes(
+            span,
+            "effect_frame_propagate_drop",
+            &deferred_frame,
+        )?;
         self.builder.build_unconditional_branch(handle_exit_bb)?;
 
         // --- handle_done: the reusable dispatch loop should already have
@@ -3620,7 +3613,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.read_result_from_frame(span, result_cg_ty, frame_ptr, &frame_layout)?;
             self.store_local_value(span, result_slot, result_cg_ty, result)?;
         }
-        self.clear_deferred_cg_value_root_homes(span, "effect_frame_complete_drop", &deferred_frame)?;
+        self.clear_deferred_cg_value_root_homes(
+            span,
+            "effect_frame_complete_drop",
+            &deferred_frame,
+        )?;
         self.builder.build_unconditional_branch(handle_exit_bb)?;
 
         self.builder.position_at_end(handle_exit_bb);
@@ -3704,8 +3701,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .append_basic_block(current_fn, &format!("arm_{arm_id}_complete"));
 
         self.builder.position_at_end(arm_bb);
-        let frame_ptr =
-            self.load_effect_frame_ptr_for_use(span, frame_ptr_slot, &format!("arm_{arm_id}_frame"))?;
+        let frame_ptr = self.load_effect_frame_ptr_for_use(
+            span,
+            frame_ptr_slot,
+            &format!("arm_{arm_id}_frame"),
+        )?;
 
         let clear_active_fn = self.declare_runtime_effect_clear_active();
         self.builder.build_call(clear_active_fn, &[], "")?;

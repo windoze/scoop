@@ -828,9 +828,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             gv.set_linkage(Linkage::Internal);
         }
 
-        if slot_count > 0 {
-            self.finalize_function_explicit_frame_lifecycle(at, &plan, &desc_global_name)?;
-        }
+        // 即使当前函数没有显式 GC leaf slots，也必须把 zero-slot frame 挂到 TLS：
+        // verify-roots / moving GC 需要一个统一的 managed root source，不能退回到
+        // 已不再作为普通托管函数真源的 stackmap 路径。
+        self.finalize_function_explicit_frame_lifecycle(at, &plan, &desc_global_name)?;
         Ok(())
     }
 

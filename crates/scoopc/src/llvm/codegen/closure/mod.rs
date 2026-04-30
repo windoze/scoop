@@ -222,11 +222,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_pointer_cast(obj_i8, obj_ptr_ty, "closure_obj_ptr")?;
         let deferred_obj = self.defer_gc_ref_pointer(span, "closure_obj_root", obj_ptr)?;
 
-        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
-            span,
-            "closure_obj_init",
-            &deferred_obj,
-        )?;
+        let obj_ptr =
+            self.reload_deferred_gc_ref_without_clearing(span, "closure_obj_init", &deferred_obj)?;
 
         let env_gep =
             self.builder
@@ -399,7 +396,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "closure_obj_return",
             &deferred_obj,
         )?;
-        let obj_i8 = self.builder.build_pointer_cast(obj_ptr, gc_i8_ptr_ty, "closure_obj_i8")?;
+        let obj_i8 = self
+            .builder
+            .build_pointer_cast(obj_ptr, gc_i8_ptr_ty, "closure_obj_i8")?;
 
         Ok(CgValue {
             ty: CgTy::Ref,

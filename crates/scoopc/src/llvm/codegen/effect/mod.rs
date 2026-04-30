@@ -57,12 +57,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         };
         let cleared = self.default_value(receiver.span, local.ty)?;
-        let _ = self.store_local_value_exact(
-            receiver.span,
-            local.ptr,
-            local.ty,
-            cleared,
-        )?;
+        let _ = self.store_local_value_exact(receiver.span, local.ptr, local.ty, cleared)?;
         Ok(())
     }
 

@@ -5286,13 +5286,67 @@ fun main() {
         "expected function return to restore previous explicit root frame\n{keep_ir}"
     );
     assert!(
-        keep_ir
-            .contains("store ptr addrspace(1) %gc_root_keepalive_0, ptr %explicit_gc_root_slot_0"),
+        keep_ir.contains(
+            "store ptr addrspace(1) %gc_root_keepalive_reload, ptr %explicit_root_frame_slot_0"
+        ),
         "expected safepoint to keep the relocated root in explicit frame home storage\n{keep_ir}"
     );
     assert!(
         keep_ir.contains("store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_0"),
         "expected function teardown to clear the explicit frame home slot back to NULL\n{keep_ir}"
+    );
+}
+
+#[test]
+fn zero_slot_managed_function_still_emits_explicit_root_frame_lifecycle() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun label(n: Int): String {
+    if (n == 0) {
+        return "zero"
+    }
+    return "nonzero"
+}
+
+fun main() {
+    println(label(0))
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let label_ir = function_ir_named(&ir, "@a.label(");
+
+    assert!(
+        ir.contains("@__scoop_explicit_root_desc__a_label = internal constant %scoop.runtime.ScoopRootFrameDesc zeroinitializer"),
+        "expected zero-slot managed function to keep a zero-slot descriptor\n{ir}"
+    );
+    assert!(
+        label_ir.contains("%explicit_root_frame_storage = alloca ptr, i32 2"),
+        "expected zero-slot managed function to still allocate a two-word explicit frame header\n{label_ir}"
+    );
+    assert!(
+        label_ir.contains(
+            "store ptr @__scoop_explicit_root_desc__a_label, ptr %explicit_root_frame_desc_ptr"
+        ),
+        "expected zero-slot managed function to publish its descriptor in the explicit frame header\n{label_ir}"
+    );
+    assert!(
+        label_ir.contains(
+            "store ptr %explicit_root_frame_storage, ptr @__scoop_explicit_root_frame_top"
+        ),
+        "expected zero-slot managed function to push explicit root frame TLS\n{label_ir}"
+    );
+    assert!(
+        label_ir.contains(
+            "store ptr %explicit_root_frame_pop_prev, ptr @__scoop_explicit_root_frame_top"
+        ),
+        "expected zero-slot managed function to restore previous explicit root frame TLS on return\n{label_ir}"
     );
 }
 
