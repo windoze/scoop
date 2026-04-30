@@ -5012,7 +5012,8 @@ fun main(): Int {
             "resume replay path should call the stored resume thunk directly from the explicit frame token"
         );
         assert!(
-            ir.contains("cont_captured_callee_suspend_state"),
+            ir.contains("site0_captured_callee_resume_token")
+                && ir.contains("scoop_continuation_set_captured_callee_suspend_state"),
             "fresh continuation materialization should capture the ordinary callee resume token so escaped continuation resume does not fall back to TLS"
         );
     }

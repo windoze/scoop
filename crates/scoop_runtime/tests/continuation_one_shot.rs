@@ -31,11 +31,21 @@ struct ScoopContinuation {
     resumed: u32,
     resume_state_tag: u32,
     captured_handler_stack_top: *mut ScoopEffectHandlerFrame,
-    state: *mut c_void,
+    state_handle: u64,
     step_fn: ScoopContinuationStepFn,
     resume_word: u64,
     resume_gc_ref: *mut c_void,
-    captured_callee_suspend_state: *mut c_void,
+    captured_callee_suspend_state_handle: u64,
+}
+
+// GC-managed wrapper：把 Rust 堆上的观测数据指针“装箱”到 runtime GC heap 中。
+//
+// 说明：`scoop_continuation_alloc` 的 `state` 参数在 LLVM 侧被当作 GC ref（addrspace(1)）；
+// 因此测试不能直接把 Rust `Box` 指针当作 state 传入。
+#[repr(C)]
+struct ContinuationStateWrapper {
+    hdr: ScoopGcObjectHeader,
+    observations: *mut c_void,
 }
 
 #[repr(C)]
@@ -126,6 +136,10 @@ unsafe extern "C" {
         state: *mut c_void,
         step_fn: ScoopContinuationStepFn,
     ) -> *mut c_void;
+    fn scoop_continuation_set_captured_callee_suspend_state(
+        continuation: *mut c_void,
+        state: *mut c_void,
+    );
     fn scoop_continuation_try_resume(continuation: *mut c_void) -> u32;
     fn scoop_continuation_resume(continuation: *mut c_void);
     fn scoop_continuation_resume_with(
@@ -209,7 +223,13 @@ extern "C" fn observe_handler_snapshot_step(
         return;
     }
 
-    let observations = unsafe { &*(state as *const HandlerSnapshotObservations) };
+    // state 是 GC-managed wrapper；解包得到真实的 Rust 观测对象指针。
+    let wrapper = unsafe { &*(state as *const ContinuationStateWrapper) };
+    if wrapper.observations.is_null() {
+        return;
+    }
+    let observations = unsafe { &*(wrapper.observations as *const HandlerSnapshotObservations) };
+
     let found = unsafe { scoop_effect_handler_stack_find_nearest(42) };
     observations
         .found_ptr
@@ -568,7 +588,15 @@ fn continuation_resume_keeps_captured_handler_snapshot_alive_after_original_fram
         });
         let observations_ptr = Box::into_raw(observations) as *mut c_void;
 
-        let k = scoop_continuation_alloc(observations_ptr, Some(observe_handler_snapshot_step));
+        // 通过 runtime 分配 GC-managed state wrapper（见上方注释）。
+        let state = scoop_alloc(core::mem::size_of::<ContinuationStateWrapper>() as u64);
+        assert!(!state.is_null(), "continuation state wrapper must be allocated");
+        {
+            let wrapper = &mut *(state as *mut ContinuationStateWrapper);
+            wrapper.observations = observations_ptr;
+        }
+
+        let k = scoop_continuation_alloc(state, Some(observe_handler_snapshot_step));
         assert!(
             !k.is_null(),
             "scoop_continuation_alloc must return non-null"
@@ -642,9 +670,9 @@ fn continuation_resume_temporarily_restores_captured_callee_suspend_state() {
             "scoop_continuation_alloc must return non-null"
         );
 
-        // 编译器在 suspend terminator 中会写这个字段；测试里直接模拟该 ABI 合同。
-        let cont = &mut *(k as *mut ScoopContinuation);
-        cont.captured_callee_suspend_state = captured_state;
+        // 对齐 compiler 生成路径：通过 runtime helper 把 captured callee suspend state
+        // 写入 continuation（内部会创建 stable handle）。
+        scoop_continuation_set_captured_callee_suspend_state(k, captured_state);
 
         scoop_continuation_resume(k);
 
@@ -696,8 +724,7 @@ fn continuation_resume_preserves_step_fn_replaced_callee_suspend_state() {
             "scoop_continuation_alloc must return non-null"
         );
 
-        let cont = &mut *(k as *mut ScoopContinuation);
-        cont.captured_callee_suspend_state = captured_state;
+        scoop_continuation_set_captured_callee_suspend_state(k, captured_state);
 
         scoop_continuation_resume(k);
 

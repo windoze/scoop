@@ -5,6 +5,26 @@ use core::ffi::c_void;
 use core::ptr;
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
+// 对齐 `runtime/c/scoop_gc.h` 的对象头（用于在测试中构造 GC-managed state wrapper）。
+#[repr(C)]
+struct ScoopGcObjectHeader {
+    next: *mut ScoopGcObjectHeader,
+    type_desc: *const c_void,
+    size_bytes: u64,
+    flags: u32,
+    mark: u32,
+}
+
+// GC-managed wrapper：把 Rust 堆上的观测数据指针“装箱”到 runtime GC heap 中。
+//
+// 说明：`scoop_continuation_alloc` 的 `state` 参数在 LLVM 侧被当作 GC ref（addrspace(1)）；
+// 因此测试不能直接把 Rust `Box` 指针当作 state 传入。
+#[repr(C)]
+struct ContinuationStateWrapper {
+    hdr: ScoopGcObjectHeader,
+    observations: *mut c_void,
+}
+
 // 对齐 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）。
 #[repr(C)]
 struct ScoopEffectHandlerFrame {
@@ -17,6 +37,8 @@ type ScoopContinuationStepFn =
     Option<extern "C" fn(state: *mut c_void, resume_word: u64, resume_gc_ref: *mut c_void)>;
 
 unsafe extern "C" {
+    fn scoop_alloc(size: u64) -> *mut c_void;
+
     fn scoop_runtime_init();
 
     fn scoop_thread_register();
@@ -46,7 +68,13 @@ extern "C" fn observe_step(state: *mut c_void, resume_value: u64, _resume_gc_ref
         return;
     }
 
-    let observations = unsafe { &*(state as *const ResumeObservations) };
+    // state 是 GC-managed wrapper；解包得到真实的 Rust 观测对象指针。
+    let wrapper = unsafe { &*(state as *const ContinuationStateWrapper) };
+    if wrapper.observations.is_null() {
+        return;
+    }
+    let observations = unsafe { &*(wrapper.observations as *const ResumeObservations) };
+
     let top = unsafe { scoop_effect_handler_stack_top() };
     observations
         .observed_top
@@ -99,7 +127,15 @@ fn continuation_resume_swaps_handler_stack_across_threads_and_restores_after() {
     });
     let observations_ptr = Box::into_raw(observations) as *mut c_void;
 
-    let k = unsafe { scoop_continuation_alloc(observations_ptr, Some(observe_step)) };
+    // 通过 runtime 分配 GC-managed state wrapper（见上方注释）。
+    let state = unsafe { scoop_alloc(core::mem::size_of::<ContinuationStateWrapper>() as u64) };
+    assert!(!state.is_null(), "continuation state wrapper must be allocated");
+    unsafe {
+        let wrapper = &mut *(state as *mut ContinuationStateWrapper);
+        wrapper.observations = observations_ptr;
+    }
+
+    let k = unsafe { scoop_continuation_alloc(state, Some(observe_step)) };
     assert!(
         !k.is_null(),
         "scoop_continuation_alloc must return non-null"

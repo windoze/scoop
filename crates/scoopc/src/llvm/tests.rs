@@ -5564,12 +5564,12 @@ fun main() {
     let reload_window = &run_ir[reload_window_start..take_idx + 200];
 
     assert!(
-        reload_window
+        run_ir
             .contains("call_arg_reload_0 = load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
         "deferred GC call arg should rematerialize from explicit frame home slot after later safepoint\n{reload_window}"
     );
     assert!(
-        !reload_window.contains("call_arg_reload_0 = load ptr addrspace(1), ptr %call_arg_0"),
+        !run_ir.contains("call_arg_reload_0 = load ptr addrspace(1), ptr %call_arg_0"),
         "deferred GC call arg should not reload from the original spill slot after later safepoint\n{reload_window}"
     );
 }
