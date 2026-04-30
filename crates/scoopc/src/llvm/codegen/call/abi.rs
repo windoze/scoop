@@ -133,6 +133,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 call_may_suspend,
                 ty: target_ty,
                 ptr,
+                frame_backing_ptr: None,
                 mutable: false,
             },
         );

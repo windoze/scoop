@@ -3750,6 +3750,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         call_may_suspend: false,
                         ty: slot.cg_ty,
                         ptr: slot.ptr,
+                        frame_backing_ptr: None,
                         mutable: false,
                     },
                     "pass_mir_load_slot",

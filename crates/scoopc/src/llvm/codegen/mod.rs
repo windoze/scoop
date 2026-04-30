@@ -199,6 +199,12 @@ struct CgLocal<'ctx> {
     call_may_suspend: bool,
     ty: CgTy,
     ptr: PointerValue<'ctx>,
+    /// 对于 state-machine 中“持久化在 heap frame 字段里”的 locals：
+    /// `ptr` 指向稳定的执行期 local home（entry alloca），而该字段指向对应的 heap frame slot。
+    ///
+    /// 目的：避免把 heap-frame GEP 长期暴露成 env local home（moving GC 后可能 stale），
+    /// 同时仍能在每次写入执行期 local home 时把最新值写回持久化 frame。
+    frame_backing_ptr: Option<PointerValue<'ctx>>,
     mutable: bool,
 }
 
@@ -381,6 +387,11 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
 #[derive(Default)]
 struct FunctionBodyCodegenCx<'ctx> {
     env: Env<'ctx>,
+    /// state-machine/runtime function 内部，为 heap frame-backed locals 预留的稳定执行期 local home。
+    ///
+    /// key: frame slot 的 `SymbolId`
+    /// value: entry-block alloca（addrspace(0)）
+    state_machine_frame_slot_homes: HashMap<hir::SymbolId, PointerValue<'ctx>>,
     tracked_gc_root_slots: Vec<TrackedGcRootSlot<'ctx>>,
     explicit_frame_layout: ExplicitFrameLayoutPlan<'ctx>,
     explicit_frame_slot_mirrors: HashMap<usize, Vec<PointerValue<'ctx>>>,
@@ -4303,6 +4314,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
                 ty: target_ty,
                 ptr,
+                frame_backing_ptr: None,
                 mutable: false,
             },
         );

@@ -1080,6 +1080,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                         .local_call_may_suspend_from_hir_ty(hir_ty),
                                     ty: elem_ty,
                                     ptr,
+                                    frame_backing_ptr: None,
                                     mutable: false,
                                 },
                             );
@@ -1119,6 +1120,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 call_may_suspend: self.local_call_may_suspend_from_hir_ty(hir_ty),
                 ty: value_ty,
                 ptr,
+                frame_backing_ptr: None,
                 mutable: false,
             },
         );

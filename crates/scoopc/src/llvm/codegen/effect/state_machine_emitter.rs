@@ -1180,12 +1180,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value())
     }
 
-    /// Pre-populate the env with GEP pointers for all frame user slots.
+    /// Pre-populate the env with stable execution-time local homes for all
+    /// frame user slots.
     ///
-    /// Each state BB needs its own GEP instructions for LLVM SSA dominance.
-    /// This ensures that cross-state local references (e.g. a local bound in
-    /// state 0 but used in state 2's initializer) work correctly even if the
-    /// plan builder didn't emit an explicit `ReadLocal` op.
+    /// Contract (T5001f8b):
+    /// - The heap frame remains the persistent store across step_fn calls.
+    /// - Each state BB materializes a stable entry-block alloca as the env
+    ///   local home, and refreshes it from the heap frame slot on entry.
+    /// - Stores performed through the env local home must write through to the
+    ///   backing heap frame slot to preserve persistence.
     fn populate_frame_slots_in_env(
         &mut self,
         _span: crate::span::Span,
@@ -1200,6 +1203,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let Some(cg_ty) = self.cg_ty_of(type_id) else {
                 continue; // Skip unsupported types.
             };
+
+            let home = if let Some(existing) =
+                self.function_cx.state_machine_frame_slot_homes.get(&id).copied()
+            {
+                existing
+            } else {
+                let home = self.create_entry_alloca(
+                    _span,
+                    &format!("handle_frame_home_{}_{}", slot.name(), id.as_u32()),
+                    cg_ty,
+                )?;
+                self.function_cx.state_machine_frame_slot_homes.insert(id, home);
+                home
+            };
+
             let llvm_index = frame_layout.user_slot_llvm_index(unified_slot.field_index());
             let slot_ptr = self.builder.build_struct_gep(
                 frame_layout.frame_type,
@@ -1207,13 +1225,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 llvm_index,
                 &format!("pre_slot_{}", id.as_u32()),
             )?;
+
+            // Refresh execution local home from the persistent heap frame.
+            if cg_ty != CgTy::Never {
+                let llvm_ty = self.llvm_basic_type_of(_span, cg_ty)?;
+                let loaded = self.builder.build_load(
+                    llvm_ty,
+                    slot_ptr,
+                    &format!("handle_frame_slot_load_{}", slot.name()),
+                )?;
+                let value = self.cg_value_from_loaded(_span, cg_ty, loaded)?;
+                let _ = self.store_local_value_exact(_span, home, cg_ty, value)?;
+            }
+
             self.function_cx.env.insert(
                 id,
                 CgLocal {
                     hir_ty: Some(type_id),
                     call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(type_id)),
                     ty: cg_ty,
-                    ptr: slot_ptr,
+                    ptr: home,
+                    frame_backing_ptr: Some(slot_ptr),
                     mutable: slot.mutable(),
                 },
             );
@@ -1573,6 +1605,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: decl.span.into(),
             },
         )?;
+        let unified_slot = contract
+            .frame()
+            .slots()
+            .iter()
+            .find(|s| s.slot().id() == id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "bind local: slot metadata not found",
+                at: decl.span.into(),
+            })?;
         let llvm_index = frame_layout.user_slot_llvm_index(field_index);
 
         // The initializer may already have crossed a safepoint, so rematerialize
@@ -1589,16 +1630,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_index,
             &format!("frame_bind_{}", id.as_u32()),
         )?;
-        self.store_local_value(decl.span, slot_ptr, target_ty, init_val)?;
+        let home = if let Some(existing) =
+            self.function_cx.state_machine_frame_slot_homes.get(&id).copied()
+        {
+            existing
+        } else {
+            let home = self.create_entry_alloca(
+                decl.span,
+                &format!(
+                    "handle_frame_home_{}_{}",
+                    unified_slot.slot().name(),
+                    id.as_u32()
+                ),
+                target_ty,
+            )?;
+            self.function_cx.state_machine_frame_slot_homes.insert(id, home);
+            home
+        };
 
-        // Register in env so subsequent ops/exprs can reference this local.
+        // Store through the stable exec local home, then write through to the persistent frame.
+        let _ = self.store_local_value(decl.span, home, target_ty, init_val)?;
+        let _ = self.store_local_value(decl.span, slot_ptr, target_ty, init_val)?;
+
         self.function_cx.env.insert(
             id,
             CgLocal {
                 hir_ty: Some(decl.ty),
                 call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(decl.ty)),
                 ty: target_ty,
-                ptr: slot_ptr,
+                ptr: home,
+                frame_backing_ptr: Some(slot_ptr),
                 mutable: decl.mutable,
             },
         );
@@ -1656,15 +1717,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &format!("frame_read_{}", id.as_u32()),
         )?;
 
-        // Register in env so subsequent ops can reference this local via
-        // the standard `codegen_var_ref` → env lookup → load path.
+        let home = if let Some(existing) =
+            self.function_cx.state_machine_frame_slot_homes.get(&id).copied()
+        {
+            existing
+        } else {
+            let home = self.create_entry_alloca(
+                at,
+                &format!("handle_frame_home_{}_{}", unified_slot.slot().name(), id.as_u32()),
+                cg_ty,
+            )?;
+            self.function_cx.state_machine_frame_slot_homes.insert(id, home);
+            home
+        };
+
+        // Refresh local home for this read.
+        let llvm_ty = self.llvm_basic_type_of(at, cg_ty)?;
+        let loaded = self
+            .builder
+            .build_load(llvm_ty, slot_ptr, &format!("read_local_{}_from_frame", id.as_u32()))?;
+        let value = self.cg_value_from_loaded(at, cg_ty, loaded)?;
+        let _ = self.store_local_value_exact(at, home, cg_ty, value)?;
+
+        // Register in env so subsequent ops can reference this local via the
+        // standard `codegen_var_ref` → env lookup → load path.
         self.function_cx.env.insert(
             id,
             CgLocal {
                 hir_ty: Some(type_id),
                 call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(type_id)),
                 ty: cg_ty,
-                ptr: slot_ptr,
+                ptr: home,
+                frame_backing_ptr: Some(slot_ptr),
                 mutable: unified_slot.slot().mutable(),
             },
         );
@@ -1677,7 +1761,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir_ty: Some(type_id),
                 call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(type_id)),
                 ty: cg_ty,
-                ptr: slot_ptr,
+                ptr: home,
+                frame_backing_ptr: Some(slot_ptr),
                 mutable: unified_slot.slot().mutable(),
             },
             &format!("read_local_{}_slot", id.as_u32()),
@@ -1721,14 +1806,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             })?;
         let value = self.coerce_value(at, value, cg_ty)?;
-        self.store_local_value(at, slot_ptr, cg_ty, value)?;
+
+        let home = if let Some(existing) = self
+            .function_cx
+            .state_machine_frame_slot_homes
+            .get(&resume_slot.id())
+            .copied()
+        {
+            existing
+        } else {
+            let home = self.create_entry_alloca(
+                at,
+                &format!(
+                    "handle_frame_home_{}_{}",
+                    resume_slot.name(),
+                    resume_slot.id().as_u32()
+                ),
+                cg_ty,
+            )?;
+            self.function_cx
+                .state_machine_frame_slot_homes
+                .insert(resume_slot.id(), home);
+            home
+        };
+
+        // Store through stable exec home, then write through to persistent frame.
+        let _ = self.store_local_value(at, home, cg_ty, value)?;
+        let _ = self.store_local_value(at, slot_ptr, cg_ty, value)?;
+
         self.function_cx.env.insert(
             resume_slot.id(),
             CgLocal {
                 hir_ty: Some(resume_slot.ty()),
                 call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(resume_slot.ty())),
                 ty: cg_ty,
-                ptr: slot_ptr,
+                ptr: home,
+                frame_backing_ptr: Some(slot_ptr),
                 mutable: resume_slot.mutable(),
             },
         );
@@ -2309,6 +2422,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     call_may_suspend: local.call_may_suspend,
                     ty: local.ty,
                     ptr: backing,
+                    frame_backing_ptr: None,
                     mutable: local.mutable,
                 },
             );
@@ -4106,14 +4220,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     llvm_index,
                     &format!("arm_binder_{}", binder.id.as_u32()),
                 )?;
-                self.store_local_value(binder.span, slot_ptr, binder_cg_ty, binder_val)?;
+
+                let home = if let Some(existing) = self
+                    .function_cx
+                    .state_machine_frame_slot_homes
+                    .get(&binder.id)
+                    .copied()
+                {
+                    existing
+                } else {
+                    let home = self.create_entry_alloca(
+                        binder.span,
+                        &format!("handle_frame_home_{}_{}", binder.name, binder.id.as_u32()),
+                        binder_cg_ty,
+                    )?;
+                    self.function_cx
+                        .state_machine_frame_slot_homes
+                        .insert(binder.id, home);
+                    home
+                };
+
+                // Store through exec home, then write through to persistent frame.
+                let _ = self.store_local_value(binder.span, home, binder_cg_ty, binder_val)?;
+                let _ = self.store_local_value(binder.span, slot_ptr, binder_cg_ty, binder_val)?;
                 self.function_cx.env.insert(
                     binder.id,
                     CgLocal {
                         hir_ty: Some(binder.ty),
                         call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(binder.ty)),
                         ty: binder_cg_ty,
-                        ptr: slot_ptr,
+                        ptr: home,
+                        frame_backing_ptr: Some(slot_ptr),
                         mutable: false,
                     },
                 );
@@ -4133,6 +4270,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(binder.ty)),
                         ty: binder_cg_ty,
                         ptr: alloca,
+                        frame_backing_ptr: None,
                         mutable: false,
                     },
                 );
@@ -4186,34 +4324,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         llvm_index,
                         "cont_slot",
                     )?;
-                    // Route escaped continuations through the ordinary local-store path so
-                    // the frame field stays authoritative for persistence across future resumes.
-                    let _ = self.store_local_value_exact(
-                        span,
-                        slot_ptr,
-                        CgTy::Ref,
-                        CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(cont_ptr.into()),
-                        },
-                    )?;
-                    let alloca = self.create_entry_alloca(span, "cont_local_exec", CgTy::Ref)?;
-                    let _ = self.store_local_value_exact(
-                        span,
-                        alloca,
-                        CgTy::Ref,
-                        CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(cont_ptr.into()),
-                        },
-                    )?;
+
+                    let home = if let Some(existing) = self
+                        .function_cx
+                        .state_machine_frame_slot_homes
+                        .get(&continuation)
+                        .copied()
+                    {
+                        existing
+                    } else {
+                        let home = self.create_entry_alloca(
+                            span,
+                            &format!("handle_frame_home_cont_{}", continuation.as_u32()),
+                            CgTy::Ref,
+                        )?;
+                        self.function_cx
+                            .state_machine_frame_slot_homes
+                            .insert(continuation, home);
+                        home
+                    };
+
+                    // Store through exec home, then write through to persistent frame.
+                    let value = CgValue {
+                        ty: CgTy::Ref,
+                        value: Some(cont_ptr.into()),
+                    };
+                    let _ = self.store_local_value_exact(span, home, CgTy::Ref, value)?;
+                    let _ = self.store_local_value_exact(span, slot_ptr, CgTy::Ref, value)?;
                     self.function_cx.env.insert(
                         continuation,
                         CgLocal {
                             hir_ty: continuation_hir_ty,
                             call_may_suspend: continuation_call_may_suspend,
                             ty: CgTy::Ref,
-                            ptr: alloca,
+                            ptr: home,
+                            frame_backing_ptr: Some(slot_ptr),
                             mutable: false,
                         },
                     );
@@ -4235,6 +4380,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             call_may_suspend: continuation_call_may_suspend,
                             ty: CgTy::Ref,
                             ptr: alloca,
+                            frame_backing_ptr: None,
                             mutable: false,
                         },
                     );
@@ -4273,6 +4419,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         &format!("capture_{}", local_id.as_u32()),
                     )?;
 
+                    let home = if let Some(existing) = self
+                        .function_cx
+                        .state_machine_frame_slot_homes
+                        .get(&local_id)
+                        .copied()
+                    {
+                        existing
+                    } else {
+                        let home = self.create_entry_alloca(
+                            span,
+                            &format!(
+                                "handle_frame_home_capture_{}_{}",
+                                slot.slot().name(),
+                                local_id.as_u32()
+                            ),
+                            cg_ty,
+                        )?;
+                        self.function_cx
+                            .state_machine_frame_slot_homes
+                            .insert(local_id, home);
+                        home
+                    };
+
+                    // Refresh the exec home from the persistent heap frame slot.
+                    let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, slot_ptr, &format!("capture_load_{}", local_id.as_u32()))?;
+                    let value = self.cg_value_from_loaded(span, cg_ty, loaded)?;
+                    let _ = self.store_local_value_exact(span, home, cg_ty, value)?;
+
                     self.function_cx.env.insert(
                         local_id,
                         CgLocal {
@@ -4280,7 +4457,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             call_may_suspend: self
                                 .local_call_may_suspend_from_hir_ty(Some(type_id)),
                             ty: cg_ty,
-                            ptr: slot_ptr,
+                            ptr: home,
+                            frame_backing_ptr: Some(slot_ptr),
                             mutable: slot.slot().mutable(),
                         },
                     );
@@ -4956,6 +5134,50 @@ fun main() {
         assert!(
             ir.contains("writeback_outer_slot_storage_"),
             "writeback path should address the frame-recorded outer-slot storage metadata"
+        );
+    }
+
+    #[test]
+    fn state_machine_frame_slots_materialize_stable_exec_local_homes() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Query {
+    fun query(): Int
+}
+
+fun main() {
+    var saved: Continuation<Int, Unit>? = None()
+
+    val _: Unit = handle {
+        val _: Int = Query.query()
+    } with {
+        Query.query(), k -> {
+            saved = Some(k)
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        assert!(
+            ir.contains("handle_frame_home_saved"),
+            "expected state-machine frame slot to materialize a stable exec local home alloca\n{ir}"
+        );
+        assert!(
+            ir.contains(", ptr %handle_frame_home_saved"),
+            "expected generated IR to use the exec local home (not a heap-frame GEP) as the env local home\n{ir}"
         );
     }
 

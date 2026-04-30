@@ -44,6 +44,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 call_may_suspend,
                 ty: target_ty,
                 ptr,
+                frame_backing_ptr: None,
                 mutable: decl.mutable,
             },
         );
@@ -75,6 +76,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                     let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(local.ty))?;
                     let _stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
+
+                    // state-machine locals may execute from a stable alloca while being
+                    // persisted in a backing heap frame slot.
+                    if let Some(backing_ptr) = local.frame_backing_ptr {
+                        let _ = self.store_local_value(eq_span, backing_ptr, local.ty, rhs_v)?;
+                    }
+
                     let rhs_call_may_suspend =
                         self.function_value_expr_body_may_outward_effect_when_called_for_local(rhs);
                     if let Some(local_mut) = self.function_cx.env.get_mut(*id) {

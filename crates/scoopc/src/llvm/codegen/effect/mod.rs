@@ -898,6 +898,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(local_plan.ty)),
                     ty: cg_ty,
                     ptr,
+                    frame_backing_ptr: None,
                     mutable: local_plan.mutable,
                 },
             );
@@ -930,6 +931,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .local_call_may_suspend_from_hir_ty(Some(site.resume_slot_ty)),
                 ty: resume_slot_cg_ty,
                 ptr: resume_slot_ptr,
+                frame_backing_ptr: None,
                 mutable: false,
             },
         );

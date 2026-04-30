@@ -442,7 +442,7 @@
     - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T5001f8a
 
-### [TODO] T5001f8b 把 state/arm body 中的 frame-backed locals 从 heap-frame GEP 收口为稳定执行期 local home
+### [DONE] T5001f8b 把 state/arm body 中的 frame-backed locals 从 heap-frame GEP 收口为稳定执行期 local home
 - 范围：
   - 为 handle body locals、arm binder、capture locals、escape continuation binder 建立统一 contract：进入 state/arm 时从 heap frame 读出，落到稳定的 entry alloca / scratch local home，body 内后续读写只操作该稳定 local home。
   - 清理 `populate_frame_slots_in_env(...)`、`emit_bind_local_to_frame(...)`、`emit_read_local_from_frame(...)` 与 arm capture/binder 恢复里长期把 heap frame GEP 暴露给 env 的设计。
@@ -450,6 +450,15 @@
 - 验收：
   - IR 中不再把 heap frame field GEP 长期作为 env local home 暴露给后续会分配/GC 的 state/arm body；
   - 至少补一条最小 LLVM 回归，锁定 state/arm body local 会先落到稳定执行期 local home。
+- 完成记录：
+  - compiler：`CgLocal` 新增 `frame_backing_ptr`，state-machine runtime function 侧把 heap frame slot 作为持久化 backing store，而将 env local home 收口为 entry-block alloca（`handle_frame_home_*`）。`populate_frame_slots_in_env(...)` 在每个 state BB 入口从 backing heap slot reload 到该稳定 alloca，并在 env 中同时记录 backing 指针；对 `BindLocal/ReadLocal`、arm binder/capture 以及 local assignment 写入路径，统一做到“写入稳定 local home + write-through 到 backing heap slot”，不再把 heap-frame GEP 直接暴露给 env 作为 local home。
+  - tests：新增 LLVM 回归 `state_machine_frame_slots_materialize_stable_exec_local_homes`，锁定 state-machine frame slot 会 materialize 稳定执行期 local home（并在 IR 中被实际 load/store 使用）。
+  - 验证：
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_resume_enum.scoop`
+    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
 - 依赖：T5001f8aR
 
 ### [TODO] T5001f8bR Review：确认 state/arm body 已不再长期持有 stale heap-slot pointer

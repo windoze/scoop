@@ -576,6 +576,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             }),
                         ty: target_ty,
                         ptr,
+                        frame_backing_ptr: None,
                         mutable: false,
                     },
                 );

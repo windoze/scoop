@@ -521,6 +521,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
                 ty: param_cg,
                 ptr,
+                frame_backing_ptr: None,
                 mutable: false,
             },
         );
@@ -750,6 +751,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     call_may_suspend: false,
                     ty: CgTy::Ref,
                     ptr: this_ptr,
+                    frame_backing_ptr: None,
                     mutable: false,
                 },
             );
@@ -779,6 +781,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
                         ty: param_cg,
                         ptr: param_ptr,
+                        frame_backing_ptr: None,
                         mutable: false,
                     },
                 );

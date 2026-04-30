@@ -1,55 +1,33 @@
-# 执行计划与进度记录（每次调用只完成 TODO.md 的第一个未完成任务）
+# 执行计划（单次调用：完成 TODO.md 中第一个未完成任务）
 
-说明：
-- 按照安全要求，这里不记录“完整思考过程/逐字推理”，只记录可审阅的**执行计划、关键决策与进度**。
-- 在执行过程中，如计划调整或完成关键步骤，会随时更新本文件，便于你检查进展。
+说明：我会在此文件记录“可复现的执行步骤、检查点与进度”，不记录任何私有推理细节。
 
-## 总体流程（本次调用）
+## 总体流程（每次调用固定）
 
-1. 检查最新提交
-   - `git log -1` 查看最新提交信息与改动。
-   - 若提交信息提到已知问题/回归/临时修复点：先复现并修复该**既存问题**，并补充测试。
+1. 检查最新提交信息：`git log -1`。
+   - 若提交信息提到已知问题/回归/临时 workaround：先定位并修复该问题，再继续。
+2. 打开 `TODO.md`，定位第一个未完成任务。
+3. 评估复杂度：
+   - 若任务过大：把它拆成可在一次调用内完成的小任务；同步更新 `PLAN.md` 与 `TODO.md`（新子任务按依赖顺序插入，当前要执行的是第一个子任务）。
+4. 实施：完成当前要做的任务（尽量做最小正确改动）。
+5. 验证：
+   - 至少运行：`cargo test --all`。
+   - 并运行：`cargo clippy --all-targets -- -D warnings`。
+   - 若涉及 fixtures/spec：按仓库指引运行相应 `scoop_tools`/fixture suite。
+6. 文档与追踪：
+   - 将该任务在 `TODO.md` 标记完成。
+   - 更新 `PLAN.md` 反映当前状态、依赖关系与任何调整。
+   - 如执行过程中发现与 spec 不符/缺失特性且阻塞：把“修复该问题”的新任务插入到 `TODO.md` 的依赖位置，更新 `PLAN.md`，提交并停止（本次不继续原任务）。
+7. 提交：
+   - 按仓库风格写清晰提交信息（例如 `[Txxxx] ...`）。
+8. 停止：不继续下一个任务，等待下一次调用。
 
-2. 确认本轮要做的任务
-   - 打开 `TODO.md`，定位**第一个未完成任务**（未勾选/未标记 Done）。
-   - 若任务过大：拆分为可交付子任务，更新 `PLAN.md` 与 `TODO.md`（把新子任务插到原任务处），并以第一个子任务作为本轮执行目标。
+## 本次调用进度
 
-3. 实现
-   - 在遵循仓库约定（Rust 2024、模块结构、fixture 目录规则等）的前提下，实现该任务。
-   - 过程中若发现任何既存 bug / spec 不一致 / 测试回归：立即优先修复；若无法立刻修复，则把“修复该问题”作为前置任务插入 `TODO.md` 并停止本轮。
-
-4. 测试与质量门禁
-   - 运行与改动相关的最小测试集合（单元/集成/fixture）。
-   - 然后跑全量：`cargo test --all`。
-   - 运行：`cargo clippy --all-targets -- -D warnings`，确保无警告。
-   - 必要时 `cargo fmt`。
-
-5. 文档与任务状态
-   - 在 `TODO.md` 勾选/移动该任务到 Done。
-   - 更新 `PLAN.md` 反映当前状态与后续依赖（若有）。
-   - 更新本文件记录关键结果与运行过的命令。
-
-6. 提交与停止
-   - `git status` 确认变更。
-   - 以清晰信息提交：形如 `[Txxxx] ...` 或按 TODO 中的任务标识。
-   - 提交完成后立刻停止，不做下一个任务。
-
-## 当前状态
-
-- 已完成：
-  - 查看最新提交：`eb2a8043`，标题为 `[T5001f8a] Close caller-side outer mutable writeback/readback`。
-  - 读取 `TODO.md`，确认本轮首个未完成任务为：`T5001f8aR Review：确认 outer mutable local 的 caller-side source-of-truth 已闭合`。
-  - Review 代码路径并完成验证（均通过）：
-    - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
-    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
-    - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
-    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
-    - `cargo test --all`
-    - `cargo clippy --all-targets -- -D warnings`
-  - 文档更新：
-    - `TODO.md`：将 `T5001f8aR` 标记为 `[DONE]` 并补充完成记录与验证命令。
-    - `PLAN.md`：追加 `T5001f8aR` review 完成说明。
-
-- 进行中：
-  - 已提交：`[T5001f8aR] Review caller-side outer mutable writeback/readback`。
-  - 本轮按要求已完成首个未完成任务并停止。
+- [x] 读取最新提交信息，确认是否有需优先修复的问题
+- [x] 读取 `TODO.md`，选定第一个未完成任务
+- [x] （必要时）任务拆分并更新 `PLAN.md`/`TODO.md`
+- [x] 实施任务
+- [x] 运行测试与 clippy
+- [x] 更新 `TODO.md`/`PLAN.md`
+- [ ] Git 提交并停止
