@@ -2134,6 +2134,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.hidden_sret_result_ty(fun.span, return_cg)?
         };
+        let uses_hidden_incoming_resume_token =
+            self.top_level_fun_uses_hidden_incoming_resume_token(fun);
         let is_gc_leaf =
             is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
@@ -2144,7 +2146,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(existing);
         }
 
-        let mut llvm_params = Vec::with_capacity(fun.params.len());
+        let mut llvm_params = Vec::with_capacity(
+            fun.params.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(uses_hidden_incoming_resume_token),
+        );
+        if hidden_sret_result_ty.is_some() {
+            llvm_params.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if uses_hidden_incoming_resume_token {
+            llvm_params.push(self.llvm_gc_i8_ptr_type().into());
+        }
         for param in &fun.params {
             let llvm_param_ty = if is_extern {
                 self.llvm_param_ty(param.span, param.ty)
@@ -2164,9 +2176,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Err(err);
                 }
             }
-        }
-        if hidden_sret_result_ty.is_some() {
-            llvm_params.insert(0, self.context.ptr_type(AddressSpace::default()).into());
         }
 
         let fn_ty = match (hidden_sret_result_ty, return_cg) {
@@ -3578,6 +3587,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.build_fun_callee_suspend_plan_impl(fun)
     }
 
+    fn top_level_fun_uses_hidden_incoming_resume_token(&self, fun: &hir::FunDecl) -> bool {
+        !self.extern_funs.contains_key(&fun.fqn) && self.hir_ty_declared_effectful(Some(fun.ty))
+    }
+
+    fn mir_fun_uses_hidden_incoming_resume_token(&self, fun: &crate::mir::FunDecl) -> bool {
+        self.hir_ty_declared_effectful(Some(fun.ty))
+    }
+
+    fn function_type_uses_hidden_incoming_resume_token(
+        &self,
+        fun_ty: &crate::ty::FunctionType,
+    ) -> bool {
+        !fun_ty.effects.is_pure()
+    }
+
     /// Create the shared function-level return context used by ordinary frames.
     fn setup_function_return_context(
         &mut self,
@@ -3729,6 +3753,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(fun.span, declared_return_cg)?
             .is_some();
+        let uses_hidden_incoming_resume_token =
+            self.top_level_fun_uses_hidden_incoming_resume_token(fun);
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 llvm_fun
@@ -3744,7 +3770,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         self.function_cx.env.push_scope();
-        self.codegen_fun_params(fun, llvm_fun, u32::from(uses_hidden_sret))?;
+        self.codegen_fun_params(
+            fun,
+            llvm_fun,
+            u32::from(uses_hidden_sret) + u32::from(uses_hidden_incoming_resume_token),
+        )?;
 
         // T0141: Set up function-level return context for early return support.
         // The return slot lives in the entry block before body codegen.

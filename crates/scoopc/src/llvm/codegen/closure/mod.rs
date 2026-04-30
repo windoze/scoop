@@ -101,14 +101,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None
             };
             let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+            let uses_hidden_incoming_resume_token =
+                self.function_type_uses_hidden_incoming_resume_token(fun_ty);
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
                 1 + fun_ty.params.len()
                     + usize::from(fun_ty.receiver.is_some())
-                    + usize::from(hidden_sret_result_ty.is_some()),
+                    + usize::from(hidden_sret_result_ty.is_some())
+                    + usize::from(uses_hidden_incoming_resume_token),
             );
             if let Some(result_ty) = hidden_sret_result_ty {
                 let _ = result_ty;
                 llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+            }
+            if uses_hidden_incoming_resume_token {
+                llvm_param_tys.push(gc_i8_ptr_ty.into());
             }
             // env ptr：GC-managed 引用（closure env 是一个 heap object）。
             llvm_param_tys.push(gc_i8_ptr_ty.into());
@@ -492,6 +498,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(closure.span, declared_return_cg)?
             .is_some();
+        let uses_hidden_incoming_resume_token =
+            self.function_type_uses_hidden_incoming_resume_token(fun_ty);
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 spec.llvm_fun
@@ -505,7 +513,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        let env_param_index = u32::from(uses_hidden_sret);
+        let env_param_index =
+            u32::from(uses_hidden_sret) + u32::from(uses_hidden_incoming_resume_token);
         let (return_bb, return_alloca) =
             self.setup_function_return_context(closure.span, spec.llvm_fun, declared_return_cg)?;
 

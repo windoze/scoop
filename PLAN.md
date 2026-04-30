@@ -61,10 +61,14 @@
 - 对应 `CONTINUATION_RUNTIME_REFACTOR.md` 的“2.2 `ScoopEffectCtx`”“2.3 `ScoopEffectHandlerNode`”“3. Hidden ABI”“4. Effect Context Construction”。
 - 当前 `runtime/c/scoop_runtime.c:434-468` 的 raw TLS handler stack、以及 `state_machine_emitter.rs:4848-4910` 的栈上 handler frame push/pop 仍深度耦合 ordinary call boundary、state-machine dispatch、handle 入口和 cross-thread resume；直接整块落地 `T5002b` 风险过高，因此拆为四个前置子任务顺序推进：
   1. `T5002b1` 先把 direct-call wrapper 的 `incoming_resume_token_ref` 显式化，至少把最外层 ordinary direct-call boundary 从“完全依赖 TLS token 缺省值”收口为显式 hidden input。
-  2. `T5002b2` 再把同一 token contract 扩到 closure/funptr/vtable/itable/callee-resume/step-dispatch 等剩余 hidden ABI surface，避免 direct/indirect path 长期并存两套 token 约定。
-  3. `T5002b3` 随后引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 最终布局与 descriptor，并把 handle 入口从 stack handler frame + runtime push/pop 切到 managed handler node graph。
-  4. `T5002b4` 最后收口 arm derived ctx、captured outer redispatch 与 cross-thread resume，彻底移除 raw TLS top/swap 生产依赖。
-- 进展更新（2026-05-01）：`T5002b1` 已完成。top-level outward-effect direct-call wrapper 现在显式接收 `incoming_resume_token_ref`，fresh direct call 会传 `null` token，wrapper 内则在 legacy call 前后执行 `publish -> consume outcome -> clear`。这一步还没有删除 raw TLS handler stack，但已经把最外层 direct-call token contract 从隐式 TLS 缺省值收口为显式 hidden input。下一步按顺序进入 `T5002b2`。
+  2. `T5002b2a` 先把同一 token contract 扩到 ordinary indirect-call surface：closure/funptr/vtable/itable 相关 generated callable signature 与 indirect call IR 都显式携带 `incoming_resume_token_ref`，fresh path 统一传 `null`。
+  3. `T5002b2b` 再把 callee resume entry 收口到同一 token 约定，避免 ordinary resumed path 保留独立 ABI 特例。
+  4. `T5002b2c` 随后把 state-machine step/dispatch 与 runtime continuation bridge 扩成显式 token 传递，结束“resume/dispatch 仍靠 TLS scratch 注入 token”的旧路径。
+  5. `T5002b3` 再引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 最终布局与 descriptor，并把 handle 入口从 stack handler frame + runtime push/pop 切到 managed handler node graph。
+  6. `T5002b4` 最后收口 arm derived ctx、captured outer redispatch 与 cross-thread resume，彻底移除 raw TLS top/swap 生产依赖。
+- 进展更新（2026-05-01）：`T5002b1` 已完成。top-level outward-effect direct-call wrapper 现在显式接收 `incoming_resume_token_ref`，fresh direct call 会传 `null` token，wrapper 内则在 legacy call 前后执行 `publish -> consume outcome -> clear`。这一步还没有删除 raw TLS handler stack，但已经把最外层 direct-call token contract 从隐式 TLS 缺省值收口为显式 hidden input。
+- 进展更新（2026-05-01，拆分）：原 `T5002b2` 同时触及 ordinary indirect-call surface、callee resume entry、step/dispatch 与 runtime continuation bridge，跨 Rust codegen 与 runtime C 边界，单任务过大。已按依赖拆为 `T5002b2a/b/c` 及对应 review；当前先执行 `T5002b2a`，优先消除 closure/funptr/vtable/itable 与 direct wrapper 之间的 token ABI 分叉。
+- 进展更新（2026-05-01）：`T5002b2a` 已完成。ordinary indirect-call surface 现在与 direct wrapper 共享同一“显式 incoming token”边界约定：effect-capable generated callable signature 会在 hidden sret 后显式承接 `incoming_resume_token_ref`，closure / funptr / vtable / itable caller boundary 会在 legacy call 前 `publish(null)`，并在 `consume outcome` 后 `clear` TLS token scratch。定向 LLVM 回归 `closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`effectful_funptr_call_uses_explicit_outcome_boundary`、`virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`interface_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`direct_effectful_signature_without_outward_effect_skips_tls_check`、`closure_call_without_outward_effect_skips_tls_check`、`production_codegen_suspendability_observes_overridden_pass_summary` 已通过；下一步按顺序进入 `T5002b2aR`。
 
 ### P2. Codegen-owned `ScoopContinuation` 与 generated resume driver
 

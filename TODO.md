@@ -79,15 +79,65 @@
   - HIR direct call 与 raw-MIR direct call 在构造 wrapper 实参时都会显式传入 `null_effect_resume_token()`，不再把 fresh-call 的 token 缺省值完全隐含在 runtime TLS 初值里。
   - LLVM 回归 `effect_contract_struct_types_are_registered_for_effect_codegen`、`direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome` 已通过；`cargo clippy --all-targets -- -D warnings` 已通过。
 
-### [TODO] T5002b2 把显式 `incoming_resume_token_ref` 扩到剩余 hidden effect ABI surface
+### [DONE] T5002b2a 把显式 `incoming_resume_token_ref` 扩到 ordinary indirect-call surface
 - 范围：
-  - 把 closure call、funptr call、vtable/itable call、callee resume entry、state-machine step/dispatch 的 hidden effect ABI 全部扩成显式承接 `incoming_resume_token_ref`。
-  - 收口当前 boundary helper 的参数编排与函数声明，避免 direct call 已显式、其余路径仍隐式依赖 TLS scratch 的半切换状态。
+  - 把 effect-capable generated callable 的剩余 ordinary indirect-call 入口统一扩成显式承接 `incoming_resume_token_ref`，覆盖 closure call、funptr call、vtable call、itable call 相关 production signature 与 indirect call IR。
+  - fresh call path 显式传入 `null` token，而不是继续把“无 token”状态完全隐含在 TLS scratch 初值里。
+  - caller boundary 在 `consume_current_effect_outcome(...)` 之后显式清空 TLS token scratch，避免泄漏本次 boundary 的 incoming token。
 - 验收：
-  - closure / funptr / vtable / itable / callee-resume / step-dispatch 相关 production signature 与 indirect call IR 都已显式携带 `incoming_resume_token_ref`；
-  - direct 与 indirect remaining path 不再混用“显式 token / 隐式 TLS token”两套 ABI 形状；
-  - 仍未切走 raw TLS handler stack 的路径仅限后续 `T5002b3/T5002b4` 明确覆盖的部分。
+  - closure / funptr / vtable / itable 相关 production signature 与 indirect call IR 都已显式携带 `incoming_resume_token_ref`；
+  - fresh indirect outward-effect call IR 明确传入 `ptr addrspace(1) null` 作为 incoming token；
+  - direct call 与 ordinary indirect call 不再混用“wrapper 显式 token / indirect 隐式 TLS token”两套 boundary 形状。
 - 依赖：T5002b1
+- 完成记录：
+  - effect-capable generated callable 的 ordinary indirect-call 形状现已统一显式预留 `incoming_resume_token_ref`：top-level declared-effectful function、HIR closure、materialized MIR closure 的生产 signature 都会在 hidden sret 之后插入 token 参数；direct non-wrapper fresh call 也会在需要时显式传 `null` token 以对齐同一 ABI。
+  - closure / funptr / vtable / itable boundary 在 legacy call 前都会显式 `publish` incoming token（当前 fresh path 为 `null`），并在 `consume_current_effect_outcome(...)` 之后 `clear` TLS token scratch，不再继续完全依赖 TLS 初值的隐式“无 token”状态。
+  - LLVM 回归已覆盖 closure / funptr / vtable / itable 的 `null incoming_resume_token_ref` IR 与 boundary publish/consume/clear 合同；`cargo clippy --all-targets -- -D warnings` 已通过。
+
+### [TODO] T5002b2aR Review：确认 ordinary indirect-call surface 已统一改走显式 token
+- 重点：
+  - closure / funptr / vtable / itable 是否都显式携带 `incoming_resume_token_ref`，而不是只在 call-site 临时 publish；
+  - boundary helper 是否都在 consume outcome 后清空 TLS token scratch，避免 fresh token 被旧 incoming token 残留污染；
+  - direct wrapper 与 indirect boundary 的参数顺序是否已经收口到同一约定。
+- 验收：
+  - 可在不再被 ordinary indirect-call ABI 形状阻塞的前提下继续推进 callee resume / step-dispatch token 收口；
+  - review 阶段必须同时检查 IR 断言与至少一组 closure/funptr/vtable/itable 相关 fixture/最小程序，而不是只看函数声明。
+- 依赖：T5002b2a
+
+### [TODO] T5002b2b 把显式 `incoming_resume_token_ref` 扩到 callee resume entry
+- 范围：
+  - 收口 callee resume entry 的 hidden ABI 与调用 helper，使 replay token 以统一的 `incoming_resume_token_ref` 约定流经 ordinary callee resumed path。
+  - 对齐 callee-suspend state 中记录的 resume-entry 函数声明与 replay call IR，避免 direct/indirect ordinary path 对“token 即 resumed-state”的约定继续各自散落。
+- 验收：
+  - callee resume entry 相关 production signature 与 replay call IR 已按统一 token 约定收口；
+  - ordinary callee resumed path 不再保留额外的“只在 resume helper 内隐式理解 token”的独立 ABI 形状。
+- 依赖：T5002b2aR
+
+### [TODO] T5002b2bR Review：确认 callee resume entry token contract 已与 ordinary call boundary 对齐
+- 重点：
+  - replay call IR 与 fresh ordinary call IR 是否共享同一 token 参数约定；
+  - callee resume entry 是否还残留“语义上是 token、但 ABI 上仍是特例 state 参数”的旁路。
+- 验收：
+  - 可在不再被 callee resume entry ABI 特例阻塞的前提下继续推进 step/dispatch token 收口。
+- 依赖：T5002b2b
+
+### [TODO] T5002b2c 把显式 `incoming_resume_token_ref` 扩到 state-machine step/dispatch 与 runtime continuation bridge
+- 范围：
+  - 把 state-machine step/dispatch hidden ABI 扩成显式承接 `incoming_resume_token_ref`。
+  - 同步 runtime continuation bridge / continuation step_fn 调用侧，使 captured callee suspend state 通过显式 token 参数传入 step/dispatch，而不是在调用前临时塞回 TLS scratch。
+- 验收：
+  - step / dispatch 相关 production signature 与 runtime 调用点都已显式携带 `incoming_resume_token_ref`；
+  - continuation resume 驱动不再依赖“调用 step_fn 前先把 captured callee suspend state 塞进 TLS”这一旧约定；
+  - `T5002b2` 的 remaining surface 已全部完成显式 token 收口，可进入 review。
+- 依赖：T5002b2bR
+
+### [TODO] T5002b2cR Review：确认剩余 hidden effect ABI surface 不再混用隐式 TLS token
+- 重点：
+  - ordinary indirect call、callee resume entry、step/dispatch、runtime continuation bridge 是否已经统一到显式 `incoming_resume_token_ref`；
+  - 是否仍残留“fresh path 显式 token、resume/dispatch path 隐式 TLS token”的半切换状态。
+- 验收：
+  - `T5002b3` 可在 token contract 已统一的前提下继续推进 managed `EffectCtx` / `EffectHandlerNode`。
+- 依赖：T5002b2c
 
 ### [TODO] T5002b3 引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 并替换 handle 入口注册路径
 - 范围：
@@ -100,7 +150,7 @@
   - `__scoop_type_desc_runtime__ScoopEffectCtx*` / `__scoop_type_desc_runtime__ScoopEffectHandlerNode*` 由 production codegen 生成，trace bitmap 只覆盖 GC refs 字段；
   - handle 入口相关 IR 断言改为检查 managed node / ctx 分配与 rooted storage；
   - `effect_escape_continuation_arm_performs_outer_effect.scoop` 在默认环境与所需 GC env 下通过。
-- 依赖：T5002b2
+- 依赖：T5002b2cR
 
 ### [TODO] T5002b4 用 derived ctx / ctx graph dispatch 收口 arm self-inactive、outer redispatch 与 cross-thread resume
 - 范围：

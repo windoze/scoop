@@ -178,6 +178,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(saved_top)
     }
 
+    pub(in crate::llvm::codegen) fn publish_incoming_resume_token(
+        &mut self,
+        at: crate::span::Span,
+        incoming_resume_token: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let publish = self.declare_runtime_callee_suspend_state_publish();
+        let _ = self.build_call_preserving_gc_local_roots(
+            at,
+            publish,
+            &[incoming_resume_token.into()],
+            &format!("{label}_publish_incoming_resume_token"),
+        )?;
+        Ok(())
+    }
+
+    pub(in crate::llvm::codegen) fn clear_incoming_resume_token(
+        &mut self,
+        at: crate::span::Span,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.publish_incoming_resume_token(
+            at,
+            self.null_effect_resume_token(),
+            &format!("{label}_clear"),
+        )
+    }
+
     pub(in crate::llvm::codegen) fn consume_current_effect_outcome_into(
         &mut self,
         at: crate::span::Span,

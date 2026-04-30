@@ -3968,16 +3968,25 @@ fun main(): Int {
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_named(&ir, "a.entry");
+    let closure_call = entry_ir
+        .lines()
+        .find(|line| line.contains("call_closure"))
+        .expect("expected closure call in entry IR");
 
     assert!(
         entry_ir.contains("@scoop_effect_outcome_consume_current")
             && entry_ir.contains("@scoop_effect_outcome_publish")
+            && entry_ir.contains("@scoop_callee_suspend_state_publish")
             && !entry_ir.contains("@scoop_effect_is_active"),
-        "outward-effect closure call 应在 higher-order boundary 上显式 consume/publish outcome，而不是 post-call TLS probing:\n{entry_ir}"
+        "outward-effect closure call 应在 higher-order boundary 上显式 publish incoming token、consume/publish outcome，而不是 post-call TLS probing:\n{entry_ir}"
     );
     assert!(
         entry_ir.contains("closure_call_obj_reload"),
         "function-value call 应在参数求值/legacy boundary 之后重新加载 closure receiver，避免继续使用旧 SSA:\n{entry_ir}"
+    );
+    assert!(
+        closure_call.contains("ptr addrspace(1) null"),
+        "fresh closure outward-effect call 应显式传入 null incoming_resume_token_ref:\n{closure_call}"
     );
 }
 
@@ -4016,12 +4025,21 @@ fun main(): Int {
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_named(&ir, "a.entry");
+    let funptr_call = entry_ir
+        .lines()
+        .find(|line| line.contains("call_funptr"))
+        .expect("expected funptr call in entry IR");
 
     assert!(
         entry_ir.contains("@scoop_effect_outcome_consume_current")
             && entry_ir.contains("@scoop_effect_outcome_publish")
+            && entry_ir.contains("@scoop_callee_suspend_state_publish")
             && !entry_ir.contains("@scoop_effect_is_active"),
-        "effectful funptr call 应在 boundary 上显式 consume/publish outcome，而不是继续依赖 TLS active probing:\n{entry_ir}"
+        "effectful funptr call 应在 boundary 上显式 publish incoming token、consume/publish outcome，而不是继续依赖 TLS active probing:\n{entry_ir}"
+    );
+    assert!(
+        funptr_call.contains("ptr addrspace(1) null"),
+        "fresh effectful funptr call 应显式传入 null incoming_resume_token_ref:\n{funptr_call}"
     );
 }
 
@@ -4067,16 +4085,25 @@ fun main(): Int {
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
+    let vtable_call = helper_ir
+        .lines()
+        .find(|line| line.contains("call_vtable"))
+        .expect("expected vtable call in helper IR");
 
     assert!(
         helper_ir.contains("@scoop_effect_outcome_consume_current")
             && helper_ir.contains("@scoop_effect_outcome_publish")
+            && helper_ir.contains("@scoop_callee_suspend_state_publish")
             && !helper_ir.contains("@scoop_effect_is_active"),
-        "outward-effect vtable call 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+        "outward-effect vtable call 应改走显式 incoming token + outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
     );
     assert!(
         helper_ir.contains("vtable_call_receiver_reload"),
         "vtable receiver 应在 legacy effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
+    );
+    assert!(
+        vtable_call.contains("ptr addrspace(1) null"),
+        "fresh outward-effect vtable call 应显式传入 null incoming_resume_token_ref:\n{vtable_call}"
     );
 }
 
@@ -4120,16 +4147,25 @@ fun main(): Int {
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
+    let itable_call = helper_ir
+        .lines()
+        .find(|line| line.contains("call_itable"))
+        .expect("expected itable call in helper IR");
 
     assert!(
         helper_ir.contains("@scoop_effect_outcome_consume_current")
             && helper_ir.contains("@scoop_effect_outcome_publish")
+            && helper_ir.contains("@scoop_callee_suspend_state_publish")
             && !helper_ir.contains("@scoop_effect_is_active"),
-        "outward-effect itable call 应改走显式 outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+        "outward-effect itable call 应改走显式 incoming token + outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
     );
     assert!(
         helper_ir.contains("itable_call_receiver_reload"),
         "itable receiver 应在 legacy effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
+    );
+    assert!(
+        itable_call.contains("ptr addrspace(1) null"),
+        "fresh outward-effect itable call 应显式传入 null incoming_resume_token_ref:\n{itable_call}"
     );
 }
 

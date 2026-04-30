@@ -286,11 +286,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(mir_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let uses_hidden_incoming_resume_token =
+            self.mir_fun_uses_hidden_incoming_resume_token(mir_fun);
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            mir_fun.params.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(uses_hidden_incoming_resume_token),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if uses_hidden_incoming_resume_token {
+            llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
         }
         llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
         for param in mir_fun.params.iter().skip(1) {
@@ -351,6 +359,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
             .is_some();
+        let uses_hidden_incoming_resume_token =
+            self.mir_fun_uses_hidden_incoming_resume_token(mir_fun);
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 llvm_fun
@@ -372,7 +382,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mir_fun,
             mir_types,
             llvm_fun,
-            u32::from(uses_hidden_sret),
+            u32::from(uses_hidden_sret) + u32::from(uses_hidden_incoming_resume_token),
             &mut local_slots,
         )?;
         let used_locals = collect_mir_local_uses(body);
@@ -2147,6 +2157,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let call_may_suspend = self.known_fun_body_may_outward_effect(fqn, sig_fun.ty);
         let explicit_effect_call = call_may_suspend && !is_extern;
+        let uses_hidden_incoming_resume_token =
+            self.top_level_fun_uses_hidden_incoming_resume_token(sig_fun);
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -2182,6 +2194,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
             evaluated_args.len()
                 + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(!explicit_effect_call && uses_hidden_incoming_resume_token)
                 + usize::from(explicit_effect_call) * 3,
         );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
@@ -2191,6 +2204,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        if !explicit_effect_call && uses_hidden_incoming_resume_token {
+            llvm_args.push(self.null_effect_resume_token().into());
+        }
         if let (Some(ctx_slot), Some(outcome_slot)) = (effect_ctx_slot, effect_outcome_slot) {
             llvm_args.push(ctx_slot.into());
             llvm_args.push(self.null_effect_resume_token().into());
@@ -3121,10 +3137,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
         let mut llvm_param_tys: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(1 + expected_arity + usize::from(hidden_sret_result_ty.is_some()));
+            Vec::with_capacity(
+                1 + expected_arity
+                    + usize::from(hidden_sret_result_ty.is_some())
+                    + usize::from(call_may_suspend),
+            );
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if call_may_suspend {
+            llvm_param_tys.push(gc_i8_ptr_ty.into());
         }
         llvm_param_tys.push(gc_i8_ptr_ty.into());
         if let Some(receiver_ty) = fun_ty.receiver {
@@ -3155,8 +3178,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "pass_mir_closure_fn_typed",
         )?;
 
-        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(1 + args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
+            1 + args.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(span, "pass_mir_closure_call_sret", ret_cg)?;
             llvm_args.push(slot.into());
@@ -3164,6 +3190,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        let incoming_resume_token = self.null_effect_resume_token();
+        if call_may_suspend {
+            llvm_args.push(incoming_resume_token.into());
+        }
         llvm_args.push(env_ptr.into());
         let evaluated_args = self.codegen_mir_callable_value_args(span, fun_ty, args, slots)?;
         for arg in &evaluated_args {
@@ -3180,6 +3210,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let saved_top =
                 self.swap_effect_handler_stack_top(span, installed_top, "pass_mir_closure_call")?;
+            self.publish_incoming_resume_token(
+                span,
+                incoming_resume_token,
+                "pass_mir_closure_call",
+            )?;
             Some((outcome_slot, saved_top))
         } else {
             None
@@ -3219,6 +3254,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "pass_mir_closure_call")?;
+            self.clear_incoming_resume_token(span, "pass_mir_closure_call")?;
             let _ = self.swap_effect_handler_stack_top(
                 span,
                 saved_top,

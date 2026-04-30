@@ -199,17 +199,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.load_effect_ctx_handler_top_from_slot(fun.span, ctx_param, "effect_wrapper")?;
         let saved_top =
             self.swap_effect_handler_stack_top(fun.span, installed_top, "effect_wrapper_install")?;
-        let publish_incoming_resume_token = self.declare_runtime_callee_suspend_state_publish();
-        self.builder.build_call(
-            publish_incoming_resume_token,
-            &[incoming_resume_token_param.into()],
-            "effect_wrapper_publish_incoming_resume_token",
+        self.publish_incoming_resume_token(
+            fun.span,
+            incoming_resume_token_param,
+            "effect_wrapper",
         )?;
 
         let mut legacy_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(fun.params.len() + usize::from(sret_param.is_some()));
+            Vec::with_capacity(
+                fun.params.len()
+                    + usize::from(sret_param.is_some())
+                    + usize::from(self.top_level_fun_uses_hidden_incoming_resume_token(fun)),
+            );
         if let Some(sret_ptr) = sret_param {
             legacy_args.push(sret_ptr.into());
+        }
+        if self.top_level_fun_uses_hidden_incoming_resume_token(fun) {
+            legacy_args.push(incoming_resume_token_param.into());
         }
         for offset in 0..fun.params.len() {
             let arg = wrapper_fun
@@ -240,11 +246,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         self.consume_current_effect_outcome_into(fun.span, outcome_param, "effect_wrapper")?;
-        self.builder.build_call(
-            publish_incoming_resume_token,
-            &[self.null_effect_resume_token().into()],
-            "effect_wrapper_clear_incoming_resume_token",
-        )?;
+        self.clear_incoming_resume_token(fun.span, "effect_wrapper")?;
         let _ =
             self.swap_effect_handler_stack_top(fun.span, saved_top, "effect_wrapper_restore")?;
 

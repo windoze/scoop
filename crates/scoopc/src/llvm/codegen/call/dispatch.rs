@@ -627,6 +627,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
         let call_may_suspend = self.known_fun_body_may_outward_effect(fqn, sig_fun.ty);
         let explicit_effect_call = call_may_suspend && !is_extern;
+        let uses_hidden_incoming_resume_token =
+            self.top_level_fun_uses_hidden_incoming_resume_token(sig_fun);
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -682,6 +684,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
             evaluated_args.len()
                 + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(!explicit_effect_call && uses_hidden_incoming_resume_token)
                 + usize::from(explicit_effect_call) * 3,
         );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
@@ -691,6 +694,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        if !explicit_effect_call && uses_hidden_incoming_resume_token {
+            llvm_args.push(self.null_effect_resume_token().into());
+        }
         if let (Some(ctx_slot), Some(outcome_slot)) = (effect_ctx_slot, effect_outcome_slot) {
             llvm_args.push(ctx_slot.into());
             llvm_args.push(self.null_effect_resume_token().into());
@@ -916,10 +922,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
 
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(sig_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            sig_fun.params.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         if hidden_sret_result_ty.is_some() {
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if call_may_suspend {
+            llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
         }
         for p in &sig_fun.params {
             llvm_param_tys.push(self.ordinary_param_abi(callee_span, p.ty)?.llvm_param_ty());
@@ -960,8 +972,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let deferred_receiver =
             self.defer_gc_ref_pointer(callee_span, "vtable_call_receiver", receiver_ptr)?;
-        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
+            evaluated_args.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(callee_span, "vtable_call_sret", ret_cg)?;
             llvm_args.push(slot.into());
@@ -969,9 +984,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        let incoming_resume_token = self.null_effect_resume_token();
+        if call_may_suspend {
+            llvm_args.push(incoming_resume_token.into());
+        }
         llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
         let effect_boundary = if call_may_suspend {
-            Some(self.begin_legacy_effect_boundary(span, "vtable_call")?)
+            let (ctx_slot, outcome_slot) =
+                self.prepare_current_effect_call_contract(span, "vtable_call")?;
+            let installed_top =
+                self.load_effect_ctx_handler_top_from_slot(span, ctx_slot, "vtable_call")?;
+            let saved_top =
+                self.swap_effect_handler_stack_top(span, installed_top, "vtable_call")?;
+            self.publish_incoming_resume_token(span, incoming_resume_token, "vtable_call")?;
+            Some((outcome_slot, saved_top))
         } else {
             None
         };
@@ -1012,8 +1038,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        if let Some(boundary) = effect_boundary {
-            let outcome_slot = self.finish_legacy_effect_boundary(span, boundary, "vtable_call")?;
+        if let Some((outcome_slot, saved_top)) = effect_boundary {
+            self.consume_current_effect_outcome_into(span, outcome_slot, "vtable_call")?;
+            self.clear_incoming_resume_token(span, "vtable_call")?;
+            let _ = self.swap_effect_handler_stack_top(span, saved_top, "vtable_call_restore")?;
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
                 span,
@@ -1115,10 +1143,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
 
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(sig_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            sig_fun.params.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         if hidden_sret_result_ty.is_some() {
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if call_may_suspend {
+            llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
         }
         for p in &sig_fun.params {
             llvm_param_tys.push(self.ordinary_param_abi(callee_span, p.ty)?.llvm_param_ty());
@@ -1159,8 +1193,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let deferred_receiver =
             self.defer_gc_ref_pointer(callee_span, "itable_call_receiver", receiver_ptr)?;
-        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
+            evaluated_args.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(callee_span, "itable_call_sret", ret_cg)?;
             llvm_args.push(slot.into());
@@ -1168,9 +1205,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        let incoming_resume_token = self.null_effect_resume_token();
+        if call_may_suspend {
+            llvm_args.push(incoming_resume_token.into());
+        }
         llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
         let effect_boundary = if call_may_suspend {
-            Some(self.begin_legacy_effect_boundary(span, "itable_call")?)
+            let (ctx_slot, outcome_slot) =
+                self.prepare_current_effect_call_contract(span, "itable_call")?;
+            let installed_top =
+                self.load_effect_ctx_handler_top_from_slot(span, ctx_slot, "itable_call")?;
+            let saved_top =
+                self.swap_effect_handler_stack_top(span, installed_top, "itable_call")?;
+            self.publish_incoming_resume_token(span, incoming_resume_token, "itable_call")?;
+            Some((outcome_slot, saved_top))
         } else {
             None
         };
@@ -1243,8 +1291,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        if let Some(boundary) = effect_boundary {
-            let outcome_slot = self.finish_legacy_effect_boundary(span, boundary, "itable_call")?;
+        if let Some((outcome_slot, saved_top)) = effect_boundary {
+            self.consume_current_effect_outcome_into(span, outcome_slot, "itable_call")?;
+            self.clear_incoming_resume_token(span, "itable_call")?;
+            let _ = self.swap_effect_handler_stack_top(span, saved_top, "itable_call_restore")?;
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
                 span,
@@ -1601,11 +1651,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
 
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(expected_arity + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            expected_arity
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if call_may_suspend {
+            llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
         }
         if let Some(receiver_ty) = fun_ty.receiver {
             llvm_param_tys.push(self.llvm_param_ty(callee_span, receiver_ty)?);
@@ -1638,8 +1694,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_int_to_ptr(casted_addr, fun_ptr_ty, "funptr_typed")?;
 
-        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
+            args.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(callee_span, "funptr_call_sret", ret_cg)?;
             llvm_args.push(slot.into());
@@ -1647,6 +1706,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        let incoming_resume_token = self.null_effect_resume_token();
+        if call_may_suspend {
+            llvm_args.push(incoming_resume_token.into());
+        }
         let evaluated_args = self.codegen_callable_value_args(
             span,
             callee_span,
@@ -1666,6 +1729,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.load_effect_ctx_handler_top_from_slot(span, ctx_slot, "funptr_call")?;
             let saved_top =
                 self.swap_effect_handler_stack_top(span, installed_top, "funptr_call")?;
+            self.publish_incoming_resume_token(span, incoming_resume_token, "funptr_call")?;
             Some((outcome_slot, saved_top))
         } else {
             None
@@ -1696,6 +1760,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "funptr_call")?;
+            self.clear_incoming_resume_token(span, "funptr_call")?;
             let _ = self.swap_effect_handler_stack_top(span, saved_top, "funptr_call_restore")?;
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -1790,11 +1855,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
 
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(1 + expected_arity + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            1 + expected_arity
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if call_may_suspend {
+            llvm_param_tys.push(gc_i8_ptr_ty.into());
         }
         llvm_param_tys.push(gc_i8_ptr_ty.into());
         if let Some(receiver_ty) = fun_ty.receiver {
@@ -1824,8 +1895,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ),
         };
 
-        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(1 + args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
+            1 + args.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(callee_span, "closure_call_sret", ret_cg)?;
             llvm_args.push(slot.into());
@@ -1833,6 +1907,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        let incoming_resume_token = self.null_effect_resume_token();
+        if call_may_suspend {
+            llvm_args.push(incoming_resume_token.into());
+        }
         let evaluated_args = self.codegen_callable_value_args(
             span,
             callee_span,
@@ -1849,6 +1927,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.load_effect_ctx_handler_top_from_slot(span, ctx_slot, "closure_call")?;
             let saved_top =
                 self.swap_effect_handler_stack_top(span, installed_top, "closure_call")?;
+            self.publish_incoming_resume_token(span, incoming_resume_token, "closure_call")?;
             Some((outcome_slot, saved_top))
         } else {
             None
@@ -1910,6 +1989,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         if let Some((outcome_slot, saved_top)) = effect_boundary {
             self.consume_current_effect_outcome_into(span, outcome_slot, "closure_call")?;
+            self.clear_incoming_resume_token(span, "closure_call")?;
             let _ = self.swap_effect_handler_stack_top(span, saved_top, "closure_call_restore")?;
             self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
