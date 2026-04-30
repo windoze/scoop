@@ -77,4 +77,5 @@
 ### 收尾状态
 - 已更新 `TODO.md`：`T5002aR` 标记为完成，并补充 review 完成记录。
 - 已更新 `PLAN.md`：记录 `T5002aR` 的复核结论与进入 `T5002b` 的前置状态。
-- 下一步：提交本轮变更并停止。
+- 已提交：`[T5002aR] Confirm state-machine flush-back coverage`
+- 当前任务已完成，本次执行到此停止。
