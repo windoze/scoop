@@ -385,13 +385,19 @@
     - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T5001f7
 
-### [TODO] T5001f8a0R Review：确认 state-body outer mutable local 已不再直接依赖 stale heap-slot pointer
+### [DONE] T5001f8a0R Review：确认 state-body outer mutable local 已不再直接依赖 stale heap-slot pointer
 - 重点：
   - `populate_frame_slots_in_env(...)` 是否已停止把 outer mutable local 直接暴露成 heap-frame GEP env local；
   - `continuation_resume_enum.scoop` 在 GC env 下恢复是否来自新的稳定执行期 local home，而不是偶然规避；
   - 新增回归是否真正锁住 state-body 写回窗口。
 - 验收：
   - `T5001f8a` 可在不再被 state-body stale heap-slot pointer 阻塞的前提下继续推进。
+- 完成记录：已复核 `populate_frame_slots_in_env(...)` 仍会在各 state BB 预填充 heap-frame field GEP 进 env，但 state/arm body 对该类 slot 的读写已统一经 `storage_slot_for_use(...)` / `store_local_value_exact(...)` 入口，在 use-site 通过 `rematerialize_ptr_in_current_block(...)` 重建指针链，避免 RHS 求值触发 moving GC 后继续使用 stale heap-slot pointer。
+  - 定向验证：
+    - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop`
+    - `cargo test -p scoopc --lib`
+    - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T5001f8a0
 
 ### [TODO] T5001f8a 修复 outer mutable local 在原 caller handle-return 路径的稳定 writeback / readback 合同

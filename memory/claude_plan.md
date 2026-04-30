@@ -63,3 +63,8 @@ Complete exactly the first unfinished task in `TODO.md` (or the first unfinished
 - 2026-05-01: Fixed two brittle `scoopc` LLVM IR tests (updated assertions to match current IR naming/windowing).
 - 2026-05-01: Verified: `cargo test --all` and `cargo clippy --all-targets -- -D warnings` both pass.
 - 2026-05-01: Started TODO task `T5001f8a0`: fixed state-machine outer mutable local stores after GC by rematerializing store pointers (`store_local_value_exact`), added runtime_gc fixture `effect_outer_mutable_state_body_writeback_basic`, and verified `continuation_resume_enum.scoop` passes under `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1`.
+- 2026-05-01: Completed review task `T5001f8a0R`. Verified via:
+  - env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop
+  - cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop
+  - cargo test -p scoopc --lib
+  - cargo clippy --all-targets -- -D warnings
