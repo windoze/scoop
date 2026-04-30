@@ -461,13 +461,20 @@
     - `env SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
 - 依赖：T5001f8aR
 
-### [TODO] T5001f8bR Review：确认 state/arm body 已不再长期持有 stale heap-slot pointer
+### [DONE] T5001f8bR Review：确认 state/arm body 已不再长期持有 stale heap-slot pointer
 - 重点：
   - handle body locals、arm binder、capture locals、escape continuation binder 是否都已收口到稳定执行期 local home；
   - 是否还残留“env local 直接指向 heap frame field GEP”的路径；
   - LLVM 回归是否锁住了新的 local-home contract。
 - 验收：
   - `T5001f8c` 可在不再被 stale heap-slot pointer 设计阻塞的前提下继续推进。
+- 完成记录：
+  - 已复核 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`：
+    - `populate_frame_slots_in_env(...)` 会为每个 frame-backed slot materialize 入口 alloca（`handle_frame_home_*`）作为稳定执行期 local home，并在每个 state BB 入口从 heap frame slot reload；
+    - `emit_bind_local_to_frame(...)` / `emit_read_local_from_frame(...)`、arm binder/capture 以及 escape-continuation binder 绑定路径，均把 env `CgLocal.ptr` 收口为 entry alloca，并用 `frame_backing_ptr` 指向持久化 heap frame slot；
+    - 赋值语句在写入 stable local home 后，会对 `frame_backing_ptr` 执行 write-through，从而避免 state/arm body 在分配/GC 后继续写入 stale heap-slot pointer。
+  - 已复核 LLVM 回归 `state_machine_frame_slots_materialize_stable_exec_local_homes`，其断言会锁定 frame slot 必须 materialize `handle_frame_home_saved` 并在 IR 中实际被用作 local home。
+  - 验证：`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
 - 依赖：T5001f8b
 
 ### [TODO] T5001f8c 在 suspend / return / arm-exit / cleanup 边界统一 flush mutable locals 回 frame，并补齐 direct/indirect mixed 回归
