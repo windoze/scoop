@@ -1283,9 +1283,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// `resume_word` / `resume_gc_ref` / captured callee suspend state）。
     ///
     /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
-        ///   { ScoopGcObjectHeader, i32 resumed, i32 resume_state_tag, ptr captured_handler_stack_top,
-        ///     i64 state_handle, ptr step_fn, i64 resume_word, ptr addrspace(1) resume_gc_ref,
-        ///     i64 captured_callee_suspend_state_handle }
+    ///   { ScoopGcObjectHeader, i32 resumed, i32 resume_state_tag, ptr captured_handler_stack_top,
+    ///     i64 state_handle, ptr step_fn, i64 resume_word, ptr addrspace(1) resume_gc_ref,
+    ///     i64 captured_callee_suspend_state_handle }
     pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {

@@ -148,7 +148,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 }
 
-                let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(field_place.field_cg))?;
+                let rhs_v =
+                    self.codegen_expr_in_expected_context(rhs, Some(field_place.field_cg))?;
                 let field_ptr = self.reload_deferred_class_field_place_ptr(
                     eq_span,
                     &field_place,

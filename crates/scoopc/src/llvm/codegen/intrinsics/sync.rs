@@ -436,7 +436,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: once_expr.span.into(),
             });
         };
-        let deferred_once = self.defer_gc_ref_pointer(once_expr.span, "sync_once_run_receiver", once_ptr)?;
+        let deferred_once =
+            self.defer_gc_ref_pointer(once_expr.span, "sync_once_run_receiver", once_ptr)?;
 
         let block_v = match &block_expr.kind {
             hir::ExprKind::Closure(closure) => {

@@ -2177,7 +2177,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .builder
                     .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
                     .into_pointer_value();
-                let deferred_raw = self.defer_gc_ref_pointer(*span, "when_tuple_str_subject", raw)?;
+                let deferred_raw =
+                    self.defer_gc_ref_pointer(*span, "when_tuple_str_subject", raw)?;
                 let expected = self.codegen_string_literal_from_text(*span, value)?;
                 let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {

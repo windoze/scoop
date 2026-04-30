@@ -2424,12 +2424,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         else {
             return Ok(None);
         };
-        let field = class.fields.get(field_idx as usize).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "class field index",
-                at: member_span.into(),
-            },
-        )?;
+        let field =
+            class
+                .fields
+                .get(field_idx as usize)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class field index",
+                    at: member_span.into(),
+                })?;
         let writable = field.mutable;
         let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
         let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
@@ -6967,13 +6969,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let call = self
                     .builder
                     .build_call(fn_val, &[l.into(), r.into()], "str_eq")?;
-                let raw_result =
-                    call.try_as_basic_value()
-                        .basic()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "String equals return value",
-                            at: span.into(),
-                        })?;
+                let raw_result = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "String equals return value",
+                        at: span.into(),
+                    },
+                )?;
                 let BasicValueEnum::IntValue(eq_i64) = raw_result else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String equals return type",

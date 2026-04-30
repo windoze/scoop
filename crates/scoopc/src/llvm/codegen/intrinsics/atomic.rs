@@ -89,26 +89,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let deferred_class_place = if let hir::ExprKind::MemberAccess { receiver, member } =
-                    &target_expr.kind
-                {
-                    if let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() {
-                        let receiver_hir_ty = self
-                            .resolve_expr_concrete_type(receiver)
-                            .unwrap_or(receiver.ty);
-                        self.defer_class_field_place(
-                            receiver,
-                            member.span,
-                            fqn,
-                            receiver_hir_ty,
-                            "atomic_int_store",
-                        )?
+                let deferred_class_place =
+                    if let hir::ExprKind::MemberAccess { receiver, member } = &target_expr.kind {
+                        if let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() {
+                            let receiver_hir_ty = self
+                                .resolve_expr_concrete_type(receiver)
+                                .unwrap_or(receiver.ty);
+                            self.defer_class_field_place(
+                                receiver,
+                                member.span,
+                                fqn,
+                                receiver_hir_ty,
+                                "atomic_int_store",
+                            )?
+                        } else {
+                            None
+                        }
                     } else {
                         None
-                    }
-                } else {
-                    None
-                };
+                    };
 
                 let fallback_ptr = if let Some(place) = deferred_class_place.as_ref() {
                     if !place.writable {
@@ -192,26 +191,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let deferred_class_place = if let hir::ExprKind::MemberAccess { receiver, member } =
-                    &target_expr.kind
-                {
-                    if let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() {
-                        let receiver_hir_ty = self
-                            .resolve_expr_concrete_type(receiver)
-                            .unwrap_or(receiver.ty);
-                        self.defer_class_field_place(
-                            receiver,
-                            member.span,
-                            fqn,
-                            receiver_hir_ty,
-                            "atomic_int_cmpxchg",
-                        )?
+                let deferred_class_place =
+                    if let hir::ExprKind::MemberAccess { receiver, member } = &target_expr.kind {
+                        if let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() {
+                            let receiver_hir_ty = self
+                                .resolve_expr_concrete_type(receiver)
+                                .unwrap_or(receiver.ty);
+                            self.defer_class_field_place(
+                                receiver,
+                                member.span,
+                                fqn,
+                                receiver_hir_ty,
+                                "atomic_int_cmpxchg",
+                            )?
+                        } else {
+                            None
+                        }
                     } else {
                         None
-                    }
-                } else {
-                    None
-                };
+                    };
 
                 let fallback_ptr = if let Some(place) = deferred_class_place.as_ref() {
                     if !place.writable {

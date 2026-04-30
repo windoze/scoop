@@ -209,13 +209,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "class_ctor_obj_active_drop",
                 &deferred_obj,
             )?;
-            let active_bb_end = self
-                .builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor call active block",
-                    at: span.into(),
-                })?;
+            let active_bb_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor call active block",
+                        at: span.into(),
+                    })?;
             self.builder.build_unconditional_branch(merge_bb)?;
 
             self.builder.position_at_end(inactive_bb);
@@ -224,13 +224,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "class_ctor_obj_return",
                 &deferred_obj,
             )?;
-            let inactive_bb_end = self
-                .builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor call inactive block",
-                    at: span.into(),
-                })?;
+            let inactive_bb_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor call inactive block",
+                        at: span.into(),
+                    })?;
             self.builder.build_unconditional_branch(merge_bb)?;
 
             self.builder.position_at_end(merge_bb);
@@ -900,14 +900,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class: &hir::ClassInit,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let this_local = self
-            .function_cx
-            .env
-            .get(class.this_id)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "class ctor this local",
-                at: at.into(),
-            })?;
+        let this_local =
+            self.function_cx
+                .env
+                .get(class.this_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor this local",
+                    at: at.into(),
+                })?;
         let this_slot = self.local_ptr_for_use(at, this_local, "class_ctor_this_reload")?;
         Ok(self
             .builder
