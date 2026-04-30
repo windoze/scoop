@@ -52,6 +52,8 @@
 - 目标是把 mutable local 的持久化 source of truth 真正收口到 heap frame，而不是只在 block 内做 write-through。
 - 这一阶段不是旧设计残留，而是新 continuation 设计的前提：即便 `Continuation.state` 改为 traced ref，resume 后仍然依赖 frame 中持久化的 locals/state。
 - 重点 fixture：`tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`。
+- 进展更新（2026-05-01）：`T5002a` 已完成。`write_back_outer_scope_frame_slots(...)` 现在会在 step-function return、handle/function return、suspend、arm exit，以及外层 handle 的 done/propagate 退出边界统一执行，使 frame 成为 mutable local 跨 resume / cleanup 的稳定 source-of-truth。
+- 验证摘要（2026-05-01）：LLVM 回归 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit` 全通过；run-pass fixture `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop` 在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过。下一步按顺序进入 `T5002aR`。
 
 ### P1. Managed `EffectCtx` / `EffectHandlerNode` 与 hidden effect ABI
 

@@ -32,7 +32,7 @@
 
 ## T5002：Continuation / Effect Runtime 收口
 
-### [TODO] T5002a 完成 state-machine mutable-local flush-back 合同（承接旧 `T5001f8c`）
+### [DONE] T5002a 完成 state-machine mutable-local flush-back 合同（承接旧 `T5001f8c`）
 - 范围：
   - 在 suspend / return / arm-exit / cleanup 四类边界统一 flush mutable locals 回 heap frame，使 frame 成为跨 resume / cleanup 的稳定持久化 source of truth。
   - 收口 `CgLocal.frame_backing_ptr` 相关 contract，保证执行期 local home 不会只在 block 内正确、而在离开 state/arm 时遗漏最新值。
@@ -44,6 +44,10 @@
   - mutable local 的 frame flush-back contract 已覆盖 suspend / return / arm-exit / cleanup 四类边界；
   - 不再存在“值只停留在执行期 local home，离开 state/arm 后没有及时写回 frame”的路径。
 - 依赖：旧 round 到 `T5001f8bR` 为止的工作已完成，可直接继续。
+- 完成记录：
+  - `write_back_outer_scope_frame_slots(...)` 已统一落在 step-function return、`ReturnHandle`、`ReturnFromFunction`、`Suspend`、`ArmReturnHandle`、`ArmResumeMatchedSite`、`ArmMaterializeContinuation` 以及外层 handle `handle_propagate/handle_done` 退出边界上，flush-back 合同覆盖 suspend / return / arm-exit / cleanup 四类窗口。
+  - LLVM 回归已锁定 outer mutable writeback / stable exec local home / cleanup 相关合同：`escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`。
+  - 定向 run-pass 已确认 `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop` 在默认环境与所需 GC 环境下通过。
 
 ### [TODO] T5002aR Review：确认 state-machine flush-back 真正取代了 block-local write-through 偶然正确性
 - 重点：
