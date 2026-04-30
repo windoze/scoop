@@ -54,6 +54,7 @@
 - 重点 fixture：`tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`。
 - 进展更新（2026-05-01）：`T5002a` 已完成。`write_back_outer_scope_frame_slots(...)` 现在会在 step-function return、handle/function return、suspend、arm exit，以及外层 handle 的 done/propagate 退出边界统一执行，使 frame 成为 mutable local 跨 resume / cleanup 的稳定 source-of-truth。
 - 验证摘要（2026-05-01）：LLVM 回归 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit` 全通过；run-pass fixture `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop` 在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过。下一步按顺序进入 `T5002aR`。
+- Review 更新（2026-05-01）：`T5002aR` 已完成。已复核 outer mutable local、arm binder、capture local、escape continuation binder 都采用“entry alloca exec home + frame slot backing”的统一持久化合同，mutable local 的赋值继续经 `frame_backing_ptr` 同步到 frame slot；并补跑 LLVM 回归 `escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract` 以及 fixture `effect_escape_continuation_indirect_perform_binder_string_use.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`（默认环境 + GC env 全开）确认 binder/capture 路径未偏离该合同。当前可按顺序进入 `T5002b`。
 
 ### P1. Managed `EffectCtx` / `EffectHandlerNode` 与 hidden effect ABI
 

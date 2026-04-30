@@ -49,7 +49,7 @@
   - LLVM 回归已锁定 outer mutable writeback / stable exec local home / cleanup 相关合同：`escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`。
   - 定向 run-pass 已确认 `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop` 在默认环境与所需 GC 环境下通过。
 
-### [TODO] T5002aR Review：确认 state-machine flush-back 真正取代了 block-local write-through 偶然正确性
+### [DONE] T5002aR Review：确认 state-machine flush-back 真正取代了 block-local write-through 偶然正确性
 - 重点：
   - flush-back 是否覆盖 suspend / return / arm-exit / cleanup 四类边界，而不是只覆盖 block 内赋值；
   - outer mutable local、arm binder、capture local、escape continuation binder 是否都共享同一持久化合同；
@@ -58,6 +58,11 @@
   - `T5002b` 可在不再被 state-machine 持久化 source-of-truth 阻塞的前提下继续推进；
   - review 阶段必须在三项 GC env 全开条件下重跑相关 direct/indirect fixture。
 - 依赖：T5002a
+- 完成记录：
+  - 已复核 `write_back_outer_scope_frame_slots(...)` 的调用点覆盖 step-function return、`ReturnHandle`、`ReturnFromFunction`、`Suspend`、`ArmReturnHandle`、`ArmResumeMatchedSite`、`ArmMaterializeContinuation`，以及外层 handle `handle_propagate/handle_done`，flush-back 合同不再只依赖 block 内 write-through 偶然正确。
+  - 已复核 outer mutable local、arm binder、capture local、escape continuation binder 的 env materialization 都收口到“entry alloca exec home + frame slot backing”合同；mutable local 的赋值路径会继续通过 `frame_backing_ptr` 同步到持久化 frame slot。
+  - 已通过 LLVM 回归 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`、`escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract`。
+  - 已在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下复验 `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop`、`effect_escape_continuation_indirect_perform_binder_string_use.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`。
 
 ### [TODO] T5002b 引入 managed `EffectCtx` / `EffectHandlerNode` 与显式 hidden effect ABI
 - 范围：

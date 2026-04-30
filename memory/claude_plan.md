@@ -1,37 +1,80 @@
-# 执行计划
+# Claude Plan
 
-说明：我不会写出不可审计的内部思维细节，但会把可执行的外部计划、当前判断、进度和变更记录持续写在这里，便于检查。
+## 目标
+- 按 `TODO.md` 的顺序完成第一个未完成任务，并在完成后停止。
 
-## 初始计划
+## 约束说明
+- 这里记录的是可执行计划、检查项与进度摘要，不包含内部推理细节。
+- 在执行过程中，如计划变更、发现阻塞问题、完成关键步骤，会及时更新本文件。
 
-1. 查看最新一次提交的信息，确认是否提到需要先修复的既有问题。
+## 初始执行计划
+1. 检查最新提交信息，确认是否提到需要优先修复的既有问题；如果有，先处理该问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前项目计划与任务顺序。
-4. 判断首个未完成任务是否过大：
-   - 如果可直接完成，就直接实现。
-   - 如果过大，就先拆分任务，更新 `PLAN.md` 与 `TODO.md`，本次只执行拆分后排在最前的那个子任务。
-5. 实现当前目标任务，同时在执行中留意所有既有问题、规格不匹配、回归、缺失实现边界或临时绕过；若发现这类问题，优先修复，或把它们作为前置任务插入 `TODO.md` 并停止继续向前。
-6. 运行相关验证，包括至少与改动直接相关的测试；若任务范围涉及整体质量门槛，再补充 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 等必要检查，并修复发现的问题。
-7. 更新文档状态：
-   - 在 `TODO.md` 中把本次完成的任务标记为已完成，或在阻塞时重排任务顺序并保留为待办。
-   - 在 `PLAN.md` 中记录当前状态、依赖调整和后续影响。
-   - 在本文件中补充执行结果与关键决策。
-8. 按仓库既有风格创建一次 Git 提交，然后停止，不继续处理下一个任务。
+3. 评估该任务是否过大：
+   - 如果可直接完成，继续实现。
+   - 如果过大，先细化到 `PLAN.md` 和 `TODO.md`，然后只执行拆分后的第一个子任务。
+4. 在开始实现前，阅读相关代码、测试和规范上下文，确认现状与依赖。
+5. 实现该任务，避免引入变通方案或偏离规范的实现。
+6. 运行相关测试；如发现既有缺陷、回归、规范不匹配或阻塞问题，优先修复或将其作为前置任务插入 `TODO.md`。
+7. 更新 `TODO.md` 和 `PLAN.md`，标记本次完成情况或阻塞依赖调整。
+8. 按仓库约定创建一次 git 提交，然后停止。
 
-## 进度记录
+## 进度
+- 已写入初始计划。
+- 已检查最新提交：`[T5002a] Record state-machine flush-back completion`，提交信息未提到需要先修复的既有问题。
+- 已阅读 `TODO.md` / `PLAN.md`，当前首个未完成任务为 `T5002aR`（review：确认 state-machine flush-back 真正取代了 block-local write-through 偶然正确性）。
 
-- 已创建初始执行计划，尚未开始仓库检查。
-- 已检查最新提交：`1f7b3418bfdaea31aabaa3c0357af676f8f9d203`，提交信息仅为 `Update plan`，未显式提到需要先修复的既有问题。
-- 已阅读 `TODO.md` 与 `PLAN.md`，当前首个未完成任务为 `T5002a`：完成 state-machine mutable-local flush-back 合同。
-- 下一步：复现 `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 的当前状态，确认是否存在额外前置缺陷，以及该任务是否需要先拆分。
-- 已复现并确认：
-  - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 默认环境通过；
-  - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 在 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过；
-  - `tests/fixtures/run-pass/continuation_resume_enum.scoop` 在同一 GC 环境下通过。
-- 当前判断：`T5002a` 很可能已经由先前代码改动实质完成，但 TODO/PLAN 尚未回写。继续补做边界覆盖核查与定向验证，确认可以把本轮工作收敛为“验收、记录、提交”而不是继续写代码。
-- 已完成边界覆盖核查与定向验证：
-  - LLVM 回归：`escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit` 通过；
-  - run-pass：`effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`effect_multi_escape_direct_indirect_while.scoop` 默认环境与三项 GC env 全开环境通过；
-  - 先前复验：`effect_multi_escape_indirect_direct_while.scoop`、`continuation_resume_enum.scoop` 默认/GC 环境通过；
-  - lint：`cargo clippy -p scoop -p scoopc --all-targets -- -D warnings` 通过。
-- 已据此把 `TODO.md` 中 `T5002a` 标记为完成，并在 `PLAN.md` 中回写当前状态；本轮不继续推进 `T5002aR`，只准备提交本轮文档/状态更新。
+## 当前任务：T5002aR
+
+### 目标
+- 确认 flush-back 合同确实覆盖 `suspend / return / arm-exit / cleanup` 四类边界。
+- 确认 `outer mutable local`、`arm binder`、`capture local`、`escape continuation binder` 共享同一持久化合同。
+- 在三项 GC 环境全开条件下重跑相关 direct/indirect fixtures，确认 `T5002b` 不再被该问题阻塞。
+
+### 执行步骤
+1. 阅读与 `T5002a` 直接相关的 codegen / 测试实现，确认 flush-back 入口点与覆盖范围。
+2. 运行相关 LLVM / 单元 / fixture 回归，优先覆盖 direct/indirect mixed 路径与 cleanup 相关窗口。
+3. 如果发现既有缺陷或规范不匹配，立即修复；若无法在本轮直接修复，则按要求先更新 `TODO.md` / `PLAN.md` 记录前置任务并停止。
+4. 如果 review 通过，更新 `TODO.md` / `PLAN.md`，将 `T5002aR` 标记完成并记录验证结果。
+5. 提交本轮变更并停止。
+
+### 当前结论
+- `write_back_outer_scope_frame_slots(...)` 的调用点已覆盖：
+  - step-function return
+  - `ReturnHandle`
+  - `ReturnFromFunction`
+  - `Suspend`
+  - `ArmReturnHandle`
+  - `ArmResumeMatchedSite`
+  - `ArmMaterializeContinuation`
+  - 外层 handle `handle_propagate` / `handle_done`
+- `populate_frame_slots_in_env(...)`、arm binder materialization、escape continuation binder materialization、capture local restore 都采用“entry alloca exec home + frame slot backing”合同；对 mutable local，赋值路径会同时写回 `frame_backing_ptr`。
+- 暂未发现新的既有 blocker，也未发现需要在 `T5002b` 前追加的前置任务。
+
+### 已完成验证
+- LLVM 回归：
+  - `llvm::codegen::effect::state_machine_emitter::tests::escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`
+  - `llvm::codegen::effect::state_machine_emitter::tests::state_machine_frame_slots_materialize_stable_exec_local_homes`
+  - `llvm::codegen::effect::state_machine_emitter::tests::cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`
+  - `llvm::codegen::effect::state_machine_emitter::tests::cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`
+  - `llvm::codegen::effect::state_machine_emitter::tests::escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract`
+- 默认环境 fixture：
+  - `tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
+  - `tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - `tests/fixtures/run-pass/effect_multi_escape_direct_indirect_while.scoop`
+  - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_binder_string_use.scoop`
+  - `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+- GC env 全开 fixture：
+  - `tests/fixtures/run-pass/effect_escape_continuation_outer_mutable_writeback_basic.scoop`
+  - `tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - `tests/fixtures/run-pass/effect_multi_escape_direct_indirect_while.scoop`
+  - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_binder_string_use.scoop`
+  - `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+- lint：`cargo clippy --all-targets -- -D warnings`
+
+### 收尾状态
+- 已更新 `TODO.md`：`T5002aR` 标记为完成，并补充 review 完成记录。
+- 已更新 `PLAN.md`：记录 `T5002aR` 的复核结论与进入 `T5002b` 的前置状态。
+- 下一步：提交本轮变更并停止。
