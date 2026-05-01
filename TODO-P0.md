@@ -298,7 +298,12 @@
   - 可进入 P0-T04。
 - 依赖：P0-T03
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P0-T03R` review，确认 `EFFECT_REFACTOR_BOUNDARY_INVENTORY.md` 已覆盖 `P0-T03` 要求的全部关键子系统，且当前不存在需要保留为“后续再判定”的空洞条目。
+  - 中立共享抽查：`crates/scoopc/src/parser/mod.rs` 仅暴露 `parse_file(...) -> ast::File` 并依赖 `SourceFile` / lexer token 流；`crates/scoopc/src/source.rs` 与 `session/mod.rs` 分别维持 source/span 映射与 `SessionOptions` 配置收口，未携带 typed HIR / MIR / LLVM 特化语义，符合文档中“共享 + 单一 API”的约束。
+  - 中层业务抽查：`crates/scoopc/src/mir/mod.rs` 仍以 `lower_for_dump`、materialization、pass view、`SiteId` 等 legacy MIR contract 为中心；`crates/scoopc/src/effect/mod.rs` 与 `llvm/codegen/effect/state_machine_bridge.rs` 继续直接绑定现有 `effect::analysis` / `state_machine` 语义，证明 `mir/`、`effect/` 继续留在旧目录里会把 refactor contract 与 legacy 中间层混写，因此“复制”判定可信。
+  - 后端与运行时抽查：`crates/scoopc/src/llvm/mod.rs` 仍公开 `*_from_production_lowered_hir*` 等 legacy lowering/codegen 入口；`runtime/c/scoop_runtime.c` 仍承载现有 runtime 主实现，后续 review 所需的 effect/continuation slice 复制结论与边界文档一致。
+  - 搜索摘要：重新执行 `rg -n "EffectPipelineMode|effect_pipeline|effect_pipeline_mode" crates/scoopc/src/parser crates/scoopc/src/source.rs crates/scoopc/src/span.rs crates/scoopc/src/sysroot crates/scoopc/src/target crates/scoopc/src/ty runtime/c/scoop_root_frame.h runtime/c/scoop_stackmap.h runtime/c/scoop_stackmap.c` 结果为 0 命中；对 `crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/hir crates/scoopc/src/typecheck crates/scoopc/src/mir crates/scoopc/src/effect crates/scoopc/src/llvm` 的同类搜索仅命中 `effect_refactor_pipeline/`，未扩散到旧业务目录。
+  - 复验通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P0-T04：建立 P0 baseline parity 验证矩阵，锁定“新路径壳层不改变旧语义”
 
