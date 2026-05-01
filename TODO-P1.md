@@ -78,7 +78,12 @@
   - P2 可以直接消费这个 AST stage 输出，而不必重新定义 handoff 结构。
 - 依赖：`TODO-P0.md` 最后一项 review 完成
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：新增 `crates/scoopc/src/effect_refactor_pipeline/ast_stage.rs`，为 refactor 新路径建立独立 AST stage，并定义 `AstStageOutput<'a>` 作为后续阶段可消费的稳定 handoff 结构。
+  - `AstStageOutput<'a>` 现在稳定承载输入 `SourceFile` 引用与解析后的 `ast::File`，并在文档注释中明确固定 P1 invariants：AST 只保留普通 `Call` / `MemberAccess` 形状、不做 type-dependent desugar、`k.resume()` / `f()` 继续保留零参数调用形状、`k.resume(())` / `f(())` 继续保留显式 `UnitLit` 参数。
+  - `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 新增 `load_ast_stage_output_for_dump(...)`；refactor 模式下 `dump-ast` 已显式进入 AST stage，再把 stage 输出交给 driver 渲染，而不再只是整条命令路径统一委托 legacy。
+  - parser 仍通过中立共享 API `Session::parse(...)` 复用；本次改动未把 pipeline selector 注入 `parser/` 业务逻辑。
+  - 新增/更新测试：`crates/scoopc/src/effect_refactor_pipeline/ast_stage.rs`、`crates/scoopc/src/effect_refactor_pipeline/mod.rs`、`crates/scoop/src/commands/dump_ast.rs`。
+  - 验证通过：`cargo test -p scoopc --no-default-features ast_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_ast_command_uses_refactor_ast_dispatcher`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P1-T01R：Review AST stage 入口与 handoff 类型，确认 parser 仍是中立共享模块
 

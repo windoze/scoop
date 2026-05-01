@@ -5,11 +5,14 @@
 //! - `refactor` 路径当前仍可在阶段边界整体委托给 legacy 实现；
 //! - 低层业务模块不应自行读取 pipeline mode。
 
+mod ast_stage;
 mod legacy;
 mod refactor;
 
 use crate::session::{EffectPipelineMode, Session};
 use crate::source::SourceFile;
+
+pub use ast_stage::AstStageOutput;
 
 #[cfg(feature = "llvm")]
 use crate::source::{SourceId, SourceMap};
@@ -157,7 +160,22 @@ pub fn parse_ast_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<crate::ast::File, crate::parser::ParseError> {
-    enter_ast_stage(session, || session.parse(source))
+    load_ast_stage_output_for_dump(session, source).map(AstStageOutput::into_ast)
+}
+
+pub fn load_ast_stage_output_for_dump<'a>(
+    session: &Session,
+    source: &'a SourceFile,
+) -> Result<AstStageOutput<'a>, crate::parser::ParseError> {
+    let dispatcher = dispatcher_for_session(session).ast();
+    match dispatcher.entry {
+        StageEntry::Legacy(entry) => entry.delegate_to_legacy(|| {
+            session
+                .parse(source)
+                .map(|ast| AstStageOutput::new(source, ast))
+        }),
+        StageEntry::Refactor(entry) => entry.parse_ast_stage_output(session, source),
+    }
 }
 
 pub fn lower_typed_hir_for_dump(
@@ -287,11 +305,12 @@ mod tests {
         let session = session_for(EffectPipelineMode::Refactor);
         let source = sample_source();
 
-        let ast = parse_ast_for_dump(&session, &source).unwrap();
+        let ast_output = load_ast_stage_output_for_dump(&session, &source).unwrap();
         let hir = lower_typed_hir_for_dump(&session, &source).unwrap();
         let mir = lower_direct_style_mir_for_dump(&session, &source).unwrap();
 
-        assert!(ast.package.is_some());
+        assert!(std::ptr::eq(ast_output.source(), &source));
+        assert!(ast_output.ast().package.is_some());
         assert_eq!(hir.file.items.len(), 1);
         assert_eq!(mir.file.items.len(), 1);
         assert_eq!(

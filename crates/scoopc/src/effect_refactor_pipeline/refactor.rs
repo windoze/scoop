@@ -1,6 +1,9 @@
+use crate::parser::ParseError;
 use crate::session::EffectPipelineMode;
+use crate::session::Session;
+use crate::source::SourceFile;
 
-use super::StageKind;
+use super::{AstStageOutput, StageKind, ast_stage};
 
 /// refactor 主线的阶段入口。
 ///
@@ -21,6 +24,16 @@ impl StageEntry {
 
     pub(crate) const fn stage(self) -> StageKind {
         self.stage
+    }
+
+    pub(crate) fn parse_ast_stage_output<'a>(
+        self,
+        session: &Session,
+        source: &'a SourceFile,
+    ) -> Result<AstStageOutput<'a>, ParseError> {
+        debug_assert_eq!(self.stage, StageKind::Ast);
+        let _ = self;
+        ast_stage::run(session, source)
     }
 
     pub(crate) fn delegate_to_legacy<T>(self, legacy_op: impl FnOnce() -> T) -> T {

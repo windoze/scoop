@@ -8,15 +8,18 @@ use std::path::PathBuf;
 use miette::{Context as _, IntoDiagnostic as _, Result};
 use scoopc::session::SessionOptions;
 
-fn load_ast_for_dump(
+fn load_ast_for_dump<'a>(
     session: &scoopc::session::Session,
-    source: &scoopc::source::SourceFile,
-) -> Result<scoopc::ast::File> {
-    scoopc::effect_refactor_pipeline::parse_ast_for_dump(session, source)
+    source: &'a scoopc::source::SourceFile,
+) -> Result<scoopc::effect_refactor_pipeline::AstStageOutput<'a>> {
+    scoopc::effect_refactor_pipeline::load_ast_stage_output_for_dump(session, source)
         .map_err(miette::Report::from)
 }
 
-pub(super) fn render_dump_output(input: PathBuf, session_options: SessionOptions) -> Result<String> {
+pub(super) fn render_dump_output(
+    input: PathBuf,
+    session_options: SessionOptions,
+) -> Result<String> {
     let input = input
         .canonicalize()
         .into_diagnostic()
@@ -24,8 +27,8 @@ pub(super) fn render_dump_output(input: PathBuf, session_options: SessionOptions
     let file = scoopc::source::SourceFile::load(&input)?;
 
     let session = scoopc::session::Session::with_options(session_options)?;
-    let ast = load_ast_for_dump(&session, &file)?;
-    Ok(format!("{ast:#?}\n"))
+    let ast_output = load_ast_for_dump(&session, &file)?;
+    Ok(format!("{:#?}\n", ast_output.ast()))
 }
 
 pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
@@ -44,10 +47,11 @@ mod tests {
             Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
         let source = SourceFile::new_virtual("<mem>", "package sample\nfun main() {}\n");
 
-        let ast = super::load_ast_for_dump(&session, &source).unwrap();
+        let ast_output = super::load_ast_for_dump(&session, &source).unwrap();
         let stage = scoopc::effect_refactor_pipeline::dispatcher_for_session(&session).ast();
 
-        assert!(ast.package.is_some());
+        assert!(std::ptr::eq(ast_output.source(), &source));
+        assert!(ast_output.ast().package.is_some());
         assert_eq!(stage.mode(), EffectPipelineMode::Refactor);
     }
 }
