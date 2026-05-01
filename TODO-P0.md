@@ -115,7 +115,12 @@
   - 可进入 P0-T02。
 - 依赖：P0-T01
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P0-T01` review，确认 `scoop` 与 `scoopc` 共享同一 `scoopc::session::EffectPipelineMode` / `SessionOptions` 语义，且缺省值仍为 `Legacy`。
+  - `scoop` 侧在 `crates/scoop/src/cli.rs` 解析全局 `--effect-pipeline <legacy|refactor>`，并在 `crates/scoop/src/commands/mod.rs` 统一收口为 `SessionOptions::new(effect_pipeline)` 后分发给 `dump-ast`、`dump-hir`、`dump-mir`、`dump-ir`、`build`、`run`、`test` 等会创建 `Session` 的命令路径。
+  - `scoopc` 侧在 `crates/scoopc/src/driver_cli.rs` 复用同一 `EffectPipelineMode` parser，并在 `crates/scoopc/src/bin/scoopc.rs` 统一通过 `Session::with_options(cli.session_options)` 落到 session；未发现第二套不兼容 flag 语义。
+  - 代码搜索确认 pipeline selector 未经环境变量、全局静态或线程局部旁路进入 session；`EffectPipelineMode` / `effect_pipeline` 命中集中在 CLI、session、driver glue 与测试辅助中，未渗入 parser 或其它低层业务模块。
+  - smoke 验证通过且 `legacy` / `refactor` 的 `dump-ast tests/fixtures/parse/hello.scoop` 输出一致。
+  - 复验通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoopc --no-default-features driver_cli`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P0-T02：建立并行 pipeline dispatcher 壳层，禁止新路径直接侵入旧业务模块
 
