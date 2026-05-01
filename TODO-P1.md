@@ -111,7 +111,12 @@
   - 可进入 P1-T02。
 - 依赖：P1-T01
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P1-T01R` review，未发现需要在 `P1-T02` 前补入的新前置缺陷；最近一次提交 `[P1-T01] Introduce refactor AST stage output` 也未显式留下与本 review 直接相关的未完成事项。
+  - AST stage 复核结论：`crates/scoopc/src/effect_refactor_pipeline/ast_stage.rs` 中的 `AstStageOutput<'a>` 已稳定承载 `SourceFile` 引用与 `ast::File`，并在文档注释中明确写出 P1 handoff invariants：AST 仅保留普通 `Call` / `MemberAccess` 形状、不做 type-dependent desugar、`k.resume()` / `f()` 仍保留零参数调用、`k.resume(())` / `f(())` 仍保留显式 `UnitLit` 参数。
+  - 路由复核结论：`crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 仅在 `StageKind::Ast` 边界通过 `ast_stage::run(session, source)` 进入新 AST stage；`crates/scoopc/src/effect_refactor_pipeline/mod.rs` 的 `load_ast_stage_output_for_dump(...)` 在 refactor 模式下显式调用该 stage，而 `crates/scoop/src/commands/dump_ast.rs` 的生产路径已统一经 `load_ast_for_dump(...)` 进入该 wrapper，不再整条命令偷跳 legacy。
+  - parser 中立性复核结论：`crates/scoopc/src/session/mod.rs` 仍只通过中立共享 API `Session::parse(&SourceFile)` 复用 parser；`crates/scoopc/src/parser/mod.rs` 继续暴露 `parse_file(source: &SourceFile) -> Result<ast::File, ParseError>`，未引入 pipeline selector 参数。
+  - 搜索摘要：执行 `rg -n "EffectPipelineMode|effect_pipeline|legacy|refactor" crates/scoopc/src/parser crates/scoopc/src/ast` 输出为 0 命中，说明 parser / AST 业务代码中没有渗入 pipeline mode 或 legacy/refactor 路线分叉。
+  - 复验通过：`cargo test -p scoopc --no-default-features ast_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_ast_command_uses_refactor_ast_dispatcher`、`diff -u <(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop) <(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop)>`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P1-T02：锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状
 
