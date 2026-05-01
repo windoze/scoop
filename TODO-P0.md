@@ -389,4 +389,8 @@
   - baseline parity 已足以作为后续各阶段的“壳层未漂移”守门测试。
 - 依赖：P0-T04
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P0-T04R` review，确认 `crates/scoop/src/commands/parity.rs` 已把 AST / HIR / MIR / IR 四类代表样本固化为自动化 legacy/refactor parity 测试；在启用 LLVM feature 的构建下，`build_emit_llvm_cli_parity_matches_legacy_and_refactor` 也覆盖了 `build --emit-llvm --no-incremental` 的 LLVM smoke parity。
+  - parity harness 结论：`observe_dump_cli(...)` 通过 `Args::try_parse_from(...)` 显式带入 `--effect-pipeline <legacy|refactor>`，统一比较 `success/stdout/stderr`；`dump-ir` 额外使用稳定化 parity 视图并正规化 `TypeId` / `tN` 标记，避免把 hash-backed side table 与随机编号漂移误报为语义差异。
+  - CLI / session / dispatcher 复核结论：`crates/scoop/src/cli.rs` 与 `crates/scoopc/src/driver_cli.rs` 的默认值仍为 `legacy`；`crates/scoop/src/commands/mod.rs` 统一把 selector 收口为 `SessionOptions::new(effect_pipeline)`；`crates/scoopc/src/effect_refactor_pipeline/mod.rs` 仍是唯一根据 `Session::effect_pipeline_mode()` 选择 stage entry 的分流壳层；`build.rs` 与 `crates/scoopc/src/bin/scoopc.rs` 的 LLVM 发射路径也继续经由该 dispatcher wrapper，而未直接绕回旧入口。
+  - 边界清单复核结论：`EFFECT_REFACTOR_BOUNDARY_INVENTORY.md` 仍与当前实现一致，明确限定 selector 只能存在于 CLI / session / dispatcher 壳层，并把 `hir/`、`typecheck/`、`mir/`、`effect/`、`llvm/`、runtime effect slice 维持为后续复制路线；当前 review 未发现需要改写 P0-P6 边界结论的新问题。
+  - 复验通过：`cargo test -p scoop --no-default-features parity`、`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoopc --no-default-features driver_cli`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop build_emit_llvm_cli_parity_matches_legacy_and_refactor`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。

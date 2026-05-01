@@ -1,33 +1,37 @@
-## 当前执行计划
+# 当前执行计划
 
-说明：这里记录的是可审阅的执行计划与进度，不包含内部推理细节。
+1. 读取 `TODO.md`，确认详细任务文件引用与全局顺序。
+2. 按索引顺序读取对应的 `TODO-Px.md`，定位第一个未明确记录为完成的详细任务。
+3. 检查最近提交是否存在与该任务直接相关且未完成的问题；若存在且构成前置条件，则先在对应 `TODO-Px.md`/`TODO.md` 中补充并调整依赖。
+4. 阅读与当前任务直接相关的代码、测试、规范与任务约束，确认最小正确修改范围。
+5. 实现当前任务，避免规避性做法；若遇到阻塞，则记录最小必要前置任务并停止在该任务边界。
+6. 运行与当前任务相关的验证；必要时补充或修复测试，直到结果稳定。
+7. 更新 `memory/claude_plan.md` 记录关键进展或计划变化。
+8. 在对应 `TODO-Px.md` 中记录任务完成情况；如任务索引、标题、顺序或依赖变更，同步更新 `TODO.md`；仅在阶段计划实际变化时更新 `PLAN.md`。
+9. 检查工作区状态，确认仅提交与本次任务相关的改动，并按仓库约定创建一次 git 提交。
+10. 提交后停止，不继续处理下一个任务。
 
-1. 读取 `TODO.md`，确认它作为索引列出的详细任务文件与顺序。
-2. 按索引顺序检查对应的 `TODO-Px.md`，定位第一个未完成的详细任务。
-3. 如有必要，检查最近提交是否直接提到与该任务相关且未完成的问题；若该问题阻塞当前任务，则先按要求在详细 TODO 中补充前置任务并同步索引。
-4. 阅读当前任务涉及的实现、约束、依赖与验证要求，确认需要修改的代码、测试与文档位置。
-5. 实现当前任务，保持变更尽量小且符合既有结构；如遇到真正阻塞该任务的缺失能力或规格偏差，则新增最小前置任务并停止在该处。
-6. 运行与当前任务直接相关的验证：至少包括针对性测试，并视需要运行更广的测试、格式化、`clippy` 等检查，修复发现的问题。
-7. 更新任务记录：在对应 `TODO-Px.md` 标记完成；若任务索引、顺序或标题发生变化，则同步更新 `TODO.md`；仅在阶段计划发生变化时更新 `PLAN.md`。
-8. 将本次关键进展补记到本文件。
-9. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
+## 记录规则
 
-## 进度记录
+- 不在此文件记录隐藏推理，仅记录可执行计划、关键发现、阻塞与已完成步骤。
+- 如实施过程中发现需要新增前置任务，会在此文件追加原因、受影响任务与后续动作。
 
-- 已创建计划文件，下一步开始读取 `TODO.md` 与对应详细任务文件，定位首个未完成任务。
-- 已读取 `TODO.md` 与 `TODO-P0.md`，确认首个未完成详细任务为 `P0-T04`（建立 P0 baseline parity 验证矩阵）。
-- 已检查最近一次提交：`[P0-T03R] Review effect refactor boundary inventory`，未发现提交信息中存在需要先处理的、与 `P0-T04` 直接相关的未完成事项。
-- 下一步：阅读当前 CLI / dispatcher / 测试实现，确定复用哪套测试入口来落地自动化 parity 验证。
-- 已完成实现：
-  - 为 `dump-ast` / `dump-hir` / `dump-mir` / `dump-ir` 抽出可复用的字符串渲染辅助函数，避免 parity 测试只能走黑盒 stdout 捕获。
-  - 新增 `crates/scoop/src/commands/parity.rs`，覆盖 AST / HIR / MIR / IR 四类样本的 legacy/refactor 自动化 parity 验证。
-  - `dump-ir` 额外提供仅供测试使用的稳定化 parity 视图：保留 materialized file 与 instance family/summary 投影，规避原始 `Debug` 中 `TypeStore` 和 hash-backed side table 的跨进程不稳定顺序。
-- 已完成验证：
+## 当前进展
+
+- 已读取 `TODO.md` 与 `TODO-P0.md`，确认首个未完成详细任务为 `P0-T04R`（`Review baseline parity 与 P0 退出条件`）。
+- 已检查最新提交：`a89fe87 [P0-T04] Establish baseline parity matrix`，提交信息未声明需要在当前任务前新增直接相关的前置修复。
+- 下一步：按 `P0-T04R` 要求复核 parity harness、边界清单、CLI/session/dispatcher 路径，并重新执行规定的定向验证。
+
+## 已完成步骤
+
+- 已复核 `crates/scoop/src/commands/parity.rs`、`EFFECT_REFACTOR_BOUNDARY_INVENTORY.md`、`crates/scoop/src/cli.rs`、`crates/scoop/src/commands/mod.rs`、`crates/scoop/src/commands/build.rs`、`crates/scoopc/src/session/mod.rs`、`crates/scoopc/src/driver_cli.rs`、`crates/scoopc/src/bin/scoopc.rs`、`crates/scoopc/src/effect_refactor_pipeline/mod.rs`。
+- 结论：P0 baseline parity 已覆盖 AST / HIR / MIR / IR 代表路径，并在启用 LLVM feature 时补充 `build --emit-llvm` parity；默认 selector 仍为 `legacy`，显式 `refactor` 入口继续经 `SessionOptions` 与 dispatcher 壳层进入，不存在需要为当前任务新增的前置修复。
+- 已完成定向验证：
   - `cargo test -p scoop --no-default-features parity`
   - `cargo test -p scoop --no-default-features cli`
   - `cargo test -p scoopc --no-default-features session`
+  - `cargo test -p scoopc --no-default-features driver_cli`
+  - `cargo test -p scoopc --no-default-features effect_refactor_pipeline`
   - `cargo test -p scoop build_emit_llvm_cli_parity_matches_legacy_and_refactor`
   - `cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`
-  - CLI smoke：`dump-ast`、`dump-hir`、`dump-mir` 已人工比较 legacy/refactor 一致；`dump-ir` 已人工确认两种 mode 均可成功运行，具体输出一致性由自动化正规化 parity 测试覆盖。
-- 已把 `P0-T04` 完成记录回写到 `TODO-P0.md`；`TODO.md` 与 `PLAN.md` 无需同步，因为任务 id / 顺序 / phase plan 未变化。
-- 下一步：检查工作区 diff，按仓库约定创建 `P0-T04` 提交，然后停止本轮执行。
+- 下一步：提交 `TODO-P0.md` 与 `memory/claude_plan.md` 的更新，并停止在 `P0-T04R` 边界。
