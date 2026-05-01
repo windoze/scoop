@@ -717,7 +717,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.raw_materialized_mir_operand_is_supported(lhs)
                     && self.raw_materialized_mir_operand_is_supported(rhs)
             }
-            crate::mir::Rvalue::Call { kind, args } => {
+            crate::mir::Rvalue::Call { kind, args, .. } => {
                 self.raw_materialized_mir_call_kind_is_supported(body, mir_types, kind)
                     && args
                         .iter()
@@ -1466,6 +1466,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 op_fqn,
                 metadata,
                 args,
+                ..
             } => self.codegen_mir_perform_terminator(
                 terminator.span,
                 op_fqn,
@@ -1508,7 +1509,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let rhs = self.codegen_mir_operand(span, rhs, slots)?;
                 self.codegen_mir_binary(span, *op, lhs, rhs)
             }
-            crate::mir::Rvalue::Call { kind, args } => {
+            crate::mir::Rvalue::Call { kind, args, .. } => {
                 self.codegen_mir_call(span, kind, args, body, mir_types, slots)
             }
             crate::mir::Rvalue::PatternMatch { subject, pattern } => {
@@ -4196,7 +4197,7 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
             collect_mir_operand_use(lhs, out);
             collect_mir_operand_use(rhs, out);
         }
-        crate::mir::Rvalue::Call { kind, args } => {
+        crate::mir::Rvalue::Call { kind, args, .. } => {
             collect_mir_call_kind_uses(kind, out);
             for arg in args {
                 collect_mir_operand_use(&arg.value, out);

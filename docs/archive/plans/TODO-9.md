@@ -1,0 +1,371 @@
+# TODO（Scoop：Continuation / Effect Runtime 收口）
+
+> 生成时间：2026-05-01  
+> 历史归档：`docs/archive/plans/TODO-8.md` / `docs/archive/plans/PLAN-8.md`  
+> 设计基线：[`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md)  
+> 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
+> 迁移说明：
+> - 从旧 TODO 迁入并继续保留：`T5001f8c -> T5002a`、`T5001f8R -> T5002aR`、`T5001g -> T5002e`、`T5001gR -> T5002eR`。
+> - 不再迁入：`T5001f9 / T5001f9R`。新设计明确改为 traced refs + 删除 replay-state，而不是 stable-handle continuation owner 路线。
+
+## 全局约束
+
+- [`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md) 是本轮唯一设计基线；实现改变主张时，必须先回写设计文档。
+- `PLAN.md` / 当前 `TODO.md` 是本轮唯一计划记录；`docs/archive/plans/*` 只作历史归档，不回写旧 round。
+- 上一轮 explicit root frame 成果视为既成前提，不在本轮重开大方向讨论。
+- 本轮不保留过渡期最终形态。
+  - 若某个旧 bridge API 已被新路径替代，则在该轮实现收尾时必须删除，而不是长期保留兼容入口。
+- runtime 只保留 generic substrate。
+  - 允许保留 `scoop_alloc_typed`、对象头、GC trace/relocation、thread/native boundary、通用容器与同步原语；
+  - 不允许继续把 continuation object model、resume driver、handler stack policy、outcome bridge policy 留在 runtime public API 中。
+- `EffectOutcome` 是唯一 propagation source of truth。
+  - `resume_token` 必须显式保存在 `EffectOutcome.signal.resume_token`；
+  - `callee_suspend_state`、`pending_continuation`、handler stack 不得继续通过 TLS scratch 承担语义 owner 职责。
+- `ScoopContinuation` 必须收口为普通 managed object。
+  - 不再使用 stable handle；
+  - 不再持有 native `malloc` handler snapshot；
+  - 不再需要 `release_fn`。
+- 旧测试若直接依赖将被删除的 C ABI 形状，应当迁移，而不是强行阻止实现。
+- 每个实现任务后都必须紧跟 review 任务。
+- 最终 full verification 必须在以下环境下完整执行相关 fixture：
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1`
+
+## T5002：Continuation / Effect Runtime 收口
+
+### [DONE] T5002a 完成 state-machine mutable-local flush-back 合同（承接旧 `T5001f8c`）
+- 范围：
+  - 在 suspend / return / arm-exit / cleanup 四类边界统一 flush mutable locals 回 heap frame，使 frame 成为跨 resume / cleanup 的稳定持久化 source of truth。
+  - 收口 `CgLocal.frame_backing_ptr` 相关 contract，保证执行期 local home 不会只在 block 内正确、而在离开 state/arm 时遗漏最新值。
+  - 以系统性设计修复当前剩余 blocker：
+    - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - 为 direct escape、indirect ordinary suspend、outer mutable local writeback 三类窗口补最小 fixture/LLVM 回归。
+- 验收：
+  - `effect_multi_escape_indirect_direct_while.scoop` 恢复 golden，不再出现 `missing1..missing4` 或顺序错乱；
+  - mutable local 的 frame flush-back contract 已覆盖 suspend / return / arm-exit / cleanup 四类边界；
+  - 不再存在“值只停留在执行期 local home，离开 state/arm 后没有及时写回 frame”的路径。
+- 依赖：旧 round 到 `T5001f8bR` 为止的工作已完成，可直接继续。
+- 完成记录：
+  - `write_back_outer_scope_frame_slots(...)` 已统一落在 step-function return、`ReturnHandle`、`ReturnFromFunction`、`Suspend`、`ArmReturnHandle`、`ArmResumeMatchedSite`、`ArmMaterializeContinuation` 以及外层 handle `handle_propagate/handle_done` 退出边界上，flush-back 合同覆盖 suspend / return / arm-exit / cleanup 四类窗口。
+  - LLVM 回归已锁定 outer mutable writeback / stable exec local home / cleanup 相关合同：`escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`。
+  - 定向 run-pass 已确认 `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop` 在默认环境与所需 GC 环境下通过。
+
+### [DONE] T5002aR Review：确认 state-machine flush-back 真正取代了 block-local write-through 偶然正确性
+- 重点：
+  - flush-back 是否覆盖 suspend / return / arm-exit / cleanup 四类边界，而不是只覆盖 block 内赋值；
+  - outer mutable local、arm binder、capture local、escape continuation binder 是否都共享同一持久化合同；
+  - `effect_multi_escape_indirect_direct_while.scoop` 是否真正锁住了 direct/indirect mixed 剩余窗口。
+- 验收：
+  - `T5002b` 可在不再被 state-machine 持久化 source-of-truth 阻塞的前提下继续推进；
+  - review 阶段必须在三项 GC env 全开条件下重跑相关 direct/indirect fixture。
+- 依赖：T5002a
+- 完成记录：
+  - 已复核 `write_back_outer_scope_frame_slots(...)` 的调用点覆盖 step-function return、`ReturnHandle`、`ReturnFromFunction`、`Suspend`、`ArmReturnHandle`、`ArmResumeMatchedSite`、`ArmMaterializeContinuation`，以及外层 handle `handle_propagate/handle_done`，flush-back 合同不再只依赖 block 内 write-through 偶然正确。
+  - 已复核 outer mutable local、arm binder、capture local、escape continuation binder 的 env materialization 都收口到“entry alloca exec home + frame slot backing”合同；mutable local 的赋值路径会继续通过 `frame_backing_ptr` 同步到持久化 frame slot。
+  - 已通过 LLVM 回归 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`、`escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract`。
+  - 已在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下复验 `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop`、`effect_escape_continuation_indirect_perform_binder_string_use.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`。
+
+### [DONE] T5002b1 显式引入 direct-call wrapper 的 `incoming_resume_token_ref`
+- 范围：
+  - 把 top-level ordinary outward-effect direct call wrapper 的 hidden ABI 从 `current_effect_ctx_ref + ScoopEffectOutcome*` 扩成 `current_effect_ctx_ref + incoming_resume_token_ref + ScoopEffectOutcome*`。
+  - fresh direct call（HIR path 与 raw-MIR direct-call bridge）显式传入 `null` incoming token，而不是继续把“无 token”这一状态完全隐含在 TLS scratch 缺省值里。
+  - wrapper 内在安装 ctx 后，显式 `publish` incoming token；在 `consume_current_effect_outcome(...)` 之后再清空 TLS token scratch，避免丢失本次传播生成的 fresh token。
+- 验收：
+  - direct-call wrapper IR 明确出现 `@scoop_callee_suspend_state_publish`；
+  - fresh direct outward-effect call IR 明确把 `ptr addrspace(1) null` 作为 `incoming_resume_token_ref` 传给 wrapper；
+  - 原有 explicit outcome wrapper 合同继续成立，不回退到 post-call TLS active probing。
+- 依赖：T5002aR
+- 完成记录：
+  - `declare_top_level_fun_effect_call_wrapper_impl(...)` 与 `codegen_top_level_fun_effect_call_wrapper_impl(...)` 现已显式接收 `incoming_resume_token_ref`，并在 wrapper 内围绕 legacy call 做 `publish -> consume outcome -> clear`。
+  - HIR direct call 与 raw-MIR direct call 在构造 wrapper 实参时都会显式传入 `null_effect_resume_token()`，不再把 fresh-call 的 token 缺省值完全隐含在 runtime TLS 初值里。
+  - LLVM 回归 `effect_contract_struct_types_are_registered_for_effect_codegen`、`direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome` 已通过；`cargo clippy --all-targets -- -D warnings` 已通过。
+
+### [DONE] T5002b2a 把显式 `incoming_resume_token_ref` 扩到 ordinary indirect-call surface
+- 范围：
+  - 把 effect-capable generated callable 的剩余 ordinary indirect-call 入口统一扩成显式承接 `incoming_resume_token_ref`，覆盖 closure call、funptr call、vtable call、itable call 相关 production signature 与 indirect call IR。
+  - fresh call path 显式传入 `null` token，而不是继续把“无 token”状态完全隐含在 TLS scratch 初值里。
+  - caller boundary 在 `consume_current_effect_outcome(...)` 之后显式清空 TLS token scratch，避免泄漏本次 boundary 的 incoming token。
+- 验收：
+  - closure / funptr / vtable / itable 相关 production signature 与 indirect call IR 都已显式携带 `incoming_resume_token_ref`；
+  - fresh indirect outward-effect call IR 明确传入 `ptr addrspace(1) null` 作为 incoming token；
+  - direct call 与 ordinary indirect call 不再混用“wrapper 显式 token / indirect 隐式 TLS token”两套 boundary 形状。
+- 依赖：T5002b1
+- 完成记录：
+  - effect-capable generated callable 的 ordinary indirect-call 形状现已统一显式预留 `incoming_resume_token_ref`：top-level declared-effectful function、HIR closure、materialized MIR closure 的生产 signature 都会在 hidden sret 之后插入 token 参数；direct non-wrapper fresh call 也会在需要时显式传 `null` token 以对齐同一 ABI。
+  - closure / funptr / vtable / itable boundary 在 legacy call 前都会显式 `publish` incoming token（当前 fresh path 为 `null`），并在 `consume_current_effect_outcome(...)` 之后 `clear` TLS token scratch，不再继续完全依赖 TLS 初值的隐式“无 token”状态。
+  - LLVM 回归已覆盖 closure / funptr / vtable / itable 的 `null incoming_resume_token_ref` IR 与 boundary publish/consume/clear 合同；`cargo clippy --all-targets -- -D warnings` 已通过。
+
+### [DONE] T5002b2a1 补齐 production pass-MIR effectful closure body lowering，使 materialized MIR closure review 可完成
+- 范围：
+  - 修复 production MIR bridge 对 effectful materialized closure body 的剩余缺口，使 closure body 直接 perform effect 的场景不再在 `mir_body.rs` 上报 `UnsupportedMainBody { kind: "pass MIR rvalue" }` / `pass MIR terminator`。
+  - 确认 pass-visible caller body 与 materialized MIR closure body 在 effectful closure 场景下都能继续遵守 ordinary indirect-call 的显式 `incoming_resume_token_ref` 合同，而不是只在 HIR closure 或“closure body 只做 direct call”的窄形状上成立。
+  - 吸收本次 review 已发现并修复的两个既有缺口作为同一前置收口的一部分：
+    - `pass_mir_closure_call` 在 effect boundary 后重新加载 closure object，而不是继续使用 boundary 前读取的 `env_ptr/fn_ptr` SSA；
+    - top-level pass MIR body 绑定参数时要同时跳过 hidden sret 与 hidden incoming token，不能把 token slot 错当成用户参数。
+- 验收：
+  - 新增 production-lowered LLVM 回归覆盖“pass-visible caller body 调用 effectful materialized MIR closure，且 closure body 直接 perform effect”的最小程序，并确认不再报 unsupported；
+  - materialized MIR closure caller IR 继续显式体现 `null incoming_resume_token_ref` 与 boundary `publish -> consume -> clear`；
+  - 至少一组相关 fixture/最小程序可证明 materialized MIR closure 不只是声明形状正确，而是 end-to-end 可运行。
+- 依赖：T5002b2a
+- 完成记录：
+  - `codegen_mir_perform_terminator(...)` 现在会在 `emit_ordinary_non_resuming_effect_exit(...)` 之后立即为 terminator-only dead landing block 补 `unreachable`，不再留下 LLVM verifier-invalid 的 unterminated `pass_mir_effect_perform_dead` block。
+  - LLVM 回归现已同时覆盖 raw materialized closure body 与 pass-visible caller body：`production_codegen_lowers_raw_mir_effectful_closure_body_direct_perform` 锁定 direct-`perform` closure body 的 `Perform` terminator 收尾；`production_pass_mir_effectful_closure_body_direct_perform_lowering` 锁定 pass-visible caller 的显式 `incoming_resume_token_ref` / outcome boundary 以及 closure body lowering 不再报 unsupported。
+  - 新增 end-to-end fixture `tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`；已在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过。
+
+### [DONE] T5002b2aR Review：确认 ordinary indirect-call surface 已统一改走显式 token
+- 重点：
+  - closure / funptr / vtable / itable 是否都显式携带 `incoming_resume_token_ref`，而不是只在 call-site 临时 publish；
+  - boundary helper 是否都在 consume outcome 后清空 TLS token scratch，避免 fresh token 被旧 incoming token 残留污染；
+  - direct wrapper 与 indirect boundary 的参数顺序是否已经收口到同一约定。
+- 验收：
+  - 可在不再被 ordinary indirect-call ABI 形状阻塞的前提下继续推进 callee resume / step-dispatch token 收口；
+  - review 阶段必须同时检查 IR 断言与至少一组 closure/funptr/vtable/itable 相关 fixture/最小程序，而不是只看函数声明。
+- 依赖：T5002b2a1
+- 完成记录：
+  - 已复核 top-level callable、HIR closure 与 materialized MIR closure 的签名构造/参数绑定路径：`incoming_resume_token_ref` 都在 hidden sret 之后、普通参数之前进入 generated callable ABI，不再只是 caller boundary 临时 publish 的旁路。
+  - 已复核 ordinary indirect-call boundary（closure / funptr / vtable / itable）与 pass-MIR closure caller：都会在 legacy call 前 `publish` incoming token，并在 `consume_current_effect_outcome(...)` 之后立刻 `clear` TLS token scratch，再恢复 handler stack top。
+  - LLVM 回归已通过：`explicit_outcome_boundary`、`production_pass_mir_closure_call_reloads_closure_after_effect_boundary`、`production_codegen_lowers_raw_mir_effectful_closure_body_direct_perform`、`production_pass_mir_effectful_closure_body_direct_perform_lowering`。
+  - run-pass fixture `effect_indirect_perform_nonresuming_function_value_local.scoop`、`effect_indirect_perform_materialized_mir_closure_basic.scoop`、`effect_handle_hidden_suspend_virtual_helper_basic.scoop`、`effect_handle_hidden_suspend_interface_helper_basic.scoop` 已在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过；`cargo clippy --all-targets -- -D warnings` 已通过。
+
+### [DONE] T5002b2b1 对齐 callee resume entry 的显式 `incoming_resume_token_ref` contract
+- 范围：
+  - 把 callee resume entry helper / replay call surface 的 hidden 参数语义收口为显式 `incoming_resume_token_ref`，不再继续以“特例 state 参数”命名和理解 replay token。
+  - callee resume entry 入口显式 `publish` incoming token，再从该 token 读取 suspend-state 并做 resume-site dispatch。
+- 验收：
+  - callee resume entry replay call IR 明确继续把 replay token 作为显式 incoming token 传入；
+  - callee resume entry IR 明确出现 `@scoop_callee_suspend_state_publish`，ordinary resumed path 不再只在 helper 内隐式理解 token。
+- 依赖：T5002b2aR
+- 完成记录：
+  - `call_callee_resume_entry_with_token(...)` / `call_callee_resume_entry_with_token_impl(...)` 已替代旧的 `...from_state(...)` 命名，replay call IR 直接把保存的 replay token 作为显式 incoming token 实参传给 callee resume entry。
+  - `codegen_callee_resume_entry_function_impl(...)` 现在会在 entry 先 `publish_incoming_resume_token(...)`，再以该 token 作为 suspend-state 输入做 resume-site dispatch。
+  - LLVM 回归 `suspend_ir_stores_callee_resume_token_on_frame_and_replays_via_resume_thunk` 与 `cargo clippy --all-targets -- -D warnings` 已通过。
+
+### [DONE] T5002b2b2a 让 resumed non-call suspend materialization 继承当前 ordinary callee replay token
+- 范围：
+  - 为 codegen 暴露 `scoop_callee_suspend_state_get()`，使 state-machine `Suspend` terminator 在 materialize fresh continuation 且当前 site 没有 ordinary call token slot 时，仍能显式读取当前 TLS incoming token。
+  - fresh continuation materialization 优先捕获 site 自己的 ordinary replay token slot；仅当当前 site 不拥有该 slot 时，回退捕获当前 TLS incoming token，避免 resumed non-call suspend（direct perform / nested-handle boundary 等）直接丢掉外层 ordinary callee replay 链。
+- 验收：
+  - LLVM IR 明确出现 `@scoop_callee_suspend_state_get` 与 `@scoop_continuation_set_captured_callee_suspend_state`，证明 non-call suspend 的 fresh continuation 会继承当前 incoming callee token；
+  - `cargo test -p scoopc resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation -- --nocapture` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+- 依赖：T5002b2b1
+- 完成记录：
+  - `runtime_symbols.rs` / `runtime_abi.rs` 已新增 `scoop_callee_suspend_state_get` ABI 暴露；
+  - `state_machine_emitter.rs` 的 fresh continuation materialization 现已在没有 ordinary token slot 的 suspend site 上回退捕获当前 TLS incoming token；
+  - LLVM 回归 `resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation` 已锁定该合同。
+
+### [DONE] T5002b2b2a2 补齐 non-tail escape arm segmented-body 的 resume-fragment 合同
+- 范围：
+  - 对 non-tail `EscapeContinuation` arm 且 body 仍可能 outward suspend 的形状，不再只停留在 opaque `ExecuteArmBody`；至少让 arm body 内部的 nested handle / `try { k.resume(...) } catch ...` / body tail 共享同一条可 replay 的 resume-fragment 合同。
+  - 让 arm body 自己的 nested-handle boundary 在 replay 后不再把 inner handle / `try` 表达式值直接当成整个 arm 结果；outer arm tail（例如 `inner_arm_after_resume`、`resumed + 1`）必须继续执行。
+  - 理顺 arm body 内部隐藏的 `Continuation.resume(...)` site 与外层 nested-handle boundary 的 owner 链：same-frame replay 继续消费 raw inner token，对更外层暴露的 token 则必须指向能继续 arm tail 的 wrapper continuation。
+- 验收：
+  - 最小 nested-handle immediate-resume 探针可证明 replay 至少继续到 `inner_arm_after_resume` 与 arm tail，不再停在 `after_boom` / `after_nested = 18`；
+  - 至少一条 focused analysis / LLVM / run-pass 回归锁定 non-tail escape arm segmented-body 的 `Continuation.resume(...)` site 与 nested-handle boundary replay 合同。
+- 依赖：T5002b2b2a
+- 完成记录：
+  - `SuspendSourcePath` 现已显式区分 `handle.body` 顶层 stmt、arm body 与 finally stmt 三类 root，并在遍历任意表达式时统一尝试登记站点；`NestedHandleBoundary` 不再继续天然缺失 source-path。
+  - segment / unified transform 的 builder contract 已允许 `NestedHandleBoundary` 携带 source-path；对应 replay 裁剪现在会按 arm-body root 定位，而不再只能回退到粗糙的 `state.actions[1..]`。
+  - `state_machine_emitter.rs` 现已在 nested-handle boundary outward suspend 时保留 frame 内 raw replay token 供 same-frame replay 使用，同时把向外传播的 `EffectOutcome.signal.resume_token` 改写成 wrapper continuation，使更外层 resume 会先回到 arm tail，再由该 tail 驱动 raw inner token replay。
+  - 新增 analysis 回归 `non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail` 与 run-pass fixture `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；并复验既有 probe `non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site`、`effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`。
+
+### [DONE] T5002b2b2a2R Review：确认 escape arm body 不再作为 opaque expr 截断 replay tail
+- 重点：
+  - non-tail `EscapeContinuation` arm body 是否已经具备 resume-fragment/source-path 合同，而不是只在 `ExecuteArmBody` 中整块 opaque codegen；
+  - nested handle / `try` boundary replay 后，arm tail 是否继续执行到 `inner_arm_after_resume` / `resumed + 1`；
+  - same-frame raw token 与向外传播 wrapper token 的 owner 是否已经分层明确。
+- 验收：
+  - `T5002b2b2b` 可在 arm body replay tail 已经闭合的前提下继续只关注 ordinary callee boundary 上的 replay owner 错位；
+  - review 阶段至少要覆盖一条分析/IR 断言与一条 end-to-end replay probe，而不是只看运行输出。
+- 依赖：T5002b2b2a2
+- 完成记录：
+  - 已复核 `analysis.rs` 中 `segmented_body` 的判定与 arm body lowering：non-tail `EscapeContinuation` arm 且 body 会 outward suspend 时，会在 `build_arm_body_plans(...)` 里进入 first-class segmented-body 路径，而 `emit_execute_arm_body(...)` 对这类 arm 会直接返回、跳过 opaque expr codegen。
+  - 已复核 `SuspendSourceRoot::ArmBody`、`attach_suspend_source_paths(...)` 与 `record_suspend_source_path(...)`：arm body 内的 `NestedHandleBoundary` 现在会以 arm-rooted source-path 建档；analysis 回归 `non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail` 继续锁定 `arm#0 -> block[0]` 以及 replay fragment 中保留 `inner_arm_after_resume` / `resumed + 1`。
+  - 已复核 `state_machine_emitter.rs` 的 owner 分层：same-frame replay 继续从 `nested_handle_boundary_replay_token` frame slot 消费 raw inner token，而 outward suspend 时若站点有 continuation/nested-boundary replay slot，则会把 `EffectOutcome.signal.resume_token` 改写成当前 materialized wrapper continuation，确保更外层 resume 先回到 arm tail。
+  - 已完成验证：`cargo test -p scoopc non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site -- --nocapture`、`cargo test -p scoopc non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`、`cargo clippy --all-targets -- -D warnings`。
+
+### [TODO] T5002b2b2b 修复 nested-handle immediate-resume replay-state 穿过 ordinary callee boundary 时的 replay owner 错位
+- 范围：
+  - 修复“ordinary callee fresh suspend 命中 inner `Continuation.resume(...)` replay 后，outer ordinary call boundary 把 legacy replay-state 误当成 callee resume entry token 保存，随后 replay 直接跳到错误对象形状”的现有错误行为。
+  - 明确 ordinary callee token、inner pending continuation、legacy replay-state 在该路径上的 owner 与恢复顺序，使 outer ordinary call replay 不再把 nested immediate-resume bookkeeping 当成 callee resume state 使用。
+  - 在此基础上完成原 `T5002b2b2` 的 end-to-end 目标：第一次 `k.resume(...)` 后 resumed ordinary callee 可再次 outward suspend；第二次 `k.resume(...)` 后继续 inner callee tail，而不是提前把 outer payload 当成最终 answer。
+- 验收：
+  - 最小 nested-handle immediate-resume 程序可证明：第一次 `k.resume(...)` 后 resumed ordinary callee 命中第二次 outward suspend；第二次 `k.resume(...)` 后会继续执行 inner callee tail，而不是提前把 outer payload 当成最终 answer；
+  - 至少一条 focused LLVM / run-pass 回归锁定该 replay-chain 行为。
+- 依赖：T5002b2b2a2R
+
+### [TODO] T5002b2bR Review：确认 callee resume entry token contract 已与 ordinary call boundary 对齐
+- 重点：
+  - replay call IR 与 fresh ordinary call IR 是否共享同一 token 参数约定；
+  - callee resume entry 是否还残留“语义上是 token、但 ABI 上仍是特例 state 参数”的旁路。
+- 验收：
+  - 可在不再被 callee resume entry ABI 特例阻塞的前提下继续推进 step/dispatch token 收口。
+- 依赖：T5002b2b2b
+
+### [TODO] T5002b2c 把显式 `incoming_resume_token_ref` 扩到 state-machine step/dispatch 与 runtime continuation bridge
+- 范围：
+  - 把 state-machine step/dispatch hidden ABI 扩成显式承接 `incoming_resume_token_ref`。
+  - 同步 runtime continuation bridge / continuation step_fn 调用侧，使 captured callee suspend state 通过显式 token 参数传入 step/dispatch，而不是在调用前临时塞回 TLS scratch。
+- 验收：
+  - step / dispatch 相关 production signature 与 runtime 调用点都已显式携带 `incoming_resume_token_ref`；
+  - continuation resume 驱动不再依赖“调用 step_fn 前先把 captured callee suspend state 塞进 TLS”这一旧约定；
+  - `T5002b2` 的 remaining surface 已全部完成显式 token 收口，可进入 review。
+- 依赖：T5002b2bR
+
+### [TODO] T5002b2cR Review：确认剩余 hidden effect ABI surface 不再混用隐式 TLS token
+- 重点：
+  - ordinary indirect call、callee resume entry、step/dispatch、runtime continuation bridge 是否已经统一到显式 `incoming_resume_token_ref`；
+  - 是否仍残留“fresh path 显式 token、resume/dispatch path 隐式 TLS token”的半切换状态。
+- 验收：
+  - `T5002b3` 可在 token contract 已统一的前提下继续推进 managed `EffectCtx` / `EffectHandlerNode`。
+- 依赖：T5002b2c
+
+### [TODO] T5002b3 引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 并替换 handle 入口注册路径
+- 范围：
+  - 在 codegen 中落地 `ScoopEffectCtx { hdr, handler_top_ref }` / `ScoopEffectHandlerNode { hdr, prev_ref, op_tag, flags, owner_frame_ref, dispatch_fn }` 的最终 managed object 布局与 bitmap descriptor。
+  - handle 入口改为分配 rooted managed `ScoopEffectHandlerNode` 链与 `ScoopEffectCtx`，不再为 production path 生成 stack `alloca` handler frame + runtime `push/pop`。
+  - nested handle/body/finally/ordinary effect-capable call 统一显式接收当前 managed ctx。
+  - `runtime_abi.rs` 中 raw handler-frame ABI 退出 production lowering 主路径。
+- 验收：
+  - production IR 不再调用 `@scoop_effect_handler_stack_push` / `@scoop_effect_handler_stack_pop`；
+  - `__scoop_type_desc_runtime__ScoopEffectCtx*` / `__scoop_type_desc_runtime__ScoopEffectHandlerNode*` 由 production codegen 生成，trace bitmap 只覆盖 GC refs 字段；
+  - handle 入口相关 IR 断言改为检查 managed node / ctx 分配与 rooted storage；
+  - `effect_escape_continuation_arm_performs_outer_effect.scoop` 在默认环境与所需 GC env 下通过。
+- 依赖：T5002b2cR
+
+### [TODO] T5002b4 用 derived ctx / ctx graph dispatch 收口 arm self-inactive、outer redispatch 与 cross-thread resume
+- 范围：
+  - arm self-inactive 改为 derived effect context，而不是 runtime mutable `active` 位。
+  - captured outer redispatch 改为基于 ctx graph 的显式 dispatch，而不是 runtime TLS `handler_stack_top` swap。
+  - cross-thread resume 改为依赖 captured managed ctx graph 与显式 token/outcome，而不是 raw TLS handler stack。
+- 验收：
+  - production IR 不再调用 `@scoop_effect_handler_stack_top` / `@scoop_effect_handler_stack_swap_top`；
+  - `tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`、`effect_escape_continuation_arm_performs_outer_effect.scoop`、`effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 在默认环境与需要的 GC env 下继续通过；
+  - `T5002b` 的语义目标已收口完成，可进入 review。
+- 依赖：T5002b3
+
+### [TODO] T5002bR Review：确认 production path 已不再依赖 raw TLS handler stack
+- 重点：
+  - handle 入口 / arm body / redispatch / cross-thread resume 是否已经统一依赖 managed `EffectCtx` graph；
+  - 是否还残留“stack alloca handler frame + runtime push/pop/top/swap”生产旁路；
+  - arm self-inactive 是否真正来自 derived ctx，而不是共享 node 上的就地 mutation。
+- 验收：
+  - `T5002c` 可在新的 effect context contract 上继续推进；
+  - review 阶段必须同时复核 IR 断言和 end-to-end fixture，而不是只看类型声明改动。
+- 依赖：T5002b4
+
+### [TODO] T5002c 将 continuation object / generated resume driver 收回 codegen
+- 范围：
+  - 按 `CONTINUATION_RUNTIME_REFACTOR.md` 的“2.1 `ScoopContinuation`”“3.2-3.3”“5. Continuation Allocation”“6. Continuation Resume Algorithm”“9. Why No `release_fn` Is Needed Anymore”落地新的 continuation 主线。
+  - 在 codegen 中定义最终 `ScoopContinuation` 布局：
+    - `captured_effect_ctx_ref`
+    - `state_ref`
+    - `captured_callee_suspend_state_ref`
+    - `resume_word`
+    - `resume_gc_ref`
+    - `step_fn`
+    - `_Atomic resumed`
+  - continuation descriptor 必须只依赖 traced fields / bitmap，不再要求 `release_fn`。
+  - 生成 module-private `__scoop_continuation_resume_with(...)` helper，负责：
+    - one-shot `cmpxchg`
+    - payload 写入
+    - `state_ref` / `captured_effect_ctx_ref` / `captured_callee_suspend_state_ref` 读取
+    - 调用 generated step/dispatch hidden ABI
+    - 读取 delimiter answer transport
+  - production lowering 不再声明或调用 runtime continuation bridge：
+    - `scoop_continuation_alloc`
+    - `scoop_continuation_resume_with`
+    - `scoop_continuation_set_captured_callee_suspend_state`
+    - `scoop_continuation_resume_publish_pending_continuation`
+- 验收：
+  - production IR 中不再出现上述 runtime continuation symbols；
+  - generated continuation type descriptor 的 `release_fn` 为 `NULL`；
+  - continuation 内部不再使用 stable handle，也不再持有 native handler snapshot；
+  - `tests/fixtures/run-pass/continuation_resume_enum.scoop`、`continuation_resume_struct_with_ref.scoop`、`effect_escape_continuation_gc_stress_multi_string.scoop` 在三项 GC env 全开条件下继续通过。
+- 依赖：T5002bR
+
+### [TODO] T5002cR Review：确认 continuation 已成为普通 managed object，而不是 runtime shell + side resources
+- 重点：
+  - continuation 内是否已经只剩 traced refs、标量与代码指针；
+  - 是否还残留 stable handle、native snapshot、`release_fn`、runtime-owned one-shot/resume driver；
+  - remaining pin 是否都只是短窗口（如 helper 调用期），而不是长期 owner。
+- 验收：
+  - `T5002d` 可在不再被旧 continuation object model 阻塞的前提下继续推进；
+  - review 必须覆盖 IR、type descriptor 与 GC env fixture，而不是只看结构体定义。
+- 依赖：T5002c
+
+### [TODO] T5002d 删除 TLS bridge / replay-state / runtime continuation-effect public ABI，并迁移测试与文档
+- 范围：
+  - 按 `CONTINUATION_RUNTIME_REFACTOR.md` 的“7. Explicit Resume Token Instead of TLS Callee State”“8. Explicit Outcome Instead of TLS Outcome Bridge”“Source Changes Required”收空旧 bridge。
+  - 删除或收空以下 runtime 语义入口：
+    - `scoop_callee_suspend_state_publish/get/clear`
+    - `scoop_effect_outcome_consume_current/publish`
+    - `scoop_continuation_resume_publish_pending_continuation`
+    - `ScoopContinuationResumeScope`
+    - `ScoopContinuationResumeReplayState`
+  - `runtime/c/scoop_runtime_api.h` 从 public allowlist 中删除：
+    - 所有 `scoop_continuation_*`
+    - 所有 `scoop_effect_handler_stack_*`
+    - 所有 `scoop_effect_outcome_*`
+    - 所有 `scoop_callee_suspend_state_*`
+  - 迁移直接依赖 deleted C ABI 形状的测试：
+    - `crates/scoop_runtime/tests/continuation_one_shot.rs`
+    - `crates/scoop_runtime/tests/continuation_cross_thread_handler_stack.rs`
+    - `crates/scoop_runtime/tests/effect_tls.rs`
+    - 改为 compiler IR / run-pass / runtime_gc / end-to-end 验收，或收缩为 generic substrate 测试。
+  - 同步 `SCOOP_RUNTIME.md` 与必要实现注释，使其与 `CONTINUATION_RUNTIME_REFACTOR.md` 的边界一致。
+- 验收：
+  - runtime public allowlist 中不再出现 continuation/effect bridge API；
+  - production codegen 与测试不再依赖 deleted C ABI；
+  - `tests/fixtures/run-pass/effect_escape_continuation_multi_perform_cross_thread.scoop` 与 `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop` 在三项 GC env 全开条件下继续通过；
+  - 文档、注释与实际边界对齐。
+- 依赖：T5002cR
+
+### [TODO] T5002dR Review：确认 runtime 已收缩为 generic substrate，旧 bridge 已真正清零
+- 重点：
+  - runtime public ABI、production IR 与测试入口里是否都已没有 continuation/effect bridge 残留；
+  - replay-state 与 TLS scratch 是否已经退出语义主线，而不是只“没人再主动调用”；
+  - 文档是否仍残留 stable-handle continuation owner 或 runtime bridge 叙事。
+- 验收：
+  - `T5002e` 可在边界已经真正切换的前提下继续做全量验收；
+  - review 阶段必须同时检查 allowlist、IR、测试入口和文档，而不是只看运行结果。
+- 依赖：T5002d
+
+### [TODO] T5002e 全量回归、GC env、文档收尾（承接旧 `T5001g`）
+- 范围：
+  - 运行并整理最小验收矩阵，至少覆盖：
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build`
+  - 使用单个 fixture 顺序执行方式，在 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 条件下完整验证：
+    - `tests/fixtures/run-pass/**`
+    - `tests/fixtures/runtime_gc/**`
+    - `tests/fixtures/build/**`
+  - 补最小定向回归，锁定：
+    - state-machine flush-back；
+    - managed effect context / handler redispatch；
+    - continuation descriptor 无 `release_fn`；
+    - production IR 无 runtime continuation/effect bridge symbol；
+    - runtime public allowlist 无 continuation/effect bridge API；
+    - cross-thread resume 与 `Task.step()` handoff 继续成立。
+  - 同步 `SCOOP_RUNTIME.md` 与必要实现注释，说明 runtime 与 codegen 的新责任边界。
+  - 记录对象模型变化后的二进制 / 代码尺寸与主要 GC pause 观察结果，但不把性能调优作为 blocker。
+- 验收：
+  - 全量回归与定向回归都能支撑“continuation/effect runtime policy 已从 runtime bridge 收回 codegen，runtime 只保留 generic substrate”的结论；
+  - 文档、实现注释与实际行为已对齐。
+- 依赖：T5002dR
+
+### [TODO] T5002eR Review：确认 continuation runtime refactor 已收口完成，并为后续优化划清边界
+- 重点：
+  - 是否还残留 continuation/effect runtime correctness 缺口；
+  - regression 是否已覆盖：
+    - flush-back
+    - explicit outcome / resume token
+    - managed effect context
+    - codegen-owned continuation object
+    - 无 runtime bridge symbols / API
+    - cross-thread resume / task handoff
+  - stable-handle continuation owner 旧路线是否已明确退休，不再混入后续任务；
+  - 后续若还要评估性能、`mem2reg`、更细粒度 liveness 或 selective optimization，是否已经明确留到独立任务，而不是混入本轮 correctness 结论。
+- 验收：
+  - 本轮结论可明确表述为：continuation/effect runtime 已按 `CONTINUATION_RUNTIME_REFACTOR.md` 收口；runtime 只保留 generic substrate；旧 bridge API 与对应测试入口已退出主线。
+- 依赖：T5002e

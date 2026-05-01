@@ -363,7 +363,7 @@ fn analyze_rvalue_uses(
         Rvalue::MemberAccess { receiver, .. } => {
             mark_operand_use(receiver, OperandUse::Escaping, aliases, facts);
         }
-        Rvalue::Call { kind, args } => {
+        Rvalue::Call { kind, args, .. } => {
             analyze_call_kind_uses(kind, span, aliases, facts);
             for arg in args {
                 mark_operand_use(&arg.value, OperandUse::Escaping, aliases, facts);
@@ -548,7 +548,7 @@ fn local_name(body: &Body, local: LocalId) -> Option<String> {
 mod tests {
     use super::*;
     use crate::mir::{
-        BasicBlock, CallArg, ConstValue, LocalDecl, ResumeMetadata, Statement, Terminator,
+        BasicBlock, CallArg, ConstValue, LocalDecl, ResumeMetadata, SiteId, Statement, Terminator,
         UnwindAction,
     };
     use crate::opt::OptLevel;
@@ -584,6 +584,7 @@ mod tests {
                     kind: StatementKind::Assign {
                         target: result,
                         value: Rvalue::Call {
+                            site_id: SiteId::from_raw(0),
                             kind: CallKind::Closure {
                                 callee: Operand::Local(closure),
                                 fn_ptr: "fixtures.escape.lambda".to_string(),
@@ -627,6 +628,7 @@ mod tests {
                     kind: StatementKind::Assign {
                         target: result,
                         value: Rvalue::Call {
+                            site_id: SiteId::from_raw(0),
                             kind: CallKind::Direct {
                                 callee_fqn: "fixtures.escape.consume".to_string(),
                             },
@@ -664,6 +666,7 @@ mod tests {
                 kind: StatementKind::Assign {
                     target: result,
                     value: Rvalue::Call {
+                        site_id: SiteId::from_raw(0),
                         kind: CallKind::Resume {
                             continuation: Operand::Local(continuation),
                             resume: ResumeMetadata {

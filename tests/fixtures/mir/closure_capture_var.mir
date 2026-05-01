@@ -261,6 +261,7 @@ File {
                                         kind: Assign {
                                             target: l10,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Closure {
                                                     callee: Local(
                                                         l2,
@@ -276,6 +277,7 @@ File {
                                         kind: Assign {
                                             target: l11,
                                             value: Call {
+                                                site_id: site1,
                                                 kind: Closure {
                                                     callee: Local(
                                                         l5,

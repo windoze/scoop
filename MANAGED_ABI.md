@@ -87,6 +87,27 @@
 
 因此，“Managed ABI”更准确地说是一个新的 **ABI mode**，而不是一个新的 machine calling convention。
 
+### 1.4 native surface 审查补充结论
+
+在 `unsafe_funptr_aggregate_return_tuple` 于 macOS/AArch64 失败、但 Linux/amd64 通过之后，对当前 native surface 做的复审暴露出几条更底层的问题。这些问题不应通过单点补丁修，而应并入本文的 ABI 设计。
+
+1. **当前 callable identity 只有“函数签名”，没有“ABI 身份”**。  
+   `FunctionType` 只描述 receiver/params/return/effects；一旦 `@Extern` 符号被取成 `FunPtr<F>`，调用点只剩下 `F`，不再知道它是 ordinary managed callable、还是 C ABI native callable、还是将来的 managed external callable。
+
+2. **direct `@Extern` 与 `FunPtr` 目前没有共享同一套 native ABI classifier**。  
+   现状是 direct `@Extern` 会按 native leaf 处理，而 `FunPtr` 间接调用只在参数上复用了 native arg lowering，却在 aggregate 返回值上继续套 ordinary hidden sret。这种“参数 native、返回 ordinary”的分裂模型在 x86_64 上可能偶然工作，但在 macOS/AArch64 这类 ABI 更敏感的平台上会直接暴露。
+
+3. **`GC-free` 不是 `C ABI-safe` 的同义词**。  
+   当前 `@Extern` typecheck 只要求签名为 GC-free 值类型，但这并不自动意味着 tuple、普通 nominal value type、enum 等都具备稳定的跨平台 C ABI。是否可安全过 native ABI，必须由单独的 ABI-safe 规则定义，而不能复用 GC-free 判定代替。
+
+4. **裸函数地址不足以表达 native callable contract**。  
+   现有 `FunPtr<F>` 运行时表示只是一个 word-sized address；它不能携带 ABI family、calling convention、aggregate return 规则等元数据。因此，只在 call lowering 末端根据 `F` 现推 ABI 是不充分的；设计上必须承认“native callable surface”本身需要一等 ABI 身份。
+
+5. **测试辅助不能把编译器内部 ordinary ABI 假设伪装成 native ABI**。  
+   像 “用手写 `void + out* + args` helper 模拟 native aggregate return” 这样的测试方式，只能验证 hidden sret 路径是否自洽，不能证明 `FunPtr` 的 native C ABI 正确。native surface 的验收必须尽量贴近目标平台的真实 ABI，而不是把 ordinary managed ABI 投影到 native helper 上。
+
+这几条结论共同说明：本文不能只把 `Managed ABI` 设计成 “给 extern 多一个 managed 选项”，还必须把 **native callable ABI 的边界与身份** 一并画清楚。否则 runtime helper 从名字 special-case 迁出后，native surface 仍会继续以新的形态泄漏同类问题。
+
 ## 2. 分层模型
 
 本文建议把系统明确切成三层：
@@ -132,10 +153,17 @@
 这层继续保留当前 `@Extern` 的定位：
 
 - native leaf
-- GC-free 参数/返回值
+- ABI-safe 的 native value 参数/返回值
 - `Pure`
 - `enter_native/leave_native`
 - 不承担 ordinary managed return / statepoint caller contract
+
+并且这里的 “C ABI” 应同时覆盖两类入口：
+
+- direct external symbol call（`@Extern`）
+- indirect native callable（例如 `FunPtr<F>` 指向的 native function address）
+
+两者只是“符号 vs 指针”表示不同，不应拥有彼此矛盾的参数/返回值 ABI 规则。
 
 换句话说：
 
@@ -228,15 +256,40 @@ ExternAbi {
 - `calling_convention` 对 `ExternAbi::Scoop` 初版没有独立意义
 - Managed ABI 不是 machine callconv 扩展点
 
+### 4.4 callable ABI 身份必须是一等信息
+
+仅有 `FunctionType` 不足以支撑系统性的 ABI 分流。
+
+本文建议在设计上明确区分两层信息：
+
+- **源码级函数签名**：receiver / params / return / effects
+- **调用 ABI 身份**：ordinary managed、managed external、native C ABI
+
+约束如下：
+
+1. `@Extern` 声明必须保留 ABI 身份，而不只是 symbol name。
+2. `FunPtr<F>` 若承载 native callable，就不能在 lowering 时把 ABI 身份擦除成“只剩 `F`”。
+3. direct call 与 indirect call 应共享同一套 ABI classifier；不能一个入口知道 ABI、另一个入口靠局部规则猜测。
+4. `calling_convention`、aggregate return 规则、receiver 参与方式，都属于 ABI 身份的一部分，而不是 callsite 局部补充信息。
+
+本文不强制 v1 立刻把这些都做成公开语言表面，但要求内部设计先按这个边界组织，否则后续无法避免 “同一 native callable 在不同入口下被不同 lowering” 的问题。
+
 ## 5. typecheck / lowering 合同
 
 ### 5.1 `ExternAbi::C`
 
 继续保留现有门禁：
 
-- 签名 GC-free
+- 签名必须是 **ABI-safe 的 native value surface**，不能只用 GC-free 近似
 - `Pure`
 - effect-impermeable
+
+这里要特别强调：
+
+- `GC-free` 只说明“不含 GC 引用”，不说明“跨平台 C ABI 稳定”。
+- native ABI v1 应只接受一组明确列出的 ABI-safe 类型，而不是默认放行所有 GC-free aggregate。
+- 初版推荐的安全集合应至少包括：标量整数/布尔/字符/浮点、`UIntPtr`、以及 `Ptr<T>`/`@CLayout` 且已证明 ABI-safe 的值类型。
+- tuple、普通 nominal value type、enum、以及需要 hidden sret 才能表达的 aggregate，不应仅因 “GC-free” 就自动穿过 `ExternAbi::C`。
 
 ### 5.2 `ExternAbi::Scoop`
 
@@ -255,6 +308,23 @@ ExternAbi {
 对 external managed callee 而言，这套 outward effect ABI 目前还没有正式化。
 
 因此 v1 先限定为 `Pure`，是为了优先服务 runtime 切分，而不是一次性设计新的 effect ABI。
+
+### 5.4 `FunPtr<F>` 的合同补充
+
+`FunPtr<F>` 不应被视为“绕过 ABI 设计的自由通道”。
+
+本文建议把它明确建模为：
+
+- 一个 **callable token**
+- 它承载源码级函数签名 `F`
+- 同时承载其所属的 ABI family
+
+因此：
+
+1. 若 `FunPtr<F>` 来源于 native surface，则其调用必须与 `ExternAbi::C` 共享同一套 ABI-safe 规则。
+2. 若将来需要支持 managed external function pointer，则它应是另一条显式 ABI family，而不是复用 native `FunPtr` 语义。
+3. direct `@Extern` 取地址再通过 `FunPtr` 调用，不应丢失 ABI identity / calling convention / aggregate return 规则。
+4. bare `UIntPtr <-> FunPtr` round-trip 只能保留“地址”这一事实；若语言层需要跨 callsite 稳定复用完整 ABI 信息，必须在内部 lowering contract 中显式保留，而不能依赖最后一跳重新猜测。
 
 ## 6. codegen 合同
 
@@ -281,6 +351,32 @@ Managed ABI 的核心不是多一个 symbol kind，而是让 `declare_top_level_
 - caller 侧生成 conservative GC root spill
 - 由 LLVM statepoint pipeline 改写该 callsite
 
+### 6.2a native callable 的统一分流要求
+
+对 `ExternAbi::C` 与 native `FunPtr`，codegen 必须共享 **单一 native ABI classifier**，并把下列维度作为一个整体决策：
+
+- 参数 lowering
+- receiver lowering
+- 返回值 lowering
+- aggregate return 是否 direct / indirect
+- calling convention
+- 是否插 `enter_native/leave_native`
+- 是否标记 `gc-leaf-function`
+
+禁止出现以下分裂实现：
+
+- 参数按 native lowering，返回值按 ordinary lowering
+- direct symbol call 与 indirect funptr call 使用不同的 aggregate return 规则
+- declaration path 与 callsite path 各自独立决定是否 hidden sret
+
+换句话说，native surface 的 codegen 合同必须回答的是：
+
+- “这是哪一类 ABI callable？”
+
+而不是：
+
+- “这次碰巧从哪个入口进来？”
+
 ### 6.3 结果
 
 一旦这条路径成立，编译器对 helper 的理解就从：
@@ -292,6 +388,14 @@ Managed ABI 的核心不是多一个 symbol kind，而是让 `declare_top_level_
 - “如果 ABI 是 `Scoop`，就走 managed external call lowering”
 
 这正是本文要建立的架构边界。
+
+同时，对 native surface 来说，本文要求编译器从：
+
+- “看到 `FunPtr` 就套用 callable-value 现有 lowering”
+
+转成：
+
+- “先判定该 callable 的 ABI family，再选对应的 declaration/call lowering”
 
 ## 7. external implementation 的运行时合同
 
@@ -438,6 +542,11 @@ Managed ABI 的最终目标不是让手写 C 更舒服，而是让 cone 承接 h
 3. 含 live GC locals 的 caller 在调用点前后，statepoint rewrite 仍然保留 roots
 4. 若 helper 返回 aggregate，hidden sret 路径正确
 
+此外，native surface 需要单独验证：
+
+5. direct `@Extern` 与 native `FunPtr` 对同一目标签名生成一致的 ABI lowering
+6. 对 aggregate/native callable，不会出现 “direct call 正确、indirect call 偷套 hidden sret” 的分裂 IR
+
 ### 10.2 语义级验证
 
 至少需要验证：
@@ -453,6 +562,17 @@ Managed ABI 的最终目标不是让手写 C 更舒服，而是让 cone 承接 h
 1. 迁移后的 helper 不再需要 `dispatch.rs` 中按 FQN special-case
 2. 对应 public surface 不再需要 resolver/typecheck 的 member-call builtin 放行
 3. runtime 中只保留真正 substrate 所需的 string 核心，而不是整批 helper
+4. native callable ABI 的 declaration / direct call / indirect call 共享同一套 classifier，而不是分别维护局部规则
+5. 至少对 `linux/amd64` 与 `macos/aarch64` 各跑一组 direct vs indirect parity 回归，避免把 x86_64 偶然工作的 ABI 假设误记为通用合同
+
+### 10.4 native callable 回归原则
+
+对 `@Extern` / `FunPtr` 的 ABI 回归，本文要求：
+
+1. 测试 helper 尽量贴近目标平台真实 C ABI，不用 ordinary hidden sret helper 冒充 native aggregate return。
+2. 若需要验证 indirect native aggregate return，应同时覆盖：
+   `@Extern` direct call、取地址后的 `FunPtr` indirect call、以及不同 host 架构。
+3. 任何只在单一架构通过、但 ABI 模型本身不自洽的测试，都不能作为设计正确性的证据。
 
 ## 11. 成功判据
 

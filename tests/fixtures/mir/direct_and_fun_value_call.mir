@@ -121,6 +121,7 @@ File {
                                         kind: Assign {
                                             target: l2,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: FunValue {
                                                     callee: Local(
                                                         l0,
@@ -263,6 +264,7 @@ File {
                                         kind: Assign {
                                             target: l0,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Direct {
                                                     callee_fqn: "a.id",
                                                 },
@@ -317,6 +319,7 @@ File {
                                         kind: Assign {
                                             target: l3,
                                             value: Call {
+                                                site_id: site1,
                                                 kind: Direct {
                                                     callee_fqn: "a.apply",
                                                 },
@@ -443,6 +446,7 @@ File {
                                         kind: Assign {
                                             target: l2,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Direct {
                                                     callee_fqn: "a.id",
                                                 },

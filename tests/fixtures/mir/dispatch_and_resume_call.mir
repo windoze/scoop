@@ -64,6 +64,7 @@ File {
                                         kind: Assign {
                                             target: l1,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Virtual {
                                                     receiver: Local(
                                                         l0,
@@ -151,6 +152,7 @@ File {
                                         kind: Assign {
                                             target: l1,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Interface {
                                                     receiver: Local(
                                                         l0,
@@ -258,6 +260,7 @@ File {
                                         kind: Assign {
                                             target: l1,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Resume {
                                                     continuation: Local(
                                                         l0,
@@ -368,6 +371,7 @@ File {
                                         kind: Assign {
                                             target: l1,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Resume {
                                                     continuation: Local(
                                                         l0,

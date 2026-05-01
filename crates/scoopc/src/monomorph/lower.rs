@@ -429,6 +429,7 @@ fun entry(): Int / Pair {
                 op_fqn,
                 metadata,
                 args,
+                ..
             } => (op_fqn, metadata, args),
             other => panic!("expected perform terminator, got {other:?}"),
         };

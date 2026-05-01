@@ -78,6 +78,7 @@ File {
                                 terminator: Terminator {
                                     span: 51..123,
                                     kind: Handle {
+                                        site_id: site0,
                                         arms: [
                                             HandlerArm {
                                                 op_fqn: "scoop.core.Raise.raise",
@@ -124,6 +125,7 @@ File {
                                 terminator: Terminator {
                                     span: 64..78,
                                     kind: Perform {
+                                        site_id: site1,
                                         op_fqn: "scoop.core.Raise.raise",
                                         metadata: PerformMetadata {
                                             effect_ty: TypeId(

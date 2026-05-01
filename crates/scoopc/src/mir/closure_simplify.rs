@@ -249,7 +249,7 @@ fn try_expand_non_escaping_closure_call(
     let StatementKind::Assign { target, value } = &stmt.kind else {
         return None;
     };
-    let Rvalue::Call { kind, args } = value else {
+    let Rvalue::Call { kind, args, .. } = value else {
         return None;
     };
     let CallKind::Closure { callee, fn_ptr } = kind else {
@@ -394,7 +394,7 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
             collect_operand_use(rhs, out);
         }
         Rvalue::MemberAccess { receiver, .. } => collect_operand_use(receiver, out),
-        Rvalue::Call { kind, args } => {
+        Rvalue::Call { kind, args, .. } => {
             collect_call_kind_uses(kind, out);
             for arg in args {
                 collect_operand_use(&arg.value, out);

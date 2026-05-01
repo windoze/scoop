@@ -109,6 +109,7 @@ File {
                                         kind: Assign {
                                             target: l0,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Direct {
                                                     callee_fqn: "a.zero",
                                                 },

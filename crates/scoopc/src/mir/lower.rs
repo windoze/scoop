@@ -22,8 +22,8 @@ use crate::ty::{BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeSt
 use super::{
     BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
     HandlerArm, Item, LocalDecl, LocalId, MemberAccessMetadata, MemberTarget, Operand, Param,
-    Pattern, PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, Statement,
-    StatementKind, Terminator, TerminatorKind, TopLevelRef, UnwindAction,
+    Pattern, PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, SiteId,
+    Statement, StatementKind, Terminator, TerminatorKind, TopLevelRef, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -304,6 +304,7 @@ struct FnLowering<'a> {
     body: Body,
     current_bb: BasicBlockId,
     next_temp: u32,
+    next_site_id: u32,
     symbol_locals: HashMap<hir::SymbolId, LocalId>,
     /// 值 local 的最小 provenance。
     ///
@@ -372,6 +373,7 @@ impl<'a> FnLowering<'a> {
             body: Body::new_empty(),
             current_bb: BasicBlockId(0),
             next_temp: 0,
+            next_site_id: 0,
             symbol_locals: HashMap::new(),
             value_origins: HashMap::new(),
             boxed_symbols: HashSet::new(),
@@ -435,6 +437,15 @@ impl<'a> FnLowering<'a> {
                 unwind: UnwindAction::NoUnwind,
             },
         })
+    }
+
+    fn fresh_site_id(&mut self) -> SiteId {
+        let site_id = SiteId::from_raw(self.next_site_id);
+        self.next_site_id = self
+            .next_site_id
+            .checked_add(1)
+            .expect("too many MIR site ids in one body");
+        site_id
     }
 
     /// 在当前 basic block 末尾追加一条语句。
@@ -1336,7 +1347,16 @@ impl<'a> FnLowering<'a> {
             }
         };
 
-        self.assign(span, result, Rvalue::Call { kind, args });
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind,
+                args,
+            },
+        );
         result
     }
 
@@ -1361,10 +1381,12 @@ impl<'a> FnLowering<'a> {
             return;
         };
         let continuation_ty = self.body.locals[continuation_local.as_u32() as usize].ty;
+        let site_id = self.fresh_site_id();
         self.assign(
             span,
             result,
             Rvalue::Call {
+                site_id,
                 kind: CallKind::Resume {
                     continuation: Operand::Local(continuation_local),
                     resume: ResumeMetadata {
@@ -1449,7 +1471,16 @@ impl<'a> FnLowering<'a> {
                 dispatch,
             },
         };
-        self.assign(span, result, Rvalue::Call { kind, args });
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind,
+                args,
+            },
+        );
         true
     }
 
@@ -1499,10 +1530,12 @@ impl<'a> FnLowering<'a> {
             },
         );
 
+        let site_id = self.fresh_site_id();
         self.set_terminator_with_unwind(
             self.current_bb,
             span,
             TerminatorKind::Perform {
+                site_id,
                 op_fqn: op.fqn.clone(),
                 metadata,
                 args: perform_args,
@@ -1547,10 +1580,12 @@ impl<'a> FnLowering<'a> {
             .as_ref()
             .map(|finally| self.push_block(finally.span));
 
+        let site_id = self.fresh_site_id();
         self.set_terminator(
             outer_bb,
             span,
             TerminatorKind::Handle {
+                site_id,
                 arms,
                 has_finally: handle.finally.is_some(),
                 body_target: body_bb,
@@ -1638,10 +1673,12 @@ impl<'a> FnLowering<'a> {
         }
 
         let compare_result = self.push_temp_local(span, self.builtins.int);
+        let site_id = self.fresh_site_id();
         self.assign(
             span,
             compare_result,
             Rvalue::Call {
+                site_id,
                 kind: CallKind::Direct {
                     callee_fqn: binding.fqn.clone(),
                 },
@@ -2480,6 +2517,7 @@ fun entry(lhs: Num, rhs: Num): Bool {
                     value: Rvalue::Call {
                         kind: CallKind::Direct { callee_fqn },
                         args,
+                        ..
                     },
                     ..
                 } if callee_fqn == "fixtures.mirlower.Num.compareTo" && args.len() == 2
@@ -2557,6 +2595,7 @@ fun entry(lhs: Num, rhs: Num): Int {
                         value: Rvalue::Call {
                             kind: CallKind::Direct { callee_fqn },
                             args,
+                            ..
                         },
                         ..
                     } if callee_fqn == "fixtures.mirlower.Num.compareTo" && args.len() == 2

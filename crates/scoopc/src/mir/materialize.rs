@@ -2905,6 +2905,7 @@ impl MirInstanceMaterializer {
             Rvalue::Call {
                 kind: CallKind::Direct { callee_fqn },
                 args,
+                ..
             } => {
                 self.reachable_request_call_sites
                     .insert((scan.template_source_path.to_path_buf(), scan.span));
@@ -3481,7 +3482,7 @@ impl MirInstanceMaterializer {
                 *receiver = self.rewrite_operand(receiver.clone());
                 self.rewrite_member_access_metadata(member, ctx);
             }
-            Rvalue::Call { kind, args } => {
+            Rvalue::Call { kind, args, .. } => {
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
@@ -5237,6 +5238,7 @@ fun main(): Int {
                 kind: StatementKind::Assign {
                     target: result,
                     value: Rvalue::Call {
+                        site_id: crate::mir::SiteId::from_raw(0),
                         kind: CallKind::Direct {
                             callee_fqn: "fixtures.materialize.id".to_string(),
                         },
@@ -6259,6 +6261,7 @@ fun main() {
                             Rvalue::Call {
                                 kind: CallKind::Direct { callee_fqn },
                                 args,
+                                ..
                             },
                         ..
                     } = &stmt.kind

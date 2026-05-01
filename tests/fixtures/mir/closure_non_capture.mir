@@ -95,6 +95,7 @@ File {
                                         kind: Assign {
                                             target: l2,
                                             value: Call {
+                                                site_id: site0,
                                                 kind: Closure {
                                                     callee: Local(
                                                         l0,

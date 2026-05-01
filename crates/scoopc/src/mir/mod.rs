@@ -214,6 +214,33 @@ impl fmt::Debug for LocalId {
     }
 }
 
+/// 一个 MIR body 内稳定的 effect/call site 身份。
+///
+/// 约定：
+/// - `SiteId` 只要求在同一个 `Body` 内唯一；
+/// - lowering 初始分配时按源码/构造顺序单调递增；
+/// - 后续 MIR pass 若克隆出新的 `Call` / `Perform` / `Handle` 节点，应为克隆体分配新的
+///   `SiteId`，避免与原节点冲突；
+/// - 未来 site-level side table 可以用 `(callable/body identity, SiteId)` 作为稳定键。
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct SiteId(u32);
+
+impl SiteId {
+    pub(crate) const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+impl fmt::Debug for SiteId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "site{}", self.0)
+    }
+}
+
 /// 一个函数（或顶层 initializer）在 MIR 中的 body。
 #[derive(Debug, Clone)]
 pub struct Body {
@@ -245,6 +272,34 @@ impl Body {
         let id = BasicBlockId(u32::try_from(self.blocks.len()).expect("too many basic blocks"));
         self.blocks.push(bb);
         id
+    }
+
+    /// 遍历当前 body 内已分配的所有 site id。
+    pub fn for_each_site_id(&self, mut f: impl FnMut(SiteId)) {
+        for block in &self.blocks {
+            for stmt in &block.stmts {
+                let StatementKind::Assign { value, .. } = &stmt.kind else {
+                    continue;
+                };
+                if let Some(site_id) = value.site_id() {
+                    f(site_id);
+                }
+            }
+            if let Some(site_id) = block.terminator.kind.site_id() {
+                f(site_id);
+            }
+        }
+    }
+
+    /// 返回当前 body 中尚未使用的最小 `SiteId`。
+    ///
+    /// 注意：该方法本身不会把 id 写回 body；调用方若要批量生成新节点，应持有返回值并自行递增。
+    pub fn next_unused_site_id(&self) -> SiteId {
+        let mut next_raw = 0u32;
+        self.for_each_site_id(|site_id| {
+            next_raw = next_raw.max(site_id.as_u32().saturating_add(1));
+        });
+        SiteId::from_raw(next_raw)
     }
 
     /// 检查 CFG 的**结构合法性**：
@@ -585,6 +640,7 @@ pub enum Rvalue {
     /// 当前阶段承载 direct / closure / fun-value / virtual / interface / resume 六类调用；
     /// 更晚若补更多调用/控制转移语义，也应继续复用同一调用层级，而不是再造平行表示。
     Call {
+        site_id: SiteId,
         kind: CallKind,
         args: Vec<CallArg>,
     },
@@ -686,6 +742,7 @@ pub enum TerminatorKind {
     /// 当前阶段仅保留“发生了哪一个 effect op”的信息；具体如何进入 handler/如何建模 unwinding
     /// 由后续 effect lowering 任务（TODO T0713/T0707）决定。
     Perform {
+        site_id: SiteId,
         op_fqn: String,
         metadata: PerformMetadata,
         args: Vec<PerformArg>,
@@ -696,6 +753,7 @@ pub enum TerminatorKind {
     /// 能看见 handler body / arms / finally 中保形保留下来的调用点。更晚的 effect lowering
     /// 仍会把 handle 展开为完整的 cleanup/handler 栈管理。
     Handle {
+        site_id: SiteId,
         arms: Vec<HandlerArm>,
         has_finally: bool,
         body_target: BasicBlockId,
@@ -714,6 +772,20 @@ pub struct HandlerArm {
 }
 
 impl TerminatorKind {
+    pub fn site_id(&self) -> Option<SiteId> {
+        match self {
+            TerminatorKind::Perform { site_id, .. } | TerminatorKind::Handle { site_id, .. } => {
+                Some(*site_id)
+            }
+            TerminatorKind::Return { .. }
+            | TerminatorKind::ResumeUnwind
+            | TerminatorKind::Goto { .. }
+            | TerminatorKind::CondBr { .. }
+            | TerminatorKind::Unreachable
+            | TerminatorKind::Todo(_) => None,
+        }
+    }
+
     /// 对 terminator 的“正常”后继基本块调用回调（不包含 cleanup/unwind 边）。
     ///
     /// 该接口适合做 CFG 分析（reachable/循环检测等），避免为每次查询分配 `Vec`。
@@ -747,6 +819,32 @@ impl TerminatorKind {
             | TerminatorKind::Unreachable
             | TerminatorKind::Perform { .. }
             | TerminatorKind::Todo(_) => {}
+        }
+    }
+}
+
+impl Rvalue {
+    pub fn site_id(&self) -> Option<SiteId> {
+        match self {
+            Rvalue::Call { site_id, .. } => Some(*site_id),
+            Rvalue::Use(_)
+            | Rvalue::TopLevelRef(_)
+            | Rvalue::UnresolvedName { .. }
+            | Rvalue::Unary { .. }
+            | Rvalue::Binary { .. }
+            | Rvalue::TypeCheck { .. }
+            | Rvalue::Cast { .. }
+            | Rvalue::MemberAccess { .. }
+            | Rvalue::MakeTuple { .. }
+            | Rvalue::TupleGet { .. }
+            | Rvalue::CaptureBoxNew { .. }
+            | Rvalue::CaptureBoxGet { .. }
+            | Rvalue::CaptureBoxSet { .. }
+            | Rvalue::PatternMatch { .. }
+            | Rvalue::PatternExtract { .. }
+            | Rvalue::MakeClosure { .. }
+            | Rvalue::PerformResult { .. }
+            | Rvalue::Todo(_) => None,
         }
     }
 }
@@ -872,6 +970,7 @@ mod tests {
             terminator: Terminator {
                 span: Span::new(0, 0),
                 kind: TerminatorKind::Perform {
+                    site_id: SiteId::from_raw(0),
                     op_fqn: "scoop.core.Raise.raise".to_string(),
                     metadata: PerformMetadata {
                         effect_ty: builtins.unit,

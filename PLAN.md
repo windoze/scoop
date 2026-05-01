@@ -1,167 +1,520 @@
-# Scoop：下一轮计划（Continuation / Effect Runtime 收口）
+# Scoop：Effect Refactor 落地计划
 
-> 生成时间：2026-05-01  
-> 历史归档：`docs/archive/plans/PLAN-8.md` / `docs/archive/plans/TODO-8.md`  
-> 本轮主题：按 [`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md) 的最终设计，把 continuation/effect runtime 从 `runtime/c/scoop_runtime.c` 的 bridge 形态收口为 codegen-owned object model 与 hidden ABI；runtime 只保留 generic GC/thread/alloc substrate。
+> 生成时间：2026-05-02  
+> 历史参考：`docs/archive/plans/PLAN-9.md`  
+> 本轮主题：按 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 的设计基线，把 effect / continuation 从当前的 legacy HIR-driven codegen + runtime/TLS bridge 形态，收口为“surface contract -> direct-style MIR -> complete effect facts -> late-lowered `Step` pipeline -> LLVM”的新主线。
 
 ## 0. 工作原则
 
-- [`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md) 是本轮唯一设计基线；如果实现过程中改变主张，必须先回写该文档，再继续写代码。
-- 上一轮 explicit root frame 工作已经完成并归档到 `PLAN-8.md` / `TODO-8.md`；本轮默认把 explicit root frame 视为既成前提，不重新开启旧 round 的总体设计讨论。
-- 本轮不接受“过渡期长期保留”。
-  - 最终状态里，旧的 continuation/effect runtime bridge API 必须被删除，而不是留下兼容层。
-- runtime 只保留 generic substrate。
-  - 包括 `scoop_alloc_typed`、对象头、type descriptor、GC trace/relocation、write barrier、线程注册/原生边界、通用容器与同步原语。
-  - runtime 不再拥有 continuation object model、resume driver、handler stack policy、outcome bridge policy。
-- continuation/effect 的 source of truth 必须显式化。
-  - `EffectOutcome` 是唯一 propagation contract；
-  - `resume_token` 必须显式存在于 `EffectOutcome.signal.resume_token`；
-  - `callee_suspend_state`、`pending_continuation`、handler stack 不再经由 TLS scratch 传递语义。
-- `ScoopContinuation` 必须成为普通 managed object。
-  - 不再持有 stable handle；
-  - 不再持有 native `malloc` 的 handler snapshot；
-  - 不再需要 `release_fn`。
-- correctness first，收缩边界 second，优化 third。
-  - 先把 object model、hidden ABI 与删除旧 bridge 的 correctness 路径闭合；
-  - 尺寸、性能与进一步优化不作为前置 blocker。
-- 旧 TODO 里仍有效的任务会迁入本轮；已经被新设计否定的任务不再继续。
-- 每个实现任务后都必须有 review 任务，且最终 full review 必须在 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下完整验证相关 fixture 集。
+- [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 是本轮唯一设计基线。若实现过程中改变主张，必须先回写该文档，再继续实现。
+- 本轮严格按 AST -> HIR -> MIR -> late lowering -> LLVM codegen 的顺序推进，不跳阶段。
+- 本轮在对接最终 LLVM codegen 之前，不做全量回归。
+  - P0-P5 只做阶段内的定向验证；
+  - full regression 只在 P7 主线切换后与 P8 清理后执行。
+- 本轮在 P0-P6 不允许“在旧主线上打补丁式推进”。
+  - 必须先建立新的并行路径；
+  - 旧主线在 P7 之前继续保持默认与稳定；
+  - 新行为通过显式 dispatcher / pipeline mode / 并行模块逐步接入。
+- 对于新旧路线都需要用到的代码，只允许两种组织方式：
+  - 抽成独立模块，并提供**单一 API**同时供两边消费；该 API 中禁止包含“新旧线路标志”，模块自身也必须在**完全不了解自己是被哪条线调用**的前提下正常工作；
+  - 若上述条件无法满足，则必须将旧线路上的相关代码完整复制到新路线上来，确保两条线路逻辑上完全独立。
+- 绝对禁止将两条线路的业务逻辑混在一起。
+  - 不允许在同一个业务模块/同一个实现函数里通过 `if new_pipeline { ... } else { ... }`、`PipelineMode` 开关、或等价标志把两条业务逻辑塞在一起；
+  - 允许共享的只有“对两条线路都真正中立”的基础设施模块，而不是带线路分叉的半共享业务逻辑。
+- 新旧主线的并存期必须通过 `scoop` / `scoopc` 的显式命令行参数暴露出来。
+  - 新主线在 P0-P6 期间不能只靠内部开关或测试专用入口激活；
+  - `scoop` 与 `scoopc` 都必须把该选择收口到同一个 session/pipeline config bit；
+  - P7 切主线前，新路径的所有端到端验证都应通过该 CLI 参数进入；
+  - P7 切主线后，旧路径可短暂保留为显式 legacy flag，直到 P8 删除旧主线。
+- 每个阶段都必须向下一阶段输出**语义上闭包**的信息包，严格遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 顶部的“闭包原则”。
+  - 下一阶段只能依赖：本阶段显式输入、上阶段显式产出的 facts/schema/table、以及外部输入（target ABI、opt level、feature flags）；
+  - 不允许为补齐语义回看 HIR / AST / 旧 pass 私有缓存。
+- 对任何 `needs_reentry = true` 的 effectful callable，其 `direct-style body -> state machine` 转化必须统一遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16、§5.5。
+  - boundary 选择、整函数 segmentation、frame lifting、control-transfer encoding 都必须由同一算法决定；
+  - `NoOutward` 也只能被视为同一 facts + `ImplPlan` 框架下得到的退化结果，而不是 code-shape 特判通道；
+  - 不允许因为 code shape 简单而切到“单 `perform`”“线性 body”“tail-`resume`”“仅 `handle` 内局部状态机”之类专用 lowering；
+  - 若某些简单 shape 未来可以压缩，也只能作为统一 transformation 之后的优化，而不是另一条 lowering 入口。
+- 阶段完成条件不是“代码大致可跑”，而是“这一阶段的输出已经有完整验证，且其输出本身符合设计预期”。
+- P7 切换主线后，必须先完成 full regression，再进入 P8 删除旧主线。
+- P8 清理完成后，必须再次完成 full regression，确保仓库中不再存在对旧主线的隐藏依赖。
 
-## 1. 当前判断
+## 1. 顺序总览
 
-- 旧 TODO 中仍然有效的剩余任务只有两类：
-  1. state-machine mutable-local flush-back 收口；
-  2. 最终 full regression / 文档收尾。
-- 旧 TODO 中 `T5001f9 / T5001f9R` 的 stable-handle 路线已经被新设计否定。
-  - 新设计明确要求：continuation 改为 traced refs，replay-state 删除，见 `CONTINUATION_RUNTIME_REFACTOR.md` 的“2. Authoritative Data Model”“6. Continuation Resume Algorithm”“7-8. Explicit Resume Token / Explicit Outcome”。
-- 当前真正的主线已经从“把 runtime continuation owner 收口到 stable handle”转成“把 continuation/effect runtime policy 从 runtime bridge 收回 codegen”。
+1. P0：并行主线脚手架与现状固化
+2. P1：AST / surface contract 冻结
+3. P2：HIR / typecheck 新路径落地
+4. P3：direct-style MIR 新路径落地
+5. P4：effect facts 与 `resolved_outward_cases` 分析落地
+6. P5：late-lowered `Step` 路径落地（尚不接 LLVM）
+7. P6：LLVM codegen 新路径对接（仍不切主线）
+8. P7：切换主线并执行 full regression
+9. P8：删除旧主线并再次 full regression
 
-## 2. 顺序总览
+## 2. 分阶段计划
 
-1. 先完成旧 round 遗留但在新设计下仍必需的 state-machine flush-back 收口。
-2. 再引入 managed `EffectCtx` / `EffectHandlerNode` 与显式 hidden effect ABI，替换 raw TLS handler stack。
-3. 随后把 `ScoopContinuation` object model 与 generated resume driver 迁入 codegen，改成 traced refs + module-private helper。
-4. 然后删除 TLS outcome/callee-state/pending-continuation bridge、replay-state，以及 runtime continuation/effect public ABI，并同步迁移测试与文档。
-5. 最后做全量回归、GC env、IR 断言与文档收尾，确认新边界真正落地。
+### P0. 并行主线脚手架与现状固化
 
-## 3. 分阶段目标
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10, §4.11, §4.13.1a, §8。
 
-### P0. 承接旧 round 的 state-machine flush-back 收口
+目标：
 
-- 对应新 TODO 的 `T5002a / T5002aR`。
-- 目标是把 mutable local 的持久化 source of truth 真正收口到 heap frame，而不是只在 block 内做 write-through。
-- 这一阶段不是旧设计残留，而是新 continuation 设计的前提：即便 `Continuation.state` 改为 traced ref，resume 后仍然依赖 frame 中持久化的 locals/state。
-- 重点 fixture：`tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`。
-- 进展更新（2026-05-01）：`T5002a` 已完成。`write_back_outer_scope_frame_slots(...)` 现在会在 step-function return、handle/function return、suspend、arm exit，以及外层 handle 的 done/propagate 退出边界统一执行，使 frame 成为 mutable local 跨 resume / cleanup 的稳定 source-of-truth。
-- 验证摘要（2026-05-01）：LLVM 回归 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、`state_machine_frame_slots_materialize_stable_exec_local_homes`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit` 全通过；run-pass fixture `effect_escape_continuation_outer_mutable_writeback_basic.scoop`、`continuation_resume_enum.scoop`、`effect_multi_escape_direct_indirect_while.scoop`、`effect_multi_escape_indirect_direct_while.scoop` 在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过。下一步按顺序进入 `T5002aR`。
-- Review 更新（2026-05-01）：`T5002aR` 已完成。已复核 outer mutable local、arm binder、capture local、escape continuation binder 都采用“entry alloca exec home + frame slot backing”的统一持久化合同，mutable local 的赋值继续经 `frame_backing_ptr` 同步到 frame slot；并补跑 LLVM 回归 `escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract` 以及 fixture `effect_escape_continuation_indirect_perform_binder_string_use.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`（默认环境 + GC env 全开）确认 binder/capture 路径未偏离该合同。当前可按顺序进入 `T5002b`。
+- 建立新的 effect-refactor 并行路径，不扰动当前默认主线。
+- 让后续 AST/HIR/MIR/codegen 阶段都能在“legacy vs refactor”两个路径上显式分流，而不是边做边侵入旧逻辑。
+- 固化本轮需要守住的 legacy baseline，避免后续出现“不知道是新路径问题还是旧主线漂移”的情况。
 
-### P1. Managed `EffectCtx` / `EffectHandlerNode` 与 hidden effect ABI
+实现：
 
-- 对应 `CONTINUATION_RUNTIME_REFACTOR.md` 的“2.2 `ScoopEffectCtx`”“2.3 `ScoopEffectHandlerNode`”“3. Hidden ABI”“4. Effect Context Construction”。
-- 当前 `runtime/c/scoop_runtime.c:434-468` 的 raw TLS handler stack、以及 `state_machine_emitter.rs:4848-4910` 的栈上 handler frame push/pop 仍深度耦合 ordinary call boundary、state-machine dispatch、handle 入口和 cross-thread resume；直接整块落地 `T5002b` 风险过高，因此拆为四个前置子任务顺序推进：
-  1. `T5002b1` 先把 direct-call wrapper 的 `incoming_resume_token_ref` 显式化，至少把最外层 ordinary direct-call boundary 从“完全依赖 TLS token 缺省值”收口为显式 hidden input。
-  2. `T5002b2a` 先把同一 token contract 扩到 ordinary indirect-call surface：closure/funptr/vtable/itable 相关 generated callable signature 与 indirect call IR 都显式携带 `incoming_resume_token_ref`，fresh path 统一传 `null`。
-  3. `T5002b2b1` 先把 callee resume entry 自身的 hidden incoming token contract 收口：replay helper / resume entry 都显式把 replay token 当作 `incoming_resume_token_ref`，entry 先 publish 再 dispatch。
-  4. `T5002b2b2a` 先让 resumed non-call suspend 的 fresh continuation materialization 显式继承当前 ordinary callee replay token，避免 replay 链在 materialize 边界直接被丢掉。
-  5. `T5002b2b2a2` 先补齐 non-tail escape arm segmented-body 的 resume-fragment/source-path 合同，避免 nested handle / `try { k.resume(...) } catch ...` replay 只停在 inner body，而不继续 arm tail。
-  6. `T5002b2b2b` 再修复 nested-handle immediate-resume replay-state 穿过 ordinary callee boundary 时的 owner / replay 错位，确保 `T5002b2b1` 不只是 IR 形状正确，而是 end-to-end 能继续 replay inner callee tail。
-  7. `T5002b2c` 随后把 state-machine step/dispatch 与 runtime continuation bridge 扩成显式 token 传递，结束“resume/dispatch 仍靠 TLS scratch 注入 token”的旧路径。
-  8. `T5002b3` 再引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 最终布局与 descriptor，并把 handle 入口从 stack handler frame + runtime push/pop 切到 managed handler node graph。
-  9. `T5002b4` 最后收口 arm derived ctx、captured outer redispatch 与 cross-thread resume，彻底移除 raw TLS top/swap 生产依赖。
-- 进展更新（2026-05-01）：`T5002b1` 已完成。top-level outward-effect direct-call wrapper 现在显式接收 `incoming_resume_token_ref`，fresh direct call 会传 `null` token，wrapper 内则在 legacy call 前后执行 `publish -> consume outcome -> clear`。这一步还没有删除 raw TLS handler stack，但已经把最外层 direct-call token contract 从隐式 TLS 缺省值收口为显式 hidden input。
-- 进展更新（2026-05-01，拆分）：原 `T5002b2` 同时触及 ordinary indirect-call surface、callee resume entry、step/dispatch 与 runtime continuation bridge，跨 Rust codegen 与 runtime C 边界，单任务过大。已按依赖拆为 `T5002b2a/b/c` 及对应 review；当前先执行 `T5002b2a`，优先消除 closure/funptr/vtable/itable 与 direct wrapper 之间的 token ABI 分叉。
-- 进展更新（2026-05-01）：`T5002b2a` 已完成。ordinary indirect-call surface 现在与 direct wrapper 共享同一“显式 incoming token”边界约定：effect-capable generated callable signature 会在 hidden sret 后显式承接 `incoming_resume_token_ref`，closure / funptr / vtable / itable caller boundary 会在 legacy call 前 `publish(null)`，并在 `consume outcome` 后 `clear` TLS token scratch。定向 LLVM 回归 `closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`effectful_funptr_call_uses_explicit_outcome_boundary`、`virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`interface_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`direct_effectful_signature_without_outward_effect_skips_tls_check`、`closure_call_without_outward_effect_skips_tls_check`、`production_codegen_suspendability_observes_overridden_pass_summary` 已通过；下一步按顺序进入 `T5002b2aR`。
-- Review 更新（2026-05-01，进行中）：在执行 `T5002b2aR` 时先复核了 closure / funptr / vtable / itable 的签名与 boundary helper，并发现、修复了两个既有缺口：
-  - `mir_body.rs` 的 `pass_mir_closure_call` 之前会在安装 ordinary effect boundary 之前先读取 closure `env_ptr/fn_ptr`，现已改为像 HIR function-value path 一样 defer/reload closure object，并新增 LLVM 回归 `production_pass_mir_closure_call_reloads_closure_after_effect_boundary` 锁定 boundary 后 reload 合同；
-  - top-level pass MIR body 绑定参数时此前只跳过 hidden sret，没有同步跳过新加入的 hidden incoming token，导致 effectful pass MIR body 会把 token slot 错当成用户参数；现已修正 param offset。
-- Review 阻塞更新（2026-05-01）：进一步尝试把 production-lowered materialized MIR closure 的 effectful body 也纳入 review 时，暴露出另一个尚未收口的既有实现边界：closure body 若直接 perform effect，当前 production MIR bridge 仍会在 `mir_body.rs` 命中 `UnsupportedMainBody { kind: "pass MIR rvalue" }` / `pass MIR terminator`。这不是 review 可接受的“窄形状通过”结果，因此已把该缺口前插为新的前置任务 `T5002b2a1`，待其完成后再回到 `T5002b2aR`。
-- 当前已完成的定向验证（2026-05-01）：`cargo test -p scoopc explicit_outcome_boundary -- --nocapture`、`cargo test -p scoopc production_pass_mir_closure_call_reloads_closure_after_effect_boundary -- --nocapture`、`cargo test -p scoopc direct_effectful_signature_without_outward_effect_skips_tls_check -- --nocapture`、`cargo test -p scoopc closure_call_without_outward_effect_skips_tls_check -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_local.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_virtual_helper_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_interface_helper_basic.scoop`、`cargo clippy --all-targets -- -D warnings` 均已通过。
-- 进展更新（2026-05-01）：`T5002b2a1` 已完成。剩余的 effectful materialized MIR closure body 缺口不是 pass-view 发布本身，而是 `codegen_mir_perform_terminator(...)` 在 `Perform` 作为 closure body terminator 时会把 builder 停在未终止的 `pass_mir_effect_perform_dead` block；现已在 terminator lowering 末尾显式补 `unreachable`，避免 LLVM verifier 失败，同时保留表达式路径继续使用 dead landing block 的合同。
-- 验证摘要（2026-05-01）：新增 LLVM 回归 `production_codegen_lowers_raw_mir_effectful_closure_body_direct_perform` 与 `production_pass_mir_effectful_closure_body_direct_perform_lowering`，分别锁定 raw materialized closure body 的 `Perform` terminator 收尾，以及 pass-visible caller 的显式 `incoming_resume_token_ref` / outcome boundary + closure body direct-perform lowering；新增 run-pass fixture `effect_indirect_perform_materialized_mir_closure_basic.scoop`，并在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过。下一步按顺序回到 `T5002b2aR`。
- - Review 更新（2026-05-01）：`T5002b2aR` 已完成。已复核 top-level callable、HIR closure 与 materialized MIR closure 的 hidden ABI/参数绑定，确认 `incoming_resume_token_ref` 都在 hidden sret 之后、普通参数之前进入 generated callable surface；ordinary indirect-call boundary（closure / funptr / vtable / itable）与 pass-MIR closure caller 也都遵守 `publish incoming token -> consume outcome -> clear token -> restore handler top` 的同一收口顺序。
- - Review 验证（2026-05-01）：`cargo test -p scoopc explicit_outcome_boundary -- --nocapture`、`cargo test -p scoopc production_pass_mir_closure_call_reloads_closure_after_effect_boundary -- --nocapture`、`cargo test -p scoopc production_codegen_lowers_raw_mir_effectful_closure_body_direct_perform -- --nocapture`、`cargo test -p scoopc production_pass_mir_effectful_closure_body_direct_perform_lowering -- --nocapture` 均通过；run-pass fixture `effect_indirect_perform_nonresuming_function_value_local.scoop`、`effect_indirect_perform_materialized_mir_closure_basic.scoop`、`effect_handle_hidden_suspend_virtual_helper_basic.scoop`、`effect_handle_hidden_suspend_interface_helper_basic.scoop` 在默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下通过；`cargo clippy --all-targets -- -D warnings` 通过。随后进入原 `T5002b2b`。
- - 进展更新（2026-05-01）：原 `T5002b2b` 已拆成 `T5002b2b1 / T5002b2b2`。`T5002b2b1` 已完成：callee resume replay helper 与 resume entry 现在都显式把 replay token 当作 `incoming_resume_token_ref`，`codegen_callee_resume_entry_function_impl(...)` 会在 entry 先 `publish_incoming_resume_token(...)` 再做 resume-site dispatch；LLVM 回归 `suspend_ir_stores_callee_resume_token_on_frame_and_replays_via_resume_thunk` 与 `cargo clippy --all-targets -- -D warnings` 已通过。
- - 阻塞更新（2026-05-01）：在尝试用 nested-handle immediate-resume 最小程序做 `T5002b2b` 的 end-to-end 验证时，发现 resumed ordinary callee 第二次 outward suspend 穿过 `NestedHandleBoundary` 后，outer `k.resume(...)` 会直接把 outer payload 当成最终 answer，跳过 inner callee tail。这说明仅完成 `callee resume entry` ABI/publish 对齐仍不足以闭合 replay chain，因此已把该缺口前插为新的前置子任务 `T5002b2b2`；待其完成后再进入 `T5002b2bR`。
- - 进展更新（2026-05-01，拆分）：继续定位 `T5002b2b2` 时，发现该问题至少包含两个不同 owner 断点：
-   1. resumed non-call suspend（direct perform / nested-handle boundary）materialize fresh continuation 时，会直接丢掉当前 ordinary callee replay token；
-   2. nested-handle immediate-resume 路径还会把 legacy replay-state 误当成 ordinary callee token 穿过 outer call boundary。
-   因此 `T5002b2b2` 已继续拆成 `T5002b2b2a / T5002b2b2b`，先收口第一个 owner 缺口，再处理 replay-state 穿越 ordinary boundary 的剩余问题。
- - 进展更新（2026-05-01）：`T5002b2b2a` 已完成。state-machine `Suspend` terminator materialize fresh continuation 时，现在会优先捕获当前 site 的 ordinary token slot；若该 site 没有 ordinary token slot，则回退读取 `scoop_callee_suspend_state_get()`，把当前 TLS incoming token 显式写入 fresh continuation 的 `captured_callee_suspend_state`。LLVM 回归 `resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation` 与 `cargo clippy --all-targets -- -D warnings` 已通过。
-  - 新 blocker 更新（2026-05-01）：在继续推进 `T5002b2b2b` 的最小 nested-handle immediate-resume probe 时，暴露出另一个必须先收口的既有实现边界：non-tail escape arm body 虽然已经不再完全停留在 opaque `ExecuteArmBody`，但 arm body 自己的 nested handle / `try { k.resume(...) } catch ...` 仍缺少 source-path / resume-fragment 合同，导致 replay 目前最多只能恢复到 inner body 的 `after_boom`，随后把 `18` 直接当成 outer arm 结果，跳过 `inner_arm_after_resume` / `resumed + 1`。
-  - 当前 partial groundwork（2026-05-01）：
-    - `state_machine_emitter.rs` 现已为 `NestedHandleBoundary` 预留 replay token frame slot，并在 `ResumeAfterSiteReason::NestedHandleBoundary` 上优先 replay nested token，而不再无条件把 payload 直接当成整个 nested handle 结果；
-    - `analysis.rs` 现已为“non-tail escape arm + body 仍会 outward suspend”的形状启用 segmented-body 入口，并新增分析断言 `non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site`，确认 inner arm body 递归 nested handle 中已经能看见 first-class `Continuation.resume(...)` hidden suspend site；
-    - 现有 focused 回归 `continuation_resume_answer_replay_basic.scoop`、`effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop` 以及 `cargo clippy --all-targets -- -D warnings` 均继续通过。
-  - 因此当前顺序已更新：先新增前置任务 `T5002b2b2a2 / T5002b2b2a2R`，专门补齐 arm body 自身的 resume-fragment/source-path 合同；待这层 replay tail 能继续到 `inner_arm_after_resume` 后，再回到原 `T5002b2b2b` 处理 ordinary callee boundary 上的 replay-state owner 错位。
-  - 进展更新（2026-05-01）：`T5002b2b2a2` 已完成。`SuspendSourcePath` 现已显式覆盖 handle body stmt / arm body / finally stmt 三类 root，并在表达式遍历入口统一登记 `NestedHandleBoundary` 站点；segment / unified transform 同步接受该 metadata，不再把 arm-local nested handle boundary 视为“天然无 source-path”。
-  - 语义收口（2026-05-01）：nested-handle boundary outward suspend 现在会把 raw inner replay token 留在 frame 内供 same-frame replay 使用，但对更外层传播的 `EffectOutcome.signal.resume_token` 改写成 wrapper continuation。这样 outer future resume 会先回到 arm tail，再由 arm tail 驱动 raw inner token replay，而不是直接把 inner result 当成整个 arm 结果。
-  - 验证摘要（2026-05-01）：analysis 回归 `non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail`、`non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site`，以及 run-pass fixture `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`（默认环境 + `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1`）与既有 probe `effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop` 已通过；`cargo clippy --all-targets -- -D warnings` 已通过。下一步按顺序进入 `T5002b2b2a2R`。
-  - Review 更新（2026-05-01）：`T5002b2b2a2R` 已完成。已复核 `build_arm_body_plans(...)` 与 `emit_execute_arm_body(...)`：non-tail escape arm 只要 body 仍会 outward suspend，就会转入 segmented-body lowering，opaque expr 路径只保留给可在单个表达式树内完成的 arm。
-  - Review 结论（2026-05-01）：`SuspendSourceRoot::ArmBody` + `record_suspend_source_path(...)` 已让 arm-local `NestedHandleBoundary` 具备 arm-rooted source-path；`emit_resume_after_nested_handle_boundary_site(...)` 则继续把 raw inner replay token 保存在 frame slot 中供 same-frame replay 使用，而 outward suspend 时 `store_effect_outcome_resume_token(...)` 会把向外传播的 token 改写成 wrapper continuation，owner 分层已明确。
-  - Review 验证（2026-05-01）：`cargo test -p scoopc non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site -- --nocapture`、`cargo test -p scoopc non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`、`cargo clippy --all-targets -- -D warnings` 均通过。下一步按顺序进入 `T5002b2b2b`。
+- 在编译驱动、session 或等效总入口上增加一个显式 pipeline selector。
+- 在 `scoop` 与 `scoopc` 上新增成对的命令行参数，把 selector 暴露为用户可选 pipeline。
+  - 推荐形态：一个“新 effect-refactor 主线” flag，必要时配一个“legacy 主线”逆向 flag；
+  - 具体 flag 名称可在实现时定稿，但两端必须共享同一个 session 入口。
+- 所有新代码都从该 selector 派生出的新 dispatcher 进入，不直接侵入旧主线函数体。
+- 在 P0 就要同步建立“共享模块 vs 复制实现”的边界清单；若某段旧代码无法满足上面的单一 API / 完全中立要求，则后续阶段默认走复制到新主线的方案，而不是继续把逻辑揉在一起。
+- 为 AST/HIR/MIR/late lowering/LLVM 分别预留新的并行入口函数或模块边界。
+- 固化一批 effect/continuation 相关的 baseline fixtures / LLVM regression / MIR dump regression，后续用来监控“旧主线保持稳定，新主线逐步闭合”。
 
-### P2. Codegen-owned `ScoopContinuation` 与 generated resume driver
+阶段输出：
 
-- 对应 `CONTINUATION_RUNTIME_REFACTOR.md` 的“2.1 `ScoopContinuation`”“3.2-3.3”“5. Continuation Allocation”“6. Continuation Resume Algorithm”“9. Why No `release_fn` Is Needed Anymore”。
-- 当前 `runtime/c/scoop_runtime.c:1140-1820` 中 continuation C struct + trace/release/alloc/discard/resume 主线必须退出生产路径。
-- 新路径要做到：
-  - `ScoopContinuation` 由 codegen 直接建模；
-  - `captured_effect_ctx_ref` / `state_ref` / `captured_callee_suspend_state_ref` 都是 traced refs；
-  - descriptor 只需 bitmap / `release_fn = NULL`；
-  - `__scoop_continuation_resume_with` 由 codegen 生成，不再调用 runtime `scoop_continuation_resume_with(...)`。
+- 一个可显式切换的并行 pipeline 壳层；
+- 不改变默认行为的前提下，可从 `scoop` / `scoopc` 的 CLI 参数分流到“新路径（暂时可能只是委托）”；
+- 一组用于锁定旧行为的定向 baseline 回归。
 
-### P3. 删除 TLS bridge / replay-state，并收缩 runtime public ABI
+验证：
 
-- 对应 `CONTINUATION_RUNTIME_REFACTOR.md` 的“7. Explicit Resume Token Instead of TLS Callee State”“8. Explicit Outcome Instead of TLS Outcome Bridge”“Source Changes Required”。
-- 当前下列 bridge 必须从最终实现中消失：
-  - `scoop_callee_suspend_state_*`
-  - `scoop_effect_outcome_*`
-  - `scoop_continuation_resume_publish_pending_continuation`
-  - `ScoopContinuationResumeScope`
-  - `ScoopContinuationResumeReplayState`
-  - `runtime/c/scoop_runtime_api.h` 中 continuation/effect bridge allowlist
-- 与此同时，需要把直接依赖这些 ABI 形状的 runtime tests 迁到 compiler IR / run-pass / end-to-end 覆盖。
+- 旧主线默认入口的定向 effect/continuation 相关测试继续通过；
+- 新 CLI 参数能贯通到各层 dispatcher，但在 P0 不要求真正改变语义；
+- `scoop` 与 `scoopc` 对同一 pipeline 选择产生一致的 session 配置；
+- 不执行 full regression。
 
-### P4. Full Verification 与文档收尾
+完成条件：
 
-- 承接旧 TODO 的 `T5001g / T5001gR`，在新 round 中改写为 `T5002e / T5002eR`。
-- 不仅要验证 explicit root frame 旧合同仍成立，还要新增验证：
-  - production IR 不再调用 runtime continuation/effect bridge symbols；
-  - runtime public API allowlist 不再导出 continuation/effect bridge API；
-  - 文档、注释、测试入口都与 `CONTINUATION_RUNTIME_REFACTOR.md` 一致。
+- 后续 P1-P6 的代码可以只写在新路径中推进；
+- 若删除 selector 会导致阶段间边界重新混回旧主线，说明 P0 未完成。
 
-## 4. 主要风险与应对
+### P1. AST / surface contract 冻结
 
-### 4.1 mutable-local flush-back 仍可能阻塞 direct/indirect mixed 路径
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.3.2, §5.3.1, §5.3.9。
 
-- 即使 continuation object model 收回 codegen，只要 frame 上的持久化状态没在 suspend / cleanup / arm-exit 前统一 flush，direct/indirect mixed fixture 仍会继续失败。
-- 因此 `T5002a` 必须先完成，不能跳过。
+目标：
 
-### 4.2 managed handler context 会触及大量 call boundary
+- 明确 surface 语法层“不新增 keyword / 不新增 continuation 特殊语法”的结论。
+- 冻结 `k.resume(...)`、`resume()`、以及一般性 `f() == f(())`（单一 `Unit` 参数）的语法合同。
+- 确保 AST 层保持普通调用语法，不把 type-dependent 的 sugar 过早固化到 AST 节点里。
 
-- `current_effect_ctx_ref` / `incoming_resume_token_ref` / `EffectOutcome*` 一旦进入 hidden ABI，会影响 ordinary effect-capable call、state-machine step/dispatch、continuation resume、cross-thread resume 与 nested handle redispatch。
-- 应对方式：按 TODO 顺序推进，并在每一步都补 focused IR/fixture 覆盖。
+实现：
 
-### 4.3 删除 runtime bridge ABI 会先打破测试
+- AST 层保持普通 `CallExpr` / member-call 形态，不引入 `ResumeExpr` 等专用节点。
+- 记录并验证以下 surface 规则：
+  - `Continuation` 交互使用普通方法调用 `k.resume(...)`
+  - `ResumeTuple = ()` 时允许 `k.resume()`
+  - 一般性单一 `Unit` 参数调用允许 `f()` 作为 `f(())` 的语法糖
+- 不在 AST 阶段执行 type-dependent desugar；该工作留到 HIR/typecheck 阶段。
 
-- `crates/scoop_runtime/tests/continuation_one_shot.rs`、`continuation_cross_thread_handler_stack.rs`、`effect_tls.rs` 当前直接依赖将被删除的 C ABI 形状。
-- 本轮必须把这些测试视为“迁移对象”，而不是实现 blocker 本身。
+阶段输出：
 
-### 4.4 cross-thread resume 不能因删 TLS bridge 而退化
+- surface 语法 contract 的固定测试；
+- 不引入新 AST 节点种类的明确边界；
+- 为 P2 准备的“typed desugar points”清单。
 
-- 新设计要求 cross-thread resume 仍成立，只是改由 captured managed `EffectCtx` graph 和 explicit token/outcome 维持，而不是 runtime TLS swap。
-- 这条语义必须作为独立验收对象保留。
+验证：
 
-## 5. 完成标准
+- parser / parse fixtures 覆盖 `k.resume(...)`、`k.resume()`、单一 `Unit` 参数调用；
+- 若仓库缺少合适的 AST dump 基础设施，则以 parse fixtures + parser unit tests 代替；
+- 若验证需要走 end-to-end 入口，统一通过 P0 引入的 CLI 参数进入新路径；
+- 不执行 HIR 之后的阶段验证，不执行 full regression。
+
+完成条件：
+
+- 语法层对 continuation / `Unit` sugar 的主张已被 fixture 锁定；
+- 后续阶段不再需要为这些语法重新开设计讨论。
+
+### P2. HIR / typecheck 新路径落地
+
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.1, §4.1, §4.3.1, §5.3.1, §5.3.9。
+
+目标：
+
+- 在新路径上把 surface contract 变成 typed HIR contract。
+- 让 typechecker 真正理解 `Continuation<ResumeTuple, Answer, Out>`、`resume(value): Answer / Out`、以及运行时错误作为普通 `Raise<RuntimeError>` 传播的语义。
+- 让 HIR 到 MIR 的下一阶段不再需要猜测这些 surface contract。
+
+实现：
+
+- 引入源码层 `Continuation<ResumeTuple, Answer, Out>` 的 compiler-owned interface 语义。
+- 明确：用户可以持有/传递/调用 continuation，但不能自己实现/伪造该接口。
+- 在 typecheck 阶段完成 type-dependent desugar：
+  - 单一 `Unit` 参数调用的 `f()` -> `f(())`
+  - `ResumeTuple = ()` 时的 `k.resume()` -> `k.resume(())`
+- 在 HIR / typed side table 中记录：
+  - `allowed_row`
+  - `Continuation` 的 `ResumeTuple/Answer/Out` contract
+  - `perform` / `resume` / `handle` 的 typed 关系
+- 统一把 `ContinuationAlreadyResumed` 一类语言内部 runtime error 建模为普通 `Raise<RuntimeError>` 传播，不引入第二条特殊错误通道。
+
+阶段输出：
+
+- typed HIR contract 已经能完整表达 continuation surface 语义；
+- 后续 MIR 阶段不再需要回 parser/AST 或临时猜测 `resume` 的类型关系。
+
+验证：
+
+- `typecheck` fixtures 覆盖：
+  - continuation surface 类型
+  - `resume(...)` 参数/返回类型
+  - `resume()` 的 `Unit` sugar
+  - 运行时错误 effect surface 语义
+- 新增 HIR/typecheck 单元测试或 debug dump（若已有 HIR dump 基础设施则用 snapshot；若无则用 unit tests + diagnostics fixtures）。
+- 若通过 `scoopc` 驱动 typed pipeline 验证，则统一使用新 CLI 参数激活新路径。
+- 不执行 MIR/LLVM/full regression。
+
+完成条件：
+
+- 新路径的 HIR/typecheck 已能独立描述 continuation/effect surface contract；
+- P3 不再需要回看 AST 解释 `resume` / `Unit` sugar。
+
+### P3. direct-style MIR 新路径落地
+
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10, §4.11, §4.12, §4.13, §5.3, §5.5.3-§5.5.6。
+
+目标：
+
+- 在新路径上建立 production-grade 的 direct-style MIR：仍保留 `Call / Perform / Handle / Resume` 级语义节点。
+- 禁止新路径内部继续以“缺节点就退回 HIR codegen”的方式偷渡语义。
+- 让 effect 相关结构在 MIR 层真正成为 source of truth，而不是 HIR-compatible 边界上的临时桥。
+
+实现：
+
+- 新路径的 HIR->MIR lowering 必须覆盖 effect/continuation 相关形状：
+  - `Call`
+  - `Perform`
+  - `Resume`
+  - `Handle`
+  - `finally` / cleanup 相关 block/edge
+- 继续沿用并扩展 `SiteId`，确保所有 effect-sensitive site 都有稳定身份。
+- 明确新路径在 late lowering 之前保持 direct-style，不提前构造 `Step` IR。
+- 为后续 facts 建立必要的 MIR hook points，但在本阶段不引入 `StepSchema` / `ContinuationSchema` 的完整求解。
+- 若源码中的 boundary 位于更大表达式内部，P3 必须已经把相关求值顺序、临时值、CFG 分支与局部结果显式化到 MIR；P5 不负责回 HIR 重建 evaluation context。
+- `return` / `break` / `continue` / `finally` / cleanup 相关控制流必须在 MIR 中已经是显式 block/edge，而不是留到 P5 再凭源码形状补建。
+
+阶段输出：
+
+- 一套可用于 production 的 direct-style MIR 新路径；
+- effect/continuation 相关节点在新路径 MIR 中都是一等节点，而不是 HIR fallback。
+
+验证：
+
+- `dump-mir` fixtures 覆盖：
+  - direct call / indirect call / callable value
+  - `perform`
+  - `resume`
+  - `handle` / arm / finally
+  - `SiteId` 稳定性
+- MIR verifier / unit tests 断言 CFG、site identity、cleanup edge、resume site 的完整性。
+- 这些验证应优先通过 `scoop dump-mir` / 等价入口加新 CLI 参数触发，而不是通过替换默认主线实现。
+- 不连接 LLVM，不执行 full regression。
+
+完成条件：
+
+- 对本轮 effect refactor 相关语义，P3 产出的 MIR 已足以独立喂给下游 facts 构建；
+- 新路径中不再需要为了 effect 主线回退到 HIR。
+
+### P4. effect facts 与 `resolved_outward_cases` 分析落地
+
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.13.1a, §5.4, §5.5.1-§5.5.6, §6, §7.3。
+
+目标：
+
+- 在新路径上建立完整的 `MaterializedEffectFacts`。
+- 让后续阶段只消费 facts/schema，不再回看 HIR。
+- 把 `resolved_outward_cases`、`needs_reentry`、`impl_plan` 这些核心分析结果在 MIR 之后显式化。
+- 让 P5 仅凭 MIR + facts 就能决定整函数 state-machine transformation 的 boundary 集、per-boundary contract、以及 nested handle 是否向外传播 suspension。
+
+实现：
+
+- 落地 `MaterializedEffectFacts` 顶层容器：
+  - `step_schemas`
+  - `continuation_schemas`
+  - `callable_facts`
+  - `bodies`
+- 落地 `BodyEffectFacts`：
+  - `blocks`
+  - `sites`
+- 落地最小必要 facts：
+  - `StepSchema`
+  - `ContinuationSchema`
+  - `CallableEffectFacts`
+  - `BlockEffectFacts`
+  - `CallSiteEffectFacts`
+  - `PerformSiteEffectFacts`
+  - `ResumeSiteEffectFacts`
+  - `HandleSiteEffectFacts`
+- `BlockEffectFacts` 至少要覆盖 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.4.5 中为 P5 所需的 block 摘要：`ambient_cases`、`outward_cases`、`has_suspend_boundary`、`has_handle_boundary`。
+- `SiteEffectFacts` 必须足以让 P5 在不回 HIR 的情况下回答：
+  - 该 site 是否属于真正的 state-machine boundary；
+  - 它对应哪个 `StepSchema` / `ContinuationSchema` / `CaseTag`；
+  - payload tuple、resume tuple、answer/outward schema 是什么；
+  - nested `handle` 是 self-contained 还是 `may_suspend_outward`。
+- 实现 `resolved_outward_cases` 的统一 SCC/dataflow 求解：
+  - direct known callee -> 并入 callee `resolved_outward_cases`
+  - candidate set -> 并入候选并集
+  - dynamic fallback -> 直接取 `cases(StepSchema(F))`
+  - 超预算 -> 整 SCC / 受影响实例 widen 到 schema 全集
+- 产出 `impl_plan = NoOutward | SingleCase | CanonicalFull`。
+
+阶段输出：
+
+- 一份对下游阶段“语义闭包”的 effect facts 包；
+- 一套不需要回 HIR 的 `resolved_outward_cases` / schema / site contract。
+- 一套足以驱动整函数 boundary segmentation 和 frame-lifting 判定的 callable/block/site facts。
+
+验证：
+
+- 新增 dedicated facts dump / snapshot 测试（必要时新增 `dump-effect-facts` 或等价调试入口）；
+- 单元测试覆盖：
+  - `StepSchema`
+  - `ContinuationSchema`
+  - call/perform/resume/handle site facts
+  - nested handle `self-contained` vs `may_suspend_outward` 分类
+  - SCC/widening 分析
+  - `impl_plan` 选择
+- 如需通过 CLI 做集成验证，统一经 P0 的新路径激活参数进入。
+- 不连接 LLVM，不执行 full regression。
+
+完成条件：
+
+- P5 可以只消费 MIR + `MaterializedEffectFacts` 完成全部 lowering 决策；
+- P5 可以仅凭这些 facts 确定“哪里切 boundary、boundary 后如何恢复、哪些 nested handle 需要向外层扩散、每个 site 的 payload/resume contract 是什么”；
+- 若 P5 仍需要回 HIR 才能知道 `Step` / continuation / site contract，则 P4 未完成。
+
+### P5. late-lowered `Step` 路径落地（尚不接 LLVM）
+
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §4.10, §4.16, §5.2, §5.3.2-§5.3.5, §5.4.7, §5.5, §7.3, §8。
+
+目标：
+
+- 在新路径上把 direct-style MIR + facts 统一转换成 late-lowered representation。
+- 对所有仍需独立存在的 effectful callable，用**同一套整函数 transformation**把 `direct-style body` 改写成 state machine；不因 code shape 分叉出第二套 lowering。
+- 这一阶段开始物化：
+  - `Step_F` enum
+  - canonical dynamic `invoke(args_tuple) -> Step_F`
+  - continuation object
+  - internal resume interfaces
+  - `ImplPlan` 对应的版本形态
+- 但此阶段仍不接 LLVM；先把表示和 contract 自己闭合。
+
+实现：
+
+- 落地 late lowering pass，其输入必须固定为“当前 materialized MIR snapshot + `MaterializedEffectFacts`”；禁止回 HIR/AST/typecheck 内部缓存补语义。
+- 在 pass 起点先依据 `CallableEffectFacts` / `SiteEffectFacts` 确定整函数 boundary 集。至少包括：
+  - `perform` site；
+  - outward cases 非空的 call/invoke site；
+  - continuation `resume` site；
+  - ordinary runtime error outward boundary；
+  - `may_suspend_outward` 的 nested `handle` boundary。
+- 用统一的 whole-function segmentation 算法从这些 boundary 出发重写整个函数 CFG：
+  - boundary 所在 region 被切开；
+  - 若 boundary 位于条件、循环、局部 block、或更大表达式求值上下文内部，则切分递归向外扩展，直到整个函数都成为“可编号状态 + 显式边”的形式；
+  - 每个 boundary 都必须拥有唯一的 owner state；
+  - 每个 boundary 之后的继续执行位置都必须拥有唯一的 resume state；
+  - 不能只支持“boundary 恰好落在独立 statement 上”的简单 shape。
+- 对所有 boundary 统一使用同一类 lowering 骨架：
+  - `state_before -> boundary(site) -> resume_state -> post_resume_suffix`；
+  - boundary 自身按 `StepSchema` / site facts 产出 outward case、payload 与 continuation contract；
+  - resume/re-entry 之后从 `resume_state` 继续执行，而不是回放源码级控制结构。
+- 在同一 pass 中完成 frame lifting。凡是跨 boundary live 且在之后仍会被读取的值，都必须进入 frame/object fields。至少包括：
+  - 源码 local；
+  - 编译器引入的临时值与中间表达式结果；
+  - CFG 合流后继续使用的 join/phi-like 值；
+  - `handle` arm binder、resume payload、replayed answer/result slot；
+  - state tag、resume payload carrier、cleanup flag、one-shot flag、completion tag 等系统字段。
+- 对不跨任何 boundary live 的值，不因函数整体进入状态机就强制 lift；但任何跨 cut 存活的中间结果都必须按同一规则 lift，不能只照顾源码具名 local。
+- 把以下控制转移一并编码进 late-lowered representation：
+  - `return`；
+  - `break` / `continue`；
+  - `finally` / cleanup；
+  - handler arm 结束后的续点；
+  - dropped continuation 导致的“剩余计算被放弃”。
+- 物化 late-lowered 形态时，统一生成：
+  - `Step_F` variant 构造；
+  - canonical dynamic `invoke(args_tuple) -> Step_F` surface；
+  - continuation object；
+  - internal resume interfaces / icall boundary；
+  - state graph、frame schema、boundary/resume 映射。
+- 若现有“单 `handle` 内部状态机”模块能在**不引入 code-shape 分叉**的前提下消费上述整函数 contract，可将其下沉为中立基础设施；否则在新路径中替换/重建，不继续把“仅 `handle` 局部状态机”当成目标架构。
+- 在 late-lowered representation 上立即加入一轮窄的：
+  - devirtualization
+  - inlining
+  - DCE
+- 这轮优化只作用于统一 transformation 之后的 late-lowered representation，不重新回到高层 effect 语义分析，也不重新选择 `ImplPlan`；也不允许它变成 code-shape-specific 的替代 lowering。
+
+阶段输出：
+
+- 一套完整的 late-lowered internal representation；
+- 它的输入是 direct-style MIR + facts，输出是 LLVM 前的 `Step` / continuation / dynamic invoke 形态；
+- 其中必须显式包含整函数 state graph、frame schema、boundary/resume mapping，以及与 `StepSchema` / `ContinuationSchema` 对齐的 contract。
+
+验证：
+
+- 新增 late-lowered dump / snapshot 测试（必要时新增 `dump-effect-lowered` 或等价调试入口）；
+- 单元测试验证：
+  - `Step_F` enum 形状与 `StepSchema` 一一对应
+  - continuation object / internal resume interfaces 形状正确
+  - dynamic `invoke(args_tuple) -> Step_F` surface 正确
+  - 简单 `single perform`/线性函数与复杂函数共用同一 late-lowering 入口，而不是走另一条专用 transformation
+  - boundary 位于 `if` / loop / nested expr / argument evaluation 时，都会被正确切分成 owner-state + resume-state
+  - self-contained nested handle 不向外层扩散切分；`may_suspend_outward` nested handle 会成为真正 boundary
+  - frame lifting 覆盖 locals / temporaries / join values / binders / resume slots / system fields
+  - `return` / `break` / `continue` / `finally` / cleanup 会进入显式 state edge 或 completion/cleanup path
+  - late-lowered devirt/inline/DCE 能在局部案例上消除编译器自生的 interface/icall 抽象层
+- 如需端到端验证 late-lowered 形态，统一通过 `scoop` / `scoopc` 的新路径参数进入。
+- 不接 LLVM，不执行 full regression。
+
+完成条件：
+
+- P6 只需把 late-lowered representation 翻译到 LLVM，而不是重新做 boundary 识别、整函数 segmentation 或 frame-lifting；
+- 新路径中不再保留按 code shape 另开入口的 effectful state-machine transformation；
+- 不再允许 P6 再临时重做高层 effect lowering 设计。
+
+### P6. LLVM codegen 新路径对接（仍不切主线）
+
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §4.16, §5.2, §5.3.7, §5.3.8, §5.3.9, §5.5, §8。
+
+目标：
+
+- 把 P5 产出的 late-lowered representation 接到新的 LLVM codegen 路径。
+- 在不切默认主线的前提下，让新路径可以端到端生成正确 IR 和可运行程序。
+- 仍然不做 full regression；只做覆盖新路径的定向 LLVM/run-pass/runtime 验证。
+
+实现：
+
+- 为新路径实现 LLVM lowering：
+  - `Step_F` enum lowering
+  - dynamic `invoke` / ordinary direct invoke
+  - continuation object lowering
+  - internal resume interface / icall lowering
+  - runtime error 作为普通 effect 分支的 lowering
+  - dropped continuation / cleanup hook 语义的 lowering 对齐
+- LLVM backend 只消费 P5 产出的 late-lowered state graph / frame schema / boundary contract；不得在 backend 再重新识别源码 shape、再切一次 CFG、或临时发明第二套 state-machine transformation。
+- 保持 Managed ABI / extern 边界不承载 effect/continuation 语义。
+- 旧 LLVM 主线继续保留，直到 P7 切换。
+- 所有新路径 LLVM 验证继续通过 P0 引入的 CLI 参数进入，不改变默认主线行为。
+
+阶段输出：
+
+- 一个可通过显式 selector 进入的新 LLVM codegen 路径；
+- 不改变默认主线的前提下，可端到端完成 effect/continuation 程序的 IR 生成与运行。
+
+验证：
+
+- 新增并运行定向 LLVM regression，至少覆盖：
+  - `NoOutward`
+  - `SingleCase`
+  - `CanonicalFull`
+  - direct `perform` / `handle` / `resume`
+  - dynamic callable fallback
+  - continuation one-shot / `RuntimeError`
+  - `Unit` 零载荷 case
+  - `Step_F` enum 物理形状
+- 新增并运行定向 run-pass / runtime_gc / effect 相关 fixture 集，覆盖：
+  - direct/indirect effect call
+  - continuation capture / resume
+  - dynamic callable `invoke`
+  - dropped continuation 语义
+  - GC env 下的 effect/continuation correctness
+- 在本阶段结束前仍**不执行**：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+
+完成条件：
+
+- 新路径在 LLVM 层面对本文档覆盖的 effect/continuation 语义已经端到端闭合；
+- 只差把默认主线切过去和做 full regression。
+
+### P7. 切换主线并执行 full regression
+
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §7.3, §8。
+
+目标：
+
+- 把新的 effect-refactor 路径切成默认主线。
+- 在切主线后完成一次完整回归，证明新路径已经足以替代旧主线。
+
+实现：
+
+- 翻转顶层 selector 的默认值，让新路径成为默认 effect/continuation 主线。
+- 在 P7 过渡期可保留一个显式 legacy CLI 参数，作为短期回滚/比对入口；该 legacy 参数在 P8 必须删除。
+- 保留旧路径代码，但不再作为默认入口，仅用于必要的短期比对/紧急兜底。
+
+验证：
+
+- `cargo test --all`
+- `cargo run -p scoop -- test`
+- `cargo run -p scoop_tools -- spec-fixtures check`
+- `cargo clippy --all-targets -- -D warnings`
+- 与 effect/continuation 直接相关的 GC env 全开验证：
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+
+完成条件：
+
+- 新主线已经是默认路径；
+- 全量与 GC env 相关回归通过；
+- 可以进入 P8 删除旧主线。
+
+### P8. 删除旧主线并再次 full regression
+
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 全文，重点参照 §4.10-§4.16、§5.4、§5.5、§8。
+
+目标：
+
+- 删掉旧的 legacy effect/continuation 主线，实现真正收口。
+- 保证仓库中不再存在“默认靠新主线，但旧主线还悄悄救场”的隐藏依赖。
+
+实现：
+
+- 删除旧 selector 分支与旧 effect/continuation lowering 主线。
+- 删除只服务旧主线的桥接 helper、旧 dump/fixture、以及只为 legacy 形状存在的临时适配层。
+- 删除任何残留的 code-shape-specific effect lowering 入口，包括“单 `perform` 快路径”“线性 body 专用路径”“仅 `handle` 局部状态机主线”等不再符合 §4.16 / §5.5 的实现分支。
+- 清理实现注释、文档和测试中对旧主线的引用。
+
+验证：
+
+- 重跑 P7 的完整回归矩阵：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+
+完成条件：
+
+- 仓库中不再保留旧主线；
+- 全量验证在“只有新主线存在”的条件下仍完整通过。
+
+## 3. 阶段切换门槛
+
+- P0 之后，所有新实现必须走并行路径，不再直接往旧主线里补 effect 语义。
+- P1 未完成前，不进入 HIR surface typing。
+- P2 未完成前，不进入 direct-style MIR 新路径的 production 化。
+- P3 未完成前，不进入 `MaterializedEffectFacts` 的闭包化求解。
+- P4 未完成前，不进入 late-lowered `Step` 物化。
+- P5 未完成前，不接 LLVM。
+- P6 未完成前，不切主线，不做 full regression。
+- P7 未完成前，不删除旧主线。
+- P8 未完成前，本轮不算结束。
+
+## 4. 完成标准
 
 本轮完成时，必须能够明确陈述以下结论全部成立：
 
-1. `ScoopContinuation` 已从 runtime bridge 收回 codegen，且是普通 managed object。
-2. continuation 内部不再使用 stable handle，也不再持有 native handler snapshot。
-3. continuation descriptor 不再使用 `release_fn`。
-4. `EffectOutcome` 是唯一 propagation source of truth。
-5. `resume_token` 显式存在于 `EffectOutcome.signal.resume_token`，不再经 TLS scratch 中转。
-6. production path 已不再使用 raw TLS handler stack push/pop/top/swap。
-7. runtime public ABI 中不再导出 continuation/effect bridge API。
-8. 对应测试入口已迁移，full regression 与三项 GC env 全开矩阵均通过。
+1. surface 语法层不引入新的 continuation 专用语法或 keyword，`k.resume(...)` 与一般 `Unit` 参数 sugar 已在新主线内稳定工作。
+2. HIR 已能完整表达 `Continuation<ResumeTuple, Answer, Out>`、`resume(value): Answer / Out` 与 runtime error 的普通 effect 语义。
+3. new-path MIR 在 late lowering 之前保持 direct-style，并且不再依赖 HIR fallback 才能表达 effect/continuation 语义。
+4. `MaterializedEffectFacts` 已成为 downstream 唯一 effect contract 来源；后续阶段不再为补语义回看 HIR。
+5. `resolved_outward_cases`、`needs_reentry`、`impl_plan` 已在 facts 层闭合，并按统一 SCC/dataflow + budget 规则求解。
+6. 所有 `needs_reentry = true` 的 effectful callable 都按统一的整函数 boundary segmentation + frame lifting + explicit resume-state 算法完成 `direct-style -> state machine` 转化，不再按 code shape 分流。
+7. late-lowered `Step_F` / dynamic `invoke` / continuation object / internal resume interfaces 已形成新的中后端主线。
+8. 新 LLVM codegen 已能在并行路径上端到端生成并运行 effect/continuation 程序。
+9. 新路径切为默认主线后，full regression 与 GC env 相关全集验证全部通过。
+10. 旧主线已被删除，仓库中不再保留对旧 effect/continuation 主线或 code-shape-specific lowering 的隐藏依赖。

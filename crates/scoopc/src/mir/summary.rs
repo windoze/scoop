@@ -405,7 +405,7 @@ fn observe_rvalue(
         Rvalue::MemberAccess { receiver, .. } => {
             observe_operand(receiver, OperandUsage::Value, state, param_use_summaries);
         }
-        Rvalue::Call { kind, args } => {
+        Rvalue::Call { kind, args, .. } => {
             match kind {
                 CallKind::Direct { callee_fqn } => {
                     direct_callees.insert(callee_fqn.clone());

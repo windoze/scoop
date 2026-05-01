@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 use super::{
     Body, CallArg, CallKind, FunDecl, InstanceKey, InstanceSummary, LocalDecl, LocalId,
     MaterializedMir, Operand, ParamUseSummary, ResultProvenance, ResultProvenanceSource, Rvalue,
-    Statement, StatementKind, TerminatorKind, UnwindAction, summarize_pass_rewritten_fun,
+    SiteId, Statement, StatementKind, TerminatorKind, UnwindAction, summarize_pass_rewritten_fun,
 };
 
 const INLINE_SIZE_THRESHOLD: u32 = 16;
@@ -192,6 +192,7 @@ impl InlineSnapshot {
                         Rvalue::Call {
                             kind: CallKind::Direct { callee_fqn },
                             args,
+                            ..
                         },
                 } => {
                     if direct_call.is_some() {
@@ -272,6 +273,7 @@ impl BlockCallableProvenance {
             Rvalue::Call {
                 kind: CallKind::Direct { callee_fqn },
                 args,
+                ..
             } => {
                 let callee = snapshot.get(callee_fqn)?;
                 provenance_from_result(
@@ -406,7 +408,7 @@ fn try_expand_direct_call(
     let StatementKind::Assign { target, value } = &stmt.kind else {
         return None;
     };
-    let Rvalue::Call { kind, args } = value else {
+    let Rvalue::Call { kind, args, .. } = value else {
         return None;
     };
     let CallKind::Direct { callee_fqn } = kind else {
@@ -711,7 +713,7 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
             collect_operand_use(rhs, out);
         }
         Rvalue::MemberAccess { receiver, .. } => collect_operand_use(receiver, out),
-        Rvalue::Call { kind, args } => {
+        Rvalue::Call { kind, args, .. } => {
             collect_call_kind_uses(kind, out);
             for arg in args {
                 collect_operand_use(&arg.value, out);
@@ -784,6 +786,7 @@ fn expand_straight_line_call(
 ) -> Option<Vec<Statement>> {
     let callee_body = callee.body.as_ref()?;
     let block = &callee_body.blocks[0];
+    let mut next_site_id = caller_body.next_unused_site_id().as_u32();
     let mut local_operands = callee
         .params
         .iter()
@@ -809,6 +812,7 @@ fn expand_straight_line_call(
                 )?;
                 let mapped_value = remap_rvalue(
                     value,
+                    &mut next_site_id,
                     &local_operands,
                     &local_map,
                     direct_call_param_provenance,
@@ -915,6 +919,7 @@ fn inline_local_decl(mut decl: LocalDecl, span: crate::span::Span) -> LocalDecl 
 
 fn remap_rvalue(
     value: &Rvalue,
+    next_site_id: &mut u32,
     local_operands: &HashMap<LocalId, Operand>,
     local_map: &HashMap<LocalId, LocalId>,
     direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
@@ -935,7 +940,8 @@ fn remap_rvalue(
             op: *op,
             rhs: remap_operand(rhs, local_operands, local_map)?,
         }),
-        Rvalue::Call { kind, args } => Some(Rvalue::Call {
+        Rvalue::Call { kind, args, .. } => Some(Rvalue::Call {
+            site_id: fresh_cloned_site_id(next_site_id),
             kind: remap_call_kind(
                 kind,
                 local_operands,
@@ -959,6 +965,14 @@ fn remap_rvalue(
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => None,
     }
+}
+
+fn fresh_cloned_site_id(next_site_id: &mut u32) -> SiteId {
+    let site_id = SiteId::from_raw(*next_site_id);
+    *next_site_id = next_site_id
+        .checked_add(1)
+        .expect("too many cloned MIR site ids in inline pass");
+    site_id
 }
 
 fn remap_call_args(

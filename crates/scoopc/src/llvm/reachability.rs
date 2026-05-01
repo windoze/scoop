@@ -654,7 +654,7 @@ impl<'a> ReachabilityCollector<'a> {
             mir::Rvalue::MemberAccess { receiver, .. } => {
                 self.scan_mir_operand(receiver);
             }
-            mir::Rvalue::Call { kind, args } => {
+            mir::Rvalue::Call { kind, args, .. } => {
                 self.scan_mir_call_kind(kind);
                 for arg in args {
                     self.scan_mir_operand(&arg.value);
