@@ -13,6 +13,8 @@ mod dump_rtti;
 mod dump_stackmaps;
 mod new;
 mod package;
+#[cfg(test)]
+mod parity;
 mod run;
 pub(crate) mod temp;
 mod test;

@@ -16,7 +16,7 @@ fn load_ast_for_dump(
         .map_err(miette::Report::from)
 }
 
-pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
+pub(super) fn render_dump_output(input: PathBuf, session_options: SessionOptions) -> Result<String> {
     let input = input
         .canonicalize()
         .into_diagnostic()
@@ -25,7 +25,11 @@ pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
 
     let session = scoopc::session::Session::with_options(session_options)?;
     let ast = load_ast_for_dump(&session, &file)?;
-    println!("{ast:#?}");
+    Ok(format!("{ast:#?}\n"))
+}
+
+pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
+    print!("{}", render_dump_output(input, session_options)?);
     Ok(())
 }
 

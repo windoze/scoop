@@ -11,7 +11,7 @@ use miette::{Context as _, IntoDiagnostic as _, Result};
 use scoopc::session::SessionOptions;
 
 /// 读取输入文件并打印 MIR（Debug）。
-pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
+pub(super) fn render_dump_output(input: PathBuf, session_options: SessionOptions) -> Result<String> {
     let input = input
         .canonicalize()
         .into_diagnostic()
@@ -22,6 +22,10 @@ pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
     let lowered =
         scoopc::effect_refactor_pipeline::lower_direct_style_mir_for_dump(&session, &file)
             .map_err(miette::Report::from)?;
-    println!("{:#?}", lowered.file);
+    Ok(format!("{:#?}\n", lowered.file))
+}
+
+pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
+    print!("{}", render_dump_output(input, session_options)?);
     Ok(())
 }

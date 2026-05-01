@@ -357,7 +357,12 @@
   - 后续 P1-P6 的每一步都可以先跑这组 baseline，快速确认“没把 P0 壳层搞坏”。
 - 依赖：P0-T03R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P0-T04` baseline parity 矩阵落地；新增 `crates/scoop/src/commands/parity.rs`，把 AST / HIR / MIR / IR 四类代表样本统一收口为 legacy/refactor 双模式自动化 parity 测试。
+  - 为 `dump-ast`、`dump-hir`、`dump-mir`、`dump-ir` 抽出可复用的字符串渲染辅助函数；`run(...)` 继续保持原有 CLI 行为，但测试不再依赖黑盒 stdout 捕获即可直接比较命令产物。
+  - `dump-ir` 新增仅供测试使用的稳定化 parity 视图：保留 materialized file 与 instance family/summary 投影，同时规避原始 `MaterializedMir` Debug 中 `TypeStore` 与 hash-backed side table 的跨进程不稳定顺序；对 HIR/MIR/IR 中的 `TypeId` / `tN` 标记统一做正规化后再比较，确保 parity 检查锁定语义形状而不是随机编号。
+  - 在启用 LLVM feature 时，新增 `build --emit-llvm --no-incremental` 的 CLI parity smoke 测试，确认 `legacy` / `refactor` 通过 `build` 路径生成的 `.ll` 产物一致。
+  - 复验通过：`cargo test -p scoop --no-default-features parity`、`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoop build_emit_llvm_cli_parity_matches_legacy_and_refactor`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+  - CLI smoke 通过：`cmp -s =(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/handle_expr_minimal.scoop) =(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop)`、`diff <(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop) <(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop)`、`diff <(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop) <(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop)`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`。
 
 ## P0-T04R：Review baseline parity 与 P0 退出条件
 
