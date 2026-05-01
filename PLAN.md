@@ -64,10 +64,11 @@
   2. `T5002b2a` 先把同一 token contract 扩到 ordinary indirect-call surface：closure/funptr/vtable/itable 相关 generated callable signature 与 indirect call IR 都显式携带 `incoming_resume_token_ref`，fresh path 统一传 `null`。
   3. `T5002b2b1` 先把 callee resume entry 自身的 hidden incoming token contract 收口：replay helper / resume entry 都显式把 replay token 当作 `incoming_resume_token_ref`，entry 先 publish 再 dispatch。
   4. `T5002b2b2a` 先让 resumed non-call suspend 的 fresh continuation materialization 显式继承当前 ordinary callee replay token，避免 replay 链在 materialize 边界直接被丢掉。
-  5. `T5002b2b2b` 再修复 nested-handle immediate-resume replay-state 穿过 ordinary callee boundary 时的 owner / replay 错位，确保 `T5002b2b1` 不只是 IR 形状正确，而是 end-to-end 能继续 replay inner callee tail。
-  6. `T5002b2c` 随后把 state-machine step/dispatch 与 runtime continuation bridge 扩成显式 token 传递，结束“resume/dispatch 仍靠 TLS scratch 注入 token”的旧路径。
-  7. `T5002b3` 再引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 最终布局与 descriptor，并把 handle 入口从 stack handler frame + runtime push/pop 切到 managed handler node graph。
-  8. `T5002b4` 最后收口 arm derived ctx、captured outer redispatch 与 cross-thread resume，彻底移除 raw TLS top/swap 生产依赖。
+  5. `T5002b2b2a2` 先补齐 non-tail escape arm segmented-body 的 resume-fragment/source-path 合同，避免 nested handle / `try { k.resume(...) } catch ...` replay 只停在 inner body，而不继续 arm tail。
+  6. `T5002b2b2b` 再修复 nested-handle immediate-resume replay-state 穿过 ordinary callee boundary 时的 owner / replay 错位，确保 `T5002b2b1` 不只是 IR 形状正确，而是 end-to-end 能继续 replay inner callee tail。
+  7. `T5002b2c` 随后把 state-machine step/dispatch 与 runtime continuation bridge 扩成显式 token 传递，结束“resume/dispatch 仍靠 TLS scratch 注入 token”的旧路径。
+  8. `T5002b3` 再引入 managed `ScoopEffectCtx` / `ScoopEffectHandlerNode` 最终布局与 descriptor，并把 handle 入口从 stack handler frame + runtime push/pop 切到 managed handler node graph。
+  9. `T5002b4` 最后收口 arm derived ctx、captured outer redispatch 与 cross-thread resume，彻底移除 raw TLS top/swap 生产依赖。
 - 进展更新（2026-05-01）：`T5002b1` 已完成。top-level outward-effect direct-call wrapper 现在显式接收 `incoming_resume_token_ref`，fresh direct call 会传 `null` token，wrapper 内则在 legacy call 前后执行 `publish -> consume outcome -> clear`。这一步还没有删除 raw TLS handler stack，但已经把最外层 direct-call token contract 从隐式 TLS 缺省值收口为显式 hidden input。
 - 进展更新（2026-05-01，拆分）：原 `T5002b2` 同时触及 ordinary indirect-call surface、callee resume entry、step/dispatch 与 runtime continuation bridge，跨 Rust codegen 与 runtime C 边界，单任务过大。已按依赖拆为 `T5002b2a/b/c` 及对应 review；当前先执行 `T5002b2a`，优先消除 closure/funptr/vtable/itable 与 direct wrapper 之间的 token ABI 分叉。
 - 进展更新（2026-05-01）：`T5002b2a` 已完成。ordinary indirect-call surface 现在与 direct wrapper 共享同一“显式 incoming token”边界约定：effect-capable generated callable signature 会在 hidden sret 后显式承接 `incoming_resume_token_ref`，closure / funptr / vtable / itable caller boundary 会在 legacy call 前 `publish(null)`，并在 `consume outcome` 后 `clear` TLS token scratch。定向 LLVM 回归 `closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`effectful_funptr_call_uses_explicit_outcome_boundary`、`virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`interface_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`direct_effectful_signature_without_outward_effect_skips_tls_check`、`closure_call_without_outward_effect_skips_tls_check`、`production_codegen_suspendability_observes_overridden_pass_summary` 已通过；下一步按顺序进入 `T5002b2aR`。
@@ -87,7 +88,12 @@
    2. nested-handle immediate-resume 路径还会把 legacy replay-state 误当成 ordinary callee token 穿过 outer call boundary。
    因此 `T5002b2b2` 已继续拆成 `T5002b2b2a / T5002b2b2b`，先收口第一个 owner 缺口，再处理 replay-state 穿越 ordinary boundary 的剩余问题。
  - 进展更新（2026-05-01）：`T5002b2b2a` 已完成。state-machine `Suspend` terminator materialize fresh continuation 时，现在会优先捕获当前 site 的 ordinary token slot；若该 site 没有 ordinary token slot，则回退读取 `scoop_callee_suspend_state_get()`，把当前 TLS incoming token 显式写入 fresh continuation 的 `captured_callee_suspend_state`。LLVM 回归 `resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation` 与 `cargo clippy --all-targets -- -D warnings` 已通过。
- - 当前剩余 blocker（2026-05-01）：`T5002b2b2b` 仍需处理 nested-handle immediate-resume 路径上的第二个 owner 问题：legacy replay-state 目前仍会穿过 ordinary callee boundary 并被误当成 callee resume entry token，导致 replay 调度落到错误对象形状；这一部分还未修完，因此本次先在 `TODO.md` / `PLAN.md` 中显式拆出后续子任务。
+ - 新 blocker 更新（2026-05-01）：在继续推进 `T5002b2b2b` 的最小 nested-handle immediate-resume probe 时，暴露出另一个必须先收口的既有实现边界：non-tail escape arm body 虽然已经不再完全停留在 opaque `ExecuteArmBody`，但 arm body 自己的 nested handle / `try { k.resume(...) } catch ...` 仍缺少 source-path / resume-fragment 合同，导致 replay 目前最多只能恢复到 inner body 的 `after_boom`，随后把 `18` 直接当成 outer arm 结果，跳过 `inner_arm_after_resume` / `resumed + 1`。
+ - 当前 partial groundwork（2026-05-01）：
+   - `state_machine_emitter.rs` 现已为 `NestedHandleBoundary` 预留 replay token frame slot，并在 `ResumeAfterSiteReason::NestedHandleBoundary` 上优先 replay nested token，而不再无条件把 payload 直接当成整个 nested handle 结果；
+   - `analysis.rs` 现已为“non-tail escape arm + body 仍会 outward suspend”的形状启用 segmented-body 入口，并新增分析断言 `non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site`，确认 inner arm body 递归 nested handle 中已经能看见 first-class `Continuation.resume(...)` hidden suspend site；
+   - 现有 focused 回归 `continuation_resume_answer_replay_basic.scoop`、`effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop` 以及 `cargo clippy --all-targets -- -D warnings` 均继续通过。
+ - 因此当前顺序已更新：先新增前置任务 `T5002b2b2a2 / T5002b2b2a2R`，专门补齐 arm body 自身的 resume-fragment/source-path 合同；待这层 replay tail 能继续到 `inner_arm_after_resume` 后，再回到原 `T5002b2b2b` 处理 ordinary callee boundary 上的 replay-state owner 错位。
 
 ### P2. Codegen-owned `ScoopContinuation` 与 generated resume driver
 

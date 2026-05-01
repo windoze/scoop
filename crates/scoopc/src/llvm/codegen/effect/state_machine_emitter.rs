@@ -165,6 +165,7 @@ pub(super) struct FrameLayout<'ctx> {
     outer_scope_storage_indices: HashMap<hir::SymbolId, u32>,
     ordinary_callee_resume_token_indices: HashMap<u32, u32>,
     continuation_resume_replay_token_indices: HashMap<u32, u32>,
+    nested_handle_boundary_replay_token_indices: HashMap<u32, u32>,
 }
 
 impl<'ctx> FrameLayout<'ctx> {
@@ -204,6 +205,12 @@ impl<'ctx> FrameLayout<'ctx> {
 
     pub(super) fn continuation_resume_replay_token_index(&self, site_id: u32) -> Option<u32> {
         self.continuation_resume_replay_token_indices
+            .get(&site_id)
+            .copied()
+    }
+
+    pub(super) fn nested_handle_boundary_replay_token_index(&self, site_id: u32) -> Option<u32> {
+        self.nested_handle_boundary_replay_token_indices
             .get(&site_id)
             .copied()
     }
@@ -341,8 +348,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut ordinary_callee_resume_token_indices = HashMap::new();
         let mut ordinary_callee_resume_site_ids = Vec::new();
         let mut continuation_resume_site_ids = Vec::new();
+        let mut nested_handle_boundary_site_ids = Vec::new();
         for site in contract.suspend_sites() {
             let Some(call_expr) = self.lookup_suspend_call_expr(contract, site.id()) else {
+                if matches!(site.kind(), SuspendSiteKind::NestedHandleBoundary { .. }) {
+                    nested_handle_boundary_site_ids.push(site.id());
+                }
                 continue;
             };
             let call_site = self.current_call_site(call_expr.span)?;
@@ -367,6 +378,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             continuation_resume_replay_token_indices.insert(site_id, token_index);
         }
 
+        let mut nested_handle_boundary_replay_token_indices = HashMap::new();
+        nested_handle_boundary_site_ids.sort_unstable();
+        for site_id in nested_handle_boundary_site_ids {
+            let token_index = field_types.len() as u32;
+            field_types.push(gc_ptr_ty.into());
+            nested_handle_boundary_replay_token_indices.insert(site_id, token_index);
+        }
+
         // Keep the suspended continuation in a dedicated runtime-only slot
         // after the schema fields so `user_slot_llvm_index` stays aligned with
         // `UnifiedFrameSchema::field_index()`.
@@ -386,6 +405,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             outer_scope_storage_indices,
             ordinary_callee_resume_token_indices,
             continuation_resume_replay_token_indices,
+            nested_handle_boundary_replay_token_indices,
         })
     }
 
@@ -1467,8 +1487,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         } else {
                             false
                         };
+                        let should_replay_nested_handle = matches!(
+                            reason,
+                            ResumeAfterSiteReason::NestedHandleBoundary
+                        ) && frame_layout
+                            .nested_handle_boundary_replay_token_index(*site_id)
+                            .is_some();
                         if should_replay_call {
                             let val = self.emit_resume_after_call_site(
+                                *site_id,
+                                *source_span,
+                                resume_slot,
+                                state_ptr,
+                                frame_layout,
+                                contract,
+                            )?;
+                            last_value = Some(val);
+                        } else if should_replay_nested_handle {
+                            let val = self.emit_resume_after_nested_handle_boundary_site(
                                 *site_id,
                                 *source_span,
                                 resume_slot,
@@ -1514,11 +1550,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     arm_id,
                     op_fqn,
                     arm,
+                    segmented_body,
                 } => {
                     let val = self.emit_execute_arm_body(
                         *arm_id,
                         op_fqn,
                         arm,
+                        *segmented_body,
                         state_ptr,
                         frame_layout,
                         contract,
@@ -2306,6 +2344,162 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    fn emit_resume_after_nested_handle_boundary_site(
+        &mut self,
+        site_id: u32,
+        source_span: crate::span::Span,
+        resume_slot: &FrameSlot,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let token_index = frame_layout
+            .nested_handle_boundary_replay_token_index(site_id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "nested handle replay token slot",
+                at: source_span.into(),
+            })?;
+        let step_fn = self.current_codegen_function(source_span)?;
+        let replay_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_nested_handle_replay"));
+        let inactive_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_nested_handle_inactive"));
+        let merge_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_nested_handle_merge"));
+
+        let replay_token_slot = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            token_index,
+            &format!("site{site_id}_nested_handle_replay_token_ptr"),
+        )?;
+        let replay_token = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                replay_token_slot,
+                &format!("site{site_id}_nested_handle_replay_token"),
+            )?
+            .into_pointer_value();
+        let has_replay_token = self.ptr_is_non_null(
+            source_span,
+            replay_token,
+            &format!("site{site_id}_has_nested_handle_replay_token"),
+        )?;
+        self.builder
+            .build_conditional_branch(has_replay_token, replay_bb, inactive_bb)?;
+
+        self.builder.position_at_end(inactive_bb);
+        self.emit_resume_value_to_frame_slot(
+            source_span,
+            resume_slot,
+            state_ptr,
+            frame_layout,
+            contract,
+        )?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(replay_bb);
+        let (resume_word, resume_gc_ref) = self.read_frame_resume_payload(
+            state_ptr,
+            frame_layout,
+            "nested_handle_replay_resume_word",
+            "nested_handle_replay_resume_gc_ref",
+        )?;
+        self.builder
+            .build_store(replay_token_slot, self.llvm_gc_i8_ptr_type().const_null())?;
+        let result_cg = self
+            .cg_ty_of(resume_slot.ty())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "nested handle replay slot type",
+                at: source_span.into(),
+            })?;
+        let (out_word_slot, out_gc_ref_slot) = self.alloc_continuation_resume_answer_slots(
+            source_span,
+            result_cg,
+            &format!("site{site_id}_nested_handle_replay"),
+        )?;
+        let outcome_slot = self.alloc_effect_outcome_slot(
+            source_span,
+            &format!("site{site_id}_nested_handle_replay"),
+        )?;
+        let replay_resume_slots = ContinuationResumeResultSlots {
+            out_word_slot,
+            out_gc_ref_slot,
+            outcome_slot,
+        };
+        self.resume_continuation_with_encoded_payload(
+            source_span,
+            replay_token,
+            resume_word,
+            resume_gc_ref,
+            replay_resume_slots,
+            &format!("site{site_id}_nested_handle_replay"),
+        )?;
+        let replay_resume_token = self.effect_outcome_resume_token(
+            source_span,
+            outcome_slot,
+            &format!("site{site_id}_nested_handle_replay"),
+        )?;
+        self.store_gc_ref_field(source_span, replay_token_slot, replay_resume_token)?;
+        self.emit_ordinary_call_effect_propagation_check_from_outcome(
+            source_span,
+            outcome_slot,
+            &format!("site{site_id}_nested_handle_replay"),
+        )?;
+        let replay_result = self.load_continuation_resume_answer_with_active_fallback(
+            source_span,
+            result_cg,
+            out_word_slot,
+            out_gc_ref_slot,
+            outcome_slot,
+            &format!("site{site_id}_nested_handle_replay"),
+        )?;
+        self.store_value_to_frame_slot(
+            source_span,
+            resume_slot,
+            replay_result,
+            state_ptr,
+            frame_layout,
+            contract,
+        )?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(merge_bb);
+        self.emit_read_local_from_frame(
+            resume_slot.id(),
+            source_span,
+            state_ptr,
+            frame_layout,
+            contract,
+        )
+    }
+
+    fn store_effect_outcome_resume_token(
+        &mut self,
+        at: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        resume_token: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let signal_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_outcome_struct_type(),
+            outcome_slot,
+            3,
+            &format!("{label}_effect_outcome_signal_ptr"),
+        )?;
+        let resume_token_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_signal_struct_type(),
+            signal_ptr,
+            3,
+            &format!("{label}_effect_signal_resume_token_ptr"),
+        )?;
+        self.store_gc_ref_field(at, resume_token_ptr, resume_token)
+    }
+
     fn seed_outer_scope_frame_slots(
         &mut self,
         at: crate::span::Span,
@@ -2671,6 +2865,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 )?;
                 let resume_bb = self.lookup_state_bb(*resume_state, state_bb_map, span)?;
+                let mut suspend_outcome_slot = None;
 
                 if Self::suspend_site_uses_inactive_continue_path(site.kind()) {
                     let inactive_continue_bb = self
@@ -2686,6 +2881,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .is_some()
                         || frame_layout
                             .continuation_resume_replay_token_index(*site_id)
+                            .is_some()
+                        || frame_layout
+                            .nested_handle_boundary_replay_token_index(*site_id)
                             .is_some();
                     let materialized_outcome_slot =
                         if explicit_outcome_slot.is_none() && needs_resume_token {
@@ -2703,6 +2901,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             None
                         };
                     let outcome_slot = explicit_outcome_slot.or(materialized_outcome_slot);
+                    suspend_outcome_slot = outcome_slot;
                     let is_active = if let Some(outcome_slot) = outcome_slot {
                         self.effect_outcome_is_propagating(
                             span,
@@ -2761,11 +2960,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             )?;
                             self.store_gc_ref_field(span, token_slot, resume_token)?;
                         }
-                        self.publish_effect_outcome_from_slot(
-                            span,
-                            outcome_slot,
-                            &format!("site{site_id}_effect_outcome"),
-                        )?;
+                        if let Some(token_index) =
+                            frame_layout.nested_handle_boundary_replay_token_index(*site_id)
+                        {
+                            let resume_token = self.effect_outcome_resume_token(
+                                span,
+                                outcome_slot,
+                                &format!("site{site_id}_effect_outcome"),
+                            )?;
+                            let token_slot = self.builder.build_struct_gep(
+                                frame_layout.frame_type,
+                                state_ptr,
+                                token_index,
+                                &format!("site{site_id}_nested_handle_replay_token_ptr"),
+                            )?;
+                            self.store_gc_ref_field(span, token_slot, resume_token)?;
+                        }
                     } else if needs_resume_token {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "suspend outcome slot for replay token capture",
@@ -2900,6 +3110,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.emit_publish_pending_continuation(
                         cont,
                         "publish_pending_continuation_resume_inner_continuation",
+                    )?;
+                }
+                if let Some(outcome_slot) = suspend_outcome_slot {
+                    if frame_layout
+                        .continuation_resume_replay_token_index(*site_id)
+                        .is_some()
+                    {
+                        let cont = self.reload_deferred_gc_ref_without_clearing(
+                            span,
+                            &format!("site{site_id}_escape_continuation_reload_outcome"),
+                            &deferred_cont,
+                        )?;
+                        self.store_effect_outcome_resume_token(
+                            span,
+                            outcome_slot,
+                            cont,
+                            &format!("site{site_id}_effect_outcome"),
+                        )?;
+                    }
+                    self.publish_effect_outcome_from_slot(
+                        span,
+                        outcome_slot,
+                        &format!("site{site_id}_effect_outcome"),
                     )?;
                 }
                 self.clear_deferred_cg_value_root_homes(
@@ -4204,6 +4437,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         arm_id: u32,
         _op_fqn: &str,
         arm: &hir::HandleArm,
+        segmented_body: bool,
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
@@ -4516,16 +4750,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // Execute the arm body under the same "active => immediately exit the
-        // current frame" contract used by ordinary callees.
+        if segmented_body {
+            return Ok(CgValue::unit());
+        }
+
+        // Execute the remaining opaque arm body under the same
+        // "active => immediately exit the current frame" contract used by
+        // ordinary callees.
         //
-        // Arm bodies are currently emitted as one opaque expression tree
-        // instead of being segmented into state-machine ops. Without a
-        // temporary ordinary-frame return type, a non-resuming effect raised
-        // inside the arm would only set TLS active and then keep executing the
-        // rest of the arm body. `with_local_never_return_semantics(...)`
-        // lets the existing ordinary propagation helpers terminate the step
-        // function immediately when arm-local code performs.
+        // Non-tail escape-continuation arms whose body may suspend outward are
+        // now segmented into first-class state-machine ops before reaching
+        // codegen, so the opaque path only handles arms that can finish within
+        // one expression tree.
 
         let tail_resume_rewritten = match arm.kind {
             hir::HandleArmKind::EscapeContinuation { continuation } => {

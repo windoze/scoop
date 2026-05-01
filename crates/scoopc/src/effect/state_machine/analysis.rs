@@ -426,6 +426,7 @@ pub(crate) enum HandleStateOp {
         arm_id: ArmPlanId,
         op_fqn: String,
         arm: Box<hir::HandleArm>,
+        segmented_body: bool,
     },
 }
 
@@ -593,8 +594,15 @@ impl HandleStateOp {
             }
             HandleStateOp::Closure { .. } => "closure".to_string(),
             HandleStateOp::TodoExpr { kind, .. } => format!("todo expr {kind}"),
-            HandleStateOp::ExecuteArmBody { op_fqn, arm, .. } => {
+            HandleStateOp::ExecuteArmBody {
+                op_fqn,
+                arm,
+                segmented_body,
+                ..
+            } => {
+                let mode = if *segmented_body { "segmented" } else { "opaque" };
                 format!("execute arm body op={op_fqn} span={:?}", arm.body.span)
+                    + &format!(" mode={mode}")
             }
         }
     }
@@ -683,8 +691,16 @@ impl HandleStateOp {
             HandleStateOp::TodoExpr { expr, kind } => {
                 33 ^ kind.len() ^ expr_payload_signature(expr)
             }
-            HandleStateOp::ExecuteArmBody { arm_id, op_fqn, arm } => {
-                34 ^ (*arm_id as usize) ^ op_fqn.len() ^ handle_arm_payload_signature(arm)
+            HandleStateOp::ExecuteArmBody {
+                arm_id,
+                op_fqn,
+                arm,
+                segmented_body,
+            } => {
+                34 ^ (*arm_id as usize)
+                    ^ op_fqn.len()
+                    ^ handle_arm_payload_signature(arm)
+                    ^ ((usize::from(*segmented_body)) << 2)
             }
         }
     }
@@ -2877,6 +2893,22 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
             let mut used = HashMap::new();
             collect_local_refs_in_expr(&arm.body, &mut used);
+            let continuation_slot = match arm.kind {
+                hir::HandleArmKind::EscapeContinuation { continuation } => used
+                    .get(&continuation)
+                    .cloned()
+                    .map(|(name, ty)| {
+                        if !self.frame_slots.contains_key(&continuation) {
+                            let slot = self.authoritative_local_slot(continuation, &name, ty);
+                            self.frame_slots.insert(continuation, slot);
+                        }
+                        self.frame_slots
+                            .get(&continuation)
+                            .cloned()
+                            .expect("escape continuation slot must exist")
+                    }),
+                hir::HandleArmKind::NonResuming => None,
+            };
             let mut capture_locals = Vec::new();
             for (id, (name, ty)) in used {
                 if declared.contains(&id) {
@@ -2890,6 +2922,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             }
             capture_locals.sort_by_key(|id| id.as_u32());
 
+            let body_may_suspend_outward = self.arm_body_may_suspend_outward(arm);
+            let segmented_body = matches!(
+                arm.kind,
+                hir::HandleArmKind::EscapeContinuation { continuation }
+                    if !self.tail_resume_arm_matches(&arm.body, continuation)
+            ) && body_may_suspend_outward;
             let body_entry_state = self.new_state(format!("arm{arm_id}.body"));
             self.push_action(
                 body_entry_state,
@@ -2897,6 +2935,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     arm_id,
                     op_fqn: arm.op.op.fqn.clone(),
                     arm: Box::new(arm.clone()),
+                    segmented_body,
                 },
             );
 
@@ -2909,8 +2948,24 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 }
                 hir::HandleArmKind::EscapeContinuation { .. } => ArmBodyExit::MaterializeContinuation,
             };
-            self.set_terminator(body_entry_state, StateTerminator::ArmExit(arm_exit));
-            let body_may_suspend_outward = self.arm_body_may_suspend_outward(arm);
+            let body_end_state = if segmented_body {
+                let mut arm_env = ScopeEnv::default();
+                for slot in &binder_slots {
+                    arm_env.push(slot.clone());
+                }
+                if let Some(slot) = continuation_slot.clone() {
+                    arm_env.push(slot);
+                }
+                for local_id in &capture_locals {
+                    if let Some(slot) = self.frame_slots.get(local_id).cloned() {
+                        arm_env.push(slot);
+                    }
+                }
+                self.build_expr(&arm.body, body_entry_state, &mut arm_env)
+            } else {
+                body_entry_state
+            };
+            self.set_terminator(body_end_state, StateTerminator::ArmExit(arm_exit));
 
             self.arm_plans.push(ArmPlan {
                 id: arm_id,
@@ -3283,6 +3338,13 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     fn attach_suspend_resume_paths(&mut self) {
         for stmt in &self.handle.body.stmts {
             self.attach_suspend_resume_paths_in_stmt(stmt);
+        }
+        for arm in &self.handle.arms {
+            self.attach_suspend_resume_paths_in_expr(
+                &arm.body,
+                SuspendResumeConsumer::ExprStmt,
+                &mut Vec::new(),
+            );
         }
         if let Some(finally_block) = self.handle.finally.as_ref() {
             for stmt in &finally_block.stmts {
@@ -8957,6 +9019,77 @@ fun demo(k: Continuation<Int, Int>): Int {
             resume_site.continuation_escape,
             ContinuationEscapeState::Escaping,
             "handle planning should retain escaping continuation facts"
+        );
+    }
+
+    #[test]
+    fn non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Inner {
+    fun enter(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+class Cell(var saved: Continuation<Int, Int, eff Boom>?, var total: Int)
+
+fun start(cell: Cell): Int / Boom {
+    return handle {
+        val seed: Int = Ask.current()
+        val nested: Int = handle {
+            val x: Int = Inner.enter()
+            val y: Int = Boom.next()
+            x + y
+        } with {
+            Inner.enter(), k -> {
+                val resumed: Int = try {
+                    k.resume(7)
+                } catch (e: RuntimeError) {
+                    0
+                }
+                resumed + 1
+            }
+        }
+        cell.total = seed + nested
+        seed + nested
+    } with {
+        Ask.current(), k -> {
+            cell.saved = Some(k)
+            0 - 1
+        }
+    }
+}
+"#,
+        );
+
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected outer handle");
+        let context = collect_effect_analysis_context_for_fun_with_pass_view(&lowered, fun, None);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        fn has_resume_site(plan: &HandleStateMachinePlan) -> bool {
+            plan.suspend_sites
+                .iter()
+                .any(|site| site.kind.is_continuation_resume_boundary())
+                || plan.nested_handles.iter().any(has_resume_site)
+        }
+
+        let nested = plan
+            .nested_handles
+            .first()
+            .expect("expected nested handle plan inside start");
+        assert!(
+            has_resume_site(nested),
+            "inner handle arm body should materialize a first-class Continuation.resume suspend site instead of staying opaque"
         );
     }
 

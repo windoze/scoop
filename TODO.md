@@ -152,6 +152,26 @@
   - `state_machine_emitter.rs` 的 fresh continuation materialization 现已在没有 ordinary token slot 的 suspend site 上回退捕获当前 TLS incoming token；
   - LLVM 回归 `resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation` 已锁定该合同。
 
+### [TODO] T5002b2b2a2 补齐 non-tail escape arm segmented-body 的 resume-fragment 合同
+- 范围：
+  - 对 non-tail `EscapeContinuation` arm 且 body 仍可能 outward suspend 的形状，不再只停留在 opaque `ExecuteArmBody`；至少让 arm body 内部的 nested handle / `try { k.resume(...) } catch ...` / body tail 共享同一条可 replay 的 resume-fragment 合同。
+  - 让 arm body 自己的 nested-handle boundary 在 replay 后不再把 inner handle / `try` 表达式值直接当成整个 arm 结果；outer arm tail（例如 `inner_arm_after_resume`、`resumed + 1`）必须继续执行。
+  - 理顺 arm body 内部隐藏的 `Continuation.resume(...)` site 与外层 nested-handle boundary 的 owner 链：same-frame replay 继续消费 raw inner token，对更外层暴露的 token 则必须指向能继续 arm tail 的 wrapper continuation。
+- 验收：
+  - 最小 nested-handle immediate-resume 探针可证明 replay 至少继续到 `inner_arm_after_resume` 与 arm tail，不再停在 `after_boom` / `after_nested = 18`；
+  - 至少一条 focused analysis / LLVM / run-pass 回归锁定 non-tail escape arm segmented-body 的 `Continuation.resume(...)` site 与 nested-handle boundary replay 合同。
+- 依赖：T5002b2b2a
+
+### [TODO] T5002b2b2a2R Review：确认 escape arm body 不再作为 opaque expr 截断 replay tail
+- 重点：
+  - non-tail `EscapeContinuation` arm body 是否已经具备 resume-fragment/source-path 合同，而不是只在 `ExecuteArmBody` 中整块 opaque codegen；
+  - nested handle / `try` boundary replay 后，arm tail 是否继续执行到 `inner_arm_after_resume` / `resumed + 1`；
+  - same-frame raw token 与向外传播 wrapper token 的 owner 是否已经分层明确。
+- 验收：
+  - `T5002b2b2b` 可在 arm body replay tail 已经闭合的前提下继续只关注 ordinary callee boundary 上的 replay owner 错位；
+  - review 阶段至少要覆盖一条分析/IR 断言与一条 end-to-end replay probe，而不是只看运行输出。
+- 依赖：T5002b2b2a2
+
 ### [TODO] T5002b2b2b 修复 nested-handle immediate-resume replay-state 穿过 ordinary callee boundary 时的 replay owner 错位
 - 范围：
   - 修复“ordinary callee fresh suspend 命中 inner `Continuation.resume(...)` replay 后，outer ordinary call boundary 把 legacy replay-state 误当成 callee resume entry token 保存，随后 replay 直接跳到错误对象形状”的现有错误行为。
@@ -160,7 +180,7 @@
 - 验收：
   - 最小 nested-handle immediate-resume 程序可证明：第一次 `k.resume(...)` 后 resumed ordinary callee 命中第二次 outward suspend；第二次 `k.resume(...)` 后会继续执行 inner callee tail，而不是提前把 outer payload 当成最终 answer；
   - 至少一条 focused LLVM / run-pass 回归锁定该 replay-chain 行为。
-- 依赖：T5002b2b2a
+- 依赖：T5002b2b2a2R
 
 ### [TODO] T5002b2bR Review：确认 callee resume entry token contract 已与 ordinary call boundary 对齐
 - 重点：
