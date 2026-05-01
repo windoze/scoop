@@ -64,20 +64,27 @@ fn assert_dump_cli_parity(subcommand: &str, fixture: &str) {
     let refactor = observe_dump_cli(dump_cli_args("refactor", subcommand, &fixture));
 
     assert_eq!(
-        legacy.success, refactor.success,
+        legacy.success,
+        refactor.success,
         "{subcommand} 在 legacy/refactor 下退出状态不一致（fixture: {}）",
         fixture.display()
     );
     assert_eq!(
-        legacy.stderr, refactor.stderr,
+        legacy.stderr,
+        refactor.stderr,
         "{subcommand} 在 legacy/refactor 下 stderr 不一致（fixture: {}）",
         fixture.display()
     );
     assert_eq!(
-        legacy.stdout, refactor.stdout,
+        legacy.stdout,
+        refactor.stdout,
         "{subcommand} 在 legacy/refactor 下 dump 输出不一致（fixture: {}）",
         fixture.display()
     );
+}
+
+fn assert_refactor_ast_stage_parity(fixture: &str) {
+    assert_dump_cli_parity("dump-ast", fixture);
 }
 
 fn canonicalize_debug_type_ids(text: &str) -> String {
@@ -185,15 +192,33 @@ fn skip_ascii_whitespace(bytes: &[u8], mut index: usize) -> usize {
 #[test]
 fn canonicalize_debug_type_ids_normalizes_multiline_and_inline_forms() {
     let raw = "TypeId(\n    8,\n) [t8, t3, t8]";
-    assert_eq!(
-        canonicalize_debug_type_ids(raw),
-        "TypeId(T0) [T0, T1, T0]"
+    assert_eq!(canonicalize_debug_type_ids(raw), "TypeId(T0) [T0, T1, T0]");
+}
+
+#[test]
+fn refactor_ast_stage_parity_handle_expr_minimal() {
+    assert_refactor_ast_stage_parity("tests/fixtures/parse/handle_expr_minimal.scoop");
+}
+
+#[test]
+fn refactor_ast_stage_parity_resume_member_call() {
+    assert_refactor_ast_stage_parity(
+        "tests/fixtures/parse/continuation_resume_member_call_basic.scoop",
     );
 }
 
 #[test]
-fn dump_ast_cli_parity_matches_legacy_and_refactor() {
-    assert_dump_cli_parity("dump-ast", "tests/fixtures/parse/handle_expr_minimal.scoop");
+fn refactor_ast_stage_parity_resume_unit_call() {
+    assert_refactor_ast_stage_parity(
+        "tests/fixtures/parse/continuation_resume_unit_call_basic.scoop",
+    );
+}
+
+#[test]
+fn refactor_ast_stage_parity_unit_zero_arg_sugar() {
+    assert_refactor_ast_stage_parity(
+        "tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop",
+    );
 }
 
 #[test]
@@ -250,16 +275,26 @@ fn observe_build_emit_llvm_cli(mode: &str, fixture: &Path, output: &Path) -> Par
 #[cfg(feature = "llvm")]
 #[test]
 fn build_emit_llvm_cli_parity_matches_legacy_and_refactor() {
-    let fixture = workspace_path("tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop");
+    let fixture =
+        workspace_path("tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop");
     let dir = tempdir().unwrap();
     let output = dir.path().join("parity.ll");
 
     let legacy = observe_build_emit_llvm_cli("legacy", &fixture, &output);
     let refactor = observe_build_emit_llvm_cli("refactor", &fixture, &output);
 
-    assert_eq!(legacy.success, refactor.success, "build --emit-llvm 退出状态不一致");
-    assert_eq!(legacy.stderr, refactor.stderr, "build --emit-llvm stderr 不一致");
-    assert_eq!(legacy.stdout, refactor.stdout, "build --emit-llvm 产物不一致");
+    assert_eq!(
+        legacy.success, refactor.success,
+        "build --emit-llvm 退出状态不一致"
+    );
+    assert_eq!(
+        legacy.stderr, refactor.stderr,
+        "build --emit-llvm stderr 不一致"
+    );
+    assert_eq!(
+        legacy.stdout, refactor.stdout,
+        "build --emit-llvm 产物不一致"
+    );
     assert!(
         legacy.stdout.contains("define i32 @main("),
         "LLVM smoke 产物应包含 main 定义"

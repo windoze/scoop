@@ -269,7 +269,11 @@
   - 本阶段可以结束并进入 P2。
 - 依赖：P1-T02R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P1-T03`，将 refactor AST stage 的输出注释升级为显式 AST -> typed handoff contract，并补齐 refactor AST stage 相对 legacy 的自动化 parity 验证。
+  - `crates/scoopc/src/effect_refactor_pipeline/ast_stage.rs` 现在明确写出本阶段 contract：AST 只保留普通 `Call` / `MemberAccess` 形状、不做 type-dependent desugar、`k.resume()` 与一般 `f()` 继续保留零参数调用、`k.resume(())` / `f(())` 继续保留显式 `UnitLit` 参数，且 `k.resume()` <=> `k.resume(())`、`f()` <=> `f(())` 的等价性只允许在 P2 typed 阶段解释；`Continuation` typed 含义、runtime error 传播与 effect row 解释均不属于 P1。
+  - `crates/scoop/src/commands/parity.rs` 新增 4 个 `refactor_ast_stage_parity_*` 自动化测试，覆盖 `tests/fixtures/parse/handle_expr_minimal.scoop`、`continuation_resume_member_call_basic.scoop`、`continuation_resume_unit_call_basic.scoop`、`unit_single_param_zero_arg_call_basic.scoop`，统一通过 CLI -> session -> dispatcher 路径比较 `legacy` / `refactor` 的 `dump-ast` 输出，锁定 AST stage parity。
+  - 本任务未修改 `TODO.md` 或 `PLAN.md`：任务顺序、索引与阶段计划保持不变。
+  - 验证通过：`cargo test -p scoop --no-default-features refactor_ast_stage_parity`、`cargo test -p scoopc --no-default-features parser::tests`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/continuation_resume_member_call_basic.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/continuation_resume_member_call_basic.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P1-T03R：Review P1 阶段退出条件，确认可以进入 HIR / typecheck 新路径
 
