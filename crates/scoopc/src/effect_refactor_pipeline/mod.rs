@@ -6,6 +6,7 @@
 //! - 低层业务模块不应自行读取 pipeline mode。
 
 mod ast_stage;
+mod hir_stage;
 mod legacy;
 mod refactor;
 
@@ -13,6 +14,7 @@ use crate::session::{EffectPipelineMode, Session};
 use crate::source::SourceFile;
 
 pub use ast_stage::AstStageOutput;
+pub use hir_stage::{TypedHirEffectContracts, TypedHirStageOutput};
 
 #[cfg(feature = "llvm")]
 use crate::source::{SourceId, SourceMap};
@@ -101,7 +103,7 @@ impl StageDispatcher {
         }
     }
 
-    /// P0 中所有 refactor 入口先在阶段边界整体委托给 legacy 实现。
+    /// 尚未拥有独立实现的阶段，可在阶段边界整体委托给 legacy 实现。
     pub fn delegate_to_legacy<T>(self, legacy_op: impl FnOnce() -> T) -> T {
         match self.entry {
             StageEntry::Legacy(entry) => entry.delegate_to_legacy(legacy_op),
@@ -178,11 +180,32 @@ pub fn load_ast_stage_output_for_dump<'a>(
     }
 }
 
+pub fn load_typed_hir_stage_output_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<TypedHirStageOutput, crate::hir::HirLowerError> {
+    let dispatcher = dispatcher_for_session(session).typed_hir();
+    match dispatcher.entry {
+        StageEntry::Legacy(entry) => entry.delegate_to_legacy(|| {
+            crate::hir::lower_typed_for_dump(session, source).map(TypedHirStageOutput::new)
+        }),
+        StageEntry::Refactor(entry) => entry.lower_typed_hir_stage_output(session, source),
+    }
+}
+
 pub fn lower_typed_hir_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<crate::hir::LoweredHir, crate::hir::HirLowerError> {
-    enter_typed_hir_stage(session, || crate::hir::lower_for_dump(session, source))
+    let dispatcher = dispatcher_for_session(session).typed_hir();
+    match dispatcher.entry {
+        StageEntry::Legacy(entry) => {
+            entry.delegate_to_legacy(|| crate::hir::lower_for_dump(session, source))
+        }
+        StageEntry::Refactor(entry) => entry
+            .lower_typed_hir_stage_output(session, source)
+            .map(TypedHirStageOutput::into_lowered_hir),
+    }
 }
 
 pub fn lower_direct_style_mir_for_dump(
@@ -317,5 +340,20 @@ mod tests {
             dispatcher_for_session(&session).ast().mode(),
             EffectPipelineMode::Refactor
         );
+    }
+
+    #[test]
+    fn refactor_typed_hir_stage_dispatcher_loads_stage_output() {
+        let session = session_for(EffectPipelineMode::Refactor);
+        let source = sample_source();
+
+        let output = load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+
+        assert_eq!(
+            dispatcher_for_session(&session).typed_hir().mode(),
+            EffectPipelineMode::Refactor
+        );
+        assert_eq!(output.hir_file().items.len(), 1);
+        assert!(output.effect_contracts().is_placeholder());
     }
 }

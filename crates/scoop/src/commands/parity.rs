@@ -222,10 +222,33 @@ fn refactor_ast_stage_parity_unit_zero_arg_sugar() {
 }
 
 #[test]
-fn dump_hir_cli_parity_matches_legacy_and_refactor() {
-    assert_dump_cli_parity(
-        "dump-hir",
+fn dump_hir_cli_legacy_and_refactor_both_succeed_after_typed_split() {
+    // P2-T01 起，refactor `dump-hir` 改走 typed HIR stage，因此这里不再要求 stdout parity。
+    let fixture = workspace_path(
         "tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop",
+    );
+    let legacy = observe_dump_cli(dump_cli_args("legacy", "dump-hir", &fixture));
+    let refactor = observe_dump_cli(dump_cli_args("refactor", "dump-hir", &fixture));
+
+    assert_eq!(
+        legacy.success,
+        refactor.success,
+        "dump-hir 在 legacy/refactor 下退出状态不一致（fixture: {}）",
+        fixture.display()
+    );
+    assert_eq!(
+        legacy.stderr,
+        refactor.stderr,
+        "dump-hir 在 legacy/refactor 下 stderr 不一致（fixture: {}）",
+        fixture.display()
+    );
+    assert!(
+        !legacy.stdout.is_empty(),
+        "legacy dump-hir 应继续为代表性 continuation fixture 产出输出"
+    );
+    assert!(
+        !refactor.stdout.is_empty(),
+        "refactor dump-hir 应继续为代表性 continuation fixture 产出 typed HIR 输出"
     );
 }
 

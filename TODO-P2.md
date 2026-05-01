@@ -87,7 +87,13 @@
   - `dump-hir --effect-pipeline refactor` 已不再调用 legacy `lower_for_dump`。
 - 依赖：`TODO-P1.md` 最后一项 review 完成
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：新增 `crates/scoopc/src/effect_refactor_pipeline/hir_stage.rs`，为 refactor 新路径建立独立 typed HIR stage，并定义 `TypedHirStageOutput` 作为稳定 handoff；其注释明确固定本阶段 invariants：输出已经过 resolver + typecheck、`Continuation` / `resume` / `perform` / `handle` 的 typed contract 不应再回 AST 猜测、`dump-hir` refactor 路径必须优先消费该 stage 输出。
+  - `TypedHirStageOutput` 现在稳定承载 `LoweredHir`（含 typed `hir::File` 与 `TypeStore`），并新增占位 side-table 容器 `TypedHirEffectContracts`，供后续 `P2-T03` / `P2-T04` 继续补入结构化 effect/continuation contract。
+  - `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 新增 `load_typed_hir_stage_output_for_dump(...)`；`refactor` 模式下 `lower_typed_hir_for_dump(...)` 已改为显式进入 `hir_stage::run(...)`，不再调用 legacy `hir::lower_for_dump(...)`；`legacy` 模式仍保持原有 `hir::lower_for_dump(...)` 行为不变。
+  - `crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 已为 `StageKind::TypedHir` 增加专属 stage entry；`crates/scoop/src/commands/dump_hir.rs` 现在在命令边界按 pipeline mode 分流：`legacy` 继续走 `hir::lower_for_dump(...)`，`refactor` 走 `load_typed_hir_stage_output_for_dump(...)`，并新增测试锁定两条路径。
+  - 由于 `P2-T01` 起 refactor `dump-hir` 故意切换到 typed HIR 输出，`crates/scoop/src/commands/parity.rs` 中原先要求 `dump-hir` legacy/refactor stdout 完全一致的 P0 守门测试已调整为“双方都能成功路由且 stderr 一致”的 smoke；AST / MIR / IR parity 守门保持不变。
+  - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务顺序、索引与阶段计划保持不变。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_typed_hir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_hir`、`cargo test -p scoop --no-default-features parity`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/hir/minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P2-T01R：Review refactor typed HIR stage，确认新路径已从 legacy `lower_for_dump` 分离
 

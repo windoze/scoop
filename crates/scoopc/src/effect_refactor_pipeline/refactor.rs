@@ -3,11 +3,11 @@ use crate::session::EffectPipelineMode;
 use crate::session::Session;
 use crate::source::SourceFile;
 
-use super::{AstStageOutput, StageKind, ast_stage};
+use super::{AstStageOutput, StageKind, TypedHirStageOutput, ast_stage, hir_stage};
 
 /// refactor 主线的阶段入口。
 ///
-/// P0 只负责把入口形状固定下来；真正的新实现会在后续任务逐步填到这些 stage entry 后面。
+/// P0 先固定入口形状；P1 / P2 已分别填入 AST / typed HIR stage，剩余阶段后续继续逐步替换。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct StageEntry {
     stage: StageKind,
@@ -34,6 +34,16 @@ impl StageEntry {
         debug_assert_eq!(self.stage, StageKind::Ast);
         let _ = self;
         ast_stage::run(session, source)
+    }
+
+    pub(crate) fn lower_typed_hir_stage_output(
+        self,
+        session: &Session,
+        source: &SourceFile,
+    ) -> Result<TypedHirStageOutput, crate::hir::HirLowerError> {
+        debug_assert_eq!(self.stage, StageKind::TypedHir);
+        let _ = self;
+        hir_stage::run(session, source)
     }
 
     pub(crate) fn delegate_to_legacy<T>(self, legacy_op: impl FnOnce() -> T) -> T {
