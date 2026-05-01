@@ -1497,7 +1497,7 @@ fun main(): Int {
     );
 
     let codegen_unit =
-        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
             .unwrap();
     let wrap_fqn = "fixtures.t5000i1p5.wrap::<Int>";
     let id_fqn = "fixtures.t5000i1p5.id::<Int>";
@@ -4067,6 +4067,165 @@ fun main(): Int {
     assert!(
         closure_call.contains("ptr addrspace(1) null"),
         "fresh pass MIR closure outward-effect call 应显式传入 null incoming_resume_token_ref:\n{closure_call}"
+    );
+}
+
+#[test]
+fn production_codegen_lowers_raw_mir_effectful_closure_body_direct_perform() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5002b2a1_raw_mir_closure_direct_perform.scoop",
+        r#"
+package fixtures.t5002b2a1
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun apply(f: (Int) -> Int / (Ask), x: Int): Int / (Ask) {
+    return f(x)
+}
+
+fun caller(x: Int): Int / (Ask) {
+    val delta = 1
+    return apply({ y -> Ask.ask(y + delta) }, x)
+}
+
+fun main(): Int {
+    return handle {
+        caller(40)
+    } with {
+        Ask.ask(seed) -> seed + 1
+    }
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let caller_fqn = "fixtures.t5002b2a1.caller";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let raw_caller = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == caller_fqn)
+        .expect("effectful closure caller 应进入 caller-side pass 候选");
+    assert!(
+        mir_fun_contains_make_closure(raw_caller),
+        "test setup 需要确认 caller 的 raw MIR 仍保留 materialized closure"
+    );
+    let lambda_fqn = mir_fun_first_make_closure_fn_ptr(raw_caller)
+        .expect("caller 的 raw MIR 应保留 closure fn_ptr");
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let lambda_ir = function_ir_named(&ir, lambda_fqn);
+
+    assert!(
+        lambda_ir.contains("mir.bb"),
+        "effectful materialized MIR closure body 应继续走 production MIR bridge，而不是退回其他路径:\n{lambda_ir}"
+    );
+    assert!(
+        lambda_ir.contains("pass_mir_effect_perform_return")
+            && lambda_ir.contains("pass_mir_effect_perform_dead")
+            && lambda_ir.contains("unreachable"),
+        "pass MIR perform terminator 应把 early-return 与 dead landing block 都正确终止，避免留下 verifier-invalid 的 unterminated block:\n{lambda_ir}"
+    );
+    assert!(
+        lambda_ir.contains("@scoop_effect_set_active_with_trace"),
+        "materialized MIR closure body 直接 perform 时应继续 lower 成 effect perform runtime 写入，而不是在 mir_body.rs 上报 unsupported:\n{lambda_ir}"
+    );
+}
+
+#[test]
+fn production_pass_mir_effectful_closure_body_direct_perform_lowering() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5002b2a1_pass_mir_closure_direct_perform.scoop",
+        r#"
+package fixtures.t5002b2a1
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun apply(f: (Int) -> Int / (Ask), x: Int): Int / (Ask) {
+    return f(x)
+}
+
+fun caller(x: Int): Int / (Ask) {
+    val delta = 1
+    return apply({ y -> Ask.ask(y + delta) }, x)
+}
+
+fun main(): Int {
+    return handle {
+        caller(40)
+    } with {
+        Ask.ask(seed) -> seed + 1
+    }
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
+            .unwrap();
+    let caller_fqn = "fixtures.t5002b2a1.caller";
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let pass_caller = materialized
+        .pass_view()
+        .callable(caller_fqn)
+        .expect("known closure provenance 应发布 caller 的 pass-visible MIR body");
+    assert!(
+        mir_fun_contains_closure_call(pass_caller),
+        "test setup 需要确认 caller 的 pass-visible MIR body 已包含结构化 ClosureCall"
+    );
+    let lambda_fqn = mir_fun_first_make_closure_fn_ptr(pass_caller)
+        .expect("caller 的 pass-visible MIR body 应保留 closure fn_ptr");
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let caller_ir = function_ir_named(&ir, caller_fqn);
+    let lambda_ir = function_ir_named(&ir, lambda_fqn);
+    let closure_call = caller_ir
+        .lines()
+        .find(|line| line.contains("pass_mir_call_closure"))
+        .expect("expected pass MIR closure call in caller IR");
+
+    assert!(
+        caller_ir.contains("@scoop_effect_outcome_consume_current")
+            && caller_ir.contains("@scoop_callee_suspend_state_publish")
+            && caller_ir.contains("pass_mir_closure_call_obj_reload"),
+        "pass-visible caller body 调用直接 perform 的 materialized MIR closure 时，仍应继续走显式 incoming token + outcome boundary，并在 boundary 后重新加载 closure object:\n{caller_ir}"
+    );
+    assert!(
+        closure_call.contains("ptr addrspace(1) null"),
+        "fresh pass MIR closure outward-effect call 应显式传入 null incoming_resume_token_ref:\n{closure_call}"
+    );
+    assert!(
+        lambda_ir.contains("@scoop_effect_perform_slot_write")
+            && lambda_ir.contains("@scoop_effect_set_active_with_trace"),
+        "materialized MIR closure body 直接 perform 应被 lowered 成 perform-slot 写入 + outward-effect 激活，而不是在 mir_body.rs 上报 unsupported:\n{lambda_ir}"
     );
 }
 

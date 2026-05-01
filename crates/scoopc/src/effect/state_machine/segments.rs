@@ -476,7 +476,10 @@ impl HandleSegmentList {
             }
             previous_cleanup_scope_id = Some(scope.id);
             if cleanup_scopes_by_id.insert(scope.id, scope).is_some() {
-                return Err(format!("{path}: duplicate cleanup scope cleanup{}", scope.id));
+                return Err(format!(
+                    "{path}: duplicate cleanup scope cleanup{}",
+                    scope.id
+                ));
             }
         }
 
@@ -497,7 +500,8 @@ impl HandleSegmentList {
             }
         }
 
-        let mut edge_keys = HashSet::<(HandleSegmentId, HandleSegmentId, HandleSegmentEdgeKind)>::new();
+        let mut edge_keys =
+            HashSet::<(HandleSegmentId, HandleSegmentId, HandleSegmentEdgeKind)>::new();
         for edge in &self.edges {
             if !segment_by_id.contains_key(&edge.from) {
                 return Err(format!(
@@ -537,12 +541,10 @@ impl HandleSegmentList {
                             && edge.to == *else_segment)
                 }
                 HandleSegmentTerminator::Suspend { resume_segment, .. } => {
-                    edge.kind == HandleSegmentEdgeKind::SuspendResume
-                        && edge.to == *resume_segment
+                    edge.kind == HandleSegmentEdgeKind::SuspendResume && edge.to == *resume_segment
                 }
                 HandleSegmentTerminator::CleanupEnter { next_segment, .. } => {
-                    edge.kind == HandleSegmentEdgeKind::CleanupEnter
-                        && edge.to == *next_segment
+                    edge.kind == HandleSegmentEdgeKind::CleanupEnter && edge.to == *next_segment
                 }
                 HandleSegmentTerminator::ReturnHandle
                 | HandleSegmentTerminator::ReturnFromFunction
@@ -595,49 +597,39 @@ impl HandleSegmentList {
                 {
                     return Err(format!(
                         "{path}: dispatch entry {} arm_ids[] is not strictly sorted at arm{}",
-                        entry.op_fqn,
-                        arm_id
+                        entry.op_fqn, arm_id
                     ));
                 }
                 previous_arm_id = Some(*arm_id);
                 if !arm_ids.insert(*arm_id) {
                     return Err(format!(
                         "{path}: dispatch entry {} repeats arm{}",
-                        entry.op_fqn,
-                        arm_id
+                        entry.op_fqn, arm_id
                     ));
                 }
                 if *arm_id != target.arm_id {
                     return Err(format!(
                         "{path}: dispatch entry {} target#{idx} points to arm{} but arm_ids[{idx}] is arm{}",
-                        entry.op_fqn,
-                        target.arm_id,
-                        arm_id
+                        entry.op_fqn, target.arm_id, arm_id
                     ));
                 }
 
                 let arm = arm_bodies_by_id.get(arm_id).ok_or_else(|| {
                     format!(
                         "{path}: dispatch entry {} references missing arm{}",
-                        entry.op_fqn,
-                        arm_id
+                        entry.op_fqn, arm_id
                     )
                 })?;
                 if arm.op_fqn != entry.op_fqn {
                     return Err(format!(
                         "{path}: dispatch entry {} points to arm{} for {}",
-                        entry.op_fqn,
-                        arm_id,
-                        arm.op_fqn
+                        entry.op_fqn, arm_id, arm.op_fqn
                     ));
                 }
                 if target.entry_segment != arm.body_entry_segment {
                     return Err(format!(
                         "{path}: dispatch entry {} arm{} entry seg{} does not match arm body seg{}",
-                        entry.op_fqn,
-                        arm_id,
-                        target.entry_segment,
-                        arm.body_entry_segment
+                        entry.op_fqn, arm_id, target.entry_segment, arm.body_entry_segment
                     ));
                 }
 
@@ -663,15 +655,13 @@ impl HandleSegmentList {
             if !segment_by_id.contains_key(&scope.entry_segment) {
                 return Err(format!(
                     "{path}: cleanup{} entry seg{} is missing from segments[]",
-                    scope.id,
-                    scope.entry_segment
+                    scope.id, scope.entry_segment
                 ));
             }
             if !segment_by_id.contains_key(&scope.exit_segment) {
                 return Err(format!(
                     "{path}: cleanup{} exit seg{} is missing from segments[]",
-                    scope.id,
-                    scope.exit_segment
+                    scope.id, scope.exit_segment
                 ));
             }
         }
@@ -680,15 +670,13 @@ impl HandleSegmentList {
             if !segment_by_id.contains_key(&arm.body_entry_segment) {
                 return Err(format!(
                     "{path}: arm{} entry seg{} is missing from segments[]",
-                    arm.arm_id,
-                    arm.body_entry_segment
+                    arm.arm_id, arm.body_entry_segment
                 ));
             }
             if !arm.body_segments.contains(&arm.body_entry_segment) {
                 return Err(format!(
                     "{path}: arm{} body does not include its entry seg{}",
-                    arm.arm_id,
-                    arm.body_entry_segment
+                    arm.arm_id, arm.body_entry_segment
                 ));
             }
 
@@ -697,15 +685,13 @@ impl HandleSegmentList {
                 if !body_segment_ids.insert(*segment_id) {
                     return Err(format!(
                         "{path}: arm{} body repeats seg{}",
-                        arm.arm_id,
-                        segment_id
+                        arm.arm_id, segment_id
                     ));
                 }
                 let segment = segment_by_id.get(segment_id).ok_or_else(|| {
                     format!(
                         "{path}: arm{} body references missing seg{}",
-                        arm.arm_id,
-                        segment_id
+                        arm.arm_id, segment_id
                     )
                 })?;
                 match segment.dispatch_context {
@@ -797,15 +783,13 @@ impl HandleSegmentList {
             if !segment_by_id.contains_key(&site.owner_segment) {
                 return Err(format!(
                     "{path}: site{} owner seg{} is missing from segments[]",
-                    site.id,
-                    site.owner_segment
+                    site.id, site.owner_segment
                 ));
             }
             if !segment_by_id.contains_key(&site.resume_segment) {
                 return Err(format!(
                     "{path}: site{} resume seg{} is missing from segments[]",
-                    site.id,
-                    site.resume_segment
+                    site.id, site.resume_segment
                 ));
             }
             if let Some(escape_resume_segment) = site.escape_resume_segment
@@ -813,8 +797,7 @@ impl HandleSegmentList {
             {
                 return Err(format!(
                     "{path}: site{} escape-resume seg{} is missing from segments[]",
-                    site.id,
-                    escape_resume_segment
+                    site.id, escape_resume_segment
                 ));
             }
 
@@ -829,8 +812,7 @@ impl HandleSegmentList {
                 _ => {
                     return Err(format!(
                         "{path}: site{} owner seg{} terminator does not point back to site",
-                        site.id,
-                        site.owner_segment
+                        site.id, site.owner_segment
                     ));
                 }
             }
@@ -840,15 +822,13 @@ impl HandleSegmentList {
                 if !matching_arms.insert(*arm_id) {
                     return Err(format!(
                         "{path}: site{} repeats matching arm{}",
-                        site.id,
-                        arm_id
+                        site.id, arm_id
                     ));
                 }
                 if !arm_bodies_by_id.contains_key(arm_id) {
                     return Err(format!(
                         "{path}: site{} references missing arm{}",
-                        site.id,
-                        arm_id
+                        site.id, arm_id
                     ));
                 }
             }
@@ -856,7 +836,9 @@ impl HandleSegmentList {
             match &site.kind {
                 SuspendSiteKind::Perform { op_fqn } => {
                     for arm_id in &site.matching_arms {
-                        let arm = arm_bodies_by_id.get(arm_id).expect("validated arm should exist");
+                        let arm = arm_bodies_by_id
+                            .get(arm_id)
+                            .expect("validated arm should exist");
                         if arm.op_fqn != *op_fqn {
                             return Err(format!(
                                 "{path}: site{} kind={} for {} matches arm{} for {}",
@@ -878,7 +860,9 @@ impl HandleSegmentList {
                 }
                 SuspendSiteKind::RuntimeRaise { reason } => {
                     for arm_id in &site.matching_arms {
-                        let arm = arm_bodies_by_id.get(arm_id).expect("validated arm should exist");
+                        let arm = arm_bodies_by_id
+                            .get(arm_id)
+                            .expect("validated arm should exist");
                         if arm.op_fqn != "scoop.core.Raise.raise" {
                             return Err(format!(
                                 "{path}: site{} kind={} must only match scoop.core.Raise.raise but arm{} handles {}",
@@ -954,7 +938,6 @@ impl HandleSegmentList {
                         &site.kind,
                         SuspendSiteKind::ObjectInitAccess { .. }
                             | SuspendSiteKind::TopLevelValueInitAccess { .. }
-                            | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.source_path.is_some()
                     {
                         return Err(format!(
@@ -1041,8 +1024,7 @@ impl HandleSegmentList {
                 if !cleanup_scopes_by_id.contains_key(scope_id) {
                     return Err(format!(
                         "{path}: seg{} references missing cleanup{} in cleanup stack",
-                        segment.id,
-                        scope_id
+                        segment.id, scope_id
                     ));
                 }
             }
@@ -1052,16 +1034,17 @@ impl HandleSegmentList {
                     if !segment_by_id.contains_key(next_segment) {
                         return Err(format!(
                             "{path}: seg{} goto target seg{} is missing from segments[]",
-                            segment.id,
-                            next_segment
+                            segment.id, next_segment
                         ));
                     }
-                    if !edge_keys.contains(&(segment.id, *next_segment, HandleSegmentEdgeKind::Goto))
-                    {
+                    if !edge_keys.contains(&(
+                        segment.id,
+                        *next_segment,
+                        HandleSegmentEdgeKind::Goto,
+                    )) {
                         return Err(format!(
                             "{path}: seg{} goto target seg{} is missing from edges[]",
-                            segment.id,
-                            next_segment
+                            segment.id, next_segment
                         ));
                     }
                 }
@@ -1075,8 +1058,7 @@ impl HandleSegmentList {
                         if !segment_by_id.contains_key(target) {
                             return Err(format!(
                                 "{path}: seg{} branch target seg{} is missing from segments[]",
-                                segment.id,
-                                target
+                                segment.id, target
                             ));
                         }
                     }
@@ -1087,8 +1069,7 @@ impl HandleSegmentList {
                     )) {
                         return Err(format!(
                             "{path}: seg{} missing branch-then edge to seg{}",
-                            segment.id,
-                            then_segment
+                            segment.id, then_segment
                         ));
                     }
                     if !edge_keys.contains(&(
@@ -1098,8 +1079,7 @@ impl HandleSegmentList {
                     )) {
                         return Err(format!(
                             "{path}: seg{} missing branch-else edge to seg{}",
-                            segment.id,
-                            else_segment
+                            segment.id, else_segment
                         ));
                     }
                 }
@@ -1110,27 +1090,20 @@ impl HandleSegmentList {
                     let site = suspend_sites_by_id.get(site_id).ok_or_else(|| {
                         format!(
                             "{path}: seg{} suspend site{} is missing from suspend_sites[]",
-                            segment.id,
-                            site_id
+                            segment.id, site_id
                         )
                     })?;
-                    let is_escape_replay_segment =
-                        site.escape_resume_segment == Some(segment.id);
+                    let is_escape_replay_segment = site.escape_resume_segment == Some(segment.id);
                     if site.owner_segment != segment.id && !is_escape_replay_segment {
                         return Err(format!(
                             "{path}: seg{} points to site{} but site owner is seg{}",
-                            segment.id,
-                            site_id,
-                            site.owner_segment
+                            segment.id, site_id, site.owner_segment
                         ));
                     }
                     if site.resume_segment != *resume_segment {
                         return Err(format!(
                             "{path}: seg{} resume seg{} disagrees with site{} resume seg{}",
-                            segment.id,
-                            resume_segment,
-                            site_id,
-                            site.resume_segment
+                            segment.id, resume_segment, site_id, site.resume_segment
                         ));
                     }
                     if !edge_keys.contains(&(
@@ -1140,8 +1113,7 @@ impl HandleSegmentList {
                     )) {
                         return Err(format!(
                             "{path}: seg{} missing suspend-resume edge to seg{}",
-                            segment.id,
-                            resume_segment
+                            segment.id, resume_segment
                         ));
                     }
                 }
@@ -1152,15 +1124,13 @@ impl HandleSegmentList {
                     if !cleanup_scopes_by_id.contains_key(scope_id) {
                         return Err(format!(
                             "{path}: seg{} cleanup enter references missing cleanup{}",
-                            segment.id,
-                            scope_id
+                            segment.id, scope_id
                         ));
                     }
                     if !segment_by_id.contains_key(next_segment) {
                         return Err(format!(
                             "{path}: seg{} cleanup target seg{} is missing from segments[]",
-                            segment.id,
-                            next_segment
+                            segment.id, next_segment
                         ));
                     }
                     if !edge_keys.contains(&(
@@ -1170,8 +1140,7 @@ impl HandleSegmentList {
                     )) {
                         return Err(format!(
                             "{path}: seg{} missing cleanup-enter edge to seg{}",
-                            segment.id,
-                            next_segment
+                            segment.id, next_segment
                         ));
                     }
                 }
@@ -1186,22 +1155,19 @@ impl HandleSegmentList {
                     let scope = cleanup_scopes_by_id.get(&scope_id).ok_or_else(|| {
                         format!(
                             "{path}: seg{} cleanup-body references missing cleanup{}",
-                            segment.id,
-                            scope_id
+                            segment.id, scope_id
                         )
                     })?;
                     if scope.kind != kind {
                         return Err(format!(
                             "{path}: seg{} cleanup-body kind mismatch for cleanup{}",
-                            segment.id,
-                            scope_id
+                            segment.id, scope_id
                         ));
                     }
                     if segment.cleanup_scope_stack.contains(&scope_id) {
                         return Err(format!(
                             "{path}: seg{} cleanup-body still lists cleanup{} in cleanup stack",
-                            segment.id,
-                            scope_id
+                            segment.id, scope_id
                         ));
                     }
                 }
@@ -1209,15 +1175,13 @@ impl HandleSegmentList {
                     let arm = arm_bodies_by_id.get(&arm_id).ok_or_else(|| {
                         format!(
                             "{path}: seg{} arm-body references missing arm{}",
-                            segment.id,
-                            arm_id
+                            segment.id, arm_id
                         )
                     })?;
                     if !arm.body_segments.contains(&segment.id) {
                         return Err(format!(
                             "{path}: seg{} is marked as arm{} body but arm metadata does not include it",
-                            segment.id,
-                            arm_id
+                            segment.id, arm_id
                         ));
                     }
                 }
@@ -1265,11 +1229,7 @@ impl HandleSegmentList {
                     .map(HandleSegmentDispatchTarget::label)
                     .collect::<Vec<_>>()
                     .join(", ");
-                out.push_str(&format!(
-                    "{pad}  {} => [{}]\n",
-                    entry.op_fqn,
-                    targets
-                ));
+                out.push_str(&format!("{pad}  {} => [{}]\n", entry.op_fqn, targets));
             }
         }
 
@@ -1348,8 +1308,7 @@ impl HandleSegmentList {
                     .join(", ");
                 let available =
                     render_segment_symbol_ids(&site.available_locals, &frame_slots_by_id);
-                let captures =
-                    render_segment_symbol_ids(&site.capture_locals, &frame_slots_by_id);
+                let captures = render_segment_symbol_ids(&site.capture_locals, &frame_slots_by_id);
                 out.push_str(&format!(
                     "{pad}  site{} kind={} span={:?} owner=seg{} resume=seg{} arms=[{}]\n",
                     site.id,
@@ -1374,10 +1333,7 @@ impl HandleSegmentList {
                     out.push_str(&format!("{pad}    path={}\n", source_path.label()));
                 }
                 if let Some(resume_path) = &site.resume_path {
-                    out.push_str(&format!(
-                        "{pad}    resume-path={}\n",
-                        resume_path.label()
-                    ));
+                    out.push_str(&format!("{pad}    resume-path={}\n", resume_path.label()));
                 }
             }
         }
@@ -1409,8 +1365,7 @@ impl HandleSegmentList {
                 .map_or_else(|| "none".to_string(), |span| format!("{span:?}"));
             out.push_str(&format!(
                 "{pad}  seg{} {} span={source_span}:\n",
-                segment.id,
-                segment.label
+                segment.id, segment.label
             ));
             out.push_str(&format!(
                 "{pad}    context={}\n",
@@ -1421,10 +1376,7 @@ impl HandleSegmentList {
                 render_segment_cleanup_scope_ids(&segment.cleanup_scope_stack)
             ));
             for op in &segment.ops {
-                out.push_str(&format!(
-                    "{pad}    {}\n",
-                    op.label(&frame_slot_map, types)
-                ));
+                out.push_str(&format!("{pad}    {}\n", op.label(&frame_slot_map, types)));
             }
             out.push_str(&format!(
                 "{pad}    terminator={}\n",
@@ -1595,9 +1547,7 @@ impl HandleSegmentTerminator {
                 to: *resume_segment,
                 kind: HandleSegmentEdgeKind::SuspendResume,
             }],
-            Self::CleanupEnter {
-                next_segment, ..
-            } => vec![HandleSegmentEdge {
+            Self::CleanupEnter { next_segment, .. } => vec![HandleSegmentEdge {
                 from,
                 to: *next_segment,
                 kind: HandleSegmentEdgeKind::CleanupEnter,
@@ -1713,9 +1663,7 @@ impl HandleSegmentEdgeKind {
 
 impl HandleSegmentEdge {
     fn structural_signature(&self) -> usize {
-        self.from as usize
-            ^ ((self.to as usize) << 1)
-            ^ (self.kind.structural_signature() << 2)
+        self.from as usize ^ ((self.to as usize) << 1) ^ (self.kind.structural_signature() << 2)
     }
 }
 
@@ -1947,9 +1895,10 @@ fn describe_segment_local(
     id: hir::SymbolId,
     slots_by_id: &HashMap<hir::SymbolId, &FrameSlot>,
 ) -> String {
-    slots_by_id
-        .get(&id)
-        .map_or_else(|| format!("local#{}", id.as_u32()), |slot| slot.display_name())
+    slots_by_id.get(&id).map_or_else(
+        || format!("local#{}", id.as_u32()),
+        |slot| slot.display_name(),
+    )
 }
 
 fn describe_suspend_site_kind(kind: &SuspendSiteKind) -> &'static str {
@@ -1989,9 +1938,11 @@ fn build_segment_successor_map(
                     else_state,
                     ..
                 } => vec![*then_state, *else_state],
-                StateTerminator::Suspend { site_id } => vec![*resume_targets
-                    .get(site_id)
-                    .expect("segment successor map missing suspend resume target")],
+                StateTerminator::Suspend { site_id } => vec![
+                    *resume_targets
+                        .get(site_id)
+                        .expect("segment successor map missing suspend resume target"),
+                ],
                 StateTerminator::CleanupEnter { next_state, .. } => vec![*next_state],
                 StateTerminator::ReturnHandle
                 | StateTerminator::ReturnFromFunction
@@ -2045,12 +1996,9 @@ fn build_state_cleanup_execution_scopes(
     let mut cleanup_scopes_by_state = HashMap::<PlanStateId, Vec<CleanupScopeId>>::new();
 
     for scope in cleanup_scopes {
-        let region = collect_state_region(
-            scope.entry_state,
-            &states_by_id,
-            successors,
-            |state| state.id == scope.exit_state,
-        );
+        let region = collect_state_region(scope.entry_state, &states_by_id, successors, |state| {
+            state.id == scope.exit_state
+        });
         for state_id in region {
             cleanup_scopes_by_state
                 .entry(state_id)
@@ -2072,7 +2020,10 @@ fn build_state_cleanup_scope_stacks(
     states: &[PlanState],
     state_cleanup_execution_scopes: &HashMap<PlanStateId, Vec<CleanupScopeId>>,
 ) -> HashMap<PlanStateId, Vec<CleanupScopeId>> {
-    let mut all_scope_ids = cleanup_scopes.iter().map(|scope| scope.id).collect::<Vec<_>>();
+    let mut all_scope_ids = cleanup_scopes
+        .iter()
+        .map(|scope| scope.id)
+        .collect::<Vec<_>>();
     all_scope_ids.sort_unstable();
 
     states
@@ -2106,12 +2057,10 @@ fn build_segment_arm_bodies(
     let mut arm_bodies = arm_plans
         .iter()
         .map(|arm| {
-            let body_segments = collect_state_region(
-                arm.body_entry_state,
-                &states_by_id,
-                successors,
-                |state| matches!(state.terminator, StateTerminator::ArmExit(_)),
-            );
+            let body_segments =
+                collect_state_region(arm.body_entry_state, &states_by_id, successors, |state| {
+                    matches!(state.terminator, StateTerminator::ArmExit(_))
+                });
             let cleanup_scope_stack = state_cleanup_scope_stacks
                 .get(&arm.body_entry_state)
                 .cloned()
@@ -2686,7 +2635,10 @@ fun demo(mode: Int): Int {
         assert!(dump.contains("arm1 op=a.Boom.boom entry=seg"), "{dump}");
         assert!(dump.contains("context=arm-body arm0"), "{dump}");
         assert!(dump.contains("context=arm-body arm1"), "{dump}");
-        assert!(dump.contains("terminator=arm-exit materialize-continuation"), "{dump}");
+        assert!(
+            dump.contains("terminator=arm-exit materialize-continuation"),
+            "{dump}"
+        );
         assert!(dump.contains("terminator=arm-exit return-handle"), "{dump}");
         assert!(!dump.contains("mode="), "{dump}");
     }
@@ -2734,9 +2686,15 @@ fun demo(): Int {
         assert!(dump.contains("arm1 op=a.Log.current entry=seg"), "{dump}");
         assert!(dump.contains("context=arm-body arm0"), "{dump}");
         assert!(dump.contains("context=arm-body arm1"), "{dump}");
-        assert!(dump.contains("terminator=arm-exit resume-matched-site"), "{dump}");
+        assert!(
+            dump.contains("terminator=arm-exit resume-matched-site"),
+            "{dump}"
+        );
         assert!(dump.contains("terminator=arm-exit return-handle"), "{dump}");
-        assert!(dump.contains("context=cleanup-body cleanup0 kind=finally"), "{dump}");
+        assert!(
+            dump.contains("context=cleanup-body cleanup0 kind=finally"),
+            "{dump}"
+        );
         assert!(dump.contains("cleanup-stack=[cleanup0]"), "{dump}");
         assert!(!dump.contains("mode="), "{dump}");
     }
@@ -2790,8 +2748,14 @@ fun demo(limit: Int, thunk: (Int) -> Int / (Ask)): Int {
         assert!(dump.contains("kind=call-may-suspend"), "{dump}");
         assert!(dump.contains("path=top[2] -> while-body[0]"), "{dump}");
         assert!(dump.contains("path=top[2] -> while-body[1]"), "{dump}");
-        assert!(dump.contains("terminator=arm-exit resume-matched-site"), "{dump}");
-        assert!(dump.contains("terminator=arm-exit materialize-continuation"), "{dump}");
+        assert!(
+            dump.contains("terminator=arm-exit resume-matched-site"),
+            "{dump}"
+        );
+        assert!(
+            dump.contains("terminator=arm-exit materialize-continuation"),
+            "{dump}"
+        );
         assert!(!dump.contains("mode="), "{dump}");
     }
 
@@ -2823,8 +2787,14 @@ fun demo(): Int / (Ask) {
 
         assert!(dump.contains("cleanup0 kind=finally"), "{dump}");
         assert!(dump.contains("site0 kind=perform"), "{dump}");
-        assert!(dump.contains("dispatch:\n  a.Ask.ask => [arm0(entry=seg"), "{dump}");
-        assert!(dump.contains("context=cleanup-body cleanup0 kind=finally"), "{dump}");
+        assert!(
+            dump.contains("dispatch:\n  a.Ask.ask => [arm0(entry=seg"),
+            "{dump}"
+        );
+        assert!(
+            dump.contains("context=cleanup-body cleanup0 kind=finally"),
+            "{dump}"
+        );
     }
 
     #[test]
@@ -2876,7 +2846,8 @@ fun demo(k: Continuation<Int, Int>): Int {
 "#,
         );
 
-        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
         let builder = HandlePlanBuilder::new(&lowered.types, handle, &context);
         let resume_call_site = lowered
@@ -2921,7 +2892,8 @@ fun demo(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<RuntimeError>
 "#,
         );
 
-        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
         let builder = HandlePlanBuilder::new(&lowered.types, handle, &context);
         let resume_call_site = lowered
@@ -2998,8 +2970,8 @@ fun demo(): Int {
     }
 
     #[test]
-    fn segment_dump_records_frame_slot_metadata_for_outer_locals_and_binders_when_nested_handle_is_self_contained(
-    ) {
+    fn segment_dump_records_frame_slot_metadata_for_outer_locals_and_binders_when_nested_handle_is_self_contained()
+     {
         let dump = build_segment_dump(
             r#"
 package a
@@ -3159,10 +3131,12 @@ fun demo(): Int {
         let yield_site = segment_list
             .suspend_sites
             .iter_mut()
-            .find(|site| matches!(
-                &site.kind,
-                    SuspendSiteKind::Perform { op_fqn } if op_fqn == "a.Yield.next"
-            ))
+            .find(|site| {
+                matches!(
+                    &site.kind,
+                        SuspendSiteKind::Perform { op_fqn } if op_fqn == "a.Yield.next"
+                )
+            })
             .expect("expected direct perform site for a.Yield.next");
         yield_site.matching_arms = vec![1];
 
@@ -3250,7 +3224,10 @@ fun demo(flag: Bool): Int {
 }
 "#;
 
-        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+        assert_eq!(
+            build_round_tripped_plan_dump(source),
+            build_plan_dump(source)
+        );
     }
 
     #[test]
@@ -3294,13 +3271,10 @@ fun demo(): Int {
             .validate_builder_contract()
             .expect("segment builder contract should hold");
         assert!(
-            segment_list
-                .segments
-                .iter()
-                .any(|segment| matches!(
-                    segment.terminator,
-                    HandleSegmentTerminator::ReturnFromFunction
-                )),
+            segment_list.segments.iter().any(|segment| matches!(
+                segment.terminator,
+                HandleSegmentTerminator::ReturnFromFunction
+            )),
             "segment list should contain return-from-function terminator"
         );
 
@@ -3314,7 +3288,10 @@ fun demo(): Int {
             "rebuilt plan should preserve return-from-function terminator"
         );
 
-        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+        assert_eq!(
+            build_round_tripped_plan_dump(source),
+            build_plan_dump(source)
+        );
     }
 
     #[test]
@@ -3346,7 +3323,10 @@ fun demo(thunk: () -> Int / (Ask)): Int {
 }
 "#;
 
-        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+        assert_eq!(
+            build_round_tripped_plan_dump(source),
+            build_plan_dump(source)
+        );
     }
 
     #[test]
@@ -3393,7 +3373,10 @@ fun demo(mode: Int): Int {
 }
 "#;
 
-        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+        assert_eq!(
+            build_round_tripped_plan_dump(source),
+            build_plan_dump(source)
+        );
     }
 
     #[test]
@@ -3421,7 +3404,10 @@ fun demo(): Int {
 }
 "#;
 
-        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+        assert_eq!(
+            build_round_tripped_plan_dump(source),
+            build_plan_dump(source)
+        );
     }
 
     #[test]
@@ -3498,14 +3484,20 @@ fun demo(flag: Bool): Int {
                 }
             )
         });
-        assert!(has_if_branch_segment, "expected an if-branch segment terminator");
+        assert!(
+            has_if_branch_segment,
+            "expected an if-branch segment terminator"
+        );
 
         let has_bind_local = segment_list
             .segments
             .iter()
             .flat_map(|segment| segment.ops.iter())
             .any(|op| matches!(op, &HandleStateOp::BindLocal { .. }));
-        assert!(has_bind_local, "expected typed bind-local op in segment list");
+        assert!(
+            has_bind_local,
+            "expected typed bind-local op in segment list"
+        );
     }
 
     #[test]
@@ -3539,7 +3531,10 @@ fun demo(): Int? {
             .flat_map(|state| state.actions.iter())
             .find_map(|op| match op {
                 HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("some") => {
-                    let init = decl.init.as_ref().expect("`some` should have an initializer");
+                    let init = decl
+                        .init
+                        .as_ref()
+                        .expect("`some` should have an initializer");
                     let hir::ExprKind::Call { callee, args } = &init.kind else {
                         panic!("expected `some` initializer to stay as a call expression");
                     };
@@ -3553,21 +3548,31 @@ fun demo(): Int? {
             .expect("expected bind-local op for `some`");
 
         assert!(
-            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
-                matches!(op, HandleStateOp::Call { expr } if expr.span == init_span)
-            }),
+            !source_plan
+                .states
+                .iter()
+                .flat_map(|state| state.actions.iter())
+                .any(|op| { matches!(op, HandleStateOp::Call { expr } if expr.span == init_span) }),
             "pure initializer should be evaluated only by BindLocal, not by a preheated Call op"
         );
         assert!(
-            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
-                matches!(op, HandleStateOp::VarRef { expr } if expr.span == callee_span)
-            }),
+            !source_plan
+                .states
+                .iter()
+                .flat_map(|state| state.actions.iter())
+                .any(|op| {
+                    matches!(op, HandleStateOp::VarRef { expr } if expr.span == callee_span)
+                }),
             "pure initializer must not emit callee VarRef fragment op"
         );
         assert!(
-            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
-                matches!(op, HandleStateOp::Literal { expr } if expr.span == arg_span)
-            }),
+            !source_plan
+                .states
+                .iter()
+                .flat_map(|state| state.actions.iter())
+                .any(|op| {
+                    matches!(op, HandleStateOp::Literal { expr } if expr.span == arg_span)
+                }),
             "pure initializer must not emit argument Literal fragment op"
         );
     }
@@ -3643,9 +3648,13 @@ fun demo(seed: Int): Int {
             "pure call arguments should stay inside the whole Call op instead of emitting BinaryExpr fragments"
         );
         assert!(
-            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
-                matches!(op, HandleStateOp::BinaryExpr { expr } if expr.span == if_cond_span)
-            }),
+            !source_plan
+                .states
+                .iter()
+                .flat_map(|state| state.actions.iter())
+                .any(|op| {
+                    matches!(op, HandleStateOp::BinaryExpr { expr } if expr.span == if_cond_span)
+                }),
             "pure if conditions should be evaluated only by the Branch terminator"
         );
     }
@@ -3975,7 +3984,9 @@ fun demo(
                 assert_eq!(name, &resume_slot_name);
                 assert!(name.starts_with("__resume_site"));
             }
-            other => panic!("expected round-tripped rewritten task-drive step binding, got {other:?}"),
+            other => {
+                panic!("expected round-tripped rewritten task-drive step binding, got {other:?}")
+            }
         }
     }
 
@@ -4124,12 +4135,16 @@ fun demo(): Unit {
             panic!("expected positional call arg");
         };
         let hir::ExprKind::Block(block) = &arg_expr.kind else {
-            panic!("expected rewritten call arg to be a materialized block, got {:?}", arg_expr.kind);
+            panic!(
+                "expected rewritten call arg to be a materialized block, got {:?}",
+                arg_expr.kind
+            );
         };
         let Some(hir::Stmt {
             kind: hir::StmtKind::Val(decl),
             ..
-        }) = block.stmts.first() else {
+        }) = block.stmts.first()
+        else {
             panic!("expected rewritten tail block to start with a synthetic val init");
         };
         let Some(init) = decl.init.as_ref() else {
@@ -4140,7 +4155,9 @@ fun demo(): Unit {
                 assert_eq!(name, &resume_slot_name);
                 assert!(name.starts_with("__resume_site"));
             }
-            other => panic!("expected rewritten tail init to read the synthetic resume slot, got {other:?}"),
+            other => panic!(
+                "expected rewritten tail init to read the synthetic resume slot, got {other:?}"
+            ),
         }
     }
 
@@ -4356,7 +4373,9 @@ fun demo(): Int {
                 hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
                     assert_eq!(name, &resume_slot_name);
                 }
-                other => panic!("expected cloned then-branch to read the synthetic resume slot, got {other:?}"),
+                other => panic!(
+                    "expected cloned then-branch to read the synthetic resume slot, got {other:?}"
+                ),
             },
             other => panic!("expected cloned init to stay as an if expr, got {other:?}"),
         }
@@ -4602,8 +4621,7 @@ fun demo(): Int {
             "the later perform site should still live in a state that starts from an earlier resume marker"
         );
         assert_eq!(
-            second_site.escape_resume_target,
-            None,
+            second_site.escape_resume_target, None,
             "direct perform continuations must resume at their dedicated post-perform state instead of replaying the earlier owner-state path"
         );
     }
@@ -4674,7 +4692,8 @@ fun demo(limit: Int): Int {
 
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
-        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
         HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
             .pretty_dump(&lowered.types)
@@ -4682,7 +4701,8 @@ fun demo(limit: Int): Int {
 
     fn build_source_plan(source_text: &str) -> HandleStateMachinePlan {
         let lowered = lower_typed_single_source(source_text);
-        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
         HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
     }
@@ -4882,9 +4902,9 @@ fun demo(limit: Int): Int {
                     hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
                 })
             }),
-            hir::ExprKind::StructLit { fields, .. } => {
-                fields.iter().find_map(|field| first_handle_in_expr(&field.value))
-            }
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .find_map(|field| first_handle_in_expr(&field.value)),
             hir::ExprKind::TupleLit { elements } => elements.iter().find_map(first_handle_in_expr),
             hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
                 if let hir::InterpolatedStringPart::Expr { expr } = part {

@@ -129,9 +129,7 @@ impl UnifiedHandleStateMachine {
 
     /// Look up a dispatch entry by operation FQN.
     pub(crate) fn get_dispatch_entry(&self, op_fqn: &str) -> Option<&UnifiedDispatchEntry> {
-        self.dispatch_entries
-            .iter()
-            .find(|e| e.op_fqn == op_fqn)
+        self.dispatch_entries.iter().find(|e| e.op_fqn == op_fqn)
     }
 
     /// Look up a suspend site by id.
@@ -177,9 +175,7 @@ impl UnifiedFrameSchema {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UnifiedFrameField {
     System(UnifiedFrameSystemField),
-    Slot {
-        slot_id: hir::SymbolId,
-    },
+    Slot { slot_id: hir::SymbolId },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -221,9 +217,7 @@ impl UnifiedFrameSlot {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UnifiedFrameSlotSource {
     HandleBody,
-    ArmBinder {
-        arm_id: ArmPlanId,
-    },
+    ArmBinder { arm_id: ArmPlanId },
 }
 
 #[derive(Debug, Clone)]
@@ -517,7 +511,9 @@ impl UnifiedHandleStateMachine {
             .map(|segment| {
                 UnifiedState::from_segment(
                     segment,
-                    outgoing_edges_by_state.remove(&segment.id).unwrap_or_default(),
+                    outgoing_edges_by_state
+                        .remove(&segment.id)
+                        .unwrap_or_default(),
                 )
             })
             .collect::<Vec<_>>();
@@ -553,7 +549,10 @@ impl UnifiedHandleStateMachine {
             result_ty: segments.result_ty,
             storage: UnifiedStateMachineStorage::Heap,
             entry_state: segments.entry_segment,
-            frame: UnifiedFrameSchema::from_segments(&segments.frame_slots, &segments.lifted_locals),
+            frame: UnifiedFrameSchema::from_segments(
+                &segments.frame_slots,
+                &segments.lifted_locals,
+            ),
             dispatch_entries,
             arms,
             states,
@@ -637,20 +636,21 @@ impl UnifiedHandleStateMachine {
             }
             previous_cleanup_scope_id = Some(scope.id);
             if cleanup_scope_by_id.insert(scope.id, scope).is_some() {
-                return Err(format!("{path}: duplicate cleanup scope cleanup{}", scope.id));
+                return Err(format!(
+                    "{path}: duplicate cleanup scope cleanup{}",
+                    scope.id
+                ));
             }
             if !state_by_id.contains_key(&scope.entry_state) {
                 return Err(format!(
                     "{path}: cleanup{} entry state s{} is missing from states[]",
-                    scope.id,
-                    scope.entry_state
+                    scope.id, scope.entry_state
                 ));
             }
             if !state_by_id.contains_key(&scope.exit_state) {
                 return Err(format!(
                     "{path}: cleanup{} exit state s{} is missing from states[]",
-                    scope.id,
-                    scope.exit_state
+                    scope.id, scope.exit_state
                 ));
             }
         }
@@ -680,16 +680,14 @@ impl UnifiedHandleStateMachine {
                 {
                     return Err(format!(
                         "{path}: state s{} cleanup stack is not strictly sorted at cleanup{}",
-                        state.id,
-                        scope_id
+                        state.id, scope_id
                     ));
                 }
                 previous_cleanup_stack_id = Some(*scope_id);
                 if !cleanup_scope_by_id.contains_key(scope_id) {
                     return Err(format!(
                         "{path}: state s{} references missing cleanup{} in cleanup stack",
-                        state.id,
-                        scope_id
+                        state.id, scope_id
                     ));
                 }
             }
@@ -991,10 +989,7 @@ impl UnifiedHandleStateMachine {
                 if unified_arm.entry_state != arm.entry_state {
                     return Err(format!(
                         "{path}: dispatch entry {} arm{} entry state s{} does not match arm body s{}",
-                        entry.op_fqn,
-                        arm.arm_id,
-                        arm.entry_state,
-                        unified_arm.entry_state
+                        entry.op_fqn, arm.arm_id, arm.entry_state, unified_arm.entry_state
                     ));
                 }
                 dispatched_arm_ids.insert(arm.arm_id);
@@ -1064,7 +1059,11 @@ impl UnifiedHandleStateMachine {
                 &site.capture_locals,
             )?;
 
-            let available_locals = site.available_locals.iter().copied().collect::<HashSet<_>>();
+            let available_locals = site
+                .available_locals
+                .iter()
+                .copied()
+                .collect::<HashSet<_>>();
             for local_id in &site.available_locals {
                 if !frame_slots_by_id.contains_key(local_id) {
                     return Err(format!(
@@ -1218,7 +1217,6 @@ impl UnifiedHandleStateMachine {
                         &site.kind,
                         SuspendSiteKind::ObjectInitAccess { .. }
                             | SuspendSiteKind::TopLevelValueInitAccess { .. }
-                            | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.source_path.is_some()
                     {
                         return Err(format!(
@@ -1368,7 +1366,8 @@ impl UnifiedHandleStateMachine {
                     .map(|arm_id| format!("arm{arm_id}"))
                     .collect::<Vec<_>>()
                     .join(", ");
-                let available = render_segment_symbol_ids(&site.available_locals, &frame_slots_by_id);
+                let available =
+                    render_segment_symbol_ids(&site.available_locals, &frame_slots_by_id);
                 let captures = render_segment_symbol_ids(&site.capture_locals, &frame_slots_by_id);
                 out.push_str(&format!(
                     "{pad}  site{} kind={} owner=s{} resume=s{} arms=[{}]\n",
@@ -1393,10 +1392,7 @@ impl UnifiedHandleStateMachine {
                     out.push_str(&format!("{pad}    path={}\n", source_path.label()));
                 }
                 if let Some(resume_path) = &site.resume_path {
-                    out.push_str(&format!(
-                        "{pad}    resume-path={}\n",
-                        resume_path.label()
-                    ));
+                    out.push_str(&format!("{pad}    resume-path={}\n", resume_path.label()));
                 }
             }
         }
@@ -1757,9 +1753,7 @@ impl UnifiedStateTerminator {
             Self::ReturnFromFunction => "return function".to_string(),
             Self::ArmReturnHandle => "arm-exit return-handle".to_string(),
             Self::ArmResumeMatchedSite => "arm-exit resume-matched-site".to_string(),
-            Self::ArmMaterializeContinuation => {
-                "arm-exit materialize-continuation".to_string()
-            }
+            Self::ArmMaterializeContinuation => "arm-exit materialize-continuation".to_string(),
         }
     }
 }
@@ -1975,10 +1969,7 @@ fn validate_sorted_symbol_list(
         }
         previous = Some(*id);
         if !seen.insert(*id) {
-            return Err(format!(
-                "{path}: {label} repeats local#{}",
-                id.as_u32()
-            ));
+            return Err(format!("{path}: {label} repeats local#{}", id.as_u32()));
         }
     }
     Ok(())
@@ -2045,8 +2036,14 @@ fun demo(): Int {
         assert_eq!(machine.entry_state, segment_list.entry_segment);
         assert!(matches!(machine.storage, UnifiedStateMachineStorage::Heap));
         assert_eq!(machine.states.len(), segment_list.segments.len());
-        assert_eq!(machine.dispatch_entries.len(), segment_list.dispatch_entries.len());
-        assert_eq!(machine.cleanup_scopes.len(), segment_list.cleanup_scopes.len());
+        assert_eq!(
+            machine.dispatch_entries.len(),
+            segment_list.dispatch_entries.len()
+        );
+        assert_eq!(
+            machine.cleanup_scopes.len(),
+            segment_list.cleanup_scopes.len()
+        );
 
         let field_labels = machine
             .frame
@@ -2095,18 +2092,19 @@ fun demo(): Int {
         });
         assert!(has_cleanup_state, "expected cleanup-context state");
 
-        let has_arm_state = machine.states.iter().any(|state| {
-            matches!(
-                state.context,
-                UnifiedStateContext::Arm { arm_id: 0 }
-            )
-        });
+        let has_arm_state = machine
+            .states
+            .iter()
+            .any(|state| matches!(state.context, UnifiedStateContext::Arm { arm_id: 0 }));
         assert!(has_arm_state, "expected arm-context state");
 
         let dump = machine.pretty_dump(&lowered.types);
         assert!(dump.contains("storage=heap"), "{dump}");
         assert!(dump.contains("field#0 system state-tag"), "{dump}");
-        assert!(dump.contains("context=cleanup-body cleanup0 kind=finally"), "{dump}");
+        assert!(
+            dump.contains("context=cleanup-body cleanup0 kind=finally"),
+            "{dump}"
+        );
     }
 
     #[test]
@@ -2182,10 +2180,11 @@ fun demo(mode: Int): Int {
 
         let nested_handle =
             first_nested_handle_in_handle(handle).expect("expected self-contained nested handle");
-        let nested = HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
-            .build_segment_list()
-            .build_unified_state_machine()
-            .expect("nested handle should still build as its own machine");
+        let nested =
+            HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
+                .build_segment_list()
+                .build_unified_state_machine()
+                .expect("nested handle should still build as its own machine");
         assert!(matches!(nested.storage, UnifiedStateMachineStorage::Heap));
         assert_eq!(nested.dispatch_entries.len(), 1);
         assert!(
@@ -2193,12 +2192,10 @@ fun demo(mode: Int): Int {
             "nested machine should keep Yield dispatch"
         );
 
-        let has_nested_boundary_site = machine.suspend_sites.iter().any(|site| {
-            matches!(
-                &site.kind,
-                SuspendSiteKind::NestedHandleBoundary { .. }
-            )
-        });
+        let has_nested_boundary_site = machine
+            .suspend_sites
+            .iter()
+            .any(|site| matches!(&site.kind, SuspendSiteKind::NestedHandleBoundary { .. }));
         assert!(
             !has_nested_boundary_site,
             "self-contained nested handle should not materialize an outer boundary site"
@@ -2493,10 +2490,10 @@ fun demo(): Int {
             .expect("all arm exit variants should transform");
 
         assert!(
-            machine.states.iter().any(|state| matches!(
-                state.terminator,
-                UnifiedStateTerminator::ArmReturnHandle
-            )),
+            machine
+                .states
+                .iter()
+                .any(|state| matches!(state.terminator, UnifiedStateTerminator::ArmReturnHandle)),
             "expected arm-return-handle terminator in unified machine"
         );
         assert!(
@@ -2689,10 +2686,7 @@ fun demo(flag: Bool): Int {
     result
 }
 "#,
-                &[
-                    "kind=perform",
-                    "path=top[0] -> when-arm#0[0]",
-                ],
+                &["kind=perform", "path=top[0] -> when-arm#0[0]"],
             ),
             (
                 "self_contained_nested_handle_outer_dispatch",
@@ -2868,10 +2862,7 @@ fun demo(k: Continuation<Int, Int>): Int {
     result
 }
 "#,
-                &[
-                    "kind=runtime-raise",
-                    "detail=Continuation.resume",
-                ],
+                &["kind=runtime-raise", "detail=Continuation.resume"],
             ),
             (
                 "class_ctor_init_hidden_site",
@@ -2896,10 +2887,7 @@ fun demo(): Int {
     result
 }
 "#,
-                &[
-                    "kind=class-ctor-init",
-                    "detail=a.Boom",
-                ],
+                &["kind=class-ctor-init", "detail=a.Boom"],
             ),
             (
                 "object_init_access_hidden_site",
@@ -2925,10 +2913,7 @@ fun demo(): Int {
     result
 }
 "#,
-                &[
-                    "kind=object-init-access",
-                    "detail=a.BoomObject.x",
-                ],
+                &["kind=object-init-access", "detail=a.BoomObject.x"],
             ),
             (
                 "frame_slot_metadata_with_nested_handles",
@@ -3044,7 +3029,9 @@ fun demo(seed: Int): Int {
             .iter()
             .flat_map(|state| state.actions.iter())
             .find_map(|op| match op {
-                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("current") => {
+                HandleStateOp::BindLocal { decl, .. }
+                    if decl.name.as_deref() == Some("current") =>
+                {
                     Some((decl.span, decl.ty))
                 }
                 _ => None,
@@ -3055,7 +3042,9 @@ fun demo(seed: Int): Int {
             .iter()
             .flat_map(|segment| segment.ops.iter())
             .find_map(|op| match op {
-                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("current") => {
+                HandleStateOp::BindLocal { decl, .. }
+                    if decl.name.as_deref() == Some("current") =>
+                {
                     Some((decl.span, decl.ty))
                 }
                 _ => None,
@@ -3066,7 +3055,9 @@ fun demo(seed: Int): Int {
             .iter()
             .flat_map(|state| state.ops.iter())
             .find_map(|op| match op {
-                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("current") => {
+                HandleStateOp::BindLocal { decl, .. }
+                    if decl.name.as_deref() == Some("current") =>
+                {
                     Some((decl.span, decl.ty))
                 }
                 _ => None,
@@ -3228,7 +3219,9 @@ fun demo(seed: Int): Int {
             .iter()
             .flat_map(|state| state.actions.iter())
             .find_map(|op| match op {
-                HandleStateOp::ExecuteArmBody { arm, .. } => Some((arm.span, arm.body.span, arm.kind)),
+                HandleStateOp::ExecuteArmBody { arm, .. } => {
+                    Some((arm.span, arm.body.span, arm.kind))
+                }
                 _ => None,
             })
             .expect("expected execute-arm payload in source plan");
@@ -3237,7 +3230,9 @@ fun demo(seed: Int): Int {
             .iter()
             .flat_map(|segment| segment.ops.iter())
             .find_map(|op| match op {
-                HandleStateOp::ExecuteArmBody { arm, .. } => Some((arm.span, arm.body.span, arm.kind)),
+                HandleStateOp::ExecuteArmBody { arm, .. } => {
+                    Some((arm.span, arm.body.span, arm.kind))
+                }
                 _ => None,
             })
             .expect("expected execute-arm payload in segment list");
@@ -3246,7 +3241,9 @@ fun demo(seed: Int): Int {
             .iter()
             .flat_map(|state| state.ops.iter())
             .find_map(|op| match op {
-                HandleStateOp::ExecuteArmBody { arm, .. } => Some((arm.span, arm.body.span, arm.kind)),
+                HandleStateOp::ExecuteArmBody { arm, .. } => {
+                    Some((arm.span, arm.body.span, arm.kind))
+                }
                 _ => None,
             })
             .expect("expected execute-arm payload in unified machine");
@@ -3485,12 +3482,12 @@ fun demo(): Int {
         assert_ne!(contract.handle_span().start, contract.handle_span().end);
         assert_eq!(contract.handle_span(), contract.machine().handle_span());
         assert_eq!(contract.result_ty(), contract.machine().result_ty());
-        assert_eq!(
-            contract.entry_state(),
-            contract.machine().entry_state()
-        );
+        assert_eq!(contract.entry_state(), contract.machine().entry_state());
         assert!(
-            matches!(contract.machine().storage(), UnifiedStateMachineStorage::Heap),
+            matches!(
+                contract.machine().storage(),
+                UnifiedStateMachineStorage::Heap
+            ),
             "current phase must produce heap-allocated full machine"
         );
 
@@ -3508,7 +3505,10 @@ fun demo(): Int {
             assert_eq!(looked_up.source_span(), state.source_span());
             assert_eq!(looked_up.context(), state.context());
             assert_eq!(looked_up.ops().len(), state.ops().len());
-            assert_eq!(looked_up.outgoing_edges().len(), state.outgoing_edges().len());
+            assert_eq!(
+                looked_up.outgoing_edges().len(),
+                state.outgoing_edges().len()
+            );
         }
 
         // -- Dispatch entries --
@@ -3560,7 +3560,10 @@ fun demo(): Int {
 
         // -- Cleanup scopes --
         let scopes = contract.cleanup_scopes();
-        assert!(!scopes.is_empty(), "finally block should produce cleanup scope");
+        assert!(
+            !scopes.is_empty(),
+            "finally block should produce cleanup scope"
+        );
         for scope in scopes {
             let looked_up = contract
                 .machine()
@@ -3575,10 +3578,16 @@ fun demo(): Int {
 
         // -- Frame schema --
         let frame = contract.frame();
-        assert!(frame.fields().len() >= 6, "must have at least 6 system fields");
+        assert!(
+            frame.fields().len() >= 6,
+            "must have at least 6 system fields"
+        );
         assert!(!frame.slots().is_empty());
         for slot in frame.slots() {
-            assert_eq!(slot.field_index(), frame.get_slot_field_index(slot.slot().id()).unwrap());
+            assert_eq!(
+                slot.field_index(),
+                frame.get_slot_field_index(slot.slot().id()).unwrap()
+            );
             assert!(!slot.slot().name().is_empty());
         }
 
@@ -3724,7 +3733,8 @@ fun main(): Int {
         let handle = first_handle_in_block(drive_body)
             .expect("__task_drive_waiting::<Int> should contain the try/catch handle");
         let context = collect_plan_context(&lowered, drive_fun);
-        let source_plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let source_plan =
+            HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
         let source_resume_state = source_plan
             .states
             .iter()
@@ -3911,10 +3921,11 @@ fun demo(seed: Int): Int {
 
         let nested_handle =
             first_nested_handle_in_handle(handle).expect("expected nested handle in outer body");
-        let nested = HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
-            .build_segment_list()
-            .build_unified_state_machine()
-            .expect("nested handle should transform as its own machine");
+        let nested =
+            HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
+                .build_segment_list()
+                .build_unified_state_machine()
+                .expect("nested handle should transform as its own machine");
         let nested_resume_slots = nested
             .frame()
             .slots()
@@ -3939,9 +3950,7 @@ fun demo(seed: Int): Int {
             "synthetic resume slots must not reuse SymbolId across nested handles"
         );
         assert!(
-            synthetic_ids
-                .iter()
-                .all(|id| *id > max_source_symbol_id),
+            synthetic_ids.iter().all(|id| *id > max_source_symbol_id),
             "synthetic resume slot ids must stay above all source local ids"
         );
     }
@@ -3992,10 +4001,11 @@ fun demo(seed: Int): Int {
             .expect("valid segment contract should transform");
         let nested_handle =
             first_nested_handle_in_handle(handle).expect("expected nested handle in outer body");
-        let nested = HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
-            .build_segment_list()
-            .build_unified_state_machine()
-            .expect("nested handle should transform as its own machine");
+        let nested =
+            HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
+                .build_segment_list()
+                .build_unified_state_machine()
+                .expect("nested handle should transform as its own machine");
 
         let seeded_slot_names = nested
             .frame()
@@ -4388,7 +4398,10 @@ fun demo(flag: Bool): Int {
             other => panic!("if.merge should end in a transparent goto, got {other:?}"),
         };
         assert!(
-            matches!(exit_state.terminator(), UnifiedStateTerminator::ReturnHandle),
+            matches!(
+                exit_state.terminator(),
+                UnifiedStateTerminator::ReturnHandle
+            ),
             "transparent merge should feed the canonical handle return state"
         );
         assert!(
@@ -4433,7 +4446,8 @@ fun demo(flag: Bool): Int {
     }
 
     fn build_source_plan_from_lowered(lowered: &hir::LoweredHir) -> HandleStateMachinePlan {
-        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(lowered, fun);
         HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
     }
@@ -4730,12 +4744,7 @@ fun demo(flag: Bool): Int {
                 .arms
                 .iter()
                 .find_map(|arm| first_handle_in_expr(&arm.body))
-                .or_else(|| {
-                    handle
-                        .finally
-                        .as_ref()
-                        .and_then(first_handle_in_block)
-                })
+                .or_else(|| handle.finally.as_ref().and_then(first_handle_in_block))
         })
     }
 
@@ -4783,9 +4792,9 @@ fun demo(flag: Bool): Int {
                     hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
                 })
             }),
-            hir::ExprKind::StructLit { fields, .. } => {
-                fields.iter().find_map(|field| first_handle_in_expr(&field.value))
-            }
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .find_map(|field| first_handle_in_expr(&field.value)),
             hir::ExprKind::TupleLit { elements } => elements.iter().find_map(first_handle_in_expr),
             hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
                 if let hir::InterpolatedStringPart::Expr { expr } = part {

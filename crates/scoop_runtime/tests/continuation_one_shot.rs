@@ -590,7 +590,10 @@ fn continuation_resume_keeps_captured_handler_snapshot_alive_after_original_fram
 
         // 通过 runtime 分配 GC-managed state wrapper（见上方注释）。
         let state = scoop_alloc(core::mem::size_of::<ContinuationStateWrapper>() as u64);
-        assert!(!state.is_null(), "continuation state wrapper must be allocated");
+        assert!(
+            !state.is_null(),
+            "continuation state wrapper must be allocated"
+        );
         {
             let wrapper = &mut *(state as *mut ContinuationStateWrapper);
             wrapper.observations = observations_ptr;

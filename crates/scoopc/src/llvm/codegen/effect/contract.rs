@@ -1,13 +1,13 @@
 use super::*;
 
 #[derive(Clone, Copy)]
-pub(super) struct ValueTransport<'ctx> {
+pub(in crate::llvm::codegen) struct ValueTransport<'ctx> {
     pub(super) word: IntValue<'ctx>,
     pub(super) gc_ref: PointerValue<'ctx>,
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct EffectSignal<'ctx> {
+pub(in crate::llvm::codegen) struct EffectSignal<'ctx> {
     pub(super) op_tag: IntValue<'ctx>,
     pub(super) effect_instance_key: IntValue<'ctx>,
     pub(super) payload: ValueTransport<'ctx>,
@@ -307,7 +307,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.llvm_gc_i8_ptr_type().const_null()
     }
 
-    pub(super) fn build_value_transport(
+    pub(in crate::llvm::codegen) fn build_value_transport(
         &self,
         word: IntValue<'ctx>,
         gc_ref: PointerValue<'ctx>,
@@ -323,7 +323,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
-    pub(super) fn build_effect_signal(
+    pub(in crate::llvm::codegen) fn build_effect_signal(
         &self,
         op_tag: IntValue<'ctx>,
         effect_instance_key: IntValue<'ctx>,
@@ -462,7 +462,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(self.build_effect_outcome(is_propagating, self.zero_effect_signal()))
     }
 
-    pub(super) fn emit_current_effect_propagation_with_trace(
+    pub(in crate::llvm::codegen) fn emit_current_effect_propagation_with_trace(
         &mut self,
         span: crate::span::Span,
         signal: EffectSignal<'ctx>,

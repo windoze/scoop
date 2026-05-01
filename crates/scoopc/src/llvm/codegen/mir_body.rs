@@ -20,6 +20,13 @@ struct MirLocalSlot<'ctx> {
     ptr: PointerValue<'ctx>,
 }
 
+#[derive(Clone, Copy)]
+struct MirBodyCodegenCtx<'m, 'ctx> {
+    body: &'m crate::mir::Body,
+    mir_types: &'m TypeStore,
+    slots: &'m [MirLocalSlot<'ctx>],
+}
+
 const MIR_CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -152,6 +159,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.codegen_mir_terminator(
                 &block.terminator,
                 body,
+                mir_types,
                 &local_slots,
                 &llvm_blocks,
                 declared_return_cg,
@@ -414,6 +422,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.codegen_mir_terminator(
                 &block.terminator,
                 body,
+                mir_types,
                 &local_slots,
                 &llvm_blocks,
                 declared_return_cg,
@@ -610,7 +619,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     mir_types,
                     &used_locals,
                 )
-            }) && self.raw_materialized_mir_terminator_is_supported(&block.terminator.kind)
+            }) && self.raw_materialized_mir_terminator_is_supported(
+                body,
+                mir_types,
+                &block.terminator,
+            )
         })
     }
 
@@ -646,9 +659,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn raw_materialized_mir_terminator_is_supported(
         &self,
-        terminator: &crate::mir::TerminatorKind,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        terminator: &crate::mir::Terminator,
     ) -> bool {
-        match terminator {
+        match &terminator.kind {
             crate::mir::TerminatorKind::Return { value } => value
                 .as_ref()
                 // 现阶段 generic MIR 仍会把“函数体尾表达式”保留成 `Return { value: None }`
@@ -662,8 +677,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::TerminatorKind::CondBr { cond, .. } => {
                 self.raw_materialized_mir_operand_is_supported(cond)
             }
+            crate::mir::TerminatorKind::Perform { metadata, args, .. } => {
+                !matches!(terminator.unwind, crate::mir::UnwindAction::Cleanup { .. })
+                    && self.raw_materialized_mir_effect_instance_ty_is_supported(
+                        mir_types,
+                        metadata.effect_ty,
+                    )
+                    && self.raw_materialized_mir_perform_payload_is_supported(
+                        body,
+                        mir_types,
+                        metadata.payload_tuple_ty,
+                        args,
+                    )
+            }
             crate::mir::TerminatorKind::ResumeUnwind
-            | crate::mir::TerminatorKind::Perform { .. }
             | crate::mir::TerminatorKind::Handle { .. }
             | crate::mir::TerminatorKind::Todo(_) => false,
         }
@@ -741,11 +768,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value,
                     target_cg,
                 ),
+            crate::mir::Rvalue::PerformResult { effect_ty, .. } => {
+                target_cg.is_some()
+                    && self
+                        .raw_materialized_mir_effect_instance_ty_is_supported(mir_types, *effect_ty)
+            }
             crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
             | crate::mir::Rvalue::MemberAccess { .. }
-            | crate::mir::Rvalue::PerformResult { .. }
             | crate::mir::Rvalue::Todo(_) => false,
         }
     }
@@ -778,6 +809,56 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::Virtual { .. }
             | crate::mir::CallKind::Interface { .. }
             | crate::mir::CallKind::Resume { .. } => false,
+        }
+    }
+
+    fn raw_materialized_mir_effect_instance_ty_is_supported(
+        &self,
+        mir_types: &TypeStore,
+        effect_ty: TypeId,
+    ) -> bool {
+        self.equivalent_codegen_type_id(mir_types, effect_ty)
+            .is_some_and(|effect_ty| self.effect_instance_key(effect_ty).is_some())
+    }
+
+    fn raw_materialized_mir_perform_payload_is_supported(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        payload_tuple_ty: Option<TypeId>,
+        args: &[crate::mir::PerformArg],
+    ) -> bool {
+        match payload_tuple_ty {
+            None => match args {
+                [] => true,
+                [arg] => {
+                    self.raw_materialized_mir_operand_is_supported(&arg.value)
+                        && self
+                            .mir_operand_cg_ty(body, mir_types, &arg.value)
+                            .is_some()
+                }
+                _ => false,
+            },
+            Some(payload_tuple_ty) => {
+                let Some(payload_tuple_ty) =
+                    self.equivalent_codegen_type_id(mir_types, payload_tuple_ty)
+                else {
+                    return false;
+                };
+                let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) =
+                    self.types.kind(payload_tuple_ty)
+                else {
+                    return false;
+                };
+                element_tys.len() == args.len()
+                    && element_tys.iter().zip(args).all(|(elem_ty, arg)| {
+                        self.raw_materialized_mir_operand_is_supported(&arg.value)
+                            && self
+                                .cg_ty_of(*elem_ty)
+                                .zip(self.mir_operand_cg_ty(body, mir_types, &arg.value))
+                                .is_some_and(|(expected_cg, actual_cg)| actual_cg == expected_cg)
+                    })
+            }
         }
     }
 
@@ -1303,7 +1384,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_mir_terminator(
         &mut self,
         terminator: &crate::mir::Terminator,
-        _body: &crate::mir::Body,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         llvm_blocks: &[inkwell::basic_block::BasicBlock<'ctx>],
         declared_return_cg: CgTy,
@@ -1315,6 +1397,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(());
         }
+
+        let mir_ctx = MirBodyCodegenCtx {
+            body,
+            mir_types,
+            slots,
+        };
 
         match &terminator.kind {
             crate::mir::TerminatorKind::Return { value } => {
@@ -1374,8 +1462,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_unreachable()?;
                 Ok(())
             }
+            crate::mir::TerminatorKind::Perform {
+                op_fqn,
+                metadata,
+                args,
+            } => self.codegen_mir_perform_terminator(
+                terminator.span,
+                op_fqn,
+                metadata,
+                args,
+                &terminator.unwind,
+                mir_ctx,
+            ),
             crate::mir::TerminatorKind::ResumeUnwind
-            | crate::mir::TerminatorKind::Perform { .. }
             | crate::mir::TerminatorKind::Handle { .. }
             | crate::mir::TerminatorKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR terminator",
@@ -1447,19 +1546,161 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::CaptureBoxSet { box_operand, value } => {
                 self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots)
             }
+            crate::mir::Rvalue::PerformResult { effect_ty, .. } => {
+                let _ = self.codegen_mir_effect_instance_key(span, mir_types, *effect_ty)?;
+                self.default_value(span, target_cg)
+            }
             crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
             | crate::mir::Rvalue::MemberAccess { .. }
-            | crate::mir::Rvalue::PerformResult { .. }
-            | crate::mir::Rvalue::Todo(_) => {
-                let _ = target_cg;
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR rvalue",
+            | crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR rvalue",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn codegen_mir_effect_instance_key(
+        &self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        effect_ty: TypeId,
+    ) -> Result<u32, LlvmEmitError> {
+        let effect_ty = self
+            .equivalent_codegen_type_id(mir_types, effect_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR perform effect type",
+                at: span.into(),
+            })?;
+        self.effect_instance_key(effect_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR perform effect instance key",
+                at: span.into(),
+            })
+    }
+
+    fn codegen_mir_perform_payload_value(
+        &mut self,
+        span: crate::span::Span,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        metadata: &crate::mir::PerformMetadata,
+        args: &[crate::mir::PerformArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match metadata.payload_tuple_ty {
+            None => match args {
+                [] => Ok(CgValue::unit()),
+                [arg] => {
+                    let arg_cg = self.mir_operand_cg_ty(body, mir_types, &arg.value).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR perform payload arg type",
+                            at: arg.span.into(),
+                        },
+                    )?;
+                    let value = self.codegen_mir_operand_expected(
+                        arg.span,
+                        &arg.value,
+                        slots,
+                        Some(arg_cg),
+                    )?;
+                    self.coerce_value(arg.span, value, arg_cg)
+                }
+                _ => Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR perform payload arity",
                     at: span.into(),
-                })
+                }),
+            },
+            Some(payload_tuple_ty) => {
+                let payload_tuple_ty = self
+                    .equivalent_codegen_type_id(mir_types, payload_tuple_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR perform payload tuple type",
+                        at: span.into(),
+                    })?;
+                let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) =
+                    self.types.kind(payload_tuple_ty)
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR perform payload tuple type",
+                        at: span.into(),
+                    });
+                };
+                if element_tys.len() != args.len() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR perform payload tuple arity",
+                        at: span.into(),
+                    });
+                }
+
+                let mut elements = Vec::with_capacity(args.len());
+                for (elem_ty, arg) in element_tys.iter().zip(args) {
+                    let elem_cg =
+                        self.cg_ty_of(*elem_ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "pass MIR perform payload tuple element type",
+                                at: arg.span.into(),
+                            })?;
+                    let value = self.codegen_mir_operand_expected(
+                        arg.span,
+                        &arg.value,
+                        slots,
+                        Some(elem_cg),
+                    )?;
+                    elements.push(self.coerce_value(arg.span, value, elem_cg)?);
+                }
+                self.build_tuple_cg_value_from_values(span, payload_tuple_ty, &elements)
             }
         }
+    }
+
+    fn codegen_mir_perform_terminator(
+        &mut self,
+        span: crate::span::Span,
+        op_fqn: &str,
+        metadata: &crate::mir::PerformMetadata,
+        args: &[crate::mir::PerformArg],
+        unwind: &crate::mir::UnwindAction,
+        mir_ctx: MirBodyCodegenCtx<'_, 'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        if matches!(unwind, crate::mir::UnwindAction::Cleanup { .. }) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR perform unwind",
+                at: span.into(),
+            });
+        }
+
+        let op_tag = self.effect_op_tag(op_fqn);
+        let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
+        let effect_instance_key =
+            self.codegen_mir_effect_instance_key(span, mir_ctx.mir_types, metadata.effect_ty)?;
+        let effect_instance_key_val = self
+            .context
+            .i32_type()
+            .const_int(effect_instance_key as u64, false);
+        let payload_val = self.codegen_mir_perform_payload_value(
+            span,
+            mir_ctx.body,
+            mir_ctx.mir_types,
+            metadata,
+            args,
+            mir_ctx.slots,
+        )?;
+        let (word, gc_ref) = self.encode_effect_transport_value(span, payload_val)?;
+        let payload = self.build_value_transport(word, gc_ref);
+        let signal = self.build_effect_signal(
+            op_tag_val,
+            effect_instance_key_val,
+            payload,
+            self.null_effect_resume_token(),
+        );
+        self.emit_current_effect_propagation_with_trace(span, signal, "pass_mir_effect_perform")?;
+        self.emit_ordinary_non_resuming_effect_exit(span, "pass_mir_effect_perform")?;
+        // `Perform` is the block terminator for pass MIR, so the helper's dead landing block
+        // must be closed immediately instead of waiting for later dead expression lowering.
+        self.builder.build_unreachable()?;
+        Ok(())
     }
 
     fn codegen_mir_operand(

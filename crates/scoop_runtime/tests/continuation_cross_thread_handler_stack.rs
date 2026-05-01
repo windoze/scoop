@@ -129,7 +129,10 @@ fn continuation_resume_swaps_handler_stack_across_threads_and_restores_after() {
 
     // 通过 runtime 分配 GC-managed state wrapper（见上方注释）。
     let state = unsafe { scoop_alloc(core::mem::size_of::<ContinuationStateWrapper>() as u64) };
-    assert!(!state.is_null(), "continuation state wrapper must be allocated");
+    assert!(
+        !state.is_null(),
+        "continuation state wrapper must be allocated"
+    );
     unsafe {
         let wrapper = &mut *(state as *mut ContinuationStateWrapper);
         wrapper.observations = observations_ptr;

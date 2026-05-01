@@ -124,10 +124,7 @@ impl HandleStateMachinePlan {
                 .arm_plans
                 .iter()
                 .any(|arm| arm.body_may_suspend_outward)
-            || self
-                .nested_handles
-                .iter()
-                .any(Self::may_suspend_outward)
+            || self.nested_handles.iter().any(Self::may_suspend_outward)
     }
 
     #[cfg(test)]
@@ -148,11 +145,7 @@ impl HandleStateMachinePlan {
                 .map(|id| format!("arm{id}"))
                 .collect::<Vec<_>>()
                 .join(", ");
-            out.push_str(&format!(
-                "{pad}  {} => [{}]\n",
-                entry.op_fqn,
-                arm_ids
-            ));
+            out.push_str(&format!("{pad}  {} => [{}]\n", entry.op_fqn, arm_ids));
         }
 
         out.push_str(&format!("{pad}frame-layout:\n"));
@@ -228,7 +221,8 @@ impl HandleStateMachinePlan {
             out.push_str(&format!("{pad}  []\n"));
         } else {
             for site in &self.suspend_sites {
-                let available = render_symbol_list(&site.available_locals, &self.frame_layout.slots);
+                let available =
+                    render_symbol_list(&site.available_locals, &self.frame_layout.slots);
                 let captures = render_symbol_list(&site.capture_locals, &self.frame_layout.slots);
                 let matching = site
                     .matching_arms
@@ -260,10 +254,7 @@ impl HandleStateMachinePlan {
                     out.push_str(&format!("{pad}    path={}\n", source_path.label()));
                 }
                 if let Some(resume_path) = &site.resume_path {
-                    out.push_str(&format!(
-                        "{pad}    resume-path={}\n",
-                        resume_path.label()
-                    ));
+                    out.push_str(&format!("{pad}    resume-path={}\n", resume_path.label()));
                 }
                 if site.kind.is_continuation_resume_boundary() {
                     out.push_str(&format!(
@@ -343,7 +334,9 @@ pub(crate) enum HandleStateOp {
     WhileCondHeader {
         stmt: Box<hir::Stmt>,
     },
-    LoopReentry { cond_state: PlanStateId },
+    LoopReentry {
+        cond_state: PlanStateId,
+    },
     ExprMissing {
         expr: Box<hir::Expr>,
     },
@@ -481,7 +474,10 @@ impl StateTerminator {
                 condition.label()
             ),
             StateTerminator::Suspend { site_id } => format!("suspend site{site_id}"),
-            StateTerminator::CleanupEnter { scope_id, next_state } => {
+            StateTerminator::CleanupEnter {
+                scope_id,
+                next_state,
+            } => {
                 format!("cleanup scope{scope_id} -> s{next_state}")
             }
             StateTerminator::ReturnHandle => "return handle".to_string(),
@@ -505,9 +501,10 @@ impl StateTerminator {
                     ^ ((*merge_state as usize) << 2)
             }
             StateTerminator::Suspend { site_id } => 0x1000 ^ (*site_id as usize),
-            StateTerminator::CleanupEnter { scope_id, next_state } => {
-                0x2000 ^ (*scope_id as usize) ^ ((*next_state as usize) << 1)
-            }
+            StateTerminator::CleanupEnter {
+                scope_id,
+                next_state,
+            } => 0x2000 ^ (*scope_id as usize) ^ ((*next_state as usize) << 1),
             StateTerminator::ReturnHandle => 0x3000,
             StateTerminator::ReturnFromFunction => 0x4000,
             StateTerminator::ArmExit(exit) => 0x5000 ^ exit.structural_signature(),
@@ -600,7 +597,11 @@ impl HandleStateOp {
                 segmented_body,
                 ..
             } => {
-                let mode = if *segmented_body { "segmented" } else { "opaque" };
+                let mode = if *segmented_body {
+                    "segmented"
+                } else {
+                    "opaque"
+                };
                 format!("execute arm body op={op_fqn} span={:?}", arm.body.span)
                     + &format!(" mode={mode}")
             }
@@ -627,9 +628,7 @@ impl HandleStateOp {
             HandleStateOp::Break { stmt } => 5 ^ stmt_payload_signature(stmt),
             HandleStateOp::Continue { stmt } => 6 ^ stmt_payload_signature(stmt),
             HandleStateOp::Return { stmt } => 7 ^ stmt_payload_signature(stmt),
-            HandleStateOp::TodoStmt { stmt, kind } => {
-                8 ^ stmt_payload_signature(stmt) ^ kind.len()
-            }
+            HandleStateOp::TodoStmt { stmt, kind } => 8 ^ stmt_payload_signature(stmt) ^ kind.len(),
             HandleStateOp::WhileCondHeader { stmt } => 9 ^ stmt_payload_signature(stmt),
             HandleStateOp::LoopReentry { cond_state } => 10 ^ (*cond_state as usize),
             HandleStateOp::ExprMissing { expr } => 11 ^ expr_payload_signature(expr),
@@ -681,9 +680,7 @@ impl HandleStateOp {
                 site_id,
                 nested_id,
                 expr,
-            } => {
-                30 ^ (*site_id as usize) ^ *nested_id ^ expr_payload_signature(expr)
-            }
+            } => 30 ^ (*site_id as usize) ^ *nested_id ^ expr_payload_signature(expr),
             HandleStateOp::NestedHandle { nested_id, expr } => {
                 31 ^ *nested_id ^ expr_payload_signature(expr)
             }
@@ -743,9 +740,7 @@ impl HandleBranchCondition {
 
     fn structural_signature(&self) -> usize {
         match self {
-            HandleBranchCondition::WhileCond { condition } => {
-                1 ^ expr_payload_signature(condition)
-            }
+            HandleBranchCondition::WhileCond { condition } => 1 ^ expr_payload_signature(condition),
             HandleBranchCondition::IfCond { condition } => 2 ^ expr_payload_signature(condition),
         }
     }
@@ -767,30 +762,89 @@ struct SuspendSitePlan {
     continuation_escape: ContinuationEscapeState,
 }
 
-/// statement-position `val` 绑定 suspend site 在 `handle` body 中的源码路径。
+/// suspend site 在其所属外层 source root（handle body stmt / arm body / finally stmt）
+/// 下的源码路径。
 ///
-/// 该路径只描述源码中的语句位置与嵌套控制流层级，供统一 state-machine
+/// 该路径只描述源码中的根位置与嵌套控制流层级，供统一 state-machine
 /// 构建、重建与验证阶段使用。
 #[derive(Debug, Clone)]
+enum SuspendSourceRoot {
+    HandleBodyStmt { stmt_idx: usize, stmt_span: Span },
+    ArmBody { arm_index: usize, body_span: Span },
+    FinallyStmt { stmt_idx: usize, stmt_span: Span },
+}
+
+impl SuspendSourceRoot {
+    #[cfg(test)]
+    fn label(&self) -> String {
+        match self {
+            SuspendSourceRoot::HandleBodyStmt { stmt_idx, .. } => format!("top[{stmt_idx}]"),
+            SuspendSourceRoot::ArmBody { arm_index, .. } => format!("arm#{arm_index}"),
+            SuspendSourceRoot::FinallyStmt { stmt_idx, .. } => format!("finally[{stmt_idx}]"),
+        }
+    }
+
+    fn structural_signature(&self) -> usize {
+        match self {
+            SuspendSourceRoot::HandleBodyStmt {
+                stmt_idx,
+                stmt_span,
+            } => 0x51 ^ stmt_idx ^ stmt_span.start ^ (stmt_span.end << 1),
+            SuspendSourceRoot::ArmBody {
+                arm_index,
+                body_span,
+            } => 0xA1 ^ arm_index ^ body_span.start ^ (body_span.end << 1),
+            SuspendSourceRoot::FinallyStmt {
+                stmt_idx,
+                stmt_span,
+            } => 0xF1 ^ stmt_idx ^ stmt_span.start ^ (stmt_span.end << 1),
+        }
+    }
+
+    fn span(&self) -> Span {
+        match self {
+            SuspendSourceRoot::HandleBodyStmt { stmt_span, .. }
+            | SuspendSourceRoot::FinallyStmt { stmt_span, .. } => *stmt_span,
+            SuspendSourceRoot::ArmBody { body_span, .. } => *body_span,
+        }
+    }
+
+    fn handle_body_stmt_idx(&self) -> Option<usize> {
+        match self {
+            SuspendSourceRoot::HandleBodyStmt { stmt_idx, .. } => Some(*stmt_idx),
+            SuspendSourceRoot::ArmBody { .. } | SuspendSourceRoot::FinallyStmt { .. } => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 struct SuspendSourcePath {
-    top_level_stmt_idx: usize,
+    root: SuspendSourceRoot,
     frames: Vec<SuspendSourceFramePath>,
 }
 
 impl SuspendSourcePath {
     #[cfg(test)]
     fn label(&self) -> String {
-        let mut parts = vec![format!("top[{}]", self.top_level_stmt_idx)];
+        let mut parts = vec![self.root.label()];
         parts.extend(self.frames.iter().map(SuspendSourceFramePath::label));
         parts.join(" -> ")
     }
 
     fn structural_signature(&self) -> usize {
-        let mut acc = self.top_level_stmt_idx;
+        let mut acc = self.root.structural_signature();
         for frame in &self.frames {
             acc ^= frame.structural_signature();
         }
         acc
+    }
+
+    fn root_span(&self) -> Span {
+        self.root.span()
+    }
+
+    fn handle_body_stmt_idx(&self) -> Option<usize> {
+        self.root.handle_body_stmt_idx()
     }
 }
 
@@ -863,17 +917,31 @@ impl SuspendResumeConsumer {
 
 #[derive(Debug, Clone)]
 enum SuspendResumeExprFrame {
-    CallCallee { call_span: Span },
-    CallArg { call_span: Span, arg_index: usize },
+    CallCallee {
+        call_span: Span,
+    },
+    CallArg {
+        call_span: Span,
+        arg_index: usize,
+    },
     NamedArgValue {
         call_span: Span,
         arg_index: usize,
         name_span: Span,
     },
-    PerformArg { perform_span: Span, arg_index: usize },
-    MemberReceiver { access_span: Span },
-    BinaryLhs { binary_span: Span },
-    BinaryRhs { binary_span: Span },
+    PerformArg {
+        perform_span: Span,
+        arg_index: usize,
+    },
+    MemberReceiver {
+        access_span: Span,
+    },
+    BinaryLhs {
+        binary_span: Span,
+    },
+    BinaryRhs {
+        binary_span: Span,
+    },
     StructField {
         struct_span: Span,
         field_name: String,
@@ -886,13 +954,27 @@ enum SuspendResumeExprFrame {
         string_span: Span,
         part_index: usize,
     },
-    UnaryOperand { expr_span: Span },
-    CastOperand { expr_span: Span },
-    TypeCheckOperand { expr_span: Span },
-    IfCond { if_span: Span },
-    IfThenExpr { if_span: Span },
-    IfElseExpr { if_span: Span },
-    WhenSubject { when_span: Span },
+    UnaryOperand {
+        expr_span: Span,
+    },
+    CastOperand {
+        expr_span: Span,
+    },
+    TypeCheckOperand {
+        expr_span: Span,
+    },
+    IfCond {
+        if_span: Span,
+    },
+    IfThenExpr {
+        if_span: Span,
+    },
+    IfElseExpr {
+        if_span: Span,
+    },
+    WhenSubject {
+        when_span: Span,
+    },
     WhenArmGuard {
         when_span: Span,
         arm_index: usize,
@@ -955,9 +1037,7 @@ impl SuspendResumeExprFrame {
             }
             SuspendResumeExprFrame::UnaryOperand { .. } => "unary-operand".to_string(),
             SuspendResumeExprFrame::CastOperand { .. } => "cast-operand".to_string(),
-            SuspendResumeExprFrame::TypeCheckOperand { .. } => {
-                "typecheck-operand".to_string()
-            }
+            SuspendResumeExprFrame::TypeCheckOperand { .. } => "typecheck-operand".to_string(),
             SuspendResumeExprFrame::IfCond { .. } => "if-cond".to_string(),
             SuspendResumeExprFrame::IfThenExpr { .. } => "if-then-expr".to_string(),
             SuspendResumeExprFrame::IfElseExpr { .. } => "if-else-expr".to_string(),
@@ -1085,7 +1165,9 @@ impl SuspendSourceFramePath {
         match self {
             SuspendSourceFramePath::Block { stmt_idx, .. } => format!("block[{stmt_idx}]"),
             SuspendSourceFramePath::WhenArm {
-                arm_index, stmt_idx, ..
+                arm_index,
+                stmt_idx,
+                ..
             } => format!("when-arm#{arm_index}[{stmt_idx}]"),
             SuspendSourceFramePath::IfThen { stmt_idx, .. } => format!("if-then[{stmt_idx}]"),
             SuspendSourceFramePath::IfElse { stmt_idx, .. } => format!("if-else[{stmt_idx}]"),
@@ -1097,9 +1179,10 @@ impl SuspendSourceFramePath {
 
     fn structural_signature(&self) -> usize {
         match self {
-            SuspendSourceFramePath::Block { block_span, stmt_idx } => {
-                0x101 ^ block_span.start ^ (block_span.end << 1) ^ stmt_idx
-            }
+            SuspendSourceFramePath::Block {
+                block_span,
+                stmt_idx,
+            } => 0x101 ^ block_span.start ^ (block_span.end << 1) ^ stmt_idx,
             SuspendSourceFramePath::WhenArm {
                 when_span,
                 arm_index,
@@ -1191,9 +1274,7 @@ impl SuspendSiteKind {
             | SuspendSiteKind::ObjectInitAccess { target: op_fqn }
             | SuspendSiteKind::TopLevelValueInitAccess { target: op_fqn }
             | SuspendSiteKind::ClassCtorInit { class_name: op_fqn }
-            | SuspendSiteKind::NestedHandleBoundary { detail: op_fqn } => {
-                Some(op_fqn.clone())
-            }
+            | SuspendSiteKind::NestedHandleBoundary { detail: op_fqn } => Some(op_fqn.clone()),
         }
     }
 
@@ -1502,9 +1583,9 @@ impl FrameLayoutPlan {
 
 impl DispatchPlan {
     fn structural_signature(&self) -> usize {
-        self.entries
-            .iter()
-            .fold(self.entries.len(), |acc, entry| acc ^ entry.structural_signature())
+        self.entries.iter().fold(self.entries.len(), |acc, entry| {
+            acc ^ entry.structural_signature()
+        })
     }
 }
 
@@ -1600,11 +1681,19 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         }
     }
 
-    fn tail_resume_arm_matches(&self, expr: &hir::Expr, continuation_symbol: hir::SymbolId) -> bool {
+    fn tail_resume_arm_matches(
+        &self,
+        expr: &hir::Expr,
+        continuation_symbol: hir::SymbolId,
+    ) -> bool {
         tail_resume_arm_matches_static(expr, continuation_symbol)
     }
 
-    fn tail_resume_stmt_matches(&self, stmt: &hir::Stmt, continuation_symbol: hir::SymbolId) -> bool {
+    fn tail_resume_stmt_matches(
+        &self,
+        stmt: &hir::Stmt,
+        continuation_symbol: hir::SymbolId,
+    ) -> bool {
         matches!(&stmt.kind, hir::StmtKind::Expr(expr) if tail_resume_arm_matches_static(expr, continuation_symbol))
     }
 
@@ -1644,10 +1733,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         arm.guard
                             .as_ref()
                             .is_some_and(|guard| self.expr_contains_suspend_subtree(guard))
-                            || self.tail_resume_arm_may_suspend_outward(
-                                &arm.body,
-                                continuation_symbol,
-                            )
+                            || self
+                                .tail_resume_arm_may_suspend_outward(&arm.body, continuation_symbol)
                     })
             }
             _ => true,
@@ -1731,7 +1818,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     }
 
     fn build(mut self) -> HandleStateMachinePlan {
-        let outer_slots = collect_outer_scope_slots(self.handle, &self.context.known_local_metadata);
+        let outer_slots =
+            collect_outer_scope_slots(self.handle, &self.context.known_local_metadata);
         let mut env = ScopeEnv::with_outer(outer_slots.clone());
         for slot in &outer_slots {
             self.frame_slots.insert(slot.id, slot.clone());
@@ -1895,7 +1983,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 );
                 state
             }
-            hir::StmtKind::While { cond, body } => self.build_while(stmt, cond, body, current_state, env),
+            hir::StmtKind::While { cond, body } => {
+                self.build_while(stmt, cond, body, current_state, env)
+            }
             hir::StmtKind::Break { .. } => {
                 self.push_action(
                     current_state,
@@ -1982,14 +2072,21 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         decl.name
             .as_deref()
             .is_some_and(|name| name.starts_with("__task_ready_value"))
-            && matches!(decl.init.as_ref().map(|expr| &expr.kind), Some(hir::ExprKind::Block(_)))
+            && matches!(
+                decl.init.as_ref().map(|expr| &expr.kind),
+                Some(hir::ExprKind::Block(_))
+            )
     }
 
     fn decl_init_uses_prior_actions(&self, init: Option<&hir::Expr>) -> bool {
         init.is_some_and(|expr| self.expr_contains_suspend_subtree(expr))
     }
 
-    fn install_decl_slot(&mut self, decl: &hir::ValDecl, env: &mut ScopeEnv) -> Option<hir::SymbolId> {
+    fn install_decl_slot(
+        &mut self,
+        decl: &hir::ValDecl,
+        env: &mut ScopeEnv,
+    ) -> Option<hir::SymbolId> {
         let id = decl.id?;
         let slot = FrameSlot {
             id,
@@ -2021,10 +2118,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         self.record_local_fun_binding_if_needed(decl);
         let init_from_last_value = self.decl_init_uses_prior_actions(decl.init.as_ref());
 
-        self.local_block_return_contexts.push(LocalBlockReturnContext {
-            decl: decl.clone(),
-            continuation_state,
-        });
+        self.local_block_return_contexts
+            .push(LocalBlockReturnContext {
+                decl: decl.clone(),
+                continuation_state,
+            });
 
         let mut state = current_state;
         if let Some(init) = decl.init.as_ref() {
@@ -2232,7 +2330,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 );
                 state
             }
-            hir::ExprKind::Cast { expr: inner, op, .. } => {
+            hir::ExprKind::Cast {
+                expr: inner, op, ..
+            } => {
                 let state = self.build_expr_if_suspend_subtree(inner, current_state, env);
                 if matches!(op, ast::CastOp::As) {
                     self.record_expr_reads(state, expr);
@@ -2280,7 +2380,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let state = self.build_expr_if_suspend_subtree(receiver, current_state, env);
                 if let Some(kind) = self.classify_hidden_suspend_member_access(member) {
                     self.record_expr_reads(state, expr);
-                    let site_id = self.new_suspend_site(expr.span, kind, env.available_ids(), state);
+                    let site_id =
+                        self.new_suspend_site(expr.span, kind, env.available_ids(), state);
                     self.push_action(
                         state,
                         HandleStateOp::ObjectInitAccessBoundary {
@@ -2395,7 +2496,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 }
                 if let Some(kind) = self.classify_suspend_call(expr, callee) {
                     self.record_expr_reads(state, expr);
-                    let site_id = self.new_suspend_site(expr.span, kind, env.available_ids(), state);
+                    let site_id =
+                        self.new_suspend_site(expr.span, kind, env.available_ids(), state);
                     self.push_action(
                         state,
                         HandleStateOp::SuspendCall {
@@ -2476,7 +2578,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             }
             hir::ExprKind::Handle(handle) => {
                 let nested_id = self.nested_handles.len();
-                let nested = HandleStateMachinePlan::build_with_context(self.types, handle, self.context);
+                let nested =
+                    HandleStateMachinePlan::build_with_context(self.types, handle, self.context);
                 let nested_may_suspend = nested.may_suspend_outward();
                 self.nested_handles.push(nested);
                 if nested_may_suspend {
@@ -2579,7 +2682,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             | hir::ExprKind::UnresolvedIdent { .. }
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => false,
-            hir::ExprKind::VarRef(value_ref) => self.classify_hidden_suspend_var_ref(value_ref).is_some(),
+            hir::ExprKind::VarRef(value_ref) => {
+                self.classify_hidden_suspend_var_ref(value_ref).is_some()
+            }
             hir::ExprKind::StructLit { fields, .. } => fields
                 .iter()
                 .any(|field| self.expr_contains_suspend_subtree(&field.value)),
@@ -2597,16 +2702,15 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             | hir::ExprKind::TypeCheck { expr: inner, .. } => {
                 self.expr_contains_suspend_subtree(inner)
             }
-            hir::ExprKind::Cast { expr: inner, op, .. } => {
-                matches!(op, ast::CastOp::As) || self.expr_contains_suspend_subtree(inner)
-            }
+            hir::ExprKind::Cast {
+                expr: inner, op, ..
+            } => matches!(op, ast::CastOp::As) || self.expr_contains_suspend_subtree(inner),
             hir::ExprKind::MemberAccess { receiver, member } => {
                 self.expr_contains_suspend_subtree(receiver)
                     || self.classify_hidden_suspend_member_access(member).is_some()
             }
             hir::ExprKind::Binary { lhs, rhs, .. } => {
-                self.expr_contains_suspend_subtree(lhs)
-                    || self.expr_contains_suspend_subtree(rhs)
+                self.expr_contains_suspend_subtree(lhs) || self.expr_contains_suspend_subtree(rhs)
             }
             hir::ExprKind::Block(block) => self.block_contains_suspend_subtree(block),
             hir::ExprKind::If {
@@ -2657,7 +2761,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     }
 
     fn block_contains_suspend_subtree(&self, block: &hir::Block) -> bool {
-        block.stmts
+        block
+            .stmts
             .iter()
             .any(|stmt| self.stmt_contains_suspend_subtree(stmt))
     }
@@ -2674,8 +2779,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 .as_ref()
                 .is_some_and(|expr| self.expr_contains_suspend_subtree(expr)),
             hir::StmtKind::Assign { lhs, rhs, .. } => {
-                self.expr_contains_suspend_subtree(lhs)
-                    || self.expr_contains_suspend_subtree(rhs)
+                self.expr_contains_suspend_subtree(lhs) || self.expr_contains_suspend_subtree(rhs)
             }
             hir::StmtKind::While { cond, body } => {
                 self.expr_contains_suspend_subtree(cond)
@@ -2840,7 +2944,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             return None;
         };
         (self.context.program_facts.object_value_fqns.contains(fqn)
-            || self.context.program_facts.object_property_fqns.contains(fqn))
+            || self
+                .context
+                .program_facts
+                .object_property_fqns
+                .contains(fqn))
         .then(|| SuspendSiteKind::ObjectInitAccess {
             target: fqn.clone(),
         })
@@ -2849,7 +2957,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     fn build_dispatch_plan(&self) -> DispatchPlan {
         let mut by_op: HashMap<String, Vec<ArmPlanId>> = HashMap::new();
         for (idx, arm) in self.handle.arms.iter().enumerate() {
-            by_op.entry(arm.op.op.fqn.clone()).or_default().push(idx as u32);
+            by_op
+                .entry(arm.op.op.fqn.clone())
+                .or_default()
+                .push(idx as u32);
         }
         let mut entries = by_op
             .into_iter()
@@ -2894,10 +3005,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             let mut used = HashMap::new();
             collect_local_refs_in_expr(&arm.body, &mut used);
             let continuation_slot = match arm.kind {
-                hir::HandleArmKind::EscapeContinuation { continuation } => used
-                    .get(&continuation)
-                    .cloned()
-                    .map(|(name, ty)| {
+                hir::HandleArmKind::EscapeContinuation { continuation } => {
+                    used.get(&continuation).cloned().map(|(name, ty)| {
                         if !self.frame_slots.contains_key(&continuation) {
                             let slot = self.authoritative_local_slot(continuation, &name, ty);
                             self.frame_slots.insert(continuation, slot);
@@ -2906,7 +3015,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             .get(&continuation)
                             .cloned()
                             .expect("escape continuation slot must exist")
-                    }),
+                    })
+                }
                 hir::HandleArmKind::NonResuming => None,
             };
             let mut capture_locals = Vec::new();
@@ -2946,7 +3056,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 {
                     ArmBodyExit::ResumeMatchedSite
                 }
-                hir::HandleArmKind::EscapeContinuation { .. } => ArmBodyExit::MaterializeContinuation,
+                hir::HandleArmKind::EscapeContinuation { .. } => {
+                    ArmBodyExit::MaterializeContinuation
+                }
             };
             let body_end_state = if segmented_body {
                 let mut arm_env = ScopeEnv::default();
@@ -3073,15 +3185,35 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
     fn attach_suspend_source_paths(&mut self) {
         let mut path = Vec::new();
-        for (top_level_stmt_idx, stmt) in self.handle.body.stmts.iter().enumerate() {
-            self.attach_suspend_source_paths_in_stmt(stmt, top_level_stmt_idx, &mut path);
+        for (stmt_idx, stmt) in self.handle.body.stmts.iter().enumerate() {
+            let root = SuspendSourceRoot::HandleBodyStmt {
+                stmt_idx,
+                stmt_span: stmt.span,
+            };
+            self.attach_suspend_source_paths_in_stmt(stmt, &root, &mut path);
+        }
+        for (arm_index, arm) in self.handle.arms.iter().enumerate() {
+            let root = SuspendSourceRoot::ArmBody {
+                arm_index,
+                body_span: arm.body.span,
+            };
+            self.attach_suspend_source_paths_in_expr(&arm.body, &root, &mut path);
+        }
+        if let Some(finally_block) = self.handle.finally.as_ref() {
+            for (stmt_idx, stmt) in finally_block.stmts.iter().enumerate() {
+                let root = SuspendSourceRoot::FinallyStmt {
+                    stmt_idx,
+                    stmt_span: stmt.span,
+                };
+                self.attach_suspend_source_paths_in_stmt(stmt, &root, &mut path);
+            }
         }
     }
 
     fn attach_suspend_source_paths_in_stmt(
         &mut self,
         stmt: &'hir hir::Stmt,
-        top_level_stmt_idx: usize,
+        root: &SuspendSourceRoot,
         path: &mut Vec<SuspendSourceFramePath>,
     ) {
         match &stmt.kind {
@@ -3093,33 +3225,29 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let Some(init) = decl.init.as_ref() else {
                     return;
                 };
-                self.attach_suspend_source_paths_in_expr(init, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(init, root, path);
             }
             hir::StmtKind::Expr(expr) => {
-                self.attach_suspend_source_paths_in_expr(expr, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(expr, root, path);
             }
             hir::StmtKind::Assign { lhs, rhs, .. } => {
-                self.attach_suspend_source_paths_in_expr(lhs, top_level_stmt_idx, path);
-                self.attach_suspend_source_paths_in_expr(rhs, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(lhs, root, path);
+                self.attach_suspend_source_paths_in_expr(rhs, root, path);
             }
             hir::StmtKind::Return { value } => {
                 if let Some(value) = value.as_ref() {
-                    self.attach_suspend_source_paths_in_expr(value, top_level_stmt_idx, path);
+                    self.attach_suspend_source_paths_in_expr(value, root, path);
                 }
             }
             hir::StmtKind::While { cond, body } => {
-                self.attach_suspend_source_paths_in_expr(cond, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(cond, root, path);
                 for (stmt_idx, body_stmt) in body.stmts.iter().enumerate() {
                     path.push(SuspendSourceFramePath::WhileBody {
                         while_cond_span: cond.span,
                         while_body_span: body.span,
                         stmt_idx,
                     });
-                    self.attach_suspend_source_paths_in_stmt(
-                        body_stmt,
-                        top_level_stmt_idx,
-                        path,
-                    );
+                    self.attach_suspend_source_paths_in_stmt(body_stmt, root, path);
                     let _ = path.pop();
                 }
             }
@@ -3129,29 +3257,26 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     fn attach_suspend_source_paths_in_expr(
         &mut self,
         expr: &'hir hir::Expr,
-        top_level_stmt_idx: usize,
+        root: &SuspendSourceRoot,
         path: &mut Vec<SuspendSourceFramePath>,
     ) {
+        self.record_suspend_source_path(expr, root, path);
         match &expr.kind {
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
             | hir::ExprKind::Closure(_)
-            | hir::ExprKind::Handle(_)
             | hir::ExprKind::Todo(_) => {}
+            hir::ExprKind::Handle(_) => {}
             hir::ExprKind::StructLit { fields, .. } => {
                 for field in fields {
-                    self.attach_suspend_source_paths_in_expr(
-                        &field.value,
-                        top_level_stmt_idx,
-                        path,
-                    );
+                    self.attach_suspend_source_paths_in_expr(&field.value, root, path);
                 }
             }
             hir::ExprKind::TupleLit { elements } => {
                 for element in elements {
-                    self.attach_suspend_source_paths_in_expr(element, top_level_stmt_idx, path);
+                    self.attach_suspend_source_paths_in_expr(element, root, path);
                 }
             }
             hir::ExprKind::InterpolatedString { parts, .. } => {
@@ -3159,21 +3284,17 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     let hir::InterpolatedStringPart::Expr { expr: part_expr } = part else {
                         continue;
                     };
-                    self.attach_suspend_source_paths_in_expr(
-                        part_expr,
-                        top_level_stmt_idx,
-                        path,
-                    );
+                    self.attach_suspend_source_paths_in_expr(part_expr, root, path);
                 }
             }
             hir::ExprKind::Unary { expr: inner, .. }
             | hir::ExprKind::TypeCheck { expr: inner, .. }
             | hir::ExprKind::Cast { expr: inner, .. } => {
-                self.attach_suspend_source_paths_in_expr(inner, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(inner, root, path);
             }
             hir::ExprKind::Binary { lhs, rhs, .. } => {
-                self.attach_suspend_source_paths_in_expr(lhs, top_level_stmt_idx, path);
-                self.attach_suspend_source_paths_in_expr(rhs, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(lhs, root, path);
+                self.attach_suspend_source_paths_in_expr(rhs, root, path);
             }
             hir::ExprKind::Block(block) => {
                 for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
@@ -3181,7 +3302,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         block_span: block.span,
                         stmt_idx,
                     });
-                    self.attach_suspend_source_paths_in_stmt(stmt, top_level_stmt_idx, path);
+                    self.attach_suspend_source_paths_in_stmt(stmt, root, path);
                     let _ = path.pop();
                 }
             }
@@ -3191,7 +3312,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 else_branch,
                 ..
             } => {
-                self.attach_suspend_source_paths_in_expr(cond, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(cond, root, path);
                 if let hir::ExprKind::Block(block) = &then_branch.kind {
                     for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
                         path.push(SuspendSourceFramePath::IfThen {
@@ -3199,19 +3320,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             then_span: block.span,
                             stmt_idx,
                         });
-                        self.attach_suspend_source_paths_in_stmt(
-                            stmt,
-                            top_level_stmt_idx,
-                            path,
-                        );
+                        self.attach_suspend_source_paths_in_stmt(stmt, root, path);
                         let _ = path.pop();
                     }
                 } else {
-                    self.attach_suspend_source_paths_in_expr(
-                        then_branch,
-                        top_level_stmt_idx,
-                        path,
-                    );
+                    self.attach_suspend_source_paths_in_expr(then_branch, root, path);
                 }
                 if let Some(else_expr) = else_branch.as_deref()
                     && let hir::ExprKind::Block(block) = &else_expr.kind
@@ -3222,30 +3335,18 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             else_span: block.span,
                             stmt_idx,
                         });
-                        self.attach_suspend_source_paths_in_stmt(
-                            stmt,
-                            top_level_stmt_idx,
-                            path,
-                        );
+                        self.attach_suspend_source_paths_in_stmt(stmt, root, path);
                         let _ = path.pop();
                     }
                 } else if let Some(else_expr) = else_branch.as_deref() {
-                    self.attach_suspend_source_paths_in_expr(
-                        else_expr,
-                        top_level_stmt_idx,
-                        path,
-                    );
+                    self.attach_suspend_source_paths_in_expr(else_expr, root, path);
                 }
             }
             hir::ExprKind::When { subject, arms } => {
-                self.attach_suspend_source_paths_in_expr(subject, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(subject, root, path);
                 for (arm_index, when_arm) in arms.iter().enumerate() {
                     if let Some(guard) = when_arm.guard.as_ref() {
-                        self.attach_suspend_source_paths_in_expr(
-                            guard,
-                            top_level_stmt_idx,
-                            path,
-                        );
+                        self.attach_suspend_source_paths_in_expr(guard, root, path);
                     }
                     if let hir::ExprKind::Block(block) = &when_arm.body.kind {
                         for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
@@ -3255,61 +3356,39 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                                 arm_span: block.span,
                                 stmt_idx,
                             });
-                            self.attach_suspend_source_paths_in_stmt(
-                                stmt,
-                                top_level_stmt_idx,
-                                path,
-                            );
+                            self.attach_suspend_source_paths_in_stmt(stmt, root, path);
                             let _ = path.pop();
                         }
                     } else {
-                        self.attach_suspend_source_paths_in_expr(
-                            &when_arm.body,
-                            top_level_stmt_idx,
-                            path,
-                        );
+                        self.attach_suspend_source_paths_in_expr(&when_arm.body, root, path);
                     }
                 }
             }
             hir::ExprKind::MemberAccess { receiver, .. } => {
-                self.attach_suspend_source_paths_in_expr(receiver, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(receiver, root, path);
             }
             hir::ExprKind::Call { callee, args } => {
-                self.record_suspend_source_path(expr, top_level_stmt_idx, path);
-                self.attach_suspend_source_paths_in_expr(callee, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(callee, root, path);
                 for arg in args {
                     match arg {
-                        hir::CallArg::Positional(arg_expr) => self
-                            .attach_suspend_source_paths_in_expr(
-                                arg_expr,
-                                top_level_stmt_idx,
-                                path,
-                            ),
-                        hir::CallArg::Named { value, .. } => self
-                            .attach_suspend_source_paths_in_expr(
-                                value,
-                                top_level_stmt_idx,
-                                path,
-                            ),
+                        hir::CallArg::Positional(arg_expr) => {
+                            self.attach_suspend_source_paths_in_expr(arg_expr, root, path)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.attach_suspend_source_paths_in_expr(value, root, path)
+                        }
                     }
                 }
             }
             hir::ExprKind::Perform { args, .. } => {
-                self.record_suspend_source_path(expr, top_level_stmt_idx, path);
                 for arg in args {
                     match arg {
-                        hir::CallArg::Positional(arg_expr) => self
-                            .attach_suspend_source_paths_in_expr(
-                                arg_expr,
-                                top_level_stmt_idx,
-                                path,
-                            ),
-                        hir::CallArg::Named { value, .. } => self
-                            .attach_suspend_source_paths_in_expr(
-                                value,
-                                top_level_stmt_idx,
-                                path,
-                            ),
+                        hir::CallArg::Positional(arg_expr) => {
+                            self.attach_suspend_source_paths_in_expr(arg_expr, root, path)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.attach_suspend_source_paths_in_expr(value, root, path)
+                        }
                     }
                 }
             }
@@ -3319,7 +3398,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     fn record_suspend_source_path(
         &mut self,
         expr: &'hir hir::Expr,
-        top_level_stmt_idx: usize,
+        root: &SuspendSourceRoot,
         path: &[SuspendSourceFramePath],
     ) {
         let Some(site) = self.suspend_sites.iter_mut().find(|site| {
@@ -3330,7 +3409,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             return;
         };
         site.source_path = Some(SuspendSourcePath {
-            top_level_stmt_idx,
+            root: root.clone(),
             frames: path.to_vec(),
         });
     }
@@ -3642,11 +3721,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         slot
     }
 
-    fn record_resume_source_expr(
-        &mut self,
-        site_id: SuspendSiteId,
-        source_expr: &'hir hir::Expr,
-    ) {
+    fn record_resume_source_expr(&mut self, site_id: SuspendSiteId, source_expr: &'hir hir::Expr) {
         self.resume_source_exprs
             .entry(site_id)
             .or_insert_with(|| source_expr.clone());
@@ -3676,35 +3751,33 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         site_id,
                         resume_slot: Some(resume_slot),
                         ..
-                    } => resume_paths
-                        .get(site_id)
-                        .cloned()
-                        .map(|resume_path| {
-                            let source_expr = self
-                                .resume_source_exprs
-                                .get(site_id)
-                                .unwrap_or_else(|| {
-                                    panic!(
-                                        "resume source expr missing for site{site_id} during rewrite"
-                                    )
-                                })
-                                .clone();
-                            (
-                                op_index,
-                                *site_id,
-                                source_expr,
-                                resume_path,
-                                source_paths.get(site_id).cloned(),
-                                resume_slot.clone(),
-                            )
-                        }),
+                    } => resume_paths.get(site_id).cloned().map(|resume_path| {
+                        let source_expr = self
+                            .resume_source_exprs
+                            .get(site_id)
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "resume source expr missing for site{site_id} during rewrite"
+                                )
+                            })
+                            .clone();
+                        (
+                            op_index,
+                            *site_id,
+                            source_expr,
+                            resume_path,
+                            source_paths.get(site_id).cloned(),
+                            resume_slot.clone(),
+                        )
+                    }),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
 
             rewrites.sort_by(|lhs, rhs| rhs.0.cmp(&lhs.0));
 
-            for (op_index, site_id, source_expr, resume_path, source_path, resume_slot) in rewrites {
+            for (op_index, site_id, source_expr, resume_path, source_path, resume_slot) in rewrites
+            {
                 {
                     let state = &mut self.states[state_index];
                     for op in state.actions.iter_mut().skip(op_index + 1) {
@@ -3733,7 +3806,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     );
                     continue;
                 };
-                let mut allocate_synthetic_symbol_id = || self.context.allocate_synthetic_symbol_id();
+                let mut allocate_synthetic_symbol_id =
+                    || self.context.allocate_synthetic_symbol_id();
                 let mut when_rewrite_input = MaterializedWhenResumeInput {
                     source_path,
                     source_expr: &source_expr,
@@ -3852,12 +3926,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
             if idx == consumer_index {
                 for op in &mut cloned.actions {
-                    rewrite_state_op_with_resume_slot(
-                        op,
-                        source_expr,
-                        resume_path,
-                        resume_slot,
-                    );
+                    rewrite_state_op_with_resume_slot(op, source_expr, resume_path, resume_slot);
                 }
                 rewrite_state_terminator_with_resume_slot(
                     &mut cloned.terminator,
@@ -3995,11 +4064,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             if state.actions.len() <= 1 {
                 continue;
             }
-            let Some(site) = self
-                .suspend_sites
-                .iter()
-                .find(|site| site.id == site_id)
-            else {
+            let Some(site) = self.suspend_sites.iter().find(|site| site.id == site_id) else {
                 continue;
             };
             let replay_actions = self.escape_replay_actions_for_site(state, site);
@@ -4045,13 +4110,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let Some(source_path) = site.source_path.as_ref() else {
             return state.actions[1..].to_vec();
         };
-        let Some(stmt) = self.handle.body.stmts.get(source_path.top_level_stmt_idx) else {
-            return state.actions[1..].to_vec();
-        };
+        let root_span = source_path.root_span();
 
         let replay_actions = state.actions[1..]
             .iter()
-            .filter(|op| state_op_within_stmt_span(op, stmt.span))
+            .filter(|op| state_op_within_span(op, root_span))
             .cloned()
             .collect::<Vec<_>>();
 
@@ -4106,8 +4169,7 @@ fn rewrite_state_op_with_resume_slot(
     resume_slot: &FrameSlot,
 ) {
     match op {
-        HandleStateOp::BindLocal { decl, .. }
-        | HandleStateOp::DeclareAnonymousVal { decl, .. } => {
+        HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl, .. } => {
             if let Some(init) = decl.init.as_mut() {
                 *init = rewrite_expr_with_resume_slot(init, source_expr, resume_path, resume_slot);
             }
@@ -4159,9 +4221,10 @@ fn build_ordinary_callee_resume_tail_block(
     resume_slot: &FrameSlot,
     allocate_synthetic_symbol_id: &mut dyn FnMut() -> hir::SymbolId,
 ) -> Option<hir::Block> {
+    let start_idx = source_path.handle_body_stmt_idx()?;
     build_resume_tail_block_from_stmt_slice(
         body,
-        source_path.top_level_stmt_idx,
+        start_idx,
         &source_path.frames,
         source_expr,
         resume_path,
@@ -4230,7 +4293,10 @@ fn block_guarantees_control_flow_exit(block: &hir::Block) -> bool {
 }
 
 fn when_expr_guarantees_control_flow_exit(arms: &[hir::WhenArm]) -> bool {
-    !arms.is_empty() && arms.iter().all(|arm| expr_guarantees_control_flow_exit(&arm.body))
+    !arms.is_empty()
+        && arms
+            .iter()
+            .all(|arm| expr_guarantees_control_flow_exit(&arm.body))
 }
 
 fn expr_guarantees_control_flow_exit(expr: &hir::Expr) -> bool {
@@ -4663,7 +4729,12 @@ fn build_resume_tail_expr(
                 target_ty: *target_ty,
             },
         }),
-        hir::ExprKind::Binary { lhs, op, op_span, rhs } => {
+        hir::ExprKind::Binary {
+            lhs,
+            op,
+            op_span,
+            rhs,
+        } => {
             if let Some(rewritten_lhs) = build_resume_tail_expr(
                 lhs,
                 frames,
@@ -4909,7 +4980,11 @@ fn build_resume_tail_expr(
             }
             None
         }
-        hir::ExprKind::Perform { effect_ty, op, args } => {
+        hir::ExprKind::Perform {
+            effect_ty,
+            op,
+            args,
+        } => {
             for (arg_index, arg) in args.iter().enumerate() {
                 let rebuilt = match arg {
                     hir::CallArg::Positional(arg_expr) => build_resume_tail_expr(
@@ -5042,8 +5117,12 @@ fn build_resume_tail_while_stmt(
         }),
     };
 
-    let resume_first_var =
-        make_local_var_expr(original_stmt.span, bool_ty, resume_first_id, &resume_first_name);
+    let resume_first_var = make_local_var_expr(
+        original_stmt.span,
+        bool_ty,
+        resume_first_id,
+        &resume_first_name,
+    );
     let loop_cond = hir::Expr {
         span: cond.span,
         ty: bool_ty,
@@ -5178,8 +5257,7 @@ fn prepare_materialized_when_resume_rewrite(
         .collect::<Vec<_>>();
     let rewrite_terminator = state_terminator_contains_expr_span(terminator, when_span);
 
-    if consumer_action_indices.is_empty() && !rewrite_terminator
-    {
+    if consumer_action_indices.is_empty() && !rewrite_terminator {
         return Some(MaterializedWhenResumeRewrite {
             when_span,
             when_index,
@@ -5236,17 +5314,18 @@ fn suspend_site_kind_matches_source_path_expr_kind(
 ) -> bool {
     matches!(
         (site_kind, expr_kind),
-        (SuspendSiteKind::Perform { .. }, hir::ExprKind::Perform { .. })
-            | (
-                SuspendSiteKind::CallMaySuspend { .. }
-                    | SuspendSiteKind::CallStateMachineCallee { .. }
-                    | SuspendSiteKind::ClassCtorInit { .. },
-                hir::ExprKind::Call { .. },
-            )
-            | (
-                SuspendSiteKind::NestedHandleBoundary { .. },
-                hir::ExprKind::Handle(_),
-            )
+        (
+            SuspendSiteKind::Perform { .. },
+            hir::ExprKind::Perform { .. }
+        ) | (
+            SuspendSiteKind::CallMaySuspend { .. }
+                | SuspendSiteKind::CallStateMachineCallee { .. }
+                | SuspendSiteKind::ClassCtorInit { .. },
+            hir::ExprKind::Call { .. },
+        ) | (
+            SuspendSiteKind::NestedHandleBoundary { .. },
+            hir::ExprKind::Handle(_),
+        )
     )
 }
 
@@ -5256,18 +5335,19 @@ fn suspend_site_kind_matches_resume_path_expr_kind(
 ) -> bool {
     matches!(
         (site_kind, expr_kind),
-        (SuspendSiteKind::Perform { .. }, hir::ExprKind::Perform { .. })
-            | (
-                SuspendSiteKind::CallMaySuspend { .. }
-                    | SuspendSiteKind::CallStateMachineCallee { .. }
-                    | SuspendSiteKind::ClassCtorInit { .. }
-                    | SuspendSiteKind::RuntimeRaise { .. },
-                hir::ExprKind::Call { .. },
-            )
-            | (
-                SuspendSiteKind::NestedHandleBoundary { .. },
-                hir::ExprKind::Handle(_),
-            )
+        (
+            SuspendSiteKind::Perform { .. },
+            hir::ExprKind::Perform { .. }
+        ) | (
+            SuspendSiteKind::CallMaySuspend { .. }
+                | SuspendSiteKind::CallStateMachineCallee { .. }
+                | SuspendSiteKind::ClassCtorInit { .. }
+                | SuspendSiteKind::RuntimeRaise { .. },
+            hir::ExprKind::Call { .. },
+        ) | (
+            SuspendSiteKind::NestedHandleBoundary { .. },
+            hir::ExprKind::Handle(_),
+        )
     )
 }
 
@@ -5283,11 +5363,11 @@ fn state_contains_any_expr_span(state: &PlanState, candidate_spans: &[Span]) -> 
 
 fn state_op_contains_expr_span(op: &HandleStateOp, expr_span: Span) -> bool {
     match op {
-        HandleStateOp::BindLocal { decl, .. }
-        | HandleStateOp::DeclareAnonymousVal { decl, .. } => decl
-            .init
-            .as_ref()
-            .is_some_and(|init| expr_contains_span(init, expr_span)),
+        HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl, .. } => {
+            decl.init
+                .as_ref()
+                .is_some_and(|init| expr_contains_span(init, expr_span))
+        }
         HandleStateOp::Assign { stmt }
         | HandleStateOp::Return { stmt }
         | HandleStateOp::TodoStmt { stmt, .. }
@@ -5323,13 +5403,13 @@ fn state_op_contains_expr_span(op: &HandleStateOp, expr_span: Span) -> bool {
     }
 }
 
-fn state_op_within_stmt_span(op: &HandleStateOp, stmt_span: Span) -> bool {
-    let span_within_stmt = |span: Span| span.start >= stmt_span.start && span.end <= stmt_span.end;
+fn state_op_within_span(op: &HandleStateOp, container_span: Span) -> bool {
+    let span_within_container =
+        |span: Span| span.start >= container_span.start && span.end <= container_span.end;
 
     match op {
-        HandleStateOp::BindLocal { decl, .. }
-        | HandleStateOp::DeclareAnonymousVal { decl, .. } => {
-            span_within_stmt(decl.span)
+        HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl, .. } => {
+            span_within_container(decl.span)
         }
         HandleStateOp::Assign { stmt }
         | HandleStateOp::Return { stmt }
@@ -5337,7 +5417,7 @@ fn state_op_within_stmt_span(op: &HandleStateOp, stmt_span: Span) -> bool {
         | HandleStateOp::StmtEmpty { stmt }
         | HandleStateOp::WhileCondHeader { stmt }
         | HandleStateOp::Break { stmt }
-        | HandleStateOp::Continue { stmt } => span_within_stmt(stmt.span),
+        | HandleStateOp::Continue { stmt } => span_within_container(stmt.span),
         HandleStateOp::ExprMissing { expr }
         | HandleStateOp::Literal { expr }
         | HandleStateOp::ReadLocal { expr, .. }
@@ -5356,10 +5436,10 @@ fn state_op_within_stmt_span(op: &HandleStateOp, stmt_span: Span) -> bool {
         | HandleStateOp::NestedHandleBoundary { expr, .. }
         | HandleStateOp::NestedHandle { expr, .. }
         | HandleStateOp::Closure { expr }
-        | HandleStateOp::TodoExpr { expr, .. } => span_within_stmt(expr.span),
-        HandleStateOp::ResumeAfterSite { source_span, .. } => span_within_stmt(*source_span),
-        HandleStateOp::ImplicitElseUnit { span } => span_within_stmt(*span),
-        HandleStateOp::ExecuteArmBody { arm, .. } => span_within_stmt(arm.span),
+        | HandleStateOp::TodoExpr { expr, .. } => span_within_container(expr.span),
+        HandleStateOp::ResumeAfterSite { source_span, .. } => span_within_container(*source_span),
+        HandleStateOp::ImplicitElseUnit { span } => span_within_container(*span),
+        HandleStateOp::ExecuteArmBody { arm, .. } => span_within_container(arm.span),
         HandleStateOp::CleanupEdgeComplete
         | HandleStateOp::ReturnToEnclosingExpression
         | HandleStateOp::LoopReentry { .. } => false,
@@ -5408,9 +5488,9 @@ fn expr_contains_span(expr: &hir::Expr, expr_span: Span) -> bool {
         hir::ExprKind::StructLit { fields, .. } => fields
             .iter()
             .any(|field| expr_contains_span(&field.value, expr_span)),
-        hir::ExprKind::TupleLit { elements } => {
-            elements.iter().any(|element| expr_contains_span(element, expr_span))
-        }
+        hir::ExprKind::TupleLit { elements } => elements
+            .iter()
+            .any(|element| expr_contains_span(element, expr_span)),
         hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().any(|part| {
             matches!(
                 part,
@@ -5466,7 +5546,10 @@ fn expr_contains_span(expr: &hir::Expr, expr_span: Span) -> bool {
                 .stmts
                 .iter()
                 .any(|stmt| stmt_contains_expr_span(stmt, expr_span))
-                || handle.arms.iter().any(|arm| expr_contains_span(&arm.body, expr_span))
+                || handle
+                    .arms
+                    .iter()
+                    .any(|arm| expr_contains_span(&arm.body, expr_span))
                 || handle.finally.as_ref().is_some_and(|finally_block| {
                     finally_block
                         .stmts
@@ -5477,10 +5560,7 @@ fn expr_contains_span(expr: &hir::Expr, expr_span: Span) -> bool {
     }
 }
 
-fn state_terminator_contains_expr_span(
-    terminator: &StateTerminator,
-    expr_span: Span,
-) -> bool {
+fn state_terminator_contains_expr_span(terminator: &StateTerminator, expr_span: Span) -> bool {
     match terminator {
         StateTerminator::Branch { condition, .. } => match condition {
             HandleBranchCondition::WhileCond { condition }
@@ -5503,8 +5583,7 @@ fn rewrite_state_op_replacing_expr_span(
     replacement_expr: &hir::Expr,
 ) {
     match op {
-        HandleStateOp::BindLocal { decl, .. }
-        | HandleStateOp::DeclareAnonymousVal { decl, .. } => {
+        HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl, .. } => {
             if let Some(init) = decl.init.as_mut() {
                 *init = rewrite_expr_replacing_span(init, target_span, replacement_expr);
             }
@@ -5662,8 +5741,7 @@ fn rewrite_expr_replacing_span(
             else_branch,
         } => {
             **cond = rewrite_expr_replacing_span(cond, target_span, replacement_expr);
-            **then_branch =
-                rewrite_expr_replacing_span(then_branch, target_span, replacement_expr);
+            **then_branch = rewrite_expr_replacing_span(then_branch, target_span, replacement_expr);
             if let Some(else_branch) = else_branch.as_mut() {
                 **else_branch =
                     rewrite_expr_replacing_span(else_branch, target_span, replacement_expr);
@@ -5820,12 +5898,8 @@ fn rewrite_expr_from_resume_path(
         (SuspendResumeExprFrame::CallCallee { call_span }, hir::ExprKind::Call { callee, .. })
             if rewritten.span == *call_span =>
         {
-            **callee = rewrite_expr_from_resume_path(
-                callee,
-                source_expr,
-                &expr_frames[1..],
-                resume_slot,
-            );
+            **callee =
+                rewrite_expr_from_resume_path(callee, source_expr, &expr_frames[1..], resume_slot);
         }
         (
             SuspendResumeExprFrame::CallArg {
@@ -5851,8 +5925,11 @@ fn rewrite_expr_from_resume_path(
             },
             hir::ExprKind::Call { args, .. },
         ) if rewritten.span == *call_span => {
-            if let Some(hir::CallArg::Named { name_span: arg_name_span, value, .. }) =
-                args.get_mut(*arg_index)
+            if let Some(hir::CallArg::Named {
+                name_span: arg_name_span,
+                value,
+                ..
+            }) = args.get_mut(*arg_index)
                 && *arg_name_span == *name_span
             {
                 *value = rewrite_expr_from_resume_path(
@@ -5902,27 +5979,15 @@ fn rewrite_expr_from_resume_path(
                 resume_slot,
             );
         }
-        (
-            SuspendResumeExprFrame::BinaryLhs { binary_span },
-            hir::ExprKind::Binary { lhs, .. },
-        ) if rewritten.span == *binary_span => {
-            **lhs = rewrite_expr_from_resume_path(
-                lhs,
-                source_expr,
-                &expr_frames[1..],
-                resume_slot,
-            );
+        (SuspendResumeExprFrame::BinaryLhs { binary_span }, hir::ExprKind::Binary { lhs, .. })
+            if rewritten.span == *binary_span =>
+        {
+            **lhs = rewrite_expr_from_resume_path(lhs, source_expr, &expr_frames[1..], resume_slot);
         }
-        (
-            SuspendResumeExprFrame::BinaryRhs { binary_span },
-            hir::ExprKind::Binary { rhs, .. },
-        ) if rewritten.span == *binary_span => {
-            **rhs = rewrite_expr_from_resume_path(
-                rhs,
-                source_expr,
-                &expr_frames[1..],
-                resume_slot,
-            );
+        (SuspendResumeExprFrame::BinaryRhs { binary_span }, hir::ExprKind::Binary { rhs, .. })
+            if rewritten.span == *binary_span =>
+        {
+            **rhs = rewrite_expr_from_resume_path(rhs, source_expr, &expr_frames[1..], resume_slot);
         }
         (
             SuspendResumeExprFrame::StructField {
@@ -5978,52 +6043,32 @@ fn rewrite_expr_from_resume_path(
             SuspendResumeExprFrame::UnaryOperand { expr_span },
             hir::ExprKind::Unary { expr: inner, .. },
         ) if rewritten.span == *expr_span => {
-            **inner = rewrite_expr_from_resume_path(
-                inner,
-                source_expr,
-                &expr_frames[1..],
-                resume_slot,
-            );
+            **inner =
+                rewrite_expr_from_resume_path(inner, source_expr, &expr_frames[1..], resume_slot);
         }
         (
             SuspendResumeExprFrame::CastOperand { expr_span },
             hir::ExprKind::Cast { expr: inner, .. },
         ) if rewritten.span == *expr_span => {
-            **inner = rewrite_expr_from_resume_path(
-                inner,
-                source_expr,
-                &expr_frames[1..],
-                resume_slot,
-            );
+            **inner =
+                rewrite_expr_from_resume_path(inner, source_expr, &expr_frames[1..], resume_slot);
         }
         (
             SuspendResumeExprFrame::TypeCheckOperand { expr_span },
             hir::ExprKind::TypeCheck { expr: inner, .. },
         ) if rewritten.span == *expr_span => {
-            **inner = rewrite_expr_from_resume_path(
-                inner,
-                source_expr,
-                &expr_frames[1..],
-                resume_slot,
-            );
+            **inner =
+                rewrite_expr_from_resume_path(inner, source_expr, &expr_frames[1..], resume_slot);
         }
-        (
-            SuspendResumeExprFrame::IfCond { if_span },
-            hir::ExprKind::If { cond, .. },
-        ) if rewritten.span == *if_span => {
-            **cond = rewrite_expr_from_resume_path(
-                cond,
-                source_expr,
-                &expr_frames[1..],
-                resume_slot,
-            );
+        (SuspendResumeExprFrame::IfCond { if_span }, hir::ExprKind::If { cond, .. })
+            if rewritten.span == *if_span =>
+        {
+            **cond =
+                rewrite_expr_from_resume_path(cond, source_expr, &expr_frames[1..], resume_slot);
         }
-        (
-            SuspendResumeExprFrame::IfThenExpr { if_span },
-            hir::ExprKind::If {
-                then_branch, ..
-            },
-        ) if rewritten.span == *if_span => {
+        (SuspendResumeExprFrame::IfThenExpr { if_span }, hir::ExprKind::If { then_branch, .. })
+            if rewritten.span == *if_span =>
+        {
             **then_branch = rewrite_expr_from_resume_path(
                 then_branch,
                 source_expr,
@@ -6049,12 +6094,8 @@ fn rewrite_expr_from_resume_path(
             SuspendResumeExprFrame::WhenSubject { when_span },
             hir::ExprKind::When { subject, .. },
         ) if rewritten.span == *when_span => {
-            **subject = rewrite_expr_from_resume_path(
-                subject,
-                source_expr,
-                &expr_frames[1..],
-                resume_slot,
-            );
+            **subject =
+                rewrite_expr_from_resume_path(subject, source_expr, &expr_frames[1..], resume_slot);
         }
         (
             SuspendResumeExprFrame::WhenArmGuard {
@@ -6100,13 +6141,13 @@ fn resume_path_frame_matches_expr(frame: &SuspendResumeExprFrame, expr: &hir::Ex
     match (frame, &expr.kind) {
         (SuspendResumeExprFrame::CallCallee { call_span }, hir::ExprKind::Call { .. })
         | (SuspendResumeExprFrame::CallArg { call_span, .. }, hir::ExprKind::Call { .. })
-        | (
-            SuspendResumeExprFrame::NamedArgValue { call_span, .. },
-            hir::ExprKind::Call { .. },
-        ) => expr.span == *call_span,
-        (SuspendResumeExprFrame::PerformArg { perform_span, .. }, hir::ExprKind::Perform { .. }) => {
-            expr.span == *perform_span
+        | (SuspendResumeExprFrame::NamedArgValue { call_span, .. }, hir::ExprKind::Call { .. }) => {
+            expr.span == *call_span
         }
+        (
+            SuspendResumeExprFrame::PerformArg { perform_span, .. },
+            hir::ExprKind::Perform { .. },
+        ) => expr.span == *perform_span,
         (
             SuspendResumeExprFrame::MemberReceiver { access_span },
             hir::ExprKind::MemberAccess { .. },
@@ -6115,12 +6156,14 @@ fn resume_path_frame_matches_expr(frame: &SuspendResumeExprFrame, expr: &hir::Ex
         | (SuspendResumeExprFrame::BinaryRhs { binary_span }, hir::ExprKind::Binary { .. }) => {
             expr.span == *binary_span
         }
-        (SuspendResumeExprFrame::StructField { struct_span, .. }, hir::ExprKind::StructLit { .. }) => {
-            expr.span == *struct_span
-        }
-        (SuspendResumeExprFrame::TupleElement { tuple_span, .. }, hir::ExprKind::TupleLit { .. }) => {
-            expr.span == *tuple_span
-        }
+        (
+            SuspendResumeExprFrame::StructField { struct_span, .. },
+            hir::ExprKind::StructLit { .. },
+        ) => expr.span == *struct_span,
+        (
+            SuspendResumeExprFrame::TupleElement { tuple_span, .. },
+            hir::ExprKind::TupleLit { .. },
+        ) => expr.span == *tuple_span,
         (
             SuspendResumeExprFrame::InterpolatedExpr { string_span, .. },
             hir::ExprKind::InterpolatedString { .. },
@@ -6619,7 +6662,8 @@ impl<'a> SuspendCallAnalysis<'a> {
         block: &hir::Block,
         known_locals: &HashMap<hir::SymbolId, bool>,
     ) -> bool {
-        block.stmts
+        block
+            .stmts
             .iter()
             .any(|stmt| self.stmt_may_suspend(stmt, known_locals))
     }
@@ -6640,8 +6684,7 @@ impl<'a> SuspendCallAnalysis<'a> {
                 .as_ref()
                 .is_some_and(|expr| self.expr_may_suspend(expr, known_locals)),
             hir::StmtKind::Assign { lhs, rhs, .. } => {
-                self.expr_may_suspend(lhs, known_locals)
-                    || self.expr_may_suspend(rhs, known_locals)
+                self.expr_may_suspend(lhs, known_locals) || self.expr_may_suspend(rhs, known_locals)
             }
             hir::StmtKind::While { cond, body } => {
                 self.expr_may_suspend(cond, known_locals)
@@ -6690,9 +6733,9 @@ impl<'a> SuspendCallAnalysis<'a> {
             | hir::ExprKind::TypeCheck { expr: inner, .. } => {
                 self.expr_may_suspend(inner, known_locals)
             }
-            hir::ExprKind::Cast { expr: inner, op, .. } => {
-                matches!(op, ast::CastOp::As) || self.expr_may_suspend(inner, known_locals)
-            }
+            hir::ExprKind::Cast {
+                expr: inner, op, ..
+            } => matches!(op, ast::CastOp::As) || self.expr_may_suspend(inner, known_locals),
             hir::ExprKind::Block(block) => self.block_may_suspend(block, known_locals),
             hir::ExprKind::If {
                 cond,
@@ -6724,8 +6767,7 @@ impl<'a> SuspendCallAnalysis<'a> {
                     )
             }
             hir::ExprKind::Binary { lhs, rhs, .. } => {
-                self.expr_may_suspend(lhs, known_locals)
-                    || self.expr_may_suspend(rhs, known_locals)
+                self.expr_may_suspend(lhs, known_locals) || self.expr_may_suspend(rhs, known_locals)
             }
             hir::ExprKind::Call { callee, args } => {
                 self.context
@@ -6780,25 +6822,23 @@ impl<'a> SuspendCallAnalysis<'a> {
             .resolve_expr_concrete_type(expr)
             .is_some_and(|ty| function_ty_declared_effectful(self.types, ty));
         match &expr.kind {
-            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.context
-                    .known_fun_effects
-                    .get(fqn)
-                    .copied()
-                    .unwrap_or(declared_effectful)
-            }
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => self
+                .context
+                .known_fun_effects
+                .get(fqn)
+                .copied()
+                .unwrap_or(declared_effectful),
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
                 known_locals.get(id).copied().unwrap_or(declared_effectful)
             }
             hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref() {
                 Some(hir::MemberRef::Fun { fqn, .. })
-                | Some(hir::MemberRef::ExtensionFun { fqn, .. }) => {
-                    self.context
-                        .known_fun_effects
-                        .get(fqn)
-                        .copied()
-                        .unwrap_or(declared_effectful)
-                }
+                | Some(hir::MemberRef::ExtensionFun { fqn, .. }) => self
+                    .context
+                    .known_fun_effects
+                    .get(fqn)
+                    .copied()
+                    .unwrap_or(declared_effectful),
                 _ => declared_effectful,
             },
             hir::ExprKind::Closure(closure) => {
@@ -6818,7 +6858,9 @@ impl<'a> SuspendCallAnalysis<'a> {
                     hir::StmtKind::Expr(expr) => Some(expr),
                     _ => None,
                 })
-                .is_some_and(|expr| self.function_value_may_suspend_when_called(expr, known_locals)),
+                .is_some_and(|expr| {
+                    self.function_value_may_suspend_when_called(expr, known_locals)
+                }),
             hir::ExprKind::If {
                 then_branch,
                 else_branch,
@@ -6829,9 +6871,9 @@ impl<'a> SuspendCallAnalysis<'a> {
                         self.function_value_may_suspend_when_called(expr, known_locals)
                     })
             }
-            hir::ExprKind::When { arms, .. } => arms.iter().any(|arm| {
-                self.function_value_may_suspend_when_called(&arm.body, known_locals)
-            }),
+            hir::ExprKind::When { arms, .. } => arms
+                .iter()
+                .any(|arm| self.function_value_may_suspend_when_called(&arm.body, known_locals)),
             _ => declared_effectful,
         }
     }
@@ -6898,11 +6940,13 @@ pub(crate) fn collect_known_fun_call_suspendability(
                 fun.source_path.clone(),
                 Rc::clone(&program_facts),
             )
-            .with_continuation_escape_facts(ContinuationEscapeFacts::from_pass_view_for_callable(
-                materialized_pass_view,
-                Some(fqn.as_str()),
-                fun.source_path.as_path(),
-            ));
+            .with_continuation_escape_facts(
+                ContinuationEscapeFacts::from_pass_view_for_callable(
+                    materialized_pass_view,
+                    Some(fqn.as_str()),
+                    fun.source_path.as_path(),
+                ),
+            );
             let analysis = SuspendCallAnalysis {
                 types,
                 context: &context,
@@ -7214,7 +7258,10 @@ fn collect_declared_local_ids_in_when_pat(pat: &hir::WhenPat, out: &mut HashSet<
     }
 }
 
-fn collect_local_refs_in_stmt(stmt: &hir::Stmt, out: &mut HashMap<hir::SymbolId, (String, TypeId)>) {
+fn collect_local_refs_in_stmt(
+    stmt: &hir::Stmt,
+    out: &mut HashMap<hir::SymbolId, (String, TypeId)>,
+) {
     match &stmt.kind {
         hir::StmtKind::Expr(expr) => collect_local_refs_in_expr(expr, out),
         hir::StmtKind::Val(decl) => {
@@ -7244,7 +7291,10 @@ fn collect_local_refs_in_stmt(stmt: &hir::Stmt, out: &mut HashMap<hir::SymbolId,
     }
 }
 
-fn collect_local_refs_in_expr(expr: &hir::Expr, out: &mut HashMap<hir::SymbolId, (String, TypeId)>) {
+fn collect_local_refs_in_expr(
+    expr: &hir::Expr,
+    out: &mut HashMap<hir::SymbolId, (String, TypeId)>,
+) {
     match &expr.kind {
         hir::ExprKind::VarRef(hir::ValueRef::Local { id, name, .. }) => {
             out.entry(*id).or_insert_with(|| (name.clone(), expr.ty));
@@ -7483,16 +7533,14 @@ fn collect_used_locals_in_expr_static(expr: &hir::Expr, out: &mut HashSet<hir::S
 }
 
 #[cfg(test)]
-fn render_symbol_list(
-    ids: &[hir::SymbolId],
-    slots: &HashMap<hir::SymbolId, FrameSlot>,
-) -> String {
+fn render_symbol_list(ids: &[hir::SymbolId], slots: &HashMap<hir::SymbolId, FrameSlot>) -> String {
     let mut labels = ids
         .iter()
         .map(|id| {
-            slots
-                .get(id)
-                .map_or_else(|| format!("unknown#{}", id.as_u32()), FrameSlot::display_name)
+            slots.get(id).map_or_else(
+                || format!("unknown#{}", id.as_u32()),
+                FrameSlot::display_name,
+            )
         })
         .collect::<Vec<_>>();
     labels.sort();
@@ -7581,7 +7629,6 @@ fn handle_arm_kind_signature(kind: hir::HandleArmKind) -> usize {
         }
     }
 }
-
 
 /// Build the shared ordinary callee suspend/resume plan from a function or closure body.
 pub(crate) fn build_ordinary_callee_suspend_plan_with_context(
@@ -7686,9 +7733,7 @@ pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle(
     types: &TypeStore,
     handle: &hir::HandleExpr,
 ) -> HashMap<hir::SymbolId, EffectRow> {
-    compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(
-        types, handle, None,
-    )
+    compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(types, handle, None)
 }
 
 pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle_in_program(
@@ -7713,9 +7758,8 @@ fn compute_escape_continuation_direct_step_effect_rows_for_handle_with_program<'
     program: Option<DirectStepProgramInfo<'a>>,
 ) -> HashMap<hir::SymbolId, EffectRow> {
     let mut by_binder: HashMap<hir::SymbolId, Vec<TypeId>> = HashMap::new();
-    for site_summary in compute_escape_continuation_direct_step_rows_by_site(
-        types, handle, program,
-    ) {
+    for site_summary in compute_escape_continuation_direct_step_rows_by_site(types, handle, program)
+    {
         by_binder
             .entry(site_summary.continuation)
             .or_default()
@@ -8237,9 +8281,13 @@ fn summarize_direct_step_expr(
                 DirectStepSummary::continue_pure()
             }
         }
-        hir::ExprKind::Block(block) => {
-            summarize_direct_step_stmt_seq(types, &block.stmts, mode, known_local_metadata, analysis)
-        }
+        hir::ExprKind::Block(block) => summarize_direct_step_stmt_seq(
+            types,
+            &block.stmts,
+            mode,
+            known_local_metadata,
+            analysis,
+        ),
         hir::ExprKind::Unary { expr: inner, .. }
         | hir::ExprKind::Cast { expr: inner, .. }
         | hir::ExprKind::TypeCheck { expr: inner, .. } => {
@@ -8438,7 +8486,8 @@ fn summarize_direct_step_call_expr(
         return out;
     }
 
-    let direct_effects = direct_effect_terms_from_callable_expr(types, callee, known_local_metadata);
+    let direct_effects =
+        direct_effect_terms_from_callable_expr(types, callee, known_local_metadata);
     match mode {
         DirectStepMode::OutsideHandle => {
             out.merge_effects(direct_effects.clone());
@@ -8478,8 +8527,11 @@ fn summarize_direct_step_perform_expr(
             out
         }
         DirectStepMode::ActiveHandle(ctx) => {
-            if let Some(arm) = first_matching_arm_for_direct_perform(ctx.handle, op_fqn, effect_ty) {
-                out.merge_paths(summarize_direct_step_dispatch_arm(types, arm, ctx, analysis));
+            if let Some(arm) = first_matching_arm_for_direct_perform(ctx.handle, op_fqn, effect_ty)
+            {
+                out.merge_paths(summarize_direct_step_dispatch_arm(
+                    types, arm, ctx, analysis,
+                ));
             } else {
                 out.merge_paths(finalize_handle_outward(
                     types,
@@ -8629,10 +8681,7 @@ fn dispatch_boundary_effects_through_active_handle(
         }
         for arm in matching_arms {
             out.merge_paths(summarize_direct_step_dispatch_arm(
-                types,
-                arm,
-                ctx,
-                analysis,
+                types, arm, ctx, analysis,
             ));
         }
     }
@@ -8758,13 +8807,12 @@ fn classify_direct_step_hidden_boundary_for_value_ref<'a>(
             init,
         });
     }
-    program
-        .top_level_immutable_values
-        .get(fqn)
-        .map(|value| DirectStepHiddenBoundary::TopLevelImmutable {
+    program.top_level_immutable_values.get(fqn).map(|value| {
+        DirectStepHiddenBoundary::TopLevelImmutable {
             fqn: fqn.clone(),
             value,
-        })
+        }
+    })
 }
 
 fn classify_direct_step_hidden_boundary_for_member_access<'a>(
@@ -8884,11 +8932,17 @@ fn ordinary_callee_resume_slot_type(
     match resume_path.consumer {
         SuspendResumeConsumer::ExprStmt
             if source_path.frames.is_empty()
-                && source_path.top_level_stmt_idx + 1 == body.stmts.len() =>
+                && source_path
+                    .handle_body_stmt_idx()
+                    .is_some_and(|stmt_idx| stmt_idx + 1 == body.stmts.len()) =>
         {
             declared_return_ty
         }
-        SuspendResumeConsumer::ReturnValue if source_path.frames.is_empty() => declared_return_ty,
+        SuspendResumeConsumer::ReturnValue
+            if source_path.frames.is_empty() && source_path.handle_body_stmt_idx().is_some() =>
+        {
+            declared_return_ty
+        }
         _ => resume_slot.ty(),
     }
 }
@@ -8941,11 +8995,8 @@ fun demo(k: Continuation<Int, Int>): Int {
             "missing MIR escape facts must stay conservative"
         );
 
-        let context = collect_effect_analysis_context_for_fun_with_pass_view(
-            &lowered,
-            fun,
-            Some(&pass_view),
-        );
+        let context =
+            collect_effect_analysis_context_for_fun_with_pass_view(&lowered, fun, Some(&pass_view));
         assert_eq!(
             context.continuation_escape_state_for_call_span(resume_call_site.span),
             ContinuationEscapeState::LocalResumeOnly,
@@ -8998,11 +9049,8 @@ fun demo(k: Continuation<Int, Int>): Int {
             .iter()
             .next()
             .expect("expected a Continuation.resume call site");
-        let context = collect_effect_analysis_context_for_fun_with_pass_view(
-            &lowered,
-            fun,
-            Some(&pass_view),
-        );
+        let context =
+            collect_effect_analysis_context_for_fun_with_pass_view(&lowered, fun, Some(&pass_view));
         assert_eq!(
             context.continuation_escape_state_for_call_span(resume_call_site.span),
             ContinuationEscapeState::Escaping,
@@ -9094,6 +9142,108 @@ fun start(cell: Cell): Int / Boom {
     }
 
     #[test]
+    fn non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail() {
+        let source_text = r#"
+package a
+
+import scoop.core.*
+
+effect Inner {
+    fun enter(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+class Cell(var saved: Continuation<Int, Int>?)
+
+fun demo(cell: Cell): Int {
+    return handle {
+        val nested: Int = handle {
+            val x: Int = Inner.enter()
+            val y: Int = Boom.next()
+            x + y
+        } with {
+            Inner.enter(), k -> {
+                val resumed: Int = try {
+                    k.resume(7)
+                } catch (e: RuntimeError) {
+                    0
+                }
+                println("inner_arm_after_resume")
+                resumed + 1
+            }
+        }
+        println("after_nested")
+        println(nested)
+        nested
+    } with {
+        Boom.next(), k -> {
+            cell.saved = Some(k)
+            18
+        }
+    }
+}
+"#;
+        let source = SourceFile::new_virtual("<mem>", source_text);
+        let lowered = lower_typed_single_source(source_text);
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected outer handle");
+        let context = collect_effect_analysis_context_for_fun_with_pass_view(&lowered, fun, None);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let inner = plan
+            .nested_handles
+            .first()
+            .expect("expected nested handle plan for Inner.enter arm");
+
+        let boundary_site = inner
+            .suspend_sites
+            .iter()
+            .find(|site| {
+                matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })
+                    && site
+                        .source_path
+                        .as_ref()
+                        .is_some_and(|path| path.label().starts_with("arm#0"))
+            })
+            .expect("arm-body try/catch boundary should keep an arm-rooted source path");
+
+        assert_eq!(
+            boundary_site
+                .source_path
+                .as_ref()
+                .expect("source path should exist")
+                .label(),
+            "arm#0 -> block[0]",
+            "nested-handle boundary inside escape arm should be rooted at the arm body instead of falling back to opaque top-level replay"
+        );
+
+        let replay_state = inner
+            .states
+            .iter()
+            .find(|state| state.id == boundary_site.resume_target)
+            .expect("nested-handle boundary resume target should exist");
+        let replay_snippets = replay_state
+            .actions
+            .iter()
+            .filter_map(|op| state_action_source_snippet(op, &source))
+            .collect::<Vec<_>>();
+
+        assert!(
+            replay_snippets
+                .iter()
+                .any(|snippet| snippet.contains("inner_arm_after_resume")),
+            "nested-handle boundary resume fragment should keep the arm-body post-resume print instead of stopping at the inner try/nested-handle result: {replay_snippets:#?}"
+        );
+        assert!(
+            replay_snippets
+                .iter()
+                .any(|snippet| snippet.contains("resumed + 1")),
+            "nested-handle boundary resume fragment should keep the arm tail expression after nested-handle replay: {replay_snippets:#?}"
+        );
+    }
+
+    #[test]
     fn direct_step_effect_rows_include_direct_effectful_call_after_escape_site() {
         let lowered = lower_typed_single_source(
             r#"
@@ -9172,7 +9322,11 @@ fun demo(): Int / (Boom) {
             compute_escape_continuation_direct_step_rows_by_site(&lowered.types, handle, None);
         rows.sort_by_key(|row| row.site_id);
 
-        assert_eq!(rows.len(), 2, "expected two handled Ask.current escape sites");
+        assert_eq!(
+            rows.len(),
+            2,
+            "expected two handled Ask.current escape sites"
+        );
         assert_eq!(rows[0].continuation, continuation);
         assert_eq!(rows[1].continuation, continuation);
         assert!(
@@ -9180,7 +9334,10 @@ fun demo(): Int / (Boom) {
             "first site should stop before the second escape boundary, found {:?}",
             effect_row_terms(&lowered.types, &rows[0].effects)
         );
-        assert_eq!(effect_row_terms(&lowered.types, &rows[1].effects), ["a.Boom"]);
+        assert_eq!(
+            effect_row_terms(&lowered.types, &rows[1].effects),
+            ["a.Boom"]
+        );
     }
 
     #[test]
@@ -9269,8 +9426,15 @@ fun demo(): Int / (Boom) {
             compute_escape_continuation_direct_step_rows_by_site(&lowered.types, handle, None);
         rows.sort_by_key(|row| row.site_id);
 
-        assert_eq!(rows.len(), 2, "expected two handled Ask.current escape sites");
-        assert_eq!(effect_row_terms(&lowered.types, &rows[0].effects), ["a.Boom"]);
+        assert_eq!(
+            rows.len(),
+            2,
+            "expected two handled Ask.current escape sites"
+        );
+        assert_eq!(
+            effect_row_terms(&lowered.types, &rows[0].effects),
+            ["a.Boom"]
+        );
         assert!(
             rows[1].effects.is_pure(),
             "second site should not count its own arm body as resumed tail, found {:?}",
@@ -9443,6 +9607,50 @@ fun demo(): Int / (Boom) {
             .expect("expected an escape continuation arm")
     }
 
+    fn state_action_source_snippet(op: &HandleStateOp, source: &SourceFile) -> Option<String> {
+        match op {
+            HandleStateOp::StmtEmpty { stmt }
+            | HandleStateOp::Assign { stmt }
+            | HandleStateOp::Break { stmt }
+            | HandleStateOp::Continue { stmt }
+            | HandleStateOp::Return { stmt }
+            | HandleStateOp::TodoStmt { stmt, .. }
+            | HandleStateOp::WhileCondHeader { stmt } => Some(source.slice(stmt.span).to_string()),
+            HandleStateOp::BindLocal { decl, .. }
+            | HandleStateOp::DeclareAnonymousVal { decl, .. } => decl
+                .init
+                .as_ref()
+                .map(|init| source.slice(init.span).to_string()),
+            HandleStateOp::ExprMissing { expr }
+            | HandleStateOp::Literal { expr }
+            | HandleStateOp::ReadLocal { expr, .. }
+            | HandleStateOp::ObjectInitAccessBoundary { expr, .. }
+            | HandleStateOp::VarRef { expr }
+            | HandleStateOp::StructLit { expr }
+            | HandleStateOp::TupleLit { expr }
+            | HandleStateOp::InterpolatedString { expr }
+            | HandleStateOp::Expr { expr }
+            | HandleStateOp::RuntimeRaiseBoundary { expr, .. }
+            | HandleStateOp::BinaryExpr { expr }
+            | HandleStateOp::WhenExpr { expr }
+            | HandleStateOp::SuspendCall { expr, .. }
+            | HandleStateOp::Call { expr }
+            | HandleStateOp::Perform { expr, .. }
+            | HandleStateOp::NestedHandleBoundary { expr, .. }
+            | HandleStateOp::NestedHandle { expr, .. }
+            | HandleStateOp::Closure { expr }
+            | HandleStateOp::TodoExpr { expr, .. } => Some(source.slice(expr.span).to_string()),
+            HandleStateOp::ResumeAfterSite { source_span, .. } => {
+                Some(source.slice(*source_span).to_string())
+            }
+            HandleStateOp::ImplicitElseUnit { span } => Some(source.slice(*span).to_string()),
+            HandleStateOp::CleanupEdgeComplete
+            | HandleStateOp::ReturnToEnclosingExpression
+            | HandleStateOp::LoopReentry { .. }
+            | HandleStateOp::ExecuteArmBody { .. } => None,
+        }
+    }
+
     fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {
         let session = Session::new().expect("session");
         let source = SourceFile::new_virtual("<mem>", source_text);
@@ -9577,12 +9785,10 @@ fun demo(): Int / (Boom) {
                     hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
                 })
             }),
-            hir::ExprKind::StructLit { fields, .. } => {
-                fields.iter().find_map(|field| first_handle_in_expr(&field.value))
-            }
-            hir::ExprKind::TupleLit { elements } => {
-                elements.iter().find_map(first_handle_in_expr)
-            }
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .find_map(|field| first_handle_in_expr(&field.value)),
+            hir::ExprKind::TupleLit { elements } => elements.iter().find_map(first_handle_in_expr),
             hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
                 let hir::InterpolatedStringPart::Expr { expr } = part else {
                     return None;

@@ -4181,12 +4181,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result_cg: CgTy,
         label: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.call_callee_resume_entry_with_token_impl(
-            span,
-            incoming_resume_token,
-            result_cg,
-            label,
-        )
+        self.call_callee_resume_entry_with_token_impl(span, incoming_resume_token, result_cg, label)
     }
 
     // 控制流 codegen（if/when 等）已拆分到子模块（T0102d）。

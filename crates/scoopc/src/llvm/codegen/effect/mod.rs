@@ -107,7 +107,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn build_tuple_cg_value_from_values(
+    pub(super) fn build_tuple_cg_value_from_values(
         &mut self,
         at: crate::span::Span,
         tuple_ty: TypeId,

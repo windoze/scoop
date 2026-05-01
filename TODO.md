@@ -152,7 +152,7 @@
   - `state_machine_emitter.rs` 的 fresh continuation materialization 现已在没有 ordinary token slot 的 suspend site 上回退捕获当前 TLS incoming token；
   - LLVM 回归 `resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation` 已锁定该合同。
 
-### [TODO] T5002b2b2a2 补齐 non-tail escape arm segmented-body 的 resume-fragment 合同
+### [DONE] T5002b2b2a2 补齐 non-tail escape arm segmented-body 的 resume-fragment 合同
 - 范围：
   - 对 non-tail `EscapeContinuation` arm 且 body 仍可能 outward suspend 的形状，不再只停留在 opaque `ExecuteArmBody`；至少让 arm body 内部的 nested handle / `try { k.resume(...) } catch ...` / body tail 共享同一条可 replay 的 resume-fragment 合同。
   - 让 arm body 自己的 nested-handle boundary 在 replay 后不再把 inner handle / `try` 表达式值直接当成整个 arm 结果；outer arm tail（例如 `inner_arm_after_resume`、`resumed + 1`）必须继续执行。
@@ -161,6 +161,11 @@
   - 最小 nested-handle immediate-resume 探针可证明 replay 至少继续到 `inner_arm_after_resume` 与 arm tail，不再停在 `after_boom` / `after_nested = 18`；
   - 至少一条 focused analysis / LLVM / run-pass 回归锁定 non-tail escape arm segmented-body 的 `Continuation.resume(...)` site 与 nested-handle boundary replay 合同。
 - 依赖：T5002b2b2a
+- 完成记录：
+  - `SuspendSourcePath` 现已显式区分 `handle.body` 顶层 stmt、arm body 与 finally stmt 三类 root，并在遍历任意表达式时统一尝试登记站点；`NestedHandleBoundary` 不再继续天然缺失 source-path。
+  - segment / unified transform 的 builder contract 已允许 `NestedHandleBoundary` 携带 source-path；对应 replay 裁剪现在会按 arm-body root 定位，而不再只能回退到粗糙的 `state.actions[1..]`。
+  - `state_machine_emitter.rs` 现已在 nested-handle boundary outward suspend 时保留 frame 内 raw replay token 供 same-frame replay 使用，同时把向外传播的 `EffectOutcome.signal.resume_token` 改写成 wrapper continuation，使更外层 resume 会先回到 arm tail，再由该 tail 驱动 raw inner token replay。
+  - 新增 analysis 回归 `non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail` 与 run-pass fixture `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；并复验既有 probe `non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site`、`effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`。
 
 ### [TODO] T5002b2b2a2R Review：确认 escape arm body 不再作为 opaque expr 截断 replay tail
 - 重点：

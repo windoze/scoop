@@ -1487,12 +1487,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         } else {
                             false
                         };
-                        let should_replay_nested_handle = matches!(
-                            reason,
-                            ResumeAfterSiteReason::NestedHandleBoundary
-                        ) && frame_layout
-                            .nested_handle_boundary_replay_token_index(*site_id)
-                            .is_some();
+                        let should_replay_nested_handle =
+                            matches!(reason, ResumeAfterSiteReason::NestedHandleBoundary)
+                                && frame_layout
+                                    .nested_handle_boundary_replay_token_index(*site_id)
+                                    .is_some();
                         if should_replay_call {
                             let val = self.emit_resume_after_call_site(
                                 *site_id,
@@ -2411,12 +2410,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         self.builder
             .build_store(replay_token_slot, self.llvm_gc_i8_ptr_type().const_null())?;
-        let result_cg = self
-            .cg_ty_of(resume_slot.ty())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "nested handle replay slot type",
-                at: source_span.into(),
-            })?;
+        let result_cg =
+            self.cg_ty_of(resume_slot.ty())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "nested handle replay slot type",
+                    at: source_span.into(),
+                })?;
         let (out_word_slot, out_gc_ref_slot) = self.alloc_continuation_resume_answer_slots(
             source_span,
             result_cg,
@@ -3045,28 +3044,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // boundary). Prefer the current site's explicit frame slot when it exists;
                 // otherwise fall back to the token currently published in TLS by the replayed
                 // callee resume entry.
-                let captured_callee_suspend_state =
-                    if let Some(token_index) = frame_layout.ordinary_callee_resume_token_index(*site_id)
-                    {
-                        let token_slot = self.builder.build_struct_gep(
-                            frame_layout.frame_type,
-                            state_ptr,
-                            token_index,
-                            &format!("site{site_id}_captured_callee_resume_token_ptr"),
-                        )?;
-                        self.builder
-                            .build_load(
-                                self.llvm_gc_i8_ptr_type(),
-                                token_slot,
-                                &format!("site{site_id}_captured_callee_resume_token"),
-                            )?
-                            .into_pointer_value()
-                    } else {
-                        self.load_current_callee_suspend_state(
-                            span,
-                            &format!("site{site_id}_current_callee_resume_token"),
+                let captured_callee_suspend_state = if let Some(token_index) =
+                    frame_layout.ordinary_callee_resume_token_index(*site_id)
+                {
+                    let token_slot = self.builder.build_struct_gep(
+                        frame_layout.frame_type,
+                        state_ptr,
+                        token_index,
+                        &format!("site{site_id}_captured_callee_resume_token_ptr"),
+                    )?;
+                    self.builder
+                        .build_load(
+                            self.llvm_gc_i8_ptr_type(),
+                            token_slot,
+                            &format!("site{site_id}_captured_callee_resume_token"),
                         )?
-                    };
+                        .into_pointer_value()
+                } else {
+                    self.load_current_callee_suspend_state(
+                        span,
+                        &format!("site{site_id}_current_callee_resume_token"),
+                    )?
+                };
                 let set_captured =
                     self.declare_runtime_continuation_set_captured_callee_suspend_state();
                 let cont = self.reload_deferred_gc_ref_without_clearing(
@@ -3096,11 +3095,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 self.store_gc_ref_field(span, cont_gep, cont)?;
 
-                // `Continuation.resume(...)` resumed body 内的 suspend 只有在当前站点
-                // 会把 fresh continuation 继续暴露给更外层 future resume 时，才需要
-                // 留下 outer call-boundary replay 链。escape-continuation arm 的场景
-                // 由 `ArmMaterializeContinuation` terminator 精确发布；这里仅处理
-                // call-like boundary 与无本地 matching arm 的 outward perform。
+                // `Continuation.resume(...)` / nested-handle boundary resumed body 内的
+                // suspend 需要区分两条 replay owner 链：
+                // 1. same-frame replay 继续消费当前站点捕获到的 raw inner token；
+                // 2. 向更外层传播的 token 必须改写成刚 materialize 的 wrapper
+                //    continuation，这样更外层 future resume 才会回到当前 tail，
+                //    而不是直接拿 raw inner token 当最终 owner。
+                // 普通无本地 matching arm 的 outward perform 仍维持旧逻辑。
                 if Self::suspend_site_publishes_pending_continuation_during_suspend(site) {
                     let cont = self.reload_deferred_gc_ref_without_clearing(
                         span,
@@ -3116,6 +3117,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     if frame_layout
                         .continuation_resume_replay_token_index(*site_id)
                         .is_some()
+                        || frame_layout
+                            .nested_handle_boundary_replay_token_index(*site_id)
+                            .is_some()
                     {
                         let cont = self.reload_deferred_gc_ref_without_clearing(
                             span,
@@ -5540,8 +5544,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation(
-    ) {
+    fn resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation()
+     {
         let (source, lowered) = lower_typed_single_source_with_source(
             r#"
 package a

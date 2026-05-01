@@ -1,0 +1,86 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_arm_nested_handle_replay_tail_basic.stdout
+//
+// T5002b2b2a2: non-tail escape arm segmented-body replay must continue past the
+// arm-local nested handle / try-catch boundary.
+// - inner escape arm resumes its continuation inside `try { k.resume(...) } catch ...`;
+// - resumed inner body outward-suspends at `Boom.next()` and is captured by an outer escape arm;
+// - resuming that outer continuation must keep going through `inner_arm_after_resume`
+//   and the final arm tail (`resumed + 1`), instead of treating the inner result as
+//   the whole arm result.
+
+import scoop.core.*
+
+effect Inner {
+    fun enter(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+class Cell(var saved: Continuation<Int, Int>?)
+
+fun start(cell: Cell): Int {
+    return handle {
+        println("outer_body")
+        val nested: Int = handle {
+            println("inner_body")
+            val x: Int = Inner.enter()
+            println("after_inner")
+            println(x)
+            val y: Int = Boom.next()
+            println("after_boom")
+            println(y)
+            x + y
+        } with {
+            Inner.enter(), k -> {
+                println("inner_arm_before_resume")
+                val resumed: Int = try {
+                    k.resume(7)
+                } catch (e: RuntimeError) {
+                    println("unexpected_resume_error")
+                    0
+                }
+                println("inner_arm_after_resume")
+                println(resumed)
+                resumed + 1
+            }
+        }
+        println("after_nested")
+        println(nested)
+        nested + 100
+    } with {
+        Boom.next(), k -> {
+            println("boom_arm")
+            cell.saved = Some(k)
+            18
+        }
+    }
+}
+
+fun main() {
+    val none_k: Continuation<Int, Int>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val first: Int = start(cell)
+    println("after_start")
+    println(first)
+
+    when (cell.saved) {
+        Some(k) -> {
+            cell.saved = none_k
+            val second: Int = try {
+                k.resume(11)
+            } catch (e: RuntimeError) {
+                println("unexpected_outer_resume_error")
+                0
+            }
+            println("after_resume")
+            println(second)
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}
