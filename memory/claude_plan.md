@@ -1,31 +1,38 @@
-# Claude Plan
+## 当前执行计划
 
-## Constraints
-- 不记录或暴露内部私有推理；这里只维护可审阅的执行计划、关键判断与进度。
-- 先读取 `TODO.md` 作为索引，再读取对应 `TODO-Px.md` 作为任务真源。
-- 本次只完成第一个未完成的详细任务；若遇到真实阻塞，则按要求补充最小前置任务、同步索引并停止。
+说明：不写入内部推理细节；此文件记录可执行计划、关键决策、进度与阻塞，便于检查本次任务推进情况。
 
-## Execution Plan
-1. 读取 `TODO.md`，按索引顺序定位相关 `TODO-Px.md` 文件。
-2. 检查详细任务文件中的完成记录，确定第一个未完成的详细任务。
-3. 查看最近提交，判断是否存在与该任务直接相关且未完成的问题需要并入当前任务或作为前置任务。
-4. 阅读与当前任务直接相关的代码、测试、规范和任务约束，确认实现边界。
-5. 实现当前任务，保持改动最小且符合现有架构。
-6. 运行与该任务相关的测试、必要的格式化/静态检查；若出现失败，先修复再继续。
-7. 更新对应 `TODO-Px.md` 的完成记录；如任务索引、标题、顺序或依赖变化，同步更新 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
-8. 将关键进展与结果补充到本文件。
-9. 按仓库约定创建一次 git 提交，然后停止，不进入下一个任务。
+1. 读取 `TODO.md`，确认详细任务文件索引与顺序。
+2. 按索引顺序读取对应 `TODO-Px.md`，定位第一个未完成的详细任务。
+3. 检查最近提交是否存在与该任务直接相关且未完成的问题；若存在，将其视为当前任务的一部分，或在对应 `TODO-Px.md` 中登记为前置任务。
+4. 阅读当前任务涉及的代码、测试、规范与相关实现，确认约束、依赖、验收条件与现状。
+5. 若任务可直接完成：实现最小正确改动，不引入规避性方案。
+6. 若发现阻塞该任务的真实缺口：在对应 `TODO-Px.md` 中插入最小必要前置任务，并同步 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
+7. 运行与任务直接相关的验证：先小范围测试，再运行必要的格式化、lint、以及任务要求的测试命令；修复出现的问题。
+8. 在对应 `TODO-Px.md` 中记录完成情况；如任务索引、标题、顺序或文件引用变化，同步更新 `TODO.md`。
+9. 检查工作区变更，仅提交与本次任务相关的文件；按仓库约定创建一次 git commit。
+10. 停止，不继续处理下一个任务。
 
-## Progress Log
-- 已创建初始计划，下一步开始读取任务索引并确定当前执行单元。
-- 已读取 `TODO.md`、`TODO-P0.md`、`TODO-P1.md`；确认 P0 全部完成，当前首个未完成详细任务为 `P1-T02`（锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状）。
-- 已检查最新提交 `29c04a46fc7bea6a8c4559ebd2f090a157f52b45 [P1-T01R] Review AST stage parser neutrality`，未发现与 `P1-T02` 直接相关且需先补做的未完成事项。
-- 下一步：审阅 parser 测试、AST dump fixture 结构与现有 `dump-ast` 输出稳定性，决定需要新增的最小 fixtures 与断言位置。
-- 已完成实现改动：
-  - 在 `crates/scoopc/src/parser/tests.rs` 增加 3 组结构性断言，分别锁定 `k.resume(x)`、`k.resume()`、`f()` / `f(())` 的 AST 形状。
-  - 新增 3 个 parse fixtures：`continuation_resume_member_call_basic.scoop`、`continuation_resume_unit_call_basic.scoop`、`unit_single_param_zero_arg_call_basic.scoop`。
-  - 已根据实际 `dump-ast` 输出补齐对应 `.ast` golden，当前无需修改 parser/AST 实现本身。
-- 下一步：运行 `parser::tests`、legacy/refactor parse fixture、`dump-ast` smoke 与 clippy，确认任务验证矩阵全部通过。
-- 验证中发现一个非语义问题：`clippy` 对测试辅助函数提示 `needless_lifetimes`。已改为省略 lifetime，接下来重跑需要的验证命令。
-- 复验完成并全部通过：`cargo test -p scoopc --no-default-features parser::tests`、6 组 legacy/refactor parse fixture 命令、2 组 refactor `dump-ast` smoke、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
-- 已将 `P1-T02` 完成记录回写到 `TODO-P1.md`。下一步检查工作树差异并按任务号创建一次提交，然后停止。
+## 进度记录
+
+- 已初始化本次执行计划。
+- 已读取 `TODO.md` 与 `TODO-P0.md`、`TODO-P1.md`，确认 `P0` 全部完成。
+- 已定位首个未完成详细任务：`P1-T02R`（Review surface parse contract，确认 continuation / `Unit` sugar 仍是普通调用语法）。
+- 已检查最近提交主题为 `[P1-T02] Lock resume and Unit call AST shapes`；提交主题未显式记录与 `P1-T02R` 直接相关的未完成事项，因此继续执行本 review。
+
+## 当前任务执行细化
+
+1. 阅读 `P1-T02R` 要求列出的文件：新增 parse fixtures / `.ast`、`crates/scoopc/src/parser/tests.rs`、`crates/scoopc/src/parser/expr.rs`、`crates/scoopc/src/ast/mod.rs`。
+2. 运行指定搜索，确认不存在新的 AST 特例节点或 parser 关键分支。
+3. 运行 `P1-T02R` 要求的定向测试与 smoke 命令。
+4. 若 review 通过：在 `TODO-P1.md` 的 `P1-T02R` 完成记录中写入结论与验证结果，并提交。
+5. 若 review 发现问题：优先直接修复；若存在必须先引入的新前置任务，则按要求更新对应 `TODO-Px.md` 与 `TODO.md` 后提交并停止。
+
+## 当前 review 结论
+
+- `tests/fixtures/parse/continuation_resume_member_call_basic.ast`、`continuation_resume_unit_call_basic.ast`、`unit_single_param_zero_arg_call_basic.ast` 均保持普通 `Call` / `MemberAccess` / `UnitLit` 组合，没有新的 AST 特例节点。
+- `crates/scoopc/src/parser/tests.rs` 中的三个定向结构断言全部通过，直接验证了 `k.resume(x)`、`k.resume()`、`f()`、`f(())` 的 AST 形状与参数个数。
+- `crates/scoopc/src/parser/expr.rs` 的普通 postfix 路径仍统一走 `parse_member_access_expr(...)` + `parse_call_expr(...)`；未发现针对 `k.resume(...)` 或 `k.resume()` 的普通 surface 特判。
+- 额外发现：parser 中仍保留一个 `peek_ident_text("resume")` 分支，但它只用于旧 `-> resume { ... }` 已移除语法的迁移诊断 `HandleImmediateResumeRemoved`，不参与普通 member-call surface 解析；该行为与既有 removed-syntax 设计基线一致，不构成当前任务的阻塞项。
+- 已完成本任务要求的 parser 测试、legacy/refactor parse fixture 验证、refactor `dump-ast` smoke 与 `clippy` 复验。
+- 下一步：检查工作区状态，仅提交本次 `P1-T02R` review 相关文档更新后创建 commit。
