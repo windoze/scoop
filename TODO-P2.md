@@ -122,7 +122,11 @@
   - 可进入 P2-T02。
 - 依赖：P2-T01
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P2-T01R` review，未发现需要在 `P2-T02` 前补入的新前置缺陷；最近一次提交 `[P2-T01] Route refactor dump-hir through typed HIR stage` 与本 review 直接相关，但未显式留下需要追加跟踪的未完成事项。
+  - stage / 路由复核结论：`crates/scoopc/src/effect_refactor_pipeline/hir_stage.rs` 已作为 refactor typed HIR 独立阶段入口存在，并以 `TypedHirStageOutput` 承载 typed `LoweredHir` 与占位 `TypedHirEffectContracts`；`crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 对 `StageKind::TypedHir` 直接调用 `hir_stage::run(...)`；`crates/scoop/src/commands/dump_hir.rs` 在命令边界显式分流为 `legacy => scoopc::hir::lower_for_dump(...)`、`refactor => scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(...)`，说明 refactor `dump-hir` 已不再换壳调用 legacy `lower_for_dump`。
+  - 共享 API / 旧业务层复核结论：`crates/scoopc/src/hir/lower/mod.rs` 仍只暴露共享的 `lower_for_dump(...)` 与 `lower_typed_for_dump(...)` lowering API，未引入 `EffectPipelineMode` 或 `effect_pipeline` selector 分支；refactor 路径对 typed HIR 的复用仍经由 dispatcher + stage wrapper 收口，而不是把 pipeline mode 下沉到 legacy HIR lowering / typecheck 业务函数中。
+  - 搜索摘要：对 `crates/scoopc/src/hir`、`crates/scoopc/src/typecheck` 执行 `EffectPipelineMode|effect_pipeline|refactor|legacy` 搜索后，未发现 selector 进入旧 HIR / typecheck 业务实现；`hir/` 仅命中 `legacy_eager_hir` 这类既有命名与注释，`typecheck/` 仅命中 continuation 旧语法/兼容诊断文本与 legacy resume 逻辑局部变量名，未形成基于 pipeline mode 的线路分支。
+  - 复验通过：`cargo test -p scoopc --no-default-features refactor_typed_hir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_hir`、`cargo test -p scoop --no-default-features parity`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/hir/minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P2-T02：对齐 `Continuation` surface contract，并把单一 `Unit` 参数 sugar 落到 typed 阶段
 
