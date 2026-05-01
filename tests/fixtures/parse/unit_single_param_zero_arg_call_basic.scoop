@@ -1,0 +1,8 @@
+// EXPECT: pass
+// EXPECT-AST: unit_single_param_zero_arg_call_basic.ast
+// Goal: keep `f()` and `f(())` as distinct AST shapes until typed desugar.
+
+package fixtures.parse
+
+val zero = f()
+val explicit = f(())

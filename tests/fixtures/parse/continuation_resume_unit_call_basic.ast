@@ -1,0 +1,52 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 137..159,
+            path: [
+                Ident {
+                    span: 145..153,
+                },
+                Ident {
+                    span: 154..159,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 161..185,
+                kind: Val,
+                name: Ident {
+                    span: 165..172,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 175..185,
+                        kind: Call {
+                            callee: Expr {
+                                span: 175..183,
+                                kind: MemberAccess {
+                                    receiver: Expr {
+                                        span: 175..176,
+                                        kind: Ident(
+                                            Ident {
+                                                span: 175..176,
+                                            },
+                                        ),
+                                    },
+                                    member: Ident {
+                                        span: 177..183,
+                                    },
+                                },
+                            },
+                            args: [],
+                        },
+                    },
+                ),
+            },
+        ),
+    ],
+}

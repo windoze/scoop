@@ -1,0 +1,7 @@
+// EXPECT: pass
+// EXPECT-AST: continuation_resume_member_call_basic.ast
+// Goal: keep `k.resume(x)` as a plain member call + call in the AST.
+
+package fixtures.parse
+
+val resumed = k.resume(x)

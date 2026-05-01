@@ -54,6 +54,13 @@ fn gen_source(rng: &mut XorShift64, max_len: usize) -> String {
     s
 }
 
+fn top_level_val_init(file: &ast::File, idx: usize) -> &ast::Expr {
+    let ast::Item::Val(val) = &file.items[idx] else {
+        panic!("期望第 {idx} 个顶层 item 为 val 声明");
+    };
+    val.init.as_ref().expect("val 应当包含 initializer")
+}
+
 #[test]
 fn parse_minimal_file() {
     let src = SourceFile::new_virtual("<mem>", "package a.b\n\nfun main() { val x = 1 }");
@@ -561,6 +568,73 @@ fn parse_call_named_args() {
     assert_eq!(src.slice(name.span), "y");
     assert_eq!(src.slice(*eq_span), "=");
     assert!(matches!(&value.kind, ast::ExprKind::IntLit));
+}
+
+#[test]
+fn parse_resume_member_call_as_plain_call_shape() {
+    let src = SourceFile::new_virtual("<mem>", "package a\nval resumed = k.resume(x)\n");
+    let file = parse_file(&src).unwrap();
+
+    let init = top_level_val_init(&file, 0);
+    let ast::ExprKind::Call { callee, args } = &init.kind else {
+        panic!("期望 initializer 为调用表达式");
+    };
+    assert_eq!(args.len(), 1, "`k.resume(x)` 不应在 AST 中改写 arity");
+    assert!(matches!(args[0].kind, ast::ExprKind::Ident(_)));
+    assert_eq!(src.slice(args[0].span), "x");
+
+    let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+        panic!("期望调用 callee 为普通 member access");
+    };
+    assert!(matches!(receiver.kind, ast::ExprKind::Ident(_)));
+    assert_eq!(src.slice(receiver.span), "k");
+    assert_eq!(src.slice(member.span), "resume");
+}
+
+#[test]
+fn parse_zero_arg_resume_member_call_without_unit_desugar() {
+    let src = SourceFile::new_virtual("<mem>", "package a\nval resumed = k.resume()\n");
+    let file = parse_file(&src).unwrap();
+
+    let init = top_level_val_init(&file, 0);
+    let ast::ExprKind::Call { callee, args } = &init.kind else {
+        panic!("期望 initializer 为调用表达式");
+    };
+    assert!(args.is_empty(), "`k.resume()` 不应在 AST 中自动补 `UnitLit`");
+
+    let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+        panic!("期望调用 callee 为普通 member access");
+    };
+    assert!(matches!(receiver.kind, ast::ExprKind::Ident(_)));
+    assert_eq!(src.slice(receiver.span), "k");
+    assert_eq!(src.slice(member.span), "resume");
+}
+
+#[test]
+fn parse_zero_arg_and_explicit_unit_calls_as_distinct_shapes() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\nval zero = f()\nval explicit = f(())\n",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let zero = top_level_val_init(&file, 0);
+    let ast::ExprKind::Call { callee, args } = &zero.kind else {
+        panic!("期望 `f()` initializer 为调用表达式");
+    };
+    assert!(matches!(callee.kind, ast::ExprKind::Ident(_)));
+    assert_eq!(src.slice(callee.span), "f");
+    assert!(args.is_empty(), "`f()` 必须保持零参数调用形状");
+
+    let explicit = top_level_val_init(&file, 1);
+    let ast::ExprKind::Call { callee, args } = &explicit.kind else {
+        panic!("期望 `f(())` initializer 为调用表达式");
+    };
+    assert!(matches!(callee.kind, ast::ExprKind::Ident(_)));
+    assert_eq!(src.slice(callee.span), "f");
+    assert_eq!(args.len(), 1, "`f(())` 必须保留显式单参数调用形状");
+    assert!(matches!(args[0].kind, ast::ExprKind::UnitLit));
+    assert_eq!(src.slice(args[0].span), "()");
 }
 
 #[test]

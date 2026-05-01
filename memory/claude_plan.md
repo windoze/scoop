@@ -1,31 +1,31 @@
-# 执行计划
+# Claude Plan
 
-1. 读取 `TODO.md`，仅把它作为任务索引使用。
-2. 按 `TODO.md` 引用顺序读取对应的 `TODO-Px.md`，确认第一个未完成的详细任务；如果详细文件与索引不一致，以详细文件为准。
-3. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；如果这是当前任务的直接前置条件，则将其纳入当前任务范围，或在相应 `TODO-Px.md` 中补充最小必要前置任务，并同步 `TODO.md`。
-4. 阅读当前任务涉及的代码、规格、测试和依赖约束，确认不能通过缩小范围或规避路径完成任务。
-5. 直接实现当前详细任务；如果遇到阻塞当前任务的真实缺陷或缺失能力，则先修复它，或在对应 `TODO-Px.md` 中新增最小前置任务并同步 `TODO.md`，然后停止。
-6. 运行与当前任务直接相关的验证，包括必要的单测、集成测试、夹具测试，以及适用时的 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`。
-7. 更新 `memory/claude_plan.md` 记录关键进展或计划变更。
-8. 在对应 `TODO-Px.md` 中记录当前任务完成情况；若任务编号、标题、顺序或依赖变化，同步更新 `TODO.md`；仅当阶段计划本身变化时才更新 `PLAN.md`。
-9. 按仓库提交风格创建一次 git 提交，并在完成当前详细任务后停止，不继续处理下一个任务。
+## Constraints
+- 不记录或暴露内部私有推理；这里只维护可审阅的执行计划、关键判断与进度。
+- 先读取 `TODO.md` 作为索引，再读取对应 `TODO-Px.md` 作为任务真源。
+- 本次只完成第一个未完成的详细任务；若遇到真实阻塞，则按要求补充最小前置任务、同步索引并停止。
 
-## 进展记录
+## Execution Plan
+1. 读取 `TODO.md`，按索引顺序定位相关 `TODO-Px.md` 文件。
+2. 检查详细任务文件中的完成记录，确定第一个未完成的详细任务。
+3. 查看最近提交，判断是否存在与该任务直接相关且未完成的问题需要并入当前任务或作为前置任务。
+4. 阅读与当前任务直接相关的代码、测试、规范和任务约束，确认实现边界。
+5. 实现当前任务，保持改动最小且符合现有架构。
+6. 运行与该任务相关的测试、必要的格式化/静态检查；若出现失败，先修复再继续。
+7. 更新对应 `TODO-Px.md` 的完成记录；如任务索引、标题、顺序或依赖变化，同步更新 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
+8. 将关键进展与结果补充到本文件。
+9. 按仓库约定创建一次 git 提交，然后停止，不进入下一个任务。
 
-- 已写入初始执行计划，下一步开始读取 `TODO.md` 与详细任务文件，定位首个未完成任务。
-- 已读取 `TODO.md` 与 `TODO-P0.md`、`TODO-P1.md`；确认当前执行单元是 `P1-T01R`（Review AST stage 入口与 handoff 类型，确认 parser 仍是中立共享模块）。
-- 当前任务的执行步骤细化为：
-  1. 检查最近一次提交信息，确认是否显式记录了与 `P1-T01R` 直接相关且未完成的问题。
-  2. 复核 `crates/scoopc/src/effect_refactor_pipeline/ast_stage.rs`、`crates/scoopc/src/effect_refactor_pipeline/mod.rs`、`crates/scoop/src/commands/dump_ast.rs`、`crates/scoopc/src/session/mod.rs` 的实现与 contract。
-  3. 搜索 `crates/scoopc/src/parser` 与 `crates/scoopc/src/ast`，确认没有把 pipeline mode 注入 parser/AST 业务逻辑。
-  4. 运行 `P1-T01R` 指定的定向测试、smoke 和必要 lint。
-  5. 若 review 通过，则回写 `TODO-P1.md` 的完成记录；若发现直接阻塞 `P1-T01R` 的问题，则先修复或按要求补最小前置任务并同步索引。
-  6. 提交本次变更后停止，不进入 `P1-T02`。
-- 最近一次提交为 `[P1-T01] Introduce refactor AST stage output`，未显式记录与 `P1-T01R` 直接相关的未完成事项。
-- 代码复核结果：
-  1. `crates/scoopc/src/effect_refactor_pipeline/ast_stage.rs` 已定义 `AstStageOutput<'a>`，并把 P1 handoff invariants 固定在文档注释中。
-  2. `crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 通过 `ast_stage::run(...)` 提供 refactor AST stage 入口；`crates/scoop/src/commands/dump_ast.rs` 的生产路径经 `load_ast_for_dump(...)` -> `load_ast_stage_output_for_dump(...)` 进入该 stage。
-  3. `crates/scoopc/src/session/mod.rs` 仍通过中立共享 API `Session::parse(&SourceFile)` 复用 parser；`crates/scoopc/src/parser/mod.rs` 仅暴露 `parse_file(...)`，没有 selector 参数。
-- 搜索 `rg -n "EffectPipelineMode|effect_pipeline|legacy|refactor" crates/scoopc/src/parser crates/scoopc/src/ast` 输出为 0 命中，未发现 parser/AST 业务代码中的 pipeline 渗透。
-- 定向验证已通过：`cargo test -p scoopc --no-default-features ast_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_ast_command_uses_refactor_ast_dispatcher`、`diff -u <(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop) <(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop)>`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
-- 已回写 `TODO-P1.md` 的 `P1-T01R` 完成记录；下一步执行 git 状态检查并创建本次任务提交，然后停止。
+## Progress Log
+- 已创建初始计划，下一步开始读取任务索引并确定当前执行单元。
+- 已读取 `TODO.md`、`TODO-P0.md`、`TODO-P1.md`；确认 P0 全部完成，当前首个未完成详细任务为 `P1-T02`（锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状）。
+- 已检查最新提交 `29c04a46fc7bea6a8c4559ebd2f090a157f52b45 [P1-T01R] Review AST stage parser neutrality`，未发现与 `P1-T02` 直接相关且需先补做的未完成事项。
+- 下一步：审阅 parser 测试、AST dump fixture 结构与现有 `dump-ast` 输出稳定性，决定需要新增的最小 fixtures 与断言位置。
+- 已完成实现改动：
+  - 在 `crates/scoopc/src/parser/tests.rs` 增加 3 组结构性断言，分别锁定 `k.resume(x)`、`k.resume()`、`f()` / `f(())` 的 AST 形状。
+  - 新增 3 个 parse fixtures：`continuation_resume_member_call_basic.scoop`、`continuation_resume_unit_call_basic.scoop`、`unit_single_param_zero_arg_call_basic.scoop`。
+  - 已根据实际 `dump-ast` 输出补齐对应 `.ast` golden，当前无需修改 parser/AST 实现本身。
+- 下一步：运行 `parser::tests`、legacy/refactor parse fixture、`dump-ast` smoke 与 clippy，确认任务验证矩阵全部通过。
+- 验证中发现一个非语义问题：`clippy` 对测试辅助函数提示 `needless_lifetimes`。已改为省略 lifetime，接下来重跑需要的验证命令。
+- 复验完成并全部通过：`cargo test -p scoopc --no-default-features parser::tests`、6 组 legacy/refactor parse fixture 命令、2 组 refactor `dump-ast` smoke、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+- 已将 `P1-T02` 完成记录回写到 `TODO-P1.md`。下一步检查工作树差异并按任务号创建一次提交，然后停止。
