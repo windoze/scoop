@@ -72,9 +72,9 @@
      - 默认 `Session::new()` 为 legacy
      - 显式 `SessionOptions` 可构造成 refactor mode
   4. 运行定向验证命令：
-     - `cargo test -p scoop cli`
-     - `cargo test -p scoopc session`
-     - 若为 `scoopc` CLI 单独抽出 parse helper/module，则加对应 `cargo test -p scoopc <cli_parse_test_name>`
+     - `cargo test -p scoop --no-default-features cli`
+     - `cargo test -p scoopc --no-default-features session`
+     - 若为 `scoopc` CLI 单独抽出 parse helper/module，则加对应 `cargo test -p scoopc --no-default-features <cli_parse_test_name>`
 - 完成条件：
   - `scoop` 与 `scoopc` 都可以通过同义 CLI 参数把 pipeline mode 传入 `Session`；
   - 默认行为保持 legacy；
@@ -102,11 +102,9 @@
 - 验证：
   - 重新运行 P0-T01 的所有测试与命令；
   - 额外执行最小 smoke：
-    - `cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`
-    - `cargo run -p scoop -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop`
-    - `cargo run -p scoopc -- --effect-pipeline legacy --emit-llvm tests/fixtures/parse/hello.scoop -o /tmp/scoop_p0_legacy.ll`
-    - `cargo run -p scoopc -- --effect-pipeline refactor --emit-llvm tests/fixtures/parse/hello.scoop -o /tmp/scoop_p0_refactor.ll`
-  - `scoopc` 若当前环境下默认未启用 LLVM feature，则可改为：验证参数解析和 session 配置，不要求 `--emit-llvm` 端到端成功。
+    - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`
+    - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop`
+  - 本 review 不要求 `scoopc --emit-llvm` 端到端 smoke；LLVM/toolchain 相关验证留到后续确实进入 LLVM 阶段的任务再覆盖。
 - 完成条件：
   - review 结论能够明确写出：两端共用同一 session bit，默认不变，新路径必须经 CLI 进入；
   - 可进入 P0-T02。
@@ -150,10 +148,10 @@
      - 新 CLI 参数在命令层能够路由到 refactor dispatcher；
      - legacy 与 refactor dispatcher 都可独立构造和调用。
   2. 在不改默认行为的前提下，至少验证以下命令在 `--effect-pipeline refactor` 下可成功到达 dispatcher 并产出结果：
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`
   3. 对以上命令分别跑 `legacy` 与 `refactor` 两种 mode，比对：
      - 退出状态相同；
      - 若输出是稳定文本（dump 命令），输出内容一致；
@@ -242,8 +240,8 @@
   2. 其覆盖面至少包含上述所有子系统；
   3. 用一次代码搜索验证当前仓库中 pipeline mode / legacy/refactor 分叉没有渗入被标记为“共享中立模块”的实现代码。
   4. 运行：
-     - `cargo test -p scoop`
-     - `cargo test -p scoopc`
+     - `cargo test -p scoop --no-default-features cli`
+     - `cargo test -p scoopc --no-default-features session`
      - 确保新增文档/注释不会影响现有测试。
 
 - 完成条件：
@@ -314,14 +312,14 @@
 - 验证：
   1. 运行新增的 parity 测试入口；
   2. 额外执行以下人工 smoke 命令，确认 CLI 层与自动化验证一致：
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`
   3. 不执行 full regression。
 
 - 完成条件：
@@ -347,7 +345,7 @@
   - `scoop` / `scoopc` CLI 参数与 dispatcher 路径
 - 验证：
   - 重新运行 P0-T04 的全部自动化 parity 测试；
-  - 再跑一次 `cargo test -p scoop` 与 `cargo test -p scoopc`，确认新增测试与文档整理未破坏现有 crate 级测试；
+  - 再跑一次 `cargo test -p scoop --no-default-features cli` 与 `cargo test -p scoopc --no-default-features session`，确认新增测试与文档整理未破坏当前阶段的定向验证入口；
   - 不执行 full regression。
 
 - 完成条件：

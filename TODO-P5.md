@@ -159,9 +159,9 @@
      - stage 显式接收 P4 effect-facts stage 输出；
      - 该 stage 不依赖 LLVM emitter 或 legacy `effect/state_machine` 主入口。
   2. 运行：
-     - `cargo test -p scoopc refactor_effect_lowered_stage`
+      - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
   3. 若需要最小 smoke，允许额外运行：
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
      - 该 smoke 只是确认上游输入已存在，不是 P5 完成条件。
 
 - 完成条件：
@@ -315,8 +315,8 @@
      - continuation object / resume interface 壳层已可见且方法集完整；
      - frame slot 分类可稳定输出。
   3. 运行：
-     - `cargo test -p scoopc refactor_late_lowered_ir`
-     - `cargo test -p scoopc refactor_body_version_key`
+      - `cargo test -p scoopc --no-default-features refactor_late_lowered_ir`
+      - `cargo test -p scoopc --no-default-features refactor_body_version_key`
 
 - 完成条件：
   - late-lowered representation 的最终目标形状已经固定；
@@ -433,9 +433,9 @@
      - boundary 位于 `if` / loop / nested expr / argument evaluation 时，仍能得到唯一 owner/resume state；
      - `NoOutward` callable 仍走同一入口并退化成极简 state graph。
   3. 运行：
-     - `cargo test -p scoopc refactor_late_boundary_selection`
-     - `cargo test -p scoopc refactor_late_segmentation`
-     - `cargo test -p scoopc refactor_owner_resume_state`
+      - `cargo test -p scoopc --no-default-features refactor_late_boundary_selection`
+      - `cargo test -p scoopc --no-default-features refactor_late_segmentation`
+      - `cargo test -p scoopc --no-default-features refactor_owner_resume_state`
   4. 单元测试样本源码可直接复用或读取以下 P3/P4 样本：
      - `tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
      - `tests/fixtures/mir_refactor/handle_finally_boundary.scoop`
@@ -560,10 +560,10 @@
      - dropped continuation 不执行剩余 `finally` / cleanup；
      - runtime error outward 仍走普通 effect 分支。
   3. 运行：
-     - `cargo test -p scoopc refactor_frame_lifting`
-     - `cargo test -p scoopc refactor_late_control_flow`
-     - `cargo test -p scoopc refactor_dropped_continuation`
-     - `cargo test -p scoopc refactor_runtime_error_boundary`
+      - `cargo test -p scoopc --no-default-features refactor_frame_lifting`
+      - `cargo test -p scoopc --no-default-features refactor_late_control_flow`
+      - `cargo test -p scoopc --no-default-features refactor_dropped_continuation`
+      - `cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`
   4. 测试样本源码推荐至少覆盖：
      - `tests/fixtures/mir/while_break_continue.scoop`
      - `tests/fixtures/mir_refactor/handle_finally_boundary.scoop`
@@ -711,11 +711,11 @@
      - one-shot 重复 `resume` 进入 ordinary runtime error outward；
      - `()` payload / `()` resume tuple 的零载荷 case 正确。
   3. 运行：
-     - `cargo test -p scoopc refactor_step_materialization`
-     - `cargo test -p scoopc refactor_boundary_lowering`
-     - `cargo test -p scoopc refactor_continuation_object`
-     - `cargo test -p scoopc refactor_impl_plan_lowering`
-     - `cargo test -p scoopc refactor_resume_interface_completeness`
+      - `cargo test -p scoopc --no-default-features refactor_step_materialization`
+      - `cargo test -p scoopc --no-default-features refactor_boundary_lowering`
+      - `cargo test -p scoopc --no-default-features refactor_continuation_object`
+      - `cargo test -p scoopc --no-default-features refactor_impl_plan_lowering`
+      - `cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`
   4. 测试样本源码推荐至少覆盖：
      - `tests/fixtures/effect_facts/single_case_impl_plan.scoop`
      - `tests/fixtures/effect_facts/dynamic_fallback_widening.scoop`
@@ -831,10 +831,10 @@
      - 优化前后 `StepSchema` / `CaseTag` / `ImplPlan` / canonical invoke contract 不变；
      - 优化不会重新进入 P4 solver 或重新切 state graph。
   3. 运行：
-     - `cargo test -p scoopc refactor_late_opt_devirt`
-     - `cargo test -p scoopc refactor_late_opt_inline`
-     - `cargo test -p scoopc refactor_late_opt_dce`
-     - `cargo test -p scoopc refactor_late_opt_preserves_contract`
+      - `cargo test -p scoopc --no-default-features refactor_late_opt_devirt`
+      - `cargo test -p scoopc --no-default-features refactor_late_opt_inline`
+      - `cargo test -p scoopc --no-default-features refactor_late_opt_dce`
+      - `cargo test -p scoopc --no-default-features refactor_late_opt_preserves_contract`
 
 - 完成条件：
   - late-lowered representation 上已存在一轮窄的 post-lowering 优化；
@@ -946,14 +946,14 @@
 - 验证：
   1. 运行新增的 late-lowered snapshot / fixture 测试入口；
   2. 运行：
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/handle_finally_boundary.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/handle_perform.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/single_case_impl_plan.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`
-  3. 额外验证 legacy unsupported 诊断：
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-effect-lowered tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/handle_finally_boundary.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/handle_perform.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/single_case_impl_plan.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`
+   3. 额外验证 legacy unsupported 诊断：
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-effect-lowered tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`
 
 - 完成条件：
   - `dump-effect-lowered` 已存在并稳定输出；
@@ -978,10 +978,7 @@
 
 - 验证：
   - 重新运行 P5-T01 ~ P5-T07 的全部定向测试与命令；
-  - 再跑一次：
-    - `cargo test -p scoop`
-    - `cargo test -p scoopc`
-  - 仍不执行 full regression。
+  - 不再额外执行 `cargo test -p scoop` / `cargo test -p scoopc` 全 crate 测试；保持本阶段只做定向验证。
 
 - 完成条件：
   - review 能明确说明：P5 已完成“late-lowered `Step` 路径落地（尚不接 LLVM）”的阶段目标；

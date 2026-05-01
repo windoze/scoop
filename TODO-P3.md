@@ -92,10 +92,10 @@
      - `dump-mir --effect-pipeline refactor` 确实进入新 stage；
      - legacy `dump-mir` 路径仍沿用原有实现。
   2. 运行：
-     - `cargo test -p scoopc refactor_direct_mir_stage`
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`
+      - `cargo test -p scoopc --no-default-features refactor_direct_mir_stage`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`
   3. 要求：
      - legacy 命令输出继续成功；
      - refactor 命令能通过新 stage 产出稳定输出；
@@ -201,13 +201,13 @@
        - 场景：同时包含 `k.resume()` 与 `k.resume(())`
        - 目标：锁定二者在 refactor MIR 中使用同一 canonical 单参数调用合同
   3. 运行：
-     - `cargo test -p scoopc refactor_mir_lowering_contract`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/dispatch_and_resume_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/continuation_resume_unit_sugar.scoop`
-  4. 额外抽样验证 legacy 不受影响：
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-mir tests/fixtures/mir/dispatch_and_resume_call.scoop`
+      - `cargo test -p scoopc --no-default-features refactor_mir_lowering_contract`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/continuation_resume_unit_sugar.scoop`
+   4. 额外抽样验证 legacy 不受影响：
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/dispatch_and_resume_call.scoop`
 
 - 完成条件：
   - refactor MIR 已直接承接 P2 typed contract；
@@ -315,11 +315,11 @@
        - 场景：boundary 位于更大表达式内部（如 call 实参、条件、局部初始化中的 effectful call / resume / handle）
        - 若推荐写法在当前语法下不合法，允许选择语义等价、且能通过 typecheck 的最小样本替代，但必须在完成记录中写明替代样本对应的 shape
   3. 运行：
-     - `cargo test -p scoopc refactor_mir_cfg`
-     - `cargo test -p scoopc refactor_mir_site_id`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/while_break_continue.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/effect_boundary_inside_expr_context.scoop`
+      - `cargo test -p scoopc --no-default-features refactor_mir_cfg`
+      - `cargo test -p scoopc --no-default-features refactor_mir_site_id`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/while_break_continue.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/effect_boundary_inside_expr_context.scoop`
   4. 若 refactor 允许 effect-sensitive body 进入 MIR inline/clone pass，再额外运行对应定向测试，证明 fresh `SiteId` 与 verifier 仍通过。
 
 - 完成条件：
@@ -412,16 +412,16 @@
 - 验证：
   1. 运行新增的 refactor MIR snapshot / golden 测试入口；
   2. 运行：
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/direct_and_fun_value_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/handle_perform.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/handle_finally_boundary.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/effect_boundary_inside_expr_context.scoop`
-  3. 额外 CLI smoke：
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`
-  4. legacy 基线抽样验证：
-     - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/mir/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/direct_and_fun_value_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/handle_perform.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/handle_finally_boundary.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/effect_boundary_inside_expr_context.scoop`
+   3. 额外 CLI smoke：
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`
+   4. legacy 基线抽样验证：
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/mir/dispatch_and_resume_call.scoop`
 
 - 完成条件：
   - 仓库中已有独立的 refactor MIR snapshot/golden 机制；
@@ -445,10 +445,7 @@
 
 - 验证：
   - 重新运行 P3-T01 ~ P3-T04 的全部定向测试与命令；
-  - 再跑一次：
-    - `cargo test -p scoop`
-    - `cargo test -p scoopc`
-  - 仍不执行 full regression。
+  - 不再额外执行 `cargo test -p scoop` / `cargo test -p scoopc` 全 crate 测试；保持本阶段只做定向验证。
 
 - 完成条件：
   - review 能明确说明：P3 已经完成“direct-style MIR 新路径落地”的阶段目标；

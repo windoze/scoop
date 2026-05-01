@@ -90,7 +90,7 @@
   - 明确禁止：在 LLVM backend 再重新识别源码 shape、再切一次 CFG、再重新决定 owner-state/resume-state，或再重建“单 handle 局部状态机”。
   - 明确禁止：在 body emitter 中根据 `Span`、`hir::HandleExpr`、成员名 `resume`、或旧 `effect_op_call_sites` side table 猜测 effect 语义。
 - refactor LLVM backend 必须逐步摆脱 legacy handler-stack / effect-outcome contract。
-  - 新路径不得以 `runtime_effect_handler_stack_top`、`runtime_effect_handler_stack_swap_top`、`runtime_effect_outcome_consume_current`、`LegacyEffectBoundary`、`EffectSignal`、`EffectOutcome` 这一类 legacy runtime contract 作为 correctness 前提；
+  - 新路径不得以 `scoop_effect_handler_stack_top`、`scoop_effect_handler_stack_swap_top`、`scoop_effect_outcome_consume_current`、`LegacyEffectBoundary`、`EffectSignal`、`EffectOutcome` 这一类 legacy runtime contract 作为 correctness 前提；
   - 若某些完全中立的 runtime helper 仍可复用，必须先抽离到不含 legacy effect 语义的层级；
   - 否则 refactor 新路径必须改为直接 lower P5 的 `Step` / continuation / state graph 合同。
 - GC / stackmap / roots 规则在 refactor 新路径上必须与现有 LLVM pipeline 一致接通。
@@ -573,11 +573,11 @@
      - 若当前这类边界只支持 pure callback / 普通显式错误码模型，则必须在新路径保持一致；
      - 若 refactor 路径碰到 effectful extern 场景，应维持与当前仓库一致的明确拒绝/诊断，而非偷偷 fallback 到 legacy contract。
   6. 禁止 refactor 新路径继续依赖 legacy handler-stack / outcome runtime contract。
-     - 新路径生成的 LLVM IR 不应以这些 runtime 调用作为 correctness 前提：
-       - `effect_handler_stack_top`
-       - `effect_handler_stack_swap_top`
-       - `effect_outcome_consume_current`
-       - 等价 legacy effect-outcome / handler-stack runtime calls
+      - 新路径生成的 LLVM IR 不应以这些 runtime 调用作为 correctness 前提：
+        - `scoop_effect_handler_stack_top`
+        - `scoop_effect_handler_stack_swap_top`
+        - `scoop_effect_outcome_consume_current`
+        - 等价 legacy effect-outcome / handler-stack runtime calls
      - 若某个 runtime helper 仅做完全中立的对象/分配/GC 事务，允许保留；
      - 但 effect propagation 本身必须由 `Step_F` / continuation / state graph 模型表达。
   7. 为 refactor GC/runtime integration 增加显式 LLVM IR 断言与运行时断言。
@@ -645,7 +645,7 @@
 - 验证：
   - 重新运行 P6-T04 的全部测试与命令；
   - 额外搜索：
-    - `rg "effect_handler_stack|effect_outcome|LegacyEffectBoundary|cleanup hook|Managed ABI|extern" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/llvm/codegen/effect`
+    - `rg "scoop_effect_handler_stack|scoop_effect_outcome|LegacyEffectBoundary|cleanup hook|Managed ABI|extern" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/llvm/codegen/effect`
   - 要求：
     - 允许命中：legacy 模块、注释、测试；
     - 不允许命中：refactor LLVM 主实现仍以这些 legacy/TLS/cleanup-hook 语义作为 correctness 前提。
@@ -768,10 +768,7 @@
 
 - 验证：
   - 重新运行 P6-T01 ~ P6-T05 的全部定向测试与命令；
-  - 再跑一次：
-    - `cargo test -p scoop`
-    - `cargo test -p scoopc`
-  - 仍不执行 full regression。
+  - 不再额外执行 `cargo test -p scoop` / `cargo test -p scoopc` 全 crate 测试；这些 broad regression 留到 P7 统一执行。
 
 - 完成条件：
   - review 能明确说明：P6 已完成“LLVM codegen 新路径对接（仍不切主线）”的阶段目标；

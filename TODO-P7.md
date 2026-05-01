@@ -18,10 +18,11 @@
   - 在 P7 中删除 legacy 路径、legacy CLI 参数、legacy backend、或旧 dump/fixture；这些属于 P8。
   - 在 P7 中重新设计 `StepSchema`、`ContinuationSchema`、`resolved_outward_cases`、`impl_plan`、late lowering、LLVM ABI、GC root 模型、runtime error 语义、或 dropped continuation 语义；这些在 P4-P6 已经闭合。
 - P7 结束时，默认 effect/continuation 主线必须是 refactor。
-  - `scoop`、`scoopc`、`scoop_tools`、fixtures harness、测试 helper、以及任何默认构造 `Session` / pipeline config 的入口，在**未显式指定 selector** 时都必须走 refactor；
+  - `scoop`、`scoopc`、fixtures harness、测试 helper、以及任何默认构造 `Session` / pipeline config 的入口，在**未显式指定 selector** 时都必须走 refactor；
   - `--effect-pipeline legacy` 必须继续可用，作为短期回滚/比对入口；
   - `--effect-pipeline refactor` 若当前已存在，可继续保留用于显式测试与文档示例；
   - 但“省略 selector”时的行为必须稳定等于 refactor。
+- `tools/scoop_tools` 当前不直接构造 `scoopc::Session`，因此不属于 selector 默认值翻转的实现范围；P7 只需保证它的文档、脚本或调用示例不再假定 legacy 默认值。
 - refactor 成为默认后，legacy 路径只能通过**显式 selector** 进入。
   - 明确禁止：
     - 在省略 selector 时静默回落到 legacy；
@@ -67,7 +68,7 @@
   - 前置实现参考：[`TODO-P0.md`](./TODO-P0.md) P0-T01 / P0-T02
 - 目标：
   - 把“默认 mode = legacy”翻转为“默认 mode = refactor”；
-  - 让 omission-based default 在 `scoop` / `scoopc` / `scoop_tools` / tests / fixtures 中统一生效；
+  - 让 omission-based default 在 `scoop` / `scoopc` / tests / fixtures 中统一生效；
   - 同时保留显式 `--effect-pipeline legacy` 作为过渡期入口，供 P7 compare 与 P8 前的短期回滚使用。
 
 - 必须实现的内容：
@@ -77,14 +78,15 @@
        - `crates/scoop/src/cli.rs`
        - `crates/scoop/src/commands/**/*.rs`
        - `crates/scoopc/src/bin/scoopc.rs`
-       - `tools/scoop_tools/**` 或构造 `Session` 的对应位置
+       - 任何实际构造 `Session` / pipeline config 的等价位置
+       - 若仓库中存在调用 `scoop` / `scoopc` 的 wrapper script，再同步修改对应位置；当前 `tools/scoop_tools` Rust binary 本身不在 selector 翻转范围内
      - 要求：省略 selector 时统一进入 refactor。
   2. 保留并验证显式 `legacy` 参数。
      - `--effect-pipeline legacy` 必须继续可解析、可传入 session、可贯穿 dispatcher，并实际进入旧主线；
      - `--effect-pipeline refactor` 若当前已存在，也应继续保留，以便测试与文档显式表述；
      - 明确禁止：通过“删掉 legacy 参数，只剩默认 refactor”来完成 P7。
   3. 更新默认构造入口。
-     - 若当前 `Session::new()`、test helper、fixture helper、或 tool helper 默认构造 legacy session，则必须切为 refactor；
+      - 若当前 `Session::new()`、test helper、fixture helper、或其它实际构造 `Session` 的 helper 默认构造 legacy session，则必须切为 refactor；
      - 同时保留一个显式 legacy 构造入口或等价配置方式，供 compare/rollback 场景使用；
      - 明确禁止：在 helper 内写“默认 legacy，但命令层再覆盖成 refactor”的双重语义。
   4. 更新 CLI/help/parse 测试。
@@ -101,7 +103,7 @@
        - P8 将删除 legacy 默认/显式入口。
 
 - 必须遵从的约束：
-  - 禁止把默认值只改在某一个入口上，而让其它入口（如 `scoop_tools`、fixtures、test helper）仍默认 legacy。
+  - 禁止把默认值只改在某一个入口上，而让其它实际构造 `Session` 的入口（如 fixtures、test helper）仍默认 legacy。
   - 禁止把“默认 refactor”实现成“先尝试 refactor，失败再自动跑 legacy”。
   - 禁止为了通过 P7 而移除显式 `legacy` compare 入口；P8 才负责删除。
   - 禁止重新把 pipeline mode 渗入低层业务实现函数；selector 仍必须停留在 CLI / session / dispatcher 层。
@@ -111,9 +113,9 @@
      - `default_effect_pipeline_is_refactor_*`
      - `explicit_legacy_pipeline_still_available_*`
   2. 运行：
-     - `cargo test -p scoop cli`
-     - `cargo test -p scoopc session`
-     - 若 `scoop_tools` 或 fixtures helper 有单独测试入口，补充对应定向测试
+      - `cargo test -p scoop --no-default-features cli`
+      - `cargo test -p scoopc --no-default-features session`
+      - 若 fixtures helper 或其它实际构造 `Session` 的 helper 有单独测试入口，补充对应定向测试
   3. 最小 smoke：
      - `cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`
      - `cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`
@@ -142,13 +144,13 @@
 - 重点：
   - omission-based default 是否已统一切到 refactor；
   - `legacy` 是否只剩显式入口，而不是还存在隐藏默认值或 fallback；
-  - `scoop`、`scoopc`、`scoop_tools`、fixtures helper、test helper 是否已经一致。
+  - `scoop`、`scoopc`、fixtures helper、test helper、以及其它实际构造 `Session` 的入口是否已经一致。
 - 必须检查的文件/位置：
   - `crates/scoop/src/cli.rs`
   - `crates/scoop/src/commands/**/*.rs`
   - `crates/scoopc/src/bin/scoopc.rs`
   - `crates/scoopc/src/session/**`
-  - `tools/scoop_tools/**` 或其等价位置
+  - 任何实际构造 `Session` / pipeline config 的等价位置
   - 相关 fixture/test helper 位置
 
 - 验证：

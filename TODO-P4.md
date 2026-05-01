@@ -125,9 +125,9 @@
      - 该 stage 显式接受 P3 MIR stage 输出；
      - stage 输出显式携带 `MaterializedEffectFacts`，而不是隐式散落在别处。
   2. 运行：
-     - `cargo test -p scoopc refactor_effect_facts_stage`
+      - `cargo test -p scoopc --no-default-features refactor_effect_facts_stage`
   3. 若需要 smoke 上游输入可用性，可额外运行：
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
 
 - 完成条件：
   - refactor 新路径已拥有独立的 effect-facts stage；
@@ -256,8 +256,8 @@
      - runtime error ordinary effect 会进入普通 schema case；
      - `invoke_args_tuple_ty` / `surface_ty` / `continuation_obj_ty` 都已可见。
   3. 运行：
-     - `cargo test -p scoopc refactor_effect_schema`
-     - `cargo test -p scoopc refactor_continuation_schema`
+      - `cargo test -p scoopc --no-default-features refactor_effect_schema`
+      - `cargo test -p scoopc --no-default-features refactor_continuation_schema`
 
 - 完成条件：
   - canonical schema pool 与 callable-level facts 目标形状已经落地；
@@ -416,9 +416,9 @@
      - nested handle 的 `SelfContained` vs `MaySuspendOutward` 分类；
      - site facts 全部通过 `SiteId` 查询。
   3. 运行：
-     - `cargo test -p scoopc refactor_body_effect_facts`
-     - `cargo test -p scoopc refactor_site_effect_facts`
-     - `cargo test -p scoopc refactor_nested_handle_classification`
+      - `cargo test -p scoopc --no-default-features refactor_body_effect_facts`
+      - `cargo test -p scoopc --no-default-features refactor_site_effect_facts`
+      - `cargo test -p scoopc --no-default-features refactor_nested_handle_classification`
 
 - 完成条件：
   - `BodyEffectFacts` / `SiteEffectFacts` / local-case 输入已经齐备；
@@ -569,9 +569,9 @@
      - nested handle `SelfContained` vs `MaySuspendOutward` 在 final resolved cases 下的分类结果；
      - block `ambient_cases` / `outward_cases` 的最终回填。
   3. 运行：
-     - `cargo test -p scoopc refactor_effect_solver`
-     - `cargo test -p scoopc refactor_impl_plan`
-     - `cargo test -p scoopc refactor_block_effect_facts`
+      - `cargo test -p scoopc --no-default-features refactor_effect_solver`
+      - `cargo test -p scoopc --no-default-features refactor_impl_plan`
+      - `cargo test -p scoopc --no-default-features refactor_block_effect_facts`
 
 - 完成条件：
   - `resolved_outward_cases`、`needs_reentry`、`impl_plan`、final block/site facts 已全部可用；
@@ -672,13 +672,13 @@
 - 验证：
   1. 运行新增的 effect-facts snapshot / fixture 测试入口；
   2. 运行：
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/handle_perform.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/handle_perform.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop`
-  3. 额外验证 legacy unsupported 诊断（若按本任务要求实现为拒绝）：
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/handle_perform.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/handle_perform.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop`
+   3. 额外验证 legacy unsupported 诊断（若按本任务要求实现为拒绝）：
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
 
 - 完成条件：
   - `dump-effect-facts` 已存在并稳定输出；
@@ -702,10 +702,7 @@
 
 - 验证：
   - 重新运行 P4-T01 ~ P4-T05 的全部定向测试与命令；
-  - 再跑一次：
-    - `cargo test -p scoop`
-    - `cargo test -p scoopc`
-  - 仍不执行 full regression。
+  - 不再额外执行 `cargo test -p scoop` / `cargo test -p scoopc` 全 crate 测试；保持本阶段只做定向验证。
 
 - 完成条件：
   - review 能明确说明：P4 已经完成“effect facts 与 `resolved_outward_cases` 分析落地”的阶段目标；

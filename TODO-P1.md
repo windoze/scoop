@@ -67,9 +67,9 @@
      - refactor AST stage 输出类型可构造
      - refactor `dump-ast` 路径确实进入 AST stage，而不是整条命令直接落回 legacy
   2. 运行：
-     - `cargo test -p scoopc ast_stage`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop`
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`
+      - `cargo test -p scoopc --no-default-features ast_stage`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`
   3. 验证 `legacy` 与 `refactor` 对上述最小输入输出一致。
 
 - 完成条件：
@@ -154,17 +154,17 @@
 
 - 验证：
   1. 运行定向 parser 测试：
-     - `cargo test -p scoopc parser::tests`
+      - `cargo test -p scoopc --no-default-features parser::tests`
   2. 运行定向 parse fixtures（legacy + refactor 两种路径都跑）：
-     - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/continuation_resume_member_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/continuation_resume_member_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/continuation_resume_member_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/continuation_resume_member_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
   3. 额外 smoke：
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ast tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
 
 - 完成条件：
   - continuation/resume 与 `Unit` zero-arg sugar 的 AST 形状已经被 fixtures + 单元测试锁定；
@@ -217,7 +217,7 @@
      - AST 不做 typed desugar；
      - `f()` 与 `f(())` 的等价性只在 P2 typed 阶段解释；
      - `Continuation` 的 typed 含义、runtime error 语义、effect row 传播都不属于 P1。
-  2. 新增一组 refactor AST stage parity 测试，比较同一输入在：
+  2. 新增一组 refactor AST stage parity 测试，推荐命名 `refactor_ast_stage_parity_*`，比较同一输入在：
      - `legacy` pipeline
      - `refactor` pipeline
      下的 AST/debug output 完全一致。
@@ -237,13 +237,13 @@
 - 验证：
   1. 运行新增的 AST parity 自动化测试；
   2. 通过 CLI 再做一次 smoke：
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/continuation_resume_member_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ast tests/fixtures/parse/continuation_resume_member_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
-  3. 运行：
-     - `cargo test -p scoop`
-     - `cargo test -p scoopc parser::tests`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/continuation_resume_member_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/continuation_resume_member_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`
+   3. 运行：
+      - `cargo test -p scoop --no-default-features refactor_ast_stage_parity`
+      - `cargo test -p scoopc --no-default-features parser::tests`
   4. 不执行 full regression。
 
 - 完成条件：
@@ -267,10 +267,7 @@
 
 - 验证：
   - 重新运行 P1-T01 ~ P1-T03 的所有定向测试与 smoke 命令；
-  - 再跑一次：
-    - `cargo test -p scoop`
-    - `cargo test -p scoopc`
-  - 仍不执行 full regression。
+  - 不再额外执行 `cargo test -p scoop` / `cargo test -p scoopc` 全 crate 测试；保持本阶段只做定向验证。
 
 - 完成条件：
   - review 能明确说明：P1 已经完成“冻结 AST / surface contract”这一阶段目标；

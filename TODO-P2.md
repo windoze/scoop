@@ -74,10 +74,10 @@
      - `dump-hir` refactor 路径确实进入新 stage；
      - legacy `dump-hir` 路径仍保持旧行为。
   2. 运行：
-     - `cargo test -p scoopc refactor_typed_hir_stage`
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-hir tests/fixtures/hir/minimal.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-hir tests/fixtures/hir/minimal.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+      - `cargo test -p scoopc --no-default-features refactor_typed_hir_stage`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/hir/minimal.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/minimal.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
   3. 要求：
      - `legacy` 路径对现有 `tests/fixtures/hir/minimal.*` 的输出不变；
      - `refactor` 路径能产出 typed HIR 输出，而不是因缺路由落回 legacy 或直接失败。
@@ -172,12 +172,12 @@
        - 要求包含 `k.resume()`、`k.resume(())`、以及单一 `Unit` 参数普通函数调用
        - 要求 typed HIR canonical 输出中这些调用都落成一个显式 `UnitLit` 参数调用形状
   3. 运行：
-     - `cargo test -p scoopc continuation_resume`
-     - `cargo test -p scoopc unit_single_param_zero_arg`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_unit_sugar_ok.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/unit_single_param_zero_arg_call_ok.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_tuple_requires_single_tuple_arg_is_error.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+      - `cargo test -p scoopc --no-default-features continuation_resume`
+      - `cargo test -p scoopc --no-default-features unit_single_param_zero_arg`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_unit_sugar_ok.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/unit_single_param_zero_arg_call_ok.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_tuple_requires_single_tuple_arg_is_error.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
 
 - 完成条件：
   - `Continuation` surface 声明与设计文档对齐；
@@ -265,15 +265,15 @@
      - `tests/fixtures/typecheck/continuation_resume_requires_runtime_error_effect_is_error.scoop`
        - 目标：锁定 `Raise<RuntimeError>` 仍是 ordinary required effect 的一部分
   3. 运行：
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_answer_expression_ok.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_answer_type_mismatch_is_error.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_in_pure_main_after_handle_is_error.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_from_escape_binder_requires_step_effect.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_user_impl_is_error.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_runtime_ctor_is_error.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_requires_runtime_error_effect_is_error.scoop`
-  4. 新增/更新以 `refactor_continuation_typecheck_*` 命名的单元测试，并运行：
-     - `cargo test -p scoopc refactor_continuation_typecheck`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_answer_expression_ok.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_answer_type_mismatch_is_error.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_in_pure_main_after_handle_is_error.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_from_escape_binder_requires_step_effect.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_user_impl_is_error.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_runtime_ctor_is_error.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_requires_runtime_error_effect_is_error.scoop`
+   4. 新增/更新以 `refactor_continuation_typecheck_*` 命名的单元测试，并运行：
+      - `cargo test -p scoopc --no-default-features refactor_continuation_typecheck`
 
 - 完成条件：
   - refactor typecheck 已经对 `Continuation` / `resume` / runtime error ordinary effect 形成显式 contract；
@@ -365,12 +365,12 @@
      - `tests/fixtures/hir/continuation_runtime_error_surface_basic.scoop`
      - `tests/fixtures/hir/handle_perform.scoop`（可复用现有样本，但必须在 refactor typed dump 中看到新的 typed contract 信息）
   3. 运行：
-     - `cargo test -p scoopc refactor_typed_hir`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_runtime_error_surface_basic.scoop`
-     - `cargo run -p scoop -- --effect-pipeline refactor dump-hir tests/fixtures/hir/handle_perform.scoop`
-  4. 保持 legacy 路径不变，额外抽样验证：
-     - `cargo run -p scoop -- --effect-pipeline legacy dump-hir tests/fixtures/hir/handle_perform.scoop`
+      - `cargo test -p scoopc --no-default-features refactor_typed_hir`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_runtime_error_surface_basic.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/handle_perform.scoop`
+   4. 保持 legacy 路径不变，额外抽样验证：
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/hir/handle_perform.scoop`
 
 - 完成条件：
   - P2 产物已经包含后续 P3 可直接消费的 typed HIR effect/continuation side tables；
@@ -393,10 +393,7 @@
 
 - 验证：
   - 重新运行 P2-T01 ~ P2-T04 的所有定向测试与命令；
-  - 再跑一次：
-    - `cargo test -p scoop`
-    - `cargo test -p scoopc`
-  - 不执行 full regression。
+  - 不再额外执行 `cargo test -p scoop` / `cargo test -p scoopc` 全 crate 测试；保持本阶段只做定向验证。
 
 - 完成条件：
   - review 能明确说明：P2 已经完成“typed HIR / typecheck 新路径落地”的阶段目标；

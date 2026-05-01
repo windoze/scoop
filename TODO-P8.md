@@ -25,11 +25,11 @@
     - legacy effect lowering 主模块
     - legacy LLVM effect backend
     - legacy compare-only helper 若其存在只为 effect 主线保留
-    - tests/fixtures/docs 中把 legacy 当作可执行主线的入口
+    - tests / fixtures / docs 中把 legacy 当作可执行主线的入口
   - 明确禁止：
     - 只删 CLI 参数，但内部 selector/legacy branch 还在
     - 只删一部分 emitter/helper，但旧 dispatcher/旧 API 仍可调用
-    - 只删代码，不删 tests/docs/fixture 中对 legacy 主线的引用
+    - 只删代码，不删 tests / docs / fixtures 中对 legacy 主线的引用
     - 保留“单 `perform` 快路径”“线性 body 专用路径”“仅 `handle` 局部状态机主线”“tail-`resume` 专用 lowering”等 code-shape-specific 残余分支
 - P8 的删除动作必须服从 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16、§5.5、§8 的统一管线原则。
   - 删除后仍允许存在的差异只能来自显式 facts / `ImplPlan` / 优化级别 / target ABI 等已收敛输入；
@@ -79,10 +79,11 @@
 - 必须实现的内容：
   1. 删除 CLI 层的 effect pipeline selector。
      - 至少检查并修改：
-       - `crates/scoop/src/cli.rs`
-       - `crates/scoop/src/commands/mod.rs`
-       - `crates/scoopc/src/bin/scoopc.rs`
-       - `tools/scoop_tools/**` 或任何带命令行 parse 的等价位置
+        - `crates/scoop/src/cli.rs`
+        - `crates/scoop/src/commands/mod.rs`
+        - `crates/scoopc/src/bin/scoopc.rs`
+        - 任何仍暴露 effect pipeline selector 的命令行 parse 位置
+        - 若仓库中存在调用 `scoop` / `scoopc` 的 wrapper script，再同步修改对应位置；当前 `tools/scoop_tools` Rust binary 本身不在 selector 删除范围内
      - 要求：
        - 删除 `--effect-pipeline legacy`
        - 删除 `--effect-pipeline refactor`
@@ -162,7 +163,7 @@
   - `crates/scoopc/src/bin/scoopc.rs`
   - `crates/scoopc/src/session/**`
   - `crates/scoopc/src/effect_refactor_pipeline/**`
-  - `tools/scoop_tools/**`
+  - 任何仍暴露 effect pipeline selector 的命令行 parse 位置
 
 - 验证：
   - 重新运行 P8-T01 的全部测试与命令；
@@ -257,7 +258,7 @@
 - 完成条件：
   - 仓库中旧 effect/continuation lowering 主线与 legacy LLVM effect backend 已被删除或收窄到完全中立的共享 helper；
   - code-shape-specific 旧入口已被清理；
-  - 后续任务只需清理 tests/docs/fixtures 残留并做最终全量验证。
+  - 后续任务只需清理 tests / docs / fixtures 残留并做最终全量验证。
 - 依赖：P8-T01R
 - 完成记录：
   - （执行时填写）
@@ -294,7 +295,7 @@
 - 完成记录：
   - （执行时填写）
 
-## P8-T03：清理 tests/fixtures/docs 中的 legacy 主线残留，并把 compare 型资产改写为纯新主线回归
+## P8-T03：清理 tests / fixtures / docs 中的 legacy 主线残留，并把 compare 型资产改写为纯新主线回归
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
@@ -332,7 +333,7 @@
   5. 建立“仓库中仅剩新主线”的定向清理守护。
      - 至少要新增或更新一组搜索/断言测试，证明：
        - CLI/help 文本不再暴露 legacy selector；
-       - tests/docs/fixtures 中不再把 legacy 当作执行主线；
+        - tests / docs / fixtures 中不再把 legacy 当作执行主线；
        - compare harness 已被删除或彻底改写。
 
 - 必须遵从的约束：
@@ -355,7 +356,7 @@
      - 不允许命中：公开命令示例、fixtures 主路径、tests 主路径仍把 legacy 当可执行主线。
 
 - 完成条件：
-  - tests/fixtures/docs 已完成对 legacy 主线残留的清理；
+  - tests / fixtures / docs 已完成对 legacy 主线残留的清理；
   - compare 型资产已改写为纯新主线回归或被删除；
   - 后续只剩“在只有新主线存在”的前提下跑最终完整矩阵。
 - 依赖：P8-T02R
@@ -417,7 +418,7 @@
        - refactor 主实现
        - 中立共享模块
        - runtime / GC / stackmap 基础设施
-       - tests/fixtures/docs 的纯新主线路径断言
+       - tests / fixtures / docs 的纯新主线路径断言
      - 明确禁止：
        - 恢复任何 legacy 分支
        - 重新引入 selector

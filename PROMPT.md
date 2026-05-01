@@ -9,9 +9,10 @@
 - If `TODO.md` and a `TODO-Px.md` file disagree, treat the detailed `TODO-Px.md` file as the source of truth, then sync `TODO.md` as part of your changes.
 
 **Initial Setup:**
-0. Look into the latest commit to see if it mentioned any pre-existing issue, and fix it first if it did. **All issues are in scope; you must fix every pre-existing issue before proceeding to any planned task.**
-   - Treat every already-existing bug, regression, spec mismatch, incomplete implementation boundary, or workaround you encounter during probing, testing, review, or execution as immediately in scope.
+0. Identify the first incomplete detailed task before doing broad issue triage. If the latest commit explicitly mentions an unfinished issue that is directly relevant to that task, treat it as part of the task or add it as a prerequisite in the appropriate `TODO-Px.md` file. Do **not** perform an open-ended historical bug sweep before selecting the current task.
+   - Treat an already-existing bug, regression, spec mismatch, incomplete implementation boundary, or workaround as immediately in scope only when it blocks the current task, invalidates the current task's specified behavior, or is a direct regression introduced while doing the current task.
    - If such an issue blocks the task you were trying to do, that issue becomes the work first: fix it before moving forward, or add it as a prerequisite task in the appropriate `TODO-Px.md` file, sync `TODO.md`, and stop.
+   - Unrelated historical issues do not preempt the current TODO order. Record them only if they become concrete prerequisites for the current task.
    - You must not move forward by narrowing scope, picking an easier representation, changing the modeling approach, choosing a different fixture shape, or otherwise working around the issue.
 1. Read `TODO.md` as an index, then inspect the referenced `TODO-Px.md` files in task order to identify the first incomplete detailed task.
    - A task counts as completed only when its corresponding section in the relevant `TODO-Px.md` file clearly records completion.
@@ -50,7 +51,7 @@ For the first incomplete detailed task in the relevant `TODO-Px.md` file:
 - We do **not** tolerate workarounds, shims, fixture-only hacks, or “good enough for now” behavior when the implementation still does not match the spec.
 - If you hit **anything** that does not work as the spec says — parser gaps, typecheck mismatches, lowering/codegen limitations, runtime bugs, stdlib gaps, incorrect diagnostics, or tests that only pass via workaround — you must treat that as a real project issue, not something to paper over.
 - You must **not** continue by relying on a workaround unless the work of removing that workaround is itself explicitly tracked as a task in the detailed TODO files and synced into `TODO.md`.
-- Existing issues take priority over forward progress. **Do not move on to the next planned task until the issue is fixed, or until a new prerequisite task for fixing it has been inserted before the blocked task in the relevant `TODO-Px.md` file and synced into `TODO.md`.**
+- Blocking issues that are relevant to the current task take priority over forward progress. **Do not move on to the next planned task until the blocking issue is fixed, or until a new prerequisite task for fixing it has been inserted before the blocked task in the relevant `TODO-Px.md` file and synced into `TODO.md`.**
 - “Working around it” includes changing the intended representation, weakening the fixture, selecting a narrower test shape, introducing task-private special cases, or otherwise avoiding the broken path instead of repairing it.
 - Instead, you must:
   1. Identify the spec mismatch precisely and determine whether it is a missing feature, a bug, or an incomplete implementation boundary.
