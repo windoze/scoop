@@ -167,7 +167,7 @@
   - `state_machine_emitter.rs` 现已在 nested-handle boundary outward suspend 时保留 frame 内 raw replay token 供 same-frame replay 使用，同时把向外传播的 `EffectOutcome.signal.resume_token` 改写成 wrapper continuation，使更外层 resume 会先回到 arm tail，再由该 tail 驱动 raw inner token replay。
   - 新增 analysis 回归 `non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail` 与 run-pass fixture `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；并复验既有 probe `non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site`、`effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`。
 
-### [TODO] T5002b2b2a2R Review：确认 escape arm body 不再作为 opaque expr 截断 replay tail
+### [DONE] T5002b2b2a2R Review：确认 escape arm body 不再作为 opaque expr 截断 replay tail
 - 重点：
   - non-tail `EscapeContinuation` arm body 是否已经具备 resume-fragment/source-path 合同，而不是只在 `ExecuteArmBody` 中整块 opaque codegen；
   - nested handle / `try` boundary replay 后，arm tail 是否继续执行到 `inner_arm_after_resume` / `resumed + 1`；
@@ -176,6 +176,11 @@
   - `T5002b2b2b` 可在 arm body replay tail 已经闭合的前提下继续只关注 ordinary callee boundary 上的 replay owner 错位；
   - review 阶段至少要覆盖一条分析/IR 断言与一条 end-to-end replay probe，而不是只看运行输出。
 - 依赖：T5002b2b2a2
+- 完成记录：
+  - 已复核 `analysis.rs` 中 `segmented_body` 的判定与 arm body lowering：non-tail `EscapeContinuation` arm 且 body 会 outward suspend 时，会在 `build_arm_body_plans(...)` 里进入 first-class segmented-body 路径，而 `emit_execute_arm_body(...)` 对这类 arm 会直接返回、跳过 opaque expr codegen。
+  - 已复核 `SuspendSourceRoot::ArmBody`、`attach_suspend_source_paths(...)` 与 `record_suspend_source_path(...)`：arm body 内的 `NestedHandleBoundary` 现在会以 arm-rooted source-path 建档；analysis 回归 `non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail` 继续锁定 `arm#0 -> block[0]` 以及 replay fragment 中保留 `inner_arm_after_resume` / `resumed + 1`。
+  - 已复核 `state_machine_emitter.rs` 的 owner 分层：same-frame replay 继续从 `nested_handle_boundary_replay_token` frame slot 消费 raw inner token，而 outward suspend 时若站点有 continuation/nested-boundary replay slot，则会把 `EffectOutcome.signal.resume_token` 改写成当前 materialized wrapper continuation，确保更外层 resume 先回到 arm tail。
+  - 已完成验证：`cargo test -p scoopc non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site -- --nocapture`、`cargo test -p scoopc non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ### [TODO] T5002b2b2b 修复 nested-handle immediate-resume replay-state 穿过 ordinary callee boundary 时的 replay owner 错位
 - 范围：

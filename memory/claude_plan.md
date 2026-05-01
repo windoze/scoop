@@ -57,3 +57,39 @@
   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`
   - `cargo clippy --all-targets -- -D warnings`
 - 当前任务 `T5002b2b2a2` 已可标记完成；下一步按顺序进入 `T5002b2b2a2R`。
+
+## 当前状态更新（本轮启动）
+
+- 说明：按安全要求，这里继续记录可审阅的执行计划、检查步骤与结论摘要，不记录逐字内部推理。
+- 本轮首先要做的事：
+  1. 检查最新一次 Git 提交，确认是否提到必须先修复的既有问题；若有，先处理该问题。
+  2. 阅读 `TODO.md`，定位当前第一个未完成任务；结合 `PLAN.md` 判断是否需要继续拆分。
+  3. 若任务已由前一轮完成但尚未提交或尚未在任务文档里落账，则先核对工作区、测试状态与文档状态，确保这一轮只完成并提交这一个任务。
+  4. 如果在核对或测试中发现新的既有问题，按用户要求把它视为当前范围内问题：能修就先修；不能当场完成就前插为依赖任务、更新 `TODO.md`/`PLAN.md`，提交后停止。
+  5. 完成后只做一次提交，然后停止，不进入下一个任务。
+- 预期下一步：检查 `HEAD` 提交、`TODO.md`、`PLAN.md` 与工作区状态，确认本轮到底是“收尾提交上一任务”还是“处理新的首个未完成任务”。
+
+## 当前状态更新（基线确认后）
+
+- 已确认最新提交为 `7ce0dd34c219d5a830facd77b15a0e80930255cf [T5002b2b2a2] Preserve escape-arm tail across nested replay`；提交信息未附带新的“必须先修复的既有问题”说明。
+- `TODO.md` / `PLAN.md` 已同步记录 `T5002b2b2a2` 完成，因此本轮首个未完成任务是 `T5002b2b2a2R Review：确认 escape arm body 不再作为 opaque expr 截断 replay tail`。
+- 当前工作区除本文件外无额外未提交改动，因此本轮可专注执行 `T5002b2b2a2R`：
+  1. 审阅上一提交触及的分析与 codegen 路径，确认 arm body source-path/resume-fragment 合同已闭合。
+  2. 跑 review 验收要求的分析/IR 断言与 end-to-end replay probe。
+  3. 若 review 发现既有缺陷，则先修复或把缺陷前插为依赖任务；若未发现，则更新 `TODO.md` / `PLAN.md` 将 `T5002b2b2a2R` 标记完成并提交。
+
+## 当前状态更新（review 完成）
+
+- 已完成代码复核，未发现新的既有缺陷。
+- 关键结论：
+  1. `analysis.rs` 中 `segmented_body` 只要命中“non-tail escape arm + body outward suspend”就会把 arm body 继续拆进 first-class state-machine；`emit_execute_arm_body(...)` 对此类 arm 会直接提前返回，因此不会再退回 opaque expr codegen。
+  2. `SuspendSourceRoot::ArmBody` 与 `record_suspend_source_path(...)` 已让 arm body 内 `NestedHandleBoundary` 带上 arm-rooted source-path；analysis 断言继续要求其标签为 `arm#0 -> block[0]`，并要求 replay fragment 里保留 `inner_arm_after_resume` 与 `resumed + 1`。
+  3. `state_machine_emitter.rs` 中 owner 分层明确：same-frame replay 使用 frame 里的 `nested_handle_boundary_replay_token` raw token；向更外层传播时若站点存在 continuation/nested-boundary replay slot，则把 `EffectOutcome.signal.resume_token` 改写成当前 materialized wrapper continuation，使 future resume 先回到 arm tail。
+- 已完成验证：
+  - `cargo test -p scoopc non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site -- --nocapture`
+  - `cargo test -p scoopc non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`
+  - `cargo clippy --all-targets -- -D warnings`
+- 下一步：提交本轮文档落账，停止；后续再由下一轮处理新的首个未完成任务 `T5002b2b2b`。
