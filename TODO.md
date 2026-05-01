@@ -139,14 +139,28 @@
   - `codegen_callee_resume_entry_function_impl(...)` 现在会在 entry 先 `publish_incoming_resume_token(...)`，再以该 token 作为 suspend-state 输入做 resume-site dispatch。
   - LLVM 回归 `suspend_ir_stores_callee_resume_token_on_frame_and_replays_via_resume_thunk` 与 `cargo clippy --all-targets -- -D warnings` 已通过。
 
-### [TODO] T5002b2b2 修复 resumed ordinary callee 经 nested-handle boundary 再次 outward suspend 时 replay chain 丢失
+### [DONE] T5002b2b2a 让 resumed non-call suspend materialization 继承当前 ordinary callee replay token
 - 范围：
-  - 修复“ordinary callee resumed path 第二次 outward suspend 穿过 `NestedHandleBoundary` 后，outer `k.resume(...)` 直接把外层 resume payload 当成最终 answer、跳过 inner callee tail”的现有错误行为。
-  - 明确 inner/outer handle、pending continuation 与 ordinary callee replay token 在该路径上的 owner 与恢复顺序，避免只靠当前 `callee resume entry` publish 仍然无法 end-to-end 重放 resumed tail。
+  - 为 codegen 暴露 `scoop_callee_suspend_state_get()`，使 state-machine `Suspend` terminator 在 materialize fresh continuation 且当前 site 没有 ordinary call token slot 时，仍能显式读取当前 TLS incoming token。
+  - fresh continuation materialization 优先捕获 site 自己的 ordinary replay token slot；仅当当前 site 不拥有该 slot 时，回退捕获当前 TLS incoming token，避免 resumed non-call suspend（direct perform / nested-handle boundary 等）直接丢掉外层 ordinary callee replay 链。
+- 验收：
+  - LLVM IR 明确出现 `@scoop_callee_suspend_state_get` 与 `@scoop_continuation_set_captured_callee_suspend_state`，证明 non-call suspend 的 fresh continuation 会继承当前 incoming callee token；
+  - `cargo test -p scoopc resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation -- --nocapture` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+- 依赖：T5002b2b1
+- 完成记录：
+  - `runtime_symbols.rs` / `runtime_abi.rs` 已新增 `scoop_callee_suspend_state_get` ABI 暴露；
+  - `state_machine_emitter.rs` 的 fresh continuation materialization 现已在没有 ordinary token slot 的 suspend site 上回退捕获当前 TLS incoming token；
+  - LLVM 回归 `resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation` 已锁定该合同。
+
+### [TODO] T5002b2b2b 修复 nested-handle immediate-resume replay-state 穿过 ordinary callee boundary 时的 replay owner 错位
+- 范围：
+  - 修复“ordinary callee fresh suspend 命中 inner `Continuation.resume(...)` replay 后，outer ordinary call boundary 把 legacy replay-state 误当成 callee resume entry token 保存，随后 replay 直接跳到错误对象形状”的现有错误行为。
+  - 明确 ordinary callee token、inner pending continuation、legacy replay-state 在该路径上的 owner 与恢复顺序，使 outer ordinary call replay 不再把 nested immediate-resume bookkeeping 当成 callee resume state 使用。
+  - 在此基础上完成原 `T5002b2b2` 的 end-to-end 目标：第一次 `k.resume(...)` 后 resumed ordinary callee 可再次 outward suspend；第二次 `k.resume(...)` 后继续 inner callee tail，而不是提前把 outer payload 当成最终 answer。
 - 验收：
   - 最小 nested-handle immediate-resume 程序可证明：第一次 `k.resume(...)` 后 resumed ordinary callee 命中第二次 outward suspend；第二次 `k.resume(...)` 后会继续执行 inner callee tail，而不是提前把 outer payload 当成最终 answer；
   - 至少一条 focused LLVM / run-pass 回归锁定该 replay-chain 行为。
-- 依赖：T5002b2b1
+- 依赖：T5002b2b2a
 
 ### [TODO] T5002b2bR Review：确认 callee resume entry token contract 已与 ordinary call boundary 对齐
 - 重点：
@@ -154,7 +168,7 @@
   - callee resume entry 是否还残留“语义上是 token、但 ABI 上仍是特例 state 参数”的旁路。
 - 验收：
   - 可在不再被 callee resume entry ABI 特例阻塞的前提下继续推进 step/dispatch token 收口。
-- 依赖：T5002b2b2
+- 依赖：T5002b2b2b
 
 ### [TODO] T5002b2c 把显式 `incoming_resume_token_ref` 扩到 state-machine step/dispatch 与 runtime continuation bridge
 - 范围：

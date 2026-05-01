@@ -14,6 +14,7 @@ pub(super) const SCOOP_ARRAY_GET_U64: &str = "scoop_array_get_u64";
 pub(super) const SCOOP_ARRAY_LEN: &str = "scoop_array_len";
 pub(super) const SCOOP_ARRAY_SET_REF: &str = "scoop_array_set_ref";
 pub(super) const SCOOP_ARRAY_SET_U64: &str = "scoop_array_set_u64";
+pub(super) const SCOOP_CALLEE_SUSPEND_STATE_GET: &str = "scoop_callee_suspend_state_get";
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_PUBLISH: &str = "scoop_callee_suspend_state_publish";
 pub(super) const SCOOP_CONTINUATION_ALLOC: &str = "scoop_continuation_alloc";
 pub(super) const SCOOP_CONTINUATION_DISCARD: &str = "scoop_continuation_discard";

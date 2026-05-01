@@ -1192,6 +1192,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_callee_suspend_state_get(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_CALLEE_SUSPEND_STATE_GET;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let fn_ty = self.llvm_gc_i8_ptr_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_continuation_alloc(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_ALLOC;
         if let Some(existing) = self.module.get_function(NAME) {

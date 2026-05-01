@@ -1204,8 +1204,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue; // Skip unsupported types.
             };
 
-            let home = if let Some(existing) =
-                self.function_cx.state_machine_frame_slot_homes.get(&id).copied()
+            let home = if let Some(existing) = self
+                .function_cx
+                .state_machine_frame_slot_homes
+                .get(&id)
+                .copied()
             {
                 existing
             } else {
@@ -1214,7 +1217,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &format!("handle_frame_home_{}_{}", slot.name(), id.as_u32()),
                     cg_ty,
                 )?;
-                self.function_cx.state_machine_frame_slot_homes.insert(id, home);
+                self.function_cx
+                    .state_machine_frame_slot_homes
+                    .insert(id, home);
                 home
             };
 
@@ -1630,8 +1635,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_index,
             &format!("frame_bind_{}", id.as_u32()),
         )?;
-        let home = if let Some(existing) =
-            self.function_cx.state_machine_frame_slot_homes.get(&id).copied()
+        let home = if let Some(existing) = self
+            .function_cx
+            .state_machine_frame_slot_homes
+            .get(&id)
+            .copied()
         {
             existing
         } else {
@@ -1644,7 +1652,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
                 target_ty,
             )?;
-            self.function_cx.state_machine_frame_slot_homes.insert(id, home);
+            self.function_cx
+                .state_machine_frame_slot_homes
+                .insert(id, home);
             home
         };
 
@@ -1717,25 +1727,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &format!("frame_read_{}", id.as_u32()),
         )?;
 
-        let home = if let Some(existing) =
-            self.function_cx.state_machine_frame_slot_homes.get(&id).copied()
+        let home = if let Some(existing) = self
+            .function_cx
+            .state_machine_frame_slot_homes
+            .get(&id)
+            .copied()
         {
             existing
         } else {
             let home = self.create_entry_alloca(
                 at,
-                &format!("handle_frame_home_{}_{}", unified_slot.slot().name(), id.as_u32()),
+                &format!(
+                    "handle_frame_home_{}_{}",
+                    unified_slot.slot().name(),
+                    id.as_u32()
+                ),
                 cg_ty,
             )?;
-            self.function_cx.state_machine_frame_slot_homes.insert(id, home);
+            self.function_cx
+                .state_machine_frame_slot_homes
+                .insert(id, home);
             home
         };
 
         // Refresh local home for this read.
         let llvm_ty = self.llvm_basic_type_of(at, cg_ty)?;
-        let loaded = self
-            .builder
-            .build_load(llvm_ty, slot_ptr, &format!("read_local_{}_from_frame", id.as_u32()))?;
+        let loaded = self.builder.build_load(
+            llvm_ty,
+            slot_ptr,
+            &format!("read_local_{}_from_frame", id.as_u32()),
+        )?;
         let value = self.cg_value_from_loaded(at, cg_ty, loaded)?;
         let _ = self.store_local_value_exact(at, home, cg_ty, value)?;
 
@@ -2808,35 +2829,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .const_int(*resume_state as u64, false);
                 self.builder
                     .build_store(cont_resume_state_gep, resume_state_val)?;
-                if let Some(token_index) = frame_layout.ordinary_callee_resume_token_index(*site_id)
-                {
-                    let token_slot = self.builder.build_struct_gep(
-                        frame_layout.frame_type,
-                        state_ptr,
-                        token_index,
-                        &format!("site{site_id}_captured_callee_resume_token_ptr"),
-                    )?;
-                    let captured_callee_suspend_state = self
-                        .builder
-                        .build_load(
-                            self.llvm_gc_i8_ptr_type(),
-                            token_slot,
-                            &format!("site{site_id}_captured_callee_resume_token"),
+                // Fresh continuations created while replaying an ordinary callee must keep
+                // carrying that incoming replay token forward, even when the current suspend
+                // site is not itself a call-site boundary (e.g. outward perform / nested-handle
+                // boundary). Prefer the current site's explicit frame slot when it exists;
+                // otherwise fall back to the token currently published in TLS by the replayed
+                // callee resume entry.
+                let captured_callee_suspend_state =
+                    if let Some(token_index) = frame_layout.ordinary_callee_resume_token_index(*site_id)
+                    {
+                        let token_slot = self.builder.build_struct_gep(
+                            frame_layout.frame_type,
+                            state_ptr,
+                            token_index,
+                            &format!("site{site_id}_captured_callee_resume_token_ptr"),
+                        )?;
+                        self.builder
+                            .build_load(
+                                self.llvm_gc_i8_ptr_type(),
+                                token_slot,
+                                &format!("site{site_id}_captured_callee_resume_token"),
+                            )?
+                            .into_pointer_value()
+                    } else {
+                        self.load_current_callee_suspend_state(
+                            span,
+                            &format!("site{site_id}_current_callee_resume_token"),
                         )?
-                        .into_pointer_value();
-                    let set_captured =
-                        self.declare_runtime_continuation_set_captured_callee_suspend_state();
-                    let cont = self.reload_deferred_gc_ref_without_clearing(
-                        span,
-                        &format!("site{site_id}_escape_continuation_reload_capture"),
-                        &deferred_cont,
-                    )?;
-                    self.builder.build_call(
-                        set_captured,
-                        &[cont.into(), captured_callee_suspend_state.into()],
-                        "cont_set_captured_callee_suspend_state",
-                    )?;
-                }
+                    };
+                let set_captured =
+                    self.declare_runtime_continuation_set_captured_callee_suspend_state();
+                let cont = self.reload_deferred_gc_ref_without_clearing(
+                    span,
+                    &format!("site{site_id}_escape_continuation_reload_capture"),
+                    &deferred_cont,
+                )?;
+                self.builder.build_call(
+                    set_captured,
+                    &[cont.into(), captured_callee_suspend_state.into()],
+                    "cont_set_captured_callee_suspend_state",
+                )?;
 
                 // Store the continuation pointer into the dedicated runtime
                 // slot so later step_fn re-entry cannot overwrite it by
@@ -3480,6 +3512,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder
             .build_call(publish_pending, &[continuation.into()], name)?;
         Ok(())
+    }
+
+    fn load_current_callee_suspend_state(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let get = self.declare_runtime_callee_suspend_state_get();
+        self.build_call_preserving_gc_local_roots(at, get, &[], name)?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "callee suspend state get return",
+                at: at.into(),
+            })
+            .map(BasicValueEnum::into_pointer_value)
     }
 
     /// Return `true` iff `state_tag` equals one of the provided state IDs.
@@ -4444,9 +4492,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                     // Refresh the exec home from the persistent heap frame slot.
                     let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
-                    let loaded = self
-                        .builder
-                        .build_load(llvm_ty, slot_ptr, &format!("capture_load_{}", local_id.as_u32()))?;
+                    let loaded = self.builder.build_load(
+                        llvm_ty,
+                        slot_ptr,
+                        &format!("capture_load_{}", local_id.as_u32()),
+                    )?;
                     let value = self.cg_value_from_loaded(span, cg_ty, loaded)?;
                     let _ = self.store_local_value_exact(span, home, cg_ty, value)?;
 
@@ -5250,6 +5300,64 @@ fun main(): Int {
             ir.contains("site0_captured_callee_resume_token")
                 && ir.contains("scoop_continuation_set_captured_callee_suspend_state"),
             "fresh continuation materialization should capture the ordinary callee resume token so escaped continuation resume does not fall back to TLS"
+        );
+    }
+
+    #[test]
+    fn resumed_non_call_suspend_ir_captures_current_callee_resume_token_on_materialized_continuation(
+    ) {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Tick {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(): Int
+}
+
+fun helper(): Int / Ask {
+    return handle {
+        val _: Int = Tick.next()
+        Ask.ask()
+    } with {
+        Tick.next(), k -> {
+            k.resume(1)
+        }
+    }
+}
+
+fun main(): Int {
+    return handle {
+        helper()
+    } with {
+        Ask.ask(), k -> {
+            0
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        assert!(
+            ir.contains("current_callee_resume_token = call ptr addrspace(1) @scoop_callee_suspend_state_get()"),
+            "resumed non-call suspend should fall back to the currently published incoming callee token when materializing a fresh continuation:\n{ir}"
+        );
+        assert!(
+            ir.contains("call void @scoop_continuation_set_captured_callee_suspend_state"),
+            "materialized continuation should persist that current callee token onto the fresh continuation object:\n{ir}"
         );
     }
 
