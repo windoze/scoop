@@ -16,7 +16,8 @@ pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
     let file = scoopc::source::SourceFile::load(&input)?;
 
     let session = scoopc::session::Session::with_options(session_options)?;
-    let lowered = scoopc::hir::lower_for_dump(&session, &file).map_err(miette::Report::from)?;
+    let lowered = scoopc::effect_refactor_pipeline::lower_typed_hir_for_dump(&session, &file)
+        .map_err(miette::Report::from)?;
     println!("{:#?}", lowered.file);
     Ok(())
 }

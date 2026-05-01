@@ -19,8 +19,9 @@ pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
     let file = scoopc::source::SourceFile::load(&input)?;
 
     let session = scoopc::session::Session::with_options(session_options)?;
-    let lowered = scoopc::mir::materialize_for_dump(&session, &file)
-        .map_err(|err| miette::Report::from(*err))?;
+    let lowered =
+        scoopc::effect_refactor_pipeline::materialize_direct_style_mir_for_dump(&session, &file)
+            .map_err(|err| miette::Report::from(*err))?;
     println!("{:#?}", lowered);
     Ok(())
 }

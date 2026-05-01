@@ -5,7 +5,7 @@
 //! - 每个 `.scoop` 文件可通过注释声明期望（pass/fail、错误包含等）
 //!
 //! 当前阶段支持：
-//! - parse fixtures（调用 `scoopc::parser::parse_file`）
+//! - parse fixtures（经 AST stage dispatcher 调用 parser）
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
 //! - typecheck fixtures（T0403：TypeRef lowering + 泛型 arity 检查）
 //! - infer fixtures（T05：类型推断阶段；当前先复用 typecheck pipeline，逐步打开更多推断能力）
@@ -507,7 +507,7 @@ fn run_one(
     };
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = match phase {
-        FixturePhase::Parse => parse_fixture(&source, path, &exp),
+        FixturePhase::Parse => parse_fixture(session, &source, path, &exp),
         FixturePhase::Build => build_fixture(rel, path, opt_level, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
@@ -1037,12 +1037,20 @@ fn build_fixture(
     Ok(())
 }
 
+fn parse_file_via_ast_stage(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+) -> std::result::Result<scoopc::ast::File, scoopc::parser::ParseError> {
+    scoopc::effect_refactor_pipeline::enter_ast_stage(session, || session.parse(source))
+}
+
 fn parse_fixture(
+    session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
     exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
 
     let Some(golden_rel) = exp.ast_golden else {
         return Ok(());
@@ -1080,7 +1088,7 @@ fn comptime_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
     let bindings = scoopc::comptime::eval_const_bindings_in_file(session.sysroot(), source, &ast)
         .map_err(box_diagnostic)?;
 
@@ -1215,7 +1223,8 @@ fn hir_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let lowered = scoopc::hir::lower_for_dump(session, source).map_err(box_diagnostic)?;
+    let lowered = scoopc::effect_refactor_pipeline::lower_typed_hir_for_dump(session, source)
+        .map_err(box_diagnostic)?;
     let actual = normalize_newlines(&format!("{:#?}\n", lowered.file));
 
     let golden_path = fixture_path.with_extension("hir");
@@ -1243,7 +1252,9 @@ fn mir_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let lowered = scoopc::mir::lower_for_dump(session, source).map_err(box_diagnostic)?;
+    let lowered =
+        scoopc::effect_refactor_pipeline::lower_direct_style_mir_for_dump(session, source)
+            .map_err(box_diagnostic)?;
     let actual = normalize_newlines(&format!("{:#?}\n", lowered.file));
 
     let golden_path = fixture_path.with_extension("mir");
@@ -1272,7 +1283,7 @@ fn scoopir_fixture(
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // v0：导出 public type/fun header，不包含函数体。
-    let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let mut ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
     {
         let sources = [source];
         let mut files = [&mut ast];
@@ -1296,7 +1307,8 @@ fn scoopir_fixture(
     env.extend_from_file(source, &ast, &index)
         .map_err(box_diagnostic)?;
 
-    let hir = scoopc::hir::lower_for_dump(session, source).map_err(box_diagnostic)?;
+    let hir = scoopc::effect_refactor_pipeline::lower_typed_hir_for_dump(session, source)
+        .map_err(box_diagnostic)?;
     let ir = scoopc::cone::scoopir::export_public_api_for_source(source, &index, &env, &hir)
         .map_err(box_boxed_diagnostic)?;
 
@@ -1332,7 +1344,7 @@ fn resolve_fixture(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let mut ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
     {
         let sources = [source];
         let mut files = [&mut ast];
@@ -1360,7 +1372,7 @@ fn typecheck_fixture(
     source: &scoopc::source::SourceFile,
     exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let mut ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
     {
         let sources = [source];
         let mut files = [&mut ast];
@@ -1556,7 +1568,7 @@ fn run_resolve_multi_case(
     let mut asts = Vec::with_capacity(paths.len());
     for path in &paths {
         let source = scoopc::source::SourceFile::load(path)?;
-        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        let ast = parse_file_via_ast_stage(session, &source).map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
     }
@@ -1665,7 +1677,7 @@ fn run_resolve_cone_case(
 
         for path in paths {
             let source = scoopc::source::SourceFile::load(&path)?;
-            let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+            let ast = parse_file_via_ast_stage(session, &source).map_err(miette::Report::new)?;
             files.push(ConeFile {
                 cone: cone_id,
                 source,
@@ -1810,7 +1822,7 @@ fn run_typecheck_cone_case(
 
         for path in paths {
             let source = scoopc::source::SourceFile::load(&path)?;
-            let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+            let ast = parse_file_via_ast_stage(session, &source).map_err(miette::Report::new)?;
             files.push(ConeFile {
                 cone: cone_id,
                 source,
@@ -2068,7 +2080,7 @@ fn run_typecheck_cone_archive_case(
     let mut asts: Vec<scoopc::ast::File> = Vec::new();
     for path in &consumer_pkg.sources {
         let source = scoopc::source::SourceFile::load(path)?;
-        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        let ast = parse_file_via_ast_stage(session, &source).map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
     }
@@ -2442,7 +2454,7 @@ fn run_typecheck_multi_case(
     let mut asts = Vec::with_capacity(paths.len());
     for path in &paths {
         let source = scoopc::source::SourceFile::load(path)?;
-        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        let ast = parse_file_via_ast_stage(session, &source).map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
     }

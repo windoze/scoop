@@ -33,18 +33,45 @@ fn main() -> Result<()> {
     let source = scoopc::source::SourceFile::load(&input)?;
     let session = scoopc::session::Session::with_options(cli.session_options)?;
 
-    match cli.emit_mode {
-        scoopc::driver_cli::EmitMode::LlvmIr => {
-            scoopc::llvm::emit_minimal_main_ir_to_file(&session, &source, &output)?;
-            eprintln!("已写入 LLVM IR：{}", output.display());
+    #[cfg(feature = "llvm")]
+    {
+        match cli.emit_mode {
+            scoopc::driver_cli::EmitMode::LlvmIr => {
+                scoopc::effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(
+                    &session,
+                    &source,
+                    &output,
+                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::LlvmIr,
+                )?;
+                eprintln!("已写入 LLVM IR：{}", output.display());
+            }
+            scoopc::driver_cli::EmitMode::Object => {
+                scoopc::effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(
+                    &session,
+                    &source,
+                    &output,
+                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::Object,
+                )?;
+                eprintln!("已写入 object 文件：{}", output.display());
+            }
         }
-        scoopc::driver_cli::EmitMode::Object => {
-            scoopc::llvm::emit_minimal_main_obj_to_file(&session, &source, &output)?;
-            eprintln!("已写入 object 文件：{}", output.display());
-        }
+
+        Ok(())
     }
 
-    Ok(())
+    #[cfg(not(feature = "llvm"))]
+    {
+        let _ = &session;
+        let _ = &source;
+        let _ = &output;
+        let subcommand = match cli.emit_mode {
+            scoopc::driver_cli::EmitMode::LlvmIr => "--emit-llvm",
+            scoopc::driver_cli::EmitMode::Object => "--emit-obj",
+        };
+        Err(miette::miette!(
+            "`scoopc {subcommand}` 需要启用 LLVM 后端：若你用了 `--no-default-features`，去掉它或加上 `--features llvm`"
+        ))
+    }
 }
 
 fn default_ll_path(input: &Path) -> PathBuf {

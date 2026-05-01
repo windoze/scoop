@@ -173,7 +173,14 @@
   - 默认主线行为不变。
 - 依赖：P0-T01R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成并行 pipeline dispatcher 壳层接入，新增 `crates/scoopc/src/effect_refactor_pipeline/` 顶层模块，并在其中固定 `legacy` / `refactor` 两侧 stage entry 与 `AST` / `typed HIR` / `direct-style MIR` / `effect facts` / `late lowering` / `LLVM codegen` 六个阶段边界。
+  - `refactor` 路径当前仍按 P0 目标在阶段边界整体委托到 legacy 闭包；pipeline mode 的读取点仍只停留在 CLI / session / dispatcher 层，未把分支渗入 `hir/`、`mir/`、`effect/`、`llvm/` 等低层业务实现。
+  - `scoop` 侧 `dump-ast`、`dump-hir`、`dump-mir`、`dump-ir` 已统一改走 `scoopc::effect_refactor_pipeline` wrapper；`build` 路径中的 parse 与 production LLVM 发射也改为先经过 dispatcher，再委托当前 legacy frontend/codegen。
+  - `scoop test` 相关 fixture runner 中直连的 parse/HIR/MIR 路径已统一收口到 AST / HIR / MIR stage wrapper；`run` 与 `test` 继续通过 `build` 路径继承同一 dispatcher 壳层。
+  - `scoopc` 二进制入口 `--emit-llvm` / `--emit-obj` 已改为通过 `effect_refactor_pipeline` 的 LLVM stage wrapper 进入；未启用 LLVM feature 时会给出显式错误，而不是绕过新路径。
+  - 新增/更新测试：`crates/scoopc/src/effect_refactor_pipeline/mod.rs`（legacy/refactor dispatcher 构造与调用）、`crates/scoop/src/commands/dump_ast.rs`（命令层 refactor 路由）。
+  - 输出比对结果：`dump-ast` / `dump-hir` / `dump-mir` 在 `legacy` 与 `refactor` 下输出一致；`dump-ir` 当前 `MaterializedMir` Debug 文本跨进程本身不稳定（`legacy` 对 `legacy` 重跑同样漂移），因此本任务仅核对其 legacy/refactor 退出状态一致且都能成功产出结果。
+  - 验证通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoop --no-default-features dump_ast_command_uses_refactor_ast_dispatcher`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoopc --no-default-features driver_cli`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P0-T02R：Review 并行 dispatcher 壳层，确认没有把新旧业务逻辑混写在一起
 

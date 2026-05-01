@@ -1,0 +1,302 @@
+//! effect-refactor 并行主线的顶层 dispatcher 壳层。
+//!
+//! P0 约束：
+//! - 新旧主线只允许在这里分流；
+//! - `refactor` 路径当前仍可在阶段边界整体委托给 legacy 实现；
+//! - 低层业务模块不应自行读取 pipeline mode。
+
+mod legacy;
+mod refactor;
+
+use crate::session::{EffectPipelineMode, Session};
+use crate::source::SourceFile;
+
+#[cfg(feature = "llvm")]
+use crate::source::{SourceId, SourceMap};
+#[cfg(feature = "llvm")]
+use std::path::Path;
+
+/// P0 预留的阶段边界。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StageKind {
+    Ast,
+    TypedHir,
+    DirectStyleMir,
+    EffectFacts,
+    LateLowering,
+    LlvmCodegen,
+}
+
+/// 基于 session 中的 pipeline mode 选择阶段入口。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PipelineDispatcher {
+    mode: EffectPipelineMode,
+}
+
+impl PipelineDispatcher {
+    pub fn for_session(session: &Session) -> Self {
+        Self {
+            mode: session.effect_pipeline_mode(),
+        }
+    }
+
+    pub const fn mode(self) -> EffectPipelineMode {
+        self.mode
+    }
+
+    pub fn ast(self) -> StageDispatcher {
+        self.stage(StageKind::Ast)
+    }
+
+    pub fn typed_hir(self) -> StageDispatcher {
+        self.stage(StageKind::TypedHir)
+    }
+
+    pub fn direct_style_mir(self) -> StageDispatcher {
+        self.stage(StageKind::DirectStyleMir)
+    }
+
+    pub fn effect_facts(self) -> StageDispatcher {
+        self.stage(StageKind::EffectFacts)
+    }
+
+    pub fn late_lowering(self) -> StageDispatcher {
+        self.stage(StageKind::LateLowering)
+    }
+
+    pub fn llvm_codegen(self) -> StageDispatcher {
+        self.stage(StageKind::LlvmCodegen)
+    }
+
+    fn stage(self, stage: StageKind) -> StageDispatcher {
+        let entry = match self.mode {
+            EffectPipelineMode::Legacy => StageEntry::Legacy(legacy::StageEntry::new(stage)),
+            EffectPipelineMode::Refactor => StageEntry::Refactor(refactor::StageEntry::new(stage)),
+        };
+        StageDispatcher { entry }
+    }
+}
+
+/// 单个阶段的已选入口。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StageDispatcher {
+    entry: StageEntry,
+}
+
+impl StageDispatcher {
+    pub const fn mode(self) -> EffectPipelineMode {
+        match self.entry {
+            StageEntry::Legacy(entry) => entry.mode(),
+            StageEntry::Refactor(entry) => entry.mode(),
+        }
+    }
+
+    pub const fn stage(self) -> StageKind {
+        match self.entry {
+            StageEntry::Legacy(entry) => entry.stage(),
+            StageEntry::Refactor(entry) => entry.stage(),
+        }
+    }
+
+    /// P0 中所有 refactor 入口先在阶段边界整体委托给 legacy 实现。
+    pub fn delegate_to_legacy<T>(self, legacy_op: impl FnOnce() -> T) -> T {
+        match self.entry {
+            StageEntry::Legacy(entry) => entry.delegate_to_legacy(legacy_op),
+            StageEntry::Refactor(entry) => entry.delegate_to_legacy(legacy_op),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StageEntry {
+    Legacy(legacy::StageEntry),
+    Refactor(refactor::StageEntry),
+}
+
+pub fn dispatcher_for_session(session: &Session) -> PipelineDispatcher {
+    PipelineDispatcher::for_session(session)
+}
+
+pub fn enter_ast_stage<T>(session: &Session, legacy_op: impl FnOnce() -> T) -> T {
+    dispatcher_for_session(session)
+        .ast()
+        .delegate_to_legacy(legacy_op)
+}
+
+pub fn enter_typed_hir_stage<T>(session: &Session, legacy_op: impl FnOnce() -> T) -> T {
+    dispatcher_for_session(session)
+        .typed_hir()
+        .delegate_to_legacy(legacy_op)
+}
+
+pub fn enter_direct_style_mir_stage<T>(session: &Session, legacy_op: impl FnOnce() -> T) -> T {
+    dispatcher_for_session(session)
+        .direct_style_mir()
+        .delegate_to_legacy(legacy_op)
+}
+
+pub fn enter_effect_facts_stage<T>(session: &Session, legacy_op: impl FnOnce() -> T) -> T {
+    dispatcher_for_session(session)
+        .effect_facts()
+        .delegate_to_legacy(legacy_op)
+}
+
+pub fn enter_late_lowering_stage<T>(session: &Session, legacy_op: impl FnOnce() -> T) -> T {
+    dispatcher_for_session(session)
+        .late_lowering()
+        .delegate_to_legacy(legacy_op)
+}
+
+pub fn enter_llvm_codegen_stage<T>(session: &Session, legacy_op: impl FnOnce() -> T) -> T {
+    dispatcher_for_session(session)
+        .llvm_codegen()
+        .delegate_to_legacy(legacy_op)
+}
+
+pub fn parse_ast_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<crate::ast::File, crate::parser::ParseError> {
+    enter_ast_stage(session, || session.parse(source))
+}
+
+pub fn lower_typed_hir_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<crate::hir::LoweredHir, crate::hir::HirLowerError> {
+    enter_typed_hir_stage(session, || crate::hir::lower_for_dump(session, source))
+}
+
+pub fn lower_direct_style_mir_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<crate::mir::LoweredMir, crate::mir::MirLowerError> {
+    enter_direct_style_mir_stage(session, || crate::mir::lower_for_dump(session, source))
+}
+
+pub fn materialize_direct_style_mir_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<crate::mir::MaterializedMir, Box<crate::mir::MirMaterializeError>> {
+    enter_direct_style_mir_stage(session, || {
+        crate::mir::materialize_for_dump(session, source)
+    })
+}
+
+#[cfg(feature = "llvm")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LlvmArtifactKind {
+    LlvmIr,
+    Object,
+    Asm,
+}
+
+#[cfg(feature = "llvm")]
+pub fn emit_single_file_llvm_artifact_to_file(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+    artifact: LlvmArtifactKind,
+) -> Result<(), crate::llvm::LlvmEmitError> {
+    enter_llvm_codegen_stage(session, || match artifact {
+        LlvmArtifactKind::LlvmIr => {
+            crate::llvm::emit_minimal_main_ir_to_file(session, source, output)
+        }
+        LlvmArtifactKind::Object => {
+            crate::llvm::emit_minimal_main_obj_to_file(session, source, output)
+        }
+        LlvmArtifactKind::Asm => {
+            crate::llvm::emit_minimal_main_asm_to_file(session, source, output)
+        }
+    })
+}
+
+#[cfg(feature = "llvm")]
+pub fn emit_production_llvm_artifact_to_file(
+    session: &Session,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    lowered: &crate::hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: crate::opt::OptLevel,
+    artifact: LlvmArtifactKind,
+) -> Result<(), crate::llvm::LlvmEmitError> {
+    enter_llvm_codegen_stage(session, || {
+        match artifact {
+        LlvmArtifactKind::LlvmIr => crate::llvm::emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+            source_map,
+            entry_source_id,
+            lowered,
+            output,
+            entry_main_fqn,
+            opt_level,
+        ),
+        LlvmArtifactKind::Object => crate::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+            source_map,
+            entry_source_id,
+            lowered,
+            output,
+            entry_main_fqn,
+            opt_level,
+        ),
+        LlvmArtifactKind::Asm => crate::llvm::emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+            source_map,
+            entry_source_id,
+            lowered,
+            output,
+            entry_main_fqn,
+            opt_level,
+        ),
+    }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+
+    fn session_for(mode: EffectPipelineMode) -> Session {
+        Session::with_options(SessionOptions::new(mode)).unwrap()
+    }
+
+    fn sample_source() -> SourceFile {
+        SourceFile::new_virtual("<mem>", "package sample\nfun main() {}")
+    }
+
+    #[test]
+    fn legacy_dispatcher_can_construct_all_stage_entries() {
+        let session = session_for(EffectPipelineMode::Legacy);
+        let dispatcher = dispatcher_for_session(&session);
+
+        assert_eq!(dispatcher.mode(), EffectPipelineMode::Legacy);
+        assert_eq!(dispatcher.ast().mode(), EffectPipelineMode::Legacy);
+        assert_eq!(dispatcher.typed_hir().stage(), StageKind::TypedHir);
+        assert_eq!(
+            dispatcher.direct_style_mir().stage(),
+            StageKind::DirectStyleMir
+        );
+        assert_eq!(dispatcher.effect_facts().stage(), StageKind::EffectFacts);
+        assert_eq!(dispatcher.late_lowering().stage(), StageKind::LateLowering);
+        assert_eq!(dispatcher.llvm_codegen().stage(), StageKind::LlvmCodegen);
+    }
+
+    #[test]
+    fn refactor_dispatcher_can_delegate_ast_hir_and_mir_stages() {
+        let session = session_for(EffectPipelineMode::Refactor);
+        let source = sample_source();
+
+        let ast = parse_ast_for_dump(&session, &source).unwrap();
+        let hir = lower_typed_hir_for_dump(&session, &source).unwrap();
+        let mir = lower_direct_style_mir_for_dump(&session, &source).unwrap();
+
+        assert!(ast.package.is_some());
+        assert_eq!(hir.file.items.len(), 1);
+        assert_eq!(mir.file.items.len(), 1);
+        assert_eq!(
+            dispatcher_for_session(&session).ast().mode(),
+            EffectPipelineMode::Refactor
+        );
+    }
+}

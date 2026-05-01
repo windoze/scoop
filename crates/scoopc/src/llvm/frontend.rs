@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use crate::ast;
 use crate::hir;
 use crate::opt::OptLevel;
-use crate::parser::parse_file;
 use crate::resolve::Index;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
@@ -51,7 +50,9 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
 
     let mut asts = Vec::with_capacity(input_sources.len());
     for source in &input_sources {
-        let ast = parse_file(source).map_err(frontend_error)?;
+        let ast =
+            crate::effect_refactor_pipeline::enter_ast_stage(session, || session.parse(source))
+                .map_err(frontend_error)?;
         asts.push(ast);
     }
     {

@@ -358,13 +358,15 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             {
                 let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
-                scoopc::llvm::emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+                scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+                    &session,
                     &source_map,
                     entry_source_id,
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
+                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::LlvmIr,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -381,13 +383,15 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             {
                 let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
-                scoopc::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+                scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+                    &session,
                     &source_map,
                     entry_source_id,
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
+                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::Object,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -404,13 +408,15 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             {
                 let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
-                scoopc::llvm::emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+                scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+                    &session,
                     &source_map,
                     entry_source_id,
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
+                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::Asm,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -593,7 +599,9 @@ fn run_frontend(
     // 先 parse 所有文件（cone 包模式下：`src/**/*.scoop`）。
     let mut asts = Vec::with_capacity(input.sources.len());
     for source in &input.sources {
-        let ast = scoopc::parser::parse_file(source).map_err(miette::Report::from)?;
+        let ast =
+            scoopc::effect_refactor_pipeline::enter_ast_stage(session, || session.parse(source))
+                .map_err(miette::Report::from)?;
         asts.push(ast);
     }
     {
@@ -985,13 +993,15 @@ fn run_codegen_and_link(
 
     let lowered = lower_main_hir_for_build(session, front, opt_level)?;
     let (source_map, entry_source_id) = build_codegen_source_map(session, front);
-    scoopc::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+    scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+        session,
         &source_map,
         entry_source_id,
         &lowered,
         &obj,
         front.input.entry_main_fqn.as_deref(),
         opt_level,
+        scoopc::effect_refactor_pipeline::LlvmArtifactKind::Object,
     )?;
 
     // T1115：cone native build 的 `c-sources/c-flags`：
