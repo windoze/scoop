@@ -21,6 +21,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::cli::{Args, Command};
 use scoopc::opt::OptLevel;
+use scoopc::session::SessionOptions;
 
 /// 初始化日志系统。
 ///
@@ -39,7 +40,13 @@ pub fn init_tracing() {
 }
 
 pub fn dispatch(args: Args) -> Result<(), miette::Report> {
-    match args.command {
+    let Args {
+        effect_pipeline,
+        command,
+    } = args;
+    let session_options = SessionOptions::new(effect_pipeline);
+
+    match command {
         Command::New { project_name } => new::run(project_name),
         Command::Test {
             fixtures,
@@ -54,13 +61,14 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                 gc_stress,
                 gc_move,
                 threads,
+                session_options,
             },
         ),
-        Command::DumpAst { input } => dump_ast::run(input),
-        Command::DumpHir { input } => dump_hir::run(input),
-        Command::DumpMir { input } => dump_mir::run(input),
-        Command::DumpIr { input } => dump_ir::run(input),
-        Command::DumpRtti { input, type_name } => dump_rtti::run(input, type_name),
+        Command::DumpAst { input } => dump_ast::run(input, session_options),
+        Command::DumpHir { input } => dump_hir::run(input, session_options),
+        Command::DumpMir { input } => dump_mir::run(input, session_options),
+        Command::DumpIr { input } => dump_ir::run(input, session_options),
+        Command::DumpRtti { input, type_name } => dump_rtti::run(input, type_name, session_options),
         Command::DumpStackmaps {
             input,
             verify_roots,
@@ -99,6 +107,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                     profile,
                     opt_level: parse_opt_level_flag(opt_level)?,
                     incremental,
+                    session_options,
                 },
             )
         }
@@ -120,9 +129,10 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                 profile,
                 parse_opt_level_flag(opt_level)?,
                 incremental,
+                session_options,
             )
         }
-        Command::Package { input, output } => package::run(input, output),
+        Command::Package { input, output } => package::run(input, output, session_options),
     }
 }
 

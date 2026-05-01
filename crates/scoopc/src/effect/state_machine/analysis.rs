@@ -3774,7 +3774,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 })
                 .collect::<Vec<_>>();
 
-            rewrites.sort_by(|lhs, rhs| rhs.0.cmp(&lhs.0));
+            rewrites.sort_by_key(|entry| std::cmp::Reverse(entry.0));
 
             for (op_index, site_id, source_expr, resume_path, source_path, resume_slot) in rewrites
             {

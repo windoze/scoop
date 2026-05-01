@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
 use scoopc::opt::OptLevel;
+use scoopc::session::SessionOptions;
 use thiserror::Error;
 
 #[derive(Debug)]
@@ -211,6 +212,8 @@ pub struct BuildOptions {
     pub opt_level: Option<OptLevel>,
     /// 是否启用粗粒度增量构建（T1124）。
     pub incremental: bool,
+    /// 构造编译 session 时使用的统一配置。
+    pub session_options: SessionOptions,
 }
 
 impl Default for BuildOptions {
@@ -221,6 +224,7 @@ impl Default for BuildOptions {
             profile: BuildProfile::Debug,
             opt_level: None,
             incremental: true,
+            session_options: SessionOptions::default(),
         }
     }
 }
@@ -265,6 +269,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         profile,
         opt_level: opt_level_override,
         incremental,
+        session_options,
     } = options;
 
     let entry_package_for_fingerprint = entry_package.clone();
@@ -328,7 +333,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         computed_fingerprint = Some(fp);
     }
 
-    let session = scoopc::session::Session::new()?;
+    let session = scoopc::session::Session::with_options(session_options)?;
 
     let deps = match (&input.cone_root, &input.cone_manifest) {
         (Some(root), Some(manifest)) => deps::load_dependency_graph(manifest, root)?,
@@ -644,10 +649,8 @@ fn run_frontend(
     // - 2+：按依赖拓扑序分配（deps 由 build/deps.rs 负责解析为 DAG 顺序）
     let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::from)?;
-    let mut next_dep_cone: u32 = 2;
-    for dep in deps {
+    for (next_dep_cone, dep) in (2_u32..).zip(deps.iter()) {
         let dep_cone = scoopc::resolve::ConeId::new(next_dep_cone);
-        next_dep_cone += 1;
         scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, dep)?;
     }
 
@@ -692,13 +695,22 @@ fn run_frontend(
     let mut all_monomorph_requests: Vec<scoopc::monomorph::MonomorphRequest> = Vec::new();
 
     // typecheck phase：逐文件执行（共享 env/index/types）。
-    for (source_index, ((source, ast), h)) in input
+    #[cfg(feature = "llvm")]
+    let file_iter = input
         .sources
         .iter()
         .zip(asts.iter())
         .zip(headers.iter())
-        .enumerate()
-    {
+        .enumerate();
+    #[cfg(not(feature = "llvm"))]
+    let file_iter = input.sources.iter().zip(asts.iter()).zip(headers.iter());
+
+    for item in file_iter {
+        #[cfg(feature = "llvm")]
+        let (source_index, ((source, ast), h)) = item;
+        #[cfg(not(feature = "llvm"))]
+        let ((source, ast), h) = item;
+
         scoopc::typecheck::check_file_annotations(
             source, ast, &index, &h.imports, &env, &mut types, builtins,
         )

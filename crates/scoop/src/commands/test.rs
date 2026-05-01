@@ -13,6 +13,7 @@ use std::num::NonZeroU32;
 use std::path::PathBuf;
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
+use scoopc::session::SessionOptions;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TestOptions {
@@ -20,6 +21,7 @@ pub struct TestOptions {
     pub gc_stress: bool,
     pub gc_move: bool,
     pub threads: Option<NonZeroU32>,
+    pub session_options: SessionOptions,
 }
 
 pub fn run(fixtures: Option<PathBuf>, options: TestOptions) -> Result<()> {
@@ -44,7 +46,12 @@ pub fn run(fixtures: Option<PathBuf>, options: TestOptions) -> Result<()> {
         run_pass_env.set("SCOOP_GC_IMMIX_PARALLEL_SWEEP", v);
     }
 
-    let ok = crate::fixtures::run_all(&root, options.opt_level, &run_pass_env)?;
+    let ok = crate::fixtures::run_all(
+        &root,
+        options.opt_level,
+        options.session_options,
+        &run_pass_env,
+    )?;
     println!("fixtures: ok ({ok})");
     Ok(())
 }

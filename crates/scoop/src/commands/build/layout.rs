@@ -23,6 +23,7 @@ pub(crate) fn cone_bin_dir(cone_root: &Path, target: Option<&str>, profile: &str
     cone_build_dir(cone_root, target, profile).join("bin")
 }
 
+#[cfg(feature = "llvm")]
 pub(crate) fn cone_obj_dir(cone_root: &Path, target: Option<&str>, profile: &str) -> PathBuf {
     cone_build_dir(cone_root, target, profile).join("obj")
 }
@@ -53,6 +54,7 @@ pub(crate) fn cone_exe_path(
     cone_bin_dir(cone_root, target, profile).join(cone_exe_file_name(project_name))
 }
 
+#[cfg(feature = "llvm")]
 pub(crate) fn obj_file_name(stem: &str) -> String {
     if cfg!(windows) {
         format!("{stem}.obj")

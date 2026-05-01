@@ -111,10 +111,11 @@ fn strip_deleted_exe_suffix(path: &Path) -> Option<PathBuf> {
 pub fn run_all(
     fixtures_root: &Path,
     opt_level: Option<OptLevel>,
+    session_options: scoopc::session::SessionOptions,
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<usize> {
     if fixtures_root.is_file() {
-        let session = scoopc::session::Session::new()?;
+        let session = scoopc::session::Session::with_options(session_options)?;
         let rel_root = fixtures_root.parent().unwrap_or(fixtures_root);
         run_one(&session, rel_root, fixtures_root, opt_level, run_pass_env)
             .wrap_err_with(|| format!("fixture 失败：{}", fixtures_root.display()))?;
@@ -122,7 +123,7 @@ pub fn run_all(
     }
 
     if is_typecheck_multi_case_root(fixtures_root) {
-        let session = scoopc::session::Session::new()?;
+        let session = scoopc::session::Session::with_options(session_options)?;
         return run_typecheck_multi_case(&session, fixtures_root, fixtures_root)
             .wrap_err_with(|| format!("typecheck_multi case 失败：{}", fixtures_root.display()));
     }
@@ -186,7 +187,7 @@ pub fn run_all(
     }
 
     let mut ok = 0usize;
-    let session = scoopc::session::Session::new()?;
+    let session = scoopc::session::Session::with_options(session_options)?;
     for file in files {
         run_one(&session, fixtures_root, &file, opt_level, run_pass_env)
             .wrap_err_with(|| format!("fixture 失败：{}", file.display()))?;
@@ -2120,14 +2121,13 @@ fn run_typecheck_cone_archive_case(
     // - 0：sysroot
     // - 1：consumer
     // - 2+：按依赖在 Cone.toml 中出现顺序分配（稳定）
-    let mut next_dep_cone: u32 = 2;
     let mut pre_specialized_fun_keys: std::collections::HashSet<
         scoopc::cone::pre_specialize::PreSpecializedFunKey,
     > = std::collections::HashSet::new();
     let mut pre_specialized_type_keys: std::collections::HashSet<
         scoopc::cone::pre_specialize::PreSpecializedTypeKey,
     > = std::collections::HashSet::new();
-    for dep_name in consumer_pkg.manifest.dependencies.keys() {
+    for (next_dep_cone, dep_name) in (2_u32..).zip(consumer_pkg.manifest.dependencies.keys()) {
         let Some(path) = cone_paths.get(dep_name) else {
             return Err(miette!(
                 "consumer 依赖 `{dep_name}` 未在该 case 中找到对应的 package（case: {}）",
@@ -2137,7 +2137,6 @@ fn run_typecheck_cone_archive_case(
 
         let dep = scoopc::cone::load_cone_archive_api(path)?;
         let dep_cone = scoopc::resolve::ConeId::new(next_dep_cone);
-        next_dep_cone += 1;
         scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, &dep)?;
         if let Some(file) = dep.pre_specialize.as_ref() {
             pre_specialized_fun_keys.extend(file.fun_key_set());
@@ -2993,7 +2992,13 @@ val bad: Int = Box("oops").bodyCopy
         )
         .unwrap();
 
-        let ok = run_all(&case_dir, None, &RunPassEnvOverrides::new()).unwrap();
+        let ok = run_all(
+            &case_dir,
+            None,
+            scoopc::session::SessionOptions::default(),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
         assert_eq!(ok, 2);
     }
 
@@ -3009,7 +3014,13 @@ val bad: Int = Box("oops").bodyCopy
         )
         .unwrap();
 
-        let ok = run_all(&fixture, None, &RunPassEnvOverrides::new()).unwrap();
+        let ok = run_all(
+            &fixture,
+            None,
+            scoopc::session::SessionOptions::default(),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
         assert_eq!(ok, 1);
     }
 }

@@ -81,7 +81,12 @@
   - 后续任务不需要再为“怎么进入新主线”补充新机制。
 - 依赖：无
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `scoop` / `scoopc` 共享的 effect pipeline selector 接入。
+  - 新增 `scoopc::session::EffectPipelineMode` 与 `SessionOptions`，保留 `Session::new()` 默认走 `Legacy`，并新增 `Session::with_options(...)` 显式构造入口。
+  - `scoop` 新增全局 `--effect-pipeline <legacy|refactor>`；`scoopc` 通过新抽出的 `crates/scoopc/src/driver_cli.rs` 复用同一 mode 语义与默认值，并由二进制入口统一落到 `SessionOptions`。
+  - `dump-ast`、`dump-hir`、`dump-mir`、`dump-ir`、`build`、`run`、`test` 以及当前其它会创建 `Session` 的 driver 命令均已切到统一的 `SessionOptions` 构造路径，后续进入新主线不再需要额外机制。
+  - 新增/更新测试：`crates/scoop/src/cli.rs`、`crates/scoopc/src/session/mod.rs`、`crates/scoopc/src/driver_cli.rs`。
+  - 验证通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoopc --no-default-features driver_cli`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P0-T01R：Review CLI / Session selector，确认新主线入口对两端一致且默认行为稳定
 

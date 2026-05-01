@@ -8,16 +8,17 @@
 use std::path::PathBuf;
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
+use scoopc::session::SessionOptions;
 
 /// 读取输入文件并打印实例化后的 MIR Debug 输出。
-pub fn run(input: PathBuf) -> Result<()> {
+pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
     let input = input
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
     let file = scoopc::source::SourceFile::load(&input)?;
 
-    let session = scoopc::session::Session::new()?;
+    let session = scoopc::session::Session::with_options(session_options)?;
     let lowered = scoopc::mir::materialize_for_dump(&session, &file)
         .map_err(|err| miette::Report::from(*err))?;
     println!("{:#?}", lowered);

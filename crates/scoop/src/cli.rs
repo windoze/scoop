@@ -6,12 +6,29 @@ use std::num::NonZeroU32;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use scoopc::session::{EffectPipelineMode, ParseEffectPipelineModeError};
 
 #[derive(Debug, Parser)]
 #[command(name = "scoop", version, about = "Scoop compiler + tooling")]
 pub struct Args {
+    /// 显式选择 effect 主线；缺省保持 legacy。
+    #[arg(
+        long = "effect-pipeline",
+        global = true,
+        value_name = "MODE",
+        default_value_t = EffectPipelineMode::Legacy,
+        value_parser = parse_effect_pipeline_mode,
+    )]
+    pub effect_pipeline: EffectPipelineMode,
+
     #[command(subcommand)]
     pub command: Command,
+}
+
+fn parse_effect_pipeline_mode(value: &str) -> Result<EffectPipelineMode, String> {
+    value
+        .parse()
+        .map_err(|err: ParseEffectPipelineModeError| err.to_string())
 }
 
 #[derive(Debug, Subcommand)]
@@ -192,6 +209,61 @@ pub enum Command {
 mod tests {
     use super::{Args, Command};
     use clap::Parser as _;
+    use scoopc::session::EffectPipelineMode;
+
+    #[test]
+    fn test_effect_pipeline_defaults_to_legacy() {
+        let args =
+            Args::try_parse_from(["scoop", "dump-hir", "tests/fixtures/parse/minimal.scoop"])
+                .unwrap();
+
+        assert_eq!(args.effect_pipeline, EffectPipelineMode::Legacy);
+    }
+
+    #[test]
+    fn test_effect_pipeline_parses_legacy() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "--effect-pipeline",
+            "legacy",
+            "dump-ast",
+            "tests/fixtures/parse/minimal.scoop",
+        ])
+        .unwrap();
+
+        assert_eq!(args.effect_pipeline, EffectPipelineMode::Legacy);
+    }
+
+    #[test]
+    fn test_effect_pipeline_parses_refactor() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "--effect-pipeline",
+            "refactor",
+            "dump-mir",
+            "tests/fixtures/parse/minimal.scoop",
+        ])
+        .unwrap();
+
+        assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
+    }
+
+    #[test]
+    fn test_effect_pipeline_rejects_invalid_value() {
+        let err = Args::try_parse_from([
+            "scoop",
+            "--effect-pipeline",
+            "future",
+            "dump-ir",
+            "tests/fixtures/parse/minimal.scoop",
+        ])
+        .unwrap_err();
+
+        assert!(matches!(
+            err.kind(),
+            clap::error::ErrorKind::ValueValidation | clap::error::ErrorKind::InvalidValue
+        ));
+    }
 
     #[test]
     fn test_command_parses_build_profile_default() {

@@ -444,31 +444,29 @@ impl<'a> Parser<'a> {
                     Symbol::Lt => depth_angle += 1,
                     Symbol::Gt => depth_angle = depth_angle.saturating_sub(1),
                     Symbol::GtGt => depth_angle = depth_angle.saturating_sub(2),
-                    Symbol::Eq | Symbol::Semicolon => {
+                    Symbol::Eq | Symbol::Semicolon
                         if depth_paren == 0
                             && depth_brace == 0
                             && depth_bracket == 0
-                            && depth_angle == 0
-                        {
-                            return false;
-                        }
+                            && depth_angle == 0 =>
+                    {
+                        return false;
                     }
-                    Symbol::Colon => {
+                    Symbol::Colon
                         if depth_paren == 0
                             && depth_brace == 0
                             && depth_bracket == 0
-                            && depth_angle == 0
-                        {
-                            // `... . name :`
-                            let Some(name_tok) = self.tokens.get(idx.saturating_sub(1)) else {
-                                return false;
-                            };
-                            let Some(dot_tok) = self.tokens.get(idx.saturating_sub(2)) else {
-                                return false;
-                            };
-                            return name_tok.kind == TokenKind::Ident
-                                && dot_tok.kind == TokenKind::Symbol(Symbol::Dot);
-                        }
+                            && depth_angle == 0 =>
+                    {
+                        // `... . name :`
+                        let Some(name_tok) = self.tokens.get(idx.saturating_sub(1)) else {
+                            return false;
+                        };
+                        let Some(dot_tok) = self.tokens.get(idx.saturating_sub(2)) else {
+                            return false;
+                        };
+                        return name_tok.kind == TokenKind::Ident
+                            && dot_tok.kind == TokenKind::Symbol(Symbol::Dot);
                     }
                     _ => {}
                 },

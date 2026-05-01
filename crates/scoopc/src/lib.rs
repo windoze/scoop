@@ -12,6 +12,7 @@ pub mod ast;
 pub mod comptime;
 pub mod cone;
 pub(crate) mod devirtualize;
+pub mod driver_cli;
 pub(crate) mod effect;
 pub(crate) mod expr_facts;
 pub mod hir;

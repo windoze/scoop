@@ -6,6 +6,9 @@
 //!
 //! 当前阶段：只实现 sysroot 注入 + 顶层符号索引的构建入口。
 
+use std::fmt;
+use std::str::FromStr;
+
 use miette::{Context as _, Result};
 use thiserror::Error;
 
@@ -14,6 +17,61 @@ use crate::parser::{ParseError, parse_file};
 use crate::resolve::{Index, ResolveError};
 use crate::source::SourceFile;
 use crate::sysroot::Sysroot;
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[error("无效的 effect pipeline `{value}`；可选值：legacy, refactor")]
+pub struct ParseEffectPipelineModeError {
+    value: String,
+}
+
+/// 顶层 effect 主线选择。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum EffectPipelineMode {
+    #[default]
+    Legacy,
+    Refactor,
+}
+
+impl EffectPipelineMode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Legacy => "legacy",
+            Self::Refactor => "refactor",
+        }
+    }
+}
+
+impl fmt::Display for EffectPipelineMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for EffectPipelineMode {
+    type Err = ParseEffectPipelineModeError;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "legacy" => Ok(Self::Legacy),
+            "refactor" => Ok(Self::Refactor),
+            _ => Err(ParseEffectPipelineModeError {
+                value: value.to_string(),
+            }),
+        }
+    }
+}
+
+/// 会话构造时一次性收口的配置项。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SessionOptions {
+    pub effect_pipeline: EffectPipelineMode,
+}
+
+impl SessionOptions {
+    pub const fn new(effect_pipeline: EffectPipelineMode) -> Self {
+        Self { effect_pipeline }
+    }
+}
 
 #[derive(Debug, Error, miette::Diagnostic)]
 pub enum SessionError {
@@ -33,24 +91,43 @@ pub enum SessionError {
 /// 一次编译过程的全局上下文。
 #[derive(Debug)]
 pub struct Session {
+    options: SessionOptions,
     sysroot: Sysroot,
 }
 
 impl Session {
     /// 使用默认 sysroot 创建会话。
     pub fn new() -> Result<Self> {
+        Self::with_options(SessionOptions::default())
+    }
+
+    /// 使用显式 session options 创建会话。
+    pub fn with_options(options: SessionOptions) -> Result<Self> {
         let sysroot =
             Sysroot::load_from(Sysroot::default_path()).wrap_err("加载默认 sysroot 失败")?;
-        Ok(Self { sysroot })
+        Ok(Self { options, sysroot })
     }
 
     /// 直接注入 sysroot（用于测试或未来的自定义工具链）。
     pub fn with_sysroot(sysroot: Sysroot) -> Self {
-        Self { sysroot }
+        Self::with_sysroot_and_options(sysroot, SessionOptions::default())
+    }
+
+    /// 直接注入 sysroot，并显式指定 session options。
+    pub fn with_sysroot_and_options(sysroot: Sysroot, options: SessionOptions) -> Self {
+        Self { options, sysroot }
     }
 
     pub fn sysroot(&self) -> &Sysroot {
         &self.sysroot
+    }
+
+    pub const fn options(&self) -> SessionOptions {
+        self.options
+    }
+
+    pub const fn effect_pipeline_mode(&self) -> EffectPipelineMode {
+        self.options.effect_pipeline
     }
 
     /// 解析一个源文件为 AST。
@@ -94,6 +171,20 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_new_defaults_to_legacy_pipeline() {
+        let sess = Session::new().unwrap();
+        assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Legacy);
+    }
+
+    #[test]
+    fn session_with_options_can_select_refactor_pipeline() {
+        let sess =
+            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+        assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Refactor);
+        assert_eq!(sess.options().effect_pipeline, EffectPipelineMode::Refactor);
+    }
 
     #[test]
     fn index_includes_sysroot_symbols() {

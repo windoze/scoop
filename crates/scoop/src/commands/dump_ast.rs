@@ -6,15 +6,17 @@
 use std::path::PathBuf;
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
+use scoopc::session::SessionOptions;
 
-pub fn run(input: PathBuf) -> Result<()> {
+pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
     let input = input
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
     let file = scoopc::source::SourceFile::load(&input)?;
 
-    let ast = scoopc::parser::parse_file(&file).map_err(miette::Report::from)?;
+    let session = scoopc::session::Session::with_options(session_options)?;
+    let ast = session.parse(&file).map_err(miette::Report::from)?;
     println!("{ast:#?}");
     Ok(())
 }

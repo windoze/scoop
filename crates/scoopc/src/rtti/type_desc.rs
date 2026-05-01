@@ -849,7 +849,7 @@ fn build_class_itables(
             });
         }
 
-        entries.sort_by(|a, b| a.interface_id.cmp(&b.interface_id));
+        entries.sort_by_key(|entry| entry.interface_id);
         out.insert(class_fqn.to_string(), entries);
     }
 

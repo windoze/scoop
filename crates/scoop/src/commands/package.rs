@@ -8,9 +8,10 @@
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
+use scoopc::session::SessionOptions;
 
 /// 执行 `scoop package <cone-root> [-o <out.cone>]`。
-pub fn run(input: PathBuf, output: Option<PathBuf>) -> Result<()> {
+pub fn run(input: PathBuf, output: Option<PathBuf>, session_options: SessionOptions) -> Result<()> {
     let input = input
         .canonicalize()
         .into_diagnostic()
@@ -21,7 +22,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>) -> Result<()> {
     let output = output.unwrap_or_else(|| default_output_path(&pkg, &input));
     ensure_output_parent_dir(&output)?;
 
-    let session = scoopc::session::Session::new()?;
+    let session = scoopc::session::Session::with_options(session_options)?;
     scoopc::cone::write_cone_archive_v0(&session, &pkg, &output)?;
 
     // v0：打包完成后列出归档内容，方便人工 sanity check。
@@ -96,7 +97,7 @@ public fun util() { }
         .unwrap();
 
         let out = dir.path().join("out").join("fixture.cone");
-        super::run(pkg, Some(out.clone())).unwrap();
+        super::run(pkg, Some(out.clone()), super::SessionOptions::default()).unwrap();
 
         assert!(out.is_file(), "应写出 .cone 文件");
 
@@ -143,7 +144,7 @@ public fun util() { }
         .unwrap();
 
         let out = dir.path().join("fixture.cone");
-        super::run(pkg, Some(out.clone())).unwrap();
+        super::run(pkg, Some(out.clone()), super::SessionOptions::default()).unwrap();
 
         let api =
             scoopc::cone::read_cone_archive_entry(&out, scoopc::cone::CONE_API_SCOOPIR_FILE_NAME)

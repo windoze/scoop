@@ -133,6 +133,7 @@ pub enum LinkError {
 
 /// 将 `runtime/c/*.c` 预编译为 object 文件时的错误（T1121：避免 build 产物散落到 `/tmp`）。
 #[derive(Debug, Error, Diagnostic)]
+#[cfg(feature = "llvm")]
 pub enum RuntimeObjError {
     #[error(transparent)]
     #[diagnostic(transparent)]
@@ -365,6 +366,7 @@ pub fn link_objs_with_runtime(
 /// 用途（T1121）：
 /// - 当 driver 侧选择把 runtime/c 预编译为 `.o` 并写入 `build/<profile>/obj/` 时，
 ///   用该函数把 `main.o + runtime.o + extra objs` 统一链接到最终可执行文件。
+#[cfg(feature = "llvm")]
 pub fn link_objs(
     objs: &[PathBuf],
     output: &Path,
@@ -454,6 +456,7 @@ fn link_command_with_runtime(
     Ok(cmd)
 }
 
+#[cfg(feature = "llvm")]
 fn link_command(
     objs: &[PathBuf],
     output: &Path,
@@ -493,6 +496,7 @@ fn runtime_c_dir() -> PathBuf {
 /// 说明：
 /// - 输出对象文件名采用 `rt_<stem>.o`（Windows 为 `.obj`），避免与用户 object 冲突；
 /// - v0 阶段不做增量缓存：每次调用都覆盖写出（T1124 再引入 fingerprint）。
+#[cfg(feature = "llvm")]
 pub fn compile_runtime_c_sources_to_obj_dir(
     output_dir: &Path,
 ) -> Result<Vec<PathBuf>, RuntimeObjError> {

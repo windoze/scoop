@@ -29,8 +29,17 @@ pub fn run(
     profile: super::build::BuildProfile,
     opt_level: Option<scoopc::opt::OptLevel>,
     incremental: bool,
+    session_options: scoopc::session::SessionOptions,
 ) -> Result<()> {
-    match run_for_exit_code(input, args, entry_package, profile, opt_level, incremental)? {
+    match run_for_exit_code(
+        input,
+        args,
+        entry_package,
+        profile,
+        opt_level,
+        incremental,
+        session_options,
+    )? {
         0 => Ok(()),
         code => std::process::exit(code),
     }
@@ -107,6 +116,7 @@ fn run_for_exit_code(
     profile: super::build::BuildProfile,
     opt_level: Option<scoopc::opt::OptLevel>,
     incremental: bool,
+    session_options: scoopc::session::SessionOptions,
 ) -> Result<i32> {
     let input = resolve_run_input(input)?;
     match input {
@@ -125,6 +135,7 @@ fn run_for_exit_code(
                     profile,
                     opt_level,
                     incremental,
+                    session_options,
                 },
             )?;
 
@@ -162,6 +173,7 @@ fn run_for_exit_code(
                     profile,
                     opt_level,
                     incremental,
+                    session_options,
                 },
             )?;
 
@@ -222,6 +234,7 @@ mod tests {
             super::super::build::BuildProfile::Debug,
             None,
             true,
+            scoopc::session::SessionOptions::default(),
         )
         .unwrap_err();
         assert!(
@@ -243,6 +256,7 @@ mod tests {
             super::super::build::BuildProfile::Debug,
             None,
             true,
+            scoopc::session::SessionOptions::default(),
         )
         .unwrap();
         assert_eq!(code, 0, "最小 main 应返回 0");

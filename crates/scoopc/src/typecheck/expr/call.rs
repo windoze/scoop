@@ -6756,7 +6756,7 @@ fn infer_member_call_expr_type(
                 from: "接收者（receiver）".to_string(),
                 span: receiver.span,
             })
-            .chain(arg_constraints.into_iter()),
+            .chain(arg_constraints),
             lower,
             builtins,
         )?;
@@ -7269,7 +7269,7 @@ fn infer_member_call_expr_type(
                 from: "接收者（receiver）".to_string(),
                 span: receiver.span,
             })
-            .chain(arg_constraints.into_iter()),
+            .chain(arg_constraints),
             lower,
             builtins,
         ) {
@@ -7852,7 +7852,7 @@ pub(super) fn collect_type_arg_candidates_for_single_type_param(
             if expected_elems.len() != found_elems.len() {
                 return;
             }
-            for (e, f) in expected_elems.into_iter().zip(found_elems.into_iter()) {
+            for (e, f) in expected_elems.into_iter().zip(found_elems) {
                 collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,
@@ -7874,11 +7874,7 @@ pub(super) fn collect_type_arg_candidates_for_single_type_param(
             if expected_nominal.args.len() != found_nominal.args.len() {
                 return;
             }
-            for (e, f) in expected_nominal
-                .args
-                .into_iter()
-                .zip(found_nominal.args.into_iter())
-            {
+            for (e, f) in expected_nominal.args.into_iter().zip(found_nominal.args) {
                 collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,
@@ -7900,11 +7896,7 @@ pub(super) fn collect_type_arg_candidates_for_single_type_param(
             if expected_nominal.args.len() != found_nominal.args.len() {
                 return;
             }
-            for (e, f) in expected_nominal
-                .args
-                .into_iter()
-                .zip(found_nominal.args.into_iter())
-            {
+            for (e, f) in expected_nominal.args.into_iter().zip(found_nominal.args) {
                 collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,
@@ -7939,11 +7931,7 @@ pub(super) fn collect_type_arg_candidates_for_single_type_param(
                 );
             }
 
-            for (e, f) in expected_fun
-                .params
-                .into_iter()
-                .zip(found_fun.params.into_iter())
-            {
+            for (e, f) in expected_fun.params.into_iter().zip(found_fun.params) {
                 collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,

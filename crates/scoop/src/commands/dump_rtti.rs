@@ -5,20 +5,25 @@
 use std::path::PathBuf;
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
+use scoopc::session::SessionOptions;
 
 /// 读取输入文件并打印 RTTI/type descriptor。
 ///
 /// 当前阶段：
 /// - type descriptor v0：type_id + parent chain + trace bitmap/trace_fn
 /// - interface v0（TODO T1507c1）：interface_id + method slots
-pub fn run(input: PathBuf, type_name: Option<String>) -> Result<()> {
+pub fn run(
+    input: PathBuf,
+    type_name: Option<String>,
+    session_options: SessionOptions,
+) -> Result<()> {
     let input = input
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
     let file = scoopc::source::SourceFile::load(&input)?;
 
-    let session = scoopc::session::Session::new()?;
+    let session = scoopc::session::Session::with_options(session_options)?;
     let dump = scoopc::rtti::type_desc::dump_file_type_desc(&session, &file)
         .map_err(miette::Report::from)?;
 

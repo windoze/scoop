@@ -423,7 +423,7 @@ pub fn trim_package_level_comptime_ifs_in_indexed_compilation_unit(
         }
     }
 
-    for (dst, trimmed) in files.iter_mut().zip(visible_files.into_iter()) {
+    for (dst, trimmed) in files.iter_mut().zip(visible_files) {
         **dst = trimmed;
     }
 

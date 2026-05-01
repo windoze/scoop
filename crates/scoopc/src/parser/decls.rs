@@ -1045,25 +1045,23 @@ impl<'a> Parser<'a> {
                     Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
                     Symbol::LBracket => depth_bracket += 1,
                     Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
-                    Symbol::Eq | Symbol::Semicolon => {
+                    Symbol::Eq | Symbol::Semicolon
                         // `=` 之后进入 initializer；extension property 的 receiver/name 必须出现在 `:` 之前。
                         if depth_paren == 0
                             && depth_brace == 0
                             && depth_bracket == 0
-                            && depth_angle == 0
-                        {
-                            break;
-                        }
+                            && depth_angle == 0 =>
+                    {
+                        break;
                     }
-                    Symbol::Colon => {
+                    Symbol::Colon
                         if depth_paren == 0
                             && depth_brace == 0
                             && depth_bracket == 0
-                            && depth_angle == 0
-                        {
-                            colon_idx = Some(idx);
-                            break;
-                        }
+                            && depth_angle == 0 =>
+                    {
+                        colon_idx = Some(idx);
+                        break;
                     }
                     _ => {}
                 },
