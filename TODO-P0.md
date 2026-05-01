@@ -270,7 +270,10 @@
   - P1-P6 不需要再为共享/复制原则重新开讨论。
 - 依赖：P0-T02R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：新增仓库根文档 `EFFECT_REFACTOR_BOUNDARY_INVENTORY.md`，把 P1-P6 会触及的关键目录固化为可执行的“共享 / 复制”边界清单，并明确当前无需要保留为“后续再判定”的条目。
+  - 文档已覆盖并给出具体结论：`crates/scoop/src/cli.rs` / driver command frontends、`crates/scoopc/src/session/`、`parser/`、`source.rs`、`span.rs`、`sysroot/`、`target/`、`ty/`、runtime ABI allowlist/build glue、`scoop_root_frame.h` / `scoop_stackmap.*` 归为共享；`hir/`、`typecheck/`、`mir/`、`effect/`、`llvm/`、以及 `runtime/c/scoop_runtime.c` 中的 effect/continuation runtime slice 归为复制，并写明后续从哪个阶段开始分叉、为什么不能中立共享、以及建议的新模块入口。
+  - 搜索摘要：执行 `rg -n "EffectPipelineMode|effect_pipeline|effect_pipeline_mode" crates/scoopc/src/parser crates/scoopc/src/source.rs crates/scoopc/src/span.rs crates/scoopc/src/sysroot crates/scoopc/src/target crates/scoopc/src/ty runtime/c/scoop_root_frame.h runtime/c/scoop_stackmap.h runtime/c/scoop_stackmap.c`，结果为 0 命中，说明当前共享中立模块没有 selector 渗入。
+  - 验证通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P0-T03R：Review 边界清单，确认后续实现不会再靠临时判断混线
 

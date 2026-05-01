@@ -27,11 +27,12 @@
 
 ## Progress Log
 
-- 已创建本计划文件，并记录初始执行计划。
-- 已读取 `TODO.md` 与 `TODO-P0.md`，确认首个未完成详细任务为 `P0-T02R`：review 并行 dispatcher 壳层，确认新旧主线只在 CLI / session / dispatcher 分流，未渗入低层业务实现。
-- 当前执行重点：检查最新提交是否声明了与 `P0-T02R` 直接相关的未完成事项；审阅 `effect_refactor_pipeline`、driver 命令入口与低层业务目录；运行任务要求的搜索与定向验证；若 review 发现真实问题，则先修复或补最小前置任务。
-- 已检查最近提交：`[P0-T02] Establish parallel effect pipeline dispatcher shell` 未声明与本 review 直接相关的未完成项，因此继续按 `P0-T02R` 正常审计。
-- 已完成代码审计：`EffectPipelineMode` 的分流仍收口在 `crates/scoopc/src/effect_refactor_pipeline/`；`scoop` 命令层与 `scoopc` 二进制入口都通过 dispatcher/wrapper 进入阶段边界；`crates/scoopc/src/hir`、`mir`、`effect`、`llvm` 中对 `EffectPipelineMode|effect_pipeline|effect_pipeline_mode` 的搜索均为 0 命中。
-- 已完成验证：`scoop`/`scoopc` 定向测试全部通过；`dump-ast`、`dump-hir`、`dump-mir` 的 legacy/refactor 输出一致；`dump-ir` 在本次复验中两种 mode 也都成功并通过文本比较；`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings` 通过。
-- 已将 `P0-T02R` 完成记录回写到 `TODO-P0.md`。任务顺序、索引与阶段计划未变化，因此本次无需更新 `TODO.md` 与 `PLAN.md`。
-- 下一步：检查工作区 diff，仅提交本次 review 相关变更（`TODO-P0.md` 与 `memory/claude_plan.md`），然后停止。
+- 已读取 `TODO.md` 与 `TODO-P0.md`，确认首个未完成详细任务为 `P0-T03`：建立“共享模块 vs 复制实现”边界清单，并固化为仓库文档。
+- 已检查最近提交：`[P0-T02R] Review parallel effect pipeline dispatcher shell` 未声明与 `P0-T03` 直接相关的未完成事项，因此继续按 `P0-T03` 执行。
+- 当前执行重点：审阅 `effect_refactor_pipeline`、CLI/session/driver glue 与 `parser`、`hir`、`mir`、`effect`、`llvm`、runtime ABI helper 等关键目录入口；据此产出 `EFFECT_REFACTOR_BOUNDARY_INVENTORY.md`，明确“共享 / 复制 / 后续再判定”分类、理由、单一 API 或后续分叉入口；随后运行任务要求的定向搜索与测试。
+- 若审阅中发现当前任务无法在不违背设计基线的前提下定性某个关键模块，需在文档中明确记录“不确定原因”和“后续进入前必须决策”的约束，而不是写模糊结论。
+- 已完成关键目录抽样：确认 driver/session/dispatcher 只负责路由；`parser`、`source/span`、`sysroot`、`target`、`ty` 都是中立基础设施；`hir`、`typecheck`、`mir`、`effect`、`llvm` 与 effect/continuation runtime slice 则承载会在后续阶段独立演化的业务 contract。
+- 已新增 `EFFECT_REFACTOR_BOUNDARY_INVENTORY.md`，固化共享条目、复制条目、搜索守护规则与 P1-P6 的分叉时点；当前清单没有需要保留为“后续再判定”的条目。
+- 已完成验证：`rg -n "EffectPipelineMode|effect_pipeline|effect_pipeline_mode" crates/scoopc/src/parser crates/scoopc/src/source.rs crates/scoopc/src/span.rs crates/scoopc/src/sysroot crates/scoopc/src/target crates/scoopc/src/ty runtime/c/scoop_root_frame.h runtime/c/scoop_stackmap.h runtime/c/scoop_stackmap.c` 为 0 命中；`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings` 通过。
+- 已将 `P0-T03` 完成记录回写到 `TODO-P0.md`。任务顺序、标题、索引与阶段计划未变化，因此本次无需更新 `TODO.md` 与 `PLAN.md`。
+- 本次任务的实现、验证与文档回写已经完成；剩余动作仅是把 `EFFECT_REFACTOR_BOUNDARY_INVENTORY.md`、`TODO-P0.md` 与 `memory/claude_plan.md` 提交入库，然后停止。
