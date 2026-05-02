@@ -318,6 +318,13 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`Continuation` 是 compiler-owned interface，不能直接构造")]
+    #[diagnostic(code(scoop::typecheck::continuation_not_constructible))]
+    ContinuationNotConstructible {
+        #[label("这里试图构造 `Continuation`")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用解析歧义：{callee}")]
     #[diagnostic(code(scoop::typecheck::ambiguous_call))]
     AmbiguousCall {

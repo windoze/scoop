@@ -1947,6 +1947,16 @@ fun run(): Int {
 }
 "#;
 
+    const CONTINUATION_RUNTIME_CTOR_SOURCE: &str = r#"
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad(): Unit {
+    val _k = Continuation<Int, Unit, eff Pure>()
+}
+"#;
+
     #[test]
     fn check_file_exprs_retypes_escape_continuation_binder_with_precise_effect_row() {
         let (source, ast, index, imports, env, mut types, builtins) =
@@ -2013,5 +2023,21 @@ fun run(): Int {
             1,
             "extension/member-call 语法的 Unit sugar 应写回 typed side table"
         );
+    }
+
+    #[test]
+    fn refactor_continuation_typecheck_rejects_runtime_construction_of_compiler_owned_continuation()
+    {
+        let (source, ast, index, imports, env, mut types, builtins) =
+            setup_typed_file(CONTINUATION_RUNTIME_CTOR_SOURCE);
+        let err = typecheck::check_file_exprs(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect_err("用户代码不应允许直接构造 Continuation");
+
+        assert!(matches!(
+            err,
+            ExprTypeError::ContinuationNotConstructible { .. }
+        ));
     }
 }

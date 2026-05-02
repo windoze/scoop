@@ -77,7 +77,8 @@ mod tests {
             DumpHirOutput::Legacy(_) => panic!("refactor dump-hir 不应走 legacy lower_for_dump"),
             DumpHirOutput::Refactor(output) => {
                 assert_eq!(output.hir_file().items.len(), 1);
-                assert!(output.effect_contracts().is_placeholder());
+                assert!(!output.effect_contracts().is_placeholder());
+                assert!(output.effect_contracts().is_empty());
             }
         }
         assert_eq!(stage.mode(), EffectPipelineMode::Refactor);

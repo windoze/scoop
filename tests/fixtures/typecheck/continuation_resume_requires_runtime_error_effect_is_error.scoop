@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 12:5
+// 目标：P2-T03 `k.resume(value)` 的 required effects 必须显式包含 ordinary `Raise<RuntimeError>`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad(k: Continuation<Int, Unit, eff Pure>) {
+    k.resume(1)
+}

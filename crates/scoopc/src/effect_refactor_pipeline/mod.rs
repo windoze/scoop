@@ -14,7 +14,7 @@ use crate::session::{EffectPipelineMode, Session};
 use crate::source::SourceFile;
 
 pub use ast_stage::AstStageOutput;
-pub use hir_stage::{TypedHirEffectContracts, TypedHirStageOutput};
+pub use hir_stage::{ContinuationResumeSiteContract, TypedHirEffectContracts, TypedHirStageOutput};
 
 #[cfg(feature = "llvm")]
 use crate::source::{SourceId, SourceMap};
@@ -187,7 +187,8 @@ pub fn load_typed_hir_stage_output_for_dump(
     let dispatcher = dispatcher_for_session(session).typed_hir();
     match dispatcher.entry {
         StageEntry::Legacy(entry) => entry.delegate_to_legacy(|| {
-            crate::hir::lower_typed_for_dump(session, source).map(TypedHirStageOutput::new)
+            crate::hir::lower_typed_for_dump(session, source)
+                .map(|lowered| TypedHirStageOutput::new(lowered, source.path()))
         }),
         StageEntry::Refactor(entry) => entry.lower_typed_hir_stage_output(session, source),
     }
@@ -354,6 +355,6 @@ mod tests {
             EffectPipelineMode::Refactor
         );
         assert_eq!(output.hir_file().items.len(), 1);
-        assert!(output.effect_contracts().is_placeholder());
+        assert!(!output.effect_contracts().is_placeholder());
     }
 }

@@ -25,6 +25,13 @@ use super::{TypeEnv, TypeSymbolKind};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum InterfaceError {
+    #[error("`Continuation` 是 compiler-owned interface，用户代码不能实现或继承它")]
+    #[diagnostic(code(scoop::typecheck::continuation_impl_not_allowed))]
+    ContinuationImplNotAllowed {
+        #[label("这里试图实现/继承 `Continuation`")]
+        span: miette::SourceSpan,
+    },
+
     #[error("实现/继承列表中的超类型必须是 interface：{found_fqn}")]
     #[diagnostic(code(scoop::typecheck::supertype_not_interface))]
     SupertypeNotInterface {
@@ -204,6 +211,8 @@ fn check_interface_decl_supertypes(
             continue;
         };
 
+        reject_compiler_owned_continuation_interface(&fqn, st.ty.span())?;
+
         if st.ctor_args_span.is_some() {
             return Err(InterfaceError::SupertypeCtorCallNotClass {
                 found_fqn: fqn,
@@ -240,6 +249,8 @@ fn check_class_like_interfaces(
         let Some(interface_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) else {
             continue;
         };
+
+        reject_compiler_owned_continuation_interface(&interface_fqn, st.ty.span())?;
 
         if st.ctor_args_span.is_some() {
             // ctor call 只允许 class。
@@ -286,6 +297,8 @@ fn check_value_type_interfaces(
         let Some(interface_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) else {
             continue;
         };
+
+        reject_compiler_owned_continuation_interface(&interface_fqn, st.ty.span())?;
 
         if st.ctor_args_span.is_some() {
             return Err(InterfaceError::SupertypeCtorCallNotClass {
@@ -458,6 +471,16 @@ fn is_interface(env: &TypeEnv, fqn: &str) -> bool {
     matches!(nominal_kind(env, fqn), Some(ast::TypeKind::Interface))
 }
 
+fn reject_compiler_owned_continuation_interface(
+    interface_fqn: &str,
+    span: crate::span::Span,
+) -> Result<(), InterfaceError> {
+    if interface_fqn == "scoop.core.Continuation" {
+        return Err(InterfaceError::ContinuationImplNotAllowed { span: span.into() });
+    }
+    Ok(())
+}
+
 fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String {
     let Some(pkg) = pkg else {
         return String::new();
@@ -467,4 +490,67 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ast;
+    use crate::parser::parse_file;
+    use crate::resolve::{self, Index};
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::source::SourceFile;
+    use crate::typecheck;
+
+    fn setup_interface_check(source_text: &str) -> (SourceFile, ast::File, Index, TypeEnv) {
+        let session =
+            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+        let source = SourceFile::new_virtual("<refactor_continuation_interface>", source_text);
+        let mut ast = parse_file(&source).expect("parse");
+
+        typecheck::check_file_headers(&source, &ast).expect("headers");
+        typecheck::check_file_struct_decls(&source, &ast).expect("struct decls");
+
+        let index = {
+            let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                unit.push((&file.source, &file.ast));
+            }
+            unit.push((&source, &ast));
+            Index::build(&unit).expect("index")
+        };
+        let headers = resolve::check_file_headers(&source, &ast, &index).expect("resolve headers");
+        resolve::check_file_bodies(&source, &mut ast, &index, &headers).expect("resolve bodies");
+
+        let mut env = TypeEnv::from_sysroot(session.sysroot(), &index).expect("type env");
+        env.extend_from_file(&source, &ast, &index)
+            .expect("extend type env");
+        (source, ast, index, env)
+    }
+
+    #[test]
+    fn refactor_continuation_typecheck_rejects_user_impl_of_compiler_owned_continuation() {
+        let (source, ast, index, env) = setup_interface_check(
+            r#"
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Fake() : Continuation<Int, Unit, eff Pure> {
+    fun resume(value: Int): Unit / Raise<RuntimeError> {
+        return
+    }
+}
+"#,
+        );
+
+        let err = check_file_interfaces(&source, &ast, &index, &env)
+            .expect_err("用户代码不应允许实现 Continuation");
+
+        assert!(matches!(
+            err,
+            InterfaceError::ContinuationImplNotAllowed { .. }
+        ));
+    }
 }

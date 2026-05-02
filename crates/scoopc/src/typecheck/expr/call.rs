@@ -2234,6 +2234,12 @@ pub(super) fn infer_call_expr_type(
                     return Ok(ctor_ty);
                 }
 
+                if resolves_to_compiler_owned_continuation_type(callee_name, id.span, lower) {
+                    return Err(ExprTypeError::ContinuationNotConstructible {
+                        span: call_expr.span.into(),
+                    });
+                }
+
                 return Err(ExprTypeError::CalleeNotCallable {
                     callee: callee_name.to_string(),
                     span: id.span.into(),
@@ -2788,8 +2794,9 @@ pub(super) fn infer_call_expr_type(
 
             // 多候选：先按形参映射过滤，再对剩余候选尝试泛型/eff 推断（T0512）。
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            let synthesized_unit_args =
-                args.is_empty().then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+            let synthesized_unit_args = args
+                .is_empty()
+                .then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
             let sugar_call_args = if let Some(synthesized_args) = synthesized_unit_args.as_ref() {
                 Some(collect_call_arg_infos(inputs, synthesized_args, lower)?)
             } else {
@@ -3196,7 +3203,8 @@ pub(super) fn infer_call_expr_type(
                         .iter()
                         .filter(|b| matches!(b, ParamArgBinding::Default))
                         .count();
-                    let mut expected_arg_tys = vec![builtins.nothing; call_args_for_candidate.len()];
+                    let mut expected_arg_tys =
+                        vec![builtins.nothing; call_args_for_candidate.len()];
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                         expected_arg_tys[arg_idx] = instantiated.params[param_idx];
                     }
@@ -4089,6 +4097,18 @@ fn infer_nominal_constructor_call_expr_type(
     Ok(Some(ty))
 }
 
+fn resolves_to_compiler_owned_continuation_type(
+    callee_name: &str,
+    use_span: Span,
+    lower: &TypeLowering<'_>,
+) -> bool {
+    lower
+        .resolve_type_path_fqn_by_name(&[callee_name.to_string()], use_span)
+        .ok()
+        .as_deref()
+        == Some("scoop.core.Continuation")
+}
+
 fn lookup_enum_variant_decl_data(
     source: &SourceFile,
     lower: &TypeLowering<'_>,
@@ -4776,11 +4796,8 @@ pub(super) fn infer_effect_op_call_expr_type(
         lower,
     );
     let synthesized_args = used_unit_sugar.then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
-    let call_args = collect_call_arg_infos(
-        inputs,
-        synthesized_args.as_deref().unwrap_or(args),
-        lower,
-    )?;
+    let call_args =
+        collect_call_arg_infos(inputs, synthesized_args.as_deref().unwrap_or(args), lower)?;
     check_call_arg_named_rules(&callee_fqn, &call_args)?;
     check_call_named_args_exist_in_any_candidate(
         &callee_fqn,
@@ -4947,11 +4964,8 @@ fn try_infer_continuation_resume_call_expr_type(
         lower,
     );
     let synthesized_args = used_unit_sugar.then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
-    let call_args = collect_call_arg_infos(
-        inputs,
-        synthesized_args.as_deref().unwrap_or(args),
-        lower,
-    )?;
+    let call_args =
+        collect_call_arg_infos(inputs, synthesized_args.as_deref().unwrap_or(args), lower)?;
     if call_args.iter().any(|arg| arg.is_spread) {
         let span = call_args
             .iter()
@@ -5844,8 +5858,9 @@ fn infer_member_call_expr_type(
             // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
             // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            let synthesized_unit_args =
-                args.is_empty().then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+            let synthesized_unit_args = args
+                .is_empty()
+                .then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
             let sugar_call_args = if let Some(synthesized_args) = synthesized_unit_args.as_ref() {
                 Some(collect_call_arg_infos(inputs, synthesized_args, lower)?)
             } else {
@@ -5999,7 +6014,9 @@ fn infer_member_call_expr_type(
                     match binding {
                         ParamArgBinding::Default => {}
                         ParamArgBinding::Single(arg_idx) => {
-                            if call_args_for_candidate.get(*arg_idx).is_some_and(|a| a.is_spread)
+                            if call_args_for_candidate
+                                .get(*arg_idx)
+                                .is_some_and(|a| a.is_spread)
                             {
                                 ok = false;
                                 break;
@@ -6331,12 +6348,7 @@ fn infer_member_call_expr_type(
             } else {
                 call_args_with_receiver.clone()
             };
-            check_var_param_lvalue_gate(
-                fqn,
-                chosen.sig,
-                &chosen_call_args,
-                &chosen.mapping,
-            )?;
+            check_var_param_lvalue_gate(fqn, chosen.sig, &chosen_call_args, &chosen.mapping)?;
 
             // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
             let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
@@ -6720,7 +6732,9 @@ fn infer_member_call_expr_type(
     // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
     // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
-    let synthesized_unit_args = args.is_empty().then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+    let synthesized_unit_args = args
+        .is_empty()
+        .then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
     let sugar_call_args = if let Some(synthesized_args) = synthesized_unit_args.as_ref() {
         Some(collect_call_arg_infos(inputs, synthesized_args, lower)?)
     } else {
@@ -6820,13 +6834,11 @@ fn infer_member_call_expr_type(
         }
 
         let mapping: Vec<ParamArgBinding> = if !has_vararg {
-            let Some(mapping) =
-                map_call_args_to_params_with_defaults(
-                    effective_call_args,
-                    param_names,
-                    param_has_defaults,
-                )
-            else {
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                effective_call_args,
+                param_names,
+                param_has_defaults,
+            ) else {
                 return Err(ExprTypeError::NoMatchingOverload {
                     callee: callee_fqn,
                     span: call_expr.span.into(),
@@ -6978,8 +6990,7 @@ fn infer_member_call_expr_type(
         }
 
         // 先在"期望类型语境"下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
-        let mut checked_arg_tys: Vec<TypeId> =
-            effective_call_args.iter().map(|a| a.ty).collect();
+        let mut checked_arg_tys: Vec<TypeId> = effective_call_args.iter().map(|a| a.ty).collect();
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
             let arg = &effective_call_args[arg_idx];

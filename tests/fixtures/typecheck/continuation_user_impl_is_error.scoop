@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::continuation_impl_not_allowed
+// EXPECT-ERROR: compiler-owned interface
+// EXPECT-ERROR-AT: 11:16
+// 目标：P2-T03 `Continuation` 虽然源码可见，但必须保持 compiler-owned；用户代码不能实现/继承它。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Fake() : Continuation<Int, Unit, eff Pure> {
+    fun resume(value: Int): Unit / Raise<RuntimeError> {
+        return
+    }
+}
