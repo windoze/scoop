@@ -1060,7 +1060,7 @@
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_late_opt_devirt`、`cargo test -p scoopc --no-default-features refactor_late_opt_inline`、`cargo test -p scoopc --no-default-features refactor_late_opt_dce`、`cargo test -p scoopc --no-default-features refactor_late_opt_preserves_contract`、`cargo test -p scoopc --no-default-features refactor_late_opt`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_step_materialization`、`cargo test -p scoopc --no-default-features refactor_boundary_lowering`、`cargo test -p scoopc --no-default-features refactor_continuation_object`、`cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`、`cargo fmt --all --check`。
   - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
-## P5-T06R：Review late-lowered 后处理，确认它只做抽象层收缩，不重新回到高层 effect 分析
+## [DONE] P5-T06R：Review late-lowered 后处理，确认它只做抽象层收缩，不重新回到高层 effect 分析
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.5, §5.5.7, §8
@@ -1087,7 +1087,12 @@
   - 可进入 P5-T07。
 - 依赖：P5-T06
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：完成 `P5-T06R`。按任务要求复核了 `crates/scoopc/src/effect_lowered/opt.rs`、`crates/scoopc/src/effect_lowered/materialize.rs` 与 `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs`。确认正式 stage 仍然严格执行 `LateLoweredProgramBuilder::from_canonical_inputs(...).build()?` 后再调用 `optimize_program(...)`，late opt pass 本身只消费 `LateLoweredProgram`，不会回读 HIR/typecheck/P3 MIR，也不会重新驱动 P4 facts solver、segmentation 或 `ImplPlan` 选择。
+  - review 过程中发现并修复了一个直接回归：post-opt DCE 原先只从 `entry_state` 做普通 CFG 可达性，导致通过 continuation runtime contract 进入、但不出现在普通 successor 集合中的 dedicated `drop_state` 会被误删，从而破坏 `P5-T04` 已冻结的 dropped-continuation contract。现已在 `crates/scoopc/src/effect_lowered/opt.rs` 中把 `drop_state` 纳入活跃状态根集合，确保后处理仍保留 dedicated `Drop` path，而不是把它当作死状态清理掉。
+  - 为锁定该合同，新增 stage 级测试 `refactor_late_opt_preserves_dedicated_drop_state_paths`：它通过 `load_effect_lowered_stage_output_for_dump(...)` 验证 post-opt final 输出仍保留 dedicated `Drop` state，且 `Suspend` terminator 的 `cleanup_state` 与 `drop_state` 继续显式分离。
+  - 额外搜索 `rg "resolved_outward_cases|needs_reentry|impl_plan|segment|solver|SCC" crates/scoopc/src/effect_lowered/opt.rs crates/scoopc/src/effect_lowered` 后确认：`opt.rs` 中相关命中仅用于保留既有 contract、注释或测试断言；未发现 late opt pass 重跑 solver、重新切 segmentation，或改写 `ImplPlan` 的实现路径。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_late_opt`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_late_opt_devirt`、`cargo test -p scoopc --no-default-features refactor_late_opt_inline`、`cargo test -p scoopc --no-default-features refactor_late_opt_dce`、`cargo test -p scoopc --no-default-features refactor_late_opt_preserves_contract`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_step_materialization`、`cargo test -p scoopc --no-default-features refactor_boundary_lowering`、`cargo test -p scoopc --no-default-features refactor_continuation_object`、`cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`、`cargo fmt --all --check`。
+  - 结论：P5 late opt 仍然只是对 late-lowered representation 做窄收缩，不是第二套 effect lowering；在补齐 dedicated drop-path 保留后，可进入 `P5-T07`。`PLAN.md` 无需改动。
 
 ## P5-T07：新增 `dump-effect-lowered` / snapshot 基线，并冻结 P5 -> P6 handoff contract
 

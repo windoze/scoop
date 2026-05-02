@@ -332,6 +332,11 @@ fn rewrite_state_graph(
         .map(|state| rewrite_state(state, redirects))
         .collect::<Vec<_>>();
     let mut live_states = reachable_states(state_graph.entry_state(), &rewritten_states);
+    // `drop_state` is entered via the continuation runtime contract rather than an ordinary CFG
+    // successor edge, so DCE must seed reachability from it explicitly.
+    if let Some(drop_state) = state_graph.drop_state() {
+        live_states.extend(reachable_states(drop_state, &rewritten_states));
+    }
     live_states.insert(state_graph.complete_state());
 
     let states = rewritten_states
@@ -1209,5 +1214,44 @@ mod tests {
         assert_eq!(leaf.resume_interfaces().len(), 1);
         assert_eq!(continuation_object.methods().len(), 1);
         assert_eq!(continuation_object.surface_resumes().len(), 2);
+    }
+
+    #[test]
+    fn refactor_late_opt_preserves_dedicated_drop_state_paths() {
+        let session = refactor_session();
+        let source = load_fixture(
+            "effect_lowered_src",
+            "dropped_continuation_abandons_remaining_work.scoop",
+        );
+        let output = load_effect_lowered_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 refactor late-lowering stage");
+        let callable = output
+            .program()
+            .callable("sample.helper")
+            .expect("stage output 应保留 sample.helper callable shell");
+        let drop_state = callable
+            .state_graph()
+            .drop_state()
+            .expect("post-opt output 仍应保留 dedicated drop state");
+        let drop_node = callable
+            .state_graph()
+            .state(drop_state)
+            .expect("drop state 应可回查");
+
+        assert_eq!(drop_node.role(), LateLoweredStateRole::Drop);
+        assert!(matches!(
+            drop_node.terminator(),
+            LateLoweredStateTerminator::Abandon
+        ));
+        assert!(callable.state_graph().states().iter().any(|state| {
+            matches!(
+                state.terminator(),
+                LateLoweredStateTerminator::Suspend {
+                    cleanup_state: Some(cleanup_state),
+                    drop_state: Some(explicit_drop_state),
+                    ..
+                } if *cleanup_state != drop_state && *explicit_drop_state == drop_state
+            )
+        }));
     }
 }

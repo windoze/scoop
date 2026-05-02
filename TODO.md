@@ -62,7 +62,7 @@
 | `P5-T05` | `TODO-P5.md` | [DONE] 物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering |
 | `P5-T05R` | `TODO-P5.md` | [DONE] Review `Step` / continuation 物化结果，确认没有第二套 ABI、没有 TLS 依赖、没有删减接口方法 |
 | `P5-T06` | `TODO-P5.md` | [DONE] 在 late-lowered representation 上加入窄的 devirtualization / inlining / DCE 后处理 |
-| `P5-T06R` | `TODO-P5.md` | Review late-lowered 后处理，确认它只做抽象层收缩，不重新回到高层 effect 分析 |
+| `P5-T06R` | `TODO-P5.md` | [DONE] Review late-lowered 后处理，确认它只做抽象层收缩，不重新回到高层 effect 分析 |
 | `P5-T07` | `TODO-P5.md` | 新增 `dump-effect-lowered` / snapshot 基线，并冻结 P5 -> P6 handoff contract |
 | `P5-T07R` | `TODO-P5.md` | Review P5 阶段退出条件，确认 P6 只需把 late-lowered representation 翻译到 LLVM |
 | `P6-T01` | `TODO-P6.md` | 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
