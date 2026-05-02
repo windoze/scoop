@@ -175,7 +175,11 @@
   - 可进入 P4-T02。
 - 依赖：P4-T01
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P4-T01R` review，未发现需要在 `P4-T02` 前补入的新前置缺陷；最近一次提交 `[P4-T01] Add refactor effect-facts stage boundary` 与本 review 直接相关，但未显式留下需要追加跟踪的未完成事项。
+  - facts stage / 子系统边界复核结论：`crates/scoopc/src/effect_facts/{mod,builder,dump,facts,schema,solver}.rs` 已形成独立的 P4 facts 模块树，`crates/scoopc/src/lib.rs` 也已把 `effect_facts` 暴露为正式模块入口；`crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 中 `RefactorEffectFactsStageOutput` 继续以 `RefactorMirStageOutput` 为显式输入，并把 `MaterializedMir::pass_view()` 固定为当前 canonical MIR 查询面，同时将 `MaterializedEffectFacts` 收口为 P5 唯一允许消费的 authoritative effect contract。
+  - legacy 容器隔离复核结论：`crates/scoopc/src/program_facts.rs` 仍只承载旧的 HIR/program facts side tables，`crates/scoopc/src/mir/summary.rs` 仍只维护 `InstanceSummary` / `may_outward_effect` 等 legacy MIR summary，`crates/scoopc/src/effect/analysis.rs` 仍只承载 legacy/shared effect analysis context；未发现把 `MaterializedEffectFacts`、`StepSchema`、`ContinuationSchema`、`resolved_outward_cases`、`impl_plan` 直接塞进这些 legacy 容器或业务实现的情况。
+  - 搜索摘要：执行 `rg "MaterializedEffectFacts|StepSchema|ContinuationSchema|resolved_outward_cases|impl_plan" crates/scoopc/src` 后，命中集中在新的 `effect_facts` 子系统、`effect_refactor_pipeline/effect_facts_stage.rs`，以及 `mir_stage.rs` 中说明 P3 尚未提供这些 P4 产物的 handoff 注释；`program_facts.rs`、`mir/summary.rs`、`effect/analysis.rs` 无相关命中，说明新 facts 术语尚未渗入 legacy 容器。
+  - 复验通过：`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P4-T02：落地 schema identity、canonical schema pool 与 callable-level facts 壳层
 
