@@ -1,0 +1,12 @@
+package fixtures.mir_refactor
+
+import scoop.core.*
+
+fun takesUnit(value: Unit) {}
+
+fun resumeUnit(k: Continuation<Unit, Unit, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume()
+    k.resume(())
+    takesUnit()
+    takesUnit(())
+}

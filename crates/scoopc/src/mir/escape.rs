@@ -671,6 +671,11 @@ mod tests {
                             continuation: Operand::Local(continuation),
                             resume: ResumeMetadata {
                                 continuation_ty,
+                                resume_ty: builtins.unit,
+                                answer_ty: builtins.unit,
+                                return_ty: builtins.unit,
+                                out_effects: crate::ty::EffectRow::pure(),
+                                runtime_error_effect_ty: None,
                                 suspends_outward: false,
                             },
                         },

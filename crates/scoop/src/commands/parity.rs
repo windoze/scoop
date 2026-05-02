@@ -253,8 +253,32 @@ fn dump_hir_cli_legacy_and_refactor_both_succeed_after_typed_split() {
 }
 
 #[test]
-fn dump_mir_cli_parity_matches_legacy_and_refactor() {
-    assert_dump_cli_parity("dump-mir", "tests/fixtures/mir/handle_perform.scoop");
+fn dump_mir_cli_legacy_and_refactor_both_succeed_after_refactor_contract_split() {
+    // P3 起，refactor `dump-mir` 会显式携带 richer MIR metadata，因此这里不再要求 stdout parity。
+    let fixture = workspace_path("tests/fixtures/mir/handle_perform.scoop");
+    let legacy = observe_dump_cli(dump_cli_args("legacy", "dump-mir", &fixture));
+    let refactor = observe_dump_cli(dump_cli_args("refactor", "dump-mir", &fixture));
+
+    assert_eq!(
+        legacy.success,
+        refactor.success,
+        "dump-mir 在 legacy/refactor 下退出状态不一致（fixture: {}）",
+        fixture.display()
+    );
+    assert_eq!(
+        legacy.stderr,
+        refactor.stderr,
+        "dump-mir 在 legacy/refactor 下 stderr 不一致（fixture: {}）",
+        fixture.display()
+    );
+    assert!(
+        !legacy.stdout.is_empty(),
+        "legacy dump-mir 应继续为代表性 perform/handle fixture 产出输出"
+    );
+    assert!(
+        !refactor.stdout.is_empty(),
+        "refactor dump-mir 应继续为代表性 perform/handle fixture 产出 richer MIR 输出"
+    );
 }
 
 #[test]

@@ -13,17 +13,19 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
+use crate::effect_refactor_pipeline::{HandleArmContractKind, TypedHirEffectContracts};
 use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::ty::{BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use super::{
     BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
-    HandlerArm, Item, LocalDecl, LocalId, MemberAccessMetadata, MemberTarget, Operand, Param,
-    Pattern, PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, SiteId,
-    Statement, StatementKind, Terminator, TerminatorKind, TopLevelRef, UnwindAction,
+    HandleMetadata, HandlerArm, HandlerArmKind, Item, LocalDecl, LocalId, MemberAccessMetadata,
+    MemberTarget, Operand, Param, Pattern, PatternBindingStep, PerformArg, PerformMetadata,
+    ResumeMetadata, Rvalue, SiteId, Statement, StatementKind, Terminator, TerminatorKind,
+    TopLevelRef, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -37,6 +39,9 @@ pub(crate) struct MirLoweringFacts {
     continuation_resume_call_spans: HashSet<Span>,
     non_pure_continuation_resume_call_spans: HashSet<Span>,
     effect_op_call_sites: HashMap<Span, PerformCallSiteInfo>,
+    refactor_resume_sites: HashMap<hir::CallSite, ResumeMetadata>,
+    refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
+    refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
 }
@@ -51,6 +56,12 @@ enum DispatchTargetKind {
 struct PerformCallSiteInfo {
     arg_mapping: Vec<usize>,
     payload_tuple_ty: Option<TypeId>,
+}
+
+#[derive(Debug, Clone)]
+struct RefactorHandleSiteInfo {
+    metadata: HandleMetadata,
+    arms: Vec<HandlerArm>,
 }
 
 impl MirLoweringFacts {
@@ -128,6 +139,72 @@ impl MirLoweringFacts {
         self
     }
 
+    pub(crate) fn with_refactor_typed_contracts(
+        mut self,
+        contracts: &TypedHirEffectContracts,
+    ) -> Self {
+        for (call_site, contract) in contracts.continuation_resume_sites() {
+            self.refactor_resume_sites.insert(
+                call_site.clone(),
+                ResumeMetadata {
+                    continuation_ty: contract.receiver_ty(),
+                    resume_ty: contract.resume_ty(),
+                    answer_ty: contract.answer_ty(),
+                    return_ty: contract.return_ty(),
+                    out_effects: contract.out_effects().clone(),
+                    runtime_error_effect_ty: contract.runtime_error_effect_ty(),
+                    suspends_outward: !contract.out_effects().is_pure(),
+                },
+            );
+        }
+
+        for (call_site, contract) in contracts.perform_sites() {
+            self.refactor_perform_sites.insert(
+                call_site.clone(),
+                PerformMetadata {
+                    effect_ty: contract.effect_ty(),
+                    payload_tuple_ty: contract.payload().ty(),
+                    payload_component_tys: contract.payload().components().to_vec(),
+                    arg_mapping: contract.arg_mapping().to_vec(),
+                },
+            );
+        }
+
+        for (call_site, contract) in contracts.handle_sites() {
+            let arms = contract
+                .arm_contracts()
+                .iter()
+                .map(|arm| HandlerArm {
+                    op_fqn: arm.op_fqn().to_string(),
+                    binder_count: arm.payload().components().len(),
+                    handled_effect_ty: arm.handled_effect_ty(),
+                    payload_tuple_ty: arm.payload().ty(),
+                    payload_component_tys: arm.payload().components().to_vec(),
+                    body_ty: arm.body_ty(),
+                    kind: match arm.kind() {
+                        HandleArmContractKind::NonResuming => HandlerArmKind::NonResuming,
+                        HandleArmContractKind::EscapeContinuation => {
+                            HandlerArmKind::EscapeContinuation
+                        }
+                    },
+                })
+                .collect();
+            self.refactor_handle_sites.insert(
+                call_site.clone(),
+                RefactorHandleSiteInfo {
+                    metadata: HandleMetadata {
+                        result_ty: contract.result_ty(),
+                        body_result_ty: contract.body_result_ty(),
+                        finally_result_ty: contract.finally_result_ty(),
+                    },
+                    arms,
+                },
+            );
+        }
+
+        self
+    }
+
     fn dispatch_target_kind(
         &self,
         source_path: &std::path::Path,
@@ -162,6 +239,33 @@ impl MirLoweringFacts {
 
     fn perform_call_site_info(&self, span: Span) -> Option<&PerformCallSiteInfo> {
         self.effect_op_call_sites.get(&span)
+    }
+
+    fn refactor_resume_metadata(
+        &self,
+        source_path: &std::path::Path,
+        span: Span,
+    ) -> Option<&ResumeMetadata> {
+        self.refactor_resume_sites
+            .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+    }
+
+    fn refactor_perform_metadata(
+        &self,
+        source_path: &std::path::Path,
+        span: Span,
+    ) -> Option<&PerformMetadata> {
+        self.refactor_perform_sites
+            .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+    }
+
+    fn refactor_handle_site_info(
+        &self,
+        source_path: &std::path::Path,
+        span: Span,
+    ) -> Option<&RefactorHandleSiteInfo> {
+        self.refactor_handle_sites
+            .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
 
     fn when_pat_binding_ty(&self, span: Span) -> Option<TypeId> {
@@ -1245,6 +1349,32 @@ impl<'a> FnLowering<'a> {
         span: Span,
         lowered_args: Vec<CallArg>,
     ) -> (Vec<PerformArg>, PerformMetadata) {
+        if let Some(metadata) = self
+            .facts
+            .refactor_perform_metadata(self.source_path.as_path(), span)
+            .filter(|metadata| {
+                metadata
+                    .arg_mapping
+                    .iter()
+                    .all(|idx| *idx < lowered_args.len())
+            })
+            .cloned()
+        {
+            let perform_args = metadata
+                .arg_mapping
+                .iter()
+                .copied()
+                .filter_map(|arg_idx| lowered_args.get(arg_idx).map(|arg| (arg_idx, arg)))
+                .map(|(source_arg_index, arg)| PerformArg {
+                    span: arg.span,
+                    source_arg_index,
+                    name: arg.name.clone(),
+                    value: arg.value.clone(),
+                })
+                .collect::<Vec<_>>();
+            return (perform_args, metadata);
+        }
+
         let info = self.facts.perform_call_site_info(span);
         let arg_mapping = info
             .map(|site| site.arg_mapping.as_slice())
@@ -1275,11 +1405,18 @@ impl<'a> FnLowering<'a> {
             })
         });
 
+        let payload_component_tys = perform_args
+            .iter()
+            .map(|arg| self.operand_ty(&arg.value))
+            .collect();
+
         (
             perform_args,
             PerformMetadata {
                 effect_ty: self.builtins.any,
                 payload_tuple_ty,
+                payload_component_tys,
+                arg_mapping,
             },
         )
     }
@@ -1293,8 +1430,17 @@ impl<'a> FnLowering<'a> {
     ) -> LocalId {
         let result = self.push_temp_local(span, ty);
 
+        if let Some(resume_metadata) = self
+            .facts
+            .refactor_resume_metadata(self.source_path.as_path(), span)
+            .cloned()
+        {
+            self.lower_resume_call_expr(span, result, callee, args, Some(resume_metadata));
+            return result;
+        }
+
         if self.facts.is_continuation_resume_call(span) {
-            self.lower_resume_call_expr(span, result, callee, args);
+            self.lower_resume_call_expr(span, result, callee, args, None);
             return result;
         }
 
@@ -1366,10 +1512,22 @@ impl<'a> FnLowering<'a> {
         result: LocalId,
         callee: &hir::Expr,
         args: &[hir::CallArg],
+        resume_metadata: Option<ResumeMetadata>,
     ) {
-        let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind else {
-            self.assign(span, result, Rvalue::Todo("resume callee lowering pending"));
-            return;
+        let (receiver, payload_args) = match &callee.kind {
+            hir::ExprKind::MemberAccess { receiver, .. } => (receiver.as_ref(), args),
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
+                let Some((hir::CallArg::Positional(receiver), payload_args)) = args.split_first()
+                else {
+                    self.assign(span, result, Rvalue::Todo("resume callee lowering pending"));
+                    return;
+                };
+                (receiver, payload_args)
+            }
+            _ => {
+                self.assign(span, result, Rvalue::Todo("resume callee lowering pending"));
+                return;
+            }
         };
 
         let continuation_local = self.lower_expr_to_local(receiver);
@@ -1377,10 +1535,27 @@ impl<'a> FnLowering<'a> {
             return;
         }
 
-        let Some(args) = self.lower_call_args(args) else {
+        let Some(args) = self.lower_call_args(payload_args) else {
             return;
         };
         let continuation_ty = self.body.locals[continuation_local.as_u32() as usize].ty;
+        let resume = resume_metadata.unwrap_or_else(|| {
+            let (resume_ty, answer_ty, out_effects) = continuation_contract_from_type(
+                self.types,
+                continuation_ty,
+            )
+            .unwrap_or((self.builtins.any, self.builtins.any, EffectRow::pure()));
+            ResumeMetadata {
+                continuation_ty,
+                resume_ty,
+                answer_ty,
+                return_ty: self.body.locals[result.as_u32() as usize].ty,
+                out_effects: out_effects.clone(),
+                runtime_error_effect_ty: find_raise_runtime_error_effect(self.types),
+                suspends_outward: !out_effects.is_pure()
+                    || self.facts.continuation_resume_suspends_outward(span),
+            }
+        });
         let site_id = self.fresh_site_id();
         self.assign(
             span,
@@ -1389,10 +1564,7 @@ impl<'a> FnLowering<'a> {
                 site_id,
                 kind: CallKind::Resume {
                     continuation: Operand::Local(continuation_local),
-                    resume: ResumeMetadata {
-                        continuation_ty,
-                        suspends_outward: self.facts.continuation_resume_suspends_outward(span),
-                    },
+                    resume,
                 },
                 args,
             },
@@ -1560,14 +1732,12 @@ impl<'a> FnLowering<'a> {
         let result = self.push_temp_local(span, ty);
         self.assign(span, result, Rvalue::Todo("handle result pending"));
 
-        let arms = handle
-            .arms
-            .iter()
-            .map(|arm| HandlerArm {
-                op_fqn: arm.op.op.fqn.clone(),
-                binder_count: arm.op.binders.len(),
-            })
-            .collect();
+        let (metadata, arms) = self
+            .facts
+            .refactor_handle_site_info(self.source_path.as_path(), span)
+            .cloned()
+            .map(|site| (site.metadata, site.arms))
+            .unwrap_or_else(|| self.lower_handle_contract_from_hir(ty, handle));
 
         let body_bb = self.push_block(handle.body.span);
         let arm_bbs = handle
@@ -1586,6 +1756,7 @@ impl<'a> FnLowering<'a> {
             span,
             TerminatorKind::Handle {
                 site_id,
+                metadata,
                 arms,
                 has_finally: handle.finally.is_some(),
                 body_target: body_bb,
@@ -1632,6 +1803,52 @@ impl<'a> FnLowering<'a> {
         self.current_bb = outer_bb;
 
         result
+    }
+
+    fn lower_handle_contract_from_hir(
+        &mut self,
+        result_ty: TypeId,
+        handle: &hir::HandleExpr,
+    ) -> (HandleMetadata, Vec<HandlerArm>) {
+        let arms = handle
+            .arms
+            .iter()
+            .map(|arm| {
+                let payload_component_tys = arm
+                    .op
+                    .binders
+                    .iter()
+                    .map(|binder| binder.ty)
+                    .collect::<Vec<_>>();
+                let payload_tuple_ty = payload_tuple_ty_from_components(
+                    self.types,
+                    self.builtins.unit,
+                    &payload_component_tys,
+                );
+                HandlerArm {
+                    op_fqn: arm.op.op.fqn.clone(),
+                    binder_count: arm.op.binders.len(),
+                    handled_effect_ty: arm.op.effect_ty,
+                    payload_tuple_ty,
+                    payload_component_tys,
+                    body_ty: arm.body.ty,
+                    kind: match arm.kind {
+                        hir::HandleArmKind::NonResuming => HandlerArmKind::NonResuming,
+                        hir::HandleArmKind::EscapeContinuation { .. } => {
+                            HandlerArmKind::EscapeContinuation
+                        }
+                    },
+                }
+            })
+            .collect();
+        (
+            HandleMetadata {
+                result_ty,
+                body_result_ty: handle.body.ty,
+                finally_result_ty: handle.finally.as_ref().map(|finally| finally.ty),
+            },
+            arms,
+        )
     }
 
     /// 降低字面量：把常量写入一个临时 local。
@@ -2204,6 +2421,56 @@ impl<'a> FnLowering<'a> {
         self.current_bb = merge_bb;
         result
     }
+}
+
+fn payload_tuple_ty_from_components(
+    types: &mut TypeStore,
+    unit_ty: TypeId,
+    components: &[TypeId],
+) -> Option<TypeId> {
+    match components {
+        [] => Some(unit_ty),
+        [single] => Some(*single),
+        _ => Some(types.ty_tuple(components.to_vec())),
+    }
+}
+
+fn continuation_contract_from_type(
+    types: &TypeStore,
+    continuation_ty: TypeId,
+) -> Option<(TypeId, TypeId, EffectRow)> {
+    let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(continuation_ty) else {
+        return None;
+    };
+    if nominal.fqn != "scoop.core.Continuation" || nominal.args.len() < 2 {
+        return None;
+    }
+    Some((
+        nominal.args[0],
+        nominal.args[1],
+        nominal.eff.clone().unwrap_or_else(EffectRow::pure),
+    ))
+}
+
+fn find_raise_runtime_error_effect(types: &TypeStore) -> Option<TypeId> {
+    let runtime_error_ty = types.iter_ids().find(|&id| {
+        matches!(
+            types.kind(id),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.RuntimeError"
+        ) || matches!(
+            types.kind(id),
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.RuntimeError"
+        )
+    })?;
+    types.iter_ids().find(|&id| {
+        matches!(
+            types.kind(id),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.Raise"
+                    && nominal.args.as_slice() == [runtime_error_ty]
+        )
+    })
 }
 
 fn boxed_symbols_in_block(block: &hir::Block) -> HashSet<hir::SymbolId> {

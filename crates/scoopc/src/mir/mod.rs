@@ -30,7 +30,7 @@ use std::fmt;
 
 use crate::ast;
 use crate::span::Span;
-use crate::ty::TypeId;
+use crate::ty::{EffectRow, TypeId};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
@@ -504,6 +504,8 @@ pub struct PerformArg {
 pub struct PerformMetadata {
     pub effect_ty: TypeId,
     pub payload_tuple_ty: Option<TypeId>,
+    pub payload_component_tys: Vec<TypeId>,
+    pub arg_mapping: Vec<usize>,
 }
 
 /// virtual / interface dispatch 在 MIR 上保留的最小语言级 metadata。
@@ -521,12 +523,33 @@ pub struct DispatchMetadata {
 /// `Continuation.resume(...)` 在 MIR 上保留的最小语义 metadata。
 ///
 /// 注意：
-/// - 这里只保留 continuation 的静态类型与“resumed body 是否仍可能 outward suspend”；
+/// - 当前会显式记录 `ResumeTuple` / `Answer` / `Out`，以及 ordinary `Raise<RuntimeError>`
+///   required-effect contract；
 /// - runtime replay token / payload transport 等细节仍属于更晚的 lowering 阶段。
 #[derive(Debug, Clone)]
 pub struct ResumeMetadata {
     pub continuation_ty: TypeId,
+    pub resume_ty: TypeId,
+    pub answer_ty: TypeId,
+    pub return_ty: TypeId,
+    pub out_effects: EffectRow,
+    pub runtime_error_effect_ty: Option<TypeId>,
     pub suspends_outward: bool,
+}
+
+/// `handle { ... } with { ... }` 站点在 MIR 上保留的 typed contract。
+#[derive(Debug, Clone)]
+pub struct HandleMetadata {
+    pub result_ty: TypeId,
+    pub body_result_ty: TypeId,
+    pub finally_result_ty: Option<TypeId>,
+}
+
+/// `handle` arm 在 MIR 上的显式语义 kind。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandlerArmKind {
+    NonResuming,
+    EscapeContinuation,
 }
 
 /// MIR 上显式区分的调用种类。
@@ -754,6 +777,7 @@ pub enum TerminatorKind {
     /// 仍会把 handle 展开为完整的 cleanup/handler 栈管理。
     Handle {
         site_id: SiteId,
+        metadata: HandleMetadata,
         arms: Vec<HandlerArm>,
         has_finally: bool,
         body_target: BasicBlockId,
@@ -769,6 +793,11 @@ pub enum TerminatorKind {
 pub struct HandlerArm {
     pub op_fqn: String,
     pub binder_count: usize,
+    pub handled_effect_ty: TypeId,
+    pub payload_tuple_ty: Option<TypeId>,
+    pub payload_component_tys: Vec<TypeId>,
+    pub body_ty: TypeId,
+    pub kind: HandlerArmKind,
 }
 
 impl TerminatorKind {
@@ -975,6 +1004,8 @@ mod tests {
                     metadata: PerformMetadata {
                         effect_ty: builtins.unit,
                         payload_tuple_ty: None,
+                        payload_component_tys: Vec::new(),
+                        arg_mapping: Vec::new(),
                     },
                     args: Vec::new(),
                 },

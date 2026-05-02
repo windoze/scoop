@@ -32,8 +32,8 @@ use crate::typecheck::{
 };
 
 use super::{
-    Body, CallArg, CallKind, ConstValue, DeclOnlySummaryInput, File, FunDecl, HandlerArm,
-    InstanceRootSummaryInput, Item, LocalDecl, MaterializedCallableFamilies,
+    Body, CallArg, CallKind, ConstValue, DeclOnlySummaryInput, File, FunDecl, HandleMetadata,
+    HandlerArm, InstanceRootSummaryInput, Item, LocalDecl, MaterializedCallableFamilies,
     MaterializedCallableFamilyInput, MaterializedMirPassArtifacts, MaterializedMirSummaries,
     MemberAccessMetadata, MemberTarget, Operand, Pattern, PerformMetadata, Rvalue, Statement,
     StatementKind, Terminator, TerminatorKind, TopLevelRef, build_materialized_summary_table,
@@ -3419,9 +3419,10 @@ impl MirInstanceMaterializer {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
             }
-            TerminatorKind::Handle { arms, .. } => {
+            TerminatorKind::Handle { metadata, arms, .. } => {
+                self.rewrite_handle_metadata(metadata, ctx.substitution);
                 for arm in arms {
-                    self.rewrite_handler_arm(arm);
+                    self.rewrite_handler_arm(arm, ctx.substitution);
                 }
             }
             TerminatorKind::CondBr { cond, .. } => {
@@ -3438,7 +3439,34 @@ impl MirInstanceMaterializer {
         Ok(())
     }
 
-    fn rewrite_handler_arm(&mut self, _arm: &mut HandlerArm) {}
+    fn rewrite_handle_metadata(
+        &mut self,
+        metadata: &mut HandleMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        metadata.result_ty =
+            substitute_type_and_effect_params(&mut self.types, metadata.result_ty, substitution);
+        metadata.body_result_ty = substitute_type_and_effect_params(
+            &mut self.types,
+            metadata.body_result_ty,
+            substitution,
+        );
+        metadata.finally_result_ty = metadata
+            .finally_result_ty
+            .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
+    }
+
+    fn rewrite_handler_arm(&mut self, arm: &mut HandlerArm, substitution: &InstanceSubstitution) {
+        arm.handled_effect_ty =
+            substitute_type_and_effect_params(&mut self.types, arm.handled_effect_ty, substitution);
+        arm.payload_tuple_ty = arm
+            .payload_tuple_ty
+            .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
+        for ty in &mut arm.payload_component_tys {
+            *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
+        }
+        arm.body_ty = substitute_type_and_effect_params(&mut self.types, arm.body_ty, substitution);
+    }
 
     fn rewrite_rvalue(
         &mut self,
@@ -3649,6 +3677,29 @@ impl MirInstanceMaterializer {
                     resume.continuation_ty,
                     ctx.substitution,
                 );
+                resume.resume_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    resume.resume_ty,
+                    ctx.substitution,
+                );
+                resume.answer_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    resume.answer_ty,
+                    ctx.substitution,
+                );
+                resume.return_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    resume.return_ty,
+                    ctx.substitution,
+                );
+                resume.out_effects = substitute_type_and_effect_params_in_effect_row(
+                    &mut self.types,
+                    &resume.out_effects,
+                    ctx.substitution,
+                );
+                resume.runtime_error_effect_ty = resume.runtime_error_effect_ty.map(|ty| {
+                    substitute_type_and_effect_params(&mut self.types, ty, ctx.substitution)
+                });
             }
         }
         Ok(())
@@ -3896,6 +3947,9 @@ impl MirInstanceMaterializer {
         metadata.payload_tuple_ty = metadata
             .payload_tuple_ty
             .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
+        for ty in &mut metadata.payload_component_tys {
+            *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
+        }
     }
 
     fn rewrite_operand(&mut self, operand: Operand) -> Operand {
