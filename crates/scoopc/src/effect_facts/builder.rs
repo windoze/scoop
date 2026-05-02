@@ -1542,11 +1542,13 @@ fn collect_callable_seeds(
         {
             continue;
         }
-        let root_fun = family
-            .root_body()
-            .ok_or_else(|| EffectFactsError::MissingCallableRoot {
-                fqn: family.root_fqn().to_string(),
-            })?;
+        // canonical pass-view 允许保留“仍有实例身份，但当前没有 root body”的 family（例如
+        // declaration-only instance，或某个 pass 已把 root body 从当前 snapshot 中移除）。
+        // P4 facts 只能基于仍存在于当前 canonical snapshot 的 root body 建立 callable/body facts；
+        // 对这类无 root body 的 family 直接跳过，而不是回 raw MIR 或报错要求补 fallback。
+        let Some(root_fun) = family.root_body() else {
+            continue;
+        };
         seeds.push(CallableSeed {
             key: family.key().clone(),
             root_fun: root_fun.clone(),
