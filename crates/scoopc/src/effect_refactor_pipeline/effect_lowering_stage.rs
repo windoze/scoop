@@ -2,7 +2,8 @@ use std::fmt::Write;
 
 use crate::effect_facts::{MaterializedEffectFacts, MirSnapshotBinding};
 use crate::effect_lowered::{
-    EffectLoweringError, LateLoweredProgram, LateLoweredProgramBuilder, optimize_program,
+    EffectLoweringError, LateLoweredOptOptions, LateLoweredProgram, LateLoweredProgramBuilder,
+    optimize_program, optimize_program_with_options,
 };
 use crate::mir::{MaterializedMir, MaterializedMirPassView};
 use crate::ty::TypeStore;
@@ -89,6 +90,34 @@ pub(crate) fn run(
             effect_facts_stage_output.types(),
         )
         .build()?,
+    );
+    Ok(RefactorEffectLoweredStageOutput::new(
+        effect_facts_stage_output,
+        program,
+    ))
+}
+
+pub(crate) fn run_preserving_published_resume_shells(
+    effect_facts_stage_output: RefactorEffectFactsStageOutput,
+) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
+    run_with_opt_options(
+        effect_facts_stage_output,
+        LateLoweredOptOptions::preserve_published_resume_shells(),
+    )
+}
+
+fn run_with_opt_options(
+    effect_facts_stage_output: RefactorEffectFactsStageOutput,
+    opt_options: LateLoweredOptOptions,
+) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
+    let program = optimize_program_with_options(
+        LateLoweredProgramBuilder::from_canonical_inputs(
+            effect_facts_stage_output.materialized_pass_view(),
+            effect_facts_stage_output.effect_facts(),
+            effect_facts_stage_output.types(),
+        )
+        .build()?,
+        opt_options,
     );
     Ok(RefactorEffectLoweredStageOutput::new(
         effect_facts_stage_output,

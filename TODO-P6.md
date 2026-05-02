@@ -529,7 +529,7 @@
   - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02a：让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity
+## [DONE] P6-T02a：让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -578,7 +578,20 @@
   - `P6-T02R` 可以据此继续审阅“ABI contract 已固定且后续 body emitter 不会再 remap/reconstruct interface identity”。
 - 依赖：P6-T02
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 已删除按 `(step_schema, effect_family)` 在 P6 现场补造 `ResumeInterfaceId` 的逻辑；resume-interface layout 现直接消费 `LateLoweredProgram.resume_interfaces()` 与 `LateLoweredResumeInterface.methods()`，callable/continuation layout 也分别严格按 `LateLoweredCallable.resume_interfaces()` / `LateLoweredContinuationObject.implemented_interfaces()` 取 authoritative identity 与顺序。
+  - 同一处 materializer 已补上结构化 fail-fast 校验：缺失 published interface、重复 interface id、callable/object identity 漂移、return-step 不匹配、以及 method contract 与 step shell 漂移都会直接返回前端错误，不再被 P6 现场重建逻辑掩盖。
+  - 在验证过程中发现 `P6-T01b` 的 ABI-visibility handoff 还隐藏着一个 blocker：`crates/scoopc/src/effect_lowered/opt.rs` / `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs` 原先会把 authoritative reachable-body 用的后处理裁剪同样施加到 ABI-visibility program 上，导致 unreachable helper 所需的 published resume interface/method shell 被裁掉；现已为 ABI-visibility handoff 增加“保留 published resume shells”的 late-opt 模式，并只在 `crates/scoopc/src/effect_refactor_pipeline/llvm_codegen_stage.rs` 构造 `abi_visibility_effect_lowered_stage_output` 时启用，确保 build fixture 看到的 resume-interface / continuation ABI 与 P5 authoritative shell 一致，同时不改变 authoritative reachable-body program 的原有后处理收缩。
+  - 已补充/更新 `refactor_llvm_continuation_layout_*` / `refactor_llvm_unit_abi_*` 定向单测，覆盖 authoritative interface 顺序、authoritative method 顺序、缺失 published interface 的 fail-fast，以及 `Unit` ABI 场景。
+- 已运行验证：
+  - `cargo test -p scoopc refactor_llvm_step_layout`
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_llvm_unit_abi`
+  - `cargo test -p scoop refactor_build_publishes_request_source_abi_shells_for_unreachable_effectful_helpers`
+  - `cargo test -p scoop refactor_build_rejects_reachable_self_contained_legacy_effect_body_lowering`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T02R：Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型
 

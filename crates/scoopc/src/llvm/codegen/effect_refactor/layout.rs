@@ -1,13 +1,13 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use inkwell::module::Linkage;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 
-use crate::effect_facts::{EffectFamilyKey, StepSchemaId};
+use crate::effect_facts::StepSchemaId;
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     LateLoweredCallable, LateLoweredContinuationObject, LateLoweredFrameSlotKind,
-    LateLoweredStepType, ResumeInterfaceId,
+    LateLoweredResumeInterface, LateLoweredStepType, ResumeInterfaceId,
 };
 use crate::llvm::LlvmEmitError;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -35,13 +35,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
 struct ProgramLayoutView {
     callable_stems_by_step_schema: BTreeMap<StepSchemaId, String>,
-}
-
-#[derive(Clone)]
-struct ResumeInterfaceSpec {
-    interface_id: ResumeInterfaceId,
-    step_schema: StepSchemaId,
-    effect_family: EffectFamilyKey,
 }
 
 impl ProgramLayoutView {
@@ -153,72 +146,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         })
     }
 
-    fn derive_resume_interface_specs(&self) -> Vec<ResumeInterfaceSpec> {
-        let mut specs = BTreeMap::<(StepSchemaId, EffectFamilyKey), ResumeInterfaceSpec>::new();
-        let mut next_interface_raw = self
-            .program
-            .resume_interfaces()
-            .iter()
-            .map(|interface| interface.interface_id().as_u32())
-            .max()
-            .map(|raw| raw.saturating_add(1))
-            .unwrap_or(0);
-
-        for interface in self.program.resume_interfaces() {
-            specs.insert(
-                (
-                    interface.return_step_schema(),
-                    interface.effect_family().clone(),
-                ),
-                ResumeInterfaceSpec {
-                    interface_id: interface.interface_id(),
-                    step_schema: interface.return_step_schema(),
-                    effect_family: interface.effect_family().clone(),
-                },
-            );
-        }
-
-        for step_type in self.program.step_types() {
-            for case in step_type.cases() {
-                specs
-                    .entry((
-                        step_type.step_schema(),
-                        case.concrete_op_key().effect_family().clone(),
-                    ))
-                    .or_insert_with(|| {
-                        let interface_id = ResumeInterfaceId::new(next_interface_raw);
-                        next_interface_raw = next_interface_raw.saturating_add(1);
-                        ResumeInterfaceSpec {
-                            interface_id,
-                            step_schema: step_type.step_schema(),
-                            effect_family: case.concrete_op_key().effect_family().clone(),
-                        }
-                    });
-            }
-        }
-
-        specs.into_values().collect()
-    }
-
-    fn resume_interface_ids_by_step(
-        &self,
-        specs: &[ResumeInterfaceSpec],
-    ) -> BTreeMap<StepSchemaId, Vec<ResumeInterfaceId>> {
-        let mut by_step = BTreeMap::<StepSchemaId, Vec<ResumeInterfaceId>>::new();
-        for spec in specs {
-            by_step
-                .entry(spec.step_schema)
-                .or_default()
-                .push(spec.interface_id);
-        }
-        by_step
-    }
-
     fn materialize(self) -> Result<RefactorAbiQuery<'ctx>, LlvmEmitError> {
         let mut this = self;
-        let resume_interface_specs = this.derive_resume_interface_specs();
-        let resume_interface_ids_by_step =
-            this.resume_interface_ids_by_step(&resume_interface_specs);
         let mut step_layouts = BTreeMap::new();
         for step_type in this.program.step_types() {
             step_layouts.insert(
@@ -228,9 +157,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         }
 
         let mut resume_interface_layouts = BTreeMap::new();
-        for interface in &resume_interface_specs {
+        for interface in this.program.resume_interfaces() {
             resume_interface_layouts.insert(
-                interface.interface_id,
+                interface.interface_id(),
                 this.materialize_resume_interface_layout(interface, &step_layouts)?,
             );
         }
@@ -247,7 +176,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         for object in this.program.continuation_objects() {
             continuation_layouts.insert(
                 object.object_id(),
-                this.materialize_continuation_object_layout(object, &resume_interface_ids_by_step)?,
+                this.materialize_continuation_object_layout(object)?,
             );
         }
 
@@ -258,7 +187,6 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 this.materialize_callable_layout(
                     callable,
                     &step_layouts,
-                    &resume_interface_ids_by_step,
                 )?,
             );
         }
@@ -366,12 +294,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
     fn materialize_resume_interface_layout(
         &mut self,
-        interface: &ResumeInterfaceSpec,
+        interface: &LateLoweredResumeInterface,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     ) -> Result<RefactorResumeInterfaceLayout<'ctx>, LlvmEmitError> {
-        let step_schema = interface.step_schema;
+        let step_schema = interface.return_step_schema();
         let stem = self.view.step_stem(step_schema).to_string();
-        let effect_stem = sanitize_llvm_ident(interface.effect_family.effect_fqn());
+        let effect_stem = sanitize_llvm_ident(interface.effect_family().effect_fqn());
         let vtable_type_name = format!("scoop.refactor.ResumeVtable__{stem}__{effect_stem}");
         let vtable_anchor_name =
             format!("__scoop_refactor_resume_vtable_layout__{stem}__{effect_stem}");
@@ -380,7 +308,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             .ok_or_else(|| {
                 frontend_error(format!(
                     "refactor LLVM ABI materialization 缺少 resume interface {} 的 return step schema {}",
-                    interface.interface_id.as_u32(),
+                    interface.interface_id().as_u32(),
                     step_schema.as_u32()
                 ))
             })?
@@ -388,24 +316,79 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let step_type = self.program.step_type(step_schema).ok_or_else(|| {
             frontend_error(format!(
                 "refactor LLVM ABI materialization 缺少 resume interface {} 的 step type {}",
-                interface.interface_id.as_u32(),
+                interface.interface_id().as_u32(),
                 step_schema.as_u32()
             ))
         })?;
 
         let mut methods = BTreeMap::new();
         let mut vtable_fields = Vec::new();
-        for (index, case) in step_type
-            .cases()
-            .iter()
-            .filter(|case| case.concrete_op_key().effect_family() == &interface.effect_family)
-            .enumerate()
-        {
+        let mut published_case_tags = BTreeSet::new();
+        for (index, method) in interface.methods().iter().enumerate() {
+            let step_case = step_type.case(method.case_tag()).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 resume interface {} method case {} 在 step schema {} 中不存在",
+                    interface.interface_id().as_u32(),
+                    method.case_tag().as_u32(),
+                    step_schema.as_u32()
+                ))
+            })?;
+            if !published_case_tags.insert(method.case_tag()) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 resume interface {} 重复发布 case {}",
+                    interface.interface_id().as_u32(),
+                    method.case_tag().as_u32()
+                )));
+            }
+            if method.concrete_op_key().effect_family() != interface.effect_family() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 resume interface {} method case {} 的 effect family `{}` 与 interface family `{}` 不一致",
+                    interface.interface_id().as_u32(),
+                    method.case_tag().as_u32(),
+                    method.concrete_op_key().effect_family().effect_fqn(),
+                    interface.effect_family().effect_fqn()
+                )));
+            }
+            if step_case.concrete_op_key() != method.concrete_op_key() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 resume interface {} method case {} 的 concrete op `{}` 与 step shell 发布 `{}` 不一致",
+                    interface.interface_id().as_u32(),
+                    method.case_tag().as_u32(),
+                    method.concrete_op_key().instance_key().template.fqn,
+                    step_case.concrete_op_key().instance_key().template.fqn,
+                )));
+            }
+            if step_case.concrete_op_key().effect_family() != interface.effect_family() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 resume interface {} method case {} 指向的 step case family `{}` 与 interface family `{}` 不一致",
+                    interface.interface_id().as_u32(),
+                    method.case_tag().as_u32(),
+                    step_case.concrete_op_key().effect_family().effect_fqn(),
+                    interface.effect_family().effect_fqn()
+                )));
+            }
+            if method.out_step_schema() != step_schema {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 resume interface {} method case {} 的 out step schema {} 与 interface return step schema {} 不一致",
+                    interface.interface_id().as_u32(),
+                    method.case_tag().as_u32(),
+                    method.out_step_schema().as_u32(),
+                    step_schema.as_u32()
+                )));
+            }
+            if step_case.continuation_contract() != method.continuation_contract() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 resume interface {} method case {} 的 continuation contract 与 step shell 不一致",
+                    interface.interface_id().as_u32(),
+                    method.case_tag().as_u32()
+                )));
+            }
+
             let symbol_name = format!(
                 "__scoop_refactor_resume__{stem}__case{}",
-                case.case_tag().as_u32()
+                method.case_tag().as_u32()
             );
-            let payload_abi = self.abi_value(case.resume_tuple_ty())?;
+            let payload_abi = self.abi_value(method.resume_tuple_ty())?;
             let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
                 vec![self.codegen.llvm_gc_i8_ptr_type().into()];
             if !payload_abi.is_elided() {
@@ -415,10 +398,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             self.ensure_declared_function(&symbol_name, fn_ty);
             vtable_fields.push(self.codegen.llvm_i8_ptr_type().into());
             methods.insert(
-                case.case_tag(),
+                method.case_tag(),
                 RefactorResumeMethodLayout::new(
-                    interface.interface_id,
-                    case.case_tag(),
+                    interface.interface_id(),
+                    method.case_tag(),
                     symbol_name,
                     fn_ty,
                     params.len(),
@@ -432,8 +415,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let vtable_ty = self.define_named_struct(&vtable_type_name, &vtable_fields);
         self.ensure_struct_anchor(&vtable_anchor_name, vtable_ty);
         Ok(RefactorResumeInterfaceLayout::new(
-            interface.interface_id,
-            interface.effect_family.effect_fqn().to_string(),
+            interface.interface_id(),
+            interface.effect_family().effect_fqn().to_string(),
             vtable_ty,
             vtable_anchor_name,
             methods,
@@ -487,7 +470,6 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     fn materialize_continuation_object_layout(
         &mut self,
         object: &LateLoweredContinuationObject,
-        resume_interface_ids_by_step: &BTreeMap<StepSchemaId, Vec<ResumeInterfaceId>>,
     ) -> Result<RefactorContinuationObjectLayout<'ctx>, LlvmEmitError> {
         let owner_callable = self
             .program
@@ -509,10 +491,21 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let resume_state_ty = self.codegen.context.i32_type();
         let one_shot_ty = self.codegen.context.bool_type();
         let vtable_ptr_ty = self.codegen.llvm_i8_ptr_type();
-        let interface_ids = resume_interface_ids_by_step
-            .get(&owner_callable.step_schema())
-            .cloned()
-            .unwrap_or_default();
+        self.validate_published_resume_interface_ids(
+            &format!("continuation object {}", object.object_id().as_u32()),
+            owner_callable.step_schema(),
+            object.implemented_interfaces(),
+        )?;
+        if object.implemented_interfaces() != owner_callable.resume_interfaces() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation object {} 的 published interfaces {} 与 owner callable `{}` 的 authoritative interfaces {} 不一致",
+                object.object_id().as_u32(),
+                render_resume_interface_ids(object.implemented_interfaces()),
+                owner_callable.root_fqn(),
+                render_resume_interface_ids(owner_callable.resume_interfaces()),
+            )));
+        }
+        let interface_ids = object.implemented_interfaces().to_vec();
 
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = vec![
             header_ty.into(),
@@ -570,7 +563,6 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
-        resume_interface_ids_by_step: &BTreeMap<StepSchemaId, Vec<ResumeInterfaceId>>,
     ) -> Result<RefactorCallableLayout<'ctx>, LlvmEmitError> {
         let stem = self.view.step_stem(callable.step_schema()).to_string();
         let step_ty = step_layouts
@@ -594,10 +586,31 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let direct_name = format!("__scoop_refactor_direct_invoke__{stem}");
         self.ensure_declared_function(&dynamic_name, dynamic_ty);
         self.ensure_declared_function(&direct_name, direct_ty);
-        let resume_interfaces = resume_interface_ids_by_step
-            .get(&callable.step_schema())
-            .cloned()
-            .unwrap_or_default();
+        self.validate_published_resume_interface_ids(
+            &format!("callable `{}`", callable.root_fqn()),
+            callable.step_schema(),
+            callable.resume_interfaces(),
+        )?;
+        let continuation_object = self
+            .program
+            .continuation_object(callable.continuation_object())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` 的 continuation object {}",
+                    callable.root_fqn(),
+                    callable.continuation_object().as_u32()
+                ))
+            })?;
+        if continuation_object.implemented_interfaces() != callable.resume_interfaces() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` 的 authoritative interfaces {} 与 continuation object {} 的 published interfaces {} 不一致",
+                callable.root_fqn(),
+                render_resume_interface_ids(callable.resume_interfaces()),
+                continuation_object.object_id().as_u32(),
+                render_resume_interface_ids(continuation_object.implemented_interfaces()),
+            )));
+        }
+        let resume_interfaces = callable.resume_interfaces().to_vec();
 
         Ok(RefactorCallableLayout::new(
             callable.root_fqn().to_string(),
@@ -619,6 +632,38 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             callable.continuation_object(),
             resume_interfaces,
         ))
+    }
+
+    fn validate_published_resume_interface_ids(
+        &self,
+        owner_label: &str,
+        expected_step_schema: StepSchemaId,
+        interface_ids: &[ResumeInterfaceId],
+    ) -> Result<(), LlvmEmitError> {
+        let mut seen = BTreeSet::new();
+        for &interface_id in interface_ids {
+            if !seen.insert(interface_id) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 {owner_label} 重复发布 resume interface {}",
+                    interface_id.as_u32()
+                )));
+            }
+            let interface = self.program.resume_interface(interface_id).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 {owner_label} 发布的 resume interface {}",
+                    interface_id.as_u32()
+                ))
+            })?;
+            if interface.return_step_schema() != expected_step_schema {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 {owner_label} 发布的 resume interface {} return step schema 为 {}，但当前 step schema 为 {}",
+                    interface_id.as_u32(),
+                    interface.return_step_schema().as_u32(),
+                    expected_step_schema.as_u32()
+                )));
+            }
+        }
+        Ok(())
     }
 
     fn abi_value(&mut self, ty: TypeId) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
@@ -934,6 +979,17 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
+fn render_resume_interface_ids(interface_ids: &[ResumeInterfaceId]) -> String {
+    format!(
+        "[{}]",
+        interface_ids
+            .iter()
+            .map(|interface_id| interface_id.as_u32().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
@@ -942,7 +998,10 @@ mod tests {
 
     use super::*;
     use crate::effect_facts::{CaseTag, ImplPlan};
-    use crate::effect_lowered::ir::SystemSlotKind;
+    use crate::effect_lowered::ir::{
+        LateLoweredCallable, LateLoweredContinuationObject, LateLoweredProgram,
+        LateLoweredResumeInterface, LateLoweredResumeMethod, SystemSlotKind,
+    };
     use crate::effect_refactor_pipeline::{
         RefactorMirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
         load_typed_hir_stage_output_for_dump,
@@ -1022,15 +1081,17 @@ mod tests {
         }
     }
 
-    fn with_fixture_query(
+    fn with_fixture_query_result(
         name: &str,
+        rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
         check: impl for<'ctx> FnOnce(
             &FixtureAbiInputs,
-            &RefactorAbiQuery<'ctx>,
+            Result<RefactorAbiQuery<'ctx>, LlvmEmitError>,
             &inkwell::module::Module<'ctx>,
         ),
     ) {
         let inputs = build_fixture_inputs(name);
+        let program = rewrite_program(&inputs);
         let context = Context::create();
         let module = context.create_module("refactor_abi_test");
         let builder = context.create_builder();
@@ -1088,13 +1149,216 @@ mod tests {
             effect_op_tags,
         });
         let mut codegen = unit_codegen.fresh_main_codegen();
-        let query = codegen
-            .materialize_refactor_program_abi(
-                inputs.effect_lowered_stage_output.program(),
-                inputs.effect_lowered_stage_output.types(),
-            )
-            .expect("refactor ABI materialization 应成功");
-        check(&inputs, &query, &module);
+        let result = codegen.materialize_refactor_program_abi(
+            &program,
+            inputs.effect_lowered_stage_output.types(),
+        );
+        check(&inputs, result, &module);
+    }
+
+    fn with_fixture_query(
+        name: &str,
+        check: impl for<'ctx> FnOnce(
+            &FixtureAbiInputs,
+            &RefactorAbiQuery<'ctx>,
+            &inkwell::module::Module<'ctx>,
+        ),
+    ) {
+        with_fixture_query_result(
+            name,
+            |inputs| inputs.effect_lowered_stage_output.program().clone(),
+            |inputs, result, module| {
+                let query = result.expect("refactor ABI materialization 应成功");
+                check(inputs, &query, module);
+            },
+        );
+    }
+
+    fn clone_callable_with_interfaces(
+        callable: &LateLoweredCallable,
+        resume_interfaces: Vec<ResumeInterfaceId>,
+    ) -> LateLoweredCallable {
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            callable.dynamic_invoke_entry().clone(),
+            callable.state_graph().clone(),
+            callable.frame_schema().clone(),
+            callable.boundary_map().clone(),
+            callable.resume_state_map().clone(),
+            callable.continuation_object(),
+            resume_interfaces,
+        )
+    }
+
+    fn clone_continuation_object_with_interfaces(
+        object: &LateLoweredContinuationObject,
+        implemented_interfaces: Vec<ResumeInterfaceId>,
+    ) -> LateLoweredContinuationObject {
+        LateLoweredContinuationObject::new(
+            object.object_id(),
+            object.owner_version_key().clone(),
+            object.continuation_obj_ty(),
+            implemented_interfaces,
+            object.captures().to_vec(),
+            object.surface_resumes().to_vec(),
+            object.methods().to_vec(),
+        )
+    }
+
+    fn clone_resume_interface_with_methods(
+        interface: &LateLoweredResumeInterface,
+        methods: Vec<LateLoweredResumeMethod>,
+    ) -> LateLoweredResumeInterface {
+        LateLoweredResumeInterface::new(
+            interface.interface_id(),
+            interface.effect_family().clone(),
+            interface.return_step_schema(),
+            methods,
+        )
+    }
+
+    fn single_case_worker_program_with_ping_method_order(
+        inputs: &FixtureAbiInputs,
+        method_case_order: &[CaseTag],
+    ) -> LateLoweredProgram {
+        let program = inputs.effect_lowered_stage_output.program();
+        let callable = program
+            .callable("fixtures.build.singleCaseWorker")
+            .expect("callable 应存在");
+        let step_type = program
+            .step_type(callable.step_schema())
+            .expect("step type 应存在");
+        let ping_interface = program
+            .resume_interfaces()
+            .iter()
+            .find(|interface| interface.effect_family().effect_fqn() == "fixtures.build.Ping")
+            .expect("应存在 Ping resume interface");
+        let methods = method_case_order
+            .iter()
+            .map(|case_tag| {
+                ping_interface
+                    .methods()
+                    .iter()
+                    .find(|method| method.case_tag() == *case_tag)
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        let step_case = step_type
+                            .case(*case_tag)
+                            .expect("method case 应可回查 step shell");
+                        LateLoweredResumeMethod::new(
+                            step_case.case_tag(),
+                            step_case.concrete_op_key().clone(),
+                            step_case.continuation_contract(),
+                        )
+                    })
+            })
+            .collect::<Vec<_>>();
+        let resume_interfaces = program
+            .resume_interfaces()
+            .iter()
+            .map(|candidate| {
+                if candidate.interface_id() == ping_interface.interface_id() {
+                    clone_resume_interface_with_methods(candidate, methods.clone())
+                } else {
+                    candidate.clone()
+                }
+            })
+            .collect();
+
+        LateLoweredProgram::new(
+            program.step_types().to_vec(),
+            resume_interfaces,
+            program.continuation_objects().to_vec(),
+            program.callables().to_vec(),
+        )
+    }
+
+    fn resume_method_for_case(
+        step_type: &LateLoweredStepType,
+        case_tag: CaseTag,
+    ) -> LateLoweredResumeMethod {
+        let step_case = step_type
+            .case(case_tag)
+            .expect("method case 应可回查 step shell");
+        LateLoweredResumeMethod::new(
+            step_case.case_tag(),
+            step_case.concrete_op_key().clone(),
+            step_case.continuation_contract(),
+        )
+    }
+
+    fn next_resume_interface_id(program: &LateLoweredProgram) -> ResumeInterfaceId {
+        let next = program
+            .resume_interfaces()
+            .iter()
+            .map(|interface| interface.interface_id().as_u32())
+            .max()
+            .map(|raw| raw.saturating_add(1))
+            .unwrap_or(0);
+        ResumeInterfaceId::new(next)
+    }
+
+    fn unit_worker_program_with_ping_interface(inputs: &FixtureAbiInputs) -> LateLoweredProgram {
+        let program = inputs.effect_lowered_stage_output.program();
+        let callable = program
+            .callable("fixtures.build.unitWorker")
+            .expect("callable 应存在");
+        let step_type = program
+            .step_type(callable.step_schema())
+            .expect("step type 应存在");
+        let ping_method = resume_method_for_case(step_type, CaseTag::new(0));
+        let ping_interface_id = program
+            .resume_interfaces()
+            .iter()
+            .find(|interface| interface.effect_family().effect_fqn() == "fixtures.build.Ping")
+            .map(LateLoweredResumeInterface::interface_id)
+            .unwrap_or_else(|| next_resume_interface_id(program));
+        let ping_interface = LateLoweredResumeInterface::new(
+            ping_interface_id,
+            ping_method.concrete_op_key().effect_family().clone(),
+            callable.step_schema(),
+            vec![ping_method],
+        );
+
+        let resume_interfaces = program
+            .resume_interfaces()
+            .iter()
+            .filter(|interface| interface.interface_id() != ping_interface_id)
+            .cloned()
+            .chain(std::iter::once(ping_interface))
+            .collect();
+        let callables = program
+            .callables()
+            .iter()
+            .map(|candidate| {
+                if candidate.step_schema() == callable.step_schema() {
+                    clone_callable_with_interfaces(candidate, vec![ping_interface_id])
+                } else {
+                    candidate.clone()
+                }
+            })
+            .collect();
+        let continuation_objects = program
+            .continuation_objects()
+            .iter()
+            .map(|candidate| {
+                if candidate.object_id() == callable.continuation_object() {
+                    clone_continuation_object_with_interfaces(candidate, vec![ping_interface_id])
+                } else {
+                    candidate.clone()
+                }
+            })
+            .collect();
+
+        LateLoweredProgram::new(
+            program.step_types().to_vec(),
+            resume_interfaces,
+            continuation_objects,
+            callables,
+        )
     }
 
     #[test]
@@ -1216,13 +1480,15 @@ mod tests {
 
     #[test]
     fn refactor_llvm_continuation_layout_keeps_full_method_set() {
-        with_fixture_query(
-            "effect_refactor_continuation_interface_full_methods.scoop",
-            |inputs, query, module| {
+        with_fixture_query_result(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs| single_case_worker_program_with_ping_method_order(inputs, &[CaseTag::new(0), CaseTag::new(1)]),
+            |inputs, result, module| {
+                let query = result.expect("published full method set 应可物化 ABI");
                 let callable = inputs
                     .effect_lowered_stage_output
                     .program()
-                    .callable("fixtures.build.continuationCarrier")
+                    .callable("fixtures.build.singleCaseWorker")
                     .expect("callable 应存在");
                 let continuation_layout = query
                     .continuation_layout(callable.continuation_object())
@@ -1280,10 +1546,231 @@ mod tests {
     }
 
     #[test]
+    fn refactor_llvm_continuation_layout_preserves_authoritative_interface_order() {
+        with_fixture_query_result(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs| {
+                let program = inputs.effect_lowered_stage_output.program();
+                let callable = program
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("callable 应存在");
+                let continuation_object = program
+                    .continuation_object(callable.continuation_object())
+                    .expect("continuation object 应存在");
+                let step_type = program
+                    .step_type(callable.step_schema())
+                    .expect("step type 应存在");
+                let ping_interface = program
+                    .resume_interfaces()
+                    .iter()
+                    .find(|interface| interface.effect_family().effect_fqn() == "fixtures.build.Ping")
+                    .expect("应存在 Ping resume interface");
+                let raise_interface_id = next_resume_interface_id(program);
+                let raise_method = resume_method_for_case(step_type, CaseTag::new(2));
+                let raise_interface = LateLoweredResumeInterface::new(
+                    raise_interface_id,
+                    raise_method.concrete_op_key().effect_family().clone(),
+                    callable.step_schema(),
+                    vec![raise_method],
+                );
+                let reversed_interfaces = vec![raise_interface_id, ping_interface.interface_id()];
+                let resume_interfaces = program
+                    .resume_interfaces()
+                    .iter()
+                    .cloned()
+                    .chain(std::iter::once(raise_interface))
+                    .collect();
+
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == callable.step_schema() {
+                            clone_callable_with_interfaces(candidate, reversed_interfaces.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                let continuation_objects = program
+                    .continuation_objects()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.object_id() == continuation_object.object_id() {
+                            clone_continuation_object_with_interfaces(
+                                candidate,
+                                reversed_interfaces.clone(),
+                            )
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    resume_interfaces,
+                    continuation_objects,
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let query = result.expect("reordered authoritative interfaces 应仍可物化 ABI");
+                let callable_layout = query
+                    .callable_layout_by_root_fqn("fixtures.build.singleCaseWorker")
+                    .expect("callable layout 应可查询");
+                let ping_interface_id = callable_layout
+                    .resume_interfaces()
+                    .iter()
+                    .find(|interface_id| {
+                        query
+                            .resume_interface_layout(**interface_id)
+                            .is_some_and(|interface| {
+                                interface.effect_family_fqn() == "fixtures.build.Ping"
+                            })
+                    })
+                    .copied()
+                    .expect("应存在 Ping resume interface");
+                let raise_interface_id = callable_layout
+                    .resume_interfaces()
+                    .iter()
+                    .find(|interface_id| {
+                        query
+                            .resume_interface_layout(**interface_id)
+                            .is_some_and(|interface| {
+                                interface.effect_family_fqn() == "scoop.core.Raise"
+                            })
+                    })
+                    .copied()
+                    .expect("应存在 Raise resume interface");
+                let expected_order = vec![raise_interface_id, ping_interface_id];
+
+                assert_eq!(callable_layout.resume_interfaces(), expected_order.as_slice());
+
+                let continuation_layout = query
+                    .continuation_layout(callable_layout.continuation_object())
+                    .expect("continuation layout 应可查询");
+                let first_index = continuation_layout
+                    .field_index_for_interface(expected_order[0])
+                    .expect("首个 authoritative interface 应有 field");
+                let second_index = continuation_layout
+                    .field_index_for_interface(expected_order[1])
+                    .expect("次个 authoritative interface 应有 field");
+                assert!(
+                    first_index < second_index,
+                    "continuation field 顺序必须跟随 authoritative interface 顺序"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_continuation_layout_preserves_authoritative_method_order() {
+        with_fixture_query_result(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs| single_case_worker_program_with_ping_method_order(inputs, &[CaseTag::new(1), CaseTag::new(0)]),
+            |inputs, result, _module| {
+                let query = result.expect("reordered authoritative methods 应仍可物化 ABI");
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("callable 应存在");
+                let interface_id = query
+                    .callable_layout(callable.step_schema())
+                    .expect("callable layout 应可查询")
+                    .resume_interfaces()
+                    .iter()
+                    .find(|interface_id| {
+                        query
+                            .resume_interface_layout(**interface_id)
+                            .is_some_and(|interface| {
+                                interface.effect_family_fqn() == "fixtures.build.Ping"
+                            })
+                    })
+                    .copied()
+                    .expect("应存在 Ping resume interface");
+                let interface_layout = query
+                    .resume_interface_layout(interface_id)
+                    .expect("resume interface layout 应可查询");
+
+                assert_eq!(
+                    interface_layout
+                        .method(CaseTag::new(1))
+                        .expect("case1 method 应存在")
+                        .vtable_index(),
+                    0
+                );
+                assert_eq!(
+                    interface_layout
+                        .method(CaseTag::new(0))
+                        .expect("case0 method 应存在")
+                        .vtable_index(),
+                    1
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_continuation_layout_rejects_missing_authoritative_interface() {
+        with_fixture_query_result(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs| {
+                let program = inputs.effect_lowered_stage_output.program();
+                let callable = program
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("callable 应存在");
+                let dropped_interface = callable
+                    .resume_interfaces()
+                    .first()
+                    .copied()
+                    .expect("fixture 应至少发布一个 interface");
+                let resume_interfaces = program
+                    .resume_interfaces()
+                    .iter()
+                    .filter(|interface| interface.interface_id() != dropped_interface)
+                    .cloned()
+                    .collect();
+
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    resume_interfaces,
+                    program.continuation_objects().to_vec(),
+                    program.callables().to_vec(),
+                )
+            },
+            |inputs, result, _module| {
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("callable 应存在");
+                let dropped_interface = callable
+                    .resume_interfaces()
+                    .first()
+                    .copied()
+                    .expect("fixture 应至少发布一个 interface");
+                let err = match result {
+                    Ok(_) => panic!("缺失 authoritative interface 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains(&format!("resume interface {}", dropped_interface.as_u32())),
+                    "错误消息应指出缺失的 authoritative interface: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
     fn refactor_llvm_unit_abi_elides_zero_sized_args_and_resume_payloads() {
-        with_fixture_query(
+        with_fixture_query_result(
             "effect_refactor_dynamic_invoke_unit_payload.scoop",
-            |inputs, query, module| {
+            unit_worker_program_with_ping_interface,
+            |inputs, result, module| {
+                let query = result.expect("published unit resume interface 应可物化 ABI");
                 let callable = inputs
                     .effect_lowered_stage_output
                     .program()

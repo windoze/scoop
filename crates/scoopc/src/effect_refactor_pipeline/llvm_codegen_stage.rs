@@ -133,6 +133,7 @@ fn run_effect_lowered_stage_from_lowered_hir(
     session: &Session,
     entry_source: &SourceFile,
     lowered_hir: LoweredHir,
+    preserve_published_resume_shells: bool,
 ) -> Result<RefactorEffectLoweredStageOutput, LlvmEmitError> {
     let source_path = entry_source.path().to_path_buf();
     let typed_hir_output = TypedHirStageOutput::new(lowered_hir, &source_path);
@@ -141,8 +142,14 @@ fn run_effect_lowered_stage_from_lowered_hir(
     let effect_facts_stage_output =
         build_effect_facts_stage_output(session, entry_source, mir_stage_output)
             .map_err(|err| stage_error("effect facts", err))?;
-    build_effect_lowered_stage_output(session, effect_facts_stage_output)
-        .map_err(|err| stage_error("late lowering", err))
+    let effect_lowered_stage_output = if preserve_published_resume_shells {
+        super::effect_lowering_stage::run_preserving_published_resume_shells(
+            effect_facts_stage_output,
+        )
+    } else {
+        build_effect_lowered_stage_output(session, effect_facts_stage_output)
+    };
+    effect_lowered_stage_output.map_err(|err| stage_error("late lowering", err))
 }
 
 pub(crate) fn run(
@@ -171,10 +178,10 @@ pub(crate) fn run(
             })?;
     let hir_compat_scaffold = lowered_hir.clone_hir_compat_scaffold_without_materialized_mir();
     let effect_lowered_stage_output =
-        run_effect_lowered_stage_from_lowered_hir(session, entry_source, lowered_hir)?;
+        run_effect_lowered_stage_from_lowered_hir(session, entry_source, lowered_hir, false)?;
     let abi_visibility_effect_lowered_stage_output = abi_visibility_lowered_hir
         .map(|lowered_hir| {
-            run_effect_lowered_stage_from_lowered_hir(session, entry_source, lowered_hir)
+            run_effect_lowered_stage_from_lowered_hir(session, entry_source, lowered_hir, true)
         })
         .transpose()?;
 

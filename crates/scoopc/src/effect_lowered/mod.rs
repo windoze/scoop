@@ -22,7 +22,7 @@ pub(crate) mod segment;
 pub(crate) use builder::LateLoweredProgramBuilder;
 pub use dump::render_late_lowered_program;
 pub use ir::{LateLoweredCallable, LateLoweredProgram};
-pub(crate) use opt::optimize_program;
+pub(crate) use opt::{LateLoweredOptOptions, optimize_program, optimize_program_with_options};
 
 use thiserror::Error;
 

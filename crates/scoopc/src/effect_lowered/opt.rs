@@ -16,6 +16,19 @@ use super::ir::{
     ResumeInterfaceId, StateId,
 };
 
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct LateLoweredOptOptions {
+    pub(crate) preserve_published_resume_shells: bool,
+}
+
+impl LateLoweredOptOptions {
+    pub(crate) const fn preserve_published_resume_shells() -> Self {
+        Self {
+            preserve_published_resume_shells: true,
+        }
+    }
+}
+
 /// 在 late-lowered IR 上执行窄的 post-lowering 收缩。
 ///
 /// 该 pass 只消费 `LateLoweredProgram`：
@@ -23,6 +36,13 @@ use super::ir::{
 /// - 不改动 `StepSchema` / `CaseTag` / `ImplPlan` / canonical dynamic invoke contract；
 /// - 只做 wrapper state 折叠、internal resume interface 去虚化，以及死代码/死 slot 清理。
 pub(crate) fn optimize_program(program: LateLoweredProgram) -> LateLoweredProgram {
+    optimize_program_with_options(program, LateLoweredOptOptions::default())
+}
+
+pub(crate) fn optimize_program_with_options(
+    program: LateLoweredProgram,
+    options: LateLoweredOptOptions,
+) -> LateLoweredProgram {
     let mut optimized_objects =
         BTreeMap::<ContinuationObjectId, LateLoweredContinuationObject>::new();
     let mut optimized_callables = Vec::with_capacity(program.len());
@@ -31,12 +51,26 @@ pub(crate) fn optimize_program(program: LateLoweredProgram) -> LateLoweredProgra
         let continuation_object = program
             .continuation_object(callable.continuation_object())
             .expect("every callable should point at a published continuation object");
-        let optimized = optimize_callable(callable, continuation_object);
+        let optimized = optimize_callable(callable, continuation_object, options);
         optimized_objects.insert(
             optimized.continuation_object.object_id(),
             optimized.continuation_object,
         );
         optimized_callables.push(optimized.callable);
+    }
+
+    if options.preserve_published_resume_shells {
+        let continuation_objects = program
+            .continuation_objects()
+            .iter()
+            .filter_map(|object| optimized_objects.remove(&object.object_id()))
+            .collect::<Vec<_>>();
+        return LateLoweredProgram::new(
+            program.step_types().to_vec(),
+            program.resume_interfaces().to_vec(),
+            continuation_objects,
+            optimized_callables,
+        );
     }
 
     let live_methods_by_interface = collect_live_methods_by_interface(optimized_objects.values());
@@ -109,6 +143,7 @@ struct OptimizedCallable {
 fn optimize_callable(
     callable: &LateLoweredCallable,
     continuation_object: &LateLoweredContinuationObject,
+    options: LateLoweredOptOptions,
 ) -> OptimizedCallable {
     let redirects = collect_state_redirects(callable.state_graph());
     let state_graph = rewrite_state_graph(callable.state_graph(), &redirects);
@@ -146,12 +181,16 @@ fn optimize_callable(
         .iter()
         .map(LateLoweredContinuationMethod::interface_id)
         .collect::<BTreeSet<_>>();
-    let implemented_interfaces = continuation_object
-        .implemented_interfaces()
-        .iter()
-        .copied()
-        .filter(|interface_id| live_interfaces.contains(interface_id))
-        .collect::<Vec<_>>();
+    let implemented_interfaces = if options.preserve_published_resume_shells {
+        continuation_object.implemented_interfaces().to_vec()
+    } else {
+        continuation_object
+            .implemented_interfaces()
+            .iter()
+            .copied()
+            .filter(|interface_id| live_interfaces.contains(interface_id))
+            .collect::<Vec<_>>()
+    };
     let captures = rewrite_captures(
         continuation_object.captures(),
         &redirects,
@@ -178,7 +217,11 @@ fn optimize_callable(
         boundary_map.clone(),
         resume_state_map_from_boundaries(&boundary_map),
         callable.continuation_object(),
-        implemented_interfaces,
+        if options.preserve_published_resume_shells {
+            callable.resume_interfaces().to_vec()
+        } else {
+            implemented_interfaces.clone()
+        },
     );
 
     OptimizedCallable {
