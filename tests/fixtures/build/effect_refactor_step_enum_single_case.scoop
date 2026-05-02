@@ -1,12 +1,12 @@
 // 目标：P6-T02 canonical `Step_F` 在 single-case callable 上仍需保留完整 case/tag 身份。
 // - `singleCaseWorker` 当前只 outward `Ping.hit()`，late-lowered `impl_plan` 应收敛为 `SingleCase(case0)`；
-// - build 路径当前只为可达 callable 物化 ABI，因此这里额外提供一个 no-outward 的 `stepCarrier()` 并由
-//   `main` 在 self-contained handle 中调用；single-case 语义本身由 `singleCaseWorker` 交给 Rust 单测断言。
+// - `P6-T01b` 之后，refactor build 会通过独立 ABI visibility handoff 暴露 request-source 范围的 ABI shell，
+//   因此这里不再需要让 effectful helper 从 `main` 可达，也不允许借 reachable handle 走 legacy lowering。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_stepCarrier__complete = internal constant i32 0
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_stepCarrier__case0 = internal constant i32 1
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_stepCarrier__case1 = internal constant i32 2
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_stepCarrier__case2 = internal constant i32 3
+// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_singleCaseWorker__complete = internal constant i32 0
+// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_singleCaseWorker__case0 = internal constant i32 1
+// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_singleCaseWorker__case1 = internal constant i32 2
+// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_singleCaseWorker__case2 = internal constant i32 3
 package fixtures.build
 
 effect Ping {
@@ -18,13 +18,4 @@ fun singleCaseWorker(): Unit / Ping {
     Ping.hit()
 }
 
-fun stepCarrier(): Unit / Ping {}
-
-fun main() {
-    handle {
-        stepCarrier()
-    } with {
-        Ping.hit(), _k -> {}
-        Ping.pong(), _k -> {}
-    }
-}
+fun main() {}

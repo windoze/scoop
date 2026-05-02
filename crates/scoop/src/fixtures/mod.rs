@@ -514,7 +514,7 @@ fn run_one(
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = match phase {
         FixturePhase::Parse => parse_fixture(session, &source, path, &exp),
-        FixturePhase::Build => build_fixture(rel, path, opt_level, &exp),
+        FixturePhase::Build => build_fixture(session, rel, path, opt_level, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
         FixturePhase::Infer => infer_fixture(session, &source, &exp),
@@ -952,6 +952,7 @@ fn parse_opt_level_from_fixture_args(
 }
 
 fn build_fixture(
+    session: &scoopc::session::Session,
     rel_fixture: &Path,
     fixture_path: &Path,
     opt_level: Option<OptLevel>,
@@ -1031,6 +1032,7 @@ fn build_fixture(
         crate::commands::build::BuildOptions {
             emit,
             opt_level,
+            session_options: session.options(),
             ..crate::commands::build::BuildOptions::default()
         },
     )
@@ -3059,6 +3061,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
+    use scoopc::session::{EffectPipelineMode, SessionOptions};
     use tempfile::tempdir;
 
     use super::{
@@ -3209,6 +3212,46 @@ val bad: Int = Box("oops").bodyCopy
             &fixture,
             None,
             scoopc::session::SessionOptions::default(),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
+        assert_eq!(ok, 1);
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_fixtures_propagate_refactor_session_options_to_build_command() {
+        let dir = tempdir().unwrap();
+        let fixture_dir = dir.path().join("build");
+        fs::create_dir_all(&fixture_dir).unwrap();
+        let fixture = fixture_dir.join("refactor_abi_visibility.scoop");
+        fs::write(
+            &fixture,
+            r#"// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_fixture_visibility_hiddenWorker
+
+package fixtures.build_fixture_visibility
+
+effect Ping {
+    fun hit(): Unit
+}
+
+fun hiddenWorker(): Unit / Ping {
+    Ping.hit()
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+        )
+        .unwrap();
+
+        let ok = run_all(
+            &fixture_dir,
+            None,
+            SessionOptions::new(EffectPipelineMode::Refactor),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();

@@ -3588,6 +3588,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.build_fun_callee_suspend_plan_impl(fun)
     }
 
+    pub(crate) fn fun_requires_legacy_effect_body_lowering(&self, fun: &hir::FunDecl) -> bool {
+        self.build_fun_callee_suspend_plan(fun).is_some()
+    }
+
     fn top_level_fun_uses_hidden_incoming_resume_token(&self, fun: &hir::FunDecl) -> bool {
         !self.extern_funs.contains_key(&fun.fqn) && self.hir_ty_declared_effectful(Some(fun.ty))
     }

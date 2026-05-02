@@ -357,12 +357,15 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
+                let abi_visibility_lowered =
+                    refactor_abi_visibility_lowered_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
                     &session,
                     &source_map,
                     entry_source_id,
                     lowered,
+                    abi_visibility_lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
@@ -382,12 +385,15 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
+                let abi_visibility_lowered =
+                    refactor_abi_visibility_lowered_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
                     &session,
                     &source_map,
                     entry_source_id,
                     lowered,
+                    abi_visibility_lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
@@ -407,12 +413,15 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front, opt_level)?;
+                let abi_visibility_lowered =
+                    refactor_abi_visibility_lowered_hir_for_build(&session, &front, opt_level)?;
                 let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
                     &session,
                     &source_map,
                     entry_source_id,
                     lowered,
+                    abi_visibility_lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
@@ -992,6 +1001,8 @@ fn run_codegen_and_link(
     let obj = work_dir.join(layout::obj_file_name("main"));
 
     let lowered = lower_main_hir_for_build(session, front, opt_level)?;
+    let abi_visibility_lowered =
+        refactor_abi_visibility_lowered_hir_for_build(session, front, opt_level)?;
     let extern_libs = lowered.extern_libs.clone();
     let (source_map, entry_source_id) = build_codegen_source_map(session, front);
     scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
@@ -999,6 +1010,7 @@ fn run_codegen_and_link(
         &source_map,
         entry_source_id,
         lowered,
+        abi_visibility_lowered,
         &obj,
         front.input.entry_main_fqn.as_deref(),
         opt_level,
@@ -1089,10 +1101,18 @@ fn run_codegen_and_link(
 }
 
 #[cfg(feature = "llvm")]
-fn lower_main_hir_for_build(
+#[derive(Clone, Copy)]
+enum BuildMirRequestRootMode {
+    EntryMain,
+    RequestSources,
+}
+
+#[cfg(feature = "llvm")]
+fn lower_hir_for_build_with_request_root_mode(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
     opt_level: OptLevel,
+    request_root_mode: BuildMirRequestRootMode,
 ) -> Result<scoopc::hir::LoweredHir> {
     // 该返回值仍是当前 LLVM codegen 消费的 HIR 兼容输入，但在 via-MIR 主路径上会额外挂住
     // `LoweredHir::materialized_pass_view()`，把 canonical materialized body / summary /
@@ -1122,6 +1142,15 @@ fn lower_main_hir_for_build(
         cone_entry_main_fqn(&package_prefix(source, ast.package.as_ref()))
     });
 
+    let request_root_mode = match request_root_mode {
+        BuildMirRequestRootMode::EntryMain => scoopc::mir::MaterializeRequestRootMode::EntryMain {
+            fqn: Some(entry_main_fqn.as_str()),
+        },
+        BuildMirRequestRootMode::RequestSources => {
+            scoopc::mir::MaterializeRequestRootMode::RequestSources
+        }
+    };
+
     scoopc::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
         &front.index,
         &unit,
@@ -1131,13 +1160,46 @@ fn lower_main_hir_for_build(
         &front.typecheck_types,
         scoopc::hir::MirInstanceCollectionOptions {
             request_source_paths: &request_source_paths,
-            request_root_mode: scoopc::mir::MaterializeRequestRootMode::EntryMain {
-                fqn: Some(entry_main_fqn.as_str()),
-            },
+            request_root_mode,
             opt_level,
         },
     )
     .map_err(|err| miette::Report::from(*err))
+}
+
+#[cfg(feature = "llvm")]
+fn lower_main_hir_for_build(
+    session: &scoopc::session::Session,
+    front: &FrontendOutput,
+    opt_level: OptLevel,
+) -> Result<scoopc::hir::LoweredHir> {
+    lower_hir_for_build_with_request_root_mode(
+        session,
+        front,
+        opt_level,
+        BuildMirRequestRootMode::EntryMain,
+    )
+}
+
+#[cfg(feature = "llvm")]
+fn refactor_abi_visibility_lowered_hir_for_build(
+    session: &scoopc::session::Session,
+    front: &FrontendOutput,
+    opt_level: OptLevel,
+) -> Result<Option<scoopc::hir::LoweredHir>> {
+    if session.effect_pipeline_mode() != scoopc::session::EffectPipelineMode::Refactor {
+        return Ok(None);
+    }
+
+    // 这条附加 handoff 只负责把 request-source 范围内的 callable ABI shell 暴露给 refactor
+    // LLVM stage；真正的 reachable body lowering 仍由 entry-main rooted build lowering 决定。
+    lower_hir_for_build_with_request_root_mode(
+        session,
+        front,
+        opt_level,
+        BuildMirRequestRootMode::RequestSources,
+    )
+    .map(Some)
 }
 
 #[cfg(feature = "llvm")]
@@ -1168,8 +1230,16 @@ fn build_codegen_source_map(
 mod tests {
     use std::path::PathBuf;
 
+    use scoopc::effect_refactor_pipeline::LlvmArtifactKind;
+    use scoopc::llvm::LlvmEmitError;
     use scoopc::opt::OptLevel;
+    use scoopc::session::{EffectPipelineMode, SessionOptions};
     use tempfile::tempdir;
+
+    fn refactor_session() -> scoopc::session::Session {
+        scoopc::session::Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor))
+            .unwrap()
+    }
 
     #[test]
     fn resolve_opt_level_prefers_cli_over_manifest() {
@@ -1867,5 +1937,141 @@ fun main(): Int / Pure! {
             !lowered_member_fqns.contains(&"fixtures.t5000e2r.Box.doubled::<String>"),
             "build frontend 不应因为 `TypeStore` 中出现 `Box<String>` 就 eager materialize 未调用 getter，实际成员函数集合为: {lowered_member_fqns:?}"
         );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn refactor_build_publishes_request_source_abi_shells_for_unreachable_effectful_helpers() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("main.scoop");
+        let out = dir.path().join("abi.ll");
+
+        std::fs::write(
+            &input,
+            r#"
+package fixtures.build_abi_visibility
+
+effect Ping {
+    fun hit(): Unit
+}
+
+fun hiddenWorker(): Unit / Ping {
+    Ping.hit()
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+        )
+        .unwrap();
+
+        let session = refactor_session();
+        let build_input = super::load_build_input(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
+        let abi_visibility_lowered =
+            super::refactor_abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)
+                .unwrap()
+                .expect("refactor build 应额外构造 request-source ABI visibility handoff");
+        let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
+
+        scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+            &session,
+            &source_map,
+            entry_source_id,
+            lowered,
+            Some(abi_visibility_lowered),
+            &out,
+            front.input.entry_main_fqn.as_deref(),
+            OptLevel::O0,
+            LlvmArtifactKind::LlvmIr,
+        )
+        .unwrap();
+
+        let ir = std::fs::read_to_string(&out).unwrap();
+        assert!(
+            ir.contains(
+                "__scoop_refactor_dynamic_invoke__fixtures_build_abi_visibility_hiddenWorker"
+            ),
+            "ABI visibility handoff 应让不可达 effectful helper 的 canonical invoke shell 出现在 refactor build IR 中：\n{ir}"
+        );
+        assert!(
+            !ir.contains("scoop.effect.frame."),
+            "纯 main 的 refactor build 不应为了 ABI shell 可见性而偷偷生成 legacy effect frame IR：\n{ir}"
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn refactor_build_rejects_reachable_self_contained_legacy_effect_body_lowering() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("main.scoop");
+        let out = dir.path().join("reject.ll");
+
+        std::fs::write(
+            &input,
+            r#"
+package fixtures.reachable_legacy
+
+effect Ping {
+    fun hit(): Unit
+}
+
+fun hiddenWorker(): Unit / Ping {
+    Ping.hit()
+}
+
+fun main(): Int {
+    return handle {
+        hiddenWorker()
+        0
+    } with {
+        Ping.hit(), _k -> 0
+    }
+}
+"#,
+        )
+        .unwrap();
+
+        let session = refactor_session();
+        let build_input = super::load_build_input(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
+        let abi_visibility_lowered =
+            super::refactor_abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)
+                .unwrap();
+        let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
+
+        let err = scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+            &session,
+            &source_map,
+            entry_source_id,
+            lowered,
+            abi_visibility_lowered,
+            &out,
+            front.input.entry_main_fqn.as_deref(),
+            OptLevel::O0,
+            LlvmArtifactKind::LlvmIr,
+        )
+        .expect_err("reachable self-contained handle 不应再静默落入 legacy effect frame lowering");
+
+        match err {
+            LlvmEmitError::RefactorEffectLoweringUnsupported {
+                entry,
+                callable,
+                unsupported_paths,
+            } => {
+                assert_eq!(entry, "fixtures.reachable_legacy.main");
+                assert_eq!(callable, "fixtures.reachable_legacy.main");
+                assert!(
+                    unsupported_paths.contains("call boundary lowering")
+                        || unsupported_paths
+                            .contains("legacy effect-frame / handler-stack body lowering"),
+                    "诊断应明确指出当前 reachable effect lowering 尚未迁移，不能回落到 legacy backend：{unsupported_paths}"
+                );
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 }

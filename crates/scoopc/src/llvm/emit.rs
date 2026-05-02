@@ -32,6 +32,32 @@ struct LoweredCodegenEntry<'a> {
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     late_lowered_types: Option<&'a crate::ty::TypeStore>,
+    refactor_abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    refactor_abi_types: Option<&'a crate::ty::TypeStore>,
+}
+
+#[derive(Clone, Copy)]
+pub struct RefactorStageEmitInput<'a> {
+    hir_compat_scaffold: &'a hir::LoweredHir,
+    effect_lowered_stage_output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    abi_visibility_effect_lowered_stage_output:
+        Option<&'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput>,
+}
+
+impl<'a> RefactorStageEmitInput<'a> {
+    pub fn new(
+        hir_compat_scaffold: &'a hir::LoweredHir,
+        effect_lowered_stage_output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        abi_visibility_effect_lowered_stage_output: Option<
+            &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        >,
+    ) -> Self {
+        Self {
+            hir_compat_scaffold,
+            effect_lowered_stage_output,
+            abi_visibility_effect_lowered_stage_output,
+        }
+    }
 }
 
 impl<'a> LoweredCodegenEntry<'a> {
@@ -41,6 +67,8 @@ impl<'a> LoweredCodegenEntry<'a> {
             materialized_pass_view: lowered.materialized_pass_view(),
             late_lowered_program: None,
             late_lowered_types: None,
+            refactor_abi_program: None,
+            refactor_abi_types: None,
         }
     }
 
@@ -53,22 +81,31 @@ impl<'a> LoweredCodegenEntry<'a> {
             materialized_pass_view: Some(materialized_pass_view),
             late_lowered_program: None,
             late_lowered_types: None,
+            refactor_abi_program: None,
+            refactor_abi_types: None,
         })
     }
 
     fn from_refactor_stage(
         lowered: &'a hir::LoweredHir,
         effect_lowered_stage_output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        abi_visibility_effect_lowered_stage_output: Option<
+            &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        >,
     ) -> Self {
         debug_assert!(
             lowered.materialized_pass_view().is_none(),
             "refactor LLVM stage 的 HIR scaffold 不应继续携带旧 production pass-view"
         );
+        let abi_visibility_effect_lowered_stage_output = abi_visibility_effect_lowered_stage_output
+            .unwrap_or(effect_lowered_stage_output);
         Self {
             lowered,
             materialized_pass_view: Some(effect_lowered_stage_output.materialized_pass_view()),
             late_lowered_program: Some(effect_lowered_stage_output.program()),
             late_lowered_types: Some(effect_lowered_stage_output.types()),
+            refactor_abi_program: Some(abi_visibility_effect_lowered_stage_output.program()),
+            refactor_abi_types: Some(abi_visibility_effect_lowered_stage_output.types()),
         }
     }
 }
@@ -253,15 +290,18 @@ pub(crate) fn build_refactor_main_module_from_stage_output<'ctx>(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     context: &'ctx Context,
-    hir_compat_scaffold: &hir::LoweredHir,
-    effect_lowered_stage_output: &crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    stage_input: RefactorStageEmitInput<'_>,
     entry_main_fqn: Option<&str>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     build_main_module_from_codegen_entry(
         source_map,
         entry_source_id,
         context,
-        LoweredCodegenEntry::from_refactor_stage(hir_compat_scaffold, effect_lowered_stage_output),
+        LoweredCodegenEntry::from_refactor_stage(
+            stage_input.hir_compat_scaffold,
+            stage_input.effect_lowered_stage_output,
+            stage_input.abi_visibility_effect_lowered_stage_output,
+        ),
         entry_main_fqn,
     )
 }
@@ -270,8 +310,7 @@ pub(crate) fn build_refactor_main_module_from_stage_output<'ctx>(
 pub fn emit_refactor_main_ir_to_file_from_stage_output(
     source_map: &SourceMap,
     entry_source_id: SourceId,
-    hir_compat_scaffold: &hir::LoweredHir,
-    effect_lowered_stage_output: &crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    stage_input: RefactorStageEmitInput<'_>,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: OptLevel,
@@ -281,8 +320,7 @@ pub fn emit_refactor_main_ir_to_file_from_stage_output(
         source_map,
         entry_source_id,
         &context,
-        hir_compat_scaffold,
-        effect_lowered_stage_output,
+        stage_input,
         entry_main_fqn,
     )?;
 
@@ -473,8 +511,7 @@ pub fn emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with
 pub fn emit_refactor_main_obj_to_file_from_stage_output(
     source_map: &SourceMap,
     entry_source_id: SourceId,
-    hir_compat_scaffold: &hir::LoweredHir,
-    effect_lowered_stage_output: &crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    stage_input: RefactorStageEmitInput<'_>,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: OptLevel,
@@ -490,8 +527,7 @@ pub fn emit_refactor_main_obj_to_file_from_stage_output(
         source_map,
         entry_source_id,
         &context,
-        hir_compat_scaffold,
-        effect_lowered_stage_output,
+        stage_input,
         entry_main_fqn,
     )?;
 
@@ -682,8 +718,7 @@ pub fn emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with
 pub fn emit_refactor_main_asm_to_file_from_stage_output(
     source_map: &SourceMap,
     entry_source_id: SourceId,
-    hir_compat_scaffold: &hir::LoweredHir,
-    effect_lowered_stage_output: &crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    stage_input: RefactorStageEmitInput<'_>,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: OptLevel,
@@ -699,8 +734,7 @@ pub fn emit_refactor_main_asm_to_file_from_stage_output(
         source_map,
         entry_source_id,
         &context,
-        hir_compat_scaffold,
-        effect_lowered_stage_output,
+        stage_input,
         entry_main_fqn,
     )?;
 
@@ -771,6 +805,8 @@ fn build_main_module_from_codegen_entry<'ctx>(
         materialized_pass_view,
         late_lowered_program,
         late_lowered_types,
+        refactor_abi_program,
+        refactor_abi_types,
     } = codegen_entry;
     let has_materialized_pass_view = materialized_pass_view.is_some();
 
@@ -936,7 +972,17 @@ fn build_main_module_from_codegen_entry<'ctx>(
                 .filter(|fun| fun.fqn != hir_main.fqn),
         );
         ensure_refactor_effect_lowering_is_supported(&hir_main.fqn, &callables_to_check, program)?;
-        let _ = declare.materialize_refactor_program_abi(program, late_lowered_types)?;
+        ensure_refactor_reachable_callables_do_not_require_legacy_effect_body_lowering(
+            &hir_main.fqn,
+            &callables_to_check,
+            &declare,
+        )?;
+        let abi_program = refactor_abi_program.ok_or_else(|| LlvmEmitError::Frontend {
+            message: "refactor LLVM stage handoff 缺少 ABI visibility late-lowered program"
+                .to_string(),
+        })?;
+        let abi_types = refactor_abi_types.unwrap_or(late_lowered_types);
+        let _ = declare.materialize_refactor_program_abi(abi_program, abi_types)?;
     }
 
     for fun in &reachable {
@@ -1067,6 +1113,24 @@ fn ensure_refactor_effect_lowering_is_supported(
             callable: callable.root_fqn().to_string(),
             unsupported_paths: unsupported_paths.join(", "),
         });
+    }
+    Ok(())
+}
+
+fn ensure_refactor_reachable_callables_do_not_require_legacy_effect_body_lowering(
+    entry_fqn: &str,
+    reachable: &[&hir::FunDecl],
+    codegen: &codegen::MainCodegen<'_, '_>,
+) -> Result<(), LlvmEmitError> {
+    for fun in reachable {
+        if codegen.fun_requires_legacy_effect_body_lowering(fun) {
+            return Err(LlvmEmitError::RefactorEffectLoweringUnsupported {
+                entry: entry_fqn.to_string(),
+                callable: fun.fqn.clone(),
+                unsupported_paths: "legacy effect-frame / handler-stack body lowering"
+                    .to_string(),
+            });
+        }
     }
     Ok(())
 }

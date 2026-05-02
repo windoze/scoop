@@ -334,7 +334,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/effect_facts/handle_perform.scoop -o /tmp/p6_refactor_effect_fail.ll`（预期失败，并输出显式 `RefactorEffectLoweringUnsupported` 诊断）
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T01b：扩展 refactor build/LLVM handoff 的 ABI 可见性，保证 P6-T02 build fixtures 能在不触发 legacy lowering 的前提下观察 effectful `Step` / continuation 形状
+## [DONE] P6-T01b：扩展 refactor build/LLVM handoff 的 ABI 可见性，保证 P6-T02 build fixtures 能在不触发 legacy lowering 的前提下观察 effectful `Step` / continuation 形状
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -381,9 +381,29 @@
   - `P6-T02` 可以在此基础上继续完成剩余 build-fixture / lint / 文档收口。
 - 依赖：P6-T01R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：`crates/scoop/src/commands/build.rs` 新增了按 request-root 策略切换的 build lowering helper；refactor build 现在在保留原有 `EntryMain` rooted production lowering 的同时，额外构造一份 `RequestSources` rooted 的 `abi_visibility_lowered_hir`，专门用于 request-source 范围 ABI shell 可见性。
+  - `crates/scoopc/src/effect_refactor_pipeline/{mod.rs,llvm_codegen_stage.rs}` 已把这份附加 handoff 接入 refactor LLVM stage：primary `effect_lowered_stage_output` 继续作为 reachable body lowering / fail-fast 的 authoritative 输入；新增的 `abi_visibility_effect_lowered_stage_output` 只负责发布 `Step_F` / continuation / resume-interface / dynamic invoke ABI shell。
+  - `crates/scoopc/src/llvm/{emit.rs,mod.rs}` 已把 refactor emit handoff 收口到 `RefactorStageEmitInput`；构建 module 时现在显式区分“reachable body lowering program”与“ABI shell visibility program”，并在进入 legacy effect-frame / handler-stack body lowering 之前返回结构化 `RefactorEffectLoweringUnsupported`，不再允许 build fixture 靠旧 `scoop.effect.frame.*` IR 断言新 ABI。
+  - `crates/scoop/src/fixtures/mod.rs` 的 build fixture runner 现已透传 `session.options()` 给内部 `scoop build`，修复了 `scoop test --fixtures ...` 在 `--effect-pipeline refactor` 下仍默认走 legacy build session 的问题。
+  - `tests/fixtures/build/{effect_refactor_step_enum_single_case,effect_refactor_dynamic_invoke_unit_payload,effect_refactor_continuation_interface_full_methods}.scoop` 已改为“pure main + 不可达 effectful helper”形状，直接通过真实 refactor build 主路径观察 ABI shell，不再借 reachable handle 制造 legacy lowering 样本。
+  - 已新增定向回归：
+    - `crates/scoop/src/commands/build.rs`：验证不可达 effectful helper ABI shell 会出现在 refactor build IR 中，以及 reachable self-contained effect lowering 会显式拒绝；
+    - `crates/scoop/src/fixtures/mod.rs`：验证 build fixtures 会把 refactor session 选项传给内部 `scoop build`。
+  - 已运行验证：
+    - `cargo test -p scoopc refactor_llvm_codegen_stage`
+    - `cargo test -p scoopc refactor_llvm_step_layout`
+    - `cargo test -p scoopc refactor_llvm_frame_layout`
+    - `cargo test -p scoopc refactor_llvm_continuation_layout`
+    - `cargo test -p scoopc refactor_llvm_unit_abi`
+    - `cargo test -p scoop refactor_build_publishes_request_source_abi_shells_for_unreachable_effectful_helpers`
+    - `cargo test -p scoop refactor_build_rejects_reachable_self_contained_legacy_effect_body_lowering`
+    - `cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02：把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering
+## [DONE] P6-T02：把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -497,7 +517,17 @@
 - 完成记录：
   - 2026-05-03：已在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 建立独立的 refactor LLVM type/layout materialization 与稳定 query API，并把 refactor `build --emit-llvm` 的 module 构建路径接到该 ABI shell 物化层。
   - 已新增 `refactor_llvm_step_layout_*`、`refactor_llvm_frame_layout_*`、`refactor_llvm_continuation_layout_*`、`refactor_llvm_unit_abi_*` 定向单测，覆盖 canonical `Step_F` tag identity、frame/system slot field index、resume-interface 完整 method 集，以及 `Unit` 零载荷 ABI。
-  - 继续执行 build-fixture 验证时发现新的前置 blocker：当前 production build handoff 仍无法在不触发 legacy effect body lowering 的前提下，让 `P6-T02` 需要的 effectful ABI fixture 稳定出现在 `.ll` 产物里；详见前置任务 `P6-T01b`。因此本任务保持未完成状态，待 `P6-T01b` 修复后继续收口。
+  - `crates/scoopc/src/llvm/emit.rs` 现已通过 `RefactorStageEmitInput` 把 authoritative reachable-body program 与 ABI-visibility program 显式分离：前者继续作为 fail-fast / 后续 body lowering 的 authoritative handoff；后者只负责发布 request-source 范围的 canonical `Step_F` / continuation / resume-interface / dynamic invoke ABI shell，避免 backend 回到 legacy `EffectSignal` / `EffectOutcome` 模型。
+  - `P6-T01b` 已修复此前的 build-fixture blocker：`crates/scoop/src/commands/build.rs` 会为 refactor build 额外构造 `RequestSources` rooted 的 ABI visibility handoff，`crates/scoop/src/fixtures/mod.rs` 也会把 refactor session 选项透传给内部 build，因此三个 build fixtures 现都能在真实 refactor build 主路径上稳定观察 ABI shell，而不必通过 reachable handle 重新进入 legacy lowering。
+  - 已运行验证：
+    - `cargo test -p scoopc refactor_llvm_`
+    - `cargo test -p scoop refactor_build_`
+    - `cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+    - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T02R：Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型
 

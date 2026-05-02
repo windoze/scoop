@@ -1,49 +1,57 @@
-## 执行计划
+## 本次执行计划
 
-说明：出于安全与协作边界，这里记录可审阅的执行计划、决策依据摘要与进度更新，不记录不可审阅的内部推理细节。
+说明：按你的要求，我会持续更新这份文件记录执行计划、关键进展和必要调整。出于安全与协作边界，我不会写入逐字的内部推理过程，但会完整记录可审计的执行步骤、依据和结果。
 
-1. 先读取 `TODO.md`，把它当作索引使用。
-2. 按索引顺序读取对应的 `TODO-Px.md`，定位第一个标题未带 `[DONE]` 的详细任务。
-3. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；如果是，则将其视为当前任务的一部分或作为前置任务处理。
-4. 阅读与当前任务相关的代码、测试、规范与任务约束，确认实现边界。
-5. 实现当前任务，避免引入变通方案；若遇到阻塞，则在相应 `TODO-Px.md` 中增加最小必要前置任务，并同步 `TODO.md`。
-6. 运行相关验证，包括必要的测试、`cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（若范围允许且与任务相关）。
-7. 更新详细任务文件的完成记录，并将任务标题标记为 `[DONE]`；如索引状态有变化，同步更新 `TODO.md`。
-8. 仅在阶段计划发生真实变化时更新 `PLAN.md`。
-9. 提交本次变更，提交信息使用当前任务编号。
-10. 停止，不继续处理下一个任务。
+1. 先读取 `TODO.md`，把它当作任务索引使用。
+2. 按索引顺序检查对应的 `TODO-Px.md` 详细任务文件。
+3. 识别第一个标题未标记 `[DONE]` 的详细任务，确认它才是当前执行单元。
+4. 检查最近提交是否直接提到与该任务相关且未完成的问题；如果是，则将其视为当前任务的一部分，或在对应 `TODO-Px.md` 中登记为前置任务。
+5. 阅读当前任务要求、约束、依赖、验收条件以及现有实现。
+6. 如任务可直接完成，则实施最小正确修改，不引入规避性方案。
+7. 运行相关验证：至少包括与当前改动直接相关的测试；若任务要求或影响范围需要，则补充更广的验证，并确保无警告通过 `cargo clippy --all-targets -- -D warnings`。
+8. 若出现阻塞当前任务的真实缺口或规范不匹配：
+   - 精确记录问题；
+   - 在正确的 `TODO-Px.md` 中插入最小必要前置任务；
+   - 同步 `TODO.md`；
+   - 仅在阶段计划被影响时更新 `PLAN.md`；
+   - 提交并停止。
+9. 若任务完成：
+   - 在对应 `TODO-Px.md` 中将任务标题改为 `[DONE]`；
+   - 更新完成记录；
+   - 如索引需要同步，则更新 `TODO.md`；
+   - 仅在阶段计划变化时更新 `PLAN.md`。
+10. 检查工作区中与本次任务相关的未提交修改，避免覆盖他人改动；如本次是在延续上次失败后的同一任务，则按要求一并提交当前所有未提交文件。
+11. 使用清晰的 Git 提交信息提交本次结果，然后停止，不继续下一个任务。
 
-## 进度日志
+## 进度记录
 
-- 已创建本文件并写入初始计划。
-- 已读取 `TODO.md` 与 `TODO-P6.md`，确认第一个未完成详细任务为 `P6-T02`：把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering。
-- 已检查最新提交：`2175dc76 [P6-T01R] Review refactor LLVM stage boundary`。当前未发现需要先于 `P6-T02` 插入的新前置任务；继续按 `P6-T02` 执行。
-- 已检查工作区：除当前 `memory/claude_plan.md` 外暂无未提交改动。
-- 已阅读 P5/P6 相关代码与设计基线，当前实现状态判断如下：
-  - `crates/scoopc/src/llvm/codegen/effect_refactor/` 目前只有占位 `mod.rs`，尚无独立 type/layout materialization。
-  - P5 late-lowered IR 已稳定提供 `LateLoweredStepType`、`LateLoweredFrameSchema`、`LateLoweredResumeInterface`、`LateLoweredContinuationObject`、`LateLoweredDynamicInvokeEntry` 等结构，可直接作为 authoritative 输入。
-  - 通用 LLVM `TypeId -> CgTy/LLVM type`、GC object header、指针类型与 enum/tuple/struct lowering helper 已存在，可复用。
-- 当前执行方案细化为：
-  1. 在 `crates/scoopc/src/llvm/codegen/effect_refactor/` 下新增独立 `types.rs` / `layout.rs`，建立 refactor LLVM contract materialization 与查询 API。
-  2. 让该查询 API 只消费 P5 late-lowered program + `TypeStore` + 通用 LLVM helper，显式表达 `Step_F`、frame、continuation object、resume interface、dynamic/direct invoke 的 LLVM 形状。
-  3. 补充定向单测，覆盖 `Step_F` canonical identity、frame/system slot 映射、continuation method 完整集、`Unit` 零载荷 ABI。
-  4. 增加 build fixtures，锁定关键 LLVM IR 片段。
-  5. 运行相关测试/fixture/clippy，随后回填 `TODO-P6.md` / `TODO.md` 并提交。
-- 已完成：
-  - `effect_refactor/types.rs` / `layout.rs` 已落地，refactor LLVM type/layout query API 已接到 `llvm/emit.rs` 的 refactor module build 路径。
-  - `refactor_llvm_step_layout_*` / `frame_layout_*` / `continuation_layout_*` / `unit_abi_*` 单测已通过。
-- 新发现的 blocker：
-  - `scoop build --effect-pipeline refactor --emit-llvm` 主路径当前仍只稳定观察 entry-root production handoff；不可达 effectful helper 不会进入 ABI 物化范围。
-  - 若为了让 helper 可达而在 `Pure main` 中引入 self-contained `handle`，当前生成的 `.ll` 会重新出现 legacy `scoop.effect.frame.*` lowering，而不是停留在 `P6-T01a` 规定的 fail-fast / refactor ABI shell 边界。
-  - 这使得 `P6-T02` 设计的 build fixtures 目前无法在真实 refactor build 主路径上完成验证；已按规则新增前置任务 `P6-T01b`，并把 `P6-T02` 继续保持未完成。
-- 已完成验证：
-  - `cargo test -p scoopc refactor_llvm_`
+- 已写入初始执行计划。
+- 已读取 `TODO.md`，确认索引中的首个未完成详细任务为 `P6-T02`。
+- 已读取 `TODO-P6.md`，确认 `P6-T02` 的 authoritative 要求是把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到新的 LLVM type/layout materialization 层，并补齐单测与 build fixture 验证。
+- 已检查最近一次提交：`[P6-T01b] Track refactor build ABI visibility blocker`。该提交直接相关的阻塞已在当前工作树中以 `P6-T01b` 的完成记录形式落账，并且索引 `TODO.md` 也已同步为 `[DONE]`。
+- 已检查工作区，发现一组围绕 `P6-T02`/`P6-T01b` 收口的未提交修改，包含：
+  - refactor build/LLVM stage 新增 ABI visibility handoff；
+  - build fixture runner 透传 refactor session 选项；
+  - `P6-T02` 的三个 build fixtures 改为 `pure main + 不可达 effectful helper` 验证形状；
+  - `TODO-P6.md` / `TODO.md` / `memory/claude_plan.md` 的任务记录尚未最终收口。
+- 当前判断：这是同一执行单元的续作，而不是新的无关改动；因此接下来先验证这些修改是否足以让 `P6-T02` 完成。
+- 下一步验证矩阵：
   - `cargo test -p scoopc refactor_llvm_step_layout`
   - `cargo test -p scoopc refactor_llvm_frame_layout`
   - `cargo test -p scoopc refactor_llvm_continuation_layout`
   - `cargo test -p scoopc refactor_llvm_unit_abi`
-  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
   - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
-- blocker 复现命令摘要：
-  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`：当前 build 主路径看不到不可达 effectful helper 的 ABI shell。
-  - 把 helper 通过 self-contained `handle` 拉进 reachability 后，生成 `.ll` 会重新出现 legacy `scoop.effect.frame.*` lowering，因此不能作为 `P6-T02` 的合格验证路径。
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- 已完成验证：
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo test -p scoop refactor_build_`
+  - `cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+  - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- 结论：`P6-T02` 所需的 type/layout query API、单测、真实 refactor build fixture 验证与 legacy 抽样兼容性均已收口，可将 `P6-T02` 标记为完成，并提交当前工作区中的同任务未提交文件。

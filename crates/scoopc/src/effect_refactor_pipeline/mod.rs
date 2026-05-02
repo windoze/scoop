@@ -360,6 +360,7 @@ pub fn emit_production_llvm_artifact_to_file(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     lowered: crate::hir::LoweredHir,
+    abi_visibility_lowered: Option<crate::hir::LoweredHir>,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: crate::opt::OptLevel,
@@ -397,6 +398,7 @@ pub fn emit_production_llvm_artifact_to_file(
             session,
             llvm_codegen_stage::RefactorLlvmCodegenStageInput::new(
                 lowered,
+                abi_visibility_lowered,
                 source_map.clone(),
                 entry_source_id,
                 entry_main_fqn.map(str::to_owned),

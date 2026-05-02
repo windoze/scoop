@@ -54,6 +54,7 @@ pub use emit::{
     emit_minimal_main_obj_to_file_with_opt_level, emit_refactor_main_asm_to_file_from_stage_output,
     emit_refactor_main_ir_to_file_from_stage_output,
     emit_refactor_main_obj_to_file_from_stage_output,
+    RefactorStageEmitInput,
 };
 pub use target::{HostTargetInfo, LlvmTargetError};
 

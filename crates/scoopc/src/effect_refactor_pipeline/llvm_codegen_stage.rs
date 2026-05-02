@@ -4,7 +4,7 @@ use crate::hir::LoweredHir;
 use crate::llvm::LlvmEmitError;
 use crate::opt::OptLevel;
 use crate::session::Session;
-use crate::source::{SourceId, SourceMap};
+use crate::source::{SourceFile, SourceId, SourceMap};
 
 use super::{
     LlvmArtifactKind, RefactorEffectLoweredStageOutput, TypedHirStageOutput,
@@ -21,12 +21,15 @@ static TEST_STAGE_RUNS: AtomicUsize = AtomicUsize::new(0);
 ///
 /// 约束：
 /// - `lowered_hir` 必须来自 build/frontend 的统一 typed lowering；
+/// - `abi_visibility_lowered_hir` 若存在，只能用于发布 request-source 范围的 ABI shell；它不能改变
+///   reachable body lowering / fail-fast 的 authoritative handoff；
 /// - stage 会显式把它推进到 P5 late-lowered handoff；
 /// - stage 输出中的 `hir_compat_scaffold` 仅保留当前仍由通用 LLVM codegen 复用的非 effect side
 ///   tables，不能再作为 effect lowering 的 authoritative 输入。
 #[derive(Debug)]
 pub struct RefactorLlvmCodegenStageInput {
     lowered_hir: LoweredHir,
+    abi_visibility_lowered_hir: Option<LoweredHir>,
     source_map: SourceMap,
     entry_source_id: SourceId,
     entry_main_fqn: Option<String>,
@@ -36,6 +39,7 @@ pub struct RefactorLlvmCodegenStageInput {
 impl RefactorLlvmCodegenStageInput {
     pub fn new(
         lowered_hir: LoweredHir,
+        abi_visibility_lowered_hir: Option<LoweredHir>,
         source_map: SourceMap,
         entry_source_id: SourceId,
         entry_main_fqn: Option<String>,
@@ -43,6 +47,7 @@ impl RefactorLlvmCodegenStageInput {
     ) -> Self {
         Self {
             lowered_hir,
+            abi_visibility_lowered_hir,
             source_map,
             entry_source_id,
             entry_main_fqn,
@@ -55,6 +60,8 @@ impl RefactorLlvmCodegenStageInput {
 ///
 /// 说明：
 /// - `effect_lowered_stage_output` 是 P5 -> P6 的 authoritative handoff；
+/// - `abi_visibility_effect_lowered_stage_output` 若存在，则只用于发布 build fixture / ABI 断言所需的
+///   request-source callable shell，可见性与 reachable body lowering 明确分离；
 /// - `hir_compat_scaffold` 只为当前仍未迁出的通用 LLVM 布局/顶层索引查询提供过渡输入；
 /// - 该 scaffold 明确不再携带 `materialized_mir/pass_view`，避免 refactor 路径再回落到旧的
 ///   `production_lowered_hir` emit helper；
@@ -67,6 +74,7 @@ pub struct RefactorLlvmCodegenStageOutput {
     opt_level: OptLevel,
     hir_compat_scaffold: LoweredHir,
     effect_lowered_stage_output: RefactorEffectLoweredStageOutput,
+    abi_visibility_effect_lowered_stage_output: Option<RefactorEffectLoweredStageOutput>,
 }
 
 impl RefactorLlvmCodegenStageOutput {
@@ -77,6 +85,7 @@ impl RefactorLlvmCodegenStageOutput {
         opt_level: OptLevel,
         hir_compat_scaffold: LoweredHir,
         effect_lowered_stage_output: RefactorEffectLoweredStageOutput,
+        abi_visibility_effect_lowered_stage_output: Option<RefactorEffectLoweredStageOutput>,
     ) -> Self {
         Self {
             source_map,
@@ -85,6 +94,7 @@ impl RefactorLlvmCodegenStageOutput {
             opt_level,
             hir_compat_scaffold,
             effect_lowered_stage_output,
+            abi_visibility_effect_lowered_stage_output,
         }
     }
 
@@ -111,6 +121,28 @@ impl RefactorLlvmCodegenStageOutput {
     pub fn effect_lowered_stage_output(&self) -> &RefactorEffectLoweredStageOutput {
         &self.effect_lowered_stage_output
     }
+
+    pub fn abi_visibility_effect_lowered_stage_output(
+        &self,
+    ) -> Option<&RefactorEffectLoweredStageOutput> {
+        self.abi_visibility_effect_lowered_stage_output.as_ref()
+    }
+}
+
+fn run_effect_lowered_stage_from_lowered_hir(
+    session: &Session,
+    entry_source: &SourceFile,
+    lowered_hir: LoweredHir,
+) -> Result<RefactorEffectLoweredStageOutput, LlvmEmitError> {
+    let source_path = entry_source.path().to_path_buf();
+    let typed_hir_output = TypedHirStageOutput::new(lowered_hir, &source_path);
+    let mir_stage_output =
+        mir_stage::run(typed_hir_output).map_err(|err| stage_error("direct-style MIR", err))?;
+    let effect_facts_stage_output =
+        build_effect_facts_stage_output(session, entry_source, mir_stage_output)
+            .map_err(|err| stage_error("effect facts", err))?;
+    build_effect_lowered_stage_output(session, effect_facts_stage_output)
+        .map_err(|err| stage_error("late lowering", err))
 }
 
 pub(crate) fn run(
@@ -122,6 +154,7 @@ pub(crate) fn run(
 
     let RefactorLlvmCodegenStageInput {
         lowered_hir,
+        abi_visibility_lowered_hir,
         source_map,
         entry_source_id,
         entry_main_fqn,
@@ -136,17 +169,14 @@ pub(crate) fn run(
                     entry_source_id.as_usize()
                 ),
             })?;
-    let source_path = entry_source.path().to_path_buf();
     let hir_compat_scaffold = lowered_hir.clone_hir_compat_scaffold_without_materialized_mir();
-    let typed_hir_output = TypedHirStageOutput::new(lowered_hir, &source_path);
-    let mir_stage_output =
-        mir_stage::run(typed_hir_output).map_err(|err| stage_error("direct-style MIR", err))?;
-    let effect_facts_stage_output =
-        build_effect_facts_stage_output(session, entry_source, mir_stage_output)
-            .map_err(|err| stage_error("effect facts", err))?;
     let effect_lowered_stage_output =
-        build_effect_lowered_stage_output(session, effect_facts_stage_output)
-            .map_err(|err| stage_error("late lowering", err))?;
+        run_effect_lowered_stage_from_lowered_hir(session, entry_source, lowered_hir)?;
+    let abi_visibility_effect_lowered_stage_output = abi_visibility_lowered_hir
+        .map(|lowered_hir| {
+            run_effect_lowered_stage_from_lowered_hir(session, entry_source, lowered_hir)
+        })
+        .transpose()?;
 
     Ok(RefactorLlvmCodegenStageOutput::new(
         source_map,
@@ -155,6 +185,7 @@ pub(crate) fn run(
         opt_level,
         hir_compat_scaffold,
         effect_lowered_stage_output,
+        abi_visibility_effect_lowered_stage_output,
     ))
 }
 
@@ -169,8 +200,11 @@ pub(crate) fn emit_artifact_to_file(
         LlvmArtifactKind::LlvmIr => crate::llvm::emit_refactor_main_ir_to_file_from_stage_output(
             stage_output.source_map(),
             stage_output.entry_source_id(),
-            stage_output.hir_compat_scaffold(),
-            stage_output.effect_lowered_stage_output(),
+            crate::llvm::RefactorStageEmitInput::new(
+                stage_output.hir_compat_scaffold(),
+                stage_output.effect_lowered_stage_output(),
+                stage_output.abi_visibility_effect_lowered_stage_output(),
+            ),
             output,
             stage_output.entry_main_fqn(),
             stage_output.opt_level(),
@@ -178,8 +212,11 @@ pub(crate) fn emit_artifact_to_file(
         LlvmArtifactKind::Object => crate::llvm::emit_refactor_main_obj_to_file_from_stage_output(
             stage_output.source_map(),
             stage_output.entry_source_id(),
-            stage_output.hir_compat_scaffold(),
-            stage_output.effect_lowered_stage_output(),
+            crate::llvm::RefactorStageEmitInput::new(
+                stage_output.hir_compat_scaffold(),
+                stage_output.effect_lowered_stage_output(),
+                stage_output.abi_visibility_effect_lowered_stage_output(),
+            ),
             output,
             stage_output.entry_main_fqn(),
             stage_output.opt_level(),
@@ -187,8 +224,11 @@ pub(crate) fn emit_artifact_to_file(
         LlvmArtifactKind::Asm => crate::llvm::emit_refactor_main_asm_to_file_from_stage_output(
             stage_output.source_map(),
             stage_output.entry_source_id(),
-            stage_output.hir_compat_scaffold(),
-            stage_output.effect_lowered_stage_output(),
+            crate::llvm::RefactorStageEmitInput::new(
+                stage_output.hir_compat_scaffold(),
+                stage_output.effect_lowered_stage_output(),
+                stage_output.abi_visibility_effect_lowered_stage_output(),
+            ),
             output,
             stage_output.entry_main_fqn(),
             stage_output.opt_level(),
@@ -351,6 +391,7 @@ fun main(): Int {
             sample_emit_args(EffectPipelineMode::Refactor);
         let input = RefactorLlvmCodegenStageInput::new(
             lowered,
+            None,
             source_map,
             entry_source_id,
             None,
@@ -373,14 +414,21 @@ fun main(): Int {
                 .is_none(),
             "refactor LLVM stage 的 HIR scaffold 不应再携带旧 production pass-view 入口"
         );
+        assert!(
+            stage_output.abi_visibility_effect_lowered_stage_output().is_none(),
+            "未显式提供 ABI visibility handoff 时，不应伪造第二份 stage 输出"
+        );
 
         let context = Context::create();
         let module = build_refactor_main_module_from_stage_output(
             stage_output.source_map(),
             stage_output.entry_source_id(),
             &context,
-            stage_output.hir_compat_scaffold(),
-            stage_output.effect_lowered_stage_output(),
+            crate::llvm::RefactorStageEmitInput::new(
+                stage_output.hir_compat_scaffold(),
+                stage_output.effect_lowered_stage_output(),
+                stage_output.abi_visibility_effect_lowered_stage_output(),
+            ),
             stage_output.entry_main_fqn(),
         )
         .unwrap();
@@ -402,6 +450,7 @@ fun main(): Int {
             &source_map,
             entry_source_id,
             lowered,
+            None,
             &out,
             None,
             OptLevel::O0,
@@ -421,6 +470,7 @@ fun main(): Int {
             &source_map,
             entry_source_id,
             lowered,
+            None,
             &out,
             None,
             OptLevel::O0,
@@ -451,6 +501,7 @@ fun main(): Int {
                 &source_map,
                 entry_source_id,
                 lowered,
+                None,
                 &out,
                 None,
                 OptLevel::O0,
@@ -478,6 +529,7 @@ fun main(): Int {
             &source_map,
             entry_source_id,
             lowered,
+            None,
             &out,
             None,
             OptLevel::O0,
