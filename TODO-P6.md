@@ -284,7 +284,7 @@
     - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/effect_facts/handle_perform.scoop -o /tmp/p6_refactor_effect_fail.ll`（预期失败，并输出显式“未迁移 lowering，禁止回落到 legacy effect backend”诊断）
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T01R：Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离
+## [DONE] P6-T01R：Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P6
@@ -319,6 +319,20 @@
   - 该主路径仍会触发 legacy effect lowering contract：例如 `crates/scoopc/src/llvm/codegen/mir_body.rs` 继续以 `build_fun_callee_suspend_plan(...)` 判定 effect-state-machine body，`crates/scoopc/src/llvm/codegen/{mir_body,call/dispatch.rs,call/resume.rs}` 仍会调用 `swap_effect_handler_stack_top(...)`，而 `crates/scoopc/src/llvm/codegen/runtime_abi.rs` / `effect/contract.rs` 仍保留 `ScoopEffectSignal`、`ScoopEffectOutcome` 与 handler-stack runtime ABI。
   - 复跑 `P6-T01` 的核心验证后（`cargo test -p scoopc refactor_llvm_codegen_stage`、legacy/refactor `build --emit-llvm`、refactor `build --emit-obj`、refactor `build --emit-asm`、refactor `run`），命令均通过；这说明当前测试矩阵只证明了 stage shell 和 non-effectful smoke 可用，尚不能证明 refactor LLVM 主实现已与 old effect backend 分离。
   - 因此新增前置任务 `P6-T01a`，先在 refactor LLVM stage 边界禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend；待该边界补齐后再继续本 review。
+  - 2026-05-03：在 `P6-T01a` 落地后复审通过。`crates/scoopc/src/effect_refactor_pipeline/mod.rs` 中 `emit_production_llvm_artifact_to_file(...)` 已按 stage 分发：`legacy` 继续显式走 `emit_minimal_main_*_from_production_lowered_hir_with_entry_with_opt_level(...)`，`refactor` 则直接进入 `llvm_codegen_stage::emit_artifact_to_file(...)`，不再把旧 production HIR emit helper 当成 refactor 路径的真正入口。
+  - `crates/scoopc/src/effect_refactor_pipeline/llvm_codegen_stage.rs` 已成为 refactor LLVM 的显式 stage：它把统一 frontend `LoweredHir` 明确推进到 `TypedHirStageOutput -> RefactorMirStageOutput -> RefactorEffectFactsStageOutput -> RefactorEffectLoweredStageOutput`，再产出 `RefactorLlvmCodegenStageOutput`；`hir_compat_scaffold` 明确去除了 `materialized_pass_view()`，避免再回落到旧 `production_lowered_hir` contract。
+  - `crates/scoopc/src/llvm/emit.rs` 的 refactor 入口 `build_refactor_main_module_from_stage_output(...)` / `emit_refactor_main_*_from_stage_output(...)` 只从 stage handoff 读取 `materialized_pass_view()` 与 `LateLoweredProgram`；legacy `prepare_single_file_codegen_unit_*` / `emit_minimal_main_*_from_production_lowered_hir*` 仍仅属于 legacy 单文件/production API，不再是 refactor CLI 路径的数据源。
+  - `crates/scoop/src/commands/build.rs` 中 `Executable` / `LlvmIr` / `Obj` / `Asm` 四条 LLVM 产物路径全部共用 `effect_refactor_pipeline::emit_production_llvm_artifact_to_file(...)`；`crates/scoop/src/commands/run.rs` 继续复用 `build::run(...)`，因此 refactor `run` 与 `build` 共享同一 LLVM stage 入口，没有额外旧 backend 旁路。
+  - 额外文本搜索确认：允许命中只出现在 legacy API、测试、注释、导出层或 dispatcher 选择逻辑中；`crates/scoopc/src/llvm/codegen/effect_refactor/**` 仍保持独立目录边界，未把 refactor 主逻辑重新塞回 `crates/scoopc/src/llvm/codegen/effect/**`。同时，`crates/scoopc/src/llvm/emit.rs` 中的 `ensure_refactor_effect_lowering_is_supported(...)` 继续把任何仍需 legacy handler-stack / `EffectOutcome` lowering 的 effectful callable 在 stage 边界显式拒绝，因此 old effect backend 已不再是 refactor correctness path。
+  - 已重新运行验证：
+    - `cargo test -p scoopc refactor_llvm_codegen_stage`
+    - `cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_legacy_emit.ll`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_refactor_emit.ll`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-obj tests/fixtures/run-pass/minimal_main.scoop -o /tmp/p6_refactor_emit.o`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-asm tests/fixtures/run-pass/minimal_main.scoop -o /tmp/p6_refactor_emit.s`
+    - `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/minimal_main.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/effect_facts/handle_perform.scoop -o /tmp/p6_refactor_effect_fail.ll`（预期失败，并输出显式 `RefactorEffectLoweringUnsupported` 诊断）
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T02：把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering
 
