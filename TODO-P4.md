@@ -412,7 +412,7 @@
   - 复验通过：`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo test -p scoopc --no-default-features materialized_pass_view_non_generic`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage_non_generic`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features caller_side_inlining_keeps_non_generic_pass_roots_visible`、`cargo test -p scoopc production_codegen_observes_caller_side_mir_inlining_for_non_generic_body`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
   - 2026-05-02：本次 review 未改变阶段顺序或依赖，`PLAN.md` 无需改动；现已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
 
-## P4-T03：构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析
+## [DONE] P4-T03：构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P4
@@ -543,6 +543,13 @@
   - 2026-05-02：执行本任务时发现一个会直接阻塞正确实现的新前置缺口：当前 canonical `MaterializedMir::pass_view()` 对 `dispatch_and_resume_call`、`handle_perform`、`handle_finally_boundary` 这类普通非泛型样本仍可能返回空 `instances()`，导致 `MaterializedEffectFactsBuilder` 无法在 authoritative `InstanceKey` / family 键空间上拿到普通 callable body，也就无法按任务要求对 `BodyEffectFacts` / `SiteEffectFacts` 使用稳定的 `(callable identity, BasicBlockId / SiteId)` 组织方式。
   - 按本文件“禁止 workaround / 禁止回 raw MIR 自造键空间”的约束，`P4-T03` 不能通过扫描 raw `MaterializedMir.file` 或 `caller_side_pass_candidate_bodies()` 临时补 owner identity 来继续推进；因此已在本任务前新增 `P4-T02a` / `P4-T02aR`，要求先修复 canonical pass-view 对 ordinary callable body 的发布，再继续 `P4-T03`。
   - 本次仅记录阻塞与新增前置；`P4-T03` 保持未完成状态，`PLAN.md` 暂无需改动。
+  - 2026-05-02：完成 `P4-T03`。`crates/scoopc/src/effect_facts/builder.rs` 现已把 `BodyEffectFacts` / `SiteEffectFacts` 的结构化分析真正落到 canonical pass-view body 上：普通 `Call` site 会显式发布 `KnownInstance` / `CandidateSet` / `DynamicFallback` target-mode、target 集合、`callee_schema`、保守 `resolved_cases` 与 `precision`；`Perform` / `Resume` / `Handle` 站点分别固定 emitted case、captured/resume continuation contract、handled/body/arm/finally outward case 集，以及 nested handle 的 `SelfContained` / `MaySuspendOutward` 分类。
+  - 为了让 body/site facts 能在“surface `declared_row` 为 `Pure`，但 body 内部存在被本地 `handle` 吸收的 `perform`/`resume`/handled case”场景下仍拥有稳定 case/tag，builder 现在会先从 body 收集 step-schema 上界 effect row：在 callable 的 `declared_row` 之外，额外并入本地 `PerformMetadata.effect_ty`、`HandleArm.handled_effect_ty`、`ResumeMetadata.out_effects` 与 ordinary `Raise<RuntimeError>` runtime-error effect。这样 `handle_perform`、nested handle、resume/runtime-error 路径都能只靠 P4 facts 命名 local cases，而不必回 HIR 或 raw MIR 补第二套键空间。
+  - `crates/scoopc/src/effect_facts/facts.rs` 新增 `MaterializedEffectFacts::body(...)`、`BodyEffectFacts::block(...)`、`BodyEffectFacts::site(...)` 直接查询 API，使 T04 可以按 `InstanceKey + BasicBlockId/SiteId` 只消费结构化 facts，不再重新扫 MIR/HIR 猜站点语义。
+  - 新增定向测试：`refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts` 覆盖 direct/fun-value/virtual/interface/resume 站点 contract；`refactor_site_effect_facts_capture_perform_and_handle_contracts` 覆盖 perform emitted-case 与 handle handled/arm contract；`refactor_body_effect_facts_index_blocks_and_sites_by_stable_ids` 断言 block/site facts 通过 `BasicBlockId` / `SiteId` 查询；`refactor_nested_handle_classification_distinguishes_self_contained_and_finally_outward` 锁定 nested handle 分类与 `finally_outward_cases`。
+  - 当前 `CallableEffectFacts.resolved_outward_cases` / `needs_reentry` / `impl_plan` 仍按保守上界初始化，`BlockEffectFacts.ambient_cases` 的最终求解回填仍由 `P4-T04` 完成；但 `P4-T03` 所要求的 body/site/local-case/call-edge 结构输入现已齐备，后续求解无需再回 MIR/HIR 重新解释站点语义。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_site_effect_facts`、`cargo test -p scoopc --no-default-features refactor_body_effect_facts`、`cargo test -p scoopc --no-default-features refactor_nested_handle_classification`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
+  - 2026-05-02：本任务未改变阶段顺序或完成准则，`PLAN.md` 无需改动；现已按规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
 
 ## P4-T03R：Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断
 

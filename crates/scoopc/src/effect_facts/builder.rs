@@ -235,7 +235,7 @@ impl<'a> EffectFactsSchemaPool<'a> {
             invoke_args_tuple_ty,
             seed.complete_ty,
             continuation_obj_ty,
-            &seed.declared_row,
+            &seed.step_effect_row,
         )
     }
 
@@ -302,21 +302,17 @@ impl<'a> EffectFactsSchemaPool<'a> {
         invoke_args_tuple_ty: TypeId,
         complete_ty: TypeId,
         continuation_obj_ty: TypeId,
-        declared_row: &EffectRow,
+        effect_row: &EffectRow,
     ) -> Result<StepSchemaId, EffectFactsError> {
         let step_schema_id = StepSchemaId::new(self.next_step_schema_id);
         self.next_step_schema_id += 1;
 
-        let case_seeds = self.type_ctx.step_case_seeds(types, declared_row)?;
+        let case_seeds = self.type_ctx.step_case_seeds(types, effect_row)?;
         let mut cases = Vec::with_capacity(case_seeds.len());
         for (case_index, case_seed) in case_seeds.into_iter().enumerate() {
             let case_tag = CaseTag::new(case_index as u32);
-            let surface_ty = continuation_surface_ty(
-                types,
-                case_seed.resume_tuple_ty,
-                complete_ty,
-                declared_row,
-            );
+            let surface_ty =
+                continuation_surface_ty(types, case_seed.resume_tuple_ty, complete_ty, effect_row);
             let continuation_schema = self.intern_continuation_schema(
                 case_seed.resume_tuple_ty,
                 complete_ty,
@@ -1125,6 +1121,7 @@ struct CallableSeed {
     key: InstanceKey,
     root_fun: MirFunDecl,
     declared_row: EffectRow,
+    step_effect_row: EffectRow,
     invoke_arg_components: Vec<TypeId>,
     complete_ty: TypeId,
 }
@@ -1549,10 +1546,12 @@ fn collect_callable_seeds(
         let Some(root_fun) = family.root_body() else {
             continue;
         };
+        let declared_row = declared_effect_row(root_fun, &materialized.types);
         seeds.push(CallableSeed {
             key: family.key().clone(),
             root_fun: root_fun.clone(),
-            declared_row: declared_effect_row(root_fun, &materialized.types),
+            step_effect_row: callable_step_effect_row(root_fun, &declared_row),
+            declared_row,
             invoke_arg_components: root_fun.params.iter().map(|param| param.ty).collect(),
             complete_ty: root_fun.return_ty,
         });
@@ -1579,6 +1578,49 @@ fn declared_effect_row(fun: &MirFunDecl, types: &TypeStore) -> EffectRow {
         TypeKind::Ref(RefTypeKind::Function(function)) => function.effects.clone(),
         _ => EffectRow::pure(),
     }
+}
+
+/// site-level facts 需要给本地 `perform` / `resume` / `handle` 产生稳定 case tag，即使 callable 的
+/// surface `declared_row` 因本地 `handle` 吸收而是 `Pure`。
+fn callable_step_effect_row(fun: &MirFunDecl, declared_row: &EffectRow) -> EffectRow {
+    let Some(body) = &fun.body else {
+        return declared_row.clone();
+    };
+
+    let mut terms = declared_row.terms.clone();
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let StatementKind::Assign { value, .. } = &stmt.kind else {
+                continue;
+            };
+            let Rvalue::Call {
+                kind: CallKind::Resume { resume, .. },
+                ..
+            } = value
+            else {
+                continue;
+            };
+            terms.extend(resume.out_effects.terms.iter().copied());
+            if let Some(runtime_error_effect_ty) = resume.runtime_error_effect_ty {
+                terms.push(runtime_error_effect_ty);
+            }
+        }
+
+        match &block.terminator.kind {
+            TerminatorKind::Perform { metadata, .. } => terms.push(metadata.effect_ty),
+            TerminatorKind::Handle { arms, .. } => {
+                terms.extend(arms.iter().map(|arm| arm.handled_effect_ty));
+            }
+            TerminatorKind::Return { .. }
+            | TerminatorKind::ResumeUnwind
+            | TerminatorKind::Goto { .. }
+            | TerminatorKind::CondBr { .. }
+            | TerminatorKind::Unreachable
+            | TerminatorKind::Todo(_) => {}
+        }
+    }
+
+    EffectRow::new(terms)
 }
 
 fn lower_effect_nominal_identity(
@@ -1943,12 +1985,18 @@ fn join_prefix(prefix: &str, name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
     use std::path::PathBuf;
 
     use super::{MaterializedEffectFactsBuilder, continuation_object_ty};
-    use crate::effect_facts::{CanonicalMirQuerySurface, ImplPlan};
-    use crate::mir::{InstanceKey, TemplateKey, materialize_for_dump};
+    use crate::effect_facts::{
+        CallSiteKind, CallSiteTarget, CallTargetMode, CanonicalMirQuerySurface, EffectPrecision,
+        ImplPlan, NestedHandleClassification, SiteEffectFacts,
+    };
+    use crate::mir::{
+        BasicBlockId, CallKind, InstanceKey, Rvalue, StatementKind, TemplateKey, TerminatorKind,
+        materialize_for_dump,
+    };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
@@ -2033,6 +2081,613 @@ fun exercise(k: scoop.core.Continuation<Unit, Unit, eff Pure>): Unit / (Flag + s
             .unwrap_or_else(|| {
                 panic!("fixture callable 应在 facts 中可见: {fqn}; available={available:?}")
             })
+    }
+
+    fn build_facts_for_source(
+        source: SourceFile,
+    ) -> (
+        crate::mir::MaterializedMir,
+        crate::effect_facts::MaterializedEffectFacts,
+    ) {
+        let session = refactor_session();
+        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
+            &session,
+            &source,
+            &mut materialized,
+        )
+        .build()
+        .unwrap();
+        (materialized, facts)
+    }
+
+    fn call_and_resume_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_facts_call_sites.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): Int
+}
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+class DerivedA() : Base() {
+    override fun ping(): Int {
+        return 2
+    }
+}
+
+class DerivedB() : Base() {
+    override fun ping(): Int {
+        return 3
+    }
+}
+
+interface IFace {
+    fun foo(): Int
+}
+
+class ImplA() : IFace {
+    fun foo(): Int {
+        return 4
+    }
+}
+
+class ImplB() : IFace {
+    fun foo(): Int {
+        return 5
+    }
+}
+
+fun direct(x: Int): Int {
+    return x
+}
+
+fun apply(f: (Int) -> Int / (Boom), x: Int): Int / (Boom) {
+    return f(x)
+}
+
+fun exercise(
+    base: Base,
+    face: IFace,
+    f: (Int) -> Int / (Boom),
+    k: Continuation<Int, Int, eff Boom>
+): Int / (Boom + Raise<RuntimeError>) {
+    val a: Int = direct(1)
+    val b: Int = apply(f, 2)
+    val c: Int = base.ping()
+    val d: Int = face.foo()
+    val e: Int = k.resume(3)
+    return a + b + c + d + e
+}
+"#,
+        )
+    }
+
+    fn handle_site_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_facts_handle_sites.scoop",
+            r#"
+package sample
+
+import scoop.core.Raise
+
+fun handled_raise(): Int {
+    return handle {
+        Raise.raise(1)
+        0
+    } with {
+        Raise.raise(e) -> e + 1
+    }
+}
+"#,
+        )
+    }
+
+    fn nested_handle_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_facts_nested_handle.scoop",
+            r#"
+package sample
+
+effect Inner {
+    fun go(): Int
+}
+
+effect Outer {
+    fun again(): Unit
+}
+
+fun nested_self_contained(): Int {
+    return handle {
+        val inner: Int = handle {
+            Inner.go()
+            0
+        } with {
+            Inner.go() -> 1
+        }
+        inner + 10
+    } with {
+        Outer.again() -> 99
+    }
+}
+
+fun nested_may_suspend_outward(): Int {
+    return handle {
+        val inner: Int = handle {
+            Inner.go()
+            0
+        } with {
+            Inner.go() -> 1
+        } finally {
+            Outer.again()
+        }
+        inner + 10
+    } with {
+        Outer.again() -> 99
+    }
+}
+"#,
+        )
+    }
+
+    fn case_fqns(
+        facts: &crate::effect_facts::MaterializedEffectFacts,
+        case_set: &crate::effect_facts::CaseSet,
+    ) -> BTreeSet<String> {
+        let schema = facts
+            .step_schemas()
+            .get(&case_set.schema())
+            .expect("case set 应引用已存在的 step schema");
+        case_set
+            .tags()
+            .iter()
+            .map(|tag| {
+                schema
+                    .cases()
+                    .iter()
+                    .find(|case| case.case_tag() == *tag)
+                    .expect("case tag 应落在对应 schema 中")
+                    .concrete_op_key()
+                    .instance_key()
+                    .template
+                    .fqn
+                    .clone()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts() {
+        let (materialized, facts) = build_facts_for_source(call_and_resume_source());
+        let (apply_key, _) = callable_facts_for(&facts, "sample.apply");
+        let (exercise_key, _) = callable_facts_for(&facts, "sample.exercise");
+        let pass_view = materialized.pass_view();
+        let apply_body = pass_view
+            .instance(apply_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("apply 应有 canonical body");
+        let exercise_body = pass_view
+            .instance(exercise_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("exercise 应有 canonical body");
+        let apply_body_facts = facts.body(apply_key).expect("apply 应有 body facts");
+        let exercise_body_facts = facts.body(exercise_key).expect("exercise 应有 body facts");
+
+        let mut direct_site_id = None;
+        let mut virtual_site_id = None;
+        let mut interface_site_id = None;
+        let mut resume_site_id = None;
+        let mut resume_block_id = None;
+        for (block_index, block) in exercise_body.blocks.iter().enumerate() {
+            for stmt in &block.stmts {
+                let StatementKind::Assign { value, .. } = &stmt.kind else {
+                    continue;
+                };
+                let Rvalue::Call { site_id, kind, .. } = value else {
+                    continue;
+                };
+                match kind {
+                    CallKind::Direct { .. } if direct_site_id.is_none() => {
+                        direct_site_id = Some(*site_id);
+                    }
+                    CallKind::Virtual { .. } => {
+                        virtual_site_id = Some(*site_id);
+                    }
+                    CallKind::Interface { .. } => {
+                        interface_site_id = Some(*site_id);
+                    }
+                    CallKind::Resume { .. } => {
+                        resume_site_id = Some(*site_id);
+                        resume_block_id = Some(BasicBlockId::from_raw(block_index as u32));
+                    }
+                    CallKind::Direct { .. }
+                    | CallKind::Closure { .. }
+                    | CallKind::FunValue { .. } => {}
+                }
+            }
+        }
+        let fun_value_site_id = apply_body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| {
+                let StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return None;
+                };
+                let Rvalue::Call {
+                    site_id,
+                    kind: CallKind::FunValue { .. },
+                    ..
+                } = value
+                else {
+                    return None;
+                };
+                Some(*site_id)
+            })
+            .expect("apply 应包含 callable-value site");
+
+        let SiteEffectFacts::Call(direct_facts) = exercise_body_facts
+            .site(direct_site_id.expect("exercise 应包含 direct call site"))
+            .expect("direct call site 应可通过 SiteId 查询")
+        else {
+            panic!("direct site 应产生 CallSiteEffectFacts");
+        };
+        assert_eq!(direct_facts.kind(), CallSiteKind::Direct);
+        assert_eq!(direct_facts.target_mode(), CallTargetMode::KnownInstance);
+        assert!(matches!(
+            direct_facts.target(),
+            CallSiteTarget::KnownInstance(key)
+                if key.template.fqn.starts_with("sample.") && key.template.fqn != "sample.exercise"
+        ));
+        assert!(
+            facts
+                .step_schemas()
+                .contains_key(&direct_facts.callee_schema())
+        );
+
+        let SiteEffectFacts::Call(fun_value_facts) = apply_body_facts
+            .site(fun_value_site_id)
+            .expect("fun-value site 应可通过 SiteId 查询")
+        else {
+            panic!("fun-value site 应产生 CallSiteEffectFacts");
+        };
+        assert_eq!(fun_value_facts.kind(), CallSiteKind::FunValue);
+        assert_eq!(
+            fun_value_facts.target_mode(),
+            CallTargetMode::DynamicFallback
+        );
+        assert!(matches!(
+            fun_value_facts.target(),
+            CallSiteTarget::DynamicFallback
+        ));
+        assert_eq!(
+            fun_value_facts.precision(),
+            EffectPrecision::SignatureFallback
+        );
+        assert_eq!(
+            facts
+                .step_schemas()
+                .get(&fun_value_facts.callee_schema())
+                .expect("fun-value fallback schema 应存在")
+                .cases()
+                .iter()
+                .map(|case| case.concrete_op_key().instance_key().template.fqn.clone())
+                .collect::<BTreeSet<_>>(),
+            ["sample.Boom.next".to_string()].into_iter().collect()
+        );
+
+        let SiteEffectFacts::Call(virtual_facts) = exercise_body_facts
+            .site(virtual_site_id.expect("exercise 应包含 virtual dispatch site"))
+            .expect("virtual site 应可通过 SiteId 查询")
+        else {
+            panic!("virtual site 应产生 CallSiteEffectFacts");
+        };
+        assert_eq!(virtual_facts.kind(), CallSiteKind::Virtual);
+        assert_eq!(virtual_facts.target_mode(), CallTargetMode::CandidateSet);
+        assert_eq!(virtual_facts.precision(), EffectPrecision::Widened);
+        let CallSiteTarget::CandidateSet(virtual_targets) = virtual_facts.target() else {
+            panic!("virtual dispatch 应保留 candidate set");
+        };
+        assert_eq!(
+            virtual_targets
+                .iter()
+                .map(|key| key.template.fqn.clone())
+                .collect::<BTreeSet<_>>(),
+            [
+                "sample.Base.ping".to_string(),
+                "sample.DerivedA.ping".to_string(),
+                "sample.DerivedB.ping".to_string(),
+            ]
+            .into_iter()
+            .collect()
+        );
+
+        let SiteEffectFacts::Call(interface_facts) = exercise_body_facts
+            .site(interface_site_id.expect("exercise 应包含 interface dispatch site"))
+            .expect("interface site 应可通过 SiteId 查询")
+        else {
+            panic!("interface site 应产生 CallSiteEffectFacts");
+        };
+        assert_eq!(interface_facts.kind(), CallSiteKind::Interface);
+        assert_eq!(interface_facts.target_mode(), CallTargetMode::CandidateSet);
+        assert_eq!(interface_facts.precision(), EffectPrecision::Widened);
+        let CallSiteTarget::CandidateSet(interface_targets) = interface_facts.target() else {
+            panic!("interface dispatch 应保留 candidate set");
+        };
+        assert_eq!(
+            interface_targets
+                .iter()
+                .map(|key| key.template.fqn.clone())
+                .collect::<BTreeSet<_>>(),
+            [
+                "sample.ImplA.foo".to_string(),
+                "sample.ImplB.foo".to_string()
+            ]
+            .into_iter()
+            .collect()
+        );
+
+        let SiteEffectFacts::Resume(resume_facts) = exercise_body_facts
+            .site(resume_site_id.expect("exercise 应包含 resume site"))
+            .expect("resume site 应可通过 SiteId 查询")
+        else {
+            panic!("resume site 应产生 ResumeSiteEffectFacts");
+        };
+        assert_eq!(
+            materialized
+                .types
+                .display(resume_facts.resume_tuple_ty())
+                .to_string(),
+            "Int"
+        );
+        assert_eq!(
+            materialized
+                .types
+                .display(resume_facts.answer_ty())
+                .to_string(),
+            "Int"
+        );
+        assert_eq!(
+            facts
+                .step_schemas()
+                .get(&resume_facts.out_step_schema())
+                .expect("resume outward step schema 应存在")
+                .cases()
+                .iter()
+                .map(|case| case.concrete_op_key().instance_key().template.fqn.clone())
+                .collect::<BTreeSet<_>>(),
+            [
+                "sample.Boom.next".to_string(),
+                "scoop.core.Raise.raise".to_string(),
+            ]
+            .into_iter()
+            .collect()
+        );
+        assert_eq!(resume_facts.resolved_cases().tags().len(), 2);
+        assert!(
+            exercise_body_facts
+                .block(resume_block_id.expect("resume site 应落在某个 basic block 中"))
+                .expect("resume block facts 应存在")
+                .has_suspend_boundary()
+        );
+    }
+
+    #[test]
+    fn refactor_site_effect_facts_capture_perform_and_handle_contracts() {
+        let (materialized, facts) = build_facts_for_source(handle_site_source());
+        let (key, _) = callable_facts_for(&facts, "sample.handled_raise");
+        let pass_view = materialized.pass_view();
+        let body = pass_view
+            .instance(key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("handled_raise 应有 canonical body");
+        let body_facts = facts.body(key).expect("handled_raise 应有 body facts");
+
+        let handle_site_id = body
+            .blocks
+            .iter()
+            .find_map(|block| match &block.terminator.kind {
+                TerminatorKind::Handle { site_id, .. } => Some(*site_id),
+                _ => None,
+            })
+            .expect("handled_raise 应包含 handle site");
+        let perform_site_id = body
+            .blocks
+            .iter()
+            .find_map(|block| match &block.terminator.kind {
+                TerminatorKind::Perform { site_id, .. } => Some(*site_id),
+                _ => None,
+            })
+            .expect("handled_raise 应包含 perform site");
+
+        let SiteEffectFacts::Handle(handle_facts) = body_facts
+            .site(handle_site_id)
+            .expect("handle site 应可通过 SiteId 查询")
+        else {
+            panic!("handle site 应产生 HandleSiteEffectFacts");
+        };
+        assert_eq!(
+            handle_facts.nested_handle_classification(),
+            NestedHandleClassification::SelfContained
+        );
+        assert_eq!(
+            case_fqns(&facts, handle_facts.handled_cases()),
+            ["scoop.core.Raise.raise".to_string()].into_iter().collect()
+        );
+        assert!(handle_facts.body_outward_cases().is_empty());
+        assert!(handle_facts.finally_outward_cases().is_empty());
+        assert_eq!(handle_facts.arm_facts().len(), 1);
+        let arm_facts = &handle_facts.arm_facts()[0];
+        assert!(arm_facts.arm_outward_cases().is_empty());
+
+        let SiteEffectFacts::Perform(perform_facts) = body_facts
+            .site(perform_site_id)
+            .expect("perform site 应可通过 SiteId 查询")
+        else {
+            panic!("perform site 应产生 PerformSiteEffectFacts");
+        };
+        assert_eq!(perform_facts.emitted_case(), arm_facts.handled_case());
+        assert_eq!(
+            materialized
+                .types
+                .display(perform_facts.payload_tuple_ty())
+                .to_string(),
+            "Int"
+        );
+        assert_eq!(
+            perform_facts.captured_cont_schema(),
+            arm_facts.continuation_schema()
+        );
+    }
+
+    #[test]
+    fn refactor_body_effect_facts_index_blocks_and_sites_by_stable_ids() {
+        let (materialized, facts) = build_facts_for_source(handle_site_source());
+        let (key, _) = callable_facts_for(&facts, "sample.handled_raise");
+        let pass_view = materialized.pass_view();
+        let body = pass_view
+            .instance(key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("handled_raise 应有 canonical body");
+        let body_facts = facts.body(key).expect("handled_raise 应有 body facts");
+
+        assert_eq!(body_facts.blocks().len(), body.blocks.len());
+
+        let mut handle_block_id = None;
+        let mut perform_block_id = None;
+        let mut handle_body_target = None;
+        for (block_index, block) in body.blocks.iter().enumerate() {
+            let block_id = BasicBlockId::from_raw(block_index as u32);
+            match &block.terminator.kind {
+                TerminatorKind::Handle {
+                    site_id,
+                    body_target,
+                    ..
+                } => {
+                    handle_block_id = Some(block_id);
+                    handle_body_target = Some(*body_target);
+                    assert!(body_facts.site(*site_id).is_some());
+                }
+                TerminatorKind::Perform { site_id, .. } => {
+                    perform_block_id = Some(block_id);
+                    assert!(body_facts.site(*site_id).is_some());
+                }
+                TerminatorKind::Return { .. }
+                | TerminatorKind::ResumeUnwind
+                | TerminatorKind::Goto { .. }
+                | TerminatorKind::CondBr { .. }
+                | TerminatorKind::Unreachable
+                | TerminatorKind::Todo(_) => {}
+            }
+        }
+
+        let handle_block_id = handle_block_id.expect("应存在 handle block");
+        let perform_block_id = perform_block_id.expect("应存在 perform block");
+        assert_eq!(Some(perform_block_id), handle_body_target);
+
+        let handle_block_facts = body_facts
+            .block(handle_block_id)
+            .expect("handle block 应有 BlockEffectFacts");
+        assert!(handle_block_facts.has_handle_boundary());
+        assert!(handle_block_facts.outward_cases().is_empty());
+
+        let perform_block_facts = body_facts
+            .block(perform_block_id)
+            .expect("perform block 应有 BlockEffectFacts");
+        assert!(perform_block_facts.has_suspend_boundary());
+        assert_eq!(perform_block_facts.outward_cases().tags().len(), 1);
+    }
+
+    #[test]
+    fn refactor_nested_handle_classification_distinguishes_self_contained_and_finally_outward() {
+        let (materialized, facts) = build_facts_for_source(nested_handle_source());
+        let pass_view = materialized.pass_view();
+
+        let (self_key, _) = callable_facts_for(&facts, "sample.nested_self_contained");
+        let self_body = pass_view
+            .instance(self_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("nested_self_contained 应有 canonical body");
+        let self_body_facts = facts
+            .body(self_key)
+            .expect("nested_self_contained 应有 body facts");
+        let self_inner_handle = self_body
+            .blocks
+            .iter()
+            .filter_map(|block| match &block.terminator.kind {
+                TerminatorKind::Handle { site_id, .. } => self_body_facts.site(*site_id),
+                _ => None,
+            })
+            .find_map(|site| match site {
+                SiteEffectFacts::Handle(handle_facts)
+                    if case_fqns(&facts, handle_facts.handled_cases())
+                        == ["sample.Inner.go".to_string()].into_iter().collect() =>
+                {
+                    Some(handle_facts)
+                }
+                SiteEffectFacts::Call(_)
+                | SiteEffectFacts::Perform(_)
+                | SiteEffectFacts::Resume(_)
+                | SiteEffectFacts::Handle(_) => None,
+            })
+            .expect("nested_self_contained 应包含 inner handle site");
+        assert_eq!(
+            self_inner_handle.nested_handle_classification(),
+            NestedHandleClassification::SelfContained
+        );
+        assert!(self_inner_handle.finally_outward_cases().is_empty());
+
+        let (may_key, _) = callable_facts_for(&facts, "sample.nested_may_suspend_outward");
+        let may_body = pass_view
+            .instance(may_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("nested_may_suspend_outward 应有 canonical body");
+        let may_body_facts = facts
+            .body(may_key)
+            .expect("nested_may_suspend_outward 应有 body facts");
+        let may_inner_handle = may_body
+            .blocks
+            .iter()
+            .filter_map(|block| match &block.terminator.kind {
+                TerminatorKind::Handle { site_id, .. } => may_body_facts.site(*site_id),
+                _ => None,
+            })
+            .find_map(|site| match site {
+                SiteEffectFacts::Handle(handle_facts)
+                    if case_fqns(&facts, handle_facts.handled_cases())
+                        == ["sample.Inner.go".to_string()].into_iter().collect() =>
+                {
+                    Some(handle_facts)
+                }
+                SiteEffectFacts::Call(_)
+                | SiteEffectFacts::Perform(_)
+                | SiteEffectFacts::Resume(_)
+                | SiteEffectFacts::Handle(_) => None,
+            })
+            .expect("nested_may_suspend_outward 应包含 inner handle site");
+        assert_eq!(
+            may_inner_handle.nested_handle_classification(),
+            NestedHandleClassification::MaySuspendOutward
+        );
+        assert_eq!(
+            case_fqns(&facts, may_inner_handle.finally_outward_cases()),
+            ["sample.Outer.again".to_string()].into_iter().collect()
+        );
     }
 
     #[test]

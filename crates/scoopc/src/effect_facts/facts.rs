@@ -467,8 +467,16 @@ impl BodyEffectFacts {
         &self.blocks
     }
 
+    pub fn block(&self, block: BasicBlockId) -> Option<&BlockEffectFacts> {
+        self.blocks.get(&block)
+    }
+
     pub fn sites(&self) -> &BTreeMap<SiteId, SiteEffectFacts> {
         &self.sites
+    }
+
+    pub fn site(&self, site: SiteId) -> Option<&SiteEffectFacts> {
+        self.sites.get(&site)
     }
 }
 
@@ -522,6 +530,10 @@ impl MaterializedEffectFacts {
 
     pub fn bodies(&self) -> &HashMap<InstanceKey, BodyEffectFacts> {
         &self.bodies
+    }
+
+    pub fn body(&self, key: &InstanceKey) -> Option<&BodyEffectFacts> {
+        self.bodies.get(key)
     }
 
     pub fn stable_dump(&self) -> String {
