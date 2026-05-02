@@ -1,47 +1,51 @@
-## 当前执行计划
+# Claude Plan
 
-1. 读取 `TODO.md`，把它当作索引使用，不在这里判断任务细节是否完成。
-2. 按 `TODO.md` 引用顺序检查对应的 `TODO-Px.md`，定位第一个标题未带 `[DONE]` 的详细任务。
-3. 查看最近一次提交，确认是否存在与该任务直接相关且明确未完成的问题；如果它构成当前任务前置条件，则先按规范补充前置任务并同步索引。
-4. 阅读当前任务涉及的代码、测试、规范与依赖关系，只收集完成该任务所需的最小上下文。
-5. 直接实现当前任务；若遇到阻塞当前任务的真实缺口或规格不匹配，不做变通，而是在相应 `TODO-Px.md` 中增加最小前置任务，并同步 `TODO.md`。
-6. 运行与当前任务相关的验证；至少包含任务要求的测试，并尽量补充必要的回归验证；若改动影响构建或 lint，则运行对应检查。
-7. 更新任务记录：在对应 `TODO-Px.md` 中把任务标题改为 `[DONE]`（仅在实际完成时），填写完成记录；如任务顺序、标题、依赖或文件引用有变化，则同步更新 `TODO.md`；仅在阶段计划确有变化时更新 `PLAN.md`。
-8. 检查工作区是否存在本次任务需要一并提交的未提交改动，避免遗漏恢复执行时遗留的相关文件。
-9. 使用符合仓库风格的提交信息创建一次 git 提交，然后停止，不继续下一个任务。
+## 目标
+- 按 `TODO.md` 索引与对应 `TODO-Px.md` 详细任务文件，找到第一个未完成的详细任务。
+- 只完成这一个任务；若遇到阻塞，则按要求补充最小前置任务、同步索引并停止。
 
-## 记录约定
+## 执行计划
+1. 读取 `TODO.md`，确认详细任务文件引用与任务顺序。
+2. 按顺序读取对应 `TODO-Px.md`，以标题是否带 `[DONE]` 判断完成状态，定位第一个未完成任务。
+3. 检查最近一次提交信息，确认是否有与当前任务直接相关且未完成的问题需要一并处理或登记为前置。
+4. 阅读当前任务要求、约束、依赖与验收方式，结合代码现状确定最小正确改动方案。
+5. 实现任务所需代码与测试；如发现阻塞当前任务的真实缺口或规格不匹配，则先补充前置任务并同步 `TODO.md`。
+6. 运行相关验证，至少覆盖任务要求的测试；若有必要，运行更广的检查（含 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`）。
+7. 更新任务记录：在对应 `TODO-Px.md` 中将任务标题标记为 `[DONE]` 并补全完成记录；若任务索引受影响，同步 `TODO.md`；仅在阶段计划变更时更新 `PLAN.md`。
+8. 复核工作区中与本次任务相关的改动，按要求创建一次 Git 提交，然后停止，不继续下一项任务。
 
-- 这里记录可公开的计划、进度、阻塞和验证结果，不记录内部逐字思维。
-- 如果计划发生变化、发现阻塞、完成关键实现、完成验证或完成提交，会继续追加更新。
+## 进度记录
+- 已初始化计划文件；待开始读取任务索引并定位当前执行目标。
+- 已读取 `TODO.md` 并确认首个未完成详细任务为 `TODO-P4.md` 中的 `P4-T05a`：把 compiler-generated continuation 的 one-shot runtime error 纳入 canonical `StepSchema` / facts handoff。
+- 已检查最近一次提交：`[P4-T05a] Track compiler continuation runtime-error prerequisite`，其主题与当前任务直接相关；接下来需要确认该前置是否仍未实现，以及代码中 runtime-error case 当前只覆盖到什么范围。
 
-## 进度更新（2026-05-03）
+## 当前任务细化计划
+1. 阅读 `P4-T05a` 任务描述与 `TODO-P5.md` 中 `P5-T05` 的相关约束，明确 one-shot runtime error 在 P4 handoff 中必须出现的位置。
+2. 检查 `effect_facts` 的 schema/facts/builder 与相关测试，定位当前 runtime-error ordinary effect 仅覆盖源码 `Continuation.resume(...)` 还是已经部分覆盖 compiler-generated continuation。
+3. 若现有实现可直接扩展，则做最小代码改动，把 compiler-generated continuation 的 one-shot runtime error 正式纳入 canonical schema/facts 与 dump 输出；若发现真实阻塞，则按要求回写新的前置任务并停止。
+4. 补充或更新最小但充分的定向测试与 fixture，覆盖“应加入 runtime-error case”和“pure/no-outward 不应被误扩张”两类行为。
+5. 运行任务要求的定向测试、必要的 dump 命令与格式/静态检查；修复所有相关失败。
+6. 完成后更新 `TODO-P4.md`（标记 `[DONE]` 与完成记录），如有需要同步 `TODO.md`；若阶段计划未变则不改 `PLAN.md`。
+7. 复核工作区并创建一次提交，然后停止。
 
-- 已读取 `TODO.md` 索引，并在 `TODO-P5.md` 中确认首个未完成详细任务是 `P5-T05`：物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering。
-- `P5-T04R` 已完成，因此当前应直接实现 `P5-T05`，不能跳到 review 或后续任务。
-- 接下来会先检查最近一次提交是否留下与 `P5-T05` 直接相关的未完成项，并检查工作区状态；随后只阅读完成 `P5-T05` 所需的设计文档、late-lowered IR/building 代码和现有测试入口。
+## 当前实现决策
+- 现有 `effect_facts` builder 只会因源码 `Resume` site 把 `Raise<RuntimeError>` 放进 `StepSchema`；这不足以覆盖 compiler-generated continuation object 的 one-shot runtime error。
+- 计划采用最小侵入的两次构建策略：
+  1. 先按现状运行 builder + solver，得到当前最终 `needs_reentry` 集合；
+  2. 仅对这些最终确实会进入 resumable lowering 的 callable/version，在第二次 builder 中把 compiler-generated continuation one-shot runtime error 追加到 callable `StepSchema` 上界；
+  3. 再次运行 solver，得到最终 P4 handoff。
+- 这样可以避免把 truly no-outward callable 无端扩张为带 runtime-error case，同时保留 `single_case_impl_plan` 这类样本的 `resolved_outward_cases` / `impl_plan`，除非真实 body/site 贡献本就包含 runtime error。
 
-## 当前轮次追加（2026-05-03）
+## 已完成步骤
+- 已在 `crates/scoopc/src/effect_facts/builder.rs` 增加 compiler-generated continuation runtime-error 覆盖集合，并让第二次 builder 可把 `Raise<RuntimeError>` 追加到目标 callable 的 canonical `StepSchema` 上界。
+- 已在 `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 落地两次构建流程：第一次求出最终 `needs_reentry` 集合，第二次仅对这些 callable 重建 schema 后再交给 solver。
+- 已补充定向单测，覆盖：runtime-error case 被补入 reentry callable 的 step schema；未选中的 truly no-outward callable 不被误扩张；最终 stage 输出中 runtime-error 只进入 schema 上界而不无端扩大 `resolved_outward_cases`。
+- 已更新 `tests/fixtures/effect_facts/{single_case_impl_plan,dynamic_fallback_widening,nested_handle_self_contained_vs_outward}.effectfacts` golden，使 dump 能稳定暴露新的 handoff contract。
+- 已把 `TODO-P4.md` 中的 `P4-T05a` 标记为 `[DONE]` 并补全完成记录，同时已把 `TODO.md` 索引同步为 `[DONE]`；`PLAN.md` 保持不变。
+- 已完成验证：`cargo fmt --all`、`cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`、`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-- 先重新核对 `TODO.md` 与对应 `TODO-Px.md`，确认首个未完成详细任务仍然是 `P5-T05`，再开始实现，避免基于过期状态工作。
-- 如果最新提交直接提到 `P5-T05` 的未完成边界、回归或前置缺口，优先把它视为当前任务的一部分或显式前置。
-- 只收集完成 `P5-T05` 所需的最小上下文：相关设计文档、continuation/boundary lowering 代码、invoke/resume 接口、以及现有 fixture 或回归测试。
-- 一旦确认实现方案，会继续在本文件记录关键实现点、验证命令和最终提交信息。
+## 剩余收口
+1. 复核变更清单并创建 Git 提交。
 
-## 当前发现（2026-05-03）
-
-- 已重新核对：`TODO.md` 与 `TODO-P5.md` 一致，首个未完成详细任务仍是 `P5-T05`；最新提交 `[P5-T04R]` 只完成 review，没有额外声明需要先插入的新前置任务。
-- 当前 `crates/scoopc/src/effect_lowered/` 已具备：`Step`/continuation shell、segmentation skeleton、frame schema、owner/resume state、drop state 与稳定 dump；但还没有把 boundary 真正物化为统一的 `Step`/continuation lowering plan。
-- 当前 `builder.rs` 里 resume interface 仍按 `StepSchema` 一次性生成，尚未按 effect family 分组；这与 `P5-T05` 对 internal resume interfaces 的要求不符，属于本任务必须补齐的内容。
-- 计划中的最小实现方向：
-  1. 在 late-lowered IR 中补出可被 dump/测试/后续 P6 消费的 boundary lowering 计划结构，显式覆盖 `perform` / effectful `call` / `resume` / runtime error / outward nested-handle`；
-  2. 为 `ConcreteOpKey` 建立稳定的 effect-family 分组键，并把 resume interface / continuation object 改成“按 family 分组、但方法集完整”；
-  3. 为 `ImplPlan` 三档、one-shot/runtime error、`()` payload/resume tuple 增补针对性测试；
-  4. 通过后再更新 `TODO-P5.md`、`TODO.md`、本文件，并提交一次原子 commit。
-
-## 阻塞结论（2026-05-03）
-
-- 在继续实现 `P5-T05` 前确认到一个真实前置缺口：当前 P4 `StepSchema`/facts 只把源码 `Continuation.resume(...)` 的 ordinary `Raise<RuntimeError>` 纳入 handoff，但没有明确覆盖 compiler-generated continuation object 的 one-shot 重复恢复路径。
-- 这会直接阻塞 `P5-T05`：若不先补齐 P4 handoff，P5 只能临时发明 pseudo case、隐藏错误通道或 backend trap，违反 `EFFECT_REFACTOR.md` 与用户要求。
-- 已按“最小新前置任务”原则把该缺口写成 `P4-T05a`，放入 `TODO-P4.md` 并同步 `TODO.md`；同时把 `P5-T05` 的依赖更新为 `P4-T05a，P5-T04R`。
-- 因此本轮不继续实现 P5 代码，改为提交这次任务重排与阻塞记录；下一轮首个未完成详细任务将变为 `P4-T05a`。
+## 说明
+- 这里记录的是可审计的执行计划与进度摘要，不包含私有推理细节。

@@ -12,12 +12,18 @@ step_schemas:
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/single_case_impl_plan.scoop:53..95::sample.leaf
     cases:
       - case#0: op=sample.Ping.hit payload_tuple_ty=Unit continuation_schema=continuation_schema#0
+      - case#1: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#1
 continuation_schemas:
   continuation_schema#0:
     resume_tuple_ty: Unit
     answer_ty: Unit
     out_step_schema: step_schema#0
-    surface_ty: scoop.core.Continuation<Unit, Unit, eff sample.Ping>
+    surface_ty: scoop.core.Continuation<Unit, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + sample.Ping)>
+  continuation_schema#1:
+    resume_tuple_ty: Nothing
+    answer_ty: Unit
+    out_step_schema: step_schema#0
+    surface_ty: scoop.core.Continuation<Nothing, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + sample.Ping)>
 callable_facts:
   sample.leaf:
     instance_key: sample.leaf

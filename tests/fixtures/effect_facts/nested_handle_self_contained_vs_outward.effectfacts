@@ -14,30 +14,36 @@ step_schemas:
     cases:
       - case#0: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#0
       - case#1: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#1
+      - case#2: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#2
   step_schema#1:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop:92..340::sample.nested_self_contained
     cases:
-      - case#0: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#2
-      - case#1: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#3
+      - case#0: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#3
+      - case#1: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#4
 continuation_schemas:
   continuation_schema#0:
     resume_tuple_ty: Int
     answer_ty: Int
     out_step_schema: step_schema#0
-    surface_ty: scoop.core.Continuation<Int, Int, eff (sample.Inner + sample.Outer)>
+    surface_ty: scoop.core.Continuation<Int, Int, eff (scoop.core.Raise<scoop.core.RuntimeError> + sample.Inner + sample.Outer)>
   continuation_schema#1:
     resume_tuple_ty: Unit
     answer_ty: Int
     out_step_schema: step_schema#0
-    surface_ty: scoop.core.Continuation<Unit, Int, eff (sample.Inner + sample.Outer)>
+    surface_ty: scoop.core.Continuation<Unit, Int, eff (scoop.core.Raise<scoop.core.RuntimeError> + sample.Inner + sample.Outer)>
   continuation_schema#2:
+    resume_tuple_ty: Nothing
+    answer_ty: Int
+    out_step_schema: step_schema#0
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff (scoop.core.Raise<scoop.core.RuntimeError> + sample.Inner + sample.Outer)>
+  continuation_schema#3:
     resume_tuple_ty: Int
     answer_ty: Int
     out_step_schema: step_schema#1
     surface_ty: scoop.core.Continuation<Int, Int, eff (sample.Inner + sample.Outer)>
-  continuation_schema#3:
+  continuation_schema#4:
     resume_tuple_ty: Unit
     answer_ty: Int
     out_step_schema: step_schema#1
@@ -212,7 +218,7 @@ body_facts:
         finally_outward_cases: []
         nested_handle_classification: MaySuspendOutward
         arm_facts:
-          - handled_case: case#1=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#3 arm_outward_cases=[]
+          - handled_case: case#1=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#4 arm_outward_cases=[]
       site1:
         kind: Handle
         result_ty: Int
@@ -221,9 +227,9 @@ body_facts:
         finally_outward_cases: []
         nested_handle_classification: SelfContained
         arm_facts:
-          - handled_case: case#0=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#2 arm_outward_cases=[]
+          - handled_case: case#0=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#3 arm_outward_cases=[]
       site2:
         kind: Perform
         emitted_case: case#0=sample.Inner.go
         payload_tuple_ty: Unit
-        captured_cont_schema: continuation_schema#2
+        captured_cont_schema: continuation_schema#3

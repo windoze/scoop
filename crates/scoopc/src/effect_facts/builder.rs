@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::ast;
 use crate::mir::{
@@ -30,6 +30,7 @@ pub struct MaterializedEffectFactsBuilder<'a> {
     session: &'a Session,
     source: &'a SourceFile,
     materialized: &'a mut MaterializedMir,
+    compiler_continuation_runtime_error_callables: HashSet<InstanceKey>,
 }
 
 #[derive(Debug, Clone)]
@@ -1393,7 +1394,16 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             session,
             source,
             materialized,
+            compiler_continuation_runtime_error_callables: HashSet::new(),
         }
+    }
+
+    pub fn with_compiler_continuation_runtime_error_callables(
+        mut self,
+        callables: impl IntoIterator<Item = InstanceKey>,
+    ) -> Self {
+        self.compiler_continuation_runtime_error_callables = callables.into_iter().collect();
+        self
     }
 
     pub fn build(self) -> Result<MaterializedEffectFacts, EffectFactsError> {
@@ -1402,7 +1412,14 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             MirSnapshotBinding::from_pass_view(&pass_view)
         };
         let type_ctx = EffectFactsTypeContext::build(self.session, self.source)?;
-        let callable_seeds = collect_callable_seeds(self.materialized, &type_ctx.index)?;
+        let compiler_generated_runtime_error_effect_ty =
+            find_or_intern_raise_runtime_error_effect(&mut self.materialized.types);
+        let callable_seeds = collect_callable_seeds(
+            self.materialized,
+            &type_ctx.index,
+            &self.compiler_continuation_runtime_error_callables,
+            compiler_generated_runtime_error_effect_ty,
+        )?;
         let owner_by_callable_fqn = collect_callable_owner_map(self.materialized);
         let raw_fun_by_fqn = collect_raw_fun_by_fqn(&self.materialized.file);
 
@@ -1693,6 +1710,8 @@ impl EffectFactsTypeContext {
 fn collect_callable_seeds(
     materialized: &MaterializedMir,
     index: &Index,
+    compiler_continuation_runtime_error_callables: &HashSet<InstanceKey>,
+    compiler_generated_runtime_error_effect_ty: TypeId,
 ) -> Result<Vec<CallableSeed>, EffectFactsError> {
     let pass_view = materialized.pass_view();
     let mut seeds = Vec::with_capacity(pass_view.len());
@@ -1715,7 +1734,13 @@ fn collect_callable_seeds(
         seeds.push(CallableSeed {
             key: family.key().clone(),
             root_fun: root_fun.clone(),
-            step_effect_row: callable_step_effect_row(root_fun, &declared_row),
+            step_effect_row: callable_step_effect_row(
+                root_fun,
+                &declared_row,
+                compiler_continuation_runtime_error_callables
+                    .contains(family.key())
+                    .then_some(compiler_generated_runtime_error_effect_ty),
+            ),
             declared_row,
             invoke_arg_components: root_fun.params.iter().map(|param| param.ty).collect(),
             complete_ty: root_fun.return_ty,
@@ -1747,7 +1772,11 @@ fn declared_effect_row(fun: &MirFunDecl, types: &TypeStore) -> EffectRow {
 
 /// site-level facts 需要给本地 `perform` / `resume` / `handle` 产生稳定 case tag，即使 callable 的
 /// surface `declared_row` 因本地 `handle` 吸收而是 `Pure`。
-fn callable_step_effect_row(fun: &MirFunDecl, declared_row: &EffectRow) -> EffectRow {
+fn callable_step_effect_row(
+    fun: &MirFunDecl,
+    declared_row: &EffectRow,
+    compiler_generated_runtime_error_effect_ty: Option<TypeId>,
+) -> EffectRow {
     let Some(body) = &fun.body else {
         return declared_row.clone();
     };
@@ -1785,7 +1814,48 @@ fn callable_step_effect_row(fun: &MirFunDecl, declared_row: &EffectRow) -> Effec
         }
     }
 
+    if let Some(runtime_error_effect_ty) = compiler_generated_runtime_error_effect_ty {
+        terms.push(runtime_error_effect_ty);
+    }
+
     EffectRow::new(terms)
+}
+
+fn find_or_intern_raise_runtime_error_effect(types: &mut TypeStore) -> TypeId {
+    let runtime_error_ty = types.iter_ids().find(|&id| {
+        matches!(
+            types.kind(id),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.RuntimeError"
+        ) || matches!(
+            types.kind(id),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.RuntimeError"
+        )
+    });
+    let runtime_error_ty = runtime_error_ty.unwrap_or_else(|| {
+        types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "scoop.core.RuntimeError".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })))
+    });
+    let raise_runtime_error_effect = types.iter_ids().find(|&id| {
+        matches!(
+            types.kind(id),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.Raise"
+                    && nominal.args.as_slice() == [runtime_error_ty]
+                    && nominal.eff.is_none()
+        )
+    });
+    raise_runtime_error_effect.unwrap_or_else(|| {
+        types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "scoop.core.Raise".to_string(),
+            args: vec![runtime_error_ty],
+            eff: None,
+        })))
+    })
 }
 
 fn lower_effect_nominal_identity(
@@ -2419,6 +2489,39 @@ fun nested_may_suspend_outward(): Int {
 }
 "#,
         )
+    }
+
+    fn compiler_continuation_runtime_error_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_facts_compiler_cont_runtime_error.scoop",
+            r#"
+package sample
+
+effect Ping {
+    fun hit(): Unit
+}
+
+fun leaf(): Unit / Ping {
+    Ping.hit()
+}
+
+fun pureHelper(): Unit {}
+"#,
+        )
+    }
+
+    fn schema_case_fqns(
+        facts: &crate::effect_facts::MaterializedEffectFacts,
+        step_schema: crate::effect_facts::StepSchemaId,
+    ) -> BTreeSet<String> {
+        facts
+            .step_schemas()
+            .get(&step_schema)
+            .expect("step schema 应存在")
+            .cases()
+            .iter()
+            .map(|case| case.concrete_op_key().instance_key().template.fqn.clone())
+            .collect()
     }
 
     fn case_fqns(
@@ -3089,6 +3192,86 @@ fun nested_may_suspend_outward(): Int {
                 .display(runtime_case.payload_tuple_ty())
                 .to_string(),
             "scoop.core.RuntimeError"
+        );
+    }
+
+    #[test]
+    fn refactor_effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema()
+     {
+        let session = refactor_session();
+        let source = compiler_continuation_runtime_error_source();
+        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let leaf_key = materialized
+            .pass_view()
+            .owner_of_callable("sample.leaf")
+            .expect("leaf 应有 canonical owner")
+            .clone();
+
+        let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
+            &session,
+            &source,
+            &mut materialized,
+        )
+        .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])
+        .build()
+        .unwrap();
+
+        let leaf_facts = facts
+            .callable_facts()
+            .get(&leaf_key)
+            .expect("leaf 应存在于 callable facts");
+        assert_eq!(
+            schema_case_fqns(&facts, leaf_facts.step_schema()),
+            [
+                "sample.Ping.hit".to_string(),
+                "scoop.core.Raise.raise".to_string(),
+            ]
+            .into_iter()
+            .collect()
+        );
+    }
+
+    #[test]
+    fn refactor_callable_effect_facts_shell_compiler_continuation_runtime_error_only_expands_selected_callables()
+     {
+        let session = refactor_session();
+        let source = compiler_continuation_runtime_error_source();
+        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let pass_view = materialized.pass_view();
+        let leaf_key = pass_view
+            .owner_of_callable("sample.leaf")
+            .expect("leaf 应有 canonical owner")
+            .clone();
+        let pure_key = pass_view
+            .owner_of_callable("sample.pureHelper")
+            .expect("pureHelper 应有 canonical owner")
+            .clone();
+
+        let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
+            &session,
+            &source,
+            &mut materialized,
+        )
+        .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])
+        .build()
+        .unwrap();
+
+        let leaf_facts = facts
+            .callable_facts()
+            .get(&leaf_key)
+            .expect("leaf 应存在于 callable facts");
+        let pure_facts = facts
+            .callable_facts()
+            .get(&pure_key)
+            .expect("pureHelper 应存在于 callable facts");
+
+        assert!(
+            schema_case_fqns(&facts, leaf_facts.step_schema()).contains("scoop.core.Raise.raise"),
+            "被标记为 compiler continuation runtime-error callable 的 step schema 应包含 Raise<RuntimeError> case"
+        );
+        assert!(
+            schema_case_fqns(&facts, pure_facts.step_schema()).is_empty(),
+            "未被标记且 truly no-outward 的 callable 不应无端长出 runtime-error case"
         );
     }
 
