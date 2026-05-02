@@ -8,7 +8,7 @@
 //! 它不负责定义 LLVM pass pipeline，也不在根模块中继续承载大段实现。
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -912,22 +912,30 @@ fn build_main_module_from_codegen_entry<'ctx>(
     };
 
     reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));
-
-    for fun in &reachable {
+    let reachable: Vec<&hir::FunDecl> = reachable
+        .into_iter()
         // T0126: Skip generic (unmonomorphized) member methods — they contain Param types
         // that cannot be lowered to LLVM types. The monomorphized variants handle these.
-        if fun_has_param_types(fun) {
-            continue;
-        }
+        .filter(|fun| !fun_has_param_types(fun))
+        .collect();
+
+    if let Some(program) = late_lowered_program {
+        let mut callables_to_check = vec![hir_main];
+        callables_to_check.extend(
+            reachable
+                .iter()
+                .copied()
+                .filter(|fun| fun.fqn != hir_main.fqn),
+        );
+        ensure_refactor_effect_lowering_is_supported(&hir_main.fqn, &callables_to_check, program)?;
+    }
+
+    for fun in &reachable {
         let _ = declare.declare_top_level_fun(fun)?;
     }
 
     for fun in &reachable {
         if !should_emit_reachable_fun_body(fun, &unit_codegen) {
-            continue;
-        }
-        // T0126: Skip generic member methods (same as above).
-        if fun_has_param_types(fun) {
             continue;
         }
         let llvm_fun = module
@@ -1027,6 +1035,87 @@ fn build_main_module_from_codegen_entry<'ctx>(
         })?;
 
     Ok(module)
+}
+
+/// P6-T01a: 在真正迁出 refactor LLVM type/body lowering 之前，只允许复用 effect-neutral
+/// helper；一旦 reachable callable 需要 outward/boundary/resume lowering，就在 stage 边界
+/// fail fast，而不是静默回落到 legacy handler-stack / EffectOutcome backend。
+fn ensure_refactor_effect_lowering_is_supported(
+    entry_fqn: &str,
+    reachable: &[&hir::FunDecl],
+    program: &crate::effect_lowered::LateLoweredProgram,
+) -> Result<(), LlvmEmitError> {
+    for fun in reachable {
+        let Some(callable) = program.callable(&fun.fqn) else {
+            continue;
+        };
+        let unsupported_paths = collect_refactor_unsupported_paths(callable);
+        if unsupported_paths.is_empty() {
+            continue;
+        }
+        return Err(LlvmEmitError::RefactorEffectLoweringUnsupported {
+            entry: entry_fqn.to_string(),
+            callable: callable.root_fqn().to_string(),
+            unsupported_paths: unsupported_paths.join(", "),
+        });
+    }
+    Ok(())
+}
+
+fn collect_refactor_unsupported_paths(
+    callable: &crate::effect_lowered::LateLoweredCallable,
+) -> Vec<&'static str> {
+    let mut unsupported = BTreeSet::new();
+
+    if !callable.resolved_outward_cases().is_empty() {
+        unsupported.insert("outward Step_F case lowering");
+    }
+    if !callable.resume_state_map().entries().is_empty() {
+        unsupported.insert("resume-state lowering");
+    }
+
+    for boundary in callable.boundary_map().entries() {
+        match boundary.lowering() {
+            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::Call(_)) => {
+                unsupported.insert("call boundary lowering");
+            }
+            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::Perform(_)) => {
+                unsupported.insert("perform boundary lowering");
+            }
+            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::Resume(_)) => {
+                unsupported.insert("resume boundary lowering");
+            }
+            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::RuntimeError(_)) => {
+                unsupported.insert("runtime-error outward lowering");
+            }
+            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::Handle(_)) => {
+                unsupported.insert("handle boundary lowering");
+            }
+            None => match boundary.source() {
+                crate::effect_lowered::ir::LateLoweredBoundarySource::Site { kind, .. } => {
+                    unsupported.insert(match kind {
+                        crate::effect_lowered::ir::BoundarySiteKind::Call => {
+                            "call boundary lowering"
+                        }
+                        crate::effect_lowered::ir::BoundarySiteKind::Perform => {
+                            "perform boundary lowering"
+                        }
+                        crate::effect_lowered::ir::BoundarySiteKind::Resume => {
+                            "resume boundary lowering"
+                        }
+                        crate::effect_lowered::ir::BoundarySiteKind::Handle => {
+                            "handle boundary lowering"
+                        }
+                    });
+                }
+                crate::effect_lowered::ir::LateLoweredBoundarySource::RuntimeError { .. } => {
+                    unsupported.insert("runtime-error outward lowering");
+                }
+            },
+        }
+    }
+
+    unsupported.into_iter().collect()
 }
 
 fn should_emit_reachable_fun_body(

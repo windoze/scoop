@@ -127,21 +127,26 @@ pub(crate) fn run(
         entry_main_fqn,
         opt_level,
     } = input;
-    let entry_source = source_map.source(entry_source_id).ok_or_else(|| LlvmEmitError::Frontend {
-        message: format!(
-            "refactor LLVM stage 找不到入口源文件（source_id={})",
-            entry_source_id.as_usize()
-        ),
-    })?;
+    let entry_source =
+        source_map
+            .source(entry_source_id)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM stage 找不到入口源文件（source_id={})",
+                    entry_source_id.as_usize()
+                ),
+            })?;
     let source_path = entry_source.path().to_path_buf();
     let hir_compat_scaffold = lowered_hir.clone_hir_compat_scaffold_without_materialized_mir();
     let typed_hir_output = TypedHirStageOutput::new(lowered_hir, &source_path);
-    let mir_stage_output = mir_stage::run(typed_hir_output)
-        .map_err(|err| stage_error("direct-style MIR", err))?;
-    let effect_facts_stage_output = build_effect_facts_stage_output(session, entry_source, mir_stage_output)
-        .map_err(|err| stage_error("effect facts", err))?;
-    let effect_lowered_stage_output = build_effect_lowered_stage_output(session, effect_facts_stage_output)
-        .map_err(|err| stage_error("late lowering", err))?;
+    let mir_stage_output =
+        mir_stage::run(typed_hir_output).map_err(|err| stage_error("direct-style MIR", err))?;
+    let effect_facts_stage_output =
+        build_effect_facts_stage_output(session, entry_source, mir_stage_output)
+            .map_err(|err| stage_error("effect facts", err))?;
+    let effect_lowered_stage_output =
+        build_effect_lowered_stage_output(session, effect_facts_stage_output)
+            .map_err(|err| stage_error("late lowering", err))?;
 
     Ok(RefactorLlvmCodegenStageOutput::new(
         source_map,
@@ -170,17 +175,15 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_main_fqn(),
             stage_output.opt_level(),
         ),
-        LlvmArtifactKind::Object => {
-            crate::llvm::emit_refactor_main_obj_to_file_from_stage_output(
-                stage_output.source_map(),
-                stage_output.entry_source_id(),
-                stage_output.hir_compat_scaffold(),
-                stage_output.effect_lowered_stage_output(),
-                output,
-                stage_output.entry_main_fqn(),
-                stage_output.opt_level(),
-            )
-        }
+        LlvmArtifactKind::Object => crate::llvm::emit_refactor_main_obj_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_output.hir_compat_scaffold(),
+            stage_output.effect_lowered_stage_output(),
+            output,
+            stage_output.entry_main_fqn(),
+            stage_output.opt_level(),
+        ),
         LlvmArtifactKind::Asm => crate::llvm::emit_refactor_main_asm_to_file_from_stage_output(
             stage_output.source_map(),
             stage_output.entry_source_id(),
@@ -225,10 +228,10 @@ mod tests {
 
     use super::{RefactorLlvmCodegenStageInput, reset_test_stage_run_count, test_stage_run_count};
     use crate::effect_refactor_pipeline::{self, LlvmArtifactKind};
+    use crate::llvm::{LlvmEmitError, build_refactor_main_module_from_stage_output};
     use crate::opt::OptLevel;
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::{SourceFile, SourceMap};
-    use crate::llvm::{LlvmEmitError, build_refactor_main_module_from_stage_output};
 
     fn session_for(mode: EffectPipelineMode) -> Session {
         Session::with_options(SessionOptions::new(mode)).unwrap()
@@ -283,15 +286,62 @@ fun main(): Int {
         )
     }
 
-    fn sample_emit_args(
+    fn effectful_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_llvm_codegen_stage_effectful_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.Raise
+
+fun main(): Int {
+    return handle {
+        Raise.raise(1)
+        0
+    } with {
+        Raise.raise(e) -> 2
+    }
+}
+"#,
+        )
+    }
+
+    fn emit_args_for_source(
         mode: EffectPipelineMode,
-    ) -> (Session, SourceMap, crate::source::SourceId, crate::hir::LoweredHir) {
+        source: SourceFile,
+    ) -> (
+        Session,
+        SourceMap,
+        crate::source::SourceId,
+        crate::hir::LoweredHir,
+    ) {
         let session = session_for(mode);
-        let source = sample_source();
         let lowered = crate::hir::lower_typed_for_dump(&session, &source).unwrap();
         let mut source_map = SourceMap::new();
         let entry_source_id = source_map.add_source_clone(&source);
         (session, source_map, entry_source_id, lowered)
+    }
+
+    fn sample_emit_args(
+        mode: EffectPipelineMode,
+    ) -> (
+        Session,
+        SourceMap,
+        crate::source::SourceId,
+        crate::hir::LoweredHir,
+    ) {
+        emit_args_for_source(mode, sample_source())
+    }
+
+    fn effectful_emit_args(
+        mode: EffectPipelineMode,
+    ) -> (
+        Session,
+        SourceMap,
+        crate::source::SourceId,
+        crate::hir::LoweredHir,
+    ) {
+        emit_args_for_source(mode, effectful_source())
     }
 
     #[test]
@@ -412,5 +462,48 @@ fun main(): Int {
         }
 
         assert_eq!(test_stage_run_count(), 3);
+    }
+
+    #[test]
+    fn refactor_llvm_codegen_stage_rejects_unmigrated_effect_lowering() {
+        let _guard = test_lock();
+        let temp = make_temp_dir();
+        let out = temp.path().join("effect.ll");
+
+        reset_test_stage_run_count();
+        let (session, source_map, entry_source_id, lowered) =
+            effectful_emit_args(EffectPipelineMode::Refactor);
+        let err = effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+            &session,
+            &source_map,
+            entry_source_id,
+            lowered,
+            &out,
+            None,
+            OptLevel::O0,
+            LlvmArtifactKind::LlvmIr,
+        )
+        .expect_err("effectful refactor LLVM path 应在 stage 边界 fail fast");
+
+        assert_eq!(test_stage_run_count(), 1);
+        match err {
+            LlvmEmitError::RefactorEffectLoweringUnsupported {
+                entry,
+                callable,
+                unsupported_paths,
+            } => {
+                assert_eq!(entry, "sample.main");
+                assert_eq!(callable, "sample.main");
+                assert!(
+                    unsupported_paths.contains("perform boundary lowering"),
+                    "诊断应明确指出 perform lowering 尚未迁移：{unsupported_paths}"
+                );
+                assert!(
+                    unsupported_paths.contains("resume-state lowering"),
+                    "诊断应明确指出 resume-state lowering 尚未迁移：{unsupported_paths}"
+                );
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 }

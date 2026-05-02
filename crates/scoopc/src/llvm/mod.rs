@@ -51,8 +51,7 @@ pub use emit::{
     emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level,
     emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level,
-    emit_minimal_main_obj_to_file_with_opt_level,
-    emit_refactor_main_asm_to_file_from_stage_output,
+    emit_minimal_main_obj_to_file_with_opt_level, emit_refactor_main_asm_to_file_from_stage_output,
     emit_refactor_main_ir_to_file_from_stage_output,
     emit_refactor_main_obj_to_file_from_stage_output,
 };
@@ -61,8 +60,8 @@ pub use target::{HostTargetInfo, LlvmTargetError};
 #[cfg(test)]
 pub(crate) use emit::{
     build_main_module_from_lowered_hir, build_minimal_main_module,
-    build_refactor_main_module_from_stage_output,
-    build_minimal_main_module_with_opt_level, build_single_file_source_map,
+    build_minimal_main_module_with_opt_level, build_refactor_main_module_from_stage_output,
+    build_single_file_source_map,
 };
 #[cfg(test)]
 pub(crate) use pipeline::run_pass_pipeline;
@@ -132,6 +131,16 @@ pub enum LlvmEmitError {
     )]
     #[diagnostic(code(scoop::llvm::missing_materialized_pass_view))]
     MissingMaterializedPassView,
+
+    #[error(
+        "refactor LLVM backend 尚未迁移入口 `{entry}` 的 reachable callable `{callable}` 所需的 lowering 路径（{unsupported_paths}）；已显式禁止回落到 legacy handler-stack / EffectOutcome backend"
+    )]
+    #[diagnostic(code(scoop::llvm::refactor_effect_lowering_unsupported))]
+    RefactorEffectLoweringUnsupported {
+        entry: String,
+        callable: String,
+        unsupported_paths: String,
+    },
 
     #[error(
         "入口函数 `{entry}` 存在多个合法候选（{count} 个）；可执行程序必须且只能有一个 entry main"

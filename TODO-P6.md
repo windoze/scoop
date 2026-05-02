@@ -214,7 +214,7 @@
   - `cargo test -p scoop run_builds_and_executes_minimal_main`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T01a：为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend
+## [DONE] P6-T01a：为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -270,7 +270,19 @@
   - P6-T02/P6-T03 可以在这个受保护的 stage 边界上继续实现真实 lowering。
 - 依赖：P6-T01
 - 完成记录：
-  - （执行时填写）
+  - 已在 `crates/scoopc/src/llvm/mod.rs` 新增 `LlvmEmitError::RefactorEffectLoweringUnsupported`，把“refactor LLVM backend 尚未迁移该 lowering，且已禁止回落到 legacy handler-stack / EffectOutcome backend”提升为结构化错误，而不再伪装成普通 frontend/typecheck 失败。
+  - 已在 `crates/scoopc/src/llvm/emit.rs` 的 refactor stage emit 入口前增加 capability 检查：以 `entry main + reachable callees` 为范围，逐个回查 `LateLoweredProgram`；只要 callable 仍需 outward `Step_F` / boundary / resume-state lowering，就在进入 `CompilationUnitCodegenCx` body emission 前 fail fast。
+  - 当前检查完全基于 P5 handoff 的稳定结构化信息（`resolved_outward_cases`、`boundary_map`、`resume_state_map`），没有回退到 HIR 名字、`Span`、或 legacy effect side table 启发式。
+  - 已保持 non-effectful 共享子集可用：`build --emit-llvm`、`--emit-obj`、`--emit-asm`、`run` 在 refactor stage 下对 `emit_llvm_basic.scoop` / `minimal_main.scoop` 继续成功，且仍经同一 stage 路径推进。
+  - 已在 `crates/scoopc/src/effect_refactor_pipeline/llvm_codegen_stage.rs` 新增回归测试 `refactor_llvm_codegen_stage_rejects_unmigrated_effect_lowering`，使用 handled `Raise.raise(...)` 程序验证 refactor build 会显式返回 `RefactorEffectLoweringUnsupported`，并指出 `perform boundary lowering` / `resume-state lowering` 尚未迁移。
+  - 已运行验证：
+    - `cargo test -p scoopc refactor_llvm_codegen_stage`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_refactor_emit.ll`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-obj tests/fixtures/run-pass/minimal_main.scoop -o /tmp/p6_refactor_emit.o`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-asm tests/fixtures/run-pass/minimal_main.scoop -o /tmp/p6_refactor_emit.s`
+    - `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/minimal_main.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/effect_facts/handle_perform.scoop -o /tmp/p6_refactor_effect_fail.ll`（预期失败，并输出显式“未迁移 lowering，禁止回落到 legacy effect backend”诊断）
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T01R：Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离
 
