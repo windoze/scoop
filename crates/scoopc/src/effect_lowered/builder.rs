@@ -12,6 +12,7 @@ use super::ir::{
     LateLoweredResumeStateMap, LateLoweredStateGraph, LateLoweredStepCase, LateLoweredStepType,
     ResumeInterfaceId,
 };
+use super::segment::build_callable_segmentation;
 
 /// 把 canonical MIR snapshot + P4 facts 组装成独立 `LateLoweredProgram` 的统一入口。
 pub(crate) struct LateLoweredProgramBuilder<'a> {
@@ -33,15 +34,6 @@ impl<'a> LateLoweredProgramBuilder<'a> {
     pub(crate) fn build(self) -> Result<LateLoweredProgram, EffectLoweringError> {
         let pass_view = self.pass_view;
         let effect_facts = self.effect_facts;
-        let snapshot_instances = pass_view.len();
-        let callable_facts_count = effect_facts.callable_facts().len();
-
-        if snapshot_instances != callable_facts_count {
-            return Err(EffectLoweringError::SnapshotCallableCountMismatch {
-                snapshot_instances,
-                callable_facts: callable_facts_count,
-            });
-        }
 
         let mut step_types = Vec::with_capacity(effect_facts.step_schemas().len());
         let mut resume_interfaces = Vec::with_capacity(effect_facts.step_schemas().len());
@@ -61,18 +53,19 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             resume_interface_ids.insert(step_schema_id, interface_id);
         }
 
-        let mut continuation_objects = Vec::with_capacity(snapshot_instances);
-        let mut callables = Vec::with_capacity(snapshot_instances);
+        let mut continuation_objects = Vec::with_capacity(effect_facts.callable_facts().len());
+        let mut callables = Vec::with_capacity(effect_facts.callable_facts().len());
 
-        for (index, family) in pass_view.instances().enumerate() {
+        for family in pass_view.instances() {
             let root_fqn = family.root_fqn().to_string();
-            let callable_facts =
-                effect_facts
-                    .callable_facts()
-                    .get(family.key())
-                    .ok_or_else(|| EffectLoweringError::MissingCallableFacts {
+            let Some(callable_facts) = effect_facts.callable_facts().get(family.key()) else {
+                if family.root_body().is_some() {
+                    return Err(EffectLoweringError::MissingCallableFacts {
                         root_fqn: root_fqn.clone(),
-                    })?;
+                    });
+                }
+                continue;
+            };
             let step_schema_id = callable_facts.step_schema();
             let step_schema = effect_facts
                 .step_schemas()
@@ -100,7 +93,23 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             let resume_interface_id = *resume_interface_ids
                 .get(&step_schema_id)
                 .expect("every step schema should publish a resume interface shell");
-            let continuation_object_id = ContinuationObjectId::new(index as u32);
+            let continuation_object_id =
+                ContinuationObjectId::new(continuation_objects.len() as u32);
+            let segmentation = match family.root_body().and_then(|fun| fun.body.as_ref()) {
+                Some(body) => {
+                    let body_facts = effect_facts.body(family.key()).ok_or_else(|| {
+                        EffectLoweringError::MissingBodyFacts {
+                            root_fqn: root_fqn.clone(),
+                        }
+                    })?;
+                    build_callable_segmentation(&root_fqn, body, body_facts)?
+                }
+                None => super::segment::LateLoweredSegmentation {
+                    state_graph: LateLoweredStateGraph::minimal_shell(),
+                    boundary_map: LateLoweredBoundaryMap::empty(),
+                    resume_state_map: LateLoweredResumeStateMap::empty(),
+                },
+            };
             continuation_objects.push(build_continuation_object(
                 continuation_object_id,
                 body_version_key.clone(),
@@ -116,10 +125,10 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     step_schema.invoke_args_tuple_ty(),
                     step_schema_id,
                 ),
-                LateLoweredStateGraph::minimal_shell(),
+                segmentation.state_graph,
                 LateLoweredFrameSchema::empty(),
-                LateLoweredBoundaryMap::empty(),
-                LateLoweredResumeStateMap::empty(),
+                segmentation.boundary_map,
+                segmentation.resume_state_map,
                 continuation_object_id,
                 vec![resume_interface_id],
             ));

@@ -9,8 +9,8 @@ use super::ir::{
     LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind, LateLoweredProgram,
     LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeStateMap,
-    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStepCase,
-    LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
+    LateLoweredStepCase, LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 
 /// 渲染 late-lowered program 的稳定文本格式。
@@ -296,9 +296,34 @@ fn render_state_graph(rendered: &mut String, state_graph: &LateLoweredStateGraph
 fn render_state(rendered: &mut String, state: &LateLoweredState) {
     writeln!(
         rendered,
-        "          - st{} {}",
+        "          - st{} {} successors={}",
         state.state_id().as_u32(),
-        render_state_role(state.role())
+        render_state_role(state.role()),
+        render_state_successors(state.successors())
+    )
+    .unwrap();
+    writeln!(rendered, "            source_slices:").unwrap();
+    if state.source_slices().is_empty() {
+        writeln!(rendered, "              <synthetic>").unwrap();
+        return;
+    }
+    for slice in state.source_slices() {
+        render_state_slice(rendered, *slice);
+    }
+}
+
+fn render_state_slice(rendered: &mut String, slice: LateLoweredStateSlice) {
+    let terminator = if slice.includes_terminator() {
+        " + term"
+    } else {
+        ""
+    };
+    writeln!(
+        rendered,
+        "              - bb{} stmts[{}..{}]{terminator}",
+        slice.block_id().as_u32(),
+        slice.start_statement_index(),
+        slice.end_statement_index(),
     )
     .unwrap();
 }
@@ -436,7 +461,9 @@ fn render_boundary_source(source: LateLoweredBoundarySource) -> String {
                 site_id.as_u32()
             )
         }
-        LateLoweredBoundarySource::RuntimeError => "RuntimeError".to_string(),
+        LateLoweredBoundarySource::RuntimeError { origin_site } => {
+            format!("RuntimeError(site{})", origin_site.as_u32())
+        }
     }
 }
 
@@ -495,6 +522,20 @@ fn render_optional_state(state: Option<StateId>) -> String {
     state
         .map(|state| format!("st{}", state.as_u32()))
         .unwrap_or_else(|| "<none>".to_string())
+}
+
+fn render_state_successors(successors: &[StateId]) -> String {
+    if successors.is_empty() {
+        return "[]".to_string();
+    }
+    format!(
+        "[{}]",
+        successors
+            .iter()
+            .map(|state| format!("st{}", state.as_u32()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 fn render_impl_plan(plan: ImplPlan) -> String {

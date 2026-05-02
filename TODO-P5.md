@@ -383,7 +383,7 @@
   - 相关验证重新通过：`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_body_version_key`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
   - 2026-05-02：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
-## P5-T03：依据 `MaterializedEffectFacts` 实现 boundary 选择与 whole-function segmentation，产出 owner-state / resume-state 骨架
+## [DONE] P5-T03：依据 `MaterializedEffectFacts` 实现 boundary 选择与 whole-function segmentation，产出 owner-state / resume-state 骨架
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P5
@@ -476,7 +476,14 @@
   - 后续 T04/T05 不再需要重新识别 boundary 或重新切 CFG。
 - 依赖：P5-T02R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P5-T03`。新增 `crates/scoopc/src/effect_lowered/segment.rs`，把 P5-T02 预留的空 `state_graph` / `boundary_map` / `resume_state_map` 骨架替换为真实的 whole-function segmentation 结果；当前仓库中的实际模块映射为：`effect_lowered/segment.rs` 对应本 TODO 推荐的 `segment.rs`，`effect_lowered/builder.rs` 继续承接 `materialize.rs` 职责，`frame.rs` / `opt.rs` 仍按顺序留待后续任务落地。
+  - boundary 选择现已严格由 P4 `BodyEffectFacts` + canonical MIR 决定：`resolved_cases` 非空的 `Call`/`invoke` site 会发布 `Call` boundary，`Perform` site 会发布 `Perform` boundary，`Resume` site 会同时发布 `Resume` boundary 与其 ordinary `RuntimeError` boundary，只有落在其它 handle region 内且被 P4 标记为 `MaySuspendOutward` 的 nested `Handle` site 才会发布 `Handle` boundary；`SelfContained` nested handle 明确不会向外层切分。
+  - `LateLoweredStateGraph` 现已不再是无内容的 `minimal_shell()`：`LateLoweredState` 新增 `LateLoweredStateSlice` 与 `successors`，能够稳定记录“当前 state 覆盖哪个 basic block / statement slice / terminator 片段，以及它在 direct-style CFG skeleton 上的后继 state”。这让 statement-level call/resume boundary 能在同一个 basic block 内切出独立的 owner-state / terminator-only resume-state，同时也让 argument evaluation、`if` 条件、loop condition 与 nested handle/body/finally 里的 boundary 都沿着 P3 已显式化的 temporaries/blocks 进入同一套 segmentation 框架。
+  - owner/resume mapping 已作为 authoritative late-lowered contract 固化到 `LateLoweredBoundaryMap` / `LateLoweredResumeStateMap`：每个 boundary 都有稳定 `BoundaryId`、source kind、owner-state 与 resume-state；`NoOutward` callable 也仍经由同一 segmentation builder，只是自然退化为“entry state + complete state + 无 boundary”的极简 skeleton，而不是绕开 P5 transformation。
+  - `crates/scoopc/src/effect_lowered/builder.rs` 现已按 callable body 是否存在选择真实 segmentation 或 declaration-only minimal shell；同时修复了一个直接阻塞本任务的 stage 契约问题：late-lowering 不再强制要求 canonical pass-view family 数量与 `callable_facts` 数量完全一致，而是跳过仅声明无 body/无 callable facts 的 family，并继续对“有 canonical body 却缺 facts”的情况报错。这使 `dispatch_and_resume_call` 一类含 declaration-only family 的 canonical snapshot 也能进入 P5 segmentation。
+  - 新增/更新测试：`refactor_late_boundary_selection_marks_call_resume_runtime_error_perform_and_outward_handle_boundaries`、`refactor_late_boundary_selection_skips_self_contained_nested_handle_boundaries`、`refactor_late_segmentation_splits_statement_boundaries_into_suffix_resume_states`、`refactor_late_segmentation_keeps_expression_argument_and_if_context_boundaries_distinct`、`refactor_owner_resume_state_tracks_loop_condition_boundaries`、`refactor_owner_resume_state_keeps_no_outward_callables_in_same_framework`、`refactor_owner_resume_state_builder_consumes_only_p4_facts_and_mir_shape`，并同步更新了 `effect_lowering_stage` 现有测试对 declaration-only family 的计数断言。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_late_segmentation`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+  - 2026-05-02：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
 ## P5-T03R：Review segmentation 骨架，确认 boundary 识别与 owner/resume 状态只由 facts 驱动
 

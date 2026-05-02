@@ -4,12 +4,14 @@
 //! - `ir.rs` 对应 late-lowered IR 容器；
 //! - `builder.rs` 负责把 canonical MIR snapshot + `MaterializedEffectFacts` 组装成初始
 //!   `LateLoweredProgram`，当前承接了 TODO 推荐 `materialize.rs` 的最小职责；
+//! - `segment.rs` 承接 TODO 推荐的 whole-function segmentation / boundary 选择骨架；
 //! - `dump.rs` 提供稳定 formatter；
-//! - TODO 推荐的 `segment.rs` / `frame.rs` / `opt.rs` 会在后续 P5 任务里补入；本任务先不提前伪造。
+//! - TODO 推荐的 `frame.rs` / `opt.rs` 会在后续 P5 任务里补入；本任务不提前伪造空壳。
 
 pub(crate) mod builder;
 pub mod dump;
 pub mod ir;
+pub(crate) mod segment;
 
 pub(crate) use builder::LateLoweredProgramBuilder;
 pub use dump::render_late_lowered_program;
@@ -25,8 +27,24 @@ pub enum EffectLoweringError {
     #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 callable facts")]
     MissingCallableFacts { root_fqn: String },
 
+    #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 body facts")]
+    MissingBodyFacts { root_fqn: String },
+
     #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 StepSchema s{step_schema}")]
     MissingStepSchema { root_fqn: String, step_schema: u32 },
+
+    #[error("refactor late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上找不到 P4 site facts")]
+    MissingSiteFacts { root_fqn: String, site_id: u32 },
+
+    #[error(
+        "refactor late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上看到的 P4 site facts 种类不是期望的 `{expected}`，而是 `{actual}`"
+    )]
+    UnexpectedSiteFactsKind {
+        root_fqn: String,
+        site_id: u32,
+        expected: &'static str,
+        actual: &'static str,
+    },
 
     #[error(
         "refactor late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上缺少 continuation schema k{continuation_schema}"
@@ -53,6 +71,14 @@ pub enum EffectLoweringError {
     SnapshotCallableCountMismatch {
         snapshot_instances: usize,
         callable_facts: usize,
+    },
+
+    #[error(
+        "refactor late-lowering stage 无法为 `{root_fqn}` 的 boundary `{description}` 绑定 owner/resume state"
+    )]
+    UnboundBoundary {
+        root_fqn: String,
+        description: String,
     },
 }
 

@@ -631,16 +631,72 @@ pub enum LateLoweredStateRole {
     Drop,
 }
 
+/// 单个 late-lowered state 当前覆盖的 direct-style MIR 片段。
+///
+/// P5-T03 先把 segmentation skeleton 固定到“block + statement slice (+ 可选 terminator)”这一层，
+/// 以便后续 frame lifting / boundary lowering 在不回 P3 MIR 猜测的前提下，继续沿用同一套切分结果。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredStateSlice {
+    block_id: BasicBlockId,
+    start_statement_index: u32,
+    end_statement_index: u32,
+    includes_terminator: bool,
+}
+
+impl LateLoweredStateSlice {
+    pub(crate) fn new(
+        block_id: BasicBlockId,
+        start_statement_index: u32,
+        end_statement_index: u32,
+        includes_terminator: bool,
+    ) -> Self {
+        Self {
+            block_id,
+            start_statement_index,
+            end_statement_index,
+            includes_terminator,
+        }
+    }
+
+    pub fn block_id(&self) -> BasicBlockId {
+        self.block_id
+    }
+
+    pub fn start_statement_index(&self) -> u32 {
+        self.start_statement_index
+    }
+
+    pub fn end_statement_index(&self) -> u32 {
+        self.end_statement_index
+    }
+
+    pub fn includes_terminator(&self) -> bool {
+        self.includes_terminator
+    }
+}
+
 /// state graph 中的单个 state shell。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredState {
     state_id: StateId,
     role: LateLoweredStateRole,
+    source_slices: Vec<LateLoweredStateSlice>,
+    successors: Vec<StateId>,
 }
 
 impl LateLoweredState {
-    pub(crate) fn new(state_id: StateId, role: LateLoweredStateRole) -> Self {
-        Self { state_id, role }
+    pub(crate) fn new(
+        state_id: StateId,
+        role: LateLoweredStateRole,
+        source_slices: Vec<LateLoweredStateSlice>,
+        successors: Vec<StateId>,
+    ) -> Self {
+        Self {
+            state_id,
+            role,
+            source_slices,
+            successors,
+        }
     }
 
     pub fn state_id(&self) -> StateId {
@@ -649,6 +705,14 @@ impl LateLoweredState {
 
     pub fn role(&self) -> LateLoweredStateRole {
         self.role
+    }
+
+    pub fn source_slices(&self) -> &[LateLoweredStateSlice] {
+        &self.source_slices
+    }
+
+    pub fn successors(&self) -> &[StateId] {
+        &self.successors
     }
 }
 
@@ -688,8 +752,18 @@ impl LateLoweredStateGraph {
             None,
             None,
             vec![
-                LateLoweredState::new(entry_state, LateLoweredStateRole::Entry),
-                LateLoweredState::new(complete_state, LateLoweredStateRole::Complete),
+                LateLoweredState::new(
+                    entry_state,
+                    LateLoweredStateRole::Entry,
+                    Vec::new(),
+                    vec![complete_state],
+                ),
+                LateLoweredState::new(
+                    complete_state,
+                    LateLoweredStateRole::Complete,
+                    Vec::new(),
+                    Vec::new(),
+                ),
             ],
         )
     }
@@ -713,6 +787,12 @@ impl LateLoweredStateGraph {
     pub fn states(&self) -> &[LateLoweredState] {
         &self.states
     }
+
+    pub fn state(&self, state_id: StateId) -> Option<&LateLoweredState> {
+        self.states
+            .iter()
+            .find(|state| state.state_id() == state_id)
+    }
 }
 
 /// boundary 对应的 source category。
@@ -731,7 +811,9 @@ pub enum LateLoweredBoundarySource {
         site_id: SiteId,
         kind: BoundarySiteKind,
     },
-    RuntimeError,
+    RuntimeError {
+        origin_site: SiteId,
+    },
 }
 
 /// boundary shell。
@@ -795,6 +877,12 @@ impl LateLoweredBoundaryMap {
     pub fn entries(&self) -> &[LateLoweredBoundary] {
         &self.entries
     }
+
+    pub fn boundary(&self, boundary_id: BoundaryId) -> Option<&LateLoweredBoundary> {
+        self.entries
+            .iter()
+            .find(|boundary| boundary.boundary_id() == boundary_id)
+    }
 }
 
 /// `BoundaryId -> resume state` 的稳定绑定。
@@ -840,6 +928,13 @@ impl LateLoweredResumeStateMap {
 
     pub fn entries(&self) -> &[LateLoweredResumeState] {
         &self.entries
+    }
+
+    pub fn state_for(&self, boundary_id: BoundaryId) -> Option<StateId> {
+        self.entries
+            .iter()
+            .find(|entry| entry.boundary_id() == boundary_id)
+            .map(LateLoweredResumeState::state_id)
     }
 }
 
@@ -1070,11 +1165,51 @@ mod tests {
                 Some(state3),
                 Some(state4),
                 vec![
-                    LateLoweredState::new(state0, LateLoweredStateRole::Entry),
-                    LateLoweredState::new(state2, LateLoweredStateRole::Resume),
-                    LateLoweredState::new(state1, LateLoweredStateRole::Complete),
-                    LateLoweredState::new(state3, LateLoweredStateRole::Cleanup),
-                    LateLoweredState::new(state4, LateLoweredStateRole::Drop),
+                    LateLoweredState::new(
+                        state0,
+                        LateLoweredStateRole::Entry,
+                        vec![LateLoweredStateSlice::new(
+                            BasicBlockId::from_raw(0),
+                            0,
+                            1,
+                            false,
+                        )],
+                        vec![state2],
+                    ),
+                    LateLoweredState::new(
+                        state2,
+                        LateLoweredStateRole::Resume,
+                        vec![LateLoweredStateSlice::new(
+                            BasicBlockId::from_raw(0),
+                            1,
+                            1,
+                            true,
+                        )],
+                        vec![state1],
+                    ),
+                    LateLoweredState::new(
+                        state1,
+                        LateLoweredStateRole::Complete,
+                        Vec::new(),
+                        Vec::new(),
+                    ),
+                    LateLoweredState::new(
+                        state3,
+                        LateLoweredStateRole::Cleanup,
+                        vec![LateLoweredStateSlice::new(
+                            BasicBlockId::from_raw(3),
+                            0,
+                            0,
+                            true,
+                        )],
+                        vec![state1],
+                    ),
+                    LateLoweredState::new(
+                        state4,
+                        LateLoweredStateRole::Drop,
+                        Vec::new(),
+                        Vec::new(),
+                    ),
                 ],
             ),
             LateLoweredFrameSchema::new(vec![

@@ -150,7 +150,7 @@ mod tests {
         );
         assert_eq!(
             output.program().len(),
-            output.materialized_pass_view().len()
+            output.effect_facts().callable_facts().len()
         );
         assert!(output.program().callable("sample.helper").is_some());
         assert!(output.program().callable("sample.main").is_some());
