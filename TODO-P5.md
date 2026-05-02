@@ -180,7 +180,7 @@
   - 2026-05-02：按详细任务文件的完成判定规则复验后，已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## P5-T01R：Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend
+## [DONE] P5-T01R：Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P5
@@ -209,7 +209,13 @@
   - 可进入 P5-T02。
 - 依赖：P5-T01
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P5-T01R` review。复核 `crates/scoopc/src/effect_lowered/**`、`crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs`、`crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 与 `crates/scoopc/src/lib.rs` 后，确认 P5 late-lowering 新路径已通过独立 `effect_lowered` 子系统与 refactor stage glue 落地，而不是换壳调用 legacy `effect/state_machine/**`。
+  - `git diff --name-only HEAD^ HEAD -- crates/scoopc/src/effect_lowered crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/effect/state_machine crates/scoopc/src/llvm/codegen/effect` 结果显示，上一提交只触碰了 `effect_lowered/**` 与 `effect_refactor_pipeline/**`；没有把 refactor late-lowering 逻辑写进 legacy `effect/state_machine/**` 或 `llvm/codegen/effect/**` 业务实现。
+  - 文本搜索复核：在 `crates/scoopc/src/effect/state_machine/**` 与 `crates/scoopc/src/llvm/codegen/effect/**` 中搜索 `EffectPipelineMode|refactor|legacy` 后，未发现新增的 refactor/pipeline 分支被混入 legacy 业务主线；命中的 `legacy` 仅来自既有实现命名、注释或原有 ABI helper。
+  - 依赖复核：`crates/scoopc/src/effect_lowered/**` 未引用 `crate::effect::state_machine` 或 `crate::llvm`；`crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs` 也仅依赖 `effect_facts`、`effect_lowered`、`mir` 与 `ty`，并通过单测 `refactor_effect_lowered_stage_has_no_legacy_state_machine_or_llvm_imports` 锁定该边界。
+  - refactor 路径复核：`crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 中 `StageKind::LateLowering` 的入口直接调用 `effect_lowering_stage::run(...)`，说明 refactor late-lowering stage 已成为正式阶段入口；后续 P6 可继续只消费 `RefactorEffectLoweredStageOutput`。
+  - 2026-05-02：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## P5-T02：定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层
 

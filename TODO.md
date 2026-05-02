@@ -48,7 +48,7 @@
 | `P4-T05` | `TODO-P4.md` | [DONE] 新增 `dump-effect-facts` / snapshot 基线，并冻结 P4 -> P5 handoff contract |
 | `P4-T05R` | `TODO-P4.md` | [DONE] Review P4 阶段退出条件，确认 P5 可以只消费 MIR + facts 完成 lowering 决策 |
 | `P5-T01` | `TODO-P5.md` | [DONE] 建立 refactor late-lowering stage 与独立 late-lowered representation 边界 |
-| `P5-T01R` | `TODO-P5.md` | Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend |
+| `P5-T01R` | `TODO-P5.md` | [DONE] Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend |
 | `P5-T02` | `TODO-P5.md` | 定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层 |
 | `P5-T02R` | `TODO-P5.md` | Review late-lowered representation，确认 version key / `Step` / continuation carrier 已按最终形态固定 |
 | `P5-T03` | `TODO-P5.md` | 依据 `MaterializedEffectFacts` 实现 boundary 选择与 whole-function segmentation，产出 owner-state / resume-state 骨架 |

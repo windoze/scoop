@@ -1,60 +1,45 @@
-# Claude Plan
+## 当前执行计划
 
-## Notes
+说明：此文件记录本次执行的可操作计划、关键判断、进展与变更原因，不记录不可导出的内部推理细节。
 
-- This file records an actionable execution plan and progress log for the current invocation.
-- It does not contain private internal reasoning; it captures decisions, next steps, blockers, and verification status.
+1. 先读取 `TODO.md`，确认索引结构、任务文件映射与完成标记约定。
+2. 按 `TODO.md` 给出的顺序读取对应 `TODO-Px.md`，以任务标题是否带 `[DONE]` 作为唯一完成判定，定位第一个未完成的详细任务。
+3. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；如果这是当前任务的直接组成部分或前置阻塞，则将其纳入当前处理范围。
+4. 阅读当前任务涉及的实现、测试、文档与约束，确认是否可以在本次调用内完整落地。
+5. 若存在阻塞当前任务的真实缺口或规格不匹配：
+   - 在对应 `TODO-Px.md` 中插入最小必要前置任务并调整依赖顺序；
+   - 同步 `TODO.md`；
+   - 仅当阶段计划发生变化时更新 `PLAN.md`；
+   - 提交并停止。
+6. 若无阻塞，则直接实现当前任务，保持改动尽量小且符合既有结构。
+7. 运行与任务直接相关的测试、格式化、`cargo clippy --all-targets -- -D warnings`，修复发现的问题。
+8. 在对应 `TODO-Px.md` 中将当前任务标题标记为 `[DONE]` 并补全完成记录；如索引需要同步，则更新 `TODO.md`。
+9. 检查工作区状态，按仓库既有风格创建一次原子提交，然后停止，不继续处理下一项任务。
 
-## Initial Plan
+## 进展
 
-1. Read `TODO.md` as the task index.
-2. Open the referenced detailed task files in order (`TODO-P0.md`, `TODO-P1.md`, `TODO-P2.md`, etc.) and identify the first task whose title is not prefixed with `[DONE]`.
-3. Check the latest commit message for any directly relevant unfinished issue tied to that task.
-4. Read the current task requirements carefully, then inspect only the code and tests needed to implement that task.
-5. Implement the task completely with the smallest correct change set.
-6. Run the required validation commands, including targeted tests first and broader checks as needed.
-7. If a concrete blocker prevents spec-correct completion, add the minimum prerequisite task(s) in the appropriate detailed TODO file, sync `TODO.md`, and stop.
-8. If the task is completed, mark it `[DONE]` in the relevant `TODO-Px.md`, sync `TODO.md` if needed, and update completion records.
-9. Commit all required changes with a task-specific message, then stop.
+- 已创建本计划文件，准备开始读取任务索引并定位当前应执行的第一项未完成详细任务。
+- 已读取 `TODO.md` 与 `TODO-P5.md`，确认当前首个未完成详细任务为 `P5-T01R`：`Review late-lowering stage 边界，确认新路径没有借壳 legacy effect/state_machine 或 LLVM backend`。
+- 已检查最新提交：`c68f76a9 [P5-T01] Establish refactor late-lowering stage boundary`。该提交正是当前 review 任务的直接前置实现，没有发现另一个必须先处理的、被显式提到的未完成问题；因此本次按 `P5-T01R` 的 review/验证要求继续执行。
+- 下一步：
+  1. 阅读 `effect_lowered`、`effect_refactor_pipeline/effect_lowering_stage.rs`、`lib.rs` 以及相关 legacy 目录，确认边界是否干净。
+  2. 运行任务要求的搜索与验证命令，检查是否存在把 refactor 分支混入 legacy `effect/state_machine/**` 或 `llvm/codegen/effect/**` 的情况。
+  3. 若 review 通过，则把 `P5-T01R` 标记为 `[DONE]`、补全完成记录、同步 `TODO.md`，并创建提交；若发现阻塞，则按要求插入最小前置任务后提交并停止。
 
-## Progress Log
+## 当前结论
 
-- Created the initial execution plan before repository inspection.
-- Read `TODO.md` and identified `P5-T01` in `TODO-P5.md` as the first incomplete detailed task.
-- Checked the latest commit message (`[P4-T05R] Verify P5 can consume MIR plus facts`) and found no separately tracked unfinished prerequisite directly attached to `P5-T01`.
-- Read the `P5-T01` task body and validation requirements in `TODO-P5.md`.
+- review 结论：`P5-T01R` 可完成，未发现需要新增的前置阻塞任务。
+- 证据摘要：
+  1. `git diff --name-only HEAD^ HEAD -- crates/scoopc/src/effect_lowered crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/effect/state_machine crates/scoopc/src/llvm/codegen/effect` 结果表明，上一提交只改动了 `effect_lowered/**` 与 `effect_refactor_pipeline/**`，没有改动 legacy `effect/state_machine/**` 或 `llvm/codegen/effect/**` 业务实现。
+  2. `crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 中，`LateLowering` 的 refactor 路径直接调用 `effect_lowering_stage::run(...)`；`crates/scoopc/src/effect_lowered/{mod,builder,ir}.rs` 构成独立 late-lowered 子系统。
+  3. 针对 legacy 目录的关键字搜索未发现新增 `EffectPipelineMode` / `refactor` 分支被混入 legacy `effect/state_machine/**` 或 `llvm/codegen/effect/**` 主实现。
+  4. 针对新模块的依赖搜索显示：`effect_lowered/**` 不包含 `crate::effect::state_machine` 或 `crate::llvm` 引用；`effect_lowering_stage.rs` 的防回归测试也显式断言了这一点。
+  5. 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## Current Working Plan
+- 收尾动作：更新 `TODO-P5.md` 与 `TODO.md` 的 `[DONE]` 标记和完成记录，然后提交并停止。
 
-1. Inspect the existing refactor pipeline stage outputs around MIR/effect-facts to determine where the new P5 stage should attach.
-2. Inspect `crates/scoopc/src/lib.rs` and current module layout to add a public `effect_lowered` subsystem without touching legacy state-machine logic.
-3. Implement the smallest complete P5 stage boundary:
-   - add the new `effect_lowered` module tree,
-   - define the late-lowered IR container and stage output type,
-   - add a shared stage entry in the refactor pipeline that consumes the P4 stage output.
-4. Add targeted tests named around `refactor_effect_lowered_stage_*` to prove construction, dependency on P4 stage output, and isolation from LLVM/legacy state-machine entrypoints.
-5. Run the required targeted tests and any necessary formatting/linting for touched code.
-6. If successful, update `TODO-P5.md`, sync `TODO.md` if needed, update this plan log, and create a single task commit.
+## 收尾进展
 
-## Implementation Progress
-
-- Added a new public `crates/scoopc/src/effect_lowered/` subsystem and exposed it from `crates/scoopc/src/lib.rs`.
-- Added `effect_lowered::LateLoweredProgram` / `LateLoweredCallable` as the initial standalone late-lowered representation container.
-- Added `effect_lowered::LateLoweredProgramBuilder` to build the initial late-lowered representation from canonical MIR pass-view plus `MaterializedEffectFacts`.
-- Added `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs` with `RefactorEffectLoweredStageOutput` as the explicit P5 stage output type.
-- Added shared refactor-pipeline entrypoints so tests, future dump CLI, and future P6 lowering can all reuse the same stage helper.
-
-## Verification Progress
-
-- Ran `cargo fmt`.
-- Ran `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage` successfully.
-- Ran `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings` successfully.
-
-## Remaining Step
-
-1. Create the task commit that captures the completed `P5-T01` implementation, verification, and TODO synchronization.
-
-## Documentation Progress
-
-- Marked `P5-T01` as `[DONE]` in `TODO-P5.md` and recorded the implementation summary, module mapping, shared stage entrypoints, boundary notes, and verification commands.
-- Synced the `[DONE]` marker for `P5-T01` in `TODO.md`.
+- 已更新 `TODO-P5.md`：将 `P5-T01R` 标题标记为 `[DONE]`，并写入 review 结论、搜索结果、路径边界与验证命令。
+- 已同步 `TODO.md`：为索引中的 `P5-T01R` 加上 `[DONE]` 标记。
+- `PLAN.md` 无需修改；下一步只剩检查工作区、创建原子提交并停止。
