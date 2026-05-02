@@ -6,6 +6,7 @@
 //! - 低层业务模块不应自行读取 pipeline mode。
 
 mod ast_stage;
+mod effect_facts_stage;
 mod hir_stage;
 mod legacy;
 mod mir_stage;
@@ -15,6 +16,7 @@ use crate::session::{EffectPipelineMode, Session};
 use crate::source::SourceFile;
 
 pub use ast_stage::AstStageOutput;
+pub use effect_facts_stage::RefactorEffectFactsStageOutput;
 pub use hir_stage::{
     ContinuationResumeSiteContract, FunctionEffectContract, HandleArmContractKind,
     HandleArmSiteContract, HandleSiteContract, PayloadTypeContract, PerformSiteContract,
@@ -243,6 +245,38 @@ pub fn load_direct_style_mir_stage_output_for_dump(
     }
 }
 
+pub fn build_effect_facts_stage_output(
+    session: &Session,
+    source: &SourceFile,
+    mir_stage_output: RefactorMirStageOutput,
+) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+    // P4 facts 必须绑定到 canonical materialized MIR snapshot。
+    // 当前 P3 dump stage 仍允许在未保留 snapshot 的情况下独立产出 direct-style MIR，
+    // 因此在 effect-facts stage 边界用同一 session/source 路由补挂 canonical snapshot。
+    let mir_stage_output = if mir_stage_output.materialized_mir().is_some() {
+        mir_stage_output
+    } else {
+        let materialized = materialize_direct_style_mir_for_dump(session, source)?;
+        mir_stage_output.with_materialized_mir(materialized)
+    };
+    let dispatcher = dispatcher_for_session(session).effect_facts();
+    match dispatcher.entry {
+        StageEntry::Legacy(entry) => {
+            entry.delegate_to_legacy(|| effect_facts_stage::run(mir_stage_output))
+        }
+        StageEntry::Refactor(entry) => entry.lower_effect_facts_stage_output(mir_stage_output),
+    }
+}
+
+pub fn load_effect_facts_stage_output_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+    let mir_stage_output = load_direct_style_mir_stage_output_for_dump(session, source)
+        .map_err(crate::effect_facts::EffectFactsError::from)?;
+    build_effect_facts_stage_output(session, source, mir_stage_output)
+}
+
 pub fn materialize_direct_style_mir_for_dump(
     session: &Session,
     source: &SourceFile,
@@ -398,5 +432,23 @@ mod tests {
         );
         assert_eq!(output.file().items.len(), 1);
         assert!(output.callable_body("sample.main").is_some());
+    }
+
+    #[test]
+    fn refactor_effect_facts_stage_dispatcher_loads_stage_output() {
+        let session = session_for(EffectPipelineMode::Refactor);
+        let source = sample_source();
+
+        let output = load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
+
+        assert_eq!(
+            dispatcher_for_session(&session).effect_facts().mode(),
+            EffectPipelineMode::Refactor
+        );
+        assert_eq!(output.file().items.len(), 1);
+        assert_eq!(
+            output.effect_facts().callable_facts().len(),
+            output.materialized_pass_view().len()
+        );
     }
 }

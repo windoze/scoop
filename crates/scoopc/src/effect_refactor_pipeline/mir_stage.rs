@@ -62,6 +62,11 @@ impl RefactorMirStageOutput {
         self.materialized_mir.as_ref()
     }
 
+    pub(crate) fn with_materialized_mir(mut self, materialized_mir: MaterializedMir) -> Self {
+        self.materialized_mir = Some(materialized_mir);
+        self
+    }
+
     /// 以稳定顺序枚举当前 direct-style MIR 中可查询的 callable body 身份。
     pub fn callable_body_fqns(&self) -> impl Iterator<Item = &str> + '_ {
         self.callable_body_indices.keys().map(String::as_str)

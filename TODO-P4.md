@@ -135,7 +135,15 @@
   - P5 之后的阶段已有明确的 facts stage 输出可接。
 - 依赖：`TODO-P3.md` 最后一项 review 完成
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P4-T01`，新增独立的 `crates/scoopc/src/effect_facts/` 子系统与 `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs`，为 refactor 新路径建立显式的 effect-facts stage，并定义 `RefactorEffectFactsStageOutput` 作为 P4 -> P5 的稳定 handoff 结构。
+  - `crates/scoopc/src/effect_facts/{mod,builder,dump,facts,schema,solver}.rs` 现已把 P4 子系统边界固定为独立模块树：`facts.rs` 定义 `MaterializedEffectFacts` / `MirSnapshotBinding` / callable/body facts 外壳，`schema.rs` 提供 `StepSchemaId` / `ContinuationSchemaId` 与 schema 外壳，`builder.rs` 固定“从 canonical materialized MIR snapshot 建 facts 容器外壳”的入口，`solver.rs` 固定后续 `resolved_outward_cases` 求解将落入的 solver 边界，`dump.rs` 提供稳定 formatter。
+  - `RefactorEffectFactsStageOutput` 已显式承载：P3 的 `RefactorMirStageOutput`、与之绑定的 `TypeStore`、canonical `MaterializedMir::pass_view()` 查询面，以及最终 `MaterializedEffectFacts`。其注释明确写死：P4 输入必须是 P3 MIR stage 输出、`materialized_pass_view()` 是当前 canonical MIR snapshot 的唯一查询面、`effect_facts()` 是 P5 唯一允许消费的 authoritative effect contract、MIR snapshot 结构性改写后必须重跑本 stage。
+  - 为保证 dump/refactor 路径在尚未把 materialized snapshot 直接挂进 P3 输出时也能稳定进入 P4，`crates/scoopc/src/effect_refactor_pipeline/mod.rs` 现在会在 effect-facts stage 边界使用同一 `session + source` 路由补挂 canonical `MaterializedMir` snapshot；该补挂只发生在 stage wrapper，`dump-mir` 本身不因此额外依赖 materialization 成功。
+  - P4 现已明确只绑定 pass-view canonical MIR 查询面：`MaterializedEffectFactsBuilder::from_materialized_snapshot(...)` 只消费 `MaterializedMir::pass_view()`，并用 `MirSnapshotBinding` 记录 query surface、instance 计数与 canonical body FQN 集；不会在同一个 facts 构建过程中混用 raw `MaterializedMir.file` 与 pass-view body/summaries。
+  - 搜索摘要：执行 `MaterializedEffectFacts|StepSchema|ContinuationSchema|resolved_outward_cases|impl_plan` 搜索后，命中仅位于新的 `effect_facts` 子系统、`effect_facts_stage.rs` 与 `mir_stage.rs` 的 handoff 注释；未发现这些新 facts 术语被塞进 `crates/scoopc/src/program_facts.rs`、`crates/scoopc/src/mir/summary.rs` 或 `crates/scoopc/src/effect/analysis.rs` 的业务实现中。
+  - 新增/更新测试：`crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 中的 `refactor_effect_facts_stage_output_is_constructible`、`refactor_effect_facts_stage_explicitly_consumes_p3_mir_stage_output`、`refactor_effect_facts_stage_requires_materialized_snapshot`，以及 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 中的 `refactor_effect_facts_stage_dispatcher_loads_stage_output`。
+  - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P4-T01R：Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts`
 
