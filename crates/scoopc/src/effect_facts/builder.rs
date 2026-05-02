@@ -892,13 +892,20 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             self.known_callable_key(callable_fqn, explicit_arg_count, receiver_ty.is_some())
         {
             if let Some(facts) = self.callable_facts.get(&target_key) {
+                // P4-T03 只发布 callable shell 的保守上界；直到 P4-T04 回填求解结果前，
+                // 只有空 case-set 才能提前视为精确，其余 known-instance call site 必须保守标宽。
+                let precision = if facts.resolved_outward_cases().is_empty() {
+                    EffectPrecision::Precise
+                } else {
+                    EffectPrecision::Widened
+                };
                 return Ok(CallSiteEffectFacts::new(
                     kind,
                     CallSiteTarget::KnownInstance(target_key),
                     invoke_args_tuple_ty,
                     facts.step_schema(),
                     facts.resolved_outward_cases().clone(),
-                    EffectPrecision::Precise,
+                    precision,
                 ));
             }
 
@@ -2284,7 +2291,7 @@ fun nested_may_suspend_outward(): Int {
         let apply_body_facts = facts.body(apply_key).expect("apply 应有 body facts");
         let exercise_body_facts = facts.body(exercise_key).expect("exercise 应有 body facts");
 
-        let mut direct_site_id = None;
+        let mut direct_site_ids = Vec::new();
         let mut virtual_site_id = None;
         let mut interface_site_id = None;
         let mut resume_site_id = None;
@@ -2298,8 +2305,8 @@ fun nested_may_suspend_outward(): Int {
                     continue;
                 };
                 match kind {
-                    CallKind::Direct { .. } if direct_site_id.is_none() => {
-                        direct_site_id = Some(*site_id);
+                    CallKind::Direct { .. } => {
+                        direct_site_ids.push(*site_id);
                     }
                     CallKind::Virtual { .. } => {
                         virtual_site_id = Some(*site_id);
@@ -2311,9 +2318,7 @@ fun nested_may_suspend_outward(): Int {
                         resume_site_id = Some(*site_id);
                         resume_block_id = Some(BasicBlockId::from_raw(block_index as u32));
                     }
-                    CallKind::Direct { .. }
-                    | CallKind::Closure { .. }
-                    | CallKind::FunValue { .. } => {}
+                    CallKind::Closure { .. } | CallKind::FunValue { .. } => {}
                 }
             }
         }
@@ -2337,23 +2342,34 @@ fun nested_may_suspend_outward(): Int {
             })
             .expect("apply 应包含 callable-value site");
 
-        let SiteEffectFacts::Call(direct_facts) = exercise_body_facts
-            .site(direct_site_id.expect("exercise 应包含 direct call site"))
-            .expect("direct call site 应可通过 SiteId 查询")
-        else {
-            panic!("direct site 应产生 CallSiteEffectFacts");
-        };
-        assert_eq!(direct_facts.kind(), CallSiteKind::Direct);
-        assert_eq!(direct_facts.target_mode(), CallTargetMode::KnownInstance);
+        let effectful_direct_facts = direct_site_ids
+            .into_iter()
+            .filter_map(|site_id| match exercise_body_facts.site(site_id) {
+                Some(SiteEffectFacts::Call(call_facts))
+                    if call_facts.kind() == CallSiteKind::Direct =>
+                {
+                    Some(call_facts)
+                }
+                _ => None,
+            })
+            .find(|call_facts| {
+                case_fqns(&facts, call_facts.resolved_cases()).contains("sample.Boom.next")
+            })
+            .expect("exercise 应包含带 outward case 的 known direct call");
+        assert_eq!(effectful_direct_facts.kind(), CallSiteKind::Direct);
+        assert_eq!(
+            effectful_direct_facts.target_mode(),
+            CallTargetMode::KnownInstance
+        );
+        assert_eq!(effectful_direct_facts.precision(), EffectPrecision::Widened);
         assert!(matches!(
-            direct_facts.target(),
+            effectful_direct_facts.target(),
             CallSiteTarget::KnownInstance(key)
                 if key.template.fqn.starts_with("sample.") && key.template.fqn != "sample.exercise"
         ));
-        assert!(
-            facts
-                .step_schemas()
-                .contains_key(&direct_facts.callee_schema())
+        assert_eq!(
+            case_fqns(&facts, effectful_direct_facts.resolved_cases()),
+            ["sample.Boom.next".to_string()].into_iter().collect()
         );
 
         let SiteEffectFacts::Call(fun_value_facts) = apply_body_facts

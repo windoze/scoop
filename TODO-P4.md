@@ -551,7 +551,7 @@
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_site_effect_facts`、`cargo test -p scoopc --no-default-features refactor_body_effect_facts`、`cargo test -p scoopc --no-default-features refactor_nested_handle_classification`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
   - 2026-05-02：本任务未改变阶段顺序或完成准则，`PLAN.md` 无需改动；现已按规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
 
-## P4-T03R：Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断
+## [DONE] P4-T03R：Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.12, §4.13.2-§4.13.3, §5.4.5-§5.4.7
@@ -581,7 +581,15 @@
   - 可进入 P4-T04。
 - 依赖：P4-T03
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P4-T03R` review。最近一次提交 `[P4-T03] Materialize body and site effect facts` 与本次复核直接相关；提交信息未显式留下新的未完成事项，但 review 过程中确实发现一个与当前 contract 直接相关的小缺口：`KnownInstance` 的 effectful direct call 在 `resolved_cases` 仍是 T03 保守上界时被提前标成了 `EffectPrecision::Precise`。
+  - 该缺口已在本次 review 内直接修复：`crates/scoopc/src/effect_facts/builder.rs::build_direct_like_call_site(...)` 现在只对 empty case-set 的 known-instance call site 维持 `Precise`；对仍需 `P4-T04` 求解回填的非空 known-instance outward case，初始 precision 改为保守的 `Widened`，从而与 `P4-T03` “保守 `resolved_cases` 与 `precision`” 的完成承诺保持一致。
+  - body/site 键空间复核结论：`crates/scoopc/src/effect_facts/facts.rs` 中 `BodyEffectFacts` 继续以 `BasicBlockId -> BlockEffectFacts`、`SiteId -> SiteEffectFacts` 组织，`MaterializedEffectFacts::body(...)` 也继续按 canonical `InstanceKey` 查询；未发现回退到 `Span` 作为最终主键或让后续阶段重新扫 MIR/HIR 猜 site 身份的实现。
+  - site contract 复核结论：`SiteEffectFacts` 继续保留独立的 `Call` / `Perform` / `Resume` / `Handle` 变体；`CallSiteEffectFacts` 显式发布 `KnownInstance` / `CandidateSet` / `DynamicFallback` target mode、target、`callee_schema`、`resolved_cases` 与 `precision`；`PerformSiteEffectFacts` 显式发布 emitted case 与 captured continuation schema；`ResumeSiteEffectFacts` 显式发布 continuation/outward schema 与 runtime error ordinary effect outward；`HandleSiteEffectFacts` 继续显式承载 handled/body/arm/finally case 集与 nested handle 分类。
+  - nested handle / pass-view handoff 复核结论：`NestedHandleClassification::{SelfContained, MaySuspendOutward}` 继续作为 facts 子系统的一部分存在，`MaterializedEffectFactsBuilder` 继续只消费 canonical `MaterializedMir::pass_view()` body / family / owner 查询面；未发现重新回 `LoweredHir`、`hir::HandleExpr`、`continuation_resume_call_sites`、`effect_op_call_sites` 或 LLVM 现场重建 contract 的主分析逻辑。
+  - 搜索摘要：执行 `LoweredHir|hir::HandleExpr|continuation_resume_call_sites|effect_op_call_sites|Span` 搜索后，`effect_facts` 主实现中未发现回 HIR side table 取 contract 的命中；`Span` 仅出现在 `builder.rs` 的测试模块。`effect_refactor_pipeline` 的 `LoweredHir` / `Span` 命中集中在既有 `hir_stage`、stage wrapper 和测试/注释，不属于 `effect_facts` 主分析逻辑。
+  - 新增/更新验证：`refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts` 现已显式锁定“带 outward case 的 known direct call 在 P4-T03 阶段必须保守标宽”的 contract；其余 `P4-T03` 定向测试继续覆盖 block/site 键空间、perform/handle contract、nested handle 分类与 canonical pass-view handoff。
+  - 复验通过：`cargo test -p scoopc --no-default-features refactor_site_effect_facts`、`cargo test -p scoopc --no-default-features refactor_body_effect_facts`、`cargo test -p scoopc --no-default-features refactor_nested_handle_classification`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
+  - 2026-05-02：本次 review 未改变阶段顺序、依赖或完成准则，`PLAN.md` 无需改动；现已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
 
 ## P4-T04：实现 `resolved_outward_cases` SCC/dataflow 求解，并完成 `needs_reentry` / `impl_plan` / final block facts 回填
 
