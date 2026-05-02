@@ -288,7 +288,7 @@
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_continuation_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
   - 2026-05-02：本任务未引入新的阶段依赖或顺序变化，因此 `PLAN.md` 无需改动；同时已把 `TODO.md` 中对应索引条目标记同步为 `[DONE]`。
 
-## P4-T02R：Review schema pool 与 callable facts，确认 identity 和 case contract 已经固定
+## [DONE] P4-T02R：Review schema pool 与 callable facts，确认 identity 和 case contract 已经固定
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.3.3-§4.3.4, §5.4.1-§5.4.4
@@ -317,7 +317,13 @@
   - 可进入 P4-T03。
 - 依赖：P4-T02
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P4-T02R` review。最近一次提交 `[P4-T02] Materialize effect schema pool and callable facts` 与本次复核直接相关，但提交信息与当前代码状态中均未发现需要在 `P4-T03` 前单独插入的新前置问题。
+  - identity 固定性复核结论：`crates/scoopc/src/effect_facts/builder.rs` 继续以 `MaterializedMir::pass_view()` 的 canonical snapshot 为输入，并按 `pass_view.instances()` 的稳定 `instance_keys` 顺序为 callable 分配 `StepSchemaId`；`crates/scoopc/src/mir/pass_view.rs` 已显式注明该遍历顺序稳定，而 `crates/scoopc/src/mir/materialize.rs` 会先按 `instance_fqn` 排序生成 `instance_keys`，且 `instance_fqn` 同时编码 `type_args` 与 `eff_args`，因此 callable identity 能稳定区分 `(symbol, type_args, allowed_row)`。
+  - case contract 复核结论：`CaseTag` 继续基于 effect term + concrete op sort key 的稳定排序分配，`ConcreteOpKey` 仍以语义 newtype 包裹 `InstanceKey` 表达 generic-specialized concrete op identity，`ContinuationSchemaKey` 继续把 `resume_tuple_ty`、`answer_ty`、`out_step_schema`、`surface_ty` 一并纳入 identity；后续任务无需回退到 bare FQN 或字符串推断补 identity。
+  - schema/facts 形状复核结论：`CallableEffectFacts` 仍显式承载 `declared_row`、`invoke_args_tuple_ty`、`step_schema`、`resolved_outward_cases`、`needs_reentry`、`impl_plan`，未退化回 `may_outward_effect` 之类的临时 bool 摘要；`resumeZero` / `Continuation.resume` 的 runtime error 路径仍通过普通 `Raise<RuntimeError>` concrete case 进入 `StepSchema`，没有额外 pseudo case。
+  - 搜索摘要：执行 `rg "may_outward_effect|op_fqn: String|Todo\(|Any" crates/scoopc/src/effect_facts crates/scoopc/src/effect_refactor_pipeline` 后，`effect_facts` 侧仅命中 `crates/scoopc/src/effect_facts/mod.rs` 中 `MalformedEffectOpSignature` 的错误载荷字段 `op_fqn: String`；`effect_refactor_pipeline` 侧命中仅位于 `hir_stage.rs` 的 typed HIR contract 字段与 AST `Todo` 分支；未发现 `schema.rs`、`facts.rs`、`builder.rs` 等 schema/facts 主实现把这些占位形状当作最终 contract 使用。
+  - 复验通过：`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_continuation_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+  - 2026-05-02：本次 review 未改变阶段顺序或依赖，`PLAN.md` 无需改动；现已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
 
 ## P4-T03：构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析
 
