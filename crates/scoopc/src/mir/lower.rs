@@ -23,9 +23,9 @@ use crate::ty::{BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeK
 use super::{
     BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
     HandleMetadata, HandlerArm, HandlerArmKind, Item, LocalDecl, LocalId, MemberAccessMetadata,
-    MemberTarget, Operand, Param, Pattern, PatternBindingStep, PerformArg, PerformMetadata,
-    ResumeMetadata, Rvalue, SiteId, Statement, StatementKind, Terminator, TerminatorKind,
-    TopLevelRef, UnwindAction,
+    MemberTarget, MirValidationError, Operand, Param, Pattern, PatternBindingStep, PerformArg,
+    PerformMetadata, ResumeMetadata, Rvalue, SiteId, Statement, StatementKind, Terminator,
+    TerminatorKind, TopLevelRef, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -235,6 +235,8 @@ impl MirLoweringFacts {
                 .map(|arm| HandlerArm {
                     op_fqn: arm.op_fqn().to_string(),
                     binder_count: arm.payload().components().len(),
+                    binder_locals: Vec::new(),
+                    continuation_local: None,
                     handled_effect_ty: arm.handled_effect_ty(),
                     payload_tuple_ty: arm.payload().ty(),
                     payload_component_tys: arm.payload().components().to_vec(),
@@ -341,6 +343,12 @@ pub enum MirLowerError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Hir(#[from] hir::HirLowerError),
+    #[error("refactor direct-style MIR validation failed for `{fqn}`: {error}")]
+    InvalidRefactorMir {
+        fqn: String,
+        #[source]
+        error: MirValidationError,
+    },
 }
 
 /// 一次 lowering 的产物：MIR + 对应的 `TypeStore`。
@@ -479,6 +487,7 @@ struct FnLowering<'a> {
     value_origins: HashMap<LocalId, ValueOrigin>,
     /// 当前函数内哪些 `SymbolId` 以 box 形式存储（用于 `var` 被 closure 捕获时的别名语义，T0714）。
     boxed_symbols: HashSet<hir::SymbolId>,
+    cleanup_scopes: Vec<CleanupScope>,
     loop_stack: Vec<LoopContext>,
     nested_funs: Vec<FunDecl>,
 }
@@ -488,6 +497,13 @@ struct FnLowering<'a> {
 struct LoopContext {
     break_target: BasicBlockId,
     continue_target: BasicBlockId,
+    cleanup_depth: usize,
+}
+
+/// 当前 lowering 语境里“离开该作用域前必须执行”的 finally/cleanup 块。
+#[derive(Debug, Clone)]
+struct CleanupScope {
+    finally: hir::Block,
 }
 
 /// 一个 local 当前可观察到的最小 provenance。
@@ -543,6 +559,7 @@ impl<'a> FnLowering<'a> {
             symbol_locals: HashMap::new(),
             value_origins: HashMap::new(),
             boxed_symbols: HashSet::new(),
+            cleanup_scopes: Vec::new(),
             loop_stack: Vec::new(),
             nested_funs: Vec::new(),
         }
@@ -605,6 +622,12 @@ impl<'a> FnLowering<'a> {
         })
     }
 
+    fn push_cleanup_block(&mut self, span: Span) -> BasicBlockId {
+        let bb = self.push_block(span);
+        self.body.blocks[bb.as_usize()].is_cleanup = true;
+        bb
+    }
+
     fn fresh_site_id(&mut self) -> SiteId {
         let site_id = SiteId::from_raw(self.next_site_id);
         self.next_site_id = self
@@ -656,6 +679,9 @@ impl<'a> FnLowering<'a> {
     /// - 若这里直接停止，generic MIR materializer 将看不到这些后续 call-site；
     /// - 因此仅当终止原因是占位式 `Handle` / `Perform` 时，允许把后续语句接到一个新的孤立 block 中继续保形。
     fn continue_after_placeholder_effect_terminator_if_needed(&mut self, next_span: Span) -> bool {
+        if self.facts.uses_refactor_typed_contracts() {
+            return !self.current_is_terminated();
+        }
         if !self.current_is_terminated() {
             return true;
         }
@@ -667,6 +693,68 @@ impl<'a> FnLowering<'a> {
         }
         self.current_bb = self.push_block(next_span);
         true
+    }
+
+    fn with_cleanup_scope_len<T>(&mut self, len: usize, f: impl FnOnce(&mut Self) -> T) -> T {
+        let mut tail = self.cleanup_scopes.split_off(len);
+        let result = f(self);
+        self.cleanup_scopes.append(&mut tail);
+        result
+    }
+
+    fn lower_cleanup_block_to_target(
+        &mut self,
+        cleanup_bb: BasicBlockId,
+        cleanup: &hir::Block,
+        target: BasicBlockId,
+        outer_cleanup_len: usize,
+    ) {
+        let saved_bb = self.current_bb;
+        self.current_bb = cleanup_bb;
+        self.with_cleanup_scope_len(outer_cleanup_len, |this| {
+            this.lower_block_as_stmt(cleanup);
+        });
+        if !self.current_is_terminated() {
+            self.set_terminator(
+                self.current_bb,
+                cleanup.span,
+                TerminatorKind::Goto { target },
+            );
+        }
+        self.current_bb = saved_bb;
+    }
+
+    fn build_cleanup_route(
+        &mut self,
+        target: BasicBlockId,
+        min_cleanup_depth: usize,
+    ) -> BasicBlockId {
+        let mut next_target = target;
+        for scope_index in (min_cleanup_depth..self.cleanup_scopes.len()).rev() {
+            let cleanup = self.cleanup_scopes[scope_index].finally.clone();
+            let cleanup_bb = self.push_cleanup_block(cleanup.span);
+            self.lower_cleanup_block_to_target(cleanup_bb, &cleanup, next_target, scope_index);
+            next_target = cleanup_bb;
+        }
+        next_target
+    }
+
+    fn build_perform_unwind_action(&mut self, span: Span) -> UnwindAction {
+        let Some(scope) = self.cleanup_scopes.last().cloned() else {
+            return UnwindAction::Propagate;
+        };
+
+        let resume_unwind_bb = self.push_cleanup_block(span);
+        self.set_terminator(resume_unwind_bb, span, TerminatorKind::ResumeUnwind);
+
+        let cleanup_bb = self.push_cleanup_block(scope.finally.span);
+        self.lower_cleanup_block_to_target(
+            cleanup_bb,
+            &scope.finally,
+            resume_unwind_bb,
+            self.cleanup_scopes.len() - 1,
+        );
+        UnwindAction::Cleanup { target: cleanup_bb }
     }
 
     /// 若函数尾部没有显式 terminator，则默认补一个 `return`（保持 body 可验证/可 dump）。
@@ -810,24 +898,42 @@ impl<'a> FnLowering<'a> {
             hir::StmtKind::Break { .. } => self.lower_break_stmt(stmt.span),
             hir::StmtKind::Continue { .. } => self.lower_continue_stmt(stmt.span),
             hir::StmtKind::Return { value } => {
-                if let Some(expr) = value {
+                let return_value = if let Some(expr) = value {
                     let result = self.lower_expr_to_local(expr);
                     if self.current_is_terminated() {
                         return;
                     }
+                    Some(Operand::Local(result))
+                } else {
+                    None
+                };
+
+                if self.cleanup_scopes.is_empty() {
                     self.set_terminator(
                         self.current_bb,
                         stmt.span,
                         TerminatorKind::Return {
-                            value: Some(Operand::Local(result)),
+                            value: return_value,
                         },
                     );
                     return;
                 }
+
+                let return_bb = self.push_block(stmt.span);
+                self.set_terminator(
+                    return_bb,
+                    stmt.span,
+                    TerminatorKind::Return {
+                        value: return_value,
+                    },
+                );
+                let cleanup_target = self.build_cleanup_route(return_bb, 0);
                 self.set_terminator(
                     self.current_bb,
                     stmt.span,
-                    TerminatorKind::Return { value: None },
+                    TerminatorKind::Goto {
+                        target: cleanup_target,
+                    },
                 );
             }
             hir::StmtKind::Todo(kind) => self.push_stmt(stmt.span, StatementKind::Todo(kind)),
@@ -871,6 +977,7 @@ impl<'a> FnLowering<'a> {
         self.loop_stack.push(LoopContext {
             break_target: exit_bb,
             continue_target: cond_bb,
+            cleanup_depth: self.cleanup_scopes.len(),
         });
         self.lower_block_as_stmt(body);
         let _ = self.loop_stack.pop();
@@ -897,11 +1004,22 @@ impl<'a> FnLowering<'a> {
             );
             return;
         };
+        if self.cleanup_scopes.len() == ctx.cleanup_depth {
+            self.set_terminator(
+                self.current_bb,
+                span,
+                TerminatorKind::Goto {
+                    target: ctx.break_target,
+                },
+            );
+            return;
+        }
+        let cleanup_target = self.build_cleanup_route(ctx.break_target, ctx.cleanup_depth);
         self.set_terminator(
             self.current_bb,
             span,
             TerminatorKind::Goto {
-                target: ctx.break_target,
+                target: cleanup_target,
             },
         );
     }
@@ -916,11 +1034,22 @@ impl<'a> FnLowering<'a> {
             );
             return;
         };
+        if self.cleanup_scopes.len() == ctx.cleanup_depth {
+            self.set_terminator(
+                self.current_bb,
+                span,
+                TerminatorKind::Goto {
+                    target: ctx.continue_target,
+                },
+            );
+            return;
+        }
+        let cleanup_target = self.build_cleanup_route(ctx.continue_target, ctx.cleanup_depth);
         self.set_terminator(
             self.current_bb,
             span,
             TerminatorKind::Goto {
-                target: ctx.continue_target,
+                target: cleanup_target,
             },
         );
     }
@@ -1743,11 +1872,10 @@ impl<'a> FnLowering<'a> {
 
     /// 降低一个 effect operation 调用（HIR `Perform`）到 MIR。
     ///
-    /// 当前阶段（TODO T0713）先做“结构落地 + 不 panic”：
-    /// - 先按源码顺序 lowering 显式实参表达式；
-    /// - 再按 HIR/typecheck side table 把 payload 排序为 effect-op 形参顺序；
-    /// - 为该表达式分配一个临时结果 local，并显式保留“这是 perform 恢复结果”的 provenance；
-    /// - 用 `TerminatorKind::Perform` 结束当前基本块，并标记该点“可能发生 unwinding”。
+    /// 当前阶段会把 `perform` 同时显式化为：
+    /// - 普通恢复后的 continuation block（`resume_target`）；
+    /// - 若 outward propagation 需要先跑 cleanup，则通过 `UnwindAction::Cleanup` 连到 cleanup block；
+    /// - 若当前无本地 cleanup，则用 `UnwindAction::Propagate` 明确表示“直接继续向外 unwind”。
     fn lower_perform_expr(
         &mut self,
         span: Span,
@@ -1792,7 +1920,9 @@ impl<'a> FnLowering<'a> {
             },
         );
 
+        let resume_target = self.push_block(span);
         let site_id = self.fresh_site_id();
+        let unwind = self.build_perform_unwind_action(span);
         self.set_terminator_with_unwind(
             self.current_bb,
             span,
@@ -1801,21 +1931,22 @@ impl<'a> FnLowering<'a> {
                 op_fqn: op.fqn.clone(),
                 metadata,
                 args: perform_args,
+                resume_target,
             },
-            UnwindAction::Todo("perform unwind pending"),
+            unwind,
         );
+        self.current_bb = resume_target;
 
         result
     }
 
     /// 降低一个 effect handler 表达式（HIR `Handle`）到 MIR。
     ///
-    /// 当前阶段（TODO T0713）策略：
-    /// - 把 handler boundary 以 `TerminatorKind::Handle { .. }` 占位落在当前块末尾；
-    /// - 同时把 handle 的 body/arms/finally 降到**独立的新 block**里，便于 `dump-mir`/fixtures
-    ///   观察内部的 `perform`/控制流形态；
-    /// - 这些 block 作为保守 CFG successor 暴露给 MIR reachability；后续会在更完整的 effect
-    ///   lowering 中展开为精确 cleanup/handler CFG。
+    /// 当前阶段会把 `handle` 显式展开为 direct-style CFG：
+    /// - 入口 block 以 `TerminatorKind::Handle` 指向 body/arms/finally/exit；
+    /// - body 与 arm 正常完成后显式写回结果并跳向 `finally`/`exit_target`；
+    /// - `finally` 自身作为 cleanup block 存在，`return` / `break` / `continue` 通过 cleanup chain
+    ///   穿过它，而不是把这些续点留成 `Todo(...)`。
     fn lower_handle_expr(&mut self, span: Span, ty: TypeId, handle: &hir::HandleExpr) -> LocalId {
         let outer_bb = self.current_bb;
 
@@ -1831,7 +1962,7 @@ impl<'a> FnLowering<'a> {
         } else {
             Some(self.lower_handle_contract_from_hir(ty, handle))
         };
-        let Some((metadata, arms)) = handle_contract else {
+        let Some((metadata, mut arms)) = handle_contract else {
             self.assign(
                 span,
                 result,
@@ -1844,8 +1975,9 @@ impl<'a> FnLowering<'a> {
             );
             return result;
         };
-
-        self.assign(span, result, Rvalue::Todo("handle result pending"));
+        for (hir_arm, lowered_arm) in handle.arms.iter().zip(arms.iter_mut()) {
+            self.allocate_handle_arm_locals(hir_arm, lowered_arm);
+        }
 
         let body_bb = self.push_block(handle.body.span);
         let arm_bbs = handle
@@ -1856,7 +1988,8 @@ impl<'a> FnLowering<'a> {
         let finally_bb = handle
             .finally
             .as_ref()
-            .map(|finally| self.push_block(finally.span));
+            .map(|finally| self.push_cleanup_block(finally.span));
+        let exit_bb = self.push_block(span);
 
         let site_id = self.fresh_site_id();
         self.set_terminator(
@@ -1865,50 +1998,77 @@ impl<'a> FnLowering<'a> {
             TerminatorKind::Handle {
                 site_id,
                 metadata,
-                arms,
+                arms: arms.clone(),
                 has_finally: handle.finally.is_some(),
                 body_target: body_bb,
                 arm_targets: arm_bbs.clone(),
                 finally_target: finally_bb,
+                exit_target: exit_bb,
             },
         );
 
+        let handle_cleanup_scope = handle
+            .finally
+            .as_ref()
+            .cloned()
+            .map(|finally| CleanupScope { finally });
+
         self.current_bb = body_bb;
-        self.lower_block_as_stmt(&handle.body);
+        if let Some(scope) = handle_cleanup_scope.clone() {
+            self.cleanup_scopes.push(scope);
+        }
+        let body_value = self.lower_block_as_expr(&handle.body);
+        if handle_cleanup_scope.is_some() {
+            let _ = self.cleanup_scopes.pop();
+        }
         if !self.current_is_terminated() {
+            self.assign(
+                handle.body.span,
+                result,
+                Rvalue::Use(Operand::Local(body_value)),
+            );
             self.set_terminator(
                 self.current_bb,
                 handle.body.span,
-                TerminatorKind::Todo("handle body exit pending"),
+                TerminatorKind::Goto {
+                    target: finally_bb.unwrap_or(exit_bb),
+                },
             );
         }
 
-        for (arm, arm_bb) in handle.arms.iter().zip(arm_bbs) {
+        for ((arm, lowered_arm), arm_bb) in handle.arms.iter().zip(arms.iter()).zip(arm_bbs) {
             self.current_bb = arm_bb;
-            let _ = self.lower_expr_to_local(&arm.body);
+            if let Some(scope) = handle_cleanup_scope.clone() {
+                self.cleanup_scopes.push(scope);
+            }
+            let shadowed = self.bind_handle_arm_symbols(arm, lowered_arm);
+            let arm_value = self.lower_expr_to_local(&arm.body);
+            if handle_cleanup_scope.is_some() {
+                let _ = self.cleanup_scopes.pop();
+            }
+            self.restore_shadowed_symbols(shadowed);
             if !self.current_is_terminated() {
+                self.assign(arm.span, result, Rvalue::Use(Operand::Local(arm_value)));
                 self.set_terminator(
                     self.current_bb,
                     arm.span,
-                    TerminatorKind::Todo("handle arm exit pending"),
+                    TerminatorKind::Goto {
+                        target: finally_bb.unwrap_or(exit_bb),
+                    },
                 );
             }
         }
 
         if let Some((finally, finally_bb)) = handle.finally.as_ref().zip(finally_bb) {
-            self.current_bb = finally_bb;
-            self.lower_block_as_stmt(finally);
-            if !self.current_is_terminated() {
-                self.set_terminator(
-                    self.current_bb,
-                    finally.span,
-                    TerminatorKind::Todo("handle finally exit pending"),
-                );
-            }
+            self.lower_cleanup_block_to_target(
+                finally_bb,
+                finally,
+                exit_bb,
+                self.cleanup_scopes.len(),
+            );
         }
 
-        // 注意：必须把 current_bb 恢复回 outer_bb，保证外层 CFG 继续认为“当前块已终止”。
-        self.current_bb = outer_bb;
+        self.current_bb = exit_bb;
 
         result
     }
@@ -1938,6 +2098,8 @@ impl<'a> FnLowering<'a> {
                     binder_count: arm.op.binders.len(),
                     handled_effect_ty: arm.op.effect_ty,
                     payload_tuple_ty,
+                    binder_locals: Vec::new(),
+                    continuation_local: None,
                     payload_component_tys,
                     body_ty: arm.body.ty,
                     kind: match arm.kind {
@@ -1957,6 +2119,188 @@ impl<'a> FnLowering<'a> {
             },
             arms,
         )
+    }
+
+    fn allocate_handle_arm_locals(&mut self, arm: &hir::HandleArm, lowered_arm: &mut HandlerArm) {
+        lowered_arm.binder_locals = arm
+            .op
+            .binders
+            .iter()
+            .map(|binder| self.push_named_local(binder.span, &binder.name, binder.ty))
+            .collect();
+        lowered_arm.binder_count = lowered_arm.binder_locals.len();
+        lowered_arm.continuation_local = match arm.kind {
+            hir::HandleArmKind::EscapeContinuation { continuation } => {
+                let ty = self
+                    .infer_local_symbol_ty_in_expr(&arm.body, continuation)
+                    .unwrap_or(self.builtins.any);
+                Some(self.push_named_local(arm.span, "$continuation", ty))
+            }
+            hir::HandleArmKind::NonResuming => None,
+        };
+    }
+
+    fn bind_handle_arm_symbols(
+        &mut self,
+        arm: &hir::HandleArm,
+        lowered_arm: &HandlerArm,
+    ) -> Vec<(hir::SymbolId, Option<LocalId>)> {
+        let mut shadowed = Vec::with_capacity(
+            lowered_arm.binder_locals.len() + usize::from(lowered_arm.continuation_local.is_some()),
+        );
+        for (binder, local) in arm
+            .op
+            .binders
+            .iter()
+            .zip(lowered_arm.binder_locals.iter().copied())
+        {
+            let previous = self.symbol_locals.insert(binder.id, local);
+            shadowed.push((binder.id, previous));
+        }
+        if let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind
+            && let Some(local) = lowered_arm.continuation_local
+        {
+            let previous = self.symbol_locals.insert(continuation, local);
+            shadowed.push((continuation, previous));
+        }
+        shadowed
+    }
+
+    fn infer_local_symbol_ty_in_expr(
+        &self,
+        expr: &hir::Expr,
+        symbol: hir::SymbolId,
+    ) -> Option<TypeId> {
+        match &expr.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) if *id == symbol => {
+                Some(expr.ty)
+            }
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Todo(_) => None,
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .find_map(|field| self.infer_local_symbol_ty_in_expr(&field.value, symbol)),
+            hir::ExprKind::TupleLit { elements } => elements
+                .iter()
+                .find_map(|element| self.infer_local_symbol_ty_in_expr(element, symbol)),
+            hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
+                let hir::InterpolatedStringPart::Expr { expr } = part else {
+                    return None;
+                };
+                self.infer_local_symbol_ty_in_expr(expr, symbol)
+            }),
+            hir::ExprKind::Unary { expr, .. }
+            | hir::ExprKind::TypeCheck { expr, .. }
+            | hir::ExprKind::Cast { expr, .. }
+            | hir::ExprKind::MemberAccess { receiver: expr, .. } => {
+                self.infer_local_symbol_ty_in_expr(expr, symbol)
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => self
+                .infer_local_symbol_ty_in_expr(lhs, symbol)
+                .or_else(|| self.infer_local_symbol_ty_in_expr(rhs, symbol)),
+            hir::ExprKind::Block(block) => block
+                .stmts
+                .iter()
+                .find_map(|stmt| self.infer_local_symbol_ty_in_stmt(stmt, symbol)),
+            hir::ExprKind::Call { callee, args } => self
+                .infer_local_symbol_ty_in_expr(callee, symbol)
+                .or_else(|| {
+                    args.iter().find_map(|arg| match arg {
+                        hir::CallArg::Positional(expr) => {
+                            self.infer_local_symbol_ty_in_expr(expr, symbol)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.infer_local_symbol_ty_in_expr(value, symbol)
+                        }
+                    })
+                }),
+            hir::ExprKind::Closure(closure) => {
+                self.infer_local_symbol_ty_in_expr(&closure.body, symbol)
+            }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => self
+                .infer_local_symbol_ty_in_expr(cond, symbol)
+                .or_else(|| self.infer_local_symbol_ty_in_expr(then_branch, symbol))
+                .or_else(|| {
+                    else_branch
+                        .as_ref()
+                        .and_then(|expr| self.infer_local_symbol_ty_in_expr(expr, symbol))
+                }),
+            hir::ExprKind::When { subject, arms } => self
+                .infer_local_symbol_ty_in_expr(subject, symbol)
+                .or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .and_then(|guard| self.infer_local_symbol_ty_in_expr(guard, symbol))
+                            .or_else(|| self.infer_local_symbol_ty_in_expr(&arm.body, symbol))
+                    })
+                }),
+            hir::ExprKind::Perform { args, .. } => args.iter().find_map(|arg| match arg {
+                hir::CallArg::Positional(expr) => self.infer_local_symbol_ty_in_expr(expr, symbol),
+                hir::CallArg::Named { value, .. } => {
+                    self.infer_local_symbol_ty_in_expr(value, symbol)
+                }
+            }),
+            hir::ExprKind::Handle(handle) => self
+                .infer_local_symbol_ty_in_block(&handle.body, symbol)
+                .or_else(|| {
+                    handle
+                        .arms
+                        .iter()
+                        .find_map(|arm| self.infer_local_symbol_ty_in_expr(&arm.body, symbol))
+                })
+                .or_else(|| {
+                    handle
+                        .finally
+                        .as_ref()
+                        .and_then(|block| self.infer_local_symbol_ty_in_block(block, symbol))
+                }),
+        }
+    }
+
+    fn infer_local_symbol_ty_in_block(
+        &self,
+        block: &hir::Block,
+        symbol: hir::SymbolId,
+    ) -> Option<TypeId> {
+        block
+            .stmts
+            .iter()
+            .find_map(|stmt| self.infer_local_symbol_ty_in_stmt(stmt, symbol))
+    }
+
+    fn infer_local_symbol_ty_in_stmt(
+        &self,
+        stmt: &hir::Stmt,
+        symbol: hir::SymbolId,
+    ) -> Option<TypeId> {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => None,
+            hir::StmtKind::Expr(expr) => self.infer_local_symbol_ty_in_expr(expr, symbol),
+            hir::StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .and_then(|expr| self.infer_local_symbol_ty_in_expr(expr, symbol)),
+            hir::StmtKind::Assign { lhs, rhs, .. } => self
+                .infer_local_symbol_ty_in_expr(lhs, symbol)
+                .or_else(|| self.infer_local_symbol_ty_in_expr(rhs, symbol)),
+            hir::StmtKind::While { cond, body } => self
+                .infer_local_symbol_ty_in_expr(cond, symbol)
+                .or_else(|| self.infer_local_symbol_ty_in_block(body, symbol)),
+            hir::StmtKind::Return { value } => value
+                .as_ref()
+                .and_then(|expr| self.infer_local_symbol_ty_in_expr(expr, symbol)),
+        }
     }
 
     /// 降低字面量：把常量写入一个临时 local。

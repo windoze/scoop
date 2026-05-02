@@ -1070,9 +1070,12 @@ fn remap_operand(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mir::{Item, materialize_for_dump};
+    use crate::mir::{
+        BasicBlock, BasicBlockId, Item, PerformMetadata, Terminator, materialize_for_dump,
+    };
     use crate::session::Session;
     use crate::source::SourceFile;
+    use crate::ty::TypeStore;
 
     #[test]
     fn small_direct_call_inlining_rewrites_pass_body_without_mutating_raw_mir() {
@@ -1380,6 +1383,164 @@ fun main(): Int {
         assert!(
             !fun_contains_fun_value_call(pass_caller),
             "pass-visible caller body 不应继续保留模糊 FunValue call"
+        );
+    }
+
+    #[test]
+    fn refactor_mir_site_id_inline_clones_allocate_fresh_call_site_ids() {
+        let mut types = TypeStore::default();
+        let builtins = types.intern_builtins();
+
+        let mut caller_body = Body::new_empty();
+        let caller_existing = caller_body.push_local(LocalDecl {
+            span: crate::span::Span::new(0, 0),
+            name: Some("seed".to_string()),
+            ty: builtins.unit,
+        });
+        let caller_target = caller_body.push_local(LocalDecl {
+            span: crate::span::Span::new(0, 0),
+            name: Some("result".to_string()),
+            ty: builtins.unit,
+        });
+        let caller_entry = caller_body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: crate::span::Span::new(0, 0),
+                kind: StatementKind::Assign {
+                    target: caller_existing,
+                    value: Rvalue::Call {
+                        site_id: SiteId::from_raw(0),
+                        kind: CallKind::Direct {
+                            callee_fqn: "fixtures.inline.seed".to_string(),
+                        },
+                        args: Vec::new(),
+                    },
+                },
+            }],
+            terminator: Terminator {
+                span: crate::span::Span::new(0, 0),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        caller_body.start = caller_entry;
+
+        let mut callee_body = Body::new_empty();
+        let callee_tmp = callee_body.push_local(LocalDecl {
+            span: crate::span::Span::new(0, 0),
+            name: Some("tmp0".to_string()),
+            ty: builtins.unit,
+        });
+        let callee_entry = callee_body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: crate::span::Span::new(0, 0),
+                kind: StatementKind::Assign {
+                    target: callee_tmp,
+                    value: Rvalue::Call {
+                        site_id: SiteId::from_raw(0),
+                        kind: CallKind::Direct {
+                            callee_fqn: "fixtures.inline.inner".to_string(),
+                        },
+                        args: Vec::new(),
+                    },
+                },
+            }],
+            terminator: Terminator {
+                span: crate::span::Span::new(0, 0),
+                kind: TerminatorKind::Return {
+                    value: Some(Operand::Local(callee_tmp)),
+                },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        callee_body.start = callee_entry;
+
+        let callee = FunDecl {
+            span: crate::span::Span::new(0, 0),
+            fqn: "fixtures.inline.wrapper".to_string(),
+            name: "wrapper".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(callee_body),
+        };
+
+        let expanded = expand_straight_line_call_without_callable_provenance(
+            &mut caller_body,
+            caller_target,
+            crate::span::Span::new(0, 0),
+            &callee,
+            &[],
+        )
+        .expect("straight-line callee 应可被展开");
+        let cloned_site = expanded
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    value: Rvalue::Call { site_id, .. },
+                    ..
+                } => Some(*site_id),
+                _ => None,
+            })
+            .expect("展开结果里应包含克隆后的 direct call");
+        assert_eq!(cloned_site, SiteId::from_raw(1));
+    }
+
+    #[test]
+    fn refactor_mir_site_id_effect_sensitive_bodies_are_not_inlineable() {
+        let mut types = TypeStore::default();
+        let builtins = types.intern_builtins();
+        let mut body = Body::new_empty();
+        let result_local = body.push_local(LocalDecl {
+            span: crate::span::Span::new(0, 0),
+            name: Some("tmp0".to_string()),
+            ty: builtins.unit,
+        });
+
+        let entry = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: crate::span::Span::new(0, 0),
+                kind: StatementKind::Assign {
+                    target: result_local,
+                    value: Rvalue::PerformResult {
+                        op_fqn: "scoop.core.Raise.raise".to_string(),
+                        effect_ty: builtins.unit,
+                    },
+                },
+            }],
+            terminator: Terminator {
+                span: crate::span::Span::new(0, 0),
+                kind: TerminatorKind::Perform {
+                    site_id: SiteId::from_raw(0),
+                    op_fqn: "scoop.core.Raise.raise".to_string(),
+                    metadata: PerformMetadata {
+                        effect_ty: builtins.unit,
+                        payload_tuple_ty: None,
+                        payload_component_tys: Vec::new(),
+                        arg_mapping: Vec::new(),
+                    },
+                    args: Vec::new(),
+                    resume_target: BasicBlockId(1),
+                },
+                unwind: UnwindAction::Propagate,
+            },
+        });
+        let _resume = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: crate::span::Span::new(0, 0),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = entry;
+
+        assert!(
+            !body_is_inlineable_without_callable_provenance(&body),
+            "带 Perform/cleanup contract 的 body 不应进入 inline clone 路径"
         );
     }
 

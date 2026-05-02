@@ -97,6 +97,24 @@ fn collect_callable_body_indices(file: &MirFile) -> BTreeMap<String, usize> {
     indices
 }
 
+fn validate_refactor_bodies(file: &MirFile) -> Result<(), MirLowerError> {
+    for item in &file.items {
+        let MirItem::Fun(fun) = item else {
+            continue;
+        };
+        let Some(body) = &fun.body else {
+            continue;
+        };
+        body.validate_refactor_direct_style().map_err(|error| {
+            MirLowerError::InvalidRefactorMir {
+                fqn: fun.fqn.clone(),
+                error,
+            }
+        })?;
+    }
+    Ok(())
+}
+
 pub(crate) fn run(
     typed_hir_output: TypedHirStageOutput,
 ) -> Result<RefactorMirStageOutput, MirLowerError> {
@@ -114,6 +132,7 @@ pub(crate) fn run(
         &lowered_hir.member_funs,
         &facts,
     );
+    validate_refactor_bodies(&file)?;
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
     let materialized_mir = lowered_hir.into_materialized_mir();
 
@@ -127,7 +146,9 @@ pub(crate) fn run(
 #[cfg(test)]
 mod tests {
     use super::RefactorMirStageOutput;
-    use crate::mir::{CallKind, HandlerArmKind, Operand, Rvalue, StatementKind, TerminatorKind};
+    use crate::mir::{
+        CallKind, HandlerArmKind, Operand, Rvalue, StatementKind, TerminatorKind, UnwindAction,
+    };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
@@ -160,6 +181,16 @@ mod tests {
             .callable_body(fqn)
             .and_then(|fun| fun.body.as_ref())
             .unwrap_or_else(|| panic!("应找到 callable body: {fqn}"))
+    }
+
+    fn validated_callable_body<'a>(
+        output: &'a RefactorMirStageOutput,
+        fqn: &str,
+    ) -> &'a crate::mir::Body {
+        let body = callable_body(output, fqn);
+        body.validate_refactor_direct_style()
+            .unwrap_or_else(|err| panic!("refactor MIR body `{fqn}` 应通过验证器: {err}"));
+        body
     }
 
     fn unit_operand_is_visible_in_body(
@@ -529,6 +560,157 @@ mod tests {
             !output
                 .stable_dump()
                 .contains("resume callee lowering pending")
+        );
+    }
+
+    #[test]
+    fn refactor_mir_cfg_existing_control_flow_samples_validate() {
+        let while_output = run_fixture("mir", "while_break_continue.scoop");
+        validated_callable_body(&while_output, "a.main");
+
+        let if_when_output = run_fixture("mir", "if_when.scoop");
+        validated_callable_body(&if_when_output, "a.main");
+    }
+
+    #[test]
+    fn refactor_mir_cfg_handle_finally_boundary_is_explicit() {
+        let output = run_fixture("mir_refactor", "handle_finally_boundary.scoop");
+
+        let completes = validated_callable_body(&output, "fixtures.mir_refactor.body_completes");
+        let completes_entry = &completes.blocks[completes.start.as_u32() as usize]
+            .terminator
+            .kind;
+        let (body_target, arm_targets, finally_target, exit_target) = match completes_entry {
+            TerminatorKind::Handle {
+                has_finally,
+                body_target,
+                arm_targets,
+                finally_target,
+                exit_target,
+                ..
+            } => {
+                assert!(*has_finally, "body_completes 应保留 finally boundary");
+                (
+                    *body_target,
+                    arm_targets.clone(),
+                    finally_target.expect("body_completes 应显式指向 finally cleanup block"),
+                    *exit_target,
+                )
+            }
+            other => panic!("body_completes 入口应为 Handle terminator，而不是 {other:?}"),
+        };
+        assert!(completes.blocks[finally_target.as_u32() as usize].is_cleanup);
+        assert_eq!(arm_targets.len(), 1);
+        assert!(matches!(
+            completes.blocks[body_target.as_u32() as usize].terminator.kind,
+            TerminatorKind::Goto { target } if target == finally_target
+        ));
+        assert!(matches!(
+            completes.blocks[arm_targets[0].as_u32() as usize].terminator.kind,
+            TerminatorKind::Goto { target } if target == finally_target
+        ));
+        assert!(matches!(
+            completes.blocks[finally_target.as_u32() as usize].terminator.kind,
+            TerminatorKind::Goto { target } if target == exit_target
+        ));
+
+        let raised = validated_callable_body(&output, "fixtures.mir_refactor.handled_raise");
+        let raised_entry = &raised.blocks[raised.start.as_u32() as usize]
+            .terminator
+            .kind;
+        let raised_finally = match raised_entry {
+            TerminatorKind::Handle {
+                has_finally,
+                finally_target,
+                ..
+            } => {
+                assert!(*has_finally, "handled_raise 应保留 finally boundary");
+                finally_target.expect("handled_raise 应显式指向 finally cleanup block")
+            }
+            other => panic!("handled_raise 入口应为 Handle terminator，而不是 {other:?}"),
+        };
+        assert!(raised.blocks[raised_finally.as_u32() as usize].is_cleanup);
+        let perform = raised
+            .blocks
+            .iter()
+            .find(|block| matches!(block.terminator.kind, TerminatorKind::Perform { .. }))
+            .expect("handled_raise 应包含显式 Perform terminator");
+        assert!(matches!(
+            perform.terminator.unwind,
+            UnwindAction::Cleanup { target } if raised.blocks[target.as_u32() as usize].is_cleanup
+        ));
+    }
+
+    #[test]
+    fn refactor_mir_cfg_effect_boundary_inside_expr_context_uses_explicit_blocks() {
+        let output = run_fixture("mir_refactor", "effect_boundary_inside_expr_context.scoop");
+        let body = validated_callable_body(&output, "fixtures.mir_refactor.main");
+
+        let handle_count = body
+            .blocks
+            .iter()
+            .filter(|block| {
+                matches!(
+                    block.terminator.kind,
+                    TerminatorKind::Handle {
+                        has_finally: true,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert_eq!(
+            handle_count, 4,
+            "local init / call arg / if 条件 / return expr 中的 boundary 都应显式落成独立 Handle block"
+        );
+        assert!(
+            body.blocks.iter().filter(|block| block.is_cleanup).count() >= 4,
+            "每个带 finally 的 boundary 都应生成 cleanup block"
+        );
+        assert!(body.blocks.iter().any(|block| {
+            block.stmts.iter().any(|stmt| {
+                matches!(
+                    &stmt.kind,
+                    StatementKind::Assign {
+                        value:
+                            Rvalue::Call {
+                                kind: CallKind::Direct { callee_fqn },
+                                ..
+                            },
+                        ..
+                    } if callee_fqn == "fixtures.mir_refactor.box_int"
+                )
+            })
+        }));
+        assert!(
+            body.blocks
+                .iter()
+                .any(|block| { matches!(block.terminator.kind, TerminatorKind::CondBr { .. }) })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_cfg_escape_continuation_finally_materializes_continuation_local() {
+        let output = run_fixture(
+            "run-pass",
+            "effect_handle_return_from_function_finally.scoop",
+        );
+        let body = validated_callable_body(&output, "returnThroughFinally");
+        let entry = &body.blocks[body.start.as_u32() as usize].terminator.kind;
+        let arm = match entry {
+            TerminatorKind::Handle { arms, .. } => arms
+                .first()
+                .expect("escape continuation fixture 应包含唯一的 handler arm"),
+            other => panic!("returnThroughFinally 入口应为 Handle terminator，而不是 {other:?}"),
+        };
+        assert_eq!(arm.kind, HandlerArmKind::EscapeContinuation);
+        assert!(
+            arm.continuation_local.is_some(),
+            "escape continuation arm 应显式 materialize continuation binder local"
+        );
+        assert!(
+            !output.stable_dump().contains("unbound local ref"),
+            "escape continuation arm 不应再回退成未绑定局部占位"
         );
     }
 }

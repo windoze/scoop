@@ -25,8 +25,10 @@ mod materialize;
 mod pass_view;
 mod summary;
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::fmt;
+
+use thiserror::Error;
 
 use crate::ast;
 use crate::span::Span;
@@ -339,6 +341,160 @@ impl Body {
         }
 
         Ok(())
+    }
+
+    /// 针对 refactor direct-style MIR 的额外形状校验。
+    ///
+    /// 说明：
+    /// - 该验证器建立在 `validate_cfg()` 之上，因此会先检查所有 CFG/cleanup target 是否落在
+    ///   `blocks` 范围内；
+    /// - 它只约束 P3/P4 会依赖的 direct-style MIR contract，不试图把当前整个 MIR 限制为
+    ///   “完全无 Todo”；未纳入本阶段的表达式 lowering 仍可继续用其它 `Todo(...)` 占位。
+    pub fn validate_refactor_direct_style(&self) -> Result<(), MirValidationError> {
+        self.validate_cfg()?;
+
+        let mut seen_site_ids = HashMap::new();
+        for (index, block) in self.blocks.iter().enumerate() {
+            let block_id = BasicBlockId(index as u32);
+
+            for stmt in &block.stmts {
+                self.validate_refactor_statement(block_id, stmt)?;
+                let StatementKind::Assign { value, .. } = &stmt.kind else {
+                    continue;
+                };
+                if let Some(site_id) = value.site_id()
+                    && let Some(first_block) = seen_site_ids.insert(site_id, block_id)
+                {
+                    return Err(MirValidationError::DuplicateSiteId {
+                        site_id,
+                        first_block,
+                        second_block: block_id,
+                    });
+                }
+            }
+
+            self.validate_refactor_unwind(block_id, &block.terminator.unwind)?;
+            self.validate_refactor_terminator(block_id, &block.terminator.kind)?;
+            if let Some(site_id) = block.terminator.kind.site_id()
+                && let Some(first_block) = seen_site_ids.insert(site_id, block_id)
+            {
+                return Err(MirValidationError::DuplicateSiteId {
+                    site_id,
+                    first_block,
+                    second_block: block_id,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_refactor_statement(
+        &self,
+        block: BasicBlockId,
+        stmt: &Statement,
+    ) -> Result<(), MirValidationError> {
+        match &stmt.kind {
+            StatementKind::Nop => Ok(()),
+            StatementKind::Assign { value, .. } => self.validate_refactor_rvalue(block, value),
+            StatementKind::Todo(reason) => {
+                if is_forbidden_refactor_effect_todo(reason) {
+                    return Err(MirValidationError::RefactorTodo { block, reason });
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn validate_refactor_rvalue(
+        &self,
+        block: BasicBlockId,
+        value: &Rvalue,
+    ) -> Result<(), MirValidationError> {
+        if let Rvalue::Todo(reason) = value
+            && is_forbidden_refactor_effect_todo(reason)
+        {
+            return Err(MirValidationError::RefactorTodo { block, reason });
+        }
+        Ok(())
+    }
+
+    fn validate_refactor_unwind(
+        &self,
+        block: BasicBlockId,
+        unwind: &UnwindAction,
+    ) -> Result<(), MirValidationError> {
+        match unwind {
+            UnwindAction::NoUnwind | UnwindAction::Propagate => Ok(()),
+            UnwindAction::Cleanup { target } => {
+                if !self.blocks[target.as_usize()].is_cleanup {
+                    return Err(MirValidationError::CleanupTargetNotMarked {
+                        from: block,
+                        target: *target,
+                    });
+                }
+                Ok(())
+            }
+            UnwindAction::Todo(reason) => Err(MirValidationError::RefactorTodo { block, reason }),
+        }
+    }
+
+    fn validate_refactor_terminator(
+        &self,
+        block: BasicBlockId,
+        kind: &TerminatorKind,
+    ) -> Result<(), MirValidationError> {
+        match kind {
+            TerminatorKind::Handle {
+                arms,
+                has_finally,
+                arm_targets,
+                finally_target,
+                exit_target,
+                ..
+            } => {
+                if arm_targets.len() != arms.len() {
+                    return Err(MirValidationError::InvalidHandleArmTargetCount {
+                        from: block,
+                        arms_len: arms.len(),
+                        targets_len: arm_targets.len(),
+                    });
+                }
+                if finally_target.is_some() != *has_finally {
+                    return Err(MirValidationError::InvalidHandleFinallyTarget {
+                        from: block,
+                        has_finally: *has_finally,
+                        finally_target: *finally_target,
+                    });
+                }
+                if let Some(target) = finally_target
+                    && !self.blocks[target.as_usize()].is_cleanup
+                {
+                    return Err(MirValidationError::HandleFinallyTargetNotCleanup {
+                        from: block,
+                        target: *target,
+                    });
+                }
+                if exit_target.as_usize() >= self.blocks.len() {
+                    return Err(MirValidationError::InvalidHandleExitTarget {
+                        from: block,
+                        target: *exit_target,
+                        blocks_len: self.blocks.len(),
+                    });
+                }
+                Ok(())
+            }
+            TerminatorKind::Todo(reason) if is_forbidden_refactor_effect_todo(reason) => {
+                Err(MirValidationError::RefactorTodo { block, reason })
+            }
+            TerminatorKind::Return { .. }
+            | TerminatorKind::ResumeUnwind
+            | TerminatorKind::Goto { .. }
+            | TerminatorKind::CondBr { .. }
+            | TerminatorKind::Unreachable
+            | TerminatorKind::Perform { .. }
+            | TerminatorKind::Todo(_) => Ok(()),
+        }
     }
 
     /// 从 `start` 出发，计算可达的基本块集合（按 BFS 顺序返回）。
@@ -736,6 +892,8 @@ pub struct Terminator {
 pub enum UnwindAction {
     /// 该 terminator 不会发生 unwinding。
     NoUnwind,
+    /// 若发生 unwinding，则直接继续向外传播；当前 body 内无需额外 cleanup。
+    Propagate,
     /// 若发生 unwinding，则先跳转到 cleanup block 执行清理逻辑。
     Cleanup { target: BasicBlockId },
     /// 未实现占位：表示“可能会 unwind，但具体行为尚未建模”。
@@ -769,6 +927,8 @@ pub enum TerminatorKind {
         op_fqn: String,
         metadata: PerformMetadata,
         args: Vec<PerformArg>,
+        /// 被 handler/continuation 恢复后，普通计算继续所在的 direct-style CFG block。
+        resume_target: BasicBlockId,
     },
     /// effect handler 区域（对应 HIR 的 `ExprKind::Handle`）。
     ///
@@ -783,6 +943,8 @@ pub enum TerminatorKind {
         body_target: BasicBlockId,
         arm_targets: Vec<BasicBlockId>,
         finally_target: Option<BasicBlockId>,
+        /// handle 表达式正常完成（经 body/arm/finally 收束）后，外层求值继续所在的 block。
+        exit_target: BasicBlockId,
     },
     /// 未实现控制流占位（例如 if/switch/call/cleanup 等）。
     Todo(&'static str),
@@ -792,7 +954,15 @@ pub enum TerminatorKind {
 #[derive(Debug, Clone)]
 pub struct HandlerArm {
     pub op_fqn: String,
+    /// arm payload binder 数量（与 `binder_locals.len()` 保持一致）。
     pub binder_count: usize,
+    /// arm payload binder 在当前 body 中的隐式输入 local。
+    ///
+    /// 这些 local 没有单独的赋值语句；它们由 `TerminatorKind::Handle` 进入对应 `arm_target` 时
+    /// 作为 block input 被带入，供 arm body 直接引用。
+    pub binder_locals: Vec<LocalId>,
+    /// 逃逸 continuation arm 的显式 continuation binder local（若存在）。
+    pub continuation_local: Option<LocalId>,
     pub handled_effect_ty: TypeId,
     pub payload_tuple_ty: Option<TypeId>,
     pub payload_component_tys: Vec<TypeId>,
@@ -820,6 +990,7 @@ impl TerminatorKind {
     /// 该接口适合做 CFG 分析（reachable/循环检测等），避免为每次查询分配 `Vec`。
     pub fn for_each_successor(&self, mut f: impl FnMut(BasicBlockId)) {
         match self {
+            TerminatorKind::Perform { resume_target, .. } => f(*resume_target),
             TerminatorKind::Goto { target } => f(*target),
             TerminatorKind::CondBr {
                 then_target,
@@ -846,7 +1017,6 @@ impl TerminatorKind {
             TerminatorKind::Return { .. }
             | TerminatorKind::ResumeUnwind
             | TerminatorKind::Unreachable
-            | TerminatorKind::Perform { .. }
             | TerminatorKind::Todo(_) => {}
         }
     }
@@ -882,27 +1052,87 @@ impl Terminator {
     /// 对 terminator 的后继基本块调用回调（包含 cleanup/unwind 边）。
     pub fn for_each_successor(&self, mut f: impl FnMut(BasicBlockId)) {
         self.kind.for_each_successor(&mut f);
-        if let UnwindAction::Cleanup { target } = self.unwind {
-            f(target);
+        if let UnwindAction::Cleanup { target } = &self.unwind {
+            f(*target);
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum MirValidationError {
     /// MIR body 为空（没有任何基本块）。
+    #[error("MIR body is empty")]
     EmptyBody,
     /// `start` 超出 `blocks` 范围。
+    #[error("invalid start block {start:?} for {blocks_len} blocks")]
     InvalidStartBlock {
         start: BasicBlockId,
         blocks_len: usize,
     },
     /// terminator 的 target 超出 `blocks` 范围。
+    #[error("invalid target {target:?} from {from:?} for {blocks_len} blocks")]
     InvalidTarget {
         from: BasicBlockId,
         target: BasicBlockId,
         blocks_len: usize,
     },
+    #[error("duplicate site id {site_id:?} in {first_block:?} and {second_block:?}")]
+    DuplicateSiteId {
+        site_id: SiteId,
+        first_block: BasicBlockId,
+        second_block: BasicBlockId,
+    },
+    #[error("cleanup target {target:?} from {from:?} is not marked cleanup")]
+    CleanupTargetNotMarked {
+        from: BasicBlockId,
+        target: BasicBlockId,
+    },
+    #[error("handle at {from:?} has {arms_len} arms but {targets_len} arm targets")]
+    InvalidHandleArmTargetCount {
+        from: BasicBlockId,
+        arms_len: usize,
+        targets_len: usize,
+    },
+    #[error(
+        "handle at {from:?} has_finally={has_finally} but finally target is {finally_target:?}"
+    )]
+    InvalidHandleFinallyTarget {
+        from: BasicBlockId,
+        has_finally: bool,
+        finally_target: Option<BasicBlockId>,
+    },
+    #[error("handle finally target {target:?} from {from:?} is not marked cleanup")]
+    HandleFinallyTargetNotCleanup {
+        from: BasicBlockId,
+        target: BasicBlockId,
+    },
+    #[error("handle exit target {target:?} from {from:?} is out of range for {blocks_len} blocks")]
+    InvalidHandleExitTarget {
+        from: BasicBlockId,
+        target: BasicBlockId,
+        blocks_len: usize,
+    },
+    #[error("refactor MIR still contains forbidden effect/control todo `{reason}` in {block:?}")]
+    RefactorTodo {
+        block: BasicBlockId,
+        reason: &'static str,
+    },
+}
+
+fn is_forbidden_refactor_effect_todo(reason: &str) -> bool {
+    matches!(
+        reason,
+        "handle result pending"
+            | "handle body exit pending"
+            | "handle arm exit pending"
+            | "handle finally exit pending"
+            | "perform unwind pending"
+            | "refactor perform contract missing"
+            | "refactor handle contract missing"
+            | "resume lowering requires canonical callee shape"
+            | "break not in loop"
+            | "continue not in loop"
+    )
 }
 
 #[cfg(test)]
@@ -1008,13 +1238,23 @@ mod tests {
                         arg_mapping: Vec::new(),
                     },
                     args: Vec::new(),
+                    resume_target: BasicBlockId(1),
                 },
                 unwind: UnwindAction::Cleanup {
-                    target: BasicBlockId(1),
+                    target: BasicBlockId(2),
                 },
             },
         });
         let bb1 = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: Span::new(0, 0),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        let bb2 = body.push_block(BasicBlock {
             is_cleanup: true,
             stmts: Vec::new(),
             terminator: Terminator {
@@ -1027,11 +1267,147 @@ mod tests {
 
         assert_eq!(bb0, BasicBlockId(0));
         assert_eq!(bb1, BasicBlockId(1));
+        assert_eq!(bb2, BasicBlockId(2));
         assert!(body.validate_cfg().is_ok());
-        assert_eq!(body.reachable_blocks().unwrap(), vec![bb0, bb1]);
+        assert_eq!(body.reachable_blocks().unwrap(), vec![bb0, bb1, bb2]);
         assert!(body.is_fully_reachable().unwrap());
         assert!(body.unreachable_blocks().unwrap().is_empty());
-        assert!(body.blocks[bb1.as_usize()].is_cleanup);
+        assert!(body.blocks[bb2.as_usize()].is_cleanup);
+    }
+
+    #[test]
+    fn refactor_mir_cfg_rejects_cleanup_target_without_cleanup_flag() {
+        let mut types = TypeStore::default();
+        let builtins = types.intern_builtins();
+        let mut body = Body::new_empty();
+        let result_local = body.push_local(LocalDecl {
+            span: Span::new(0, 0),
+            name: Some("tmp0".to_string()),
+            ty: builtins.unit,
+        });
+
+        let bb0 = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: Span::new(0, 0),
+                kind: StatementKind::Assign {
+                    target: result_local,
+                    value: Rvalue::PerformResult {
+                        op_fqn: "scoop.core.Raise.raise".to_string(),
+                        effect_ty: builtins.unit,
+                    },
+                },
+            }],
+            terminator: Terminator {
+                span: Span::new(0, 0),
+                kind: TerminatorKind::Perform {
+                    site_id: SiteId::from_raw(0),
+                    op_fqn: "scoop.core.Raise.raise".to_string(),
+                    metadata: PerformMetadata {
+                        effect_ty: builtins.unit,
+                        payload_tuple_ty: None,
+                        payload_component_tys: Vec::new(),
+                        arg_mapping: Vec::new(),
+                    },
+                    args: Vec::new(),
+                    resume_target: BasicBlockId(1),
+                },
+                unwind: UnwindAction::Cleanup {
+                    target: BasicBlockId(2),
+                },
+            },
+        });
+        let _bb1 = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: Span::new(0, 0),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        let _bb2 = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: Span::new(0, 0),
+                kind: TerminatorKind::ResumeUnwind,
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb0;
+
+        assert_eq!(
+            body.validate_refactor_direct_style(),
+            Err(MirValidationError::CleanupTargetNotMarked {
+                from: BasicBlockId(0),
+                target: BasicBlockId(2),
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_site_id_rejects_duplicate_call_and_terminator_site_ids() {
+        let mut types = TypeStore::default();
+        let builtins = types.intern_builtins();
+        let mut body = Body::new_empty();
+        let result_local = body.push_local(LocalDecl {
+            span: Span::new(0, 0),
+            name: Some("tmp0".to_string()),
+            ty: builtins.unit,
+        });
+
+        let bb0 = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: Span::new(0, 0),
+                kind: StatementKind::Assign {
+                    target: result_local,
+                    value: Rvalue::Call {
+                        site_id: SiteId::from_raw(0),
+                        kind: CallKind::Direct {
+                            callee_fqn: "sample.helper".to_string(),
+                        },
+                        args: Vec::new(),
+                    },
+                },
+            }],
+            terminator: Terminator {
+                span: Span::new(0, 0),
+                kind: TerminatorKind::Perform {
+                    site_id: SiteId::from_raw(0),
+                    op_fqn: "scoop.core.Raise.raise".to_string(),
+                    metadata: PerformMetadata {
+                        effect_ty: builtins.unit,
+                        payload_tuple_ty: None,
+                        payload_component_tys: Vec::new(),
+                        arg_mapping: Vec::new(),
+                    },
+                    args: Vec::new(),
+                    resume_target: BasicBlockId(1),
+                },
+                unwind: UnwindAction::Propagate,
+            },
+        });
+        let _bb1 = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: Span::new(0, 0),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb0;
+
+        assert_eq!(
+            body.validate_refactor_direct_style(),
+            Err(MirValidationError::DuplicateSiteId {
+                site_id: SiteId::from_raw(0),
+                first_block: BasicBlockId(0),
+                second_block: BasicBlockId(0),
+            })
+        );
     }
 
     #[test]
