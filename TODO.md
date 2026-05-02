@@ -39,6 +39,8 @@
 | `P4-T01R` | `TODO-P4.md` | [DONE] Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts` |
 | `P4-T02` | `TODO-P4.md` | [DONE] 落地 schema identity、canonical schema pool 与 callable-level facts 壳层 |
 | `P4-T02R` | `TODO-P4.md` | [DONE] Review schema pool 与 callable facts，确认 identity 和 case contract 已经固定 |
+| `P4-T02a` | `TODO-P4.md` | 修复 canonical materialized MIR pass-view 对普通非泛型 callable body 的发布，确保 P4 能在稳定 `InstanceKey` 键空间上看到 request-root / caller body |
+| `P4-T02aR` | `TODO-P4.md` | Review canonical pass-view 对 ordinary callable body 的发布结果，确认 P4 不再需要 raw/fallback 键空间 |
 | `P4-T03` | `TODO-P4.md` | 构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析 |
 | `P4-T03R` | `TODO-P4.md` | Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断 |
 | `P4-T04` | `TODO-P4.md` | 实现 `resolved_outward_cases` SCC/dataflow 求解，并完成 `needs_reentry` / `impl_plan` / final block facts 回填 |

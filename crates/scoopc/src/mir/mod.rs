@@ -181,6 +181,10 @@ pub struct Param {
 pub struct BasicBlockId(u32);
 
 impl BasicBlockId {
+    pub(crate) const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
     pub fn as_u32(self) -> u32 {
         self.0
     }

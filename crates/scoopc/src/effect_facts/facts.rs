@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::mir::{InstanceKey, MaterializedMirPassView};
+use crate::mir::{BasicBlockId, InstanceKey, MaterializedMirPassView, SiteId};
 use crate::ty::{EffectRow, TypeId};
 
 use super::schema::{
-    CaseSet, ContinuationSchema, ContinuationSchemaId, ImplPlan, StepSchema, StepSchemaId,
+    CaseSet, CaseTag, ContinuationSchema, ContinuationSchemaId, ImplPlan, StepSchema, StepSchemaId,
 };
 
 /// `MaterializedEffectFacts` 当前绑定到哪一种 canonical MIR 查询面。
@@ -107,9 +107,370 @@ impl CallableEffectFacts {
     }
 }
 
-/// body-level facts 外壳；最终 block/site 结构在 P4-T03/P4-T04 补齐。
+/// site-level effect facts 当前的精度来源。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EffectPrecision {
+    Precise,
+    Widened,
+    SignatureFallback,
+}
+
+/// 当前 call site 的 target 解析档位。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallTargetMode {
+    KnownInstance,
+    CandidateSet,
+    DynamicFallback,
+}
+
+/// 当前 call site 对外暴露的 target 身份。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CallSiteTarget {
+    KnownInstance(InstanceKey),
+    CandidateSet(Vec<InstanceKey>),
+    DynamicFallback,
+}
+
+impl CallSiteTarget {
+    pub fn mode(&self) -> CallTargetMode {
+        match self {
+            Self::KnownInstance(_) => CallTargetMode::KnownInstance,
+            Self::CandidateSet(_) => CallTargetMode::CandidateSet,
+            Self::DynamicFallback => CallTargetMode::DynamicFallback,
+        }
+    }
+}
+
+/// `Rvalue::Call` 在 MIR 上的语言级调用形态分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallSiteKind {
+    Direct,
+    Closure,
+    FunValue,
+    Virtual,
+    Interface,
+}
+
+/// 普通 call site 的结构化 effect facts。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallSiteEffectFacts {
+    kind: CallSiteKind,
+    target_mode: CallTargetMode,
+    target: CallSiteTarget,
+    invoke_args_tuple_ty: TypeId,
+    callee_schema: StepSchemaId,
+    resolved_cases: CaseSet,
+    precision: EffectPrecision,
+}
+
+impl CallSiteEffectFacts {
+    pub fn new(
+        kind: CallSiteKind,
+        target: CallSiteTarget,
+        invoke_args_tuple_ty: TypeId,
+        callee_schema: StepSchemaId,
+        resolved_cases: CaseSet,
+        precision: EffectPrecision,
+    ) -> Self {
+        let target_mode = target.mode();
+        Self {
+            kind,
+            target_mode,
+            target,
+            invoke_args_tuple_ty,
+            callee_schema,
+            resolved_cases,
+            precision,
+        }
+    }
+
+    pub fn kind(&self) -> CallSiteKind {
+        self.kind
+    }
+
+    pub fn target_mode(&self) -> CallTargetMode {
+        self.target_mode
+    }
+
+    pub fn target(&self) -> &CallSiteTarget {
+        &self.target
+    }
+
+    pub fn invoke_args_tuple_ty(&self) -> TypeId {
+        self.invoke_args_tuple_ty
+    }
+
+    pub fn callee_schema(&self) -> StepSchemaId {
+        self.callee_schema
+    }
+
+    pub fn resolved_cases(&self) -> &CaseSet {
+        &self.resolved_cases
+    }
+
+    pub fn precision(&self) -> EffectPrecision {
+        self.precision
+    }
+}
+
+/// `perform` site 的 emitted-case / captured continuation contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PerformSiteEffectFacts {
+    emitted_case: CaseTag,
+    payload_tuple_ty: TypeId,
+    captured_cont_schema: ContinuationSchemaId,
+}
+
+impl PerformSiteEffectFacts {
+    pub fn new(
+        emitted_case: CaseTag,
+        payload_tuple_ty: TypeId,
+        captured_cont_schema: ContinuationSchemaId,
+    ) -> Self {
+        Self {
+            emitted_case,
+            payload_tuple_ty,
+            captured_cont_schema,
+        }
+    }
+
+    pub fn emitted_case(&self) -> CaseTag {
+        self.emitted_case
+    }
+
+    pub fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+
+    pub fn captured_cont_schema(&self) -> ContinuationSchemaId {
+        self.captured_cont_schema
+    }
+}
+
+/// `resume` site 的 continuation contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResumeSiteEffectFacts {
+    continuation_schema: ContinuationSchemaId,
+    resume_tuple_ty: TypeId,
+    answer_ty: TypeId,
+    out_step_schema: StepSchemaId,
+    resolved_cases: CaseSet,
+}
+
+impl ResumeSiteEffectFacts {
+    pub fn new(
+        continuation_schema: ContinuationSchemaId,
+        resume_tuple_ty: TypeId,
+        answer_ty: TypeId,
+        out_step_schema: StepSchemaId,
+        resolved_cases: CaseSet,
+    ) -> Self {
+        Self {
+            continuation_schema,
+            resume_tuple_ty,
+            answer_ty,
+            out_step_schema,
+            resolved_cases,
+        }
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub fn resume_tuple_ty(&self) -> TypeId {
+        self.resume_tuple_ty
+    }
+
+    pub fn answer_ty(&self) -> TypeId {
+        self.answer_ty
+    }
+
+    pub fn out_step_schema(&self) -> StepSchemaId {
+        self.out_step_schema
+    }
+
+    pub fn resolved_cases(&self) -> &CaseSet {
+        &self.resolved_cases
+    }
+}
+
+/// nested `handle` 是否会把 suspension/outward 继续暴露给外层。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NestedHandleClassification {
+    SelfContained,
+    MaySuspendOutward,
+}
+
+/// 单个 handle arm 的结构化 effect facts。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandleArmEffectFacts {
+    handled_case: CaseTag,
+    payload_tuple_ty: TypeId,
+    continuation_schema: ContinuationSchemaId,
+    arm_outward_cases: CaseSet,
+}
+
+impl HandleArmEffectFacts {
+    pub fn new(
+        handled_case: CaseTag,
+        payload_tuple_ty: TypeId,
+        continuation_schema: ContinuationSchemaId,
+        arm_outward_cases: CaseSet,
+    ) -> Self {
+        Self {
+            handled_case,
+            payload_tuple_ty,
+            continuation_schema,
+            arm_outward_cases,
+        }
+    }
+
+    pub fn handled_case(&self) -> CaseTag {
+        self.handled_case
+    }
+
+    pub fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub fn arm_outward_cases(&self) -> &CaseSet {
+        &self.arm_outward_cases
+    }
+}
+
+/// `handle` site 的结构化 contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandleSiteEffectFacts {
+    result_ty: TypeId,
+    handled_cases: CaseSet,
+    body_outward_cases: CaseSet,
+    arm_facts: Vec<HandleArmEffectFacts>,
+    finally_outward_cases: CaseSet,
+    nested_handle_classification: NestedHandleClassification,
+}
+
+impl HandleSiteEffectFacts {
+    pub fn new(
+        result_ty: TypeId,
+        handled_cases: CaseSet,
+        body_outward_cases: CaseSet,
+        arm_facts: Vec<HandleArmEffectFacts>,
+        finally_outward_cases: CaseSet,
+        nested_handle_classification: NestedHandleClassification,
+    ) -> Self {
+        Self {
+            result_ty,
+            handled_cases,
+            body_outward_cases,
+            arm_facts,
+            finally_outward_cases,
+            nested_handle_classification,
+        }
+    }
+
+    pub fn result_ty(&self) -> TypeId {
+        self.result_ty
+    }
+
+    pub fn handled_cases(&self) -> &CaseSet {
+        &self.handled_cases
+    }
+
+    pub fn body_outward_cases(&self) -> &CaseSet {
+        &self.body_outward_cases
+    }
+
+    pub fn arm_facts(&self) -> &[HandleArmEffectFacts] {
+        &self.arm_facts
+    }
+
+    pub fn finally_outward_cases(&self) -> &CaseSet {
+        &self.finally_outward_cases
+    }
+
+    pub fn nested_handle_classification(&self) -> NestedHandleClassification {
+        self.nested_handle_classification
+    }
+}
+
+/// body 内单个 site 的 facts 变体。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SiteEffectFacts {
+    Call(CallSiteEffectFacts),
+    Perform(PerformSiteEffectFacts),
+    Resume(ResumeSiteEffectFacts),
+    Handle(HandleSiteEffectFacts),
+}
+
+/// 单个 basic block 的结构化 effect facts。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockEffectFacts {
+    ambient_cases: CaseSet,
+    outward_cases: CaseSet,
+    has_suspend_boundary: bool,
+    has_handle_boundary: bool,
+}
+
+impl BlockEffectFacts {
+    pub fn new(
+        ambient_cases: CaseSet,
+        outward_cases: CaseSet,
+        has_suspend_boundary: bool,
+        has_handle_boundary: bool,
+    ) -> Self {
+        Self {
+            ambient_cases,
+            outward_cases,
+            has_suspend_boundary,
+            has_handle_boundary,
+        }
+    }
+
+    pub fn ambient_cases(&self) -> &CaseSet {
+        &self.ambient_cases
+    }
+
+    pub fn outward_cases(&self) -> &CaseSet {
+        &self.outward_cases
+    }
+
+    pub fn has_suspend_boundary(&self) -> bool {
+        self.has_suspend_boundary
+    }
+
+    pub fn has_handle_boundary(&self) -> bool {
+        self.has_handle_boundary
+    }
+}
+
+/// 当前 materialized callable body 的局部 effect facts。
 #[derive(Debug, Clone, Default)]
-pub struct BodyEffectFacts {}
+pub struct BodyEffectFacts {
+    blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
+    sites: BTreeMap<SiteId, SiteEffectFacts>,
+}
+
+impl BodyEffectFacts {
+    pub fn new(
+        blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
+        sites: BTreeMap<SiteId, SiteEffectFacts>,
+    ) -> Self {
+        Self { blocks, sites }
+    }
+
+    pub fn blocks(&self) -> &BTreeMap<BasicBlockId, BlockEffectFacts> {
+        &self.blocks
+    }
+
+    pub fn sites(&self) -> &BTreeMap<SiteId, SiteEffectFacts> {
+        &self.sites
+    }
+}
 
 /// refactor 主线的 authoritative effect-facts 容器。
 ///

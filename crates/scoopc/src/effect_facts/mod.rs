@@ -12,8 +12,11 @@ pub mod solver;
 pub use builder::MaterializedEffectFactsBuilder;
 pub use dump::render_materialized_effect_facts;
 pub use facts::{
-    BodyEffectFacts, CallableEffectFacts, CanonicalMirQuerySurface, MaterializedEffectFacts,
-    MirSnapshotBinding,
+    BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteKind, CallSiteTarget,
+    CallTargetMode, CallableEffectFacts, CanonicalMirQuerySurface, EffectPrecision,
+    HandleArmEffectFacts, HandleSiteEffectFacts, MaterializedEffectFacts,
+    NestedHandleClassification, MirSnapshotBinding, PerformSiteEffectFacts,
+    ResumeSiteEffectFacts, SiteEffectFacts,
 };
 pub use schema::{
     CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId, ImplPlan,
@@ -46,6 +49,12 @@ pub enum EffectFactsError {
     #[error(transparent)]
     TypeLower(#[from] Box<crate::typecheck::TypeLowerError>),
 
+    #[error(transparent)]
+    VtableLayout(#[from] crate::vtable::VtableLayoutError),
+
+    #[error(transparent)]
+    ItableLayout(#[from] crate::itable::ItableLayoutError),
+
     #[error("refactor effect-facts stage requires a canonical materialized MIR snapshot from P3")]
     MissingMaterializedMirSnapshot,
 
@@ -54,6 +63,12 @@ pub enum EffectFactsError {
 
     #[error("effect row 中出现了无法作为 canonical effect identity 的项：{ty}")]
     UnsupportedEffectTerm { ty: String },
+
+    #[error("call site 无法为 `{callable}` 构建 surface contract")]
+    MissingCallableSurfaceContract { callable: String },
+
+    #[error("callable `{callable}` 的 step schema 中缺少 effect op `{op_fqn}` 对应的 case")]
+    MissingCallableCase { callable: String, op_fqn: String },
 
     #[error("找不到 effect type `{effect_fqn}` 的声明头")]
     MissingEffectTypeSymbol { effect_fqn: String },

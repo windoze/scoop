@@ -325,6 +325,83 @@
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_continuation_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
   - 2026-05-02：本次 review 未改变阶段顺序或依赖，`PLAN.md` 无需改动；现已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
 
+## P4-T02a：修复 canonical materialized MIR pass-view 对普通非泛型 callable body 的发布，确保 P4 能在稳定 `InstanceKey` 键空间上看到 request-root / caller body
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P3，§2/P4
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.4.6-§5.4.8，§8
+  - 当前实现参考：`crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/mir/callables.rs`、`crates/scoopc/src/mir/pass_view.rs`、`crates/scoopc/src/effect_refactor_pipeline/mir_stage.rs`
+- 目标：
+  - 修复 P3/P4 handoff 的 canonical materialized MIR 查询面；
+  - 让普通非泛型 request-root / caller body 也能通过 `MaterializedMir::pass_view()` 以稳定 `InstanceKey -> root callable / callable family` 形式被 P4 看到，而不是只在 raw MIR / caller-candidate 旁路里存在。
+
+- 必须实现的内容：
+  1. 精确定位并修复当前 canonical publication 缺口。
+     - 现象：对 `dispatch_and_resume_call`、`handle_perform`、`handle_finally_boundary` 一类普通非泛型样本，refactor `dump-mir` 已能产出 direct-style MIR body，但当前 `MaterializedMir::pass_view().instances()` / `MaterializedEffectFactsBuilder::collect_callable_seeds(...)` 仍可能得到空集合；
+     - 必须找出究竟是 `materialize` 阶段没有把这些 body 放进 instance family、还是 `pass_view` / `callables` 查询面对它们做了过滤。
+  2. 修复位置必须在 canonical MIR snapshot / pass-view 发布层，而不是在 P4 facts builder 里临时合成 fallback 键。
+     - 明确禁止：让 `P4-T03` 通过扫描 raw `MaterializedMir.file` 或 `caller_side_pass_candidate_bodies()` 自己造一套“像 `InstanceKey` 的键空间”来绕过问题；
+     - 正确结果应当是：这些 ordinary callable body 本来就属于 P3 交给 P4 的 canonical MIR handoff，因此必须在 `pass_view` / family 映射层被正式发布。
+  3. 修复后必须保证以下 canonical 查询成立：
+     - `pass_view().instances()` 能枚举普通非泛型 root/caller body；
+     - `owner_of_callable(fqn)` 能稳定返回对应 `InstanceKey`；
+     - `root_body()` / `callable_bodies()` 对这些 ordinary callable 不再返回空；
+     - 若后续 MIR pass override/rehome 这些 body，`pass_view` 仍维持单一 canonical owner。
+  4. 新增/更新定向测试，至少覆盖：
+     - 一个仅含普通非泛型 direct call 的源文件；
+     - 一个含 `dispatch` / `resume` 的普通非泛型源文件；
+     - 一个含 `handle` / `perform` / `finally` 的普通非泛型源文件；
+     - 要求测试直接断言 `pass_view` / family / owner mapping 非空且可查询，而不是只看 `dump-mir` stdout。
+
+- 必须遵从的约束：
+  - 禁止把 ordinary non-generic body 继续留在 raw MIR / caller-candidate 旁路，再让 P4/P5 自己猜“哪些才是 canonical callable”；
+  - 禁止把这个问题推迟到 `P4-T03` 用 facts builder 特判修补；
+  - 禁止为了让测试过掉而改写成只覆盖 generic 样本或只覆盖已有 instance family 的更窄 shape。
+
+- 验证：
+  1. 新增/更新测试，推荐命名：
+     - `materialized_pass_view_non_generic_*`
+     - `refactor_effect_facts_stage_non_generic_*`
+  2. 运行：
+      - `cargo test -p scoopc --no-default-features materialized_pass_view_non_generic`
+      - `cargo test -p scoopc --no-default-features refactor_effect_facts_stage_non_generic`
+      - `cargo test -p scoopc --no-default-features refactor_effect_facts_stage`
+
+- 完成条件：
+  - canonical `MaterializedMir::pass_view()` 已正式发布普通非泛型 callable body；
+  - P4 之后的阶段可以继续只消费 `InstanceKey` / family / pass-view body，而无需回 raw MIR 旁路补 owner identity；
+  - `P4-T03` 可以在不 workaround 的前提下直接构建 `BodyEffectFacts` / `SiteEffectFacts`。
+- 依赖：P4-T02R
+- 完成记录：
+  - （执行时填写）
+
+## P4-T02aR：Review canonical pass-view 对 ordinary callable body 的发布结果，确认 P4 不再需要 raw/fallback 键空间
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P3，§2/P4
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.4.6-§5.4.8，§8
+- 重点：
+  - 普通非泛型 request-root / caller body 是否已进入 canonical `pass_view` / family 映射；
+  - `owner_of_callable` / `root_body` / `callable_bodies` 是否都能稳定命中这些 ordinary callable；
+  - P4 facts builder 是否已经不再需要扫描 raw MIR 或 caller-candidate 旁路来补 callable identity。
+- 必须检查的文件/位置：
+  - `crates/scoopc/src/mir/materialize.rs`
+  - `crates/scoopc/src/mir/callables.rs`
+  - `crates/scoopc/src/mir/pass_view.rs`
+  - `crates/scoopc/src/effect_refactor_pipeline/mir_stage.rs`
+  - `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs`
+
+- 验证：
+  - 重新运行 `P4-T02a` 的全部测试与命令；
+  - 额外检查 ordinary non-generic 样本是否能让 `effect_facts().callable_facts()` / `effect_facts().bodies()` 都非空，且 key 来自 canonical `InstanceKey`。
+
+- 完成条件：
+  - review 能明确说明：ordinary callable identity 已在 canonical MIR handoff 上收口，`P4-T03` 不再受这个前置问题阻塞；
+  - 可进入 `P4-T03`。
+- 依赖：P4-T02a
+- 完成记录：
+  - （执行时填写）
+
 ## P4-T03：构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析
 
 - 参考：
@@ -451,9 +528,11 @@
   - `BodyEffectFacts` / `SiteEffectFacts` / local-case 输入已经齐备；
   - T04 可以只消费这些结构化输入做全局求解，不再回 MIR/HIR 重新解释 site 语义；
   - nested handle 是否向外传播 suspension 已能通过 facts 直接回答。
-- 依赖：P4-T02R
+- 依赖：P4-T02aR
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：执行本任务时发现一个会直接阻塞正确实现的新前置缺口：当前 canonical `MaterializedMir::pass_view()` 对 `dispatch_and_resume_call`、`handle_perform`、`handle_finally_boundary` 这类普通非泛型样本仍可能返回空 `instances()`，导致 `MaterializedEffectFactsBuilder` 无法在 authoritative `InstanceKey` / family 键空间上拿到普通 callable body，也就无法按任务要求对 `BodyEffectFacts` / `SiteEffectFacts` 使用稳定的 `(callable identity, BasicBlockId / SiteId)` 组织方式。
+  - 按本文件“禁止 workaround / 禁止回 raw MIR 自造键空间”的约束，`P4-T03` 不能通过扫描 raw `MaterializedMir.file` 或 `caller_side_pass_candidate_bodies()` 临时补 owner identity 来继续推进；因此已在本任务前新增 `P4-T02a` / `P4-T02aR`，要求先修复 canonical pass-view 对 ordinary callable body 的发布，再继续 `P4-T03`。
+  - 本次仅记录阻塞与新增前置；`P4-T03` 保持未完成状态，`PLAN.md` 暂无需改动。
 
 ## P4-T03R：Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断
 
