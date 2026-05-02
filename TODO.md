@@ -52,7 +52,7 @@
 | `P5-T02` | `TODO-P5.md` | [DONE] 定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层 |
 | `P5-T02R` | `TODO-P5.md` | [DONE] Review late-lowered representation，确认 version key / `Step` / continuation carrier 已按最终形态固定 |
 | `P5-T03` | `TODO-P5.md` | [DONE] 依据 `MaterializedEffectFacts` 实现 boundary 选择与 whole-function segmentation，产出 owner-state / resume-state 骨架 |
-| `P5-T03R` | `TODO-P5.md` | Review segmentation 骨架，确认 boundary 识别与 owner/resume 状态只由 facts 驱动 |
+| `P5-T03R` | `TODO-P5.md` | [DONE] Review segmentation 骨架，确认 boundary 识别与 owner/resume 状态只由 facts 驱动 |
 | `P5-T04` | `TODO-P5.md` | 实现 frame lifting，以及 `return` / `break` / `continue` / `finally` / cleanup / dropped continuation 的显式状态机合同 |
 | `P5-T04R` | `TODO-P5.md` | Review frame lifting 与控制流合同，确认没有残留 direct-style 隐式语义或错误的 dropped-continuation 行为 |
 | `P5-T05` | `TODO-P5.md` | 物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering |

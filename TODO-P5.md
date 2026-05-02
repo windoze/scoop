@@ -485,7 +485,7 @@
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_late_segmentation`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
   - 2026-05-02：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
-## P5-T03R：Review segmentation 骨架，确认 boundary 识别与 owner/resume 状态只由 facts 驱动
+## [DONE] P5-T03R：Review segmentation 骨架，确认 boundary 识别与 owner/resume 状态只由 facts 驱动
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16, §5.5.2-§5.5.4
@@ -513,7 +513,10 @@
   - 可进入 P5-T04。
 - 依赖：P5-T03
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P5-T03R` review。复查 `crates/scoopc/src/effect_lowered/segment.rs` / `builder.rs` / `effect_facts/facts.rs` 后确认，P5 segmentation 的 boundary 选择直接读取 `BodyEffectFacts::site(...)` 与 nested-handle classification，并把 `BoundaryId -> owner_state / resume_state` 显式固化到 `LateLoweredBoundaryMap` / `LateLoweredResumeStateMap`；切分骨架使用 canonical MIR `BasicBlockId + statement_index` cursor 递进，不依赖源码 AST 形状、`Span`、名字或 HIR fallback。
+  - 额外搜索 `rg -n "Span|hir::|single perform|tail-resume|linear body|statement-only" crates/scoopc/src/effect_lowered crates/scoopc/src/effect_refactor_pipeline` 后确认：`effect_lowered` 主实现未命中这些 source-shape/legacy 回退条件；仅 `effect_lowered/ir.rs` 测试代码使用 `Span` 构造样本；`effect_refactor_pipeline` 的命中位于前序 HIR stage/dispatcher，不构成 P5 segmentation 的事实来源或分流入口。
+  - 重新验证通过：`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_late_segmentation`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+  - review 未发现需要在 `P5-T03R` 前插入的新前置任务；可进入 `P5-T04`。
 
 ## P5-T04：实现 frame lifting，以及 `return` / `break` / `continue` / `finally` / cleanup / dropped continuation 的显式状态机合同
 

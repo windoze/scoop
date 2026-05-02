@@ -1,79 +1,49 @@
-# Claude Plan
+# 本次执行计划
 
-## Note
+## 约束与执行原则
+- 先以 `TODO.md` 作为索引，再读取对应 `TODO-Px.md`，确定第一个未完成的详细任务。
+- 仅完成一个详细任务；若遇到阻塞，则为其补充最小前置任务并同步 `TODO.md`，随后停止。
+- 不采用变通方案、夹具特判、弱化规格或绕过缺失能力的做法。
+- 在执行过程中，如计划变化、发现阻塞、完成关键步骤，会及时更新本文件。
 
-I will not record private chain-of-thought. This file contains a concise execution plan, key decisions, blockers, and progress updates.
+## 初始步骤计划
+1. 读取 `TODO.md`，确认任务索引与详细任务文件映射。
+2. 按索引顺序读取相关 `TODO-Px.md`，找到第一个标题未带 `[DONE]` 的详细任务。
+3. 检查最近一次提交是否直接提到与该任务相关的未完成问题；若是，则将其视为当前任务的一部分或前置条件。
+4. 阅读当前任务要求、约束、依赖、验收标准，并检查相关代码与测试位置。
+5. 实施最小且正确的代码修改，必要时补充或调整测试。
+6. 运行与该任务相关的验证；如任务影响范围要求较大，再运行更完整的 `cargo` 检查、测试与 `clippy`。
+7. 更新对应 `TODO-Px.md` 的完成记录并将任务标题标记为 `[DONE]`；如索引有变化，同步更新 `TODO.md`。
+8. 若阶段级计划未变化，则不修改 `PLAN.md`；仅在阶段依赖或完成标准改变时更新。
+9. 检查工作区状态，按要求提交一次 Git commit，然后停止，不继续下一个任务。
 
-## Initial Plan
+## 当前状态
+- 已读取 `TODO.md` 索引，并确认第一个未完成详细任务为 `TODO-P5.md` 中的 `P5-T03R`。
+- 已检查最近提交：`[P5-T03] Build fact-driven segmentation skeleton`，提交标题未显式声明额外未完成前置问题。
 
-1. Read `TODO.md` as the task index.
-2. Open the referenced `TODO-Px.md` files in task order.
-3. Identify the first detailed task whose heading is not prefixed with `[DONE]`.
-4. Check the latest commit message for any directly relevant unfinished work tied to that task.
-5. Read the task body carefully, including constraints, dependencies, and validation requirements.
-6. Inspect the relevant code and tests only for the selected task.
-7. Implement the task completely, or if blocked by a concrete prerequisite, add the minimum prerequisite task to the correct `TODO-Px.md`, sync `TODO.md`, and stop.
-8. Run targeted verification first, then broader required validation such as formatting, tests, and linting as appropriate.
-9. Update `TODO-Px.md` completion records and mark the finished task title with `[DONE]`.
-10. Sync `TODO.md` if task state, title, ordering, or file references changed.
-11. Update this file with progress and any plan adjustments.
-12. Commit all relevant uncommitted changes for this task with a task-specific message, then stop.
+## 针对当前任务的执行计划
+1. 阅读 `P5-T03R` 指定的实现与相关事实定义，重点检查 boundary 选择、owner/resume 显式映射，以及 expression 内 boundary 切分是否只依赖 P3/P4 显式结果。
+2. 运行 `P5-T03R` 要求的文本搜索，确认新主线实现没有依赖 `Span`、HIR、statement-only 快捷路径或 code-shape 特判作为事实来源。
+3. 重新运行 `P5-T03` 要求的测试与校验命令，确认 review 结论成立。
+4. 若 review 发现阻塞性问题：优先修复；若无法在当前任务内直接正确落地，则在详细 TODO 中补充最小前置任务并同步索引后停止。
+5. 若 review 通过：把 `P5-T03R` 标记为 `[DONE]`，填写完成记录，必要时同步 `TODO.md`，然后提交并停止。
 
-## Progress Log
-
-- Plan created. Next step: inspect `TODO.md` and the detailed `TODO-Px.md` files to select the first incomplete task.
-- `TODO.md` and `TODO-P5.md` inspected. The first incomplete detailed task is `P5-T03`: implement fact-driven boundary selection and whole-function segmentation to produce owner-state / resume-state skeletons.
-
-## Task Focus: P5-T03
-
-### Constraints to preserve
-
-- Boundary selection must be driven only by P4 `MaterializedEffectFacts` plus canonical MIR/P3 explicit structure.
-- No fallback to AST/HIR/span/name-based inference.
-- No separate fast path for simple functions; `NoOutward` must still go through the same segmentation pipeline.
-- No routing new logic through legacy `effect/state_machine/**` as the authoritative implementation.
-
-### Working plan for P5-T03
-
-1. Inspect the current `effect_lowered` IR and builder to see what shell structures already exist for state graph, boundary map, and resume-state map.
-2. Inspect `effect_facts` and canonical MIR query surfaces to find the authoritative inputs needed for boundary selection.
-3. Determine whether any missing upstream contract makes correct implementation impossible.
-4. If no blocker exists, implement a dedicated segmentation module in the refactor path and thread the result into the late-lowered IR.
-5. Add focused tests for:
-   - boundary selection kinds;
-   - self-contained nested handle exclusion;
-   - owner/resume mapping in expression/branch/loop contexts;
-   - `NoOutward` degenerating through the same entry.
-6. Run the required targeted tests and clippy for the touched crate.
-7. Mark `P5-T03` as `[DONE]`, update completion records and sync `TODO.md` if needed.
-8. Commit exactly this task and stop.
-
-### Current status
-
-- No blocker identified yet. Next step: inspect `crates/scoopc/src/effect_lowered/**`, `crates/scoopc/src/effect_facts/**`, and relevant MIR pass-view structures.
-- Inspection complete. No prerequisite task is needed before `P5-T03`.
-- Key implementation decision:
-  - use canonical MIR + P4 facts to select boundaries;
-  - split states at statement-level call/resume sites and terminator-level perform/handle sites;
-  - keep raw CFG successor skeleton in the late-lowered state graph;
-  - record owner/resume mappings separately in `boundary_map` / `resume_state_map`;
-  - represent in-block resume points explicitly so boundaries inside expression/argument/condition contexts do not collapse back to whole-block granularity.
-- Next step: edit `effect_lowered/ir.rs`, add `effect_lowered/segment.rs`, and wire the builder to publish real segmentation skeletons.
-- Core implementation complete:
-  - added `crates/scoopc/src/effect_lowered/segment.rs`;
-  - wired `effect_lowered/builder.rs` to emit real segmentation results for callables with bodies;
-  - extended `LateLoweredState` with MIR slice coverage and successor skeletons;
-  - added fact-driven boundary selection for call / perform / resume / runtime error / nested outward handle;
-  - fixed a blocking builder contract bug by skipping declaration-only pass-view families that have no callable facts.
-- Verification complete:
+## 已完成的关键检查
+- 已审阅 `crates/scoopc/src/effect_lowered/segment.rs`：boundary 选择直接读取 `BodyEffectFacts::site(...)`，并把 owner/resume 绑定固化到 `LateLoweredBoundaryMap` / `LateLoweredResumeStateMap`；state graph 中的切分基于 canonical MIR block/statement cursor，而不是源码 AST / span。
+- 已审阅 `crates/scoopc/src/effect_lowered/builder.rs`：late-lowering 只消费 canonical pass-view 与 P4 facts；对 declaration-only family 采用空壳 shell，对有 body 但缺 facts 的 family 继续报错，没有引入 legacy 回退。
+- 已审阅 `crates/scoopc/src/effect_facts/facts.rs`：`BodyEffectFacts` 向 P5 暴露的 authoritative 输入为 block/site facts 与 solver facts 结构，没有额外的源码形状查询接口供 P5 依赖。
+- 已执行 `rg -n "Span|hir::|single perform|tail-resume|linear body|statement-only" crates/scoopc/src/effect_lowered crates/scoopc/src/effect_refactor_pipeline`：
+  - `effect_lowered` 主实现未命中这些回退条件；仅 `effect_lowered/ir.rs` 的测试代码使用 `Span` 构造测试样本。
+  - `effect_refactor_pipeline` 的命中集中在前序 HIR stage / stage dispatcher，本次 P5 主实现未据此分流 boundary 或 segmentation。
+- 已执行并通过：
   - `cargo test -p scoopc --no-default-features refactor_late_boundary_selection`
   - `cargo test -p scoopc --no-default-features refactor_late_segmentation`
   - `cargo test -p scoopc --no-default-features refactor_owner_resume_state`
   - `cargo test -p scoopc --no-default-features refactor_late_lowered_ir`
   - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
   - `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`
-- Documentation updated:
-  - marked `P5-T03` as `[DONE]` in `TODO-P5.md`;
-  - synced `TODO.md` index;
-  - `PLAN.md` unchanged because phase sequencing did not change.
-- Next step: review the final diff, commit the task, and stop.
+
+## 当前结论
+- 目前未发现阻塞 `P5-T03R` 的实现缺口。
+- `TODO-P5.md` 已将 `P5-T03R` 标记为 `[DONE]` 并补全完成记录；`TODO.md` 也已同步索引状态。
+- `PLAN.md` 本轮无需变更；下一步仅剩按任务要求提交 Git commit 并停止。
