@@ -262,9 +262,11 @@ pub fn build_effect_facts_stage_output(
     let dispatcher = dispatcher_for_session(session).effect_facts();
     match dispatcher.entry {
         StageEntry::Legacy(entry) => {
-            entry.delegate_to_legacy(|| effect_facts_stage::run(mir_stage_output))
+            entry.delegate_to_legacy(|| effect_facts_stage::run(session, source, mir_stage_output))
         }
-        StageEntry::Refactor(entry) => entry.lower_effect_facts_stage_output(mir_stage_output),
+        StageEntry::Refactor(entry) => {
+            entry.lower_effect_facts_stage_output(session, source, mir_stage_output)
+        }
     }
 }
 

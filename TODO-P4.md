@@ -182,7 +182,7 @@
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
   - 2026-05-02：本次按“标题必须显式带 `[DONE]` 才算完成”的规则复核后，重新检查了 `effect_facts` 模块树、`effect_facts_stage` handoff 以及 legacy 容器隔离状态；未发现会阻塞 `P4-T02` 的新问题，现补齐本任务标题的 `[DONE]` 标记并与 `TODO.md` 索引同步。
 
-## P4-T02：落地 schema identity、canonical schema pool 与 callable-level facts 壳层
+## [DONE] P4-T02：落地 schema identity、canonical schema pool 与 callable-level facts 壳层
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P4
@@ -278,7 +278,15 @@
   - 新路径不再依赖 `may_outward_effect` 这类 legacy 摘要表达 effect contract。
 - 依赖：P4-T01R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P4-T02`，在 `crates/scoopc/src/effect_facts/schema.rs` / `facts.rs` / `builder.rs` 中把 `StepSchemaId`、`ContinuationSchemaId`、`CaseTag`、`ConcreteOpKey`、`CaseSet`、`ImplPlan`、`StepCaseFact`、`StepSchema`、`ContinuationSchema` 与 `CallableEffectFacts` 的目标 public 形状全部落地；`CallableEffectFacts` 现已显式承载 `declared_row`、`invoke_args_tuple_ty`、`step_schema`、`resolved_outward_cases`、`needs_reentry`、`impl_plan`，不再依赖 `may_outward_effect` 这类 legacy bool 摘要表达新路径 contract。
+  - callable-level identity 复用 `mir/materialize.rs::InstanceKey` 作为事实主键，并新增验证 `refactor_callable_effect_facts_shell_instance_keys_distinguish_allowed_rows`，确认同一 callable 在不同 `allowed_row` 下不会共享 key；effect/case 相关 API 继续只通过语义 newtype `ConcreteOpKey(InstanceKey)` 暴露 concrete op identity，而不直接裸露 `InstanceKey` 作为 case identity。
+  - `MaterializedEffectFactsBuilder` 现在会稳定构建 canonical schema pool：按稳定顺序为每个 callable instance 分配 `StepSchemaId`，为每个 case 生成固定 `CaseTag`，并把 `payload_tuple_ty` / `resume_tuple_ty` / `answer_ty` / `surface_ty` / `continuation_obj_ty` 显式写入 schema；其中 `payload_tuple_ty == ()` 与 `resume_tuple_ty == ()` 仍按显式 `Unit` 记录，未因后续可能零载荷而在 P4 省略。
+  - `continuation_obj_ty` 已改为绑定完整 `InstanceKey`（模板位置、type args、effect args），不再仅按 `root_fqn` 生成内部 continuation 对象类型身份；新增 `refactor_continuation_schema_identity_distinguishes_callable_instances` 覆盖同名不同实例的内部类型身份区分。
+  - builder 现已显式跳过两类不应进入 callable-level facts 壳层的 surface 声明：effect-op 根声明，以及 compiler-owned `scoop.core.Continuation.resume` surface 方法；前者继续只作为 `ConcreteOpKey` / case contract 的来源，后者继续只通过 P2/P3 下沉到 MIR 的 `CallKind::Resume` metadata 与 continuation schema 建模，避免把这些 surface 声明误当成普通 callable shell 分析对象。
+  - runtime error ordinary effect 已进入 schema：`resumeZero`/`Continuation.resume` 路径会把 `Raise<RuntimeError>` 作为普通 concrete case 写入 `StepSchema`，未引入额外 pseudo case；`resolved_outward_cases` / `needs_reentry` / `impl_plan` 当前按保守规则由 builder 初始化，供后续 P4-T03/P4-T04 在同一结构形状上继续细化。
+  - 新增/更新测试：`refactor_effect_schema_case_tags_are_stable_and_distinguish_generic_specialized_raise_cases`、`refactor_continuation_schema_explicitly_records_unit_payload_resume_and_surface_type`、`refactor_continuation_schema_identity_distinguishes_callable_instances`、`refactor_callable_effect_facts_shell_uses_final_shape_and_runtime_error_case`、`refactor_callable_effect_facts_shell_instance_keys_distinguish_allowed_rows`、`refactor_callable_effect_facts_shell_skips_effect_op_roots`，并把 sample fixture 改为“generic helper + driver 触发 materialized direct-call instances”的形状，确保测试覆盖真实 materialized callable instance 而不是只落在 surface builtin。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_continuation_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+  - 2026-05-02：本任务未引入新的阶段依赖或顺序变化，因此 `PLAN.md` 无需改动；同时已把 `TODO.md` 中对应索引条目标记同步为 `[DONE]`。
 
 ## P4-T02R：Review schema pool 与 callable facts，确认 identity 和 case contract 已经固定
 

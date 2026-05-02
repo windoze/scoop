@@ -5033,6 +5033,14 @@ fn try_infer_continuation_resume_call_expr_type(
         call_expr.span,
     )?;
     lower.record_performed_effect(raise_runtime_error, call_expr.span);
+    let resolved_resume = ast::ResolvedMemberRef::Fun {
+        fqn: callee_name.to_string(),
+    };
+    if safe {
+        lower.record_safe_member_access_resolution(member.span, resolved_resume);
+    } else {
+        lower.record_typechecked_member_resolution(member.span, resolved_resume);
+    }
     lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
     if used_unit_sugar {
         lower.record_zero_arg_unit_call_sugar_site(call_expr.span);

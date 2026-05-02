@@ -6725,7 +6725,10 @@ fun run(): Unit {
                 panic!("期望调用表达式，实际为 {:?}", call_expr.kind);
             };
             let [CallArg::Positional(arg)] = args.as_slice() else {
-                panic!("typed HIR 应把 `takesUnit()` canonicalize 为单个 Unit 实参: {:?}", args);
+                panic!(
+                    "typed HIR 应把 `takesUnit()` canonicalize 为单个 Unit 实参: {:?}",
+                    args
+                );
             };
             assert!(
                 matches!(arg.kind, ExprKind::Literal(LiteralKind::Unit)),

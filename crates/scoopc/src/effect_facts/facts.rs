@@ -1,8 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::mir::{InstanceKey, MaterializedMirPassView};
+use crate::ty::{EffectRow, TypeId};
 
-use super::schema::{ContinuationSchema, ContinuationSchemaId, StepSchema, StepSchemaId};
+use super::schema::{
+    CaseSet, ContinuationSchema, ContinuationSchemaId, ImplPlan, StepSchema, StepSchemaId,
+};
 
 /// `MaterializedEffectFacts` 当前绑定到哪一种 canonical MIR 查询面。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,9 +49,63 @@ impl MirSnapshotBinding {
     }
 }
 
-/// callable-level facts 外壳；最终字段在 P4-T02/P4-T04 补齐。
-#[derive(Debug, Clone, Default)]
-pub struct CallableEffectFacts {}
+/// callable-level facts 的最终 public 形状。
+///
+/// `resolved_outward_cases` / `needs_reentry` / `impl_plan` 当前仍由 builder 以保守值初始化；
+/// `resolved_outward_cases` 的 SCC/dataflow 精化在 P4-T04 完成。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallableEffectFacts {
+    declared_row: EffectRow,
+    invoke_args_tuple_ty: TypeId,
+    step_schema: StepSchemaId,
+    resolved_outward_cases: CaseSet,
+    needs_reentry: bool,
+    impl_plan: ImplPlan,
+}
+
+impl CallableEffectFacts {
+    pub fn new(
+        declared_row: EffectRow,
+        invoke_args_tuple_ty: TypeId,
+        step_schema: StepSchemaId,
+        resolved_outward_cases: CaseSet,
+        needs_reentry: bool,
+        impl_plan: ImplPlan,
+    ) -> Self {
+        Self {
+            declared_row,
+            invoke_args_tuple_ty,
+            step_schema,
+            resolved_outward_cases,
+            needs_reentry,
+            impl_plan,
+        }
+    }
+
+    pub fn declared_row(&self) -> &EffectRow {
+        &self.declared_row
+    }
+
+    pub fn invoke_args_tuple_ty(&self) -> TypeId {
+        self.invoke_args_tuple_ty
+    }
+
+    pub fn step_schema(&self) -> StepSchemaId {
+        self.step_schema
+    }
+
+    pub fn resolved_outward_cases(&self) -> &CaseSet {
+        &self.resolved_outward_cases
+    }
+
+    pub fn needs_reentry(&self) -> bool {
+        self.needs_reentry
+    }
+
+    pub fn impl_plan(&self) -> ImplPlan {
+        self.impl_plan
+    }
+}
 
 /// body-level facts 外壳；最终 block/site 结构在 P4-T03/P4-T04 补齐。
 #[derive(Debug, Clone, Default)]
@@ -72,13 +129,15 @@ pub struct MaterializedEffectFacts {
 impl MaterializedEffectFacts {
     pub(crate) fn new(
         snapshot_binding: MirSnapshotBinding,
+        step_schemas: BTreeMap<StepSchemaId, StepSchema>,
+        continuation_schemas: BTreeMap<ContinuationSchemaId, ContinuationSchema>,
         callable_facts: HashMap<InstanceKey, CallableEffectFacts>,
         bodies: HashMap<InstanceKey, BodyEffectFacts>,
     ) -> Self {
         Self {
             snapshot_binding,
-            step_schemas: BTreeMap::new(),
-            continuation_schemas: BTreeMap::new(),
+            step_schemas,
+            continuation_schemas,
             callable_facts,
             bodies,
         }

@@ -53,7 +53,10 @@ fn render_materialized_mir_parity_view(materialized: &scoopc::mir::MaterializedM
 }
 
 /// 读取输入文件并打印实例化后的 MIR Debug 输出。
-pub(super) fn render_dump_output(input: PathBuf, session_options: SessionOptions) -> Result<String> {
+pub(super) fn render_dump_output(
+    input: PathBuf,
+    session_options: SessionOptions,
+) -> Result<String> {
     let file = load_input_source(input)?;
 
     let session = scoopc::session::Session::with_options(session_options)?;
@@ -62,7 +65,10 @@ pub(super) fn render_dump_output(input: PathBuf, session_options: SessionOptions
 }
 
 #[cfg(test)]
-pub(super) fn render_parity_output(input: PathBuf, session_options: SessionOptions) -> Result<String> {
+pub(super) fn render_parity_output(
+    input: PathBuf,
+    session_options: SessionOptions,
+) -> Result<String> {
     let file = load_input_source(input)?;
 
     let session = scoopc::session::Session::with_options(session_options)?;

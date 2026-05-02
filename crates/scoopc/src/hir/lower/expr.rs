@@ -171,7 +171,8 @@ impl<'a> HirLowering<'a> {
                 let typechecked_call_ty = self.typechecked_expr_ty(e.span);
                 let call_ty = typechecked_call_ty.unwrap_or(self.builtins.any);
                 let callee_expr = self.transparent_call_callee(callee);
-                let synthesized_args = self.synthesized_unit_call_args_for_typed_sugar(e.span, args);
+                let synthesized_args =
+                    self.synthesized_unit_call_args_for_typed_sugar(e.span, args);
                 let args = synthesized_args.as_deref().unwrap_or(args.as_slice());
 
                 // T0108：safe call 方法调用：`receiver?.method(args)` → when desugar。

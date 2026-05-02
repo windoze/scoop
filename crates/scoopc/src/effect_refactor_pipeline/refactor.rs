@@ -61,11 +61,13 @@ impl StageEntry {
 
     pub(crate) fn lower_effect_facts_stage_output(
         self,
+        session: &Session,
+        source: &SourceFile,
         mir_stage_output: RefactorMirStageOutput,
     ) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
         debug_assert_eq!(self.stage, StageKind::EffectFacts);
         let _ = self;
-        effect_facts_stage::run(mir_stage_output)
+        effect_facts_stage::run(session, source, mir_stage_output)
     }
 
     pub(crate) fn delegate_to_legacy<T>(self, legacy_op: impl FnOnce() -> T) -> T {

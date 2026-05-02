@@ -3,6 +3,8 @@ use crate::effect_facts::{
     MaterializedEffectFactsSolver,
 };
 use crate::mir::{File as MirFile, MaterializedMir, MaterializedMirPassView};
+use crate::session::Session;
+use crate::source::SourceFile;
 use crate::ty::TypeStore;
 
 use super::RefactorMirStageOutput;
@@ -42,7 +44,7 @@ impl RefactorEffectFactsStageOutput {
     }
 
     pub fn types(&self) -> &TypeStore {
-        self.mir_stage_output.types()
+        &self.materialized_mir().types
     }
 
     pub fn materialized_mir(&self) -> &MaterializedMir {
@@ -65,13 +67,20 @@ impl RefactorEffectFactsStageOutput {
 }
 
 pub(crate) fn run(
-    mir_stage_output: RefactorMirStageOutput,
+    session: &Session,
+    source: &SourceFile,
+    mut mir_stage_output: RefactorMirStageOutput,
 ) -> Result<RefactorEffectFactsStageOutput, EffectFactsError> {
     let seeded_facts = {
         let materialized_mir = mir_stage_output
-            .materialized_mir()
+            .materialized_mir_mut()
             .ok_or(EffectFactsError::MissingMaterializedMirSnapshot)?;
-        MaterializedEffectFactsBuilder::from_materialized_snapshot(materialized_mir).build()
+        MaterializedEffectFactsBuilder::from_materialized_snapshot(
+            session,
+            source,
+            materialized_mir,
+        )
+        .build()?
     };
     let effect_facts = MaterializedEffectFactsSolver.solve(seeded_facts);
     Ok(RefactorEffectFactsStageOutput::new(
@@ -110,7 +119,8 @@ mod tests {
             super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        super::run(mir_stage_output).expect("fixture 应可通过 refactor effect-facts stage")
+        super::run(&session, &source, mir_stage_output)
+            .expect("fixture 应可通过 refactor effect-facts stage")
     }
 
     #[test]
@@ -164,7 +174,9 @@ mod tests {
             None,
         );
 
-        let err = super::run(output).unwrap_err();
+        let session = refactor_session();
+        let source = sample_source();
+        let err = super::run(&session, &source, output).unwrap_err();
 
         assert!(matches!(
             err,

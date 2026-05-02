@@ -62,6 +62,10 @@ impl RefactorMirStageOutput {
         self.materialized_mir.as_ref()
     }
 
+    pub(crate) fn materialized_mir_mut(&mut self) -> Option<&mut MaterializedMir> {
+        self.materialized_mir.as_mut()
+    }
+
     pub(crate) fn with_materialized_mir(mut self, materialized_mir: MaterializedMir) -> Self {
         self.materialized_mir = Some(materialized_mir);
         self

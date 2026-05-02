@@ -37,7 +37,7 @@
 | `P3-T04R` | `TODO-P3.md` | [DONE] Review P3 阶段退出条件，确认 P4 可以只消费 MIR 而不回 HIR |
 | `P4-T01` | `TODO-P4.md` | [DONE] 建立 refactor effect-facts stage 与独立 side-table 子系统边界 |
 | `P4-T01R` | `TODO-P4.md` | [DONE] Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts` |
-| `P4-T02` | `TODO-P4.md` | 落地 schema identity、canonical schema pool 与 callable-level facts 壳层 |
+| `P4-T02` | `TODO-P4.md` | [DONE] 落地 schema identity、canonical schema pool 与 callable-level facts 壳层 |
 | `P4-T02R` | `TODO-P4.md` | Review schema pool 与 callable facts，确认 identity 和 case contract 已经固定 |
 | `P4-T03` | `TODO-P4.md` | 构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析 |
 | `P4-T03R` | `TODO-P4.md` | Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断 |

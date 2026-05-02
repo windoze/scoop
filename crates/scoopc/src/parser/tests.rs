@@ -600,7 +600,10 @@ fn parse_zero_arg_resume_member_call_without_unit_desugar() {
     let ast::ExprKind::Call { callee, args } = &init.kind else {
         panic!("期望 initializer 为调用表达式");
     };
-    assert!(args.is_empty(), "`k.resume()` 不应在 AST 中自动补 `UnitLit`");
+    assert!(
+        args.is_empty(),
+        "`k.resume()` 不应在 AST 中自动补 `UnitLit`"
+    );
 
     let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
         panic!("期望调用 callee 为普通 member access");
@@ -612,10 +615,7 @@ fn parse_zero_arg_resume_member_call_without_unit_desugar() {
 
 #[test]
 fn parse_zero_arg_and_explicit_unit_calls_as_distinct_shapes() {
-    let src = SourceFile::new_virtual(
-        "<mem>",
-        "package a\nval zero = f()\nval explicit = f(())\n",
-    );
+    let src = SourceFile::new_virtual("<mem>", "package a\nval zero = f()\nval explicit = f(())\n");
     let file = parse_file(&src).unwrap();
 
     let zero = top_level_val_init(&file, 0);
