@@ -19,8 +19,8 @@ pub use facts::{
 };
 pub(crate) use facts::{BodyEffectSolverFacts, HandleSiteSolverFacts};
 pub use schema::{
-    CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId, ImplPlan,
-    StepCaseFact, StepSchema, StepSchemaId,
+    CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId, EffectFamilyKey,
+    ImplPlan, StepCaseFact, StepSchema, StepSchemaId,
 };
 pub use solver::MaterializedEffectFactsSolver;
 

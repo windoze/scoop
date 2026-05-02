@@ -790,7 +790,7 @@
   - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
   - 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_resume_interface`、`cargo test -p scoopc --no-default-features refactor_continuation_object`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## P5-T05：物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering
+## [DONE] P5-T05：物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P5
@@ -914,7 +914,23 @@
   - P6 不再需要设计新的 effectful ABI 或 continuation carrier。
 - 依赖：P5-T04b
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：完成 `P5-T05`。`crates/scoopc/src/effect_facts/schema.rs` / `builder.rs` 现已为 `ConcreteOpKey` 补上稳定的 `EffectFamilyKey`，把“同一个 step schema 下按 effect family 分组 internal resume interface”所需的身份直接固化进 P4->P5 handoff，而不是在 late lowering 回 HIR/typecheck 或靠 FQN 字符串拆解猜 effect owner。
+  - `crates/scoopc/src/effect_lowered/materialize.rs` 已作为本任务的正式实现模块落地，接手 T01/T02 中暂由 `builder.rs` 承载的 materialization 职责。当前模块映射变为：`builder.rs` 只负责 orchestration；`segment.rs` 继续发布 owner/resume skeleton；`frame.rs` 继续发布 frame/control-flow contract；`materialize.rs` 负责把这些 skeleton 真正物化为 `Step_F` / dynamic invoke / continuation / resume-interface / boundary-lowering contract；`dump.rs` 输出最终稳定文本 surface。
+  - canonical `Step_F` materialization 已从“仅有 schema shell”推进到“可直接服务 P6 的 late-lowered contract”：`LateLoweredDynamicInvokeEntry` 现在显式记录 `invoke(args_tuple) -> Step_F` 的 `entry_state` / `complete_state`；`LateLoweredBoundary` 现在带有 `LateLoweredBoundaryLowering`，按 `Call` / `Perform` / `Resume` / `RuntimeError` / `Handle` 五类边界发布显式 lowering contract，不再只停留在 `owner_state` / `resume_state` 骨架。
+  - internal resume interfaces 已改为按 effect family 分组，而不是继续把整个 `StepSchema` 混成单一接口：`LateLoweredResumeInterface` 现已显式保留 `effect_family`、统一 `return_step_schema` 和该 family 下完整 method 集；`SingleCase` 只会把无关 methods/materialized surface 标成 `Unreachable`，不会从 interface/object 定义中删除它们。
+  - continuation object 已真正物化为统一内部 carrier：`LateLoweredContinuationObject` 现已显式发布 `surface_resumes`（对应 source-visible `resume(...) -> Step_F` contract）、完整 `implemented_interfaces`、按 effect family 对齐的 internal methods、显式 `LateLoweredContinuationResumeBody::{ResumeCapturedState, Unreachable}`，并把 one-shot 重复 `resume` 的结果固定为 `LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward`，保证该语义在 P5 就可见，而不是留给 P6/backend 临时补想象。
+  - boundary lowering 已统一收口到 `Step`/continuation 模型：
+    - `Call` boundary 显式记录 callee dynamic target、callee `StepSchema`、complete-path target/result local、以及每个 outward case 向当前 callable canonical `Step_F` 的 forwarding；
+    - `Perform` boundary 显式记录 emitted case / payload / captured continuation；
+    - `Resume` boundary 显式记录 surface continuation schema、out-step dispatch、result local 与配对 runtime-error boundary；
+    - ordinary runtime error boundary 显式记录与 resume boundary 的配对关系和最终发射的 canonical `Raise<RuntimeError>` case；
+    - outward nested `Handle` boundary 显式记录 handled/body/finally/arm outward facts 与最终 outward emissions。
+  - `crates/scoopc/src/effect_lowered/dump.rs` 已扩展稳定 formatter，显式输出 effect-family resume interfaces、continuation surface resumes、dynamic invoke entry state、boundary lowering contract、dispatch input step schema、complete path 与 outward forwarding；后续 `dump-effect-lowered`/snapshot/P6 都可以直接锁定这些内容。
+  - 新增/更新测试：
+    - `crates/scoopc/src/effect_lowered/materialize.rs`：`refactor_step_materialization_keeps_canonical_cases_and_dynamic_entry_states`、`refactor_boundary_lowering_materializes_effectful_call_dispatch_contract`、`refactor_boundary_lowering_materializes_resume_and_runtime_error_contracts`、`refactor_boundary_lowering_materializes_perform_and_handle_contracts`、`refactor_continuation_object_materializes_surface_resume_and_one_shot_contracts`、`refactor_impl_plan_lowering_keeps_no_outward_single_case_and_canonical_full_distinct`、`refactor_resume_interface_completeness_groups_methods_by_effect_family`；
+    - `crates/scoopc/src/effect_lowered/ir.rs` 现有 manual/stage tests 已同步更新到新的 effect-family + boundary-lowering contract。
+  - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
+  - 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_step_materialization`、`cargo test -p scoopc --no-default-features refactor_boundary_lowering`、`cargo test -p scoopc --no-default-features refactor_continuation_object`、`cargo test -p scoopc --no-default-features refactor_impl_plan_lowering`、`cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_late_segmentation`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## P5-T05R：Review `Step` / continuation 物化结果，确认没有第二套 ABI、没有 TLS 依赖、没有删减接口方法
 

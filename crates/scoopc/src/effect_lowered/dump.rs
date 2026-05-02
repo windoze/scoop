@@ -1,17 +1,19 @@
 use std::fmt::Write;
 
-use crate::effect_facts::{CaseTag, ConcreteOpKey, ImplPlan};
+use crate::effect_facts::{CaseTag, ConcreteOpKey, EffectFamilyKey, ImplPlan};
 use crate::ty::{EffectRow, TypeId};
 
 use super::ir::{
-    BoundarySiteKind, LateLoweredBodyVersionKey, LateLoweredBoundary, LateLoweredBoundarySource,
-    LateLoweredCallable, LateLoweredContinuationCapture, LateLoweredContinuationMethod,
-    LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
-    LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind, LateLoweredProgram,
-    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeStateMap,
-    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
-    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepType, ResumeInterfaceId,
-    StateId, SystemSlotKind,
+    BoundarySiteKind, LateLoweredBodyVersionKey, LateLoweredBoundary, LateLoweredBoundaryLowering,
+    LateLoweredBoundarySource, LateLoweredCallable, LateLoweredCompleteStepDispatch,
+    LateLoweredContinuationCapture, LateLoweredContinuationMethod, LateLoweredContinuationObject,
+    LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
+    LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
+    LateLoweredOneShotPolicy, LateLoweredProgram, LateLoweredResumeInterface,
+    LateLoweredResumeMethod, LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph,
+    LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
+    LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
+    LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 
 /// 渲染 late-lowered program 的稳定文本格式。
@@ -137,6 +139,12 @@ fn render_resume_interface(rendered: &mut String, interface: &LateLoweredResumeI
     .unwrap();
     writeln!(
         rendered,
+        "      effect_family: {}",
+        render_effect_family_key(interface.effect_family())
+    )
+    .unwrap();
+    writeln!(
+        rendered,
         "      return_step_schema: s{}",
         interface.return_step_schema().as_u32()
     )
@@ -199,6 +207,14 @@ fn render_continuation_object(rendered: &mut String, object: &LateLoweredContinu
             writeln!(rendered, "        - {}", render_capture(*capture)).unwrap();
         }
     }
+    writeln!(rendered, "      surface_resumes:").unwrap();
+    if object.surface_resumes().is_empty() {
+        writeln!(rendered, "        <none>").unwrap();
+    } else {
+        for surface_resume in object.surface_resumes() {
+            render_surface_resume(rendered, surface_resume);
+        }
+    }
     writeln!(rendered, "      methods:").unwrap();
     if object.methods().is_empty() {
         writeln!(rendered, "        <none>").unwrap();
@@ -212,7 +228,7 @@ fn render_continuation_object(rendered: &mut String, object: &LateLoweredContinu
 fn render_continuation_method(rendered: &mut String, method: &LateLoweredContinuationMethod) {
     writeln!(
         rendered,
-        "        - ri{}::c{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} => {}",
+        "        - ri{}::c{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} concrete_op={} => {}",
         method.interface_id().as_u32(),
         method.case_tag().as_u32(),
         render_type_id(method.resume_tuple_ty()),
@@ -220,7 +236,27 @@ fn render_continuation_method(rendered: &mut String, method: &LateLoweredContinu
         render_type_id(method.surface_ty()),
         method.out_step_schema().as_u32(),
         method.continuation_schema().as_u32(),
-        render_method_reachability(method.reachability()),
+        render_concrete_op_key(method.concrete_op_key()),
+        render_continuation_resume_body(method.body()),
+    )
+    .unwrap();
+}
+
+fn render_surface_resume(
+    rendered: &mut String,
+    surface_resume: &LateLoweredContinuationSurfaceResume,
+) {
+    writeln!(
+        rendered,
+        "        - c{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} concrete_op={} => {}",
+        surface_resume.case_tag().as_u32(),
+        render_type_id(surface_resume.resume_tuple_ty()),
+        render_type_id(surface_resume.answer_ty()),
+        render_type_id(surface_resume.surface_ty()),
+        surface_resume.out_step_schema().as_u32(),
+        surface_resume.continuation_schema().as_u32(),
+        render_concrete_op_key(surface_resume.concrete_op_key()),
+        render_continuation_resume_body(surface_resume.body()),
     )
     .unwrap();
 }
@@ -247,9 +283,11 @@ fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
     .unwrap();
     writeln!(
         rendered,
-        "      dynamic_invoke_entry: invoke({}) -> s{}",
+        "      dynamic_invoke_entry: invoke({}) -> s{} entry=st{} complete=st{}",
         render_type_id(callable.dynamic_invoke_entry().invoke_args_tuple_ty()),
         callable.dynamic_invoke_entry().step_schema().as_u32(),
+        callable.dynamic_invoke_entry().entry_state().as_u32(),
+        callable.dynamic_invoke_entry().complete_state().as_u32(),
     )
     .unwrap();
     render_state_graph(rendered, callable.state_graph());
@@ -383,6 +421,9 @@ fn render_boundary_map(rendered: &mut String, boundaries: &[LateLoweredBoundary]
             boundary.resume_state().as_u32(),
         )
         .unwrap();
+        if let Some(lowering) = boundary.lowering() {
+            render_boundary_lowering(rendered, lowering);
+        }
     }
 }
 
@@ -401,6 +442,168 @@ fn render_resume_state_map(rendered: &mut String, resume_state_map: &LateLowered
         )
         .unwrap();
     }
+}
+
+fn render_boundary_lowering(rendered: &mut String, lowering: &LateLoweredBoundaryLowering) {
+    match lowering {
+        LateLoweredBoundaryLowering::Call(lowering) => {
+            writeln!(
+                rendered,
+                "          lowering: Call kind={:?} target_mode={:?} callee_step=s{} result=local{} target={}",
+                lowering.facts().kind(),
+                lowering.facts().target_mode(),
+                lowering.facts().callee_schema().as_u32(),
+                lowering.result_local().as_u32(),
+                render_call_target(lowering.facts().target()),
+            )
+            .unwrap();
+            render_step_dispatch_plan(rendered, lowering.dispatch());
+        }
+        LateLoweredBoundaryLowering::Perform(lowering) => {
+            writeln!(
+                rendered,
+                "          lowering: Perform emitted_case=c{} captured_cont_schema=k{} payload_tuple_ty={}",
+                lowering.facts().emitted_case().as_u32(),
+                lowering.facts().captured_cont_schema().as_u32(),
+                render_type_id(lowering.facts().payload_tuple_ty()),
+            )
+            .unwrap();
+            render_step_case_emission(rendered, lowering.emitted_step());
+        }
+        LateLoweredBoundaryLowering::Resume(lowering) => {
+            writeln!(
+                rendered,
+                "          lowering: Resume continuation_schema=k{} out_step_schema=s{} result=local{} runtime_error_boundary=bd{}",
+                lowering.facts().continuation_schema().as_u32(),
+                lowering.facts().out_step_schema().as_u32(),
+                lowering.result_local().as_u32(),
+                lowering.runtime_error_boundary().as_u32(),
+            )
+            .unwrap();
+            render_step_dispatch_plan(rendered, lowering.dispatch());
+        }
+        LateLoweredBoundaryLowering::RuntimeError(lowering) => {
+            writeln!(
+                rendered,
+                "          lowering: RuntimeError origin=site{} paired_resume=bd{}",
+                lowering.origin_site().as_u32(),
+                lowering.resume_boundary().as_u32(),
+            )
+            .unwrap();
+            render_step_case_emission(rendered, lowering.emitted_step());
+        }
+        LateLoweredBoundaryLowering::Handle(lowering) => {
+            writeln!(
+                rendered,
+                "          lowering: Handle result_ty={} classification={:?} handled={} body_outward={} finally_outward={}",
+                render_type_id(lowering.facts().result_ty()),
+                lowering.facts().nested_handle_classification(),
+                render_cases(lowering.facts().handled_cases().tags()),
+                render_cases(lowering.facts().body_outward_cases().tags()),
+                render_cases(lowering.facts().finally_outward_cases().tags()),
+            )
+            .unwrap();
+            writeln!(rendered, "            arm_outward_cases:").unwrap();
+            if lowering.facts().arm_facts().is_empty() {
+                writeln!(rendered, "              <none>").unwrap();
+            } else {
+                for arm in lowering.facts().arm_facts() {
+                    writeln!(
+                        rendered,
+                        "              - handled=c{} continuation_schema=k{} outward={}",
+                        arm.handled_case().as_u32(),
+                        arm.continuation_schema().as_u32(),
+                        render_cases(arm.arm_outward_cases().tags()),
+                    )
+                    .unwrap();
+                }
+            }
+            writeln!(rendered, "            outward_emissions:").unwrap();
+            if lowering.outward_emissions().is_empty() {
+                writeln!(rendered, "              <none>").unwrap();
+            } else {
+                for emission in lowering.outward_emissions() {
+                    render_step_case_emission(rendered, emission);
+                }
+            }
+        }
+    }
+}
+
+fn render_step_dispatch_plan(rendered: &mut String, dispatch: &LateLoweredStepDispatchPlan) {
+    writeln!(
+        rendered,
+        "            dispatch_input_step_schema: s{}",
+        dispatch.input_step_schema().as_u32()
+    )
+    .unwrap();
+    render_complete_step_dispatch(rendered, dispatch.complete());
+    writeln!(rendered, "            outward_cases:").unwrap();
+    if dispatch.outward_cases().is_empty() {
+        writeln!(rendered, "              <none>").unwrap();
+    } else {
+        for forwarding in dispatch.outward_cases() {
+            render_step_case_forwarding(rendered, forwarding);
+        }
+    }
+}
+
+fn render_complete_step_dispatch(
+    rendered: &mut String,
+    complete: &LateLoweredCompleteStepDispatch,
+) {
+    writeln!(
+        rendered,
+        "            complete: answer_ty={} target=st{} result={}",
+        render_type_id(complete.answer_ty()),
+        complete.target_state().as_u32(),
+        complete
+            .result_local()
+            .map(|local| format!("local{}", local.as_u32()))
+            .unwrap_or_else(|| "<none>".to_string()),
+    )
+    .unwrap();
+}
+
+fn render_step_case_forwarding(rendered: &mut String, forwarding: &LateLoweredStepCaseForwarding) {
+    writeln!(
+        rendered,
+        "              - in c{} op={} -> out c{} op={} payload_tuple_ty={} ko{} cont_schema=k{} out_step_schema=s{}",
+        forwarding.input_case_tag().as_u32(),
+        render_concrete_op_key(forwarding.input_concrete_op_key()),
+        forwarding.emission().case_tag().as_u32(),
+        render_concrete_op_key(forwarding.emission().concrete_op_key()),
+        render_type_id(forwarding.emission().payload_tuple_ty()),
+        forwarding.emission().continuation_object().as_u32(),
+        forwarding
+            .emission()
+            .continuation_contract()
+            .continuation_schema()
+            .as_u32(),
+        forwarding
+            .emission()
+            .continuation_contract()
+            .out_step_schema()
+            .as_u32(),
+    )
+    .unwrap();
+}
+
+fn render_step_case_emission(rendered: &mut String, emission: &LateLoweredStepCaseEmission) {
+    writeln!(
+        rendered,
+        "            emit: c{} op={} payload_tuple_ty={} ko{} cont_schema=k{} out_step_schema=s{}",
+        emission.case_tag().as_u32(),
+        render_concrete_op_key(emission.concrete_op_key()),
+        render_type_id(emission.payload_tuple_ty()),
+        emission.continuation_object().as_u32(),
+        emission
+            .continuation_contract()
+            .continuation_schema()
+            .as_u32(),
+        emission.continuation_contract().out_step_schema().as_u32(),
+    )
+    .unwrap();
 }
 
 fn render_body_version_key(key: &LateLoweredBodyVersionKey) -> String {
@@ -436,6 +639,39 @@ fn render_concrete_op_key(key: &ConcreteOpKey) -> String {
     render_instance_key(key.instance_key())
 }
 
+fn render_effect_family_key(key: &EffectFamilyKey) -> String {
+    if key.type_args().is_empty() {
+        return key.effect_fqn().to_string();
+    }
+    format!(
+        "{}<{}>",
+        key.effect_fqn(),
+        key.type_args()
+            .iter()
+            .copied()
+            .map(render_type_id)
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
+fn render_call_target(target: &crate::effect_facts::CallSiteTarget) -> String {
+    match target {
+        crate::effect_facts::CallSiteTarget::KnownInstance(instance) => {
+            render_instance_key(instance)
+        }
+        crate::effect_facts::CallSiteTarget::CandidateSet(instances) => format!(
+            "[{}]",
+            instances
+                .iter()
+                .map(render_instance_key)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        crate::effect_facts::CallSiteTarget::DynamicFallback => "DynamicFallback".to_string(),
+    }
+}
+
 fn render_resume_interface_ids(interface_ids: &[ResumeInterfaceId]) -> String {
     if interface_ids.is_empty() {
         return "[]".to_string();
@@ -459,12 +695,21 @@ fn render_capture(capture: LateLoweredContinuationCapture) -> String {
     }
 }
 
-fn render_method_reachability(
-    reachability: LateLoweredContinuationMethodReachability,
-) -> &'static str {
-    match reachability {
-        LateLoweredContinuationMethodReachability::Reachable => "reachable",
-        LateLoweredContinuationMethodReachability::Unreachable => "unreachable",
+fn render_continuation_resume_body(body: LateLoweredContinuationResumeBody) -> String {
+    match body {
+        LateLoweredContinuationResumeBody::ResumeCapturedState { repeated_resume } => {
+            format!(
+                "ResumeCapturedState(one_shot={})",
+                render_one_shot_policy(repeated_resume)
+            )
+        }
+        LateLoweredContinuationResumeBody::Unreachable => "Unreachable".to_string(),
+    }
+}
+
+fn render_one_shot_policy(policy: LateLoweredOneShotPolicy) -> &'static str {
+    match policy {
+        LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward => "RuntimeErrorOutward",
     }
 }
 

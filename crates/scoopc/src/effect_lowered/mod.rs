@@ -2,10 +2,11 @@
 //!
 //! P5-T01 在这里先固定独立边界。当前仓库中的实际模块路径与 TODO 推荐拆分的映射如下：
 //! - `ir.rs` 对应 late-lowered IR 容器；
-//! - `builder.rs` 负责把 canonical MIR snapshot + `MaterializedEffectFacts` 组装成初始
-//!   `LateLoweredProgram`，当前承接了 TODO 推荐 `materialize.rs` 的最小职责；
+//! - `builder.rs` 负责编排 canonical MIR snapshot + `MaterializedEffectFacts` 的整体组装；
 //! - `segment.rs` 承接 TODO 推荐的 whole-function segmentation / boundary 选择骨架；
 //! - `frame.rs` 承接 TODO 推荐的 frame lifting 与显式控制流合同补全；
+//! - `materialize.rs` 承接 TODO 推荐的 `materialize.rs` 职责：物化 `Step_F`、dynamic
+//!   `invoke`、continuation object、resume interfaces 与 boundary lowering contract；
 //! - `dump.rs` 提供稳定 formatter；
 //! - TODO 推荐的 `opt.rs` 会在后续 P5 任务里补入；当前不提前伪造空壳。
 
@@ -13,6 +14,7 @@ pub(crate) mod builder;
 pub mod dump;
 pub(crate) mod frame;
 pub mod ir;
+pub(crate) mod materialize;
 pub(crate) mod segment;
 
 pub(crate) use builder::LateLoweredProgramBuilder;
@@ -102,6 +104,80 @@ pub enum EffectLoweringError {
     UnboundBoundary {
         root_fqn: String,
         description: String,
+    },
+
+    #[error(
+        "refactor late-lowering stage 在 StepSchema s{step_schema} 上找不到 effect family `{effect_fqn}` 对应的 resume interface"
+    )]
+    MissingResumeInterfaceFamily {
+        step_schema: u32,
+        effect_fqn: String,
+    },
+
+    #[error(
+        "refactor late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上找不到 `{kind}` boundary 对应的结果 local"
+    )]
+    MissingBoundaryResultLocal {
+        root_fqn: String,
+        site_id: u32,
+        kind: &'static str,
+    },
+
+    #[error(
+        "refactor late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到配对的 runtime-error boundary"
+    )]
+    MissingPairedRuntimeErrorBoundary { root_fqn: String, site_id: u32 },
+
+    #[error(
+        "refactor late-lowering stage 在 `{root_fqn}` 的 runtime-error site{site_id} 上找不到配对的 resume boundary"
+    )]
+    MissingPairedResumeBoundary { root_fqn: String, site_id: u32 },
+
+    #[error(
+        "refactor late-lowering stage 在 `{root_fqn}` 的 StepSchema s{step_schema} 上找不到 case c{case_tag}"
+    )]
+    MissingInputStepCase {
+        root_fqn: String,
+        step_schema: u32,
+        case_tag: u32,
+    },
+
+    #[error(
+        "refactor late-lowering stage 无法把 `{concrete_op}` 从 input StepSchema s{input_step_schema} 投影到 output StepSchema s{output_step_schema}` 上"
+    )]
+    MissingProjectedStepCase {
+        root_fqn: String,
+        input_step_schema: u32,
+        output_step_schema: u32,
+        concrete_op: String,
+    },
+
+    #[error(
+        "refactor late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到 MIR resume metadata"
+    )]
+    MissingResumeSiteMetadata { root_fqn: String, site_id: u32 },
+
+    #[error(
+        "refactor late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到 runtime-error effect 身份"
+    )]
+    MissingResumeRuntimeErrorEffect { root_fqn: String, site_id: u32 },
+
+    #[error(
+        "refactor late-lowering stage 无法把 `{root_fqn}` 的 site{site_id} 上的 t{ty} 解释成稳定 effect family"
+    )]
+    UnsupportedEffectFamilyType {
+        root_fqn: String,
+        site_id: u32,
+        ty: u32,
+    },
+
+    #[error(
+        "refactor late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 的 out StepSchema s{step_schema} 上找不到 runtime-error case"
+    )]
+    MissingRuntimeErrorCaseInResumeStep {
+        root_fqn: String,
+        site_id: u32,
+        step_schema: u32,
     },
 
     #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]

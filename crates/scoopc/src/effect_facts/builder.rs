@@ -1708,15 +1708,21 @@ impl EffectFactsTypeContext {
         };
 
         Ok(ConcreteEffectOpContract {
-            concrete_op_key: ConcreteOpKey::new(InstanceKey {
-                template: TemplateKey {
-                    fqn: op_fqn.to_string(),
-                    source_path: op.symbol.decl_file.clone(),
-                    decl_span: op.symbol.span,
+            concrete_op_key: ConcreteOpKey::new(
+                InstanceKey {
+                    template: TemplateKey {
+                        fqn: op_fqn.to_string(),
+                        source_path: op.symbol.decl_file.clone(),
+                        decl_span: op.symbol.span,
+                    },
+                    type_args: concrete_key_type_args,
+                    eff_args: Vec::new(),
                 },
-                type_args: concrete_key_type_args,
-                eff_args: Vec::new(),
-            }),
+                crate::effect_facts::EffectFamilyKey::new(
+                    effect_fqn.to_string(),
+                    effect_type_args.to_vec(),
+                ),
+            ),
             payload_tuple_ty: canonical_tuple_carrier_ty(types, &payload_component_tys),
             resume_tuple_ty,
         })

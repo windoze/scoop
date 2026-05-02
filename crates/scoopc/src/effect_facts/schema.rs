@@ -47,18 +47,49 @@ impl CaseTag {
 ///
 /// 底层仍直接复用现有 `InstanceKey` 形状，但通过语义 newtype 避免后续阶段把它当成“普通
 /// callable instance key”裸露出去。
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct EffectFamilyKey {
+    effect_fqn: String,
+    type_args: Vec<TypeId>,
+}
+
+impl EffectFamilyKey {
+    pub fn new(effect_fqn: String, type_args: Vec<TypeId>) -> Self {
+        Self {
+            effect_fqn,
+            type_args,
+        }
+    }
+
+    pub fn effect_fqn(&self) -> &str {
+        &self.effect_fqn
+    }
+
+    pub fn type_args(&self) -> &[TypeId] {
+        &self.type_args
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConcreteOpKey {
     instance: InstanceKey,
+    effect_family: EffectFamilyKey,
 }
 
 impl ConcreteOpKey {
-    pub fn new(instance: InstanceKey) -> Self {
-        Self { instance }
+    pub fn new(instance: InstanceKey, effect_family: EffectFamilyKey) -> Self {
+        Self {
+            instance,
+            effect_family,
+        }
     }
 
     pub fn instance_key(&self) -> &InstanceKey {
         &self.instance
+    }
+
+    pub fn effect_family(&self) -> &EffectFamilyKey {
+        &self.effect_family
     }
 }
 

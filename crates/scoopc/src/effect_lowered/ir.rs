@@ -1,4 +1,7 @@
-use crate::effect_facts::{CaseTag, ConcreteOpKey, ContinuationSchemaId, ImplPlan, StepSchemaId};
+use crate::effect_facts::{
+    CallSiteEffectFacts, CaseTag, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey,
+    HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
+};
 use crate::mir::{BasicBlockId, InstanceKey, LocalId, SiteId};
 use crate::ty::{EffectRow, TypeId};
 
@@ -264,13 +267,22 @@ impl LateLoweredCallable {
 pub struct LateLoweredDynamicInvokeEntry {
     invoke_args_tuple_ty: TypeId,
     step_schema: StepSchemaId,
+    entry_state: StateId,
+    complete_state: StateId,
 }
 
 impl LateLoweredDynamicInvokeEntry {
-    pub(crate) fn new(invoke_args_tuple_ty: TypeId, step_schema: StepSchemaId) -> Self {
+    pub(crate) fn new(
+        invoke_args_tuple_ty: TypeId,
+        step_schema: StepSchemaId,
+        entry_state: StateId,
+        complete_state: StateId,
+    ) -> Self {
         Self {
             invoke_args_tuple_ty,
             step_schema,
+            entry_state,
+            complete_state,
         }
     }
 
@@ -280,6 +292,14 @@ impl LateLoweredDynamicInvokeEntry {
 
     pub fn step_schema(&self) -> StepSchemaId {
         self.step_schema
+    }
+
+    pub fn entry_state(&self) -> StateId {
+        self.entry_state
+    }
+
+    pub fn complete_state(&self) -> StateId {
+        self.complete_state
     }
 }
 
@@ -328,6 +348,10 @@ impl LateLoweredStepType {
 
     pub fn cases(&self) -> &[LateLoweredStepCase] {
         &self.cases
+    }
+
+    pub fn case(&self, case_tag: CaseTag) -> Option<&LateLoweredStepCase> {
+        self.cases.iter().find(|case| case.case_tag() == case_tag)
     }
 }
 
@@ -463,6 +487,7 @@ impl ResumeInterfaceId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredResumeInterface {
     interface_id: ResumeInterfaceId,
+    effect_family: EffectFamilyKey,
     return_step_schema: StepSchemaId,
     methods: Vec<LateLoweredResumeMethod>,
 }
@@ -470,11 +495,13 @@ pub struct LateLoweredResumeInterface {
 impl LateLoweredResumeInterface {
     pub(crate) fn new(
         interface_id: ResumeInterfaceId,
+        effect_family: EffectFamilyKey,
         return_step_schema: StepSchemaId,
         methods: Vec<LateLoweredResumeMethod>,
     ) -> Self {
         Self {
             interface_id,
+            effect_family,
             return_step_schema,
             methods,
         }
@@ -482,6 +509,10 @@ impl LateLoweredResumeInterface {
 
     pub fn interface_id(&self) -> ResumeInterfaceId {
         self.interface_id
+    }
+
+    pub fn effect_family(&self) -> &EffectFamilyKey {
+        &self.effect_family
     }
 
     pub fn return_step_schema(&self) -> StepSchemaId {
@@ -569,6 +600,7 @@ pub struct LateLoweredContinuationObject {
     continuation_obj_ty: TypeId,
     implemented_interfaces: Vec<ResumeInterfaceId>,
     captures: Vec<LateLoweredContinuationCapture>,
+    surface_resumes: Vec<LateLoweredContinuationSurfaceResume>,
     methods: Vec<LateLoweredContinuationMethod>,
 }
 
@@ -579,6 +611,7 @@ impl LateLoweredContinuationObject {
         continuation_obj_ty: TypeId,
         implemented_interfaces: Vec<ResumeInterfaceId>,
         captures: Vec<LateLoweredContinuationCapture>,
+        surface_resumes: Vec<LateLoweredContinuationSurfaceResume>,
         methods: Vec<LateLoweredContinuationMethod>,
     ) -> Self {
         Self {
@@ -587,6 +620,7 @@ impl LateLoweredContinuationObject {
             continuation_obj_ty,
             implemented_interfaces,
             captures,
+            surface_resumes,
             methods,
         }
     }
@@ -611,6 +645,10 @@ impl LateLoweredContinuationObject {
         &self.captures
     }
 
+    pub fn surface_resumes(&self) -> &[LateLoweredContinuationSurfaceResume] {
+        &self.surface_resumes
+    }
+
     pub fn methods(&self) -> &[LateLoweredContinuationMethod] {
         &self.methods
     }
@@ -630,36 +668,50 @@ pub enum LateLoweredContinuationMethodReachability {
     Unreachable,
 }
 
-/// continuation method shell。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LateLoweredContinuationMethod {
-    interface_id: ResumeInterfaceId,
-    case_tag: CaseTag,
-    continuation_contract: LateLoweredContinuationContract,
-    reachability: LateLoweredContinuationMethodReachability,
+/// continuation `resume(...)` / `k.op$ret(...)` 的显式 body kind。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredOneShotPolicy {
+    OrdinaryRuntimeErrorOutward,
 }
 
-impl LateLoweredContinuationMethod {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredContinuationResumeBody {
+    ResumeCapturedState {
+        repeated_resume: LateLoweredOneShotPolicy,
+    },
+    Unreachable,
+}
+
+/// continuation source-visible `resume(...) -> Step_F` 合同壳层。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredContinuationSurfaceResume {
+    case_tag: CaseTag,
+    concrete_op_key: ConcreteOpKey,
+    continuation_contract: LateLoweredContinuationContract,
+    body: LateLoweredContinuationResumeBody,
+}
+
+impl LateLoweredContinuationSurfaceResume {
     pub(crate) fn new(
-        interface_id: ResumeInterfaceId,
         case_tag: CaseTag,
+        concrete_op_key: ConcreteOpKey,
         continuation_contract: LateLoweredContinuationContract,
-        reachability: LateLoweredContinuationMethodReachability,
+        body: LateLoweredContinuationResumeBody,
     ) -> Self {
         Self {
-            interface_id,
             case_tag,
+            concrete_op_key,
             continuation_contract,
-            reachability,
+            body,
         }
-    }
-
-    pub fn interface_id(&self) -> ResumeInterfaceId {
-        self.interface_id
     }
 
     pub fn case_tag(&self) -> CaseTag {
         self.case_tag
+    }
+
+    pub fn concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.concrete_op_key
     }
 
     pub fn continuation_schema(&self) -> ContinuationSchemaId {
@@ -686,8 +738,98 @@ impl LateLoweredContinuationMethod {
         self.continuation_contract
     }
 
+    pub fn body(&self) -> LateLoweredContinuationResumeBody {
+        self.body
+    }
+
     pub fn reachability(&self) -> LateLoweredContinuationMethodReachability {
-        self.reachability
+        match self.body {
+            LateLoweredContinuationResumeBody::ResumeCapturedState { .. } => {
+                LateLoweredContinuationMethodReachability::Reachable
+            }
+            LateLoweredContinuationResumeBody::Unreachable => {
+                LateLoweredContinuationMethodReachability::Unreachable
+            }
+        }
+    }
+}
+
+/// continuation method shell。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredContinuationMethod {
+    interface_id: ResumeInterfaceId,
+    case_tag: CaseTag,
+    concrete_op_key: ConcreteOpKey,
+    continuation_contract: LateLoweredContinuationContract,
+    body: LateLoweredContinuationResumeBody,
+}
+
+impl LateLoweredContinuationMethod {
+    pub(crate) fn new(
+        interface_id: ResumeInterfaceId,
+        case_tag: CaseTag,
+        concrete_op_key: ConcreteOpKey,
+        continuation_contract: LateLoweredContinuationContract,
+        body: LateLoweredContinuationResumeBody,
+    ) -> Self {
+        Self {
+            interface_id,
+            case_tag,
+            concrete_op_key,
+            continuation_contract,
+            body,
+        }
+    }
+
+    pub fn interface_id(&self) -> ResumeInterfaceId {
+        self.interface_id
+    }
+
+    pub fn case_tag(&self) -> CaseTag {
+        self.case_tag
+    }
+
+    pub fn concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.concrete_op_key
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_contract.continuation_schema()
+    }
+
+    pub fn resume_tuple_ty(&self) -> TypeId {
+        self.continuation_contract.resume_tuple_ty()
+    }
+
+    pub fn answer_ty(&self) -> TypeId {
+        self.continuation_contract.answer_ty()
+    }
+
+    pub fn out_step_schema(&self) -> StepSchemaId {
+        self.continuation_contract.out_step_schema()
+    }
+
+    pub fn surface_ty(&self) -> TypeId {
+        self.continuation_contract.surface_ty()
+    }
+
+    pub fn continuation_contract(&self) -> LateLoweredContinuationContract {
+        self.continuation_contract
+    }
+
+    pub fn body(&self) -> LateLoweredContinuationResumeBody {
+        self.body
+    }
+
+    pub fn reachability(&self) -> LateLoweredContinuationMethodReachability {
+        match self.body {
+            LateLoweredContinuationResumeBody::ResumeCapturedState { .. } => {
+                LateLoweredContinuationMethodReachability::Reachable
+            }
+            LateLoweredContinuationResumeBody::Unreachable => {
+                LateLoweredContinuationMethodReachability::Unreachable
+            }
+        }
     }
 }
 
@@ -1070,6 +1212,320 @@ pub enum LateLoweredBoundarySource {
     },
 }
 
+/// 构造 outward `Step_F` case 的显式 P5 contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredStepCaseEmission {
+    case_tag: CaseTag,
+    concrete_op_key: ConcreteOpKey,
+    payload_tuple_ty: TypeId,
+    continuation_contract: LateLoweredContinuationContract,
+    continuation_object: ContinuationObjectId,
+}
+
+impl LateLoweredStepCaseEmission {
+    pub(crate) fn new(
+        case_tag: CaseTag,
+        concrete_op_key: ConcreteOpKey,
+        payload_tuple_ty: TypeId,
+        continuation_contract: LateLoweredContinuationContract,
+        continuation_object: ContinuationObjectId,
+    ) -> Self {
+        Self {
+            case_tag,
+            concrete_op_key,
+            payload_tuple_ty,
+            continuation_contract,
+            continuation_object,
+        }
+    }
+
+    pub fn case_tag(&self) -> CaseTag {
+        self.case_tag
+    }
+
+    pub fn concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.concrete_op_key
+    }
+
+    pub fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+
+    pub fn continuation_contract(&self) -> LateLoweredContinuationContract {
+        self.continuation_contract
+    }
+
+    pub fn continuation_object(&self) -> ContinuationObjectId {
+        self.continuation_object
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredCompleteStepDispatch {
+    answer_ty: TypeId,
+    target_state: StateId,
+    result_local: Option<LocalId>,
+}
+
+impl LateLoweredCompleteStepDispatch {
+    pub(crate) fn new(
+        answer_ty: TypeId,
+        target_state: StateId,
+        result_local: Option<LocalId>,
+    ) -> Self {
+        Self {
+            answer_ty,
+            target_state,
+            result_local,
+        }
+    }
+
+    pub fn answer_ty(&self) -> TypeId {
+        self.answer_ty
+    }
+
+    pub fn target_state(&self) -> StateId {
+        self.target_state
+    }
+
+    pub fn result_local(&self) -> Option<LocalId> {
+        self.result_local
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredStepCaseForwarding {
+    input_case_tag: CaseTag,
+    input_concrete_op_key: ConcreteOpKey,
+    emission: LateLoweredStepCaseEmission,
+}
+
+impl LateLoweredStepCaseForwarding {
+    pub(crate) fn new(
+        input_case_tag: CaseTag,
+        input_concrete_op_key: ConcreteOpKey,
+        emission: LateLoweredStepCaseEmission,
+    ) -> Self {
+        Self {
+            input_case_tag,
+            input_concrete_op_key,
+            emission,
+        }
+    }
+
+    pub fn input_case_tag(&self) -> CaseTag {
+        self.input_case_tag
+    }
+
+    pub fn input_concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.input_concrete_op_key
+    }
+
+    pub fn emission(&self) -> &LateLoweredStepCaseEmission {
+        &self.emission
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredStepDispatchPlan {
+    input_step_schema: StepSchemaId,
+    complete: LateLoweredCompleteStepDispatch,
+    outward_cases: Vec<LateLoweredStepCaseForwarding>,
+}
+
+impl LateLoweredStepDispatchPlan {
+    pub(crate) fn new(
+        input_step_schema: StepSchemaId,
+        complete: LateLoweredCompleteStepDispatch,
+        outward_cases: Vec<LateLoweredStepCaseForwarding>,
+    ) -> Self {
+        Self {
+            input_step_schema,
+            complete,
+            outward_cases,
+        }
+    }
+
+    pub fn input_step_schema(&self) -> StepSchemaId {
+        self.input_step_schema
+    }
+
+    pub fn complete(&self) -> &LateLoweredCompleteStepDispatch {
+        &self.complete
+    }
+
+    pub fn outward_cases(&self) -> &[LateLoweredStepCaseForwarding] {
+        &self.outward_cases
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredCallBoundaryLowering {
+    facts: CallSiteEffectFacts,
+    result_local: LocalId,
+    dispatch: LateLoweredStepDispatchPlan,
+}
+
+impl LateLoweredCallBoundaryLowering {
+    pub(crate) fn new(
+        facts: CallSiteEffectFacts,
+        result_local: LocalId,
+        dispatch: LateLoweredStepDispatchPlan,
+    ) -> Self {
+        Self {
+            facts,
+            result_local,
+            dispatch,
+        }
+    }
+
+    pub fn facts(&self) -> &CallSiteEffectFacts {
+        &self.facts
+    }
+
+    pub fn result_local(&self) -> LocalId {
+        self.result_local
+    }
+
+    pub fn dispatch(&self) -> &LateLoweredStepDispatchPlan {
+        &self.dispatch
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredPerformBoundaryLowering {
+    facts: PerformSiteEffectFacts,
+    emitted_step: LateLoweredStepCaseEmission,
+}
+
+impl LateLoweredPerformBoundaryLowering {
+    pub(crate) fn new(
+        facts: PerformSiteEffectFacts,
+        emitted_step: LateLoweredStepCaseEmission,
+    ) -> Self {
+        Self {
+            facts,
+            emitted_step,
+        }
+    }
+
+    pub fn facts(&self) -> &PerformSiteEffectFacts {
+        &self.facts
+    }
+
+    pub fn emitted_step(&self) -> &LateLoweredStepCaseEmission {
+        &self.emitted_step
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredResumeBoundaryLowering {
+    facts: ResumeSiteEffectFacts,
+    result_local: LocalId,
+    runtime_error_boundary: BoundaryId,
+    dispatch: LateLoweredStepDispatchPlan,
+}
+
+impl LateLoweredResumeBoundaryLowering {
+    pub(crate) fn new(
+        facts: ResumeSiteEffectFacts,
+        result_local: LocalId,
+        runtime_error_boundary: BoundaryId,
+        dispatch: LateLoweredStepDispatchPlan,
+    ) -> Self {
+        Self {
+            facts,
+            result_local,
+            runtime_error_boundary,
+            dispatch,
+        }
+    }
+
+    pub fn facts(&self) -> &ResumeSiteEffectFacts {
+        &self.facts
+    }
+
+    pub fn result_local(&self) -> LocalId {
+        self.result_local
+    }
+
+    pub fn runtime_error_boundary(&self) -> BoundaryId {
+        self.runtime_error_boundary
+    }
+
+    pub fn dispatch(&self) -> &LateLoweredStepDispatchPlan {
+        &self.dispatch
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredRuntimeErrorBoundaryLowering {
+    origin_site: SiteId,
+    resume_boundary: BoundaryId,
+    emitted_step: LateLoweredStepCaseEmission,
+}
+
+impl LateLoweredRuntimeErrorBoundaryLowering {
+    pub(crate) fn new(
+        origin_site: SiteId,
+        resume_boundary: BoundaryId,
+        emitted_step: LateLoweredStepCaseEmission,
+    ) -> Self {
+        Self {
+            origin_site,
+            resume_boundary,
+            emitted_step,
+        }
+    }
+
+    pub fn origin_site(&self) -> SiteId {
+        self.origin_site
+    }
+
+    pub fn resume_boundary(&self) -> BoundaryId {
+        self.resume_boundary
+    }
+
+    pub fn emitted_step(&self) -> &LateLoweredStepCaseEmission {
+        &self.emitted_step
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredHandleBoundaryLowering {
+    facts: HandleSiteEffectFacts,
+    outward_emissions: Vec<LateLoweredStepCaseEmission>,
+}
+
+impl LateLoweredHandleBoundaryLowering {
+    pub(crate) fn new(
+        facts: HandleSiteEffectFacts,
+        outward_emissions: Vec<LateLoweredStepCaseEmission>,
+    ) -> Self {
+        Self {
+            facts,
+            outward_emissions,
+        }
+    }
+
+    pub fn facts(&self) -> &HandleSiteEffectFacts {
+        &self.facts
+    }
+
+    pub fn outward_emissions(&self) -> &[LateLoweredStepCaseEmission] {
+        &self.outward_emissions
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LateLoweredBoundaryLowering {
+    Call(LateLoweredCallBoundaryLowering),
+    Perform(LateLoweredPerformBoundaryLowering),
+    Resume(LateLoweredResumeBoundaryLowering),
+    RuntimeError(LateLoweredRuntimeErrorBoundaryLowering),
+    Handle(LateLoweredHandleBoundaryLowering),
+}
+
 /// boundary shell。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredBoundary {
@@ -1077,6 +1533,7 @@ pub struct LateLoweredBoundary {
     source: LateLoweredBoundarySource,
     owner_state: StateId,
     resume_state: StateId,
+    lowering: Option<LateLoweredBoundaryLowering>,
 }
 
 impl LateLoweredBoundary {
@@ -1091,7 +1548,13 @@ impl LateLoweredBoundary {
             source,
             owner_state,
             resume_state,
+            lowering: None,
         }
+    }
+
+    pub(crate) fn with_lowering(mut self, lowering: LateLoweredBoundaryLowering) -> Self {
+        self.lowering = Some(lowering);
+        self
     }
 
     pub fn boundary_id(&self) -> BoundaryId {
@@ -1108,6 +1571,10 @@ impl LateLoweredBoundary {
 
     pub fn resume_state(&self) -> StateId {
         self.resume_state
+    }
+
+    pub fn lowering(&self) -> Option<&LateLoweredBoundaryLowering> {
+        self.lowering.as_ref()
     }
 }
 
@@ -1355,6 +1822,8 @@ mod tests {
         let surface_ty0 = nominal_effect(&mut types, "sample.SurfaceContinuation0");
         let surface_ty1 = nominal_effect(&mut types, "sample.SurfaceContinuation1");
         let allowed_row = EffectRow::new(vec![nominal_effect(&mut types, "sample.Ping")]);
+        let ping_family =
+            crate::effect_facts::EffectFamilyKey::new("sample.Ping".to_string(), Vec::new());
 
         let step_schema = StepSchemaId::new(7);
         let case0 = CaseTag::new(0);
@@ -1384,13 +1853,16 @@ mod tests {
             vec![
                 LateLoweredStepCase::new(
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit")),
+                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
                     payload_tuple_ty,
                     contract0,
                 ),
                 LateLoweredStepCase::new(
                     case1,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.pong")),
+                    ConcreteOpKey::new(
+                        sample_instance_key("sample.Ping.pong"),
+                        ping_family.clone(),
+                    ),
                     builtins.unit,
                     contract1,
                 ),
@@ -1400,16 +1872,20 @@ mod tests {
         let interface_id = ResumeInterfaceId::new(0);
         let resume_interface = LateLoweredResumeInterface::new(
             interface_id,
+            ping_family.clone(),
             step_schema,
             vec![
                 LateLoweredResumeMethod::new(
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit")),
+                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
                     contract0,
                 ),
                 LateLoweredResumeMethod::new(
                     case1,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.pong")),
+                    ConcreteOpKey::new(
+                        sample_instance_key("sample.Ping.pong"),
+                        ping_family.clone(),
+                    ),
                     contract1,
                 ),
             ],
@@ -1450,17 +1926,43 @@ mod tests {
                 LateLoweredContinuationCapture::State(state2),
             ],
             vec![
+                LateLoweredContinuationSurfaceResume::new(
+                    case0,
+                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    contract0,
+                    LateLoweredContinuationResumeBody::ResumeCapturedState {
+                        repeated_resume: LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward,
+                    },
+                ),
+                LateLoweredContinuationSurfaceResume::new(
+                    case1,
+                    ConcreteOpKey::new(
+                        sample_instance_key("sample.Ping.pong"),
+                        ping_family.clone(),
+                    ),
+                    contract1,
+                    LateLoweredContinuationResumeBody::Unreachable,
+                ),
+            ],
+            vec![
                 LateLoweredContinuationMethod::new(
                     interface_id,
                     case0,
+                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
                     contract0,
-                    LateLoweredContinuationMethodReachability::Reachable,
+                    LateLoweredContinuationResumeBody::ResumeCapturedState {
+                        repeated_resume: LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward,
+                    },
                 ),
                 LateLoweredContinuationMethod::new(
                     interface_id,
                     case1,
+                    ConcreteOpKey::new(
+                        sample_instance_key("sample.Ping.pong"),
+                        ping_family.clone(),
+                    ),
                     contract1,
-                    LateLoweredContinuationMethodReachability::Unreachable,
+                    LateLoweredContinuationResumeBody::Unreachable,
                 ),
             ],
         );
@@ -1470,7 +1972,7 @@ mod tests {
             version_key,
             step_schema,
             vec![case0],
-            LateLoweredDynamicInvokeEntry::new(invoke_args_tuple_ty, step_schema),
+            LateLoweredDynamicInvokeEntry::new(invoke_args_tuple_ty, step_schema, state0, state1),
             LateLoweredStateGraph::new(
                 state0,
                 state1,
@@ -1746,6 +2248,7 @@ mod tests {
             resume_interface.return_step_schema(),
             callable.step_schema()
         );
+        assert_eq!(resume_interface.effect_family().effect_fqn(), "sample.Ping");
         assert_eq!(resume_interface.methods().len(), 2);
         assert_eq!(
             resume_interface.methods()[0].out_step_schema(),
@@ -1756,6 +2259,7 @@ mod tests {
             callable.resume_interfaces()
         );
         assert_eq!(continuation_object.methods().len(), 2);
+        assert_eq!(continuation_object.surface_resumes().len(), 2);
         assert_eq!(
             continuation_object.methods()[0].out_step_schema(),
             callable.step_schema()
@@ -1815,18 +2319,48 @@ mod tests {
         let continuation_object = program
             .continuation_object(leaf.continuation_object())
             .expect("callable 应能回查 continuation object shell");
-        let resume_interface = program
-            .resume_interface(leaf.resume_interfaces()[0])
-            .expect("callable 应能回查 resume interface shell");
+        let resume_interfaces = leaf
+            .resume_interfaces()
+            .iter()
+            .map(|interface_id| {
+                program
+                    .resume_interface(*interface_id)
+                    .expect("callable 应能回查 resume interface shell")
+            })
+            .collect::<Vec<_>>();
 
         assert_eq!(step_type.cases().len(), 2);
         assert!(matches!(leaf.impl_plan(), ImplPlan::SingleCase(_)));
-        assert_eq!(resume_interface.return_step_schema(), leaf.step_schema());
-        assert_eq!(resume_interface.methods().len(), step_type.cases().len());
+        assert_eq!(resume_interfaces.len(), 2);
+        assert!(
+            resume_interfaces
+                .iter()
+                .all(|interface| interface.return_step_schema() == leaf.step_schema())
+        );
+        assert_eq!(
+            resume_interfaces
+                .iter()
+                .map(|interface| interface.methods().len())
+                .sum::<usize>(),
+            step_type.cases().len()
+        );
         assert_eq!(continuation_object.methods().len(), step_type.cases().len());
+        assert_eq!(
+            continuation_object.surface_resumes().len(),
+            step_type.cases().len()
+        );
         assert_eq!(
             continuation_object.implemented_interfaces(),
             leaf.resume_interfaces(),
+        );
+        assert_eq!(
+            resume_interfaces
+                .iter()
+                .map(|interface| interface.effect_family().effect_fqn().to_string())
+                .collect::<BTreeSet<_>>(),
+            ["sample.Ping".to_string(), "scoop.core.Raise".to_string()]
+                .into_iter()
+                .collect()
         );
         assert_eq!(
             leaf.dynamic_invoke_entry().invoke_args_tuple_ty(),

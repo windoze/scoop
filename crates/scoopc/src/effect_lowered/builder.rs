@@ -1,6 +1,4 @@
-use std::collections::BTreeMap;
-
-use crate::effect_facts::{ImplPlan, MaterializedEffectFacts, StepSchema, StepSchemaId};
+use crate::effect_facts::MaterializedEffectFacts;
 use crate::mir::MaterializedMirPassView;
 use crate::ty::TypeStore;
 
@@ -8,11 +6,12 @@ use super::EffectLoweringError;
 use super::frame::{FrameBuildInputs, build_callable_frame};
 use super::ir::{
     ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
-    LateLoweredContinuationCapture, LateLoweredContinuationContract, LateLoweredContinuationMethod,
-    LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
-    LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredProgram,
-    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeStateMap,
-    LateLoweredStateGraph, LateLoweredStepCase, LateLoweredStepType, ResumeInterfaceId,
+    LateLoweredFrameSchema, LateLoweredProgram, LateLoweredResumeStateMap, LateLoweredStateGraph,
+};
+use super::materialize::{
+    BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs, StepMaterialization,
+    materialize_boundary_map, materialize_continuation_object, materialize_dynamic_invoke_entry,
+    materialize_step_and_resume_interfaces,
 };
 use super::segment::build_callable_segmentation;
 
@@ -41,23 +40,12 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         let effect_facts = self.effect_facts;
         let types = self.types;
 
-        let mut step_types = Vec::with_capacity(effect_facts.step_schemas().len());
-        let mut resume_interfaces = Vec::with_capacity(effect_facts.step_schemas().len());
-        let mut resume_interface_ids = BTreeMap::new();
-
-        for (index, (&step_schema_id, step_schema)) in
-            effect_facts.step_schemas().iter().enumerate()
-        {
-            let interface_id = ResumeInterfaceId::new(index as u32);
-            step_types.push(build_step_type(step_schema_id, step_schema, effect_facts)?);
-            resume_interfaces.push(build_resume_interface(
-                interface_id,
-                step_schema_id,
-                step_schema,
-                effect_facts,
-            )?);
-            resume_interface_ids.insert(step_schema_id, interface_id);
-        }
+        let StepMaterialization {
+            step_types,
+            resume_interfaces,
+            resume_interface_ids_by_step,
+            resume_interface_ids_by_group,
+        } = materialize_step_and_resume_interfaces(effect_facts)?;
 
         let mut continuation_objects = Vec::with_capacity(effect_facts.callable_facts().len());
         let mut callables = Vec::with_capacity(effect_facts.callable_facts().len());
@@ -96,9 +84,14 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 callable_facts.impl_plan(),
                 callable_facts.needs_reentry(),
             );
-            let resume_interface_id = *resume_interface_ids
+            let step_type = step_types
+                .iter()
+                .find(|step_type| step_type.step_schema() == step_schema_id)
+                .expect("every step schema should publish a canonical Step shell");
+            let resume_interface_ids = resume_interface_ids_by_step
                 .get(&step_schema_id)
-                .expect("every step schema should publish a resume interface shell");
+                .cloned()
+                .unwrap_or_default();
             let continuation_object_id =
                 ContinuationObjectId::new(continuation_objects.len() as u32);
             let (state_graph, frame_schema, continuation_captures, boundary_map, resume_state_map) =
@@ -140,30 +133,55 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                         LateLoweredResumeStateMap::empty(),
                     ),
                 };
-            continuation_objects.push(build_continuation_object(
-                continuation_object_id,
-                body_version_key.clone(),
-                step_schema_id,
-                step_schema,
-                resume_interface_id,
-                continuation_captures,
-                effect_facts,
+            let boundary_map = match family.root_body().and_then(|fun| fun.body.as_ref()) {
+                Some(body) => {
+                    let body_facts = effect_facts.body(family.key()).ok_or_else(|| {
+                        EffectLoweringError::MissingBodyFacts {
+                            root_fqn: root_fqn.clone(),
+                        }
+                    })?;
+                    materialize_boundary_map(BoundaryMaterializationInputs {
+                        root_fqn: &root_fqn,
+                        body,
+                        body_facts,
+                        step_type,
+                        boundary_map: &boundary_map,
+                        continuation_object: continuation_object_id,
+                        step_types: &step_types,
+                        types,
+                    })?
+                }
+                None => LateLoweredBoundaryMap::empty(),
+            };
+            continuation_objects.push(materialize_continuation_object(
+                ContinuationObjectMaterializationInputs {
+                    continuation_object_id,
+                    owner_version_key: body_version_key.clone(),
+                    step_schema_id,
+                    step_schema,
+                    implemented_interfaces: &resume_interface_ids,
+                    resume_interface_ids_by_group: &resume_interface_ids_by_group,
+                    captures: continuation_captures,
+                    effect_facts,
+                },
             )?);
             callables.push(LateLoweredCallable::new(
                 family.root_fqn().to_string(),
                 body_version_key,
                 step_schema_id,
                 callable_facts.resolved_outward_cases().tags().to_vec(),
-                LateLoweredDynamicInvokeEntry::new(
-                    step_schema.invoke_args_tuple_ty(),
+                materialize_dynamic_invoke_entry(
                     step_schema_id,
+                    step_type,
+                    state_graph.entry_state(),
+                    state_graph.complete_state(),
                 ),
                 state_graph,
                 frame_schema,
                 boundary_map,
                 resume_state_map,
                 continuation_object_id,
-                vec![resume_interface_id],
+                resume_interface_ids,
             ));
         }
 
@@ -173,148 +191,5 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             continuation_objects,
             callables,
         ))
-    }
-}
-
-fn build_step_type(
-    step_schema_id: StepSchemaId,
-    step_schema: &StepSchema,
-    effect_facts: &MaterializedEffectFacts,
-) -> Result<LateLoweredStepType, EffectLoweringError> {
-    Ok(LateLoweredStepType::new(
-        step_schema_id,
-        step_schema.invoke_args_tuple_ty(),
-        step_schema.complete_ty(),
-        step_schema.continuation_obj_ty(),
-        step_schema
-            .cases()
-            .iter()
-            .map(|case| {
-                let continuation_contract =
-                    build_continuation_contract(step_schema_id, step_schema, case, effect_facts)?;
-                Result::<_, EffectLoweringError>::Ok(LateLoweredStepCase::new(
-                    case.case_tag(),
-                    case.concrete_op_key().clone(),
-                    case.payload_tuple_ty(),
-                    continuation_contract,
-                ))
-            })
-            .collect::<Result<Vec<_>, _>>()?,
-    ))
-}
-
-fn build_resume_interface(
-    interface_id: ResumeInterfaceId,
-    step_schema_id: StepSchemaId,
-    step_schema: &StepSchema,
-    effect_facts: &MaterializedEffectFacts,
-) -> Result<LateLoweredResumeInterface, EffectLoweringError> {
-    let mut methods = Vec::with_capacity(step_schema.cases().len());
-    let mut return_step_schema = None;
-    for case in step_schema.cases() {
-        let continuation_contract =
-            build_continuation_contract(step_schema_id, step_schema, case, effect_facts)?;
-        return_step_schema.get_or_insert(continuation_contract.out_step_schema());
-        methods.push(LateLoweredResumeMethod::new(
-            case.case_tag(),
-            case.concrete_op_key().clone(),
-            continuation_contract,
-        ));
-    }
-    Ok(LateLoweredResumeInterface::new(
-        interface_id,
-        return_step_schema.unwrap_or(step_schema_id),
-        methods,
-    ))
-}
-
-fn build_continuation_object(
-    continuation_object_id: ContinuationObjectId,
-    owner_version_key: LateLoweredBodyVersionKey,
-    step_schema_id: StepSchemaId,
-    step_schema: &StepSchema,
-    resume_interface_id: ResumeInterfaceId,
-    captures: Vec<LateLoweredContinuationCapture>,
-    effect_facts: &MaterializedEffectFacts,
-) -> Result<LateLoweredContinuationObject, EffectLoweringError> {
-    let methods = step_schema
-        .cases()
-        .iter()
-        .map(|case| {
-            let continuation_contract =
-                build_continuation_contract(step_schema_id, step_schema, case, effect_facts)?;
-            Result::<_, EffectLoweringError>::Ok(LateLoweredContinuationMethod::new(
-                resume_interface_id,
-                case.case_tag(),
-                continuation_contract,
-                continuation_method_reachability(owner_version_key.impl_plan(), case.case_tag()),
-            ))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    Ok(LateLoweredContinuationObject::new(
-        continuation_object_id,
-        owner_version_key,
-        step_schema.continuation_obj_ty(),
-        vec![resume_interface_id],
-        captures,
-        methods,
-    ))
-}
-
-fn build_continuation_contract(
-    step_schema_id: StepSchemaId,
-    step_schema: &StepSchema,
-    case: &crate::effect_facts::StepCaseFact,
-    effect_facts: &MaterializedEffectFacts,
-) -> Result<LateLoweredContinuationContract, EffectLoweringError> {
-    let continuation_schema = effect_facts
-        .continuation_schemas()
-        .get(&case.continuation_schema())
-        .ok_or_else(|| EffectLoweringError::MissingContinuationSchema {
-            step_schema: step_schema_id.as_u32(),
-            continuation_schema: case.continuation_schema().as_u32(),
-            case_tag: case.case_tag().as_u32(),
-        })?;
-
-    if continuation_schema.out_step_schema() != step_schema_id {
-        return Err(EffectLoweringError::ContinuationOutStepSchemaMismatch {
-            step_schema: step_schema_id.as_u32(),
-            continuation_schema: case.continuation_schema().as_u32(),
-            case_tag: case.case_tag().as_u32(),
-            out_step_schema: continuation_schema.out_step_schema().as_u32(),
-        });
-    }
-
-    if continuation_schema.answer_ty() != step_schema.complete_ty() {
-        return Err(EffectLoweringError::ContinuationAnswerTyMismatch {
-            step_schema: step_schema_id.as_u32(),
-            continuation_schema: case.continuation_schema().as_u32(),
-            case_tag: case.case_tag().as_u32(),
-            answer_ty: continuation_schema.answer_ty().as_u32(),
-            complete_ty: step_schema.complete_ty().as_u32(),
-        });
-    }
-
-    Ok(LateLoweredContinuationContract::new(
-        case.continuation_schema(),
-        continuation_schema.resume_tuple_ty(),
-        continuation_schema.answer_ty(),
-        continuation_schema.out_step_schema(),
-        continuation_schema.surface_ty(),
-    ))
-}
-
-fn continuation_method_reachability(
-    impl_plan: ImplPlan,
-    case_tag: crate::effect_facts::CaseTag,
-) -> LateLoweredContinuationMethodReachability {
-    match impl_plan {
-        ImplPlan::NoOutward => LateLoweredContinuationMethodReachability::Unreachable,
-        ImplPlan::SingleCase(selected) if selected == case_tag => {
-            LateLoweredContinuationMethodReachability::Reachable
-        }
-        ImplPlan::SingleCase(_) => LateLoweredContinuationMethodReachability::Unreachable,
-        ImplPlan::CanonicalFull => LateLoweredContinuationMethodReachability::Reachable,
     }
 }
