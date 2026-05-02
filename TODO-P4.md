@@ -145,7 +145,7 @@
   - 2026-05-02：按详细任务文件的完成判定规则复验后，已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 仍无需改动。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P4-T01R：Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts`
+## [DONE] P4-T01R：Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P4
@@ -180,6 +180,7 @@
   - legacy 容器隔离复核结论：`crates/scoopc/src/program_facts.rs` 仍只承载旧的 HIR/program facts side tables，`crates/scoopc/src/mir/summary.rs` 仍只维护 `InstanceSummary` / `may_outward_effect` 等 legacy MIR summary，`crates/scoopc/src/effect/analysis.rs` 仍只承载 legacy/shared effect analysis context；未发现把 `MaterializedEffectFacts`、`StepSchema`、`ContinuationSchema`、`resolved_outward_cases`、`impl_plan` 直接塞进这些 legacy 容器或业务实现的情况。
   - 搜索摘要：执行 `rg "MaterializedEffectFacts|StepSchema|ContinuationSchema|resolved_outward_cases|impl_plan" crates/scoopc/src` 后，命中集中在新的 `effect_facts` 子系统、`effect_refactor_pipeline/effect_facts_stage.rs`，以及 `mir_stage.rs` 中说明 P3 尚未提供这些 P4 产物的 handoff 注释；`program_facts.rs`、`mir/summary.rs`、`effect/analysis.rs` 无相关命中，说明新 facts 术语尚未渗入 legacy 容器。
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+  - 2026-05-02：本次按“标题必须显式带 `[DONE]` 才算完成”的规则复核后，重新检查了 `effect_facts` 模块树、`effect_facts_stage` handoff 以及 legacy 容器隔离状态；未发现会阻塞 `P4-T02` 的新问题，现补齐本任务标题的 `[DONE]` 标记并与 `TODO.md` 索引同步。
 
 ## P4-T02：落地 schema identity、canonical schema pool 与 callable-level facts 壳层
 
