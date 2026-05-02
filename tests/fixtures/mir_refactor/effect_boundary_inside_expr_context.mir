@@ -1,0 +1,1696 @@
+File {
+    items: [
+        Todo {
+            span: 31..75,
+            kind: "type",
+        },
+        Todo {
+            span: 77..113,
+            kind: "type",
+        },
+        Fun(
+            FunDecl {
+                span: 115..131,
+                fqn: "fixtures.mir_refactor.cleanup",
+                name: "cleanup",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Body {
+                        locals: [],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 115..131,
+                                    kind: Return {
+                                        value: None,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 133..182,
+                fqn: "fixtures.mir_refactor.box_int",
+                name: "box_int",
+                ty: TypeId(
+                    11,
+                ),
+                params: [
+                    Param {
+                        span: 145..150,
+                        name: "value",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 145..150,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 168..180,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 184..815,
+                fqn: "fixtures.mir_refactor.main",
+                name: "main",
+                ty: TypeId(
+                    12,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 206..344,
+                                name: Some(
+                                    "local",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 218..344,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 289..294,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 245..246,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 235..247,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 329..338,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 329..336,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 256..257,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 329..338,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 329..336,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 350..503,
+                                name: Some(
+                                    "via_arg",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 364..503,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 364..371,
+                                name: Some(
+                                    "tmp9",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 372..502,
+                                name: Some(
+                                    "tmp10",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 447..452,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 389..405,
+                                name: Some(
+                                    "tmp11",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 487..496,
+                                name: Some(
+                                    "tmp12",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 487..494,
+                                name: Some(
+                                    "tmp13",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 414..415,
+                                name: Some(
+                                    "tmp14",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 487..496,
+                                name: Some(
+                                    "tmp15",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 487..494,
+                                name: Some(
+                                    "tmp16",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 509..668,
+                                name: Some(
+                                    "tmp17",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 513..636,
+                                name: Some(
+                                    "tmp18",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 530..541,
+                                name: Some(
+                                    "tmp19",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 621..630,
+                                name: Some(
+                                    "tmp20",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 621..628,
+                                name: Some(
+                                    "tmp21",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 550..555,
+                                name: Some(
+                                    "tmp22",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 592..596,
+                                name: Some(
+                                    "tmp23",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 621..630,
+                                name: Some(
+                                    "tmp24",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 621..628,
+                                name: Some(
+                                    "tmp25",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 638..668,
+                                name: Some(
+                                    "tmp26",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 509..668,
+                                name: Some(
+                                    "tmp27",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 681..813,
+                                name: Some(
+                                    "tmp28",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 758..763,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 698..716,
+                                name: Some(
+                                    "tmp29",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 798..807,
+                                name: Some(
+                                    "tmp30",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 798..805,
+                                name: Some(
+                                    "tmp31",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 725..726,
+                                name: Some(
+                                    "tmp32",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 798..807,
+                                name: Some(
+                                    "tmp33",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 798..805,
+                                name: Some(
+                                    "tmp34",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 218..344,
+                                    kind: Handle {
+                                        site_id: site0,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                5,
+                                            ),
+                                            finally_result_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                        },
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "fixtures.mir_refactor.Step.next",
+                                                binder_count: 1,
+                                                binder_locals: [
+                                                    l2,
+                                                ],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    13,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ],
+                                                body_ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: NonResuming,
+                                            },
+                                        ],
+                                        has_finally: true,
+                                        body_target: bb1,
+                                        arm_targets: [
+                                            bb2,
+                                        ],
+                                        finally_target: Some(
+                                            bb3,
+                                        ),
+                                        exit_target: bb4,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 245..246,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 235..247,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: PerformResult {
+                                                op_fqn: "fixtures.mir_refactor.Step.next",
+                                                effect_ty: TypeId(
+                                                    13,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 235..247,
+                                    kind: Perform {
+                                        site_id: site1,
+                                        op_fqn: "fixtures.mir_refactor.Step.next",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                13,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ),
+                                            payload_component_tys: [
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ],
+                                            arg_mapping: [
+                                                0,
+                                            ],
+                                        },
+                                        args: [
+                                            PerformArg {
+                                                span: 245..246,
+                                                source_arg_index: 0,
+                                                name: None,
+                                                value: Local(
+                                                    l3,
+                                                ),
+                                            },
+                                        ],
+                                        resume_target: bb5,
+                                    },
+                                    unwind: Cleanup {
+                                        target: bb7,
+                                    },
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 279..304,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Local(
+                                                    l2,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 279..304,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 329..336,
+                                        kind: Assign {
+                                            target: l9,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 329..338,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: Call {
+                                                site_id: site3,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 319..344,
+                                    kind: Goto {
+                                        target: bb4,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 206..344,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l1,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 364..371,
+                                        kind: Assign {
+                                            target: l12,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.box_int",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 372..502,
+                                    kind: Handle {
+                                        site_id: site4,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                5,
+                                            ),
+                                            finally_result_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                        },
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "fixtures.mir_refactor.Step.next",
+                                                binder_count: 1,
+                                                binder_locals: [
+                                                    l14,
+                                                ],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    13,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ],
+                                                body_ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: NonResuming,
+                                            },
+                                        ],
+                                        has_finally: true,
+                                        body_target: bb8,
+                                        arm_targets: [
+                                            bb9,
+                                        ],
+                                        finally_target: Some(
+                                            bb10,
+                                        ),
+                                        exit_target: bb11,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 256..257,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 225..263,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Local(
+                                                    l7,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 225..263,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 235..247,
+                                    kind: ResumeUnwind,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 329..336,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 329..338,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Call {
+                                                site_id: site2,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 319..344,
+                                    kind: Goto {
+                                        target: bb6,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 389..405,
+                                        kind: Assign {
+                                            target: l15,
+                                            value: PerformResult {
+                                                op_fqn: "fixtures.mir_refactor.Step.next",
+                                                effect_ty: TypeId(
+                                                    13,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 389..405,
+                                    kind: Perform {
+                                        site_id: site5,
+                                        op_fqn: "fixtures.mir_refactor.Step.next",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                13,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ),
+                                            payload_component_tys: [
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ],
+                                            arg_mapping: [
+                                                0,
+                                            ],
+                                        },
+                                        args: [
+                                            PerformArg {
+                                                span: 399..404,
+                                                source_arg_index: 0,
+                                                name: None,
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                            },
+                                        ],
+                                        resume_target: bb12,
+                                    },
+                                    unwind: Cleanup {
+                                        target: bb14,
+                                    },
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 437..462,
+                                        kind: Assign {
+                                            target: l13,
+                                            value: Use(
+                                                Local(
+                                                    l14,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 437..462,
+                                    kind: Goto {
+                                        target: bb10,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 487..494,
+                                        kind: Assign {
+                                            target: l20,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 487..496,
+                                        kind: Assign {
+                                            target: l19,
+                                            value: Call {
+                                                site_id: site7,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 477..502,
+                                    kind: Goto {
+                                        target: bb11,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 364..503,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: Call {
+                                                site_id: site8,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.box_int",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 372..502,
+                                                        name: None,
+                                                        value: Local(
+                                                            l13,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 350..503,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: Use(
+                                                Local(
+                                                    l11,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 513..636,
+                                    kind: Handle {
+                                        site_id: site9,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                4,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                4,
+                                            ),
+                                            finally_result_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                        },
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "fixtures.mir_refactor.Flag.read",
+                                                binder_count: 0,
+                                                binder_locals: [],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    14,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        2,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [],
+                                                body_ty: TypeId(
+                                                    4,
+                                                ),
+                                                kind: NonResuming,
+                                            },
+                                        ],
+                                        has_finally: true,
+                                        body_target: bb15,
+                                        arm_targets: [
+                                            bb16,
+                                        ],
+                                        finally_target: Some(
+                                            bb17,
+                                        ),
+                                        exit_target: bb18,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 414..415,
+                                        kind: Assign {
+                                            target: l18,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 379..421,
+                                        kind: Assign {
+                                            target: l13,
+                                            value: Use(
+                                                Local(
+                                                    l18,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 379..421,
+                                    kind: Goto {
+                                        target: bb10,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 389..405,
+                                    kind: ResumeUnwind,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 487..494,
+                                        kind: Assign {
+                                            target: l17,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 487..496,
+                                        kind: Assign {
+                                            target: l16,
+                                            value: Call {
+                                                site_id: site6,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 477..502,
+                                    kind: Goto {
+                                        target: bb13,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 530..541,
+                                        kind: Assign {
+                                            target: l23,
+                                            value: PerformResult {
+                                                op_fqn: "fixtures.mir_refactor.Flag.read",
+                                                effect_ty: TypeId(
+                                                    14,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 530..541,
+                                    kind: Perform {
+                                        site_id: site10,
+                                        op_fqn: "fixtures.mir_refactor.Flag.read",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                14,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                            payload_component_tys: [],
+                                            arg_mapping: [],
+                                        },
+                                        args: [],
+                                        resume_target: bb19,
+                                    },
+                                    unwind: Cleanup {
+                                        target: bb21,
+                                    },
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 592..596,
+                                        kind: Assign {
+                                            target: l27,
+                                            value: Use(
+                                                Const(
+                                                    Bool(
+                                                        true,
+                                                    ),
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 577..596,
+                                        kind: Assign {
+                                            target: l22,
+                                            value: Use(
+                                                Local(
+                                                    l27,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 577..596,
+                                    kind: Goto {
+                                        target: bb17,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 621..628,
+                                        kind: Assign {
+                                            target: l29,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 621..630,
+                                        kind: Assign {
+                                            target: l28,
+                                            value: Call {
+                                                site_id: site12,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 611..636,
+                                    kind: Goto {
+                                        target: bb18,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 509..668,
+                                    kind: CondBr {
+                                        cond: Local(
+                                            l22,
+                                        ),
+                                        then_target: bb22,
+                                        else_target: bb23,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 550..555,
+                                        kind: Assign {
+                                            target: l26,
+                                            value: Use(
+                                                Const(
+                                                    Bool(
+                                                        false,
+                                                    ),
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 520..561,
+                                        kind: Assign {
+                                            target: l22,
+                                            value: Use(
+                                                Local(
+                                                    l26,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 520..561,
+                                    kind: Goto {
+                                        target: bb17,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 530..541,
+                                    kind: ResumeUnwind,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 621..628,
+                                        kind: Assign {
+                                            target: l25,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 621..630,
+                                        kind: Assign {
+                                            target: l24,
+                                            value: Call {
+                                                site_id: site11,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 611..636,
+                                    kind: Goto {
+                                        target: bb20,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 648..662,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l10,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 509..668,
+                                        kind: Assign {
+                                            target: l31,
+                                            value: Use(
+                                                Const(
+                                                    Unit,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 509..668,
+                                        kind: Assign {
+                                            target: l21,
+                                            value: Use(
+                                                Local(
+                                                    l31,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 509..668,
+                                    kind: Goto {
+                                        target: bb24,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 681..813,
+                                    kind: Handle {
+                                        site_id: site13,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                5,
+                                            ),
+                                            finally_result_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                        },
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "fixtures.mir_refactor.Step.next",
+                                                binder_count: 1,
+                                                binder_locals: [
+                                                    l33,
+                                                ],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    13,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ],
+                                                body_ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: NonResuming,
+                                            },
+                                        ],
+                                        has_finally: true,
+                                        body_target: bb25,
+                                        arm_targets: [
+                                            bb26,
+                                        ],
+                                        finally_target: Some(
+                                            bb27,
+                                        ),
+                                        exit_target: bb28,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 698..716,
+                                        kind: Assign {
+                                            target: l34,
+                                            value: PerformResult {
+                                                op_fqn: "fixtures.mir_refactor.Step.next",
+                                                effect_ty: TypeId(
+                                                    13,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 698..716,
+                                    kind: Perform {
+                                        site_id: site14,
+                                        op_fqn: "fixtures.mir_refactor.Step.next",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                13,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ),
+                                            payload_component_tys: [
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ],
+                                            arg_mapping: [
+                                                0,
+                                            ],
+                                        },
+                                        args: [
+                                            PerformArg {
+                                                span: 708..715,
+                                                source_arg_index: 0,
+                                                name: None,
+                                                value: Local(
+                                                    l10,
+                                                ),
+                                            },
+                                        ],
+                                        resume_target: bb29,
+                                    },
+                                    unwind: Cleanup {
+                                        target: bb31,
+                                    },
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 748..773,
+                                        kind: Assign {
+                                            target: l32,
+                                            value: Use(
+                                                Local(
+                                                    l33,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 748..773,
+                                    kind: Goto {
+                                        target: bb27,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 798..805,
+                                        kind: Assign {
+                                            target: l39,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 798..807,
+                                        kind: Assign {
+                                            target: l38,
+                                            value: Call {
+                                                site_id: site16,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 788..813,
+                                    kind: Goto {
+                                        target: bb28,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 674..813,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l32,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 725..726,
+                                        kind: Assign {
+                                            target: l37,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 688..732,
+                                        kind: Assign {
+                                            target: l32,
+                                            value: Use(
+                                                Local(
+                                                    l37,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 688..732,
+                                    kind: Goto {
+                                        target: bb27,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 698..716,
+                                    kind: ResumeUnwind,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 798..805,
+                                        kind: Assign {
+                                            target: l36,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 798..807,
+                                        kind: Assign {
+                                            target: l35,
+                                            value: Call {
+                                                site_id: site15,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.cleanup",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 788..813,
+                                    kind: Goto {
+                                        target: bb30,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 49..73,
+                fqn: "fixtures.mir_refactor.Step.next",
+                name: "next",
+                ty: TypeId(
+                    15,
+                ),
+                params: [
+                    Param {
+                        span: 38..42,
+                        name: "this",
+                        ty: TypeId(
+                            13,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 58..62,
+                        name: "seed",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 95..111,
+                fqn: "fixtures.mir_refactor.Flag.read",
+                name: "read",
+                ty: TypeId(
+                    16,
+                ),
+                params: [
+                    Param {
+                        span: 84..88,
+                        name: "this",
+                        ty: TypeId(
+                            14,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    4,
+                ),
+                body: None,
+            },
+        ),
+    ],
+}

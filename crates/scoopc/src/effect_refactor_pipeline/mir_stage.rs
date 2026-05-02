@@ -14,10 +14,15 @@ use super::{TypedHirEffectContracts, TypedHirStageOutput};
 /// - `lowered_mir` 仍是 direct-style MIR，而不是 late-lowered `Step` IR；
 /// - 当前所有 effect-sensitive site 继续通过 MIR 节点上的 `SiteId` 锚定；
 /// - `effect_contracts` 保留这次 lowering 消费过的 P2 typed HIR handoff，便于测试/审计；
-///   canonical 的 site-level contract 现已下沉到 MIR 节点 metadata，本 stage 不应再要求下游回到
-///   P2 内部缓存重新拼装语义；
+///   canonical 的 site-level contract 现已下沉到 MIR 节点 metadata；P4 可以把它用于审计，
+///   但不得把它当成重新解释 `Call / Perform / Resume / Handle` 语义的 source of truth；
 /// - `callable_body_indices` 与可选的 `materialized_mir` 把 P4 会消费的 canonical MIR
 ///   handoff 显式挂在 stage 输出上，而不是继续藏在 `LoweredHir` 私有字段或 dump helper 里。
+/// - P4 的 authoritative 输入是这份 stage 输出上的 callable body 身份、可选
+///   `materialized_mir` 快照，以及 MIR 节点上的 `SiteId` / metadata；P4 不得回看 P2 原始
+///   HIR side tables 重新猜测 site contract。
+/// - 本 stage 仍未提供 `StepSchema`、`ContinuationSchema` 或 `MaterializedEffectFacts`；这些属于
+///   P4/P5 的职责，而不是 P3 dump / stage 输出应提前伪造的内容。
 #[derive(Debug)]
 pub struct RefactorMirStageOutput {
     lowered_mir: LoweredMir,
@@ -71,9 +76,13 @@ impl RefactorMirStageOutput {
         }
     }
 
-    /// 当前先保持 `dump-mir` 的稳定 surface 只打印 MIR `File` Debug。
+    /// refactor `dump-mir` / `mir_refactor` fixtures / 定向单测共用的稳定文本 surface。
     ///
-    /// refactor 专属 snapshot / golden 会在后续 P3 任务中单独冻结，不在这里提前改变 CLI 文本。
+    /// P3-T04 起，这个 formatter 就是 refactor direct-style MIR 的 snapshot/golden 基线：
+    /// - 必须稳定暴露 direct-style MIR body / CFG；
+    /// - 必须保留 `SiteId`、cleanup/finally target，以及 `Call / Perform / Resume / Handle`
+    ///   的关键 metadata；
+    /// - 不能在 CLI、fixture runner、或单测之间各自拼接不同文本。
     pub fn stable_dump(&self) -> String {
         format!("{:#?}\n", self.file())
     }

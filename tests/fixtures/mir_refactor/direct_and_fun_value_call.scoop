@@ -1,0 +1,14 @@
+package a
+
+fun id(x: Int): Int {
+  x
+}
+
+fun apply(f: (Int) -> Int, x: Int): Int {
+  f(x)
+}
+
+fun main() {
+  id(1)
+  apply(id, 2)
+}

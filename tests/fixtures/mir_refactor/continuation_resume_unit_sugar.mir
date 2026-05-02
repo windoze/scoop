@@ -1,0 +1,399 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 52..81,
+                fqn: "fixtures.mir_refactor.takesUnit",
+                name: "takesUnit",
+                ty: TypeId(
+                    10,
+                ),
+                params: [
+                    Param {
+                        span: 66..71,
+                        name: "value",
+                        ty: TypeId(
+                            2,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 66..71,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 52..81,
+                                    kind: Return {
+                                        value: None,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 83..234,
+                fqn: "fixtures.mir_refactor.resumeUnit",
+                name: "resumeUnit",
+                ty: TypeId(
+                    14,
+                ),
+                params: [
+                    Param {
+                        span: 98..99,
+                        name: "k",
+                        ty: TypeId(
+                            11,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 98..99,
+                                name: Some(
+                                    "k",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 171..181,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 171..181,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 186..198,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 195..197,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 203..214,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 203..212,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 203..214,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 219..232,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 219..228,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 229..231,
+                                name: Some(
+                                    "tmp9",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 171..181,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Unit,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 171..181,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Resume {
+                                                    continuation: Local(
+                                                        l0,
+                                                    ),
+                                                    resume: ResumeMetadata {
+                                                        continuation_ty: TypeId(
+                                                            11,
+                                                        ),
+                                                        resume_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        answer_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        return_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        out_effects: EffectRow {
+                                                            terms: [],
+                                                        },
+                                                        runtime_error_effect_ty: Some(
+                                                            TypeId(
+                                                                13,
+                                                            ),
+                                                        ),
+                                                        suspends_outward: false,
+                                                    },
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 171..181,
+                                                        name: None,
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 195..197,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Use(
+                                                Const(
+                                                    Unit,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 186..198,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Call {
+                                                site_id: site1,
+                                                kind: Resume {
+                                                    continuation: Local(
+                                                        l0,
+                                                    ),
+                                                    resume: ResumeMetadata {
+                                                        continuation_ty: TypeId(
+                                                            11,
+                                                        ),
+                                                        resume_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        answer_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        return_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        out_effects: EffectRow {
+                                                            terms: [],
+                                                        },
+                                                        runtime_error_effect_ty: Some(
+                                                            TypeId(
+                                                                13,
+                                                            ),
+                                                        ),
+                                                        suspends_outward: false,
+                                                    },
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 195..197,
+                                                        name: None,
+                                                        value: Local(
+                                                            l4,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 203..212,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.takesUnit",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 203..214,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: Use(
+                                                Const(
+                                                    Unit,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 203..214,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Call {
+                                                site_id: site2,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.takesUnit",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 203..214,
+                                                        name: None,
+                                                        value: Local(
+                                                            l7,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 219..228,
+                                        kind: Assign {
+                                            target: l9,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "fixtures.mir_refactor.takesUnit",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 229..231,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: Use(
+                                                Const(
+                                                    Unit,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 219..232,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: Call {
+                                                site_id: site3,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_refactor.takesUnit",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 229..231,
+                                                        name: None,
+                                                        value: Local(
+                                                            l10,
+                                                        ),
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 83..234,
+                                    kind: Return {
+                                        value: None,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}

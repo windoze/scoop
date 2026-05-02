@@ -1,0 +1,10 @@
+package a
+
+fun main() {
+  val x: Int = 0
+
+  while (true) {
+    if (true) { break } else { x }
+    continue
+  }
+}

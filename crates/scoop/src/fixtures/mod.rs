@@ -30,6 +30,7 @@
 //! - `tests/fixtures/infer/**` → infer
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
 //! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
+//! - `tests/fixtures/mir_refactor/**` → mir_refactor（refactor direct-style MIR stable dump + `.mir` golden 比对）
 //! - `tests/fixtures/scoopir/**` → scoopir（public API 导出 + `.scoopir.json` golden 比对）
 //! - 其它一级目录会被识别为 phase，但目前统一返回“未实现”的诊断。
 
@@ -502,6 +503,7 @@ fn run_one(
         }
         Some(name) if name == "hir" => FixturePhase::Hir,
         Some(name) if name == "mir" => FixturePhase::Mir,
+        Some(name) if name == "mir_refactor" => FixturePhase::MirRefactor,
         Some(name) if name == "scoopir" => FixturePhase::ScoopIr,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
@@ -516,6 +518,7 @@ fn run_one(
         FixturePhase::RunPass => run_pass::run_fixture(rel, path, opt_level, &exp, run_pass_env),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
+        FixturePhase::MirRefactor => mir_refactor_fixture(session, &source, path),
         FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
@@ -545,6 +548,7 @@ enum FixturePhase {
     RunPass,
     Hir,
     Mir,
+    MirRefactor,
     ScoopIr,
     Unimplemented(String),
 }
@@ -720,6 +724,13 @@ struct MirGoldenReadFailed {
 #[diagnostic(code(scoop::fixtures::mir_golden_mismatch))]
 struct MirGoldenMismatch {
     path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("`mir_refactor` fixtures 只能通过 `--effect-pipeline refactor` 运行（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::mir_refactor_requires_refactor_pipeline))]
+struct MirRefactorRequiresRefactorPipeline {
     fixture: String,
 }
 
@@ -1257,6 +1268,33 @@ fn mir_fixture(
             .map_err(box_diagnostic)?;
     let actual = normalize_newlines(&format!("{:#?}\n", lowered.file));
 
+    assert_mir_golden_matches(&actual, fixture_path)
+}
+
+fn mir_refactor_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    if session.effect_pipeline_mode() != scoopc::session::EffectPipelineMode::Refactor {
+        return Err(box_diagnostic(MirRefactorRequiresRefactorPipeline {
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    let output = scoopc::effect_refactor_pipeline::load_direct_style_mir_stage_output_for_dump(
+        session, source,
+    )
+    .map_err(box_diagnostic)?;
+    let actual = normalize_newlines(&output.stable_dump());
+
+    assert_mir_golden_matches(&actual, fixture_path)
+}
+
+fn assert_mir_golden_matches(
+    actual: &str,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let golden_path = fixture_path.with_extension("mir");
     let expected_raw = std::fs::read_to_string(&golden_path).map_err(|e| {
         box_diagnostic(MirGoldenReadFailed {

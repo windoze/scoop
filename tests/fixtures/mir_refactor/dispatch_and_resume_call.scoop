@@ -1,0 +1,33 @@
+package fixtures.mir
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): Int
+}
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+interface IFace {
+    fun foo(): Int
+}
+
+fun callVirtual(b: Base): Int {
+    return b.ping()
+}
+
+fun callInterface(i: IFace): Int {
+    return i.foo()
+}
+
+fun resumeOnce(k: Continuation<Int, Unit, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume(1)
+}
+
+fun resumeBoom(k: Continuation<Int, Unit, eff Boom>): Unit / (Raise<RuntimeError> + Boom) {
+    k.resume(1)
+}
