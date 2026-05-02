@@ -44,6 +44,7 @@ pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 pub use materialize::{
     InstanceKey, MaterializedMir, MirMaterializeError, TemplateKey, materialize_for_dump,
+    materialize_for_dump_with_opt_level,
 };
 pub use pass_view::{
     MaterializedMirPassArtifacts, MaterializedMirPassView, MaterializedPassCallableFamilyView,

@@ -71,6 +71,12 @@ pub(crate) fn run(
     source: &SourceFile,
     mut mir_stage_output: RefactorMirStageOutput,
 ) -> Result<RefactorEffectFactsStageOutput, EffectFactsError> {
+    let solver = MaterializedEffectFactsSolver::for_opt_level(
+        mir_stage_output
+            .materialized_mir()
+            .ok_or(EffectFactsError::MissingMaterializedMirSnapshot)?
+            .opt_level(),
+    );
     let seeded_facts = {
         let materialized_mir = mir_stage_output
             .materialized_mir_mut()
@@ -82,7 +88,7 @@ pub(crate) fn run(
         )
         .build()?
     };
-    let effect_facts = MaterializedEffectFactsSolver.solve(seeded_facts);
+    let effect_facts = solver.solve(seeded_facts);
     Ok(RefactorEffectFactsStageOutput::new(
         mir_stage_output,
         effect_facts,

@@ -11,6 +11,7 @@ pub mod solver;
 
 pub use builder::MaterializedEffectFactsBuilder;
 pub use dump::render_materialized_effect_facts;
+pub(crate) use facts::BodyEffectSolverFacts;
 pub use facts::{
     BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteKind, CallSiteTarget,
     CallTargetMode, CallableEffectFacts, CanonicalMirQuerySurface, EffectPrecision,

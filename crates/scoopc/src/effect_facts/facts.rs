@@ -51,8 +51,8 @@ impl MirSnapshotBinding {
 
 /// callable-level facts 的最终 public 形状。
 ///
-/// `resolved_outward_cases` / `needs_reentry` / `impl_plan` 当前仍由 builder 以保守值初始化；
-/// `resolved_outward_cases` 的 SCC/dataflow 精化在 P4-T04 完成。
+/// builder 会先种下保守壳层，随后由 P4 的 solver 基于 body/site facts 完成
+/// `resolved_outward_cases` / `needs_reentry` / `impl_plan` 的 finalization。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallableEffectFacts {
     declared_row: EffectRow,
@@ -448,11 +448,46 @@ impl BlockEffectFacts {
     }
 }
 
+/// solver 在当前 body 上完成 callable/block finalization 所需的结构输入。
+#[derive(Debug, Clone, Default)]
+pub(crate) struct BodyEffectSolverFacts {
+    block_successors: BTreeMap<BasicBlockId, Vec<BasicBlockId>>,
+    block_sites: BTreeMap<BasicBlockId, Vec<SiteId>>,
+    block_handled_cases: BTreeMap<BasicBlockId, CaseSet>,
+}
+
+impl BodyEffectSolverFacts {
+    pub(crate) fn new(
+        block_successors: BTreeMap<BasicBlockId, Vec<BasicBlockId>>,
+        block_sites: BTreeMap<BasicBlockId, Vec<SiteId>>,
+        block_handled_cases: BTreeMap<BasicBlockId, CaseSet>,
+    ) -> Self {
+        Self {
+            block_successors,
+            block_sites,
+            block_handled_cases,
+        }
+    }
+
+    pub(crate) fn block_successors(&self) -> &BTreeMap<BasicBlockId, Vec<BasicBlockId>> {
+        &self.block_successors
+    }
+
+    pub(crate) fn block_sites(&self) -> &BTreeMap<BasicBlockId, Vec<SiteId>> {
+        &self.block_sites
+    }
+
+    pub(crate) fn handled_cases_for_block(&self, block: BasicBlockId) -> Option<&CaseSet> {
+        self.block_handled_cases.get(&block)
+    }
+}
+
 /// 当前 materialized callable body 的局部 effect facts。
 #[derive(Debug, Clone, Default)]
 pub struct BodyEffectFacts {
     blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
     sites: BTreeMap<SiteId, SiteEffectFacts>,
+    solver_facts: BodyEffectSolverFacts,
 }
 
 impl BodyEffectFacts {
@@ -460,7 +495,23 @@ impl BodyEffectFacts {
         blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
         sites: BTreeMap<SiteId, SiteEffectFacts>,
     ) -> Self {
-        Self { blocks, sites }
+        Self {
+            blocks,
+            sites,
+            solver_facts: BodyEffectSolverFacts::default(),
+        }
+    }
+
+    pub(crate) fn with_solver_facts(
+        blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
+        sites: BTreeMap<SiteId, SiteEffectFacts>,
+        solver_facts: BodyEffectSolverFacts,
+    ) -> Self {
+        Self {
+            blocks,
+            sites,
+            solver_facts,
+        }
     }
 
     pub fn blocks(&self) -> &BTreeMap<BasicBlockId, BlockEffectFacts> {
@@ -478,6 +529,10 @@ impl BodyEffectFacts {
     pub fn site(&self, site: SiteId) -> Option<&SiteEffectFacts> {
         self.sites.get(&site)
     }
+
+    pub(crate) fn solver_facts(&self) -> &BodyEffectSolverFacts {
+        &self.solver_facts
+    }
 }
 
 /// refactor 主线的 authoritative effect-facts 容器。
@@ -486,6 +541,14 @@ impl BodyEffectFacts {
 /// - 与当前 canonical materialized MIR snapshot 一一对应；
 /// - 结构性 rewrite 后必须基于新的 snapshot 重建；
 /// - 不对外暴露“部分 body 已更新、部分 body 仍过期”的混合状态。
+pub(crate) type MaterializedEffectFactsParts = (
+    MirSnapshotBinding,
+    BTreeMap<StepSchemaId, StepSchema>,
+    BTreeMap<ContinuationSchemaId, ContinuationSchema>,
+    HashMap<InstanceKey, CallableEffectFacts>,
+    HashMap<InstanceKey, BodyEffectFacts>,
+);
+
 #[derive(Debug, Clone)]
 pub struct MaterializedEffectFacts {
     snapshot_binding: MirSnapshotBinding,
@@ -534,6 +597,16 @@ impl MaterializedEffectFacts {
 
     pub fn body(&self, key: &InstanceKey) -> Option<&BodyEffectFacts> {
         self.bodies.get(key)
+    }
+
+    pub(crate) fn into_parts(self) -> MaterializedEffectFactsParts {
+        (
+            self.snapshot_binding,
+            self.step_schemas,
+            self.continuation_schemas,
+            self.callable_facts,
+            self.bodies,
+        )
     }
 
     pub fn stable_dump(&self) -> String {

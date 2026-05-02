@@ -130,6 +130,7 @@ pub struct MaterializedMir {
     pub types: TypeStore,
     pub instance_keys: Vec<InstanceKey>,
     pub summaries: MaterializedMirSummaries,
+    opt_level: OptLevel,
     callable_families: MaterializedCallableFamilies,
     pass_artifacts: MaterializedMirPassArtifacts,
     caller_side_pass_candidates: Vec<FunDecl>,
@@ -149,6 +150,11 @@ impl MaterializedMir {
     /// 返回当前 materialized MIR 上挂载的 canonical pass 产物 side table。
     pub fn pass_artifacts(&self) -> &super::MaterializedMirPassArtifacts {
         &self.pass_artifacts
+    }
+
+    /// 返回当前 canonical materialized MIR snapshot 对应的优化等级。
+    pub fn opt_level(&self) -> OptLevel {
+        self.opt_level
     }
 
     /// 返回当前 materialized MIR 上挂载的 canonical pass 产物 side table 的可变引用。
@@ -2196,6 +2202,7 @@ fn materialize_generic_mir(
         types,
         builtins,
         construction_inputs,
+        opt_level,
         opt_level.enables_summary_driven_mir_inlining(),
         opt_level.enables_mir_escape_analysis(),
     )?;
@@ -2310,6 +2317,7 @@ fn reachable_body_block_indices(body: &Body) -> Vec<usize> {
 struct MirInstanceMaterializer {
     types: TypeStore,
     builtins: BuiltinTypes,
+    opt_level: OptLevel,
     known_receiver_subclasses: crate::devirtualize::KnownReceiverSubclassIndex,
     class_vtables: crate::vtable::ClassVtableIndex,
     interfaces: crate::itable::InterfaceIndex,
@@ -2369,6 +2377,7 @@ impl MirInstanceMaterializer {
         types: TypeStore,
         builtins: BuiltinTypes,
         construction_inputs: MaterializerConstructionInputs<'_>,
+        opt_level: OptLevel,
         enable_summary_driven_inlining: bool,
         enable_mir_escape_analysis: bool,
     ) -> MaterializeResult<Self> {
@@ -2610,6 +2619,7 @@ impl MirInstanceMaterializer {
         let mut materializer = Self {
             types,
             builtins,
+            opt_level,
             known_receiver_subclasses,
             class_vtables,
             interfaces,
@@ -3243,6 +3253,7 @@ impl MirInstanceMaterializer {
             types: self.types,
             instance_keys,
             summaries,
+            opt_level: self.opt_level,
             callable_families,
             pass_artifacts,
             caller_side_pass_candidates: self.caller_side_pass_candidates,
@@ -5317,6 +5328,7 @@ fun main(): Int {
                 request_root_mode: crate::mir::MaterializeRequestRootMode::EntryMain { fqn: None },
                 request_root_fun_keys,
             },
+            OptLevel::O0,
             false,
             false,
         )
@@ -6332,6 +6344,7 @@ fun main() {
                 request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
                 request_root_fun_keys,
             },
+            OptLevel::O2,
             true,
             true,
         )

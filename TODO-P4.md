@@ -591,7 +591,7 @@
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_site_effect_facts`、`cargo test -p scoopc --no-default-features refactor_body_effect_facts`、`cargo test -p scoopc --no-default-features refactor_nested_handle_classification`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
   - 2026-05-02：本次 review 未改变阶段顺序、依赖或完成准则，`PLAN.md` 无需改动；现已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
 
-## P4-T04：实现 `resolved_outward_cases` SCC/dataflow 求解，并完成 `needs_reentry` / `impl_plan` / final block facts 回填
+## [DONE] P4-T04：实现 `resolved_outward_cases` SCC/dataflow 求解，并完成 `needs_reentry` / `impl_plan` / final block facts 回填
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P4
@@ -710,7 +710,19 @@
   - 新路径不再依赖 `may_outward_effect` 或 ad-hoc shape 规则做 lowering 决策。
 - 依赖：P4-T03R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P4-T04`。`crates/scoopc/src/effect_facts/solver.rs` 现已把 P4 solver 从占位壳层落地为统一的 callable-graph/SCC/dataflow 管线：只消费 `StepSchema` / `ContinuationSchema` / callable shell / body-site facts 与 `opt_level` 派生 budget，求出每个 callable 的 final `resolved_outward_cases`，并在 budget 超限或 candidate-set 超限时按任务要求显式 widen 到对应 `cases(StepSchema(F))`。
+  - `MaterializedEffectFactsSolver` 现在会为每个 callable 先收集 local cases，再按 `KnownInstance` / `CandidateSet` / `DynamicFallback` 三类调用边传播 call-edge cases；`needs_reentry` 固定按 `!resolved_outward_cases.is_empty()` 派生，`impl_plan` 固定收口为 `NoOutward | SingleCase(case_tag) | CanonicalFull`，并显式区分 `O0` 与较高优化级别在 `SingleCase` 选择上的差异。
+  - 为了让 solver 严格停留在 facts 边界内而不回 MIR/HIR 重新猜语义，`crates/scoopc/src/effect_facts/facts.rs` / `builder.rs` 现已把 block->site 映射、CFG successor、以及 handle body 的 handled-context side table 作为 `BodyEffectFacts` 的内部 solver 输入一并 materialize；solver 随后会基于这些结构化输入回填 final site facts 与 `BlockEffectFacts.ambient_cases/outward_cases`。
+  - `crates/scoopc/src/mir/materialize.rs::MaterializedMir` 现显式保留 `opt_level`，`crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 会从 canonical snapshot 派生 solver config，再执行 build + solve；这样 refactor effect-facts stage 在 dump/test/build 共用的 canonical snapshot 上都能遵守“同一条管线、仅预算/优化等级差异”的约束。
+  - 新增定向验证覆盖：
+    - `refactor_effect_solver_propagates_direct_scc_and_known_callee_cases`
+    - `refactor_effect_solver_unions_candidate_sets_and_dynamic_fallback`
+    - `refactor_effect_solver_budget_exhaustion_widens_affected_callable`
+    - `refactor_impl_plan_tracks_needs_reentry_and_opt_level_policy`
+    - `refactor_block_effect_facts_finalize_ambient_and_outward_cases`
+    - `refactor_block_effect_facts_preserve_nested_handle_classification_after_solver`
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_block_effect_facts`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_site_effect_facts`、`cargo test -p scoopc --no-default-features refactor_body_effect_facts`、`cargo test -p scoopc --no-default-features refactor_nested_handle_classification`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
+  - 2026-05-02：本任务未改变阶段顺序、P4->P5 handoff contract 或完成准则，因此 `PLAN.md` 无需改动；同时已把 `TODO.md` 索引中的 `P4-T04` 同步标记为 `[DONE]`。
 
 ## P4-T04R：Review solver / widening / `impl_plan`，确认求解结果完全由 facts 驱动
 

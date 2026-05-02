@@ -16,12 +16,12 @@ use crate::ty::{
 use crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol};
 
 use super::{
-    BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteKind, CallSiteTarget,
-    CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId,
-    EffectFactsError, EffectPrecision, HandleArmEffectFacts, HandleSiteEffectFacts, ImplPlan,
-    MaterializedEffectFacts, MirSnapshotBinding, NestedHandleClassification,
-    PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema,
-    StepSchemaId,
+    BlockEffectFacts, BodyEffectFacts, BodyEffectSolverFacts, CallSiteEffectFacts, CallSiteKind,
+    CallSiteTarget, CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema,
+    ContinuationSchemaId, EffectFactsError, EffectPrecision, HandleArmEffectFacts,
+    HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts, MirSnapshotBinding,
+    NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
+    StepCaseFact, StepSchema, StepSchemaId,
 };
 
 /// 从 canonical materialized MIR snapshot 生成 P4 facts 容器。
@@ -429,15 +429,17 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             sites: BTreeMap::new(),
             block_drafts: BTreeMap::new(),
             block_scan_cache: BTreeMap::new(),
+            block_site_ids: BTreeMap::new(),
+            block_handled_tags: BTreeMap::new(),
         })
     }
 
     fn build(mut self, types: &mut TypeStore) -> Result<BodyEffectFacts, EffectFactsError> {
-        let Some(body_len) = self
+        let Some((body_len, block_successors)) = self
             .callable_fun
             .body
             .as_ref()
-            .map(|body| body.blocks.len())
+            .map(|body| (body.blocks.len(), collect_block_successors(body)))
         else {
             return Ok(BodyEffectFacts::default());
         };
@@ -462,7 +464,52 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             );
         }
 
-        Ok(BodyEffectFacts::new(blocks, self.sites))
+        let block_handled_cases = std::mem::take(&mut self.block_handled_tags)
+            .into_iter()
+            .map(|(block_id, tags)| (block_id, self.case_set_from_tags(tags)))
+            .collect();
+        let solver_facts = BodyEffectSolverFacts::new(
+            block_successors,
+            std::mem::take(&mut self.block_site_ids),
+            block_handled_cases,
+        );
+
+        Ok(BodyEffectFacts::with_solver_facts(
+            blocks,
+            self.sites,
+            solver_facts,
+        ))
+    }
+
+    fn record_block_site(&mut self, block_id: BasicBlockId, site_id: SiteId) {
+        let sites = self.block_site_ids.entry(block_id).or_default();
+        if !sites.contains(&site_id) {
+            sites.push(site_id);
+        }
+    }
+
+    fn mark_region_handled_cases(
+        &mut self,
+        entry: BasicBlockId,
+        stops: &BTreeSet<BasicBlockId>,
+        tags: &BTreeSet<CaseTag>,
+        visited: &mut BTreeSet<BasicBlockId>,
+    ) {
+        if stops.contains(&entry) || !visited.insert(entry) {
+            return;
+        }
+
+        let block = self.body().blocks[entry.as_u32() as usize].clone();
+        if !block.is_cleanup {
+            self.block_handled_tags
+                .entry(entry)
+                .or_default()
+                .extend(tags.iter().copied());
+        }
+
+        block.terminator.for_each_successor(|target| {
+            self.mark_region_handled_cases(target, stops, tags, visited);
+        });
     }
 
     fn scan_block_sites(
@@ -490,6 +537,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             else {
                 continue;
             };
+            self.record_block_site(block_id, *site_id);
             match kind {
                 CallKind::Resume { resume, .. } => {
                     let projected = self.ensure_resume_site_facts(types, *site_id, resume)?;
@@ -511,6 +559,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 metadata,
                 ..
             } => {
+                self.record_block_site(block_id, *site_id);
                 let emitted = self.ensure_perform_site_facts(types, *site_id, op_fqn, metadata)?;
                 direct.add_tags(block.is_cleanup, [emitted]);
                 draft.has_suspend_boundary = true;
@@ -525,6 +574,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 exit_target,
                 ..
             } => {
+                self.record_block_site(block_id, *site_id);
                 let outward = self.ensure_handle_site_facts(
                     types,
                     *site_id,
@@ -740,6 +790,13 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 self.case_set_from_tags(arm_cases.non_cleanup),
             ));
         }
+
+        self.mark_region_handled_cases(
+            body_target,
+            &body_stops,
+            &handled_tags,
+            &mut BTreeSet::new(),
+        );
 
         let finally_cases = if let Some(finally_target) = finally_target {
             self.collect_region_cases(
@@ -1223,6 +1280,8 @@ struct BodyFactsBuilder<'a, 'b> {
     sites: BTreeMap<SiteId, SiteEffectFacts>,
     block_drafts: BTreeMap<BasicBlockId, BlockDraft>,
     block_scan_cache: BTreeMap<BasicBlockId, RegionCaseContribution>,
+    block_site_ids: BTreeMap<BasicBlockId, Vec<SiteId>>,
+    block_handled_tags: BTreeMap<BasicBlockId, BTreeSet<CaseTag>>,
 }
 
 impl<'a> MaterializedEffectFactsBuilder<'a> {
@@ -1951,6 +2010,23 @@ fn handle_total_outward_tags(facts: &HandleSiteEffectFacts) -> BTreeSet<CaseTag>
     }
     tags.extend(facts.finally_outward_cases().tags().iter().copied());
     tags
+}
+
+fn collect_block_successors(body: &MirBody) -> BTreeMap<BasicBlockId, Vec<BasicBlockId>> {
+    body.blocks
+        .iter()
+        .enumerate()
+        .map(|(index, block)| {
+            let block_id = BasicBlockId::from_raw(index as u32);
+            let mut successors = Vec::new();
+            block.terminator.for_each_successor(|target| {
+                if !successors.contains(&target) {
+                    successors.push(target);
+                }
+            });
+            (block_id, successors)
+        })
+        .collect()
 }
 
 fn operand_ty(body: &MirBody, types: &mut TypeStore, operand: &Operand) -> TypeId {
