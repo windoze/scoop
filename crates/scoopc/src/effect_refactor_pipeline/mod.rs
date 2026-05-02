@@ -7,6 +7,7 @@
 
 mod ast_stage;
 mod effect_facts_stage;
+mod effect_lowering_stage;
 mod hir_stage;
 mod legacy;
 mod mir_stage;
@@ -17,6 +18,7 @@ use crate::source::SourceFile;
 
 pub use ast_stage::AstStageOutput;
 pub use effect_facts_stage::RefactorEffectFactsStageOutput;
+pub use effect_lowering_stage::RefactorEffectLoweredStageOutput;
 pub use hir_stage::{
     ContinuationResumeSiteContract, FunctionEffectContract, HandleArmContractKind,
     HandleArmSiteContract, HandleSiteContract, PayloadTypeContract, PerformSiteContract,
@@ -279,6 +281,29 @@ pub fn load_effect_facts_stage_output_for_dump(
     build_effect_facts_stage_output(session, source, mir_stage_output)
 }
 
+pub fn build_effect_lowered_stage_output(
+    session: &Session,
+    effect_facts_stage_output: RefactorEffectFactsStageOutput,
+) -> Result<RefactorEffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
+    let dispatcher = dispatcher_for_session(session).late_lowering();
+    match dispatcher.entry {
+        StageEntry::Legacy(entry) => {
+            entry.delegate_to_legacy(|| effect_lowering_stage::run(effect_facts_stage_output))
+        }
+        StageEntry::Refactor(entry) => {
+            entry.lower_effect_lowered_stage_output(effect_facts_stage_output)
+        }
+    }
+}
+
+pub fn load_effect_lowered_stage_output_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<RefactorEffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
+    let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(session, source)?;
+    build_effect_lowered_stage_output(session, effect_facts_stage_output)
+}
+
 pub fn materialize_direct_style_mir_for_dump(
     session: &Session,
     source: &SourceFile,
@@ -453,5 +478,23 @@ mod tests {
             output.effect_facts().callable_facts().len(),
             output.materialized_pass_view().len()
         );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_stage_dispatcher_loads_stage_output() {
+        let session = session_for(EffectPipelineMode::Refactor);
+        let source = sample_source();
+
+        let output = load_effect_lowered_stage_output_for_dump(&session, &source).unwrap();
+
+        assert_eq!(
+            dispatcher_for_session(&session).late_lowering().mode(),
+            EffectPipelineMode::Refactor
+        );
+        assert_eq!(
+            output.program().len(),
+            output.materialized_pass_view().len()
+        );
+        assert!(output.program().callable("sample.main").is_some());
     }
 }

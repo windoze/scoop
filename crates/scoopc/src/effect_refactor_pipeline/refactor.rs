@@ -5,8 +5,9 @@ use crate::session::Session;
 use crate::source::SourceFile;
 
 use super::{
-    AstStageOutput, RefactorEffectFactsStageOutput, RefactorMirStageOutput, StageKind,
-    TypedHirStageOutput, ast_stage, effect_facts_stage, hir_stage, mir_stage,
+    AstStageOutput, RefactorEffectFactsStageOutput, RefactorEffectLoweredStageOutput,
+    RefactorMirStageOutput, StageKind, TypedHirStageOutput, ast_stage, effect_facts_stage,
+    effect_lowering_stage, hir_stage, mir_stage,
 };
 
 /// refactor 主线的阶段入口。
@@ -68,6 +69,15 @@ impl StageEntry {
         debug_assert_eq!(self.stage, StageKind::EffectFacts);
         let _ = self;
         effect_facts_stage::run(session, source, mir_stage_output)
+    }
+
+    pub(crate) fn lower_effect_lowered_stage_output(
+        self,
+        effect_facts_stage_output: RefactorEffectFactsStageOutput,
+    ) -> Result<RefactorEffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
+        debug_assert_eq!(self.stage, StageKind::LateLowering);
+        let _ = self;
+        effect_lowering_stage::run(effect_facts_stage_output)
     }
 
     pub(crate) fn delegate_to_legacy<T>(self, legacy_op: impl FnOnce() -> T) -> T {

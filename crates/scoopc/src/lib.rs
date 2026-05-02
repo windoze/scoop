@@ -15,6 +15,7 @@ pub(crate) mod devirtualize;
 pub mod driver_cli;
 pub(crate) mod effect;
 pub mod effect_facts;
+pub mod effect_lowered;
 pub mod effect_refactor_pipeline;
 pub(crate) mod expr_facts;
 pub mod hir;

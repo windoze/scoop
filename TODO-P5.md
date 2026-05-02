@@ -86,7 +86,7 @@
   - 不执行 P6/P7/P8 的 LLVM / run-pass / runtime_gc / spec-fixtures 完整矩阵。
 - 所有需要触发新路径的验证，都必须通过 `--effect-pipeline refactor` 进入，或通过与该 CLI 路径共用同一 stage helper 的 Rust 测试入口进入；禁止新增只在测试中存在的语义旁路。
 
-## P5-T01：建立 refactor late-lowering stage 与独立 late-lowered representation 边界
+## [DONE] P5-T01：建立 refactor late-lowering stage 与独立 late-lowered representation 边界
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P5
@@ -170,7 +170,15 @@
   - 后续 P5-T02 及之后的任务都能只在这条新主线上推进。
 - 依赖：`TODO-P4.md` 最后一项 review 完成
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P5-T01`，新增独立的 `crates/scoopc/src/effect_lowered/` 子系统，并在 `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs` 中建立 refactor late-lowering stage，使 P5 新路径从一开始就拥有独立于 legacy `effect/state_machine/**` 与 LLVM backend 的正式阶段入口。
+  - `crates/scoopc/src/effect_lowered/{mod,ir,builder,dump}.rs` 现已固定本任务的最小模块树：`ir.rs` 定义 `LateLoweredProgram` / `LateLoweredCallable` 作为独立 late-lowered representation 容器，`builder.rs` 统一承接“canonical MIR snapshot + MaterializedEffectFacts -> LateLoweredProgram”的初始组装入口，`dump.rs` 提供稳定 formatter，`mod.rs` 记录了与 TODO 推荐拆分的映射关系。当前实际落地中，TODO 推荐的 `materialize.rs` 最小职责由 `builder.rs` 承接；`segment.rs` / `frame.rs` / `opt.rs` 留待后续 P5 任务按顺序补入，而不是在本任务提前伪造空壳。
+  - `crates/scoopc/src/lib.rs` 已新增 `pub mod effect_lowered;`，确保该子系统属于 `scoopc` 正式 middle-end API，而不是测试或 LLVM emitter 的局部私货。
+  - `RefactorEffectLoweredStageOutput` 已显式承载：P4 的 `RefactorEffectFactsStageOutput`、与之绑定的 canonical MIR snapshot 查询面、authoritative `MaterializedEffectFacts`、以及最终 `LateLoweredProgram`。其文档注释明确写死：输入必须是 P4 stage 输出、P5 不回 HIR/typecheck、结构性 rewrite 必须继续在 late-lowered IR 内工作、P6 只应把该输出翻译到 LLVM 而不是再重做高层 effect lowering 设计。
+  - `crates/scoopc/src/effect_refactor_pipeline/mod.rs` / `refactor.rs` 现已提供共同入口 `build_effect_lowered_stage_output(...)` 与 `load_effect_lowered_stage_output_for_dump(...)`，供后续 `dump-effect-lowered` CLI、P5 snapshot/golden、P6 lowering stage 与 Rust 单测复用；它们统一以 P4 的 `RefactorEffectFactsStageOutput` 为输入，而不是让调用方各自拼装 stage 输入。
+  - 代码边界复核：本任务没有改动 `crates/scoopc/src/effect/state_machine/**` 或 `crates/scoopc/src/llvm/codegen/effect/**` 的业务实现；new stage 仅通过新的 `effect_lowered` 子系统和 `effect_refactor_pipeline` glue 接入，保持了“P5 不借壳 legacy state-machine，也不混入 LLVM backend”的边界约束。
+  - 新增/更新测试：`crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs` 中的 `refactor_effect_lowered_stage_output_is_constructible`、`refactor_effect_lowered_stage_explicitly_consumes_p4_effect_facts_stage_output`、`refactor_effect_lowered_stage_has_no_legacy_state_machine_or_llvm_imports`，以及 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 中的 `refactor_effect_lowered_stage_dispatcher_loads_stage_output`。
+  - 2026-05-02：按详细任务文件的完成判定规则复验后，已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## P5-T01R：Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend
 
