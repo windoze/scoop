@@ -133,7 +133,7 @@
 
 单一 API：`TypeStore`、`TypeId`、`TypeKind`、`ty::layout`
 
-理由：`ty/` 提供的是编译器内部统一类型表示与布局基础设施。即使 P2 会引入 `Continuation<ResumeTuple, Answer, Out>` 的 typed contract，它也应该表现为普通的编译器拥有接口与 side table 信息，而不是让 `TypeStore` 带上 pipeline-specific lowering 逻辑。
+理由：`ty/` 提供的是编译器内部统一类型表示与布局基础设施。即使 P2 会引入 `Continuation<ResumeTuple, Answer, eff Out>` 与 `resume(value): Answer / (Out + Raise<RuntimeError>)` 的 typed contract，它也应该表现为普通的编译器拥有接口与 side table 信息，而不是让 `TypeStore` 带上 pipeline-specific lowering 逻辑。
 
 禁止：
 
@@ -187,7 +187,7 @@
 
 从哪个阶段开始分叉：`P2-T01` / `P2-T02`
 
-为什么当前旧实现不能中立共享：P2 要把 `Continuation<ResumeTuple, Answer, Out>`、`resume()` 的 `Unit` sugar、runtime error 作为普通 `Raise<RuntimeError>` 传播等 typed 语义固定下来。这些都是 refactor 主线要独立冻结的 contract；若直接在现有 `typecheck/` 里加 pipeline 分支，会把 P2 的 typed 语义和 legacy 规则混在一起。
+为什么当前旧实现不能中立共享：P2 要把 `Continuation<ResumeTuple, Answer, eff Out>`、`resume(value): Answer / (Out + Raise<RuntimeError>)`、`resume()` 的 `Unit` sugar、runtime error 作为普通 `Raise<RuntimeError>` 传播等 typed 语义固定下来。这些都是 refactor 主线要独立冻结的 contract；若直接在现有 `typecheck/` 里加 pipeline 分支，会把 P2 的 typed 语义和 legacy 规则混在一起。
 
 后续应从哪个入口继续推进：建议在 `crates/scoopc/src/effect_refactor_pipeline/refactor/typecheck/` 或等价的 `typed_hir` 子树中落地，再由 refactor typed stage 调用。
 

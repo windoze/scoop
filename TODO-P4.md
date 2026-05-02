@@ -46,6 +46,9 @@
 - runtime error 仍必须按普通 effect 分支建模。
   - `ContinuationAlreadyResumed` 等内部 runtime error，必须进入普通 `Raise<RuntimeError>` 等价 case；
   - 不能发明“runtime-error pseudo case”“hidden trap channel”或第四种 site fact 变体。
+- `ContinuationSchema` 必须继续区分 source-visible `surface_ty` 与 internal `out_step_schema`。
+  - `surface_ty` 的 effect 参数只表示源码层 `Continuation<ResumeTuple, Answer, eff Out>` 中的 residual `Out`；
+  - `resume(...)` 方法额外暴露的 ordinary `Raise<RuntimeError>`，以及为 compiler-generated one-shot 语义保守补入 `StepSchema` / `out_step_schema` 的 runtime-error case，不能仅因此被反写进 `surface_ty`。
 - 所有优化级别必须共用同一条 effect facts 管线。
   - `O0` / debug build 不允许切到单独的“debug effect analysis”通道；
   - 差异只能体现在预算、widening 时机、以及 `SingleCase` 是否允许。
@@ -933,11 +936,74 @@
   - P5-T05 可以在不发明第二错误通道的前提下，继续物化 continuation object 与 boundary lowering。
 - 依赖：P4-T05R
 - 完成记录：
-  - 2026-05-03：完成 `P4-T05a`。最近一次提交 `[P4-T05a] Track compiler continuation runtime-error prerequisite` 与本任务直接相关；本次实现把该前置真正落到了 P4 authoritative handoff 中，而不是继续留给 P5 现场猜测。
-  - `crates/scoopc/src/effect_facts/builder.rs` 现已支持“compiler-generated continuation runtime-error callable 集合”的第二次构建：builder 首次仍按现有 body/site contract 建壳，随后由 stage 基于最终 `needs_reentry` 结果选出确实会进入 resumable lowering 的 callable/version，并仅对这些 callable 的 canonical `StepSchema` 上界补入普通 concrete `Raise<RuntimeError>` case；对应 continuation schema 也会同步生成 `Nothing -> Step_F` 的 ordinary runtime-error continuation contract。
-  - `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 现已采用两次构建流程：第一次 `builder + solver` 只为找出最终 `needs_reentry` 集合，第二次在相同 canonical MIR snapshot 上重建带 compiler-generated runtime-error upper bound 的 facts，再交给 solver 产出最终 handoff。这样 P5 之后只消费 canonical MIR + `MaterializedEffectFacts` 即可知道哪些 callable 的 `StepSchema` 需要保留 runtime-error case，而不必在 late-lowering 现场凭 boundary/site kind 猜补第二错误通道。
+- 2026-05-03：完成 `P4-T05a`。最近一次提交 `[P4-T05a] Track compiler continuation runtime-error prerequisite` 与本任务直接相关；本次实现把该前置真正落到了 P4 authoritative handoff 中，而不是继续留给 P5 现场猜测。
+- `crates/scoopc/src/effect_facts/builder.rs` 现已支持“compiler-generated continuation runtime-error callable 集合”的第二次构建：builder 首次仍按现有 body/site contract 建壳，随后由 stage 基于最终 `needs_reentry` 结果选出确实会进入 resumable lowering 的 callable/version，并仅对这些 callable 的 canonical `StepSchema` 上界补入普通 concrete `Raise<RuntimeError>` case；对应 continuation schema 也会同步生成 `Nothing -> Step_F` 的 ordinary runtime-error continuation contract。
+- `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 现已采用两次构建流程：第一次 `builder + solver` 只为找出最终 `needs_reentry` 集合，第二次在相同 canonical MIR snapshot 上重建带 compiler-generated runtime-error upper bound 的 facts，再交给 solver 产出最终 handoff。这样 P5 之后只消费 canonical MIR + `MaterializedEffectFacts` 即可知道哪些 callable 的 `StepSchema` 需要保留 runtime-error case，而不必在 late-lowering 现场凭 boundary/site kind 猜补第二错误通道。
   - contract 规则已固定：compiler-generated continuation one-shot runtime error 会进入“最终确实需要 reentry 的 callable/version”的 `StepSchema` 上界；但除非真实 body/site 本就会对外贡献该 ordinary runtime error（例如源码 `Continuation.resume(...)` 站点），否则它不会无端扩大 `resolved_outward_cases`、`needs_reentry`、`impl_plan`、block outward facts 或现有 `SingleCase` 样本。`single_case_impl_plan` 因此继续保持 `resolved_outward_cases=[Ping.hit]` 与 `ImplPlan::SingleCase`，只是其 canonical `StepSchema` 现已额外携带 `Raise<RuntimeError>` case，供后续 continuation object one-shot lowering 使用。
   - 新增/更新定向测试：`refactor_effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema`、`refactor_callable_effect_facts_shell_compiler_continuation_runtime_error_only_expands_selected_callables`、`refactor_effect_facts_stage_compiler_continuation_runtime_error_keeps_runtime_error_in_schema_upper_bound`。其中最后一个测试显式断言：reentry callable 的 step schema 会新增 ordinary runtime-error case，但 `resolved_outward_cases` 仍只保留真实 outward 的 `Ping.hit`；同文件中的 `pureHelper` 则保持 truly no-outward，不被误扩张。
   - 已更新并重新生成 P4 dump golden：`tests/fixtures/effect_facts/{single_case_impl_plan,dynamic_fallback_widening,nested_handle_self_contained_vs_outward}.effectfacts`。这些基线现在稳定公开新的 handoff contract：reentry callable 的 canonical `StepSchema` / continuation schema 会显式包含 compiler-generated continuation one-shot runtime-error case，而动态 fallback 与 nested outward handle 的 `resolved_outward_cases` 仍保持原有 outward 子集。
-  - 本任务未改变阶段顺序或 P4 -> P5 的总体依赖关系，因此 `PLAN.md` 无需改动；现已同步把 `TODO.md` 中对应索引标记为 `[DONE]`。
-  - 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`、`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+- 本任务未改变阶段顺序或 P4 -> P5 的总体依赖关系，因此 `PLAN.md` 无需改动；现已同步把 `TODO.md` 中对应索引标记为 `[DONE]`。
+- 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`、`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+
+## P4-T05b：修正 `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界，避免把 one-shot runtime-error 上界并入 `Continuation` effect 参数
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.1, §5.3.9, §5.4.2
+  - [`PLAN.md`](./PLAN.md) §2/P2, §2/P4, §2/P5
+  - 当前实现参考：
+    - `crates/scoopc/src/effect_facts/schema.rs`
+    - `crates/scoopc/src/effect_facts/builder.rs`
+    - `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs`
+- 背景：
+  - `P4-T05a` 把 compiler-generated continuation one-shot runtime error 正确补入了相关 callable/version 的 canonical `StepSchema` / `out_step_schema` 上界；
+  - 但当前 facts builder 又会把扩张后的 step upper bound 直接回写成 `ContinuationSchema.surface_ty` 的 `eff` 参数；
+  - 这与 P2/P3 已固定的 surface contract `Continuation<ResumeTuple, Answer, eff Out>`、`resume(value): Answer / (Out + Raise<RuntimeError>)` 不一致：`Out` 只表示 residual surface row，而不是 `resume` 方法自身的 runtime-error 或 internal one-shot upper bound。
+- 目标：
+  - 保留 `P4-T05a` 对 canonical `StepSchema` / `out_step_schema` 的 one-shot runtime-error 修正；
+  - 同时恢复并锁定 `ContinuationSchema.surface_ty` 只表达源码层 `Continuation<..., eff Out>` 合同，不再把 internal runtime-error upper bound 混写回 effect 参数。
+
+- 必须实现的内容：
+  1. 明确 `ContinuationSchema` 的两层 contract 边界。
+     - `surface_ty` 负责表达源码层 `Continuation<ResumeTuple, Answer, eff Out>`；
+     - `out_step_schema` 负责表达 internal `resume(...) -> Step_F<Answer>` 的 canonical step 上界；
+     - 二者必须允许“`out_step_schema` 含 compiler-generated `Raise<RuntimeError>` case，但 `surface_ty.eff` 仍保持原始 residual `Out`”。
+  2. 修正 P4 schema/facts builder 的 `surface_ty` 构造规则。
+     - 禁止再直接以 callable `StepSchema(F)` 的 effect-row 上界反推每个 case 的 `ContinuationSchema.surface_ty`；
+     - 只有当 continuation 自身的 residual surface row 真实包含 ordinary `Raise<RuntimeError>` 时，`surface_ty` 才可包含它；
+     - 仅仅因为 `resume(...)` 方法类型额外带有 `+ Raise<RuntimeError>`，或因为 one-shot lowering 需要在 `StepSchema` / `out_step_schema` 中保守补入 runtime-error case，都不足以扩大 `surface_ty.eff`。
+  3. 保持 `resume` site synthetic schema 继续遵守同一规则。
+     - `ResumeSiteEffectFacts.out_step_schema` 仍按 `resume.out_effects + runtime_error_effect_ty` 构造；
+     - 但其 `continuation_schema.surface_ty` 继续以 P3 MIR 已下沉的 `resume.continuation_ty` 为准，而不是从 synthetic step upper bound 回推。
+  4. 复核 `ContinuationSchema` identity / dump / golden。
+     - 若 `ContinuationSchemaKey` 继续包含 `surface_ty`，则它的差异只能反映 source-visible residual row 差异，不能把 one-shot runtime-error upper bound 注入当成 source surface 差异；
+     - 更新 `dump-effect-facts` 文本与相关 `.effectfacts` golden，使其稳定公开“`surface_ty` 与 `out_step_schema` 可分离”的 contract。
+  5. 明确本任务的影响边界。
+     - 本修正只允许影响 `ContinuationSchema.surface_ty`、相关 schema identity 与 dump/golden；
+     - 除非当前实现还存在额外错误依赖，否则不得无端改变 `resolved_outward_cases`、`needs_reentry`、`impl_plan`、block/site outward facts 或 `P4-T05a` 已建立的 one-shot runtime-error case 上界。
+
+- 必须遵从的约束：
+  - 禁止撤销 `P4-T05a` 已补入的 compiler-generated one-shot runtime-error `StepSchema` / `out_step_schema` case；
+  - 禁止通过删除 `surface_ty` 字段、把它改成占位字符串、或改回“P5 再猜”的方式规避边界问题；
+  - 禁止把 `Out` 重新定义成“已经隐含 `Raise<RuntimeError>` 的完整 row”，除非先回写 `EFFECT_REFACTOR.md` 与 `PLAN.md`。
+
+- 验证：
+  1. 新增/更新单元测试，推荐命名：
+     - `refactor_continuation_schema_surface_ty_preserves_residual_out_row_*`
+     - `refactor_effect_schema_compiler_continuation_runtime_error_does_not_expand_surface_ty_*`
+     - `refactor_effect_facts_stage_surface_ty_distinguishes_step_upper_bound_*`
+  2. 测试至少覆盖：
+     - source-visible `Continuation<..., eff Pure>` / `Continuation<..., eff Boom>` 在补入 one-shot runtime-error step case 后，`surface_ty` 仍保持 `Pure` / `Boom`；
+     - `out_step_schema` 继续保留 ordinary `Raise<RuntimeError>` case；
+     - `single_case_impl_plan` 一类样本的 `resolved_outward_cases` / `impl_plan` 不被本修正无端改变；
+     - 若 source residual row 本来就包含 `Raise<RuntimeError>`，`surface_ty` 仍能如实保留它。
+  3. 运行：
+      - `cargo test -p scoopc --no-default-features refactor_continuation_schema_surface_ty`
+      - `cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`
+      - `cargo test -p scoop --no-default-features dump_effect_facts`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dynamic_fallback_widening.scoop`
+
+- 完成条件：
+  - P4 handoff 已同时满足：`StepSchema` / `out_step_schema` 保留 one-shot runtime-error 上界，`ContinuationSchema.surface_ty` 仍准确表达源码层 `Continuation<..., eff Out>`；
+  - P5 不再需要在 late-lowering 现场判断“某个 runtime-error case 是 source residual row 还是 internal one-shot upper bound”。
+- 依赖：P4-T05a

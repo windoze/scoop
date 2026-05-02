@@ -5,7 +5,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 前置条件：`TODO-P1.md` 已完整完成，refactor AST stage 已存在，且新旧主线可通过 `scoop` / `scoopc` 的显式 CLI 参数并存。  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本阶段目标：在新路径上建立 typed HIR / typecheck 阶段，让 `Continuation<ResumeTuple, Answer, Out>`、`resume(value): Answer / Out` 的 surface contract、`Unit` 零参 sugar、以及 runtime error 的普通 effect 语义都进入 HIR/typecheck 的显式 contract；同时让后续 P3 不再需要为这些语义回看 AST 或临时猜测。
+> 本阶段目标：在新路径上建立 typed HIR / typecheck 阶段，让 `Continuation<ResumeTuple, Answer, eff Out>`、`resume(value): Answer / (Out + Raise<RuntimeError>)` 的 surface contract、`Unit` 零参 sugar、以及 runtime error 的普通 effect 语义都进入 HIR/typecheck 的显式 contract；同时让后续 P3 不再需要为这些语义回看 AST 或临时猜测。
 
 ## 全局约束
 

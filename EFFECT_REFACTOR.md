@@ -451,7 +451,7 @@ invoke(args_tuple) -> Step_F
    - 其 surface 是：
 
 ```text
-resume(resume_tuple) -> Answer / Out
+resume(resume_tuple) -> Answer / (Out + Raise<RuntimeError>)
 ```
 
    - 内部 lowered 后再对应到统一的 `... -> Step_F<Answer>` 驱动。
@@ -900,7 +900,7 @@ continuation 的更精确 surface 类型尚未最终钉死，但当前共识是�
 
 ```text
 sealed interface Continuation<in ResumeTuple, out Answer, eff Out> {
-  fun resume(value: ResumeTuple): Answer / Out
+  fun resume(value: ResumeTuple): Answer / (Out + Raise<RuntimeError>)
 }
 ```
 
@@ -908,7 +908,8 @@ sealed interface Continuation<in ResumeTuple, out Answer, eff Out> {
 
 - `ResumeTuple` 是当前 continuation 所对应 op 的恢复值 tuple；
 - `Answer` 是该 continuation 所属剩余计算的最终答案类型；
-- `Out` 是恢复之后仍可能继续 outward 的 residual effect row。
+- `Out` 是恢复之后仍可能继续 outward 的 residual effect row；它描述源码层 `Continuation<..., eff Out>` 的 effect 参数；
+- `Raise<RuntimeError>` 是 `resume(...)` 方法本身额外暴露的 ordinary effect；除非 residual row 本来就包含它，否则它不应被反写进 `Continuation<..., eff Out>` 的 `Out` 参数。
 
 源码层的交互语法当前也已经固定：
 
@@ -925,13 +926,13 @@ perform E.op(payload): Resume
 并且该点之后剩余计算的答案类型是 `Answer`，恢复后残余 row 是 `Out`，那么其源码级类型应接近：
 
 ```text
-Continuation<ResumeTuple, Answer, Out>
+Continuation<ResumeTuple, Answer, eff Out>
 ```
 
 其 `resume` 的 surface 语义为：
 
 ```text
-resume(resume_tuple): Answer / Out
+resume(resume_tuple): Answer / (Out + Raise<RuntimeError>)
 ```
 
 这与内部 lowered 语义：
@@ -940,7 +941,14 @@ resume(resume_tuple): Answer / Out
 resume(resume_tuple): Step_F<Answer>
 ```
 
-是一一对应的，只是源码层仍保持 direct-style `Answer / Out` 表示。
+是一一对应的，只是源码层仍保持 direct-style `Answer / (Out + Raise<RuntimeError>)`
+表示，而 `Out` 本身继续只表示 residual row。
+
+这里还要额外固定一条边界：
+
+- 若内部为了 one-shot 语义给 `resume` 对应的 `Step_F` / `out_step_schema` 保守补入普通 `Raise<RuntimeError>` case，
+- 这并不自动意味着源码层 `Continuation<..., eff Out>` 的 `Out` 被扩大；
+- `surface_ty` 与 `out_step_schema` 必须分别表达这两层 contract，不能直接互相回写。
 
 当 `ResumeTuple = ()` 时，当前也直接固定提供：
 
@@ -1275,7 +1283,9 @@ StepSchema {
 
 - `cases` 应按稳定顺序存储；
 - `continuation_obj_ty` 对同一个函数实例固定为内部 continuation 对象类型 `K_F`；
-- `ContinuationSchema` 负责给出源码层 `Continuation<ResumeTuple, Answer, Out>` 所需的完整 contract；
+- `ContinuationSchema` 负责给出源码层 `Continuation<ResumeTuple, Answer, eff Out>` 所需的完整 contract；
+- `ContinuationSchema.surface_ty` 的 effect 参数必须继续表示源码层的 residual `Out`，不能仅因为 `resume(...)` 方法类型额外带有 `+ Raise<RuntimeError>`，或因为 `out_step_schema` 为 one-shot 语义保守包含 ordinary `Raise<RuntimeError>` case，就把该 runtime-error 上界反写进 `surface_ty`；
+- `ContinuationSchema.out_step_schema` 则负责给出 internal `resume(...) -> Step_F<Answer>` 协议的 canonical step 上界；它允许在不改变 `surface_ty` 的前提下保守携带 compiler-generated one-shot runtime-error case；
 - `payload_tuple_ty` 必须显式保存，不依赖外部反查；
 - `resume_tuple_ty`、`answer_ty`、`out_step_schema` 则通过 `continuation_schema` 提供。
 

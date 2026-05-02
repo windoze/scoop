@@ -3,7 +3,7 @@
 > 生成时间：2026-05-02  
 > 设计基线：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
-> 前置条件：`TODO-P4.md` 已完整完成；refactor `effect-facts` stage、`MaterializedEffectFacts`、`dump-effect-facts` 与 P4 -> P5 handoff contract 已存在并稳定。  
+> 前置条件：`TODO-P4.md` 的原始主线任务已完整完成；新增的 `P4-T05b` contract 纠偏任务需在继续推进 `P5-T05` 前完成；refactor `effect-facts` stage、`MaterializedEffectFacts`、`dump-effect-facts` 与 P4 -> P5 handoff contract 已存在并稳定。  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
 > 本阶段目标：在 refactor 新路径上把 P3 的 direct-style MIR 与 P4 的 `MaterializedEffectFacts` 统一转换为 LLVM 之前的 late-lowered internal representation；该 representation 必须显式承载 `Step_F` enum、canonical dynamic `invoke(args_tuple) -> Step_F`、continuation object、internal resume interfaces、整函数 state graph、frame schema、boundary/resume 映射，以及 `ImplPlan` 驱动下的具体版本形态，同时保持“不接 LLVM、不重做高层 effect 分析、不按 code shape 分叉 lowering”的边界。
 
@@ -61,6 +61,10 @@
 - runtime error 必须继续被视为普通 effect 分支的一部分，遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.9。
   - `ContinuationAlreadyResumed` 等路径必须进入普通 outward case / `Step_F` 分支语义；
   - 明确禁止：在 P5 中发明“runtime error hidden trap channel”作为第二条传播通道。
+- P5 消费 `ContinuationSchema` 时必须继续区分 source-visible `surface_ty` 与 internal `out_step_schema`。
+  - `surface_ty` 的 effect 参数只表示源码层 `Continuation<ResumeTuple, Answer, eff Out>` 中的 residual `Out`；
+  - compiler-generated one-shot runtime-error case 可以只存在于 `out_step_schema` / `StepSchema`，而不体现在 `surface_ty.eff`；
+  - P5 不得从 `cases(out_step_schema)` 反推或扩大 `surface_ty`，也不得因为 `surface_ty` 未显式包含 runtime error 就漏掉 one-shot lowering。
 - `Managed ABI` / `extern` / FFI 不是本阶段目标，遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.8。
   - P5 不得尝试让 extern / Managed ABI 承载 `Step_F`、continuation 或 resume interface；
   - 若现有实现中这些边界仍是 pure-only，P5 必须保持该约束不变。
@@ -717,13 +721,69 @@
   - 显式控制流合同复核通过：`LateLoweredStateTerminator` 现已稳定发布 `Suspend` / `Goto` / `Branch` / `Return` / `HandleDispatch` / `ResumeUnwind` / `Abandon`；`segment.rs` 会把 loop `break`/`continue`、handle body/arm/finally、cleanup edge、resume runtime error outward 与 dedicated drop path 一并写入 late-lowered state graph，因此 P5 新主线不再依赖 direct-style CFG 的隐式语义来推断这些跳转。
   - 文本搜索复核：按本任务要求在 `crates/scoopc/src/effect_lowered` 与 `crates/scoopc/src/effect_refactor_pipeline` 搜索 `Todo\(|pending finally|pending cleanup|handler stack|cleanup hook`，命中仅剩 generic MIR `Todo(_)` 分支、测试断言字符串，或 `effect_lowering_stage.rs` 中确认“未导入 legacy state_machine/llvm”的 review 测试；未发现 P5 新主线把 pending-finally / pending-cleanup / handler-stack / cleanup-hook 语义当作 correctness 前提。
   - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
-  - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+- 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+
+## P5-T04b：对齐 late lowering 对 `ContinuationSchema.surface_ty` / `out_step_schema` 的消费边界，避免在 continuation 物化时重新引入 surface-row 漂移
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.1, §5.3.9, §5.4.2, §5.5.4
+  - [`PLAN.md`](./PLAN.md) §2/P4, §2/P5
+  - [`TODO-P4.md`](./TODO-P4.md) 中 `P4-T05b`
+  - 当前实现参考：
+    - `crates/scoopc/src/effect_lowered/builder.rs`
+    - `crates/scoopc/src/effect_lowered/ir.rs`
+    - `crates/scoopc/src/effect_lowered/dump.rs`
+- 背景：
+  - `P5-T05` 将首次真正物化 continuation object、resume interface 与 one-shot runtime-error lowering；
+  - 若 P5 把 `ContinuationSchema.surface_ty` 和 `out_step_schema` 继续当作同一层 contract，就会在 continuation object / dump / ABI 组织中重新引入“把 one-shot runtime-error upper bound 并回 `Continuation<..., eff Out>`”的错误；
+  - 因此在继续推进 `P5-T05` 之前，必须先把 P5 对这两层 contract 的消费边界显式锁定。
+- 目标：
+  - 确保 P5 只用 `resume_tuple_ty` / `answer_ty` / `out_step_schema` 驱动 internal `Step` / continuation lowering；
+  - 同时把 `surface_ty` 保持为源码层 `Continuation<..., eff Out>` 的可见 contract，而不是 internal step upper bound 的镜像。
+
+- 必须实现的内容：
+  1. 逐点明确 P5 消费 `ContinuationSchema` 的职责分工。
+     - internal resume interface、continuation object、boundary lowering、one-shot runtime-error outward 路径，必须以 `resume_tuple_ty`、`answer_ty`、`out_step_schema` 为 authoritative 输入；
+     - `surface_ty` 只用于保留/显示源码层 continuation contract，不能作为 internal runtime-error case 集或 resume ABI 的主来源。
+  2. 对齐 late-lowered builder / IR / dump 的 contract 假设。
+     - 若当前 P5 shell/dump 仍把 `surface_ty` 视作与 `out_step_schema` 等价，必须在本任务中修正；
+     - 若某些字段/注释会误导后续实现把 `surface_ty.eff` 当成 one-shot runtime-error 判据，也必须一并修正。
+  3. 固定 one-shot lowering 的判断规则。
+     - 即使 `surface_ty.eff` 不含 `Raise<RuntimeError>`，只要 `out_step_schema` / `StepSchema` 含 compiler-generated ordinary runtime-error case，continuation object 的重复恢复路径仍必须走普通 outward `Step_F` case；
+     - 反过来，也禁止仅因 `surface_ty` 的 effect 参数含 `Raise<RuntimeError>` 就跳过 `out_step_schema` / site facts 给出的 canonical boundary contract。
+  4. 更新定向测试与后续任务前提。
+     - 至少要为 `P5-T05` 准备一个样本：`surface_ty` 保持 `Pure` 或 `Boom`，但 `out_step_schema`/`StepSchema` 额外含 one-shot runtime-error case；
+     - `P5-T05` / `P5-T05R` 的任务描述、依赖或 review 重点若默认把 `surface_ty` 与 internal upper bound 视为同一层，必须在本任务中修正。
+
+- 必须遵从的约束：
+  - 禁止把 `surface_ty.eff` 当作 one-shot runtime-error lowering 的唯一判据；
+  - 禁止因为 `surface_ty` 未显式带 `Raise<RuntimeError>` 就回退到 hidden channel / pseudo case；
+  - 禁止为了规避问题而把 `surface_ty` 从 P5 IR / dump contract 中删掉。
+
+- 验证：
+  1. 新增/更新单元测试，推荐命名：
+     - `refactor_resume_interface_uses_out_step_schema_not_surface_ty_*`
+     - `refactor_continuation_object_one_shot_runtime_error_preserves_surface_row_*`
+     - `refactor_effect_lowered_stage_surface_ty_does_not_control_runtime_error_case_*`
+  2. 测试至少覆盖：
+     - `surface_ty = Continuation<..., eff Pure>` 或 `eff Boom` 时，只要 `out_step_schema` 带 one-shot runtime-error case，P5 仍能物化对应 outward path；
+     - late-lowered dump / shell 中 source-visible continuation type 不会被无端扩大成 `eff (Out + Raise<RuntimeError>)`；
+     - source residual row 本来就含 runtime error 的样本不会被误收窄。
+  3. 运行：
+      - `cargo test -p scoopc --no-default-features refactor_resume_interface`
+      - `cargo test -p scoopc --no-default-features refactor_continuation_object`
+      - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
+
+- 完成条件：
+  - P5 已显式锁定：internal one-shot/runtime-error lowering 看 `out_step_schema` / `StepSchema`，source-visible continuation contract 看 `surface_ty`；
+  - `P5-T05` 可以在不重新讨论这两层边界的前提下继续物化 continuation object 与 boundary lowering。
+- 依赖：P4-T05b，P5-T04R
 
 ## P5-T05：物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P5
-  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §5.2, §5.3.2-§5.3.5, §5.5.4, §7.3, §8
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §5.2, §5.3.1-§5.3.5, §5.4.2, §5.5.4, §7.3, §8
   - 当前实现参考：
     - `crates/scoopc/src/effect_facts/schema.rs`
     - `crates/scoopc/src/effect_facts/facts.rs`
@@ -794,9 +854,12 @@
   9. one-shot 语义必须在 continuation object / resume path 中显式表达。
      - 首次恢复后，后续非法再次恢复必须走 ordinary runtime error outward；
      - 不能留给 P6/backend 才“顺便”检查。
-  10. `payload_tuple_ty == ()` / `resume_tuple_ty == ()` 的 case 必须在中层正确退化。
-      - 允许物理零载荷 variant / method 形态；
-      - 但语义上必须仍与 P4 schema 对齐，不能在 P5 私自省略 case/方法身份。
+   10. `payload_tuple_ty == ()` / `resume_tuple_ty == ()` 的 case 必须在中层正确退化。
+       - 允许物理零载荷 variant / method 形态；
+       - 但语义上必须仍与 P4 schema 对齐，不能在 P5 私自省略 case/方法身份。
+   11. `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界必须被保持。
+       - internal resume interface / continuation object / one-shot runtime-error lowering 必须由 `resume_tuple_ty` / `answer_ty` / `out_step_schema` 驱动；
+       - `surface_ty` 继续只表示源码层 `Continuation<..., eff Out>`，不能因为 internal one-shot runtime-error case 而被无端扩大。
 
 - 必须遵从的约束：
   - 禁止把 call/resume boundary 的 outward 传播写成 ad-hoc helper，而不经统一 `Step_F` 分派模型。
@@ -838,7 +901,7 @@
   - P5 已真正物化 `Step_F`、dynamic invoke、continuation object、resume interfaces；
   - 所有 boundary 已按统一 `Step`/continuation 模型完成 lowering；
   - P6 不再需要设计新的 effectful ABI 或 continuation carrier。
-- 依赖：P4-T05a，P5-T04R
+- 依赖：P5-T04b
 - 完成记录：
   - （执行时填写）
 

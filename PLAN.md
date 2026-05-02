@@ -135,13 +135,14 @@
 目标：
 
 - 在新路径上把 surface contract 变成 typed HIR contract。
-- 让 typechecker 真正理解 `Continuation<ResumeTuple, Answer, Out>`、`resume(value): Answer / Out`、以及运行时错误作为普通 `Raise<RuntimeError>` 传播的语义。
+- 让 typechecker 真正理解 `Continuation<ResumeTuple, Answer, eff Out>`、`resume(value): Answer / (Out + Raise<RuntimeError>)`、以及运行时错误作为普通 `Raise<RuntimeError>` 传播的语义。
 - 让 HIR 到 MIR 的下一阶段不再需要猜测这些 surface contract。
 
 实现：
 
-- 引入源码层 `Continuation<ResumeTuple, Answer, Out>` 的 compiler-owned interface 语义。
+- 引入源码层 `Continuation<ResumeTuple, Answer, eff Out>` 的 compiler-owned interface 语义。
 - 明确：用户可以持有/传递/调用 continuation，但不能自己实现/伪造该接口。
+- 明确：`Continuation` 的 effect 参数只表示 residual `Out`；`Raise<RuntimeError>` 是 `resume(...)` 方法额外暴露的 ordinary effect，不得被反写回 `Out` 参数。
 - 在 typecheck 阶段完成 type-dependent desugar：
   - 单一 `Unit` 参数调用的 `f()` -> `f(())`
   - `ResumeTuple = ()` 时的 `k.resume()` -> `k.resume(())`
@@ -254,6 +255,10 @@
   - 它对应哪个 `StepSchema` / `ContinuationSchema` / `CaseTag`；
   - payload tuple、resume tuple、answer/outward schema 是什么；
   - nested `handle` 是 self-contained 还是 `may_suspend_outward`。
+- `ContinuationSchema` 必须同时保留 source-visible continuation contract 与 internal step upper bound 的边界：
+  - `surface_ty` 的 effect 参数只表示源码层 residual `Out`；
+  - `out_step_schema` 可为 one-shot 语义保守包含 compiler-generated ordinary `Raise<RuntimeError>` case；
+  - 后续阶段不得把 `out_step_schema` 的 runtime-error 上界反写回 `surface_ty`。
 - 实现 `resolved_outward_cases` 的统一 SCC/dataflow 求解：
   - direct known callee -> 并入 callee `resolved_outward_cases`
   - candidate set -> 并入候选并集
@@ -340,6 +345,7 @@
   - continuation object；
   - internal resume interfaces / icall boundary；
   - state graph、frame schema、boundary/resume 映射。
+- continuation object / resume interface / boundary lowering 必须消费 `ContinuationSchema.resume_tuple_ty`、`answer_ty` 与 `out_step_schema` 作为 internal `Step` 协议来源；`surface_ty` 只保留源码层 `Continuation<..., eff Out>` 合同，不能从 `out_step_schema` 的 one-shot runtime-error upper bound 反推或扩大其 effect 参数。
 - 若现有“单 `handle` 内部状态机”模块能在**不引入 code-shape 分叉**的前提下消费上述整函数 contract，可将其下沉为中立基础设施；否则在新路径中替换/重建，不继续把“仅 `handle` 局部状态机”当成目标架构。
 - 在 late-lowered representation 上立即加入一轮窄的：
   - devirtualization
@@ -509,7 +515,7 @@
 本轮完成时，必须能够明确陈述以下结论全部成立：
 
 1. surface 语法层不引入新的 continuation 专用语法或 keyword，`k.resume(...)` 与一般 `Unit` 参数 sugar 已在新主线内稳定工作。
-2. HIR 已能完整表达 `Continuation<ResumeTuple, Answer, Out>`、`resume(value): Answer / Out` 与 runtime error 的普通 effect 语义。
+2. HIR 已能完整表达 `Continuation<ResumeTuple, Answer, eff Out>`、`resume(value): Answer / (Out + Raise<RuntimeError>)` 与 runtime error 的普通 effect 语义。
 3. new-path MIR 在 late lowering 之前保持 direct-style，并且不再依赖 HIR fallback 才能表达 effect/continuation 语义。
 4. `MaterializedEffectFacts` 已成为 downstream 唯一 effect contract 来源；后续阶段不再为补语义回看 HIR。
 5. `resolved_outward_cases`、`needs_reentry`、`impl_plan` 已在 facts 层闭合，并按统一 SCC/dataflow + budget 规则求解。
