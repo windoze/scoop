@@ -1773,7 +1773,10 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::effect_refactor_pipeline::load_effect_lowered_stage_output_for_dump;
+    use crate::effect_lowered::LateLoweredProgramBuilder;
+    use crate::effect_refactor_pipeline::{
+        load_effect_facts_stage_output_for_dump, load_effect_lowered_stage_output_for_dump,
+    };
     use crate::mir::TemplateKey;
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
@@ -1790,6 +1793,42 @@ mod tests {
             .join(phase)
             .join(name);
         SourceFile::load(&path).expect("fixture 应可加载")
+    }
+
+    struct RawProgramOutput {
+        effect_facts_stage_output: crate::effect_refactor_pipeline::RefactorEffectFactsStageOutput,
+        program: LateLoweredProgram,
+    }
+
+    impl RawProgramOutput {
+        fn program(&self) -> &LateLoweredProgram {
+            &self.program
+        }
+
+        fn types(&self) -> &TypeStore {
+            self.effect_facts_stage_output.types()
+        }
+    }
+
+    fn build_raw_output(source: &SourceFile) -> RawProgramOutput {
+        let session = refactor_session();
+        let effect_facts_output = load_effect_facts_stage_output_for_dump(&session, source)
+            .expect("fixture 应可通过 refactor effect-facts stage");
+        let program = LateLoweredProgramBuilder::from_canonical_inputs(
+            effect_facts_output.materialized_pass_view(),
+            effect_facts_output.effect_facts(),
+            effect_facts_output.types(),
+        )
+        .build()
+        .expect("fixture 应可通过 raw late-lowering builder");
+        RawProgramOutput {
+            effect_facts_stage_output: effect_facts_output,
+            program,
+        }
+    }
+
+    fn build_raw_program(source: &SourceFile) -> LateLoweredProgram {
+        build_raw_output(source).program
     }
 
     fn sample_instance_key(fqn: &str) -> InstanceKey {
@@ -2300,11 +2339,8 @@ mod tests {
 
     #[test]
     fn refactor_late_lowered_ir_builder_materializes_program_shells_from_effect_facts() {
-        let session = refactor_session();
         let source = load_fixture("effect_facts", "single_case_impl_plan.scoop");
-        let output = load_effect_lowered_stage_output_for_dump(&session, &source)
-            .expect("fixture 应可通过 refactor late-lowering stage");
-        let program = output.program();
+        let program = build_raw_program(&source);
 
         assert!(!program.step_types().is_empty());
         assert!(!program.resume_interfaces().is_empty());
@@ -2378,10 +2414,8 @@ mod tests {
 
     #[test]
     fn refactor_resume_interface_uses_out_step_schema_not_surface_ty_for_runtime_error_case() {
-        let session = refactor_session();
         let source = load_fixture("effect_facts", "dispatch_and_resume_call.scoop");
-        let output = load_effect_lowered_stage_output_for_dump(&session, &source)
-            .expect("fixture 应可通过 refactor late-lowering stage");
+        let output = build_raw_output(&source);
         let method = output
             .program()
             .resume_interfaces()

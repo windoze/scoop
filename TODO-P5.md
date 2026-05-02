@@ -968,7 +968,7 @@
   - 重新验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_step_materialization`、`cargo test -p scoopc --no-default-features refactor_boundary_lowering`、`cargo test -p scoopc --no-default-features refactor_continuation_object`、`cargo test -p scoopc --no-default-features refactor_impl_plan_lowering`、`cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_late_segmentation`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
   - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
-## P5-T06：在 late-lowered representation 上加入窄的 devirtualization / inlining / DCE 后处理
+## [DONE] P5-T06：在 late-lowered representation 上加入窄的 devirtualization / inlining / DCE 后处理
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P5
@@ -1049,7 +1049,16 @@
   - 但 canonical effect contract 与 `ImplPlan` 保持不变。
 - 依赖：P5-T05R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：完成 `P5-T06`。新增 `crates/scoopc/src/effect_lowered/opt.rs` 作为 late-lowered 专属后处理模块，并在 `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs` 中把 P5 stage 的正式输出切换为 `LateLoweredProgramBuilder` 产物经过 `optimize_program(...)` 后的 final late-lowered representation，确保后续 CLI dump / P6 只看到 post-opt 结果。
+  - `optimize_program(...)` 只消费 `LateLoweredProgram`，不会重新回读 HIR/P3 MIR/P4 solver 输入，也不会重跑 `resolved_outward_cases` / `needs_reentry` / `impl_plan`。当前后处理聚焦于三类窄收缩：
+    - devirtualization / interface 收缩：删除 continuation object 中不可达的 internal resume methods，并同步裁剪 live `ResumeInterface`/`implemented_interfaces`；
+    - inlining / wrapper collapse：对空 `Segment` / `Resume` wrapper state 建立 redirect，把 trivial `invoke`/resume wrapper 折叠到真实 owner/resume state，同时重写 dynamic entry、boundary lowering、resume-state map 与 continuation captures；
+    - DCE / cleanup：删去不可达 state、无读者的非系统 frame slot、以及随之失活的 boundary/result slot capture。
+  - contract 保持不变：优化前后的 `StepSchema`、`CaseTag`、`ImplPlan`、`resolved_outward_cases`、canonical `invoke(args_tuple) -> Step_F` surface 与 continuation `surface_resumes` 均保持稳定；`SingleCase` 仍只影响 method reachability，不会派生第二套窄 `Step` 类型。
+  - 为了能同时验证 pre-opt builder shell 与 post-opt stage 输出，`crates/scoopc/src/effect_lowered/ir.rs` / `materialize.rs` 的相关测试现改为直接通过 `LateLoweredProgramBuilder::from_canonical_inputs(...).build()` 构造 raw program；而 stage 级测试继续经由 `load_effect_lowered_stage_output_for_dump(...)` 断言正式对外输出已经是 post-opt final 结果。
+  - 新增/更新测试：`refactor_late_opt_devirt_prunes_unreachable_internal_resume_methods`、`refactor_late_opt_devirt_stage_output_is_post_opt_final`、`refactor_late_opt_inline_collapses_trivial_invoke_and_resume_wrappers`、`refactor_late_opt_dce_removes_dead_states_and_unused_frame_slots`、`refactor_late_opt_preserves_contract_for_step_and_continuation_surface`；并复跑 `refactor_effect_lowered_stage`、`refactor_late_lowered_ir`、`refactor_step_materialization`、`refactor_boundary_lowering`、`refactor_continuation_object`、`refactor_resume_interface_completeness`，确认既有 late-lowered / materialization contract 未被 post-opt stage 破坏。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_late_opt_devirt`、`cargo test -p scoopc --no-default-features refactor_late_opt_inline`、`cargo test -p scoopc --no-default-features refactor_late_opt_dce`、`cargo test -p scoopc --no-default-features refactor_late_opt_preserves_contract`、`cargo test -p scoopc --no-default-features refactor_late_opt`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_step_materialization`、`cargo test -p scoopc --no-default-features refactor_boundary_lowering`、`cargo test -p scoopc --no-default-features refactor_continuation_object`、`cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`、`cargo fmt --all --check`。
+  - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
 ## P5-T06R：Review late-lowered 后处理，确认它只做抽象层收缩，不重新回到高层 effect 分析
 

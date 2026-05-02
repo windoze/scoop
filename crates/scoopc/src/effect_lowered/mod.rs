@@ -7,19 +7,22 @@
 //! - `frame.rs` 承接 TODO 推荐的 frame lifting 与显式控制流合同补全；
 //! - `materialize.rs` 承接 TODO 推荐的 `materialize.rs` 职责：物化 `Step_F`、dynamic
 //!   `invoke`、continuation object、resume interfaces 与 boundary lowering contract；
+//! - `opt.rs` 承接 TODO 推荐的 late-lowered 窄后处理：在不改变 canonical contract 的前提下，
+//!   做闭世界 devirtualization / inlining / DCE；
 //! - `dump.rs` 提供稳定 formatter；
-//! - TODO 推荐的 `opt.rs` 会在后续 P5 任务里补入；当前不提前伪造空壳。
 
 pub(crate) mod builder;
 pub mod dump;
 pub(crate) mod frame;
 pub mod ir;
 pub(crate) mod materialize;
+pub(crate) mod opt;
 pub(crate) mod segment;
 
 pub(crate) use builder::LateLoweredProgramBuilder;
 pub use dump::render_late_lowered_program;
 pub use ir::{LateLoweredCallable, LateLoweredProgram};
+pub(crate) use opt::optimize_program;
 
 use thiserror::Error;
 

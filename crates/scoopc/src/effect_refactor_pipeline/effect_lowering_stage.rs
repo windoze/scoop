@@ -1,7 +1,9 @@
 use std::fmt::Write;
 
 use crate::effect_facts::{MaterializedEffectFacts, MirSnapshotBinding};
-use crate::effect_lowered::{EffectLoweringError, LateLoweredProgram, LateLoweredProgramBuilder};
+use crate::effect_lowered::{
+    EffectLoweringError, LateLoweredProgram, LateLoweredProgramBuilder, optimize_program,
+};
 use crate::mir::{MaterializedMir, MaterializedMirPassView};
 use crate::ty::TypeStore;
 
@@ -74,12 +76,14 @@ impl RefactorEffectLoweredStageOutput {
 pub(crate) fn run(
     effect_facts_stage_output: RefactorEffectFactsStageOutput,
 ) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
-    let program = LateLoweredProgramBuilder::from_canonical_inputs(
-        effect_facts_stage_output.materialized_pass_view(),
-        effect_facts_stage_output.effect_facts(),
-        effect_facts_stage_output.types(),
-    )
-    .build()?;
+    let program = optimize_program(
+        LateLoweredProgramBuilder::from_canonical_inputs(
+            effect_facts_stage_output.materialized_pass_view(),
+            effect_facts_stage_output.effect_facts(),
+            effect_facts_stage_output.types(),
+        )
+        .build()?,
+    );
     Ok(RefactorEffectLoweredStageOutput::new(
         effect_facts_stage_output,
         program,

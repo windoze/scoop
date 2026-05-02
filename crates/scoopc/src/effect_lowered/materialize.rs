@@ -797,11 +797,12 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::effect_facts::{CallTargetMode, ImplPlan, NestedHandleClassification};
+    use crate::effect_lowered::LateLoweredProgramBuilder;
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredContinuationMethodReachability,
         LateLoweredContinuationResumeBody, LateLoweredOneShotPolicy,
     };
-    use crate::effect_refactor_pipeline::load_effect_lowered_stage_output_for_dump;
+    use crate::effect_refactor_pipeline::load_effect_facts_stage_output_for_dump;
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -817,16 +818,40 @@ mod tests {
         SourceFile::load(&path).expect("fixture 应可加载")
     }
 
-    fn load_output(
-        source: &SourceFile,
-    ) -> crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput {
+    struct RawMaterializedOutput {
+        effect_facts_stage_output: crate::effect_refactor_pipeline::RefactorEffectFactsStageOutput,
+        program: crate::effect_lowered::LateLoweredProgram,
+    }
+
+    impl RawMaterializedOutput {
+        fn program(&self) -> &crate::effect_lowered::LateLoweredProgram {
+            &self.program
+        }
+
+        fn types(&self) -> &crate::ty::TypeStore {
+            self.effect_facts_stage_output.types()
+        }
+    }
+
+    fn load_output(source: &SourceFile) -> RawMaterializedOutput {
         let session = refactor_session();
-        load_effect_lowered_stage_output_for_dump(&session, source)
-            .expect("fixture 应可通过 refactor late-lowering stage")
+        let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(&session, source)
+            .expect("fixture 应可通过 refactor effect-facts stage");
+        let program = LateLoweredProgramBuilder::from_canonical_inputs(
+            effect_facts_stage_output.materialized_pass_view(),
+            effect_facts_stage_output.effect_facts(),
+            effect_facts_stage_output.types(),
+        )
+        .build()
+        .expect("fixture 应可通过 raw late-lowering builder");
+        RawMaterializedOutput {
+            effect_facts_stage_output,
+            program,
+        }
     }
 
     fn callable<'a>(
-        output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        output: &'a RawMaterializedOutput,
         fqn: &str,
     ) -> &'a crate::effect_lowered::LateLoweredCallable {
         output
