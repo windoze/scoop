@@ -115,10 +115,14 @@ fn render_step_type(rendered: &mut String, step_type: &LateLoweredStepType) {
 fn render_step_case(rendered: &mut String, case: &LateLoweredStepCase) {
     writeln!(
         rendered,
-        "        - Case(c{}) payload_tuple_ty={} continuation_schema=k{} concrete_op={}",
+        "        - Case(c{}) payload_tuple_ty={} continuation_schema=k{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} concrete_op={}",
         case.case_tag().as_u32(),
         render_type_id(case.payload_tuple_ty()),
         case.continuation_schema().as_u32(),
+        render_type_id(case.resume_tuple_ty()),
+        render_type_id(case.answer_ty()),
+        render_type_id(case.surface_ty()),
+        case.out_step_schema().as_u32(),
         render_concrete_op_key(case.concrete_op_key()),
     )
     .unwrap();
@@ -150,9 +154,12 @@ fn render_resume_interface(rendered: &mut String, interface: &LateLoweredResumeI
 fn render_resume_method(rendered: &mut String, method: &LateLoweredResumeMethod) {
     writeln!(
         rendered,
-        "        - case: c{} resume_tuple_ty={} continuation_schema=k{} concrete_op={}",
+        "        - case: c{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} concrete_op={}",
         method.case_tag().as_u32(),
         render_type_id(method.resume_tuple_ty()),
+        render_type_id(method.answer_ty()),
+        render_type_id(method.surface_ty()),
+        method.out_step_schema().as_u32(),
         method.continuation_schema().as_u32(),
         render_concrete_op_key(method.concrete_op_key()),
     )
@@ -205,9 +212,14 @@ fn render_continuation_object(rendered: &mut String, object: &LateLoweredContinu
 fn render_continuation_method(rendered: &mut String, method: &LateLoweredContinuationMethod) {
     writeln!(
         rendered,
-        "        - ri{}::c{} => {}",
+        "        - ri{}::c{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} => {}",
         method.interface_id().as_u32(),
         method.case_tag().as_u32(),
+        render_type_id(method.resume_tuple_ty()),
+        render_type_id(method.answer_ty()),
+        render_type_id(method.surface_ty()),
+        method.out_step_schema().as_u32(),
+        method.continuation_schema().as_u32(),
         render_method_reachability(method.reachability()),
     )
     .unwrap();

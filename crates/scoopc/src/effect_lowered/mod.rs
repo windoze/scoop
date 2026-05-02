@@ -58,6 +58,27 @@ pub enum EffectLoweringError {
     },
 
     #[error(
+        "refactor late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上引用的 continuation schema k{continuation_schema} 声明 out_step_schema=s{out_step_schema}，与当前 return-step contract 不一致"
+    )]
+    ContinuationOutStepSchemaMismatch {
+        step_schema: u32,
+        continuation_schema: u32,
+        case_tag: u32,
+        out_step_schema: u32,
+    },
+
+    #[error(
+        "refactor late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上引用的 continuation schema k{continuation_schema} 声明 answer_ty=t{answer_ty}，但当前 return-step complete_ty=t{complete_ty}"
+    )]
+    ContinuationAnswerTyMismatch {
+        step_schema: u32,
+        continuation_schema: u32,
+        case_tag: u32,
+        answer_ty: u32,
+        complete_ty: u32,
+    },
+
+    #[error(
         "refactor late-lowering stage 看到的 `{root_fqn}` invoke args tuple(t{callable_args_tuple}) 与 StepSchema s{step_schema} 的 invoke args tuple(t{step_args_tuple}) 不一致"
     )]
     InvokeArgsTupleMismatch {

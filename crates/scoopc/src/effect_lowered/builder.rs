@@ -8,7 +8,7 @@ use super::EffectLoweringError;
 use super::frame::{FrameBuildInputs, build_callable_frame};
 use super::ir::{
     ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
-    LateLoweredContinuationCapture, LateLoweredContinuationMethod,
+    LateLoweredContinuationCapture, LateLoweredContinuationContract, LateLoweredContinuationMethod,
     LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
     LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredProgram,
     LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeStateMap,
@@ -49,7 +49,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             effect_facts.step_schemas().iter().enumerate()
         {
             let interface_id = ResumeInterfaceId::new(index as u32);
-            step_types.push(build_step_type(step_schema_id, step_schema));
+            step_types.push(build_step_type(step_schema_id, step_schema, effect_facts)?);
             resume_interfaces.push(build_resume_interface(
                 interface_id,
                 step_schema_id,
@@ -143,10 +143,12 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             continuation_objects.push(build_continuation_object(
                 continuation_object_id,
                 body_version_key.clone(),
+                step_schema_id,
                 step_schema,
                 resume_interface_id,
                 continuation_captures,
-            ));
+                effect_facts,
+            )?);
             callables.push(LateLoweredCallable::new(
                 family.root_fqn().to_string(),
                 body_version_key,
@@ -174,8 +176,12 @@ impl<'a> LateLoweredProgramBuilder<'a> {
     }
 }
 
-fn build_step_type(step_schema_id: StepSchemaId, step_schema: &StepSchema) -> LateLoweredStepType {
-    LateLoweredStepType::new(
+fn build_step_type(
+    step_schema_id: StepSchemaId,
+    step_schema: &StepSchema,
+    effect_facts: &MaterializedEffectFacts,
+) -> Result<LateLoweredStepType, EffectLoweringError> {
+    Ok(LateLoweredStepType::new(
         step_schema_id,
         step_schema.invoke_args_tuple_ty(),
         step_schema.complete_ty(),
@@ -184,15 +190,17 @@ fn build_step_type(step_schema_id: StepSchemaId, step_schema: &StepSchema) -> La
             .cases()
             .iter()
             .map(|case| {
-                LateLoweredStepCase::new(
+                let continuation_contract =
+                    build_continuation_contract(step_schema_id, step_schema, case, effect_facts)?;
+                Result::<_, EffectLoweringError>::Ok(LateLoweredStepCase::new(
                     case.case_tag(),
                     case.concrete_op_key().clone(),
                     case.payload_tuple_ty(),
-                    case.continuation_schema(),
-                )
+                    continuation_contract,
+                ))
             })
-            .collect(),
-    )
+            .collect::<Result<Vec<_>, _>>()?,
+    ))
 }
 
 fn build_resume_interface(
@@ -202,25 +210,20 @@ fn build_resume_interface(
     effect_facts: &MaterializedEffectFacts,
 ) -> Result<LateLoweredResumeInterface, EffectLoweringError> {
     let mut methods = Vec::with_capacity(step_schema.cases().len());
+    let mut return_step_schema = None;
     for case in step_schema.cases() {
-        let continuation_schema = effect_facts
-            .continuation_schemas()
-            .get(&case.continuation_schema())
-            .ok_or_else(|| EffectLoweringError::MissingContinuationSchema {
-                step_schema: step_schema_id.as_u32(),
-                continuation_schema: case.continuation_schema().as_u32(),
-                case_tag: case.case_tag().as_u32(),
-            })?;
+        let continuation_contract =
+            build_continuation_contract(step_schema_id, step_schema, case, effect_facts)?;
+        return_step_schema.get_or_insert(continuation_contract.out_step_schema());
         methods.push(LateLoweredResumeMethod::new(
             case.case_tag(),
             case.concrete_op_key().clone(),
-            case.continuation_schema(),
-            continuation_schema.resume_tuple_ty(),
+            continuation_contract,
         ));
     }
     Ok(LateLoweredResumeInterface::new(
         interface_id,
-        step_schema_id,
+        return_step_schema.unwrap_or(step_schema_id),
         methods,
     ))
 }
@@ -228,30 +231,78 @@ fn build_resume_interface(
 fn build_continuation_object(
     continuation_object_id: ContinuationObjectId,
     owner_version_key: LateLoweredBodyVersionKey,
+    step_schema_id: StepSchemaId,
     step_schema: &StepSchema,
     resume_interface_id: ResumeInterfaceId,
     captures: Vec<LateLoweredContinuationCapture>,
-) -> LateLoweredContinuationObject {
+    effect_facts: &MaterializedEffectFacts,
+) -> Result<LateLoweredContinuationObject, EffectLoweringError> {
     let methods = step_schema
         .cases()
         .iter()
         .map(|case| {
-            LateLoweredContinuationMethod::new(
+            let continuation_contract =
+                build_continuation_contract(step_schema_id, step_schema, case, effect_facts)?;
+            Result::<_, EffectLoweringError>::Ok(LateLoweredContinuationMethod::new(
                 resume_interface_id,
                 case.case_tag(),
+                continuation_contract,
                 continuation_method_reachability(owner_version_key.impl_plan(), case.case_tag()),
-            )
+            ))
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
-    LateLoweredContinuationObject::new(
+    Ok(LateLoweredContinuationObject::new(
         continuation_object_id,
         owner_version_key,
         step_schema.continuation_obj_ty(),
         vec![resume_interface_id],
         captures,
         methods,
-    )
+    ))
+}
+
+fn build_continuation_contract(
+    step_schema_id: StepSchemaId,
+    step_schema: &StepSchema,
+    case: &crate::effect_facts::StepCaseFact,
+    effect_facts: &MaterializedEffectFacts,
+) -> Result<LateLoweredContinuationContract, EffectLoweringError> {
+    let continuation_schema = effect_facts
+        .continuation_schemas()
+        .get(&case.continuation_schema())
+        .ok_or_else(|| EffectLoweringError::MissingContinuationSchema {
+            step_schema: step_schema_id.as_u32(),
+            continuation_schema: case.continuation_schema().as_u32(),
+            case_tag: case.case_tag().as_u32(),
+        })?;
+
+    if continuation_schema.out_step_schema() != step_schema_id {
+        return Err(EffectLoweringError::ContinuationOutStepSchemaMismatch {
+            step_schema: step_schema_id.as_u32(),
+            continuation_schema: case.continuation_schema().as_u32(),
+            case_tag: case.case_tag().as_u32(),
+            out_step_schema: continuation_schema.out_step_schema().as_u32(),
+        });
+    }
+
+    if continuation_schema.answer_ty() != step_schema.complete_ty() {
+        return Err(EffectLoweringError::ContinuationAnswerTyMismatch {
+            step_schema: step_schema_id.as_u32(),
+            continuation_schema: case.continuation_schema().as_u32(),
+            case_tag: case.case_tag().as_u32(),
+            answer_ty: continuation_schema.answer_ty().as_u32(),
+            complete_ty: step_schema.complete_ty().as_u32(),
+        });
+    }
+
+    Ok(LateLoweredContinuationContract::new(
+        case.continuation_schema(),
+        continuation_schema.resume_tuple_ty(),
+        continuation_schema.answer_ty(),
+        continuation_schema.out_step_schema(),
+        continuation_schema.surface_ty(),
+    ))
 }
 
 fn continuation_method_reachability(

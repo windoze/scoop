@@ -723,7 +723,7 @@
   - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## P5-T04b：对齐 late lowering 对 `ContinuationSchema.surface_ty` / `out_step_schema` 的消费边界，避免在 continuation 物化时重新引入 surface-row 漂移
+## [DONE] P5-T04b：对齐 late lowering 对 `ContinuationSchema.surface_ty` / `out_step_schema` 的消费边界，避免在 continuation 物化时重新引入 surface-row 漂移
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.1, §5.3.9, §5.4.2, §5.5.4
@@ -778,6 +778,17 @@
   - P5 已显式锁定：internal one-shot/runtime-error lowering 看 `out_step_schema` / `StepSchema`，source-visible continuation contract 看 `surface_ty`；
   - `P5-T05` 可以在不重新讨论这两层边界的前提下继续物化 continuation object 与 boundary lowering。
 - 依赖：P4-T05b，P5-T04R
+- 完成记录：
+  - 2026-05-03：完成 `P5-T04b`。`crates/scoopc/src/effect_lowered/ir.rs` 现已新增 `LateLoweredContinuationContract`，把 `ContinuationSchema` 的双层 contract 显式固化到 P5 shell 中：`resume_tuple_ty` / `answer_ty` / `out_step_schema` 作为 internal `resume(...) -> Step_F` lowering 的 authoritative 输入，`surface_ty` 单独保留为 source-visible `Continuation<..., eff Out>` contract，不再让后续实现只能从 `StepSchema` 或 runtime-error upper bound 倒推 surface row。
+  - `crates/scoopc/src/effect_lowered/builder.rs` 现已通过 `build_continuation_contract(...)` 统一消费 `ContinuationSchema`：step case、resume interface method、continuation object method 都直接从 authoritative `resume_tuple_ty` / `answer_ty` / `out_step_schema` / `surface_ty` 建壳；同时新增一致性校验，若某个 case 的 `ContinuationSchema.out_step_schema` 与当前 step return contract 不一致，或其 `answer_ty` 与 return-step `complete_ty` 不一致，会立即在 P5 builder 报错，而不是等 `P5-T05` 继续把错误 contract 静默带进 continuation 物化。
+  - `crates/scoopc/src/effect_lowered/dump.rs` 已把 `surface_ty` / `out_step_schema` / `answer_ty` 写入 stable dump，因此 late-lowered dump 现在能直接公开“source-visible continuation type”和“internal step upper bound”是两层不同 contract；这避免后续任务在 dump/ABI 组织里重新把 compiler-generated one-shot runtime-error upper bound 并回 `Continuation<..., eff Out>`。
+  - 已补齐定向测试样本：
+    - `refactor_resume_interface_uses_out_step_schema_not_surface_ty_for_runtime_error_case` 使用 `dispatch_and_resume_call.scoop` 锁定 `surface_ty = Continuation<Int, Unit, eff fixtures.mir.Boom>` 仍可对应含 ordinary runtime-error case 的 `out_step_schema`；
+    - `refactor_continuation_object_one_shot_runtime_error_preserves_surface_row_in_shell` 使用 `single_case_impl_plan.scoop` 锁定 continuation object shell 在 callable step schema 含 compiler-generated runtime-error case 时，source-visible surface 仍保持 `eff sample.Ping`；
+    - `refactor_effect_lowered_stage_surface_ty_does_not_control_runtime_error_case_contracts` 锁定 source residual row 本就含 `Raise<RuntimeError>` 的样本不会被误收窄，同时 stable dump 会显式暴露 `surface_ty` / `out_step_schema` / `answer_ty` 字段。
+  - 已同步修正 `P5-T05R` 的 review 重点：review 除了检查单一 `Step` / continuation ABI 外，还必须确认 `surface_ty` 继续只表达 source-visible continuation contract，而 internal one-shot/runtime-error lowering 仍由 `out_step_schema` 驱动。
+  - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
+  - 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_resume_interface`、`cargo test -p scoopc --no-default-features refactor_continuation_object`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## P5-T05：物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering
 
@@ -914,6 +925,7 @@
   - canonical `invoke(args_tuple) -> Step_F` 是否已经成为唯一动态 surface；
   - `SingleCase` 是否仍保持 canonical `Step_F` 类型与 `CaseTag`；
   - continuation object 是否完整实现了对应 interface method 集；
+  - `ContinuationSchema.surface_ty` 是否仍只表达 source-visible continuation contract，而 internal one-shot/runtime-error lowering 继续由 `out_step_schema` 驱动；
   - 新主线是否仍摆脱 TLS handler stack / bridge 依赖。
 - 必须检查的文件/位置：
   - `crates/scoopc/src/effect_lowered/materialize.rs`

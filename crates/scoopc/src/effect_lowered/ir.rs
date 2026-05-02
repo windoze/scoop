@@ -331,13 +331,66 @@ impl LateLoweredStepType {
     }
 }
 
+/// continuation schema 在 late-lowered shell 中的双层 contract 快照。
+///
+/// - `resume_tuple_ty` / `answer_ty` / `out_step_schema` 是 internal `resume(...) -> Step_F`
+///   lowering 的 authoritative 输入；
+/// - `surface_ty` 只保留源码层 `Continuation<..., eff Out>` contract，不能被 internal
+///   one-shot runtime-error upper bound 反向扩大。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredContinuationContract {
+    continuation_schema: ContinuationSchemaId,
+    resume_tuple_ty: TypeId,
+    answer_ty: TypeId,
+    out_step_schema: StepSchemaId,
+    surface_ty: TypeId,
+}
+
+impl LateLoweredContinuationContract {
+    pub(crate) fn new(
+        continuation_schema: ContinuationSchemaId,
+        resume_tuple_ty: TypeId,
+        answer_ty: TypeId,
+        out_step_schema: StepSchemaId,
+        surface_ty: TypeId,
+    ) -> Self {
+        Self {
+            continuation_schema,
+            resume_tuple_ty,
+            answer_ty,
+            out_step_schema,
+            surface_ty,
+        }
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub fn resume_tuple_ty(&self) -> TypeId {
+        self.resume_tuple_ty
+    }
+
+    pub fn answer_ty(&self) -> TypeId {
+        self.answer_ty
+    }
+
+    pub fn out_step_schema(&self) -> StepSchemaId {
+        self.out_step_schema
+    }
+
+    pub fn surface_ty(&self) -> TypeId {
+        self.surface_ty
+    }
+}
+
 /// `Step_F` 中某个 canonical outward case 的稳定记录。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredStepCase {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
     payload_tuple_ty: TypeId,
-    continuation_schema: ContinuationSchemaId,
+    continuation_contract: LateLoweredContinuationContract,
 }
 
 impl LateLoweredStepCase {
@@ -345,13 +398,13 @@ impl LateLoweredStepCase {
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
         payload_tuple_ty: TypeId,
-        continuation_schema: ContinuationSchemaId,
+        continuation_contract: LateLoweredContinuationContract,
     ) -> Self {
         Self {
             case_tag,
             concrete_op_key,
             payload_tuple_ty,
-            continuation_schema,
+            continuation_contract,
         }
     }
 
@@ -368,7 +421,27 @@ impl LateLoweredStepCase {
     }
 
     pub fn continuation_schema(&self) -> ContinuationSchemaId {
-        self.continuation_schema
+        self.continuation_contract.continuation_schema()
+    }
+
+    pub fn continuation_contract(&self) -> LateLoweredContinuationContract {
+        self.continuation_contract
+    }
+
+    pub fn resume_tuple_ty(&self) -> TypeId {
+        self.continuation_contract.resume_tuple_ty()
+    }
+
+    pub fn answer_ty(&self) -> TypeId {
+        self.continuation_contract.answer_ty()
+    }
+
+    pub fn out_step_schema(&self) -> StepSchemaId {
+        self.continuation_contract.out_step_schema()
+    }
+
+    pub fn surface_ty(&self) -> TypeId {
+        self.continuation_contract.surface_ty()
     }
 }
 
@@ -425,22 +498,19 @@ impl LateLoweredResumeInterface {
 pub struct LateLoweredResumeMethod {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
-    continuation_schema: ContinuationSchemaId,
-    resume_tuple_ty: TypeId,
+    continuation_contract: LateLoweredContinuationContract,
 }
 
 impl LateLoweredResumeMethod {
     pub(crate) fn new(
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
-        continuation_schema: ContinuationSchemaId,
-        resume_tuple_ty: TypeId,
+        continuation_contract: LateLoweredContinuationContract,
     ) -> Self {
         Self {
             case_tag,
             concrete_op_key,
-            continuation_schema,
-            resume_tuple_ty,
+            continuation_contract,
         }
     }
 
@@ -453,11 +523,27 @@ impl LateLoweredResumeMethod {
     }
 
     pub fn continuation_schema(&self) -> ContinuationSchemaId {
-        self.continuation_schema
+        self.continuation_contract.continuation_schema()
     }
 
     pub fn resume_tuple_ty(&self) -> TypeId {
-        self.resume_tuple_ty
+        self.continuation_contract.resume_tuple_ty()
+    }
+
+    pub fn answer_ty(&self) -> TypeId {
+        self.continuation_contract.answer_ty()
+    }
+
+    pub fn out_step_schema(&self) -> StepSchemaId {
+        self.continuation_contract.out_step_schema()
+    }
+
+    pub fn surface_ty(&self) -> TypeId {
+        self.continuation_contract.surface_ty()
+    }
+
+    pub fn continuation_contract(&self) -> LateLoweredContinuationContract {
+        self.continuation_contract
     }
 }
 
@@ -549,6 +635,7 @@ pub enum LateLoweredContinuationMethodReachability {
 pub struct LateLoweredContinuationMethod {
     interface_id: ResumeInterfaceId,
     case_tag: CaseTag,
+    continuation_contract: LateLoweredContinuationContract,
     reachability: LateLoweredContinuationMethodReachability,
 }
 
@@ -556,11 +643,13 @@ impl LateLoweredContinuationMethod {
     pub(crate) fn new(
         interface_id: ResumeInterfaceId,
         case_tag: CaseTag,
+        continuation_contract: LateLoweredContinuationContract,
         reachability: LateLoweredContinuationMethodReachability,
     ) -> Self {
         Self {
             interface_id,
             case_tag,
+            continuation_contract,
             reachability,
         }
     }
@@ -571,6 +660,30 @@ impl LateLoweredContinuationMethod {
 
     pub fn case_tag(&self) -> CaseTag {
         self.case_tag
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_contract.continuation_schema()
+    }
+
+    pub fn resume_tuple_ty(&self) -> TypeId {
+        self.continuation_contract.resume_tuple_ty()
+    }
+
+    pub fn answer_ty(&self) -> TypeId {
+        self.continuation_contract.answer_ty()
+    }
+
+    pub fn out_step_schema(&self) -> StepSchemaId {
+        self.continuation_contract.out_step_schema()
+    }
+
+    pub fn surface_ty(&self) -> TypeId {
+        self.continuation_contract.surface_ty()
+    }
+
+    pub fn continuation_contract(&self) -> LateLoweredContinuationContract {
+        self.continuation_contract
     }
 
     pub fn reachability(&self) -> LateLoweredContinuationMethodReachability {
@@ -1189,7 +1302,7 @@ impl LateLoweredFrameSchema {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{BTreeSet, HashSet};
     use std::path::PathBuf;
 
     use super::*;
@@ -1239,6 +1352,8 @@ mod tests {
         let payload_tuple_ty = types.ty_tuple(vec![builtins.string]);
         let resume_tuple_ty = types.ty_tuple(vec![builtins.int]);
         let continuation_obj_ty = nominal_effect(&mut types, "sample.CompilerContinuation");
+        let surface_ty0 = nominal_effect(&mut types, "sample.SurfaceContinuation0");
+        let surface_ty1 = nominal_effect(&mut types, "sample.SurfaceContinuation1");
         let allowed_row = EffectRow::new(vec![nominal_effect(&mut types, "sample.Ping")]);
 
         let step_schema = StepSchemaId::new(7);
@@ -1246,6 +1361,20 @@ mod tests {
         let case1 = CaseTag::new(1);
         let cont_schema0 = ContinuationSchemaId::new(3);
         let cont_schema1 = ContinuationSchemaId::new(4);
+        let contract0 = LateLoweredContinuationContract::new(
+            cont_schema0,
+            resume_tuple_ty,
+            builtins.unit,
+            step_schema,
+            surface_ty0,
+        );
+        let contract1 = LateLoweredContinuationContract::new(
+            cont_schema1,
+            builtins.unit,
+            builtins.unit,
+            step_schema,
+            surface_ty1,
+        );
 
         let step_type = LateLoweredStepType::new(
             step_schema,
@@ -1257,13 +1386,13 @@ mod tests {
                     case0,
                     ConcreteOpKey::new(sample_instance_key("sample.Ping.hit")),
                     payload_tuple_ty,
-                    cont_schema0,
+                    contract0,
                 ),
                 LateLoweredStepCase::new(
                     case1,
                     ConcreteOpKey::new(sample_instance_key("sample.Ping.pong")),
                     builtins.unit,
-                    cont_schema1,
+                    contract1,
                 ),
             ],
         );
@@ -1276,14 +1405,12 @@ mod tests {
                 LateLoweredResumeMethod::new(
                     case0,
                     ConcreteOpKey::new(sample_instance_key("sample.Ping.hit")),
-                    cont_schema0,
-                    resume_tuple_ty,
+                    contract0,
                 ),
                 LateLoweredResumeMethod::new(
                     case1,
                     ConcreteOpKey::new(sample_instance_key("sample.Ping.pong")),
-                    cont_schema1,
-                    builtins.unit,
+                    contract1,
                 ),
             ],
         );
@@ -1326,11 +1453,13 @@ mod tests {
                 LateLoweredContinuationMethod::new(
                     interface_id,
                     case0,
+                    contract0,
                     LateLoweredContinuationMethodReachability::Reachable,
                 ),
                 LateLoweredContinuationMethod::new(
                     interface_id,
                     case1,
+                    contract1,
                     LateLoweredContinuationMethodReachability::Unreachable,
                 ),
             ],
@@ -1619,10 +1748,18 @@ mod tests {
         );
         assert_eq!(resume_interface.methods().len(), 2);
         assert_eq!(
+            resume_interface.methods()[0].out_step_schema(),
+            callable.step_schema()
+        );
+        assert_eq!(
             continuation_object.implemented_interfaces(),
             callable.resume_interfaces()
         );
         assert_eq!(continuation_object.methods().len(), 2);
+        assert_eq!(
+            continuation_object.methods()[0].out_step_schema(),
+            callable.step_schema()
+        );
         assert_eq!(
             continuation_object.methods()[0].reachability(),
             LateLoweredContinuationMethodReachability::Reachable,
@@ -1682,7 +1819,7 @@ mod tests {
             .resume_interface(leaf.resume_interfaces()[0])
             .expect("callable 应能回查 resume interface shell");
 
-        assert_eq!(step_type.cases().len(), 1);
+        assert_eq!(step_type.cases().len(), 2);
         assert!(matches!(leaf.impl_plan(), ImplPlan::SingleCase(_)));
         assert_eq!(resume_interface.return_step_schema(), leaf.step_schema());
         assert_eq!(resume_interface.methods().len(), step_type.cases().len());
@@ -1695,5 +1832,134 @@ mod tests {
             leaf.dynamic_invoke_entry().invoke_args_tuple_ty(),
             step_type.invoke_args_tuple_ty(),
         );
+    }
+
+    fn step_case_fqns(step_type: &LateLoweredStepType) -> BTreeSet<String> {
+        step_type
+            .cases()
+            .iter()
+            .map(|case| case.concrete_op_key().instance_key().template.fqn.clone())
+            .collect()
+    }
+
+    #[test]
+    fn refactor_resume_interface_uses_out_step_schema_not_surface_ty_for_runtime_error_case() {
+        let session = refactor_session();
+        let source = load_fixture("effect_facts", "dispatch_and_resume_call.scoop");
+        let output = load_effect_lowered_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 refactor late-lowering stage");
+        let method = output
+            .program()
+            .resume_interfaces()
+            .iter()
+            .flat_map(|interface| interface.methods().iter())
+            .find(|method| {
+                output.types().display(method.surface_ty()).to_string()
+                    == "scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>"
+            })
+            .expect("应找到 surface row 仍为 Boom 的 resume method shell");
+        let out_step = output
+            .program()
+            .step_type(method.out_step_schema())
+            .expect("resume method 的 out_step_schema 应对应已物化的 Step shell");
+
+        assert_eq!(
+            output.types().display(method.surface_ty()).to_string(),
+            "scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>"
+        );
+        assert_eq!(
+            step_case_fqns(out_step),
+            [
+                "fixtures.mir.Boom.next".to_string(),
+                "scoop.core.Raise.raise".to_string(),
+            ]
+            .into_iter()
+            .collect(),
+            "late-lowered resume interface 必须从 out_step_schema 继承 one-shot runtime-error upper bound，而不是从 surface_ty 推断"
+        );
+    }
+
+    #[test]
+    fn refactor_continuation_object_one_shot_runtime_error_preserves_surface_row_in_shell() {
+        let session = refactor_session();
+        let source = load_fixture("effect_facts", "single_case_impl_plan.scoop");
+        let output = load_effect_lowered_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 refactor late-lowering stage");
+        let leaf = output
+            .program()
+            .callable("sample.leaf")
+            .expect("fixture 应发布 sample.leaf callable shell");
+        let step_type = output
+            .program()
+            .step_type(leaf.step_schema())
+            .expect("callable 应能回查 Step shell");
+        let continuation_object = output
+            .program()
+            .continuation_object(leaf.continuation_object())
+            .expect("callable 应能回查 continuation object shell");
+        let reachable_method = continuation_object
+            .methods()
+            .iter()
+            .find(|method| {
+                method.reachability() == LateLoweredContinuationMethodReachability::Reachable
+            })
+            .expect("single-case callable 应至少有一个 reachable continuation method");
+
+        assert_eq!(
+            output
+                .types()
+                .display(reachable_method.surface_ty())
+                .to_string(),
+            "scoop.core.Continuation<Unit, Unit, eff sample.Ping>"
+        );
+        assert_eq!(reachable_method.out_step_schema(), leaf.step_schema());
+        assert_eq!(
+            step_case_fqns(step_type),
+            [
+                "sample.Ping.hit".to_string(),
+                "scoop.core.Raise.raise".to_string(),
+            ]
+            .into_iter()
+            .collect(),
+            "callable Step shell 仍应保留 compiler-generated runtime-error case"
+        );
+        assert!(
+            !output
+                .types()
+                .display(reachable_method.surface_ty())
+                .to_string()
+                .contains("RuntimeError"),
+            "source-visible continuation surface 不应因 one-shot runtime-error upper bound 被无端扩大"
+        );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_stage_surface_ty_does_not_control_runtime_error_case_contracts() {
+        let session = refactor_session();
+        let source = load_fixture("effect_facts", "dispatch_and_resume_call.scoop");
+        let output = load_effect_lowered_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 refactor late-lowering stage");
+        let widened_surface_method = output
+            .program()
+            .resume_interfaces()
+            .iter()
+            .flat_map(|interface| interface.methods().iter())
+            .find(|method| {
+                output.types().display(method.surface_ty()).to_string()
+                    == "scoop.core.Continuation<Int, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>"
+            })
+            .expect("应保留 source residual row 本就含 runtime error 的 resume method shell");
+        let dump = output.stable_dump();
+
+        assert_eq!(
+            output
+                .types()
+                .display(widened_surface_method.surface_ty())
+                .to_string(),
+            "scoop.core.Continuation<Int, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>"
+        );
+        assert!(dump.contains("surface_ty="));
+        assert!(dump.contains("out_step_schema=s"));
+        assert!(dump.contains("answer_ty="));
     }
 }

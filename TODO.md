@@ -58,7 +58,7 @@
 | `P5-T04` | `TODO-P5.md` | [DONE] 实现 frame lifting，以及 `return` / `break` / `continue` / `finally` / cleanup / dropped continuation 的显式状态机合同 |
 | `P5-T04a` | `TODO-P5.md` | [DONE] 为 frame lifting 建立稳定的 MIR local 来源分类，避免把源码 `tmp*` local 误判为 compiler temporary |
 | `P5-T04R` | `TODO-P5.md` | [DONE] Review frame lifting 与控制流合同，确认没有残留 direct-style 隐式语义或错误的 dropped-continuation 行为 |
-| `P5-T04b` | `TODO-P5.md` | 对齐 late lowering 对 `ContinuationSchema.surface_ty` / `out_step_schema` 的消费边界，避免在 continuation 物化时重新引入 surface-row 漂移 |
+| `P5-T04b` | `TODO-P5.md` | [DONE] 对齐 late lowering 对 `ContinuationSchema.surface_ty` / `out_step_schema` 的消费边界，避免在 continuation 物化时重新引入 surface-row 漂移 |
 | `P5-T05` | `TODO-P5.md` | 物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering |
 | `P5-T05R` | `TODO-P5.md` | Review `Step` / continuation 物化结果，确认没有第二套 ABI、没有 TLS 依赖、没有删减接口方法 |
 | `P5-T06` | `TODO-P5.md` | 在 late-lowered representation 上加入窄的 devirtualization / inlining / DCE 后处理 |
