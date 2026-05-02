@@ -1,0 +1,39 @@
+package sample
+
+effect Inner {
+    fun go(): Int
+}
+
+effect Outer {
+    fun again(): Unit
+}
+
+fun nested_self_contained(): Int {
+    return handle {
+        val inner: Int = handle {
+            Inner.go()
+            0
+        } with {
+            Inner.go() -> 1
+        }
+        inner + 10
+    } with {
+        Outer.again() -> 99
+    }
+}
+
+fun nested_may_suspend_outward(): Int {
+    return handle {
+        val inner: Int = handle {
+            Inner.go()
+            0
+        } with {
+            Inner.go() -> 1
+        } finally {
+            Outer.again()
+        }
+        inner + 10
+    } with {
+        Outer.again() -> 99
+    }
+}

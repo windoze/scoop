@@ -1,0 +1,286 @@
+RefactorEffectLoweredStageOutput
+opt_level: O2
+snapshot_binding:
+  query_surface: PassView
+  instance_count: 3
+  canonical_body_fqns:
+    - fixtures.mir_refactor.box_int
+    - fixtures.mir_refactor.cleanup
+    - fixtures.mir_refactor.main
+post_opt_program:
+LateLoweredProgram
+  step_type_count: 3
+  resume_interface_count: 0
+  continuation_object_count: 3
+  callable_count: 3
+  step_types:
+    - step_schema: s0
+      invoke_args_tuple_ty: t5
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t471
+      case_variants:
+        <none>
+    - step_schema: s1
+      invoke_args_tuple_ty: t2
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t472
+      case_variants:
+        <none>
+    - step_schema: s2
+      invoke_args_tuple_ty: t2
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t473
+      case_variants:
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t474 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Flag.read
+        - Case(c1) payload_tuple_ty=t5 continuation_schema=k1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t475 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Step.next
+  resume_interfaces:
+    <none>
+  continuation_objects:
+    - continuation_object: ko0
+      owner_version: instance=fixtures.mir_refactor.box_int allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t471
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko1
+      owner_version: instance=fixtures.mir_refactor.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t472
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko2
+      owner_version: instance=fixtures.mir_refactor.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t473
+      implemented_interfaces: []
+      captures:
+        - FrameSlot(slot0)
+        - FrameSlot(slot1)
+        - FrameSlot(slot2)
+        - FrameSlot(slot3)
+        - FrameSlot(slot4)
+        - FrameSlot(slot5)
+        - FrameSlot(slot6)
+        - FrameSlot(slot7)
+        - FrameSlot(slot8)
+        - FrameSlot(slot9)
+        - FrameSlot(slot10)
+        - FrameSlot(slot11)
+        - FrameSlot(slot12)
+        - State(st6)
+        - State(st13)
+        - State(st20)
+        - State(st30)
+      surface_resumes:
+        - c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t474 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
+        - c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t475 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+      methods:
+        <none>
+  callables:
+    - root: fixtures.mir_refactor.box_int
+      body_version_key: instance=fixtures.mir_refactor.box_int allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s0
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t5) -> s0 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(local0 -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..0] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko0
+    - root: fixtures.mir_refactor.cleanup
+      body_version_key: instance=fixtures.mir_refactor.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s1
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t2) -> s1 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..0] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko1
+    - root: fixtures.mir_refactor.main
+      body_version_key: instance=fixtures.mir_refactor.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s2
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t2) -> s2 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: st4
+        drop_state: st33
+        states:
+          - st0 Entry term=Handle(site0 body=st2 arms=[st3] finally=st4 exit=st5 boundaries=[] drop=st33) successors=[st2, st3, st4]
+            source_slices:
+              - bb0 stmts[0..0] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+          - st2 Segment term=Suspend(boundaries=[bd0], resume=st6, cleanup=st7, drop=st33) successors=[st6, st7]
+            source_slices:
+              - bb1 stmts[0..2] + term
+          - st3 Segment term=Goto(st4) successors=[st4]
+            source_slices:
+              - bb2 stmts[0..1] + term
+          - st4 Cleanup term=Goto(st5) successors=[st5]
+            source_slices:
+              - bb3 stmts[0..1] + term
+          - st5 Segment term=Handle(site4 body=st8 arms=[st9] finally=st10 exit=st11 boundaries=[] drop=st33) successors=[st8, st9, st10]
+            source_slices:
+              - bb4 stmts[0..1] + term
+          - st6 Resume term=Goto(st4) successors=[st4]
+            source_slices:
+              - bb5 stmts[0..2] + term
+          - st7 Cleanup term=Goto(st12) successors=[st12]
+            source_slices:
+              - bb7 stmts[0..1] + term
+          - st8 Segment term=Suspend(boundaries=[bd1], resume=st13, cleanup=st14, drop=st33) successors=[st13, st14]
+            source_slices:
+              - bb8 stmts[0..1] + term
+          - st9 Segment term=Goto(st10) successors=[st10]
+            source_slices:
+              - bb9 stmts[0..1] + term
+          - st10 Cleanup term=Goto(st11) successors=[st11]
+            source_slices:
+              - bb10 stmts[0..1] + term
+          - st11 Segment term=Handle(site9 body=st15 arms=[st16] finally=st17 exit=st18 boundaries=[] drop=st33) successors=[st15, st16, st17]
+            source_slices:
+              - bb11 stmts[0..2] + term
+          - st12 Cleanup term=ResumeUnwind successors=[]
+            source_slices:
+              - bb6 stmts[0..0] + term
+          - st13 Resume term=Goto(st10) successors=[st10]
+            source_slices:
+              - bb12 stmts[0..2] + term
+          - st14 Cleanup term=Goto(st19) successors=[st19]
+            source_slices:
+              - bb14 stmts[0..1] + term
+          - st15 Segment term=Suspend(boundaries=[bd2], resume=st20, cleanup=st21, drop=st33) successors=[st20, st21]
+            source_slices:
+              - bb15 stmts[0..1] + term
+          - st16 Segment term=Goto(st17) successors=[st17]
+            source_slices:
+              - bb16 stmts[0..2] + term
+          - st17 Cleanup term=Goto(st18) successors=[st18]
+            source_slices:
+              - bb17 stmts[0..1] + term
+          - st18 Segment term=Branch(local22 ? st22 : st23) successors=[st22, st23]
+            source_slices:
+              - bb18 stmts[0..0] + term
+          - st19 Cleanup term=ResumeUnwind successors=[]
+            source_slices:
+              - bb13 stmts[0..0] + term
+          - st20 Resume term=Goto(st17) successors=[st17]
+            source_slices:
+              - bb19 stmts[0..2] + term
+          - st21 Cleanup term=Goto(st24) successors=[st24]
+            source_slices:
+              - bb21 stmts[0..1] + term
+          - st22 Segment term=Return(local10 -> st1) successors=[st1]
+            source_slices:
+              - bb22 stmts[0..0] + term
+          - st23 Segment term=Goto(st25) successors=[st25]
+            source_slices:
+              - bb23 stmts[0..2] + term
+          - st24 Cleanup term=ResumeUnwind successors=[]
+            source_slices:
+              - bb20 stmts[0..0] + term
+          - st25 Segment term=Handle(site13 body=st26 arms=[st27] finally=st28 exit=st29 boundaries=[] drop=st33) successors=[st26, st27, st28]
+            source_slices:
+              - bb24 stmts[0..0] + term
+          - st26 Segment term=Suspend(boundaries=[bd3], resume=st30, cleanup=st31, drop=st33) successors=[st30, st31]
+            source_slices:
+              - bb25 stmts[0..1] + term
+          - st27 Segment term=Goto(st28) successors=[st28]
+            source_slices:
+              - bb26 stmts[0..1] + term
+          - st28 Cleanup term=Goto(st29) successors=[st29]
+            source_slices:
+              - bb27 stmts[0..1] + term
+          - st29 Segment term=Return(local32 -> st1) successors=[st1]
+            source_slices:
+              - bb28 stmts[0..0] + term
+          - st30 Resume term=Goto(st28) successors=[st28]
+            source_slices:
+              - bb29 stmts[0..2] + term
+          - st31 Cleanup term=Goto(st32) successors=[st32]
+            source_slices:
+              - bb31 stmts[0..1] + term
+          - st32 Cleanup term=ResumeUnwind successors=[]
+            source_slices:
+              - bb30 stmts[0..0] + term
+          - st33 Drop term=Abandon successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          - slot0 SourceLocal(local10) ty=t5 writes=[st15] reads=[st22, st26]
+          - slot1 CompilerTemporary(local13) ty=t5 writes=[st2] reads=[st11]
+          - slot2 CompilerTemporary(local22) ty=t4 writes=[st2, st8] reads=[st18]
+          - slot3 CompilerTemporary(local32) ty=t5 writes=[st2, st8, st15] reads=[st29]
+          - slot4 BoundaryResult(bd0, local4) ty=t5 writes=[st6] reads=[]
+          - slot5 BoundaryResult(bd1, local15) ty=t5 writes=[st13] reads=[]
+          - slot6 BoundaryResult(bd2, local23) ty=t4 writes=[st20] reads=[]
+          - slot7 BoundaryResult(bd3, local34) ty=t5 writes=[st30] reads=[]
+          - slot8 StateTag ty=t5 writes=[] reads=[]
+          - slot9 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot10 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot11 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot12 CompletionTag ty=t5 writes=[] reads=[]
+      boundary_map:
+        - bd0 Perform(site1) owner=st2 resume=st6
+          lowering: Perform emitted_case=c1 captured_cont_schema=k1 payload_tuple_ty=t5
+            emit: c1 op=fixtures.mir_refactor.Step.next payload_tuple_ty=t5 ko2 cont_schema=k1 out_step_schema=s2
+        - bd1 Perform(site5) owner=st8 resume=st13
+          lowering: Perform emitted_case=c1 captured_cont_schema=k1 payload_tuple_ty=t5
+            emit: c1 op=fixtures.mir_refactor.Step.next payload_tuple_ty=t5 ko2 cont_schema=k1 out_step_schema=s2
+        - bd2 Perform(site10) owner=st15 resume=st20
+          lowering: Perform emitted_case=c0 captured_cont_schema=k0 payload_tuple_ty=t2
+            emit: c0 op=fixtures.mir_refactor.Flag.read payload_tuple_ty=t2 ko2 cont_schema=k0 out_step_schema=s2
+        - bd3 Perform(site14) owner=st26 resume=st30
+          lowering: Perform emitted_case=c1 captured_cont_schema=k1 payload_tuple_ty=t5
+            emit: c1 op=fixtures.mir_refactor.Step.next payload_tuple_ty=t5 ko2 cont_schema=k1 out_step_schema=s2
+      resume_state_map:
+        - bd0 -> st6
+        - bd1 -> st13
+        - bd2 -> st20
+        - bd3 -> st30
+      resume_interfaces: []
+      continuation_object: ko2

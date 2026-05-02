@@ -1,0 +1,193 @@
+RefactorEffectLoweredStageOutput
+opt_level: O2
+snapshot_binding:
+  query_surface: PassView
+  instance_count: 3
+  canonical_body_fqns:
+    - sample.cleanup
+    - sample.helper
+    - sample.main
+post_opt_program:
+LateLoweredProgram
+  step_type_count: 3
+  resume_interface_count: 1
+  continuation_object_count: 3
+  callable_count: 3
+  step_types:
+    - step_schema: s0
+      invoke_args_tuple_ty: t2
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t472
+      case_variants:
+        <none>
+    - step_schema: s1
+      invoke_args_tuple_ty: t5
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t473
+      case_variants:
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 concrete_op=sample.Other.ping
+        - Case(c1) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 concrete_op=sample.Step.next
+        - Case(c2) payload_tuple_ty=t217 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t476 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t217>
+    - step_schema: s2
+      invoke_args_tuple_ty: t2
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t475
+      case_variants:
+        <none>
+  resume_interfaces:
+    - resume_interface: ri1
+      effect_family: sample.Step
+      return_step_schema: s1
+      methods:
+        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next
+  continuation_objects:
+    - continuation_object: ko0
+      owner_version: instance=sample.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t472
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko1
+      owner_version: instance=sample.helper allowed_row=(t460) impl_plan=SingleCase(c1) needs_reentry=true
+      continuation_obj_ty: t473
+      implemented_interfaces: [ri1]
+      captures:
+        - FrameSlot(slot0)
+        - FrameSlot(slot1)
+        - FrameSlot(slot2)
+        - FrameSlot(slot3)
+        - FrameSlot(slot4)
+        - FrameSlot(slot5)
+        - FrameSlot(slot6)
+        - State(st6)
+      surface_resumes:
+        - c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Other.ping => Unreachable
+        - c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t476 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+      methods:
+        - ri1::c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+    - continuation_object: ko2
+      owner_version: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t475
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+  callables:
+    - root: sample.cleanup
+      body_version_key: instance=sample.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s0
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t2) -> s0 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..0] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko0
+    - root: sample.helper
+      body_version_key: instance=sample.helper allowed_row=(t460) impl_plan=SingleCase(c1) needs_reentry=true
+      step_schema: s1
+      resolved_outward_cases: [c1]
+      dynamic_invoke_entry: invoke(t5) -> s1 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: st4
+        drop_state: st9
+        states:
+          - st0 Entry term=Handle(site0 body=st2 arms=[st3] finally=st4 exit=st5 boundaries=[] drop=st9) successors=[st2, st3, st4]
+            source_slices:
+              - bb0 stmts[0..0] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+          - st2 Segment term=Suspend(boundaries=[bd0], resume=st6, cleanup=st7, drop=st9) successors=[st6, st7]
+            source_slices:
+              - bb1 stmts[0..1] + term
+          - st3 Segment term=Goto(st4) successors=[st4]
+            source_slices:
+              - bb2 stmts[0..2] + term
+          - st4 Cleanup term=Goto(st5) successors=[st5]
+            source_slices:
+              - bb3 stmts[0..2] + term
+          - st5 Segment term=Return(local1 -> st1) successors=[st1]
+            source_slices:
+              - bb4 stmts[0..0] + term
+          - st6 Resume term=Goto(st4) successors=[st4]
+            source_slices:
+              - bb5 stmts[0..2] + term
+          - st7 Cleanup term=Goto(st8) successors=[st8]
+            source_slices:
+              - bb7 stmts[0..2] + term
+          - st8 Cleanup term=ResumeUnwind successors=[]
+            source_slices:
+              - bb6 stmts[0..0] + term
+          - st9 Drop term=Abandon successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          - slot0 BoundaryResult(bd0, local2) ty=t5 writes=[st6] reads=[]
+          - slot1 ResumePayload(bd0, c1) ty=t5 writes=[st6] reads=[st6]
+          - slot2 StateTag ty=t5 writes=[] reads=[]
+          - slot3 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot4 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot5 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot6 CompletionTag ty=t5 writes=[] reads=[]
+      boundary_map:
+        - bd0 Perform(site1) owner=st2 resume=st6
+          lowering: Perform emitted_case=c1 captured_cont_schema=k0 payload_tuple_ty=t5
+            emit: c1 op=sample.Step.next payload_tuple_ty=t5 ko1 cont_schema=k0 out_step_schema=s1
+      resume_state_map:
+        - bd0 -> st6
+      resume_interfaces: [ri1]
+      continuation_object: ko1
+    - root: sample.main
+      body_version_key: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s2
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t2) -> s2 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(local0 -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..1] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko2

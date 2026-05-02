@@ -76,6 +76,12 @@ pub enum Command {
         input: PathBuf,
     },
 
+    /// 解析/resolve/typecheck/materialize 输入并打印 refactor late-lowered representation
+    DumpEffectLowered {
+        /// 输入源文件路径
+        input: PathBuf,
+    },
+
     /// 解析/resolve 输入并打印 HIR（早期实现：Debug 输出）
     DumpHir {
         /// 输入源文件路径
@@ -273,6 +279,29 @@ mod tests {
                 assert_eq!(
                     input,
                     PathBuf::from("tests/fixtures/mir_refactor/handle_perform.scoop")
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_effect_pipeline_parses_refactor_dump_effect_lowered() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "--effect-pipeline",
+            "refactor",
+            "dump-effect-lowered",
+            "tests/fixtures/effect_lowered/handle_perform.scoop",
+        ])
+        .unwrap();
+
+        assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
+        match args.command {
+            Command::DumpEffectLowered { input } => {
+                assert_eq!(
+                    input,
+                    PathBuf::from("tests/fixtures/effect_lowered/handle_perform.scoop")
                 );
             }
             other => panic!("unexpected command: {other:?}"),

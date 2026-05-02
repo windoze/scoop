@@ -1,0 +1,333 @@
+RefactorEffectLoweredStageOutput
+opt_level: O2
+snapshot_binding:
+  query_surface: PassView
+  instance_count: 6
+  canonical_body_fqns:
+    - fixtures.mir.Base.ping
+    - fixtures.mir.callInterface
+    - fixtures.mir.callVirtual
+    - fixtures.mir.resumeBoom
+    - fixtures.mir.resumeOnce
+post_opt_program:
+LateLoweredProgram
+  step_type_count: 8
+  resume_interface_count: 3
+  continuation_object_count: 5
+  callable_count: 5
+  step_types:
+    - step_schema: s0
+      invoke_args_tuple_ty: t460
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t478
+      case_variants:
+        <none>
+    - step_schema: s1
+      invoke_args_tuple_ty: t462
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t479
+      case_variants:
+        <none>
+    - step_schema: s2
+      invoke_args_tuple_ty: t460
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t480
+      case_variants:
+        <none>
+    - step_schema: s3
+      invoke_args_tuple_ty: t467
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t481
+      case_variants:
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t482 out_step_schema=s3 concrete_op=fixtures.mir.Boom.next
+        - Case(c1) payload_tuple_ty=t217 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t483 out_step_schema=s3 concrete_op=scoop.core.Raise.raise<t217>
+    - step_schema: s4
+      invoke_args_tuple_ty: t464
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t484
+      case_variants:
+        - Case(c0) payload_tuple_ty=t217 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t485 out_step_schema=s4 concrete_op=scoop.core.Raise.raise<t217>
+    - step_schema: s5
+      invoke_args_tuple_ty: t2
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t486
+      case_variants:
+        <none>
+    - step_schema: s6
+      invoke_args_tuple_ty: t5
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t487
+      case_variants:
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k3 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t467 out_step_schema=s6 concrete_op=fixtures.mir.Boom.next
+        - Case(c1) payload_tuple_ty=t217 continuation_schema=k4 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t488 out_step_schema=s6 concrete_op=scoop.core.Raise.raise<t217>
+    - step_schema: s7
+      invoke_args_tuple_ty: t5
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t489
+      case_variants:
+        - Case(c0) payload_tuple_ty=t217 continuation_schema=k5 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t490 out_step_schema=s7 concrete_op=scoop.core.Raise.raise<t217>
+  resume_interfaces:
+    - resume_interface: ri0
+      effect_family: fixtures.mir.Boom
+      return_step_schema: s3
+      methods:
+        - case: c0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t482 out_step_schema=s3 continuation_schema=k0 concrete_op=fixtures.mir.Boom.next
+    - resume_interface: ri1
+      effect_family: scoop.core.Raise<t217>
+      return_step_schema: s3
+      methods:
+        - case: c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t483 out_step_schema=s3 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217>
+    - resume_interface: ri2
+      effect_family: scoop.core.Raise<t217>
+      return_step_schema: s4
+      methods:
+        - case: c0 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t485 out_step_schema=s4 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t217>
+  continuation_objects:
+    - continuation_object: ko0
+      owner_version: instance=fixtures.mir.Base.ping allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t478
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko1
+      owner_version: instance=fixtures.mir.callInterface allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t479
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko2
+      owner_version: instance=fixtures.mir.callVirtual allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t480
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko3
+      owner_version: instance=fixtures.mir.resumeBoom allowed_row=(t218 + t466) impl_plan=CanonicalFull needs_reentry=true
+      continuation_obj_ty: t481
+      implemented_interfaces: [ri0, ri1]
+      captures:
+        - FrameSlot(slot0)
+        - FrameSlot(slot1)
+        - FrameSlot(slot2)
+        - FrameSlot(slot3)
+        - FrameSlot(slot4)
+        - FrameSlot(slot5)
+        - FrameSlot(slot6)
+        - FrameSlot(slot7)
+        - FrameSlot(slot8)
+        - FrameSlot(slot9)
+        - State(st2)
+      surface_resumes:
+        - c0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t482 out_step_schema=s3 continuation_schema=k0 concrete_op=fixtures.mir.Boom.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t483 out_step_schema=s3 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+      methods:
+        - ri0::c0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t482 out_step_schema=s3 continuation_schema=k0 concrete_op=fixtures.mir.Boom.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - ri1::c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t483 out_step_schema=s3 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+    - continuation_object: ko4
+      owner_version: instance=fixtures.mir.resumeOnce allowed_row=(t218) impl_plan=SingleCase(c0) needs_reentry=true
+      continuation_obj_ty: t484
+      implemented_interfaces: [ri2]
+      captures:
+        - FrameSlot(slot0)
+        - FrameSlot(slot1)
+        - FrameSlot(slot2)
+        - FrameSlot(slot3)
+        - FrameSlot(slot4)
+        - FrameSlot(slot5)
+        - FrameSlot(slot6)
+        - FrameSlot(slot7)
+        - State(st2)
+      surface_resumes:
+        - c0 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t485 out_step_schema=s4 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+      methods:
+        - ri2::c0 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t485 out_step_schema=s4 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+  callables:
+    - root: fixtures.mir.Base.ping
+      body_version_key: instance=fixtures.mir.Base.ping allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s0
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t460) -> s0 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(local1 -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..1] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko0
+    - root: fixtures.mir.callInterface
+      body_version_key: instance=fixtures.mir.callInterface allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s1
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t462) -> s1 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(local1 -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..1] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko1
+    - root: fixtures.mir.callVirtual
+      body_version_key: instance=fixtures.mir.callVirtual allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s2
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t460) -> s2 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(local1 -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..2] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko2
+    - root: fixtures.mir.resumeBoom
+      body_version_key: instance=fixtures.mir.resumeBoom allowed_row=(t218 + t466) impl_plan=CanonicalFull needs_reentry=true
+      step_schema: s3
+      resolved_outward_cases: [c0, c1]
+      dynamic_invoke_entry: invoke(t467) -> s3 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: st3
+        states:
+          - st0 Entry term=Suspend(boundaries=[bd0, bd1], resume=st2, cleanup=<none>, drop=st3) successors=[st2]
+            source_slices:
+              - bb0 stmts[0..2]
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+          - st2 Resume term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[2..2] + term
+          - st3 Drop term=Abandon successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          - slot0 BoundaryResult(bd0, local1) ty=t2 writes=[st2] reads=[]
+          - slot1 ResumePayload(bd0, c0) ty=t5 writes=[st2] reads=[st2]
+          - slot2 ResumePayload(bd0, c1) ty=t3 writes=[st2] reads=[st2]
+          - slot3 ResumePayload(bd1, c0) ty=t5 writes=[st2] reads=[st2]
+          - slot4 ResumePayload(bd1, c1) ty=t3 writes=[st2] reads=[st2]
+          - slot5 StateTag ty=t5 writes=[] reads=[]
+          - slot6 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot7 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot8 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot9 CompletionTag ty=t5 writes=[] reads=[]
+      boundary_map:
+        - bd0 Resume(site0) owner=st0 resume=st2
+          lowering: Resume continuation_schema=k3 out_step_schema=s6 result=local1 runtime_error_boundary=bd1
+            dispatch_input_step_schema: s6
+            complete: answer_ty=t2 target=st2 result=local1
+            outward_cases:
+              - in c0 op=fixtures.mir.Boom.next -> out c0 op=fixtures.mir.Boom.next payload_tuple_ty=t2 ko3 cont_schema=k0 out_step_schema=s3
+              - in c1 op=scoop.core.Raise.raise<t217> -> out c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 ko3 cont_schema=k1 out_step_schema=s3
+        - bd1 RuntimeError(site0) owner=st0 resume=st2
+          lowering: RuntimeError origin=site0 paired_resume=bd0
+            emit: c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 ko3 cont_schema=k1 out_step_schema=s3
+      resume_state_map:
+        - bd0 -> st2
+        - bd1 -> st2
+      resume_interfaces: [ri0, ri1]
+      continuation_object: ko3
+    - root: fixtures.mir.resumeOnce
+      body_version_key: instance=fixtures.mir.resumeOnce allowed_row=(t218) impl_plan=SingleCase(c0) needs_reentry=true
+      step_schema: s4
+      resolved_outward_cases: [c0]
+      dynamic_invoke_entry: invoke(t464) -> s4 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: st3
+        states:
+          - st0 Entry term=Suspend(boundaries=[bd0, bd1], resume=st2, cleanup=<none>, drop=st3) successors=[st2]
+            source_slices:
+              - bb0 stmts[0..2]
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+          - st2 Resume term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[2..2] + term
+          - st3 Drop term=Abandon successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          - slot0 BoundaryResult(bd0, local1) ty=t2 writes=[st2] reads=[]
+          - slot1 ResumePayload(bd0, c0) ty=t3 writes=[st2] reads=[st2]
+          - slot2 ResumePayload(bd1, c0) ty=t3 writes=[st2] reads=[st2]
+          - slot3 StateTag ty=t5 writes=[] reads=[]
+          - slot4 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot5 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot6 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot7 CompletionTag ty=t5 writes=[] reads=[]
+      boundary_map:
+        - bd0 Resume(site0) owner=st0 resume=st2
+          lowering: Resume continuation_schema=k6 out_step_schema=s7 result=local1 runtime_error_boundary=bd1
+            dispatch_input_step_schema: s7
+            complete: answer_ty=t2 target=st2 result=local1
+            outward_cases:
+              - in c0 op=scoop.core.Raise.raise<t217> -> out c0 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 ko4 cont_schema=k2 out_step_schema=s4
+        - bd1 RuntimeError(site0) owner=st0 resume=st2
+          lowering: RuntimeError origin=site0 paired_resume=bd0
+            emit: c0 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 ko4 cont_schema=k2 out_step_schema=s4
+      resume_state_map:
+        - bd0 -> st2
+        - bd1 -> st2
+      resume_interfaces: [ri2]
+      continuation_object: ko4

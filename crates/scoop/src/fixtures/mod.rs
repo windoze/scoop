@@ -32,6 +32,7 @@
 //! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
 //! - `tests/fixtures/mir_refactor/**` → mir_refactor（refactor direct-style MIR stable dump + `.mir` golden 比对）
 //! - `tests/fixtures/effect_facts/**` → effect_facts（refactor effect-facts stable dump + `.effectfacts` golden 比对）
+//! - `tests/fixtures/effect_lowered/**` → effect_lowered（refactor late-lowered stable dump + `.effectlowered` golden 比对）
 //! - `tests/fixtures/scoopir/**` → scoopir（public API 导出 + `.scoopir.json` golden 比对）
 //! - 其它一级目录会被识别为 phase，但目前统一返回“未实现”的诊断。
 
@@ -506,6 +507,7 @@ fn run_one(
         Some(name) if name == "mir" => FixturePhase::Mir,
         Some(name) if name == "mir_refactor" => FixturePhase::MirRefactor,
         Some(name) if name == "effect_facts" => FixturePhase::EffectFacts,
+        Some(name) if name == "effect_lowered" => FixturePhase::EffectLowered,
         Some(name) if name == "scoopir" => FixturePhase::ScoopIr,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
@@ -522,6 +524,7 @@ fn run_one(
         FixturePhase::Mir => mir_fixture(session, &source, path),
         FixturePhase::MirRefactor => mir_refactor_fixture(session, &source, path),
         FixturePhase::EffectFacts => effect_facts_fixture(session, &source, path),
+        FixturePhase::EffectLowered => effect_lowered_fixture(session, &source, path),
         FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
@@ -553,6 +556,7 @@ enum FixturePhase {
     Mir,
     MirRefactor,
     EffectFacts,
+    EffectLowered,
     ScoopIr,
     Unimplemented(String),
 }
@@ -752,6 +756,24 @@ struct EffectFactsGoldenReadFailed {
 #[error("effect-facts snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::effect_facts_golden_mismatch))]
 struct EffectFactsGoldenMismatch {
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 effect-lowered golden 文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::effect_lowered_golden_read_failed))]
+struct EffectLoweredGoldenReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("effect-lowered snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::effect_lowered_golden_mismatch))]
+struct EffectLoweredGoldenMismatch {
     path: String,
     fixture: String,
 }
@@ -1325,6 +1347,19 @@ fn effect_facts_fixture(
     assert_effect_facts_golden_matches(&actual, fixture_path)
 }
 
+fn effect_lowered_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let actual =
+        crate::commands::dump_effect_lowered::render_effect_lowered_output(session, source)
+            .map_err(box_report)?;
+    let actual = normalize_newlines(&actual);
+
+    assert_effect_lowered_golden_matches(&actual, fixture_path)
+}
+
 fn assert_mir_golden_matches(
     actual: &str,
     fixture_path: &Path,
@@ -1365,6 +1400,30 @@ fn assert_effect_facts_golden_matches(
 
     if expected != actual {
         return Err(box_diagnostic(EffectFactsGoldenMismatch {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    Ok(())
+}
+
+fn assert_effect_lowered_golden_matches(
+    actual: &str,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let golden_path = fixture_path.with_extension("effectlowered");
+    let expected_raw = std::fs::read_to_string(&golden_path).map_err(|e| {
+        box_diagnostic(EffectLoweredGoldenReadFailed {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+            source: e,
+        })
+    })?;
+    let expected = normalize_newlines(&expected_raw);
+
+    if expected != actual {
+        return Err(box_diagnostic(EffectLoweredGoldenMismatch {
             path: golden_path.display().to_string(),
             fixture: fixture_path.display().to_string(),
         }));
@@ -2988,6 +3047,7 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
                 | "hir"
                 | "mir"
                 | "effect_facts"
+                | "effect_lowered"
                 | "scoopir"
         )
     )
@@ -3036,6 +3096,17 @@ mod tests {
         assert_eq!(
             phase_name(fixtures_root, rel),
             Some(OsStr::new("effect_facts"))
+        );
+    }
+
+    #[test]
+    fn phase_name_falls_back_to_root_phase_dir_for_effect_lowered_single_file_subset() {
+        let fixtures_root = Path::new("tests/fixtures/effect_lowered");
+        let rel = Path::new("dispatch_and_resume_call.scoop");
+
+        assert_eq!(
+            phase_name(fixtures_root, rel),
+            Some(OsStr::new("effect_lowered"))
         );
     }
 

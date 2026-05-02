@@ -1,0 +1,87 @@
+RefactorEffectLoweredStageOutput
+opt_level: O2
+snapshot_binding:
+  query_surface: PassView
+  instance_count: 1
+  canonical_body_fqns:
+    - sample.leaf
+post_opt_program:
+LateLoweredProgram
+  step_type_count: 1
+  resume_interface_count: 1
+  continuation_object_count: 1
+  callable_count: 1
+  step_types:
+    - step_schema: s0
+      invoke_args_tuple_ty: t2
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t470
+      case_variants:
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 concrete_op=sample.Ping.hit
+        - Case(c1) payload_tuple_ty=t217 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t472 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t217>
+  resume_interfaces:
+    - resume_interface: ri0
+      effect_family: sample.Ping
+      return_step_schema: s0
+      methods:
+        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit
+  continuation_objects:
+    - continuation_object: ko0
+      owner_version: instance=sample.leaf allowed_row=(t460) impl_plan=SingleCase(c0) needs_reentry=true
+      continuation_obj_ty: t470
+      implemented_interfaces: [ri0]
+      captures:
+        - FrameSlot(slot0)
+        - FrameSlot(slot1)
+        - FrameSlot(slot2)
+        - FrameSlot(slot3)
+        - FrameSlot(slot4)
+        - FrameSlot(slot5)
+        - FrameSlot(slot6)
+        - State(st2)
+      surface_resumes:
+        - c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t472 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+      methods:
+        - ri0::c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+  callables:
+    - root: sample.leaf
+      body_version_key: instance=sample.leaf allowed_row=(t460) impl_plan=SingleCase(c0) needs_reentry=true
+      step_schema: s0
+      resolved_outward_cases: [c0]
+      dynamic_invoke_entry: invoke(t2) -> s0 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: st3
+        states:
+          - st0 Entry term=Suspend(boundaries=[bd0], resume=st2, cleanup=<none>, drop=st3) successors=[st2]
+            source_slices:
+              - bb0 stmts[0..1] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+          - st2 Resume term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb1 stmts[0..0] + term
+          - st3 Drop term=Abandon successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          - slot0 BoundaryResult(bd0, local0) ty=t2 writes=[st2] reads=[]
+          - slot1 ResumePayload(bd0, c0) ty=t2 writes=[st2] reads=[st2]
+          - slot2 StateTag ty=t5 writes=[] reads=[]
+          - slot3 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot4 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot5 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot6 CompletionTag ty=t5 writes=[] reads=[]
+      boundary_map:
+        - bd0 Perform(site0) owner=st0 resume=st2
+          lowering: Perform emitted_case=c0 captured_cont_schema=k0 payload_tuple_ty=t2
+            emit: c0 op=sample.Ping.hit payload_tuple_ty=t2 ko0 cont_schema=k0 out_step_schema=s0
+      resume_state_map:
+        - bd0 -> st2
+      resume_interfaces: [ri0]
+      continuation_object: ko0

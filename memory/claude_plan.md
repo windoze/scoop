@@ -1,44 +1,55 @@
-## 当前执行计划
+# 当前执行计划
 
-说明：按要求先记录计划与进展。这里记录的是可审计的执行摘要、步骤与决策依据，不包含逐字内部思维链路。
+说明：这里记录对外可见的执行计划、决策依据摘要、关键进展与变更；不记录内部私有推理细节。
 
-### 目标
-
-完成 `TODO.md` 索引所指向的第一个未完成详细任务；若存在阻塞，则以最小方式补充前置任务并同步索引，然后提交并停止。
-
-### 初始步骤
+## 初始计划
 
 1. 读取 `TODO.md`，确认它只是索引，并找出引用的详细任务文件。
-2. 按任务顺序读取相关 `TODO-Px.md`，定位第一个标题未带 `[DONE]` 的详细任务。
-3. 检查最近一次提交是否明确提到与该任务直接相关且未完成的问题；若是，则将其视为当前任务的一部分或必要前置。
-4. 阅读与当前任务直接相关的源码、测试、规范和任务约束，确认验收条件与依赖。
-5. 如可直接实现，则做最小正确修改；如遇到阻塞当前任务的真实缺口，则先补充前置任务到相应 `TODO-Px.md` 并同步 `TODO.md`。
-6. 运行与当前任务直接相关的验证；若任务触及通用构建/静态检查要求，再补充运行必要的 `cargo` 测试、格式化或 lint 验证。
-7. 更新详细任务文件中的完成记录，并仅在需要时同步 `TODO.md` / `PLAN.md`。
-8. 提交本次变更，提交信息使用当前任务号，随后停止。
+2. 按任务顺序检查相关 `TODO-Px.md`，定位第一个标题未带 `[DONE]` 的详细任务；若 `TODO.md` 与详细文件不一致，以详细文件为准。
+3. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；若这是当前任务的直接组成部分或前置依赖，则纳入当前执行范围。
+4. 阅读该任务涉及的代码、测试、规范和相关文档，确认实现边界、约束、依赖与验收要求。
+5. 实现当前任务；若遇到阻塞当前任务的真实缺陷或缺失能力，不绕过，改为补齐该阻塞项或在对应 `TODO-Px.md` 中新增最小前置任务并同步 `TODO.md`。
+6. 运行与当前任务直接相关的验证，包括必要的测试、格式化、lint；若仓库要求且改动影响范围较大，再运行更广泛验证。
+7. 更新 `memory/claude_plan.md` 记录关键进展与计划变更。
+8. 在对应 `TODO-Px.md` 中将完成的任务标题标记为 `[DONE]`，补充完成记录；若任务索引、标题、顺序或状态变化，同步更新 `TODO.md`。
+9. 仅在阶段级计划、依赖或完成标准发生变化时更新 `PLAN.md`。
+10. 按仓库提交风格创建一次 git 提交，然后停止，不继续下一个任务。
 
-### 执行约束
+## 当前任务定位
 
-1. 一次只完成一个详细任务。
-2. 不使用变通方案绕过规范或实现缺口。
-3. 若发现阻塞，优先修复阻塞或把它登记为当前任务之前的前置任务。
-4. 不回退或覆盖与当前任务无关的现有改动。
+- 已读取 `TODO.md` 与 `TODO-P5.md`。
+- 首个未完成的详细任务是 `P5-T07`：新增 `dump-effect-lowered` / snapshot 基线，并冻结 P5 -> P6 handoff contract。
+- `TODO.md` 与 `TODO-P5.md` 在这一点上一致；目前无需先同步索引。
+- 最近一次提交为 `[P5-T06R] Preserve dedicated drop paths in late opt review`，内容直接修复了 late opt 对 dedicated `drop_state` 的回归，属于 `P5-T06R` 的收尾，不构成新的、需要先插入到 `P5-T07` 前面的未跟踪前置任务。
 
-### 进展日志
+## 当前任务执行分解
 
-- 已创建计划文件，下一步开始读取 `TODO.md` 与对应 `TODO-Px.md` 来定位当前任务。
-- 已读取 `TODO.md` 索引并核对 `TODO-P5.md`；当前第一个未完成详细任务为 `P5-T06R`。
-- 已检查最近一次提交：`[P5-T06] Optimize late-lowered post-lowering pipeline`。提交信息未显式声明尚未记录在 TODO 中的直接相关未完事项，因此继续按 `P5-T06R` 的 review 要求执行。
-- 当前 review 计划：
-  1. 阅读 `crates/scoopc/src/effect_lowered/opt.rs`、`materialize.rs` 与 P5 stage 入口，确认优化 pass 只消费 late-lowered representation。
-  2. 运行任务要求的关键词搜索，检查是否存在重跑 solver / segmentation / `ImplPlan` 选择的迹象。
-  3. 复跑 `P5-T06` 指定测试与静态检查命令。
-  4. 若发现问题：先修复问题并补充验证；若当前任务因此被阻塞，则在对应 TODO 文件中插入最小前置任务并同步 `TODO.md`。
-  5. 若 review 通过：把 `P5-T06R` 标记为 `[DONE]`，填写完成记录，必要时同步 `TODO.md`，然后提交并停止。
+1. 检查 `scoop` CLI、命令分发、fixture runner、以及 `effect_refactor_pipeline`/`effect_lowered` 中现有 late-lowered dump 能力，确定最小改动方案。
+2. 新增 `dump-effect-lowered` 命令模块，并为 legacy pipeline 提供稳定 unsupported 诊断；refactor 路径统一走 `load_effect_lowered_stage_output_for_dump(...)`。
+3. 扩展 fixture phase：新增 `effect_lowered` phase、`.effectlowered` golden 比对、对应错误诊断与 phase-name 识别测试。
+4. 建立 `tests/fixtures/effect_lowered/` 基线：复用既有 `.scoop` 源文件内容，补齐任务要求的最少 10 个 late-lowered 专属样本与 golden。
+5. 把 P5 -> P6 handoff contract 进一步固定到代码注释/稳定 dump surface 中，确保从代码层面明确“P6 只翻译 late-lowered representation，不重做高层 lowering 设计”。
+6. 运行定向验证：CLI 命令测试、fixture 测试、任务要求的若干 `cargo run -p scoop --no-default-features ...` 命令，以及 `cargo clippy -p scoop --no-default-features --all-targets -- -D warnings`；必要时运行 `cargo fmt --all`。
+7. 更新 `TODO-P5.md` 与 `TODO.md` 的完成状态及完成记录；仅在阶段计划变化时才改 `PLAN.md`。
+8. 检查工作区状态并创建一次 git 提交，然后停止。
 
-- review 过程中发现直接相关回归：`crates/scoopc/src/effect_lowered/opt.rs` 的 DCE 只从 `entry_state` 做普通 CFG reachability，而 dedicated `drop_state` 是通过 continuation runtime contract 进入、并不出现在普通 successor 集合里，导致 post-opt 可能错误删除 dropped-continuation path，违背 `P5-T04` 已冻结的合同。
-- 已实施修复：在 late-opt 的活跃状态收集里显式从 `drop_state` 追加 reachability 根，并新增 stage 级测试，要求 `load_effect_lowered_stage_output_for_dump(...)` 的 post-opt 输出仍保留 dedicated `Drop` state，且 `Suspend` 的 `cleanup_state` 与 `drop_state` 保持分离。
-- 下一步：运行 `P5-T06R` 要求的搜索、定向测试和静态检查；若全部通过，则更新 `TODO-P5.md` / `TODO.md` 并提交。
-- 已完成验证：关键词搜索确认 late opt 未重跑 solver / segmentation / `ImplPlan` 选择；`refactor_late_opt`、`refactor_dropped_continuation`、`refactor_effect_lowered_stage`、`refactor_late_lowered_ir`、`refactor_step_materialization`、`refactor_boundary_lowering`、`refactor_continuation_object`、`refactor_resume_interface_completeness`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`、`cargo fmt --all --check` 全部通过。
-- 已更新 `TODO-P5.md` 与 `TODO.md`：`P5-T06R` 现已标记为 `[DONE]`，完成记录中写明了 review 结论、发现并修复的 `drop_state` 回归以及验证矩阵。
-- 下一步：检查工作区改动范围并创建本次任务提交，然后停止。
+## 当前进展
+
+- 已完成 `dump-effect-lowered` CLI plumbing：新增 `crates/scoop/src/commands/dump_effect_lowered.rs`，并接入 `cli.rs` / `commands/mod.rs`。
+- 已完成 late-lowered dump surface 加固：`RefactorEffectLoweredStageOutput::stable_dump()` 现在显式展示 `opt_level`、`snapshot_binding` 与 `post_opt_program`，并补写了 P5 -> P6 handoff contract 注释。
+- 已完成 fixture phase：`crates/scoop/src/fixtures/mod.rs` 新增 `effect_lowered` phase、`.effectlowered` golden 比对、对应诊断与 phase-name 测试。
+- 已完成 snapshot 基线：`tests/fixtures/effect_lowered/` 现已包含任务要求的 10 个 `.scoop` 样本与对应 `.effectlowered` golden。
+- 已完成定向验证：
+  - `cargo test -p scoop --no-default-features effect_lowered`
+  - `cargo test -p scoopc --no-default-features effect_lowered_stage`
+  - 任务要求的 refactor `dump-effect-lowered` / `scoop test --fixtures ...` 命令
+  - legacy unsupported 诊断验证
+  - `cargo fmt --all --check`
+  - `cargo clippy -p scoop -p scoopc --no-default-features --all-targets -- -D warnings`
+- 计划未变更：`PLAN.md` 无需修改。
+- 下一步：检查最终 diff，创建一次 `[P5-T07] ...` 提交，然后停止。
+
+## 计划更新规则
+
+- 每当定位到当前任务、发现阻塞、调整实现路径、完成关键实现、开始验证、完成文档同步、完成提交时，更新本文件。
+- 如果任务无法按原样完成，本文件要明确记录阻塞点、新增前置任务位置、以及本次为什么停止。

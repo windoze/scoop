@@ -1,0 +1,26 @@
+package sample
+
+effect Step {
+    fun next(seed: Int): Int
+}
+
+effect Other {
+    fun ping(): Int
+}
+
+fun cleanup() {}
+
+fun helper(seed: Int): Int / Step {
+    return handle {
+        Step.next(seed)
+        0
+    } with {
+        Other.ping() -> 0
+    } finally {
+        cleanup()
+    }
+}
+
+fun main(): Int {
+    return 0
+}

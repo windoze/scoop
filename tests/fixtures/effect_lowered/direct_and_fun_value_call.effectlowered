@@ -1,0 +1,195 @@
+RefactorEffectLoweredStageOutput
+opt_level: O2
+snapshot_binding:
+  query_surface: PassView
+  instance_count: 4
+  canonical_body_fqns:
+    - a.apply
+    - a.id
+    - a.main
+    - a.main.$lambda0
+post_opt_program:
+LateLoweredProgram
+  step_type_count: 5
+  resume_interface_count: 0
+  continuation_object_count: 4
+  callable_count: 4
+  step_types:
+    - step_schema: s0
+      invoke_args_tuple_ty: t468
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t469
+      case_variants:
+        <none>
+    - step_schema: s1
+      invoke_args_tuple_ty: t5
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t470
+      case_variants:
+        <none>
+    - step_schema: s2
+      invoke_args_tuple_ty: t2
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t471
+      case_variants:
+        <none>
+    - step_schema: s3
+      invoke_args_tuple_ty: t472
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t473
+      case_variants:
+        <none>
+    - step_schema: s4
+      invoke_args_tuple_ty: t5
+      complete_variant: Complete(t5)
+      continuation_obj_ty: t474
+      case_variants:
+        <none>
+  resume_interfaces:
+    <none>
+  continuation_objects:
+    - continuation_object: ko0
+      owner_version: instance=a.apply allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t469
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko1
+      owner_version: instance=a.id allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t470
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko2
+      owner_version: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t471
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+    - continuation_object: ko3
+      owner_version: instance=a.main.$lambda0 allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t473
+      implemented_interfaces: []
+      captures:
+        <none>
+      surface_resumes:
+        <none>
+      methods:
+        <none>
+  callables:
+    - root: a.apply
+      body_version_key: instance=a.apply allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s0
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t468) -> s0 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..1] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko0
+    - root: a.id
+      body_version_key: instance=a.id allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s1
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t5) -> s1 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..0] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko1
+    - root: a.main
+      body_version_key: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s2
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t2) -> s2 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..7] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko2
+    - root: a.main.$lambda0
+      body_version_key: instance=a.main.$lambda0 allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      step_schema: s3
+      resolved_outward_cases: []
+      dynamic_invoke_entry: invoke(t472) -> s3 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: <none>
+        states:
+          - st0 Entry term=Return(local2 -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[0..2] + term
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          <none>
+      boundary_map:
+        <none>
+      resume_state_map:
+        <none>
+      resume_interfaces: []
+      continuation_object: ko3

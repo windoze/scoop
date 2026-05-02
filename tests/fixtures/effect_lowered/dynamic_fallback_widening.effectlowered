@@ -1,0 +1,114 @@
+RefactorEffectLoweredStageOutput
+opt_level: O2
+snapshot_binding:
+  query_surface: PassView
+  instance_count: 1
+  canonical_body_fqns:
+    - sample.callValue
+post_opt_program:
+LateLoweredProgram
+  step_type_count: 2
+  resume_interface_count: 3
+  continuation_object_count: 1
+  callable_count: 1
+  step_types:
+    - step_schema: s0
+      invoke_args_tuple_ty: t462
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t473
+      case_variants:
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 concrete_op=sample.Alpha.go
+        - Case(c1) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 concrete_op=sample.Beta.go
+        - Case(c2) payload_tuple_ty=t217 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t217>
+    - step_schema: s1
+      invoke_args_tuple_ty: t2
+      complete_variant: Complete(t2)
+      continuation_obj_ty: t475
+      case_variants:
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k2 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s1 concrete_op=sample.Alpha.go
+        - Case(c1) payload_tuple_ty=t2 continuation_schema=k2 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s1 concrete_op=sample.Beta.go
+  resume_interfaces:
+    - resume_interface: ri0
+      effect_family: sample.Alpha
+      return_step_schema: s0
+      methods:
+        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go
+    - resume_interface: ri1
+      effect_family: sample.Beta
+      return_step_schema: s0
+      methods:
+        - case: c1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go
+    - resume_interface: ri2
+      effect_family: scoop.core.Raise<t217>
+      return_step_schema: s0
+      methods:
+        - case: c2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217>
+  continuation_objects:
+    - continuation_object: ko0
+      owner_version: instance=sample.callValue allowed_row=(t460 + t461) impl_plan=CanonicalFull needs_reentry=true
+      continuation_obj_ty: t473
+      implemented_interfaces: [ri0, ri1, ri2]
+      captures:
+        - FrameSlot(slot0)
+        - FrameSlot(slot1)
+        - FrameSlot(slot2)
+        - FrameSlot(slot3)
+        - FrameSlot(slot4)
+        - FrameSlot(slot5)
+        - FrameSlot(slot6)
+        - FrameSlot(slot7)
+        - State(st2)
+      surface_resumes:
+        - c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - c1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - c2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+      methods:
+        - ri0::c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - ri1::c1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - ri2::c2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+  callables:
+    - root: sample.callValue
+      body_version_key: instance=sample.callValue allowed_row=(t460 + t461) impl_plan=CanonicalFull needs_reentry=true
+      step_schema: s0
+      resolved_outward_cases: [c0, c1]
+      dynamic_invoke_entry: invoke(t462) -> s0 entry=st0 complete=st1
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: st3
+        states:
+          - st0 Entry term=Suspend(boundaries=[bd0], resume=st2, cleanup=<none>, drop=st3) successors=[st2]
+            source_slices:
+              - bb0 stmts[0..1]
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+          - st2 Resume term=Return(Unit -> st1) successors=[st1]
+            source_slices:
+              - bb0 stmts[1..1] + term
+          - st3 Drop term=Abandon successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          - slot0 BoundaryResult(bd0, local1) ty=t2 writes=[st2] reads=[]
+          - slot1 ResumePayload(bd0, c0) ty=t2 writes=[st2] reads=[st2]
+          - slot2 ResumePayload(bd0, c1) ty=t2 writes=[st2] reads=[st2]
+          - slot3 StateTag ty=t5 writes=[] reads=[]
+          - slot4 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot5 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot6 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot7 CompletionTag ty=t5 writes=[] reads=[]
+      boundary_map:
+        - bd0 Call(site0) owner=st0 resume=st2
+          lowering: Call kind=FunValue target_mode=DynamicFallback callee_step=s1 result=local1 target=DynamicFallback
+            dispatch_input_step_schema: s1
+            complete: answer_ty=t2 target=st2 result=local1
+            outward_cases:
+              - in c0 op=sample.Alpha.go -> out c0 op=sample.Alpha.go payload_tuple_ty=t2 ko0 cont_schema=k0 out_step_schema=s0
+              - in c1 op=sample.Beta.go -> out c1 op=sample.Beta.go payload_tuple_ty=t2 ko0 cont_schema=k0 out_step_schema=s0
+      resume_state_map:
+        - bd0 -> st2
+      resume_interfaces: [ri0, ri1, ri2]
+      continuation_object: ko0
