@@ -29,7 +29,7 @@
 - 所有验证若需要触发新主线，必须统一通过本阶段建立的 CLI 参数进入，而不是通过替换默认值或测试专用入口进入。
 - 每个任务完成后，必须把完成记录回写到当前 TODO 文件对应条目下的“完成记录”位置，供下一任务与 review 任务引用。
 
-## P0-T01：建立新旧主线共享的 CLI / Session pipeline selector
+## [DONE] P0-T01：建立新旧主线共享的 CLI / Session pipeline selector
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P0
@@ -88,7 +88,7 @@
   - 新增/更新测试：`crates/scoop/src/cli.rs`、`crates/scoopc/src/session/mod.rs`、`crates/scoopc/src/driver_cli.rs`。
   - 验证通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoopc --no-default-features driver_cli`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P0-T01R：Review CLI / Session selector，确认新主线入口对两端一致且默认行为稳定
+## [DONE] P0-T01R：Review CLI / Session selector，确认新主线入口对两端一致且默认行为稳定
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P0
@@ -122,7 +122,7 @@
   - smoke 验证通过且 `legacy` / `refactor` 的 `dump-ast tests/fixtures/parse/hello.scoop` 输出一致。
   - 复验通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoopc --no-default-features driver_cli`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P0-T02：建立并行 pipeline dispatcher 壳层，禁止新路径直接侵入旧业务模块
+## [DONE] P0-T02：建立并行 pipeline dispatcher 壳层，禁止新路径直接侵入旧业务模块
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P0
@@ -182,7 +182,7 @@
   - 输出比对结果：`dump-ast` / `dump-hir` / `dump-mir` 在 `legacy` 与 `refactor` 下输出一致；`dump-ir` 当前 `MaterializedMir` Debug 文本跨进程本身不稳定（`legacy` 对 `legacy` 重跑同样漂移），因此本任务仅核对其 legacy/refactor 退出状态一致且都能成功产出结果。
   - 验证通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoop --no-default-features dump_ast_command_uses_refactor_ast_dispatcher`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoopc --no-default-features driver_cli`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P0-T02R：Review 并行 dispatcher 壳层，确认没有把新旧业务逻辑混写在一起
+## [DONE] P0-T02R：Review 并行 dispatcher 壳层，确认没有把新旧业务逻辑混写在一起
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0（尤其是“共享模块 vs 复制实现”约束）
@@ -217,7 +217,7 @@
   - 搜索摘要：对 `crates/scoopc/src/hir`、`crates/scoopc/src/mir`、`crates/scoopc/src/effect`、`crates/scoopc/src/llvm` 执行 `EffectPipelineMode|effect_pipeline|effect_pipeline_mode` 搜索均为 0 命中；selector 相关命中仍集中在 `session/`、`driver_cli.rs`、`effect_refactor_pipeline/`、driver 命令层与 fixture wrapper。
   - 复验通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoop --no-default-features dump_ast_command_uses_refactor_ast_dispatcher`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoopc --no-default-features driver_cli`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P0-T03：建立“共享模块 vs 复制实现”边界清单，并把它固化为仓库文档
+## [DONE] P0-T03：建立“共享模块 vs 复制实现”边界清单，并把它固化为仓库文档
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P0
@@ -275,7 +275,7 @@
   - 搜索摘要：执行 `rg -n "EffectPipelineMode|effect_pipeline|effect_pipeline_mode" crates/scoopc/src/parser crates/scoopc/src/source.rs crates/scoopc/src/span.rs crates/scoopc/src/sysroot crates/scoopc/src/target crates/scoopc/src/ty runtime/c/scoop_root_frame.h runtime/c/scoop_stackmap.h runtime/c/scoop_stackmap.c`，结果为 0 命中，说明当前共享中立模块没有 selector 渗入。
   - 验证通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P0-T03R：Review 边界清单，确认后续实现不会再靠临时判断混线
+## [DONE] P0-T03R：Review 边界清单，确认后续实现不会再靠临时判断混线
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0
@@ -305,7 +305,7 @@
   - 搜索摘要：重新执行 `rg -n "EffectPipelineMode|effect_pipeline|effect_pipeline_mode" crates/scoopc/src/parser crates/scoopc/src/source.rs crates/scoopc/src/span.rs crates/scoopc/src/sysroot crates/scoopc/src/target crates/scoopc/src/ty runtime/c/scoop_root_frame.h runtime/c/scoop_stackmap.h runtime/c/scoop_stackmap.c` 结果为 0 命中；对 `crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/hir crates/scoopc/src/typecheck crates/scoopc/src/mir crates/scoopc/src/effect crates/scoopc/src/llvm` 的同类搜索仅命中 `effect_refactor_pipeline/`，未扩散到旧业务目录。
   - 复验通过：`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P0-T04：建立 P0 baseline parity 验证矩阵，锁定“新路径壳层不改变旧语义”
+## [DONE] P0-T04：建立 P0 baseline parity 验证矩阵，锁定“新路径壳层不改变旧语义”
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P0
@@ -364,7 +364,7 @@
   - 复验通过：`cargo test -p scoop --no-default-features parity`、`cargo test -p scoop --no-default-features cli`、`cargo test -p scoopc --no-default-features session`、`cargo test -p scoop build_emit_llvm_cli_parity_matches_legacy_and_refactor`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
   - CLI smoke 通过：`cmp -s =(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/handle_expr_minimal.scoop) =(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/handle_expr_minimal.scoop)`、`diff <(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop) <(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop)`、`diff <(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop) <(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop)`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`。
 
-## P0-T04R：Review baseline parity 与 P0 退出条件
+## [DONE] P0-T04R：Review baseline parity 与 P0 退出条件
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P0，§3

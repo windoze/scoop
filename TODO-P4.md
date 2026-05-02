@@ -61,7 +61,7 @@
   - 不执行 `cargo run -p scoop -- test` 的全量 fixture 扫描。
 - 所有需要触发新路径的验证都必须通过 `--effect-pipeline refactor` 进入，或通过与该 CLI 路径共用同一 stage helper 的 Rust 测试入口进入；禁止新增只在测试中存在的语义旁路。
 
-## P4-T01：建立 refactor effect-facts stage 与独立 side-table 子系统边界
+## [DONE] P4-T01：建立 refactor effect-facts stage 与独立 side-table 子系统边界
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P4
@@ -142,7 +142,7 @@
   - P4 现已明确只绑定 pass-view canonical MIR 查询面：`MaterializedEffectFactsBuilder::from_materialized_snapshot(...)` 只消费 `MaterializedMir::pass_view()`，并用 `MirSnapshotBinding` 记录 query surface、instance 计数与 canonical body FQN 集；不会在同一个 facts 构建过程中混用 raw `MaterializedMir.file` 与 pass-view body/summaries。
   - 搜索摘要：执行 `MaterializedEffectFacts|StepSchema|ContinuationSchema|resolved_outward_cases|impl_plan` 搜索后，命中仅位于新的 `effect_facts` 子系统、`effect_facts_stage.rs` 与 `mir_stage.rs` 的 handoff 注释；未发现这些新 facts 术语被塞进 `crates/scoopc/src/program_facts.rs`、`crates/scoopc/src/mir/summary.rs` 或 `crates/scoopc/src/effect/analysis.rs` 的业务实现中。
   - 新增/更新测试：`crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 中的 `refactor_effect_facts_stage_output_is_constructible`、`refactor_effect_facts_stage_explicitly_consumes_p3_mir_stage_output`、`refactor_effect_facts_stage_requires_materialized_snapshot`，以及 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 中的 `refactor_effect_facts_stage_dispatcher_loads_stage_output`。
-  - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
+  - 2026-05-02：按详细任务文件的完成判定规则复验后，已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 仍无需改动。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P4-T01R：Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts`

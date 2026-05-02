@@ -30,7 +30,7 @@
   - 不执行 HIR/MIR/LLVM 相关全集测试。
 - 所有需要触发新路径的验证都必须通过 P0 建立的 CLI 参数进入，不允许通过修改默认值或内部测试入口偷渡到 refactor 路径。
 
-## P1-T01：建立 refactor AST stage 专用入口与阶段输出类型
+## [DONE] P1-T01：建立 refactor AST stage 专用入口与阶段输出类型
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P1
@@ -85,7 +85,7 @@
   - 新增/更新测试：`crates/scoopc/src/effect_refactor_pipeline/ast_stage.rs`、`crates/scoopc/src/effect_refactor_pipeline/mod.rs`、`crates/scoop/src/commands/dump_ast.rs`。
   - 验证通过：`cargo test -p scoopc --no-default-features ast_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_ast_command_uses_refactor_ast_dispatcher`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P1-T01R：Review AST stage 入口与 handoff 类型，确认 parser 仍是中立共享模块
+## [DONE] P1-T01R：Review AST stage 入口与 handoff 类型，确认 parser 仍是中立共享模块
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P1
@@ -118,7 +118,7 @@
   - 搜索摘要：执行 `rg -n "EffectPipelineMode|effect_pipeline|legacy|refactor" crates/scoopc/src/parser crates/scoopc/src/ast` 输出为 0 命中，说明 parser / AST 业务代码中没有渗入 pipeline mode 或 legacy/refactor 路线分叉。
   - 复验通过：`cargo test -p scoopc --no-default-features ast_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_ast_command_uses_refactor_ast_dispatcher`、`diff -u <(cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop) <(cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/hello.scoop)>`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P1-T02：锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状
+## [DONE] P1-T02：锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P1
@@ -186,7 +186,7 @@
   - `crates/scoopc/src/parser/tests.rs` 新增结构断言 `parse_resume_member_call_as_plain_call_shape`、`parse_zero_arg_resume_member_call_without_unit_desugar`、`parse_zero_arg_and_explicit_unit_calls_as_distinct_shapes`，直接检查 `callee` 形状、实参数量与 `UnitLit` 保留情况。
   - 验证通过：`cargo test -p scoopc --no-default-features parser::tests`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/continuation_resume_member_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/continuation_resume_member_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P1-T02R：Review surface parse contract，确认 continuation / `Unit` sugar 仍是普通调用语法
+## [DONE] P1-T02R：Review surface parse contract，确认 continuation / `Unit` sugar 仍是普通调用语法
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.1
@@ -219,7 +219,7 @@
   - 搜索摘要：执行 `rg "ResumeExpr|ContinuationResume|ZeroArgUnit|resume\(" crates/scoopc/src/ast crates/scoopc/src/parser` 后，命中仅来自 `parser/tests.rs` 的结构断言、`ast/mod.rs` 中关于 typed side table 的注释，以及 `parser/mod.rs` 里旧 `-> resume { ... }` 已移除语法的迁移诊断帮助文本；额外复核 `crates/scoopc/src/parser/expr.rs` 中唯一的 `peek_ident_text("resume")` 分支仅用于对已删除的 handler-arm 旧语法报 `HandleImmediateResumeRemoved`，并不参与 `k.resume(...)` / `k.resume()` 的普通 member-call 解析，因此不构成新的 surface 特判。
   - 复验通过：`cargo test -p scoopc --no-default-features parser::tests`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/continuation_resume_member_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/continuation_resume_member_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/continuation_resume_unit_call_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P1-T03：建立 AST -> HIR handoff contract，并锁定 refactor AST stage parity
+## [DONE] P1-T03：建立 AST -> HIR handoff contract，并锁定 refactor AST stage parity
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P1
@@ -275,7 +275,7 @@
   - 本任务未修改 `TODO.md` 或 `PLAN.md`：任务顺序、索引与阶段计划保持不变。
   - 验证通过：`cargo test -p scoop --no-default-features refactor_ast_stage_parity`、`cargo test -p scoopc --no-default-features parser::tests`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/continuation_resume_member_call_basic.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/continuation_resume_member_call_basic.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ast tests/fixtures/parse/unit_single_param_zero_arg_call_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P1-T03R：Review P1 阶段退出条件，确认可以进入 HIR / typecheck 新路径
+## [DONE] P1-T03R：Review P1 阶段退出条件，确认可以进入 HIR / typecheck 新路径
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P1，§3

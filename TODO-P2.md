@@ -30,7 +30,7 @@
   - 不执行 MIR/LLVM/full suite。
 - 所有需要走新路径的验证都必须通过 `--effect-pipeline refactor` 进入。
 
-## P2-T01：建立 refactor typed HIR stage 入口，并让 `dump-hir` 新路径不再调用 legacy `lower_for_dump`
+## [DONE] P2-T01：建立 refactor typed HIR stage 入口，并让 `dump-hir` 新路径不再调用 legacy `lower_for_dump`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P2
@@ -95,7 +95,7 @@
   - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务顺序、索引与阶段计划保持不变。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_typed_hir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_hir`、`cargo test -p scoop --no-default-features parity`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/hir/minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P2-T01R：Review refactor typed HIR stage，确认新路径已从 legacy `lower_for_dump` 分离
+## [DONE] P2-T01R：Review refactor typed HIR stage，确认新路径已从 legacy `lower_for_dump` 分离
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P2
@@ -128,7 +128,7 @@
   - 搜索摘要：对 `crates/scoopc/src/hir`、`crates/scoopc/src/typecheck` 执行 `EffectPipelineMode|effect_pipeline|refactor|legacy` 搜索后，未发现 selector 进入旧 HIR / typecheck 业务实现；`hir/` 仅命中 `legacy_eager_hir` 这类既有命名与注释，`typecheck/` 仅命中 continuation 旧语法/兼容诊断文本与 legacy resume 逻辑局部变量名，未形成基于 pipeline mode 的线路分支。
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_typed_hir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_hir`、`cargo test -p scoop --no-default-features parity`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/hir/minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/minimal.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P2-T02：对齐 `Continuation` surface contract，并把单一 `Unit` 参数 sugar 落到 typed 阶段
+## [DONE] P2-T02：对齐 `Continuation` surface contract，并把单一 `Unit` 参数 sugar 落到 typed 阶段
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.1
@@ -203,7 +203,7 @@
   - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
   - 验证通过：`cargo test -p scoopc --no-default-features continuation_resume`、`cargo test -p scoopc --no-default-features unit_single_param_zero_arg`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_answer_expression_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_unit_sugar_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/unit_single_param_zero_arg_call_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/unit_single_param_zero_arg_extension_call_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/unit_single_param_zero_arg_overload_prefers_exact_zero_arg_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_tuple_requires_single_tuple_arg_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo test -p scoop --no-default-features parity`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P2-T02R：Review `Continuation` surface 与 typed sugar，确认零参 sugar 没有污染 AST 和 parser
+## [DONE] P2-T02R：Review `Continuation` surface 与 typed sugar，确认零参 sugar 没有污染 AST 和 parser
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.1
@@ -236,7 +236,7 @@
   - 搜索摘要：执行 `rg "k\.resume\(a0|expanded_payload_param_names|legacy_value_expr|Continuation\.resume payload" crates/scoopc/src sysroot` 后，仅命中 `typecheck/expr/call.rs` 的 expected-type 诊断标签 `"Continuation.resume payload"` 与 LLVM payload 诊断字符串，`sysroot` 为 0 命中；未发现 refactor typed 路径继续依赖 resume 多参数特例。执行 `rg "zero_arg_unit_call_sugar|ZeroArgUnit|ContinuationResume|ResumeExpr|resume\(" crates/scoopc/src/parser crates/scoopc/src/ast` 后，命中仅来自 parser 结构测试、旧语法迁移帮助文本，以及 AST side table 的注释/初始化；未发现 AST 特例节点或 parser rewrite 分支。
   - 复验通过：`cargo test -p scoopc --no-default-features continuation_resume`、`cargo test -p scoopc --no-default-features unit_single_param_zero_arg`、`cargo test -p scoop --no-default-features parity`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_answer_expression_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_unit_sugar_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/unit_single_param_zero_arg_call_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/unit_single_param_zero_arg_extension_call_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/unit_single_param_zero_arg_overload_prefers_exact_zero_arg_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_tuple_requires_single_tuple_arg_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P2-T03：落地 `Continuation` typed 语义、runtime error 的普通 effect 传播，以及 compiler-owned interface 约束
+## [DONE] P2-T03：落地 `Continuation` typed 语义、runtime error 的普通 effect 传播，以及 compiler-owned interface 约束
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.1, §5.3.1, §5.3.9
@@ -310,7 +310,7 @@
   - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_continuation_typecheck`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoopc --no-default-features continuation_resume`、`cargo test -p scoop --no-default-features dump_hir`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_answer_expression_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_answer_type_mismatch_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_in_pure_main_after_handle_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_from_escape_binder_requires_step_effect.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_required_effect_missing_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_requires_raise_runtime_error_missing_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_user_impl_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_runtime_ctor_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_requires_runtime_error_effect_is_error.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P2-T03R：Review continuation typed 语义，确认没有残留隐藏通道或 legacy 魔法
+## [DONE] P2-T03R：Review continuation typed 语义，确认没有残留隐藏通道或 legacy 魔法
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.1, §5.3.9
@@ -345,7 +345,7 @@
   - 搜索摘要：执行 `ContinuationAlreadyResumed|Raise<RuntimeError>|Continuation<` 搜索后，命中集中在 `sysroot/core.scoop` 的 surface 声明、`typecheck/expr/call.rs` / `effect_refactor_pipeline/hir_stage.rs` 的 refactor typed contract 落点，以及现有 legacy/backend 测试样本；未发现需要靠 codegen 才能补足 continuation/runtime error 语义的缺口。执行 `k\.resume\(a0|expanded_payload_param_names|legacy_value_expr|Continuation\.resume payload` 搜索后，仅命中 `typecheck/expr/call.rs` 的 expected-type 诊断标签与 LLVM payload 形状诊断字符串；未发现 refactor typed 路径继续依赖旧的 resume 多参数展开 helper 或隐藏 legacy payload 通道。
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_continuation_typecheck`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoopc --no-default-features continuation_resume`、`cargo test -p scoop --no-default-features dump_hir`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_answer_expression_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_answer_type_mismatch_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_in_pure_main_after_handle_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_from_escape_binder_requires_step_effect.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_user_impl_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_runtime_ctor_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_requires_runtime_error_effect_is_error.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P2-T04：输出 typed HIR effect/continuation side tables，并锁定 `dump-hir` / typecheck 验证矩阵
+## [DONE] P2-T04：输出 typed HIR effect/continuation side tables，并锁定 `dump-hir` / typecheck 验证矩阵
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.13.1, §4.13.3, §5.4 的早期对应物
@@ -417,7 +417,7 @@
   - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务顺序、索引与阶段计划保持不变。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoop --no-default-features dump_hir`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_answer_expression_ok.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/continuation_resume_requires_runtime_error_effect_is_error.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/continuation_runtime_error_surface_basic.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-hir tests/fixtures/hir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- test --fixtures tests/fixtures/hir/continuation_runtime_error_surface_basic.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P2-T04R：Review P2 阶段退出条件，确认 P3 不再需要回 AST/typecheck 猜语义
+## [DONE] P2-T04R：Review P2 阶段退出条件，确认 P3 不再需要回 AST/typecheck 猜语义
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P2，§3

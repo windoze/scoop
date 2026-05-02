@@ -41,7 +41,7 @@
   - 不执行 `cargo run -p scoop -- test` 的全量 fixture 扫描。
 - 所有新路径验证都必须通过 `--effect-pipeline refactor` 进入，或通过与该 CLI 路径共用同一 stage helper 的 Rust 测试入口进入；禁止新增只在测试中存在的旁路实现。
 
-## P3-T01：建立 refactor direct-style MIR stage 入口与显式 stage 输出，切断 `dump-mir` 对 legacy `mir::lower_for_dump` 的依赖
+## [DONE] P3-T01：建立 refactor direct-style MIR stage 入口与显式 stage 输出，切断 `dump-mir` 对 legacy `mir::lower_for_dump` 的依赖
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P3
@@ -115,7 +115,7 @@
   - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P3-T01R：Review refactor MIR stage 入口，确认新路径已与 legacy `mir::lower_for_dump` 分离
+## [DONE] P3-T01R：Review refactor MIR stage 入口，确认新路径已与 legacy `mir::lower_for_dump` 分离
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P3
@@ -151,7 +151,7 @@
   - 搜索摘要：执行 `EffectPipelineMode|effect_pipeline|refactor|legacy` 搜索后，`crates/scoopc/src/mir/**/*.rs` 中未发现 selector 进入旧 MIR 业务实现；唯一与 `pipeline` 相关的命中来自 `mir/lower.rs` 顶部注释。selector 相关命中集中在 `crates/scoopc/src/effect_refactor_pipeline/` 的 dispatcher/stage 与测试代码中；`mir/lower.rs`、`mir/materialize.rs`、`mir/pass_view.rs` 未新增基于 pipeline mode 的线路分支。
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P3-T02：把 P2 typed contract 下沉到 direct-style MIR，停止基于 span / 名字 / HIR fallback 猜测 `Call / Perform / Resume / Handle` 语义
+## [DONE] P3-T02：把 P2 typed contract 下沉到 direct-style MIR，停止基于 span / 名字 / HIR fallback 猜测 `Call / Perform / Resume / Handle` 语义
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P3
@@ -235,7 +235,7 @@
   - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_lowering_contract`、`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/continuation_resume_unit_sugar.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P3-T02R：Review direct-style MIR contract，下沉信息是否已足够并且不再依赖 span / 名字猜测
+## [DONE] P3-T02R：Review direct-style MIR contract，下沉信息是否已足够并且不再依赖 span / 名字猜测
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.12, §4.13, §5.3.1, §5.3.9
@@ -269,7 +269,7 @@
   - 搜索摘要：执行 `rg -n "continuation_resume_call_spans|non_pure_continuation_resume_call_spans|is_continuation_resume_call|resume callee lowering pending" crates/scoopc/src/mir crates/scoopc/src/effect_refactor_pipeline`，仅剩 `crates/scoopc/src/effect_refactor_pipeline/mir_stage.rs` 中 2 处测试断言命中；refactor MIR stage 及其直接 lowering 逻辑已无旧式 guess hook 命中。
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_typed_contracts_clear_legacy_resume_and_perform_fallbacks`、`cargo test -p scoopc --no-default-features refactor_mir_lowering_contract`、`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/continuation_resume_unit_sugar.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P3-T03：显式化 boundary 所在的 CFG / cleanup / evaluation context，并为 `SiteId` 与 refactor MIR 形状建立 verifier
+## [DONE] P3-T03：显式化 boundary 所在的 CFG / cleanup / evaluation context，并为 `SiteId` 与 refactor MIR 形状建立 verifier
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P3
@@ -360,7 +360,7 @@
   - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_cfg`、`cargo test -p scoopc --no-default-features refactor_mir_site_id`、`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoop --no-default-features dump_mir`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/while_break_continue.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/effect_boundary_inside_expr_context.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/run-pass/effect_handle_return_from_function_finally.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P3-T03R：Review CFG / cleanup / `SiteId` invariants，确认 refactor MIR 已经语义闭包
+## [DONE] P3-T03R：Review CFG / cleanup / `SiteId` invariants，确认 refactor MIR 已经语义闭包
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.12, §5.5.3-§5.5.6
@@ -395,7 +395,7 @@
   - 搜索摘要：执行 `rg "handle result pending|handle body exit pending|handle arm exit pending|handle finally exit pending|perform unwind pending" crates/scoopc/src` 后，命中仅剩 `crates/scoopc/src/mir/mod.rs` 中 refactor verifier 的禁用字符串列表，以及 `crates/scoopc/src/mir/escape.rs` 中对 legacy structural handle-exit todo 的兼容识别 helper；`mir_stage.rs`、`mir/lower.rs`、`mir/inline.rs` 与 refactor `dump-mir` 输出中未再出现这些占位作为主线产物。
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_mir_cfg`、`cargo test -p scoopc --no-default-features refactor_mir_site_id`、`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoop --no-default-features dump_mir`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/while_break_continue.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/effect_boundary_inside_expr_context.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/run-pass/effect_handle_return_from_function_finally.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P3-T04：建立 refactor 专属 `dump-mir` snapshot / golden 矩阵，并冻结 P3 -> P4 的 MIR handoff contract
+## [DONE] P3-T04：建立 refactor 专属 `dump-mir` snapshot / golden 矩阵，并冻结 P3 -> P4 的 MIR handoff contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P3，§2/P4
@@ -471,7 +471,7 @@
   - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
   - 验证通过：`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/direct_and_fun_value_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/handle_finally_boundary.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/effect_boundary_inside_expr_context.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy test --fixtures tests/fixtures/mir/dispatch_and_resume_call.scoop`、`cargo test -q -p scoop --no-default-features dump_mir`、`cargo test -q -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo clippy -q -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P3-T04R：Review P3 阶段退出条件，确认 P4 可以只消费 MIR 而不回 HIR
+## [DONE] P3-T04R：Review P3 阶段退出条件，确认 P4 可以只消费 MIR 而不回 HIR
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P3，§2/P4，§3

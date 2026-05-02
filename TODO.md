@@ -5,37 +5,37 @@
 
 | ID | 文件 | 标题 |
 | --- | --- | --- |
-| `P0-T01` | `TODO-P0.md` | 建立新旧主线共享的 CLI / Session pipeline selector |
-| `P0-T01R` | `TODO-P0.md` | Review CLI / Session selector，确认新主线入口对两端一致且默认行为稳定 |
-| `P0-T02` | `TODO-P0.md` | 建立并行 pipeline dispatcher 壳层，禁止新路径直接侵入旧业务模块 |
-| `P0-T02R` | `TODO-P0.md` | Review 并行 dispatcher 壳层，确认没有把新旧业务逻辑混写在一起 |
-| `P0-T03` | `TODO-P0.md` | 建立“共享模块 vs 复制实现”边界清单，并把它固化为仓库文档 |
-| `P0-T03R` | `TODO-P0.md` | Review 边界清单，确认后续实现不会再靠临时判断混线 |
-| `P0-T04` | `TODO-P0.md` | 建立 P0 baseline parity 验证矩阵，锁定“新路径壳层不改变旧语义” |
-| `P0-T04R` | `TODO-P0.md` | Review baseline parity 与 P0 退出条件 |
-| `P1-T01` | `TODO-P1.md` | 建立 refactor AST stage 专用入口与阶段输出类型 |
-| `P1-T01R` | `TODO-P1.md` | Review AST stage 入口与 handoff 类型，确认 parser 仍是中立共享模块 |
-| `P1-T02` | `TODO-P1.md` | 锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状 |
-| `P1-T02R` | `TODO-P1.md` | Review surface parse contract，确认 continuation / `Unit` sugar 仍是普通调用语法 |
-| `P1-T03` | `TODO-P1.md` | 建立 AST -> HIR handoff contract，并锁定 refactor AST stage parity |
-| `P1-T03R` | `TODO-P1.md` | Review P1 阶段退出条件，确认可以进入 HIR / typecheck 新路径 |
-| `P2-T01` | `TODO-P2.md` | 建立 refactor typed HIR stage 入口，并让 `dump-hir` 新路径不再调用 legacy `lower_for_dump` |
-| `P2-T01R` | `TODO-P2.md` | Review refactor typed HIR stage，确认新路径已从 legacy `lower_for_dump` 分离 |
-| `P2-T02` | `TODO-P2.md` | 对齐 `Continuation` surface contract，并把单一 `Unit` 参数 sugar 落到 typed 阶段 |
-| `P2-T02R` | `TODO-P2.md` | Review `Continuation` surface 与 typed sugar，确认零参 sugar 没有污染 AST 和 parser |
-| `P2-T03` | `TODO-P2.md` | 落地 `Continuation` typed 语义、runtime error 的普通 effect 传播，以及 compiler-owned interface 约束 |
-| `P2-T03R` | `TODO-P2.md` | Review continuation typed 语义，确认没有残留隐藏通道或 legacy 魔法 |
-| `P2-T04` | `TODO-P2.md` | 输出 typed HIR effect/continuation side tables，并锁定 `dump-hir` / typecheck 验证矩阵 |
-| `P2-T04R` | `TODO-P2.md` | Review P2 阶段退出条件，确认 P3 不再需要回 AST/typecheck 猜语义 |
-| `P3-T01` | `TODO-P3.md` | 建立 refactor direct-style MIR stage 入口与显式 stage 输出，切断 `dump-mir` 对 legacy `mir::lower_for_dump` 的依赖 |
-| `P3-T01R` | `TODO-P3.md` | Review refactor MIR stage 入口，确认新路径已与 legacy `mir::lower_for_dump` 分离 |
-| `P3-T02` | `TODO-P3.md` | 把 P2 typed contract 下沉到 direct-style MIR，停止基于 span / 名字 / HIR fallback 猜测 `Call / Perform / Resume / Handle` 语义 |
-| `P3-T02R` | `TODO-P3.md` | Review direct-style MIR contract，下沉信息是否已足够并且不再依赖 span / 名字猜测 |
-| `P3-T03` | `TODO-P3.md` | 显式化 boundary 所在的 CFG / cleanup / evaluation context，并为 `SiteId` 与 refactor MIR 形状建立 verifier |
-| `P3-T03R` | `TODO-P3.md` | Review CFG / cleanup / `SiteId` invariants，确认 refactor MIR 已经语义闭包 |
-| `P3-T04` | `TODO-P3.md` | 建立 refactor 专属 `dump-mir` snapshot / golden 矩阵，并冻结 P3 -> P4 的 MIR handoff contract |
-| `P3-T04R` | `TODO-P3.md` | Review P3 阶段退出条件，确认 P4 可以只消费 MIR 而不回 HIR |
-| `P4-T01` | `TODO-P4.md` | 建立 refactor effect-facts stage 与独立 side-table 子系统边界 |
+| `P0-T01` | `TODO-P0.md` | [DONE] 建立新旧主线共享的 CLI / Session pipeline selector |
+| `P0-T01R` | `TODO-P0.md` | [DONE] Review CLI / Session selector，确认新主线入口对两端一致且默认行为稳定 |
+| `P0-T02` | `TODO-P0.md` | [DONE] 建立并行 pipeline dispatcher 壳层，禁止新路径直接侵入旧业务模块 |
+| `P0-T02R` | `TODO-P0.md` | [DONE] Review 并行 dispatcher 壳层，确认没有把新旧业务逻辑混写在一起 |
+| `P0-T03` | `TODO-P0.md` | [DONE] 建立“共享模块 vs 复制实现”边界清单，并把它固化为仓库文档 |
+| `P0-T03R` | `TODO-P0.md` | [DONE] Review 边界清单，确认后续实现不会再靠临时判断混线 |
+| `P0-T04` | `TODO-P0.md` | [DONE] 建立 P0 baseline parity 验证矩阵，锁定“新路径壳层不改变旧语义” |
+| `P0-T04R` | `TODO-P0.md` | [DONE] Review baseline parity 与 P0 退出条件 |
+| `P1-T01` | `TODO-P1.md` | [DONE] 建立 refactor AST stage 专用入口与阶段输出类型 |
+| `P1-T01R` | `TODO-P1.md` | [DONE] Review AST stage 入口与 handoff 类型，确认 parser 仍是中立共享模块 |
+| `P1-T02` | `TODO-P1.md` | [DONE] 锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状 |
+| `P1-T02R` | `TODO-P1.md` | [DONE] Review surface parse contract，确认 continuation / `Unit` sugar 仍是普通调用语法 |
+| `P1-T03` | `TODO-P1.md` | [DONE] 建立 AST -> HIR handoff contract，并锁定 refactor AST stage parity |
+| `P1-T03R` | `TODO-P1.md` | [DONE] Review P1 阶段退出条件，确认可以进入 HIR / typecheck 新路径 |
+| `P2-T01` | `TODO-P2.md` | [DONE] 建立 refactor typed HIR stage 入口，并让 `dump-hir` 新路径不再调用 legacy `lower_for_dump` |
+| `P2-T01R` | `TODO-P2.md` | [DONE] Review refactor typed HIR stage，确认新路径已从 legacy `lower_for_dump` 分离 |
+| `P2-T02` | `TODO-P2.md` | [DONE] 对齐 `Continuation` surface contract，并把单一 `Unit` 参数 sugar 落到 typed 阶段 |
+| `P2-T02R` | `TODO-P2.md` | [DONE] Review `Continuation` surface 与 typed sugar，确认零参 sugar 没有污染 AST 和 parser |
+| `P2-T03` | `TODO-P2.md` | [DONE] 落地 `Continuation` typed 语义、runtime error 的普通 effect 传播，以及 compiler-owned interface 约束 |
+| `P2-T03R` | `TODO-P2.md` | [DONE] Review continuation typed 语义，确认没有残留隐藏通道或 legacy 魔法 |
+| `P2-T04` | `TODO-P2.md` | [DONE] 输出 typed HIR effect/continuation side tables，并锁定 `dump-hir` / typecheck 验证矩阵 |
+| `P2-T04R` | `TODO-P2.md` | [DONE] Review P2 阶段退出条件，确认 P3 不再需要回 AST/typecheck 猜语义 |
+| `P3-T01` | `TODO-P3.md` | [DONE] 建立 refactor direct-style MIR stage 入口与显式 stage 输出，切断 `dump-mir` 对 legacy `mir::lower_for_dump` 的依赖 |
+| `P3-T01R` | `TODO-P3.md` | [DONE] Review refactor MIR stage 入口，确认新路径已与 legacy `mir::lower_for_dump` 分离 |
+| `P3-T02` | `TODO-P3.md` | [DONE] 把 P2 typed contract 下沉到 direct-style MIR，停止基于 span / 名字 / HIR fallback 猜测 `Call / Perform / Resume / Handle` 语义 |
+| `P3-T02R` | `TODO-P3.md` | [DONE] Review direct-style MIR contract，下沉信息是否已足够并且不再依赖 span / 名字猜测 |
+| `P3-T03` | `TODO-P3.md` | [DONE] 显式化 boundary 所在的 CFG / cleanup / evaluation context，并为 `SiteId` 与 refactor MIR 形状建立 verifier |
+| `P3-T03R` | `TODO-P3.md` | [DONE] Review CFG / cleanup / `SiteId` invariants，确认 refactor MIR 已经语义闭包 |
+| `P3-T04` | `TODO-P3.md` | [DONE] 建立 refactor 专属 `dump-mir` snapshot / golden 矩阵，并冻结 P3 -> P4 的 MIR handoff contract |
+| `P3-T04R` | `TODO-P3.md` | [DONE] Review P3 阶段退出条件，确认 P4 可以只消费 MIR 而不回 HIR |
+| `P4-T01` | `TODO-P4.md` | [DONE] 建立 refactor effect-facts stage 与独立 side-table 子系统边界 |
 | `P4-T01R` | `TODO-P4.md` | Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts` |
 | `P4-T02` | `TODO-P4.md` | 落地 schema identity、canonical schema pool 与 callable-level facts 壳层 |
 | `P4-T02R` | `TODO-P4.md` | Review schema pool 与 callable facts，确认 identity 和 case contract 已经固定 |

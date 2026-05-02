@@ -15,7 +15,9 @@
    - Unrelated historical issues do not preempt the current TODO order. Record them only if they become concrete prerequisites for the current task.
    - You must not move forward by narrowing scope, picking an easier representation, changing the modeling approach, choosing a different fixture shape, or otherwise working around the issue.
 1. Read `TODO.md` as an index, then inspect the referenced `TODO-Px.md` files in task order to identify the first incomplete detailed task.
-   - A task counts as completed only when its corresponding section in the relevant `TODO-Px.md` file clearly records completion.
+   - A task counts as completed only when its title/heading in the relevant `TODO-Px.md` file is explicitly prefixed with `[DONE]`.
+   - Treat any task without `[DONE]` in its title as incomplete, even if its completion record contains notes, logs, partial results, or text that sounds like a completion summary.
+   - Keep `TODO.md` synchronized with the same `[DONE]` marker for completed tasks that appear in the index.
    - Review tasks such as `P3-T02R` are real tasks; do not skip them.
 2. Default assumption: the existing `P*-Txx` / `P*-TxxR` task is already the intended execution unit. **Do not split it just because it is large, non-trivial, or inconvenient.**
 3. Only decompose a task if correct execution is impossible without first introducing a concrete new prerequisite that is not already tracked, or if the current task truly contains multiple independently verifiable prerequisite steps that cannot be landed together without breaking the specified ordering.
@@ -33,10 +35,11 @@ For the first incomplete detailed task in the relevant `TODO-Px.md` file:
 1. **Implement** the task completely.
 2. **Test** the implementation thoroughly. Ensure all relevant tests pass. If issues arise, fix them immediately.
 3. **Document** the progress:
-   - Mark the task as completed in the corresponding `TODO-Px.md` file by updating its completion record.
-   - If task ids, titles, files, or ordering changed, update `TODO.md` so the index stays synchronized with the detailed task files.
+   - Mark the task as completed in the corresponding `TODO-Px.md` file by prefixing the task title with `[DONE]` and updating its completion record.
+   - A filled-in completion record alone is never enough to count the task as complete.
+   - If task ids, titles, files, or ordering changed, update `TODO.md` so the index stays synchronized with the detailed task files, including the same `[DONE]` prefix for completed tasks.
    - Update `PLAN.md` only when the phase/stage plan itself changed; do not use it as a routine execution log.
-4. **Commit** the changes to Git with a clear, descriptive commit message (e.g., "[T1234]: Implement user authentication" or "[T1234] Fix test for login edge case").
+4. **Commit** the changes to Git with a clear, descriptive commit message (e.g., "[T1234]: Implement user authentication" or "[T1234] Fix test for login edge case"). If you are resuming the same task after a previous invocation failed unexpectedly and left work uncommitted, include **all** currently uncommitted files in this commit before stopping.
 5. **Stop.** Do not proceed to the next task. The caller will invoke you again for the next iteration.
 
 **Handling Roadblocks:**
@@ -89,10 +92,12 @@ For the first incomplete detailed task in the relevant `TODO-Px.md` file:
 
 **Important Reminders:**
 - Always read `TODO.md` first as the index, then open the referenced `TODO-Px.md` file for the actual task body and completion state.
-- Complete exactly one detailed task per invocation, then stop.
+- Complete exactly one detailed task per invocation, then stop. A finished task must be visibly marked with `[DONE]` in its title before you move on.
+- If a task's completion record has content but its title does not contain `[DONE]`, treat it as potentially unfinished and do not skip it.
 - Use Git commits after every logical step (including plan updates or task decomposition) to maintain a clear history.
 - Default to finishing the current task as written. Do **not** keep splitting tasks unless there is a concrete blocker that forces a prerequisite task.
 - If you must add, remove, rename, reorder, or split tasks, update both the relevant `TODO-Px.md` file and the root `TODO.md` index.
+- If you resume a task after a previous invocation failed unexpectedly and you now finish it, commit every currently uncommitted file together so the resumed task state is captured atomically.
 - Never accept a workaround as “done”: every spec mismatch or workaround must be turned into an explicit task in the detailed TODO files before proceeding.
 - Update `PLAN.md` only for real phase/stage plan changes, not for routine per-task bookkeeping.
 - If `PROMPT.md` is changed unexpectedly, include it in your commit as well, do not ignore or revert changes to it.
