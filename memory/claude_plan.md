@@ -1,33 +1,47 @@
 # Claude Plan
 
-## 执行摘要
+## 说明
 
-- 目标：先定位 `TODO.md` 对应的首个未完成详细任务，然后只完成该任务并停止。
-- 约束：以 `TODO-Px.md` 为任务真源；若遇到阻塞，只补最小前置任务并同步 `TODO.md`；完成后必须测试、更新任务记录并提交 Git。
-- 说明：这里记录的是可审计的执行计划与进度，不包含私有推理细节。
+用户要求先写计划再执行其他命令。我不会写入逐字的私有推理，但会在此维护可审阅的执行计划、关键判断依据摘要和进度更新。
 
-## 步骤计划
+## 初始执行计划
 
-1. 读取 `TODO.md`，确认它引用了哪些详细任务文件。
-2. 按任务顺序检查对应 `TODO-Px.md`，定位首个未完成的详细任务，并核对最近一次提交是否存在与该任务直接相关的未完成事项。
-3. 阅读该任务所需的相关源码、测试、规范与上下文，确认验收标准、依赖与当前实现状态。
-4. 如果任务可直接完成：实现最小正确修改，并补充或调整测试。
-5. 如果存在真实阻塞：先修复阻塞；若当前调用内无法直接修复，则在正确的 `TODO-Px.md` 中插入最小前置任务，保持当前任务未完成，并同步 `TODO.md`。
-6. 运行与该任务相关的验证命令，随后运行必要的格式化、测试与 `clippy` 检查，确保无警告。
-7. 更新任务记录：在对应 `TODO-Px.md` 标记完成情况；如任务索引有变化，同步 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
-8. 检查工作区变更，使用清晰提交信息创建一次 Git 提交，然后停止，不继续下一个任务。
+1. 读取 `TODO.md`，把它当作任务索引而不是详细说明来源。
+2. 按 `TODO.md` 引用顺序读取对应的 `TODO-Px.md` 文件，定位第一个未完成的详细任务。
+3. 检查最近一次提交信息，确认是否存在与该当前任务直接相关且明确未完成的问题；若有，则把它视为当前任务的一部分或在对应 `TODO-Px.md` 中加入最小前置任务。
+4. 阅读当前任务涉及的代码、规格、测试和依赖约束，确认实现边界与验收条件。
+5. 如无阻塞，直接完整实现该任务；如遇会阻止规格正确实现的真实缺口，则先新增最小前置任务并同步 `TODO.md`，然后停止。
+6. 运行与该任务相关的测试与必要的质量检查，优先保证任务相关验证通过；若任务影响范围足够大，再运行更广泛的校验。
+7. 更新对应 `TODO-Px.md` 的完成记录；如果任务编号、标题、顺序或依赖变化，同步更新 `TODO.md`；仅当阶段计划确实变化时才更新 `PLAN.md`。
+8. 检查工作区变更，避免误改他人未要求变更。
+9. 按仓库约定创建一次 git 提交，提交信息包含当前任务编号。
+10. 停止，不继续处理下一个任务。
 
 ## 进度日志
 
-- 已创建本计划文件。
-- 已确认 `TODO-P0.md`、`TODO-P1.md`、`TODO-P2.md` 全部条目均有明确完成记录；首个未完成详细任务为 `TODO-P3.md` 中的 `P3-T01`。
-- 已核对最近一次提交信息：`[P2-T04R] Confirm typed HIR handoff is ready for P3`，其中未显式记录与 `P3-T01` 直接相关的未完成事项，因此按既定顺序直接执行 `P3-T01`。
-- 当前执行重点：阅读 `P3-T01` 约束与现有 `dump-mir` / MIR pipeline 代码，建立 refactor direct-style MIR stage 入口、显式 stage 输出类型，以及 `dump-mir` 对该 stage 的新路由。
-- 下一步：
-  1. 检查 `effect_refactor_pipeline`、`dump_mir`、`fixtures` 与现有 MIR lowering/materialization 入口的当前组织方式。
-  2. 识别哪些旧 MIR helper 可以作为中立 API 复用，哪些只允许留在 legacy 路径。
-  3. 以最小改动实现新的 refactor MIR stage 与命令路由，并补齐定向测试。
-- 已完成 `P3-T01` 实现：新增 `effect_refactor_pipeline::mir_stage` 与 `RefactorMirStageOutput`，把 refactor `dump-mir` 显式改成 `TypedHirStageOutput -> MIR stage output`，并将 callable body 查询面与可选 `materialized_mir` handoff 收口到 stage 输出上。
-- 已完成验证：`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、三条 `dump-mir` smoke，以及 `cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings` 全部通过。
-- 已确认工作区里另有与本任务无关的现有改动（如 `dump_ir.rs`、`hir/lower/expr.rs`、`hir/lower/mod.rs`、`parser/tests.rs`）；本次提交只会包含 `P3-T01` 相关文件，不回退也不夹带这些改动。
-- 待完成收尾：检查工作区 diff，确认 `TODO-P3.md`/`memory/claude_plan.md` 已回写，然后创建 `P3-T01` 提交并停止。
+- 已创建本文件并记录初始计划。
+- 已读取 `TODO.md` 索引并检查 `TODO-P0.md`、`TODO-P1.md`、`TODO-P2.md`、`TODO-P3.md` 的完成记录。
+- 已确认首个未完成详细任务为 `TODO-P3.md` 中的 `P3-T01R`：`Review refactor MIR stage 入口，确认新路径已与 legacy mir::lower_for_dump 分离`。
+- 已检查最新提交信息为 `[P3-T01] Route refactor dump-mir through MIR stage`；提交信息未显式列出会阻塞当前 review 的未完成前置事项，因此继续执行 `P3-T01R`。
+
+## 当前任务执行细化
+
+1. 阅读 `P3-T01R` 要求涉及的文件：refactor `mir_stage`、`dump_mir` 命令、fixture helper、legacy MIR lowering/materialize、以及 P2 到 P3 的 handoff 位置。
+2. 验证 refactor `dump-mir` 是否经由独立 MIR stage，而不是继续换壳调用 legacy `mir::lower_for_dump`。
+3. 验证 stage 输出是否已把 P4 需要的 canonical MIR handoff 显式化。
+4. 搜索 `crates/scoopc/src/mir` 与 `crates/scoopc/src/effect_refactor_pipeline`，确认没有把 pipeline selector 下沉到旧 `mir/lower.rs` / `mir/materialize.rs` / `mir/pass_view.rs` 业务函数。
+5. 运行 `P3-T01R` 要求的定向测试、命令和 `clippy`。
+6. 若 review 通过：回写 `TODO-P3.md` 的 `P3-T01R` 完成记录，并按需更新本文件进度，然后创建一次 git 提交并停止。
+7. 若发现阻塞问题：先修复；若无法在本轮直接修复，则按要求在详细 TODO 中插入最小前置任务并同步索引，然后提交并停止。
+
+## review 结果摘要
+
+- `crates/scoop/src/commands/dump_mir.rs` 已在命令边界按 `EffectPipelineMode` 分流：`legacy` 继续直连 `scoopc::mir::lower_for_dump(...)`，`refactor` 改走 `scoopc::effect_refactor_pipeline::load_direct_style_mir_stage_output_for_dump(...)`，说明 `dump-mir --effect-pipeline refactor` 已从 legacy lowerer 分离。
+- `crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 已把 `StageKind::DirectStyleMir` 显式收口到 `mir_stage::run(...)`；`crates/scoopc/src/effect_refactor_pipeline/mir_stage.rs` 中 `RefactorMirStageOutput` 已显式承载 direct-style `LoweredMir`、`TypeStore`、typed HIR effect contracts、callable body 查询面以及可选 `materialized_mir` handoff。
+- `crates/scoop/src/fixtures/mod.rs` 的 `mir_fixture(...)` 已统一经 `scoopc::effect_refactor_pipeline::lower_direct_style_mir_for_dump(...)` 进入，因此 refactor fixture 路径也继承同一 stage 入口，而不是直连 legacy `mir::lower_for_dump(...)`。
+- `crates/scoopc/src/hir/lower/types.rs` 中 `LoweredHir::into_materialized_mir()` 已把原先挂在 `LoweredHir` 私有字段上的 canonical materialized MIR handoff 显式暴露给 refactor MIR stage。
+- 搜索结果表明 `crates/scoopc/src/mir/**/*.rs` 中没有 `EffectPipelineMode` / `effect_pipeline` / `legacy` / `refactor` selector 分支命中；命中的 `pipeline` 仅为 `mir/lower.rs` 顶部注释。selector 相关命中集中在 `effect_refactor_pipeline/` dispatcher 与测试中，未渗入旧 `mir/lower.rs` / `mir/materialize.rs` / `mir/pass_view.rs` 业务函数。
+- 复验通过：`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`。
+- 已补跑并通过：`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+- 已回写 `TODO-P3.md` 中 `P3-T01R` 的完成记录。
+- 下一步：检查 git 状态，确认本轮只提交 `TODO-P3.md` 与 `memory/claude_plan.md` 的变更，然后创建提交并停止。

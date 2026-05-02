@@ -144,7 +144,12 @@
   - 可进入 P3-T02。
 - 依赖：P3-T01
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P3-T01R` review，未发现需要在 `P3-T02` 前补入的新前置缺陷；最近一次提交 `[P3-T01] Route refactor dump-mir through MIR stage` 与本 review 直接相关，但未显式留下需要追加跟踪的未完成事项。
+  - stage / 路由复核结论：`crates/scoop/src/commands/dump_mir.rs` 已在命令边界显式分流为 `legacy => scoopc::mir::lower_for_dump(...)`、`refactor => scoopc::effect_refactor_pipeline::load_direct_style_mir_stage_output_for_dump(...)`；`crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 对 `StageKind::DirectStyleMir` 直接调用 `mir_stage::run(...)`，说明 `dump-mir --effect-pipeline refactor` 已不再换壳调用 legacy `mir::lower_for_dump`。
+  - handoff 复核结论：`crates/scoopc/src/effect_refactor_pipeline/mir_stage.rs` 中的 `RefactorMirStageOutput` 已显式承载 canonical direct-style `LoweredMir`、配套 `TypeStore`、来自 P2 的 `TypedHirEffectContracts`、按 callable FQN 查询 body 的稳定 surface，以及可选 `materialized_mir` 快照；`crates/scoopc/src/hir/lower/types.rs` 的 `LoweredHir::into_materialized_mir()` 也已把原先仅藏在 `LoweredHir` 私有字段上的 canonical materialized MIR handoff 明确暴露给 refactor MIR stage，满足 P4 继续消费的显式出口要求。
+  - fixture helper 复核结论：`crates/scoop/src/fixtures/mod.rs` 中 `mir_fixture(...)` 已统一通过 `scoopc::effect_refactor_pipeline::lower_direct_style_mir_for_dump(...)` 进入 MIR stage wrapper；refactor fixture 路径继承与 CLI 相同的 stage 入口，不再需要直连 legacy `mir::lower_for_dump(...)`。
+  - 搜索摘要：执行 `EffectPipelineMode|effect_pipeline|refactor|legacy` 搜索后，`crates/scoopc/src/mir/**/*.rs` 中未发现 selector 进入旧 MIR 业务实现；唯一与 `pipeline` 相关的命中来自 `mir/lower.rs` 顶部注释。selector 相关命中集中在 `crates/scoopc/src/effect_refactor_pipeline/` 的 dispatcher/stage 与测试代码中；`mir/lower.rs`、`mir/materialize.rs`、`mir/pass_view.rs` 未新增基于 pipeline mode 的线路分支。
+  - 复验通过：`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P3-T02：把 P2 typed contract 下沉到 direct-style MIR，停止基于 span / 名字 / HIR fallback 猜测 `Call / Perform / Resume / Handle` 语义
 
