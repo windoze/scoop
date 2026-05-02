@@ -872,3 +872,65 @@
   - P4 退出条件复核结论：`MaterializedEffectFacts` 已稳定公开 `snapshot_binding`、schema pools、callable/body/block/site facts、`resolved_outward_cases`、`needs_reentry`、`impl_plan` 与 nested handle 分类，且 `TODO-P5.md` 的阶段前置条件与禁止事项已与这套 handoff contract 对齐；因此 P5 可以直接以 canonical MIR snapshot + P4 facts 作为输入进入 late-lowering，不需要重新讨论 effect schema、site contract、nested handle 分类或 outward-case 求解策略。
   - 复验通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_continuation_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo test -p scoopc --no-default-features materialized_pass_view_non_generic`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage_non_generic`、`cargo test -p scoopc --no-default-features caller_side_inlining_keeps_non_generic_pass_roots_visible`、`cargo test -p scoopc --no-default-features refactor_site_effect_facts`、`cargo test -p scoopc --no-default-features refactor_body_effect_facts`、`cargo test -p scoopc --no-default-features refactor_nested_handle_classification`、`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_block_effect_facts`、`cargo test -p scoopc production_codegen_observes_caller_side_mir_inlining_for_non_generic_body`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo test -p scoop --no-default-features phase_name_falls_back_to_root_phase_dir_for_effect_facts_single_file_subset`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`（返回预期 unsupported 诊断）、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoop -p scoopc --all-targets -- -D warnings`。
   - 2026-05-02：本次 review 未改变阶段顺序、依赖或 P4 -> P5 handoff contract，`PLAN.md` 无需改动；现已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
+
+## P4-T05a：把 compiler-generated continuation 的 one-shot runtime error 纳入 canonical `StepSchema` / facts handoff
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.4, §5.3.7, §5.3.9, §5.5.1, §5.5.4, §5.5.6
+  - [`PLAN.md`](./PLAN.md) §2/P4，§2/P5
+  - 当前实现参考：
+    - `crates/scoopc/src/effect_facts/builder.rs`
+    - `crates/scoopc/src/effect_facts/schema.rs`
+    - `crates/scoopc/src/effect_facts/facts.rs`
+    - `TODO-P5.md` 中 `P5-T05` 的 one-shot / runtime-error 要求
+- 背景：
+  - 当前 P4 schema/facts 只把源码级 `Continuation.resume(...)` 站点显式要求的 `Raise<RuntimeError>` ordinary effect 纳入 `StepSchema`；
+  - 但 `P5-T05` 需要为 compiler-generated continuation object 物化 one-shot 语义，重复恢复必须走 ordinary runtime-error outward；
+  - 如果 P4 handoff 里没有对应的普通 concrete `Raise<RuntimeError>` case，P5 就只能临时发明 pseudo case、隐藏错误通道或 backend trap，这都违反设计与阶段边界。
+- 目标：
+  - 在 P4 authoritative handoff 中补齐“compiler-generated continuation one-shot runtime error 也是普通 effect case”这一 contract；
+  - 让 P5 可以只消费 canonical MIR snapshot + `MaterializedEffectFacts`，而不必在 late-lowering 现场再猜哪些 callable/version 需要额外 runtime-error case。
+
+- 必须实现的内容：
+  1. 精确定义哪些 callable/version 必须把 compiler-generated continuation one-shot runtime error 纳入 canonical step contract。
+     - 至少覆盖：任何会 materialize compiler-generated continuation object、并允许经由 suspended boundary 重新进入的 callable/version；
+     - 禁止只对源码 `Continuation.resume(...)` 站点做特殊补丁。
+  2. 更新 P4 schema/facts builder，使上述 callable/version 的 canonical `StepSchema` 包含普通 concrete `Raise<RuntimeError>` 等价 case。
+     - 必须复用现有 `ConcreteOpKey` / `CaseTag` / `StepSchema` contract；
+     - 禁止引入 pseudo case、隐藏 sentinel、或“等 P5 再补”的临时占位。
+  3. 若该 ordinary runtime-error case 会影响 `resolved_outward_cases` / `needs_reentry` / `impl_plan` / local outward contribution，则必须把规则一并写清并落实到 facts。
+     - 必须明确回答：它何时只进入 schema 上界，何时也进入 callable/site/body facts 的 outward 结果；
+     - 禁止把这个判断继续留给 P5 现场猜。
+  4. 更新 effect-facts dump、定向单测与必要 fixture，使 P5 能稳定观察到修正后的 handoff。
+     - 至少新增覆盖：单 `perform` / 当前会生成 compiler continuation 的 callable，在 facts 中拥有 ordinary runtime-error case；
+     - 至少新增覆盖：pure / truly no-outward callable 不会因此无端长出 runtime-error case。
+  5. 修正任何受此影响的既有 P4/P5 假设。
+     - 例如若 `tests/fixtures/effect_facts/single_case_impl_plan.scoop` 不再满足 `SingleCase`，必须显式改写样本或新增更窄样本，而不是继续让后续任务依赖错误前提。
+
+- 必须遵从的约束：
+  - 禁止继续把 one-shot runtime error 仅视作源码 `Continuation.resume(...)` 的 surface 问题。
+  - 禁止在 P5 用额外 hidden channel、pseudo case、或 backend-only trap 绕过缺失的 schema/facts case。
+  - 禁止为了保住现有 `SingleCase` 样本而缩窄 compiler-generated continuation 的语义范围。
+
+- 验证：
+  1. 新增/更新单元测试，推荐命名：
+     - `refactor_effect_schema_compiler_continuation_runtime_error_*`
+     - `refactor_callable_effect_facts_shell_compiler_continuation_runtime_error_*`
+     - `refactor_effect_facts_stage_compiler_continuation_runtime_error_*`
+  2. 测试至少覆盖：
+     - compiler-generated continuation one-shot runtime error 进入普通 schema case；
+     - 该 case 的 identity 仍是普通 concrete `Raise<RuntimeError>`；
+     - pure / no-outward callable 不被误扩张；
+     - 若 `resolved_outward_cases` / `impl_plan` 受影响，其变化被显式断言。
+  3. 运行：
+      - `cargo test -p scoopc --no-default-features refactor_effect_schema_compiler_continuation_runtime_error`
+      - `cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell_compiler_continuation_runtime_error`
+      - `cargo test -p scoopc --no-default-features refactor_effect_facts_stage_compiler_continuation_runtime_error`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`
+
+- 完成条件：
+  - P4 handoff 已能把 compiler-generated continuation one-shot runtime error 表达为 ordinary `Raise<RuntimeError>` case；
+  - P5-T05 可以在不发明第二错误通道的前提下，继续物化 continuation object 与 boundary lowering。
+- 依赖：P4-T05R
+- 完成记录：
+  - （执行时填写）

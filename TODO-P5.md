@@ -838,7 +838,7 @@
   - P5 已真正物化 `Step_F`、dynamic invoke、continuation object、resume interfaces；
   - 所有 boundary 已按统一 `Step`/continuation 模型完成 lowering；
   - P6 不再需要设计新的 effectful ABI 或 continuation carrier。
-- 依赖：P5-T04R
+- 依赖：P4-T05a，P5-T04R
 - 完成记录：
   - （执行时填写）
 
