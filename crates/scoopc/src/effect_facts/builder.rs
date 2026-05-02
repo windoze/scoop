@@ -175,12 +175,57 @@ impl EffectFactsTypeContext {
         explicit_arg_count: usize,
         has_receiver: bool,
     ) -> Option<&FunOverload> {
-        let mut matches = self.index.by_fqn.get(fqn)?.fun.iter().filter(|overload| {
+        let overloads = &self.index.by_fqn.get(fqn)?.fun;
+        let mut exact = overloads.iter().filter(|overload| {
             overload.sig.params.len() == explicit_arg_count
                 && overload.sig.receiver.is_some() == has_receiver
         });
-        let first = matches.next()?;
-        matches.next().is_none().then_some(first)
+        if let Some(first) = exact.next() {
+            return exact.next().is_none().then_some(first);
+        }
+
+        if !has_receiver {
+            return None;
+        }
+
+        // class/interface member fun 在索引里不一定把 owner 记作显式 receiver；对 declaration-only
+        // member fallback surface contract，允许按 owner-qualified FQN + 参数个数直接匹配。
+        let mut relaxed = overloads
+            .iter()
+            .filter(|overload| overload.sig.params.len() == explicit_arg_count);
+        let first = relaxed.next()?;
+        relaxed.next().is_none().then_some(first)
+    }
+
+    fn surface_callable_contract(
+        &self,
+        types: &mut TypeStore,
+        fqn: &str,
+        explicit_arg_count: usize,
+        has_receiver: bool,
+    ) -> Option<SurfaceCallableContract> {
+        let overload = self.select_fun_overload(fqn, explicit_arg_count, has_receiver)?;
+        let decl_source = self.env.source(&overload.symbol.decl_file)?;
+        let file_ctx = self.env.file_type_context(&overload.symbol.decl_file)?;
+        let builtins = types.intern_builtins();
+        let mut lower = TypeLowering::new_with_ctx(
+            decl_source,
+            &self.index,
+            &self.env,
+            types,
+            builtins,
+            file_ctx.pkg_prefix.clone(),
+            file_ctx.imports.clone(),
+        );
+        let declared_row = lower
+            .lower_effect_row_expr_in_decl_file_with_scopes(
+                &overload.symbol.decl_file,
+                std::iter::empty::<(String, TypeId)>(),
+                std::iter::empty::<(String, EffectRow)>(),
+                overload.sig.effects.as_ref(),
+            )
+            .ok()?;
+        Some(SurfaceCallableContract { declared_row })
     }
 }
 
@@ -989,16 +1034,26 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 ));
             }
 
-            let raw_fun = self.raw_fun_by_fqn.get(callable_fqn).ok_or_else(|| {
-                EffectFactsError::MissingCallableSurfaceContract {
-                    callable: callable_fqn.to_string(),
-                }
-            })?;
+            let declared_row = if let Some(raw_fun) = self.raw_fun_by_fqn.get(callable_fqn) {
+                declared_effect_row(raw_fun, types)
+            } else {
+                self.type_ctx
+                    .surface_callable_contract(
+                        types,
+                        callable_fqn,
+                        explicit_arg_count,
+                        receiver_ty.is_some(),
+                    )
+                    .ok_or_else(|| EffectFactsError::MissingCallableSurfaceContract {
+                        callable: callable_fqn.to_string(),
+                    })?
+                    .declared_row
+            };
             let step_schema = self.schema_pool.intern_synthetic_step_schema(
                 types,
                 invoke_args_tuple_ty,
                 result_ty,
-                &declared_effect_row(raw_fun, types),
+                &declared_row,
                 SyntheticStepSchemaKind::CallSurface,
             )?;
             return Ok(CallSiteEffectFacts::new(
@@ -1011,16 +1066,26 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             ));
         }
 
-        let raw_fun = self.raw_fun_by_fqn.get(callable_fqn).ok_or_else(|| {
-            EffectFactsError::MissingCallableSurfaceContract {
-                callable: callable_fqn.to_string(),
-            }
-        })?;
+        let declared_row = if let Some(raw_fun) = self.raw_fun_by_fqn.get(callable_fqn) {
+            declared_effect_row(raw_fun, types)
+        } else {
+            self.type_ctx
+                .surface_callable_contract(
+                    types,
+                    callable_fqn,
+                    explicit_arg_count,
+                    receiver_ty.is_some(),
+                )
+                .ok_or_else(|| EffectFactsError::MissingCallableSurfaceContract {
+                    callable: callable_fqn.to_string(),
+                })?
+                .declared_row
+        };
         let step_schema = self.schema_pool.intern_synthetic_step_schema(
             types,
             invoke_args_tuple_ty,
             result_ty,
-            &declared_effect_row(raw_fun, types),
+            &declared_row,
             SyntheticStepSchemaKind::CallSurface,
         )?;
         Ok(CallSiteEffectFacts::new(
@@ -1125,6 +1190,16 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             }
             if let Some(raw_fun) = self.raw_fun_by_fqn.get(fqn) {
                 terms.extend(declared_effect_row(raw_fun, types).terms);
+                saw_any = true;
+                continue;
+            }
+            if let Some(contract) = self.type_ctx.surface_callable_contract(
+                types,
+                fqn,
+                explicit_arg_count,
+                receiver_ty.is_some(),
+            ) {
+                terms.extend(contract.declared_row.terms);
                 saw_any = true;
             }
         }

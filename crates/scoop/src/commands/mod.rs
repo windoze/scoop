@@ -6,6 +6,7 @@
 
 pub(crate) mod build;
 mod dump_ast;
+pub(crate) mod dump_effect_facts;
 mod dump_hir;
 mod dump_ir;
 mod dump_mir;
@@ -67,6 +68,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             },
         ),
         Command::DumpAst { input } => dump_ast::run(input, session_options),
+        Command::DumpEffectFacts { input } => dump_effect_facts::run(input, session_options),
         Command::DumpHir { input } => dump_hir::run(input, session_options),
         Command::DumpMir { input } => dump_mir::run(input, session_options),
         Command::DumpIr { input } => dump_ir::run(input, session_options),

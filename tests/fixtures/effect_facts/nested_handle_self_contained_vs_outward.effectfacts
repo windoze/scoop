@@ -1,0 +1,229 @@
+MaterializedEffectFacts
+snapshot_binding:
+  query_surface: PassView
+  opt_level: O2
+  instance_count: 2
+  canonical_body_fqns:
+    - sample.nested_may_suspend_outward
+    - sample.nested_self_contained
+step_schemas:
+  step_schema#0:
+    invoke_args_tuple_ty: Unit
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop:342..641::sample.nested_may_suspend_outward
+    cases:
+      - case#0: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#0
+      - case#1: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#1
+  step_schema#1:
+    invoke_args_tuple_ty: Unit
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop:92..340::sample.nested_self_contained
+    cases:
+      - case#0: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#2
+      - case#1: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#3
+continuation_schemas:
+  continuation_schema#0:
+    resume_tuple_ty: Int
+    answer_ty: Int
+    out_step_schema: step_schema#0
+    surface_ty: scoop.core.Continuation<Int, Int, eff (sample.Inner + sample.Outer)>
+  continuation_schema#1:
+    resume_tuple_ty: Unit
+    answer_ty: Int
+    out_step_schema: step_schema#0
+    surface_ty: scoop.core.Continuation<Unit, Int, eff (sample.Inner + sample.Outer)>
+  continuation_schema#2:
+    resume_tuple_ty: Int
+    answer_ty: Int
+    out_step_schema: step_schema#1
+    surface_ty: scoop.core.Continuation<Int, Int, eff (sample.Inner + sample.Outer)>
+  continuation_schema#3:
+    resume_tuple_ty: Unit
+    answer_ty: Int
+    out_step_schema: step_schema#1
+    surface_ty: scoop.core.Continuation<Unit, Int, eff (sample.Inner + sample.Outer)>
+callable_facts:
+  sample.nested_may_suspend_outward:
+    instance_key: sample.nested_may_suspend_outward
+    declared_row: Pure
+    invoke_args_tuple_ty: Unit
+    step_schema: step_schema#0
+    resolved_outward_cases: [case#1=sample.Outer.again]
+    needs_reentry: true
+    impl_plan: SingleCase(case#1=sample.Outer.again)
+  sample.nested_self_contained:
+    instance_key: sample.nested_self_contained
+    declared_row: Pure
+    invoke_args_tuple_ty: Unit
+    step_schema: step_schema#1
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+body_facts:
+  sample.nested_may_suspend_outward:
+    blocks:
+      bb0:
+        ambient_cases: [case#1=sample.Outer.again]
+        outward_cases: [case#1=sample.Outer.again]
+        has_suspend_boundary: false
+        has_handle_boundary: true
+      bb1:
+        ambient_cases: []
+        outward_cases: [case#1=sample.Outer.again]
+        has_suspend_boundary: true
+        has_handle_boundary: true
+      bb2:
+        ambient_cases: [case#1=sample.Outer.again]
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb3:
+        ambient_cases: [case#1=sample.Outer.again]
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb4:
+        ambient_cases: []
+        outward_cases: [case#1=sample.Outer.again]
+        has_suspend_boundary: true
+        has_handle_boundary: false
+      bb5:
+        ambient_cases: []
+        outward_cases: [case#1=sample.Outer.again]
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb6:
+        ambient_cases: [case#1=sample.Outer.again]
+        outward_cases: [case#1=sample.Outer.again]
+        has_suspend_boundary: true
+        has_handle_boundary: false
+      bb7:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb8:
+        ambient_cases: []
+        outward_cases: [case#1=sample.Outer.again]
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb9:
+        ambient_cases: [case#1=sample.Outer.again]
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb10:
+        ambient_cases: [case#1=sample.Outer.again]
+        outward_cases: [case#1=sample.Outer.again]
+        has_suspend_boundary: true
+        has_handle_boundary: false
+      bb11:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb12:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Handle
+        result_ty: Int
+        handled_cases: [case#1=sample.Outer.again]
+        body_outward_cases: [case#0=sample.Inner.go]
+        finally_outward_cases: [case#1=sample.Outer.again]
+        nested_handle_classification: MaySuspendOutward
+        arm_facts:
+          - handled_case: case#1=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#1 arm_outward_cases=[]
+      site1:
+        kind: Handle
+        result_ty: Int
+        handled_cases: [case#0=sample.Inner.go]
+        body_outward_cases: []
+        finally_outward_cases: [case#1=sample.Outer.again]
+        nested_handle_classification: MaySuspendOutward
+        arm_facts:
+          - handled_case: case#0=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#0 arm_outward_cases=[]
+      site2:
+        kind: Perform
+        emitted_case: case#0=sample.Inner.go
+        payload_tuple_ty: Unit
+        captured_cont_schema: continuation_schema#0
+      site3:
+        kind: Perform
+        emitted_case: case#1=sample.Outer.again
+        payload_tuple_ty: Unit
+        captured_cont_schema: continuation_schema#1
+      site4:
+        kind: Perform
+        emitted_case: case#1=sample.Outer.again
+        payload_tuple_ty: Unit
+        captured_cont_schema: continuation_schema#1
+  sample.nested_self_contained:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: true
+      bb1:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: true
+      bb2:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb3:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb4:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: true
+        has_handle_boundary: false
+      bb5:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb6:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb7:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Handle
+        result_ty: Int
+        handled_cases: [case#1=sample.Outer.again]
+        body_outward_cases: [case#0=sample.Inner.go]
+        finally_outward_cases: []
+        nested_handle_classification: MaySuspendOutward
+        arm_facts:
+          - handled_case: case#1=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#3 arm_outward_cases=[]
+      site1:
+        kind: Handle
+        result_ty: Int
+        handled_cases: [case#0=sample.Inner.go]
+        body_outward_cases: []
+        finally_outward_cases: []
+        nested_handle_classification: SelfContained
+        arm_facts:
+          - handled_case: case#0=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#2 arm_outward_cases=[]
+      site2:
+        kind: Perform
+        emitted_case: case#0=sample.Inner.go
+        payload_tuple_ty: Unit
+        captured_cont_schema: continuation_schema#2

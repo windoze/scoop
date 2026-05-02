@@ -1,0 +1,13 @@
+package sample
+
+effect Alpha {
+    fun go(): Unit
+}
+
+effect Beta {
+    fun go(): Unit
+}
+
+fun callValue(f: () -> Unit / (Alpha + Beta)): Unit / (Alpha + Beta) {
+    f()
+}

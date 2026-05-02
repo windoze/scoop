@@ -1,0 +1,210 @@
+MaterializedEffectFacts
+snapshot_binding:
+  query_surface: PassView
+  opt_level: O2
+  instance_count: 6
+  canonical_body_fqns:
+    - fixtures.mir.Base.ping
+    - fixtures.mir.callInterface
+    - fixtures.mir.callVirtual
+    - fixtures.mir.resumeBoom
+    - fixtures.mir.resumeOnce
+step_schemas:
+  step_schema#0:
+    invoke_args_tuple_ty: fixtures.mir.Base
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/dispatch_and_resume_call.scoop:104..149::fixtures.mir.Base.ping
+    cases:
+      <none>
+  step_schema#1:
+    invoke_args_tuple_ty: fixtures.mir.IFace
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/dispatch_and_resume_call.scoop:248..303::fixtures.mir.callInterface
+    cases:
+      <none>
+  step_schema#2:
+    invoke_args_tuple_ty: fixtures.mir.Base
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/dispatch_and_resume_call.scoop:193..246::fixtures.mir.callVirtual
+    cases:
+      <none>
+  step_schema#3:
+    invoke_args_tuple_ty: scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>
+    complete_ty: Unit
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/dispatch_and_resume_call.scoop:407..516::fixtures.mir.resumeBoom
+    cases:
+      - case#0: op=fixtures.mir.Boom.next payload_tuple_ty=Unit continuation_schema=continuation_schema#0
+      - case#1: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#1
+  step_schema#4:
+    invoke_args_tuple_ty: scoop.core.Continuation<Int, Unit, eff Pure>
+    complete_ty: Unit
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/dispatch_and_resume_call.scoop:305..405::fixtures.mir.resumeOnce
+    cases:
+      - case#0: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#2
+  step_schema#5:
+    invoke_args_tuple_ty: Unit
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@CallSurface::Unit::Int::Pure
+    cases:
+      <none>
+  step_schema#6:
+    invoke_args_tuple_ty: Int
+    complete_ty: Unit
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@ResumeSurface::Int::Unit::(scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)
+    cases:
+      - case#0: op=fixtures.mir.Boom.next payload_tuple_ty=Unit continuation_schema=continuation_schema#3
+      - case#1: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#4
+  step_schema#7:
+    invoke_args_tuple_ty: Int
+    complete_ty: Unit
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@ResumeSurface::Int::Unit::scoop.core.Raise<scoop.core.RuntimeError>
+    cases:
+      - case#0: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#6
+continuation_schemas:
+  continuation_schema#0:
+    resume_tuple_ty: Int
+    answer_ty: Unit
+    out_step_schema: step_schema#3
+    surface_ty: scoop.core.Continuation<Int, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>
+  continuation_schema#1:
+    resume_tuple_ty: Nothing
+    answer_ty: Unit
+    out_step_schema: step_schema#3
+    surface_ty: scoop.core.Continuation<Nothing, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>
+  continuation_schema#2:
+    resume_tuple_ty: Nothing
+    answer_ty: Unit
+    out_step_schema: step_schema#4
+    surface_ty: scoop.core.Continuation<Nothing, Unit, eff scoop.core.Raise<scoop.core.RuntimeError>>
+  continuation_schema#3:
+    resume_tuple_ty: Int
+    answer_ty: Unit
+    out_step_schema: step_schema#6
+    surface_ty: scoop.core.Continuation<Int, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>
+  continuation_schema#4:
+    resume_tuple_ty: Nothing
+    answer_ty: Unit
+    out_step_schema: step_schema#6
+    surface_ty: scoop.core.Continuation<Nothing, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>
+  continuation_schema#5:
+    resume_tuple_ty: Int
+    answer_ty: Unit
+    out_step_schema: step_schema#6
+    surface_ty: scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>
+  continuation_schema#6:
+    resume_tuple_ty: Nothing
+    answer_ty: Unit
+    out_step_schema: step_schema#7
+    surface_ty: scoop.core.Continuation<Nothing, Unit, eff scoop.core.Raise<scoop.core.RuntimeError>>
+  continuation_schema#7:
+    resume_tuple_ty: Int
+    answer_ty: Unit
+    out_step_schema: step_schema#7
+    surface_ty: scoop.core.Continuation<Int, Unit, eff Pure>
+callable_facts:
+  fixtures.mir.Base.ping:
+    instance_key: fixtures.mir.Base.ping
+    declared_row: Pure
+    invoke_args_tuple_ty: fixtures.mir.Base
+    step_schema: step_schema#0
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+  fixtures.mir.callInterface:
+    instance_key: fixtures.mir.callInterface
+    declared_row: Pure
+    invoke_args_tuple_ty: fixtures.mir.IFace
+    step_schema: step_schema#1
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+  fixtures.mir.callVirtual:
+    instance_key: fixtures.mir.callVirtual
+    declared_row: Pure
+    invoke_args_tuple_ty: fixtures.mir.Base
+    step_schema: step_schema#2
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+  fixtures.mir.resumeBoom:
+    instance_key: fixtures.mir.resumeBoom
+    declared_row: (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)
+    invoke_args_tuple_ty: scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>
+    step_schema: step_schema#3
+    resolved_outward_cases: [case#0=fixtures.mir.Boom.next, case#1=scoop.core.Raise.raise<scoop.core.RuntimeError>]
+    needs_reentry: true
+    impl_plan: CanonicalFull
+  fixtures.mir.resumeOnce:
+    instance_key: fixtures.mir.resumeOnce
+    declared_row: scoop.core.Raise<scoop.core.RuntimeError>
+    invoke_args_tuple_ty: scoop.core.Continuation<Int, Unit, eff Pure>
+    step_schema: step_schema#4
+    resolved_outward_cases: [case#0=scoop.core.Raise.raise<scoop.core.RuntimeError>]
+    needs_reentry: true
+    impl_plan: SingleCase(case#0=scoop.core.Raise.raise<scoop.core.RuntimeError>)
+body_facts:
+  fixtures.mir.Base.ping:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      <none>
+  fixtures.mir.callInterface:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Call
+        call_kind: Interface
+        target_mode: KnownInstance
+        target: KnownInstance(fixtures.mir.IFace.foo)
+        invoke_args_tuple_ty: Unit
+        callee_schema: step_schema#5
+        resolved_cases: []
+        precision: SignatureFallback
+  fixtures.mir.callVirtual:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      <none>
+  fixtures.mir.resumeBoom:
+    blocks:
+      bb0:
+        ambient_cases: [case#0=fixtures.mir.Boom.next, case#1=scoop.core.Raise.raise<scoop.core.RuntimeError>]
+        outward_cases: [case#0=fixtures.mir.Boom.next, case#1=scoop.core.Raise.raise<scoop.core.RuntimeError>]
+        has_suspend_boundary: true
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Resume
+        continuation_schema: continuation_schema#5
+        resume_tuple_ty: Int
+        answer_ty: Unit
+        out_step_schema: step_schema#6
+        resolved_cases: [case#0=fixtures.mir.Boom.next, case#1=scoop.core.Raise.raise<scoop.core.RuntimeError>]
+  fixtures.mir.resumeOnce:
+    blocks:
+      bb0:
+        ambient_cases: [case#0=scoop.core.Raise.raise<scoop.core.RuntimeError>]
+        outward_cases: [case#0=scoop.core.Raise.raise<scoop.core.RuntimeError>]
+        has_suspend_boundary: true
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Resume
+        continuation_schema: continuation_schema#7
+        resume_tuple_ty: Int
+        answer_ty: Unit
+        out_step_schema: step_schema#7
+        resolved_cases: [case#0=scoop.core.Raise.raise<scoop.core.RuntimeError>]

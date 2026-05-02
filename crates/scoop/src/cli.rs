@@ -70,6 +70,12 @@ pub enum Command {
         input: PathBuf,
     },
 
+    /// 解析/resolve/typecheck/materialize 输入并打印 refactor effect facts
+    DumpEffectFacts {
+        /// 输入源文件路径
+        input: PathBuf,
+    },
+
     /// 解析/resolve 输入并打印 HIR（早期实现：Debug 输出）
     DumpHir {
         /// 输入源文件路径
@@ -207,6 +213,8 @@ pub enum Command {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::{Args, Command};
     use clap::Parser as _;
     use scoopc::session::EffectPipelineMode;
@@ -246,6 +254,29 @@ mod tests {
         .unwrap();
 
         assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
+    }
+
+    #[test]
+    fn test_effect_pipeline_parses_refactor_dump_effect_facts() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "--effect-pipeline",
+            "refactor",
+            "dump-effect-facts",
+            "tests/fixtures/mir_refactor/handle_perform.scoop",
+        ])
+        .unwrap();
+
+        assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
+        match args.command {
+            Command::DumpEffectFacts { input } => {
+                assert_eq!(
+                    input,
+                    PathBuf::from("tests/fixtures/mir_refactor/handle_perform.scoop")
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
     }
 
     #[test]

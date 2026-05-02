@@ -1,0 +1,9 @@
+package sample
+
+effect Ping {
+    fun hit(): Unit
+}
+
+fun leaf(): Unit / Ping {
+    Ping.hit()
+}

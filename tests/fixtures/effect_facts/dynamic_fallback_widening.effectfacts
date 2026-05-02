@@ -1,0 +1,60 @@
+MaterializedEffectFacts
+snapshot_binding:
+  query_surface: PassView
+  opt_level: O2
+  instance_count: 1
+  canonical_body_fqns:
+    - sample.callValue
+step_schemas:
+  step_schema#0:
+    invoke_args_tuple_ty: () -> Unit / (sample.Alpha + sample.Beta)
+    complete_ty: Unit
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/dynamic_fallback_widening.scoop:89..169::sample.callValue
+    cases:
+      - case#0: op=sample.Alpha.go payload_tuple_ty=Unit continuation_schema=continuation_schema#0
+      - case#1: op=sample.Beta.go payload_tuple_ty=Unit continuation_schema=continuation_schema#0
+  step_schema#1:
+    invoke_args_tuple_ty: Unit
+    complete_ty: Unit
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@CallSurface::Unit::Unit::(sample.Alpha + sample.Beta)
+    cases:
+      - case#0: op=sample.Alpha.go payload_tuple_ty=Unit continuation_schema=continuation_schema#1
+      - case#1: op=sample.Beta.go payload_tuple_ty=Unit continuation_schema=continuation_schema#1
+continuation_schemas:
+  continuation_schema#0:
+    resume_tuple_ty: Unit
+    answer_ty: Unit
+    out_step_schema: step_schema#0
+    surface_ty: scoop.core.Continuation<Unit, Unit, eff (sample.Alpha + sample.Beta)>
+  continuation_schema#1:
+    resume_tuple_ty: Unit
+    answer_ty: Unit
+    out_step_schema: step_schema#1
+    surface_ty: scoop.core.Continuation<Unit, Unit, eff (sample.Alpha + sample.Beta)>
+callable_facts:
+  sample.callValue:
+    instance_key: sample.callValue
+    declared_row: (sample.Alpha + sample.Beta)
+    invoke_args_tuple_ty: () -> Unit / (sample.Alpha + sample.Beta)
+    step_schema: step_schema#0
+    resolved_outward_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
+    needs_reentry: true
+    impl_plan: CanonicalFull
+body_facts:
+  sample.callValue:
+    blocks:
+      bb0:
+        ambient_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
+        outward_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Call
+        call_kind: FunValue
+        target_mode: DynamicFallback
+        target: DynamicFallback
+        invoke_args_tuple_ty: Unit
+        callee_schema: step_schema#1
+        resolved_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
+        precision: SignatureFallback

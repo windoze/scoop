@@ -31,6 +31,7 @@
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
 //! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
 //! - `tests/fixtures/mir_refactor/**` → mir_refactor（refactor direct-style MIR stable dump + `.mir` golden 比对）
+//! - `tests/fixtures/effect_facts/**` → effect_facts（refactor effect-facts stable dump + `.effectfacts` golden 比对）
 //! - `tests/fixtures/scoopir/**` → scoopir（public API 导出 + `.scoopir.json` golden 比对）
 //! - 其它一级目录会被识别为 phase，但目前统一返回“未实现”的诊断。
 
@@ -504,6 +505,7 @@ fn run_one(
         Some(name) if name == "hir" => FixturePhase::Hir,
         Some(name) if name == "mir" => FixturePhase::Mir,
         Some(name) if name == "mir_refactor" => FixturePhase::MirRefactor,
+        Some(name) if name == "effect_facts" => FixturePhase::EffectFacts,
         Some(name) if name == "scoopir" => FixturePhase::ScoopIr,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
@@ -519,6 +521,7 @@ fn run_one(
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
         FixturePhase::MirRefactor => mir_refactor_fixture(session, &source, path),
+        FixturePhase::EffectFacts => effect_facts_fixture(session, &source, path),
         FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
@@ -549,6 +552,7 @@ enum FixturePhase {
     Hir,
     Mir,
     MirRefactor,
+    EffectFacts,
     ScoopIr,
     Unimplemented(String),
 }
@@ -731,6 +735,24 @@ struct MirGoldenMismatch {
 #[error("`mir_refactor` fixtures 只能通过 `--effect-pipeline refactor` 运行（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::mir_refactor_requires_refactor_pipeline))]
 struct MirRefactorRequiresRefactorPipeline {
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 effect-facts golden 文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::effect_facts_golden_read_failed))]
+struct EffectFactsGoldenReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("effect-facts snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::effect_facts_golden_mismatch))]
+struct EffectFactsGoldenMismatch {
+    path: String,
     fixture: String,
 }
 
@@ -1291,6 +1313,18 @@ fn mir_refactor_fixture(
     assert_mir_golden_matches(&actual, fixture_path)
 }
 
+fn effect_facts_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let actual = crate::commands::dump_effect_facts::render_effect_facts_output(session, source)
+        .map_err(box_report)?;
+    let actual = normalize_newlines(&actual);
+
+    assert_effect_facts_golden_matches(&actual, fixture_path)
+}
+
 fn assert_mir_golden_matches(
     actual: &str,
     fixture_path: &Path,
@@ -1307,6 +1341,30 @@ fn assert_mir_golden_matches(
 
     if expected != actual {
         return Err(box_diagnostic(MirGoldenMismatch {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    Ok(())
+}
+
+fn assert_effect_facts_golden_matches(
+    actual: &str,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let golden_path = fixture_path.with_extension("effectfacts");
+    let expected_raw = std::fs::read_to_string(&golden_path).map_err(|e| {
+        box_diagnostic(EffectFactsGoldenReadFailed {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+            source: e,
+        })
+    })?;
+    let expected = normalize_newlines(&expected_raw);
+
+    if expected != actual {
+        return Err(box_diagnostic(EffectFactsGoldenMismatch {
             path: golden_path.display().to_string(),
             fixture: fixture_path.display().to_string(),
         }));
@@ -2929,6 +2987,7 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
                 | "runtime_gc"
                 | "hir"
                 | "mir"
+                | "effect_facts"
                 | "scoopir"
         )
     )
@@ -2966,6 +3025,17 @@ mod tests {
         assert_eq!(
             phase_name(fixtures_root, rel),
             Some(OsStr::new("unsafe_nogc"))
+        );
+    }
+
+    #[test]
+    fn phase_name_falls_back_to_root_phase_dir_for_effect_facts_single_file_subset() {
+        let fixtures_root = Path::new("tests/fixtures/effect_facts");
+        let rel = Path::new("dispatch_and_resume_call.scoop");
+
+        assert_eq!(
+            phase_name(fixtures_root, rel),
+            Some(OsStr::new("effect_facts"))
         );
     }
 

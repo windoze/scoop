@@ -61,8 +61,13 @@ impl RefactorEffectFactsStageOutput {
         &self.effect_facts
     }
 
+    /// refactor `dump-effect-facts` / dedicated fixtures / 定向单测共用的稳定文本 surface。
+    ///
+    /// 该 dump 明确锁定 P4 -> P5 handoff：只展示 canonical MIR snapshot 绑定到的
+    /// `MaterializedEffectFacts`，不回 HIR/typecheck 重建缺失 effect 语义。
     pub fn stable_dump(&self) -> String {
-        self.effect_facts.stable_dump()
+        self.effect_facts
+            .stable_dump(self.types(), self.materialized_pass_view())
     }
 }
 
@@ -131,6 +136,82 @@ mod tests {
                 .with_materialized_mir(materialized);
         super::run(session, source, mir_stage_output)
             .expect("fixture 应可通过 refactor effect-facts stage")
+    }
+
+    fn run_stage_with_opt_level(
+        source: &SourceFile,
+        opt_level: crate::opt::OptLevel,
+    ) -> RefactorEffectFactsStageOutput {
+        let session = refactor_session();
+        let materialized =
+            crate::mir::materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
+        let mir_stage_output =
+            super::super::load_direct_style_mir_stage_output_for_dump(&session, source)
+                .unwrap()
+                .with_materialized_mir(materialized);
+        super::run(&session, source, mir_stage_output)
+            .expect("fixture 应可通过 refactor effect-facts stage")
+    }
+
+    fn dump_fixture_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_facts_dump_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): Int
+}
+
+fun resumeBoom(k: Continuation<Int, Unit, eff Boom>): Unit / (Raise<RuntimeError> + Boom) {
+    k.resume(1)
+}
+
+fun handled(): Int {
+    return handle {
+        Boom.next()
+    } with {
+        Boom.next() -> 1
+    }
+}
+"#,
+        )
+    }
+
+    fn single_case_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_facts_single_case_fixture.scoop",
+            r#"
+package sample
+
+effect Ping {
+    fun hit(): Unit
+}
+
+fun leaf(): Unit / Ping {
+    Ping.hit()
+}
+"#,
+        )
+    }
+
+    fn declaration_only_interface_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_facts_interface_surface_fixture.scoop",
+            r#"
+package sample
+
+interface IFace {
+    fun foo(): Int
+}
+
+fun callInterface(i: IFace): Int {
+    return i.foo()
+}
+"#,
+        )
     }
 
     #[test]
@@ -249,5 +330,47 @@ mod tests {
             output.effect_facts().bodies().contains_key(&helper_key),
             "ordinary helper body facts 应可直接按 canonical InstanceKey 查询"
         );
+    }
+
+    #[test]
+    fn refactor_effect_facts_stage_stable_dump_lists_schema_callable_and_site_sections() {
+        let session = refactor_session();
+        let source = dump_fixture_source();
+        let output = run_stage(&session, &source);
+        let dump = output.stable_dump();
+
+        assert!(dump.contains("snapshot_binding:"));
+        assert!(dump.contains("step_schemas:"));
+        assert!(dump.contains("continuation_schemas:"));
+        assert!(dump.contains("callable_facts:"));
+        assert!(dump.contains("body_facts:"));
+        assert!(dump.contains("kind: Perform"));
+        assert!(dump.contains("kind: Resume"));
+        assert!(dump.contains("kind: Handle"));
+        assert!(dump.contains("impl_plan:"));
+        assert!(dump.contains("nested_handle_classification:"));
+    }
+
+    #[test]
+    fn refactor_effect_facts_stage_stable_dump_locks_opt_level_visible_impl_plan() {
+        let source = single_case_source();
+        let o0 = run_stage_with_opt_level(&source, crate::opt::OptLevel::O0).stable_dump();
+        let o2 = run_stage_with_opt_level(&source, crate::opt::OptLevel::O2).stable_dump();
+
+        assert!(o0.contains("opt_level: O0"));
+        assert!(o0.contains("impl_plan: CanonicalFull"));
+        assert!(o2.contains("opt_level: O2"));
+        assert!(o2.contains("impl_plan: SingleCase(case#0=sample.Ping.hit)"));
+    }
+
+    #[test]
+    fn refactor_effect_facts_stage_supports_declaration_only_interface_surface_contracts() {
+        let session = refactor_session();
+        let source = declaration_only_interface_source();
+        let dump = run_stage(&session, &source).stable_dump();
+
+        assert!(dump.contains("sample.callInterface:"));
+        assert!(dump.contains("target: KnownInstance(sample.IFace.foo)"));
+        assert!(dump.contains("callee_schema: step_schema#"));
     }
 }

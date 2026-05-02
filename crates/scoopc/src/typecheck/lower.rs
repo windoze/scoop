@@ -1205,7 +1205,7 @@ impl<'a> TypeLowering<'a> {
     /// 用途（T0609）：
     /// - override/interface impl 的 effect row 检查需要先对 receiver 的 use-site type args 与
     ///   `<eff E>` row 参数做 substitution，再比较 `R_over ⊆ R_base`。
-    pub(super) fn lower_effect_row_expr_in_decl_file_with_scopes(
+    pub(crate) fn lower_effect_row_expr_in_decl_file_with_scopes(
         &mut self,
         decl_file: &Path,
         type_bindings: impl IntoIterator<Item = (String, TypeId)>,

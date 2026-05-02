@@ -1,25 +1,43 @@
-## 当前执行计划
+# 本次执行计划
 
-说明：按安全与协作要求，这里记录可执行计划、关键判断依据、进度与变更，不记录逐字内部推理。
+## 约束说明
+- 不在这里记录内部推理细节；这里只维护可审阅的执行计划、关键判断依据与进度更新。
+- 本次目标是：定位并完成 `TODO-Px.md` 中按顺序出现的首个未完成详细任务；若遇到真实阻塞，则按要求补充前置任务、同步 `TODO.md`，提交后停止。
 
-1. 按要求先读取 `TODO.md` 作为索引，再按引用顺序检查对应 `TODO-Px.md`，定位第一个标题未带 `[DONE]` 的详细任务。
-2. 检查最近一次提交是否直接提到与该任务相关且尚未收尾的问题；若这是当前任务的直接未完成部分或前置依赖，则一并纳入当前处理，或在详细 TODO 中补充为前置任务。
-3. 阅读当前任务涉及的代码、测试、规范与约束，确认实现边界，不做超范围历史问题排查。
-4. 实施当前任务要求的最小正确修改；若遇到阻塞当前任务的真实缺口或规格不匹配，则先修复，或在对应 `TODO-Px.md` / `TODO.md` 中补充最小前置任务并停止。
-5. 运行与当前任务直接相关的验证，再运行要求的质量检查，至少覆盖：相关测试、`cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`（若当前任务范围允许且在合理时间内可执行）。
-6. 完成后更新对应 `TODO-Px.md` 的完成记录，并将任务标题前缀改为 `[DONE]`；如索引有变化，同步更新 `TODO.md`。仅当阶段计划发生变化时才更新 `PLAN.md`。
-7. 检查工作区中与本次任务相关的未提交修改，按要求创建一次原子提交，然后停止，不继续下一个任务。
+## 初始步骤
+1. 读取 `TODO.md`，确认它只是索引，并找出引用的详细任务文件。
+2. 按任务顺序读取相关 `TODO-Px.md` 文件，定位第一个标题未带 `[DONE]` 的详细任务。
+3. 检查最近一次提交信息，确认是否存在与该任务直接相关但未完成的问题；若有，将其视为当前任务一部分或作为新的前置任务处理。
+4. 阅读当前任务要求、约束、依赖、验证方式与完成记录，确认不能跳过或擅自拆分。
 
-## 进度记录
+## 执行策略
+1. 先最小化阅读相关代码与测试，建立实现边界。
+2. 直接实现当前任务所需改动；若发现阻塞当前任务的真实缺陷或缺失能力，不做规避实现。
+3. 运行与任务直接相关的测试、必要的更广泛测试，以及 `cargo clippy --all-targets -- -D warnings`（若适用且不会引入与当前任务无关的噪音）。
+4. 更新详细任务文件：仅当任务真正完成时，在标题前加 `[DONE]` 并补全完成记录。
+5. 如任务顺序、标题、依赖或新增前置任务发生变化，同步更新 `TODO.md`；仅在阶段计划真实变化时更新 `PLAN.md`。
+6. 提交所有当前未提交改动（遵循当前任务或阻塞处理结果），然后停止，不继续下一个任务。
 
-- 已创建本文件，下一步开始读取任务索引并定位首个未完成详细任务。
-- 已读取 `TODO.md` 与 `TODO-P4.md`，确认当前首个未完成详细任务为 `P4-T04R`：Review solver / widening / `impl_plan`，确认求解结果完全由 facts 驱动。
-- 已检查最新提交：`[P4-T04] Solve outward cases and finalize effect facts`。该提交与 `P4-T04R` 直接相关，提交信息本身未显式声明新的未完成事项；后续仍需以代码、搜索与测试结果复核是否存在必须先修的缺口。
-- 下一步：检查 `effect_facts` 相关实现与当前工作区状态，确认是否存在需要在本 review 中直接修复的问题；随后运行任务要求的搜索与定向测试/静态检查。
-- 已完成 `P4-T04R` 要求的定向测试与 clippy 复验，当前命令均通过；并确认 `effect_facts` / `effect_refactor_pipeline` 主线中未直接命中 `may_outward_effect`。
-- 新发现的可疑点：`HandleSiteEffectFacts` 的 `body_outward_cases` / `arm_outward_cases` / `finally_outward_cases` 由 builder 基于保守 seed 预计算，而 solver 当前只 finalizes `Call` site，未重算 `Handle` site；这可能导致外层 handle/block facts 保留过宽结果。
-- 当前计划调整：先为“handle body 内调用的实际 outward 是 schema 子集”补一个最小回归测试；若测试确认问题存在，则在 `BodyEffectSolverFacts` 中补足 handle region 求解输入，并让 solver 在最终站点回填时重算 `Handle` site outward/classification，然后重新跑定向验证。
-- 已补两条 solver 回归测试：其中 `refactor_effect_solver_keeps_handle_body_outward_for_plain_call_effects` 在修复前失败，确认 `HandleSiteEffectFacts.body_outward_cases` 会漏掉 handle body 内普通 `Call` 带来的 outward effect；这是当前 review 直接相关的真实缺口。
-- 已实施修复：`BodyEffectSolverFacts` 现增加 cleanup-block 与 handle-region metadata；solver 在 final site 回填时会用 finalized site map + region traversal 重新计算 `Handle` site 的 `body_outward_cases` / `arm_outward_cases` / `finally_outward_cases` / `nested_handle_classification`，不再停留在 builder 阶段的半成品。
-- 已重跑 `P4-T04R` 的全部定向测试与 clippy，结果通过；并已更新 `TODO-P4.md` / `TODO.md`，将 `P4-T04R` 标记为 `[DONE]`，完成记录中明确写入本次 review 内直接修复的 handle-site finalization 缺口。
-- 收尾步骤：检查工作区差异与提交内容，按任务要求创建一次原子 git 提交，然后停止。
+## 当前任务
+- 已定位首个未完成详细任务：`P4-T05`（`TODO-P4.md`）。
+- 任务目标：新增 `dump-effect-facts` CLI 与专属 fixture/snapshot 基线，并把 P4 -> P5 handoff contract 固化到代码与测试中。
+
+## 针对当前任务的执行步骤
+1. 检查 `scoop` CLI 与命令分发实现，寻找最接近的现有 `dump-*` 命令结构，优先复用统一 stage helper 与 formatter 管线。
+2. 检查 `effect_facts` 子系统当前是否已有稳定 formatter API；若不足以作为 golden，则补齐稳定文本输出层，但保持改动集中在现有子系统和新命令中。
+3. 在 `scoop` 中实现 `dump-effect-facts`：
+   - `refactor` 路径走 canonical MIR + effect-facts stage；
+   - `legacy` 路径返回稳定且可测试的不支持诊断。
+4. 扩展 fixture harness，新增 `tests/fixtures/effect_facts/**` phase 与 `.effectfacts` golden 比对，确保 CLI 与 fixture 复用同一 helper/formatter。
+5. 补充最小但完整的 effect-facts 样本与 golden，覆盖任务要求中的关键场景；必要时复用现有 `.scoop` 源文件内容，但不复用输出 golden。
+6. 运行定向命令、fixture 测试与 lint；若有失败，先修复当前任务相关问题。
+7. 更新 `TODO-P4.md` / `TODO.md` / `memory/claude_plan.md`，在确认完成后提交一次 git commit，并停止。
+
+## 进度跟踪
+- 状态：`P4-T05` 已完成，待提交。
+- 已完成事项：
+  1. 新增 `dump-effect-facts` CLI 与 shared render helper；legacy 路径返回稳定 unsupported 诊断。
+  2. 扩展 `MaterializedEffectFacts` 稳定 formatter，显式展示 schema/callable/body/site facts，并把 continuation object type 中的绝对路径规范化为 repo-relative 文本。
+  3. 新增 `effect_facts` fixture phase、7 个 `.scoop` 样本与对应 `.effectfacts` golden。
+  4. 修复 declaration-only interface/class member surface contract 缺口，使 `dispatch_and_resume_call.scoop` 中的接口调用也能进入 P4 facts dump。
+  5. 已完成定向测试、用户可见 CLI/fixture 验证与 `clippy -D warnings`。

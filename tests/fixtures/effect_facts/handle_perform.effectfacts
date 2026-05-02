@@ -1,0 +1,72 @@
+MaterializedEffectFacts
+snapshot_binding:
+  query_surface: PassView
+  opt_level: O2
+  instance_count: 1
+  canonical_body_fqns:
+    - a.main
+step_schemas:
+  step_schema#0:
+    invoke_args_tuple_ty: Unit
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_perform.scoop:36..125::a.main
+    cases:
+      - case#0: op=scoop.core.Raise.raise<Int> payload_tuple_ty=Int continuation_schema=continuation_schema#0
+continuation_schemas:
+  continuation_schema#0:
+    resume_tuple_ty: Nothing
+    answer_ty: Int
+    out_step_schema: step_schema#0
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff scoop.core.Raise<Int>>
+callable_facts:
+  a.main:
+    instance_key: a.main
+    declared_row: Pure
+    invoke_args_tuple_ty: Unit
+    step_schema: step_schema#0
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+body_facts:
+  a.main:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: true
+      bb1:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: true
+        has_handle_boundary: false
+      bb2:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb3:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+      bb4:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Handle
+        result_ty: Int
+        handled_cases: [case#0=scoop.core.Raise.raise<Int>]
+        body_outward_cases: []
+        finally_outward_cases: []
+        nested_handle_classification: SelfContained
+        arm_facts:
+          - handled_case: case#0=scoop.core.Raise.raise<Int> payload_tuple_ty=Int continuation_schema=continuation_schema#0 arm_outward_cases=[]
+      site1:
+        kind: Perform
+        emitted_case: case#0=scoop.core.Raise.raise<Int>
+        payload_tuple_ty: Int
+        captured_cont_schema: continuation_schema#0

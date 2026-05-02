@@ -1,0 +1,146 @@
+MaterializedEffectFacts
+snapshot_binding:
+  query_surface: PassView
+  opt_level: O2
+  instance_count: 4
+  canonical_body_fqns:
+    - a.apply
+    - a.id
+    - a.main
+    - a.main.$lambda0
+step_schemas:
+  step_schema#0:
+    invoke_args_tuple_ty: ((Int) -> Int / Pure, Int)
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/direct_and_fun_value_call.scoop:40..90::a.apply
+    cases:
+      <none>
+  step_schema#1:
+    invoke_args_tuple_ty: Int
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/direct_and_fun_value_call.scoop:11..38::a.id
+    cases:
+      <none>
+  step_schema#2:
+    invoke_args_tuple_ty: Unit
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/direct_and_fun_value_call.scoop:92..129::a.main
+    cases:
+      <none>
+  step_schema#3:
+    invoke_args_tuple_ty: (Unit, Int)
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/direct_and_fun_value_call.scoop:121..123::a.main.$lambda0
+    cases:
+      <none>
+  step_schema#4:
+    invoke_args_tuple_ty: Int
+    complete_ty: Int
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@CallSurface::Int::Int::Pure
+    cases:
+      <none>
+continuation_schemas:
+  <none>
+callable_facts:
+  a.apply:
+    instance_key: a.apply
+    declared_row: Pure
+    invoke_args_tuple_ty: ((Int) -> Int / Pure, Int)
+    step_schema: step_schema#0
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+  a.id:
+    instance_key: a.id
+    declared_row: Pure
+    invoke_args_tuple_ty: Int
+    step_schema: step_schema#1
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+  a.main:
+    instance_key: a.main
+    declared_row: Pure
+    invoke_args_tuple_ty: Unit
+    step_schema: step_schema#2
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+  a.main.$lambda0:
+    instance_key: a.main.$lambda0
+    declared_row: Pure
+    invoke_args_tuple_ty: (Unit, Int)
+    step_schema: step_schema#3
+    resolved_outward_cases: []
+    needs_reentry: false
+    impl_plan: NoOutward
+body_facts:
+  a.apply:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Call
+        call_kind: FunValue
+        target_mode: DynamicFallback
+        target: DynamicFallback
+        invoke_args_tuple_ty: Int
+        callee_schema: step_schema#4
+        resolved_cases: []
+        precision: SignatureFallback
+  a.id:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      <none>
+  a.main:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Call
+        call_kind: Direct
+        target_mode: KnownInstance
+        target: KnownInstance(a.id)
+        invoke_args_tuple_ty: Int
+        callee_schema: step_schema#1
+        resolved_cases: []
+        precision: Precise
+      site1:
+        kind: Call
+        call_kind: Direct
+        target_mode: KnownInstance
+        target: KnownInstance(a.apply)
+        invoke_args_tuple_ty: ((Int) -> Int / Pure, Int)
+        callee_schema: step_schema#0
+        resolved_cases: []
+        precision: Precise
+  a.main.$lambda0:
+    blocks:
+      bb0:
+        ambient_cases: []
+        outward_cases: []
+        has_suspend_boundary: false
+        has_handle_boundary: false
+    sites:
+      site0:
+        kind: Call
+        call_kind: Direct
+        target_mode: KnownInstance
+        target: KnownInstance(a.id)
+        invoke_args_tuple_ty: Int
+        callee_schema: step_schema#1
+        resolved_cases: []
+        precision: Precise

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::mir::{BasicBlockId, InstanceKey, MaterializedMirPassView, SiteId};
-use crate::ty::{EffectRow, TypeId};
+use crate::ty::{EffectRow, TypeId, TypeStore};
 
 use super::schema::{
     CaseSet, CaseTag, ContinuationSchema, ContinuationSchemaId, ImplPlan, StepSchema, StepSchemaId,
@@ -664,7 +664,7 @@ impl MaterializedEffectFacts {
         )
     }
 
-    pub fn stable_dump(&self) -> String {
-        super::dump::render_materialized_effect_facts(self)
+    pub fn stable_dump(&self, types: &TypeStore, pass_view: MaterializedMirPassView<'_>) -> String {
+        super::dump::render_materialized_effect_facts(self, types, pass_view)
     }
 }
