@@ -548,8 +548,8 @@ fn local_name(body: &Body, local: LocalId) -> Option<String> {
 mod tests {
     use super::*;
     use crate::mir::{
-        BasicBlock, CallArg, ConstValue, LocalDecl, ResumeMetadata, SiteId, Statement, Terminator,
-        UnwindAction,
+        BasicBlock, CallArg, ConstValue, LocalDecl, LocalSourceKind, ResumeMetadata, SiteId,
+        Statement, Terminator, UnwindAction,
     };
     use crate::opt::OptLevel;
     use crate::session::Session;
@@ -791,6 +791,7 @@ fun main(): Int {
             span: SPAN,
             name: Some(name.to_string()),
             ty,
+            source: LocalSourceKind::SourceLocal,
         }
     }
 

@@ -22,10 +22,10 @@ use crate::ty::{BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeK
 
 use super::{
     BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
-    HandleMetadata, HandlerArm, HandlerArmKind, Item, LocalDecl, LocalId, MemberAccessMetadata,
-    MemberTarget, MirValidationError, Operand, Param, Pattern, PatternBindingStep, PerformArg,
-    PerformMetadata, ResumeMetadata, Rvalue, SiteId, Statement, StatementKind, Terminator,
-    TerminatorKind, TopLevelRef, UnwindAction,
+    HandleMetadata, HandlerArm, HandlerArmKind, Item, LocalDecl, LocalId, LocalSourceKind,
+    MemberAccessMetadata, MemberTarget, MirValidationError, Operand, Param, Pattern,
+    PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, SiteId, Statement,
+    StatementKind, Terminator, TerminatorKind, TopLevelRef, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -774,6 +774,7 @@ impl<'a> FnLowering<'a> {
             span,
             name: Some(name.to_string()),
             ty,
+            source: LocalSourceKind::SourceLocal,
         })
     }
 
@@ -781,7 +782,12 @@ impl<'a> FnLowering<'a> {
     fn push_temp_local(&mut self, span: Span, ty: TypeId) -> LocalId {
         let name = format!("tmp{}", self.next_temp);
         self.next_temp += 1;
-        self.push_named_local(span, &name, ty)
+        self.body.push_local(LocalDecl {
+            span,
+            name: Some(name),
+            ty,
+            source: LocalSourceKind::CompilerTemporary,
+        })
     }
 
     /// 生成 `target = value` 赋值语句。

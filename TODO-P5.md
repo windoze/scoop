@@ -635,6 +635,55 @@
     - 新增 fixture：`tests/fixtures/effect_lowered_src/dropped_continuation_abandons_remaining_work.scoop`、`tests/fixtures/effect_lowered_src/continuation_resume_runtime_error_boundary.scoop`。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
+## [DONE] P5-T04a：为 frame lifting 建立稳定的 MIR local 来源分类，避免把源码 `tmp*` local 误判为 compiler temporary
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P5
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.5.5
+  - `crates/scoopc/src/mir/mod.rs`
+  - `crates/scoopc/src/mir/lower.rs`
+  - `crates/scoopc/src/effect_lowered/frame.rs`
+- 背景：
+  - `P5-T04R` 审阅发现：`crates/scoopc/src/effect_lowered/frame.rs` 目前通过 `LocalDecl.name.starts_with("tmp")` 把 lifted local 分成 `SourceLocal` 与 `CompilerTemporary`；
+  - 但 `crates/scoopc/src/mir/lower.rs` 中源码具名 local 与编译器 temp 共用同一个 `LocalDecl.name` 字段，源码里合法命名为 `tmp` / `tmp0` / `tmp_value` 的 local 会被错误归类为 compiler temporary；
+  - 这违反了 P5-T04 对“frame slot 来源稳定、可查询、不可依赖名字猜测”的要求，也会让后续 dump/review 对 slot 来源的判断失真。
+- 目标：
+  - 为 MIR local 建立稳定的“源码 local / 编译器 temporary”来源标记；
+  - 让 frame lifting 仅消费该稳定来源信息，不再依赖 local 名字前缀猜测。
+
+- 必须实现的内容：
+  1. 为 MIR `LocalDecl` 或等价稳定元数据补充 local 来源分类。
+     - 至少要能区分：源码具名 local、编译器 temporary；
+     - 该信息必须随 canonical MIR body 一起存在，不能只在 lowering 临时上下文里可见。
+  2. 让 `push_named_local` / 参数 local / `val` / `var` / binder / 其它源码来源 local 保留为源码 local。
+  3. 让 `push_temp_local` 及其它编译器引入的 expression temp 明确标记为 compiler temporary。
+  4. 更新 `crates/scoopc/src/effect_lowered/frame.rs` 的 slot 分类逻辑。
+     - 明确禁止继续使用 `name.starts_with("tmp")` 或其它字符串启发式；
+     - 源码 local 即使名字恰好是 `tmp` / `tmp0` / `tmp_value`，也必须保持 `SourceLocal`；
+     - 编译器 temp 仍必须稳定归类到 `CompilerTemporary`。
+  5. 补充回归测试。
+     - 至少新增一个 effectful 样例，使源码 local 名字以 `tmp` 开头且跨 boundary 存活；
+     - 断言该 local 进入 frame 后仍被标记为 `SourceLocal`，而真正的编译器临时值仍被标记为 `CompilerTemporary`。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_frame_lifting`
+  - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
+  - `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`
+
+- 完成条件：
+  - frame slot 来源分类不再依赖 local 名字拼写；
+  - 源码 `tmp*` local 不会再被误判为 `CompilerTemporary`；
+  - `P5-T04R` 可继续审阅 frame lifting/control-flow contract，而不再被来源分类噪音阻塞。
+- 依赖：P5-T04
+- 完成记录：
+  - 2026-05-03：完成 `P5-T04a`。`crates/scoopc/src/mir/mod.rs` 已为 canonical MIR `LocalDecl` 新增稳定来源枚举 `LocalSourceKind::{SourceLocal, CompilerTemporary}`，使“源码 local / 编译器 temporary”分类成为 body 常驻元数据，而不是 lowering 临时上下文里的隐式约定。
+  - `crates/scoopc/src/mir/lower.rs` 现已把来源写死到 local 分配入口：`push_named_local` 统一发布 `SourceLocal`，`push_temp_local` 统一发布 `CompilerTemporary`；参数 local、`val`/`var`、binder、closure capture/env 等源码来源 local 保持为 `SourceLocal`，expression temp 不再借由名字前缀模拟来源。
+  - `crates/scoopc/src/effect_lowered/frame.rs` 已删除 `LocalDecl.name.starts_with("tmp")` 启发式，frame slot 分类改为只消费 MIR `LocalSourceKind`；因此源码名恰好为 `tmp` / `tmp0` / `tmp_value` 的 local 仍会进入 `LateLoweredFrameSlotKind::SourceLocal`，真正的 MIR temp 才会进入 `CompilerTemporary`。
+  - 为保持测试与辅助构造路径一致，手工构造 `LocalDecl` 的位置已补齐来源字段，包括 `crates/scoopc/src/mir/{materialize,inline,escape,mod}.rs` 中的测试/辅助代码，避免新元数据只在 lowering 主路径可见而在其它 canonical MIR 构造入口缺失。
+  - 新增回归测试 `crates/scoopc/src/effect_lowered/frame.rs::refactor_frame_lifting_uses_stable_mir_local_source_metadata`：样例中源码 local 名 `tmp_seed` 跨 boundary 存活，同时存在真正跨 boundary 的 compiler temporary；测试断言 canonical MIR 把 `tmp_seed` 标成 `SourceLocal`，frame schema 继续把它发布为 `SourceLocal(localX)`，并且至少保留一个真正的 `CompilerTemporary(localY)` slot。
+  - 2026-05-03：按详细 TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+
 ## P5-T04R：Review frame lifting 与控制流合同，确认没有残留 direct-style 隐式语义或错误的 dropped-continuation 行为
 
 - 参考：
@@ -660,9 +709,10 @@
 - 完成条件：
   - review 能明确说明：frame lifting 与显式控制流合同已经闭合；
   - 可进入 P5-T05。
-- 依赖：P5-T04
+- 依赖：P5-T04a
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：审阅发现 blocker。`crates/scoopc/src/effect_lowered/frame.rs` 当前使用 `LocalDecl.name.starts_with("tmp")` 区分 `SourceLocal` / `CompilerTemporary`，但 `crates/scoopc/src/mir/lower.rs` 会把源码具名 local 也原样写入同一个 `name` 字段，因此合法源码名 `tmp` / `tmp0` / `tmp_value` 会被误判为 compiler temporary。
+  - 这会破坏 P5-T04 要求的 stable frame-slot 来源分类，并让后续 dump/review 对 lifted value 来源的判断失真；因此新增前置任务 `P5-T04a`，待修复后再继续完成本 review。
 
 ## P5-T05：物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering
 

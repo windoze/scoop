@@ -1071,7 +1071,8 @@ fn remap_operand(
 mod tests {
     use super::*;
     use crate::mir::{
-        BasicBlock, BasicBlockId, Item, PerformMetadata, Terminator, materialize_for_dump,
+        BasicBlock, BasicBlockId, Item, LocalSourceKind, PerformMetadata, Terminator,
+        materialize_for_dump,
     };
     use crate::session::Session;
     use crate::source::SourceFile;
@@ -1396,11 +1397,13 @@ fun main(): Int {
             span: crate::span::Span::new(0, 0),
             name: Some("seed".to_string()),
             ty: builtins.unit,
+            source: LocalSourceKind::SourceLocal,
         });
         let caller_target = caller_body.push_local(LocalDecl {
             span: crate::span::Span::new(0, 0),
             name: Some("result".to_string()),
             ty: builtins.unit,
+            source: LocalSourceKind::SourceLocal,
         });
         let caller_entry = caller_body.push_block(BasicBlock {
             is_cleanup: false,
@@ -1430,6 +1433,7 @@ fun main(): Int {
             span: crate::span::Span::new(0, 0),
             name: Some("tmp0".to_string()),
             ty: builtins.unit,
+            source: LocalSourceKind::CompilerTemporary,
         });
         let callee_entry = callee_body.push_block(BasicBlock {
             is_cleanup: false,
@@ -1496,6 +1500,7 @@ fun main(): Int {
             span: crate::span::Span::new(0, 0),
             name: Some("tmp0".to_string()),
             ty: builtins.unit,
+            source: LocalSourceKind::CompilerTemporary,
         });
 
         let entry = body.push_block(BasicBlock {

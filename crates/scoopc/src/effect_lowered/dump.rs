@@ -563,7 +563,11 @@ fn render_frame_slot_kind(kind: LateLoweredFrameSlotKind) -> String {
             block,
             ordinal,
         } => {
-            format!("JoinValue(local{}, bb{}, #{ordinal})", local.as_u32(), block.as_u32())
+            format!(
+                "JoinValue(local{}, bb{}, #{ordinal})",
+                local.as_u32(),
+                block.as_u32()
+            )
         }
         LateLoweredFrameSlotKind::HandleBinder {
             site_id,
@@ -584,7 +588,11 @@ fn render_frame_slot_kind(kind: LateLoweredFrameSlotKind) -> String {
             )
         }
         LateLoweredFrameSlotKind::BoundaryResult { boundary, local } => {
-            format!("BoundaryResult(bd{}, local{})", boundary.as_u32(), local.as_u32())
+            format!(
+                "BoundaryResult(bd{}, local{})",
+                boundary.as_u32(),
+                local.as_u32()
+            )
         }
         LateLoweredFrameSlotKind::System(system) => render_system_slot_kind(system).to_string(),
     }

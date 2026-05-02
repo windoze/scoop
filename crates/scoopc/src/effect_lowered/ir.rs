@@ -1104,8 +1104,14 @@ pub enum LateLoweredFrameSlotKind {
         local: LocalId,
         ordinal: u32,
     },
-    ResumePayload { boundary: BoundaryId, case_tag: CaseTag },
-    BoundaryResult { boundary: BoundaryId, local: LocalId },
+    ResumePayload {
+        boundary: BoundaryId,
+        case_tag: CaseTag,
+    },
+    BoundaryResult {
+        boundary: BoundaryId,
+        local: LocalId,
+    },
     System(SystemSlotKind),
 }
 
@@ -1176,10 +1182,7 @@ impl LateLoweredFrameSchema {
         &self.slots
     }
 
-    pub fn slot_for_kind(
-        &self,
-        kind: LateLoweredFrameSlotKind,
-    ) -> Option<&LateLoweredFrameSlot> {
+    pub fn slot_for_kind(&self, kind: LateLoweredFrameSlotKind) -> Option<&LateLoweredFrameSlot> {
         self.slots.iter().find(|slot| slot.kind() == kind)
     }
 }

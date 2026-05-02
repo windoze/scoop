@@ -366,7 +366,8 @@ impl TypeStore {
     }
 
     fn find_builtin_ref(&self, needle: RefTypeKind) -> Option<TypeId> {
-        self.iter_ids().find(|id| self.kind(*id) == &TypeKind::Ref(needle.clone()))
+        self.iter_ids()
+            .find(|id| self.kind(*id) == &TypeKind::Ref(needle.clone()))
     }
 
     fn find_builtin_value(&self, needle: ValueTypeKind) -> Option<TypeId> {

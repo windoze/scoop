@@ -566,12 +566,20 @@ impl Body {
     }
 }
 
+/// MIR local 的稳定来源分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LocalSourceKind {
+    SourceLocal,
+    CompilerTemporary,
+}
+
 /// 一个 local 的声明信息。
 #[derive(Debug, Clone)]
 pub struct LocalDecl {
     pub span: Span,
     pub name: Option<String>,
     pub ty: TypeId,
+    pub source: LocalSourceKind,
 }
 
 /// MIR 基本块：顺序语句 + 终结指令（terminator）。
@@ -1157,6 +1165,7 @@ mod tests {
             span: Span::new(0, 0),
             name: Some("tmp0".to_string()),
             ty: builtins.unit,
+            source: LocalSourceKind::CompilerTemporary,
         });
 
         let bb0 = body.push_block(BasicBlock {
@@ -1289,6 +1298,7 @@ mod tests {
             span: Span::new(0, 0),
             name: Some("tmp0".to_string()),
             ty: builtins.unit,
+            source: LocalSourceKind::CompilerTemporary,
         });
 
         let bb0 = body.push_block(BasicBlock {
@@ -1360,6 +1370,7 @@ mod tests {
             span: Span::new(0, 0),
             name: Some("tmp0".to_string()),
             ty: builtins.unit,
+            source: LocalSourceKind::CompilerTemporary,
         });
 
         let bb0 = body.push_block(BasicBlock {

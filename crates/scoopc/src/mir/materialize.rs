@@ -4656,7 +4656,7 @@ fn collect_type_param_bindings(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mir::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
+    use crate::mir::{LocalSourceKind, MirLoweringFacts, lower_hir_file_for_dump_with_facts};
     use crate::session::Session;
     use crate::source::SourceFile;
 
@@ -5384,6 +5384,7 @@ fun main(): Int {
             span: call_span,
             name: Some("unreachable_id_result".to_string()),
             ty: builtins.int,
+            source: LocalSourceKind::SourceLocal,
         });
         let unreachable_block = body.push_block(crate::mir::BasicBlock {
             is_cleanup: false,

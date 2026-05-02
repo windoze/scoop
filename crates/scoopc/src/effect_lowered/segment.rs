@@ -10,8 +10,8 @@ use super::EffectLoweringError;
 use super::ir::{
     BoundaryId, BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryMap,
     LateLoweredBoundarySource, LateLoweredResumeState, LateLoweredResumeStateMap, LateLoweredState,
-    LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
-    LateLoweredStateTerminator, StateId,
+    LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator,
+    StateId,
 };
 
 /// P5-T03 产出的 whole-function segmentation skeleton。
@@ -453,9 +453,9 @@ fn finalize_blueprint_terminator(
             cleanup_state: *cleanup_target,
             drop_state: None,
         },
-        StateBlueprintTerminator::Goto { target } => LateLoweredStateTerminator::Goto {
-            target: *target,
-        },
+        StateBlueprintTerminator::Goto { target } => {
+            LateLoweredStateTerminator::Goto { target: *target }
+        }
         StateBlueprintTerminator::Branch {
             cond_local,
             then_state,
@@ -1047,7 +1047,10 @@ fun main(): Int {
 
     #[test]
     fn refactor_late_control_flow_keeps_handle_body_arm_finally_and_cleanup_edges_explicit() {
-        let output = load_output(&load_fixture("mir_refactor", "handle_finally_boundary.scoop"));
+        let output = load_output(&load_fixture(
+            "mir_refactor",
+            "handle_finally_boundary.scoop",
+        ));
         let callable = callable(&output, "fixtures.mir_refactor.handled_raise");
         let states = callable.state_graph().states();
 
@@ -1066,9 +1069,15 @@ fun main(): Int {
             .expect("handle 入口应保留显式 HandleDispatch terminator");
 
         assert!(callable.state_graph().state(handle_dispatch.0).is_some());
-        assert!(!handle_dispatch.1.is_empty(), "handler arm 续点应显式可追踪");
         assert!(
-            handle_dispatch.2.and_then(|state| callable.state_graph().state(state)).is_some(),
+            !handle_dispatch.1.is_empty(),
+            "handler arm 续点应显式可追踪"
+        );
+        assert!(
+            handle_dispatch
+                .2
+                .and_then(|state| callable.state_graph().state(state))
+                .is_some(),
             "finally/cleanup 续点应显式可追踪"
         );
         assert!(callable.state_graph().state(handle_dispatch.3).is_some());
@@ -1156,8 +1165,14 @@ fun main(): Int {
             })
             .expect("resume helper 应发布显式 resume boundary");
 
-        assert_eq!(runtime_error_boundary.owner_state(), resume_boundary.owner_state());
-        assert_eq!(runtime_error_boundary.resume_state(), resume_boundary.resume_state());
+        assert_eq!(
+            runtime_error_boundary.owner_state(),
+            resume_boundary.owner_state()
+        );
+        assert_eq!(
+            runtime_error_boundary.resume_state(),
+            resume_boundary.resume_state()
+        );
         assert!(
             callable.state_graph().states().iter().any(|state| {
                 matches!(

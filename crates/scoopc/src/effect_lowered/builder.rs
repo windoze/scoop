@@ -8,12 +8,11 @@ use super::EffectLoweringError;
 use super::frame::{FrameBuildInputs, build_callable_frame};
 use super::ir::{
     ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
-    LateLoweredContinuationCapture,
-    LateLoweredContinuationMethod, LateLoweredContinuationMethodReachability,
-    LateLoweredContinuationObject, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
-    LateLoweredProgram, LateLoweredResumeInterface, LateLoweredResumeMethod,
-    LateLoweredResumeStateMap, LateLoweredStateGraph, LateLoweredStepCase, LateLoweredStepType,
-    ResumeInterfaceId,
+    LateLoweredContinuationCapture, LateLoweredContinuationMethod,
+    LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
+    LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredProgram,
+    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeStateMap,
+    LateLoweredStateGraph, LateLoweredStepCase, LateLoweredStepType, ResumeInterfaceId,
 };
 use super::segment::build_callable_segmentation;
 
@@ -105,12 +104,13 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             let (state_graph, frame_schema, continuation_captures, boundary_map, resume_state_map) =
                 match family.root_body().and_then(|fun| fun.body.as_ref()) {
                     Some(body) => {
-                    let body_facts = effect_facts.body(family.key()).ok_or_else(|| {
-                        EffectLoweringError::MissingBodyFacts {
-                            root_fqn: root_fqn.clone(),
-                        }
-                    })?;
-                        let segmentation = build_callable_segmentation(&root_fqn, body, body_facts)?;
+                        let body_facts = effect_facts.body(family.key()).ok_or_else(|| {
+                            EffectLoweringError::MissingBodyFacts {
+                                root_fqn: root_fqn.clone(),
+                            }
+                        })?;
+                        let segmentation =
+                            build_callable_segmentation(&root_fqn, body, body_facts)?;
                         let frame = build_callable_frame(FrameBuildInputs {
                             root_fqn: &root_fqn,
                             body,

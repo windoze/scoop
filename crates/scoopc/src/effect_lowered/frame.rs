@@ -5,16 +5,16 @@ use crate::effect_facts::{
     StepSchemaId,
 };
 use crate::mir::{
-    BasicBlockId, Body, CallKind, LocalId, Operand, Rvalue, SiteId, StatementKind, TerminatorKind,
+    BasicBlockId, Body, CallKind, LocalId, LocalSourceKind, Operand, Rvalue, SiteId, StatementKind,
+    TerminatorKind,
 };
 use crate::ty::TypeStore;
 
 use super::EffectLoweringError;
 use super::ir::{
-    BoundaryId, LateLoweredBoundaryMap, LateLoweredBoundarySource,
-    LateLoweredContinuationCapture, LateLoweredFrameSchema, LateLoweredFrameSlot,
-    LateLoweredFrameSlotKind, LateLoweredState, LateLoweredStateGraph,
-    LateLoweredStateTerminator, StateId, SystemSlotKind,
+    BoundaryId, LateLoweredBoundaryMap, LateLoweredBoundarySource, LateLoweredContinuationCapture,
+    LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind, LateLoweredState,
+    LateLoweredStateGraph, LateLoweredStateTerminator, StateId, SystemSlotKind,
 };
 
 pub(crate) struct FrameLiftingResult {
@@ -71,7 +71,8 @@ pub(crate) fn build_callable_frame(
 
     let binder_info_by_local = collect_binder_info(body);
     let analysis = analyze_state_locals(body, &state_graph, &binder_info_by_local);
-    let boundary_owner_live_out = collect_boundary_owner_live_outs(&state_graph, &analysis.live_out);
+    let boundary_owner_live_out =
+        collect_boundary_owner_live_outs(&state_graph, &analysis.live_out);
     let lifted_locals = boundary_owner_live_out
         .values()
         .flat_map(|locals| locals.iter().copied())
@@ -280,7 +281,9 @@ fn build_continuation_captures(
     let mut seen_states = BTreeSet::new();
     for boundary in boundary_map.entries() {
         if seen_states.insert(boundary.resume_state()) {
-            captures.push(LateLoweredContinuationCapture::State(boundary.resume_state()));
+            captures.push(LateLoweredContinuationCapture::State(
+                boundary.resume_state(),
+            ));
         }
     }
     captures
@@ -352,11 +355,13 @@ fn classify_local_slot_kind(
             ordinal: info.ordinal,
         });
     }
-    let name = body.locals.get(local.as_u32() as usize)?.name.as_deref()?;
-    if name.starts_with("tmp") {
-        return Some(LateLoweredFrameSlotKind::CompilerTemporary(local));
+    let source = body.locals.get(local.as_u32() as usize)?.source;
+    match source {
+        LocalSourceKind::SourceLocal => Some(LateLoweredFrameSlotKind::SourceLocal(local)),
+        LocalSourceKind::CompilerTemporary => {
+            Some(LateLoweredFrameSlotKind::CompilerTemporary(local))
+        }
     }
-    Some(LateLoweredFrameSlotKind::SourceLocal(local))
 }
 
 fn collect_binder_info(body: &Body) -> HashMap<LocalId, BinderInfo> {
@@ -426,11 +431,14 @@ fn collect_boundary_result_info(
             LateLoweredBoundarySource::Site {
                 site_id,
                 kind: super::ir::BoundarySiteKind::Call | super::ir::BoundarySiteKind::Resume,
-            } => call_result_targets.get(&site_id).copied().map(|local| BoundaryResultInfo {
-                boundary: boundary.boundary_id(),
-                local,
-                defining_state: boundary.resume_state(),
-            }),
+            } => call_result_targets
+                .get(&site_id)
+                .copied()
+                .map(|local| BoundaryResultInfo {
+                    boundary: boundary.boundary_id(),
+                    local,
+                    defining_state: boundary.resume_state(),
+                }),
             LateLoweredBoundarySource::Site {
                 site_id,
                 kind: super::ir::BoundarySiteKind::Perform,
@@ -471,7 +479,11 @@ fn collect_join_info(
             .into_iter()
             .flat_map(|states| states.iter())
             .filter_map(|state_id| {
-                let predecessor_count = analysis.predecessor_counts.get(state_id).copied().unwrap_or(0);
+                let predecessor_count = analysis
+                    .predecessor_counts
+                    .get(state_id)
+                    .copied()
+                    .unwrap_or(0);
                 (predecessor_count > 1)
                     .then(|| state_graph.state(*state_id).map(|state| (*state_id, state)))
                     .flatten()
@@ -527,7 +539,10 @@ fn analyze_state_locals(
             {
                 for local in implicit_defs {
                     state_defs.insert(*local);
-                    def_states.entry(*local).or_default().insert(state.state_id());
+                    def_states
+                        .entry(*local)
+                        .or_default()
+                        .insert(state.state_id());
                 }
             }
 
@@ -544,7 +559,10 @@ fn analyze_state_locals(
                 );
                 if let StatementKind::Assign { target, .. } = stmt.kind {
                     state_defs.insert(target);
-                    def_states.entry(target).or_default().insert(state.state_id());
+                    def_states
+                        .entry(target)
+                        .or_default()
+                        .insert(state.state_id());
                 }
             }
 
@@ -561,7 +579,10 @@ fn analyze_state_locals(
 
         for local in binder_info_by_local.keys() {
             if state_defs.contains(local) {
-                def_states.entry(*local).or_default().insert(state.state_id());
+                def_states
+                    .entry(*local)
+                    .or_default()
+                    .insert(state.state_id());
             }
         }
 
@@ -582,9 +603,7 @@ fn collect_implicit_defs_by_block(body: &Body) -> BTreeMap<BasicBlockId, Vec<Loc
     let mut implicit_defs = BTreeMap::<BasicBlockId, Vec<LocalId>>::new();
     for block in &body.blocks {
         let TerminatorKind::Handle {
-            arms,
-            arm_targets,
-            ..
+            arms, arm_targets, ..
         } = &block.terminator.kind
         else {
             continue;
@@ -627,7 +646,12 @@ fn solve_live_out(
             let out = state
                 .successors()
                 .iter()
-                .flat_map(|successor| live_in.get(successor).into_iter().flat_map(|set| set.iter()))
+                .flat_map(|successor| {
+                    live_in
+                        .get(successor)
+                        .into_iter()
+                        .flat_map(|set| set.iter())
+                })
                 .copied()
                 .collect::<BTreeSet<_>>();
             let mut input = uses_before_def
@@ -792,7 +816,10 @@ fn reachable_case_tags(
     resolved_outward_cases: &[CaseTag],
     impl_plan: ImplPlan,
 ) -> Vec<CaseTag> {
-    let resolved = resolved_outward_cases.iter().copied().collect::<BTreeSet<_>>();
+    let resolved = resolved_outward_cases
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
     step_schema
         .cases()
         .iter()
@@ -921,8 +948,109 @@ fun main(): Int {
                 .expect("callable 应能回查 continuation shell")
                 .captures()
                 .iter()
-                .any(|capture| matches!(capture, crate::effect_lowered::ir::LateLoweredContinuationCapture::FrameSlot(_))),
+                .any(|capture| matches!(
+                    capture,
+                    crate::effect_lowered::ir::LateLoweredContinuationCapture::FrameSlot(_)
+                )),
             "continuation captures 应显式引用 lifted frame slots"
+        );
+    }
+
+    #[test]
+    fn refactor_frame_lifting_uses_stable_mir_local_source_metadata() {
+        let output = load_output(&SourceFile::new_virtual(
+            "<mem>/effect_lowered_tmp_named_source_local.scoop",
+            r#"
+package sample
+
+effect Step {
+    fun next(seed: Int): Int
+}
+
+fun box_int(value: Int): Int {
+    return value
+}
+
+fun helper(seed: Int): Int / Step {
+    val tmp_seed: Int = seed
+    val via_arg: Int = box_int((seed + 1) + Step.next(tmp_seed))
+    return via_arg + tmp_seed
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+        ));
+        let callable = callable(&output, "sample.helper");
+        let pass_view = output.materialized_pass_view();
+        let mir_fun = pass_view
+            .callable("sample.helper")
+            .expect("sample.helper 应保留 canonical MIR body");
+        let body = mir_fun.body.as_ref().expect("sample.helper 应有 MIR body");
+
+        let (tmp_seed_local, tmp_seed_decl) = body
+            .locals
+            .iter()
+            .enumerate()
+            .find_map(|(idx, decl)| {
+                (decl.name.as_deref() == Some("tmp_seed"))
+                    .then_some((crate::mir::LocalId::from_raw(idx as u32), decl))
+            })
+            .expect("fixture 应包含源码 local `tmp_seed`");
+        assert_eq!(
+            tmp_seed_decl.source,
+            crate::mir::LocalSourceKind::SourceLocal,
+            "canonical MIR 必须把源码 tmp* local 标记为 SourceLocal"
+        );
+        assert!(
+            callable
+                .frame_schema()
+                .slot_for_kind(
+                    crate::effect_lowered::ir::LateLoweredFrameSlotKind::SourceLocal(
+                        tmp_seed_local,
+                    )
+                )
+                .is_some(),
+            "源码 tmp* local 进入 frame 后仍应保持 SourceLocal\n{}",
+            output.program().stable_dump()
+        );
+        assert!(
+            callable
+                .frame_schema()
+                .slot_for_kind(
+                    crate::effect_lowered::ir::LateLoweredFrameSlotKind::CompilerTemporary(
+                        tmp_seed_local,
+                    ),
+                )
+                .is_none(),
+            "源码 tmp* local 不应仅因名字前缀被误判为 CompilerTemporary\n{}",
+            output.program().stable_dump()
+        );
+
+        let lifted_compiler_temp = body
+            .locals
+            .iter()
+            .enumerate()
+            .find_map(|(idx, decl)| {
+                if decl.source != crate::mir::LocalSourceKind::CompilerTemporary {
+                    return None;
+                }
+                let local = crate::mir::LocalId::from_raw(idx as u32);
+                callable
+                    .frame_schema()
+                    .slot_for_kind(
+                        crate::effect_lowered::ir::LateLoweredFrameSlotKind::CompilerTemporary(
+                            local,
+                        ),
+                    )
+                    .map(|_| local)
+            })
+            .expect("fixture 应至少 lift 一个真正的 compiler temporary");
+        assert_eq!(
+            body.locals[lifted_compiler_temp.as_u32() as usize].source,
+            crate::mir::LocalSourceKind::CompilerTemporary,
+            "frame 中的 compiler temporary slot 必须来自稳定的 MIR 来源元数据"
         );
     }
 
