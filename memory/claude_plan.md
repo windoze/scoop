@@ -1,67 +1,51 @@
-## 本轮目标
+## 当前执行计划
 
-- 先以 `TODO.md` 作为索引，定位第一个未完成的详细任务。
-- 以对应 `TODO-Px.md` 作为唯一任务真源，完成该任务或在遇到真实前置阻塞时补入最小 prerequisite 任务。
-- 完成后执行相关测试、同步任务文档、创建一次 git 提交，然后停止。
+1. 读取 `TODO.md`，确认详细任务文件映射关系与任务顺序。
+2. 按索引顺序读取对应的 `TODO-Px.md`，定位第一个标题未带 `[DONE]` 的详细任务。
+3. 检查最近一次提交信息是否存在与该任务直接相关且未完成的问题；若存在，将其视为当前任务组成部分或前置依赖。
+4. 阅读当前任务涉及的实现、约束、验证要求与完成记录，确认需要修改的代码、测试与文档范围。
+5. 实现当前任务；若遇到阻塞当前任务且不能规避的真实缺口，则在对应 `TODO-Px.md` 中加入最小前置任务并同步 `TODO.md`，必要时更新 `PLAN.md`。
+6. 运行与当前任务直接相关的验证；随后运行要求的质量检查，至少包括相关测试，以及在可行范围内执行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+7. 将完成情况写回对应 `TODO-Px.md`，在任务标题前添加 `[DONE]`；若任务索引或顺序变化，同步更新 `TODO.md`。
+8. 复查工作区中与本次任务相关的改动，按要求创建一次 git 提交，然后停止，不进入下一个任务。
 
-## 高层判断记录
+## 记录约定
 
-- 不跳过任何标题未带 `[DONE]` 的详细任务。
-- 不为方便实现而主动拆分任务；只有遇到真实且未被跟踪的前置阻塞时，才补充最小 prerequisite。
-- 如果最新提交中有与当前任务直接相关且明确未完成的事项，需要将其纳入当前任务范围或写成前置依赖。
-- 本文件记录的是可审阅的执行计划、判断依据和进度，不写不可见的私有推理细节。
+- 这里记录执行计划、关键决策、阻塞信息与已完成步骤。
+- 不记录内部推理细节，只记录可审计的行动计划与结果。
 
-## 执行步骤
+## 当前进展
 
-1. 读取 `TODO.md`，确认索引顺序和对应的 `TODO-Px.md` 文件。
-2. 按顺序读取相关 `TODO-Px.md`，找到第一个标题未带 `[DONE]` 的详细任务。
-3. 检查最近一次提交是否存在与该任务直接相关的未完成事项。
-4. 阅读任务要求、依赖、验证方式与相关代码，确认实现边界。
-5. 实现任务；如果遇到阻塞当前任务的真实缺口，则先把该缺口作为最小前置任务写回对应 `TODO-Px.md`，同步 `TODO.md`，必要时更新 `PLAN.md`，然后提交并停止。
-6. 运行该任务要求的测试、格式化和必要的质量检查；修复发现的问题。
-7. 将任务在对应 `TODO-Px.md` 中标记为 `[DONE]` 并补齐完成记录；若索引状态变化，同步 `TODO.md`。
-8. 记录本文件进展，检查工作区，然后按任务编号创建一次 git 提交并停止。
+- 已读取 `TODO.md` 与 `TODO-P5.md`，确认首个未完成详细任务为 `P5-T05R`。
+- 已检查最近一次提交主题为 `[P5-T05] Materialize late-lowered step/boundary contracts`；其主题与当前 review 直接相关，但未额外声明新的未完成问题，因此当前目标仍是完成 `P5-T05R` review 本身。
+- 已初步复核以下实现位置：
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/effect_lowered/builder.rs`
+  - `crates/scoopc/src/effect_lowered/materialize.rs`
+  - `crates/scoopc/src/effect_lowered/dump.rs`
+- 当前观察到的关键事实：
+  - `LateLoweredDynamicInvokeEntry` 作为显式 `invoke(args_tuple) -> Step_F` 入口存在于 `LateLoweredCallable` 中；
+  - `LateLoweredContinuationContract` 显式区分 `surface_ty` 与 `out_step_schema`；
+  - `materialize_continuation_object(...)` 为 step schema 的全部 case 生成 `surface_resumes` 与 `methods`，不可达路径以 `LateLoweredContinuationResumeBody::Unreachable` 表达，没有直接删方法；
+  - one-shot 重复 `resume` 目前显式收口到 `LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward`。
 
-## 进度记录
+## 下一步
 
-- 已写入本轮初始计划。
-- 已读取 `TODO.md`，确认索引中的首个未完成任务是 `P5-T05`，对应 `TODO-P5.md`。
-- 已读取 `TODO-P5.md` 中 `P5-T05` 的完整任务定义：目标是在 P5 里真正物化 `Step_F`、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按统一 `Step`/continuation 模型完成 boundary lowering。
-- 已检查最新提交 `67ce8559 [P5-T04b] Lock continuation surface/out-step contract`；该提交与当前任务直接相关，但没有额外声明必须先补的未完成 prerequisite。
-- 已完成现状核查，确认当前实现还停留在“shell + state skeleton”阶段，距离 `P5-T05` 仍有三类关键缺口：
-  1. `resume_interfaces` 目前按整个 `StepSchema` 建壳，没有按 effect family 分组，无法满足“每个 effect 一个 internal resume interface”的 contract。
-  2. `LateLoweredBoundaryMap` 目前只记录 `source/owner_state/resume_state`，还没有显式的 boundary-lowering contract，P6 若直接消费它仍需要重新设计 call/perform/resume/handle 的 effectful ABI。
-  3. `LateLoweredContinuationObject` 目前只有 captures + method reachability shell，尚未显式发布 source-visible `resume(...) -> Step_F` 合同、internal method body kind、one-shot runtime-error policy。
-- 当前执行方案：
-  1. 在 `effect_facts` schema 中补上稳定的 effect-family identity，并让 `ConcreteOpKey` 显式携带它。
-  2. 在 `crates/scoopc/src/effect_lowered/` 新增 `materialize.rs`，把 T05 的 step/interface/continuation/boundary materialization 逻辑从 `builder.rs` 中拆出。
-  3. 扩展 late-lowered IR：resume interface 按 effect family 分组；continuation object 补充 surface-resume 与 internal method body contract；boundary 补充 call/perform/resume/runtime-error/handle lowering contract。
-  4. 更新 stable dump 与定向单测，覆盖 interface completeness、impl-plan lowering、boundary lowering、one-shot/runtime-error 合同。
-- 已完成代码实现：
-  1. `crates/scoopc/src/effect_facts/schema.rs` / `builder.rs` 已新增 `EffectFamilyKey`，`ConcreteOpKey` 现在显式携带 effect family identity，不再需要在 P5 里临时猜 effect owner。
-  2. `crates/scoopc/src/effect_lowered/materialize.rs` 已正式落地，并接管 T05 的 materialization 职责；`builder.rs` 现在只负责 orchestration。
-  3. `crates/scoopc/src/effect_lowered/ir.rs` 已扩展为真正的 T05 contract：
-     - dynamic invoke entry 记录 `entry_state` / `complete_state`；
-     - resume interface 按 effect family 分组；
-     - continuation object 显式发布 `surface_resumes`、internal methods、one-shot body kind；
-     - boundary 现在携带 `Call` / `Perform` / `Resume` / `RuntimeError` / `Handle` lowering contract。
-  4. `crates/scoopc/src/effect_lowered/dump.rs` 已能稳定输出上述新 contract，便于后续 dump/snapshot/P6 直接消费。
-- 已完成验证：
-  1. `cargo fmt --all`
-  2. `cargo test -p scoopc --no-default-features refactor_step_materialization`
-  3. `cargo test -p scoopc --no-default-features refactor_boundary_lowering`
-  4. `cargo test -p scoopc --no-default-features refactor_continuation_object`
-  5. `cargo test -p scoopc --no-default-features refactor_impl_plan_lowering`
-  6. `cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`
-  7. `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
-  8. `cargo test -p scoopc --no-default-features refactor_late_lowered_ir`
-  9. `cargo test -p scoopc --no-default-features refactor_late_boundary_selection`
-  10. `cargo test -p scoopc --no-default-features refactor_late_segmentation`
-  11. `cargo test -p scoopc --no-default-features refactor_owner_resume_state`
-  12. `cargo test -p scoopc --no-default-features refactor_frame_lifting`
-  13. `cargo test -p scoopc --no-default-features refactor_late_control_flow`
-  14. `cargo test -p scoopc --no-default-features refactor_dropped_continuation`
-  15. `cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`
-  16. `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`
-- 已完成文档回写：`TODO-P5.md` 已将 `P5-T05` 标为 `[DONE]` 并写入完成记录，`TODO.md` 已同步索引状态；`PLAN.md` 无需修改。
-- 当前只剩：检查工作区、创建 `P5-T05` 提交，然后停止。
+1. 运行 `P5-T05R` 要求的额外关键字搜索，复核是否仍存在 TLS / snapshot / bridge / erased signal 依赖。
+2. 运行 `P5-T05` 要求的定向测试与 `clippy`，确认 review 验证矩阵通过。
+3. 若验证通过，则更新 `TODO-P5.md`、同步 `TODO.md`、补写 review 完成记录并提交；若发现问题，则先修复问题再执行上述步骤。
+
+## 已完成步骤
+
+- 已完成关键字搜索：
+  - `crates/scoopc/src/effect_lowered/**` 仅命中 canonical MIR `snapshot` 文档/错误信息；未发现 `handler_stack` / `tls` / `bridge` / `Signal {` 语义依赖。
+  - `crates/scoopc/src/effect_refactor_pipeline/**` 中的 `snapshot` 命中均属于 stage 输入绑定与 dump 文档；未发现把 TLS handler snapshot/bridge 当 correctness 前提的新路径代码。
+  - `crates/scoopc/src/llvm/codegen/effect/**` 仍有 legacy handler-stack / bridge 相关实现，但 review 关注点是确认 P5 新路径未依赖这些 legacy 后端位置；当前复核结果满足该约束。
+- 已完成 `P5-T05` 记录中的全部定向验证：`cargo fmt --all`、全部列出的 `cargo test -p scoopc --no-default-features ...` 命令，以及 `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings` 均通过。
+- 已更新 `TODO-P5.md` 与 `TODO.md`，将 `P5-T05R` 标记为 `[DONE]` 并写入 review 完成记录。
+
+## 待收尾
+
+1. 运行提交前的 git 检查，确认本次提交范围。
+2. 以 `P5-T05R` 为主题创建提交。
+3. 停止，不进入 `P5-T06`。
