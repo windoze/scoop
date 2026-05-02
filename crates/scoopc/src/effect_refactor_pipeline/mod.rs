@@ -8,6 +8,7 @@
 mod ast_stage;
 mod hir_stage;
 mod legacy;
+mod mir_stage;
 mod refactor;
 
 use crate::session::{EffectPipelineMode, Session};
@@ -19,6 +20,7 @@ pub use hir_stage::{
     HandleArmSiteContract, HandleSiteContract, PayloadTypeContract, PerformSiteContract,
     TypedCallSiteKind, TypedHirEffectContracts, TypedHirStageOutput,
 };
+pub use mir_stage::RefactorMirStageOutput;
 
 #[cfg(feature = "llvm")]
 use crate::source::{SourceId, SourceMap};
@@ -217,7 +219,28 @@ pub fn lower_direct_style_mir_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<crate::mir::LoweredMir, crate::mir::MirLowerError> {
-    enter_direct_style_mir_stage(session, || crate::mir::lower_for_dump(session, source))
+    match session.effect_pipeline_mode() {
+        EffectPipelineMode::Legacy => {
+            enter_direct_style_mir_stage(session, || crate::mir::lower_for_dump(session, source))
+        }
+        EffectPipelineMode::Refactor => {
+            load_direct_style_mir_stage_output_for_dump(session, source)
+                .map(RefactorMirStageOutput::into_lowered_mir)
+        }
+    }
+}
+
+pub fn load_direct_style_mir_stage_output_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<RefactorMirStageOutput, crate::mir::MirLowerError> {
+    let typed_hir_output = load_typed_hir_stage_output_for_dump(session, source)
+        .map_err(crate::mir::MirLowerError::from)?;
+    let dispatcher = dispatcher_for_session(session).direct_style_mir();
+    match dispatcher.entry {
+        StageEntry::Legacy(entry) => entry.delegate_to_legacy(|| mir_stage::run(typed_hir_output)),
+        StageEntry::Refactor(entry) => entry.lower_direct_style_mir_stage_output(typed_hir_output),
+    }
 }
 
 pub fn materialize_direct_style_mir_for_dump(
@@ -360,5 +383,20 @@ mod tests {
         );
         assert_eq!(output.hir_file().items.len(), 1);
         assert!(!output.effect_contracts().is_placeholder());
+    }
+
+    #[test]
+    fn refactor_direct_mir_stage_dispatcher_loads_stage_output() {
+        let session = session_for(EffectPipelineMode::Refactor);
+        let source = sample_source();
+
+        let output = load_direct_style_mir_stage_output_for_dump(&session, &source).unwrap();
+
+        assert_eq!(
+            dispatcher_for_session(&session).direct_style_mir().mode(),
+            EffectPipelineMode::Refactor
+        );
+        assert_eq!(output.file().items.len(), 1);
+        assert!(output.callable_body("sample.main").is_some());
     }
 }

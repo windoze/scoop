@@ -1,44 +1,33 @@
-## 当前执行计划
+# Claude Plan
 
-1. 读取 `TODO.md`，确认它只作为索引使用，并提取按顺序引用的详细任务文件。
-2. 依次检查相关 `TODO-Px.md`，定位第一个未明确记录为已完成的详细任务。
-3. 查看最近一次提交信息，判断是否存在与该任务直接相关且明确标注未完成的问题；若有，按要求并入当前任务或作为前置任务处理。
-4. 阅读当前任务涉及的代码、测试、规格与依赖约束，确认需要修改的最小范围。
-5. 实现当前任务；如果遇到阻塞当前任务且必须先解决的问题，则在对应 `TODO-Px.md` 中补充最小前置任务并同步 `TODO.md`。
-6. 运行与当前任务直接相关的验证命令；如有失败，继续修复直到通过，或在确有阻塞时按流程记录前置任务并停止。
-7. 更新 `memory/claude_plan.md` 记录关键进展，更新对应 `TODO-Px.md` 的完成记录；仅在任务索引变化时同步 `TODO.md`，仅在阶段计划变化时更新 `PLAN.md`。
-8. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
+## 执行摘要
 
-## 记录约束
+- 目标：先定位 `TODO.md` 对应的首个未完成详细任务，然后只完成该任务并停止。
+- 约束：以 `TODO-Px.md` 为任务真源；若遇到阻塞，只补最小前置任务并同步 `TODO.md`；完成后必须测试、更新任务记录并提交 Git。
+- 说明：这里记录的是可审计的执行计划与进度，不包含私有推理细节。
 
-- 这里记录的是可审阅的执行计划与关键决策，不包含冗长的内部推理草稿。
-- 若执行中发现阻塞、范围变化、验证结果或完成状态变化，会及时补充更新。
+## 步骤计划
 
-## 当前进展
+1. 读取 `TODO.md`，确认它引用了哪些详细任务文件。
+2. 按任务顺序检查对应 `TODO-Px.md`，定位首个未完成的详细任务，并核对最近一次提交是否存在与该任务直接相关的未完成事项。
+3. 阅读该任务所需的相关源码、测试、规范与上下文，确认验收标准、依赖与当前实现状态。
+4. 如果任务可直接完成：实现最小正确修改，并补充或调整测试。
+5. 如果存在真实阻塞：先修复阻塞；若当前调用内无法直接修复，则在正确的 `TODO-Px.md` 中插入最小前置任务，保持当前任务未完成，并同步 `TODO.md`。
+6. 运行与该任务相关的验证命令，随后运行必要的格式化、测试与 `clippy` 检查，确保无警告。
+7. 更新任务记录：在对应 `TODO-Px.md` 标记完成情况；如任务索引有变化，同步 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
+8. 检查工作区变更，使用清晰提交信息创建一次 Git 提交，然后停止，不继续下一个任务。
 
-- 已按 `TODO.md -> TODO-P0.md -> TODO-P1.md -> TODO-P2.md` 顺序检查完成记录。
-- 当前首个未完成详细任务：`TODO-P2.md` 中的 `P2-T04R`（Review P2 阶段退出条件，确认 P3 不再需要回 AST/typecheck 猜语义）。
-- 最近一次提交为 `[P2-T04] Emit typed HIR effect contract tables`，未显式记录与 `P2-T04R` 直接相关的未完成事项。
-- 当前工作区存在未提交改动：`crates/scoop/src/commands/dump_ir.rs`、`crates/scoop/src/commands/dump_mir.rs`、`crates/scoopc/src/hir/lower/expr.rs`、`crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/parser/tests.rs`，以及本文件；后续处理 `P2-T04R` 时不会回退这些现有改动，只在必要时审慎协作。
-- 下一步：抽查 `hir_stage` / `dump_hir` / `typecheck` / `sysroot` 的实现是否满足 `P2-T04R` review 关注点，然后运行 `P2-T01 ~ P2-T04` 要求的定向验证并据结果决定是否补前置问题或填写完成记录。
+## 进度日志
 
-## 关键发现
-
-- `crates/scoopc/src/effect_refactor_pipeline/hir_stage.rs` 已将 `TypedHirStageOutput` 与 `TypedHirEffectContracts` 固化为 P2 -> P3 handoff：稳定暴露 `function_effects`、`call_site_kinds`、`continuation_resume_sites`、`perform_sites`、`handle_sites`，并通过 `stable_dump()` 以确定顺序渲染。
-- `crates/scoop/src/commands/dump_hir.rs` 已明确分流：`legacy` 继续走 `scoopc::hir::lower_for_dump(...)`，`refactor` 走 `effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(...)`，并直接打印 typed contract 区块。
-- `crates/scoopc/src/typecheck/expr/call.rs` 中 `try_infer_continuation_resume_call_expr_type(...)` 继续显式记录 `Out` effects 与额外的 `Raise<RuntimeError>` ordinary effect，并把 `k.resume()` 的 zero-arg sugar 收口到 typed 阶段 helper，而不是回 AST/parser 特判。
-- `crates/scoopc/src/typecheck/interfaces.rs` 仍在 interface/typecheck 阶段拒绝用户实现 compiler-owned `scoop.core.Continuation`；`sysroot/core.scoop` 也保持 `interface Continuation<Resume, Answer, eff E = Pure>` 与 `resume(value): Answer / (E + Raise<RuntimeError>)` 的 surface contract。
-- 已复读 `TODO-P3.md` 开头前置条件与 `P3-T01` 约束；当前 P2 side tables 提供的 resume / perform / handle / function-effect contract 已满足“P3 不再回 AST/typecheck 猜语义”的入场前提。
-
-## 验证结果
-
-- 核心单元测试与静态检查通过：`refactor_typed_hir_stage`、`effect_refactor_pipeline`、`dump_hir`、`parity`、`continuation_resume`、`unit_single_param_zero_arg`、`refactor_continuation_typecheck`、`refactor_typed_hir`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
-- `P2-T01 ~ P2-T04` 所要求的 `dump-hir` / fixture smoke 已全部重跑通过，包括 `tests/fixtures/hir/minimal.scoop`、`continuation_resume_surface_named_tuple_and_unit_basic.scoop`、`continuation_runtime_error_surface_basic.scoop`、`handle_perform.scoop`，以及相关 continuation/typecheck fixtures。
-- 额外搜索 `crates/scoopc/src/hir`、`crates/scoopc/src/typecheck` 中的 `EffectPipelineMode|effect_pipeline|legacy|refactor` 后，命中仅来自测试、既有 `legacy_*` 命名和诊断文本，未发现 pipeline selector 下沉到旧 HIR/typecheck 业务函数的新增分支。
-- 测试后工作区未新增额外改动；仍只有执行前就存在的用户/并行改动与本次更新的 `memory/claude_plan.md`。
-
-## 当前收尾状态
-
-- 已将 review 结论回写到 `TODO-P2.md` 的 `P2-T04R` 完成记录。
-- 未修改 `TODO.md` 与 `PLAN.md`：本次 review 未引入任务重排，也未改变阶段计划。
-- 下一步仅需暂存并提交 `TODO-P2.md` 与 `memory/claude_plan.md`，避免夹带现有无关改动，然后停止。
+- 已创建本计划文件。
+- 已确认 `TODO-P0.md`、`TODO-P1.md`、`TODO-P2.md` 全部条目均有明确完成记录；首个未完成详细任务为 `TODO-P3.md` 中的 `P3-T01`。
+- 已核对最近一次提交信息：`[P2-T04R] Confirm typed HIR handoff is ready for P3`，其中未显式记录与 `P3-T01` 直接相关的未完成事项，因此按既定顺序直接执行 `P3-T01`。
+- 当前执行重点：阅读 `P3-T01` 约束与现有 `dump-mir` / MIR pipeline 代码，建立 refactor direct-style MIR stage 入口、显式 stage 输出类型，以及 `dump-mir` 对该 stage 的新路由。
+- 下一步：
+  1. 检查 `effect_refactor_pipeline`、`dump_mir`、`fixtures` 与现有 MIR lowering/materialization 入口的当前组织方式。
+  2. 识别哪些旧 MIR helper 可以作为中立 API 复用，哪些只允许留在 legacy 路径。
+  3. 以最小改动实现新的 refactor MIR stage 与命令路由，并补齐定向测试。
+- 已完成 `P3-T01` 实现：新增 `effect_refactor_pipeline::mir_stage` 与 `RefactorMirStageOutput`，把 refactor `dump-mir` 显式改成 `TypedHirStageOutput -> MIR stage output`，并将 callable body 查询面与可选 `materialized_mir` handoff 收口到 stage 输出上。
+- 已完成验证：`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、三条 `dump-mir` smoke，以及 `cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings` 全部通过。
+- 已确认工作区里另有与本任务无关的现有改动（如 `dump_ir.rs`、`hir/lower/expr.rs`、`hir/lower/mod.rs`、`parser/tests.rs`）；本次提交只会包含 `P3-T01` 相关文件，不回退也不夹带这些改动。
+- 待完成收尾：检查工作区 diff，确认 `TODO-P3.md`/`memory/claude_plan.md` 已回写，然后创建 `P3-T01` 提交并停止。

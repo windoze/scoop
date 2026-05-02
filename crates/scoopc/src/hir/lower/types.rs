@@ -376,6 +376,16 @@ impl LoweredHir {
     pub fn materialized_mir_mut(&mut self) -> Option<&mut crate::mir::MaterializedMir> {
         self.materialized_mir.as_mut()
     }
+
+    /// 取走当前 lowering 产物上保留的 canonical materialized MIR 快照（若存在）。
+    ///
+    /// 说明：
+    /// - refactor MIR stage 会用它把现有 production materialized handoff 显式挂到自己的
+    ///   stage 输出上；
+    /// - dump/typed-only lowering 路径通常返回 `None`。
+    pub(crate) fn into_materialized_mir(self) -> Option<crate::mir::MaterializedMir> {
+        self.materialized_mir
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

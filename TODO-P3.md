@@ -107,7 +107,13 @@
   - P4 之后的任务已经有明确的 canonical MIR handoff 可接。
 - 依赖：`TODO-P2.md` 最后一项 review 完成
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P3-T01`，新增 `crates/scoopc/src/effect_refactor_pipeline/mir_stage.rs`，为 refactor 新路径建立独立的 direct-style MIR stage，并定义 `RefactorMirStageOutput` 作为 P3 -> P4 的显式 handoff 结构。
+  - `RefactorMirStageOutput` 现在显式承载 canonical direct-style `LoweredMir`、配套 `TypeStore`、来自 P2 的 `TypedHirEffectContracts` handoff、按 callable FQN 稳定查询 body 的 `callable_body_indices`，以及从 `LoweredHir` 显式取出的可选 `materialized_mir` 快照；其注释明确固定了“当前仍是 direct-style MIR、effect-sensitive site 继续由 `SiteId` 锚定、P4 必须消费该 stage 输出而不是回看 P2 内部缓存”的 invariants。
+  - `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 新增 `load_direct_style_mir_stage_output_for_dump(...)`；refactor 模式下 `lower_direct_style_mir_for_dump(...)` 现已改为显式走 `TypedHirStageOutput -> mir_stage::run(...) -> RefactorMirStageOutput`，不再直接调用 legacy `crates/scoopc/src/mir/lower.rs::lower_for_dump(...)`；legacy 路径继续保持原有 `mir::lower_for_dump(...)` 行为不变。
+  - `crates/scoop/src/commands/dump_mir.rs` 已改为在命令边界显式分流：`legacy` 继续打印 legacy `LoweredMir.file` Debug；`refactor` 通过 `load_direct_style_mir_stage_output_for_dump(...)` 获取新的 stage 输出，再用 `RefactorMirStageOutput::stable_dump()` 渲染，因此 `dump-mir --effect-pipeline refactor` 已不再是 legacy lowerer 的换壳调用。`scoop test` 的 `mir_fixture(...)` 继续通过 `effect_refactor_pipeline::lower_direct_style_mir_for_dump(...)` 进入，因此 refactor fixtures 也继承同一 stage 入口。
+  - `crates/scoopc/src/hir/lower/types.rs` 新增 `LoweredHir::into_materialized_mir()`，把原先只藏在 `LoweredHir` 私有字段中的 canonical materialized MIR handoff 显式暴露给 refactor MIR stage，避免后续阶段只能回到旧 helper/私有字段取产物。
+  - 本任务未改动 `TODO.md` 或 `PLAN.md`：任务索引、顺序与阶段计划保持不变。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_direct_mir_stage`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features parity`、`cargo run -p scoop --no-default-features -- --effect-pipeline legacy dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_zero_arg_call.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir/direct_and_fun_value_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
 ## P3-T01R：Review refactor MIR stage 入口，确认新路径已与 legacy `mir::lower_for_dump` 分离
 

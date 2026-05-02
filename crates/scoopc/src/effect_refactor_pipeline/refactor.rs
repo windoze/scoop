@@ -1,9 +1,13 @@
+use crate::mir::MirLowerError;
 use crate::parser::ParseError;
 use crate::session::EffectPipelineMode;
 use crate::session::Session;
 use crate::source::SourceFile;
 
-use super::{AstStageOutput, StageKind, TypedHirStageOutput, ast_stage, hir_stage};
+use super::{
+    AstStageOutput, RefactorMirStageOutput, StageKind, TypedHirStageOutput, ast_stage, hir_stage,
+    mir_stage,
+};
 
 /// refactor 主线的阶段入口。
 ///
@@ -44,6 +48,15 @@ impl StageEntry {
         debug_assert_eq!(self.stage, StageKind::TypedHir);
         let _ = self;
         hir_stage::run(session, source)
+    }
+
+    pub(crate) fn lower_direct_style_mir_stage_output(
+        self,
+        typed_hir_output: TypedHirStageOutput,
+    ) -> Result<RefactorMirStageOutput, MirLowerError> {
+        debug_assert_eq!(self.stage, StageKind::DirectStyleMir);
+        let _ = self;
+        mir_stage::run(typed_hir_output)
     }
 
     pub(crate) fn delegate_to_legacy<T>(self, legacy_op: impl FnOnce() -> T) -> T {
