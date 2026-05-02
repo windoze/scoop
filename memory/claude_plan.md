@@ -1,51 +1,88 @@
-# Claude Plan
-
-## 目标
-- 按 `TODO.md` 索引与对应 `TODO-Px.md` 详细任务文件，找到第一个未完成的详细任务。
-- 只完成这一个任务；若遇到阻塞，则按要求补充最小前置任务、同步索引并停止。
-
-## 执行计划
-1. 读取 `TODO.md`，确认详细任务文件引用与任务顺序。
-2. 按顺序读取对应 `TODO-Px.md`，以标题是否带 `[DONE]` 判断完成状态，定位第一个未完成任务。
-3. 检查最近一次提交信息，确认是否有与当前任务直接相关且未完成的问题需要一并处理或登记为前置。
-4. 阅读当前任务要求、约束、依赖与验收方式，结合代码现状确定最小正确改动方案。
-5. 实现任务所需代码与测试；如发现阻塞当前任务的真实缺口或规格不匹配，则先补充前置任务并同步 `TODO.md`。
-6. 运行相关验证，至少覆盖任务要求的测试；若有必要，运行更广的检查（含 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`）。
-7. 更新任务记录：在对应 `TODO-Px.md` 中将任务标题标记为 `[DONE]` 并补全完成记录；若任务索引受影响，同步 `TODO.md`；仅在阶段计划变更时更新 `PLAN.md`。
-8. 复核工作区中与本次任务相关的改动，按要求创建一次 Git 提交，然后停止，不继续下一项任务。
-
-## 进度记录
-- 已初始化计划文件；待开始读取任务索引并定位当前执行目标。
-- 已读取 `TODO.md` 并确认首个未完成详细任务为 `TODO-P4.md` 中的 `P4-T05a`：把 compiler-generated continuation 的 one-shot runtime error 纳入 canonical `StepSchema` / facts handoff。
-- 已检查最近一次提交：`[P4-T05a] Track compiler continuation runtime-error prerequisite`，其主题与当前任务直接相关；接下来需要确认该前置是否仍未实现，以及代码中 runtime-error case 当前只覆盖到什么范围。
-
-## 当前任务细化计划
-1. 阅读 `P4-T05a` 任务描述与 `TODO-P5.md` 中 `P5-T05` 的相关约束，明确 one-shot runtime error 在 P4 handoff 中必须出现的位置。
-2. 检查 `effect_facts` 的 schema/facts/builder 与相关测试，定位当前 runtime-error ordinary effect 仅覆盖源码 `Continuation.resume(...)` 还是已经部分覆盖 compiler-generated continuation。
-3. 若现有实现可直接扩展，则做最小代码改动，把 compiler-generated continuation 的 one-shot runtime error 正式纳入 canonical schema/facts 与 dump 输出；若发现真实阻塞，则按要求回写新的前置任务并停止。
-4. 补充或更新最小但充分的定向测试与 fixture，覆盖“应加入 runtime-error case”和“pure/no-outward 不应被误扩张”两类行为。
-5. 运行任务要求的定向测试、必要的 dump 命令与格式/静态检查；修复所有相关失败。
-6. 完成后更新 `TODO-P4.md`（标记 `[DONE]` 与完成记录），如有需要同步 `TODO.md`；若阶段计划未变则不改 `PLAN.md`。
-7. 复核工作区并创建一次提交，然后停止。
-
-## 当前实现决策
-- 现有 `effect_facts` builder 只会因源码 `Resume` site 把 `Raise<RuntimeError>` 放进 `StepSchema`；这不足以覆盖 compiler-generated continuation object 的 one-shot runtime error。
-- 计划采用最小侵入的两次构建策略：
-  1. 先按现状运行 builder + solver，得到当前最终 `needs_reentry` 集合；
-  2. 仅对这些最终确实会进入 resumable lowering 的 callable/version，在第二次 builder 中把 compiler-generated continuation one-shot runtime error 追加到 callable `StepSchema` 上界；
-  3. 再次运行 solver，得到最终 P4 handoff。
-- 这样可以避免把 truly no-outward callable 无端扩张为带 runtime-error case，同时保留 `single_case_impl_plan` 这类样本的 `resolved_outward_cases` / `impl_plan`，除非真实 body/site 贡献本就包含 runtime error。
-
-## 已完成步骤
-- 已在 `crates/scoopc/src/effect_facts/builder.rs` 增加 compiler-generated continuation runtime-error 覆盖集合，并让第二次 builder 可把 `Raise<RuntimeError>` 追加到目标 callable 的 canonical `StepSchema` 上界。
-- 已在 `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 落地两次构建流程：第一次求出最终 `needs_reentry` 集合，第二次仅对这些 callable 重建 schema 后再交给 solver。
-- 已补充定向单测，覆盖：runtime-error case 被补入 reentry callable 的 step schema；未选中的 truly no-outward callable 不被误扩张；最终 stage 输出中 runtime-error 只进入 schema 上界而不无端扩大 `resolved_outward_cases`。
-- 已更新 `tests/fixtures/effect_facts/{single_case_impl_plan,dynamic_fallback_widening,nested_handle_self_contained_vs_outward}.effectfacts` golden，使 dump 能稳定暴露新的 handoff contract。
-- 已把 `TODO-P4.md` 中的 `P4-T05a` 标记为 `[DONE]` 并补全完成记录，同时已把 `TODO.md` 索引同步为 `[DONE]`；`PLAN.md` 保持不变。
-- 已完成验证：`cargo fmt --all`、`cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`、`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
-
-## 剩余收口
-1. 复核变更清单并创建 Git 提交。
+# 本轮执行计划
 
 ## 说明
-- 这里记录的是可审计的执行计划与进度摘要，不包含私有推理细节。
+
+按你的要求，我会先把本轮的执行计划记录在这里，再开始读取任务文件和执行实现。
+
+出于安全与协作边界，我不会写入逐字的内部推理过程；这里记录的是可审阅的执行计划、判断依据摘要、进度更新和关键决策。
+
+## 初始计划
+
+1. 读取 `TODO.md`，确认它只是索引，并按索引顺序找到对应的 `TODO-Px.md` 文件。
+2. 依次检查相关 `TODO-Px.md` 中的任务标题，定位第一个标题未带 `[DONE]` 的详细任务。
+3. 阅读该任务的完整要求、约束、依赖、验证要求，以及最近提交中是否有与该任务直接相关的未完成项。
+4. 检查工作区当前状态，避免覆盖我未创建的改动；只在当前任务所需范围内修改文件。
+5. 实现该任务，优先做最小且正确的改动；如果遇到真实阻塞，则按要求在相应 `TODO-Px.md` 中补充最小前置任务并同步 `TODO.md`。
+6. 运行与该任务直接相关的测试、必要的仓库级校验，以及无警告检查；若失败则继续修复直到通过，或确认存在必须先解决的新前置任务。
+7. 更新文档记录：
+   - 在对应 `TODO-Px.md` 中把该任务标题标记为 `[DONE]` 并补全完成记录；如果未完成则记录阻塞与新前置任务。
+   - 若任务索引发生变化，同步更新 `TODO.md`。
+   - 仅在阶段计划确实变化时更新 `PLAN.md`。
+8. 按任务要求创建一次 git 提交，然后停止，不继续处理下一个任务。
+
+## 进度记录
+
+- 已创建本计划文件，下一步开始读取任务索引并定位首个未完成详细任务。
+- 已读取 `TODO.md` 索引并确认首个未完成详细任务为 `TODO-P4.md` 中的 `P4-T05b`：修正 `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界。
+- 已检查当前工作区与最近提交：当前未提交改动仅包含本计划文件；最近一次提交信息为 `Update plan`，未显式记录与 `P4-T05b` 直接相关的未完成项。
+
+## 当前执行细化
+
+1. 阅读 `crates/scoopc/src/effect_facts/{schema.rs,builder.rs,dump.rs}` 与相关测试，确认 `surface_ty` / `out_step_schema` 当前是如何构造、缓存、展示和断言的。
+2. 找出把 synthetic step upper bound 反推回 `ContinuationSchema.surface_ty` 的代码路径，并判断是否同时影响 ordinary continuation case 与 resume-site synthetic schema。
+3. 以最小改动修正 contract：
+   - 保留 `out_step_schema` 的 runtime-error 上界；
+   - 让 `surface_ty` 只反映 source-visible residual row；
+   - 确保 identity / dump 仍稳定可比较。
+4. 更新或新增定向测试与 `.effectfacts` golden，重点覆盖 `Pure` / 非 `Pure` residual row、runtime-error upper bound 分离、以及 `resolved_outward_cases` / `impl_plan` 不漂移。
+5. 运行任务要求中的测试与必要校验；若 golden 需要刷新，则按仓库现有方式更新并复跑验证。
+6. 任务完成后更新 `TODO-P4.md`、同步 `TODO.md`，并创建一次 git 提交后停止。
+
+## 当前发现
+
+- `P4-T05b` 的主要错误路径已经定位在 `crates/scoopc/src/effect_facts/builder.rs`：
+  - 普通 callable 的 `step_effect_row` 在 `collect_callable_seeds(...)` 中会为特定 reentry callable 额外补入 compiler-generated `Raise<RuntimeError>`；
+  - `intern_step_schema(...)` 又直接用这个扩张后的 row 构造每个 case 的 `ContinuationSchema.surface_ty`；
+  - 因而 `surface_ty` 被错误扩大为“source residual row + internal one-shot runtime-error upper bound”。
+- `resume` site synthetic schema 目前是正确分层的：`out_step_schema` 取 `resume.out_effects + runtime_error_effect_ty`，而 `continuation_schema.surface_ty` 直接取 `resume.continuation_ty`，不需要改回退路径。
+- 预计的最小修正是为普通 callable 显式保留“source-visible continuation residual row”和“step-schema upper bound row”两条独立数据路径，并只让后者承载 compiler-generated runtime-error case。
+
+## 已完成步骤
+
+1. 已修改 `crates/scoopc/src/effect_facts/builder.rs`：
+   - 普通 callable 现在分别保留 `surface_effect_row` 与 `step_effect_row`；
+   - `ContinuationSchema.surface_ty` 改为只由 source-visible residual row 构造；
+   - `out_step_schema` 仍可额外携带 compiler-generated `Raise<RuntimeError>` case；
+   - `resume` synthetic step schema 也已按同一边界分离 `continuation_surface_row` 与 step upper bound。
+2. 已补充/更新定向测试：
+   - builder 测试覆盖 compiler-generated runtime-error upper bound 不得扩大 `surface_ty`；
+   - builder 测试覆盖 `resume` synthetic schema 在 `Pure` / `Boom` residual row 下仍保持 source-visible `surface_ty`；
+   - stage 测试覆盖 P4 authoritative handoff 中 `surface_ty` 与 step upper bound 分离。
+3. 已更新受影响 golden：
+   - `tests/fixtures/effect_facts/single_case_impl_plan.effectfacts`
+   - `tests/fixtures/effect_facts/dynamic_fallback_widening.effectfacts`
+   - `tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.effectfacts`
+   - `tests/fixtures/effect_facts/dispatch_and_resume_call.effectfacts`
+
+## 验证结果
+
+- 已通过：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc --no-default-features refactor_continuation_schema_surface_ty`
+  - `cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`
+  - `cargo test -p scoopc --no-default-features refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts`
+  - `cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell_uses_final_shape_and_runtime_error_case`
+  - `cargo test -p scoopc --no-default-features refactor_effect_facts_stage_surface_ty`
+  - `cargo test -p scoop --no-default-features dump_effect_facts`
+  - `cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`
+  - `cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dynamic_fallback_widening.scoop`
+  - `cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop`
+  - `cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`
+  - `cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`
+  - `cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`
+
+## 待收尾
+
+1. 在 `TODO-P4.md` 中把 `P4-T05b` 标记为 `[DONE]` 并写入完成记录。
+2. 同步 `TODO.md` 索引中的 `P4-T05b` 状态。
+3. 检查最终 diff，提交 git commit，然后停止。

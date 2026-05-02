@@ -59,7 +59,7 @@ step_schemas:
     complete_ty: Unit
     continuation_obj_ty: scoop.__compiler.ContinuationObject@ResumeSurface::Int::Unit::scoop.core.Raise<scoop.core.RuntimeError>
     cases:
-      - case#0: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#6
+      - case#0: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#5
 continuation_schemas:
   continuation_schema#0:
     resume_tuple_ty: Int
@@ -80,23 +80,18 @@ continuation_schemas:
     resume_tuple_ty: Int
     answer_ty: Unit
     out_step_schema: step_schema#6
-    surface_ty: scoop.core.Continuation<Int, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>
+    surface_ty: scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>
   continuation_schema#4:
     resume_tuple_ty: Nothing
     answer_ty: Unit
     out_step_schema: step_schema#6
-    surface_ty: scoop.core.Continuation<Nothing, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>
+    surface_ty: scoop.core.Continuation<Nothing, Unit, eff fixtures.mir.Boom>
   continuation_schema#5:
-    resume_tuple_ty: Int
-    answer_ty: Unit
-    out_step_schema: step_schema#6
-    surface_ty: scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>
-  continuation_schema#6:
     resume_tuple_ty: Nothing
     answer_ty: Unit
     out_step_schema: step_schema#7
-    surface_ty: scoop.core.Continuation<Nothing, Unit, eff scoop.core.Raise<scoop.core.RuntimeError>>
-  continuation_schema#7:
+    surface_ty: scoop.core.Continuation<Nothing, Unit, eff Pure>
+  continuation_schema#6:
     resume_tuple_ty: Int
     answer_ty: Unit
     out_step_schema: step_schema#7
@@ -188,7 +183,7 @@ body_facts:
     sites:
       site0:
         kind: Resume
-        continuation_schema: continuation_schema#5
+        continuation_schema: continuation_schema#3
         resume_tuple_ty: Int
         answer_ty: Unit
         out_step_schema: step_schema#6
@@ -203,7 +198,7 @@ body_facts:
     sites:
       site0:
         kind: Resume
-        continuation_schema: continuation_schema#7
+        continuation_schema: continuation_schema#6
         resume_tuple_ty: Int
         answer_ty: Unit
         out_step_schema: step_schema#7

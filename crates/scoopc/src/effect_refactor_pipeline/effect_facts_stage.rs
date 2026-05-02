@@ -304,6 +304,28 @@ fun callInterface(i: IFace): Int {
             .collect()
     }
 
+    fn continuation_surface_tys_for_step_schema(
+        output: &RefactorEffectFactsStageOutput,
+        step_schema: crate::effect_facts::StepSchemaId,
+    ) -> BTreeSet<String> {
+        output
+            .effect_facts()
+            .step_schemas()
+            .get(&step_schema)
+            .expect("step schema 应存在")
+            .cases()
+            .iter()
+            .map(|case| {
+                let schema = output
+                    .effect_facts()
+                    .continuation_schemas()
+                    .get(&case.continuation_schema())
+                    .expect("continuation schema 应存在");
+                output.types().display(schema.surface_ty()).to_string()
+            })
+            .collect()
+    }
+
     fn callable_facts_for<'a>(
         output: &'a RefactorEffectFactsStageOutput,
         fqn: &str,
@@ -498,6 +520,25 @@ fun callInterface(i: IFace): Int {
         );
         assert!(pure_facts.resolved_outward_cases().is_empty());
         assert!(matches!(pure_facts.impl_plan(), ImplPlan::NoOutward));
+    }
+
+    #[test]
+    fn refactor_effect_facts_stage_surface_ty_distinguishes_step_upper_bound_for_compiler_runtime_error()
+     {
+        let source = compiler_continuation_runtime_error_source();
+        let output = run_stage_with_opt_level(&source, crate::opt::OptLevel::O2);
+        let leaf_facts = callable_facts_for(&output, "sample.leaf");
+
+        assert_eq!(
+            continuation_surface_tys_for_step_schema(&output, leaf_facts.step_schema()),
+            [
+                "scoop.core.Continuation<Nothing, Unit, eff sample.Ping>".to_string(),
+                "scoop.core.Continuation<Unit, Unit, eff sample.Ping>".to_string(),
+            ]
+            .into_iter()
+            .collect(),
+            "P4 authoritative handoff 必须允许 step upper bound 含 compiler-generated runtime-error case，同时保持 continuation surface_ty 只表达源码 residual row"
+        );
     }
 
     #[test]

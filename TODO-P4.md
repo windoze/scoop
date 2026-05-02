@@ -945,7 +945,7 @@
 - 本任务未改变阶段顺序或 P4 -> P5 的总体依赖关系，因此 `PLAN.md` 无需改动；现已同步把 `TODO.md` 中对应索引标记为 `[DONE]`。
 - 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`、`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P4-T05b：修正 `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界，避免把 one-shot runtime-error 上界并入 `Continuation` effect 参数
+## [DONE] P4-T05b：修正 `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界，避免把 one-shot runtime-error 上界并入 `Continuation` effect 参数
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.1, §5.3.9, §5.4.2
@@ -1007,3 +1007,18 @@
   - P4 handoff 已同时满足：`StepSchema` / `out_step_schema` 保留 one-shot runtime-error 上界，`ContinuationSchema.surface_ty` 仍准确表达源码层 `Continuation<..., eff Out>`；
   - P5 不再需要在 late-lowering 现场判断“某个 runtime-error case 是 source residual row 还是 internal one-shot upper bound”。
 - 依赖：P4-T05a
+- 完成记录：
+- 2026-05-03：完成 `P4-T05b`。`crates/scoopc/src/effect_facts/builder.rs` 现已把普通 callable 与 synthetic step schema 的 two-layer contract 分开建模：
+  - 普通 callable seed 同时保留 `surface_effect_row` 与 `step_effect_row`；前者只表达 source-visible residual row，后者才允许额外携带 compiler-generated one-shot `Raise<RuntimeError>` upper bound；
+  - `EffectFactsSchemaPool::intern_step_schema(...)` 新增独立的 `continuation_surface_row` 输入，`ContinuationSchema.surface_ty` 不再从 `StepSchema` / `out_step_schema` 的完整 upper bound 反推；
+  - `resume` synthetic schema 也按同一规则构造：`ResumeSiteEffectFacts.out_step_schema` 继续用 `resume.out_effects + runtime_error_effect_ty` 建壳，但其 case continuation schema 与 site-level `continuation_schema.surface_ty` 都继续只表达 `resume.continuation_ty` / source residual row。
+- 结果边界已锁定：`P4-T05a` 引入的 compiler-generated runtime-error case 仍保留在 callable `StepSchema` / `out_step_schema` 上界中；与此同时，`ContinuationSchema.surface_ty`、相关 schema identity 与 `dump-effect-facts` 基线现在稳定公开“surface contract 与 internal step upper bound 可分离”的 handoff，不再把 one-shot runtime-error 误写回 `Continuation<..., eff Out>`。
+- 已新增/更新定向测试：
+  - `crates/scoopc/src/effect_facts/builder.rs`：新增 `refactor_continuation_schema_surface_ty_preserves_residual_out_row_for_compiler_runtime_error_upper_bound`、`refactor_continuation_schema_surface_ty_preserves_pure_resume_surface_row`，并增强 `refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts` 与 `refactor_callable_effect_facts_shell_uses_final_shape_and_runtime_error_case`；
+  - `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs`：新增 `refactor_effect_facts_stage_surface_ty_distinguishes_step_upper_bound_for_compiler_runtime_error`，确认 P4 authoritative handoff 仍把 runtime-error case 留在 schema upper bound，而不是写回 source-visible continuation surface。
+- 已更新 P4 dump golden：`tests/fixtures/effect_facts/{single_case_impl_plan,dynamic_fallback_widening,nested_handle_self_contained_vs_outward,dispatch_and_resume_call}.effectfacts`。这些基线现在稳定体现：
+  - compiler-generated one-shot runtime-error case 仍存在于相关 `StepSchema` / `out_step_schema`；
+  - `ContinuationSchema.surface_ty` 只保留源码 residual row；
+  - `resolved_outward_cases`、`needs_reentry`、`impl_plan` 与 block/site outward facts 未被本修正无端扩大。
+- 本任务未改变 P4/P5 阶段顺序或退出条件，因此 `PLAN.md` 无需改动；现已同步把 `TODO.md` 中对应索引标记为 `[DONE]`。
+- 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_continuation_schema_surface_ty`、`cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`、`cargo test -p scoopc --no-default-features refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell_uses_final_shape_and_runtime_error_case`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage_surface_ty`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dynamic_fallback_widening.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。

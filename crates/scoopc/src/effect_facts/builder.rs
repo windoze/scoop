@@ -282,6 +282,7 @@ impl<'a> EffectFactsSchemaPool<'a> {
             seed.complete_ty,
             continuation_obj_ty,
             &seed.step_effect_row,
+            &seed.surface_effect_row,
         )
     }
 
@@ -291,6 +292,7 @@ impl<'a> EffectFactsSchemaPool<'a> {
         invoke_args_tuple_ty: TypeId,
         complete_ty: TypeId,
         effect_row: &EffectRow,
+        continuation_surface_row: &EffectRow,
         kind: SyntheticStepSchemaKind,
     ) -> Result<StepSchemaId, EffectFactsError> {
         let key = SyntheticStepSchemaKey {
@@ -315,6 +317,7 @@ impl<'a> EffectFactsSchemaPool<'a> {
             complete_ty,
             continuation_obj_ty,
             effect_row,
+            continuation_surface_row,
         )?;
         self.synthetic_step_schema_ids.insert(key, id);
         Ok(id)
@@ -349,6 +352,7 @@ impl<'a> EffectFactsSchemaPool<'a> {
         complete_ty: TypeId,
         continuation_obj_ty: TypeId,
         effect_row: &EffectRow,
+        continuation_surface_row: &EffectRow,
     ) -> Result<StepSchemaId, EffectFactsError> {
         let step_schema_id = StepSchemaId::new(self.next_step_schema_id);
         self.next_step_schema_id += 1;
@@ -357,8 +361,12 @@ impl<'a> EffectFactsSchemaPool<'a> {
         let mut cases = Vec::with_capacity(case_seeds.len());
         for (case_index, case_seed) in case_seeds.into_iter().enumerate() {
             let case_tag = CaseTag::new(case_index as u32);
-            let surface_ty =
-                continuation_surface_ty(types, case_seed.resume_tuple_ty, complete_ty, effect_row);
+            let surface_ty = continuation_surface_ty(
+                types,
+                case_seed.resume_tuple_ty,
+                complete_ty,
+                continuation_surface_row,
+            );
             let continuation_schema = self.intern_continuation_schema(
                 case_seed.resume_tuple_ty,
                 complete_ty,
@@ -751,6 +759,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             resume.resume_ty,
             resume.answer_ty,
             &out_row,
+            &resume.out_effects,
             SyntheticStepSchemaKind::ResumeSurface,
         )?;
         let continuation_schema = self.schema_pool.intern_continuation_schema(
@@ -950,6 +959,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                             invoke_args_tuple_ty,
                             result_ty,
                             &contract.declared_row,
+                            &contract.declared_row,
                             SyntheticStepSchemaKind::CallSurface,
                         )?;
                         (schema, self.schema_pool.full_case_set(schema))
@@ -1055,6 +1065,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 invoke_args_tuple_ty,
                 result_ty,
                 &declared_row,
+                &declared_row,
                 SyntheticStepSchemaKind::CallSurface,
             )?;
             return Ok(CallSiteEffectFacts::new(
@@ -1086,6 +1097,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             types,
             invoke_args_tuple_ty,
             result_ty,
+            &declared_row,
             &declared_row,
             SyntheticStepSchemaKind::CallSurface,
         )?;
@@ -1147,6 +1159,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 types,
                 invoke_args_tuple_ty,
                 result_ty,
+                &declared_row,
                 &declared_row,
                 SyntheticStepSchemaKind::CallSurface,
             )?;
@@ -1284,6 +1297,9 @@ struct CallableSeed {
     key: InstanceKey,
     root_fun: MirFunDecl,
     declared_row: EffectRow,
+    // `surface_effect_row` 只表达源码层 residual row；`step_effect_row` 允许额外带上
+    // compiler-generated one-shot runtime-error upper bound，供 out-step contract 使用。
+    surface_effect_row: EffectRow,
     step_effect_row: EffectRow,
     invoke_arg_components: Vec<TypeId>,
     complete_ty: TypeId,
@@ -1731,16 +1747,20 @@ fn collect_callable_seeds(
             continue;
         };
         let declared_row = declared_effect_row(root_fun, &materialized.types);
+        let surface_effect_row = callable_step_effect_row(root_fun, &declared_row, None);
+        let step_effect_row =
+            if compiler_continuation_runtime_error_callables.contains(family.key()) {
+                let mut terms = surface_effect_row.terms.clone();
+                terms.push(compiler_generated_runtime_error_effect_ty);
+                EffectRow::new(terms)
+            } else {
+                surface_effect_row.clone()
+            };
         seeds.push(CallableSeed {
             key: family.key().clone(),
             root_fun: root_fun.clone(),
-            step_effect_row: callable_step_effect_row(
-                root_fun,
-                &declared_row,
-                compiler_continuation_runtime_error_callables
-                    .contains(family.key())
-                    .then_some(compiler_generated_runtime_error_effect_ty),
-            ),
+            surface_effect_row,
+            step_effect_row,
             declared_row,
             invoke_arg_components: root_fun.params.iter().map(|param| param.ty).collect(),
             complete_ty: root_fun.return_ty,
@@ -2550,6 +2570,35 @@ fun pureHelper(): Unit {}
             .collect()
     }
 
+    fn continuation_surface_ty_string(
+        materialized: &crate::mir::MaterializedMir,
+        facts: &crate::effect_facts::MaterializedEffectFacts,
+        schema_id: crate::effect_facts::ContinuationSchemaId,
+    ) -> String {
+        let schema = facts
+            .continuation_schemas()
+            .get(&schema_id)
+            .expect("continuation schema 应存在");
+        materialized.types.display(schema.surface_ty()).to_string()
+    }
+
+    fn continuation_surface_tys_for_step_schema(
+        materialized: &crate::mir::MaterializedMir,
+        facts: &crate::effect_facts::MaterializedEffectFacts,
+        step_schema: crate::effect_facts::StepSchemaId,
+    ) -> BTreeSet<String> {
+        facts
+            .step_schemas()
+            .get(&step_schema)
+            .expect("step schema 应存在")
+            .cases()
+            .iter()
+            .map(|case| {
+                continuation_surface_ty_string(materialized, facts, case.continuation_schema())
+            })
+            .collect()
+    }
+
     #[test]
     fn refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts() {
         let (materialized, facts) = build_facts_for_source(call_and_resume_source());
@@ -2767,6 +2816,28 @@ fun pureHelper(): Unit {}
             ]
             .into_iter()
             .collect()
+        );
+        assert_eq!(
+            continuation_surface_ty_string(
+                &materialized,
+                &facts,
+                resume_facts.continuation_schema(),
+            ),
+            "scoop.core.Continuation<Int, Int, eff sample.Boom>"
+        );
+        assert_eq!(
+            continuation_surface_tys_for_step_schema(
+                &materialized,
+                &facts,
+                resume_facts.out_step_schema(),
+            ),
+            [
+                "scoop.core.Continuation<Int, Int, eff sample.Boom>".to_string(),
+                "scoop.core.Continuation<Nothing, Int, eff sample.Boom>".to_string(),
+            ]
+            .into_iter()
+            .collect(),
+            "resume synthetic step upper bound 可以保留 runtime-error case，但 continuation surface_ty 仍应保持源码 residual row"
         );
         assert_eq!(resume_facts.resolved_cases().tags().len(), 2);
         assert!(
@@ -3193,6 +3264,17 @@ fun pureHelper(): Unit {}
                 .to_string(),
             "scoop.core.RuntimeError"
         );
+        assert_eq!(
+            continuation_surface_tys_for_step_schema(
+                &materialized,
+                &facts,
+                resume_zero_facts.step_schema(),
+            ),
+            ["scoop.core.Continuation<Nothing, Unit, eff scoop.core.Raise<scoop.core.RuntimeError>>".to_string()]
+                .into_iter()
+                .collect(),
+            "若源码 residual row 本来就包含 Raise<RuntimeError>，surface_ty 必须继续如实保留它"
+        );
     }
 
     #[test]
@@ -3228,6 +3310,47 @@ fun pureHelper(): Unit {}
             ]
             .into_iter()
             .collect()
+        );
+    }
+
+    #[test]
+    fn refactor_continuation_schema_surface_ty_preserves_residual_out_row_for_compiler_runtime_error_upper_bound()
+     {
+        let session = refactor_session();
+        let source = compiler_continuation_runtime_error_source();
+        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let leaf_key = materialized
+            .pass_view()
+            .owner_of_callable("sample.leaf")
+            .expect("leaf 应有 canonical owner")
+            .clone();
+
+        let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
+            &session,
+            &source,
+            &mut materialized,
+        )
+        .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])
+        .build()
+        .unwrap();
+
+        let leaf_facts = facts
+            .callable_facts()
+            .get(&leaf_key)
+            .expect("leaf 应存在于 callable facts");
+        assert_eq!(
+            continuation_surface_tys_for_step_schema(
+                &materialized,
+                &facts,
+                leaf_facts.step_schema()
+            ),
+            [
+                "scoop.core.Continuation<Nothing, Unit, eff sample.Ping>".to_string(),
+                "scoop.core.Continuation<Unit, Unit, eff sample.Ping>".to_string(),
+            ]
+            .into_iter()
+            .collect(),
+            "compiler-generated one-shot runtime-error upper bound 只能进入 step/out-step schema，不能反写进 continuation surface_ty"
         );
     }
 
@@ -3272,6 +3395,67 @@ fun pureHelper(): Unit {}
         assert!(
             schema_case_fqns(&facts, pure_facts.step_schema()).is_empty(),
             "未被标记且 truly no-outward 的 callable 不应无端长出 runtime-error case"
+        );
+    }
+
+    #[test]
+    fn refactor_continuation_schema_surface_ty_preserves_pure_resume_surface_row() {
+        let (materialized, facts) = build_sample_facts();
+        let (resume_zero_key, _) = callable_facts_for(&facts, "sample.resumeZero");
+        let pass_view = materialized.pass_view();
+        let resume_zero_body = pass_view
+            .instance(resume_zero_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("resumeZero 应有 canonical body");
+        let resume_zero_body_facts = facts
+            .body(resume_zero_key)
+            .expect("resumeZero 应有 body facts");
+        let resume_site_id = resume_zero_body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| {
+                let StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return None;
+                };
+                let Rvalue::Call {
+                    site_id,
+                    kind: CallKind::Resume { .. },
+                    ..
+                } = value
+                else {
+                    return None;
+                };
+                Some(*site_id)
+            })
+            .expect("resumeZero 应包含 resume site");
+
+        let SiteEffectFacts::Resume(resume_facts) = resume_zero_body_facts
+            .site(resume_site_id)
+            .expect("resume site 应可通过 SiteId 查询")
+        else {
+            panic!("resume site 应产生 ResumeSiteEffectFacts");
+        };
+
+        assert_eq!(
+            continuation_surface_ty_string(
+                &materialized,
+                &facts,
+                resume_facts.continuation_schema()
+            ),
+            "scoop.core.Continuation<Unit, Unit, eff Pure>"
+        );
+        assert_eq!(
+            continuation_surface_tys_for_step_schema(
+                &materialized,
+                &facts,
+                resume_facts.out_step_schema()
+            ),
+            ["scoop.core.Continuation<Nothing, Unit, eff Pure>".to_string()]
+                .into_iter()
+                .collect(),
+            "resume synthetic step upper bound 即使额外带 runtime-error case，也不能把 Pure residual row 扩大回 surface_ty"
         );
     }
 

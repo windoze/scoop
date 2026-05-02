@@ -18,12 +18,12 @@ continuation_schemas:
     resume_tuple_ty: Unit
     answer_ty: Unit
     out_step_schema: step_schema#0
-    surface_ty: scoop.core.Continuation<Unit, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + sample.Ping)>
+    surface_ty: scoop.core.Continuation<Unit, Unit, eff sample.Ping>
   continuation_schema#1:
     resume_tuple_ty: Nothing
     answer_ty: Unit
     out_step_schema: step_schema#0
-    surface_ty: scoop.core.Continuation<Nothing, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + sample.Ping)>
+    surface_ty: scoop.core.Continuation<Nothing, Unit, eff sample.Ping>
 callable_facts:
   sample.leaf:
     instance_key: sample.leaf
