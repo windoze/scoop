@@ -31,6 +31,7 @@ struct LoweredCodegenEntry<'a> {
     lowered: &'a hir::LoweredHir,
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    late_lowered_types: Option<&'a crate::ty::TypeStore>,
 }
 
 impl<'a> LoweredCodegenEntry<'a> {
@@ -39,6 +40,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             lowered,
             materialized_pass_view: lowered.materialized_pass_view(),
             late_lowered_program: None,
+            late_lowered_types: None,
         }
     }
 
@@ -50,6 +52,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             lowered,
             materialized_pass_view: Some(materialized_pass_view),
             late_lowered_program: None,
+            late_lowered_types: None,
         })
     }
 
@@ -65,6 +68,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             lowered,
             materialized_pass_view: Some(effect_lowered_stage_output.materialized_pass_view()),
             late_lowered_program: Some(effect_lowered_stage_output.program()),
+            late_lowered_types: Some(effect_lowered_stage_output.types()),
         }
     }
 }
@@ -766,6 +770,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
         lowered,
         materialized_pass_view,
         late_lowered_program,
+        late_lowered_types,
     } = codegen_entry;
     let has_materialized_pass_view = materialized_pass_view.is_some();
 
@@ -920,6 +925,9 @@ fn build_main_module_from_codegen_entry<'ctx>(
         .collect();
 
     if let Some(program) = late_lowered_program {
+        let late_lowered_types = late_lowered_types.ok_or_else(|| LlvmEmitError::Frontend {
+            message: "refactor LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
+        })?;
         let mut callables_to_check = vec![hir_main];
         callables_to_check.extend(
             reachable
@@ -928,6 +936,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
                 .filter(|fun| fun.fqn != hir_main.fqn),
         );
         ensure_refactor_effect_lowering_is_supported(&hir_main.fqn, &callables_to_check, program)?;
+        let _ = declare.materialize_refactor_program_abi(program, late_lowered_types)?;
     }
 
     for fun in &reachable {

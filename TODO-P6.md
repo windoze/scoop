@@ -324,15 +324,64 @@
   - `crates/scoopc/src/llvm/emit.rs` 的 refactor 入口 `build_refactor_main_module_from_stage_output(...)` / `emit_refactor_main_*_from_stage_output(...)` 只从 stage handoff 读取 `materialized_pass_view()` 与 `LateLoweredProgram`；legacy `prepare_single_file_codegen_unit_*` / `emit_minimal_main_*_from_production_lowered_hir*` 仍仅属于 legacy 单文件/production API，不再是 refactor CLI 路径的数据源。
   - `crates/scoop/src/commands/build.rs` 中 `Executable` / `LlvmIr` / `Obj` / `Asm` 四条 LLVM 产物路径全部共用 `effect_refactor_pipeline::emit_production_llvm_artifact_to_file(...)`；`crates/scoop/src/commands/run.rs` 继续复用 `build::run(...)`，因此 refactor `run` 与 `build` 共享同一 LLVM stage 入口，没有额外旧 backend 旁路。
   - 额外文本搜索确认：允许命中只出现在 legacy API、测试、注释、导出层或 dispatcher 选择逻辑中；`crates/scoopc/src/llvm/codegen/effect_refactor/**` 仍保持独立目录边界，未把 refactor 主逻辑重新塞回 `crates/scoopc/src/llvm/codegen/effect/**`。同时，`crates/scoopc/src/llvm/emit.rs` 中的 `ensure_refactor_effect_lowering_is_supported(...)` 继续把任何仍需 legacy handler-stack / `EffectOutcome` lowering 的 effectful callable 在 stage 边界显式拒绝，因此 old effect backend 已不再是 refactor correctness path。
-  - 已重新运行验证：
-    - `cargo test -p scoopc refactor_llvm_codegen_stage`
-    - `cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_legacy_emit.ll`
-    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_refactor_emit.ll`
+- 已重新运行验证：
+  - `cargo test -p scoopc refactor_llvm_codegen_stage`
+  - `cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_legacy_emit.ll`
+  - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_refactor_emit.ll`
     - `cargo run -p scoop -- --effect-pipeline refactor build --emit-obj tests/fixtures/run-pass/minimal_main.scoop -o /tmp/p6_refactor_emit.o`
     - `cargo run -p scoop -- --effect-pipeline refactor build --emit-asm tests/fixtures/run-pass/minimal_main.scoop -o /tmp/p6_refactor_emit.s`
     - `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/minimal_main.scoop`
-    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/effect_facts/handle_perform.scoop -o /tmp/p6_refactor_effect_fail.ll`（预期失败，并输出显式 `RefactorEffectLoweringUnsupported` 诊断）
-    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+  - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/effect_facts/handle_perform.scoop -o /tmp/p6_refactor_effect_fail.ll`（预期失败，并输出显式 `RefactorEffectLoweringUnsupported` 诊断）
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+## P6-T01b：扩展 refactor build/LLVM handoff 的 ABI 可见性，保证 P6-T02 build fixtures 能在不触发 legacy lowering 的前提下观察 effectful `Step` / continuation 形状
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §5.2, §5.3.2-§5.3.6, §8
+  - `crates/scoop/src/commands/build.rs`
+  - `crates/scoopc/src/effect_refactor_pipeline/llvm_codegen_stage.rs`
+  - `crates/scoopc/src/llvm/emit.rs`
+- 背景：
+  - 2026-05-03 在执行 `P6-T02` 时发现：refactor build/frontend 目前仍以 `EntryMain` request-root 作为 production MIR/materialized pass-view 的 authoritative root；因此 LLVM stage 在 `build --emit-llvm` 主路径上只能稳定看到 entry `main` 与其真实可达 body。
+  - 对 `P6-T02` 设计的 build fixtures 而言，这带来两个直接问题：
+    1. 把 effectful ABI carrier helper 仅作为“不可达 top-level helper”放在源文件里，不会进入 build 主路径 handoff，因此新的 `Step_F` / resume-interface / continuation ABI 形状不会出现在 `.ll` 产物中；
+    2. 若为了让 helper 可达而在 `Pure main` 中引入 self-contained `handle { ... }` / 其它 reachable effect boundary，则当前主路径又会重新落回 legacy `scoop.effect.frame.*` lowering，违背 `P6-T01a` 的 fail-fast 边界与 `P6-T02` 的“不得靠 legacy lowering 产出 ABI 断言”约束。
+  - 因此，`P6-T02` 的 build-fixture 验证当前被 production handoff 可见性问题阻塞；在修复之前，继续通过改 fixture 形状规避只会把验证建立在错误路径上。
+- 目标：
+  - 让 refactor build 主路径在不让 `main` 变成 effectful、也不重新进入 legacy effect body lowering 的前提下，能够为 `P6-T02` 所需的 build fixtures 暴露 canonical `Step_F` / continuation object / resume-interface / dynamic invoke ABI 形状；
+  - 同时保持 P6-T01a 的 fail-fast 承诺：任何真正需要 legacy `handler-stack` / `EffectOutcome` body lowering 的 reachable effectful body 仍必须显式拒绝。
+
+- 必须实现的内容：
+  1. 为 refactor build/LLVM stage 增加一条 authoritative 的“ABI shell 可见性”路径。
+     - 允许方案：在 build frontend handoff 中显式携带 request-source 范围的 ABI-only callable/schema shell；或其它等价的 compiler-owned stage 输入；
+     - 但禁止：在 fixture runner / CLI 中偷偷走 dump path、测试私有 helper、或第二套不共享 production stage 的临时 lowering。
+  2. 明确区分“ABI shell 可见性”与“reachable body lowering”。
+     - 前者应允许 `P6-T02` 的 build fixtures 观察到 effectful `Step_F` / continuation / resume-interface 形状；
+     - 后者在 `P6-T03` 真正落地前，仍必须继续受 `P6-T01a` 的 fail-fast 保护。
+  3. 修正当前 reachable helper/handle 形状下可能重新落入 legacy `scoop.effect.frame.*` lowering 的入口边界。
+     - 若 reachable shape 仍会进入 old effect backend，则 refactor build 必须显式拒绝；
+     - 禁止让 `P6-T02` build fixtures 通过 legacy step/dispatch IR 断言新的 ABI contract。
+  4. 调整 `P6-T02` 的 build fixtures，使其在真实 refactor build 主路径上可稳定通过。
+
+- 必须遵从的约束：
+  - 禁止把“不可达 helper + build path看不到它”当作 `P6-T02` build fixture 的可接受现状。
+  - 禁止通过 effectful `main`、隐藏 selector、或让 reachable helper 静默进入 legacy backend 来制造 `.ll` 断言样本。
+  - 禁止新增只在测试中存在、与 `scoop build --effect-pipeline refactor --emit-llvm` 不同源的 ABI 物化旁路。
+
+- 验证：
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+  - 额外要求：任何为了让 fixture helper“变成可达”而出现的 reachable handle/call boundary，若仍会进入 legacy effect body lowering，则必须显式失败，而不是悄悄生成 `scoop.effect.frame.*` / old dispatch IR。
+
+- 完成条件：
+  - `P6-T02` 的三类 build fixtures 能在真实 refactor build 主路径上稳定观察到新的 ABI shell；
+  - 同时，任何仍需 legacy effect body lowering 的 reachable effectful body 继续 fail fast；
+  - `P6-T02` 可以在此基础上继续完成剩余 build-fixture / lint / 文档收口。
+- 依赖：P6-T01R
+- 完成记录：
+  - （执行时填写）
 
 ## P6-T02：把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering
 
@@ -444,9 +493,11 @@
   - `Step_F` / frame / continuation object / resume interface / dynamic invoke 的 LLVM type/layout 合同已闭合；
   - 后续 P6-T03 可以只消费这层 LLVM-level query API 做 body lowering；
   - 新路径不再需要依赖 legacy `EffectSignal`/`EffectOutcome` 合同表达 effect ABI。
-- 依赖：P6-T01R
+- 依赖：P6-T01b
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：已在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 建立独立的 refactor LLVM type/layout materialization 与稳定 query API，并把 refactor `build --emit-llvm` 的 module 构建路径接到该 ABI shell 物化层。
+  - 已新增 `refactor_llvm_step_layout_*`、`refactor_llvm_frame_layout_*`、`refactor_llvm_continuation_layout_*`、`refactor_llvm_unit_abi_*` 定向单测，覆盖 canonical `Step_F` tag identity、frame/system slot field index、resume-interface 完整 method 集，以及 `Unit` 零载荷 ABI。
+  - 继续执行 build-fixture 验证时发现新的前置 blocker：当前 production build handoff 仍无法在不触发 legacy effect body lowering 的前提下，让 `P6-T02` 需要的 effectful ABI fixture 稳定出现在 `.ll` 产物里；详见前置任务 `P6-T01b`。因此本任务保持未完成状态，待 `P6-T01b` 修复后继续收口。
 
 ## P6-T02R：Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型
 

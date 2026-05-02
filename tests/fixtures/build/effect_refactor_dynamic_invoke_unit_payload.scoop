@@ -1,0 +1,25 @@
+// 目标：P6-T02 `invoke(args_tuple) -> Step_F` / `resume()` 的 `Unit` ABI 必须零载荷退化。
+// - build 路径当前只为可达 callable 物化 ABI，因此这里让 `main` 在 self-contained handle 中调用 `unitWorker()`；
+// - `unitWorker()` 没有 source 参数，因此 dynamic/direct invoke 必须是零参函数签名；
+// - `Ping.tick(): Unit` 的 resume tuple 也是 `Unit`，因此 resume method 只保留 receiver；
+// - outward step case payload 只应留下 continuation object 指针，而不是额外 `Unit` 载荷。
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_dynamic_invoke__fixtures_build_unitWorker()
+// BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_direct_invoke__fixtures_build_unitWorker()
+// BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_resume__fixtures_build_unitWorker__case0(ptr addrspace(1))
+// BUILD-LLVM-CONTAINS: %scoop.refactor.StepCase__fixtures_build_unitWorker__case0 = type { ptr addrspace(1) }
+package fixtures.build
+
+effect Ping {
+    fun tick(): Unit
+}
+
+fun unitWorker(): Unit / Ping {}
+
+fun main() {
+    handle {
+        unitWorker()
+    } with {
+        Ping.tick(), _k -> {}
+    }
+}

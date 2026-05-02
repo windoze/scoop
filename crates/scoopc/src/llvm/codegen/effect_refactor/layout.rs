@@ -1,0 +1,1342 @@
+use std::collections::{BTreeMap, HashMap};
+
+use inkwell::module::Linkage;
+use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
+
+use crate::effect_facts::{EffectFamilyKey, StepSchemaId};
+use crate::effect_lowered::LateLoweredProgram;
+use crate::effect_lowered::ir::{
+    LateLoweredCallable, LateLoweredContinuationObject, LateLoweredFrameSlotKind,
+    LateLoweredStepType, ResumeInterfaceId,
+};
+use crate::llvm::LlvmEmitError;
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+
+use super::super::types::IntTy;
+use super::super::{MainCodegen, sanitize_llvm_ident};
+use super::types::{
+    RefactorAbiQuery, RefactorAbiValue, RefactorCallableEntryLayout, RefactorCallableLayout,
+    RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
+    RefactorContinuationObjectLayout, RefactorFrameFieldKind, RefactorFrameFieldLayout,
+    RefactorFrameLayout, RefactorResumeInterfaceLayout, RefactorResumeMethodLayout,
+    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
+};
+
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    /// P6-T02：把 P5 late-lowered contract 显式物化成 LLVM type/layout 查询面。
+    pub(crate) fn materialize_refactor_program_abi(
+        &mut self,
+        program: &'a LateLoweredProgram,
+        source_types: &'a TypeStore,
+    ) -> Result<RefactorAbiQuery<'ctx>, LlvmEmitError> {
+        RefactorAbiMaterializer::new(self, program, source_types)?.materialize()
+    }
+}
+
+struct ProgramLayoutView {
+    callable_stems_by_step_schema: BTreeMap<StepSchemaId, String>,
+}
+
+#[derive(Clone)]
+struct ResumeInterfaceSpec {
+    interface_id: ResumeInterfaceId,
+    step_schema: StepSchemaId,
+    effect_family: EffectFamilyKey,
+}
+
+impl ProgramLayoutView {
+    fn new(program: &LateLoweredProgram) -> Result<Self, LlvmEmitError> {
+        let mut step_types_by_schema = BTreeMap::new();
+        for step_type in program.step_types() {
+            if step_types_by_schema
+                .insert(step_type.step_schema(), step_type)
+                .is_some()
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 遇到重复 StepSchemaId {}",
+                    step_type.step_schema().as_u32()
+                )));
+            }
+        }
+
+        let mut root_counts = HashMap::new();
+        for callable in program.callables() {
+            *root_counts.entry(callable.root_fqn()).or_insert(0usize) += 1;
+        }
+
+        let mut callables_by_step_schema = BTreeMap::new();
+        let mut callable_stems_by_step_schema = BTreeMap::new();
+        for callable in program.callables() {
+            if callables_by_step_schema
+                .insert(callable.step_schema(), callable)
+                .is_some()
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 遇到重复 callable step schema {}（callable={})",
+                    callable.step_schema().as_u32(),
+                    callable.root_fqn()
+                )));
+            }
+
+            let base = sanitize_llvm_ident(callable.root_fqn());
+            let stem = if root_counts.get(callable.root_fqn()).copied().unwrap_or(0) > 1 {
+                format!("{base}__schema{}", callable.step_schema().as_u32())
+            } else {
+                base
+            };
+            callable_stems_by_step_schema.insert(callable.step_schema(), stem);
+        }
+
+        for step_schema in step_types_by_schema.keys().copied() {
+            callable_stems_by_step_schema
+                .entry(step_schema)
+                .or_insert_with(|| format!("schema{}", step_schema.as_u32()));
+        }
+
+        let mut continuation_objects_by_id = BTreeMap::new();
+        for object in program.continuation_objects() {
+            if continuation_objects_by_id
+                .insert(object.object_id(), object)
+                .is_some()
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 遇到重复 continuation object {}",
+                    object.object_id().as_u32()
+                )));
+            }
+        }
+
+        let mut resume_interfaces_by_id = BTreeMap::new();
+        for interface in program.resume_interfaces() {
+            if resume_interfaces_by_id
+                .insert(interface.interface_id(), interface)
+                .is_some()
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 遇到重复 resume interface {}",
+                    interface.interface_id().as_u32()
+                )));
+            }
+        }
+
+        Ok(Self {
+            callable_stems_by_step_schema,
+        })
+    }
+
+    fn step_stem(&self, step_schema: StepSchemaId) -> &str {
+        self.callable_stems_by_step_schema
+            .get(&step_schema)
+            .map(String::as_str)
+            .unwrap_or("schema")
+    }
+}
+
+struct RefactorAbiMaterializer<'cg, 'a, 'ctx> {
+    codegen: &'cg mut MainCodegen<'a, 'ctx>,
+    program: &'a LateLoweredProgram,
+    source_types: &'a TypeStore,
+    view: ProgramLayoutView,
+}
+
+impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
+    fn new(
+        codegen: &'cg mut MainCodegen<'a, 'ctx>,
+        program: &'a LateLoweredProgram,
+        source_types: &'a TypeStore,
+    ) -> Result<Self, LlvmEmitError> {
+        Ok(Self {
+            codegen,
+            program,
+            source_types,
+            view: ProgramLayoutView::new(program)?,
+        })
+    }
+
+    fn derive_resume_interface_specs(&self) -> Vec<ResumeInterfaceSpec> {
+        let mut specs = BTreeMap::<(StepSchemaId, EffectFamilyKey), ResumeInterfaceSpec>::new();
+        let mut next_interface_raw = self
+            .program
+            .resume_interfaces()
+            .iter()
+            .map(|interface| interface.interface_id().as_u32())
+            .max()
+            .map(|raw| raw.saturating_add(1))
+            .unwrap_or(0);
+
+        for interface in self.program.resume_interfaces() {
+            specs.insert(
+                (
+                    interface.return_step_schema(),
+                    interface.effect_family().clone(),
+                ),
+                ResumeInterfaceSpec {
+                    interface_id: interface.interface_id(),
+                    step_schema: interface.return_step_schema(),
+                    effect_family: interface.effect_family().clone(),
+                },
+            );
+        }
+
+        for step_type in self.program.step_types() {
+            for case in step_type.cases() {
+                specs
+                    .entry((
+                        step_type.step_schema(),
+                        case.concrete_op_key().effect_family().clone(),
+                    ))
+                    .or_insert_with(|| {
+                        let interface_id = ResumeInterfaceId::new(next_interface_raw);
+                        next_interface_raw = next_interface_raw.saturating_add(1);
+                        ResumeInterfaceSpec {
+                            interface_id,
+                            step_schema: step_type.step_schema(),
+                            effect_family: case.concrete_op_key().effect_family().clone(),
+                        }
+                    });
+            }
+        }
+
+        specs.into_values().collect()
+    }
+
+    fn resume_interface_ids_by_step(
+        &self,
+        specs: &[ResumeInterfaceSpec],
+    ) -> BTreeMap<StepSchemaId, Vec<ResumeInterfaceId>> {
+        let mut by_step = BTreeMap::<StepSchemaId, Vec<ResumeInterfaceId>>::new();
+        for spec in specs {
+            by_step
+                .entry(spec.step_schema)
+                .or_default()
+                .push(spec.interface_id);
+        }
+        by_step
+    }
+
+    fn materialize(self) -> Result<RefactorAbiQuery<'ctx>, LlvmEmitError> {
+        let mut this = self;
+        let resume_interface_specs = this.derive_resume_interface_specs();
+        let resume_interface_ids_by_step =
+            this.resume_interface_ids_by_step(&resume_interface_specs);
+        let mut step_layouts = BTreeMap::new();
+        for step_type in this.program.step_types() {
+            step_layouts.insert(
+                step_type.step_schema(),
+                this.materialize_step_layout(step_type)?,
+            );
+        }
+
+        let mut resume_interface_layouts = BTreeMap::new();
+        for interface in &resume_interface_specs {
+            resume_interface_layouts.insert(
+                interface.interface_id,
+                this.materialize_resume_interface_layout(interface, &step_layouts)?,
+            );
+        }
+
+        let mut frame_layouts = BTreeMap::new();
+        for callable in this.program.callables() {
+            frame_layouts.insert(
+                callable.step_schema(),
+                this.materialize_frame_layout(callable)?,
+            );
+        }
+
+        let mut continuation_layouts = BTreeMap::new();
+        for object in this.program.continuation_objects() {
+            continuation_layouts.insert(
+                object.object_id(),
+                this.materialize_continuation_object_layout(object, &resume_interface_ids_by_step)?,
+            );
+        }
+
+        let mut callable_layouts = BTreeMap::new();
+        for callable in this.program.callables() {
+            callable_layouts.insert(
+                callable.step_schema(),
+                this.materialize_callable_layout(
+                    callable,
+                    &step_layouts,
+                    &resume_interface_ids_by_step,
+                )?,
+            );
+        }
+
+        Ok(RefactorAbiQuery::new(
+            step_layouts,
+            frame_layouts,
+            continuation_layouts,
+            resume_interface_layouts,
+            callable_layouts,
+        ))
+    }
+
+    fn materialize_step_layout(
+        &mut self,
+        step_type: &LateLoweredStepType,
+    ) -> Result<RefactorStepLayout<'ctx>, LlvmEmitError> {
+        let stem = self.view.step_stem(step_type.step_schema()).to_string();
+        let step_type_name = format!("scoop.refactor.Step__{stem}");
+        let storage_type_name = format!("scoop.refactor.StepStorage__{stem}");
+        let step_anchor_name = format!("__scoop_refactor_step_layout__{stem}");
+        let complete_tag_name = format!("__scoop_refactor_step_case_tag__{stem}__complete");
+        let complete_payload_name = format!("scoop.refactor.StepComplete__{stem}");
+        let complete_payload_anchor =
+            format!("__scoop_refactor_step_variant_payload__{stem}__complete");
+
+        let complete_payload_abi = self.abi_value(step_type.complete_ty())?;
+        let complete_fields = if complete_payload_abi.is_elided() {
+            Vec::new()
+        } else {
+            vec![complete_payload_abi.llvm_ty()]
+        };
+        let complete_payload_ty =
+            self.define_named_struct(&complete_payload_name, &complete_fields);
+        self.ensure_struct_anchor(&complete_payload_anchor, complete_payload_ty);
+        self.ensure_case_tag_constant(&complete_tag_name, 0);
+
+        let complete_variant = RefactorStepVariantLayout::new(
+            0,
+            complete_payload_ty,
+            usize::from(!complete_payload_abi.is_elided()),
+            complete_payload_anchor,
+            complete_payload_abi.is_elided(),
+        );
+
+        let mut case_layouts = BTreeMap::new();
+        let mut payload_tys = vec![complete_payload_ty];
+        for case in step_type.cases() {
+            let case_payload_name = format!(
+                "scoop.refactor.StepCase__{stem}__case{}",
+                case.case_tag().as_u32()
+            );
+            let case_payload_anchor = format!(
+                "__scoop_refactor_step_variant_payload__{stem}__case{}",
+                case.case_tag().as_u32()
+            );
+            let case_tag_name = format!(
+                "__scoop_refactor_step_case_tag__{stem}__case{}",
+                case.case_tag().as_u32()
+            );
+            let payload_abi = self.abi_value(case.payload_tuple_ty())?;
+            let mut case_fields = Vec::new();
+            if !payload_abi.is_elided() {
+                case_fields.push(payload_abi.llvm_ty());
+            }
+            case_fields.push(self.codegen.llvm_gc_i8_ptr_type().into());
+            let case_payload_ty = self.define_named_struct(&case_payload_name, &case_fields);
+            self.ensure_struct_anchor(&case_payload_anchor, case_payload_ty);
+            let tag_value = case.case_tag().as_u32().saturating_add(1);
+            self.ensure_case_tag_constant(&case_tag_name, tag_value);
+
+            payload_tys.push(case_payload_ty);
+            case_layouts.insert(
+                case.case_tag(),
+                RefactorStepCaseLayout::new(
+                    case.case_tag(),
+                    case_tag_name,
+                    RefactorStepVariantLayout::new(
+                        tag_value,
+                        case_payload_ty,
+                        case_fields.len(),
+                        case_payload_anchor,
+                        payload_abi.is_elided(),
+                    ),
+                ),
+            );
+        }
+
+        let storage_ty = self.define_union_storage_type(&storage_type_name, &payload_tys);
+        let step_ty = self.define_named_struct(
+            &step_type_name,
+            &[self.codegen.context.i32_type().into(), storage_ty.into()],
+        );
+        self.ensure_struct_anchor(&step_anchor_name, step_ty);
+
+        Ok(RefactorStepLayout::new(
+            step_type.step_schema(),
+            step_ty,
+            step_anchor_name,
+            complete_tag_name,
+            complete_variant,
+            case_layouts,
+        ))
+    }
+
+    fn materialize_resume_interface_layout(
+        &mut self,
+        interface: &ResumeInterfaceSpec,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+    ) -> Result<RefactorResumeInterfaceLayout<'ctx>, LlvmEmitError> {
+        let step_schema = interface.step_schema;
+        let stem = self.view.step_stem(step_schema).to_string();
+        let effect_stem = sanitize_llvm_ident(interface.effect_family.effect_fqn());
+        let vtable_type_name = format!("scoop.refactor.ResumeVtable__{stem}__{effect_stem}");
+        let vtable_anchor_name =
+            format!("__scoop_refactor_resume_vtable_layout__{stem}__{effect_stem}");
+        let return_step_ty = step_layouts
+            .get(&step_schema)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 resume interface {} 的 return step schema {}",
+                    interface.interface_id.as_u32(),
+                    step_schema.as_u32()
+                ))
+            })?
+            .llvm_ty();
+        let step_type = self.program.step_type(step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 resume interface {} 的 step type {}",
+                interface.interface_id.as_u32(),
+                step_schema.as_u32()
+            ))
+        })?;
+
+        let mut methods = BTreeMap::new();
+        let mut vtable_fields = Vec::new();
+        for (index, case) in step_type
+            .cases()
+            .iter()
+            .filter(|case| case.concrete_op_key().effect_family() == &interface.effect_family)
+            .enumerate()
+        {
+            let symbol_name = format!(
+                "__scoop_refactor_resume__{stem}__case{}",
+                case.case_tag().as_u32()
+            );
+            let payload_abi = self.abi_value(case.resume_tuple_ty())?;
+            let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
+                vec![self.codegen.llvm_gc_i8_ptr_type().into()];
+            if !payload_abi.is_elided() {
+                params.push(payload_abi.llvm_ty().into());
+            }
+            let fn_ty = return_step_ty.fn_type(&params, false);
+            self.ensure_declared_function(&symbol_name, fn_ty);
+            vtable_fields.push(self.codegen.llvm_i8_ptr_type().into());
+            methods.insert(
+                case.case_tag(),
+                RefactorResumeMethodLayout::new(
+                    interface.interface_id,
+                    case.case_tag(),
+                    symbol_name,
+                    fn_ty,
+                    params.len(),
+                    index as u32,
+                    payload_abi,
+                    step_schema,
+                ),
+            );
+        }
+
+        let vtable_ty = self.define_named_struct(&vtable_type_name, &vtable_fields);
+        self.ensure_struct_anchor(&vtable_anchor_name, vtable_ty);
+        Ok(RefactorResumeInterfaceLayout::new(
+            interface.interface_id,
+            interface.effect_family.effect_fqn().to_string(),
+            vtable_ty,
+            vtable_anchor_name,
+            methods,
+        ))
+    }
+
+    fn materialize_frame_layout(
+        &mut self,
+        callable: &LateLoweredCallable,
+    ) -> Result<RefactorFrameLayout<'ctx>, LlvmEmitError> {
+        let stem = self.view.step_stem(callable.step_schema()).to_string();
+        let frame_type_name = format!("scoop.refactor.Frame__{stem}");
+        let frame_anchor_name = format!("__scoop_refactor_frame_layout__{stem}");
+        let header_ty = self.codegen.llvm_gc_object_header_type();
+        let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = vec![header_ty.into()];
+        let mut fields = vec![RefactorFrameFieldLayout::new(
+            0,
+            RefactorFrameFieldKind::Header,
+            header_ty.into(),
+        )];
+        let mut slot_field_indices = BTreeMap::new();
+        let mut system_field_indices = BTreeMap::new();
+
+        for slot in callable.frame_schema().slots() {
+            let field_index = llvm_fields.len() as u32;
+            let slot_abi = self.abi_value(slot.ty())?;
+            llvm_fields.push(slot_abi.llvm_ty());
+            fields.push(RefactorFrameFieldLayout::new(
+                field_index,
+                RefactorFrameFieldKind::Slot(slot.slot_id()),
+                slot_abi.llvm_ty(),
+            ));
+            slot_field_indices.insert(slot.slot_id(), field_index);
+            if let LateLoweredFrameSlotKind::System(kind) = slot.kind() {
+                system_field_indices.insert(kind, field_index);
+            }
+        }
+
+        let frame_ty = self.define_named_struct(&frame_type_name, &llvm_fields);
+        self.ensure_struct_anchor(&frame_anchor_name, frame_ty);
+        Ok(RefactorFrameLayout::new(
+            callable.step_schema(),
+            frame_ty,
+            frame_anchor_name,
+            fields,
+            slot_field_indices,
+            system_field_indices,
+        ))
+    }
+
+    fn materialize_continuation_object_layout(
+        &mut self,
+        object: &LateLoweredContinuationObject,
+        resume_interface_ids_by_step: &BTreeMap<StepSchemaId, Vec<ResumeInterfaceId>>,
+    ) -> Result<RefactorContinuationObjectLayout<'ctx>, LlvmEmitError> {
+        let owner_callable = self
+            .program
+            .callable_by_version_key(object.owner_version_key())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 continuation object {} 的 owner callable",
+                    object.object_id().as_u32()
+                ))
+            })?;
+        let stem = self
+            .view
+            .step_stem(owner_callable.step_schema())
+            .to_string();
+        let cont_type_name = format!("scoop.refactor.Continuation__{stem}");
+        let cont_anchor_name = format!("__scoop_refactor_continuation_layout__{stem}");
+        let header_ty = self.codegen.llvm_gc_object_header_type();
+        let frame_ptr_ty = self.codegen.llvm_gc_i8_ptr_type();
+        let resume_state_ty = self.codegen.context.i32_type();
+        let one_shot_ty = self.codegen.context.bool_type();
+        let vtable_ptr_ty = self.codegen.llvm_i8_ptr_type();
+        let interface_ids = resume_interface_ids_by_step
+            .get(&owner_callable.step_schema())
+            .cloned()
+            .unwrap_or_default();
+
+        let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = vec![
+            header_ty.into(),
+            frame_ptr_ty.into(),
+            resume_state_ty.into(),
+            one_shot_ty.into(),
+        ];
+        let mut fields = vec![
+            RefactorContinuationFieldLayout::new(
+                0,
+                RefactorContinuationFieldKind::Header,
+                header_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                1,
+                RefactorContinuationFieldKind::CapturedFrame,
+                frame_ptr_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                2,
+                RefactorContinuationFieldKind::ResumeStateTag,
+                resume_state_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                3,
+                RefactorContinuationFieldKind::OneShotFlag,
+                one_shot_ty.into(),
+            ),
+        ];
+        let mut interface_field_indices = BTreeMap::new();
+        for interface_id in &interface_ids {
+            let field_index = llvm_fields.len() as u32;
+            llvm_fields.push(vtable_ptr_ty.into());
+            fields.push(RefactorContinuationFieldLayout::new(
+                field_index,
+                RefactorContinuationFieldKind::InterfaceVtable(*interface_id),
+                vtable_ptr_ty.into(),
+            ));
+            interface_field_indices.insert(*interface_id, field_index);
+        }
+
+        let cont_ty = self.define_named_struct(&cont_type_name, &llvm_fields);
+        self.ensure_struct_anchor(&cont_anchor_name, cont_ty);
+        Ok(RefactorContinuationObjectLayout::new(
+            object.object_id(),
+            owner_callable.step_schema(),
+            cont_ty,
+            cont_anchor_name,
+            fields,
+            interface_field_indices,
+        ))
+    }
+
+    fn materialize_callable_layout(
+        &mut self,
+        callable: &LateLoweredCallable,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        resume_interface_ids_by_step: &BTreeMap<StepSchemaId, Vec<ResumeInterfaceId>>,
+    ) -> Result<RefactorCallableLayout<'ctx>, LlvmEmitError> {
+        let stem = self.view.step_stem(callable.step_schema()).to_string();
+        let step_ty = step_layouts
+            .get(&callable.step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` 的 step layout {}",
+                    callable.root_fqn(),
+                    callable.step_schema().as_u32()
+                ))
+            })?
+            .llvm_ty();
+        let args_abi = self.abi_value(callable.dynamic_invoke_entry().invoke_args_tuple_ty())?;
+        let mut params: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
+        if !args_abi.is_elided() {
+            params.push(args_abi.llvm_ty().into());
+        }
+        let dynamic_ty = step_ty.fn_type(&params, false);
+        let direct_ty = step_ty.fn_type(&params, false);
+        let dynamic_name = format!("__scoop_refactor_dynamic_invoke__{stem}");
+        let direct_name = format!("__scoop_refactor_direct_invoke__{stem}");
+        self.ensure_declared_function(&dynamic_name, dynamic_ty);
+        self.ensure_declared_function(&direct_name, direct_ty);
+        let resume_interfaces = resume_interface_ids_by_step
+            .get(&callable.step_schema())
+            .cloned()
+            .unwrap_or_default();
+
+        Ok(RefactorCallableLayout::new(
+            callable.root_fqn().to_string(),
+            callable.step_schema(),
+            RefactorCallableEntryLayout::new(
+                dynamic_name,
+                dynamic_ty,
+                params.len(),
+                args_abi,
+                callable.step_schema(),
+            ),
+            RefactorCallableEntryLayout::new(
+                direct_name,
+                direct_ty,
+                params.len(),
+                args_abi,
+                callable.step_schema(),
+            ),
+            callable.continuation_object(),
+            resume_interfaces,
+        ))
+    }
+
+    fn abi_value(&mut self, ty: TypeId) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+        let llvm_ty = self.llvm_abi_type_of_source_type(ty)?;
+        let elided = self.codegen.target_data.get_store_size(&llvm_ty) == 0;
+        Ok(RefactorAbiValue::new(llvm_ty, elided))
+    }
+
+    fn llvm_abi_type_of_source_type(
+        &mut self,
+        ty: TypeId,
+    ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
+        match self.source_types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::String) => {
+                Ok(self.codegen.llvm_scoop_string_ptr_type().into())
+            }
+            TypeKind::Ref(_) => Ok(self.codegen.llvm_gc_i8_ptr_type().into()),
+            TypeKind::StarProjection(star) => self.llvm_abi_type_of_source_type(star.read_ty),
+            TypeKind::Value(ValueTypeKind::Nothing) => Ok(self.codegen.context.i8_type().into()),
+            TypeKind::Value(ValueTypeKind::Unit) => {
+                Ok(self.codegen.context.struct_type(&[], false).into())
+            }
+            TypeKind::Value(ValueTypeKind::Bool) => Ok(self.codegen.context.bool_type().into()),
+            TypeKind::Value(ValueTypeKind::Char) => Ok(self.codegen.context.i32_type().into()),
+            TypeKind::Value(ValueTypeKind::Float64) => Ok(self.codegen.context.f64_type().into()),
+            TypeKind::Value(ValueTypeKind::Float32) => Ok(self.codegen.context.f32_type().into()),
+            TypeKind::Value(ValueTypeKind::Int) => Ok(self
+                .codegen
+                .int_type(IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: true,
+                })
+                .into()),
+            TypeKind::Value(ValueTypeKind::UInt) => Ok(self
+                .codegen
+                .int_type(IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: false,
+                })
+                .into()),
+            TypeKind::Value(ValueTypeKind::IntN(bits)) => Ok(self
+                .codegen
+                .int_type(IntTy {
+                    bits: u32::from(*bits),
+                    signed: true,
+                })
+                .into()),
+            TypeKind::Value(ValueTypeKind::UIntN(bits)) => Ok(self
+                .codegen
+                .int_type(IntTy {
+                    bits: u32::from(*bits),
+                    signed: false,
+                })
+                .into()),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                let mut fields = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let element_ty = self.llvm_abi_type_of_source_type(*element)?;
+                    if self.codegen.target_data.get_store_size(&element_ty) == 0 {
+                        continue;
+                    }
+                    fields.push(element_ty);
+                }
+                Ok(self.codegen.context.struct_type(&fields, false).into())
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => {
+                if let Some(codegen_ty) = self.equivalent_codegen_type_id(ty) {
+                    let cg_ty = self.codegen.cg_ty_of(codegen_ty).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
+                            self.source_types.display(ty)
+                        ))
+                    })?;
+                    return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
+                }
+                let key = crate::hir::mangle_nominal_fqn(
+                    "scoop.core.Option",
+                    &[*inner],
+                    self.source_types,
+                );
+                let layout = self.codegen.enum_layouts.get(&key).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 缺少 `{}` 的 enum layout",
+                        self.source_types.display(ty)
+                    ))
+                })?;
+                self.llvm_enum_value_type_from_layout(layout)
+            }
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                if nominal.fqn == "scoop.unsafe.__AtomicInt" {
+                    return Ok(self
+                        .codegen
+                        .int_type(IntTy {
+                            bits: self.codegen.host.word_bit_width(),
+                            signed: true,
+                        })
+                        .into());
+                }
+                if nominal.fqn == "scoop.core.UIntPtr" || nominal.fqn == "scoop.unsafe.FunPtr" {
+                    return Ok(self
+                        .codegen
+                        .int_type(IntTy {
+                            bits: self.codegen.host.word_bit_width(),
+                            signed: false,
+                        })
+                        .into());
+                }
+                if let Some(codegen_ty) = self.equivalent_codegen_type_id(ty) {
+                    let cg_ty = self.codegen.cg_ty_of(codegen_ty).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
+                            self.source_types.display(ty)
+                        ))
+                    })?;
+                    return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
+                }
+                self.llvm_nominal_value_type_from_layout(nominal)
+            }
+            TypeKind::Param(_) => Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 遇到尚未实例化的类型参数 `{}`",
+                self.source_types.display(ty)
+            ))),
+        }
+    }
+
+    fn llvm_nominal_value_type_from_layout(
+        &mut self,
+        nominal: &crate::ty::NominalType,
+    ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
+        let key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.source_types);
+        let layout = self.codegen.enum_layouts.get(&key).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 nominal value `{}` 的等价 codegen TypeId 或 enum layout",
+                nominal.fqn
+            ))
+        })?;
+        self.llvm_enum_value_type_from_layout(layout)
+    }
+
+    fn llvm_enum_value_type_from_layout(
+        &self,
+        layout: &crate::hir::EnumLayout,
+    ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
+        match &layout.repr {
+            crate::hir::EnumRepr::TaggedUnion => {
+                if let Some(existing) = self.codegen.context.get_struct_type(&layout.fqn) {
+                    return Ok(existing.into());
+                }
+                let enum_ty = self.codegen.context.opaque_struct_type(&layout.fqn);
+                let tag_ty = self.codegen.context.i32_type();
+                let payload_word_ty = self.codegen.int_type(IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: false,
+                });
+                let payload_ptr_ty = self.codegen.llvm_gc_i8_ptr_type();
+                enum_ty.set_body(
+                    &[tag_ty.into(), payload_word_ty.into(), payload_ptr_ty.into()],
+                    false,
+                );
+                Ok(enum_ty.into())
+            }
+            crate::hir::EnumRepr::ValueOnly { underlying_ty_fqn } => {
+                self.llvm_builtin_integer_from_fqn(underlying_ty_fqn.as_deref())
+            }
+        }
+    }
+
+    fn llvm_builtin_integer_from_fqn(
+        &self,
+        underlying_ty_fqn: Option<&str>,
+    ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
+        let fqn = underlying_ty_fqn.ok_or_else(|| {
+            frontend_error(
+                "refactor LLVM ABI materialization 缺少 value-only enum 的底层整数类型".to_string(),
+            )
+        })?;
+        let int_ty = match fqn {
+            "scoop.core.Int" | "scoop.unsafe.__AtomicInt" => IntTy {
+                bits: self.codegen.host.word_bit_width(),
+                signed: true,
+            },
+            "scoop.core.UInt" | "scoop.core.UIntPtr" => IntTy {
+                bits: self.codegen.host.word_bit_width(),
+                signed: false,
+            },
+            other => {
+                if let Some(bits) = other
+                    .strip_prefix("scoop.core.Int")
+                    .and_then(|suffix| suffix.parse::<u32>().ok())
+                {
+                    IntTy { bits, signed: true }
+                } else if let Some(bits) = other
+                    .strip_prefix("scoop.core.UInt")
+                    .and_then(|suffix| suffix.parse::<u32>().ok())
+                {
+                    IntTy {
+                        bits,
+                        signed: false,
+                    }
+                } else {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 目前只支持 integer-backed value-only enum，实际底层类型为 `{other}`"
+                    )));
+                }
+            }
+        };
+        Ok(self.codegen.int_type(int_ty).into())
+    }
+
+    fn equivalent_codegen_type_id(&self, source_ty: TypeId) -> Option<TypeId> {
+        let source_display = self.source_types.display(source_ty).to_string();
+        self.codegen
+            .types
+            .iter_ids()
+            .find(|&candidate| self.codegen.types.display(candidate).to_string() == source_display)
+    }
+
+    fn define_named_struct(&self, name: &str, fields: &[BasicTypeEnum<'ctx>]) -> StructType<'ctx> {
+        let struct_ty = self
+            .codegen
+            .context
+            .get_struct_type(name)
+            .unwrap_or_else(|| self.codegen.context.opaque_struct_type(name));
+        if struct_ty.is_opaque() {
+            struct_ty.set_body(fields, false);
+        }
+        struct_ty
+    }
+
+    fn define_union_storage_type(
+        &self,
+        name: &str,
+        payload_tys: &[StructType<'ctx>],
+    ) -> StructType<'ctx> {
+        let storage_ty = self
+            .codegen
+            .context
+            .get_struct_type(name)
+            .unwrap_or_else(|| self.codegen.context.opaque_struct_type(name));
+        if !storage_ty.is_opaque() {
+            return storage_ty;
+        }
+
+        let mut max_size = 0u64;
+        let mut max_align = 1u64;
+        let mut anchor_ty = None;
+        for payload_ty in payload_tys {
+            let size = self.codegen.target_data.get_store_size(payload_ty);
+            let align = u64::from(self.codegen.target_data.get_abi_alignment(payload_ty));
+            if anchor_ty.is_none() || align > max_align || (align == max_align && size > max_size) {
+                anchor_ty = Some(*payload_ty);
+                max_size = size;
+                max_align = align;
+            } else if size > max_size {
+                max_size = size;
+            }
+        }
+
+        if max_size == 0 {
+            storage_ty.set_body(&[], false);
+            return storage_ty;
+        }
+
+        let anchor_ty = anchor_ty.expect("payload_tys 至少包含 Complete variant");
+        let anchor_size = self.codegen.target_data.get_store_size(&anchor_ty);
+        let mut fields: Vec<BasicTypeEnum<'ctx>> = vec![anchor_ty.into()];
+        if max_size > anchor_size {
+            fields.push(
+                self.codegen
+                    .context
+                    .i8_type()
+                    .array_type((max_size - anchor_size) as u32)
+                    .into(),
+            );
+        }
+        storage_ty.set_body(&fields, false);
+        storage_ty
+    }
+
+    fn ensure_declared_function(&self, name: &str, fn_ty: inkwell::types::FunctionType<'ctx>) {
+        if self.codegen.module.get_function(name).is_none() {
+            self.codegen.module.add_function(name, fn_ty, None);
+        }
+    }
+
+    fn ensure_struct_anchor(&self, name: &str, struct_ty: StructType<'ctx>) {
+        if self.codegen.module.get_global(name).is_some() {
+            return;
+        }
+        let global = self.codegen.module.add_global(struct_ty, None, name);
+        global.set_linkage(Linkage::Internal);
+        global.set_constant(true);
+        global.set_initializer(&struct_ty.const_zero());
+    }
+
+    fn ensure_case_tag_constant(&self, name: &str, tag_value: u32) {
+        if self.codegen.module.get_global(name).is_some() {
+            return;
+        }
+        let i32_ty = self.codegen.context.i32_type();
+        let global = self.codegen.module.add_global(i32_ty, None, name);
+        global.set_linkage(Linkage::Internal);
+        global.set_constant(true);
+        global.set_initializer(&i32_ty.const_int(u64::from(tag_value), false));
+    }
+}
+
+fn dummy_span() -> crate::span::Span {
+    crate::span::Span::new(0, 0)
+}
+
+fn frontend_error(message: String) -> LlvmEmitError {
+    LlvmEmitError::Frontend { message }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+    use std::rc::Rc;
+
+    use super::*;
+    use crate::effect_facts::{CaseTag, ImplPlan};
+    use crate::effect_lowered::ir::SystemSlotKind;
+    use crate::effect_refactor_pipeline::{
+        RefactorMirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
+        load_typed_hir_stage_output_for_dump,
+    };
+    use crate::llvm::build_single_file_source_map;
+    use crate::llvm::codegen::{
+        CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState,
+    };
+    use crate::llvm::target;
+    use crate::mir::{LoweredMir, MirLoweringFacts, lower_hir_file_for_dump_with_facts};
+    use crate::program_facts::ProgramFacts;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::source::{SourceFile, SourceMap};
+    use crate::ty::TypeStore;
+    use inkwell::context::Context;
+
+    struct FixtureAbiInputs {
+        source_map: SourceMap,
+        entry_source_id: crate::source::SourceId,
+        hir_compat_scaffold: crate::hir::LoweredHir,
+        effect_lowered_stage_output:
+            crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    }
+
+    fn refactor_session() -> Session {
+        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+    }
+
+    fn load_build_fixture(name: &str) -> SourceFile {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/build")
+            .join(name);
+        SourceFile::load(&path).expect("fixture 应可加载")
+    }
+
+    fn build_fixture_inputs(name: &str) -> FixtureAbiInputs {
+        let session = refactor_session();
+        let source = load_build_fixture(name);
+        let typed_hir_output = load_typed_hir_stage_output_for_dump(&session, &source)
+            .expect("typed HIR stage 应成功");
+        let hir_compat_scaffold = typed_hir_output
+            .lowered_hir()
+            .clone_hir_compat_scaffold_without_materialized_mir();
+        let facts = MirLoweringFacts::from_refactor_typed_handoff(
+            typed_hir_output.lowered_hir(),
+            typed_hir_output.effect_contracts(),
+        );
+        let effect_contracts = typed_hir_output.effect_contracts().clone();
+        let mut lowered_hir = typed_hir_output.into_lowered_hir();
+        let builtins = lowered_hir.types.intern_builtins();
+        let file = lower_hir_file_for_dump_with_facts(
+            builtins,
+            &mut lowered_hir.types,
+            &lowered_hir.file,
+            &lowered_hir.member_funs,
+            &facts,
+        );
+        let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
+        let materialized_mir = lowered_hir.into_materialized_mir();
+        let mir_stage_output = RefactorMirStageOutput::new(
+            LoweredMir { file, types },
+            effect_contracts,
+            materialized_mir,
+        );
+        let effect_facts_stage_output =
+            build_effect_facts_stage_output(&session, &source, mir_stage_output)
+                .expect("effect facts stage 应成功");
+        let effect_lowered_stage_output =
+            build_effect_lowered_stage_output(&session, effect_facts_stage_output)
+                .expect("effect lowered stage 应成功");
+        let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+        FixtureAbiInputs {
+            source_map,
+            entry_source_id,
+            hir_compat_scaffold,
+            effect_lowered_stage_output,
+        }
+    }
+
+    fn with_fixture_query(
+        name: &str,
+        check: impl for<'ctx> FnOnce(
+            &FixtureAbiInputs,
+            &RefactorAbiQuery<'ctx>,
+            &inkwell::module::Module<'ctx>,
+        ),
+    ) {
+        let inputs = build_fixture_inputs(name);
+        let context = Context::create();
+        let module = context.create_module("refactor_abi_test");
+        let builder = context.create_builder();
+        let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
+        let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
+        let lowered = &inputs.hir_compat_scaffold;
+        let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                crate::hir::Item::Fun(fun) => Some(fun),
+                _ => None,
+            })
+            .chain(lowered.member_funs.iter())
+            .map(|fun| (fun.fqn.clone(), fun))
+            .collect();
+        let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+        let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+        let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+            context: &context,
+            module: &module,
+            builder: &builder,
+            target_data: &target_data,
+            host: &target_info,
+            source_map: &inputs.source_map,
+            entry_source_id: inputs.entry_source_id,
+            types: &lowered.types,
+            struct_layouts: &lowered.struct_layouts,
+            enum_layouts: &lowered.enum_layouts,
+            top_level_vars: &lowered.top_level_vars,
+            top_level_consts: &lowered.top_level_consts,
+            top_level_immutable_values: &lowered.top_level_immutable_values,
+            object_inits: &lowered.object_inits,
+            class_inits: &lowered.class_inits,
+            class_vtables: &lowered.class_vtables,
+            interfaces: &lowered.interfaces,
+            class_itables: &lowered.class_itables,
+            ctor_call_sites: &lowered.ctor_call_sites,
+            dispatch_call_sites: &lowered.dispatch_call_sites,
+            effect_op_call_sites: &lowered.effect_op_call_sites,
+            handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
+            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            when_pat_binding_tys: &lowered.when_pat_binding_tys,
+            nominal_kinds: &lowered.nominal_kinds,
+            nominal_variances: &lowered.nominal_variances,
+            direct_supertypes: &lowered.direct_supertypes,
+            builtins: lowered.builtins,
+            extern_funs: &lowered.extern_funs,
+            fun_index: &fun_index,
+            materialized_pass_view: Some(
+                inputs.effect_lowered_stage_output.materialized_pass_view(),
+            ),
+            program_facts,
+            effect_op_tags,
+        });
+        let mut codegen = unit_codegen.fresh_main_codegen();
+        let query = codegen
+            .materialize_refactor_program_abi(
+                inputs.effect_lowered_stage_output.program(),
+                inputs.effect_lowered_stage_output.types(),
+            )
+            .expect("refactor ABI materialization 应成功");
+        check(&inputs, &query, &module);
+    }
+
+    #[test]
+    fn refactor_llvm_step_layout_keeps_canonical_case_set_for_single_case_callable() {
+        with_fixture_query(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs, query, module| {
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("callable 应存在");
+                assert_eq!(callable.impl_plan(), ImplPlan::SingleCase(CaseTag::new(0)));
+
+                let step_layout = query
+                    .step_layout(callable.step_schema())
+                    .expect("step layout 应可查询");
+                assert_eq!(step_layout.complete_variant().tag_value(), 0);
+                assert_eq!(step_layout.cases().len(), 3);
+                assert_eq!(
+                    step_layout
+                        .case_layout(CaseTag::new(0))
+                        .expect("case0 应存在")
+                        .variant()
+                        .tag_value(),
+                    1
+                );
+                assert_eq!(
+                    step_layout
+                        .case_layout(CaseTag::new(1))
+                        .expect("case1 应存在")
+                        .variant()
+                        .tag_value(),
+                    2
+                );
+                assert_eq!(
+                    step_layout
+                        .case_layout(CaseTag::new(2))
+                        .expect("runtime-error case 应存在")
+                        .variant()
+                        .tag_value(),
+                    3
+                );
+                assert!(
+                    module
+                        .get_global(step_layout.complete_tag_constant_name())
+                        .is_some()
+                );
+                assert!(
+                    module
+                        .get_global(
+                            step_layout
+                                .case_layout(CaseTag::new(1))
+                                .expect("case1 应存在")
+                                .tag_constant_name(),
+                        )
+                        .is_some()
+                );
+                assert!(
+                    module
+                        .get_global(
+                            step_layout
+                                .case_layout(CaseTag::new(2))
+                                .expect("runtime-error case 应存在")
+                                .tag_constant_name(),
+                        )
+                        .is_some()
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_frame_layout_preserves_slot_indices_and_system_fields() {
+        with_fixture_query(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs, query, _module| {
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("callable 应存在");
+                let frame_layout = query
+                    .frame_layout(callable.step_schema())
+                    .expect("frame layout 应可查询");
+
+                assert_eq!(
+                    frame_layout.fields()[0].kind(),
+                    RefactorFrameFieldKind::Header
+                );
+                for (ordinal, slot) in callable.frame_schema().slots().iter().enumerate() {
+                    let expected_field_index = ordinal as u32 + 1;
+                    assert_eq!(
+                        frame_layout.field_index_for_slot(slot.slot_id()),
+                        Some(expected_field_index)
+                    );
+                    if let LateLoweredFrameSlotKind::System(kind) = slot.kind() {
+                        assert_eq!(
+                            frame_layout.field_index_for_system(kind),
+                            Some(expected_field_index)
+                        );
+                    }
+                }
+                for required in [
+                    SystemSlotKind::StateTag,
+                    SystemSlotKind::ResumePayloadCarrier,
+                    SystemSlotKind::CleanupFlag,
+                    SystemSlotKind::OneShotFlag,
+                    SystemSlotKind::CompletionTag,
+                ] {
+                    assert!(
+                        frame_layout.field_index_for_system(required).is_some(),
+                        "frame layout 缺少系统字段 {required:?}"
+                    );
+                }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_continuation_layout_keeps_full_method_set() {
+        with_fixture_query(
+            "effect_refactor_continuation_interface_full_methods.scoop",
+            |inputs, query, module| {
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("fixtures.build.continuationCarrier")
+                    .expect("callable 应存在");
+                let continuation_layout = query
+                    .continuation_layout(callable.continuation_object())
+                    .expect("continuation layout 应可查询");
+                let callable_layout = query
+                    .callable_layout(callable.step_schema())
+                    .expect("callable layout 应可查询");
+                let interface_id = *callable_layout
+                    .resume_interfaces()
+                    .iter()
+                    .find(|interface_id| {
+                        query
+                            .resume_interface_layout(**interface_id)
+                            .is_some_and(|interface| {
+                                interface.effect_family_fqn() == "fixtures.build.Ping"
+                            })
+                    })
+                    .expect("应存在 Ping resume interface");
+                let interface_layout = query
+                    .resume_interface_layout(interface_id)
+                    .expect("resume interface layout 应可查询");
+
+                assert_eq!(interface_layout.methods().len(), 2);
+                assert_eq!(
+                    interface_layout
+                        .method(CaseTag::new(0))
+                        .expect("case0 method 应存在")
+                        .vtable_index(),
+                    0
+                );
+                assert_eq!(
+                    interface_layout
+                        .method(CaseTag::new(1))
+                        .expect("case1 method 应存在")
+                        .vtable_index(),
+                    1
+                );
+                assert!(
+                    continuation_layout
+                        .field_index_for_interface(interface_id)
+                        .is_some()
+                );
+                assert!(
+                    module
+                        .get_function(
+                            interface_layout
+                                .method(CaseTag::new(1))
+                                .expect("case1 method 应存在")
+                                .symbol_name(),
+                        )
+                        .is_some()
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_unit_abi_elides_zero_sized_args_and_resume_payloads() {
+        with_fixture_query(
+            "effect_refactor_dynamic_invoke_unit_payload.scoop",
+            |inputs, query, module| {
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("fixtures.build.unitWorker")
+                    .expect("callable 应存在");
+                let callable_layout = query
+                    .callable_layout(callable.step_schema())
+                    .expect("callable layout 应可查询");
+                let step_layout = query
+                    .step_layout(callable.step_schema())
+                    .expect("step layout 应可查询");
+                let interface_id = *query
+                    .callable_layout(callable.step_schema())
+                    .expect("callable layout 应可查询")
+                    .resume_interfaces()
+                    .iter()
+                    .find(|interface_id| {
+                        query
+                            .resume_interface_layout(**interface_id)
+                            .is_some_and(|interface| {
+                                interface.effect_family_fqn() == "fixtures.build.Ping"
+                            })
+                    })
+                    .expect("应存在 Ping resume interface");
+                let interface_layout = query
+                    .resume_interface_layout(interface_id)
+                    .expect("resume interface layout 应可查询");
+                let method_layout = interface_layout
+                    .method(CaseTag::new(0))
+                    .expect("case0 method 应存在");
+
+                assert!(callable_layout.dynamic_entry().args_abi().is_elided());
+                assert!(callable_layout.direct_entry().args_abi().is_elided());
+                assert_eq!(callable_layout.dynamic_entry().param_count(), 0);
+                assert_eq!(callable_layout.direct_entry().param_count(), 0);
+                assert!(step_layout.complete_variant().payload_is_elided());
+                assert_eq!(step_layout.complete_variant().payload_field_count(), 0);
+                assert!(method_layout.resume_payload_abi().is_elided());
+                assert_eq!(method_layout.param_count(), 1);
+                assert_eq!(
+                    step_layout
+                        .case_layout(CaseTag::new(0))
+                        .expect("case0 layout 应存在")
+                        .variant()
+                        .payload_field_count(),
+                    1
+                );
+                assert!(
+                    module
+                        .get_function(callable_layout.dynamic_entry().symbol_name())
+                        .is_some()
+                );
+            },
+        );
+    }
+}

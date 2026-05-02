@@ -10,10 +10,10 @@ mod effect_facts_stage;
 mod effect_lowering_stage;
 mod hir_stage;
 mod legacy;
-mod mir_stage;
-mod refactor;
 #[cfg(feature = "llvm")]
 mod llvm_codegen_stage;
+mod mir_stage;
+mod refactor;
 
 use crate::session::{EffectPipelineMode, Session};
 use crate::source::SourceFile;
@@ -26,9 +26,9 @@ pub use hir_stage::{
     HandleArmSiteContract, HandleSiteContract, PayloadTypeContract, PerformSiteContract,
     TypedCallSiteKind, TypedHirEffectContracts, TypedHirStageOutput,
 };
-pub use mir_stage::RefactorMirStageOutput;
 #[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::{RefactorLlvmCodegenStageInput, RefactorLlvmCodegenStageOutput};
+pub use mir_stage::RefactorMirStageOutput;
 
 #[cfg(feature = "llvm")]
 use crate::source::{SourceId, SourceMap};

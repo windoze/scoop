@@ -1,0 +1,25 @@
+// 目标：P6-T02 continuation object / resume interface 必须保留完整 method 集。
+// - `continuationCarrier` 的 allowed row 是 `Ping`，因此 canonical resume interface 必须保留 `hit$ret` / `pong$ret`；
+// - build 路径当前只为可达 callable 物化 ABI，因此这里让 `main` 在 self-contained handle 中调用它；
+// - 对应的 resume vtable 仍必须同时发布 `hit$ret` / `pong$ret` 两个 method slot。
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: @__scoop_refactor_resume_vtable_layout__fixtures_build_continuationCarrier__fixtures_build_Ping = internal constant %scoop.refactor.ResumeVtable__fixtures_build_continuationCarrier__fixtures_build_Ping zeroinitializer
+// BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_continuationCarrier @__scoop_refactor_resume__fixtures_build_continuationCarrier__case0(
+// BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_continuationCarrier @__scoop_refactor_resume__fixtures_build_continuationCarrier__case1(
+package fixtures.build
+
+effect Ping {
+    fun hit(): Unit
+    fun pong(): Unit
+}
+
+fun continuationCarrier(): Unit / Ping {}
+
+fun main() {
+    handle {
+        continuationCarrier()
+    } with {
+        Ping.hit(), _k -> {}
+        Ping.pong(), _k -> {}
+    }
+}
