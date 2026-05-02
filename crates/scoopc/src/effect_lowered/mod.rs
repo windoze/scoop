@@ -29,6 +29,25 @@ pub enum EffectLoweringError {
     MissingStepSchema { root_fqn: String, step_schema: u32 },
 
     #[error(
+        "refactor late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上缺少 continuation schema k{continuation_schema}"
+    )]
+    MissingContinuationSchema {
+        step_schema: u32,
+        continuation_schema: u32,
+        case_tag: u32,
+    },
+
+    #[error(
+        "refactor late-lowering stage 看到的 `{root_fqn}` invoke args tuple(t{callable_args_tuple}) 与 StepSchema s{step_schema} 的 invoke args tuple(t{step_args_tuple}) 不一致"
+    )]
+    InvokeArgsTupleMismatch {
+        root_fqn: String,
+        step_schema: u32,
+        callable_args_tuple: u32,
+        step_args_tuple: u32,
+    },
+
+    #[error(
         "refactor late-lowering stage 看到的 canonical snapshot instance 数量({snapshot_instances}) 与 callable facts 数量({callable_facts}) 不一致"
     )]
     SnapshotCallableCountMismatch {

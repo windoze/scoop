@@ -1,19 +1,73 @@
-use crate::effect_facts::{CaseTag, ImplPlan, StepSchemaId};
-use crate::mir::InstanceKey;
+use crate::effect_facts::{CaseTag, ConcreteOpKey, ContinuationSchemaId, ImplPlan, StepSchemaId};
+use crate::mir::{BasicBlockId, InstanceKey, LocalId, SiteId};
+use crate::ty::{EffectRow, TypeId};
 
 /// P5 late-lowering 阶段的顶层中间表示。
 ///
-/// P5-T01 先固定一个独立、稳定的容器边界；P5-T02 及之后的任务会继续把 version key、state
-/// graph、frame schema、boundary/resume mapping 等最终形状补进来，而不是再把这些信息散落回
-/// P3/P4 的 direct-style MIR 或 effect facts side table。
+/// 该容器现在固定住后续任务必须继续填充的最终骨架：
+/// - program-level `Step_F` materialization shell；
+/// - internal resume interface shell；
+/// - continuation object shell；
+/// - callable body version / state graph / frame schema / boundary mapping。
+///
+/// 后续 T03-T06 只能继续在这些类型里补算法和内容，而不能再另起一套临时 IR。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredProgram {
+    step_types: Vec<LateLoweredStepType>,
+    resume_interfaces: Vec<LateLoweredResumeInterface>,
+    continuation_objects: Vec<LateLoweredContinuationObject>,
     callables: Vec<LateLoweredCallable>,
 }
 
 impl LateLoweredProgram {
-    pub(crate) fn new(callables: Vec<LateLoweredCallable>) -> Self {
-        Self { callables }
+    pub(crate) fn new(
+        step_types: Vec<LateLoweredStepType>,
+        resume_interfaces: Vec<LateLoweredResumeInterface>,
+        continuation_objects: Vec<LateLoweredContinuationObject>,
+        callables: Vec<LateLoweredCallable>,
+    ) -> Self {
+        Self {
+            step_types,
+            resume_interfaces,
+            continuation_objects,
+            callables,
+        }
+    }
+
+    pub fn step_types(&self) -> &[LateLoweredStepType] {
+        &self.step_types
+    }
+
+    pub fn step_type(&self, step_schema: StepSchemaId) -> Option<&LateLoweredStepType> {
+        self.step_types
+            .iter()
+            .find(|step_type| step_type.step_schema() == step_schema)
+    }
+
+    pub fn resume_interfaces(&self) -> &[LateLoweredResumeInterface] {
+        &self.resume_interfaces
+    }
+
+    pub fn resume_interface(
+        &self,
+        interface_id: ResumeInterfaceId,
+    ) -> Option<&LateLoweredResumeInterface> {
+        self.resume_interfaces
+            .iter()
+            .find(|interface| interface.interface_id() == interface_id)
+    }
+
+    pub fn continuation_objects(&self) -> &[LateLoweredContinuationObject] {
+        &self.continuation_objects
+    }
+
+    pub fn continuation_object(
+        &self,
+        object_id: ContinuationObjectId,
+    ) -> Option<&LateLoweredContinuationObject> {
+        self.continuation_objects
+            .iter()
+            .find(|object| object.object_id() == object_id)
     }
 
     pub fn callables(&self) -> &[LateLoweredCallable] {
@@ -24,6 +78,15 @@ impl LateLoweredProgram {
         self.callables
             .iter()
             .find(|callable| callable.root_fqn() == root_fqn)
+    }
+
+    pub fn callable_by_version_key(
+        &self,
+        version_key: &LateLoweredBodyVersionKey,
+    ) -> Option<&LateLoweredCallable> {
+        self.callables
+            .iter()
+            .find(|callable| callable.body_version_key() == version_key)
     }
 
     pub fn len(&self) -> usize {
@@ -40,49 +103,44 @@ impl LateLoweredProgram {
     }
 }
 
-/// 单个 callable family 在 late-lowering 入口处对应的稳定边界记录。
+/// callable surface instance 在 P5 中对应的具体 body 版本 identity。
 ///
-/// 当前先把 P4 已经确定的 callable-level contract 显式挂到独立 IR 上，后续任务会在同一类型上
-/// 继续扩展 version/state/frame 等结构，而不是另起第二套容器。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LateLoweredCallable {
-    root_fqn: String,
-    instance_key: InstanceKey,
-    step_schema: StepSchemaId,
+/// 该 key 显式区分：
+/// - surface callable identity；
+/// - `allowed_row` 家族；
+/// - P4 已决定的 `impl_plan`；
+/// - `needs_reentry`。
+///
+/// 后续 widening / specialization 只能在这套显式 key 空间里发生，不能再回到 span、名字或隐藏缓存。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LateLoweredBodyVersionKey {
+    surface_instance: InstanceKey,
+    allowed_row: EffectRow,
     impl_plan: ImplPlan,
     needs_reentry: bool,
-    resolved_outward_cases: Vec<CaseTag>,
 }
 
-impl LateLoweredCallable {
+impl LateLoweredBodyVersionKey {
     pub(crate) fn new(
-        root_fqn: String,
-        instance_key: InstanceKey,
-        step_schema: StepSchemaId,
+        surface_instance: InstanceKey,
+        allowed_row: EffectRow,
         impl_plan: ImplPlan,
         needs_reentry: bool,
-        resolved_outward_cases: Vec<CaseTag>,
     ) -> Self {
         Self {
-            root_fqn,
-            instance_key,
-            step_schema,
+            surface_instance,
+            allowed_row,
             impl_plan,
             needs_reentry,
-            resolved_outward_cases,
         }
     }
 
-    pub fn root_fqn(&self) -> &str {
-        &self.root_fqn
+    pub fn surface_instance(&self) -> &InstanceKey {
+        &self.surface_instance
     }
 
-    pub fn instance_key(&self) -> &InstanceKey {
-        &self.instance_key
-    }
-
-    pub fn step_schema(&self) -> StepSchemaId {
-        self.step_schema
+    pub fn allowed_row(&self) -> &EffectRow {
+        &self.allowed_row
     }
 
     pub fn impl_plan(&self) -> ImplPlan {
@@ -92,8 +150,1186 @@ impl LateLoweredCallable {
     pub fn needs_reentry(&self) -> bool {
         self.needs_reentry
     }
+}
+
+/// 单个 callable version 在 late lowering 入口处对应的最终目标骨架。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredCallable {
+    root_fqn: String,
+    body_version_key: LateLoweredBodyVersionKey,
+    step_schema: StepSchemaId,
+    resolved_outward_cases: Vec<CaseTag>,
+    dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
+    state_graph: LateLoweredStateGraph,
+    frame_schema: LateLoweredFrameSchema,
+    boundary_map: LateLoweredBoundaryMap,
+    resume_state_map: LateLoweredResumeStateMap,
+    continuation_object: ContinuationObjectId,
+    resume_interfaces: Vec<ResumeInterfaceId>,
+}
+
+impl LateLoweredCallable {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        root_fqn: String,
+        body_version_key: LateLoweredBodyVersionKey,
+        step_schema: StepSchemaId,
+        resolved_outward_cases: Vec<CaseTag>,
+        dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
+        state_graph: LateLoweredStateGraph,
+        frame_schema: LateLoweredFrameSchema,
+        boundary_map: LateLoweredBoundaryMap,
+        resume_state_map: LateLoweredResumeStateMap,
+        continuation_object: ContinuationObjectId,
+        resume_interfaces: Vec<ResumeInterfaceId>,
+    ) -> Self {
+        Self {
+            root_fqn,
+            body_version_key,
+            step_schema,
+            resolved_outward_cases,
+            dynamic_invoke_entry,
+            state_graph,
+            frame_schema,
+            boundary_map,
+            resume_state_map,
+            continuation_object,
+            resume_interfaces,
+        }
+    }
+
+    pub fn root_fqn(&self) -> &str {
+        &self.root_fqn
+    }
+
+    pub fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
+        &self.body_version_key
+    }
+
+    pub fn instance_key(&self) -> &InstanceKey {
+        self.body_version_key.surface_instance()
+    }
+
+    pub fn allowed_row(&self) -> &EffectRow {
+        self.body_version_key.allowed_row()
+    }
+
+    pub fn step_schema(&self) -> StepSchemaId {
+        self.step_schema
+    }
+
+    pub fn impl_plan(&self) -> ImplPlan {
+        self.body_version_key.impl_plan()
+    }
+
+    pub fn needs_reentry(&self) -> bool {
+        self.body_version_key.needs_reentry()
+    }
 
     pub fn resolved_outward_cases(&self) -> &[CaseTag] {
         &self.resolved_outward_cases
+    }
+
+    pub fn dynamic_invoke_entry(&self) -> &LateLoweredDynamicInvokeEntry {
+        &self.dynamic_invoke_entry
+    }
+
+    pub fn state_graph(&self) -> &LateLoweredStateGraph {
+        &self.state_graph
+    }
+
+    pub fn frame_schema(&self) -> &LateLoweredFrameSchema {
+        &self.frame_schema
+    }
+
+    pub fn boundary_map(&self) -> &LateLoweredBoundaryMap {
+        &self.boundary_map
+    }
+
+    pub fn resume_state_map(&self) -> &LateLoweredResumeStateMap {
+        &self.resume_state_map
+    }
+
+    pub fn continuation_object(&self) -> ContinuationObjectId {
+        self.continuation_object
+    }
+
+    pub fn resume_interfaces(&self) -> &[ResumeInterfaceId] {
+        &self.resume_interfaces
+    }
+}
+
+/// canonical dynamic callable surface 的稳定表示：`invoke(args_tuple) -> Step_F`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredDynamicInvokeEntry {
+    invoke_args_tuple_ty: TypeId,
+    step_schema: StepSchemaId,
+}
+
+impl LateLoweredDynamicInvokeEntry {
+    pub(crate) fn new(invoke_args_tuple_ty: TypeId, step_schema: StepSchemaId) -> Self {
+        Self {
+            invoke_args_tuple_ty,
+            step_schema,
+        }
+    }
+
+    pub fn invoke_args_tuple_ty(&self) -> TypeId {
+        self.invoke_args_tuple_ty
+    }
+
+    pub fn step_schema(&self) -> StepSchemaId {
+        self.step_schema
+    }
+}
+
+/// `StepSchema(F)` 对应的内部 `Step_F` enum 物化壳层。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredStepType {
+    step_schema: StepSchemaId,
+    invoke_args_tuple_ty: TypeId,
+    complete_ty: TypeId,
+    continuation_obj_ty: TypeId,
+    cases: Vec<LateLoweredStepCase>,
+}
+
+impl LateLoweredStepType {
+    pub(crate) fn new(
+        step_schema: StepSchemaId,
+        invoke_args_tuple_ty: TypeId,
+        complete_ty: TypeId,
+        continuation_obj_ty: TypeId,
+        cases: Vec<LateLoweredStepCase>,
+    ) -> Self {
+        Self {
+            step_schema,
+            invoke_args_tuple_ty,
+            complete_ty,
+            continuation_obj_ty,
+            cases,
+        }
+    }
+
+    pub fn step_schema(&self) -> StepSchemaId {
+        self.step_schema
+    }
+
+    pub fn invoke_args_tuple_ty(&self) -> TypeId {
+        self.invoke_args_tuple_ty
+    }
+
+    pub fn complete_ty(&self) -> TypeId {
+        self.complete_ty
+    }
+
+    pub fn continuation_obj_ty(&self) -> TypeId {
+        self.continuation_obj_ty
+    }
+
+    pub fn cases(&self) -> &[LateLoweredStepCase] {
+        &self.cases
+    }
+}
+
+/// `Step_F` 中某个 canonical outward case 的稳定记录。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredStepCase {
+    case_tag: CaseTag,
+    concrete_op_key: ConcreteOpKey,
+    payload_tuple_ty: TypeId,
+    continuation_schema: ContinuationSchemaId,
+}
+
+impl LateLoweredStepCase {
+    pub(crate) fn new(
+        case_tag: CaseTag,
+        concrete_op_key: ConcreteOpKey,
+        payload_tuple_ty: TypeId,
+        continuation_schema: ContinuationSchemaId,
+    ) -> Self {
+        Self {
+            case_tag,
+            concrete_op_key,
+            payload_tuple_ty,
+            continuation_schema,
+        }
+    }
+
+    pub fn case_tag(&self) -> CaseTag {
+        self.case_tag
+    }
+
+    pub fn concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.concrete_op_key
+    }
+
+    pub fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+}
+
+/// internal resume interface 的稳定 identity。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ResumeInterfaceId(u32);
+
+impl ResumeInterfaceId {
+    pub(crate) const fn new(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+/// internal resume interface 的最终目标形状。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredResumeInterface {
+    interface_id: ResumeInterfaceId,
+    return_step_schema: StepSchemaId,
+    methods: Vec<LateLoweredResumeMethod>,
+}
+
+impl LateLoweredResumeInterface {
+    pub(crate) fn new(
+        interface_id: ResumeInterfaceId,
+        return_step_schema: StepSchemaId,
+        methods: Vec<LateLoweredResumeMethod>,
+    ) -> Self {
+        Self {
+            interface_id,
+            return_step_schema,
+            methods,
+        }
+    }
+
+    pub fn interface_id(&self) -> ResumeInterfaceId {
+        self.interface_id
+    }
+
+    pub fn return_step_schema(&self) -> StepSchemaId {
+        self.return_step_schema
+    }
+
+    pub fn methods(&self) -> &[LateLoweredResumeMethod] {
+        &self.methods
+    }
+}
+
+/// single resume method shell。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredResumeMethod {
+    case_tag: CaseTag,
+    concrete_op_key: ConcreteOpKey,
+    continuation_schema: ContinuationSchemaId,
+    resume_tuple_ty: TypeId,
+}
+
+impl LateLoweredResumeMethod {
+    pub(crate) fn new(
+        case_tag: CaseTag,
+        concrete_op_key: ConcreteOpKey,
+        continuation_schema: ContinuationSchemaId,
+        resume_tuple_ty: TypeId,
+    ) -> Self {
+        Self {
+            case_tag,
+            concrete_op_key,
+            continuation_schema,
+            resume_tuple_ty,
+        }
+    }
+
+    pub fn case_tag(&self) -> CaseTag {
+        self.case_tag
+    }
+
+    pub fn concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.concrete_op_key
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub fn resume_tuple_ty(&self) -> TypeId {
+        self.resume_tuple_ty
+    }
+}
+
+/// continuation object 的稳定 identity。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ContinuationObjectId(u32);
+
+impl ContinuationObjectId {
+    pub(crate) const fn new(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+/// continuation object 定义壳层。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredContinuationObject {
+    object_id: ContinuationObjectId,
+    owner_version_key: LateLoweredBodyVersionKey,
+    continuation_obj_ty: TypeId,
+    implemented_interfaces: Vec<ResumeInterfaceId>,
+    captures: Vec<LateLoweredContinuationCapture>,
+    methods: Vec<LateLoweredContinuationMethod>,
+}
+
+impl LateLoweredContinuationObject {
+    pub(crate) fn new(
+        object_id: ContinuationObjectId,
+        owner_version_key: LateLoweredBodyVersionKey,
+        continuation_obj_ty: TypeId,
+        implemented_interfaces: Vec<ResumeInterfaceId>,
+        captures: Vec<LateLoweredContinuationCapture>,
+        methods: Vec<LateLoweredContinuationMethod>,
+    ) -> Self {
+        Self {
+            object_id,
+            owner_version_key,
+            continuation_obj_ty,
+            implemented_interfaces,
+            captures,
+            methods,
+        }
+    }
+
+    pub fn object_id(&self) -> ContinuationObjectId {
+        self.object_id
+    }
+
+    pub fn owner_version_key(&self) -> &LateLoweredBodyVersionKey {
+        &self.owner_version_key
+    }
+
+    pub fn continuation_obj_ty(&self) -> TypeId {
+        self.continuation_obj_ty
+    }
+
+    pub fn implemented_interfaces(&self) -> &[ResumeInterfaceId] {
+        &self.implemented_interfaces
+    }
+
+    pub fn captures(&self) -> &[LateLoweredContinuationCapture] {
+        &self.captures
+    }
+
+    pub fn methods(&self) -> &[LateLoweredContinuationMethod] {
+        &self.methods
+    }
+}
+
+/// continuation 对 frame/context 的显式 capture ref。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredContinuationCapture {
+    FrameSlot(FrameSlotId),
+    State(StateId),
+}
+
+/// 单个 continuation method 的可达性壳层。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredContinuationMethodReachability {
+    Reachable,
+    Unreachable,
+}
+
+/// continuation method shell。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredContinuationMethod {
+    interface_id: ResumeInterfaceId,
+    case_tag: CaseTag,
+    reachability: LateLoweredContinuationMethodReachability,
+}
+
+impl LateLoweredContinuationMethod {
+    pub(crate) fn new(
+        interface_id: ResumeInterfaceId,
+        case_tag: CaseTag,
+        reachability: LateLoweredContinuationMethodReachability,
+    ) -> Self {
+        Self {
+            interface_id,
+            case_tag,
+            reachability,
+        }
+    }
+
+    pub fn interface_id(&self) -> ResumeInterfaceId {
+        self.interface_id
+    }
+
+    pub fn case_tag(&self) -> CaseTag {
+        self.case_tag
+    }
+
+    pub fn reachability(&self) -> LateLoweredContinuationMethodReachability {
+        self.reachability
+    }
+}
+
+/// callable version 内局部可用的 state id。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StateId(u32);
+
+impl StateId {
+    pub(crate) const fn new(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+/// callable version 内的稳定 boundary id。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct BoundaryId(u32);
+
+impl BoundaryId {
+    pub const fn new(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+/// frame schema 内的稳定 slot id。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FrameSlotId(u32);
+
+impl FrameSlotId {
+    pub const fn new(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+/// state graph 中单个 state 的稳定 role。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredStateRole {
+    Entry,
+    Segment,
+    Resume,
+    Complete,
+    Cleanup,
+    Drop,
+}
+
+/// state graph 中的单个 state shell。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredState {
+    state_id: StateId,
+    role: LateLoweredStateRole,
+}
+
+impl LateLoweredState {
+    pub(crate) fn new(state_id: StateId, role: LateLoweredStateRole) -> Self {
+        Self { state_id, role }
+    }
+
+    pub fn state_id(&self) -> StateId {
+        self.state_id
+    }
+
+    pub fn role(&self) -> LateLoweredStateRole {
+        self.role
+    }
+}
+
+/// late-lowered callable 的 state graph 壳层。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredStateGraph {
+    entry_state: StateId,
+    complete_state: StateId,
+    cleanup_state: Option<StateId>,
+    drop_state: Option<StateId>,
+    states: Vec<LateLoweredState>,
+}
+
+impl LateLoweredStateGraph {
+    pub(crate) fn new(
+        entry_state: StateId,
+        complete_state: StateId,
+        cleanup_state: Option<StateId>,
+        drop_state: Option<StateId>,
+        states: Vec<LateLoweredState>,
+    ) -> Self {
+        Self {
+            entry_state,
+            complete_state,
+            cleanup_state,
+            drop_state,
+            states,
+        }
+    }
+
+    pub(crate) fn minimal_shell() -> Self {
+        let entry_state = StateId::new(0);
+        let complete_state = StateId::new(1);
+        Self::new(
+            entry_state,
+            complete_state,
+            None,
+            None,
+            vec![
+                LateLoweredState::new(entry_state, LateLoweredStateRole::Entry),
+                LateLoweredState::new(complete_state, LateLoweredStateRole::Complete),
+            ],
+        )
+    }
+
+    pub fn entry_state(&self) -> StateId {
+        self.entry_state
+    }
+
+    pub fn complete_state(&self) -> StateId {
+        self.complete_state
+    }
+
+    pub fn cleanup_state(&self) -> Option<StateId> {
+        self.cleanup_state
+    }
+
+    pub fn drop_state(&self) -> Option<StateId> {
+        self.drop_state
+    }
+
+    pub fn states(&self) -> &[LateLoweredState] {
+        &self.states
+    }
+}
+
+/// boundary 对应的 source category。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoundarySiteKind {
+    Call,
+    Perform,
+    Resume,
+    Handle,
+}
+
+/// boundary 必须能稳定映射回 `SiteId` 或 boundary kind。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredBoundarySource {
+    Site {
+        site_id: SiteId,
+        kind: BoundarySiteKind,
+    },
+    RuntimeError,
+}
+
+/// boundary shell。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredBoundary {
+    boundary_id: BoundaryId,
+    source: LateLoweredBoundarySource,
+    owner_state: StateId,
+    resume_state: StateId,
+}
+
+impl LateLoweredBoundary {
+    pub fn new(
+        boundary_id: BoundaryId,
+        source: LateLoweredBoundarySource,
+        owner_state: StateId,
+        resume_state: StateId,
+    ) -> Self {
+        Self {
+            boundary_id,
+            source,
+            owner_state,
+            resume_state,
+        }
+    }
+
+    pub fn boundary_id(&self) -> BoundaryId {
+        self.boundary_id
+    }
+
+    pub fn source(&self) -> LateLoweredBoundarySource {
+        self.source
+    }
+
+    pub fn owner_state(&self) -> StateId {
+        self.owner_state
+    }
+
+    pub fn resume_state(&self) -> StateId {
+        self.resume_state
+    }
+}
+
+/// `BoundaryId -> boundary shell` 的稳定容器。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredBoundaryMap {
+    entries: Vec<LateLoweredBoundary>,
+}
+
+impl LateLoweredBoundaryMap {
+    pub fn new(entries: Vec<LateLoweredBoundary>) -> Self {
+        Self { entries }
+    }
+
+    pub(crate) fn empty() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
+
+    pub fn entries(&self) -> &[LateLoweredBoundary] {
+        &self.entries
+    }
+}
+
+/// `BoundaryId -> resume state` 的稳定绑定。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredResumeState {
+    boundary_id: BoundaryId,
+    state_id: StateId,
+}
+
+impl LateLoweredResumeState {
+    pub fn new(boundary_id: BoundaryId, state_id: StateId) -> Self {
+        Self {
+            boundary_id,
+            state_id,
+        }
+    }
+
+    pub fn boundary_id(&self) -> BoundaryId {
+        self.boundary_id
+    }
+
+    pub fn state_id(&self) -> StateId {
+        self.state_id
+    }
+}
+
+/// `BoundaryId -> resume state` 的稳定容器。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredResumeStateMap {
+    entries: Vec<LateLoweredResumeState>,
+}
+
+impl LateLoweredResumeStateMap {
+    pub fn new(entries: Vec<LateLoweredResumeState>) -> Self {
+        Self { entries }
+    }
+
+    pub(crate) fn empty() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
+
+    pub fn entries(&self) -> &[LateLoweredResumeState] {
+        &self.entries
+    }
+}
+
+/// 系统保留 frame 字段的分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemSlotKind {
+    StateTag,
+    ResumePayloadCarrier,
+    CleanupFlag,
+    OneShotFlag,
+    CompletionTag,
+}
+
+/// frame slot 的稳定分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredFrameSlotKind {
+    SourceLocal(LocalId),
+    CompilerTemporary(LocalId),
+    JoinValue { block: BasicBlockId, ordinal: u32 },
+    HandleBinder(SiteId),
+    ResumePayload(BoundaryId),
+    System(SystemSlotKind),
+}
+
+/// frame schema 内的单个 slot。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredFrameSlot {
+    slot_id: FrameSlotId,
+    kind: LateLoweredFrameSlotKind,
+    ty: TypeId,
+}
+
+impl LateLoweredFrameSlot {
+    pub fn new(slot_id: FrameSlotId, kind: LateLoweredFrameSlotKind, ty: TypeId) -> Self {
+        Self { slot_id, kind, ty }
+    }
+
+    pub fn slot_id(&self) -> FrameSlotId {
+        self.slot_id
+    }
+
+    pub fn kind(&self) -> LateLoweredFrameSlotKind {
+        self.kind
+    }
+
+    pub fn ty(&self) -> TypeId {
+        self.ty
+    }
+}
+
+/// late-lowered callable 的 frame schema 壳层。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredFrameSchema {
+    slots: Vec<LateLoweredFrameSlot>,
+}
+
+impl LateLoweredFrameSchema {
+    pub fn new(slots: Vec<LateLoweredFrameSlot>) -> Self {
+        Self { slots }
+    }
+
+    pub(crate) fn empty() -> Self {
+        Self { slots: Vec::new() }
+    }
+
+    pub fn slots(&self) -> &[LateLoweredFrameSlot] {
+        &self.slots
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+    use std::path::PathBuf;
+
+    use super::*;
+    use crate::effect_refactor_pipeline::load_effect_lowered_stage_output_for_dump;
+    use crate::mir::TemplateKey;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::source::SourceFile;
+    use crate::span::Span;
+    use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeStore};
+
+    fn refactor_session() -> Session {
+        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+    }
+
+    fn load_fixture(phase: &str, name: &str) -> SourceFile {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures")
+            .join(phase)
+            .join(name);
+        SourceFile::load(&path).expect("fixture 应可加载")
+    }
+
+    fn sample_instance_key(fqn: &str) -> InstanceKey {
+        InstanceKey {
+            template: TemplateKey {
+                fqn: fqn.to_string(),
+                source_path: PathBuf::from("<mem>/sample.scoop"),
+                decl_span: Span::new(0, 0),
+            },
+            type_args: Vec::new(),
+            eff_args: Vec::new(),
+        }
+    }
+
+    fn nominal_effect(types: &mut TypeStore, fqn: &str) -> TypeId {
+        types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: fqn.to_string(),
+            args: Vec::new(),
+            eff: None,
+        })))
+    }
+
+    fn sample_manual_program() -> LateLoweredProgram {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let invoke_args_tuple_ty = types.ty_tuple(vec![builtins.int]);
+        let payload_tuple_ty = types.ty_tuple(vec![builtins.string]);
+        let resume_tuple_ty = types.ty_tuple(vec![builtins.int]);
+        let continuation_obj_ty = nominal_effect(&mut types, "sample.CompilerContinuation");
+        let allowed_row = EffectRow::new(vec![nominal_effect(&mut types, "sample.Ping")]);
+
+        let step_schema = StepSchemaId::new(7);
+        let case0 = CaseTag::new(0);
+        let case1 = CaseTag::new(1);
+        let cont_schema0 = ContinuationSchemaId::new(3);
+        let cont_schema1 = ContinuationSchemaId::new(4);
+
+        let step_type = LateLoweredStepType::new(
+            step_schema,
+            invoke_args_tuple_ty,
+            builtins.unit,
+            continuation_obj_ty,
+            vec![
+                LateLoweredStepCase::new(
+                    case0,
+                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit")),
+                    payload_tuple_ty,
+                    cont_schema0,
+                ),
+                LateLoweredStepCase::new(
+                    case1,
+                    ConcreteOpKey::new(sample_instance_key("sample.Ping.pong")),
+                    builtins.unit,
+                    cont_schema1,
+                ),
+            ],
+        );
+
+        let interface_id = ResumeInterfaceId::new(0);
+        let resume_interface = LateLoweredResumeInterface::new(
+            interface_id,
+            step_schema,
+            vec![
+                LateLoweredResumeMethod::new(
+                    case0,
+                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit")),
+                    cont_schema0,
+                    resume_tuple_ty,
+                ),
+                LateLoweredResumeMethod::new(
+                    case1,
+                    ConcreteOpKey::new(sample_instance_key("sample.Ping.pong")),
+                    cont_schema1,
+                    builtins.unit,
+                ),
+            ],
+        );
+
+        let version_key = LateLoweredBodyVersionKey::new(
+            sample_instance_key("sample.worker"),
+            allowed_row,
+            ImplPlan::SingleCase(case0),
+            true,
+        );
+        let continuation_object_id = ContinuationObjectId::new(0);
+        let state0 = StateId::new(0);
+        let state1 = StateId::new(1);
+        let state2 = StateId::new(2);
+        let state3 = StateId::new(3);
+        let state4 = StateId::new(4);
+        let boundary0 = BoundaryId::new(0);
+        let slot0 = FrameSlotId::new(0);
+        let slot1 = FrameSlotId::new(1);
+        let slot2 = FrameSlotId::new(2);
+        let slot3 = FrameSlotId::new(3);
+        let slot4 = FrameSlotId::new(4);
+        let slot5 = FrameSlotId::new(5);
+        let slot6 = FrameSlotId::new(6);
+        let slot7 = FrameSlotId::new(7);
+        let slot8 = FrameSlotId::new(8);
+        let slot9 = FrameSlotId::new(9);
+
+        let continuation_object = LateLoweredContinuationObject::new(
+            continuation_object_id,
+            version_key.clone(),
+            continuation_obj_ty,
+            vec![interface_id],
+            vec![
+                LateLoweredContinuationCapture::FrameSlot(slot4),
+                LateLoweredContinuationCapture::State(state2),
+            ],
+            vec![
+                LateLoweredContinuationMethod::new(
+                    interface_id,
+                    case0,
+                    LateLoweredContinuationMethodReachability::Reachable,
+                ),
+                LateLoweredContinuationMethod::new(
+                    interface_id,
+                    case1,
+                    LateLoweredContinuationMethodReachability::Unreachable,
+                ),
+            ],
+        );
+
+        let callable = LateLoweredCallable::new(
+            "sample.worker".to_string(),
+            version_key,
+            step_schema,
+            vec![case0],
+            LateLoweredDynamicInvokeEntry::new(invoke_args_tuple_ty, step_schema),
+            LateLoweredStateGraph::new(
+                state0,
+                state1,
+                Some(state3),
+                Some(state4),
+                vec![
+                    LateLoweredState::new(state0, LateLoweredStateRole::Entry),
+                    LateLoweredState::new(state2, LateLoweredStateRole::Resume),
+                    LateLoweredState::new(state1, LateLoweredStateRole::Complete),
+                    LateLoweredState::new(state3, LateLoweredStateRole::Cleanup),
+                    LateLoweredState::new(state4, LateLoweredStateRole::Drop),
+                ],
+            ),
+            LateLoweredFrameSchema::new(vec![
+                LateLoweredFrameSlot::new(
+                    slot0,
+                    LateLoweredFrameSlotKind::SourceLocal(LocalId::from_raw(0)),
+                    builtins.int,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot1,
+                    LateLoweredFrameSlotKind::CompilerTemporary(LocalId::from_raw(1)),
+                    builtins.string,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot2,
+                    LateLoweredFrameSlotKind::JoinValue {
+                        block: BasicBlockId::from_raw(4),
+                        ordinal: 1,
+                    },
+                    builtins.int,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot3,
+                    LateLoweredFrameSlotKind::HandleBinder(SiteId::from_raw(2)),
+                    builtins.string,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot4,
+                    LateLoweredFrameSlotKind::ResumePayload(boundary0),
+                    resume_tuple_ty,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot5,
+                    LateLoweredFrameSlotKind::System(SystemSlotKind::StateTag),
+                    builtins.int,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot6,
+                    LateLoweredFrameSlotKind::System(SystemSlotKind::ResumePayloadCarrier),
+                    payload_tuple_ty,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot7,
+                    LateLoweredFrameSlotKind::System(SystemSlotKind::CleanupFlag),
+                    builtins.bool_,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot8,
+                    LateLoweredFrameSlotKind::System(SystemSlotKind::OneShotFlag),
+                    builtins.bool_,
+                ),
+                LateLoweredFrameSlot::new(
+                    slot9,
+                    LateLoweredFrameSlotKind::System(SystemSlotKind::CompletionTag),
+                    builtins.int,
+                ),
+            ]),
+            LateLoweredBoundaryMap::new(vec![LateLoweredBoundary::new(
+                boundary0,
+                LateLoweredBoundarySource::Site {
+                    site_id: SiteId::from_raw(1),
+                    kind: BoundarySiteKind::Perform,
+                },
+                state0,
+                state2,
+            )]),
+            LateLoweredResumeStateMap::new(vec![LateLoweredResumeState::new(boundary0, state2)]),
+            continuation_object_id,
+            vec![interface_id],
+        );
+
+        LateLoweredProgram::new(
+            vec![step_type],
+            vec![resume_interface],
+            vec![continuation_object],
+            vec![callable],
+        )
+    }
+
+    #[test]
+    fn refactor_body_version_key_keeps_allowed_row_in_identity() {
+        let mut types = TypeStore::new();
+        let alpha = nominal_effect(&mut types, "sample.Alpha");
+        let beta = nominal_effect(&mut types, "sample.Beta");
+        let instance = sample_instance_key("sample.callValue");
+
+        let alpha_key = LateLoweredBodyVersionKey::new(
+            instance.clone(),
+            EffectRow::new(vec![alpha]),
+            ImplPlan::CanonicalFull,
+            true,
+        );
+        let beta_key = LateLoweredBodyVersionKey::new(
+            instance,
+            EffectRow::new(vec![beta]),
+            ImplPlan::CanonicalFull,
+            true,
+        );
+
+        assert_ne!(alpha_key, beta_key);
+        assert_eq!(HashSet::from([alpha_key, beta_key]).len(), 2);
+    }
+
+    #[test]
+    fn refactor_body_version_key_distinguishes_single_case_and_canonical_full_versions() {
+        let mut types = TypeStore::new();
+        let alpha = nominal_effect(&mut types, "sample.Alpha");
+        let allowed_row = EffectRow::new(vec![alpha]);
+        let instance = sample_instance_key("sample.resumeBoom");
+
+        let no_outward = LateLoweredBodyVersionKey::new(
+            instance.clone(),
+            allowed_row.clone(),
+            ImplPlan::NoOutward,
+            false,
+        );
+        let single_case = LateLoweredBodyVersionKey::new(
+            instance.clone(),
+            allowed_row.clone(),
+            ImplPlan::SingleCase(CaseTag::new(0)),
+            true,
+        );
+        let another_single_case = LateLoweredBodyVersionKey::new(
+            instance.clone(),
+            allowed_row.clone(),
+            ImplPlan::SingleCase(CaseTag::new(1)),
+            true,
+        );
+        let canonical =
+            LateLoweredBodyVersionKey::new(instance, allowed_row, ImplPlan::CanonicalFull, true);
+
+        assert_ne!(no_outward, single_case);
+        assert_ne!(single_case, another_single_case);
+        assert_ne!(single_case, canonical);
+        assert_eq!(
+            HashSet::from([no_outward, single_case, another_single_case, canonical]).len(),
+            4
+        );
+    }
+
+    #[test]
+    fn refactor_late_lowered_ir_step_materialization_shell_keeps_canonical_cases_for_single_case_versions()
+     {
+        let program = sample_manual_program();
+        let callable = program
+            .callable("sample.worker")
+            .expect("sample program 应保留 callable shell");
+        let step_type = program
+            .step_type(callable.step_schema())
+            .expect("callable 应能按 step schema 回查 canonical Step shell");
+
+        assert_eq!(callable.impl_plan(), ImplPlan::SingleCase(CaseTag::new(0)));
+        assert_eq!(step_type.cases().len(), 2);
+        assert_eq!(step_type.cases()[0].case_tag(), CaseTag::new(0));
+        assert_eq!(step_type.cases()[1].case_tag(), CaseTag::new(1));
+        assert_eq!(
+            callable.dynamic_invoke_entry().step_schema(),
+            callable.step_schema(),
+        );
+    }
+
+    #[test]
+    fn refactor_late_lowered_ir_resume_interface_shell_records_complete_methods_and_reachability() {
+        let program = sample_manual_program();
+        let callable = program
+            .callable("sample.worker")
+            .expect("sample program 应保留 callable shell");
+        let continuation_object = program
+            .continuation_object(callable.continuation_object())
+            .expect("callable 应能回查 continuation object shell");
+        let resume_interface = program
+            .resume_interface(callable.resume_interfaces()[0])
+            .expect("callable 应能回查 resume interface shell");
+
+        assert_eq!(
+            resume_interface.return_step_schema(),
+            callable.step_schema()
+        );
+        assert_eq!(resume_interface.methods().len(), 2);
+        assert_eq!(
+            continuation_object.implemented_interfaces(),
+            callable.resume_interfaces()
+        );
+        assert_eq!(continuation_object.methods().len(), 2);
+        assert_eq!(
+            continuation_object.methods()[0].reachability(),
+            LateLoweredContinuationMethodReachability::Reachable,
+        );
+        assert_eq!(
+            continuation_object.methods()[1].reachability(),
+            LateLoweredContinuationMethodReachability::Unreachable,
+        );
+    }
+
+    #[test]
+    fn refactor_late_lowered_ir_stable_dump_exposes_frame_slot_categories() {
+        let program = sample_manual_program();
+        let dump = program.stable_dump();
+
+        for needle in [
+            "SourceLocal",
+            "CompilerTemporary",
+            "JoinValue",
+            "HandleBinder",
+            "ResumePayload",
+            "StateTag",
+            "ResumePayloadCarrier",
+            "CleanupFlag",
+            "OneShotFlag",
+            "CompletionTag",
+        ] {
+            assert!(
+                dump.contains(needle),
+                "stable dump 应显式暴露 frame slot 分类: {needle}\n{dump}"
+            );
+        }
+    }
+
+    #[test]
+    fn refactor_late_lowered_ir_builder_materializes_program_shells_from_effect_facts() {
+        let session = refactor_session();
+        let source = load_fixture("effect_facts", "single_case_impl_plan.scoop");
+        let output = load_effect_lowered_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 refactor late-lowering stage");
+        let program = output.program();
+
+        assert!(!program.step_types().is_empty());
+        assert!(!program.resume_interfaces().is_empty());
+        assert!(!program.continuation_objects().is_empty());
+
+        let leaf = program
+            .callable("sample.leaf")
+            .expect("fixture 应发布 sample.leaf callable shell");
+        let step_type = program
+            .step_type(leaf.step_schema())
+            .expect("callable 应能回查对应 Step shell");
+        let continuation_object = program
+            .continuation_object(leaf.continuation_object())
+            .expect("callable 应能回查 continuation object shell");
+        let resume_interface = program
+            .resume_interface(leaf.resume_interfaces()[0])
+            .expect("callable 应能回查 resume interface shell");
+
+        assert_eq!(step_type.cases().len(), 1);
+        assert!(matches!(leaf.impl_plan(), ImplPlan::SingleCase(_)));
+        assert_eq!(resume_interface.return_step_schema(), leaf.step_schema());
+        assert_eq!(resume_interface.methods().len(), step_type.cases().len());
+        assert_eq!(continuation_object.methods().len(), step_type.cases().len());
+        assert_eq!(
+            continuation_object.implemented_interfaces(),
+            leaf.resume_interfaces(),
+        );
+        assert_eq!(
+            leaf.dynamic_invoke_entry().invoke_args_tuple_ty(),
+            step_type.invoke_args_tuple_ty(),
+        );
     }
 }

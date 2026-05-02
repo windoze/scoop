@@ -90,7 +90,7 @@ impl CaseSet {
 }
 
 /// 当前 callable 在 late lowering 前选中的实现档位。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImplPlan {
     NoOutward,
     SingleCase(CaseTag),

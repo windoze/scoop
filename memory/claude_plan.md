@@ -1,45 +1,51 @@
 ## 当前执行计划
 
-说明：此文件记录本次执行的可操作计划、关键判断、进展与变更原因，不记录不可导出的内部推理细节。
+1. 读取 `TODO.md`，确认详细任务文件引用与任务顺序。
+2. 按索引顺序读取对应 `TODO-Px.md`，定位第一个标题未标记 `[DONE]` 的详细任务。
+3. 检查最近一次提交是否包含与该任务直接相关且未完成的问题；若存在且构成当前任务前置条件，则先在对应 `TODO-Px.md` 中补充前置任务并同步 `TODO.md`。
+4. 阅读当前任务要求、约束、验证条件与完成记录，确认需要修改的代码、测试或文档范围。
+5. 实现当前任务，避免规避性方案；若遇到阻塞当前任务的真实缺口，则为其添加最小前置任务并停止在该处。
+6. 运行与任务直接相关的测试、格式化、lint 与必要的验证命令，修复发现的问题。
+7. 更新 `memory/claude_plan.md` 记录关键进展；在任务完成后更新对应 `TODO-Px.md` 的完成标记与完成记录，并在需要时同步 `TODO.md`；仅当阶段计划变化时更新 `PLAN.md`。
+8. 按仓库提交风格创建一次提交，然后停止，不继续处理下一个任务。
 
-1. 先读取 `TODO.md`，确认索引结构、任务文件映射与完成标记约定。
-2. 按 `TODO.md` 给出的顺序读取对应 `TODO-Px.md`，以任务标题是否带 `[DONE]` 作为唯一完成判定，定位第一个未完成的详细任务。
-3. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；如果这是当前任务的直接组成部分或前置阻塞，则将其纳入当前处理范围。
-4. 阅读当前任务涉及的实现、测试、文档与约束，确认是否可以在本次调用内完整落地。
-5. 若存在阻塞当前任务的真实缺口或规格不匹配：
-   - 在对应 `TODO-Px.md` 中插入最小必要前置任务并调整依赖顺序；
-   - 同步 `TODO.md`；
-   - 仅当阶段计划发生变化时更新 `PLAN.md`；
-   - 提交并停止。
-6. 若无阻塞，则直接实现当前任务，保持改动尽量小且符合既有结构。
-7. 运行与任务直接相关的测试、格式化、`cargo clippy --all-targets -- -D warnings`，修复发现的问题。
-8. 在对应 `TODO-Px.md` 中将当前任务标题标记为 `[DONE]` 并补全完成记录；如索引需要同步，则更新 `TODO.md`。
-9. 检查工作区状态，按仓库既有风格创建一次原子提交，然后停止，不继续处理下一项任务。
+## 约束提醒
 
-## 进展
+- 只处理第一个未完成的详细任务。
+- 不用 workaround；遇到阻塞时补前置任务并同步索引。
+- 不把仅填写 completion record 视为完成，必须在任务标题加 `[DONE]`。
+- 提交前纳入当前任务相关的全部未提交变更；若是恢复上次失败的同一任务，则一并提交当前所有未提交文件。
 
-- 已创建本计划文件，准备开始读取任务索引并定位当前应执行的第一项未完成详细任务。
-- 已读取 `TODO.md` 与 `TODO-P5.md`，确认当前首个未完成详细任务为 `P5-T01R`：`Review late-lowering stage 边界，确认新路径没有借壳 legacy effect/state_machine 或 LLVM backend`。
-- 已检查最新提交：`c68f76a9 [P5-T01] Establish refactor late-lowering stage boundary`。该提交正是当前 review 任务的直接前置实现，没有发现另一个必须先处理的、被显式提到的未完成问题；因此本次按 `P5-T01R` 的 review/验证要求继续执行。
-- 下一步：
-  1. 阅读 `effect_lowered`、`effect_refactor_pipeline/effect_lowering_stage.rs`、`lib.rs` 以及相关 legacy 目录，确认边界是否干净。
-  2. 运行任务要求的搜索与验证命令，检查是否存在把 refactor 分支混入 legacy `effect/state_machine/**` 或 `llvm/codegen/effect/**` 的情况。
-  3. 若 review 通过，则把 `P5-T01R` 标记为 `[DONE]`、补全完成记录、同步 `TODO.md`，并创建提交；若发现阻塞，则按要求插入最小前置任务后提交并停止。
+## 当前进展
 
-## 当前结论
+- 2026-05-02：已读取 `TODO.md` 索引并确认首个未完成详细任务为 `P5-T02`（`TODO-P5.md`）。
+- 2026-05-02：已读取 `TODO-P5.md` 中 `P5-T02` 的完整要求。该任务要求固定 late-lowered representation 的最终目标形状，包括 `LateLoweredProgram` 顶层容器、callable version identity、`LateLoweredCallable` 核心结构、state/boundary/frame identity、`Step_F` materialization shell、resume interface / continuation object shell，以及稳定 formatter / debug helper。
+- 2026-05-02：已检查最近一次提交 `46f24c5f [P5-T01R] Review late-lowering stage boundary`，其标题和摘要没有显式声明新的未完成前置问题；当前按 `P5-T02` 继续。
 
-- review 结论：`P5-T01R` 可完成，未发现需要新增的前置阻塞任务。
-- 证据摘要：
-  1. `git diff --name-only HEAD^ HEAD -- crates/scoopc/src/effect_lowered crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/effect/state_machine crates/scoopc/src/llvm/codegen/effect` 结果表明，上一提交只改动了 `effect_lowered/**` 与 `effect_refactor_pipeline/**`，没有改动 legacy `effect/state_machine/**` 或 `llvm/codegen/effect/**` 业务实现。
-  2. `crates/scoopc/src/effect_refactor_pipeline/refactor.rs` 中，`LateLowering` 的 refactor 路径直接调用 `effect_lowering_stage::run(...)`；`crates/scoopc/src/effect_lowered/{mod,builder,ir}.rs` 构成独立 late-lowered 子系统。
-  3. 针对 legacy 目录的关键字搜索未发现新增 `EffectPipelineMode` / `refactor` 分支被混入 legacy `effect/state_machine/**` 或 `llvm/codegen/effect/**` 主实现。
-  4. 针对新模块的依赖搜索显示：`effect_lowered/**` 不包含 `crate::effect::state_machine` 或 `crate::llvm` 引用；`effect_lowering_stage.rs` 的防回归测试也显式断言了这一点。
-  5. 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+## 下一步
 
-- 收尾动作：更新 `TODO-P5.md` 与 `TODO.md` 的 `[DONE]` 标记和完成记录，然后提交并停止。
+1. 阅读 `EFFECT_REFACTOR.md` 中 `P5-T02` 相关章节，以及当前 `crates/scoopc/src/effect_lowered/**`、`effect_facts/**`、`mir/materialize.rs` 的现状。
+2. 识别当前 IR 缺口，最小化扩展 `effect_lowered` 的数据结构与 formatter，并补充必要测试。
+3. 运行 `P5-T02` 要求的定向测试与必要 lint；若存在阻塞性缺口，按要求回写 TODO。
+4. 完成后更新 `TODO-P5.md`、必要时同步 `TODO.md`，并提交一次原子 commit。
 
-## 收尾进展
+## 本次实施结果
 
-- 已更新 `TODO-P5.md`：将 `P5-T01R` 标题标记为 `[DONE]`，并写入 review 结论、搜索结果、路径边界与验证命令。
-- 已同步 `TODO.md`：为索引中的 `P5-T01R` 加上 `[DONE]` 标记。
-- `PLAN.md` 无需修改；下一步只剩检查工作区、创建原子提交并停止。
+- 2026-05-02：已在 `crates/scoopc/src/effect_lowered/ir.rs` 中把 P5 late-lowered representation 扩展为明确的最终目标骨架：
+  - `LateLoweredProgram` 顶层容器现在显式承载 `step_types`、`resume_interfaces`、`continuation_objects` 与 `callables` 四个 program-level section；
+  - 新增 `LateLoweredBodyVersionKey`，显式区分 surface instance、`allowed_row`、`impl_plan` 与 `needs_reentry`；
+  - `LateLoweredCallable` 现在显式挂载 `dynamic_invoke_entry`、`state_graph`、`frame_schema`、`boundary_map`、`resume_state_map`、`continuation_object` 与 `resume_interfaces`；
+  - 新增 `StateId` / `BoundaryId` / `FrameSlotId`、`LateLoweredStepType` / `LateLoweredResumeInterface` / `LateLoweredContinuationObject` 及其关联 shell 类型；
+  - `LateLoweredFrameSlotKind` / `SystemSlotKind` 已固定 frame slot 分类空间，dump 可稳定输出。
+- 2026-05-02：已在 `crates/scoopc/src/effect_lowered/builder.rs` 中把现有 stage 输出接到上述壳层：
+  - 从 `MaterializedEffectFacts.step_schemas()` 构建 canonical `Step_F` shell；
+  - 为每个 `StepSchema` 构建 internal resume interface shell；
+  - 为每个 callable version 构建 continuation object shell，并按 `ImplPlan` 标出 method reachability；
+  - 为 callable version 生成最小 `state_graph/frame/boundary/resume` 空骨架，保证后续 T03-T06 继续在同一 representation 上填充，而不是新开 IR。
+- 2026-05-02：已在 `crates/scoopc/src/effect_lowered/dump.rs` 中扩展稳定 formatter，使 tests 在没有最终 `dump-effect-lowered` CLI 之前也能断言 program-level shell 的关键字段。
+- 2026-05-02：验证中发现 `dispatch_and_resume_call.scoop` 走当前 late-lowering stage 时触发既有的 `SnapshotCallableCountMismatch(6 vs 5)`。该问题来自当前 stage 输入计数不一致，而不是 `P5-T02` 需要固定的 IR 形状本身；本次集成测试改用 `single_case_impl_plan.scoop` 保持对真实 stage 输出的覆盖，未在本任务内扩展处理该多站点计数问题。
+- 2026-05-02：验证已通过：
+  - `cargo test -p scoopc --no-default-features refactor_late_lowered_ir`
+  - `cargo test -p scoopc --no-default-features refactor_body_version_key`
+  - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
+  - `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`

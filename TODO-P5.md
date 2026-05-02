@@ -217,7 +217,7 @@
   - 2026-05-02：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## P5-T02：定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层
+## [DONE] P5-T02：定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P5
@@ -338,7 +338,15 @@
   - P6 未来可直接依赖这一 representation 生成 LLVM。
 - 依赖：P5-T01R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P5-T02`。`crates/scoopc/src/effect_lowered/ir.rs` 现已把 late-lowered representation 扩展为明确的最终目标骨架：`LateLoweredProgram` 顶层容器显式承载 `step_types`、`resume_interfaces`、`continuation_objects` 与 `callables`；`LateLoweredBodyVersionKey` 显式固定 surface instance、`allowed_row`、`impl_plan`、`needs_reentry`；`LateLoweredCallable` 显式挂载 `dynamic_invoke_entry`、`state_graph`、`frame_schema`、`boundary_map`、`resume_state_map`、`continuation_object` 与 `resume_interfaces`，从而把 P6 未来需要消费的关键 identity / container 边界全部收口到同一套 IR 上。
+  - `StateId` / `BoundaryId` / `FrameSlotId`、`LateLoweredStateGraph`、`LateLoweredBoundaryMap`、`LateLoweredResumeStateMap`、`LateLoweredFrameSchema`、`LateLoweredFrameSlotKind`、`SystemSlotKind` 已在 `effect_lowered/ir.rs` 中固定为正式数据模型。当前仓库的实际模块映射仍沿用 P5-T01 的最小拆分：`ir.rs` 同时承载 TODO 推荐的核心 IR + frame/boundary shell，`builder.rs` 负责从 P4 输出构造这些 shell，`dump.rs` 提供稳定 formatter；没有额外拆出独立 `frame.rs`/`segment.rs`，避免在 T02 提前制造空模块。
+  - `Step_F` shell 已固定为 `LateLoweredStepType` + `LateLoweredStepCase`：每个 `StepSchemaId` 都对应一个独立内部 step 定义，显式保留 `Complete` 结果类型、continuation object type，以及每个 case 的 `CaseTag`、`ConcreteOpKey`、payload tuple type、`ContinuationSchemaId`。`SingleCase(case_tag)` 只影响 callable version 的 `ImplPlan` 与 continuation method reachability；不会缩成第二套窄 `Step` 类型。
+  - internal resume interface / continuation object shell 已固定为 `LateLoweredResumeInterface`、`LateLoweredResumeMethod`、`LateLoweredContinuationObject`、`LateLoweredContinuationMethod` 与 `LateLoweredContinuationCapture`。其中 resume interface 显式保留 interface identity、完整 method 集、每个 method 的 `resume_tuple_ty` 与统一返回的 `StepSchemaId`；continuation object 显式保留 object identity、所属 body version、实现的 interface families、capture 引用以及 method 的 reachable/unreachable 标记，避免把 continuation 留到 P6 再当黑盒补想象。
+  - `crates/scoopc/src/effect_lowered/builder.rs` 现已实际使用 P4 的 `MaterializedEffectFacts` 填充上述壳层：从 `step_schemas()` 构造 canonical step shells；从 `continuation_schemas()` 构造 resume interface methods；为每个 callable version 创建 continuation object shell，并按 `ImplPlan` 把 method 可达性固定下来；同时以统一的最小 `state_graph/frame/boundary/resume` 空骨架承接后续 T03-T06，而不是再另起新的临时 representation。
+  - `crates/scoopc/src/effect_lowered/dump.rs` 已扩展稳定 formatter，使 Rust 单测在没有最终 `dump-effect-lowered` CLI 前，仍能稳定断言 step/interface/continuation/frame/state/boundary 的关键字段。`FrameSlotKind` dump 现在显式暴露 `SourceLocal`、`CompilerTemporary`、`JoinValue`、`HandleBinder`、`ResumePayload` 与全部系统字段分类。
+  - 新增/更新测试：`refactor_body_version_key_keeps_allowed_row_in_identity`、`refactor_body_version_key_distinguishes_single_case_and_canonical_full_versions`、`refactor_late_lowered_ir_step_materialization_shell_keeps_canonical_cases_for_single_case_versions`、`refactor_late_lowered_ir_resume_interface_shell_records_complete_methods_and_reachability`、`refactor_late_lowered_ir_stable_dump_exposes_frame_slot_categories`、`refactor_late_lowered_ir_builder_materializes_program_shells_from_effect_facts`。其中 manual shell tests 负责锁定 multi-case `Step`/continuation shape，真实 stage test 通过 `tests/fixtures/effect_facts/single_case_impl_plan.scoop` 复验 P4->P5 stage 已能发布这套 shell。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_body_version_key`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+  - 2026-05-02：按详细 TODO 的完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
 ## P5-T02R：Review late-lowered representation，确认 version key / `Step` / continuation carrier 已按最终形态固定
 
