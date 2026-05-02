@@ -362,7 +362,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                     &session,
                     &source_map,
                     entry_source_id,
-                    &lowered,
+                    lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
@@ -387,7 +387,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                     &session,
                     &source_map,
                     entry_source_id,
-                    &lowered,
+                    lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
@@ -412,7 +412,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                     &session,
                     &source_map,
                     entry_source_id,
-                    &lowered,
+                    lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
                     opt_level,
@@ -992,12 +992,13 @@ fn run_codegen_and_link(
     let obj = work_dir.join(layout::obj_file_name("main"));
 
     let lowered = lower_main_hir_for_build(session, front, opt_level)?;
+    let extern_libs = lowered.extern_libs.clone();
     let (source_map, entry_source_id) = build_codegen_source_map(session, front);
     scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
         session,
         &source_map,
         entry_source_id,
-        &lowered,
+        lowered,
         &obj,
         front.input.entry_main_fqn.as_deref(),
         opt_level,
@@ -1076,9 +1077,9 @@ fn run_codegen_and_link(
     if is_cone {
         let runtime_objs = crate::toolchain::compile_runtime_c_sources_to_obj_dir(&work_dir)?;
         objs.extend(runtime_objs);
-        crate::toolchain::link_objs(&objs, output, &lowered.extern_libs, options)?;
+        crate::toolchain::link_objs(&objs, output, &extern_libs, options)?;
     } else {
-        crate::toolchain::link_objs_with_runtime(&objs, output, &lowered.extern_libs, options)?;
+        crate::toolchain::link_objs_with_runtime(&objs, output, &extern_libs, options)?;
     }
 
     if !keep_work_dir {

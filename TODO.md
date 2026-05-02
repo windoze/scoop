@@ -65,7 +65,7 @@
 | `P5-T06R` | `TODO-P5.md` | [DONE] Review late-lowered 后处理，确认它只做抽象层收缩，不重新回到高层 effect 分析 |
 | `P5-T07` | `TODO-P5.md` | [DONE] 新增 `dump-effect-lowered` / snapshot 基线，并冻结 P5 -> P6 handoff contract |
 | `P5-T07R` | `TODO-P5.md` | [DONE] Review P5 阶段退出条件，确认 P6 只需把 late-lowered representation 翻译到 LLVM |
-| `P6-T01` | `TODO-P6.md` | 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
+| `P6-T01` | `TODO-P6.md` | [DONE] 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
 | `P6-T01R` | `TODO-P6.md` | Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离 |
 | `P6-T02` | `TODO-P6.md` | 把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering |
 | `P6-T02R` | `TODO-P6.md` | Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型 |

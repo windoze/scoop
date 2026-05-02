@@ -107,7 +107,7 @@
   - 不切默认主线。
 - 所有验证都必须通过 `--effect-pipeline refactor` 进入，或通过与该 CLI 路径共用同一 stage helper 的 Rust 测试入口进入；禁止新增只在测试中存在的语义旁路。
 
-## P6-T01：建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir`
+## [DONE] P6-T01：建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -193,7 +193,26 @@
   - 后续 P6-T02 及之后的任务可以只围绕这条新 stage 继续推进。
 - 依赖：`TODO-P5.md` 最后一项 review 完成
 - 完成记录：
-  - （执行时填写）
+  - 已新增显式 stage：`crates/scoopc/src/effect_refactor_pipeline/llvm_codegen_stage.rs`；refactor `build` / `run` / build fixtures 现在统一先构造 `RefactorLlvmCodegenStageInput`，再在 compiler crate 内显式推进 `TypedHirStageOutput -> RefactorMirStageOutput -> RefactorEffectFactsStageOutput -> RefactorEffectLoweredStageOutput`，最后才进入 LLVM emit。
+  - 已把 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 中的 `emit_production_llvm_artifact_to_file(...)` 改为按 stage 分发：legacy 继续走原有 `emit_minimal_main_*_from_production_lowered_hir*`；refactor 改走新的 `llvm_codegen_stage::emit_artifact_to_file(...)`，不再把旧 production HIR emit helper 当成真正实现入口。
+  - 已在 `crates/scoopc/src/llvm/emit.rs` / `crates/scoopc/src/llvm/mod.rs` 新增 refactor 专属 emit 入口：
+    - `emit_refactor_main_ir_to_file_from_stage_output(...)`
+    - `emit_refactor_main_obj_to_file_from_stage_output(...)`
+    - `emit_refactor_main_asm_to_file_from_stage_output(...)`
+    - `build_refactor_main_module_from_stage_output(...)`（测试读取 IR/module 的稳定入口）
+  - 已新增 `hir::LoweredHir::clone_hir_compat_scaffold_without_materialized_mir()`，把 refactor P6 入口里仍需复用的非 effect HIR side tables 明确降成过渡 scaffold；该 scaffold 不再携带 production pass-view，避免 refactor 路径回落到旧 `production_lowered_hir` contract。
+  - 已显式保留 refactor LLVM backend 目录边界：推荐的 `crates/scoopc/src/effect_refactor_pipeline/llvm_codegen_stage.rs` 与实际路径一致；推荐的 `crates/scoopc/src/llvm/codegen/effect_refactor/**` 当前先落到 `crates/scoopc/src/llvm/codegen/effect_refactor/mod.rs` 占位根，P6-T02/P6-T03 将继续在该目录下填充 type/layout/body 细分实现；本任务里的 refactor emit 入口实际落在 `crates/scoopc/src/llvm/emit.rs`。
+  - 已新增 `refactor_llvm_codegen_stage_*` 单测，覆盖：stage 可构造、refactor build helper 确实进入新 stage、legacy helper 继续沿用原有实现、以及 `.ll/.o/.s` 三种 emit 共用同一 stage 入口。
+  - 已运行验证：
+    - `cargo test -p scoopc refactor_llvm_codegen_stage`
+    - `cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_legacy_emit.ll`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p6_refactor_emit.ll`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-obj tests/fixtures/run-pass/minimal_main.scoop -o /tmp/p6_refactor_emit.o`
+    - `cargo run -p scoop -- --effect-pipeline refactor build --emit-asm tests/fixtures/run-pass/minimal_main.scoop -o /tmp/p6_refactor_emit.s`
+    - `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/minimal_main.scoop`
+    - `cargo test -p scoop build_emit_llvm_writes_ll_file`
+    - `cargo test -p scoop run_builds_and_executes_minimal_main`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T01R：Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离
 

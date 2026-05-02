@@ -75,6 +75,7 @@ mod class_ctor;
 mod closure;
 mod control_flow;
 mod effect;
+mod effect_refactor;
 mod enum_lowering;
 mod expr;
 mod gc;

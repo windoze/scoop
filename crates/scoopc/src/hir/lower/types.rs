@@ -386,6 +386,50 @@ impl LoweredHir {
     pub(crate) fn into_materialized_mir(self) -> Option<crate::mir::MaterializedMir> {
         self.materialized_mir
     }
+
+    /// 克隆一份仅供现有 LLVM 通用/非 effect scaffolding 继续查询的 HIR 兼容输入。
+    ///
+    /// 说明：
+    /// - refactor LLVM stage 会显式把 canonical pass-view / late-lowered program 作为新的
+    ///   authoritative effect handoff；
+    /// - 这里故意丢弃 `materialized_mir`，避免 refactor P6 入口再经由旧的
+    ///   `production_lowered_hir` emit API 隐式回落；
+    /// - P6-T02/P6-T03 会继续收缩这份 scaffolding 的职责，直到 backend 不再依赖它承载
+    ///   effect lowering 语义。
+    pub(crate) fn clone_hir_compat_scaffold_without_materialized_mir(&self) -> Self {
+        Self {
+            file: self.file.clone(),
+            member_funs: self.member_funs.clone(),
+            materialized_mir: None,
+            types: self.types.clone(),
+            struct_layouts: self.struct_layouts.clone(),
+            enum_layouts: self.enum_layouts.clone(),
+            extern_funs: self.extern_funs.clone(),
+            extern_libs: self.extern_libs.clone(),
+            top_level_vars: self.top_level_vars.clone(),
+            top_level_consts: self.top_level_consts.clone(),
+            top_level_immutable_values: self.top_level_immutable_values.clone(),
+            top_level_fun_call_sites: self.top_level_fun_call_sites.clone(),
+            object_inits: self.object_inits.clone(),
+            class_inits: self.class_inits.clone(),
+            class_vtables: self.class_vtables.clone(),
+            interfaces: self.interfaces.clone(),
+            class_itables: self.class_itables.clone(),
+            ctor_call_sites: self.ctor_call_sites.clone(),
+            dispatch_call_sites: self.dispatch_call_sites.clone(),
+            effect_op_call_sites: self.effect_op_call_sites.clone(),
+            handle_payload_tuple_tys: self.handle_payload_tuple_tys.clone(),
+            continuation_resume_call_sites: self.continuation_resume_call_sites.clone(),
+            non_pure_continuation_resume_call_sites: self
+                .non_pure_continuation_resume_call_sites
+                .clone(),
+            when_pat_binding_tys: self.when_pat_binding_tys.clone(),
+            nominal_kinds: self.nominal_kinds.clone(),
+            nominal_variances: self.nominal_variances.clone(),
+            direct_supertypes: self.direct_supertypes.clone(),
+            builtins: self.builtins,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

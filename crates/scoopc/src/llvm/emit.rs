@@ -30,6 +30,7 @@ use super::{LlvmEmitError, codegen, configure_llvm_global_options_once, target};
 struct LoweredCodegenEntry<'a> {
     lowered: &'a hir::LoweredHir,
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
 }
 
 impl<'a> LoweredCodegenEntry<'a> {
@@ -37,6 +38,7 @@ impl<'a> LoweredCodegenEntry<'a> {
         Self {
             lowered,
             materialized_pass_view: lowered.materialized_pass_view(),
+            late_lowered_program: None,
         }
     }
 
@@ -47,7 +49,23 @@ impl<'a> LoweredCodegenEntry<'a> {
         Ok(Self {
             lowered,
             materialized_pass_view: Some(materialized_pass_view),
+            late_lowered_program: None,
         })
+    }
+
+    fn from_refactor_stage(
+        lowered: &'a hir::LoweredHir,
+        effect_lowered_stage_output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    ) -> Self {
+        debug_assert!(
+            lowered.materialized_pass_view().is_none(),
+            "refactor LLVM stage 的 HIR scaffold 不应继续携带旧 production pass-view"
+        );
+        Self {
+            lowered,
+            materialized_pass_view: Some(effect_lowered_stage_output.materialized_pass_view()),
+            late_lowered_program: Some(effect_lowered_stage_output.program()),
+        }
     }
 }
 
@@ -212,6 +230,55 @@ pub fn emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_
         entry_source_id,
         &context,
         LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
+        entry_main_fqn,
+    )?;
+
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
+
+    let ir = module.print_to_string().to_string();
+    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
+        path: output.to_path_buf(),
+        source: e,
+    })?;
+    Ok(())
+}
+
+/// 基于 refactor LLVM stage handoff（P5 late-lowered output + HIR compatibility scaffold）构建 LLVM module。
+pub(crate) fn build_refactor_main_module_from_stage_output<'ctx>(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    context: &'ctx Context,
+    hir_compat_scaffold: &hir::LoweredHir,
+    effect_lowered_stage_output: &crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    entry_main_fqn: Option<&str>,
+) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
+    build_main_module_from_codegen_entry(
+        source_map,
+        entry_source_id,
+        context,
+        LoweredCodegenEntry::from_refactor_stage(hir_compat_scaffold, effect_lowered_stage_output),
+        entry_main_fqn,
+    )
+}
+
+/// 基于 refactor LLVM stage handoff 生成 LLVM IR，并写入到指定路径。
+pub fn emit_refactor_main_ir_to_file_from_stage_output(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    hir_compat_scaffold: &hir::LoweredHir,
+    effect_lowered_stage_output: &crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    let context = Context::create();
+    let module = build_refactor_main_module_from_stage_output(
+        source_map,
+        entry_source_id,
+        &context,
+        hir_compat_scaffold,
+        effect_lowered_stage_output,
         entry_main_fqn,
     )?;
 
@@ -398,6 +465,43 @@ pub fn emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with
     Ok(())
 }
 
+/// 基于 refactor LLVM stage handoff 生成 LLVM object，并写入到指定路径。
+pub fn emit_refactor_main_obj_to_file_from_stage_output(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    hir_compat_scaffold: &hir::LoweredHir,
+    effect_lowered_stage_output: &crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_refactor_main_module_from_stage_output(
+        source_map,
+        entry_source_id,
+        &context,
+        hir_compat_scaffold,
+        effect_lowered_stage_output,
+        entry_main_fqn,
+    )?;
+
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
+    target_machine
+        .write_to_file(&module, FileType::Object, output)
+        .map_err(|e| LlvmEmitError::WriteObjFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
 /// 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
 pub fn emit_minimal_main_asm_to_file(
     session: &Session,
@@ -570,6 +674,43 @@ pub fn emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with
     Ok(())
 }
 
+/// 基于 refactor LLVM stage handoff 生成 LLVM assembly，并写入到指定路径。
+pub fn emit_refactor_main_asm_to_file_from_stage_output(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    hir_compat_scaffold: &hir::LoweredHir,
+    effect_lowered_stage_output: &crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_refactor_main_module_from_stage_output(
+        source_map,
+        entry_source_id,
+        &context,
+        hir_compat_scaffold,
+        effect_lowered_stage_output,
+        entry_main_fqn,
+    )?;
+
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
+    target_machine
+        .write_to_file(&module, FileType::Assembly, output)
+        .map_err(|e| LlvmEmitError::WriteAsmFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
 #[cfg(test)]
 pub(crate) fn build_minimal_main_module<'ctx>(
     session: &Session,
@@ -624,6 +765,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     let LoweredCodegenEntry {
         lowered,
         materialized_pass_view,
+        late_lowered_program,
     } = codegen_entry;
     let has_materialized_pass_view = materialized_pass_view.is_some();
 
@@ -637,6 +779,16 @@ fn build_main_module_from_codegen_entry<'ctx>(
 
     let selected_main = select_entry_main(lowered, entry_main_fqn)?;
     let hir_main = selected_main.fun;
+    if let Some(program) = late_lowered_program
+        && program.callable(&hir_main.fqn).is_none()
+    {
+        return Err(LlvmEmitError::Frontend {
+            message: format!(
+                "refactor LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
+                hir_main.fqn
+            ),
+        });
+    }
 
     let builder = context.create_builder();
 

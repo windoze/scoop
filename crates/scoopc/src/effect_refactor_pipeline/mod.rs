@@ -12,6 +12,8 @@ mod hir_stage;
 mod legacy;
 mod mir_stage;
 mod refactor;
+#[cfg(feature = "llvm")]
+mod llvm_codegen_stage;
 
 use crate::session::{EffectPipelineMode, Session};
 use crate::source::SourceFile;
@@ -25,6 +27,8 @@ pub use hir_stage::{
     TypedCallSiteKind, TypedHirEffectContracts, TypedHirStageOutput,
 };
 pub use mir_stage::RefactorMirStageOutput;
+#[cfg(feature = "llvm")]
+pub use llvm_codegen_stage::{RefactorLlvmCodegenStageInput, RefactorLlvmCodegenStageOutput};
 
 #[cfg(feature = "llvm")]
 use crate::source::{SourceId, SourceMap};
@@ -355,40 +359,53 @@ pub fn emit_production_llvm_artifact_to_file(
     session: &Session,
     source_map: &SourceMap,
     entry_source_id: SourceId,
-    lowered: &crate::hir::LoweredHir,
+    lowered: crate::hir::LoweredHir,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: crate::opt::OptLevel,
     artifact: LlvmArtifactKind,
 ) -> Result<(), crate::llvm::LlvmEmitError> {
-    enter_llvm_codegen_stage(session, || {
-        match artifact {
-        LlvmArtifactKind::LlvmIr => crate::llvm::emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level(
-            source_map,
-            entry_source_id,
-            lowered,
+    let dispatcher = dispatcher_for_session(session).llvm_codegen();
+    match dispatcher.entry {
+        StageEntry::Legacy(entry) => entry.delegate_to_legacy(|| match artifact {
+            LlvmArtifactKind::LlvmIr => crate::llvm::emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+                source_map,
+                entry_source_id,
+                &lowered,
+                output,
+                entry_main_fqn,
+                opt_level,
+            ),
+            LlvmArtifactKind::Object => crate::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+                source_map,
+                entry_source_id,
+                &lowered,
+                output,
+                entry_main_fqn,
+                opt_level,
+            ),
+            LlvmArtifactKind::Asm => crate::llvm::emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+                source_map,
+                entry_source_id,
+                &lowered,
+                output,
+                entry_main_fqn,
+                opt_level,
+            ),
+        }),
+        StageEntry::Refactor(_) => llvm_codegen_stage::emit_artifact_to_file(
+            session,
+            llvm_codegen_stage::RefactorLlvmCodegenStageInput::new(
+                lowered,
+                source_map.clone(),
+                entry_source_id,
+                entry_main_fqn.map(str::to_owned),
+                opt_level,
+            ),
             output,
-            entry_main_fqn,
-            opt_level,
-        ),
-        LlvmArtifactKind::Object => crate::llvm::emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
-            source_map,
-            entry_source_id,
-            lowered,
-            output,
-            entry_main_fqn,
-            opt_level,
-        ),
-        LlvmArtifactKind::Asm => crate::llvm::emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level(
-            source_map,
-            entry_source_id,
-            lowered,
-            output,
-            entry_main_fqn,
-            opt_level,
+            artifact,
         ),
     }
-    })
 }
 
 #[cfg(test)]
