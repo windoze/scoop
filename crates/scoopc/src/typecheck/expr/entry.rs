@@ -102,6 +102,7 @@ struct CheckFileExprsPassResult {
     typechecked_member_resolved: HashMap<Span, ast::ResolvedMemberRef>,
     continuation_resume_call_sites: HashSet<Span>,
     non_pure_continuation_resume_call_sites: HashSet<Span>,
+    zero_arg_unit_call_sugar_sites: HashSet<Span>,
     top_level_fun_value_refs: HashMap<Span, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<Span, ast::TopLevelFunCallBinding>,
     typechecked_effect_op_call_bindings: HashMap<Span, ast::EffectOpCallBinding>,
@@ -269,6 +270,7 @@ fn reset_file_expr_side_tables(file: &ast::File) {
     file.replace_typechecked_member_resolved(HashMap::new());
     file.replace_continuation_resume_call_sites(HashSet::new());
     file.replace_non_pure_continuation_resume_call_sites(HashSet::new());
+    file.replace_zero_arg_unit_call_sugar_sites(HashSet::new());
     file.replace_top_level_fun_value_refs(HashMap::new());
     file.replace_top_level_fun_call_bindings(HashMap::new());
     file.replace_typechecked_effect_op_call_bindings(HashMap::new());
@@ -287,6 +289,7 @@ fn apply_check_file_exprs_pass_result(file: &ast::File, result: &CheckFileExprsP
     file.replace_non_pure_continuation_resume_call_sites(
         result.non_pure_continuation_resume_call_sites.clone(),
     );
+    file.replace_zero_arg_unit_call_sugar_sites(result.zero_arg_unit_call_sugar_sites.clone());
     file.replace_top_level_fun_value_refs(result.top_level_fun_value_refs.clone());
     file.replace_top_level_fun_call_bindings(result.top_level_fun_call_bindings.clone());
     file.replace_typechecked_effect_op_call_bindings(
@@ -437,6 +440,7 @@ fn check_file_exprs_pass(
         continuation_resume_call_sites: lower.take_continuation_resume_call_sites(),
         non_pure_continuation_resume_call_sites: lower
             .take_non_pure_continuation_resume_call_sites(),
+        zero_arg_unit_call_sugar_sites: lower.take_zero_arg_unit_call_sugar_sites(),
         top_level_fun_value_refs: lower.take_top_level_fun_value_refs(),
         top_level_fun_call_bindings: lower.take_top_level_fun_call_bindings(),
         typechecked_effect_op_call_bindings: lower.take_typechecked_effect_op_call_bindings(),
@@ -1913,6 +1917,36 @@ private fun bad(): Int {
 }
 "#;
 
+    const UNIT_SINGLE_PARAM_ZERO_ARG_OVERLOAD_SOURCE: &str = r#"
+package fixtures.typecheck
+
+fun pick(): Int {
+    return 1
+}
+
+fun pick(value: Unit): String {
+    return "unit"
+}
+
+fun run(): Int {
+    val exact: Int = pick()
+    val via_unit: String = pick(())
+    exact
+}
+"#;
+
+    const UNIT_SINGLE_PARAM_ZERO_ARG_EXTENSION_SOURCE: &str = r#"
+package fixtures.typecheck
+
+fun String.needUnit(value: Unit): Int {
+    return 1
+}
+
+fun run(): Int {
+    "hi".needUnit()
+}
+"#;
+
     #[test]
     fn check_file_exprs_retypes_escape_continuation_binder_with_precise_effect_row() {
         let (source, ast, index, imports, env, mut types, builtins) =
@@ -1952,5 +1986,32 @@ private fun bad(): Int {
         .expect_err("escape continuation binder should not pass as wrong answer type");
 
         assert!(matches!(err, ExprTypeError::CallArgTypeMismatch { .. }));
+    }
+
+    #[test]
+    fn unit_single_param_zero_arg_prefers_exact_zero_arg_overload() {
+        let (source, ast, index, imports, env, mut types, builtins) =
+            setup_typed_file(UNIT_SINGLE_PARAM_ZERO_ARG_OVERLOAD_SOURCE);
+        typecheck::check_file_exprs(&source, &ast, &index, &imports, &env, &mut types, builtins)
+            .expect("exact zero-arg overload should win before Unit sugar fallback");
+
+        assert!(
+            ast.zero_arg_unit_call_sugar_sites().is_empty(),
+            "exact zero-arg overload 命中时不应把调用点记成 Unit sugar"
+        );
+    }
+
+    #[test]
+    fn unit_single_param_zero_arg_extension_call_records_typed_sugar_site() {
+        let (source, ast, index, imports, env, mut types, builtins) =
+            setup_typed_file(UNIT_SINGLE_PARAM_ZERO_ARG_EXTENSION_SOURCE);
+        typecheck::check_file_exprs(&source, &ast, &index, &imports, &env, &mut types, builtins)
+            .expect("extension call should accept Unit zero-arg sugar in typed stage");
+
+        assert_eq!(
+            ast.zero_arg_unit_call_sugar_sites().len(),
+            1,
+            "extension/member-call 语法的 Unit sugar 应写回 typed side table"
+        );
     }
 }

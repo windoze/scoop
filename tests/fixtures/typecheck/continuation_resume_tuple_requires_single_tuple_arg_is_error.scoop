@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arity_mismatch
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 参数数量不匹配
+// 目标：P2-T02 tuple resume payload 必须作为单一 tuple 实参传递，不能再走扁平多参数 surface。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad(k: Continuation<(Int, String), Unit, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume(1, "ok")
+}

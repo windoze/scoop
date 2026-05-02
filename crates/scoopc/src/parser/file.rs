@@ -166,6 +166,9 @@ impl<'a> Parser<'a> {
             non_pure_continuation_resume_call_sites: std::cell::RefCell::new(
                 std::collections::HashSet::new(),
             ),
+            zero_arg_unit_call_sugar_sites: std::cell::RefCell::new(
+                std::collections::HashSet::new(),
+            ),
             top_level_fun_value_refs: std::cell::RefCell::new(std::collections::HashMap::new()),
             top_level_fun_call_bindings: std::cell::RefCell::new(
                 std::collections::HashMap::new(),

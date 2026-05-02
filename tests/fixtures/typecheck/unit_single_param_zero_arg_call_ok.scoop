@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：P2-T02 一般性单一 `Unit` 参数调用允许 `f()` 作为 `f(())` 的 typed sugar。
+
+package fixtures.typecheck
+
+fun takesUnit(value: Unit): Unit {}
+
+fun run(): Unit {
+    takesUnit()
+    takesUnit(())
+}

@@ -89,6 +89,15 @@ pub struct File {
     /// - 只有 `E` 非 Pure 时，effect segmentation 才应把该 call site 视为真正的
     ///   outward-suspending call-boundary，并走 resume.after.call replay 主线。
     pub(crate) non_pure_continuation_resume_call_sites: RefCell<HashSet<Span>>,
+    /// typecheck 已确认的“零参调用经 typed `Unit` sugar canonicalize”为显式 `Unit` 实参的调用点。
+    ///
+    /// 说明：
+    /// - AST 仍保留 `f()` / `k.resume()` 的原始零参数 surface 形状；
+    /// - 只有 typed call 解析确认“选中的 callable 恰好接收一个 `Unit` 参数”时，才把整个 call span
+    ///   记入此表；
+    /// - HIR lowering 读取它，把 typed HIR canonical call 形状统一落成显式 `UnitLit` 参数调用，
+    ///   而不是在 AST/parser 阶段改写源码语法。
+    pub(crate) zero_arg_unit_call_sugar_sites: RefCell<HashSet<Span>>,
     /// typecheck 选中的“顶层函数值”目标（按表达式 span 索引）。
     ///
     /// 说明：
@@ -223,6 +232,18 @@ impl File {
         self.non_pure_continuation_resume_call_sites
             .borrow()
             .clone()
+    }
+
+    pub fn replace_zero_arg_unit_call_sugar_sites(&self, sites: HashSet<Span>) {
+        *self.zero_arg_unit_call_sugar_sites.borrow_mut() = sites;
+    }
+
+    pub fn zero_arg_unit_call_uses_sugar(&self, span: Span) -> bool {
+        self.zero_arg_unit_call_sugar_sites.borrow().contains(&span)
+    }
+
+    pub fn zero_arg_unit_call_sugar_sites(&self) -> HashSet<Span> {
+        self.zero_arg_unit_call_sugar_sites.borrow().clone()
     }
 
     pub fn replace_top_level_fun_value_refs(&self, refs: HashMap<Span, TopLevelFunValueRef>) {

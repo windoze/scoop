@@ -1,6 +1,6 @@
 // RUN-STDOUT: continuation_resume_surface_named_tuple_and_unit_basic.stdout
 //
-// T4008c4: `Continuation.resume` 支持 Unit 零参 surface 与 tuple payload 的扁平 named args。
+// T4008c4: `Continuation.resume` 支持 Unit 零参 surface，tuple payload 通过单一 tuple 实参传递。
 
 import scoop.core.*
 
@@ -61,7 +61,7 @@ fun main() {
     when (savedPair) {
         Some(k) -> {
             val resumedPair: Unit = try {
-                k.resume(a1 = "world", a0 = 7)
+                k.resume((7, "world"))
             } catch (e: RuntimeError) {
                 println("unexpected_pair_error")
             }

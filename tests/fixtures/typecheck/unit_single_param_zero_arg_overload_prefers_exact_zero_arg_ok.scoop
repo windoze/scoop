@@ -1,0 +1,18 @@
+// EXPECT: pass
+// 目标：P2-T02 在存在真正零参候选时，必须优先保留 exact-arity 解析，而不是回退到 `Unit` sugar。
+
+package fixtures.typecheck
+
+fun pick(): Int {
+    return 1
+}
+
+fun pick(value: Unit): String {
+    return "unit"
+}
+
+fun run(): Int {
+    val exact: Int = pick()
+    val via_unit: String = pick(())
+    exact
+}

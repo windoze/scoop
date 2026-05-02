@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：P2-T02 一般性单一 `Unit` 参数 sugar 也适用于 extension/member-call 语法。
+
+package fixtures.typecheck
+
+fun String.needUnit(value: Unit): Int {
+    return 1
+}
+
+fun run(): Int {
+    "hi".needUnit()
+}

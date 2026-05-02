@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：P2-T02 `Continuation<Unit, ...>.resume()` 只在 typed 阶段 canonicalize 为 `resume(())`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun resumeUnitSugar(k: Continuation<Unit, Unit, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume()
+    k.resume(())
+}

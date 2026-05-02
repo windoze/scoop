@@ -467,23 +467,23 @@ fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
 // Continuation（spec §5.5）
 //
 // 说明：
-// - `Continuation<Resume, Answer, eff E>` 当前已把 answer type 接入用户可见类型 surface：
+// - `Continuation<Resume, Answer, eff E>` 是源码可见的 compiler-owned interface：
 //   `Resume` 是 resume payload，`Answer` 是最近 delimiter 的结果类型，`E` 是 resumed-step
 //   的 required effects；
-// - 按 `T4016a1` 已定稿的语义，`k.resume(payload...)` 在 resumed computation 正常完成最近
-//   delimiter 时应返回该 delimiter 的 answer type；
-// - `T4016b2` / `T4016b3` 已分别把 answer type 接进静态模型，并把 `resume(...): Answer`
-//   的 typecheck / lowering 主线接通；当前 surface 已能把 delimiter answer 作为普通表达式值返回；
+// - 按 spec §5.3.1 / §5.5，源码层只保留普通方法调用 `k.resume(...)`；`resume(...): Answer`
+//   在 resumed computation 正常完成最近 delimiter 时返回该 delimiter 的 answer type；
 // - `E` 表示恢复该 continuation 可能执行的效果集合（required effects）。
-// - builtin `Continuation.resume` 由编译器识别：
-//   - `Continuation<Unit, Answer>` 允许 `k.resume()`；
-//   - tuple payload 允许 `k.resume(a0, a1, ...)` / `k.resume(a0 = ..., a1 = ...)`；
-//   - 旧的单 payload `k.resume(value)` 继续保留兼容。
+// - `Continuation<Unit, Answer>` 允许 `k.resume()` 作为 `k.resume(())` 的 sugar；
+//   更一般地，单一 `Unit` 参数 callable 允许 `f()` 作为 `f(())` 的 sugar；
+// - 若 resume payload 是 tuple，应把 tuple 值作为单一实参传递，例如 `k.resume((a, b))`；
+//   不再保留 tuple payload 扁平传参或专用 resume surface。
 // - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
 //   `-> resume` 已从语言语法移除，若编译器内部仍保留 tail-resume fast path，只能视为 lowering/codegen
 //   优化分类而不是独立 surface。
 // - 运行期语义 / one-shot 约束见 spec §5.5 与 `SCOOP_RUNTIME.md` 第 10 节。
-class Continuation<Resume, Answer, eff E = Pure>
+interface Continuation<Resume, Answer, eff E = Pure> {
+    fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
+}
 
 // Continuation / 线程（内部测试辅助）。
 //

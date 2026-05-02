@@ -595,6 +595,45 @@ fn callable_value_param_names(fun: &crate::ty::FunctionType) -> Vec<String> {
     out
 }
 
+fn is_unit_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
+    matches!(lower.type_kind(ty), TypeKind::Value(ValueTypeKind::Unit))
+}
+
+fn can_use_zero_arg_unit_call_sugar(
+    args: &[ast::Expr],
+    param_tys: &[TypeId],
+    param_has_defaults: &[bool],
+    param_is_vararg: &[bool],
+    lower: &TypeLowering<'_>,
+) -> bool {
+    args.is_empty()
+        && param_tys.len() == 1
+        && param_has_defaults.len() == 1
+        && param_is_vararg.len() == 1
+        && !param_has_defaults[0]
+        && !param_is_vararg[0]
+        && is_unit_type(param_tys[0], lower)
+}
+
+fn user_visible_param_slices_after_receiver<'a>(
+    param_tys: &'a [TypeId],
+    param_has_defaults: &'a [bool],
+    param_is_vararg: &'a [bool],
+) -> Option<(&'a [TypeId], &'a [bool], &'a [bool])> {
+    Some((
+        param_tys.get(1..)?,
+        param_has_defaults.get(1..)?,
+        param_is_vararg.get(1..)?,
+    ))
+}
+
+fn synthesize_unit_arg_expr(call_span: Span) -> ast::Expr {
+    ast::Expr {
+        span: call_span,
+        kind: ast::ExprKind::UnitLit,
+    }
+}
+
 fn required_param_count(param_has_defaults: &[bool], param_is_vararg: &[bool]) -> Option<usize> {
     if param_has_defaults.len() != param_is_vararg.len() {
         return None;
@@ -871,7 +910,24 @@ fn infer_function_type_call_expr_type(
         });
     };
 
-    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(inputs, args, lower)?;
+    let mut param_tys = Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
+    if let Some(receiver_ty) = fun.receiver {
+        param_tys.push(receiver_ty);
+    }
+    param_tys.extend(fun.params.iter().copied());
+    let used_unit_sugar = can_use_zero_arg_unit_call_sugar(
+        args,
+        &param_tys,
+        &vec![false; param_tys.len()],
+        &vec![false; param_tys.len()],
+        lower,
+    );
+    let synthesized_args = used_unit_sugar.then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(
+        inputs,
+        synthesized_args.as_deref().unwrap_or(args),
+        lower,
+    )?;
     let param_names = callable_value_param_names(&fun);
     let expected_arity = param_names.len();
     if call_args.iter().any(|arg| arg.is_spread) {
@@ -991,6 +1047,9 @@ fn infer_function_type_call_expr_type(
     for effect in fun.effects.terms.iter().copied() {
         lower.record_performed_effect(effect, call_expr.span);
     }
+    if used_unit_sugar {
+        lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
+    }
 
     Ok(fun.return_ty)
 }
@@ -1077,7 +1136,24 @@ fn infer_funptr_type_call_expr_type(
         });
     };
 
-    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(inputs, args, lower)?;
+    let mut param_tys = Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
+    if let Some(receiver_ty) = fun.receiver {
+        param_tys.push(receiver_ty);
+    }
+    param_tys.extend(fun.params.iter().copied());
+    let used_unit_sugar = can_use_zero_arg_unit_call_sugar(
+        args,
+        &param_tys,
+        &vec![false; param_tys.len()],
+        &vec![false; param_tys.len()],
+        lower,
+    );
+    let synthesized_args = used_unit_sugar.then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(
+        inputs,
+        synthesized_args.as_deref().unwrap_or(args),
+        lower,
+    )?;
     let param_names = callable_value_param_names(&fun);
     let expected_arity = param_names.len();
     if call_args.iter().any(|arg| arg.is_spread) {
@@ -1192,6 +1268,9 @@ fn infer_funptr_type_call_expr_type(
 
     for effect in fun.effects.terms.iter().copied() {
         lower.record_performed_effect(effect, call_expr.span);
+    }
+    if used_unit_sugar {
+        lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
     }
 
     Ok(fun.return_ty)
@@ -2269,7 +2348,20 @@ pub(super) fn infer_call_expr_type(
                 check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 emit_deprecated_call_warning(&callee_fqn, sig, call_expr.span, lower);
-                let call_args = collect_call_arg_infos(inputs, args, lower)?;
+                let used_unit_sugar = can_use_zero_arg_unit_call_sugar(
+                    args,
+                    &sig.params,
+                    &sig.param_has_defaults,
+                    &sig.param_is_vararg,
+                    lower,
+                );
+                let synthesized_args =
+                    used_unit_sugar.then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+                let call_args = collect_call_arg_infos(
+                    inputs,
+                    synthesized_args.as_deref().unwrap_or(args),
+                    lower,
+                )?;
                 check_call_arg_named_rules(&callee_fqn, &call_args)?;
                 check_call_named_args_exist_in_any_candidate(
                     &callee_fqn,
@@ -2687,12 +2779,22 @@ pub(super) fn infer_call_expr_type(
                         eff_args,
                     },
                 );
+                if used_unit_sugar {
+                    lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
+                }
 
                 return Ok(instantiated.return_ty);
             }
 
             // 多候选：先按形参映射过滤，再对剩余候选尝试泛型/eff 推断（T0512）。
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
+            let synthesized_unit_args =
+                args.is_empty().then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+            let sugar_call_args = if let Some(synthesized_args) = synthesized_unit_args.as_ref() {
+                Some(collect_call_arg_infos(inputs, synthesized_args, lower)?)
+            } else {
+                None
+            };
             check_call_arg_named_rules(&callee_fqn, &call_args)?;
             check_call_named_args_exist_in_any_candidate(
                 &callee_fqn,
@@ -2713,6 +2815,8 @@ pub(super) fn infer_call_expr_type(
                 defaults_used: usize,
                 /// 形参 -> 实参绑定（用于后续门禁，例如 `addressOf(var: T)`）。
                 mapping: Vec<ParamArgBinding>,
+                /// 当前候选是否通过 typed `Unit` zero-arg sugar 匹配得到。
+                used_unit_sugar: bool,
             }
 
             fn is_strictly_more_specific_fun_overload(
@@ -2777,14 +2881,37 @@ pub(super) fn infer_call_expr_type(
 
             let mut matched: Vec<MatchedFunOverload<'_>> = Vec::new();
             for cand in direct_call_candidates {
-                let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                let exact_mapping = map_call_args_to_params_with_defaults_and_varargs(
                     &call_args,
                     &cand.param_names,
                     &cand.param_has_defaults,
                     &cand.param_is_vararg,
-                ) else {
-                    continue;
-                };
+                );
+                let (call_args_for_candidate, mapping, used_unit_sugar) =
+                    if let Some(mapping) = exact_mapping {
+                        (&call_args, mapping, false)
+                    } else if can_use_zero_arg_unit_call_sugar(
+                        args,
+                        &cand.params,
+                        &cand.param_has_defaults,
+                        &cand.param_is_vararg,
+                        lower,
+                    ) {
+                        let Some(sugar_call_args) = sugar_call_args.as_ref() else {
+                            continue;
+                        };
+                        let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                            sugar_call_args,
+                            &cand.param_names,
+                            &cand.param_has_defaults,
+                            &cand.param_is_vararg,
+                        ) else {
+                            continue;
+                        };
+                        (sugar_call_args, mapping, true)
+                    } else {
+                        continue;
+                    };
 
                 // spread 实参只能绑定到 vararg 形参；否则该候选不匹配。
                 let mut ok = true;
@@ -2792,7 +2919,10 @@ pub(super) fn infer_call_expr_type(
                     match binding {
                         ParamArgBinding::Default => {}
                         ParamArgBinding::Single(arg_idx) => {
-                            if call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
+                            if call_args_for_candidate
+                                .get(*arg_idx)
+                                .is_some_and(|a| a.is_spread)
+                            {
                                 ok = false;
                                 break;
                             }
@@ -2809,7 +2939,7 @@ pub(super) fn infer_call_expr_type(
                 let mut generic_constraints: Vec<GenericArgConstraint> =
                     Vec::with_capacity(mapping_pairs.len());
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                    let arg = &call_args[arg_idx];
+                    let arg = &call_args_for_candidate[arg_idx];
                     if arg.is_spread {
                         if !cand
                             .param_is_vararg
@@ -2878,9 +3008,10 @@ pub(super) fn infer_call_expr_type(
 
                 // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把"候选相关"的
                 // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
-                let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
+                let mut checked_arg_tys: Vec<TypeId> =
+                    call_args_for_candidate.iter().map(|a| a.ty).collect();
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                    let arg = &call_args[arg_idx];
+                    let arg = &call_args_for_candidate[arg_idx];
                     if arg.is_spread {
                         continue;
                     }
@@ -2921,7 +3052,7 @@ pub(super) fn infer_call_expr_type(
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                        let arg = &call_args[arg_idx];
+                        let arg = &call_args_for_candidate[arg_idx];
                         if arg.is_spread {
                             continue;
                         }
@@ -2952,7 +3083,7 @@ pub(super) fn infer_call_expr_type(
                     }
 
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                        let arg = &call_args[arg_idx];
+                        let arg = &call_args_for_candidate[arg_idx];
                         if arg.is_spread {
                             continue;
                         }
@@ -3019,7 +3150,7 @@ pub(super) fn infer_call_expr_type(
                     continue;
                 }
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                    let arg = &call_args[arg_idx];
+                    let arg = &call_args_for_candidate[arg_idx];
                     let expected_ty = instantiated.params[param_idx];
                     let found_ty = checked_arg_tys[arg_idx];
 
@@ -3065,7 +3196,7 @@ pub(super) fn infer_call_expr_type(
                         .iter()
                         .filter(|b| matches!(b, ParamArgBinding::Default))
                         .count();
-                    let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
+                    let mut expected_arg_tys = vec![builtins.nothing; call_args_for_candidate.len()];
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                         expected_arg_tys[arg_idx] = instantiated.params[param_idx];
                     }
@@ -3077,8 +3208,13 @@ pub(super) fn infer_call_expr_type(
                         expected_arg_tys,
                         defaults_used,
                         mapping,
+                        used_unit_sugar,
                     });
                 }
+            }
+
+            if matched.iter().any(|cand| !cand.used_unit_sugar) {
+                matched.retain(|cand| !cand.used_unit_sugar);
             }
 
             let chosen = match matched.len() {
@@ -3120,7 +3256,19 @@ pub(super) fn infer_call_expr_type(
             check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
             check_const_fun_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
             emit_deprecated_call_warning(&callee_fqn, chosen.sig, call_expr.span, lower);
-            check_var_param_lvalue_gate(&callee_fqn, chosen.sig, &call_args, &chosen.mapping)?;
+            let chosen_call_args = if chosen.used_unit_sugar {
+                sugar_call_args
+                    .as_ref()
+                    .expect("typed Unit sugar 选择的候选应有合成实参")
+            } else {
+                &call_args
+            };
+            check_var_param_lvalue_gate(
+                &callee_fqn,
+                chosen.sig,
+                chosen_call_args,
+                &chosen.mapping,
+            )?;
 
             // `@NoGC`：已知分配点（boxing）门禁。
             //
@@ -3128,7 +3276,7 @@ pub(super) fn infer_call_expr_type(
             // 这里用"预收集到的实参类型 + 已选定候选的期望实参类型"做最小判定即可：
             // - 若某个实参是值类型（或 type param 占位），且被期望类型吸收到引用类型，则需要 boxing；
             // - 在 `@NoGC` 上下文中应当保守拒绝。
-            for (arg_idx, arg) in call_args.iter().enumerate() {
+            for (arg_idx, arg) in chosen_call_args.iter().enumerate() {
                 let expected_ty = *chosen
                     .expected_arg_tys
                     .get(arg_idx)
@@ -3198,6 +3346,9 @@ pub(super) fn infer_call_expr_type(
                     eff_args,
                 },
             );
+            if chosen.used_unit_sugar {
+                lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
+            }
 
             Ok(chosen.instantiated.return_ty)
         }
@@ -4617,7 +4768,19 @@ pub(super) fn infer_effect_op_call_expr_type(
     let lowered_sig = lower_effect_op_signature(&op, &effect_sym, lower, builtins)?;
     let sig = lowered_sig.sig;
 
-    let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    let used_unit_sugar = can_use_zero_arg_unit_call_sugar(
+        args,
+        &sig.params,
+        &sig.param_has_defaults,
+        &sig.param_is_vararg,
+        lower,
+    );
+    let synthesized_args = used_unit_sugar.then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+    let call_args = collect_call_arg_infos(
+        inputs,
+        synthesized_args.as_deref().unwrap_or(args),
+        lower,
+    )?;
     check_call_arg_named_rules(&callee_fqn, &call_args)?;
     check_call_named_args_exist_in_any_candidate(
         &callee_fqn,
@@ -4706,6 +4869,9 @@ pub(super) fn infer_effect_op_call_expr_type(
     }
 
     lower.record_typechecked_effect_op_call_binding(call_expr.span, mapping.clone());
+    if used_unit_sugar {
+        lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
+    }
 
     // required effects（T0604）：effect op call 视为"立即执行的 perform"，记录到当前函数体的 effects 集合中。
     let effect_param_count = lowered_sig.effect_type_params.len();
@@ -4770,17 +4936,22 @@ fn try_infer_continuation_resume_call_expr_type(
         _ => return Ok(None),
     };
 
-    let expanded_payload_param_names = match lower.type_kind(expected_value_ty) {
-        TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
-        TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(
-            (0..elements.len())
-                .map(|idx| format!("a{idx}"))
-                .collect::<Vec<_>>(),
-        ),
-        _ => None,
-    };
-
-    let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    let param_names = vec!["value".to_string()];
+    let param_has_defaults = vec![false];
+    let param_is_vararg = vec![false];
+    let used_unit_sugar = can_use_zero_arg_unit_call_sugar(
+        args,
+        std::slice::from_ref(&expected_value_ty),
+        &param_has_defaults,
+        &param_is_vararg,
+        lower,
+    );
+    let synthesized_args = used_unit_sugar.then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+    let call_args = collect_call_arg_infos(
+        inputs,
+        synthesized_args.as_deref().unwrap_or(args),
+        lower,
+    )?;
     if call_args.iter().any(|arg| arg.is_spread) {
         let span = call_args
             .iter()
@@ -4793,175 +4964,72 @@ fn try_infer_continuation_resume_call_expr_type(
         });
     }
     check_call_arg_named_rules(callee_name, &call_args)?;
-
-    let mut candidate_param_names: Vec<Vec<String>> = vec![vec!["value".to_string()]];
-    if let Some(names) = expanded_payload_param_names.as_ref()
-        && names != &candidate_param_names[0]
-    {
-        candidate_param_names.push(names.clone());
-    }
     check_call_named_args_exist_in_any_candidate(
         callee_name,
         &call_args,
-        candidate_param_names.iter().map(|names| names.as_slice()),
+        std::iter::once(param_names.as_slice()),
     )?;
-
-    let legacy_value_expr = match call_args.as_slice() {
-        [only] => match &only.kind {
-            CallArgKind::Named { name, .. } if name == "value" => Some(only.expr),
-            CallArgKind::Named { .. } => None,
-            CallArgKind::Positional => Some(only.expr),
-        },
-        _ => None,
-    };
-    if let Some(value_expr) = legacy_value_expr {
-        let found_value_ty = inputs.infer_in_expected(
-            lower,
-            value_expr,
-            expected_value_ty,
-            ExpectedTypeFrom::new("Continuation.resume payload".to_string()),
-        )?;
-
-        if !is_type_assignable(found_value_ty, expected_value_ty, lower, builtins)
-            && !literal_absorbs_to_expected(value_expr, expected_value_ty, source, lower, builtins)
-        {
-            return Err(ExprTypeError::CallArgTypeMismatch {
-                callee: callee_name.to_string(),
-                index: 1,
-                expected: lower.fmt_type(expected_value_ty),
-                found: lower.fmt_type(found_value_ty),
-                span: value_expr.span.into(),
-            });
-        }
-
-        // required effects：`resume` 视为"立即执行 continuation 的下一步"，因此把 `E` 计入当前函数体的 required effects。
-        for effect in effects.terms.iter().copied() {
-            lower.record_performed_effect(effect, call_expr.span);
-        }
-        // spec §5.5：continuation 为 one-shot；重复 resume 为运行期错误（spec §5.7：通过 Raise 表达）。
-        // 因此 `k.resume(...)` 除了 `E` 之外，还必须要求 `Raise<RuntimeError>`（除非在 try/catch/handle 内被捕获）。
-        let runtime_error = lower.lower_type_fqn_with_args(
-            "scoop.core.RuntimeError".to_string(),
-            Vec::new(),
-            call_expr.span,
-        )?;
-        let raise_runtime_error = lower.lower_type_fqn_with_args(
-            "scoop.core.Raise".to_string(),
-            vec![runtime_error],
-            call_expr.span,
-        )?;
-        lower.record_performed_effect(raise_runtime_error, call_expr.span);
-        lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
-
-        let ret = if safe {
-            lower.ty_option(answer_ty)
-        } else {
-            answer_ty
-        };
-        return Ok(Some(ret));
-    }
-
-    if let Some(param_names) = expanded_payload_param_names.as_ref()
-        && call_args.len() == param_names.len()
-        && let Some(mapping) = map_call_args_to_params(&call_args, param_names)
-    {
-        let TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Tuple(_)) =
-            lower.type_kind(expected_value_ty)
-        else {
-            unreachable!("expanded Continuation.resume payload surface only applies to Unit/tuple");
-        };
-
-        let param_tys: Vec<TypeId> = match lower.type_kind(expected_value_ty) {
-            TypeKind::Value(ValueTypeKind::Unit) => Vec::new(),
-            TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements.clone(),
-            _ => unreachable!(
-                "expanded Continuation.resume payload surface only applies to Unit/tuple"
-            ),
-        };
-
-        let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
-        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-            let slot = arg_to_param
-                .get_mut(arg_idx)
-                .expect("mapped resume payload arg should stay in range");
-            *slot = Some(param_idx);
-        }
-
-        for (arg_idx, arg) in call_args.iter().enumerate() {
-            let param_idx = arg_to_param
-                .get(arg_idx)
-                .copied()
-                .flatten()
-                .expect("mapped resume payload arg should have target param");
-            let expected_ty = param_tys[param_idx];
-            let found_ty = inputs.infer_in_expected(
-                lower,
-                arg.expr,
-                expected_ty,
-                ExpectedTypeFrom::new(format!(
-                    "Continuation.resume 的第 {} 个 payload",
-                    param_idx + 1
-                )),
-            )?;
-            if is_type_assignable(found_ty, expected_ty, lower, builtins)
-                || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
-            {
-                continue;
-            }
-
-            return Err(ExprTypeError::CallArgTypeMismatch {
-                callee: callee_name.to_string(),
-                index: param_idx + 1,
-                expected: lower.fmt_type(expected_ty),
-                found: lower.fmt_type(found_ty),
-                span: arg.expr.span.into(),
-            });
-        }
-
-        for effect in effects.terms.iter().copied() {
-            lower.record_performed_effect(effect, call_expr.span);
-        }
-        let runtime_error = lower.lower_type_fqn_with_args(
-            "scoop.core.RuntimeError".to_string(),
-            Vec::new(),
-            call_expr.span,
-        )?;
-        let raise_runtime_error = lower.lower_type_fqn_with_args(
-            "scoop.core.Raise".to_string(),
-            vec![runtime_error],
-            call_expr.span,
-        )?;
-        lower.record_performed_effect(raise_runtime_error, call_expr.span);
-        lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
-
-        let ret = if safe {
-            lower.ty_option(answer_ty)
-        } else {
-            answer_ty
-        };
-        return Ok(Some(ret));
-    }
-
-    let mut expected_arities = vec![1usize];
-    if let Some(param_names) = expanded_payload_param_names.as_ref()
-        && !expected_arities.contains(&param_names.len())
-    {
-        expected_arities.push(param_names.len());
-    }
-    expected_arities.sort_unstable();
-    if expected_arities.len() == 1 {
+    if call_args.len() != 1 {
         return Err(ExprTypeError::CallArityMismatch {
             callee: callee_name.to_string(),
-            expected: expected_arities[0],
+            expected: 1,
             found: call_args.len(),
             span: call_expr.span.into(),
         });
     }
 
-    Err(ExprTypeError::NoMatchingOverload {
-        callee: callee_name.to_string(),
-        span: call_expr.span.into(),
-    })
+    let Some(mapping) = map_call_args_to_params(&call_args, &param_names) else {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    };
+    let arg_idx = mapping[0];
+    let value_expr = call_args[arg_idx].expr;
+    let found_value_ty = inputs.infer_in_expected(
+        lower,
+        value_expr,
+        expected_value_ty,
+        ExpectedTypeFrom::new("Continuation.resume payload".to_string()),
+    )?;
+
+    if !is_type_assignable(found_value_ty, expected_value_ty, lower, builtins)
+        && !literal_absorbs_to_expected(value_expr, expected_value_ty, source, lower, builtins)
+    {
+        return Err(ExprTypeError::CallArgTypeMismatch {
+            callee: callee_name.to_string(),
+            index: 1,
+            expected: lower.fmt_type(expected_value_ty),
+            found: lower.fmt_type(found_value_ty),
+            span: value_expr.span.into(),
+        });
+    }
+
+    for effect in effects.terms.iter().copied() {
+        lower.record_performed_effect(effect, call_expr.span);
+    }
+    let runtime_error = lower.lower_type_fqn_with_args(
+        "scoop.core.RuntimeError".to_string(),
+        Vec::new(),
+        call_expr.span,
+    )?;
+    let raise_runtime_error = lower.lower_type_fqn_with_args(
+        "scoop.core.Raise".to_string(),
+        vec![runtime_error],
+        call_expr.span,
+    )?;
+    lower.record_performed_effect(raise_runtime_error, call_expr.span);
+    lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
+    if used_unit_sugar {
+        lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
+    }
+
+    let ret = if safe {
+        lower.ty_option(answer_ty)
+    } else {
+        answer_ty
+    };
+    Ok(Some(ret))
 }
 
 pub(super) fn infer_continuation_resume_call_expr_type(
@@ -5776,6 +5844,13 @@ fn infer_member_call_expr_type(
             // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
             // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
+            let synthesized_unit_args =
+                args.is_empty().then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+            let sugar_call_args = if let Some(synthesized_args) = synthesized_unit_args.as_ref() {
+                Some(collect_call_arg_infos(inputs, synthesized_args, lower)?)
+            } else {
+                None
+            };
             check_call_arg_named_rules(fqn, &call_args)?;
             check_call_named_args_exist_in_any_candidate(
                 fqn,
@@ -5792,7 +5867,7 @@ fn infer_member_call_expr_type(
             };
 
             let mut call_args_with_receiver = Vec::with_capacity(call_args.len() + 1);
-            call_args_with_receiver.push(receiver_arg);
+            call_args_with_receiver.push(receiver_arg.clone());
             call_args_with_receiver.extend(call_args.iter().cloned());
 
             #[derive(Debug, Clone)]
@@ -5806,6 +5881,8 @@ fn infer_member_call_expr_type(
                 defaults_used: usize,
                 /// 形参 -> 实参绑定（用于后续门禁，例如 `addressOf(var: T)`）。
                 mapping: Vec<ParamArgBinding>,
+                /// 当前候选是否通过 typed `Unit` zero-arg sugar 匹配得到。
+                used_unit_sugar: bool,
             }
 
             fn is_strictly_more_specific_member_overload(
@@ -5871,14 +5948,50 @@ fn infer_member_call_expr_type(
 
             let mut matched: Vec<MatchedMemberOverload<'_>> = Vec::new();
             for cand in sigs.iter() {
-                let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                let Some((user_param_tys, param_has_defaults, param_is_vararg)) =
+                    user_visible_param_slices_after_receiver(
+                        &cand.params,
+                        &cand.param_has_defaults,
+                        &cand.param_is_vararg,
+                    )
+                else {
+                    continue;
+                };
+                let exact_mapping = map_call_args_to_params_with_defaults_and_varargs(
                     &call_args_with_receiver,
                     &cand.param_names,
                     &cand.param_has_defaults,
                     &cand.param_is_vararg,
-                ) else {
-                    continue;
-                };
+                );
+                let (call_args_for_candidate, mapping, used_unit_sugar) =
+                    if let Some(mapping) = exact_mapping {
+                        (call_args_with_receiver.clone(), mapping, false)
+                    } else if can_use_zero_arg_unit_call_sugar(
+                        args,
+                        user_param_tys,
+                        param_has_defaults,
+                        param_is_vararg,
+                        lower,
+                    ) {
+                        let Some(sugar_call_args) = sugar_call_args.as_ref() else {
+                            continue;
+                        };
+                        let mut sugar_call_args_with_receiver =
+                            Vec::with_capacity(sugar_call_args.len() + 1);
+                        sugar_call_args_with_receiver.push(receiver_arg.clone());
+                        sugar_call_args_with_receiver.extend(sugar_call_args.iter().cloned());
+                        let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                            &sugar_call_args_with_receiver,
+                            &cand.param_names,
+                            &cand.param_has_defaults,
+                            &cand.param_is_vararg,
+                        ) else {
+                            continue;
+                        };
+                        (sugar_call_args_with_receiver, mapping, true)
+                    } else {
+                        continue;
+                    };
 
                 // spread 实参只能绑定到 vararg 形参；否则该候选不匹配。
                 let mut ok = true;
@@ -5886,9 +5999,7 @@ fn infer_member_call_expr_type(
                     match binding {
                         ParamArgBinding::Default => {}
                         ParamArgBinding::Single(arg_idx) => {
-                            if call_args_with_receiver
-                                .get(*arg_idx)
-                                .is_some_and(|a| a.is_spread)
+                            if call_args_for_candidate.get(*arg_idx).is_some_and(|a| a.is_spread)
                             {
                                 ok = false;
                                 break;
@@ -5906,7 +6017,7 @@ fn infer_member_call_expr_type(
                 let mut generic_constraints: Vec<GenericArgConstraint> =
                     Vec::with_capacity(mapping_pairs.len());
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                    let arg = &call_args_with_receiver[arg_idx];
+                    let arg = &call_args_for_candidate[arg_idx];
                     if arg.is_spread {
                         if !cand
                             .param_is_vararg
@@ -5976,9 +6087,9 @@ fn infer_member_call_expr_type(
                 // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把"候选相关"的
                 // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
                 let mut checked_arg_tys: Vec<TypeId> =
-                    call_args_with_receiver.iter().map(|a| a.ty).collect();
+                    call_args_for_candidate.iter().map(|a| a.ty).collect();
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                    let arg = &call_args_with_receiver[arg_idx];
+                    let arg = &call_args_for_candidate[arg_idx];
                     if arg.is_spread {
                         continue;
                     }
@@ -6016,7 +6127,7 @@ fn infer_member_call_expr_type(
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                        let arg = &call_args_with_receiver[arg_idx];
+                        let arg = &call_args_for_candidate[arg_idx];
                         if arg.is_spread {
                             continue;
                         }
@@ -6102,7 +6213,7 @@ fn infer_member_call_expr_type(
                 }
 
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                    let arg = &call_args_with_receiver[arg_idx];
+                    let arg = &call_args_for_candidate[arg_idx];
                     let expected_ty = instantiated.params[param_idx];
                     let found_ty = checked_arg_tys[arg_idx];
 
@@ -6150,7 +6261,7 @@ fn infer_member_call_expr_type(
                     .iter()
                     .filter(|b| matches!(b, ParamArgBinding::Default))
                     .count();
-                let mut expected_arg_tys = vec![builtins.nothing; call_args_with_receiver.len()];
+                let mut expected_arg_tys = vec![builtins.nothing; call_args_for_candidate.len()];
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     expected_arg_tys[arg_idx] = instantiated.params[param_idx];
                 }
@@ -6162,7 +6273,12 @@ fn infer_member_call_expr_type(
                     expected_arg_tys,
                     defaults_used,
                     mapping,
+                    used_unit_sugar,
                 });
+            }
+
+            if matched.iter().any(|cand| !cand.used_unit_sugar) {
+                matched.retain(|cand| !cand.used_unit_sugar);
             }
 
             let chosen = match matched.len() {
@@ -6204,10 +6320,21 @@ fn infer_member_call_expr_type(
             check_nogc_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
             check_const_fun_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
             emit_deprecated_call_warning(fqn, chosen.sig, call_expr.span, lower);
+            let chosen_call_args = if chosen.used_unit_sugar {
+                let sugar_call_args = sugar_call_args
+                    .as_ref()
+                    .expect("typed Unit sugar 选择的成员调用应有合成实参");
+                let mut chosen_call_args = Vec::with_capacity(sugar_call_args.len() + 1);
+                chosen_call_args.push(receiver_arg.clone());
+                chosen_call_args.extend(sugar_call_args.iter().cloned());
+                chosen_call_args
+            } else {
+                call_args_with_receiver.clone()
+            };
             check_var_param_lvalue_gate(
                 fqn,
                 chosen.sig,
-                &call_args_with_receiver,
+                &chosen_call_args,
                 &chosen.mapping,
             )?;
 
@@ -6270,6 +6397,9 @@ fn infer_member_call_expr_type(
                     eff_args,
                 },
             );
+            if chosen.used_unit_sugar {
+                lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
+            }
 
             let ret = if safe {
                 lower.ty_option(chosen.instantiated.return_ty)
@@ -6590,6 +6720,12 @@ fn infer_member_call_expr_type(
     // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
     // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    let synthesized_unit_args = args.is_empty().then(|| vec![synthesize_unit_arg_expr(call_expr.span)]);
+    let sugar_call_args = if let Some(synthesized_args) = synthesized_unit_args.as_ref() {
+        Some(collect_call_arg_infos(inputs, synthesized_args, lower)?)
+    } else {
+        None
+    };
     check_call_arg_named_rules(&callee_fqn, &call_args)?;
     check_call_named_args_exist_in_any_candidate(
         &callee_fqn,
@@ -6633,12 +6769,37 @@ fn infer_member_call_expr_type(
             });
         };
 
+        let Some((user_param_tys, _, _)) = user_visible_param_slices_after_receiver(
+            &sig.params,
+            &sig.param_has_defaults,
+            &sig.param_is_vararg,
+        ) else {
+            return Err(ExprTypeError::CalleeNotCallable {
+                callee: callee_fqn,
+                span: member.span.into(),
+            });
+        };
+        let used_unit_sugar = can_use_zero_arg_unit_call_sugar(
+            args,
+            user_param_tys,
+            param_has_defaults,
+            param_is_vararg,
+            lower,
+        );
+        let effective_call_args = if used_unit_sugar {
+            sugar_call_args
+                .as_ref()
+                .expect("typed Unit sugar 选择的扩展调用应有合成实参")
+        } else {
+            &call_args
+        };
+
         let has_vararg = vararg_param_index(param_is_vararg).is_some();
-        if !has_vararg && call_args.len() > expected_args {
+        if !has_vararg && effective_call_args.len() > expected_args {
             return Err(ExprTypeError::CallArityMismatch {
                 callee: callee_fqn,
                 expected: expected_args,
-                found: call_args.len(),
+                found: effective_call_args.len(),
                 span: call_expr.span.into(),
             });
         }
@@ -6649,18 +6810,22 @@ fn infer_member_call_expr_type(
         } else {
             param_has_defaults.iter().filter(|d| !**d).count()
         };
-        if call_args.len() < required {
+        if effective_call_args.len() < required {
             return Err(ExprTypeError::CallArityMismatch {
                 callee: callee_fqn,
                 expected: required,
-                found: call_args.len(),
+                found: effective_call_args.len(),
                 span: call_expr.span.into(),
             });
         }
 
         let mapping: Vec<ParamArgBinding> = if !has_vararg {
             let Some(mapping) =
-                map_call_args_to_params_with_defaults(&call_args, param_names, param_has_defaults)
+                map_call_args_to_params_with_defaults(
+                    effective_call_args,
+                    param_names,
+                    param_has_defaults,
+                )
             else {
                 return Err(ExprTypeError::NoMatchingOverload {
                     callee: callee_fqn,
@@ -6673,7 +6838,7 @@ fn infer_member_call_expr_type(
                 .collect()
         } else {
             let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
-                &call_args,
+                effective_call_args,
                 param_names,
                 param_has_defaults,
                 param_is_vararg,
@@ -6689,11 +6854,13 @@ fn infer_member_call_expr_type(
         // spread 实参只能绑定到 vararg 形参。
         for binding in mapping.iter() {
             if let ParamArgBinding::Single(arg_idx) = binding
-                && call_args.get(*arg_idx).is_some_and(|a| a.is_spread)
+                && effective_call_args
+                    .get(*arg_idx)
+                    .is_some_and(|a| a.is_spread)
             {
                 return Err(ExprTypeError::SpreadArgRequiresVararg {
                     callee: callee_fqn.clone(),
-                    span: call_args[*arg_idx].expr.span.into(),
+                    span: effective_call_args[*arg_idx].expr.span.into(),
                 });
             }
         }
@@ -6702,7 +6869,7 @@ fn infer_member_call_expr_type(
         let mut arg_constraints: Vec<GenericArgConstraint> = Vec::new();
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let sig_param_idx = param_idx + 1; // 跳过 receiver
-            let arg = &call_args[arg_idx];
+            let arg = &effective_call_args[arg_idx];
             if arg.is_spread {
                 if !sig
                     .param_is_vararg
@@ -6811,10 +6978,11 @@ fn infer_member_call_expr_type(
         }
 
         // 先在"期望类型语境"下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
-        let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
+        let mut checked_arg_tys: Vec<TypeId> =
+            effective_call_args.iter().map(|a| a.ty).collect();
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
-            let arg = &call_args[arg_idx];
+            let arg = &effective_call_args[arg_idx];
             if arg.is_spread {
                 continue;
             }
@@ -6860,7 +7028,7 @@ fn infer_member_call_expr_type(
             }
 
             for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                let arg = &call_args[arg_idx];
+                let arg = &effective_call_args[arg_idx];
                 if arg.is_spread {
                     continue;
                 }
@@ -6965,7 +7133,7 @@ fn infer_member_call_expr_type(
         // 再做"可赋值"检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
-            let arg = &call_args[arg_idx];
+            let arg = &effective_call_args[arg_idx];
             let found_ty = checked_arg_tys[arg_idx];
 
             if arg.is_spread {
@@ -7092,6 +7260,9 @@ fn infer_member_call_expr_type(
                 eff_args,
             },
         );
+        if used_unit_sugar {
+            lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
+        }
 
         let ret = if safe {
             lower.ty_option(instantiated.return_ty)
@@ -7112,6 +7283,8 @@ fn infer_member_call_expr_type(
         expected_arg_tys: Vec<TypeId>,
         /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
         defaults_used: usize,
+        /// 当前候选是否通过 typed `Unit` zero-arg sugar 匹配得到。
+        used_unit_sugar: bool,
     }
 
     fn is_strictly_more_specific_extension_overload(
@@ -7176,24 +7349,50 @@ fn infer_member_call_expr_type(
     let mut matched: Vec<MatchedExtensionOverload<'_>> = Vec::new();
 
     for cand in ext_candidates {
+        let Some((user_param_tys, param_has_defaults, param_is_vararg)) =
+            user_visible_param_slices_after_receiver(
+                &cand.params,
+                &cand.param_has_defaults,
+                &cand.param_is_vararg,
+            )
+        else {
+            continue;
+        };
         let Some(param_names) = cand.param_names.get(1..) else {
             continue;
         };
-        let Some(param_has_defaults) = cand.param_has_defaults.get(1..) else {
-            continue;
-        };
-        let Some(param_is_vararg) = cand.param_is_vararg.get(1..) else {
-            continue;
-        };
 
-        let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+        let exact_mapping = map_call_args_to_params_with_defaults_and_varargs(
             &call_args,
             param_names,
             param_has_defaults,
             param_is_vararg,
-        ) else {
-            continue;
-        };
+        );
+        let (call_args_for_candidate, mapping, used_unit_sugar) =
+            if let Some(mapping) = exact_mapping {
+                (&call_args, mapping, false)
+            } else if can_use_zero_arg_unit_call_sugar(
+                args,
+                user_param_tys,
+                param_has_defaults,
+                param_is_vararg,
+                lower,
+            ) {
+                let Some(sugar_call_args) = sugar_call_args.as_ref() else {
+                    continue;
+                };
+                let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                    sugar_call_args,
+                    param_names,
+                    param_has_defaults,
+                    param_is_vararg,
+                ) else {
+                    continue;
+                };
+                (sugar_call_args, mapping, true)
+            } else {
+                continue;
+            };
 
         // spread 实参只能绑定到 vararg 形参；否则该候选不匹配。
         let mut ok = true;
@@ -7201,7 +7400,10 @@ fn infer_member_call_expr_type(
             match binding {
                 ParamArgBinding::Default => {}
                 ParamArgBinding::Single(arg_idx) => {
-                    if call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
+                    if call_args_for_candidate
+                        .get(*arg_idx)
+                        .is_some_and(|a| a.is_spread)
+                    {
                         ok = false;
                         break;
                     }
@@ -7218,7 +7420,7 @@ fn infer_member_call_expr_type(
         let mut arg_constraints: Vec<GenericArgConstraint> = Vec::new();
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let sig_param_idx = param_idx + 1; // 跳过 receiver
-            let arg = &call_args[arg_idx];
+            let arg = &call_args_for_candidate[arg_idx];
             if arg.is_spread {
                 if !cand
                     .param_is_vararg
@@ -7316,9 +7518,10 @@ fn infer_member_call_expr_type(
 
         // 只在需要时（lambda）进入 expected-context typecheck（与 direct call 多候选路径保持一致）。
         let mut ok = true;
-        let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
+        let mut checked_arg_tys: Vec<TypeId> =
+            call_args_for_candidate.iter().map(|a| a.ty).collect();
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-            let arg = &call_args[arg_idx];
+            let arg = &call_args_for_candidate[arg_idx];
             if arg.is_spread {
                 continue;
             }
@@ -7380,7 +7583,7 @@ fn infer_member_call_expr_type(
             }
 
             for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
-                let arg = &call_args[arg_idx];
+                let arg = &call_args_for_candidate[arg_idx];
                 if arg.is_spread {
                     continue;
                 }
@@ -7487,7 +7690,7 @@ fn infer_member_call_expr_type(
         // 参数可赋值检查（跳过 receiver；只检查显式实参）。
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
-            let arg = &call_args[arg_idx];
+            let arg = &call_args_for_candidate[arg_idx];
             let found_ty = checked_arg_tys[arg_idx];
 
             if arg.is_spread {
@@ -7533,7 +7736,7 @@ fn infer_member_call_expr_type(
                 .iter()
                 .filter(|b| matches!(b, ParamArgBinding::Default))
                 .count();
-            let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
+            let mut expected_arg_tys = vec![builtins.nothing; call_args_for_candidate.len()];
             for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                 expected_arg_tys[arg_idx] = instantiated.params[param_idx + 1];
             }
@@ -7545,8 +7748,13 @@ fn infer_member_call_expr_type(
                 instantiated,
                 eff_arg,
                 defaults_used,
+                used_unit_sugar,
             });
         }
+    }
+
+    if matched.iter().any(|cand| !cand.used_unit_sugar) {
+        matched.retain(|cand| !cand.used_unit_sugar);
     }
 
     let chosen = match matched.len() {
@@ -7603,7 +7811,14 @@ fn infer_member_call_expr_type(
         lower,
         builtins,
     )?;
-    for (arg_idx, arg) in call_args.iter().enumerate() {
+    let chosen_call_args = if chosen.used_unit_sugar {
+        sugar_call_args
+            .as_ref()
+            .expect("typed Unit sugar 选择的扩展调用应有合成实参")
+    } else {
+        &call_args
+    };
+    for (arg_idx, arg) in chosen_call_args.iter().enumerate() {
         let expected_ty = *chosen
             .expected_arg_tys
             .get(arg_idx)
@@ -7682,6 +7897,9 @@ fn infer_member_call_expr_type(
             eff_args,
         },
     );
+    if chosen.used_unit_sugar {
+        lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
+    }
 
     let ret = if safe {
         lower.ty_option(chosen.instantiated.return_ty)

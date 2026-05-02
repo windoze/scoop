@@ -1,0 +1,16 @@
+package fixtures.hir
+
+import scoop.core.*
+
+fun takesUnit(value: Unit): Unit {}
+
+fun resumeUnit(k: Continuation<Unit, Unit, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume()
+    k.resume(())
+    takesUnit()
+    takesUnit(())
+}
+
+fun resumePair(k: Continuation<(Int, String), Unit, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume((1, "ok"))
+}

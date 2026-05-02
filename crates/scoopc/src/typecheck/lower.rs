@@ -506,6 +506,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - effect segmentation 只对这批调用点走 call-boundary replay 主线，Pure continuation
     ///   则继续保留 self-contained `try/catch` / runtime-raise hidden-boundary 语义。
     non_pure_continuation_resume_call_sites: HashSet<Span>,
+    /// 零参调用经 typed `Unit` sugar canonicalize 为显式 `Unit` 实参的调用点。
+    ///
+    /// 用途：
+    /// - 保持 AST/parser 继续保留 `f()` / `k.resume()` 的原始 surface 形状；
+    /// - 让 HIR lowering 能按 typecheck 的最终决议，把 typed HIR call 形状统一落成 `(..., Unit)`。
+    zero_arg_unit_call_sugar_sites: HashSet<Span>,
     /// typecheck 选中的“顶层函数值”目标。
     ///
     /// 用途：
@@ -655,6 +661,7 @@ impl<'a> TypeLowering<'a> {
             typechecked_member_resolutions: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
             non_pure_continuation_resume_call_sites: HashSet::new(),
+            zero_arg_unit_call_sugar_sites: HashSet::new(),
             top_level_fun_value_refs: HashMap::new(),
             top_level_fun_call_bindings: HashMap::new(),
             typechecked_effect_op_call_bindings: HashMap::new(),
@@ -1664,6 +1671,10 @@ impl<'a> TypeLowering<'a> {
         }
     }
 
+    pub(super) fn record_zero_arg_unit_call_sugar_site(&mut self, call_span: Span) {
+        self.zero_arg_unit_call_sugar_sites.insert(call_span);
+    }
+
     pub(super) fn ty_continuation(
         &mut self,
         resume_ty: TypeId,
@@ -1790,6 +1801,10 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn take_non_pure_continuation_resume_call_sites(&mut self) -> HashSet<Span> {
         std::mem::take(&mut self.non_pure_continuation_resume_call_sites)
+    }
+
+    pub(super) fn take_zero_arg_unit_call_sugar_sites(&mut self) -> HashSet<Span> {
+        std::mem::take(&mut self.zero_arg_unit_call_sugar_sites)
     }
 
     pub(super) fn take_top_level_fun_value_refs(

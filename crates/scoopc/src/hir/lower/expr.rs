@@ -171,6 +171,8 @@ impl<'a> HirLowering<'a> {
                 let typechecked_call_ty = self.typechecked_expr_ty(e.span);
                 let call_ty = typechecked_call_ty.unwrap_or(self.builtins.any);
                 let callee_expr = self.transparent_call_callee(callee);
+                let synthesized_args = self.synthesized_unit_call_args_for_typed_sugar(e.span, args);
+                let args = synthesized_args.as_deref().unwrap_or(args.as_slice());
 
                 // T0108：safe call 方法调用：`receiver?.method(args)` → when desugar。
                 if let ast::ExprKind::SafeMemberAccess {
@@ -1053,6 +1055,24 @@ impl<'a> HirLowering<'a> {
         let ty = self.file.inferred_handle_arm_effect_ty(span)?;
         let ty = self.types.re_intern_from(typecheck_types, ty);
         Some(self.apply_active_type_param_bindings(ty))
+    }
+
+    fn zero_arg_unit_call_uses_sugar(&self, span: Span) -> bool {
+        self.file.zero_arg_unit_call_uses_sugar(span)
+    }
+
+    fn synthesized_unit_call_args_for_typed_sugar(
+        &self,
+        call_span: Span,
+        args: &[ast::Expr],
+    ) -> Option<Vec<ast::Expr>> {
+        self.zero_arg_unit_call_uses_sugar(call_span).then(|| {
+            debug_assert!(args.is_empty(), "typed Unit sugar 只应标记原始零参调用点");
+            vec![ast::Expr {
+                span: call_span,
+                kind: ast::ExprKind::UnitLit,
+            }]
+        })
     }
 
     fn typechecked_effect_op_call_binding(

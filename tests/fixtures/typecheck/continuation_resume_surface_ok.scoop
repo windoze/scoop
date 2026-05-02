@@ -1,7 +1,7 @@
 // EXPECT: pass
 // 目标：T4008c4 Continuation.resume surface：
 // - `Continuation<Unit, Answer>` 支持零参 `k.resume()`；
-// - `Continuation<(A, B), Answer>` 支持按 payload element 扁平传参，并接受 `a0/a1/...` 命名实参。
+// - `Continuation<(A, B), Answer>` 需要把 tuple payload 作为单一实参传递。
 
 package fixtures.typecheck
 
@@ -12,5 +12,5 @@ fun resumeUnit(k: Continuation<Unit, Unit, eff Pure>): Unit / Raise<RuntimeError
 }
 
 fun resumePair(k: Continuation<(Int, String), Unit, eff Pure>): Unit / Raise<RuntimeError> {
-    k.resume(a1 = "ok", a0 = 1)
+    k.resume((1, "ok"))
 }

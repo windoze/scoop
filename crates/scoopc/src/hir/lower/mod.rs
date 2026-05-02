@@ -6590,4 +6590,148 @@ fun <eff E = Pure> wrap(): Int / E {
             other => panic!("receiver 应为 companion object 单例值，实际为 {other:?}"),
         }
     }
+
+    #[test]
+    fn typed_hir_continuation_resume_unit_sugar_canonicalizes_zero_arg_and_explicit_unit() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>/hir_continuation_resume_unit_sugar.scoop",
+            r#"
+package fixtures.hirreview
+
+import scoop.core.*
+
+fun takesUnit(value: Unit): Unit {}
+
+fun resumeZero(k: Continuation<Unit, Unit, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume()
+    k.resume(())
+    takesUnit()
+    takesUnit(())
+}
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &src).unwrap();
+        let resume_zero = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.hirreview.resumeZero" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.hirreview.resumeZero");
+        let body = resume_zero.body.as_ref().expect("resumeZero 应有函数体");
+
+        let call_exprs: Vec<&Expr> = body
+            .stmts
+            .iter()
+            .filter_map(|stmt| match &stmt.kind {
+                StmtKind::Expr(expr) => Some(expr),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(call_exprs.len(), 4, "resumeZero 应包含 4 个调用表达式语句");
+
+        for (index, call_expr) in call_exprs.iter().enumerate() {
+            let ExprKind::Call { callee, args } = &call_expr.kind else {
+                panic!("期望调用表达式，实际为 {:?}", call_expr.kind);
+            };
+            match index {
+                0 | 1 => {
+                    match &callee.kind {
+                        ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+                            assert_eq!(fqn, "scoop.core.Continuation.resume");
+                        }
+                        other => panic!("resume call 应 lower 为 direct call，实际为 {other:?}"),
+                    }
+                    let [CallArg::Positional(receiver), CallArg::Positional(arg)] = args.as_slice()
+                    else {
+                        panic!(
+                            "typed HIR 应把 continuation.resume canonicalize 为 receiver + Unit 实参: {:?}",
+                            args
+                        );
+                    };
+                    assert!(
+                        matches!(receiver.kind, ExprKind::VarRef(ValueRef::Local { .. })),
+                        "resume direct-call 的第 0 个实参应为 receiver，实际为 {:?}",
+                        receiver.kind
+                    );
+                    assert!(
+                        matches!(arg.kind, ExprKind::Literal(LiteralKind::Unit)),
+                        "canonicalized resume payload 应为显式 Unit literal，实际为 {:?}",
+                        arg.kind
+                    );
+                }
+                _ => {
+                    let [CallArg::Positional(arg)] = args.as_slice() else {
+                        panic!(
+                            "typed HIR 应把 zero-arg Unit sugar canonicalize 为单个实参: {:?}",
+                            args
+                        );
+                    };
+                    assert!(
+                        matches!(arg.kind, ExprKind::Literal(LiteralKind::Unit)),
+                        "canonicalized Unit sugar 实参应为显式 Unit literal，实际为 {:?}",
+                        arg.kind
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn typed_hir_unit_single_param_zero_arg_call_canonicalizes_to_unit_literal() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>/hir_unit_single_param_zero_arg_call.scoop",
+            r#"
+package fixtures.hirreview
+
+fun takesUnit(value: Unit): Unit {}
+
+fun run(): Unit {
+    takesUnit()
+    takesUnit(())
+}
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &src).unwrap();
+        let run = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.hirreview.run" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.hirreview.run");
+        let body = run.body.as_ref().expect("run 应有函数体");
+
+        let call_exprs: Vec<&Expr> = body
+            .stmts
+            .iter()
+            .filter_map(|stmt| match &stmt.kind {
+                StmtKind::Expr(expr) => Some(expr),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(call_exprs.len(), 2, "run 应包含 2 个调用表达式语句");
+
+        for call_expr in call_exprs {
+            let ExprKind::Call { args, .. } = &call_expr.kind else {
+                panic!("期望调用表达式，实际为 {:?}", call_expr.kind);
+            };
+            let [CallArg::Positional(arg)] = args.as_slice() else {
+                panic!("typed HIR 应把 `takesUnit()` canonicalize 为单个 Unit 实参: {:?}", args);
+            };
+            assert!(
+                matches!(arg.kind, ExprKind::Literal(LiteralKind::Unit)),
+                "canonicalized Unit 实参应为显式 Unit literal，实际为 {:?}",
+                arg.kind
+            );
+        }
+    }
 }

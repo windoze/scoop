@@ -2,7 +2,7 @@
 // 目标：T4016b3 `Continuation.resume(...): Answer`
 // - `k.resume(...)` 的返回值可在表达式位置作为 answer type 使用；
 // - safe-call `cont?.resume(...)` 会返回 `Option<Answer>`；
-// - tuple payload surface 与 answer-return 组合时也能保持类型正确。
+// - tuple payload 作为单一 tuple 实参与 answer-return 组合时也能保持类型正确。
 
 package fixtures.typecheck
 
@@ -19,7 +19,7 @@ fun useSafe(): Int? / Raise<RuntimeError> {
 }
 
 fun useTupleAnswer(k: Continuation<(Int, String), Int, eff Pure>): Int / Raise<RuntimeError> {
-    val resumed: Int = k.resume(a0 = 1, a1 = "ok")
+    val resumed: Int = k.resume((1, "ok"))
     resumed + 2
 }
 
