@@ -10,7 +10,8 @@ use super::ir::{
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind, LateLoweredProgram,
     LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeStateMap,
     LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
-    LateLoweredStepCase, LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepType, ResumeInterfaceId,
+    StateId, SystemSlotKind,
 };
 
 /// 渲染 late-lowered program 的稳定文本格式。
@@ -296,9 +297,10 @@ fn render_state_graph(rendered: &mut String, state_graph: &LateLoweredStateGraph
 fn render_state(rendered: &mut String, state: &LateLoweredState) {
     writeln!(
         rendered,
-        "          - st{} {} successors={}",
+        "          - st{} {} term={} successors={}",
         state.state_id().as_u32(),
         render_state_role(state.role()),
+        render_state_terminator(state.terminator()),
         render_state_successors(state.successors())
     )
     .unwrap();
@@ -343,10 +345,12 @@ fn render_frame_schema(rendered: &mut String, frame_schema: &LateLoweredFrameSch
 fn render_frame_slot(rendered: &mut String, slot: &LateLoweredFrameSlot) {
     writeln!(
         rendered,
-        "          - slot{} {} ty={}",
+        "          - slot{} {} ty={} writes={} reads={}",
         slot.slot_id().as_u32(),
         render_frame_slot_kind(slot.kind()),
         render_type_id(slot.ty()),
+        render_state_successors(slot.write_points()),
+        render_state_successors(slot.read_points()),
     )
     .unwrap();
 }
@@ -487,6 +491,65 @@ fn render_state_role(role: LateLoweredStateRole) -> &'static str {
     }
 }
 
+fn render_state_terminator(terminator: &LateLoweredStateTerminator) -> String {
+    match terminator {
+        LateLoweredStateTerminator::Suspend {
+            boundary_ids,
+            resume_state,
+            cleanup_state,
+            drop_state,
+        } => format!(
+            "Suspend(boundaries={}, resume=st{}, cleanup={}, drop={})",
+            render_boundary_ids(boundary_ids),
+            resume_state.as_u32(),
+            render_optional_state(*cleanup_state),
+            render_optional_state(*drop_state),
+        ),
+        LateLoweredStateTerminator::Goto { target } => format!("Goto(st{})", target.as_u32()),
+        LateLoweredStateTerminator::Branch {
+            cond_local,
+            then_state,
+            else_state,
+        } => format!(
+            "Branch(local{} ? st{} : st{})",
+            cond_local.as_u32(),
+            then_state.as_u32(),
+            else_state.as_u32(),
+        ),
+        LateLoweredStateTerminator::Return {
+            value_local,
+            complete_state,
+        } => format!(
+            "Return({} -> st{})",
+            value_local
+                .map(|local| format!("local{}", local.as_u32()))
+                .unwrap_or_else(|| "Unit".to_string()),
+            complete_state.as_u32(),
+        ),
+        LateLoweredStateTerminator::HandleDispatch {
+            site_id,
+            body_state,
+            arm_states,
+            finally_state,
+            exit_state,
+            boundary_ids,
+            drop_state,
+        } => format!(
+            "Handle(site{} body=st{} arms={} finally={} exit=st{} boundaries={} drop={})",
+            site_id.as_u32(),
+            body_state.as_u32(),
+            render_state_successors(arm_states),
+            render_optional_state(*finally_state),
+            exit_state.as_u32(),
+            render_boundary_ids(boundary_ids),
+            render_optional_state(*drop_state),
+        ),
+        LateLoweredStateTerminator::ResumeUnwind => "ResumeUnwind".to_string(),
+        LateLoweredStateTerminator::Unreachable => "Unreachable".to_string(),
+        LateLoweredStateTerminator::Abandon => "Abandon".to_string(),
+    }
+}
+
 fn render_frame_slot_kind(kind: LateLoweredFrameSlotKind) -> String {
     match kind {
         LateLoweredFrameSlotKind::SourceLocal(local) => {
@@ -495,17 +558,50 @@ fn render_frame_slot_kind(kind: LateLoweredFrameSlotKind) -> String {
         LateLoweredFrameSlotKind::CompilerTemporary(local) => {
             format!("CompilerTemporary(local{})", local.as_u32())
         }
-        LateLoweredFrameSlotKind::JoinValue { block, ordinal } => {
-            format!("JoinValue(bb{}, #{ordinal})", block.as_u32())
+        LateLoweredFrameSlotKind::JoinValue {
+            local,
+            block,
+            ordinal,
+        } => {
+            format!("JoinValue(local{}, bb{}, #{ordinal})", local.as_u32(), block.as_u32())
         }
-        LateLoweredFrameSlotKind::HandleBinder(site) => {
-            format!("HandleBinder(site{})", site.as_u32())
+        LateLoweredFrameSlotKind::HandleBinder {
+            site_id,
+            local,
+            ordinal,
+        } => {
+            format!(
+                "HandleBinder(site{}, local{}, #{ordinal})",
+                site_id.as_u32(),
+                local.as_u32(),
+            )
         }
-        LateLoweredFrameSlotKind::ResumePayload(boundary) => {
-            format!("ResumePayload(bd{})", boundary.as_u32())
+        LateLoweredFrameSlotKind::ResumePayload { boundary, case_tag } => {
+            format!(
+                "ResumePayload(bd{}, c{})",
+                boundary.as_u32(),
+                case_tag.as_u32(),
+            )
+        }
+        LateLoweredFrameSlotKind::BoundaryResult { boundary, local } => {
+            format!("BoundaryResult(bd{}, local{})", boundary.as_u32(), local.as_u32())
         }
         LateLoweredFrameSlotKind::System(system) => render_system_slot_kind(system).to_string(),
     }
+}
+
+fn render_boundary_ids(boundary_ids: &[super::ir::BoundaryId]) -> String {
+    if boundary_ids.is_empty() {
+        return "[]".to_string();
+    }
+    format!(
+        "[{}]",
+        boundary_ids
+            .iter()
+            .map(|boundary| format!("bd{}", boundary.as_u32()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 fn render_system_slot_kind(kind: SystemSlotKind) -> &'static str {

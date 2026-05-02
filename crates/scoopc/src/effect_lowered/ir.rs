@@ -675,12 +675,121 @@ impl LateLoweredStateSlice {
     }
 }
 
+/// 单个 state 结束时的显式控制流合同。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LateLoweredStateTerminator {
+    Suspend {
+        boundary_ids: Vec<BoundaryId>,
+        resume_state: StateId,
+        cleanup_state: Option<StateId>,
+        drop_state: Option<StateId>,
+    },
+    Goto {
+        target: StateId,
+    },
+    Branch {
+        cond_local: LocalId,
+        then_state: StateId,
+        else_state: StateId,
+    },
+    Return {
+        value_local: Option<LocalId>,
+        complete_state: StateId,
+    },
+    HandleDispatch {
+        site_id: SiteId,
+        body_state: StateId,
+        arm_states: Vec<StateId>,
+        finally_state: Option<StateId>,
+        exit_state: StateId,
+        boundary_ids: Vec<BoundaryId>,
+        drop_state: Option<StateId>,
+    },
+    ResumeUnwind,
+    Unreachable,
+    Abandon,
+}
+
+impl LateLoweredStateTerminator {
+    pub fn successors(&self) -> Vec<StateId> {
+        match self {
+            Self::Suspend {
+                resume_state,
+                cleanup_state,
+                ..
+            } => {
+                let mut successors = vec![*resume_state];
+                if let Some(cleanup_state) = cleanup_state {
+                    successors.push(*cleanup_state);
+                }
+                successors
+            }
+            Self::Goto { target } => vec![*target],
+            Self::Branch {
+                then_state,
+                else_state,
+                ..
+            } => vec![*then_state, *else_state],
+            Self::Return { complete_state, .. } => vec![*complete_state],
+            Self::HandleDispatch {
+                body_state,
+                arm_states,
+                finally_state,
+                ..
+            } => {
+                let mut successors = vec![*body_state];
+                successors.extend(arm_states.iter().copied());
+                if let Some(finally_state) = finally_state {
+                    successors.push(*finally_state);
+                }
+                successors
+            }
+            Self::ResumeUnwind | Self::Unreachable | Self::Abandon => Vec::new(),
+        }
+    }
+
+    pub(crate) fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
+        match self {
+            Self::Suspend {
+                boundary_ids,
+                resume_state,
+                cleanup_state,
+                ..
+            } => Self::Suspend {
+                boundary_ids,
+                resume_state,
+                cleanup_state,
+                drop_state,
+            },
+            Self::HandleDispatch {
+                site_id,
+                body_state,
+                arm_states,
+                finally_state,
+                exit_state,
+                boundary_ids,
+                ..
+            } => Self::HandleDispatch {
+                site_id,
+                body_state,
+                arm_states,
+                finally_state,
+                exit_state,
+                boundary_ids,
+                drop_state,
+            },
+            other => other,
+        }
+    }
+}
+
 /// state graph 中的单个 state shell。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredState {
     state_id: StateId,
     role: LateLoweredStateRole,
     source_slices: Vec<LateLoweredStateSlice>,
+    terminator: LateLoweredStateTerminator,
     successors: Vec<StateId>,
 }
 
@@ -689,12 +798,14 @@ impl LateLoweredState {
         state_id: StateId,
         role: LateLoweredStateRole,
         source_slices: Vec<LateLoweredStateSlice>,
-        successors: Vec<StateId>,
+        terminator: LateLoweredStateTerminator,
     ) -> Self {
+        let successors = terminator.successors();
         Self {
             state_id,
             role,
             source_slices,
+            terminator,
             successors,
         }
     }
@@ -711,8 +822,21 @@ impl LateLoweredState {
         &self.source_slices
     }
 
+    pub fn terminator(&self) -> &LateLoweredStateTerminator {
+        &self.terminator
+    }
+
     pub fn successors(&self) -> &[StateId] {
         &self.successors
+    }
+
+    pub(crate) fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
+        Self::new(
+            self.state_id,
+            self.role,
+            self.source_slices,
+            self.terminator.with_drop_state(drop_state),
+        )
     }
 }
 
@@ -756,13 +880,15 @@ impl LateLoweredStateGraph {
                     entry_state,
                     LateLoweredStateRole::Entry,
                     Vec::new(),
-                    vec![complete_state],
+                    LateLoweredStateTerminator::Goto {
+                        target: complete_state,
+                    },
                 ),
                 LateLoweredState::new(
                     complete_state,
                     LateLoweredStateRole::Complete,
                     Vec::new(),
-                    Vec::new(),
+                    LateLoweredStateTerminator::Unreachable,
                 ),
             ],
         )
@@ -792,6 +918,21 @@ impl LateLoweredStateGraph {
         self.states
             .iter()
             .find(|state| state.state_id() == state_id)
+    }
+
+    pub(crate) fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
+        let states = self
+            .states
+            .into_iter()
+            .map(|state| state.with_drop_state(drop_state))
+            .collect();
+        Self::new(
+            self.entry_state,
+            self.complete_state,
+            self.cleanup_state,
+            drop_state,
+            states,
+        )
     }
 }
 
@@ -939,7 +1080,7 @@ impl LateLoweredResumeStateMap {
 }
 
 /// 系统保留 frame 字段的分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SystemSlotKind {
     StateTag,
     ResumePayloadCarrier,
@@ -949,13 +1090,22 @@ pub enum SystemSlotKind {
 }
 
 /// frame slot 的稳定分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LateLoweredFrameSlotKind {
     SourceLocal(LocalId),
     CompilerTemporary(LocalId),
-    JoinValue { block: BasicBlockId, ordinal: u32 },
-    HandleBinder(SiteId),
-    ResumePayload(BoundaryId),
+    JoinValue {
+        local: LocalId,
+        block: BasicBlockId,
+        ordinal: u32,
+    },
+    HandleBinder {
+        site_id: SiteId,
+        local: LocalId,
+        ordinal: u32,
+    },
+    ResumePayload { boundary: BoundaryId, case_tag: CaseTag },
+    BoundaryResult { boundary: BoundaryId, local: LocalId },
     System(SystemSlotKind),
 }
 
@@ -965,11 +1115,25 @@ pub struct LateLoweredFrameSlot {
     slot_id: FrameSlotId,
     kind: LateLoweredFrameSlotKind,
     ty: TypeId,
+    write_points: Vec<StateId>,
+    read_points: Vec<StateId>,
 }
 
 impl LateLoweredFrameSlot {
-    pub fn new(slot_id: FrameSlotId, kind: LateLoweredFrameSlotKind, ty: TypeId) -> Self {
-        Self { slot_id, kind, ty }
+    pub fn new(
+        slot_id: FrameSlotId,
+        kind: LateLoweredFrameSlotKind,
+        ty: TypeId,
+        write_points: Vec<StateId>,
+        read_points: Vec<StateId>,
+    ) -> Self {
+        Self {
+            slot_id,
+            kind,
+            ty,
+            write_points,
+            read_points,
+        }
     }
 
     pub fn slot_id(&self) -> FrameSlotId {
@@ -982,6 +1146,14 @@ impl LateLoweredFrameSlot {
 
     pub fn ty(&self) -> TypeId {
         self.ty
+    }
+
+    pub fn write_points(&self) -> &[StateId] {
+        &self.write_points
+    }
+
+    pub fn read_points(&self) -> &[StateId] {
+        &self.read_points
     }
 }
 
@@ -1002,6 +1174,13 @@ impl LateLoweredFrameSchema {
 
     pub fn slots(&self) -> &[LateLoweredFrameSlot] {
         &self.slots
+    }
+
+    pub fn slot_for_kind(
+        &self,
+        kind: LateLoweredFrameSlotKind,
+    ) -> Option<&LateLoweredFrameSlot> {
+        self.slots.iter().find(|slot| slot.kind() == kind)
     }
 }
 
@@ -1129,6 +1308,7 @@ mod tests {
         let slot7 = FrameSlotId::new(7);
         let slot8 = FrameSlotId::new(8);
         let slot9 = FrameSlotId::new(9);
+        let slot10 = FrameSlotId::new(10);
 
         let continuation_object = LateLoweredContinuationObject::new(
             continuation_object_id,
@@ -1174,7 +1354,12 @@ mod tests {
                             1,
                             false,
                         )],
-                        vec![state2],
+                        LateLoweredStateTerminator::Suspend {
+                            boundary_ids: vec![boundary0],
+                            resume_state: state2,
+                            cleanup_state: Some(state3),
+                            drop_state: Some(state4),
+                        },
                     ),
                     LateLoweredState::new(
                         state2,
@@ -1185,13 +1370,16 @@ mod tests {
                             1,
                             true,
                         )],
-                        vec![state1],
+                        LateLoweredStateTerminator::Return {
+                            value_local: Some(LocalId::from_raw(0)),
+                            complete_state: state1,
+                        },
                     ),
                     LateLoweredState::new(
                         state1,
                         LateLoweredStateRole::Complete,
                         Vec::new(),
-                        Vec::new(),
+                        LateLoweredStateTerminator::Unreachable,
                     ),
                     LateLoweredState::new(
                         state3,
@@ -1202,13 +1390,13 @@ mod tests {
                             0,
                             true,
                         )],
-                        vec![state1],
+                        LateLoweredStateTerminator::Goto { target: state1 },
                     ),
                     LateLoweredState::new(
                         state4,
                         LateLoweredStateRole::Drop,
                         Vec::new(),
-                        Vec::new(),
+                        LateLoweredStateTerminator::Abandon,
                     ),
                 ],
             ),
@@ -1217,54 +1405,92 @@ mod tests {
                     slot0,
                     LateLoweredFrameSlotKind::SourceLocal(LocalId::from_raw(0)),
                     builtins.int,
+                    vec![state0],
+                    vec![state2],
                 ),
                 LateLoweredFrameSlot::new(
                     slot1,
                     LateLoweredFrameSlotKind::CompilerTemporary(LocalId::from_raw(1)),
                     builtins.string,
+                    vec![state0],
+                    vec![state2],
                 ),
                 LateLoweredFrameSlot::new(
                     slot2,
                     LateLoweredFrameSlotKind::JoinValue {
+                        local: LocalId::from_raw(2),
                         block: BasicBlockId::from_raw(4),
                         ordinal: 1,
                     },
                     builtins.int,
+                    vec![state0],
+                    vec![state2],
                 ),
                 LateLoweredFrameSlot::new(
                     slot3,
-                    LateLoweredFrameSlotKind::HandleBinder(SiteId::from_raw(2)),
+                    LateLoweredFrameSlotKind::HandleBinder {
+                        site_id: SiteId::from_raw(2),
+                        local: LocalId::from_raw(3),
+                        ordinal: 0,
+                    },
                     builtins.string,
+                    vec![state2],
+                    vec![state3],
                 ),
                 LateLoweredFrameSlot::new(
                     slot4,
-                    LateLoweredFrameSlotKind::ResumePayload(boundary0),
+                    LateLoweredFrameSlotKind::ResumePayload {
+                        boundary: boundary0,
+                        case_tag: case0,
+                    },
                     resume_tuple_ty,
+                    vec![state2],
+                    vec![state2],
+                ),
+                LateLoweredFrameSlot::new(
+                    slot10,
+                    LateLoweredFrameSlotKind::BoundaryResult {
+                        boundary: boundary0,
+                        local: LocalId::from_raw(4),
+                    },
+                    builtins.int,
+                    vec![state2],
+                    vec![state3],
                 ),
                 LateLoweredFrameSlot::new(
                     slot5,
                     LateLoweredFrameSlotKind::System(SystemSlotKind::StateTag),
                     builtins.int,
+                    Vec::new(),
+                    Vec::new(),
                 ),
                 LateLoweredFrameSlot::new(
                     slot6,
                     LateLoweredFrameSlotKind::System(SystemSlotKind::ResumePayloadCarrier),
                     payload_tuple_ty,
+                    Vec::new(),
+                    Vec::new(),
                 ),
                 LateLoweredFrameSlot::new(
                     slot7,
                     LateLoweredFrameSlotKind::System(SystemSlotKind::CleanupFlag),
                     builtins.bool_,
+                    Vec::new(),
+                    Vec::new(),
                 ),
                 LateLoweredFrameSlot::new(
                     slot8,
                     LateLoweredFrameSlotKind::System(SystemSlotKind::OneShotFlag),
                     builtins.bool_,
+                    Vec::new(),
+                    Vec::new(),
                 ),
                 LateLoweredFrameSlot::new(
                     slot9,
                     LateLoweredFrameSlotKind::System(SystemSlotKind::CompletionTag),
                     builtins.int,
+                    Vec::new(),
+                    Vec::new(),
                 ),
             ]),
             LateLoweredBoundaryMap::new(vec![LateLoweredBoundary::new(

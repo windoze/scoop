@@ -346,6 +346,34 @@ impl TypeStore {
         }
     }
 
+    /// 以只读方式回查当前 `TypeStore` 中已存在的 builtin 类型集合。
+    ///
+    /// 当前编译主线在进入 MIR/effect 阶段前就已经完成 builtin interning，因此这里不再要求
+    /// 可变借用；若某个 builtin 尚未存在，则返回 `None` 让调用方显式处理，而不是隐式重新分配。
+    pub fn builtins(&self) -> Option<BuiltinTypes> {
+        Some(BuiltinTypes {
+            any: self.find_builtin_ref(RefTypeKind::Any)?,
+            string: self.find_builtin_ref(RefTypeKind::String)?,
+            unit: self.find_builtin_value(ValueTypeKind::Unit)?,
+            nothing: self.find_builtin_value(ValueTypeKind::Nothing)?,
+            bool_: self.find_builtin_value(ValueTypeKind::Bool)?,
+            char_: self.find_builtin_value(ValueTypeKind::Char)?,
+            float64: self.find_builtin_value(ValueTypeKind::Float64)?,
+            float32: self.find_builtin_value(ValueTypeKind::Float32)?,
+            int: self.find_builtin_value(ValueTypeKind::Int)?,
+            uint: self.find_builtin_value(ValueTypeKind::UInt)?,
+        })
+    }
+
+    fn find_builtin_ref(&self, needle: RefTypeKind) -> Option<TypeId> {
+        self.iter_ids().find(|id| self.kind(*id) == &TypeKind::Ref(needle.clone()))
+    }
+
+    fn find_builtin_value(&self, needle: ValueTypeKind) -> Option<TypeId> {
+        self.iter_ids()
+            .find(|id| self.kind(*id) == &TypeKind::Value(needle.clone()))
+    }
+
     pub fn ty_int_n(&mut self, bits: u16) -> TypeId {
         self.intern(TypeKind::Value(ValueTypeKind::IntN(bits)))
     }

@@ -518,7 +518,7 @@
   - 重新验证通过：`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_late_segmentation`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
   - review 未发现需要在 `P5-T03R` 前插入的新前置任务；可进入 `P5-T04`。
 
-## P5-T04：实现 frame lifting，以及 `return` / `break` / `continue` / `finally` / cleanup / dropped continuation 的显式状态机合同
+## [DONE] P5-T04：实现 frame lifting，以及 `return` / `break` / `continue` / `finally` / cleanup / dropped continuation 的显式状态机合同
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P5
@@ -615,7 +615,25 @@
   - 后续 T05 只需在这套显式图上物化 `Step` / continuation / invoke contract。
 - 依赖：P5-T03R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：完成 `P5-T04`。`crates/scoopc/src/effect_lowered/frame.rs` 已新增独立 frame-lifting pass，并由 `builder.rs` 在 segmentation 之后、continuation shell 物化之前统一调用；它只消费 canonical MIR snapshot、P4 effect facts、`StepSchema`/`ContinuationSchema` 与当前 late-lowered state skeleton，不回 HIR/typecheck，也不借壳 legacy `effect/state_machine/**`。
+  - `crates/scoopc/src/effect_lowered/ir.rs` 现已把 P5-T04 需要的显式合同固化到正式 IR：`LateLoweredState` 新增 `LateLoweredStateTerminator`，显式区分 `Suspend` / `Goto` / `Branch` / `Return` / `HandleDispatch` / `ResumeUnwind` / `Abandon`；`LateLoweredFrameSlot` 新增 `write_points` / `read_points`；`LateLoweredFrameSlotKind` 扩展为 `SourceLocal`、`CompilerTemporary`、`JoinValue`、`HandleBinder`、`ResumePayload`、`BoundaryResult` 与系统槽位，满足“frame schema 可查询某个 lifted value 落到哪个 slot，以及在哪些 state 写入/读取”的要求。
+  - `crates/scoopc/src/effect_lowered/segment.rs` 已不再只发布裸 successor skeleton：statement/call/resume/perform boundary 会物化成显式 `Suspend` terminator；loop/branch/return 会保留 `Goto` / `Branch` / `Return`；`Handle` terminator 会发布 `HandleDispatch`，并显式携带 body/arm/finally/exit target；带 cleanup 的 suspend path 会把 cleanup edge 固定到 state graph 中，而不是留给 P6/LLVM emit 再猜。
+  - frame lifting 现已覆盖本任务要求的值种类。具体为：
+    - 源码 local：按 boundary owner state 的 `live_out` 求解进入 `SourceLocal` slot；
+    - 编译器临时值：基于 direct-style MIR `tmp*` canonical temp local 进入 `CompilerTemporary` slot；
+    - CFG 合流值：对多定义且在 merge state 后继续跨后续 boundary 读取的 local 发布 `JoinValue` slot；
+    - handler arm binder：依据 MIR `Handle` arm block input local 显式发布 `HandleBinder` slot；
+    - resume payload：按当前 callable version 的 reachable outward case 集，为每个 `BoundaryId + CaseTag` 发布 `ResumePayload` slot；
+    - replayed answer/result：对 call/resume/perform boundary 的 result local 发布 `BoundaryResult` slot；
+    - 系统字段：统一发布 `StateTag`、`ResumePayloadCarrier`、`CleanupFlag`、`OneShotFlag`、`CompletionTag`。
+  - dropped continuation 合同已显式落地：只要 callable 存在 outward boundary，late-lowered graph 就会新增独立 `Drop` state，并把所有 `Suspend` / outward `HandleDispatch` terminator 的 `drop_state` 指向该 `Abandon` path；含 pending cleanup 的 suspend state 同时保留独立 `cleanup_state`，二者不再混淆，因此 dropped continuation 不会再落入 pending `finally` / cleanup path。
+  - runtime error outward 合同已显式落地：resume site 的 ordinary runtime error boundary 仍继续发布在 `boundary_map` 中，并与对应 `Resume` boundary 共用同一个 `Suspend` terminator / owner state / resume state，而不是被降级成 hidden trap channel。
+  - `crates/scoopc/src/effect_lowered/dump.rs` 已扩展稳定 formatter，显式输出 state terminator、drop/cleanup target、frame slot 写入点/读取点与新增 slot kinds，便于后续 `dump-effect-lowered` / snapshot / review 直接锁定这些 contract。
+  - 新增/更新测试：
+    - `crates/scoopc/src/effect_lowered/frame.rs`：`refactor_frame_lifting_lifts_locals_temporaries_resume_slots_and_system_fields`、`refactor_frame_lifting_marks_handle_binders_that_cross_nested_boundaries`、`refactor_frame_lifting_marks_phi_like_join_values_that_cross_later_boundaries`；
+    - `crates/scoopc/src/effect_lowered/segment.rs`：`refactor_late_control_flow_encodes_loop_break_continue_as_explicit_state_edges`、`refactor_late_control_flow_keeps_handle_body_arm_finally_and_cleanup_edges_explicit`、`refactor_dropped_continuation_uses_dedicated_drop_state_instead_of_cleanup`、`refactor_runtime_error_boundary_stays_inside_explicit_suspend_contract`；
+    - 新增 fixture：`tests/fixtures/effect_lowered_src/dropped_continuation_abandons_remaining_work.scoop`、`tests/fixtures/effect_lowered_src/continuation_resume_runtime_error_boundary.scoop`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## P5-T04R：Review frame lifting 与控制流合同，确认没有残留 direct-style 隐式语义或错误的 dropped-continuation 行为
 

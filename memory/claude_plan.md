@@ -1,49 +1,50 @@
-# 本次执行计划
+## 当前轮次计划
 
-## 约束与执行原则
-- 先以 `TODO.md` 作为索引，再读取对应 `TODO-Px.md`，确定第一个未完成的详细任务。
-- 仅完成一个详细任务；若遇到阻塞，则为其补充最小前置任务并同步 `TODO.md`，随后停止。
-- 不采用变通方案、夹具特判、弱化规格或绕过缺失能力的做法。
-- 在执行过程中，如计划变化、发现阻塞、完成关键步骤，会及时更新本文件。
+1. 按要求先记录本轮执行计划与可见决策依据；后续如计划变化或关键步骤完成，持续更新本文件。
+2. 读取 `TODO.md` 作为索引，再按其中引用顺序检查对应 `TODO-Px.md`，定位第一个标题未标记 `[DONE]` 的详细任务。
+3. 检查最近提交是否有与该任务直接相关且明确未完成的问题；若存在且构成当前任务前置，则将其并入当前任务范围或在对应 `TODO-Px.md` 中补充最小前置任务，并同步 `TODO.md`。
+4. 阅读当前任务涉及的代码、规格、测试与依赖，确认需要修改的最小范围；若存在阻塞且无法在本轮直接完成，则按要求只添加最小前置任务并停止。
+5. 实现当前任务，避免规避式修补；必要时补充或调整测试，确保行为与任务要求一致。
+6. 运行与本任务直接相关的验证；随后运行要求中的质量检查，至少包含相关测试、`cargo test --all`（如影响范围需要）以及 `cargo clippy --all-targets -- -D warnings`（若仓库当前状态允许）。若发现问题，立即修复。
+7. 将任务在对应 `TODO-Px.md` 中标记为 `[DONE]` 并更新完成记录；若任务标题、顺序或依赖变化，同步更新 `TODO.md`。仅在阶段计划发生真实变化时更新 `PLAN.md`。
+8. 检查工作区差异，避免回退他人修改；按要求提交本轮所有相关更改，提交信息包含任务号；提交后停止，不继续下一个任务。
 
-## 初始步骤计划
-1. 读取 `TODO.md`，确认任务索引与详细任务文件映射。
-2. 按索引顺序读取相关 `TODO-Px.md`，找到第一个标题未带 `[DONE]` 的详细任务。
-3. 检查最近一次提交是否直接提到与该任务相关的未完成问题；若是，则将其视为当前任务的一部分或前置条件。
-4. 阅读当前任务要求、约束、依赖、验收标准，并检查相关代码与测试位置。
-5. 实施最小且正确的代码修改，必要时补充或调整测试。
-6. 运行与该任务相关的验证；如任务影响范围要求较大，再运行更完整的 `cargo` 检查、测试与 `clippy`。
-7. 更新对应 `TODO-Px.md` 的完成记录并将任务标题标记为 `[DONE]`；如索引有变化，同步更新 `TODO.md`。
-8. 若阶段级计划未变化，则不修改 `PLAN.md`；仅在阶段依赖或完成标准改变时更新。
-9. 检查工作区状态，按要求提交一次 Git commit，然后停止，不继续下一个任务。
+## 执行约束
 
-## 当前状态
-- 已读取 `TODO.md` 索引，并确认第一个未完成详细任务为 `TODO-P5.md` 中的 `P5-T03R`。
-- 已检查最近提交：`[P5-T03] Build fact-driven segmentation skeleton`，提交标题未显式声明额外未完成前置问题。
+- 不使用变通方案绕过规格缺口；若发现阻塞当前任务的真实缺陷，先修复或补充最小前置任务。
+- 不把仅填写完成记录视为完成，只有任务标题显式加上 `[DONE]` 才算完成。
+- 如本轮是在恢复上次未完成任务且当前存在未提交改动，完成后需一并提交。
+- 进度更新仅记录可见决策、发现、变更和验证结果，不记录隐藏推理。
 
-## 针对当前任务的执行计划
-1. 阅读 `P5-T03R` 指定的实现与相关事实定义，重点检查 boundary 选择、owner/resume 显式映射，以及 expression 内 boundary 切分是否只依赖 P3/P4 显式结果。
-2. 运行 `P5-T03R` 要求的文本搜索，确认新主线实现没有依赖 `Span`、HIR、statement-only 快捷路径或 code-shape 特判作为事实来源。
-3. 重新运行 `P5-T03` 要求的测试与校验命令，确认 review 结论成立。
-4. 若 review 发现阻塞性问题：优先修复；若无法在当前任务内直接正确落地，则在详细 TODO 中补充最小前置任务并同步索引后停止。
-5. 若 review 通过：把 `P5-T03R` 标记为 `[DONE]`，填写完成记录，必要时同步 `TODO.md`，然后提交并停止。
+## 进度记录
 
-## 已完成的关键检查
-- 已审阅 `crates/scoopc/src/effect_lowered/segment.rs`：boundary 选择直接读取 `BodyEffectFacts::site(...)`，并把 owner/resume 绑定固化到 `LateLoweredBoundaryMap` / `LateLoweredResumeStateMap`；state graph 中的切分基于 canonical MIR block/statement cursor，而不是源码 AST / span。
-- 已审阅 `crates/scoopc/src/effect_lowered/builder.rs`：late-lowering 只消费 canonical pass-view 与 P4 facts；对 declaration-only family 采用空壳 shell，对有 body 但缺 facts 的 family 继续报错，没有引入 legacy 回退。
-- 已审阅 `crates/scoopc/src/effect_facts/facts.rs`：`BodyEffectFacts` 向 P5 暴露的 authoritative 输入为 block/site facts 与 solver facts 结构，没有额外的源码形状查询接口供 P5 依赖。
-- 已执行 `rg -n "Span|hir::|single perform|tail-resume|linear body|statement-only" crates/scoopc/src/effect_lowered crates/scoopc/src/effect_refactor_pipeline`：
-  - `effect_lowered` 主实现未命中这些回退条件；仅 `effect_lowered/ir.rs` 的测试代码使用 `Span` 构造测试样本。
-  - `effect_refactor_pipeline` 的命中集中在前序 HIR stage / stage dispatcher，本次 P5 主实现未据此分流 boundary 或 segmentation。
-- 已执行并通过：
+- 已创建本轮计划文件，尚未开始读取任务索引。
+- 已读取 `TODO.md` 与 `TODO-P5.md`，确认首个未完成详细任务为 `P5-T04`：实现 frame lifting，以及 `return` / `break` / `continue` / `finally` / cleanup / dropped continuation 的显式状态机合同。
+- 已检查最近一次提交：`[P5-T03R] Record fact-driven segmentation review`。提交信息未声明与 `P5-T04` 直接相关且尚未完成的额外前置问题，因此当前按 `P5-T04` 原顺序继续。
+- 下一步：阅读 `EFFECT_REFACTOR.md` 中 `§5.3.7`、`§5.3.9`、`§5.5.5-§5.5.6` 以及 `effect_lowered/{ir,builder,segment}.rs`、`mir/{mod,escape}.rs` 的现状，判断本任务是否可直接实现，或是否存在必须先补的最小前置任务。
+- 本次调用继续沿用上述执行计划，先核对当前工作区与任务文档状态，再完成 `P5-T04` 或在确认阻塞后只补最小前置任务。
+- 已复核 `TODO.md` / `TODO-P5.md` / 最新提交正文，当前首个未完成详细任务仍是 `P5-T04`，且最近提交未声明与之直接相关的未完成前置问题。
+- 已阅读 `EFFECT_REFACTOR.md` §5.3.7、§5.3.9、§5.5.5-§5.5.6，以及 `effect_lowered/{ir,builder,segment,dump}.rs`、`mir/{mod,lower}.rs`。确认当前实现仍停留在 P5-T03/T02 骨架：`frame_schema` 为空、continuation captures 为空、state graph 只有无标签 successor，尚未显式记录 `return` / loop edge / handle dispatch / cleanup / drop / runtime-error 控制流合同。
+- 当前实现具备继续推进 `P5-T04` 的必要输入：P3 direct-style MIR 已显式保留 `Return/Goto/CondBr/Perform/Handle/ResumeUnwind`、loop `break/continue` target、cleanup block、handle body/arm/finally target；P4 body/site facts 也已发布 handle solver facts、runtime-error outward、continuation schema。暂未发现必须前插的新前置任务。
+- 实施方向已收敛为：
+  1. 扩展 late-lowered IR，给 state graph 增加显式 terminator/edge contract，并让 frame slot 记录来源分类与读写点。
+  2. 新增 `effect_lowered/frame.rs`，基于 MIR + boundary/resume state + effect facts 做 frame lifting，至少覆盖 source local、compiler temp、join value、handle binder、resume payload/result slot 与系统字段。
+  3. 调整 `segment.rs`，让 handle/cleanup/runtime-error/drop 等控制流在 state graph 中显式可见，而不再只有裸 successor。
+  4. 回填 continuation captures / dump / 测试，并在通过定向测试与 clippy 后再更新 `TODO-P5.md`/`TODO.md`/提交。
+- 已完成代码实现：
+  - `effect_lowered/ir.rs` 增加 `LateLoweredStateTerminator`、frame slot 读写点、`BoundaryResult` 等 frame kind；
+  - `effect_lowered/segment.rs` 现发布显式 `Suspend/Goto/Branch/Return/HandleDispatch/ResumeUnwind/Abandon` terminator，并保留 handle body/arm/finally/cleanup 的显式 state edge；
+  - `effect_lowered/frame.rs` 新增 frame lifting pass，发布 source local / compiler temp / join value / handle binder / resume payload / boundary result / system slot，并为 outward callable 附加独立 drop state；
+  - `effect_lowered/builder.rs` 已接入 frame pass，continuation captures 不再为空；`dump.rs` 已输出新 contract。
+- 已完成验证：
+  - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
   - `cargo test -p scoopc --no-default-features refactor_late_boundary_selection`
-  - `cargo test -p scoopc --no-default-features refactor_late_segmentation`
   - `cargo test -p scoopc --no-default-features refactor_owner_resume_state`
   - `cargo test -p scoopc --no-default-features refactor_late_lowered_ir`
-  - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
+  - `cargo test -p scoopc --no-default-features refactor_frame_lifting`
+  - `cargo test -p scoopc --no-default-features refactor_late_control_flow`
+  - `cargo test -p scoopc --no-default-features refactor_dropped_continuation`
+  - `cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`
   - `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`
-
-## 当前结论
-- 目前未发现阻塞 `P5-T03R` 的实现缺口。
-- `TODO-P5.md` 已将 `P5-T03R` 标记为 `[DONE]` 并补全完成记录；`TODO.md` 也已同步索引状态。
-- `PLAN.md` 本轮无需变更；下一步仅剩按任务要求提交 Git commit 并停止。
+- 已完成文档回写：`TODO-P5.md` 中 `P5-T04` 已加 `[DONE]` 并补齐 completion record，`TODO.md` 索引已同步；`PLAN.md` 无需改动。
+- 下一步：检查工作区差异、确认仅提交本轮任务相关文件，然后创建 `P5-T04` 提交并停止。

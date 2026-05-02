@@ -77,6 +77,7 @@ pub(crate) fn run(
     let program = LateLoweredProgramBuilder::from_canonical_inputs(
         effect_facts_stage_output.materialized_pass_view(),
         effect_facts_stage_output.effect_facts(),
+        effect_facts_stage_output.types(),
     )
     .build()?;
     Ok(RefactorEffectLoweredStageOutput::new(

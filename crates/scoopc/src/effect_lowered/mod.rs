@@ -5,11 +5,13 @@
 //! - `builder.rs` 负责把 canonical MIR snapshot + `MaterializedEffectFacts` 组装成初始
 //!   `LateLoweredProgram`，当前承接了 TODO 推荐 `materialize.rs` 的最小职责；
 //! - `segment.rs` 承接 TODO 推荐的 whole-function segmentation / boundary 选择骨架；
+//! - `frame.rs` 承接 TODO 推荐的 frame lifting 与显式控制流合同补全；
 //! - `dump.rs` 提供稳定 formatter；
-//! - TODO 推荐的 `frame.rs` / `opt.rs` 会在后续 P5 任务里补入；本任务不提前伪造空壳。
+//! - TODO 推荐的 `opt.rs` 会在后续 P5 任务里补入；当前不提前伪造空壳。
 
 pub(crate) mod builder;
 pub mod dump;
+pub(crate) mod frame;
 pub mod ir;
 pub(crate) mod segment;
 
@@ -80,6 +82,9 @@ pub enum EffectLoweringError {
         root_fqn: String,
         description: String,
     },
+
+    #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
+    MissingBuiltinTypes { root_fqn: String },
 }
 
 impl From<crate::effect_facts::EffectFactsError> for EffectLoweringError {

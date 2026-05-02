@@ -2,10 +2,13 @@ use std::collections::BTreeMap;
 
 use crate::effect_facts::{ImplPlan, MaterializedEffectFacts, StepSchema, StepSchemaId};
 use crate::mir::MaterializedMirPassView;
+use crate::ty::TypeStore;
 
 use super::EffectLoweringError;
+use super::frame::{FrameBuildInputs, build_callable_frame};
 use super::ir::{
     ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
+    LateLoweredContinuationCapture,
     LateLoweredContinuationMethod, LateLoweredContinuationMethodReachability,
     LateLoweredContinuationObject, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
     LateLoweredProgram, LateLoweredResumeInterface, LateLoweredResumeMethod,
@@ -18,22 +21,26 @@ use super::segment::build_callable_segmentation;
 pub(crate) struct LateLoweredProgramBuilder<'a> {
     pass_view: MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
+    types: &'a TypeStore,
 }
 
 impl<'a> LateLoweredProgramBuilder<'a> {
     pub(crate) fn from_canonical_inputs(
         pass_view: MaterializedMirPassView<'a>,
         effect_facts: &'a MaterializedEffectFacts,
+        types: &'a TypeStore,
     ) -> Self {
         Self {
             pass_view,
             effect_facts,
+            types,
         }
     }
 
     pub(crate) fn build(self) -> Result<LateLoweredProgram, EffectLoweringError> {
         let pass_view = self.pass_view;
         let effect_facts = self.effect_facts;
+        let types = self.types;
 
         let mut step_types = Vec::with_capacity(effect_facts.step_schemas().len());
         let mut resume_interfaces = Vec::with_capacity(effect_facts.step_schemas().len());
@@ -95,26 +102,50 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 .expect("every step schema should publish a resume interface shell");
             let continuation_object_id =
                 ContinuationObjectId::new(continuation_objects.len() as u32);
-            let segmentation = match family.root_body().and_then(|fun| fun.body.as_ref()) {
-                Some(body) => {
+            let (state_graph, frame_schema, continuation_captures, boundary_map, resume_state_map) =
+                match family.root_body().and_then(|fun| fun.body.as_ref()) {
+                    Some(body) => {
                     let body_facts = effect_facts.body(family.key()).ok_or_else(|| {
                         EffectLoweringError::MissingBodyFacts {
                             root_fqn: root_fqn.clone(),
                         }
                     })?;
-                    build_callable_segmentation(&root_fqn, body, body_facts)?
-                }
-                None => super::segment::LateLoweredSegmentation {
-                    state_graph: LateLoweredStateGraph::minimal_shell(),
-                    boundary_map: LateLoweredBoundaryMap::empty(),
-                    resume_state_map: LateLoweredResumeStateMap::empty(),
-                },
-            };
+                        let segmentation = build_callable_segmentation(&root_fqn, body, body_facts)?;
+                        let frame = build_callable_frame(FrameBuildInputs {
+                            root_fqn: &root_fqn,
+                            body,
+                            _body_facts: body_facts,
+                            step_schema_id,
+                            step_schema,
+                            continuation_schemas: effect_facts.continuation_schemas(),
+                            resolved_outward_cases: callable_facts.resolved_outward_cases().tags(),
+                            impl_plan: callable_facts.impl_plan(),
+                            state_graph: &segmentation.state_graph,
+                            boundary_map: &segmentation.boundary_map,
+                            types,
+                        })?;
+                        (
+                            frame.state_graph,
+                            frame.frame_schema,
+                            frame.continuation_captures,
+                            segmentation.boundary_map,
+                            segmentation.resume_state_map,
+                        )
+                    }
+                    None => (
+                        LateLoweredStateGraph::minimal_shell(),
+                        LateLoweredFrameSchema::empty(),
+                        Vec::new(),
+                        LateLoweredBoundaryMap::empty(),
+                        LateLoweredResumeStateMap::empty(),
+                    ),
+                };
             continuation_objects.push(build_continuation_object(
                 continuation_object_id,
                 body_version_key.clone(),
                 step_schema,
                 resume_interface_id,
+                continuation_captures,
             ));
             callables.push(LateLoweredCallable::new(
                 family.root_fqn().to_string(),
@@ -125,10 +156,10 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     step_schema.invoke_args_tuple_ty(),
                     step_schema_id,
                 ),
-                segmentation.state_graph,
-                LateLoweredFrameSchema::empty(),
-                segmentation.boundary_map,
-                segmentation.resume_state_map,
+                state_graph,
+                frame_schema,
+                boundary_map,
+                resume_state_map,
                 continuation_object_id,
                 vec![resume_interface_id],
             ));
@@ -199,6 +230,7 @@ fn build_continuation_object(
     owner_version_key: LateLoweredBodyVersionKey,
     step_schema: &StepSchema,
     resume_interface_id: ResumeInterfaceId,
+    captures: Vec<LateLoweredContinuationCapture>,
 ) -> LateLoweredContinuationObject {
     let methods = step_schema
         .cases()
@@ -217,7 +249,7 @@ fn build_continuation_object(
         owner_version_key,
         step_schema.continuation_obj_ty(),
         vec![resume_interface_id],
-        Vec::new(),
+        captures,
         methods,
     )
 }

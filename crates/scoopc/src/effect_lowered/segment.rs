@@ -1,13 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::effect_facts::{BodyEffectFacts, NestedHandleClassification, SiteEffectFacts};
-use crate::mir::{BasicBlockId, Body, Rvalue, SiteId, StatementKind, Terminator, TerminatorKind};
+use crate::mir::{
+    BasicBlockId, Body, LocalId, Operand, Rvalue, SiteId, StatementKind, Terminator,
+    TerminatorKind, UnwindAction,
+};
 
 use super::EffectLoweringError;
 use super::ir::{
     BoundaryId, BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryMap,
     LateLoweredBoundarySource, LateLoweredResumeState, LateLoweredResumeStateMap, LateLoweredState,
-    LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice, StateId,
+    LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
+    LateLoweredStateTerminator, StateId,
 };
 
 /// P5-T03 产出的 whole-function segmentation skeleton。
@@ -85,7 +89,37 @@ struct AnchorBinding {
 #[derive(Debug, Clone)]
 struct StateBlueprint {
     source_slices: Vec<LateLoweredStateSlice>,
-    successors: Vec<StateId>,
+    terminator: StateBlueprintTerminator,
+}
+
+#[derive(Debug, Clone)]
+enum StateBlueprintTerminator {
+    Suspend {
+        anchor: BoundaryAnchor,
+        resume_state: StateId,
+        cleanup_target: Option<StateId>,
+    },
+    Goto {
+        target: StateId,
+    },
+    Branch {
+        cond_local: LocalId,
+        then_state: StateId,
+        else_state: StateId,
+    },
+    Return {
+        value_local: Option<LocalId>,
+    },
+    HandleDispatch {
+        site_id: SiteId,
+        body_state: StateId,
+        arm_states: Vec<StateId>,
+        finally_state: Option<StateId>,
+        exit_state: StateId,
+        boundary_anchor: Option<BoundaryAnchor>,
+    },
+    ResumeUnwind,
+    Unreachable,
 }
 
 struct SegmentationBuilder<'a> {
@@ -154,41 +188,10 @@ impl<'a> SegmentationBuilder<'a> {
             .iter()
             .map(|(cursor, state_id)| (*state_id, *cursor))
             .collect::<BTreeMap<_, _>>();
-        let mut cleanup_state = None;
-        let mut states = Vec::with_capacity(self.next_state_raw as usize);
-        for raw in 0..self.next_state_raw {
-            let state_id = StateId::new(raw);
-            if state_id == self.complete_state {
-                states.push(LateLoweredState::new(
-                    state_id,
-                    LateLoweredStateRole::Complete,
-                    Vec::new(),
-                    Vec::new(),
-                ));
-                continue;
-            }
-
-            let cursor = *id_to_cursor
-                .get(&state_id)
-                .expect("every non-synthetic state id should map back to a cursor");
-            let blueprint = self
-                .built
-                .get(&cursor)
-                .expect("every discovered cursor should publish a state blueprint");
-            let role = self.role_for(cursor, state_id);
-            if cleanup_state.is_none() && role == LateLoweredStateRole::Cleanup {
-                cleanup_state = Some(state_id);
-            }
-            states.push(LateLoweredState::new(
-                state_id,
-                role,
-                blueprint.source_slices.clone(),
-                blueprint.successors.clone(),
-            ));
-        }
 
         let mut boundary_entries = Vec::new();
         let mut resume_entries = Vec::new();
+        let mut boundary_ids_by_anchor = BTreeMap::<BoundaryAnchor, Vec<BoundaryId>>::new();
         let mut next_boundary_raw = 0u32;
         for (anchor, boundary) in &self.selected_boundaries {
             let binding = self
@@ -208,7 +211,49 @@ impl<'a> SegmentationBuilder<'a> {
                     boundary_id,
                     binding.resume_state,
                 ));
+                boundary_ids_by_anchor
+                    .entry(*anchor)
+                    .or_default()
+                    .push(boundary_id);
             }
+        }
+
+        let mut cleanup_state = None;
+        let mut states = Vec::with_capacity(self.next_state_raw as usize);
+        for raw in 0..self.next_state_raw {
+            let state_id = StateId::new(raw);
+            if state_id == self.complete_state {
+                states.push(LateLoweredState::new(
+                    state_id,
+                    LateLoweredStateRole::Complete,
+                    Vec::new(),
+                    LateLoweredStateTerminator::Unreachable,
+                ));
+                continue;
+            }
+
+            let cursor = *id_to_cursor
+                .get(&state_id)
+                .expect("every non-synthetic state id should map back to a cursor");
+            let blueprint = self
+                .built
+                .get(&cursor)
+                .expect("every discovered cursor should publish a state blueprint");
+            let role = self.role_for(cursor, state_id);
+            if cleanup_state.is_none() && role == LateLoweredStateRole::Cleanup {
+                cleanup_state = Some(state_id);
+            }
+            let terminator = finalize_blueprint_terminator(
+                &blueprint.terminator,
+                &boundary_ids_by_anchor,
+                self.complete_state,
+            );
+            states.push(LateLoweredState::new(
+                state_id,
+                role,
+                blueprint.source_slices.clone(),
+                terminator,
+            ));
         }
 
         Ok(LateLoweredSegmentation {
@@ -270,14 +315,19 @@ impl<'a> SegmentationBuilder<'a> {
                     statement_index as u32 + 1,
                     false,
                 )],
-                successors: vec![resume_state],
+                terminator: StateBlueprintTerminator::Suspend {
+                    anchor,
+                    resume_state,
+                    cleanup_target: None,
+                },
             });
         }
 
         let anchor = BoundaryAnchor::Terminator {
             block: cursor.block,
         };
-        if let Some(boundary) = self.selected_boundaries.get(&anchor).cloned() {
+        let selected_boundary = self.selected_boundaries.get(&anchor).cloned();
+        if let Some(boundary) = selected_boundary.as_ref() {
             let owner_state = self.state_id(cursor);
             let resume_state = self.ensure_state(boundary.resume_cursor, true);
             self.anchor_bindings.insert(
@@ -288,6 +338,7 @@ impl<'a> SegmentationBuilder<'a> {
                 },
             );
         }
+        let boundary_anchor = selected_boundary.as_ref().map(|_| anchor);
 
         Ok(StateBlueprint {
             source_slices: vec![LateLoweredStateSlice::new(
@@ -296,23 +347,69 @@ impl<'a> SegmentationBuilder<'a> {
                 statement_len as u32,
                 true,
             )],
-            successors: self.raw_successor_states(&block.terminator),
+            terminator: self.build_terminator_blueprint(&block.terminator, boundary_anchor),
         })
     }
 
-    fn raw_successor_states(&mut self, terminator: &Terminator) -> Vec<StateId> {
-        if matches!(terminator.kind, TerminatorKind::Return { .. }) {
-            return vec![self.complete_state];
-        }
-
-        let mut successors = Vec::new();
-        terminator.for_each_successor(|target| {
-            let state_id = self.ensure_state(StateCursor::block_start(target), false);
-            if !successors.contains(&state_id) {
-                successors.push(state_id);
+    fn build_terminator_blueprint(
+        &mut self,
+        terminator: &Terminator,
+        boundary_anchor: Option<BoundaryAnchor>,
+    ) -> StateBlueprintTerminator {
+        match &terminator.kind {
+            TerminatorKind::Return { value } => StateBlueprintTerminator::Return {
+                value_local: value.as_ref().and_then(operand_local),
+            },
+            TerminatorKind::Goto { target } => StateBlueprintTerminator::Goto {
+                target: self.ensure_state(StateCursor::block_start(*target), false),
+            },
+            TerminatorKind::CondBr {
+                cond,
+                then_target,
+                else_target,
+            } => StateBlueprintTerminator::Branch {
+                cond_local: operand_local(cond)
+                    .expect("direct-style CondBr should lower condition into a local"),
+                then_state: self.ensure_state(StateCursor::block_start(*then_target), false),
+                else_state: self.ensure_state(StateCursor::block_start(*else_target), false),
+            },
+            TerminatorKind::Perform { resume_target, .. } if boundary_anchor.is_some() => {
+                StateBlueprintTerminator::Suspend {
+                    anchor: boundary_anchor.expect("perform boundary anchor should exist"),
+                    resume_state: self.ensure_state(StateCursor::block_start(*resume_target), true),
+                    cleanup_target: cleanup_state_from_unwind(self, &terminator.unwind),
+                }
             }
-        });
-        successors
+            TerminatorKind::Handle {
+                site_id,
+                body_target,
+                arm_targets,
+                finally_target,
+                exit_target,
+                ..
+            } => StateBlueprintTerminator::HandleDispatch {
+                site_id: *site_id,
+                body_state: self.ensure_state(StateCursor::block_start(*body_target), false),
+                arm_states: arm_targets
+                    .iter()
+                    .map(|target| self.ensure_state(StateCursor::block_start(*target), false))
+                    .collect(),
+                finally_state: finally_target
+                    .map(|target| self.ensure_state(StateCursor::block_start(target), false)),
+                exit_state: self.ensure_state(
+                    StateCursor::block_start(*exit_target),
+                    boundary_anchor.is_some(),
+                ),
+                boundary_anchor,
+            },
+            TerminatorKind::ResumeUnwind => StateBlueprintTerminator::ResumeUnwind,
+            TerminatorKind::Unreachable | TerminatorKind::Todo(_) => {
+                StateBlueprintTerminator::Unreachable
+            }
+            TerminatorKind::Perform { resume_target, .. } => StateBlueprintTerminator::Goto {
+                target: self.ensure_state(StateCursor::block_start(*resume_target), true),
+            },
+        }
     }
 
     fn ensure_state(&mut self, cursor: StateCursor, is_resume: bool) -> StateId {
@@ -334,6 +431,83 @@ impl<'a> SegmentationBuilder<'a> {
             .cursor_ids
             .get(&cursor)
             .expect("every built state should already have a stable state id")
+    }
+}
+
+fn finalize_blueprint_terminator(
+    blueprint: &StateBlueprintTerminator,
+    boundary_ids_by_anchor: &BTreeMap<BoundaryAnchor, Vec<BoundaryId>>,
+    complete_state: StateId,
+) -> LateLoweredStateTerminator {
+    match blueprint {
+        StateBlueprintTerminator::Suspend {
+            anchor,
+            resume_state,
+            cleanup_target,
+        } => LateLoweredStateTerminator::Suspend {
+            boundary_ids: boundary_ids_by_anchor
+                .get(anchor)
+                .cloned()
+                .unwrap_or_default(),
+            resume_state: *resume_state,
+            cleanup_state: *cleanup_target,
+            drop_state: None,
+        },
+        StateBlueprintTerminator::Goto { target } => LateLoweredStateTerminator::Goto {
+            target: *target,
+        },
+        StateBlueprintTerminator::Branch {
+            cond_local,
+            then_state,
+            else_state,
+        } => LateLoweredStateTerminator::Branch {
+            cond_local: *cond_local,
+            then_state: *then_state,
+            else_state: *else_state,
+        },
+        StateBlueprintTerminator::Return { value_local } => LateLoweredStateTerminator::Return {
+            value_local: *value_local,
+            complete_state,
+        },
+        StateBlueprintTerminator::HandleDispatch {
+            site_id,
+            body_state,
+            arm_states,
+            finally_state,
+            exit_state,
+            boundary_anchor,
+        } => LateLoweredStateTerminator::HandleDispatch {
+            site_id: *site_id,
+            body_state: *body_state,
+            arm_states: arm_states.clone(),
+            finally_state: *finally_state,
+            exit_state: *exit_state,
+            boundary_ids: boundary_anchor
+                .and_then(|anchor| boundary_ids_by_anchor.get(&anchor).cloned())
+                .unwrap_or_default(),
+            drop_state: None,
+        },
+        StateBlueprintTerminator::ResumeUnwind => LateLoweredStateTerminator::ResumeUnwind,
+        StateBlueprintTerminator::Unreachable => LateLoweredStateTerminator::Unreachable,
+    }
+}
+
+fn cleanup_state_from_unwind(
+    builder: &mut SegmentationBuilder<'_>,
+    unwind: &UnwindAction,
+) -> Option<StateId> {
+    match unwind {
+        UnwindAction::Cleanup { target } => {
+            Some(builder.ensure_state(StateCursor::block_start(*target), false))
+        }
+        UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Todo(_) => None,
+    }
+}
+
+fn operand_local(operand: &Operand) -> Option<LocalId> {
+    match operand {
+        Operand::Local(local) => Some(*local),
+        Operand::Const(_) => None,
     }
 }
 
@@ -833,6 +1007,168 @@ fun main(): Int {
         assert_eq!(complete_state.role(), LateLoweredStateRole::Complete);
         assert_eq!(entry_state.source_slices().len(), 1);
         assert!(entry_state.source_slices()[0].includes_terminator());
+    }
+
+    #[test]
+    fn refactor_late_control_flow_encodes_loop_break_continue_as_explicit_state_edges() {
+        let output = load_output(&load_fixture("mir_refactor", "while_break_continue.scoop"));
+        let callable = callable(&output, "a.main");
+        let states = callable.state_graph().states();
+
+        let branch_state = states
+            .iter()
+            .find(|state| {
+                matches!(
+                    state.terminator(),
+                    crate::effect_lowered::ir::LateLoweredStateTerminator::Branch { .. }
+                )
+            })
+            .expect("while loop 应在 late-lowered graph 中保留显式 branch state");
+        assert!(
+            states.iter().any(|state| {
+                matches!(
+                    state.terminator(),
+                    crate::effect_lowered::ir::LateLoweredStateTerminator::Goto { target }
+                        if *target == branch_state.state_id()
+                )
+            }),
+            "continue path 应显式回跳到 loop condition state"
+        );
+        assert!(
+            states.iter().any(|state| {
+                matches!(
+                    state.terminator(),
+                    crate::effect_lowered::ir::LateLoweredStateTerminator::Return { .. }
+                )
+            }),
+            "break/loop-exit path 最终应收口为显式 return/complete contract"
+        );
+    }
+
+    #[test]
+    fn refactor_late_control_flow_keeps_handle_body_arm_finally_and_cleanup_edges_explicit() {
+        let output = load_output(&load_fixture("mir_refactor", "handle_finally_boundary.scoop"));
+        let callable = callable(&output, "fixtures.mir_refactor.handled_raise");
+        let states = callable.state_graph().states();
+
+        let handle_dispatch = states
+            .iter()
+            .find_map(|state| match state.terminator() {
+                crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                    body_state,
+                    arm_states,
+                    finally_state,
+                    exit_state,
+                    ..
+                } => Some((*body_state, arm_states.clone(), *finally_state, *exit_state)),
+                _ => None,
+            })
+            .expect("handle 入口应保留显式 HandleDispatch terminator");
+
+        assert!(callable.state_graph().state(handle_dispatch.0).is_some());
+        assert!(!handle_dispatch.1.is_empty(), "handler arm 续点应显式可追踪");
+        assert!(
+            handle_dispatch.2.and_then(|state| callable.state_graph().state(state)).is_some(),
+            "finally/cleanup 续点应显式可追踪"
+        );
+        assert!(callable.state_graph().state(handle_dispatch.3).is_some());
+
+        assert!(
+            states.iter().any(|state| {
+                matches!(
+                    state.terminator(),
+                    crate::effect_lowered::ir::LateLoweredStateTerminator::Suspend {
+                        cleanup_state: Some(_),
+                        ..
+                    }
+                )
+            }),
+            "effectful handle body 内的 outward boundary 应显式记录 cleanup edge"
+        );
+    }
+
+    #[test]
+    fn refactor_dropped_continuation_uses_dedicated_drop_state_instead_of_cleanup() {
+        let output = load_output(&load_fixture(
+            "effect_lowered_src",
+            "dropped_continuation_abandons_remaining_work.scoop",
+        ));
+        let callable = callable(&output, "sample.helper");
+        let drop_state = callable
+            .state_graph()
+            .drop_state()
+            .expect("outward callable 应发布显式 drop state");
+        let drop_node = callable
+            .state_graph()
+            .state(drop_state)
+            .expect("drop state 应可回查");
+
+        assert_eq!(drop_node.role(), LateLoweredStateRole::Drop);
+        assert!(matches!(
+            drop_node.terminator(),
+            crate::effect_lowered::ir::LateLoweredStateTerminator::Abandon
+        ));
+        assert!(
+            callable.state_graph().states().iter().any(|state| {
+                matches!(
+                    state.terminator(),
+                    crate::effect_lowered::ir::LateLoweredStateTerminator::Suspend {
+                        cleanup_state: Some(cleanup_state),
+                        drop_state: Some(explicit_drop_state),
+                        ..
+                    } if *cleanup_state != drop_state && *explicit_drop_state == drop_state
+                )
+            }),
+            "dropped continuation 应走独立 drop path，而不是复用 pending cleanup path"
+        );
+    }
+
+    #[test]
+    fn refactor_runtime_error_boundary_stays_inside_explicit_suspend_contract() {
+        let output = load_output(&load_fixture(
+            "effect_lowered_src",
+            "continuation_resume_runtime_error_boundary.scoop",
+        ));
+        let callable = callable(&output, "sample.helper");
+        let runtime_error_boundary = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .find(|boundary| {
+                matches!(
+                    boundary.source(),
+                    LateLoweredBoundarySource::RuntimeError { .. }
+                )
+            })
+            .expect("resume helper 应发布 ordinary runtime error boundary");
+        let resume_boundary = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .find(|boundary| {
+                matches!(
+                    boundary.source(),
+                    LateLoweredBoundarySource::Site {
+                        kind: BoundarySiteKind::Resume,
+                        ..
+                    }
+                )
+            })
+            .expect("resume helper 应发布显式 resume boundary");
+
+        assert_eq!(runtime_error_boundary.owner_state(), resume_boundary.owner_state());
+        assert_eq!(runtime_error_boundary.resume_state(), resume_boundary.resume_state());
+        assert!(
+            callable.state_graph().states().iter().any(|state| {
+                matches!(
+                    state.terminator(),
+                    crate::effect_lowered::ir::LateLoweredStateTerminator::Suspend { boundary_ids, .. }
+                        if boundary_ids.contains(&runtime_error_boundary.boundary_id())
+                            && boundary_ids.contains(&resume_boundary.boundary_id())
+                )
+            }),
+            "resume site 与其 runtime error outward 应共用同一个显式 suspend contract"
+        );
     }
 
     #[test]
