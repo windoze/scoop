@@ -34,3 +34,9 @@
 - `TODO-P5.md` 与 `TODO.md` 已同步：`P5-T04a` 标题已补齐 `[DONE]`，完成记录已写入，`PLAN.md` 保持不变。
 - 提交策略更新：当前工作区存在与本任务链同区域、且显然早于本轮最终落盘的未提交状态（例如 `TODO-P5.md` 中 `P5-T04a`/`P5-T04R` 的前置阻塞记录）；按用户要求，将当前所有未提交文件一并纳入本次任务提交，以原子化记录“恢复并完成 `P5-T04a`”的最终状态。
 - 下一步：检查 git 状态/差异与最近提交风格，生成提交消息并创建本任务提交。
+- 当前会话恢复说明：先重新核对 `TODO.md` / `TODO-P5.md` 与工作区状态，确认首个未完成详细任务是否仍为 `P5-T04a`，以及此前记录的实现与验证结果是否已经真实落盘；若一致，则直接完成提交步骤；若不一致，则按最新事实继续修复并更新记录。
+- 已重新核对任务顺序：`TODO.md` 与 `TODO-P5.md` 当前首个未完成详细任务为 `P5-T04R`，`P5-T04a` 已在最新提交 `[P5-T04a] Stabilize MIR local source classification` 中完成并落盘。
+- `P5-T04R` 复核结果：未发现新的实现 blocker。`frame.rs` / `segment.rs` / `builder.rs` / `ir.rs` / `dump.rs` 已满足 review 关注点；搜索也未发现 P5 新主线依赖 pending-finally / pending-cleanup / handler-stack / cleanup-hook / legacy state-machine 作为 correctness 前提。
+- 本轮验证已通过：`refactor_effect_lowered_stage`、`refactor_late_boundary_selection`、`refactor_owner_resume_state`、`refactor_late_lowered_ir`、`refactor_frame_lifting`、`refactor_late_control_flow`、`refactor_dropped_continuation`、`refactor_runtime_error_boundary` 与 `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+- `TODO-P5.md` 与 `TODO.md` 已同步写回 `P5-T04R` 的 `[DONE]` 标记与完成记录；`PLAN.md` 仍无需改动。
+- 下一步：检查本轮 diff，按仓库风格创建 `[P5-T04R] ...` 提交，然后停止。

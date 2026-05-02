@@ -684,7 +684,7 @@
   - 2026-05-03：按详细 TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## P5-T04R：Review frame lifting 与控制流合同，确认没有残留 direct-style 隐式语义或错误的 dropped-continuation 行为
+## [DONE] P5-T04R：Review frame lifting 与控制流合同，确认没有残留 direct-style 隐式语义或错误的 dropped-continuation 行为
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.7, §5.3.9, §5.5.5-§5.5.6
@@ -713,6 +713,11 @@
 - 完成记录：
   - 2026-05-03：审阅发现 blocker。`crates/scoopc/src/effect_lowered/frame.rs` 当前使用 `LocalDecl.name.starts_with("tmp")` 区分 `SourceLocal` / `CompilerTemporary`，但 `crates/scoopc/src/mir/lower.rs` 会把源码具名 local 也原样写入同一个 `name` 字段，因此合法源码名 `tmp` / `tmp0` / `tmp_value` 会被误判为 compiler temporary。
   - 这会破坏 P5-T04 要求的 stable frame-slot 来源分类，并让后续 dump/review 对 lifted value 来源的判断失真；因此新增前置任务 `P5-T04a`，待修复后再继续完成本 review。
+  - 2026-05-03：完成 `P5-T04R` review。基于 `P5-T04a` 已提供的稳定 `LocalSourceKind` 元数据，复核 `crates/scoopc/src/effect_lowered/{frame,segment,builder,ir,dump}.rs` 后，确认 frame lifting 已稳定覆盖 `SourceLocal` / `CompilerTemporary` / `JoinValue` / `HandleBinder` / `BoundaryResult` / `ResumePayload` / 系统槽位，且分类来源只消费 canonical MIR 与 P4 facts，不再依赖 `tmp*` 名字启发式、HIR/typecheck fallback 或 legacy `effect/state_machine/**`。
+  - 显式控制流合同复核通过：`LateLoweredStateTerminator` 现已稳定发布 `Suspend` / `Goto` / `Branch` / `Return` / `HandleDispatch` / `ResumeUnwind` / `Abandon`；`segment.rs` 会把 loop `break`/`continue`、handle body/arm/finally、cleanup edge、resume runtime error outward 与 dedicated drop path 一并写入 late-lowered state graph，因此 P5 新主线不再依赖 direct-style CFG 的隐式语义来推断这些跳转。
+  - 文本搜索复核：按本任务要求在 `crates/scoopc/src/effect_lowered` 与 `crates/scoopc/src/effect_refactor_pipeline` 搜索 `Todo\(|pending finally|pending cleanup|handler stack|cleanup hook`，命中仅剩 generic MIR `Todo(_)` 分支、测试断言字符串，或 `effect_lowering_stage.rs` 中确认“未导入 legacy state_machine/llvm”的 review 测试；未发现 P5 新主线把 pending-finally / pending-cleanup / handler-stack / cleanup-hook 语义当作 correctness 前提。
+  - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## P5-T05：物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering
 
