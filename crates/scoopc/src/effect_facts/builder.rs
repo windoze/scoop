@@ -2927,16 +2927,21 @@ fun nested_may_suspend_outward(): Int {
     #[test]
     fn refactor_callable_effect_facts_shell_skips_effect_op_roots() {
         let (materialized, facts) = build_sample_facts();
-        let pass_roots = materialized
-            .pass_view()
+        let pass_view = materialized.pass_view();
+        let pass_roots = pass_view
             .instances()
             .map(|family| family.root_fqn().to_string())
             .collect::<Vec<_>>();
 
         assert_eq!(
             facts.callable_facts().len(),
-            5,
+            pass_view.len(),
             "pass-view roots: {pass_roots:?}"
+        );
+        assert!(
+            pass_view
+                .instances()
+                .all(|family| facts.callable_facts().contains_key(family.key()))
         );
         assert!(
             facts
