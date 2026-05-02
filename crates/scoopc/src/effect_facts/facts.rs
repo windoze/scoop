@@ -448,12 +448,55 @@ impl BlockEffectFacts {
     }
 }
 
+/// solver 重新计算 `handle` site 最终 outward/classification 所需的区域入口信息。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HandleSiteSolverFacts {
+    body_target: BasicBlockId,
+    arm_targets: Vec<BasicBlockId>,
+    finally_target: Option<BasicBlockId>,
+    exit_target: BasicBlockId,
+}
+
+impl HandleSiteSolverFacts {
+    pub(crate) fn new(
+        body_target: BasicBlockId,
+        arm_targets: Vec<BasicBlockId>,
+        finally_target: Option<BasicBlockId>,
+        exit_target: BasicBlockId,
+    ) -> Self {
+        Self {
+            body_target,
+            arm_targets,
+            finally_target,
+            exit_target,
+        }
+    }
+
+    pub(crate) fn body_target(&self) -> BasicBlockId {
+        self.body_target
+    }
+
+    pub(crate) fn arm_targets(&self) -> &[BasicBlockId] {
+        &self.arm_targets
+    }
+
+    pub(crate) fn finally_target(&self) -> Option<BasicBlockId> {
+        self.finally_target
+    }
+
+    pub(crate) fn exit_target(&self) -> BasicBlockId {
+        self.exit_target
+    }
+}
+
 /// solver 在当前 body 上完成 callable/block finalization 所需的结构输入。
 #[derive(Debug, Clone, Default)]
 pub(crate) struct BodyEffectSolverFacts {
     block_successors: BTreeMap<BasicBlockId, Vec<BasicBlockId>>,
     block_sites: BTreeMap<BasicBlockId, Vec<SiteId>>,
     block_handled_cases: BTreeMap<BasicBlockId, CaseSet>,
+    cleanup_blocks: BTreeSet<BasicBlockId>,
+    handle_sites: BTreeMap<SiteId, HandleSiteSolverFacts>,
 }
 
 impl BodyEffectSolverFacts {
@@ -461,11 +504,15 @@ impl BodyEffectSolverFacts {
         block_successors: BTreeMap<BasicBlockId, Vec<BasicBlockId>>,
         block_sites: BTreeMap<BasicBlockId, Vec<SiteId>>,
         block_handled_cases: BTreeMap<BasicBlockId, CaseSet>,
+        cleanup_blocks: BTreeSet<BasicBlockId>,
+        handle_sites: BTreeMap<SiteId, HandleSiteSolverFacts>,
     ) -> Self {
         Self {
             block_successors,
             block_sites,
             block_handled_cases,
+            cleanup_blocks,
+            handle_sites,
         }
     }
 
@@ -479,6 +526,14 @@ impl BodyEffectSolverFacts {
 
     pub(crate) fn handled_cases_for_block(&self, block: BasicBlockId) -> Option<&CaseSet> {
         self.block_handled_cases.get(&block)
+    }
+
+    pub(crate) fn is_cleanup_block(&self, block: BasicBlockId) -> bool {
+        self.cleanup_blocks.contains(&block)
+    }
+
+    pub(crate) fn handle_site(&self, site: SiteId) -> Option<&HandleSiteSolverFacts> {
+        self.handle_sites.get(&site)
     }
 }
 

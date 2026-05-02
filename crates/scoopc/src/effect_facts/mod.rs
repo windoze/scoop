@@ -11,13 +11,13 @@ pub mod solver;
 
 pub use builder::MaterializedEffectFactsBuilder;
 pub use dump::render_materialized_effect_facts;
-pub(crate) use facts::BodyEffectSolverFacts;
 pub use facts::{
     BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteKind, CallSiteTarget,
     CallTargetMode, CallableEffectFacts, CanonicalMirQuerySurface, EffectPrecision,
     HandleArmEffectFacts, HandleSiteEffectFacts, MaterializedEffectFacts, MirSnapshotBinding,
     NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
 };
+pub(crate) use facts::{BodyEffectSolverFacts, HandleSiteSolverFacts};
 pub use schema::{
     CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId, ImplPlan,
     StepCaseFact, StepSchema, StepSchemaId,

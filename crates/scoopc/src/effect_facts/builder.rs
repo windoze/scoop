@@ -19,9 +19,9 @@ use super::{
     BlockEffectFacts, BodyEffectFacts, BodyEffectSolverFacts, CallSiteEffectFacts, CallSiteKind,
     CallSiteTarget, CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema,
     ContinuationSchemaId, EffectFactsError, EffectPrecision, HandleArmEffectFacts,
-    HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts, MirSnapshotBinding,
-    NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
-    StepCaseFact, StepSchema, StepSchemaId,
+    HandleSiteEffectFacts, HandleSiteSolverFacts, ImplPlan, MaterializedEffectFacts,
+    MirSnapshotBinding, NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts,
+    SiteEffectFacts, StepCaseFact, StepSchema, StepSchemaId,
 };
 
 /// 从 canonical materialized MIR snapshot 生成 P4 facts 容器。
@@ -431,15 +431,27 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             block_scan_cache: BTreeMap::new(),
             block_site_ids: BTreeMap::new(),
             block_handled_tags: BTreeMap::new(),
+            handle_site_solver_facts: BTreeMap::new(),
         })
     }
 
     fn build(mut self, types: &mut TypeStore) -> Result<BodyEffectFacts, EffectFactsError> {
-        let Some((body_len, block_successors)) = self
-            .callable_fun
-            .body
-            .as_ref()
-            .map(|body| (body.blocks.len(), collect_block_successors(body)))
+        let Some((body_len, block_successors, cleanup_blocks)) =
+            self.callable_fun.body.as_ref().map(|body| {
+                (
+                    body.blocks.len(),
+                    collect_block_successors(body),
+                    body.blocks
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, block)| {
+                            block
+                                .is_cleanup
+                                .then_some(BasicBlockId::from_raw(index as u32))
+                        })
+                        .collect::<BTreeSet<_>>(),
+                )
+            })
         else {
             return Ok(BodyEffectFacts::default());
         };
@@ -472,6 +484,8 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             block_successors,
             std::mem::take(&mut self.block_site_ids),
             block_handled_cases,
+            cleanup_blocks,
+            std::mem::take(&mut self.handle_site_solver_facts),
         );
 
         Ok(BodyEffectFacts::with_solver_facts(
@@ -754,6 +768,15 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         finally_target: Option<BasicBlockId>,
         exit_target: BasicBlockId,
     ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
+        self.handle_site_solver_facts.insert(
+            site_id,
+            HandleSiteSolverFacts::new(
+                body_target,
+                arm_targets.to_vec(),
+                finally_target,
+                exit_target,
+            ),
+        );
         if let Some(SiteEffectFacts::Handle(facts)) = self.sites.get(&site_id) {
             return Ok(handle_total_outward_tags(facts));
         }
@@ -1282,6 +1305,7 @@ struct BodyFactsBuilder<'a, 'b> {
     block_scan_cache: BTreeMap<BasicBlockId, RegionCaseContribution>,
     block_site_ids: BTreeMap<BasicBlockId, Vec<SiteId>>,
     block_handled_tags: BTreeMap<BasicBlockId, BTreeSet<CaseTag>>,
+    handle_site_solver_facts: BTreeMap<SiteId, HandleSiteSolverFacts>,
 }
 
 impl<'a> MaterializedEffectFactsBuilder<'a> {

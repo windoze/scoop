@@ -724,7 +724,7 @@
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_block_effect_facts`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_site_effect_facts`、`cargo test -p scoopc --no-default-features refactor_body_effect_facts`、`cargo test -p scoopc --no-default-features refactor_nested_handle_classification`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
   - 2026-05-02：本任务未改变阶段顺序、P4->P5 handoff contract 或完成准则，因此 `PLAN.md` 无需改动；同时已把 `TODO.md` 索引中的 `P4-T04` 同步标记为 `[DONE]`。
 
-## P4-T04R：Review solver / widening / `impl_plan`，确认求解结果完全由 facts 驱动
+## [DONE] P4-T04R：Review solver / widening / `impl_plan`，确认求解结果完全由 facts 驱动
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.4, §5.4.3-§5.4.7, §6, §7.3
@@ -754,7 +754,13 @@
   - 可进入 P4-T05。
 - 依赖：P4-T04
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P4-T04R` review。最近一次提交 `[P4-T04] Solve outward cases and finalize effect facts` 与本次复核直接相关；提交信息未显式留下新的未完成事项，但 review 过程中确实发现一个会让 site facts 停留在半成品状态的直接缺口：`HandleSiteEffectFacts` 的 `body_outward_cases` / `arm_outward_cases` / `finally_outward_cases` 仍停留在 builder 阶段结果，未在 solver finalization 后按最终 call site 结果重算，因此会漏掉 handle region 中普通 `Call` 带来的 outward effect。
+  - 该缺口已在本次 review 内直接修复：`crates/scoopc/src/effect_facts/facts.rs` 新增 handle-region solver metadata 与 cleanup-block 记录；`crates/scoopc/src/effect_facts/builder.rs` 现会把 `handle` body/arm/finally/exit 入口信息 materialize 到 `BodyEffectSolverFacts`；`crates/scoopc/src/effect_facts/solver.rs` 在 final site 回填阶段会基于 finalized site map + region traversal 重新计算每个 `Handle` site 的 `body_outward_cases`、`arm_outward_cases`、`finally_outward_cases` 与 `NestedHandleClassification`，从而让 site facts 与 final call/block facts 保持一致。
+  - facts 边界复核结论：`MaterializedEffectFactsSolver::solve(...)` 继续只消费 `StepSchema` / `ContinuationSchema` / `CallableEffectFacts` / `BodyEffectFacts` / `SiteEffectFacts` 与 `opt_level` 派生 budget；`needs_reentry` 仍固定按 `!resolved_outward_cases.is_empty()` 派生，`impl_plan` 仍只收口为 `NoOutward | SingleCase(case_tag) | CanonicalFull`，且 `O0` 与高优化级别在 `SingleCase` 上的差异保持不变。
+  - legacy 摘要隔离复核结论：额外搜索 `may_outward_effect|SingleCase|CanonicalFull|resolved_outward_cases|needs_reentry` 后，`may_outward_effect` 仅命中 legacy `mir/summary.rs` / LLVM 旧路径等对照位置；`crates/scoopc/src/effect_facts/**` 与 `crates/scoopc/src/effect_refactor_pipeline/**` 主实现中未发现 refactor solver 直接消费 `may_outward_effect` 的路径，authoritative 结果继续收口在新的 facts 子系统。
+  - 新增/更新验证：`refactor_effect_solver_recomputes_handle_outward_from_finalized_call_sites` 锁定“handle body 内对 known callee 的子集 outward 不得在 final handle facts 中残留 seed 上界”，`refactor_effect_solver_keeps_handle_body_outward_for_plain_call_effects` 锁定“handle body 内普通 `Call` 暴露的 outward effect 必须出现在 final handle site facts 中”。
+  - 复验通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_effect_solver`、`cargo test -p scoopc --no-default-features refactor_impl_plan`、`cargo test -p scoopc --no-default-features refactor_block_effect_facts`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features refactor_site_effect_facts`、`cargo test -p scoopc --no-default-features refactor_body_effect_facts`、`cargo test -p scoopc --no-default-features refactor_nested_handle_classification`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
+  - 2026-05-02：本次 review 未改变阶段顺序、依赖或 P4->P5 handoff contract，`PLAN.md` 无需改动；现已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。 
 
 ## P4-T05：新增 `dump-effect-facts` / snapshot 基线，并冻结 P4 -> P5 handoff contract
 

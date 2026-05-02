@@ -44,7 +44,7 @@
 | `P4-T03` | `TODO-P4.md` | [DONE] 构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析 |
 | `P4-T03R` | `TODO-P4.md` | [DONE] Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断 |
 | `P4-T04` | `TODO-P4.md` | [DONE] 实现 `resolved_outward_cases` SCC/dataflow 求解，并完成 `needs_reentry` / `impl_plan` / final block facts 回填 |
-| `P4-T04R` | `TODO-P4.md` | Review solver / widening / `impl_plan`，确认求解结果完全由 facts 驱动 |
+| `P4-T04R` | `TODO-P4.md` | [DONE] Review solver / widening / `impl_plan`，确认求解结果完全由 facts 驱动 |
 | `P4-T05` | `TODO-P4.md` | 新增 `dump-effect-facts` / snapshot 基线，并冻结 P4 -> P5 handoff contract |
 | `P4-T05R` | `TODO-P4.md` | Review P4 阶段退出条件，确认 P5 可以只消费 MIR + facts 完成 lowering 决策 |
 | `P5-T01` | `TODO-P5.md` | 建立 refactor late-lowering stage 与独立 late-lowered representation 边界 |

@@ -5,8 +5,9 @@ use crate::opt::OptLevel;
 
 use super::{
     BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteTarget, CallableEffectFacts,
-    CaseSet, CaseTag, ConcreteOpKey, EffectPrecision, HandleSiteEffectFacts, ImplPlan,
-    MaterializedEffectFacts, SiteEffectFacts, StepSchema, StepSchemaId,
+    CaseSet, CaseTag, ConcreteOpKey, EffectPrecision, HandleArmEffectFacts, HandleSiteEffectFacts,
+    HandleSiteSolverFacts, ImplPlan, MaterializedEffectFacts, SiteEffectFacts, StepSchema,
+    StepSchemaId,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -345,6 +346,34 @@ struct CallableResolution {
     force_full: bool,
 }
 
+#[derive(Debug, Clone, Default)]
+struct RegionCaseContribution {
+    non_cleanup: BTreeSet<CaseTag>,
+    cleanup: BTreeSet<CaseTag>,
+}
+
+impl RegionCaseContribution {
+    fn add_case_set(&mut self, is_cleanup: bool, cases: &CaseSet) {
+        let target = if is_cleanup {
+            &mut self.cleanup
+        } else {
+            &mut self.non_cleanup
+        };
+        target.extend(cases.tags().iter().copied());
+    }
+
+    fn extend(&mut self, other: Self) {
+        self.non_cleanup.extend(other.non_cleanup);
+        self.cleanup.extend(other.cleanup);
+    }
+
+    fn total_tags(&self) -> BTreeSet<CaseTag> {
+        let mut total = self.non_cleanup.clone();
+        total.extend(self.cleanup.iter().copied());
+        total
+    }
+}
+
 fn sorted_callable_keys(
     callable_facts: &HashMap<InstanceKey, CallableEffectFacts>,
 ) -> Vec<InstanceKey> {
@@ -398,7 +427,7 @@ fn local_site_cases(
         SiteEffectFacts::Resume(facts) => {
             Some(schema_index.project_case_set(facts.resolved_cases(), current_schema))
         }
-        SiteEffectFacts::Handle(facts) => Some(handle_total_outward_cases(current_schema, facts)),
+        SiteEffectFacts::Handle(_) => None,
     }
 }
 
@@ -659,14 +688,15 @@ fn compute_callable_resolved_cases(
 }
 
 fn finalize_body_sites(
-    _current_schema: StepSchemaId,
+    current_schema: StepSchemaId,
     body: &BodyEffectFacts,
     states: &[CallableState],
     key_to_index: &HashMap<InstanceKey, usize>,
     schema_index: &SchemaProjectionIndex,
     config: EffectFactsSolverConfig,
 ) -> BTreeMap<crate::mir::SiteId, SiteEffectFacts> {
-    body.sites()
+    let mut finalized = body
+        .sites()
         .iter()
         .map(|(site_id, site)| {
             let finalized = match site {
@@ -693,7 +723,195 @@ fn finalize_body_sites(
             };
             (*site_id, finalized)
         })
-        .collect::<BTreeMap<_, _>>()
+        .collect::<BTreeMap<_, _>>();
+    finalize_handle_sites(current_schema, body, &mut finalized, schema_index);
+    finalized
+}
+
+fn finalize_handle_sites(
+    current_schema: StepSchemaId,
+    body: &BodyEffectFacts,
+    finalized_sites: &mut BTreeMap<crate::mir::SiteId, SiteEffectFacts>,
+    schema_index: &SchemaProjectionIndex,
+) {
+    loop {
+        let snapshot = finalized_sites.clone();
+        let mut changed = false;
+        for (site_id, site) in body.sites() {
+            let SiteEffectFacts::Handle(handle_facts) = site else {
+                continue;
+            };
+            let Some(region) = body.solver_facts().handle_site(*site_id) else {
+                continue;
+            };
+            let next = recompute_handle_site_facts(
+                current_schema,
+                body,
+                &snapshot,
+                handle_facts,
+                region,
+                schema_index,
+            );
+            let next_site = SiteEffectFacts::Handle(next);
+            if snapshot.get(site_id) != Some(&next_site) {
+                finalized_sites.insert(*site_id, next_site);
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+}
+
+fn recompute_handle_site_facts(
+    current_schema: StepSchemaId,
+    body: &BodyEffectFacts,
+    finalized_sites: &BTreeMap<crate::mir::SiteId, SiteEffectFacts>,
+    original: &HandleSiteEffectFacts,
+    region: &HandleSiteSolverFacts,
+    schema_index: &SchemaProjectionIndex,
+) -> HandleSiteEffectFacts {
+    let mut body_stops = BTreeSet::from([region.exit_target()]);
+    if let Some(finally_target) = region.finally_target() {
+        body_stops.insert(finally_target);
+    }
+    let body_cases = collect_region_cases_from_finalized_sites(
+        current_schema,
+        body,
+        finalized_sites,
+        region.body_target(),
+        &body_stops,
+        schema_index,
+        &mut BTreeSet::new(),
+    );
+
+    let handled_tags = original
+        .handled_cases()
+        .tags()
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let mut arm_facts = Vec::with_capacity(original.arm_facts().len());
+    let mut arm_non_cleanup = BTreeSet::new();
+    let mut cleanup_outward = body_cases.cleanup.clone();
+
+    for (arm, arm_target) in original.arm_facts().iter().zip(region.arm_targets()) {
+        let arm_cases = collect_region_cases_from_finalized_sites(
+            current_schema,
+            body,
+            finalized_sites,
+            *arm_target,
+            &body_stops,
+            schema_index,
+            &mut BTreeSet::new(),
+        );
+        cleanup_outward.extend(arm_cases.cleanup.iter().copied());
+        arm_non_cleanup.extend(arm_cases.non_cleanup.iter().copied());
+        arm_facts.push(HandleArmEffectFacts::new(
+            arm.handled_case(),
+            arm.payload_tuple_ty(),
+            arm.continuation_schema(),
+            CaseSet::new(current_schema, arm_cases.non_cleanup.into_iter().collect()),
+        ));
+    }
+
+    let finally_cases = if let Some(finally_target) = region.finally_target() {
+        collect_region_cases_from_finalized_sites(
+            current_schema,
+            body,
+            finalized_sites,
+            finally_target,
+            &BTreeSet::from([region.exit_target()]),
+            schema_index,
+            &mut BTreeSet::new(),
+        )
+    } else {
+        RegionCaseContribution::default()
+    };
+
+    let body_outward = body_cases
+        .non_cleanup
+        .difference(&handled_tags)
+        .copied()
+        .collect::<BTreeSet<_>>();
+    cleanup_outward.extend(finally_cases.total_tags());
+    let classification =
+        if body_outward.is_empty() && arm_non_cleanup.is_empty() && cleanup_outward.is_empty() {
+            crate::effect_facts::NestedHandleClassification::SelfContained
+        } else {
+            crate::effect_facts::NestedHandleClassification::MaySuspendOutward
+        };
+
+    HandleSiteEffectFacts::new(
+        original.result_ty(),
+        original.handled_cases().clone(),
+        CaseSet::new(current_schema, body_outward.into_iter().collect()),
+        arm_facts,
+        CaseSet::new(current_schema, cleanup_outward.into_iter().collect()),
+        classification,
+    )
+}
+
+fn collect_region_cases_from_finalized_sites(
+    current_schema: StepSchemaId,
+    body: &BodyEffectFacts,
+    finalized_sites: &BTreeMap<crate::mir::SiteId, SiteEffectFacts>,
+    entry: BasicBlockId,
+    stops: &BTreeSet<BasicBlockId>,
+    schema_index: &SchemaProjectionIndex,
+    visited: &mut BTreeSet<BasicBlockId>,
+) -> RegionCaseContribution {
+    if stops.contains(&entry) || !visited.insert(entry) {
+        return RegionCaseContribution::default();
+    }
+
+    let mut acc = RegionCaseContribution::default();
+    let is_cleanup = body.solver_facts().is_cleanup_block(entry);
+    if let Some(site_ids) = body.solver_facts().block_sites().get(&entry) {
+        for site_id in site_ids {
+            let Some(site) = finalized_sites.get(site_id) else {
+                continue;
+            };
+            let Some(site_cases) = site_cases_for_region(current_schema, site, schema_index) else {
+                continue;
+            };
+            acc.add_case_set(is_cleanup, &site_cases);
+        }
+    }
+    if let Some(successors) = body.solver_facts().block_successors().get(&entry) {
+        for successor in successors {
+            acc.extend(collect_region_cases_from_finalized_sites(
+                current_schema,
+                body,
+                finalized_sites,
+                *successor,
+                stops,
+                schema_index,
+                visited,
+            ));
+        }
+    }
+    acc
+}
+
+fn site_cases_for_region(
+    current_schema: StepSchemaId,
+    site: &SiteEffectFacts,
+    schema_index: &SchemaProjectionIndex,
+) -> Option<CaseSet> {
+    match site {
+        SiteEffectFacts::Call(facts) => {
+            Some(schema_index.project_case_set(facts.resolved_cases(), current_schema))
+        }
+        SiteEffectFacts::Perform(facts) => {
+            Some(schema_index.singleton(current_schema, facts.emitted_case()))
+        }
+        SiteEffectFacts::Resume(facts) => {
+            Some(schema_index.project_case_set(facts.resolved_cases(), current_schema))
+        }
+        SiteEffectFacts::Handle(facts) => Some(handle_total_outward_cases(current_schema, facts)),
+    }
 }
 
 fn finalize_call_site_resolution(
@@ -872,7 +1090,7 @@ fn site_cases_for_block(
         SiteEffectFacts::Resume(facts) => {
             Some(schema_index.project_case_set(facts.resolved_cases(), current_schema))
         }
-        SiteEffectFacts::Handle(facts) => Some(handle_total_outward_cases(current_schema, facts)),
+        SiteEffectFacts::Handle(_) => None,
     }
 }
 
@@ -1151,6 +1369,64 @@ fun nested_may_suspend_outward(): Int {
         inner + 10
     } with {
         Outer.again() -> 99
+    }
+}
+"#,
+        )
+    }
+
+    fn handle_call_subset_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_solver_handle_call_subset.scoop",
+            r#"
+package sample
+
+effect Alpha {
+    fun go(): Unit
+}
+
+effect Beta {
+    fun go(): Unit
+}
+
+fun emit_alpha(): Unit / (Alpha + Beta) {
+    Alpha.go()
+}
+
+fun outer(): Unit / Beta {
+    handle {
+        emit_alpha()
+    } with {
+        Alpha.go() -> ()
+    }
+}
+"#,
+        )
+    }
+
+    fn handle_body_call_outward_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_solver_handle_body_call_outward.scoop",
+            r#"
+package sample
+
+effect Alpha {
+    fun go(): Unit
+}
+
+effect Beta {
+    fun go(): Unit
+}
+
+fun emit_beta(): Unit / Beta {
+    Beta.go()
+}
+
+fun outer(): Unit / (Alpha + Beta) {
+    handle {
+        emit_beta()
+    } with {
+        Alpha.go() -> ()
     }
 }
 "#,
@@ -1535,6 +1811,93 @@ fun nested_may_suspend_outward(): Int {
             .expect("nested_may_suspend_outward 应包含 inner handle site");
         assert_eq!(
             may_inner_handle.nested_handle_classification(),
+            crate::effect_facts::NestedHandleClassification::MaySuspendOutward
+        );
+    }
+
+    #[test]
+    fn refactor_effect_solver_recomputes_handle_outward_from_finalized_call_sites() {
+        let output = build_stage_output_for_source(&handle_call_subset_source(), OptLevel::O2);
+        let facts = output.effect_facts();
+        let pass_view = output.materialized_pass_view();
+
+        let (outer_key, outer_facts) = callable_facts_for(facts, "sample.outer");
+        assert!(
+            outer_facts.resolved_outward_cases().is_empty(),
+            "outer 的 final resolved_outward_cases 不应保留 builder seed 的 Beta 上界"
+        );
+
+        let outer_body = pass_view
+            .instance(outer_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("outer 应有 canonical body");
+        let outer_body_facts = facts.body(outer_key).expect("outer 应有 body facts");
+        let handle_facts = outer_body
+            .blocks
+            .iter()
+            .filter_map(|block| match &block.terminator.kind {
+                TerminatorKind::Handle { site_id, .. } => outer_body_facts.site(*site_id),
+                _ => None,
+            })
+            .find_map(|site| match site {
+                SiteEffectFacts::Handle(handle_facts) => Some(handle_facts),
+                SiteEffectFacts::Call(_)
+                | SiteEffectFacts::Perform(_)
+                | SiteEffectFacts::Resume(_) => None,
+            })
+            .expect("outer 应包含 handle site");
+        assert!(
+            handle_facts.body_outward_cases().is_empty(),
+            "handle body_outward_cases 应按 finalized call site 重算，而不是保留 seed 的 Beta 上界"
+        );
+        assert_eq!(
+            handle_facts.nested_handle_classification(),
+            crate::effect_facts::NestedHandleClassification::SelfContained
+        );
+    }
+
+    #[test]
+    fn refactor_effect_solver_keeps_handle_body_outward_for_plain_call_effects() {
+        let output =
+            build_stage_output_for_source(&handle_body_call_outward_source(), OptLevel::O2);
+        let facts = output.effect_facts();
+        let pass_view = output.materialized_pass_view();
+
+        let (outer_key, outer_facts) = callable_facts_for(facts, "sample.outer");
+        assert_eq!(
+            case_fqns(facts, outer_facts.resolved_outward_cases()),
+            ["sample.Beta.go".to_string()].into_iter().collect(),
+            "outer 的 final resolved_outward_cases 应保留 handle body 内 plain call 暴露的 Beta"
+        );
+
+        let outer_body = pass_view
+            .instance(outer_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("outer 应有 canonical body");
+        let outer_body_facts = facts.body(outer_key).expect("outer 应有 body facts");
+        let handle_facts = outer_body
+            .blocks
+            .iter()
+            .filter_map(|block| match &block.terminator.kind {
+                TerminatorKind::Handle { site_id, .. } => outer_body_facts.site(*site_id),
+                _ => None,
+            })
+            .find_map(|site| match site {
+                SiteEffectFacts::Handle(handle_facts) => Some(handle_facts),
+                SiteEffectFacts::Call(_)
+                | SiteEffectFacts::Perform(_)
+                | SiteEffectFacts::Resume(_) => None,
+            })
+            .expect("outer 应包含 handle site");
+        assert_eq!(
+            case_fqns(facts, handle_facts.body_outward_cases()),
+            ["sample.Beta.go".to_string()].into_iter().collect(),
+            "handle body_outward_cases 不应丢失 body 内 plain call 的 outward effect"
+        );
+        assert_eq!(
+            handle_facts.nested_handle_classification(),
             crate::effect_facts::NestedHandleClassification::MaySuspendOutward
         );
     }
