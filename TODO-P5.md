@@ -348,7 +348,7 @@
   - 验证通过：`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_body_version_key`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
   - 2026-05-02：按详细 TODO 的完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
-## P5-T02R：Review late-lowered representation，确认 version key / `Step` / continuation carrier 已按最终形态固定
+## [DONE] P5-T02R：Review late-lowered representation，确认 version key / `Step` / continuation carrier 已按最终形态固定
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §5.2, §5.3.2-§5.3.5, §7.2-§7.3
@@ -375,7 +375,13 @@
   - 可进入 P5-T03。
 - 依赖：P5-T02
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P5-T02R` review。复核 `crates/scoopc/src/effect_lowered/ir.rs`、`crates/scoopc/src/effect_lowered/builder.rs`、`crates/scoopc/src/effect_lowered/dump.rs` 与 `crates/scoopc/src/effect_lowered/mod.rs` 后，确认 late-lowered representation 已按最终目标形态固定：`LateLoweredBodyVersionKey` 显式保留 `surface_instance + allowed_row + impl_plan + needs_reentry`，`LateLoweredCallable` 继续把 `dynamic_invoke_entry`、`state_graph`、`frame_schema`、`boundary_map`、`resume_state_map`、`continuation_object` 与 `resume_interfaces` 作为统一 IR 容器字段暴露给后续 P5/P6。
+  - version key 复核：`LateLoweredBodyVersionKey` 以 `allowed_row` 参与相等性/哈希，`ImplPlan::SingleCase(case_tag)` / `ImplPlan::CanonicalFull` / `ImplPlan::NoOutward` 也都进入同一稳定键空间；`refactor_body_version_key_keeps_allowed_row_in_identity` 与 `refactor_body_version_key_distinguishes_single_case_and_canonical_full_versions` 重新验证了这些边界，确认不会跨不同 `allowed_row` 或不同 `impl_plan` 共享 body version。
+  - canonical `Step_F` 复核：`LateLoweredStepType` / `LateLoweredStepCase` 继续直接按 `StepSchema` 物化完整 case/tag 集；`LateLoweredProgramBuilder::build_step_type(...)` 总是遍历 `step_schema.cases()` 构建 canonical step shell，而 `build_continuation_object(...)` 只把 `ImplPlan::SingleCase` 下沉到 continuation method reachability。`refactor_late_lowered_ir_step_materialization_shell_keeps_canonical_cases_for_single_case_versions` 重新确认 `SingleCase` 不会收缩成第二套窄 `Step` 类型。
+  - continuation carrier 复核：`LateLoweredResumeInterface`、`LateLoweredResumeMethod`、`LateLoweredContinuationObject`、`LateLoweredContinuationMethod`、`LateLoweredContinuationCapture` 已把 interface family、完整 method 集、统一返回的 `StepSchemaId`、capture 引用以及 reachable/unreachable method 形态显式固化在中层 IR 中；`dump.rs` 的稳定 formatter 也会把 version key、frame slot 分类、continuation object 与 method reachability 一并输出，说明它们不是留给 P6 再补的黑盒。`refactor_late_lowered_ir_resume_interface_shell_records_complete_methods_and_reachability` 与 `refactor_late_lowered_ir_stable_dump_exposes_frame_slot_categories` 已重新覆盖这些 contract。
+  - 额外搜索复核：执行 `rg "Signal \{|Any|Todo\(|SingleCase.*Step|CanonicalFull.*Step" crates/scoopc/src/effect_lowered crates/scoopc/src/effect_refactor_pipeline` 后，仅命中 `crates/scoopc/src/effect_refactor_pipeline/hir_stage.rs` 中既有的 `StmtKind::Todo(_)` / `ExprKind::Todo(_)` typed-HIR 遍历分支；这些命中属于上游语法节点处理，不是 late-lowered representation 最终合同。`effect_lowered/**` 与 late-lowering stage 中未发现 erased signal、`Any`、`Todo(...)` 占位，亦未发现基于 `SingleCase` / `CanonicalFull` 派生第二套 `Step` 类型。
+  - 相关验证重新通过：`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_body_version_key`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+  - 2026-05-02：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
 ## P5-T03：依据 `MaterializedEffectFacts` 实现 boundary 选择与 whole-function segmentation，产出 owner-state / resume-state 骨架
 
