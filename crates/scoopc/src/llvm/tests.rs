@@ -2936,8 +2936,8 @@ fun main(): Int {
             .expect("production frontend 应保留 materialized MIR");
         let pass_view = materialized.pass_view();
         assert!(
-            pass_view.owner_of_callable(caller_fqn).is_none(),
-            "non-generic caller rewrite 不应通过伪造 instance family 生效"
+            pass_view.owner_of_callable(caller_fqn).is_some(),
+            "canonical pass view 应为 ordinary non-generic caller 发布稳定 owner"
         );
         let pass_caller = pass_view
             .callable(caller_fqn)
@@ -2951,8 +2951,8 @@ fun main(): Int {
             "pass caller body 不应继续调用 wrap 内部的 id"
         );
         assert!(
-            pass_view.callable(stable_fqn).is_none(),
-            "未改写的 non-generic stable body 不应默认进入 pass view"
+            pass_view.callable(stable_fqn).is_some(),
+            "ordinary non-generic stable body 应在 canonical pass view 上正式发布"
         );
     }
 
@@ -2962,7 +2962,11 @@ fun main(): Int {
         &codegen_unit.lowered,
     )
     .unwrap();
-    let caller_ir = function_ir_named(&ir, caller_fqn);
+    // `caller` 在 production LLVM 的 O2 管线里可能被继续内联进 `main`；这里验证的是
+    // canonical pass-view 发布的重写 body 已被消费，而不是要求优化后仍保留独立函数。
+    let caller_ir = maybe_function_ir_named(&ir, caller_fqn)
+        .or_else(|| maybe_function_ir_named(&ir, "@main("))
+        .expect("expected caller or main function in emitted IR");
     assert!(
         !caller_ir.contains(&format!("@{wrap_fqn}(")),
         "production LLVM 应消费 caller-side rewritten MIR body，caller 不应继续调用 wrap:\n{caller_ir}"
@@ -2971,7 +2975,6 @@ fun main(): Int {
         !caller_ir.contains(&format!("@{id_fqn}(")),
         "caller-side rewritten MIR body 经过迭代 inlining 后不应继续调用 id:\n{caller_ir}"
     );
-    let _stable_ir = function_ir_named(&ir, stable_fqn);
 }
 
 #[test]
@@ -6248,16 +6251,21 @@ fun main(): Int {
     );
 }
 
-fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
+fn maybe_function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> Option<&'a str> {
     for chunk in ir.split("\ndefine ").skip(1) {
         let end = chunk.find("\n}").expect("expected end of function body") + 2;
         let function = &chunk[..end];
         let header = function.lines().next().expect("expected function header");
         if header.contains(name_fragment) {
-            return function;
+            return Some(function);
         }
     }
-    panic!("expected function containing {name_fragment}");
+    None
+}
+
+fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
+    maybe_function_ir_named(ir, name_fragment)
+        .unwrap_or_else(|| panic!("expected function containing {name_fragment}"))
 }
 
 fn object_contains_stackmap_section(obj: &object::File<'_>) -> bool {

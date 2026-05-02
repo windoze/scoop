@@ -113,13 +113,17 @@ mod tests {
     fn run_sample() -> RefactorEffectFactsStageOutput {
         let session = refactor_session();
         let source = sample_source();
+        run_stage(&session, &source)
+    }
+
+    fn run_stage(session: &Session, source: &SourceFile) -> RefactorEffectFactsStageOutput {
         let materialized =
-            super::super::materialize_direct_style_mir_for_dump(&session, &source).unwrap();
+            super::super::materialize_direct_style_mir_for_dump(session, source).unwrap();
         let mir_stage_output =
-            super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
+            super::super::load_direct_style_mir_stage_output_for_dump(session, source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        super::run(&session, &source, mir_stage_output)
+        super::run(session, source, mir_stage_output)
             .expect("fixture 应可通过 refactor effect-facts stage")
     }
 
@@ -139,6 +143,19 @@ mod tests {
         assert_eq!(
             output.effect_facts().callable_facts().len(),
             output.effect_facts().bodies().len()
+        );
+        assert!(
+            output.materialized_pass_view().len() >= 2,
+            "普通 non-generic sample root/helper 也应进入 canonical pass view"
+        );
+        assert!(
+            output.effect_facts().callable_facts().contains_key(
+                output
+                    .materialized_pass_view()
+                    .owner_of_callable("sample.main")
+                    .expect("sample.main 应有 canonical InstanceKey owner")
+            ),
+            "effect facts stage 应直接以 canonical pass-view owner 键入普通 non-generic callable"
         );
         assert!(output.stable_dump().contains("MaterializedEffectFacts"));
     }
@@ -182,5 +199,49 @@ mod tests {
             err,
             EffectFactsError::MissingMaterializedMirSnapshot
         ));
+    }
+
+    #[test]
+    fn refactor_effect_facts_stage_non_generic_sample_main_uses_canonical_pass_view_roots() {
+        let output = run_sample();
+        let main_key = output
+            .materialized_pass_view()
+            .owner_of_callable("sample.main")
+            .expect("sample.main 应被 canonical pass view 发布")
+            .clone();
+
+        assert!(
+            output
+                .effect_facts()
+                .callable_facts()
+                .contains_key(&main_key),
+            "effect facts stage 应以 pass-view canonical InstanceKey 发布 ordinary callable facts"
+        );
+        assert!(
+            output.effect_facts().bodies().contains_key(&main_key),
+            "effect facts stage 应以同一 canonical InstanceKey 发布 ordinary body facts"
+        );
+    }
+
+    #[test]
+    fn refactor_effect_facts_stage_non_generic_sample_helper_uses_canonical_pass_view_roots() {
+        let output = run_sample();
+        let helper_key = output
+            .materialized_pass_view()
+            .owner_of_callable("sample.helper")
+            .expect("sample.helper 应被 canonical pass view 发布")
+            .clone();
+
+        assert!(
+            output
+                .effect_facts()
+                .callable_facts()
+                .contains_key(&helper_key),
+            "ordinary helper facts 不应再依赖 raw/fallback 键空间"
+        );
+        assert!(
+            output.effect_facts().bodies().contains_key(&helper_key),
+            "ordinary helper body facts 应可直接按 canonical InstanceKey 查询"
+        );
     }
 }

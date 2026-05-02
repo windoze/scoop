@@ -325,7 +325,7 @@
   - 复验通过：`cargo test -p scoopc --no-default-features refactor_effect_schema`、`cargo test -p scoopc --no-default-features refactor_continuation_schema`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features materialized_effect_facts_builder_uses_canonical_pass_view_snapshot`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
   - 2026-05-02：本次 review 未改变阶段顺序或依赖，`PLAN.md` 无需改动；现已补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引。
 
-## P4-T02a：修复 canonical materialized MIR pass-view 对普通非泛型 callable body 的发布，确保 P4 能在稳定 `InstanceKey` 键空间上看到 request-root / caller body
+## [DONE] P4-T02a：修复 canonical materialized MIR pass-view 对普通非泛型 callable body 的发布，确保 P4 能在稳定 `InstanceKey` 键空间上看到 request-root / caller body
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P3，§2/P4
@@ -373,7 +373,12 @@
   - `P4-T03` 可以在不 workaround 的前提下直接构建 `BodyEffectFacts` / `SiteEffectFacts`。
 - 依赖：P4-T02R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-02：完成 `P4-T02a`。`crates/scoopc/src/mir/materialize.rs` 现在会把 request-root 可达的 ordinary non-generic callable 作为 canonical pass-view 初始发布的一部分收集到 `pass_published_ordinary_callables`，并在 materialization 收口时为它们构建稳定的 `InstanceKey`、pass-visible family、summary 与 body 映射；这些 callable 不再只停留在 raw MIR / `caller_side_pass_candidate_bodies()` 旁路里。
+  - `crates/scoopc/src/mir/pass_view.rs` 现已把 pass-view 的可见实例顺序绑定到 `MaterializedMirPassArtifacts` 自己维护的 `instance_keys`，而不是 raw materialized `instance_keys`；`replace_callable_family(...)` 也会同步确保新 family 的 owner 键可见。因此 `pass_view().instances()`、`owner_of_callable()`、`root_body()`、`callable_bodies()` 现在都能稳定命中 ordinary non-generic root/caller body，并在后续 pass override/rehome 时继续维持单一 canonical owner。
+  - `crates/scoopc/src/effect_facts/builder.rs` 已删除对 raw `MirFile` root 声明的 fallback 读取，`collect_callable_seeds(...)` 现在直接要求 `MaterializedMir::pass_view()` 提供 canonical root/body；这把 `P4-T03` 所需的 callable identity 完整收口回 P3/P4 的 authoritative handoff，而不是继续在 facts builder 里自造第二套键空间。
+  - 新增/更新验证覆盖：`crates/scoopc/src/mir/pass_view.rs` 中 `materialized_pass_view_non_generic_*` 直接断言普通 non-generic direct-call / dispatch-resume / handle-finally 样本已进入 canonical owner/family/root-body 查询面；`crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs` 中 `refactor_effect_facts_stage_non_generic_*` 继续断言 P4 stage 输出使用这些 canonical `InstanceKey` 发布 ordinary callable facts/body；`crates/scoopc/src/mir/inline.rs` 与 `crates/scoopc/src/llvm/tests.rs` 也已同步更新为匹配“ordinary non-generic body 默认属于 canonical pass-view”的新约束。
+  - 为满足本轮“无 lint 告警”要求，`crates/scoopc/src/effect_refactor_pipeline/mod.rs::emit_production_llvm_artifact_to_file` 已按仓库既有风格补充局部 `#[allow(clippy::too_many_arguments)]`，消除与本任务无关但会阻塞 `cargo clippy -D warnings` 的既有告警。
+  - 验证通过：`cargo test -p scoopc --no-default-features materialized_pass_view_non_generic`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage_non_generic`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage`、`cargo test -p scoopc --no-default-features caller_side_inlining_keeps_non_generic_pass_roots_visible`、`cargo test -p scoopc production_codegen_observes_caller_side_mir_inlining_for_non_generic_body`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
 
 ## P4-T02aR：Review canonical pass-view 对 ordinary callable body 的发布结果，确认 P4 不再需要 raw/fallback 键空间
 

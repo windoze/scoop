@@ -1,62 +1,29 @@
-## 当前轮执行计划
+# 当前执行计划
 
-说明：这里记录可审查的执行计划、关键观察、变更决策与进度，不记录逐字内部推理。
+## 约束说明
+- 不输出或记录逐字的私有推理细节；这里记录可审阅的任务计划、决策依据、关键发现和执行进展。
+- 本次目标是：先定位 `TODO.md` 对应详细任务列表中的首个未完成任务，完成该任务或在遇到真实阻塞时补充最小前置任务，然后更新任务文档、验证、提交并停止。
 
-1. 读取 `TODO.md`，确认它只作为索引使用，并按其中引用顺序定位对应的 `TODO-Px.md` 文件。
-2. 逐个检查详细任务文件中的任务标题，依据是否带有 `[DONE]` 前缀来判断完成状态。
-3. 锁定第一个未完成的详细任务，阅读其完整要求、约束、依赖、验证标准与完成记录。
-4. 检查最近提交是否存在与该任务直接相关且明确未完成的问题；若有，将其视为当前任务的一部分或必要前置。
-5. 在不扩大范围的前提下实现该任务；如果遇到阻塞当前任务的真实缺陷或缺失特性，则在对应 `TODO-Px.md` 中插入最小必要前置任务，并同步 `TODO.md`。
-6. 运行与该任务直接相关的验证；如任务涉及通用代码路径，再补充必要的 `cargo test` / `cargo clippy --all-targets -- -D warnings` / 其他指定验证。
-7. 更新文档记录：
-   - 在对应 `TODO-Px.md` 中将任务标题加上 `[DONE]` 并补全完成记录；若被阻塞，则保持未完成并记录阻塞与新增前置。
-   - 若任务索引、标题、顺序或状态变化，更新 `TODO.md` 保持同步。
-   - 仅当阶段计划、依赖或完成标准变化时更新 `PLAN.md`。
-8. 检查工作区是否有本轮相关改动需要一并提交；按任务号撰写提交信息并提交。
-9. 停止，不进入下一个任务。
+## 初始步骤计划
+1. 读取 `TODO.md`，确认它作为索引引用了哪些 `TODO-Px.md` 文件。
+2. 按任务顺序检查对应 `TODO-Px.md` 中的标题状态；只有标题前缀为 `[DONE]` 才视为完成。
+3. 定位首个未完成详细任务，并检查最新提交是否直接提到与该任务相关且未完成的问题。
+4. 阅读该任务的详细要求、约束、依赖、验收方式和完成记录。
+5. 结合当前代码状态做最小范围实现；若发现阻塞当前任务的真实缺口或回归，则先修复，或在必要时新增最小前置任务并同步 `TODO.md`。
+6. 运行与该任务直接相关的测试，再运行必要的整体检查（至少包含本任务相关测试，若改动影响较广则补充更高层验证）。
+7. 更新对应 `TODO-Px.md`：若任务完成，则将标题标记为 `[DONE]` 并填写完成记录；若发生阻塞，则记录阻塞和新增前置任务。
+8. 若任务索引信息发生变化，同步更新 `TODO.md`；仅在阶段计划发生真实变化时更新 `PLAN.md`。
+9. 检查工作区状态，按要求创建一次清晰的 git 提交，然后停止，不继续做下一个任务。
 
-## 进度日志
-
-- 已创建本计划文件，准备开始读取任务索引并定位首个未完成详细任务。
-- 已读取 `TODO.md` 与 `TODO-P4.md`，确认首个未完成详细任务为 `P4-T03：构建 BodyEffectFacts / SiteEffectFacts 与 local-case 结构化分析`。
-- 已检查最近提交：`[P4-T02R] Review schema pool and callable facts` 未显式留下会阻塞 `P4-T03` 的未完成事项。
-- 已审查现状：`crates/scoopc/src/effect_facts/facts.rs` 目前只有 callable-level 壳层，`BodyEffectFacts` 仍为空；`builder.rs` 只构建了 callable/schema 壳层，尚未把 MIR body/block/site 级 contract 落入 facts。
-- 已查看 `tests/fixtures/mir_refactor/{dispatch_and_resume_call,handle_perform,handle_finally_boundary}.scoop` 的 refactor `dump-mir` 输出，确认当前 P3 MIR 已显式携带 `SiteId`、`CallKind::{Direct,Virtual,Interface,Resume}`、`PerformMetadata`、`HandleMetadata`、`HandlerArm`、cleanup block 与 `resume_target`/`finally_target` 等构建 P4-T03 所需信息。
-
-## 当前实现提纲
-
-1. 在 `crates/scoopc/src/effect_facts/facts.rs` 中补齐 P4-T03 所需 public facts 结构：
-   - `BlockEffectFacts`
-   - `SiteEffectFacts`
-   - `CallSiteEffectFacts`
-   - `PerformSiteEffectFacts`
-   - `ResumeSiteEffectFacts`
-   - `HandleSiteEffectFacts`
-   - `HandleArmEffectFacts`
-   - 配套的 `EffectPrecision` / `CallTargetMode` / nested-handle 分类枚举
-2. 扩展 `MaterializedEffectFactsBuilder`：
-   - 继续保留现有 callable/schema 壳层构建；
-   - 第二阶段按 `InstanceKey -> MIR body` 遍历 pass-view callable bodies，基于 `SiteId` 和 `BasicBlockId` 构建 `BodyEffectFacts`；
-   - 直接从 MIR metadata 生成 `Perform` / `Resume` / `Handle` contract，避免回 HIR side tables；
-   - 为 direct/closure/fun-value/dispatch 构建 call-site target mode 与 callee schema；精度不足时保守 widen 到 `CandidateSet` 或 `DynamicFallback`。
-3. 用结构化 handle 子区域分析计算：
-   - `handled_cases`
-   - `body_outward_cases`
-   - `arm_outward_cases`
-   - `finally_outward_cases`
-   - nested handle `SelfContained` / `MaySuspendOutward`
-4. 新增/更新定向单测，覆盖：
-   - direct call / fun-value / virtual / interface / resume site facts
-   - `perform` emitted case 与 continuation schema
-   - `handle` facts 与 finally/cleanup outward
-   - nested handle 分类
-5. 运行任务要求的测试与必要的 `clippy` 验证；通过后再更新 `TODO-P4.md` / `TODO.md` 并提交。
-
-## 阻塞更新
-
-- 在实现 `P4-T03` 的过程中，发现一个会直接阻塞正确落地的前置问题：当前 canonical `MaterializedMir::pass_view()` 对普通非泛型样本并不稳定发布 callable family。
-- 具体表现：对 `dispatch_and_resume_call`、`handle_perform`、`handle_finally_boundary` 这类普通非泛型 shape，`MaterializedEffectFactsBuilder` 观察到 `pass_view().instances()` 可能为空，从而拿不到 authoritative `InstanceKey -> callable body` 映射；这会直接破坏 `P4-T03` 对 `(callable identity, BasicBlockId / SiteId)` 键空间的依赖。
-- 依据任务约束，不能通过扫描 raw `MaterializedMir.file` 或 `caller_side_pass_candidate_bodies()` 额外造一套 fallback owner 键空间来绕过该问题；正确修复位置应在 `mir/materialize` / `callables` / `pass_view` 的 canonical handoff 发布层。
-- 已在 `TODO-P4.md` 与 `TODO.md` 中插入新的前置任务 `P4-T02a` / `P4-T02aR`，要求先修复 ordinary non-generic callable body 的 canonical pass-view 发布，再回到 `P4-T03`。
-- 因此本轮不会把 `P4-T03` 标记完成；本轮目标改为：记录 blocker、同步任务顺序、保留已验证不会破坏现有绿灯的准备性代码改动，然后提交并停止。
-- 已复验当前保留改动不会破坏现有绿灯：`cargo test -p scoopc --no-default-features effect_facts::builder::tests`、`cargo test -p scoopc --no-default-features effect_refactor_pipeline::effect_facts_stage`、`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings` 全部通过。
+## 进展记录
+- 已创建本计划文件，待开始读取任务索引并定位当前应执行的首个未完成详细任务。
+- 已读取 `TODO.md` 与 `TODO-P4.md`，确认首个未完成详细任务为 `P4-T02a：修复 canonical materialized MIR pass-view 对普通非泛型 callable body 的发布`；`P4-T03` 仍因该前置问题保持未完成。
+- 已检查最新提交 `62802c47 [P4-T02a] Track ordinary callable pass-view prerequisite`，其主题与当前任务直接相关，说明本轮应继续完成同一任务而不是切到别的条目。
+- 已检查当前未提交改动，涉及 `mir/materialize.rs`、`mir/pass_view.rs`、`mir/inline.rs`、`llvm/tests.rs`、`effect_refactor_pipeline/effect_facts_stage.rs` 以及 `effect_facts/builder.rs`；从 diff 看，核心方向是把 ordinary non-generic callable 正式发布到 canonical `pass_view`，并补充对应断言与测试。
+- 已做一处最小一致性修正：把 `crates/scoopc/src/mir/inline.rs` 中仍沿用旧语义的测试名改为匹配当前设计的描述，避免测试名继续暗示“只有被改写的 non-generic body 才进入 pass-view”。
+- 额外 LLVM 回归首轮失败，定位到失败点是测试本身把 `O2` 后 `caller` 必须仍保留为独立 IR 函数当成硬约束；这与本任务真正需要验证的“production codegen 能消费 canonical pass-view 发布的 body”不是同一件事。已将该测试改为：优先检查 `caller`，若其已被 LLVM 继续内联，则退回检查 `main`，从而稳定验证最终 IR 不会重新调用 `wrap` / `id`。
+- `cargo clippy` 过程中还暴露出一个与本轮代码无关但会阻塞“提交无告警”目标的既有 lint：`effect_refactor_pipeline::emit_production_llvm_artifact_to_file` 参数个数触发 `clippy::too_many_arguments`。该仓库已有同类局部 `allow` 用法，因此已按既有风格补上局部 `#[allow(clippy::too_many_arguments)]`，避免为 lint 扩大本轮功能改动面。
+- 下一步：逐个核对这些改动是否真正让 `pass_view().instances()`、`owner_of_callable()`、`root_body()`、`callable_bodies()` 对 ordinary non-generic callable 生效；若实现已齐备，则直接运行任务要求的定向测试与必要的质量检查，再回写 `TODO-P4.md` / `TODO.md` / `memory/claude_plan.md` 并提交。
+- 已完成任务文档回写：`TODO-P4.md` 中 `P4-T02a` 已标记为 `[DONE]`，`TODO.md` 索引也已同步；`P4-T02aR` 仍保持未完成，供下一轮单独 review。
+- 已完成验证：定向 `pass_view` / `effect_facts_stage` / `mir::inline` / LLVM regression 均通过，`cargo clippy -p scoopc --all-targets --no-default-features -- -D warnings` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 也已通过。
+- 剩余步骤：检查最终 worktree，按 `P4-T02a` 创建一次提交，然后停止。

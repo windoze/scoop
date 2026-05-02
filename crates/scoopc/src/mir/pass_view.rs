@@ -28,6 +28,7 @@ use super::{
 pub struct MaterializedMirPassArtifacts {
     callable_bodies_by_fqn: HashMap<String, FunDecl>,
     callable_families: MaterializedCallableFamilies,
+    instance_keys: Vec<InstanceKey>,
     summaries: MaterializedMirSummaries,
     escape_facts: MaterializedEscapeFacts,
     overridden_body_fqns: HashSet<String>,
@@ -35,10 +36,11 @@ pub struct MaterializedMirPassArtifacts {
 }
 
 impl MaterializedMirPassArtifacts {
-    pub(crate) fn from_raw_materialized(
+    pub(crate) fn from_initial_publication(
         file: &File,
         summaries: &MaterializedMirSummaries,
         callable_families: &MaterializedCallableFamilies,
+        instance_keys: &[InstanceKey],
     ) -> Self {
         let callable_bodies_by_fqn = file
             .items
@@ -51,6 +53,7 @@ impl MaterializedMirPassArtifacts {
         Self {
             callable_bodies_by_fqn,
             callable_families: callable_families.clone(),
+            instance_keys: instance_keys.to_vec(),
             summaries: summaries.clone(),
             escape_facts: MaterializedEscapeFacts::default(),
             overridden_body_fqns: HashSet::new(),
@@ -108,10 +111,11 @@ impl MaterializedMirPassArtifacts {
     ) {
         self.callable_families
             .replace_family(MaterializedCallableFamilyInput {
-                instance,
+                instance: instance.clone(),
                 root_fqn,
                 callable_fqns,
             });
+        self.ensure_instance_key_visible(&instance);
     }
 
     fn callable_body(&self, fqn: &str) -> Option<&FunDecl> {
@@ -124,6 +128,10 @@ impl MaterializedMirPassArtifacts {
 
     fn families(&self) -> &MaterializedCallableFamilies {
         &self.callable_families
+    }
+
+    pub(crate) fn instance_keys(&self) -> &[InstanceKey] {
+        &self.instance_keys
     }
 
     fn summaries(&self) -> &MaterializedMirSummaries {
@@ -141,6 +149,30 @@ impl MaterializedMirPassArtifacts {
     fn summary_is_overridden(&self, key: &InstanceKey) -> bool {
         self.overridden_summary_instances.contains(key)
     }
+
+    fn ensure_instance_key_visible(&mut self, instance: &InstanceKey) {
+        if self
+            .instance_keys
+            .iter()
+            .any(|existing| existing == instance)
+        {
+            return;
+        }
+        self.instance_keys.push(instance.clone());
+        self.instance_keys.sort_by(|left, right| {
+            let left_root = self
+                .callable_families
+                .family_entry(left)
+                .map(|(_, family)| family.root_fqn.as_str())
+                .unwrap_or_default();
+            let right_root = self
+                .callable_families
+                .family_entry(right)
+                .map(|(_, family)| family.root_fqn.as_str())
+                .unwrap_or_default();
+            left_root.cmp(right_root)
+        });
+    }
 }
 
 /// 当前 pass 产物上的 canonical callable body / summary 查询面。
@@ -157,9 +189,10 @@ pub struct MaterializedPassCallableView<'a> {
 
 impl<'a> MaterializedPassCallableView<'a> {
     fn new(materialized: &'a MaterializedMir) -> Self {
+        let pass_artifacts = materialized.pass_artifacts();
         Self {
-            instance_keys: &materialized.instance_keys,
-            pass_artifacts: materialized.pass_artifacts(),
+            instance_keys: pass_artifacts.instance_keys(),
+            pass_artifacts,
         }
     }
 
@@ -371,10 +404,11 @@ impl<'a> MaterializedMirPassView<'a> {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
+    use std::path::PathBuf;
 
-    use super::super::{Statement, StatementKind};
+    use super::super::{MaterializedMir, Statement, StatementKind};
     use crate::mir::materialize_for_dump;
-    use crate::session::Session;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
 
     fn pass_view_fixture_source() -> SourceFile {
@@ -419,6 +453,42 @@ fun main(): Int {
 }
 "#,
         )
+    }
+
+    fn refactor_session() -> Session {
+        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+    }
+
+    fn load_fixture(phase: &str, name: &str) -> SourceFile {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures")
+            .join(phase)
+            .join(name);
+        SourceFile::load(&path).expect("fixture 应可加载")
+    }
+
+    fn assert_non_generic_pass_root_published(materialized: &MaterializedMir, fqn: &str) {
+        let pass_view = materialized.pass_view();
+        let owner = pass_view
+            .owner_of_callable(fqn)
+            .unwrap_or_else(|| panic!("pass view 应发布普通 non-generic callable owner: {fqn}"));
+        let family = pass_view
+            .instance(owner)
+            .unwrap_or_else(|| panic!("pass view 应能按 owner 回查普通 callable family: {fqn}"));
+        assert_eq!(family.root_fqn(), fqn);
+        assert_eq!(
+            pass_view.root_body(fqn).map(|fun| fun.fqn.as_str()),
+            Some(fqn),
+            "pass view 应能按 root FQN 读到 ordinary callable body"
+        );
+        assert_eq!(
+            family
+                .callable_bodies()
+                .map(|fun| fun.fqn.as_str())
+                .collect::<Vec<_>>(),
+            vec![fqn],
+            "ordinary callable family 应以 canonical body 形式发布"
+        );
     }
 
     #[test]
@@ -675,5 +745,74 @@ fun main(): Int {
                 .any(|fqn| fqn == source_root),
             "raw materialized family 不应被 pass family 重写影响"
         );
+    }
+
+    #[test]
+    fn materialized_pass_view_non_generic_direct_call_roots_are_published() {
+        let sess = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_pass_view_non_generic_direct.scoop",
+            r#"
+package fixtures.passview
+
+fun helper(x: Int): Int {
+    return x + 1
+}
+
+fun main(): Int {
+    return helper(41)
+}
+"#,
+        );
+
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+        assert_eq!(materialized.pass_view().len(), 2);
+        assert!(
+            materialized
+                .callable_view()
+                .owner_of_callable("fixtures.passview.helper")
+                .is_none(),
+            "raw callable view 不应因 canonical pass publication 被隐式改写"
+        );
+        assert!(
+            materialized
+                .callable_view()
+                .owner_of_callable("fixtures.passview.main")
+                .is_none(),
+            "raw callable view 仍应与 pass-view publication 分层"
+        );
+
+        assert_non_generic_pass_root_published(&materialized, "fixtures.passview.helper");
+        assert_non_generic_pass_root_published(&materialized, "fixtures.passview.main");
+    }
+
+    #[test]
+    fn materialized_pass_view_non_generic_dispatch_and_resume_roots_are_published() {
+        let sess = refactor_session();
+        let source = load_fixture("mir_refactor", "dispatch_and_resume_call.scoop");
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir.callVirtual");
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir.callInterface");
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir.resumeOnce");
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir.resumeBoom");
+    }
+
+    #[test]
+    fn materialized_pass_view_non_generic_handle_finally_roots_are_published() {
+        let sess = refactor_session();
+        let source = load_fixture("mir_refactor", "handle_finally_boundary.scoop");
+        let materialized = materialize_for_dump(&sess, &source).unwrap();
+
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir_refactor.cleanup");
+        assert_non_generic_pass_root_published(
+            &materialized,
+            "fixtures.mir_refactor.body_completes",
+        );
+        assert_non_generic_pass_root_published(
+            &materialized,
+            "fixtures.mir_refactor.handled_raise",
+        );
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir_refactor.main");
     }
 }

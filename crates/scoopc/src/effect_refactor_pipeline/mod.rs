@@ -317,6 +317,7 @@ pub fn emit_single_file_llvm_artifact_to_file(
 }
 
 #[cfg(feature = "llvm")]
+#[allow(clippy::too_many_arguments)]
 pub fn emit_production_llvm_artifact_to_file(
     session: &Session,
     source_map: &SourceMap,

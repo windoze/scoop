@@ -162,8 +162,9 @@ impl MaterializedMir {
 
     /// 返回 request-root 可达的 non-generic callable body，供 caller-side MIR pass 作为候选输入。
     ///
-    /// 这些 body 不会默认进入 `MaterializedMirPassView`。只有某个 pass 明确改写并写入
-    /// `pass_artifacts` 后，production/codegen 主路径才会把它视为 canonical pass body。
+    /// 这些 body 现在会在 materialization 结束时同步发布到 canonical `MaterializedMirPassView`
+    /// 的 ordinary callable family 映射里；原始候选列表仍保留，供尚未完全切到 pass-view query
+    /// 面的 caller-side pass / 调试路径复用。
     pub(crate) fn caller_side_pass_candidate_bodies(&self) -> &[FunDecl] {
         &self.caller_side_pass_candidates
     }
@@ -2275,6 +2276,12 @@ struct ReachableMirFun {
     fun: FunDecl,
 }
 
+#[derive(Clone)]
+struct PassPublishedOrdinaryCallable {
+    source_path: PathBuf,
+    fun: FunDecl,
+}
+
 fn dispatch_direct_call_args(
     call_span: Span,
     receiver: &Operand,
@@ -2329,6 +2336,7 @@ struct MirInstanceMaterializer {
     scanned_top_level_immutable_values: HashSet<String>,
     scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
     caller_side_pass_candidates: Vec<FunDecl>,
+    pass_published_ordinary_callables: Vec<PassPublishedOrdinaryCallable>,
     enable_summary_driven_inlining: bool,
     enable_mir_escape_analysis: bool,
     queued: HashSet<InstanceKey>,
@@ -2631,6 +2639,7 @@ impl MirInstanceMaterializer {
             scanned_top_level_immutable_values: HashSet::new(),
             scanned_non_generic_funs: HashSet::new(),
             caller_side_pass_candidates: Vec::new(),
+            pass_published_ordinary_callables: Vec::new(),
             enable_summary_driven_inlining,
             enable_mir_escape_analysis,
             queued: HashSet::new(),
@@ -2891,7 +2900,12 @@ impl MirInstanceMaterializer {
                 &candidate_root_fqn,
             )?;
         }
-        self.caller_side_pass_candidates.push(candidate_fun);
+        self.caller_side_pass_candidates.push(candidate_fun.clone());
+        self.pass_published_ordinary_callables
+            .push(PassPublishedOrdinaryCallable {
+                source_path: reachable_fun.source_path.clone(),
+                fun: candidate_fun,
+            });
         Ok(())
     }
 
@@ -3068,6 +3082,31 @@ impl MirInstanceMaterializer {
         instance_keys.sort_by_key(|a| self.instance_fqn(a));
         instance_keys.dedup();
 
+        let mut pass_visible_non_generic_roots = self
+            .pass_published_ordinary_callables
+            .iter()
+            .map(|published| {
+                (
+                    self.non_generic_pass_view_instance_key(
+                        published.source_path.as_path(),
+                        &published.fun,
+                    ),
+                    published.fun.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        pass_visible_non_generic_roots.sort_by_key(|(instance, _)| self.instance_fqn(instance));
+        pass_visible_non_generic_roots.dedup_by(|(left, _), (right, _)| left == right);
+
+        let mut pass_instance_keys = instance_keys.clone();
+        pass_instance_keys.extend(
+            pass_visible_non_generic_roots
+                .iter()
+                .map(|(instance, _)| instance.clone()),
+        );
+        pass_instance_keys.sort_by_key(|a| self.instance_fqn(a));
+        pass_instance_keys.dedup();
+
         let root_instances = materialized_instance_keys
             .iter()
             .cloned()
@@ -3076,6 +3115,15 @@ impl MirInstanceMaterializer {
                 instance,
             })
             .collect::<Vec<_>>();
+        let mut pass_root_instances = root_instances.clone();
+        pass_root_instances.extend(
+            pass_visible_non_generic_roots
+                .iter()
+                .map(|(instance, fun)| InstanceRootSummaryInput {
+                    instance: instance.clone(),
+                    root_fqn: fun.fqn.clone(),
+                }),
+        );
         let decl_only_inputs = decl_only_instances
             .iter()
             .filter_map(|instance| {
@@ -3126,14 +3174,28 @@ impl MirInstanceMaterializer {
                 }
             })
             .collect::<Vec<_>>();
-        callable_family_inputs.extend(decl_only_instances.iter().cloned().map(|instance| {
-            MaterializedCallableFamilyInput {
+        let mut pass_callable_family_inputs = callable_family_inputs.clone();
+        pass_callable_family_inputs.extend(pass_visible_non_generic_roots.iter().map(
+            |(instance, fun)| MaterializedCallableFamilyInput {
+                instance: instance.clone(),
+                root_fqn: fun.fqn.clone(),
+                callable_fqns: vec![fun.fqn.clone()],
+            },
+        ));
+        let decl_only_callable_family_inputs = decl_only_instances
+            .iter()
+            .cloned()
+            .map(|instance| MaterializedCallableFamilyInput {
                 root_fqn: self.instance_fqn(&instance),
                 instance,
                 callable_fqns: Vec::new(),
-            }
-        }));
+            })
+            .collect::<Vec<_>>();
+        callable_family_inputs.extend(decl_only_callable_family_inputs.clone());
+        pass_callable_family_inputs.extend(decl_only_callable_family_inputs);
         let callable_families = MaterializedCallableFamilies::from_inputs(callable_family_inputs);
+        let pass_callable_families =
+            MaterializedCallableFamilies::from_inputs(pass_callable_family_inputs);
 
         let mut items = Vec::new();
         for key in &materialized_instance_keys {
@@ -3149,17 +3211,31 @@ impl MirInstanceMaterializer {
             });
             items.extend(family.into_iter().map(Item::Fun));
         }
+        let mut pass_items = items.clone();
+        pass_items.extend(
+            pass_visible_non_generic_roots
+                .into_iter()
+                .map(|(_, fun)| Item::Fun(fun)),
+        );
         let file = File { items };
+        let pass_file = File { items: pass_items };
         let summaries = build_materialized_summary_table(
             &file,
             &self.types,
             &root_instances,
             &decl_only_inputs,
         );
-        let pass_artifacts = MaterializedMirPassArtifacts::from_raw_materialized(
-            &file,
-            &summaries,
-            &callable_families,
+        let pass_summaries = build_materialized_summary_table(
+            &pass_file,
+            &self.types,
+            &pass_root_instances,
+            &decl_only_inputs,
+        );
+        let pass_artifacts = MaterializedMirPassArtifacts::from_initial_publication(
+            &pass_file,
+            &pass_summaries,
+            &pass_callable_families,
+            &pass_instance_keys,
         );
 
         let mut materialized = MaterializedMir {
@@ -3995,6 +4071,18 @@ impl MirInstanceMaterializer {
             .map(|&ty| self.types.display(ty).to_string())
             .collect::<Vec<_>>()
             .join(" + ")
+    }
+
+    fn non_generic_pass_view_instance_key(&self, source_path: &Path, fun: &FunDecl) -> InstanceKey {
+        InstanceKey {
+            template: TemplateKey {
+                fqn: fun.fqn.clone(),
+                source_path: source_path.to_path_buf(),
+                decl_span: fun.span,
+            },
+            type_args: Vec::new(),
+            eff_args: Vec::new(),
+        }
     }
 }
 

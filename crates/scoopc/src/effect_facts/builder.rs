@@ -17,11 +17,11 @@ use crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol};
 
 use super::{
     BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteKind, CallSiteTarget,
-    CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema,
-    ContinuationSchemaId, EffectFactsError, EffectPrecision, HandleArmEffectFacts,
-    HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts, MirSnapshotBinding,
-    NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
-    StepCaseFact, StepSchema, StepSchemaId,
+    CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId,
+    EffectFactsError, EffectPrecision, HandleArmEffectFacts, HandleSiteEffectFacts, ImplPlan,
+    MaterializedEffectFacts, MirSnapshotBinding, NestedHandleClassification,
+    PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema,
+    StepSchemaId,
 };
 
 /// 从 canonical materialized MIR snapshot 生成 P4 facts 容器。
@@ -57,7 +57,14 @@ impl EffectFactsTypeContext {
                 op_fqn: op_fqn.to_string(),
                 detail: "missing effect op overload",
             })?;
-        self.lower_effect_op_contract(types, &effect_fqn, &effect_type_args, op_fqn, &op, effect_sym)
+        self.lower_effect_op_contract(
+            types,
+            &effect_fqn,
+            &effect_type_args,
+            op_fqn,
+            &op,
+            effect_sym,
+        )
     }
 
     fn known_callable_instance_key(
@@ -90,11 +97,15 @@ impl EffectFactsTypeContext {
         };
         let mut targets = BTreeSet::new();
         for class_fqn in self.descendants_and_self(receiver_fqn) {
-            if let Some(slot) = self.class_vtables.get(class_fqn.as_str()).and_then(|slots| {
-                slots.iter().find(|slot| {
-                    slot.name == member_name && slot.params_len == explicit_arg_count as u32
+            if let Some(slot) = self
+                .class_vtables
+                .get(class_fqn.as_str())
+                .and_then(|slots| {
+                    slots.iter().find(|slot| {
+                        slot.name == member_name && slot.params_len == explicit_arg_count as u32
+                    })
                 })
-            }) {
+            {
                 targets.insert(slot.impl_member_fqn.clone());
             } else if class_fqn == receiver_fqn {
                 targets.insert(format!("{class_fqn}.{member_name}"));
@@ -132,7 +143,12 @@ impl EffectFactsTypeContext {
         }
         if targets.is_empty() {
             for entries in self.class_itables.values() {
-                collect_interface_slot_targets(entries, owner_fqn, slot.slot as usize, &mut targets);
+                collect_interface_slot_targets(
+                    entries,
+                    owner_fqn,
+                    slot.slot as usize,
+                    &mut targets,
+                );
             }
         }
         targets.into_iter().collect()
@@ -159,16 +175,10 @@ impl EffectFactsTypeContext {
         explicit_arg_count: usize,
         has_receiver: bool,
     ) -> Option<&FunOverload> {
-        let mut matches = self
-            .index
-            .by_fqn
-            .get(fqn)?
-            .fun
-            .iter()
-            .filter(|overload| {
-                overload.sig.params.len() == explicit_arg_count
-                    && overload.sig.receiver.is_some() == has_receiver
-            });
+        let mut matches = self.index.by_fqn.get(fqn)?.fun.iter().filter(|overload| {
+            overload.sig.params.len() == explicit_arg_count
+                && overload.sig.receiver.is_some() == has_receiver
+        });
         let first = matches.next()?;
         matches.next().is_none().then_some(first)
     }
@@ -187,7 +197,12 @@ impl<'a> EffectFactsSchemaPool<'a> {
         }
     }
 
-    fn finish(self) -> (BTreeMap<StepSchemaId, StepSchema>, BTreeMap<ContinuationSchemaId, ContinuationSchema>) {
+    fn finish(
+        self,
+    ) -> (
+        BTreeMap<StepSchemaId, StepSchema>,
+        BTreeMap<ContinuationSchemaId, ContinuationSchema>,
+    ) {
         (self.step_schemas, self.continuation_schemas)
     }
 
@@ -422,7 +437,12 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
     }
 
     fn build(mut self, types: &mut TypeStore) -> Result<BodyEffectFacts, EffectFactsError> {
-        let Some(body_len) = self.callable_fun.body.as_ref().map(|body| body.blocks.len()) else {
+        let Some(body_len) = self
+            .callable_fun
+            .body
+            .as_ref()
+            .map(|body| body.blocks.len())
+        else {
             return Ok(BodyEffectFacts::default());
         };
 
@@ -466,7 +486,12 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             let StatementKind::Assign { target, value } = &stmt.kind else {
                 continue;
             };
-            let Rvalue::Call { site_id, kind, args } = value else {
+            let Rvalue::Call {
+                site_id,
+                kind,
+                args,
+            } = value
+            else {
                 continue;
             };
             match kind {
@@ -605,7 +630,9 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         resume: &ResumeMetadata,
     ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
         if let Some(SiteEffectFacts::Resume(facts)) = self.sites.get(&site_id) {
-            return Ok(self.schema_pool.project_case_set(facts.resolved_cases(), &self.current_case_index));
+            return Ok(self
+                .schema_pool
+                .project_case_set(facts.resolved_cases(), &self.current_case_index));
         }
 
         let mut out_terms = resume.out_effects.terms.clone();
@@ -627,7 +654,9 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             resume.continuation_ty,
         );
         let resolved_cases = self.schema_pool.full_case_set(out_step_schema);
-        let projected = self.schema_pool.project_case_set(&resolved_cases, &self.current_case_index);
+        let projected = self
+            .schema_pool
+            .project_case_set(&resolved_cases, &self.current_case_index);
         self.sites.insert(
             site_id,
             SiteEffectFacts::Resume(ResumeSiteEffectFacts::new(
@@ -687,7 +716,8 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         if let Some(finally_target) = finally_target {
             body_stops.insert(finally_target);
         }
-        let body_cases = self.collect_region_cases(types, body_target, &body_stops, &mut BTreeSet::new())?;
+        let body_cases =
+            self.collect_region_cases(types, body_target, &body_stops, &mut BTreeSet::new())?;
 
         let mut handled_tags = BTreeSet::new();
         let mut arm_facts = Vec::with_capacity(arms.len());
@@ -695,10 +725,12 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         let mut cleanup_outward = body_cases.cleanup.clone();
 
         for (arm, arm_target) in arms.iter().zip(arm_targets.iter().copied()) {
-            let case_info = self.current_case_for_effect_op(types, arm.handled_effect_ty, &arm.op_fqn)?;
+            let case_info =
+                self.current_case_for_effect_op(types, arm.handled_effect_ty, &arm.op_fqn)?;
             handled_tags.insert(case_info.tag);
 
-            let arm_cases = self.collect_region_cases(types, arm_target, &body_stops, &mut BTreeSet::new())?;
+            let arm_cases =
+                self.collect_region_cases(types, arm_target, &body_stops, &mut BTreeSet::new())?;
             cleanup_outward.extend(arm_cases.cleanup.iter().copied());
             arm_non_cleanup.extend(arm_cases.non_cleanup.iter().copied());
 
@@ -731,7 +763,10 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             .collect::<BTreeSet<_>>();
         cleanup_outward.extend(finally_cases.total_tags());
 
-        let classification = if body_outward.is_empty() && arm_non_cleanup.is_empty() && cleanup_outward.is_empty() {
+        let classification = if body_outward.is_empty()
+            && arm_non_cleanup.is_empty()
+            && cleanup_outward.is_empty()
+        {
             NestedHandleClassification::SelfContained
         } else {
             NestedHandleClassification::MaySuspendOutward
@@ -763,10 +798,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             .iter()
             .map(|arg| operand_ty(self.body(), types, &arg.value))
             .collect::<Vec<_>>();
-        let invoke_args_tuple_ty = canonical_tuple_carrier_ty(
-            types,
-            &arg_tys,
-        );
+        let invoke_args_tuple_ty = canonical_tuple_carrier_ty(types, &arg_tys);
         let result_ty = self.body().locals[result_local.as_u32() as usize].ty;
         match kind {
             CallKind::Direct { callee_fqn } => self.build_direct_like_call_site(
@@ -789,23 +821,22 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             ),
             CallKind::FunValue { callee } => {
                 let callee_ty = operand_ty(self.body(), types, callee);
-                let (step_schema, resolved_cases) = if let Some(contract) =
-                    function_surface_contract_from_ty(types, callee_ty)
-                {
-                    let schema = self.schema_pool.intern_synthetic_step_schema(
-                        types,
-                        invoke_args_tuple_ty,
-                        result_ty,
-                        &contract.declared_row,
-                        SyntheticStepSchemaKind::CallSurface,
-                    )?;
-                    (schema, self.schema_pool.full_case_set(schema))
-                } else {
-                    (
-                        self.callable_step_schema,
-                        self.schema_pool.full_case_set(self.callable_step_schema),
-                    )
-                };
+                let (step_schema, resolved_cases) =
+                    if let Some(contract) = function_surface_contract_from_ty(types, callee_ty) {
+                        let schema = self.schema_pool.intern_synthetic_step_schema(
+                            types,
+                            invoke_args_tuple_ty,
+                            result_ty,
+                            &contract.declared_row,
+                            SyntheticStepSchemaKind::CallSurface,
+                        )?;
+                        (schema, self.schema_pool.full_case_set(schema))
+                    } else {
+                        (
+                            self.callable_step_schema,
+                            self.schema_pool.full_case_set(self.callable_step_schema),
+                        )
+                    };
                 Ok(CallSiteEffectFacts::new(
                     CallSiteKind::FunValue,
                     CallSiteTarget::DynamicFallback,
@@ -861,7 +892,9 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         result_ty: TypeId,
         receiver_ty: Option<TypeId>,
     ) -> Result<CallSiteEffectFacts, EffectFactsError> {
-        if let Some(target_key) = self.known_callable_key(callable_fqn, explicit_arg_count, receiver_ty.is_some()) {
+        if let Some(target_key) =
+            self.known_callable_key(callable_fqn, explicit_arg_count, receiver_ty.is_some())
+        {
             if let Some(facts) = self.callable_facts.get(&target_key) {
                 return Ok(CallSiteEffectFacts::new(
                     kind,
@@ -929,35 +962,38 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         result_ty: TypeId,
         receiver_ty: Option<TypeId>,
     ) -> Result<CallSiteEffectFacts, EffectFactsError> {
-        let candidate_keys = self.resolve_candidate_keys(candidate_fqns, explicit_arg_count, receiver_ty.is_some());
+        let candidate_keys =
+            self.resolve_candidate_keys(candidate_fqns, explicit_arg_count, receiver_ty.is_some());
         if let [single] = candidate_keys.as_slice() {
-            return self.build_direct_like_call_site(
-                types,
-                kind,
-                candidate_fqns
-                    .first()
-                    .map(String::as_str)
-                    .unwrap_or(fallback_fqn),
-                explicit_arg_count,
-                invoke_args_tuple_ty,
-                result_ty,
-                receiver_ty,
-            )
-            .map(|facts| match facts.target() {
-                CallSiteTarget::KnownInstance(_) => facts,
-                _ => CallSiteEffectFacts::new(
+            return self
+                .build_direct_like_call_site(
+                    types,
                     kind,
-                    CallSiteTarget::KnownInstance(single.clone()),
-                    facts.invoke_args_tuple_ty(),
-                    facts.callee_schema(),
-                    facts.resolved_cases().clone(),
-                    facts.precision(),
-                ),
-            });
+                    candidate_fqns
+                        .first()
+                        .map(String::as_str)
+                        .unwrap_or(fallback_fqn),
+                    explicit_arg_count,
+                    invoke_args_tuple_ty,
+                    result_ty,
+                    receiver_ty,
+                )
+                .map(|facts| match facts.target() {
+                    CallSiteTarget::KnownInstance(_) => facts,
+                    _ => CallSiteEffectFacts::new(
+                        kind,
+                        CallSiteTarget::KnownInstance(single.clone()),
+                        facts.invoke_args_tuple_ty(),
+                        facts.callee_schema(),
+                        facts.resolved_cases().clone(),
+                        facts.precision(),
+                    ),
+                });
         }
 
         if !candidate_keys.is_empty() {
-            let declared_row = self.union_candidate_rows(types, candidate_fqns, explicit_arg_count, receiver_ty)?;
+            let declared_row =
+                self.union_candidate_rows(types, candidate_fqns, explicit_arg_count, receiver_ty)?;
             let step_schema = self.schema_pool.intern_synthetic_step_schema(
                 types,
                 invoke_args_tuple_ty,
@@ -996,7 +1032,8 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         let mut terms = Vec::new();
         let mut saw_any = false;
         for fqn in candidate_fqns {
-            if let Some(key) = self.known_callable_key(fqn, explicit_arg_count, receiver_ty.is_some())
+            if let Some(key) =
+                self.known_callable_key(fqn, explicit_arg_count, receiver_ty.is_some())
                 && let Some(facts) = self.callable_facts.get(&key)
             {
                 terms.extend(facts.declared_row().terms.iter().copied());
@@ -1026,8 +1063,11 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             .get(callable_fqn)
             .cloned()
             .or_else(|| {
-                self.type_ctx
-                    .known_callable_instance_key(callable_fqn, explicit_arg_count, has_receiver)
+                self.type_ctx.known_callable_instance_key(
+                    callable_fqn,
+                    explicit_arg_count,
+                    has_receiver,
+                )
             })
     }
 
@@ -1212,7 +1252,8 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
 
         for seed in &callable_seeds {
             let step_schema_id = schema_pool.intern_callable_step_schema(types, seed)?;
-            let invoke_args_tuple_ty = canonical_tuple_carrier_ty(types, &seed.invoke_arg_components);
+            let invoke_args_tuple_ty =
+                canonical_tuple_carrier_ty(types, &seed.invoke_arg_components);
             let resolved_outward_cases = schema_pool.full_case_set(step_schema_id);
             let needs_reentry = !resolved_outward_cases.is_empty();
             let impl_plan = match resolved_outward_cases.tags() {
@@ -1503,7 +1544,6 @@ fn collect_callable_seeds(
         }
         let root_fun = family
             .root_body()
-            .or_else(|| raw_fun_decl(&materialized.file, family.root_fqn()))
             .ok_or_else(|| EffectFactsError::MissingCallableRoot {
                 fqn: family.root_fqn().to_string(),
             })?;
@@ -1530,13 +1570,6 @@ fn template_decl_is_effect_op(index: &Index, template: &TemplateKey) -> bool {
 
 fn template_decl_is_compiler_owned_resume(template: &TemplateKey) -> bool {
     template.fqn == "scoop.core.Continuation.resume"
-}
-
-fn raw_fun_decl<'a>(file: &'a MirFile, fqn: &str) -> Option<&'a MirFunDecl> {
-    file.items.iter().find_map(|item| match item {
-        MirItem::Fun(fun) if fun.fqn == fqn => Some(fun),
-        MirItem::Fun(_) | MirItem::Todo { .. } => None,
-    })
 }
 
 fn declared_effect_row(fun: &MirFunDecl, types: &TypeStore) -> EffectRow {
@@ -1783,7 +1816,9 @@ fn collect_direct_subclasses_in_object_decl(
                 collect_direct_subclasses_in_type_decl(source, file, nested, &obj_fqn, index, out);
             }
             ast::TypeMember::Object(nested_obj) => {
-                collect_direct_subclasses_in_object_decl(source, file, nested_obj, &obj_fqn, index, out);
+                collect_direct_subclasses_in_object_decl(
+                    source, file, nested_obj, &obj_fqn, index, out,
+                );
             }
             ast::TypeMember::EnumVariant(_)
             | ast::TypeMember::Property(_)
@@ -1854,7 +1889,12 @@ fn synthetic_continuation_object_ty(
 }
 
 fn handle_total_outward_tags(facts: &HandleSiteEffectFacts) -> BTreeSet<CaseTag> {
-    let mut tags = facts.body_outward_cases().tags().iter().copied().collect::<BTreeSet<_>>();
+    let mut tags = facts
+        .body_outward_cases()
+        .tags()
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
     for arm in facts.arm_facts() {
         tags.extend(arm.arm_outward_cases().tags().iter().copied());
     }
@@ -1988,7 +2028,9 @@ fun exercise(k: scoop.core.Continuation<Unit, Unit, eff Pure>): Unit / (Flag + s
             .callable_facts()
             .iter()
             .find(|(key, _)| key.template.fqn == fqn || key.template.fqn.ends_with(fqn))
-            .unwrap_or_else(|| panic!("fixture callable 应在 facts 中可见: {fqn}; available={available:?}"))
+            .unwrap_or_else(|| {
+                panic!("fixture callable 应在 facts 中可见: {fqn}; available={available:?}")
+            })
     }
 
     #[test]
@@ -2273,5 +2315,4 @@ fun exercise(k: scoop.core.Continuation<Unit, Unit, eff Pure>): Unit / (Flag + s
             types.display(int_cont_ty).to_string()
         );
     }
-
 }

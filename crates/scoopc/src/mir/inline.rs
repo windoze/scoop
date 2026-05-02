@@ -2,9 +2,9 @@
 //!
 //! This pass is deliberately conservative: callee eligibility still comes from pass-visible
 //! monomorphic callable roots, and it only inlines small, non-recursive, body-known straight-line
-//! direct calls. Caller-side rewrites may also publish request-root reachable non-generic bodies,
-//! but only after a pass actually changes them and the rewritten MIR stays inside the currently
-//! supported production pass-body subset.
+//! direct calls. Canonical `MaterializedMirPassView` now also publishes request-root reachable
+//! ordinary non-generic bodies up front, so caller-side rewrites can update them under the same
+//! stable `InstanceKey -> family -> body` query surface.
 
 use std::collections::{HashMap, HashSet};
 
@@ -1165,7 +1165,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn caller_side_inlining_publishes_only_rewritten_non_generic_body() {
+    fn caller_side_inlining_keeps_non_generic_pass_roots_visible() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<mem>/mir_inline_non_generic_caller.scoop",
@@ -1202,8 +1202,8 @@ fun main(): Int {
         let pass_view = materialized.pass_view();
 
         assert!(
-            pass_view.owner_of_callable(caller_fqn).is_none(),
-            "non-generic caller 不应被伪装成某个 materialized instance family"
+            pass_view.owner_of_callable(caller_fqn).is_some(),
+            "canonical pass view 应为 ordinary non-generic caller 发布稳定 owner"
         );
         let pass_caller = pass_view
             .callable(caller_fqn)
@@ -1217,8 +1217,8 @@ fun main(): Int {
             "迭代 inlining 后 caller pass body 不应继续保留 wrap 内部的 id 调用"
         );
         assert!(
-            pass_view.callable(stable_fqn).is_none(),
-            "未被 pass 改写的 non-generic body 不应无条件进入 pass view"
+            pass_view.callable(stable_fqn).is_some(),
+            "ordinary non-generic body 应在 canonical pass view 上正式发布"
         );
         assert!(
             !pass_view.callable_body_is_overridden(stable_fqn),

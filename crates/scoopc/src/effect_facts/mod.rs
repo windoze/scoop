@@ -14,9 +14,8 @@ pub use dump::render_materialized_effect_facts;
 pub use facts::{
     BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteKind, CallSiteTarget,
     CallTargetMode, CallableEffectFacts, CanonicalMirQuerySurface, EffectPrecision,
-    HandleArmEffectFacts, HandleSiteEffectFacts, MaterializedEffectFacts,
-    NestedHandleClassification, MirSnapshotBinding, PerformSiteEffectFacts,
-    ResumeSiteEffectFacts, SiteEffectFacts,
+    HandleArmEffectFacts, HandleSiteEffectFacts, MaterializedEffectFacts, MirSnapshotBinding,
+    NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
 };
 pub use schema::{
     CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId, ImplPlan,
