@@ -33,17 +33,41 @@ use super::{
 /// 目标：
 /// - 把 HIR/typecheck 已确认的调用语义收口成 MIR lowering 可直接查询的 backend-agnostic 输入；
 /// - 避免 MIR 阶段重新回到 LLVM vtable/itable 细节或 `Continuation.resume` 名字推断。
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MirSiteContractSource {
+    LegacyFallbacks,
+    RefactorTyped,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct MirLoweringFacts {
+    site_contract_source: MirSiteContractSource,
     dispatch_call_sites: HashMap<hir::DispatchCallSite, DispatchTargetKind>,
-    continuation_resume_call_spans: HashSet<Span>,
-    non_pure_continuation_resume_call_spans: HashSet<Span>,
-    effect_op_call_sites: HashMap<Span, PerformCallSiteInfo>,
+    legacy_resume_site_spans: HashSet<Span>,
+    legacy_outward_resume_site_spans: HashSet<Span>,
+    legacy_perform_sites: HashMap<Span, PerformCallSiteInfo>,
     refactor_resume_sites: HashMap<hir::CallSite, ResumeMetadata>,
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
+}
+
+impl Default for MirLoweringFacts {
+    fn default() -> Self {
+        Self {
+            site_contract_source: MirSiteContractSource::LegacyFallbacks,
+            dispatch_call_sites: HashMap::new(),
+            legacy_resume_site_spans: HashSet::new(),
+            legacy_outward_resume_site_spans: HashSet::new(),
+            legacy_perform_sites: HashMap::new(),
+            refactor_resume_sites: HashMap::new(),
+            refactor_perform_sites: HashMap::new(),
+            refactor_handle_sites: HashMap::new(),
+            when_pat_binding_tys: HashMap::new(),
+            top_level_fun_call_sites: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,10 +106,37 @@ impl MirLoweringFacts {
         )
     }
 
+    pub(crate) fn from_refactor_typed_handoff(
+        lowered: &hir::LoweredHir,
+        contracts: &TypedHirEffectContracts,
+    ) -> Self {
+        let mut facts = Self::default();
+
+        for (site, kind) in &lowered.dispatch_call_sites {
+            facts.dispatch_call_sites.insert(
+                site.clone(),
+                match kind {
+                    hir::DispatchCallKind::Virtual => DispatchTargetKind::Virtual,
+                    hir::DispatchCallKind::Interface => DispatchTargetKind::Interface,
+                },
+            );
+        }
+
+        for (site, ty) in &lowered.when_pat_binding_tys {
+            facts.when_pat_binding_tys.insert(site.decl_span, *ty);
+        }
+
+        facts
+            .top_level_fun_call_sites
+            .extend(lowered.top_level_fun_call_sites.clone());
+
+        facts.with_refactor_typed_contracts(contracts)
+    }
+
     pub(crate) fn from_hir_side_tables_and_resume_spans(
         dispatch_call_sites: &hir::DispatchCallSiteIndex,
-        continuation_resume_call_spans: impl IntoIterator<Item = Span>,
-        non_pure_continuation_resume_call_spans: impl IntoIterator<Item = Span>,
+        legacy_resume_site_spans: impl IntoIterator<Item = Span>,
+        legacy_outward_resume_site_spans: impl IntoIterator<Item = Span>,
         effect_op_call_sites: &hir::EffectOpCallSiteIndex,
         when_pat_binding_tys: &hir::WhenPatBindingTypeIndex,
         top_level_fun_call_sites: &hir::TopLevelFunCallSiteIndex,
@@ -102,10 +153,9 @@ impl MirLoweringFacts {
             );
         }
 
-        facts.continuation_resume_call_spans = continuation_resume_call_spans.into_iter().collect();
-        facts.non_pure_continuation_resume_call_spans = non_pure_continuation_resume_call_spans
-            .into_iter()
-            .collect();
+        facts.legacy_resume_site_spans = legacy_resume_site_spans.into_iter().collect();
+        facts.legacy_outward_resume_site_spans =
+            legacy_outward_resume_site_spans.into_iter().collect();
         facts.with_hir_side_tables(
             effect_op_call_sites,
             when_pat_binding_tys,
@@ -120,7 +170,7 @@ impl MirLoweringFacts {
         top_level_fun_call_sites: &hir::TopLevelFunCallSiteIndex,
     ) -> Self {
         for (site, info) in effect_op_call_sites {
-            self.effect_op_call_sites.insert(
+            self.legacy_perform_sites.insert(
                 site.span,
                 PerformCallSiteInfo {
                     arg_mapping: info.arg_mapping.clone(),
@@ -143,6 +193,14 @@ impl MirLoweringFacts {
         mut self,
         contracts: &TypedHirEffectContracts,
     ) -> Self {
+        self.site_contract_source = MirSiteContractSource::RefactorTyped;
+        self.legacy_resume_site_spans.clear();
+        self.legacy_outward_resume_site_spans.clear();
+        self.legacy_perform_sites.clear();
+        self.refactor_resume_sites.clear();
+        self.refactor_perform_sites.clear();
+        self.refactor_handle_sites.clear();
+
         for (call_site, contract) in contracts.continuation_resume_sites() {
             self.refactor_resume_sites.insert(
                 call_site.clone(),
@@ -205,6 +263,10 @@ impl MirLoweringFacts {
         self
     }
 
+    fn uses_refactor_typed_contracts(&self) -> bool {
+        self.site_contract_source == MirSiteContractSource::RefactorTyped
+    }
+
     fn dispatch_target_kind(
         &self,
         source_path: &std::path::Path,
@@ -229,16 +291,16 @@ impl MirLoweringFacts {
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
-    fn is_continuation_resume_call(&self, span: Span) -> bool {
-        self.continuation_resume_call_spans.contains(&span)
+    fn legacy_resume_site_matches(&self, span: Span) -> bool {
+        self.legacy_resume_site_spans.contains(&span)
     }
 
-    fn continuation_resume_suspends_outward(&self, span: Span) -> bool {
-        self.non_pure_continuation_resume_call_spans.contains(&span)
+    fn legacy_resume_site_suspends_outward(&self, span: Span) -> bool {
+        self.legacy_outward_resume_site_spans.contains(&span)
     }
 
-    fn perform_call_site_info(&self, span: Span) -> Option<&PerformCallSiteInfo> {
-        self.effect_op_call_sites.get(&span)
+    fn legacy_perform_site_info(&self, span: Span) -> Option<&PerformCallSiteInfo> {
+        self.legacy_perform_sites.get(&span)
     }
 
     fn refactor_resume_metadata(
@@ -1348,7 +1410,7 @@ impl<'a> FnLowering<'a> {
         &mut self,
         span: Span,
         lowered_args: Vec<CallArg>,
-    ) -> (Vec<PerformArg>, PerformMetadata) {
+    ) -> Option<(Vec<PerformArg>, PerformMetadata)> {
         if let Some(metadata) = self
             .facts
             .refactor_perform_metadata(self.source_path.as_path(), span)
@@ -1372,10 +1434,14 @@ impl<'a> FnLowering<'a> {
                     value: arg.value.clone(),
                 })
                 .collect::<Vec<_>>();
-            return (perform_args, metadata);
+            return Some((perform_args, metadata));
         }
 
-        let info = self.facts.perform_call_site_info(span);
+        if self.facts.uses_refactor_typed_contracts() {
+            return None;
+        }
+
+        let info = self.facts.legacy_perform_site_info(span);
         let arg_mapping = info
             .map(|site| site.arg_mapping.as_slice())
             .filter(|mapping| mapping.iter().all(|idx| *idx < lowered_args.len()))
@@ -1410,7 +1476,7 @@ impl<'a> FnLowering<'a> {
             .map(|arg| self.operand_ty(&arg.value))
             .collect();
 
-        (
+        Some((
             perform_args,
             PerformMetadata {
                 effect_ty: self.builtins.any,
@@ -1418,7 +1484,7 @@ impl<'a> FnLowering<'a> {
                 payload_component_tys,
                 arg_mapping,
             },
-        )
+        ))
     }
 
     fn lower_call_expr(
@@ -1439,7 +1505,9 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
-        if self.facts.is_continuation_resume_call(span) {
+        if !self.facts.uses_refactor_typed_contracts()
+            && self.facts.legacy_resume_site_matches(span)
+        {
             self.lower_resume_call_expr(span, result, callee, args, None);
             return result;
         }
@@ -1519,13 +1587,21 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
                 let Some((hir::CallArg::Positional(receiver), payload_args)) = args.split_first()
                 else {
-                    self.assign(span, result, Rvalue::Todo("resume callee lowering pending"));
+                    self.assign(
+                        span,
+                        result,
+                        Rvalue::Todo("resume lowering requires canonical callee shape"),
+                    );
                     return;
                 };
                 (receiver, payload_args)
             }
             _ => {
-                self.assign(span, result, Rvalue::Todo("resume callee lowering pending"));
+                self.assign(
+                    span,
+                    result,
+                    Rvalue::Todo("resume lowering requires canonical callee shape"),
+                );
                 return;
             }
         };
@@ -1553,7 +1629,7 @@ impl<'a> FnLowering<'a> {
                 out_effects: out_effects.clone(),
                 runtime_error_effect_ty: find_raise_runtime_error_effect(self.types),
                 suspends_outward: !out_effects.is_pure()
-                    || self.facts.continuation_resume_suspends_outward(span),
+                    || self.facts.legacy_resume_site_suspends_outward(span),
             }
         });
         let site_id = self.fresh_site_id();
@@ -1689,7 +1765,21 @@ impl<'a> FnLowering<'a> {
             return self.push_temp_local(span, ty);
         }
 
-        let (perform_args, mut metadata) = self.canonicalize_perform_args(span, lowered_args);
+        let Some((perform_args, mut metadata)) = self.canonicalize_perform_args(span, lowered_args)
+        else {
+            let result = self.push_temp_local(span, ty);
+            self.assign(
+                span,
+                result,
+                Rvalue::Todo("refactor perform contract missing"),
+            );
+            self.set_terminator(
+                self.current_bb,
+                span,
+                TerminatorKind::Todo("refactor perform contract missing"),
+            );
+            return result;
+        };
         metadata.effect_ty = effect_ty;
 
         let result = self.push_temp_local(span, ty);
@@ -1730,14 +1820,32 @@ impl<'a> FnLowering<'a> {
         let outer_bb = self.current_bb;
 
         let result = self.push_temp_local(span, ty);
-        self.assign(span, result, Rvalue::Todo("handle result pending"));
-
-        let (metadata, arms) = self
+        let refactor_handle_site = self
             .facts
             .refactor_handle_site_info(self.source_path.as_path(), span)
-            .cloned()
-            .map(|site| (site.metadata, site.arms))
-            .unwrap_or_else(|| self.lower_handle_contract_from_hir(ty, handle));
+            .cloned();
+        let handle_contract = if let Some(site) = refactor_handle_site {
+            Some((site.metadata, site.arms))
+        } else if self.facts.uses_refactor_typed_contracts() {
+            None
+        } else {
+            Some(self.lower_handle_contract_from_hir(ty, handle))
+        };
+        let Some((metadata, arms)) = handle_contract else {
+            self.assign(
+                span,
+                result,
+                Rvalue::Todo("refactor handle contract missing"),
+            );
+            self.set_terminator(
+                outer_bb,
+                span,
+                TerminatorKind::Todo("refactor handle contract missing"),
+            );
+            return result;
+        };
+
+        self.assign(span, result, Rvalue::Todo("handle result pending"));
 
         let body_bb = self.push_block(handle.body.span);
         let arm_bbs = handle
@@ -2611,9 +2719,41 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::effect_refactor_pipeline::TypedHirEffectContracts;
     use crate::session::Session;
     use crate::source::SourceFile;
     use std::path::PathBuf;
+
+    #[test]
+    fn refactor_typed_contracts_clear_legacy_resume_and_perform_fallbacks() {
+        let span = Span::new(1, 2);
+        let legacy_effect_sites = std::iter::once((
+            hir::CallSite::new(PathBuf::from("fixtures/mir_lower_facts.scoop"), span),
+            hir::EffectOpCallInfo {
+                arg_mapping: vec![0],
+                payload_tuple_ty: None,
+            },
+        ))
+        .collect::<hir::EffectOpCallSiteIndex>();
+        let dispatch_sites = hir::DispatchCallSiteIndex::default();
+        let when_pat_binding_tys = hir::WhenPatBindingTypeIndex::default();
+        let top_level_fun_call_sites = hir::TopLevelFunCallSiteIndex::default();
+
+        let facts = MirLoweringFacts::from_hir_side_tables_and_resume_spans(
+            &dispatch_sites,
+            [span],
+            [span],
+            &legacy_effect_sites,
+            &when_pat_binding_tys,
+            &top_level_fun_call_sites,
+        )
+        .with_refactor_typed_contracts(&TypedHirEffectContracts::default());
+
+        assert!(facts.uses_refactor_typed_contracts());
+        assert!(!facts.legacy_resume_site_matches(span));
+        assert!(!facts.legacy_resume_site_suspends_outward(span));
+        assert!(facts.legacy_perform_site_info(span).is_none());
+    }
 
     #[test]
     fn dump_mir_emits_type_body_generic_member_fun_roots() {

@@ -100,8 +100,10 @@ fn collect_callable_body_indices(file: &MirFile) -> BTreeMap<String, usize> {
 pub(crate) fn run(
     typed_hir_output: TypedHirStageOutput,
 ) -> Result<RefactorMirStageOutput, MirLowerError> {
-    let facts = MirLoweringFacts::from_lowered_hir(typed_hir_output.lowered_hir())
-        .with_refactor_typed_contracts(typed_hir_output.effect_contracts());
+    let facts = MirLoweringFacts::from_refactor_typed_handoff(
+        typed_hir_output.lowered_hir(),
+        typed_hir_output.effect_contracts(),
+    );
     let effect_contracts = typed_hir_output.effect_contracts().clone();
     let mut lowered_hir = typed_hir_output.into_lowered_hir();
     let builtins = lowered_hir.types.intern_builtins();
