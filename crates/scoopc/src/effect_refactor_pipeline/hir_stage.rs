@@ -1,13 +1,16 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::path::Path;
 
 use crate::hir::{
-    CallArg, CallSite, Expr, ExprKind, FunDecl, HirLowerError, Item, LoweredHir, Stmt, StmtKind,
-    ValueRef,
+    CallArg, CallSite, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError, Item, LoweredHir,
+    Stmt, StmtKind, ValueRef,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
-use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::span::Span;
+use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 /// 单个 `Continuation.resume(...)` 调用点的 typed contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,7 +20,7 @@ pub struct ContinuationResumeSiteContract {
     answer_ty: TypeId,
     return_ty: TypeId,
     out_effects: EffectRow,
-    includes_runtime_error_effect: bool,
+    runtime_error_effect_ty: Option<TypeId>,
 }
 
 impl ContinuationResumeSiteContract {
@@ -27,6 +30,7 @@ impl ContinuationResumeSiteContract {
         answer_ty: TypeId,
         return_ty: TypeId,
         out_effects: EffectRow,
+        runtime_error_effect_ty: Option<TypeId>,
     ) -> Self {
         Self {
             receiver_ty,
@@ -34,7 +38,7 @@ impl ContinuationResumeSiteContract {
             answer_ty,
             return_ty,
             out_effects,
-            includes_runtime_error_effect: true,
+            runtime_error_effect_ty,
         }
     }
 
@@ -58,41 +62,262 @@ impl ContinuationResumeSiteContract {
         &self.out_effects
     }
 
-    pub fn required_effects_include_runtime_error(&self) -> bool {
-        self.includes_runtime_error_effect
+    pub fn runtime_error_effect_ty(&self) -> Option<TypeId> {
+        self.runtime_error_effect_ty
     }
+
+    pub fn required_effects_include_runtime_error(&self) -> bool {
+        self.runtime_error_effect_ty.is_some()
+    }
+}
+
+/// 单个函数在 typed HIR stage 中对外暴露的 allowed-row / required-effects contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionEffectContract {
+    span: Span,
+    fqn: String,
+    return_ty: TypeId,
+    allowed_effects: EffectRow,
+    effects_closed: bool,
+}
+
+impl FunctionEffectContract {
+    fn new(
+        span: Span,
+        fqn: String,
+        return_ty: TypeId,
+        allowed_effects: EffectRow,
+        effects_closed: bool,
+    ) -> Self {
+        Self {
+            span,
+            fqn,
+            return_ty,
+            allowed_effects,
+            effects_closed,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn fqn(&self) -> &str {
+        &self.fqn
+    }
+
+    pub fn return_ty(&self) -> TypeId {
+        self.return_ty
+    }
+
+    pub fn allowed_effects(&self) -> &EffectRow {
+        &self.allowed_effects
+    }
+
+    pub fn effects_closed(&self) -> bool {
+        self.effects_closed
+    }
+}
+
+/// `perform` / `handle` payload 的结构化 typed contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PayloadTypeContract {
+    ty: Option<TypeId>,
+    components: Vec<TypeId>,
+}
+
+impl PayloadTypeContract {
+    fn new(ty: Option<TypeId>, components: Vec<TypeId>) -> Self {
+        Self { ty, components }
+    }
+
+    pub fn ty(&self) -> Option<TypeId> {
+        self.ty
+    }
+
+    pub fn components(&self) -> &[TypeId] {
+        &self.components
+    }
+
+    fn display(&self, types: &TypeStore) -> String {
+        if let Some(ty) = self.ty {
+            return types.display(ty).to_string();
+        }
+
+        if self.components.is_empty() {
+            return "<missing>".to_string();
+        }
+
+        let mut rendered = String::from("(");
+        for (index, ty) in self.components.iter().enumerate() {
+            if index > 0 {
+                rendered.push_str(", ");
+            }
+            rendered.push_str(&types.display(*ty).to_string());
+        }
+        rendered.push(')');
+        rendered
+    }
+}
+
+/// 单个 `perform` 站点的 typed contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PerformSiteContract {
+    effect_ty: TypeId,
+    op_fqn: String,
+    payload: PayloadTypeContract,
+    arg_mapping: Vec<usize>,
+}
+
+impl PerformSiteContract {
+    fn new(
+        effect_ty: TypeId,
+        op_fqn: String,
+        payload: PayloadTypeContract,
+        arg_mapping: Vec<usize>,
+    ) -> Self {
+        Self {
+            effect_ty,
+            op_fqn,
+            payload,
+            arg_mapping,
+        }
+    }
+
+    pub fn effect_ty(&self) -> TypeId {
+        self.effect_ty
+    }
+
+    pub fn op_fqn(&self) -> &str {
+        &self.op_fqn
+    }
+
+    pub fn payload(&self) -> &PayloadTypeContract {
+        &self.payload
+    }
+
+    pub fn arg_mapping(&self) -> &[usize] {
+        &self.arg_mapping
+    }
+}
+
+/// `handle` arm 的语义 kind 在 typed HIR contract 中的稳定枚举。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandleArmContractKind {
+    NonResuming,
+    EscapeContinuation,
+}
+
+/// 单个 `handle` arm 的 typed contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandleArmSiteContract {
+    handled_effect_ty: TypeId,
+    op_fqn: String,
+    payload: PayloadTypeContract,
+    body_ty: TypeId,
+    kind: HandleArmContractKind,
+}
+
+impl HandleArmSiteContract {
+    fn new(
+        handled_effect_ty: TypeId,
+        op_fqn: String,
+        payload: PayloadTypeContract,
+        body_ty: TypeId,
+        kind: HandleArmContractKind,
+    ) -> Self {
+        Self {
+            handled_effect_ty,
+            op_fqn,
+            payload,
+            body_ty,
+            kind,
+        }
+    }
+
+    pub fn handled_effect_ty(&self) -> TypeId {
+        self.handled_effect_ty
+    }
+
+    pub fn op_fqn(&self) -> &str {
+        &self.op_fqn
+    }
+
+    pub fn payload(&self) -> &PayloadTypeContract {
+        &self.payload
+    }
+
+    pub fn body_ty(&self) -> TypeId {
+        self.body_ty
+    }
+
+    pub fn kind(&self) -> HandleArmContractKind {
+        self.kind
+    }
+}
+
+/// 单个 `handle { ... } with { ... }` 站点的 typed contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandleSiteContract {
+    result_ty: TypeId,
+    body_result_ty: TypeId,
+    arm_contracts: Vec<HandleArmSiteContract>,
+    finally_result_ty: Option<TypeId>,
+}
+
+impl HandleSiteContract {
+    fn new(
+        result_ty: TypeId,
+        body_result_ty: TypeId,
+        arm_contracts: Vec<HandleArmSiteContract>,
+        finally_result_ty: Option<TypeId>,
+    ) -> Self {
+        Self {
+            result_ty,
+            body_result_ty,
+            arm_contracts,
+            finally_result_ty,
+        }
+    }
+
+    pub fn result_ty(&self) -> TypeId {
+        self.result_ty
+    }
+
+    pub fn body_result_ty(&self) -> TypeId {
+        self.body_result_ty
+    }
+
+    pub fn arm_contracts(&self) -> &[HandleArmSiteContract] {
+        &self.arm_contracts
+    }
+
+    pub fn finally_result_ty(&self) -> Option<TypeId> {
+        self.finally_result_ty
+    }
+}
+
+/// P2 typed HIR 已显式区分出的调用点 kind。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypedCallSiteKind {
+    DirectCall,
+    ContinuationResume,
+    Perform,
 }
 
 /// refactor typed HIR stage 显式输出的 effect / continuation contract side tables。
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TypedHirEffectContracts {
+    function_effects: Vec<FunctionEffectContract>,
     continuation_resume_sites: HashMap<CallSite, ContinuationResumeSiteContract>,
+    perform_sites: HashMap<CallSite, PerformSiteContract>,
+    handle_sites: HashMap<CallSite, HandleSiteContract>,
+    call_site_kinds: HashMap<CallSite, TypedCallSiteKind>,
 }
 
 impl TypedHirEffectContracts {
     fn from_lowered_hir(lowered_hir: &LoweredHir, source_path: &Path) -> Self {
-        let mut continuation_resume_sites = HashMap::new();
-
-        for item in &lowered_hir.file.items {
-            collect_continuation_resume_contracts_in_item(
-                source_path,
-                item,
-                &lowered_hir.types,
-                &mut continuation_resume_sites,
-            );
-        }
-
-        for member_fun in &lowered_hir.member_funs {
-            collect_continuation_resume_contracts_in_fun(
-                member_fun,
-                &lowered_hir.types,
-                &mut continuation_resume_sites,
-            );
-        }
-
-        Self {
-            continuation_resume_sites,
-        }
+        ContractCollector::new(lowered_hir).collect(source_path)
     }
 
     pub const fn is_placeholder(&self) -> bool {
@@ -100,7 +325,15 @@ impl TypedHirEffectContracts {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.continuation_resume_sites.is_empty()
+        self.function_effects.is_empty()
+            && self.continuation_resume_sites.is_empty()
+            && self.perform_sites.is_empty()
+            && self.handle_sites.is_empty()
+            && self.call_site_kinds.is_empty()
+    }
+
+    pub fn function_effects(&self) -> &[FunctionEffectContract] {
+        &self.function_effects
     }
 
     pub fn continuation_resume_sites(&self) -> &HashMap<CallSite, ContinuationResumeSiteContract> {
@@ -113,6 +346,215 @@ impl TypedHirEffectContracts {
     ) -> Option<&ContinuationResumeSiteContract> {
         self.continuation_resume_sites.get(call_site)
     }
+
+    pub fn perform_sites(&self) -> &HashMap<CallSite, PerformSiteContract> {
+        &self.perform_sites
+    }
+
+    pub fn perform_site(&self, call_site: &CallSite) -> Option<&PerformSiteContract> {
+        self.perform_sites.get(call_site)
+    }
+
+    pub fn handle_sites(&self) -> &HashMap<CallSite, HandleSiteContract> {
+        &self.handle_sites
+    }
+
+    pub fn handle_site(&self, call_site: &CallSite) -> Option<&HandleSiteContract> {
+        self.handle_sites.get(call_site)
+    }
+
+    pub fn call_site_kinds(&self) -> &HashMap<CallSite, TypedCallSiteKind> {
+        &self.call_site_kinds
+    }
+
+    pub fn call_site_kind(&self, call_site: &CallSite) -> Option<TypedCallSiteKind> {
+        self.call_site_kinds.get(call_site).copied()
+    }
+
+    /// 以稳定顺序渲染 typed HIR side tables，供 `dump-hir` 与 snapshot tests 使用。
+    pub fn stable_dump(&self, types: &TypeStore) -> String {
+        let mut out = String::new();
+        let _ = writeln!(out, "TypedHirEffectContracts {{");
+
+        let _ = writeln!(out, "    function_effects: [");
+        for contract in &self.function_effects {
+            let _ = writeln!(out, "        FunctionEffectContract {{");
+            let _ = writeln!(out, "            span: {:?},", contract.span());
+            let _ = writeln!(out, "            fqn: {:?},", contract.fqn());
+            let _ = writeln!(
+                out,
+                "            return_ty: {},",
+                types.display(contract.return_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            allowed_effects: {},",
+                format_effect_row(types, contract.allowed_effects())
+            );
+            let _ = writeln!(
+                out,
+                "            effects_closed: {},",
+                contract.effects_closed()
+            );
+            let _ = writeln!(out, "        }},");
+        }
+        let _ = writeln!(out, "    ],");
+
+        let mut call_site_kinds = self.call_site_kinds.iter().collect::<Vec<_>>();
+        call_site_kinds.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let _ = writeln!(out, "    call_site_kinds: [");
+        for (call_site, kind) in call_site_kinds {
+            let _ = writeln!(out, "        TypedCallSiteContract {{");
+            let _ = writeln!(out, "            span: {:?},", call_site.span);
+            let _ = writeln!(out, "            kind: {:?},", kind);
+            let _ = writeln!(out, "        }},");
+        }
+        let _ = writeln!(out, "    ],");
+
+        let mut continuation_resume_sites =
+            self.continuation_resume_sites.iter().collect::<Vec<_>>();
+        continuation_resume_sites.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let _ = writeln!(out, "    continuation_resume_sites: [");
+        for (call_site, contract) in continuation_resume_sites {
+            let _ = writeln!(out, "        ContinuationResumeSiteContract {{");
+            let _ = writeln!(out, "            span: {:?},", call_site.span);
+            let _ = writeln!(
+                out,
+                "            receiver_ty: {},",
+                types.display(contract.receiver_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            resume_ty: {},",
+                types.display(contract.resume_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            answer_ty: {},",
+                types.display(contract.answer_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            return_ty: {},",
+                types.display(contract.return_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            out_effects: {},",
+                format_effect_row(types, contract.out_effects())
+            );
+            let _ = writeln!(
+                out,
+                "            required_effects: {},",
+                format_required_effects(
+                    types,
+                    contract.out_effects(),
+                    contract.runtime_error_effect_ty(),
+                )
+            );
+            let _ = writeln!(
+                out,
+                "            includes_runtime_error_effect: {},",
+                contract.required_effects_include_runtime_error()
+            );
+            let _ = writeln!(out, "        }},");
+        }
+        let _ = writeln!(out, "    ],");
+
+        let mut perform_sites = self.perform_sites.iter().collect::<Vec<_>>();
+        perform_sites.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let _ = writeln!(out, "    perform_sites: [");
+        for (call_site, contract) in perform_sites {
+            let _ = writeln!(out, "        PerformSiteContract {{");
+            let _ = writeln!(out, "            span: {:?},", call_site.span);
+            let _ = writeln!(
+                out,
+                "            effect_ty: {},",
+                types.display(contract.effect_ty())
+            );
+            let _ = writeln!(out, "            op_fqn: {:?},", contract.op_fqn());
+            let _ = writeln!(
+                out,
+                "            payload_ty: {},",
+                contract.payload().display(types)
+            );
+            let _ = writeln!(out, "            payload_components: [");
+            for ty in contract.payload().components() {
+                let _ = writeln!(out, "                {},", types.display(*ty));
+            }
+            let _ = writeln!(out, "            ],");
+            let _ = writeln!(
+                out,
+                "            arg_mapping: {:?},",
+                contract.arg_mapping()
+            );
+            let _ = writeln!(out, "        }},");
+        }
+        let _ = writeln!(out, "    ],");
+
+        let mut handle_sites = self.handle_sites.iter().collect::<Vec<_>>();
+        handle_sites.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let _ = writeln!(out, "    handle_sites: [");
+        for (call_site, contract) in handle_sites {
+            let _ = writeln!(out, "        HandleSiteContract {{");
+            let _ = writeln!(out, "            span: {:?},", call_site.span);
+            let _ = writeln!(
+                out,
+                "            result_ty: {},",
+                types.display(contract.result_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            body_result_ty: {},",
+                types.display(contract.body_result_ty())
+            );
+            let _ = writeln!(out, "            arm_contracts: [");
+            for arm in contract.arm_contracts() {
+                let _ = writeln!(out, "                HandleArmSiteContract {{");
+                let _ = writeln!(out, "                    op_fqn: {:?},", arm.op_fqn());
+                let _ = writeln!(
+                    out,
+                    "                    handled_effect_ty: {},",
+                    types.display(arm.handled_effect_ty())
+                );
+                let _ = writeln!(
+                    out,
+                    "                    payload_ty: {},",
+                    arm.payload().display(types)
+                );
+                let _ = writeln!(out, "                    payload_components: [");
+                for ty in arm.payload().components() {
+                    let _ = writeln!(out, "                        {},", types.display(*ty));
+                }
+                let _ = writeln!(out, "                    ],");
+                let _ = writeln!(
+                    out,
+                    "                    body_ty: {},",
+                    types.display(arm.body_ty())
+                );
+                let _ = writeln!(out, "                    kind: {:?},", arm.kind());
+                let _ = writeln!(out, "                }},");
+            }
+            let _ = writeln!(out, "            ],");
+            match contract.finally_result_ty() {
+                Some(finally_ty) => {
+                    let _ = writeln!(
+                        out,
+                        "            finally_result_ty: Some({}),",
+                        types.display(finally_ty)
+                    );
+                }
+                None => {
+                    let _ = writeln!(out, "            finally_result_ty: None,");
+                }
+            }
+            let _ = writeln!(out, "        }},");
+        }
+        let _ = writeln!(out, "    ],");
+
+        let _ = write!(out, "}}");
+        out
+    }
 }
 
 /// refactor typed HIR stage 的稳定输出形状。
@@ -123,9 +565,10 @@ impl TypedHirEffectContracts {
 ///   下游不应再回 AST 猜测 surface 语义；
 /// - `dump-hir` 的 refactor 路径必须优先消费这一 stage 输出，而不是 legacy
 ///   `hir::lower_for_dump(...)`；
-/// - `effect_contracts` 现在显式输出 `Continuation.resume(...)` 的 typed contract，至少固定
-///   `ResumeTuple` / `Answer` / `Out` 与 `Raise<RuntimeError>` ordinary effect 约束，供后续阶段
-///   直接消费。
+/// - `effect_contracts` 现在显式输出函数级 allowed-row contract，以及 `Continuation.resume(...)` /
+///   `perform` / `handle` 的结构化 typed contract，固定 `ResumeTuple` / `Answer` / `Out`、
+///   runtime error ordinary effect 贡献、performed effect/payload、以及 handler arm typed 关系，
+///   供后续阶段直接消费。
 #[derive(Debug)]
 pub struct TypedHirStageOutput {
     lowered_hir: LoweredHir,
@@ -157,6 +600,15 @@ impl TypedHirStageOutput {
         &self.effect_contracts
     }
 
+    /// 以稳定文本渲染 refactor typed HIR dump：先打印 HIR `File`，再追加 typed side tables。
+    pub fn stable_dump(&self) -> String {
+        let mut out = format!("{:#?}\n", self.hir_file());
+        out.push('\n');
+        out.push_str(&self.effect_contracts.stable_dump(self.types()));
+        out.push('\n');
+        out
+    }
+
     pub fn into_lowered_hir(self) -> LoweredHir {
         self.lowered_hir
     }
@@ -170,243 +622,395 @@ pub(crate) fn run(
     Ok(TypedHirStageOutput::new(lowered_hir, source.path()))
 }
 
-fn collect_continuation_resume_contracts_in_item(
-    source_path: &Path,
-    item: &Item,
-    types: &TypeStore,
-    out: &mut HashMap<CallSite, ContinuationResumeSiteContract>,
-) {
-    match item {
-        Item::Fun(fun) => collect_continuation_resume_contracts_in_fun(fun, types, out),
-        Item::Val(val) => {
-            if let Some(init) = &val.init {
-                collect_continuation_resume_contracts_in_expr(source_path, init, types, out);
-            }
-        }
-        Item::Todo { .. } => {}
-    }
+struct ContractCollector<'a> {
+    lowered_hir: &'a LoweredHir,
+    runtime_error_effect_ty: Option<TypeId>,
+    function_effects: Vec<FunctionEffectContract>,
+    continuation_resume_sites: HashMap<CallSite, ContinuationResumeSiteContract>,
+    perform_sites: HashMap<CallSite, PerformSiteContract>,
+    handle_sites: HashMap<CallSite, HandleSiteContract>,
+    call_site_kinds: HashMap<CallSite, TypedCallSiteKind>,
 }
 
-fn collect_continuation_resume_contracts_in_fun(
-    fun: &FunDecl,
-    types: &TypeStore,
-    out: &mut HashMap<CallSite, ContinuationResumeSiteContract>,
-) {
-    if let Some(body) = &fun.body {
-        collect_continuation_resume_contracts_in_block(&fun.source_path, body, types, out);
-    }
-}
-
-fn collect_continuation_resume_contracts_in_block(
-    source_path: &Path,
-    block: &crate::hir::Block,
-    types: &TypeStore,
-    out: &mut HashMap<CallSite, ContinuationResumeSiteContract>,
-) {
-    for stmt in &block.stmts {
-        collect_continuation_resume_contracts_in_stmt(source_path, stmt, types, out);
-    }
-}
-
-fn collect_continuation_resume_contracts_in_stmt(
-    source_path: &Path,
-    stmt: &Stmt,
-    types: &TypeStore,
-    out: &mut HashMap<CallSite, ContinuationResumeSiteContract>,
-) {
-    match &stmt.kind {
-        StmtKind::Empty
-        | StmtKind::Break { .. }
-        | StmtKind::Continue { .. }
-        | StmtKind::Todo(_) => {}
-        StmtKind::Expr(expr) => {
-            collect_continuation_resume_contracts_in_expr(source_path, expr, types, out);
-        }
-        StmtKind::Val(val) => {
-            if let Some(init) = &val.init {
-                collect_continuation_resume_contracts_in_expr(source_path, init, types, out);
-            }
-        }
-        StmtKind::Assign { lhs, rhs, .. } => {
-            collect_continuation_resume_contracts_in_expr(source_path, lhs, types, out);
-            collect_continuation_resume_contracts_in_expr(source_path, rhs, types, out);
-        }
-        StmtKind::While { cond, body } => {
-            collect_continuation_resume_contracts_in_expr(source_path, cond, types, out);
-            collect_continuation_resume_contracts_in_block(source_path, body, types, out);
-        }
-        StmtKind::Return { value } => {
-            if let Some(value) = value {
-                collect_continuation_resume_contracts_in_expr(source_path, value, types, out);
-            }
+impl<'a> ContractCollector<'a> {
+    fn new(lowered_hir: &'a LoweredHir) -> Self {
+        Self {
+            lowered_hir,
+            runtime_error_effect_ty: find_raise_runtime_error_effect(&lowered_hir.types),
+            function_effects: Vec::new(),
+            continuation_resume_sites: HashMap::new(),
+            perform_sites: HashMap::new(),
+            handle_sites: HashMap::new(),
+            call_site_kinds: HashMap::new(),
         }
     }
-}
 
-fn collect_continuation_resume_contracts_in_expr(
-    source_path: &Path,
-    expr: &Expr,
-    types: &TypeStore,
-    out: &mut HashMap<CallSite, ContinuationResumeSiteContract>,
-) {
-    maybe_record_continuation_resume_contract(source_path, expr, types, out);
+    fn collect(mut self, source_path: &Path) -> TypedHirEffectContracts {
+        for item in &self.lowered_hir.file.items {
+            self.collect_item(source_path, item);
+        }
 
-    match &expr.kind {
-        ExprKind::Missing
-        | ExprKind::Literal(_)
-        | ExprKind::VarRef(_)
-        | ExprKind::UnresolvedIdent { .. }
-        | ExprKind::Todo(_) => {}
-        ExprKind::StructLit { fields, .. } => {
-            for field in fields {
-                collect_continuation_resume_contracts_in_expr(
-                    source_path,
-                    &field.value,
-                    types,
-                    out,
-                );
-            }
+        for member_fun in &self.lowered_hir.member_funs {
+            self.record_function_effect_contract(member_fun);
+            self.collect_fun(member_fun);
         }
-        ExprKind::TupleLit { elements } => {
-            for element in elements {
-                collect_continuation_resume_contracts_in_expr(source_path, element, types, out);
-            }
+
+        self.function_effects
+            .sort_by(compare_function_effect_contracts);
+        TypedHirEffectContracts {
+            function_effects: self.function_effects,
+            continuation_resume_sites: self.continuation_resume_sites,
+            perform_sites: self.perform_sites,
+            handle_sites: self.handle_sites,
+            call_site_kinds: self.call_site_kinds,
         }
-        ExprKind::InterpolatedString { parts, .. } => {
-            for part in parts {
-                if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
-                    collect_continuation_resume_contracts_in_expr(source_path, expr, types, out);
+    }
+
+    fn collect_item(&mut self, source_path: &Path, item: &Item) {
+        match item {
+            Item::Fun(fun) => {
+                self.record_function_effect_contract(fun);
+                self.collect_fun(fun);
+            }
+            Item::Val(val) => {
+                if let Some(init) = &val.init {
+                    self.collect_expr(source_path, init);
+                }
+            }
+            Item::Todo { .. } => {}
+        }
+    }
+
+    fn record_function_effect_contract(&mut self, fun: &FunDecl) {
+        let Some((allowed_effects, effects_closed)) =
+            function_effect_contract(&self.lowered_hir.types, fun.ty)
+        else {
+            return;
+        };
+
+        self.function_effects.push(FunctionEffectContract::new(
+            fun.span,
+            fun.fqn.clone(),
+            fun.return_ty,
+            allowed_effects,
+            effects_closed,
+        ));
+    }
+
+    fn collect_fun(&mut self, fun: &FunDecl) {
+        if let Some(body) = &fun.body {
+            self.collect_block(&fun.source_path, body);
+        }
+    }
+
+    fn collect_block(&mut self, source_path: &Path, block: &crate::hir::Block) {
+        for stmt in &block.stmts {
+            self.collect_stmt(source_path, stmt);
+        }
+    }
+
+    fn collect_stmt(&mut self, source_path: &Path, stmt: &Stmt) {
+        match &stmt.kind {
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => {}
+            StmtKind::Expr(expr) => self.collect_expr(source_path, expr),
+            StmtKind::Val(val) => {
+                if let Some(init) = &val.init {
+                    self.collect_expr(source_path, init);
+                }
+            }
+            StmtKind::Assign { lhs, rhs, .. } => {
+                self.collect_expr(source_path, lhs);
+                self.collect_expr(source_path, rhs);
+            }
+            StmtKind::While { cond, body } => {
+                self.collect_expr(source_path, cond);
+                self.collect_block(source_path, body);
+            }
+            StmtKind::Return { value } => {
+                if let Some(value) = value {
+                    self.collect_expr(source_path, value);
                 }
             }
         }
-        ExprKind::Unary { expr, .. }
-        | ExprKind::TypeCheck { expr, .. }
-        | ExprKind::Cast { expr, .. }
-        | ExprKind::MemberAccess { receiver: expr, .. } => {
-            collect_continuation_resume_contracts_in_expr(source_path, expr, types, out);
-        }
-        ExprKind::Binary { lhs, rhs, .. } => {
-            collect_continuation_resume_contracts_in_expr(source_path, lhs, types, out);
-            collect_continuation_resume_contracts_in_expr(source_path, rhs, types, out);
-        }
-        ExprKind::Block(block) => {
-            collect_continuation_resume_contracts_in_block(source_path, block, types, out);
-        }
-        ExprKind::Closure(closure) => {
-            collect_continuation_resume_contracts_in_expr(source_path, &closure.body, types, out);
-        }
-        ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-        } => {
-            collect_continuation_resume_contracts_in_expr(source_path, cond, types, out);
-            collect_continuation_resume_contracts_in_expr(source_path, then_branch, types, out);
-            if let Some(else_branch) = else_branch {
-                collect_continuation_resume_contracts_in_expr(source_path, else_branch, types, out);
-            }
-        }
-        ExprKind::When { subject, arms } => {
-            collect_continuation_resume_contracts_in_expr(source_path, subject, types, out);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_continuation_resume_contracts_in_expr(source_path, guard, types, out);
+    }
+
+    fn collect_expr(&mut self, source_path: &Path, expr: &Expr) {
+        match &expr.kind {
+            ExprKind::Missing
+            | ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Todo(_) => {}
+            ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    self.collect_expr(source_path, &field.value);
                 }
-                collect_continuation_resume_contracts_in_expr(source_path, &arm.body, types, out);
             }
-        }
-        ExprKind::Call { callee, args } => {
-            collect_continuation_resume_contracts_in_expr(source_path, callee, types, out);
-            for arg in args {
-                match arg {
-                    CallArg::Positional(expr) => {
-                        collect_continuation_resume_contracts_in_expr(
-                            source_path,
-                            expr,
-                            types,
-                            out,
-                        );
-                    }
-                    CallArg::Named { value, .. } => {
-                        collect_continuation_resume_contracts_in_expr(
-                            source_path,
-                            value,
-                            types,
-                            out,
-                        );
+            ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    self.collect_expr(source_path, element);
+                }
+            }
+            ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                        self.collect_expr(source_path, expr);
                     }
                 }
             }
-        }
-        ExprKind::Perform { args, .. } => {
-            for arg in args {
-                match arg {
-                    CallArg::Positional(expr) => {
-                        collect_continuation_resume_contracts_in_expr(
-                            source_path,
-                            expr,
-                            types,
-                            out,
-                        );
-                    }
-                    CallArg::Named { value, .. } => {
-                        collect_continuation_resume_contracts_in_expr(
-                            source_path,
-                            value,
-                            types,
-                            out,
-                        );
-                    }
+            ExprKind::Unary { expr, .. }
+            | ExprKind::TypeCheck { expr, .. }
+            | ExprKind::Cast { expr, .. }
+            | ExprKind::MemberAccess { receiver: expr, .. } => {
+                self.collect_expr(source_path, expr);
+            }
+            ExprKind::Binary { lhs, rhs, .. } => {
+                self.collect_expr(source_path, lhs);
+                self.collect_expr(source_path, rhs);
+            }
+            ExprKind::Block(block) => self.collect_block(source_path, block),
+            ExprKind::Closure(closure) => self.collect_expr(source_path, &closure.body),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.collect_expr(source_path, cond);
+                self.collect_expr(source_path, then_branch);
+                if let Some(else_branch) = else_branch {
+                    self.collect_expr(source_path, else_branch);
                 }
             }
-        }
-        ExprKind::Handle(handle) => {
-            collect_continuation_resume_contracts_in_block(source_path, &handle.body, types, out);
-            for arm in &handle.arms {
-                collect_continuation_resume_contracts_in_expr(source_path, &arm.body, types, out);
+            ExprKind::When { subject, arms } => {
+                self.collect_expr(source_path, subject);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.collect_expr(source_path, guard);
+                    }
+                    self.collect_expr(source_path, &arm.body);
+                }
             }
-            if let Some(finally) = &handle.finally {
-                collect_continuation_resume_contracts_in_block(source_path, finally, types, out);
+            ExprKind::Call { callee, args } => {
+                self.record_call_contract(source_path, expr, callee, args);
+                self.collect_expr(source_path, callee);
+                for arg in args {
+                    self.collect_call_arg_expr(source_path, arg);
+                }
+            }
+            ExprKind::Perform {
+                effect_ty,
+                op,
+                args,
+            } => {
+                self.record_perform_contract(source_path, expr, *effect_ty, op, args);
+                for arg in args {
+                    self.collect_call_arg_expr(source_path, arg);
+                }
+            }
+            ExprKind::Handle(handle) => {
+                self.record_handle_contract(source_path, expr, handle);
+                self.collect_block(source_path, &handle.body);
+                for arm in &handle.arms {
+                    self.collect_expr(source_path, &arm.body);
+                }
+                if let Some(finally) = &handle.finally {
+                    self.collect_block(source_path, finally);
+                }
             }
         }
     }
-}
 
-fn maybe_record_continuation_resume_contract(
-    source_path: &Path,
-    expr: &Expr,
-    types: &TypeStore,
-    out: &mut HashMap<CallSite, ContinuationResumeSiteContract>,
-) {
-    let ExprKind::Call { callee, args } = &expr.kind else {
-        return;
-    };
-    let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
-        return;
-    };
-    if fqn != "scoop.core.Continuation.resume" {
-        return;
+    fn collect_call_arg_expr(&mut self, source_path: &Path, arg: &CallArg) {
+        match arg {
+            CallArg::Positional(expr) => self.collect_expr(source_path, expr),
+            CallArg::Named { value, .. } => self.collect_expr(source_path, value),
+        }
     }
 
-    let Some(CallArg::Positional(receiver)) = args.first() else {
-        return;
-    };
-    let Some((resume_ty, answer_ty, out_effects)) =
-        continuation_receiver_contract(types, receiver.ty)
-    else {
-        return;
-    };
+    fn record_call_contract(
+        &mut self,
+        source_path: &Path,
+        expr: &Expr,
+        callee: &Expr,
+        args: &[CallArg],
+    ) {
+        let call_site = self.call_site(source_path, expr.span);
+        if let Some(contract) = self.continuation_resume_contract(expr, callee, args) {
+            self.continuation_resume_sites
+                .insert(call_site.clone(), contract);
+            self.call_site_kinds
+                .insert(call_site, TypedCallSiteKind::ContinuationResume);
+            return;
+        }
 
-    out.insert(
-        CallSite::new(source_path.to_path_buf(), expr.span),
-        ContinuationResumeSiteContract::new(
+        self.call_site_kinds
+            .insert(call_site, TypedCallSiteKind::DirectCall);
+    }
+
+    fn record_perform_contract(
+        &mut self,
+        source_path: &Path,
+        expr: &Expr,
+        effect_ty: TypeId,
+        op: &crate::hir::EffectOpRef,
+        args: &[CallArg],
+    ) {
+        let call_site = self.call_site(source_path, expr.span);
+        let info = self.lowered_hir.effect_op_call_sites.get(&call_site);
+        let arg_mapping = info
+            .map(|binding| binding.arg_mapping.clone())
+            .unwrap_or_else(|| (0..args.len()).collect());
+        let payload_components = arg_mapping
+            .iter()
+            .filter_map(|&arg_idx| args.get(arg_idx).map(call_arg_value_ty))
+            .collect::<Vec<_>>();
+        let payload_ty = match payload_components.as_slice() {
+            [] => Some(self.lowered_hir.builtins.unit),
+            [single] => Some(*single),
+            _ => info.and_then(|binding| binding.payload_tuple_ty),
+        };
+
+        self.perform_sites.insert(
+            call_site.clone(),
+            PerformSiteContract::new(
+                effect_ty,
+                op.fqn.clone(),
+                PayloadTypeContract::new(payload_ty, payload_components),
+                arg_mapping,
+            ),
+        );
+        self.call_site_kinds
+            .insert(call_site, TypedCallSiteKind::Perform);
+    }
+
+    fn record_handle_contract(
+        &mut self,
+        source_path: &Path,
+        expr: &Expr,
+        handle: &crate::hir::HandleExpr,
+    ) {
+        let arm_contracts = handle
+            .arms
+            .iter()
+            .map(|arm| {
+                let payload_components = arm
+                    .op
+                    .binders
+                    .iter()
+                    .map(|binder| binder.ty)
+                    .collect::<Vec<_>>();
+                let payload_ty = match payload_components.as_slice() {
+                    [] => Some(self.lowered_hir.builtins.unit),
+                    [single] => Some(*single),
+                    _ => self
+                        .lowered_hir
+                        .handle_payload_tuple_tys
+                        .get(&self.call_site(source_path, arm.op.span))
+                        .copied(),
+                };
+                let kind = match arm.kind {
+                    HandleArmKind::NonResuming => HandleArmContractKind::NonResuming,
+                    HandleArmKind::EscapeContinuation { .. } => {
+                        HandleArmContractKind::EscapeContinuation
+                    }
+                };
+
+                HandleArmSiteContract::new(
+                    arm.op.effect_ty,
+                    arm.op.op.fqn.clone(),
+                    PayloadTypeContract::new(payload_ty, payload_components),
+                    arm.body.ty,
+                    kind,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        self.handle_sites.insert(
+            self.call_site(source_path, expr.span),
+            HandleSiteContract::new(
+                expr.ty,
+                handle.body.ty,
+                arm_contracts,
+                handle.finally.as_ref().map(|finally| finally.ty),
+            ),
+        );
+    }
+
+    fn continuation_resume_contract(
+        &self,
+        expr: &Expr,
+        callee: &Expr,
+        args: &[CallArg],
+    ) -> Option<ContinuationResumeSiteContract> {
+        let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+            return None;
+        };
+        if fqn != "scoop.core.Continuation.resume" {
+            return None;
+        }
+
+        let Some(CallArg::Positional(receiver)) = args.first() else {
+            return None;
+        };
+        let (resume_ty, answer_ty, out_effects) =
+            continuation_receiver_contract(&self.lowered_hir.types, receiver.ty)?;
+
+        Some(ContinuationResumeSiteContract::new(
             receiver.ty,
             resume_ty,
             answer_ty,
             expr.ty,
             out_effects,
-        ),
-    );
+            self.runtime_error_effect_ty,
+        ))
+    }
+
+    fn call_site(&self, source_path: &Path, span: Span) -> CallSite {
+        CallSite::new(source_path.to_path_buf(), span)
+    }
+}
+
+fn call_arg_value_ty(arg: &CallArg) -> TypeId {
+    match arg {
+        CallArg::Positional(expr) => expr.ty,
+        CallArg::Named { value, .. } => value.ty,
+    }
+}
+
+fn function_effect_contract(types: &TypeStore, fun_ty: TypeId) -> Option<(EffectRow, bool)> {
+    let TypeKind::Ref(RefTypeKind::Function(function)) = types.kind(fun_ty) else {
+        return None;
+    };
+
+    Some((function.effects.clone(), function.effects_closed))
+}
+
+fn find_raise_runtime_error_effect(types: &TypeStore) -> Option<TypeId> {
+    let runtime_error_ty = find_nominal_type_by_fqn(types, "scoop.core.RuntimeError")?;
+
+    types.iter_ids().find(|&id| {
+        matches!(
+            types.kind(id),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.Raise"
+                    && nominal.args.as_slice() == [runtime_error_ty]
+        )
+    })
+}
+
+fn find_nominal_type_by_fqn(types: &TypeStore, fqn: &str) -> Option<TypeId> {
+    types.iter_ids().find(|&id| {
+        matches!(
+            types.kind(id),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == fqn
+        ) || matches!(
+            types.kind(id),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) if nominal.fqn == fqn
+        )
+    })
 }
 
 fn continuation_receiver_contract(
@@ -427,14 +1031,76 @@ fn continuation_receiver_contract(
     ))
 }
 
+fn compare_call_sites(lhs: &CallSite, rhs: &CallSite) -> Ordering {
+    lhs.source_path
+        .cmp(&rhs.source_path)
+        .then(lhs.span.start.cmp(&rhs.span.start))
+        .then(lhs.span.end.cmp(&rhs.span.end))
+}
+
+fn compare_function_effect_contracts(
+    lhs: &FunctionEffectContract,
+    rhs: &FunctionEffectContract,
+) -> Ordering {
+    lhs.fqn()
+        .cmp(rhs.fqn())
+        .then(lhs.span().start.cmp(&rhs.span().start))
+        .then(lhs.span().end.cmp(&rhs.span().end))
+}
+
+fn format_effect_row(types: &TypeStore, row: &EffectRow) -> String {
+    if row.is_pure() {
+        return "Pure".to_string();
+    }
+
+    row.terms
+        .iter()
+        .map(|ty| types.display(*ty).to_string())
+        .collect::<Vec<_>>()
+        .join(" + ")
+}
+
+fn format_required_effects(
+    types: &TypeStore,
+    out_effects: &EffectRow,
+    runtime_error_effect_ty: Option<TypeId>,
+) -> String {
+    let mut terms = out_effects.terms.clone();
+    if let Some(runtime_error_effect_ty) = runtime_error_effect_ty
+        && !terms.contains(&runtime_error_effect_ty)
+    {
+        terms.push(runtime_error_effect_ty);
+    }
+    format_effect_row(types, &EffectRow::new(terms))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     use crate::session::{EffectPipelineMode, SessionOptions};
 
     fn refactor_session() -> Session {
         Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+    }
+
+    fn load_hir_fixture(name: &str) -> SourceFile {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir")
+            .join(name);
+        SourceFile::load(&path).expect("fixture 应可加载")
+    }
+
+    fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {
+        let session = refactor_session();
+        let source = load_hir_fixture(name);
+        let output = run(&session, &source).expect("fixture 应能通过 refactor typed HIR stage");
+
+        assert_eq!(
+            output.effect_contracts().stable_dump(output.types()),
+            expected
+        );
     }
 
     #[test]
@@ -446,7 +1112,16 @@ mod tests {
 
         assert_eq!(output.hir_file().items.len(), 1);
         assert!(!output.effect_contracts().is_placeholder());
-        assert!(output.effect_contracts().is_empty());
+        assert_eq!(output.effect_contracts().function_effects().len(), 1);
+        assert!(
+            output
+                .effect_contracts()
+                .continuation_resume_sites()
+                .is_empty()
+        );
+        assert!(output.effect_contracts().perform_sites().is_empty());
+        assert!(output.effect_contracts().handle_sites().is_empty());
+        assert!(output.effect_contracts().call_site_kinds().is_empty());
     }
 
     #[test]
@@ -458,10 +1133,15 @@ mod tests {
 
         assert!(!output.types().is_empty());
         assert!(!output.effect_contracts().is_placeholder());
+        assert_eq!(
+            output.effect_contracts().function_effects()[0].fqn(),
+            "sample.main"
+        );
+        assert!(output.stable_dump().contains("TypedHirEffectContracts"));
     }
 
     #[test]
-    fn refactor_continuation_typecheck_records_resume_contracts_in_typed_hir_stage() {
+    fn refactor_typed_hir_records_resume_contracts_in_typed_hir_stage() {
         let session = refactor_session();
         let source = SourceFile::new_virtual(
             "<mem>/refactor_continuation_contracts.scoop",
@@ -492,6 +1172,10 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<
 
         assert_eq!(call_site.source_path, source.path());
         assert_eq!(
+            contracts.call_site_kind(call_site),
+            Some(TypedCallSiteKind::ContinuationResume)
+        );
+        assert_eq!(
             output.types().display(contract.receiver_ty()).to_string(),
             "scoop.core.Continuation<Int, Int, eff fixtures.hirstage.Boom>"
         );
@@ -515,6 +1199,266 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<
                 .to_string(),
             "fixtures.hirstage.Boom"
         );
+        assert_eq!(
+            output
+                .types()
+                .display(contract.runtime_error_effect_ty().unwrap())
+                .to_string(),
+            "scoop.core.Raise<scoop.core.RuntimeError>"
+        );
         assert!(contract.required_effects_include_runtime_error());
+    }
+
+    #[test]
+    fn refactor_typed_hir_continuation_contract_dump_snapshot() {
+        assert_fixture_effect_contract_dump(
+            "continuation_resume_surface_named_tuple_and_unit_basic.scoop",
+            r#"TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 233..351,
+            fqn: "fixtures.hir.resumePair",
+            return_ty: Unit,
+            allowed_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 80..231,
+            fqn: "fixtures.hir.resumeUnit",
+            return_ty: Unit,
+            allowed_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 43..78,
+            fqn: "fixtures.hir.takesUnit",
+            return_ty: Unit,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 168..178,
+            kind: ContinuationResume,
+        },
+        TypedCallSiteContract {
+            span: 183..195,
+            kind: ContinuationResume,
+        },
+        TypedCallSiteContract {
+            span: 200..211,
+            kind: DirectCall,
+        },
+        TypedCallSiteContract {
+            span: 216..229,
+            kind: DirectCall,
+        },
+        TypedCallSiteContract {
+            span: 330..349,
+            kind: ContinuationResume,
+        },
+    ],
+    continuation_resume_sites: [
+        ContinuationResumeSiteContract {
+            span: 168..178,
+            receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
+            resume_ty: Unit,
+            answer_ty: Unit,
+            return_ty: Unit,
+            out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+        ContinuationResumeSiteContract {
+            span: 183..195,
+            receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
+            resume_ty: Unit,
+            answer_ty: Unit,
+            return_ty: Unit,
+            out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+        ContinuationResumeSiteContract {
+            span: 330..349,
+            receiver_ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
+            resume_ty: (Int, String),
+            answer_ty: Unit,
+            return_ty: Unit,
+            out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
+    ],
+}"#,
+        );
+    }
+
+    #[test]
+    fn refactor_typed_hir_runtime_error_contract_dump_snapshot() {
+        assert_fixture_effect_contract_dump(
+            "continuation_runtime_error_surface_basic.scoop",
+            r#"TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 61..76,
+            fqn: "fixtures.hir.Boom.next",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 80..194,
+            fqn: "fixtures.hir.resumeWithEffects",
+            return_ty: Int,
+            allowed_effects: fixtures.hir.Boom + scoop.core.Raise<scoop.core.RuntimeError>,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 181..192,
+            kind: ContinuationResume,
+        },
+    ],
+    continuation_resume_sites: [
+        ContinuationResumeSiteContract {
+            span: 181..192,
+            receiver_ty: scoop.core.Continuation<Int, Int, eff fixtures.hir.Boom>,
+            resume_ty: Int,
+            answer_ty: Int,
+            return_ty: Int,
+            out_effects: fixtures.hir.Boom,
+            required_effects: fixtures.hir.Boom + scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
+    ],
+}"#,
+        );
+    }
+
+    #[test]
+    fn refactor_typed_hir_handle_contract_dump_snapshot() {
+        assert_fixture_effect_contract_dump(
+            "handle_perform.scoop",
+            r#"TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 36..125,
+            fqn: "a.main",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 64..78,
+            kind: Perform,
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+        PerformSiteContract {
+            span: 64..78,
+            effect_ty: scoop.core.Raise<Int>,
+            op_fqn: "scoop.core.Raise.raise",
+            payload_ty: Int,
+            payload_components: [
+                Int,
+            ],
+            arg_mapping: [0],
+        },
+    ],
+    handle_sites: [
+        HandleSiteContract {
+            span: 51..123,
+            result_ty: Int,
+            body_result_ty: Int,
+            arm_contracts: [
+                HandleArmSiteContract {
+                    op_fqn: "scoop.core.Raise.raise",
+                    handled_effect_ty: scoop.core.Raise<Int>,
+                    payload_ty: Int,
+                    payload_components: [
+                        Int,
+                    ],
+                    body_ty: Int,
+                    kind: NonResuming,
+                },
+            ],
+            finally_result_ty: None,
+        },
+    ],
+}"#,
+        );
+    }
+
+    #[test]
+    fn refactor_typed_hir_collects_perform_and_handle_contracts() {
+        let session = refactor_session();
+        let source = load_hir_fixture("handle_perform.scoop");
+
+        let output = run(&session, &source).unwrap();
+        let contracts = output.effect_contracts();
+
+        assert_eq!(contracts.perform_sites().len(), 1);
+        let (perform_site, perform_contract) = contracts
+            .perform_sites()
+            .iter()
+            .next()
+            .expect("应收集到 perform site");
+        assert_eq!(
+            contracts.call_site_kind(perform_site),
+            Some(TypedCallSiteKind::Perform)
+        );
+        assert_eq!(perform_contract.op_fqn(), "scoop.core.Raise.raise");
+        assert_eq!(perform_contract.payload().components().len(), 1);
+        assert_eq!(
+            output
+                .types()
+                .display(perform_contract.payload().components()[0])
+                .to_string(),
+            "Int"
+        );
+
+        assert_eq!(contracts.handle_sites().len(), 1);
+        let handle_contract = contracts
+            .handle_sites()
+            .values()
+            .next()
+            .expect("应收集到 handle site");
+        assert_eq!(
+            output
+                .types()
+                .display(handle_contract.result_ty())
+                .to_string(),
+            "Int"
+        );
+        assert_eq!(
+            output
+                .types()
+                .display(handle_contract.body_result_ty())
+                .to_string(),
+            "Int"
+        );
+        assert_eq!(handle_contract.arm_contracts().len(), 1);
+        let arm = &handle_contract.arm_contracts()[0];
+        assert_eq!(arm.op_fqn(), "scoop.core.Raise.raise");
+        assert_eq!(arm.kind(), HandleArmContractKind::NonResuming);
+        assert_eq!(
+            output.types().display(arm.handled_effect_ty()).to_string(),
+            "scoop.core.Raise<Int>"
+        );
     }
 }

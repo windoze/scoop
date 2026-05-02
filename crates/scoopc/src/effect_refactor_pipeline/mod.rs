@@ -14,7 +14,11 @@ use crate::session::{EffectPipelineMode, Session};
 use crate::source::SourceFile;
 
 pub use ast_stage::AstStageOutput;
-pub use hir_stage::{ContinuationResumeSiteContract, TypedHirEffectContracts, TypedHirStageOutput};
+pub use hir_stage::{
+    ContinuationResumeSiteContract, FunctionEffectContract, HandleArmContractKind,
+    HandleArmSiteContract, HandleSiteContract, PayloadTypeContract, PerformSiteContract,
+    TypedCallSiteKind, TypedHirEffectContracts, TypedHirStageOutput,
+};
 
 #[cfg(feature = "llvm")]
 use crate::source::{SourceId, SourceMap};

@@ -1,0 +1,97 @@
+File {
+    items: [
+        Todo {
+            span: 43..78,
+            kind: "type",
+        },
+        Fun(
+            FunDecl {
+                span: 80..194,
+                fqn: "fixtures.hir.resumeWithEffects",
+                name: "resumeWithEffects",
+                ty: TypeId(
+                    14,
+                ),
+                params: [
+                    Param {
+                        span: 102..103,
+                        id: S0,
+                        name: "k",
+                        ty: TypeId(
+                            11,
+                        ),
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Block {
+                        span: 175..194,
+                        ty: TypeId(
+                            0,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 181..192,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 181..192,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 181..189,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    TopLevel {
+                                                        id: S1,
+                                                        fqn: "scoop.core.Continuation.resume",
+                                                    },
+                                                ),
+                                            },
+                                            args: [
+                                                Positional(
+                                                    Expr {
+                                                        span: 181..182,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: VarRef(
+                                                            Local {
+                                                                id: S0,
+                                                                name: "k",
+                                                                decl_span: 102..103,
+                                                            },
+                                                        ),
+                                                    },
+                                                ),
+                                                Positional(
+                                                    Expr {
+                                                        span: 190..191,
+                                                        ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Literal(
+                                                            Int,
+                                                        ),
+                                                    },
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

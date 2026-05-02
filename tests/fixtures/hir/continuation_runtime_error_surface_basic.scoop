@@ -1,0 +1,11 @@
+package fixtures.hir
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): Int
+}
+
+fun resumeWithEffects(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<RuntimeError>) {
+    k.resume(1)
+}

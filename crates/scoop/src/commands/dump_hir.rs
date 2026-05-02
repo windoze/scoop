@@ -8,15 +8,15 @@ use miette::{Context as _, IntoDiagnostic as _, Result};
 use scoopc::session::{EffectPipelineMode, SessionOptions};
 
 enum DumpHirOutput {
-    Legacy(scoopc::hir::LoweredHir),
-    Refactor(scoopc::effect_refactor_pipeline::TypedHirStageOutput),
+    Legacy(Box<scoopc::hir::LoweredHir>),
+    Refactor(Box<scoopc::effect_refactor_pipeline::TypedHirStageOutput>),
 }
 
 impl DumpHirOutput {
-    fn hir_file(&self) -> &scoopc::hir::File {
+    fn render(&self) -> String {
         match self {
-            Self::Legacy(lowered) => &lowered.file,
-            Self::Refactor(output) => output.hir_file(),
+            Self::Legacy(lowered) => format!("{:#?}\n", lowered.file),
+            Self::Refactor(output) => output.stable_dump(),
         }
     }
 }
@@ -27,11 +27,11 @@ fn load_hir_for_dump(
 ) -> Result<DumpHirOutput> {
     match session.effect_pipeline_mode() {
         EffectPipelineMode::Legacy => scoopc::hir::lower_for_dump(session, source)
-            .map(DumpHirOutput::Legacy)
+            .map(|lowered| DumpHirOutput::Legacy(Box::new(lowered)))
             .map_err(miette::Report::from),
         EffectPipelineMode::Refactor => {
             scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(session, source)
-                .map(DumpHirOutput::Refactor)
+                .map(|output| DumpHirOutput::Refactor(Box::new(output)))
                 .map_err(miette::Report::from)
         }
     }
@@ -50,7 +50,7 @@ pub(super) fn render_dump_output(
 
     let session = scoopc::session::Session::with_options(session_options)?;
     let lowered = load_hir_for_dump(&session, &file)?;
-    Ok(format!("{:#?}\n", lowered.hir_file()))
+    Ok(lowered.render())
 }
 
 pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
@@ -78,7 +78,8 @@ mod tests {
             DumpHirOutput::Refactor(output) => {
                 assert_eq!(output.hir_file().items.len(), 1);
                 assert!(!output.effect_contracts().is_placeholder());
-                assert!(output.effect_contracts().is_empty());
+                assert_eq!(output.effect_contracts().function_effects().len(), 1);
+                assert!(output.stable_dump().contains("TypedHirEffectContracts"));
             }
         }
         assert_eq!(stage.mode(), EffectPipelineMode::Refactor);
@@ -102,5 +103,31 @@ mod tests {
             }
             DumpHirOutput::Refactor(_) => panic!("legacy dump-hir 不应走 refactor typed HIR stage"),
         }
+    }
+
+    #[test]
+    fn refactor_dump_hir_output_appends_typed_contract_section() {
+        let session =
+            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package sample
+
+import scoop.core.*
+
+fun use(k: Continuation<Int, Int, eff Pure>): Int / Raise<RuntimeError> {
+    k.resume(1)
+}
+"#,
+        );
+
+        let rendered = super::load_hir_for_dump(&session, &source)
+            .unwrap()
+            .render();
+
+        assert!(rendered.contains("TypedHirEffectContracts"));
+        assert!(rendered.contains("continuation_resume_sites"));
+        assert!(rendered.contains("required_effects: scoop.core.Raise<scoop.core.RuntimeError>"));
     }
 }
