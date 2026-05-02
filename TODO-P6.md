@@ -519,15 +519,66 @@
   - 已新增 `refactor_llvm_step_layout_*`、`refactor_llvm_frame_layout_*`、`refactor_llvm_continuation_layout_*`、`refactor_llvm_unit_abi_*` 定向单测，覆盖 canonical `Step_F` tag identity、frame/system slot field index、resume-interface 完整 method 集，以及 `Unit` 零载荷 ABI。
   - `crates/scoopc/src/llvm/emit.rs` 现已通过 `RefactorStageEmitInput` 把 authoritative reachable-body program 与 ABI-visibility program 显式分离：前者继续作为 fail-fast / 后续 body lowering 的 authoritative handoff；后者只负责发布 request-source 范围的 canonical `Step_F` / continuation / resume-interface / dynamic invoke ABI shell，避免 backend 回到 legacy `EffectSignal` / `EffectOutcome` 模型。
   - `P6-T01b` 已修复此前的 build-fixture blocker：`crates/scoop/src/commands/build.rs` 会为 refactor build 额外构造 `RequestSources` rooted 的 ABI visibility handoff，`crates/scoop/src/fixtures/mod.rs` 也会把 refactor session 选项透传给内部 build，因此三个 build fixtures 现都能在真实 refactor build 主路径上稳定观察 ABI shell，而不必通过 reachable handle 重新进入 legacy lowering。
-  - 已运行验证：
-    - `cargo test -p scoopc refactor_llvm_`
-    - `cargo test -p scoop refactor_build_`
-    - `cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`
-    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
-    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
-    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
-    - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
-    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- 已运行验证：
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo test -p scoop refactor_build_`
+  - `cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+  - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+## P6-T02a：让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.2, §5.3.2-§5.3.4
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs`
+- 背景：
+  - `P6-T02R` 审阅发现：`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 当前虽会先读取 `LateLoweredProgram.resume_interfaces()`，但 `derive_resume_interface_specs()` 仍会按 `(step_schema, effect_family)` 重新补齐/合成缺失的 `ResumeInterfaceId`；这会把缺失的 interface 发布静默掩盖成 P6 现场重建逻辑。
+  - 同一文件里的 `materialize_continuation_object_layout(...)` / `materialize_callable_layout(...)` 目前也没有把 `LateLoweredContinuationObject.implemented_interfaces()` / `LateLoweredCallable.resume_interfaces()` 当作 authoritative interface 集合与顺序来源，而是继续消费按 step-schema 汇总的派生列表。
+  - 结果是：refactor LLVM ABI query 仍可能与 P5 late-lowered handoff 的真实 interface identity 漂移；后续 P6-T03 若直接消费这层 query，要么被迫再做 remap/重建，要么静默接受漂移后的 identity，二者都违背 P5 -> P6 handoff contract。
+- 目标：
+  - 让 refactor LLVM ABI materializer 严格消费 `LateLoweredProgram.resume_interfaces()`、`LateLoweredCallable.resume_interfaces()`、`LateLoweredContinuationObject.implemented_interfaces()` 作为 authoritative identity/order；
+  - 对缺失、错配、或不完整的 interface 发布 fail fast，而不是在 P6 现场补造新的 interface identity。
+
+- 必须实现的内容：
+  1. 移除/收口 ABI materialization 中对缺失 `ResumeInterfaceId` 的现场合成逻辑。
+     - `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 不得再在缺失 `LateLoweredResumeInterface` 时发明新的 `ResumeInterfaceId`；
+     - 若 P5 handoff 少了某个 interface family、method set、或 identity 映射，必须返回结构化错误。
+  2. 让 callable / continuation object layout 严格消费 authoritative interface 列表。
+     - callable layout 必须以 `LateLoweredCallable.resume_interfaces()` 为 interface identity 与顺序来源；
+     - continuation object layout 必须以 `LateLoweredContinuationObject.implemented_interfaces()` 为 interface field 发布来源；
+     - 明确禁止继续用按 `step_schema` 汇总的派生列表替代这两份 authoritative handoff。
+  3. 让 resume interface layout 严格对齐 `LateLoweredResumeInterface.methods()`。
+     - method identity、case tag、`resume_tuple_ty`、返回 `Step_F` schema 必须优先消费 late-lowered interface/method shell；
+     - 若需要回看 `StepSchema.cases()`，也只能用于校验“method 集是否完整且与 effect family/case tag 一致”，不能在缺失时静默重建。
+  4. 补充定向测试与回归。
+     - 至少覆盖：ABI query 对 callable/object 发布的 interface id 保真；
+     - 以及一个“故意删掉/错配 published resume interface”的构造路径会被 materializer 显式拒绝，而不是继续产出漂移后的 query。
+
+- 必须遵从的约束：
+  - 禁止把 `(step_schema, effect_family)` 派生出的临时键空间当作最终 interface identity。
+  - 禁止让 P6 ABI materializer 越权修补 P5 handoff 缺口；该层只能消费并验证 authoritative contract。
+  - 禁止为了让测试继续通过而绕开 `LateLoweredCallable.resume_interfaces()` / `LateLoweredContinuationObject.implemented_interfaces()`。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_llvm_step_layout`
+  - `cargo test -p scoopc refactor_llvm_unit_abi`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+
+- 完成条件：
+  - refactor LLVM ABI query 不再在 P6 现场补造 resume-interface identity；
+  - callable / continuation / resume-interface 三层 layout 已与 P5 late-lowered handoff 的 authoritative identity/order 对齐；
+  - `P6-T02R` 可以据此继续审阅“ABI contract 已固定且后续 body emitter 不会再 remap/reconstruct interface identity”。
+- 依赖：P6-T02
+- 完成记录：
+  - （执行时填写）
 
 ## P6-T02R：Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型
 
@@ -558,9 +609,11 @@
 - 完成条件：
   - review 能明确说明：refactor LLVM type/layout 合同已经固定，后续 body emitter 不会再回旧 contract 或 HIR 现场补 ABI；
   - 可进入 P6-T03。
-- 依赖：P6-T02
+- 依赖：P6-T02a
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：审阅发现 blocker。`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 当前仍会在 `derive_resume_interface_specs()` 中按 `(step_schema, effect_family)` 补齐/合成缺失的 `ResumeInterfaceId`，并在 `materialize_continuation_object_layout(...)` / `materialize_callable_layout(...)` 中继续消费按 step-schema 汇总的派生 interface 列表，而不是严格使用 `LateLoweredContinuationObject.implemented_interfaces()` / `LateLoweredCallable.resume_interfaces()`。
+  - 这意味着 refactor LLVM ABI query 仍可能掩盖 P5 handoff 漏发/错配的 resume-interface identity，后续 P6-T03 body emitter 若直接依赖该 query，仍会被迫 remap 或现场重建 interface contract，违背“P6 只消费 P5 authoritative handoff”的审阅目标。
+  - 因此新增前置任务 `P6-T02a`，先收紧 ABI materializer 对 authoritative resume-interface contract 的消费边界；待该问题修复后再继续本 review。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
