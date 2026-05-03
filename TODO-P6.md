@@ -701,9 +701,68 @@
     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
-    - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
-    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
-    - `rg "EffectSignal|EffectOutcome|LegacyEffectBoundary|Unit value|Signal \{|Todo\(" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/llvm/codegen/effect`
+  - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+  - `rg "EffectSignal|EffectOutcome|LegacyEffectBoundary|Unit value|Signal \{|Todo\(" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/llvm/codegen/effect`
+
+## P6-T02c：发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.2, §5.3.2-§5.3.6, §5.5
+  - `crates/scoopc/src/effect_facts/facts.rs`
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - 2026-05-03 开始执行 `P6-T03` 时发现：`ResumeSiteEffectFacts` 当前只发布了 `continuation_schema`、`resume_tuple_ty`、`answer_ty`、`out_step_schema`、`resolved_cases` 等语义信息；
+  - 但 `P6-T02` 现有的 refactor LLVM ABI query 只物化了 `Step_F`、frame、continuation object、internal resume interfaces、以及 direct/dynamic callable entry，没有发布 `Continuation.resume(...)` surface lowering 所需的稳定 LLVM call target / query 映射；
+  - `RefactorAbiQuery` 也没有提供 `ContinuationSchemaId`（或等价 authoritative surface key）到具体 resume lowering layout 的查询面；
+  - 这意味着 `P6-T03` 若直接继续实现 `CallKind::Resume`，就会被迫在 backend 现场重新推导/猜测 `resume` 入口，或者偷走 legacy resume lowering 的合同，违背 P5 -> P6 handoff 边界。
+
+- 目标：
+  - 在进入 `P6-T03` 之前，先把 continuation surface `resume(args_tuple) -> Step_F` 的 authoritative ABI/query contract 明确发布到 refactor LLVM handoff 中；
+  - 让后续 body emitter 能仅凭 P5/P6 发布的结构化 contract，把 `ResumeSiteEffectFacts` 解析到具体 LLVM-level lowering，而不再发明第二套 resume ABI。
+
+- 必须实现的内容：
+  1. 为 continuation surface `resume(...)` 建立显式的 refactor LLVM ABI/query 物化层。
+     - 可新增 `RefactorContinuationResumeLayout` 或等价结构；
+     - authoritative key 必须来自 `ContinuationSchemaId` 或等价的 compiler-owned stable identity；
+     - 明确禁止让 `P6-T03` 通过成员名 `resume`、HIR 名字、或 legacy resume helper 反推 ABI。
+  2. 明确发布 surface `resume(args_tuple) -> Step_F` 的 LLVM 函数签名 / call target contract。
+     - 必须与 `ContinuationSchema.resume_tuple_ty` / `answer_ty` / `out_step_schema` 对齐；
+     - `Unit` / `()` 的零载荷退化规则必须与 `P6-T02` 已固定的 ABI 规则保持一致；
+     - 禁止把 surface `resume` 静默折叠成“随便挑一个 internal resume-interface method”而不显式记录 contract。
+  3. 为 continuation object 发布 authoritative 的 surface-resume 映射。
+     - body emitter 必须能从 `ResumeSiteEffectFacts` 的 authoritative contract 直接解析到：
+       - 该 site 应调用的 surface-resume layout / symbol identity；
+       - 与之对应的返回 `Step_F` schema；
+       - 若需要继续进入 internal dispatch，所需的 compiler-owned mapping。
+     - 明确禁止在 `P6-T03` 现场靠扫描 raw late-lowered 列表临时拼一个未发布的选择规则。
+  4. 对缺失/错配的 surface-resume contract fail fast。
+     - 当 `ResumeSiteEffectFacts` 引用的 continuation schema 没有已发布的 refactor LLVM surface-resume layout，或与 continuation object / step schema 漂移时，必须返回结构化错误。
+  5. 补充定向测试与回归。
+     - 至少覆盖：
+       - refactor ABI query 能从 authoritative continuation schema 解析到 surface-resume layout；
+       - 一个包含 `k.resume(...)` 的 fixture（如 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`）不会再要求 backend 现场猜测 resume 入口；
+       - 缺失 published surface-resume contract 时会显式拒绝。
+
+- 必须遵从的约束：
+  - 禁止把 `Continuation.resume(...)` lowering 继续藏在 legacy `call/resume.rs` / handler-stack contract 中；
+  - 禁止新增只在测试里可见的 surface-resume helper；
+  - 禁止让 `P6-T03` 通过 HIR/名字启发式把 `ResumeSiteEffectFacts` 临时映射到某个 LLVM call target。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_llvm_surface_resume_layout`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+
+- 完成条件：
+  - continuation surface `resume(...)` 已拥有 authoritative 的 refactor LLVM ABI/query contract；
+  - `P6-T03` 可以仅消费已发布 handoff 来 lower `CallKind::Resume`，不再需要 backend 现场猜测或重建 resume 入口；
+  - 若 contract 漏发或漂移，refactor LLVM path 会在 stage/codegen 边界显式拒绝。
+- 依赖：P6-T02R
+- 完成记录：
+  - （执行时填写）
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
@@ -823,9 +882,10 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P5-T07a
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
+  - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
