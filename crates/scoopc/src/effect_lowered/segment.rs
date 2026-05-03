@@ -450,6 +450,7 @@ fn finalize_blueprint_terminator(
                 .cloned()
                 .unwrap_or_default(),
             resume_state: *resume_state,
+            local_runtime_error_states: Vec::new(),
             cleanup_state: *cleanup_target,
             drop_state: None,
         },

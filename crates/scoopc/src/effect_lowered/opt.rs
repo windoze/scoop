@@ -442,11 +442,16 @@ fn rewrite_terminator(
         LateLoweredStateTerminator::Suspend {
             boundary_ids,
             resume_state,
+            local_runtime_error_states,
             cleanup_state,
             drop_state,
         } => LateLoweredStateTerminator::Suspend {
             boundary_ids,
             resume_state: redirect_state_id(resume_state, redirects),
+            local_runtime_error_states: local_runtime_error_states
+                .into_iter()
+                .map(|state_id| redirect_state_id(state_id, redirects))
+                .collect(),
             cleanup_state: cleanup_state.map(|state_id| redirect_state_id(state_id, redirects)),
             drop_state: drop_state.map(|state_id| redirect_state_id(state_id, redirects)),
         },
@@ -976,6 +981,7 @@ mod tests {
                         LateLoweredStateTerminator::Suspend {
                             boundary_ids: vec![boundary_id],
                             resume_state: resume_wrapper_state,
+                            local_runtime_error_states: Vec::new(),
                             cleanup_state: None,
                             drop_state: None,
                         },

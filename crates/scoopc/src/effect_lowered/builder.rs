@@ -145,14 +145,20 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                         body,
                         body_facts,
                         step_type,
+                        state_graph: &state_graph,
                         boundary_map: &boundary_map,
                         continuation_object: continuation_object_id,
                         step_types: &step_types,
                         types,
                     })?
                 }
-                None => LateLoweredBoundaryMap::empty(),
+                None => super::materialize::BoundaryMaterialization {
+                    state_graph: state_graph.clone(),
+                    boundary_map: LateLoweredBoundaryMap::empty(),
+                },
             };
+            let state_graph = boundary_map.state_graph;
+            let boundary_map = boundary_map.boundary_map;
             continuation_objects.push(materialize_continuation_object(
                 ContinuationObjectMaterializationInputs {
                     continuation_object_id,

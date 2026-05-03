@@ -8,7 +8,8 @@ use crate::effect_facts::{
     CallSiteEffectFacts, CallTargetMode, CaseTag, ContinuationSchemaId, StepSchemaId,
 };
 use crate::effect_lowered::ir::{
-    ContinuationObjectId, FrameSlotId, ResumeInterfaceId, SystemSlotKind,
+    ContinuationObjectId, FrameSlotId, LateLoweredConsumedRuntimeErrorCase, ResumeInterfaceId,
+    StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::SiteId;
@@ -508,6 +509,60 @@ pub(super) enum RefactorCallTargetQuery<'a, 'ctx> {
     DynamicInvoke(&'a RefactorDynamicInvokeLayout<'ctx>),
 }
 
+/// pure caller call boundary 本地消费 compiler-generated runtime-error case 的稳定 lowering 查询面。
+pub(super) struct RefactorLocalRuntimeErrorContract<'ctx> {
+    owner_step_schema: StepSchemaId,
+    site_id: SiteId,
+    input_case_tag: CaseTag,
+    payload_tuple_ty: TypeId,
+    payload_abi: RefactorAbiValue<'ctx>,
+    target_state: StateId,
+}
+
+impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
+    pub(super) fn new(
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        input_case_tag: CaseTag,
+        payload_tuple_ty: TypeId,
+        payload_abi: RefactorAbiValue<'ctx>,
+        target_state: StateId,
+    ) -> Self {
+        Self {
+            owner_step_schema,
+            site_id,
+            input_case_tag,
+            payload_tuple_ty,
+            payload_abi,
+            target_state,
+        }
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub(super) fn input_case_tag(&self) -> CaseTag {
+        self.input_case_tag
+    }
+
+    pub(super) fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+
+    pub(super) fn payload_abi(&self) -> &RefactorAbiValue<'ctx> {
+        &self.payload_abi
+    }
+
+    pub(super) fn target_state(&self) -> StateId {
+        self.target_state
+    }
+}
+
 /// 源码可见 `Continuation.resume(...) -> Step_F` 的 LLVM 级合同。
 pub(super) struct RefactorContinuationSurfaceResumeLayout<'ctx> {
     continuation_schema: ContinuationSchemaId,
@@ -901,9 +956,12 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
     dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
+    local_runtime_error_contracts:
+        BTreeMap<(StepSchemaId, SiteId), RefactorLocalRuntimeErrorContract<'ctx>>,
 }
 
 impl<'ctx> RefactorAbiQuery<'ctx> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
         frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
@@ -918,6 +976,10 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         >,
         callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
+        local_runtime_error_contracts: BTreeMap<
+            (StepSchemaId, SiteId),
+            RefactorLocalRuntimeErrorContract<'ctx>,
+        >,
     ) -> Self {
         Self {
             step_layouts,
@@ -927,6 +989,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             surface_resume_layouts,
             callable_layouts,
             dynamic_invoke_layouts,
+            local_runtime_error_contracts,
         }
     }
 
@@ -988,6 +1051,43 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
     ) -> Option<&RefactorDynamicInvokeLayout<'ctx>> {
         self.dynamic_invoke_layouts
             .get(&(owner_step_schema, site_id))
+    }
+
+    pub(super) fn call_local_runtime_error_contract(
+        &self,
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        contract: &LateLoweredConsumedRuntimeErrorCase,
+    ) -> Result<&RefactorLocalRuntimeErrorContract<'ctx>, LlvmEmitError> {
+        let published = self
+            .local_runtime_error_contracts
+            .get(&(owner_step_schema, site_id))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} call site {} 的 local runtime-error contract",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                ),
+            })?;
+        if published.input_case_tag() != contract.input_case_tag()
+            || published.payload_tuple_ty() != contract.payload_tuple_ty()
+            || published.target_state() != contract.target_state()
+        {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 owner step schema s{} call site {} 的 local runtime-error contract 漂移：layout=(input_case=c{}, payload_tuple_ty={}, target_state=st{})，lowering=(input_case=c{}, payload_tuple_ty={}, target_state=st{})",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                    published.input_case_tag().as_u32(),
+                    published.payload_tuple_ty().as_u32(),
+                    published.target_state().as_u32(),
+                    contract.input_case_tag().as_u32(),
+                    contract.payload_tuple_ty().as_u32(),
+                    contract.target_state().as_u32(),
+                ),
+            });
+        }
+        Ok(published)
     }
 
     pub(super) fn call_target_layout(

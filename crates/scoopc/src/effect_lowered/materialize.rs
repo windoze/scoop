@@ -18,6 +18,7 @@ use super::ir::{
     LateLoweredDynamicInvokeEntry, LateLoweredHandleBoundaryLowering, LateLoweredOneShotPolicy,
     LateLoweredPerformBoundaryLowering, LateLoweredResumeBoundaryLowering,
     LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredRuntimeErrorBoundaryLowering,
+    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateTerminator,
     LateLoweredStepCase, LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding,
     LateLoweredStepDispatchPlan, LateLoweredStepType, ResumeInterfaceId, StateId,
 };
@@ -36,6 +37,7 @@ pub(crate) struct BoundaryMaterializationInputs<'a> {
     pub(crate) body: &'a Body,
     pub(crate) body_facts: &'a BodyEffectFacts,
     pub(crate) step_type: &'a LateLoweredStepType,
+    pub(crate) state_graph: &'a LateLoweredStateGraph,
     pub(crate) boundary_map: &'a LateLoweredBoundaryMap,
     pub(crate) continuation_object: ContinuationObjectId,
     pub(crate) step_types: &'a [LateLoweredStepType],
@@ -56,7 +58,25 @@ pub(crate) struct ContinuationObjectMaterializationInputs<'a> {
 
 struct CallBoundaryDispatchMaterialization {
     dispatch: LateLoweredStepDispatchPlan,
-    consumed_runtime_error_case: Option<LateLoweredConsumedRuntimeErrorCase>,
+    consumed_runtime_error_case: Option<PendingConsumedRuntimeErrorCase>,
+}
+
+pub(crate) struct BoundaryMaterialization {
+    pub(crate) state_graph: LateLoweredStateGraph,
+    pub(crate) boundary_map: LateLoweredBoundaryMap,
+}
+
+struct PendingConsumedRuntimeErrorCase {
+    input_case_tag: crate::effect_facts::CaseTag,
+    input_concrete_op_key: ConcreteOpKey,
+    payload_tuple_ty: crate::ty::TypeId,
+}
+
+struct LocalRuntimeErrorStateTarget {
+    boundary_id: BoundaryId,
+    owner_state: StateId,
+    target_state: StateId,
+    payload_tuple_ty: crate::ty::TypeId,
 }
 
 struct CallBoundaryDispatchInputs<'a> {
@@ -193,12 +213,13 @@ pub(crate) fn materialize_continuation_object(
 
 pub(crate) fn materialize_boundary_map(
     inputs: BoundaryMaterializationInputs<'_>,
-) -> Result<LateLoweredBoundaryMap, EffectLoweringError> {
+) -> Result<BoundaryMaterialization, EffectLoweringError> {
     let BoundaryMaterializationInputs {
         root_fqn,
         body,
         body_facts,
         step_type,
+        state_graph,
         boundary_map,
         continuation_object,
         step_types,
@@ -208,6 +229,14 @@ pub(crate) fn materialize_boundary_map(
     let result_locals = collect_result_locals(body);
     let (resume_boundaries, runtime_error_boundaries) = paired_resume_boundaries(boundary_map);
     let mut entries = Vec::with_capacity(boundary_map.entries().len());
+    let mut local_runtime_error_targets = Vec::new();
+    let mut next_state_raw = state_graph
+        .states()
+        .iter()
+        .map(|state| state.state_id().as_u32())
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
 
     for boundary in boundary_map.entries() {
         let lowering = match boundary.source() {
@@ -235,11 +264,28 @@ pub(crate) fn materialize_boundary_map(
                         result_local: Some(result_local),
                         types,
                     })?;
+                let consumed_runtime_error_case =
+                    call_dispatch.consumed_runtime_error_case.map(|pending| {
+                        let target_state = StateId::new(next_state_raw);
+                        next_state_raw = next_state_raw.saturating_add(1);
+                        local_runtime_error_targets.push(LocalRuntimeErrorStateTarget {
+                            boundary_id: boundary.boundary_id(),
+                            owner_state: boundary.owner_state(),
+                            target_state,
+                            payload_tuple_ty: pending.payload_tuple_ty,
+                        });
+                        LateLoweredConsumedRuntimeErrorCase::new(
+                            pending.input_case_tag,
+                            pending.input_concrete_op_key,
+                            pending.payload_tuple_ty,
+                            target_state,
+                        )
+                    });
                 LateLoweredBoundaryLowering::Call(LateLoweredCallBoundaryLowering::new(
                     facts,
                     result_local,
                     call_dispatch.dispatch,
-                    call_dispatch.consumed_runtime_error_case,
+                    consumed_runtime_error_case,
                 ))
             }
             LateLoweredBoundarySource::Site {
@@ -354,7 +400,101 @@ pub(crate) fn materialize_boundary_map(
         entries.push(boundary.clone().with_lowering(lowering));
     }
 
-    Ok(LateLoweredBoundaryMap::new(entries))
+    Ok(BoundaryMaterialization {
+        state_graph: attach_local_runtime_error_states(
+            root_fqn,
+            state_graph,
+            &local_runtime_error_targets,
+        )?,
+        boundary_map: LateLoweredBoundaryMap::new(entries),
+    })
+}
+
+fn attach_local_runtime_error_states(
+    root_fqn: &str,
+    state_graph: &LateLoweredStateGraph,
+    targets: &[LocalRuntimeErrorStateTarget],
+) -> Result<LateLoweredStateGraph, EffectLoweringError> {
+    if targets.is_empty() {
+        return Ok(state_graph.clone());
+    }
+
+    let mut states = state_graph.states().to_vec();
+    let mut local_targets_by_owner = BTreeMap::<StateId, Vec<StateId>>::new();
+    for target in targets {
+        local_targets_by_owner
+            .entry(target.owner_state)
+            .or_default()
+            .push(target.target_state);
+        states.push(LateLoweredState::new(
+            target.target_state,
+            LateLoweredStateRole::Segment,
+            Vec::new(),
+            LateLoweredStateTerminator::LocalRuntimeError {
+                payload_tuple_ty: target.payload_tuple_ty,
+            },
+        ));
+    }
+
+    let rewritten_states = states
+        .into_iter()
+        .map(|state| {
+            let Some(local_runtime_error_states) = local_targets_by_owner.get(&state.state_id())
+            else {
+                return Ok(state);
+            };
+            let terminator = match state.terminator().clone() {
+                LateLoweredStateTerminator::Suspend {
+                    boundary_ids,
+                    resume_state,
+                    local_runtime_error_states: existing_local_runtime_error_states,
+                    cleanup_state,
+                    drop_state,
+                } => {
+                    let mut merged_local_runtime_error_states = existing_local_runtime_error_states;
+                    merged_local_runtime_error_states
+                        .extend(local_runtime_error_states.iter().copied());
+                    merged_local_runtime_error_states.sort();
+                    merged_local_runtime_error_states.dedup();
+                    LateLoweredStateTerminator::Suspend {
+                        boundary_ids,
+                        resume_state,
+                        local_runtime_error_states: merged_local_runtime_error_states,
+                        cleanup_state,
+                        drop_state,
+                    }
+                }
+                _ => {
+                    let boundary_id = targets
+                        .iter()
+                        .find(|target| target.owner_state == state.state_id())
+                        .map(|target| target.boundary_id)
+                        .expect(
+                            "owner state with local runtime-error target should record boundary",
+                        );
+                    return Err(EffectLoweringError::InvalidLocalRuntimeErrorOwnerState {
+                        root_fqn: root_fqn.to_string(),
+                        boundary_id: boundary_id.as_u32(),
+                        owner_state: state.state_id().as_u32(),
+                    });
+                }
+            };
+            Ok(LateLoweredState::new(
+                state.state_id(),
+                state.role(),
+                state.source_slices().to_vec(),
+                terminator,
+            ))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(LateLoweredStateGraph::new(
+        state_graph.entry_state(),
+        state_graph.complete_state(),
+        state_graph.cleanup_state(),
+        state_graph.drop_state(),
+        rewritten_states,
+    ))
 }
 
 fn build_step_type(
@@ -731,12 +871,10 @@ fn build_call_boundary_dispatch_plan(
         // Pure caller 仍需保留 call boundary，但 compiler-generated RuntimeError case
         // 由 boundary 本地消费，不应被强行投影回 caller outward StepSchema。
         if is_runtime_error_raise_case(input_case, types) {
-            consumed_runtime_error_case.get_or_insert_with(|| {
-                LateLoweredConsumedRuntimeErrorCase::new(
-                    input_case.case_tag(),
-                    input_case.concrete_op_key().clone(),
-                    input_case.payload_tuple_ty(),
-                )
+            consumed_runtime_error_case.get_or_insert_with(|| PendingConsumedRuntimeErrorCase {
+                input_case_tag: input_case.case_tag(),
+                input_concrete_op_key: input_case.concrete_op_key().clone(),
+                payload_tuple_ty: input_case.payload_tuple_ty(),
             });
             continue;
         }
@@ -1179,7 +1317,7 @@ mod tests {
             .entries()
             .iter()
             .filter_map(|boundary| match boundary.lowering() {
-                Some(LateLoweredBoundaryLowering::Call(lowering)) => Some(lowering),
+                Some(LateLoweredBoundaryLowering::Call(lowering)) => Some((boundary, lowering)),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -1190,9 +1328,9 @@ mod tests {
         assert!(
             call_boundaries
                 .iter()
-                .all(|lowering| lowering.dispatch().outward_cases().is_empty())
+                .all(|(_, lowering)| lowering.dispatch().outward_cases().is_empty())
         );
-        for lowering in call_boundaries {
+        for (boundary, lowering) in call_boundaries {
             let runtime_error_case = lowering
                 .consumed_runtime_error_case()
                 .expect("pure caller 的 call boundary 应显式发布本地 runtime-error contract");
@@ -1212,6 +1350,28 @@ mod tests {
                     .to_string(),
                 "scoop.core.RuntimeError"
             );
+            let target_state = main
+                .state_graph()
+                .states()
+                .iter()
+                .find(|state| state.state_id() == runtime_error_case.target_state())
+                .expect("本地 runtime-error contract 应发布 dedicated target state");
+            assert!(main.state_graph().states().iter().any(|state| {
+                state.state_id() == boundary.owner_state()
+                    && matches!(
+                        state.terminator(),
+                        crate::effect_lowered::ir::LateLoweredStateTerminator::Suspend {
+                            local_runtime_error_states,
+                            ..
+                        } if local_runtime_error_states.contains(&runtime_error_case.target_state())
+                    )
+            }));
+            assert!(matches!(
+                target_state.terminator(),
+                crate::effect_lowered::ir::LateLoweredStateTerminator::LocalRuntimeError {
+                    payload_tuple_ty,
+                } if *payload_tuple_ty == runtime_error_case.payload_tuple_ty()
+            ));
         }
     }
 

@@ -876,7 +876,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02e：发布 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract，禁止 P6-T03 在 backend 现场发明传播路径
+## [DONE] P6-T02e：发布 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract，禁止 P6-T03 在 backend 现场发明传播路径
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -931,7 +931,14 @@
   - `P6-T03` 可以仅消费已发布 contract 来实现 call boundary lowering，而不再需要 backend 现场发明 pure caller 的 runtime-error 传播路径。
 - 依赖：`P6-T02d`, `P5-T07a`
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：完成 `P6-T02e`。在 `crates/scoopc/src/effect_lowered/{ir,builder,materialize,dump,mod,opt}.rs` 中把 `LateLoweredCallBoundaryLowering::consumed_runtime_error_case` 从“只记录输入 case 身份”升级为结构化 lowering contract：该 contract 现在显式携带 `target_state`，并由 materializer 为每个 pure caller call boundary 追加 dedicated synthetic `LocalRuntimeError` terminal state；对应 owner `Suspend` state 也会把该 target 记入新的 `local_runtime_error_states` 后继集合，避免 P6-T03 继续在 backend 现场补想象 caller-local 控制流。
+  - 2026-05-03：`dump-effect-lowered` 已同步公开这条 contract：pure caller `main` 的 call boundary 现在不再只打印 `consumed_runtime_error_case` 的 case id，而会同时公开 `target=st*`；state graph 里也新增显式的 `LocalRuntimeError(payload_tuple_ty=...)` synthetic state，说明这条 ordinary runtime-error 在 caller 内部的结束路径已经成为 authoritative handoff，而不是 hidden trap 约定。
+  - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 中新增 refactor LLVM ABI query 的 local runtime-error contract 发布面。backend 后续可通过 owner step schema + call site 稳定回查 payload ABI / input case / target state；若 target state 缺失、terminator 不是 `LocalRuntimeError`、或 payload 漂移，ABI materializer 会显式 fail fast，防止 `P6-T03` 在 body lowering 现场重新发明 pure caller runtime-error 传播路径。
+  - 2026-05-03：已补充定向测试与 dump/query 断言：
+    - `refactor_boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls` 现断言 target state 与 owner `Suspend` successor 同时存在；
+    - `refactor_effect_lowered_stage_dump_exposes_local_runtime_error_call_contract` 锁定 stable dump 文本；
+    - `refactor_llvm_local_runtime_error_contract_resolves_pure_call_boundary_targets` / `...rejects_missing_target_state` 锁定 ABI query 发布与 fail-fast 行为。
+  - 2026-05-03：已运行验证：`cargo test -p scoopc refactor_boundary_lowering`、`cargo test -p scoopc refactor_effect_lowered_stage`、`cargo test -p scoopc refactor_llvm_local_runtime_error_contract`、`cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。`PLAN.md` 无需改动。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

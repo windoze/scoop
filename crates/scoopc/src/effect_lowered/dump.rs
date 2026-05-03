@@ -558,10 +558,11 @@ fn render_consumed_runtime_error_case(
 ) {
     writeln!(
         rendered,
-        "            consumed_runtime_error_case: in c{} op={} payload_tuple_ty={}",
+        "            consumed_runtime_error_case: in c{} op={} payload_tuple_ty={} target=st{}",
         runtime_error_case.input_case_tag().as_u32(),
         render_concrete_op_key(runtime_error_case.input_concrete_op_key()),
         render_type_id(runtime_error_case.payload_tuple_ty()),
+        runtime_error_case.target_state().as_u32(),
     )
     .unwrap();
 }
@@ -771,12 +772,14 @@ fn render_state_terminator(terminator: &LateLoweredStateTerminator) -> String {
         LateLoweredStateTerminator::Suspend {
             boundary_ids,
             resume_state,
+            local_runtime_error_states,
             cleanup_state,
             drop_state,
         } => format!(
-            "Suspend(boundaries={}, resume=st{}, cleanup={}, drop={})",
+            "Suspend(boundaries={}, resume=st{}, local_runtime_error={}, cleanup={}, drop={})",
             render_boundary_ids(boundary_ids),
             resume_state.as_u32(),
+            render_state_successors(local_runtime_error_states),
             render_optional_state(*cleanup_state),
             render_optional_state(*drop_state),
         ),
@@ -819,6 +822,12 @@ fn render_state_terminator(terminator: &LateLoweredStateTerminator) -> String {
             render_boundary_ids(boundary_ids),
             render_optional_state(*drop_state),
         ),
+        LateLoweredStateTerminator::LocalRuntimeError { payload_tuple_ty } => {
+            format!(
+                "LocalRuntimeError(payload_tuple_ty={})",
+                render_type_id(*payload_tuple_ty)
+            )
+        }
         LateLoweredStateTerminator::ResumeUnwind => "ResumeUnwind".to_string(),
         LateLoweredStateTerminator::Unreachable => "Unreachable".to_string(),
         LateLoweredStateTerminator::Abandon => "Abandon".to_string(),

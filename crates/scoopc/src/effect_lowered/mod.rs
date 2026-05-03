@@ -183,6 +183,15 @@ pub enum EffectLoweringError {
         step_schema: u32,
     },
 
+    #[error(
+        "refactor late-lowering stage 无法把 `{root_fqn}` 的 call boundary bd{boundary_id} 绑定到 owner state st{owner_state} 的 local runtime-error path：该 state 不是可扩展的 Suspend terminator"
+    )]
+    InvalidLocalRuntimeErrorOwnerState {
+        root_fqn: String,
+        boundary_id: u32,
+        owner_state: u32,
+    },
+
     #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
 }

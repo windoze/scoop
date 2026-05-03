@@ -8,7 +8,7 @@ use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundarySource, LateLoweredCallable,
     LateLoweredContinuationObject, LateLoweredFrameSlotKind, LateLoweredResumeInterface,
-    LateLoweredStepType, ResumeInterfaceId,
+    LateLoweredStateTerminator, LateLoweredStepType, ResumeInterfaceId,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{CallKind as MirCallKind, Rvalue as MirRvalue, StatementKind as MirStatementKind};
@@ -22,9 +22,9 @@ use super::types::{
     RefactorContinuationObjectLayout, RefactorContinuationSurfaceResumeBinding,
     RefactorContinuationSurfaceResumeLayout, RefactorDispatchReceiverLayout,
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameFieldKind,
-    RefactorFrameFieldLayout, RefactorFrameLayout, RefactorResumeInterfaceLayout,
-    RefactorResumeMethodLayout, RefactorStepCaseLayout, RefactorStepLayout,
-    RefactorStepVariantLayout,
+    RefactorFrameFieldLayout, RefactorFrameLayout, RefactorLocalRuntimeErrorContract,
+    RefactorResumeInterfaceLayout, RefactorResumeMethodLayout, RefactorStepCaseLayout,
+    RefactorStepLayout, RefactorStepVariantLayout,
 };
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -201,6 +201,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         }
 
         let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
+        let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
 
         Ok(RefactorAbiQuery::new(
             step_layouts,
@@ -210,6 +211,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             surface_resume_layouts,
             callable_layouts,
             dynamic_invoke_layouts,
+            local_runtime_error_contracts,
         ))
     }
 
@@ -1147,6 +1149,87 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         ))
     }
 
+    fn materialize_local_runtime_error_contracts(
+        &mut self,
+    ) -> Result<
+        BTreeMap<(StepSchemaId, crate::mir::SiteId), RefactorLocalRuntimeErrorContract<'ctx>>,
+        LlvmEmitError,
+    > {
+        let mut contracts = BTreeMap::new();
+        for callable in self.program.callables() {
+            for boundary in callable.boundary_map().entries() {
+                let (
+                    LateLoweredBoundarySource::Site {
+                        site_id,
+                        kind: BoundarySiteKind::Call,
+                    },
+                    Some(LateLoweredBoundaryLowering::Call(lowering)),
+                ) = (boundary.source(), boundary.lowering())
+                else {
+                    continue;
+                };
+                let Some(contract) = lowering.consumed_runtime_error_case() else {
+                    continue;
+                };
+                let Some(target_state) = callable
+                    .state_graph()
+                    .states()
+                    .iter()
+                    .find(|state| state.state_id() == contract.target_state())
+                else {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 缺少 callable `{}` call site {} local runtime-error target state st{}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        contract.target_state().as_u32(),
+                    )));
+                };
+                match target_state.terminator() {
+                    LateLoweredStateTerminator::LocalRuntimeError { payload_tuple_ty }
+                        if *payload_tuple_ty == contract.payload_tuple_ty() => {}
+                    LateLoweredStateTerminator::LocalRuntimeError { payload_tuple_ty } => {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 local runtime-error target state st{} payload 漂移：state_graph=t{}，boundary lowering=t{}",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            contract.target_state().as_u32(),
+                            payload_tuple_ty.as_u32(),
+                            contract.payload_tuple_ty().as_u32(),
+                        )));
+                    }
+                    other => {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 local runtime-error target state st{} 不是 LocalRuntimeError terminator，而是 {other:?}",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            contract.target_state().as_u32(),
+                        )));
+                    }
+                }
+                let key = (callable.step_schema(), site_id);
+                if contracts.contains_key(&key) {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 owner step schema {} call site {} 的 local runtime-error contract 重复发布",
+                        callable.step_schema().as_u32(),
+                        site_id.as_u32(),
+                    )));
+                }
+                contracts.insert(
+                    key,
+                    RefactorLocalRuntimeErrorContract::new(
+                        callable.step_schema(),
+                        site_id,
+                        contract.input_case_tag(),
+                        contract.payload_tuple_ty(),
+                        self.abi_value(contract.payload_tuple_ty())?,
+                        contract.target_state(),
+                    ),
+                );
+            }
+        }
+        Ok(contracts)
+    }
+
     fn lookup_materialized_call_kind(
         &self,
         owner_root_fqn: &str,
@@ -1554,8 +1637,9 @@ mod tests {
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
         LateLoweredBoundarySource, LateLoweredCallBoundaryLowering, LateLoweredCallable,
-        LateLoweredContinuationObject, LateLoweredContinuationSurfaceResume, LateLoweredProgram,
-        LateLoweredResumeInterface, LateLoweredResumeMethod, SystemSlotKind,
+        LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
+        LateLoweredContinuationSurfaceResume, LateLoweredProgram, LateLoweredResumeInterface,
+        LateLoweredResumeMethod, StateId, SystemSlotKind,
     };
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
@@ -2712,6 +2796,142 @@ mod tests {
                 );
                 assert!(
                     message.contains("fixtures.build.helper") && message.contains("999"),
+                    "错误消息应指出缺失 contract 所属的 callable 和 site id: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_local_runtime_error_contract_resolves_pure_call_boundary_targets() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query =
+                    result.expect("pure caller local runtime-error contract 应可发布到 ABI query");
+                let main = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("main")
+                    .expect("main callable 应存在");
+                let mut checked = 0usize;
+
+                for boundary in main.boundary_map().entries() {
+                    let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering()
+                    else {
+                        continue;
+                    };
+                    let Some(contract) = lowering.consumed_runtime_error_case() else {
+                        continue;
+                    };
+                    let site_id = boundary_site_id(boundary);
+                    let published = query
+                        .call_local_runtime_error_contract(main.step_schema(), site_id, contract)
+                        .expect("call boundary 应可回查 published local runtime-error contract");
+
+                    assert_eq!(published.owner_step_schema(), main.step_schema());
+                    assert_eq!(published.site_id(), site_id);
+                    assert_eq!(published.input_case_tag(), contract.input_case_tag());
+                    assert_eq!(published.payload_tuple_ty(), contract.payload_tuple_ty());
+                    assert_eq!(published.target_state(), contract.target_state());
+                    assert!(
+                        !published.payload_abi().is_elided(),
+                        "RuntimeError payload 不应被零载荷退化"
+                    );
+                    checked += 1;
+                }
+
+                assert_eq!(
+                    checked, 2,
+                    "fixture 应包含两个 pure caller call boundary contract"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_local_runtime_error_contract_rejects_missing_target_state() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let main = program.callable("main").expect("main callable 应存在");
+                let boundary_map = LateLoweredBoundaryMap::new(
+                    main.boundary_map()
+                        .entries()
+                        .iter()
+                        .map(|boundary| {
+                            let lowering = match boundary
+                                .lowering()
+                                .cloned()
+                                .expect("main boundary 应带 lowering")
+                            {
+                                LateLoweredBoundaryLowering::Call(lowering) => {
+                                    let consumed_runtime_error_case = lowering
+                                        .consumed_runtime_error_case()
+                                        .cloned()
+                                        .map(|contract| {
+                                            LateLoweredConsumedRuntimeErrorCase::new(
+                                                contract.input_case_tag(),
+                                                contract.input_concrete_op_key().clone(),
+                                                contract.payload_tuple_ty(),
+                                                StateId::new(999),
+                                            )
+                                        });
+                                    LateLoweredBoundaryLowering::Call(
+                                        LateLoweredCallBoundaryLowering::new(
+                                            lowering.facts().clone(),
+                                            lowering.result_local(),
+                                            lowering.dispatch().clone(),
+                                            consumed_runtime_error_case,
+                                        ),
+                                    )
+                                }
+                                other => other,
+                            };
+                            LateLoweredBoundary::new(
+                                boundary.boundary_id(),
+                                boundary.source(),
+                                boundary.owner_state(),
+                                boundary.resume_state(),
+                            )
+                            .with_lowering(lowering)
+                        })
+                        .collect(),
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == main.step_schema() {
+                            clone_callable_with_boundary_map(candidate, boundary_map.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 local runtime-error target state 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("local runtime-error target state"),
+                    "错误消息应指出缺失的是 local runtime-error target state: {message}"
+                );
+                assert!(
+                    message.contains("main") && message.contains("call site 1"),
                     "错误消息应指出缺失 contract 所属的 callable 和 site id: {message}"
                 );
             },

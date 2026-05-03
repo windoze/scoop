@@ -251,6 +251,15 @@ fun leaf(): Unit / Ping {
         )
     }
 
+    fn local_runtime_error_fixture_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_resume_if_else_branch_single_perform.scoop",
+            include_str!(
+                "../../../../tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop"
+            ),
+        )
+    }
+
     #[test]
     fn refactor_effect_lowered_stage_output_is_constructible() {
         let output = run_sample();
@@ -348,6 +357,20 @@ fun leaf(): Unit / Ping {
         assert!(o0.contains("impl_plan=CanonicalFull"));
         assert!(o2.contains("opt_level: O2"));
         assert!(o2.contains("impl_plan=SingleCase(c0)"));
+    }
+
+    #[test]
+    fn refactor_effect_lowered_stage_dump_exposes_local_runtime_error_call_contract() {
+        let session = refactor_session();
+        let source = local_runtime_error_fixture_source();
+        let effect_facts_output =
+            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
+        let dump = super::run(effect_facts_output).unwrap().stable_dump();
+
+        assert!(dump.contains("consumed_runtime_error_case:"));
+        assert!(dump.contains("target=st"));
+        assert!(dump.contains("local_runtime_error=[st"));
+        assert!(dump.contains("LocalRuntimeError(payload_tuple_ty="));
     }
 
     #[test]

@@ -936,6 +936,7 @@ pub enum LateLoweredStateTerminator {
     Suspend {
         boundary_ids: Vec<BoundaryId>,
         resume_state: StateId,
+        local_runtime_error_states: Vec<StateId>,
         cleanup_state: Option<StateId>,
         drop_state: Option<StateId>,
     },
@@ -960,6 +961,9 @@ pub enum LateLoweredStateTerminator {
         boundary_ids: Vec<BoundaryId>,
         drop_state: Option<StateId>,
     },
+    LocalRuntimeError {
+        payload_tuple_ty: TypeId,
+    },
     ResumeUnwind,
     Unreachable,
     Abandon,
@@ -970,10 +974,12 @@ impl LateLoweredStateTerminator {
         match self {
             Self::Suspend {
                 resume_state,
+                local_runtime_error_states,
                 cleanup_state,
                 ..
             } => {
                 let mut successors = vec![*resume_state];
+                successors.extend(local_runtime_error_states.iter().copied());
                 if let Some(cleanup_state) = cleanup_state {
                     successors.push(*cleanup_state);
                 }
@@ -999,7 +1005,10 @@ impl LateLoweredStateTerminator {
                 }
                 successors
             }
-            Self::ResumeUnwind | Self::Unreachable | Self::Abandon => Vec::new(),
+            Self::LocalRuntimeError { .. }
+            | Self::ResumeUnwind
+            | Self::Unreachable
+            | Self::Abandon => Vec::new(),
         }
     }
 
@@ -1008,11 +1017,13 @@ impl LateLoweredStateTerminator {
             Self::Suspend {
                 boundary_ids,
                 resume_state,
+                local_runtime_error_states,
                 cleanup_state,
                 ..
             } => Self::Suspend {
                 boundary_ids,
                 resume_state,
+                local_runtime_error_states,
                 cleanup_state,
                 drop_state,
             },
@@ -1364,6 +1375,7 @@ pub struct LateLoweredConsumedRuntimeErrorCase {
     input_case_tag: CaseTag,
     input_concrete_op_key: ConcreteOpKey,
     payload_tuple_ty: TypeId,
+    target_state: StateId,
 }
 
 impl LateLoweredConsumedRuntimeErrorCase {
@@ -1371,11 +1383,13 @@ impl LateLoweredConsumedRuntimeErrorCase {
         input_case_tag: CaseTag,
         input_concrete_op_key: ConcreteOpKey,
         payload_tuple_ty: TypeId,
+        target_state: StateId,
     ) -> Self {
         Self {
             input_case_tag,
             input_concrete_op_key,
             payload_tuple_ty,
+            target_state,
         }
     }
 
@@ -1389,6 +1403,10 @@ impl LateLoweredConsumedRuntimeErrorCase {
 
     pub fn payload_tuple_ty(&self) -> TypeId {
         self.payload_tuple_ty
+    }
+
+    pub fn target_state(&self) -> StateId {
+        self.target_state
     }
 }
 
@@ -2070,6 +2088,7 @@ mod tests {
                         LateLoweredStateTerminator::Suspend {
                             boundary_ids: vec![boundary0],
                             resume_state: state2,
+                            local_runtime_error_states: Vec::new(),
                             cleanup_state: Some(state3),
                             drop_state: Some(state4),
                         },
