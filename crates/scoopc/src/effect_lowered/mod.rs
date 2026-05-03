@@ -202,6 +202,16 @@ pub enum EffectLoweringError {
         detail: String,
     },
 
+    #[error(
+        "refactor late-lowering stage 无法为 `{root_fqn}` 的 {kind} site{site_id} 发布 boundary operand contract：{detail}"
+    )]
+    InvalidBoundaryOperandContract {
+        root_fqn: String,
+        site_id: u32,
+        kind: &'static str,
+        detail: String,
+    },
+
     #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
 }

@@ -10,10 +10,12 @@ use crate::effect_facts::{
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundarySiteKind, ContinuationObjectId, LateLoweredBoundaryLowering, LateLoweredBoundarySource,
-    LateLoweredCallable, LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
+    LateLoweredBoundarySourceConsumption, LateLoweredCallable,
+    LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
     LateLoweredFrameSlotKind, LateLoweredHandlePendingCompletion,
-    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPublishedRuntimeEntry,
-    LateLoweredResumeInterface, LateLoweredStateTerminator, LateLoweredStepType,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOperandSource,
+    LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredStateSlice,
+    LateLoweredStateTerminator, LateLoweredStepType,
     LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
     ResumeInterfaceId, SystemSlotKind,
 };
@@ -27,8 +29,9 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use super::super::types::IntTy;
 use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident};
 use super::types::{
-    RefactorAbiQuery, RefactorAbiValue, RefactorCallableEntryLayout, RefactorCallableLayout,
-    RefactorClosureCarrierLayout, RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
+    RefactorAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
+    RefactorCallableEntryLayout, RefactorCallableLayout, RefactorClosureCarrierLayout,
+    RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
     RefactorContinuationObjectLayout, RefactorContinuationSurfaceResumeBinding,
     RefactorContinuationSurfaceResumeDispatchLayout,
     RefactorContinuationSurfaceResumeDispatchTarget,
@@ -39,7 +42,8 @@ use super::types::{
     RefactorFrameFieldLayout, RefactorFrameLayout, RefactorHandleArmLayout,
     RefactorHandleContinuationBinderLayout, RefactorHandleDispatchLayout,
     RefactorHandlePayloadBinderLayout, RefactorLocalRuntimeErrorContract,
-    RefactorLocalRuntimeErrorTerminalAction, RefactorPublishedRuntimeEntryLayout,
+    RefactorLocalRuntimeErrorTerminalAction, RefactorPerformBoundaryOperandLayout,
+    RefactorPublishedRuntimeEntryLayout, RefactorResumeBoundaryOperandLayout,
     RefactorResumeInterfaceLayout, RefactorResumeMethodLayout, RefactorSourceAbiFieldLayout,
     RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout,
     RefactorStepLayout, RefactorStepVariantLayout,
@@ -62,6 +66,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 struct ProgramLayoutView {
     callable_stems_by_step_schema: BTreeMap<StepSchemaId, String>,
 }
+
+type BoundaryOperandKey = (StepSchemaId, crate::mir::SiteId);
+type CallBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, RefactorCallBoundaryOperandLayout>;
+type PerformBoundaryOperandLayouts =
+    BTreeMap<BoundaryOperandKey, RefactorPerformBoundaryOperandLayout>;
+type ResumeBoundaryOperandLayouts =
+    BTreeMap<BoundaryOperandKey, RefactorResumeBoundaryOperandLayout>;
+type BoundaryOperandLayoutSets = (
+    CallBoundaryOperandLayouts,
+    PerformBoundaryOperandLayouts,
+    ResumeBoundaryOperandLayouts,
+);
 
 impl ProgramLayoutView {
     fn new(program: &LateLoweredProgram) -> Result<Self, LlvmEmitError> {
@@ -235,6 +251,15 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         this.publish_callable_carrier_entry_shells(&callable_layouts, &step_layouts)?;
 
         let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
+        let (
+            call_boundary_operand_layouts,
+            perform_boundary_operand_layouts,
+            resume_boundary_operand_layouts,
+        ) = this.materialize_boundary_operand_layouts(
+            &dynamic_invoke_layouts,
+            &surface_resume_layouts,
+            &surface_resume_dispatch_layouts,
+        )?;
         let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
         let handle_dispatch_layouts = this.materialize_handle_dispatch_layouts(
             &frame_layouts,
@@ -252,6 +277,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             surface_resume_dispatch_layouts,
             callable_layouts,
             dynamic_invoke_layouts,
+            call_boundary_operand_layouts,
+            perform_boundary_operand_layouts,
+            resume_boundary_operand_layouts,
             local_runtime_error_contracts,
             handle_dispatch_layouts,
         ))
@@ -1687,6 +1715,452 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             self.publish_source_slice_dynamic_invoke_layouts(callable, step_layouts, &mut layouts)?;
         }
         Ok(layouts)
+    }
+
+    fn materialize_boundary_operand_layouts(
+        &mut self,
+        dynamic_invoke_layouts: &BTreeMap<
+            (StepSchemaId, crate::mir::SiteId),
+            RefactorDynamicInvokeLayout<'ctx>,
+        >,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
+        surface_resume_dispatch_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeDispatchLayout<'ctx>,
+        >,
+    ) -> Result<BoundaryOperandLayoutSets, LlvmEmitError> {
+        let mut call_layouts = BTreeMap::new();
+        let mut perform_layouts = BTreeMap::new();
+        let mut resume_layouts = BTreeMap::new();
+
+        for callable in self.program.callables() {
+            for boundary in callable.boundary_map().entries() {
+                match (boundary.source(), boundary.lowering()) {
+                    (
+                        LateLoweredBoundarySource::Site {
+                            site_id,
+                            kind: BoundarySiteKind::Call,
+                        },
+                        Some(LateLoweredBoundaryLowering::Call(lowering)),
+                    ) => {
+                        self.validate_call_boundary_operand_contract(
+                            callable,
+                            boundary,
+                            site_id,
+                            lowering,
+                            dynamic_invoke_layouts,
+                        )?;
+                        let key = (callable.step_schema(), site_id);
+                        if call_layouts.contains_key(&key) {
+                            return Err(frontend_error(format!(
+                                "refactor LLVM ABI materialization 发现 owner step schema {} call site {} 的 boundary operand contract 重复发布",
+                                callable.step_schema().as_u32(),
+                                site_id.as_u32(),
+                            )));
+                        }
+                        call_layouts.insert(
+                            key,
+                            RefactorCallBoundaryOperandLayout::new(
+                                callable.step_schema(),
+                                site_id,
+                                lowering.operand_contract().clone(),
+                            ),
+                        );
+                    }
+                    (
+                        LateLoweredBoundarySource::Site {
+                            site_id,
+                            kind: BoundarySiteKind::Perform,
+                        },
+                        Some(LateLoweredBoundaryLowering::Perform(lowering)),
+                    ) => {
+                        self.validate_perform_boundary_operand_contract(
+                            callable, boundary, site_id, lowering,
+                        )?;
+                        let key = (callable.step_schema(), site_id);
+                        if perform_layouts.contains_key(&key) {
+                            return Err(frontend_error(format!(
+                                "refactor LLVM ABI materialization 发现 owner step schema {} perform site {} 的 boundary operand contract 重复发布",
+                                callable.step_schema().as_u32(),
+                                site_id.as_u32(),
+                            )));
+                        }
+                        perform_layouts.insert(
+                            key,
+                            RefactorPerformBoundaryOperandLayout::new(
+                                callable.step_schema(),
+                                site_id,
+                                lowering.operand_contract().clone(),
+                            ),
+                        );
+                    }
+                    (
+                        LateLoweredBoundarySource::Site {
+                            site_id,
+                            kind: BoundarySiteKind::Resume,
+                        },
+                        Some(LateLoweredBoundaryLowering::Resume(lowering)),
+                    ) => {
+                        self.validate_resume_boundary_operand_contract(
+                            callable,
+                            boundary,
+                            site_id,
+                            lowering,
+                            surface_resume_layouts,
+                            surface_resume_dispatch_layouts,
+                        )?;
+                        let key = (callable.step_schema(), site_id);
+                        if resume_layouts.contains_key(&key) {
+                            return Err(frontend_error(format!(
+                                "refactor LLVM ABI materialization 发现 owner step schema {} resume site {} 的 boundary operand contract 重复发布",
+                                callable.step_schema().as_u32(),
+                                site_id.as_u32(),
+                            )));
+                        }
+                        resume_layouts.insert(
+                            key,
+                            RefactorResumeBoundaryOperandLayout::new(
+                                callable.step_schema(),
+                                site_id,
+                                lowering.operand_contract().clone(),
+                            ),
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Ok((call_layouts, perform_layouts, resume_layouts))
+    }
+
+    fn validate_boundary_source_consumption(
+        &self,
+        owner_root_fqn: &str,
+        site_id: crate::mir::SiteId,
+        kind: &'static str,
+        owner_slices: &[LateLoweredStateSlice],
+        consumption: LateLoweredBoundarySourceConsumption,
+        expect_statement: bool,
+    ) -> Result<(), LlvmEmitError> {
+        let source_slice = consumption.source_slice();
+        if !owner_slices.contains(&source_slice) {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 的 published anchor slice {:?} 不属于 owner state source_slices",
+                site_id.as_u32(),
+                source_slice,
+            )));
+        }
+        match consumption {
+            LateLoweredBoundarySourceConsumption::Statement {
+                source_slice,
+                statement_index,
+                consumes_last_statement,
+            } => {
+                if !expect_statement {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 错误地发布了 statement anchor",
+                        site_id.as_u32(),
+                    )));
+                }
+                if statement_index < source_slice.start_statement_index()
+                    || statement_index >= source_slice.end_statement_index()
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 的 statement anchor {} 越界于 published source slice {:?}",
+                        site_id.as_u32(),
+                        statement_index,
+                        source_slice,
+                    )));
+                }
+                let expected_last =
+                    statement_index.saturating_add(1) == source_slice.end_statement_index();
+                if consumes_last_statement != expected_last {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 的 consumes_last_statement 漂移：published={}，expected={expected_last}",
+                        site_id.as_u32(),
+                        consumes_last_statement,
+                    )));
+                }
+            }
+            LateLoweredBoundarySourceConsumption::Terminator { source_slice } => {
+                if expect_statement {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 错误地发布了 terminator anchor",
+                        site_id.as_u32(),
+                    )));
+                }
+                if !source_slice.includes_terminator() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 的 terminator anchor 所在 source slice 没有包含 terminator",
+                        site_id.as_u32(),
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_boundary_operand_source_layout(
+        &mut self,
+        owner_root_fqn: &str,
+        site_id: crate::mir::SiteId,
+        kind: &'static str,
+        label: &'static str,
+        source: &LateLoweredOperandSource,
+    ) -> Result<(), LlvmEmitError> {
+        self.source_value_layout(source.source_ty()).map(|_| ()).map_err(|err| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` {kind} site {} {label} source type t{} 的 ABI value lowering contract：{err}",
+                site_id.as_u32(),
+                source.source_ty().as_u32(),
+            ))
+        })
+    }
+
+    fn validate_ordered_boundary_sources(
+        &mut self,
+        owner_root_fqn: &str,
+        site_id: crate::mir::SiteId,
+        kind: &'static str,
+        label: &'static str,
+        sources: &[LateLoweredOperandSource],
+        expected_tuple_ty: TypeId,
+    ) -> Result<(), LlvmEmitError> {
+        let expected_components =
+            expected_source_types_for_carrier(self.source_types, expected_tuple_ty, sources.len())
+                .map_err(|detail| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 的 {label} contract 非法：{detail}",
+                        site_id.as_u32(),
+                    ))
+                })?;
+        if sources.len() != expected_components.len() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 的 {label} 数量({}) 与 published carrier t{} 的 component 数量({}) 不一致",
+                site_id.as_u32(),
+                sources.len(),
+                expected_tuple_ty.as_u32(),
+                expected_components.len(),
+            )));
+        }
+        for (index, (source, expected_ty)) in sources.iter().zip(expected_components).enumerate() {
+            if source.source_ty() != expected_ty {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` {kind} site {} 的 {label}[{}] source_ty 漂移：published=t{}，expected=t{}",
+                    site_id.as_u32(),
+                    index,
+                    source.source_ty().as_u32(),
+                    expected_ty.as_u32(),
+                )));
+            }
+            self.validate_boundary_operand_source_layout(
+                owner_root_fqn,
+                site_id,
+                kind,
+                label,
+                source,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_call_boundary_operand_contract(
+        &mut self,
+        callable: &LateLoweredCallable,
+        boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+        site_id: crate::mir::SiteId,
+        lowering: &crate::effect_lowered::ir::LateLoweredCallBoundaryLowering,
+        dynamic_invoke_layouts: &BTreeMap<
+            (StepSchemaId, crate::mir::SiteId),
+            RefactorDynamicInvokeLayout<'ctx>,
+        >,
+    ) -> Result<(), LlvmEmitError> {
+        let owner_state = callable.state_graph().state(boundary.owner_state()).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{}` call site {} owner state st{}，无法发布 boundary operand contract",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                boundary.owner_state().as_u32(),
+            ))
+        })?;
+        self.validate_boundary_source_consumption(
+            callable.root_fqn(),
+            site_id,
+            "call",
+            owner_state.source_slices(),
+            lowering.operand_contract().source_consumption(),
+            true,
+        )?;
+        self.validate_ordered_boundary_sources(
+            callable.root_fqn(),
+            site_id,
+            "call",
+            "ordered args",
+            lowering.operand_contract().arg_sources(),
+            lowering.facts().invoke_args_tuple_ty(),
+        )?;
+        match lowering.facts().kind() {
+            CallSiteKind::Direct => {
+                if lowering.operand_contract().carrier_source().is_some() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 direct call boundary 错误地发布了 carrier source",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                    )));
+                }
+            }
+            CallSiteKind::Closure
+            | CallSiteKind::FunValue
+            | CallSiteKind::Virtual
+            | CallSiteKind::Interface => {
+                let carrier = lowering.operand_contract().carrier_source().ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 non-KnownInstance boundary 缺少 carrier source contract",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                    ))
+                })?;
+                self.validate_boundary_operand_source_layout(
+                    callable.root_fqn(),
+                    site_id,
+                    "call",
+                    "carrier",
+                    carrier,
+                )?;
+                let layout = dynamic_invoke_layouts.get(&(callable.step_schema(), site_id)).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 缺少 callable `{}` call site {} 的 dynamic-invoke contract，无法校验 carrier source",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                    ))
+                })?;
+                let source_layout = self.source_value_layout(carrier.source_ty())?;
+                if source_layout.abi().is_elided() != layout.carrier().receiver_abi().is_elided()
+                    || source_layout.abi().llvm_ty() != layout.carrier().receiver_abi().llvm_ty()
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 carrier source ABI 与 published dynamic-invoke carrier 漂移",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_perform_boundary_operand_contract(
+        &mut self,
+        callable: &LateLoweredCallable,
+        boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+        site_id: crate::mir::SiteId,
+        lowering: &crate::effect_lowered::ir::LateLoweredPerformBoundaryLowering,
+    ) -> Result<(), LlvmEmitError> {
+        let owner_state = callable.state_graph().state(boundary.owner_state()).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{}` perform site {} owner state st{}，无法发布 boundary operand contract",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                boundary.owner_state().as_u32(),
+            ))
+        })?;
+        self.validate_boundary_source_consumption(
+            callable.root_fqn(),
+            site_id,
+            "perform",
+            owner_state.source_slices(),
+            lowering.operand_contract().source_consumption(),
+            false,
+        )?;
+        self.validate_ordered_boundary_sources(
+            callable.root_fqn(),
+            site_id,
+            "perform",
+            "payload sources",
+            lowering.operand_contract().payload_sources(),
+            lowering.facts().payload_tuple_ty(),
+        )
+    }
+
+    fn validate_resume_boundary_operand_contract(
+        &mut self,
+        callable: &LateLoweredCallable,
+        boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+        site_id: crate::mir::SiteId,
+        lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
+        surface_resume_dispatch_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeDispatchLayout<'ctx>,
+        >,
+    ) -> Result<(), LlvmEmitError> {
+        let owner_state = callable.state_graph().state(boundary.owner_state()).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{}` resume site {} owner state st{}，无法发布 boundary operand contract",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                boundary.owner_state().as_u32(),
+            ))
+        })?;
+        self.validate_boundary_source_consumption(
+            callable.root_fqn(),
+            site_id,
+            "resume",
+            owner_state.source_slices(),
+            lowering.operand_contract().source_consumption(),
+            true,
+        )?;
+        self.validate_boundary_operand_source_layout(
+            callable.root_fqn(),
+            site_id,
+            "resume",
+            "continuation",
+            lowering.operand_contract().continuation_source(),
+        )?;
+        self.validate_ordered_boundary_sources(
+            callable.root_fqn(),
+            site_id,
+            "resume",
+            "ordered args",
+            lowering.operand_contract().arg_sources(),
+            lowering.facts().resume_tuple_ty(),
+        )?;
+        let surface_layout = surface_resume_layouts
+            .get(&lowering.facts().continuation_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` resume site {} continuation schema k{} 的 surface-resume layout",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    lowering.facts().continuation_schema().as_u32(),
+                ))
+            })?;
+        if surface_layout.resume_tuple_ty() != lowering.facts().resume_tuple_ty()
+            || surface_layout.answer_ty() != lowering.facts().answer_ty()
+            || surface_layout.return_step_schema() != lowering.facts().out_step_schema()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` resume site {} 的 surface-resume layout 与 published facts 漂移",
+                callable.root_fqn(),
+                site_id.as_u32(),
+            )));
+        }
+        if !surface_resume_dispatch_layouts.contains_key(&lowering.facts().continuation_schema()) {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{}` resume site {} continuation schema k{} 的 surface-resume owner dispatch contract",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                lowering.facts().continuation_schema().as_u32(),
+            )));
+        }
+        Ok(())
     }
 
     fn publish_boundary_dynamic_invoke_layouts(
@@ -3734,6 +4208,37 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
+fn expected_source_types_for_carrier(
+    types: &TypeStore,
+    carrier_ty: TypeId,
+    source_count: usize,
+) -> Result<Vec<TypeId>, String> {
+    match source_count {
+        0 => match types.kind(carrier_ty) {
+            TypeKind::Value(ValueTypeKind::Unit) => Ok(Vec::new()),
+            _ => Err(format!(
+                "只有 Unit carrier 才允许 0 个 source，但 published carrier 为 t{}",
+                carrier_ty.as_u32(),
+            )),
+        },
+        1 => Ok(vec![carrier_ty]),
+        _ => match types.kind(carrier_ty) {
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements.len() == source_count => {
+                Ok(elements.clone())
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => Err(format!(
+                "published tuple carrier t{} 期望 {} 个 source，实际为 {source_count}",
+                carrier_ty.as_u32(),
+                elements.len(),
+            )),
+            _ => Err(format!(
+                "published carrier t{} 期望单一 source，实际数量为 {source_count}",
+                carrier_ty.as_u32(),
+            )),
+        },
+    }
+}
+
 fn legacy_hir_closure_carrier_alias(root_fqn: &str) -> Option<String> {
     let (_, suffix) = root_fqn.rsplit_once(".$lambda")?;
     suffix
@@ -3778,12 +4283,13 @@ mod tests {
     };
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
-        LateLoweredBoundarySource, LateLoweredCallBoundaryLowering, LateLoweredCallable,
-        LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
+        LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
+        LateLoweredCallBoundaryLowering, LateLoweredCallBoundaryOperandContract,
+        LateLoweredCallable, LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
         LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
         LateLoweredFrameSchema, LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
-        LateLoweredHandlePendingCompletion, LateLoweredProgram, LateLoweredResumeInterface,
-        LateLoweredResumeMethod, StateId, SystemSlotKind,
+        LateLoweredHandlePendingCompletion, LateLoweredOperandValueSource, LateLoweredProgram,
+        LateLoweredResumeInterface, LateLoweredResumeMethod, StateId, SystemSlotKind,
     };
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
@@ -4470,6 +4976,24 @@ mod tests {
     fn call_boundary_lowering(boundary: &LateLoweredBoundary) -> &LateLoweredCallBoundaryLowering {
         let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering() else {
             panic!("boundary 应物化成 Call lowering");
+        };
+        lowering
+    }
+
+    fn perform_boundary_lowering(
+        boundary: &LateLoweredBoundary,
+    ) -> &crate::effect_lowered::ir::LateLoweredPerformBoundaryLowering {
+        let Some(LateLoweredBoundaryLowering::Perform(lowering)) = boundary.lowering() else {
+            panic!("boundary 应物化成 Perform lowering");
+        };
+        lowering
+    }
+
+    fn resume_boundary_lowering(
+        boundary: &LateLoweredBoundary,
+    ) -> &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering {
+        let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering() else {
+            panic!("boundary 应物化成 Resume lowering");
         };
         lowering
     }
@@ -5192,6 +5716,350 @@ mod tests {
     }
 
     #[test]
+    fn refactor_llvm_boundary_operand_contract_resolves_direct_call_anchor_and_args() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("direct call boundary operand contract 应成功发布");
+                let main = inputs
+                    .abi_visibility_program
+                    .callable("main")
+                    .expect("main callable 应存在");
+                let boundary = site_boundary(main, BoundarySiteKind::Call);
+                let lowering = call_boundary_lowering(boundary);
+                let site_id = boundary_site_id(boundary);
+                let layout = query
+                    .call_boundary_operand_layout(
+                        main.step_schema(),
+                        site_id,
+                        lowering.operand_contract(),
+                    )
+                    .expect("direct call boundary 应可回查 published operand contract");
+                let RefactorCallTargetQuery::KnownInstance(_) = query
+                    .call_target_layout(main.step_schema(), site_id, lowering.facts())
+                    .expect("direct call target contract 应成功")
+                else {
+                    panic!("known-instance direct call 不应走 dynamic invoke contract");
+                };
+
+                assert_eq!(layout.owner_step_schema(), main.step_schema());
+                assert_eq!(layout.site_id(), site_id);
+                assert!(matches!(
+                    layout.contract().source_consumption(),
+                    LateLoweredBoundarySourceConsumption::Statement {
+                        consumes_last_statement: true,
+                        ..
+                    }
+                ));
+                assert!(layout.contract().carrier_source().is_none());
+                assert_eq!(layout.contract().arg_sources().len(), 1);
+                assert_eq!(
+                    inputs
+                        .effect_lowered_stage_output
+                        .types()
+                        .display(layout.contract().arg_sources()[0].source_ty())
+                        .to_string(),
+                    "Bool"
+                );
+                assert!(matches!(
+                    layout.contract().arg_sources()[0].value(),
+                    LateLoweredOperandValueSource::Local(_)
+                        | LateLoweredOperandValueSource::Const(crate::mir::ConstValue::Bool(_))
+                ));
+                assert!(layout.contract().arg_sources()[0].span().is_some());
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_boundary_operand_contract_resolves_dynamic_call_carrier() {
+        with_phase_fixture_query_result(
+            "effect_facts",
+            "dynamic_fallback_widening.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("dynamic call boundary operand contract 应成功发布");
+                let call_value = inputs
+                    .abi_visibility_program
+                    .callable("sample.callValue")
+                    .expect("sample.callValue callable 应存在");
+                let boundary = site_boundary(call_value, BoundarySiteKind::Call);
+                let lowering = call_boundary_lowering(boundary);
+                let site_id = boundary_site_id(boundary);
+                let layout = query
+                    .call_boundary_operand_layout(
+                        call_value.step_schema(),
+                        site_id,
+                        lowering.operand_contract(),
+                    )
+                    .expect("dynamic call boundary 应可回查 published operand contract");
+                let RefactorCallTargetQuery::DynamicInvoke(_) = query
+                    .call_target_layout(call_value.step_schema(), site_id, lowering.facts())
+                    .expect("dynamic call target contract 应成功")
+                else {
+                    panic!("non-KnownInstance call 应走 dynamic invoke contract");
+                };
+
+                assert!(matches!(
+                    layout.contract().source_consumption(),
+                    LateLoweredBoundarySourceConsumption::Statement { .. }
+                ));
+                assert_eq!(layout.contract().arg_sources().len(), 0);
+                assert!(matches!(
+                    layout
+                        .contract()
+                        .carrier_source()
+                        .expect("dynamic call 应发布 carrier source")
+                        .value(),
+                    LateLoweredOperandValueSource::Local(_)
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_boundary_operand_contract_resolves_perform_and_resume_sources() {
+        with_phase_fixture_query_result(
+            "effect_facts",
+            "handle_perform.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("perform boundary operand contract 应成功发布");
+                let main = inputs
+                    .abi_visibility_program
+                    .callable("a.main")
+                    .expect("a.main callable 应存在");
+                let boundary = site_boundary(main, BoundarySiteKind::Perform);
+                let lowering = perform_boundary_lowering(boundary);
+                let site_id = boundary_site_id(boundary);
+                let layout = query
+                    .perform_boundary_operand_layout(
+                        main.step_schema(),
+                        site_id,
+                        lowering.operand_contract(),
+                    )
+                    .expect("perform boundary 应可回查 published operand contract");
+
+                assert!(matches!(
+                    layout.contract().source_consumption(),
+                    LateLoweredBoundarySourceConsumption::Terminator { .. }
+                ));
+                assert_eq!(layout.contract().payload_sources().len(), 1);
+                assert!(matches!(
+                    layout.contract().payload_sources()[0].value(),
+                    LateLoweredOperandValueSource::Local(_)
+                        | LateLoweredOperandValueSource::Const(crate::mir::ConstValue::Int)
+                ));
+                assert!(layout.contract().payload_sources()[0].span().is_some());
+            },
+        );
+
+        with_phase_fixture_query_result(
+            "effect_facts",
+            "dispatch_and_resume_call.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("resume boundary operand contract 应成功发布");
+                let callable = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.mir.resumeBoom")
+                    .expect("fixtures.mir.resumeBoom callable 应存在");
+                let boundary = site_boundary(callable, BoundarySiteKind::Resume);
+                let lowering = resume_boundary_lowering(boundary);
+                let site_id = boundary_site_id(boundary);
+                let layout = query
+                    .resume_boundary_operand_layout(
+                        callable.step_schema(),
+                        site_id,
+                        lowering.operand_contract(),
+                    )
+                    .expect("resume boundary 应可回查 published operand contract");
+
+                assert!(matches!(
+                    layout.contract().source_consumption(),
+                    LateLoweredBoundarySourceConsumption::Statement {
+                        consumes_last_statement: true,
+                        ..
+                    }
+                ));
+                assert!(matches!(
+                    layout.contract().continuation_source().value(),
+                    LateLoweredOperandValueSource::Local(_)
+                ));
+                assert_eq!(layout.contract().arg_sources().len(), 1);
+                assert!(matches!(
+                    layout.contract().arg_sources()[0].value(),
+                    LateLoweredOperandValueSource::Local(_)
+                        | LateLoweredOperandValueSource::Const(crate::mir::ConstValue::Int)
+                ));
+                assert!(layout.contract().arg_sources()[0].span().is_some());
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_boundary_operand_contract_rejects_ordered_arg_drift() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let main = program.callable("main").expect("main callable 应存在");
+                let boundary_map = LateLoweredBoundaryMap::new(
+                    main.boundary_map()
+                        .entries()
+                        .iter()
+                        .map(|boundary| {
+                            let lowering = match boundary
+                                .lowering()
+                                .cloned()
+                                .expect("boundary 应带 lowering")
+                            {
+                                LateLoweredBoundaryLowering::Call(lowering) => {
+                                    LateLoweredBoundaryLowering::Call(
+                                        LateLoweredCallBoundaryLowering::new(
+                                            lowering.facts().clone(),
+                                            lowering.result_local(),
+                                            LateLoweredCallBoundaryOperandContract::new(
+                                                lowering.operand_contract().source_consumption(),
+                                                None,
+                                                Vec::new(),
+                                            ),
+                                            lowering.dispatch().clone(),
+                                            lowering.consumed_runtime_error_case().cloned(),
+                                        ),
+                                    )
+                                }
+                                other => other,
+                            };
+                            LateLoweredBoundary::new(
+                                boundary.boundary_id(),
+                                boundary.source(),
+                                boundary.owner_state(),
+                                boundary.resume_state(),
+                            )
+                            .with_lowering(lowering)
+                        })
+                        .collect(),
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == main.step_schema() {
+                            clone_callable_with_boundary_map(candidate, boundary_map.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("ordered arg drift 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("ordered args")
+                        && (message.contains("contract 非法")
+                            || message.contains("单一 source")
+                            || message.contains("component")),
+                    "错误消息应指出 ordered args contract 漂移: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_boundary_operand_contract_rejects_missing_dynamic_carrier_source() {
+        with_phase_fixture_query_result(
+            "effect_facts",
+            "dynamic_fallback_widening.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let call_value = program
+                    .callable("sample.callValue")
+                    .expect("sample.callValue callable 应存在");
+                let boundary_map = LateLoweredBoundaryMap::new(
+                    call_value
+                        .boundary_map()
+                        .entries()
+                        .iter()
+                        .map(|boundary| {
+                            let lowering = match boundary
+                                .lowering()
+                                .cloned()
+                                .expect("boundary 应带 lowering")
+                            {
+                                LateLoweredBoundaryLowering::Call(lowering) => {
+                                    LateLoweredBoundaryLowering::Call(
+                                        LateLoweredCallBoundaryLowering::new(
+                                            lowering.facts().clone(),
+                                            lowering.result_local(),
+                                            LateLoweredCallBoundaryOperandContract::new(
+                                                lowering.operand_contract().source_consumption(),
+                                                None,
+                                                lowering.operand_contract().arg_sources().to_vec(),
+                                            ),
+                                            lowering.dispatch().clone(),
+                                            lowering.consumed_runtime_error_case().cloned(),
+                                        ),
+                                    )
+                                }
+                                other => other,
+                            };
+                            LateLoweredBoundary::new(
+                                boundary.boundary_id(),
+                                boundary.source(),
+                                boundary.owner_state(),
+                                boundary.resume_state(),
+                            )
+                            .with_lowering(lowering)
+                        })
+                        .collect(),
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == call_value.step_schema() {
+                            clone_callable_with_boundary_map(candidate, boundary_map.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 dynamic carrier source 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("carrier source contract"),
+                    "错误消息应指出缺失的是 dynamic carrier source contract: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
     fn refactor_llvm_dynamic_invoke_query_resolves_fun_value_unit_contract() {
         with_phase_fixture_query_result(
             "effect_facts",
@@ -5662,6 +6530,7 @@ mod tests {
                                         LateLoweredCallBoundaryLowering::new(
                                             lowering.facts().clone(),
                                             lowering.result_local(),
+                                            lowering.operand_contract().clone(),
                                             lowering.dispatch().clone(),
                                             consumed_runtime_error_case,
                                         ),

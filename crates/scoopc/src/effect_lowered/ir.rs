@@ -4,7 +4,8 @@ use crate::effect_facts::{
     CallSiteEffectFacts, CaseTag, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey,
     HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
 };
-use crate::mir::{BasicBlockId, InstanceKey, LocalId, SiteId};
+use crate::mir::{BasicBlockId, ConstValue, InstanceKey, LocalId, SiteId};
+use crate::span::Span;
 use crate::ty::{EffectRow, TypeId};
 
 /// P5 late-lowering 阶段的顶层中间表示。
@@ -1320,6 +1321,120 @@ impl LateLoweredStateSlice {
     }
 }
 
+/// boundary operand 的最小值来源。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LateLoweredOperandValueSource {
+    Local(LocalId),
+    Const(ConstValue),
+}
+
+/// body emitter 可直接消费的已发布 operand/source contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredOperandSource {
+    value: LateLoweredOperandValueSource,
+    source_ty: TypeId,
+    span: Option<Span>,
+}
+
+impl LateLoweredOperandSource {
+    pub(crate) fn new_local(local: LocalId, source_ty: TypeId, span: Option<Span>) -> Self {
+        Self {
+            value: LateLoweredOperandValueSource::Local(local),
+            source_ty,
+            span,
+        }
+    }
+
+    pub(crate) fn new_const(value: ConstValue, source_ty: TypeId, span: Option<Span>) -> Self {
+        Self {
+            value: LateLoweredOperandValueSource::Const(value),
+            source_ty,
+            span,
+        }
+    }
+
+    pub fn value(&self) -> &LateLoweredOperandValueSource {
+        &self.value
+    }
+
+    pub fn source_ty(&self) -> TypeId {
+        self.source_ty
+    }
+
+    pub fn span(&self) -> Option<Span> {
+        self.span
+    }
+}
+
+/// boundary 在 owner state source-slice 中消费哪一个 anchor。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredBoundarySourceConsumption {
+    Statement {
+        source_slice: LateLoweredStateSlice,
+        statement_index: u32,
+        consumes_last_statement: bool,
+    },
+    Terminator {
+        source_slice: LateLoweredStateSlice,
+    },
+}
+
+impl LateLoweredBoundarySourceConsumption {
+    pub(crate) fn statement(
+        source_slice: LateLoweredStateSlice,
+        statement_index: u32,
+        consumes_last_statement: bool,
+    ) -> Self {
+        Self::Statement {
+            source_slice,
+            statement_index,
+            consumes_last_statement,
+        }
+    }
+
+    pub(crate) fn terminator(source_slice: LateLoweredStateSlice) -> Self {
+        Self::Terminator { source_slice }
+    }
+
+    pub fn source_slice(&self) -> LateLoweredStateSlice {
+        match self {
+            Self::Statement { source_slice, .. } | Self::Terminator { source_slice } => {
+                *source_slice
+            }
+        }
+    }
+
+    pub fn statement_index(&self) -> Option<u32> {
+        match self {
+            Self::Statement {
+                statement_index, ..
+            } => Some(*statement_index),
+            Self::Terminator { .. } => None,
+        }
+    }
+
+    pub fn statement_index_in_slice(&self) -> Option<u32> {
+        match self {
+            Self::Statement {
+                source_slice,
+                statement_index,
+                ..
+            } => Some(statement_index.saturating_sub(source_slice.start_statement_index())),
+            Self::Terminator { .. } => None,
+        }
+    }
+
+    pub fn consumes_last_statement(&self) -> Option<bool> {
+        match self {
+            Self::Statement {
+                consumes_last_statement,
+                ..
+            } => Some(*consumes_last_statement),
+            Self::Terminator { .. } => None,
+        }
+    }
+}
+
 /// 单个 state 结束时的显式控制流合同。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LateLoweredHandlePendingCompletion {
@@ -2305,9 +2420,102 @@ impl LateLoweredConsumedRuntimeErrorCase {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredCallBoundaryOperandContract {
+    source_consumption: LateLoweredBoundarySourceConsumption,
+    carrier_source: Option<LateLoweredOperandSource>,
+    arg_sources: Vec<LateLoweredOperandSource>,
+}
+
+impl LateLoweredCallBoundaryOperandContract {
+    pub(crate) fn new(
+        source_consumption: LateLoweredBoundarySourceConsumption,
+        carrier_source: Option<LateLoweredOperandSource>,
+        arg_sources: Vec<LateLoweredOperandSource>,
+    ) -> Self {
+        Self {
+            source_consumption,
+            carrier_source,
+            arg_sources,
+        }
+    }
+
+    pub fn source_consumption(&self) -> LateLoweredBoundarySourceConsumption {
+        self.source_consumption
+    }
+
+    pub fn carrier_source(&self) -> Option<&LateLoweredOperandSource> {
+        self.carrier_source.as_ref()
+    }
+
+    pub fn arg_sources(&self) -> &[LateLoweredOperandSource] {
+        &self.arg_sources
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredPerformBoundaryOperandContract {
+    source_consumption: LateLoweredBoundarySourceConsumption,
+    payload_sources: Vec<LateLoweredOperandSource>,
+}
+
+impl LateLoweredPerformBoundaryOperandContract {
+    pub(crate) fn new(
+        source_consumption: LateLoweredBoundarySourceConsumption,
+        payload_sources: Vec<LateLoweredOperandSource>,
+    ) -> Self {
+        Self {
+            source_consumption,
+            payload_sources,
+        }
+    }
+
+    pub fn source_consumption(&self) -> LateLoweredBoundarySourceConsumption {
+        self.source_consumption
+    }
+
+    pub fn payload_sources(&self) -> &[LateLoweredOperandSource] {
+        &self.payload_sources
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredResumeBoundaryOperandContract {
+    source_consumption: LateLoweredBoundarySourceConsumption,
+    continuation_source: LateLoweredOperandSource,
+    arg_sources: Vec<LateLoweredOperandSource>,
+}
+
+impl LateLoweredResumeBoundaryOperandContract {
+    pub(crate) fn new(
+        source_consumption: LateLoweredBoundarySourceConsumption,
+        continuation_source: LateLoweredOperandSource,
+        arg_sources: Vec<LateLoweredOperandSource>,
+    ) -> Self {
+        Self {
+            source_consumption,
+            continuation_source,
+            arg_sources,
+        }
+    }
+
+    pub fn source_consumption(&self) -> LateLoweredBoundarySourceConsumption {
+        self.source_consumption
+    }
+
+    pub fn continuation_source(&self) -> &LateLoweredOperandSource {
+        &self.continuation_source
+    }
+
+    pub fn arg_sources(&self) -> &[LateLoweredOperandSource] {
+        &self.arg_sources
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredCallBoundaryLowering {
     facts: CallSiteEffectFacts,
     result_local: LocalId,
+    operand_contract: Box<LateLoweredCallBoundaryOperandContract>,
     dispatch: LateLoweredStepDispatchPlan,
     consumed_runtime_error_case: Option<LateLoweredConsumedRuntimeErrorCase>,
 }
@@ -2316,12 +2524,14 @@ impl LateLoweredCallBoundaryLowering {
     pub(crate) fn new(
         facts: CallSiteEffectFacts,
         result_local: LocalId,
+        operand_contract: LateLoweredCallBoundaryOperandContract,
         dispatch: LateLoweredStepDispatchPlan,
         consumed_runtime_error_case: Option<LateLoweredConsumedRuntimeErrorCase>,
     ) -> Self {
         Self {
             facts,
             result_local,
+            operand_contract: Box::new(operand_contract),
             dispatch,
             consumed_runtime_error_case,
         }
@@ -2333,6 +2543,10 @@ impl LateLoweredCallBoundaryLowering {
 
     pub fn result_local(&self) -> LocalId {
         self.result_local
+    }
+
+    pub fn operand_contract(&self) -> &LateLoweredCallBoundaryOperandContract {
+        &self.operand_contract
     }
 
     pub fn dispatch(&self) -> &LateLoweredStepDispatchPlan {
@@ -2347,22 +2561,29 @@ impl LateLoweredCallBoundaryLowering {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredPerformBoundaryLowering {
     facts: PerformSiteEffectFacts,
+    operand_contract: Box<LateLoweredPerformBoundaryOperandContract>,
     emitted_step: LateLoweredStepCaseEmission,
 }
 
 impl LateLoweredPerformBoundaryLowering {
     pub(crate) fn new(
         facts: PerformSiteEffectFacts,
+        operand_contract: LateLoweredPerformBoundaryOperandContract,
         emitted_step: LateLoweredStepCaseEmission,
     ) -> Self {
         Self {
             facts,
+            operand_contract: Box::new(operand_contract),
             emitted_step,
         }
     }
 
     pub fn facts(&self) -> &PerformSiteEffectFacts {
         &self.facts
+    }
+
+    pub fn operand_contract(&self) -> &LateLoweredPerformBoundaryOperandContract {
+        &self.operand_contract
     }
 
     pub fn emitted_step(&self) -> &LateLoweredStepCaseEmission {
@@ -2375,6 +2596,7 @@ pub struct LateLoweredResumeBoundaryLowering {
     facts: ResumeSiteEffectFacts,
     result_local: LocalId,
     runtime_error_boundary: BoundaryId,
+    operand_contract: Box<LateLoweredResumeBoundaryOperandContract>,
     dispatch: LateLoweredStepDispatchPlan,
 }
 
@@ -2383,12 +2605,14 @@ impl LateLoweredResumeBoundaryLowering {
         facts: ResumeSiteEffectFacts,
         result_local: LocalId,
         runtime_error_boundary: BoundaryId,
+        operand_contract: LateLoweredResumeBoundaryOperandContract,
         dispatch: LateLoweredStepDispatchPlan,
     ) -> Self {
         Self {
             facts,
             result_local,
             runtime_error_boundary,
+            operand_contract: Box::new(operand_contract),
             dispatch,
         }
     }
@@ -2403,6 +2627,10 @@ impl LateLoweredResumeBoundaryLowering {
 
     pub fn runtime_error_boundary(&self) -> BoundaryId {
         self.runtime_error_boundary
+    }
+
+    pub fn operand_contract(&self) -> &LateLoweredResumeBoundaryOperandContract {
+        &self.operand_contract
     }
 
     pub fn dispatch(&self) -> &LateLoweredStepDispatchPlan {

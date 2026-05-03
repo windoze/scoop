@@ -271,7 +271,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02o：发布 statement/terminator anchored boundary operand contract，禁止 P6-T03 在 body emitter 现场回 raw MIR statement/terminator 恢复 `Call / Perform / Resume` 输入
+## [DONE] P6-T02o：发布 statement/terminator anchored boundary operand contract，禁止 P6-T03 在 body emitter 现场回 raw MIR statement/terminator 恢复 `Call / Perform / Resume` 输入
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -348,7 +348,17 @@
   - `P6-T03` 可以在不把 raw MIR boundary statement/terminator 当作语义事实来源的前提下继续 body lowering。
 - 依赖：P6-T02n
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：在 `crates/scoopc/src/effect_lowered/ir.rs` 新增 `LateLoweredOperandSource` / `LateLoweredBoundarySourceConsumption`，并把 `Call / Perform / Resume` boundary 的 operand contract 显式挂到各自 lowering 上；`effect_lowered/materialize.rs` 现在会在 P5/P6 handoff 处读取 canonical MIR，把 ordered args、dynamic carrier、resume continuation、perform payload 与 statement/terminator anchor 一次性物化进 late-lowered contract，同时对缺失 anchor、重复 anchor、result-local 漂移与 source-count 漂移 fail fast。
+  - 2026-05-04：`effect_lowered/dump.rs` / `opt.rs` 已同步保留并渲染这些 contract，`dump-effect-lowered` 现在会直接显示 boundary 的 anchor、carrier、ordered args / payload sources；其中显式处理了 `Unit` zero-arg sugar 与“单一 tuple surface arg -> tuple carrier”两类 contract，不再把它们误判成“空 source”或“扁平多 source”。
+  - 2026-05-04：在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 新增 `Refactor{Call,Perform,Resume}BoundaryOperandLayout` 查询层，并让 ABI materializer 在发布 query 时校验 source-slice anchor、source type ABI、dynamic carrier 存在性、resume surface contract、以及 ordered source 与 published carrier 的一致性；backend 后续可直接消费这批 published contract，而不必回 raw MIR statement/terminator 恢复输入。
+- 已运行验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_effect_lowered_boundary_operand_contract`
+  - `cargo test -p scoopc refactor_llvm_boundary_operand_contract`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

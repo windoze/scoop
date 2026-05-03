@@ -658,6 +658,7 @@ fn rewrite_boundary_lowering(
             LateLoweredBoundaryLowering::Call(LateLoweredCallBoundaryLowering::new(
                 lowering.facts().clone(),
                 lowering.result_local(),
+                lowering.operand_contract().clone(),
                 rewrite_step_dispatch(lowering.dispatch(), redirects),
                 lowering.consumed_runtime_error_case().cloned(),
             ))
@@ -665,6 +666,7 @@ fn rewrite_boundary_lowering(
         LateLoweredBoundaryLowering::Perform(lowering) => {
             LateLoweredBoundaryLowering::Perform(LateLoweredPerformBoundaryLowering::new(
                 lowering.facts().clone(),
+                lowering.operand_contract().clone(),
                 lowering.emitted_step().clone(),
             ))
         }
@@ -673,6 +675,7 @@ fn rewrite_boundary_lowering(
                 lowering.facts().clone(),
                 lowering.result_local(),
                 lowering.runtime_error_boundary(),
+                lowering.operand_contract().clone(),
                 rewrite_step_dispatch(lowering.dispatch(), redirects),
             ))
         }

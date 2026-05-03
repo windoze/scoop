@@ -9,12 +9,13 @@ use crate::effect_facts::{
 };
 use crate::effect_lowered::ir::{
     ContinuationObjectId, FrameSlotId, LateLoweredBodyVersionKey,
-    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationMethodReachability,
-    LateLoweredHandleBoundaryRouting, LateLoweredHandleDispatchContract,
-    LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
-    LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
-    LateLoweredPublishedRuntimeEntry, LateLoweredSurfaceResumeDispatchSourceKind,
-    ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredCallBoundaryOperandContract, LateLoweredConsumedRuntimeErrorCase,
+    LateLoweredContinuationMethodReachability, LateLoweredHandleBoundaryRouting,
+    LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
+    LateLoweredHandleStateRegion, LateLoweredHandleStateRegionEntry,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPerformBoundaryOperandContract,
+    LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
+    LateLoweredSurfaceResumeDispatchSourceKind, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{LocalId, SiteId};
@@ -627,6 +628,105 @@ impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
 pub(super) enum RefactorCallTargetQuery<'a, 'ctx> {
     KnownInstance(&'a RefactorCallableLayout<'ctx>),
     DynamicInvoke(&'a RefactorDynamicInvokeLayout<'ctx>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RefactorCallBoundaryOperandLayout {
+    owner_step_schema: StepSchemaId,
+    site_id: SiteId,
+    contract: LateLoweredCallBoundaryOperandContract,
+}
+
+impl RefactorCallBoundaryOperandLayout {
+    pub(super) fn new(
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        contract: LateLoweredCallBoundaryOperandContract,
+    ) -> Self {
+        Self {
+            owner_step_schema,
+            site_id,
+            contract,
+        }
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub(super) fn contract(&self) -> &LateLoweredCallBoundaryOperandContract {
+        &self.contract
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RefactorPerformBoundaryOperandLayout {
+    owner_step_schema: StepSchemaId,
+    site_id: SiteId,
+    contract: LateLoweredPerformBoundaryOperandContract,
+}
+
+impl RefactorPerformBoundaryOperandLayout {
+    pub(super) fn new(
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        contract: LateLoweredPerformBoundaryOperandContract,
+    ) -> Self {
+        Self {
+            owner_step_schema,
+            site_id,
+            contract,
+        }
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub(super) fn contract(&self) -> &LateLoweredPerformBoundaryOperandContract {
+        &self.contract
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RefactorResumeBoundaryOperandLayout {
+    owner_step_schema: StepSchemaId,
+    site_id: SiteId,
+    contract: LateLoweredResumeBoundaryOperandContract,
+}
+
+impl RefactorResumeBoundaryOperandLayout {
+    pub(super) fn new(
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        contract: LateLoweredResumeBoundaryOperandContract,
+    ) -> Self {
+        Self {
+            owner_step_schema,
+            site_id,
+            contract,
+        }
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub(super) fn contract(&self) -> &LateLoweredResumeBoundaryOperandContract {
+        &self.contract
+    }
 }
 
 /// pure caller call boundary 本地消费 compiler-generated runtime-error case 的稳定 lowering 查询面。
@@ -1643,6 +1743,12 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeDispatchLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
     dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
+    call_boundary_operand_layouts:
+        BTreeMap<(StepSchemaId, SiteId), RefactorCallBoundaryOperandLayout>,
+    perform_boundary_operand_layouts:
+        BTreeMap<(StepSchemaId, SiteId), RefactorPerformBoundaryOperandLayout>,
+    resume_boundary_operand_layouts:
+        BTreeMap<(StepSchemaId, SiteId), RefactorResumeBoundaryOperandLayout>,
     local_runtime_error_contracts:
         BTreeMap<(StepSchemaId, SiteId), RefactorLocalRuntimeErrorContract<'ctx>>,
     handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorHandleDispatchLayout>,
@@ -1669,6 +1775,18 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         >,
         callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
+        call_boundary_operand_layouts: BTreeMap<
+            (StepSchemaId, SiteId),
+            RefactorCallBoundaryOperandLayout,
+        >,
+        perform_boundary_operand_layouts: BTreeMap<
+            (StepSchemaId, SiteId),
+            RefactorPerformBoundaryOperandLayout,
+        >,
+        resume_boundary_operand_layouts: BTreeMap<
+            (StepSchemaId, SiteId),
+            RefactorResumeBoundaryOperandLayout,
+        >,
         local_runtime_error_contracts: BTreeMap<
             (StepSchemaId, SiteId),
             RefactorLocalRuntimeErrorContract<'ctx>,
@@ -1685,6 +1803,9 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             surface_resume_dispatch_layouts,
             callable_layouts,
             dynamic_invoke_layouts,
+            call_boundary_operand_layouts,
+            perform_boundary_operand_layouts,
+            resume_boundary_operand_layouts,
             local_runtime_error_contracts,
             handle_dispatch_layouts,
         }
@@ -1817,6 +1938,96 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
     ) -> Option<&RefactorDynamicInvokeLayout<'ctx>> {
         self.dynamic_invoke_layouts
             .get(&(owner_step_schema, site_id))
+    }
+
+    pub(super) fn call_boundary_operand_layout(
+        &self,
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        contract: &LateLoweredCallBoundaryOperandContract,
+    ) -> Result<&RefactorCallBoundaryOperandLayout, LlvmEmitError> {
+        let published = self
+            .call_boundary_operand_layouts
+            .get(&(owner_step_schema, site_id))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} call site {} 的 boundary operand contract",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                ),
+            })?;
+        if published.contract() != contract {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 owner step schema s{} call site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                    published.contract(),
+                    contract,
+                ),
+            });
+        }
+        Ok(published)
+    }
+
+    pub(super) fn perform_boundary_operand_layout(
+        &self,
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        contract: &LateLoweredPerformBoundaryOperandContract,
+    ) -> Result<&RefactorPerformBoundaryOperandLayout, LlvmEmitError> {
+        let published = self
+            .perform_boundary_operand_layouts
+            .get(&(owner_step_schema, site_id))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} perform site {} 的 boundary operand contract",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                ),
+            })?;
+        if published.contract() != contract {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 owner step schema s{} perform site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                    published.contract(),
+                    contract,
+                ),
+            });
+        }
+        Ok(published)
+    }
+
+    pub(super) fn resume_boundary_operand_layout(
+        &self,
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        contract: &LateLoweredResumeBoundaryOperandContract,
+    ) -> Result<&RefactorResumeBoundaryOperandLayout, LlvmEmitError> {
+        let published = self
+            .resume_boundary_operand_layouts
+            .get(&(owner_step_schema, site_id))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} resume site {} 的 boundary operand contract",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                ),
+            })?;
+        if published.contract() != contract {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 owner step schema s{} resume site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                    published.contract(),
+                    contract,
+                ),
+            });
+        }
+        Ok(published)
     }
 
     pub(super) fn call_local_runtime_error_contract(

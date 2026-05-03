@@ -5,21 +5,23 @@ use crate::ty::{EffectRow, TypeId};
 
 use super::ir::{
     BoundarySiteKind, LateLoweredBodyVersionKey, LateLoweredBoundary, LateLoweredBoundaryLowering,
-    LateLoweredBoundarySource, LateLoweredCallable, LateLoweredCompleteStepDispatch,
+    LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
+    LateLoweredCallBoundaryOperandContract, LateLoweredCallable, LateLoweredCompleteStepDispatch,
     LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
     LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleDispatchContract,
     LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
-    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredProgram,
-    LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredResumeMethod,
-    LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
-    LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
-    LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
-    LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
-    LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
-    ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredOperandSource,
+    LateLoweredOperandValueSource, LateLoweredPerformBoundaryOperandContract, LateLoweredProgram,
+    LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
+    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeStateMap,
+    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
+    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepCaseEmission,
+    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
+    LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredSurfaceResumeDispatchSourceKind, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 
 /// 渲染 late-lowered program 的稳定文本格式。
@@ -668,19 +670,26 @@ fn render_handle_dispatch_contract(
 }
 
 fn render_state_slice(rendered: &mut String, slice: LateLoweredStateSlice) {
+    writeln!(
+        rendered,
+        "              - {}",
+        render_state_slice_inline(slice)
+    )
+    .unwrap();
+}
+
+fn render_state_slice_inline(slice: LateLoweredStateSlice) -> String {
     let terminator = if slice.includes_terminator() {
         " + term"
     } else {
         ""
     };
-    writeln!(
-        rendered,
-        "              - bb{} stmts[{}..{}]{terminator}",
+    format!(
+        "bb{} stmts[{}..{}]{terminator}",
         slice.block_id().as_u32(),
         slice.start_statement_index(),
         slice.end_statement_index(),
     )
-    .unwrap();
 }
 
 fn render_frame_schema(rendered: &mut String, frame_schema: &LateLoweredFrameSchema) {
@@ -760,6 +769,7 @@ fn render_boundary_lowering(rendered: &mut String, lowering: &LateLoweredBoundar
                 render_call_target(lowering.facts().target()),
             )
             .unwrap();
+            render_call_operand_contract(rendered, lowering.operand_contract());
             if let Some(consumed_runtime_error_case) = lowering.consumed_runtime_error_case() {
                 render_consumed_runtime_error_case(rendered, consumed_runtime_error_case);
             }
@@ -774,6 +784,7 @@ fn render_boundary_lowering(rendered: &mut String, lowering: &LateLoweredBoundar
                 render_type_id(lowering.facts().payload_tuple_ty()),
             )
             .unwrap();
+            render_perform_operand_contract(rendered, lowering.operand_contract());
             render_step_case_emission(rendered, lowering.emitted_step());
         }
         LateLoweredBoundaryLowering::Resume(lowering) => {
@@ -786,6 +797,7 @@ fn render_boundary_lowering(rendered: &mut String, lowering: &LateLoweredBoundar
                 lowering.runtime_error_boundary().as_u32(),
             )
             .unwrap();
+            render_resume_operand_contract(rendered, lowering.operand_contract());
             render_step_dispatch_plan(rendered, lowering.dispatch());
         }
         LateLoweredBoundaryLowering::RuntimeError(lowering) => {
@@ -868,6 +880,106 @@ fn render_consumed_runtime_error_case(
         render_local_runtime_error_terminal_action(runtime_error_case.terminal_action()),
     )
     .unwrap();
+}
+
+fn render_call_operand_contract(
+    rendered: &mut String,
+    contract: &LateLoweredCallBoundaryOperandContract,
+) {
+    writeln!(rendered, "            operand_contract:").unwrap();
+    render_source_consumption(rendered, contract.source_consumption());
+    writeln!(
+        rendered,
+        "              carrier: {}",
+        contract
+            .carrier_source()
+            .map(render_operand_source)
+            .unwrap_or_else(|| "<none>".to_string()),
+    )
+    .unwrap();
+    writeln!(rendered, "              ordered_args:").unwrap();
+    render_operand_sources(rendered, contract.arg_sources());
+}
+
+fn render_perform_operand_contract(
+    rendered: &mut String,
+    contract: &LateLoweredPerformBoundaryOperandContract,
+) {
+    writeln!(rendered, "            operand_contract:").unwrap();
+    render_source_consumption(rendered, contract.source_consumption());
+    writeln!(rendered, "              payload_sources:").unwrap();
+    render_operand_sources(rendered, contract.payload_sources());
+}
+
+fn render_resume_operand_contract(
+    rendered: &mut String,
+    contract: &LateLoweredResumeBoundaryOperandContract,
+) {
+    writeln!(rendered, "            operand_contract:").unwrap();
+    render_source_consumption(rendered, contract.source_consumption());
+    writeln!(
+        rendered,
+        "              continuation: {}",
+        render_operand_source(contract.continuation_source()),
+    )
+    .unwrap();
+    writeln!(rendered, "              ordered_args:").unwrap();
+    render_operand_sources(rendered, contract.arg_sources());
+}
+
+fn render_source_consumption(
+    rendered: &mut String,
+    consumption: LateLoweredBoundarySourceConsumption,
+) {
+    match consumption {
+        LateLoweredBoundarySourceConsumption::Statement {
+            source_slice,
+            statement_index,
+            consumes_last_statement,
+        } => {
+            writeln!(
+                rendered,
+                "              anchor: statement bb{} stmt{} slice={} slice_stmt_index={} last_in_slice={}",
+                source_slice.block_id().as_u32(),
+                statement_index,
+                render_state_slice_inline(source_slice),
+                statement_index.saturating_sub(source_slice.start_statement_index()),
+                consumes_last_statement,
+            )
+            .unwrap();
+        }
+        LateLoweredBoundarySourceConsumption::Terminator { source_slice } => {
+            writeln!(
+                rendered,
+                "              anchor: terminator slice={}",
+                render_state_slice_inline(source_slice),
+            )
+            .unwrap();
+        }
+    }
+}
+
+fn render_operand_sources(rendered: &mut String, sources: &[LateLoweredOperandSource]) {
+    if sources.is_empty() {
+        writeln!(rendered, "                <none>").unwrap();
+        return;
+    }
+    for source in sources {
+        writeln!(
+            rendered,
+            "                - {}",
+            render_operand_source(source)
+        )
+        .unwrap();
+    }
+}
+
+fn render_operand_source(source: &LateLoweredOperandSource) -> String {
+    let value = match source.value() {
+        LateLoweredOperandValueSource::Local(local) => format!("local{}", local.as_u32()),
+        LateLoweredOperandValueSource::Const(value) => format!("const({value:?})"),
+    };
+    format!("{value}:{}", render_type_id(source.source_ty()))
 }
 
 fn render_complete_step_dispatch(

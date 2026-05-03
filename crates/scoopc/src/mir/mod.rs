@@ -755,7 +755,7 @@ pub enum CallKind {
 }
 
 /// 常量值（当前阶段不保留字面量原始内容，仅保留种类）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConstValue {
     Bool(bool),
     Char,

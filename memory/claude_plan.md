@@ -54,3 +54,39 @@ I cannot provide private chain-of-thought logs, but I can maintain a concise exe
 - Without that contract, `P6-T03` would have to recover boundary inputs from raw `mir::Body` / `mir::Rvalue::Call` / `mir::TerminatorKind::Perform` / `mir::CallKind::Resume`, which conflicts with the task's contract-first boundary.
 - I inserted a new prerequisite task `P6-T02o` into `TODO-P6-part2.md`, synchronized `TODO.md`, and updated `P6-T03` to depend on it.
 - This invocation will stop after committing the blocker/task-file updates.
+
+## Current Invocation Plan
+
+1. Re-read `TODO.md` as the index and the referenced `TODO-Px.md` files in order, treating the detailed file headings as the source of truth.
+2. Confirm the first incomplete detailed task after the previously inserted prerequisite, and inspect whether there are any uncommitted changes left from the prior invocation that must be included.
+3. Read the selected task body carefully, then inspect only the code and tests needed to complete that task.
+4. Implement the task end-to-end with the smallest correct change set that matches the published contracts and task requirements.
+5. Run focused verification first, then required broader checks such as formatting, tests, and `cargo clippy --all-targets -- -D warnings` if the touched surface requires it.
+6. Mark the task `[DONE]` in its authoritative `TODO-Px.md` file, sync `TODO.md` if needed, update this plan log with the result, and commit exactly this task's changes before stopping.
+
+## Current Invocation Progress
+
+- Resuming from the prior blocker/task-file update. Next step is to identify the first incomplete detailed task from the synchronized TODO files and determine whether this invocation should complete that new prerequisite or finish any uncommitted blocker bookkeeping first.
+- Confirmed from `TODO.md` + `TODO-P6-part2.md` that the first incomplete detailed task is `P6-T02o`.
+- Checked git state: only `memory/claude_plan.md` is currently modified; the prior blocker insertion was already committed as `[P6-T03] Add boundary operand contract prerequisite`.
+- Read the current late-lowered / LLVM query surfaces. `LateLoweredCallBoundaryLowering` / `Perform` / `Resume` still publish only semantic dispatch plans, not ordered operand sources or source-slice anchor consumption. LLVM ABI query currently has call target, dynamic invoke, local runtime-error, handle dispatch, and surface-resume contracts, but no boundary operand contract query.
+- Implementation plan refined:
+  1. Add late-lowered operand-source and source-slice-consumption structs to `effect_lowered/ir.rs`, then attach explicit operand contracts to call/perform/resume boundary lowerings.
+  2. Materialize those contracts in `effect_lowered/materialize.rs` by reading canonical MIR only at P5/P6 handoff time, with fail-fast on missing/ambiguous anchor or operand drift.
+  3. Preserve and render the new contracts in `effect_lowered/opt.rs` and `effect_lowered/dump.rs`.
+  4. Add LLVM-side published query wrappers plus ABI/anchor validation in `llvm/codegen/effect_refactor/{types,layout}.rs`.
+  5. Add targeted tests for direct call, dynamic call, perform payload, resume operand publication, and query-layer failure cases.
+- Implementation complete for `P6-T02o`:
+  - `crates/scoopc/src/effect_lowered/{ir,materialize,opt,dump}.rs` now publish, preserve, and render boundary operand/source contracts plus statement/terminator anchor consumption.
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` now publish query-side boundary operand layouts and validate carrier/source/count/anchor consistency before `P6-T03` consumes them.
+  - `crates/scoopc/src/mir/mod.rs` gained `ConstValue: PartialEq + Eq` so the new published contract can be compared in tests/query drift checks.
+- Important semantic detail fixed during verification: the published contract keeps source-level argument shape instead of flattening to carrier ABI shape, so both `k.resume()` vs `k.resume(())` and `k.resume((7, "world"))` are represented correctly.
+- Verification completed successfully:
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_effect_lowered_boundary_operand_contract`
+  - `cargo test -p scoopc refactor_llvm_boundary_operand_contract`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- Remaining invocation work: mark `P6-T02o` done in `TODO-P6-part2.md` / `TODO.md`, commit this task, and stop. After this commit, the next incomplete detailed task will be `P6-T03`.

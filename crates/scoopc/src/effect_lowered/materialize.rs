@@ -5,13 +5,17 @@ use crate::effect_facts::{
     HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts, PerformSiteEffectFacts,
     ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema, StepSchemaId,
 };
-use crate::mir::{Body, CallKind, LocalId, ResumeMetadata, Rvalue, SiteId, StatementKind};
-use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeStore};
+use crate::mir::{
+    Body, CallArg, CallKind, LocalId, Operand, PerformArg, ResumeMetadata, Rvalue, SiteId,
+    StatementKind, TerminatorKind,
+};
+use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
 
 use super::EffectLoweringError;
 use super::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundaryLowering,
-    LateLoweredBoundaryMap, LateLoweredCallBoundaryLowering, LateLoweredCompleteStepDispatch,
+    LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption, LateLoweredCallBoundaryLowering,
+    LateLoweredCallBoundaryOperandContract, LateLoweredCompleteStepDispatch,
     LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
     LateLoweredContinuationContract, LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
@@ -22,12 +26,14 @@ use super::ir::{
     LateLoweredHandleDispatchContract, LateLoweredHandlePayloadBinder,
     LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
     LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
-    LateLoweredOneShotPolicy, LateLoweredPerformBoundaryLowering, LateLoweredPublishedRuntimeEntry,
-    LateLoweredResumeBoundaryLowering, LateLoweredResumeInterface, LateLoweredResumeMethod,
-    LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState, LateLoweredStateGraph,
-    LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepCase,
-    LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
-    LateLoweredStepType, ResumeInterfaceId, StateId,
+    LateLoweredOneShotPolicy, LateLoweredOperandSource, LateLoweredPerformBoundaryLowering,
+    LateLoweredPerformBoundaryOperandContract, LateLoweredPublishedRuntimeEntry,
+    LateLoweredResumeBoundaryLowering, LateLoweredResumeBoundaryOperandContract,
+    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredRuntimeErrorBoundaryLowering,
+    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
+    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepCaseEmission,
+    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
+    ResumeInterfaceId, StateId,
 };
 use super::ir::{LateLoweredBodyVersionKey, LateLoweredBoundarySource};
 
@@ -275,6 +281,15 @@ pub(crate) fn materialize_boundary_map(
                         result_local: Some(result_local),
                         types,
                     })?;
+                let operand_contract = build_call_boundary_operand_contract(
+                    root_fqn,
+                    body,
+                    state_graph,
+                    boundary,
+                    &facts,
+                    result_local,
+                    types,
+                )?;
                 let consumed_runtime_error_case =
                     call_dispatch.consumed_runtime_error_case.map(|pending| {
                         let target_state = StateId::new(next_state_raw);
@@ -297,6 +312,7 @@ pub(crate) fn materialize_boundary_map(
                 LateLoweredBoundaryLowering::Call(LateLoweredCallBoundaryLowering::new(
                     facts,
                     result_local,
+                    operand_contract,
                     call_dispatch.dispatch,
                     consumed_runtime_error_case,
                 ))
@@ -306,6 +322,14 @@ pub(crate) fn materialize_boundary_map(
                 kind: BoundarySiteKind::Perform,
             } => {
                 let facts = clone_perform_site_facts(root_fqn, body_facts, site_id)?;
+                let operand_contract = build_perform_boundary_operand_contract(
+                    root_fqn,
+                    body,
+                    state_graph,
+                    boundary,
+                    &facts,
+                    types,
+                )?;
                 let emitted_step = build_current_step_emission(
                     root_fqn,
                     step_type,
@@ -314,6 +338,7 @@ pub(crate) fn materialize_boundary_map(
                 )?;
                 LateLoweredBoundaryLowering::Perform(LateLoweredPerformBoundaryLowering::new(
                     facts,
+                    operand_contract,
                     emitted_step,
                 ))
             }
@@ -346,10 +371,20 @@ pub(crate) fn materialize_boundary_map(
                     boundary.resume_state(),
                     Some(result_local),
                 )?;
+                let operand_contract = build_resume_boundary_operand_contract(
+                    root_fqn,
+                    body,
+                    state_graph,
+                    boundary,
+                    &facts,
+                    result_local,
+                    types,
+                )?;
                 LateLoweredBoundaryLowering::Resume(LateLoweredResumeBoundaryLowering::new(
                     facts,
                     result_local,
                     runtime_error_boundary,
+                    operand_contract,
                     dispatch,
                 ))
             }
@@ -1552,6 +1587,610 @@ struct BoundaryResultLocals {
     call_results: HashMap<SiteId, LocalId>,
 }
 
+fn invalid_boundary_operand_contract(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
+    detail: impl Into<String>,
+) -> EffectLoweringError {
+    EffectLoweringError::InvalidBoundaryOperandContract {
+        root_fqn: root_fqn.to_string(),
+        site_id: site_id.as_u32(),
+        kind,
+        detail: detail.into(),
+    }
+}
+
+fn expected_source_types_for_carrier(
+    types: &TypeStore,
+    carrier_ty: crate::ty::TypeId,
+    source_count: usize,
+) -> Result<Vec<crate::ty::TypeId>, String> {
+    match source_count {
+        0 => match types.kind(carrier_ty) {
+            TypeKind::Value(ValueTypeKind::Unit) => Ok(Vec::new()),
+            _ => Err(format!(
+                "只有 Unit carrier 才允许 0 个 source，但 published carrier 为 t{}",
+                carrier_ty.as_u32(),
+            )),
+        },
+        1 => Ok(vec![carrier_ty]),
+        _ => match types.kind(carrier_ty) {
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements.len() == source_count => {
+                Ok(elements.clone())
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => Err(format!(
+                "published tuple carrier t{} 期望 {} 个 source，实际为 {source_count}",
+                carrier_ty.as_u32(),
+                elements.len(),
+            )),
+            _ => Err(format!(
+                "published carrier t{} 期望单一 source，实际数量为 {source_count}",
+                carrier_ty.as_u32(),
+            )),
+        },
+    }
+}
+
+fn call_kind_matches_facts(kind: &CallKind, facts: &CallSiteEffectFacts) -> bool {
+    matches!(
+        (kind, facts.kind()),
+        (
+            CallKind::Direct { .. },
+            crate::effect_facts::CallSiteKind::Direct
+        ) | (
+            CallKind::Closure { .. },
+            crate::effect_facts::CallSiteKind::Closure
+        ) | (
+            CallKind::FunValue { .. },
+            crate::effect_facts::CallSiteKind::FunValue
+        ) | (
+            CallKind::Virtual { .. },
+            crate::effect_facts::CallSiteKind::Virtual
+        ) | (
+            CallKind::Interface { .. },
+            crate::effect_facts::CallSiteKind::Interface
+        )
+    )
+}
+
+fn local_decl_ty(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
+    body: &Body,
+    local: LocalId,
+) -> Result<crate::ty::TypeId, EffectLoweringError> {
+    body.locals
+        .get(local.as_u32() as usize)
+        .map(|decl| decl.ty)
+        .ok_or_else(|| {
+            invalid_boundary_operand_contract(
+                root_fqn,
+                site_id,
+                kind,
+                format!("operand 引用了缺失的 local{}", local.as_u32()),
+            )
+        })
+}
+
+fn operand_source_with_expected_ty(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
+    body: &Body,
+    operand: &Operand,
+    expected_ty: crate::ty::TypeId,
+    span: Option<crate::span::Span>,
+) -> Result<LateLoweredOperandSource, EffectLoweringError> {
+    match operand {
+        Operand::Local(local) => {
+            let local_ty = local_decl_ty(root_fqn, site_id, kind, body, *local)?;
+            if local_ty != expected_ty {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    kind,
+                    format!(
+                        "local{} 的类型为 t{}，但 published operand contract 期望 t{}",
+                        local.as_u32(),
+                        local_ty.as_u32(),
+                        expected_ty.as_u32(),
+                    ),
+                ));
+            }
+            Ok(LateLoweredOperandSource::new_local(
+                *local,
+                expected_ty,
+                span,
+            ))
+        }
+        Operand::Const(value) => Ok(LateLoweredOperandSource::new_const(
+            value.clone(),
+            expected_ty,
+            span,
+        )),
+    }
+}
+
+fn operand_source_with_inferred_ty(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
+    body: &Body,
+    operand: &Operand,
+    span: Option<crate::span::Span>,
+) -> Result<LateLoweredOperandSource, EffectLoweringError> {
+    match operand {
+        Operand::Local(local) => Ok(LateLoweredOperandSource::new_local(
+            *local,
+            local_decl_ty(root_fqn, site_id, kind, body, *local)?,
+            span,
+        )),
+        Operand::Const(_) => Err(invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            kind,
+            "当前 boundary contract 无法为 carrier/continuation 常量来源恢复稳定 source_ty",
+        )),
+    }
+}
+
+fn build_ordered_call_arg_sources(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
+    body: &Body,
+    args: &[CallArg],
+    expected_tuple_ty: crate::ty::TypeId,
+    types: &TypeStore,
+) -> Result<Vec<LateLoweredOperandSource>, EffectLoweringError> {
+    let expected_components =
+        expected_source_types_for_carrier(types, expected_tuple_ty, args.len())
+            .map_err(|detail| invalid_boundary_operand_contract(root_fqn, site_id, kind, detail))?;
+    if args.len() != expected_components.len() {
+        return Err(invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            kind,
+            format!(
+                "ordered args 数量({}) 与 published carrier t{} 的 component 数量({}) 不一致",
+                args.len(),
+                expected_tuple_ty.as_u32(),
+                expected_components.len(),
+            ),
+        ));
+    }
+    args.iter()
+        .zip(expected_components)
+        .map(|(arg, expected_ty)| {
+            operand_source_with_expected_ty(
+                root_fqn,
+                site_id,
+                kind,
+                body,
+                &arg.value,
+                expected_ty,
+                Some(arg.span),
+            )
+        })
+        .collect()
+}
+
+fn build_ordered_perform_payload_sources(
+    root_fqn: &str,
+    site_id: SiteId,
+    body: &Body,
+    args: &[PerformArg],
+    payload_tuple_ty: crate::ty::TypeId,
+    types: &TypeStore,
+) -> Result<Vec<LateLoweredOperandSource>, EffectLoweringError> {
+    let expected_components =
+        expected_source_types_for_carrier(types, payload_tuple_ty, args.len()).map_err(
+            |detail| invalid_boundary_operand_contract(root_fqn, site_id, "Perform", detail),
+        )?;
+    if args.len() != expected_components.len() {
+        return Err(invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "Perform",
+            format!(
+                "payload source 数量({}) 与 published payload tuple t{} 的 component 数量({}) 不一致",
+                args.len(),
+                payload_tuple_ty.as_u32(),
+                expected_components.len(),
+            ),
+        ));
+    }
+    args.iter()
+        .zip(expected_components)
+        .map(|(arg, expected_ty)| {
+            operand_source_with_expected_ty(
+                root_fqn,
+                site_id,
+                "Perform",
+                body,
+                &arg.value,
+                expected_ty,
+                Some(arg.span),
+            )
+        })
+        .collect()
+}
+
+fn validate_source_slice_bounds(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
+    body: &Body,
+    source_slice: LateLoweredStateSlice,
+) -> Result<(), EffectLoweringError> {
+    let block = body
+        .blocks
+        .get(source_slice.block_id().as_u32() as usize)
+        .ok_or_else(|| {
+            invalid_boundary_operand_contract(
+                root_fqn,
+                site_id,
+                kind,
+                format!(
+                    "source slice 指向缺失的 canonical MIR block bb{}",
+                    source_slice.block_id().as_u32(),
+                ),
+            )
+        })?;
+    let start = source_slice.start_statement_index() as usize;
+    let end = source_slice.end_statement_index() as usize;
+    if start > end || end > block.stmts.len() {
+        return Err(invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            kind,
+            format!(
+                "source slice [{}..{}) 越界于 canonical MIR block bb{}（stmt_count={}）",
+                source_slice.start_statement_index(),
+                source_slice.end_statement_index(),
+                source_slice.block_id().as_u32(),
+                block.stmts.len(),
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn build_call_boundary_operand_contract(
+    root_fqn: &str,
+    body: &Body,
+    state_graph: &LateLoweredStateGraph,
+    boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+    facts: &CallSiteEffectFacts,
+    result_local: LocalId,
+    types: &TypeStore,
+) -> Result<LateLoweredCallBoundaryOperandContract, EffectLoweringError> {
+    let LateLoweredBoundarySource::Site {
+        site_id,
+        kind: BoundarySiteKind::Call,
+    } = boundary.source()
+    else {
+        unreachable!("Call boundary helper 只能消费 Call site source");
+    };
+    let owner_state = state_graph.state(boundary.owner_state()).ok_or_else(|| {
+        invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "Call",
+            format!("缺少 owner state st{}", boundary.owner_state().as_u32()),
+        )
+    })?;
+    let mut published = None;
+    for &source_slice in owner_state.source_slices() {
+        validate_source_slice_bounds(root_fqn, site_id, "Call", body, source_slice)?;
+        let block = &body.blocks[source_slice.block_id().as_u32() as usize];
+        let start = source_slice.start_statement_index() as usize;
+        let end = source_slice.end_statement_index() as usize;
+        for (offset, stmt) in block.stmts[start..end].iter().enumerate() {
+            let StatementKind::Assign {
+                target,
+                value:
+                    Rvalue::Call {
+                        site_id: stmt_site_id,
+                        kind,
+                        args,
+                    },
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            if *stmt_site_id != site_id {
+                continue;
+            }
+            if !call_kind_matches_facts(kind, facts) {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    "Call",
+                    format!(
+                        "canonical MIR call kind {kind:?} 与 published Call facts kind {:?} 不一致",
+                        facts.kind(),
+                    ),
+                ));
+            }
+            if *target != result_local {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    "Call",
+                    format!(
+                        "statement anchor 写入 local{}，但 boundary lowering 发布的 result local 为 local{}",
+                        target.as_u32(),
+                        result_local.as_u32(),
+                    ),
+                ));
+            }
+            let statement_index = source_slice.start_statement_index() + offset as u32;
+            let carrier_source = match kind {
+                CallKind::Direct { .. } => None,
+                CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => Some(
+                    operand_source_with_inferred_ty(root_fqn, site_id, "Call", body, callee, None)?,
+                ),
+                CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
+                    Some(operand_source_with_inferred_ty(
+                        root_fqn, site_id, "Call", body, receiver, None,
+                    )?)
+                }
+                CallKind::Resume { .. } => {
+                    return Err(invalid_boundary_operand_contract(
+                        root_fqn,
+                        site_id,
+                        "Call",
+                        "boundary anchor 意外指向了 Resume MIR call kind",
+                    ));
+                }
+            };
+            let arg_sources = build_ordered_call_arg_sources(
+                root_fqn,
+                site_id,
+                "Call",
+                body,
+                args,
+                facts.invoke_args_tuple_ty(),
+                types,
+            )?;
+            let contract = LateLoweredCallBoundaryOperandContract::new(
+                LateLoweredBoundarySourceConsumption::statement(
+                    source_slice,
+                    statement_index,
+                    statement_index.saturating_add(1) == source_slice.end_statement_index(),
+                ),
+                carrier_source,
+                arg_sources,
+            );
+            if published.replace(contract).is_some() {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    "Call",
+                    "owner state source_slices 中匹配到了多个 statement anchor",
+                ));
+            }
+        }
+    }
+    published.ok_or_else(|| {
+        invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "Call",
+            format!(
+                "在 owner state st{} 的 source_slices 中找不到 call statement anchor",
+                boundary.owner_state().as_u32(),
+            ),
+        )
+    })
+}
+
+fn build_perform_boundary_operand_contract(
+    root_fqn: &str,
+    body: &Body,
+    state_graph: &LateLoweredStateGraph,
+    boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+    facts: &PerformSiteEffectFacts,
+    types: &TypeStore,
+) -> Result<LateLoweredPerformBoundaryOperandContract, EffectLoweringError> {
+    let LateLoweredBoundarySource::Site {
+        site_id,
+        kind: BoundarySiteKind::Perform,
+    } = boundary.source()
+    else {
+        unreachable!("Perform boundary helper 只能消费 Perform site source");
+    };
+    let owner_state = state_graph.state(boundary.owner_state()).ok_or_else(|| {
+        invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "Perform",
+            format!("缺少 owner state st{}", boundary.owner_state().as_u32()),
+        )
+    })?;
+    let mut published = None;
+    for &source_slice in owner_state.source_slices() {
+        validate_source_slice_bounds(root_fqn, site_id, "Perform", body, source_slice)?;
+        if !source_slice.includes_terminator() {
+            continue;
+        }
+        let block = &body.blocks[source_slice.block_id().as_u32() as usize];
+        let TerminatorKind::Perform {
+            site_id: term_site_id,
+            args,
+            ..
+        } = &block.terminator.kind
+        else {
+            continue;
+        };
+        if *term_site_id != site_id {
+            continue;
+        }
+        let payload_sources = build_ordered_perform_payload_sources(
+            root_fqn,
+            site_id,
+            body,
+            args,
+            facts.payload_tuple_ty(),
+            types,
+        )?;
+        let contract = LateLoweredPerformBoundaryOperandContract::new(
+            LateLoweredBoundarySourceConsumption::terminator(source_slice),
+            payload_sources,
+        );
+        if published.replace(contract).is_some() {
+            return Err(invalid_boundary_operand_contract(
+                root_fqn,
+                site_id,
+                "Perform",
+                "owner state source_slices 中匹配到了多个 terminator anchor",
+            ));
+        }
+    }
+    published.ok_or_else(|| {
+        invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "Perform",
+            format!(
+                "在 owner state st{} 的 source_slices 中找不到 perform terminator anchor",
+                boundary.owner_state().as_u32(),
+            ),
+        )
+    })
+}
+
+fn build_resume_boundary_operand_contract(
+    root_fqn: &str,
+    body: &Body,
+    state_graph: &LateLoweredStateGraph,
+    boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+    facts: &ResumeSiteEffectFacts,
+    result_local: LocalId,
+    types: &TypeStore,
+) -> Result<LateLoweredResumeBoundaryOperandContract, EffectLoweringError> {
+    let LateLoweredBoundarySource::Site {
+        site_id,
+        kind: BoundarySiteKind::Resume,
+    } = boundary.source()
+    else {
+        unreachable!("Resume boundary helper 只能消费 Resume site source");
+    };
+    let owner_state = state_graph.state(boundary.owner_state()).ok_or_else(|| {
+        invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "Resume",
+            format!("缺少 owner state st{}", boundary.owner_state().as_u32()),
+        )
+    })?;
+    let mut published = None;
+    for &source_slice in owner_state.source_slices() {
+        validate_source_slice_bounds(root_fqn, site_id, "Resume", body, source_slice)?;
+        let block = &body.blocks[source_slice.block_id().as_u32() as usize];
+        let start = source_slice.start_statement_index() as usize;
+        let end = source_slice.end_statement_index() as usize;
+        for (offset, stmt) in block.stmts[start..end].iter().enumerate() {
+            let StatementKind::Assign {
+                target,
+                value:
+                    Rvalue::Call {
+                        site_id: stmt_site_id,
+                        kind:
+                            CallKind::Resume {
+                                continuation,
+                                resume,
+                            },
+                        args,
+                    },
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            if *stmt_site_id != site_id {
+                continue;
+            }
+            if *target != result_local {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    "Resume",
+                    format!(
+                        "statement anchor 写入 local{}，但 boundary lowering 发布的 result local 为 local{}",
+                        target.as_u32(),
+                        result_local.as_u32(),
+                    ),
+                ));
+            }
+            if resume.resume_ty != facts.resume_tuple_ty() || resume.answer_ty != facts.answer_ty()
+            {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    "Resume",
+                    format!(
+                        "canonical MIR resume metadata 与 published facts 漂移：resume_tuple=t{} answer_ty=t{}，facts=(t{}, t{})",
+                        resume.resume_ty.as_u32(),
+                        resume.answer_ty.as_u32(),
+                        facts.resume_tuple_ty().as_u32(),
+                        facts.answer_ty().as_u32(),
+                    ),
+                ));
+            }
+            let continuation_source = operand_source_with_expected_ty(
+                root_fqn,
+                site_id,
+                "Resume",
+                body,
+                continuation,
+                resume.continuation_ty,
+                None,
+            )?;
+            let arg_sources = build_ordered_call_arg_sources(
+                root_fqn,
+                site_id,
+                "Resume",
+                body,
+                args,
+                facts.resume_tuple_ty(),
+                types,
+            )?;
+            let statement_index = source_slice.start_statement_index() + offset as u32;
+            let contract = LateLoweredResumeBoundaryOperandContract::new(
+                LateLoweredBoundarySourceConsumption::statement(
+                    source_slice,
+                    statement_index,
+                    statement_index.saturating_add(1) == source_slice.end_statement_index(),
+                ),
+                continuation_source,
+                arg_sources,
+            );
+            if published.replace(contract).is_some() {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    "Resume",
+                    "owner state source_slices 中匹配到了多个 statement anchor",
+                ));
+            }
+        }
+    }
+    published.ok_or_else(|| {
+        invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "Resume",
+            format!(
+                "在 owner state st{} 的 source_slices 中找不到 resume statement anchor",
+                boundary.owner_state().as_u32(),
+            ),
+        )
+    })
+}
+
 fn collect_result_locals(body: &Body) -> BoundaryResultLocals {
     let mut call_results = HashMap::new();
     for block in &body.blocks {
@@ -1984,9 +2623,10 @@ mod tests {
     };
     use crate::effect_lowered::LateLoweredProgramBuilder;
     use crate::effect_lowered::ir::{
-        BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredContinuationMethodReachability,
-        LateLoweredContinuationResumeBody, LateLoweredHandleBoundaryCaseRoutingAction,
-        LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion, LateLoweredOneShotPolicy,
+        BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundarySourceConsumption,
+        LateLoweredContinuationMethodReachability, LateLoweredContinuationResumeBody,
+        LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
+        LateLoweredHandleStateRegion, LateLoweredOneShotPolicy, LateLoweredOperandValueSource,
         LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
         LateLoweredSurfaceResumeDispatchSourceKind, SystemSlotKind,
     };
@@ -2438,6 +3078,175 @@ mod tests {
             ["sample.Alpha.go".to_string(), "sample.Beta.go".to_string()]
                 .into_iter()
                 .collect()
+        );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_boundary_operand_contract_publishes_direct_dynamic_and_perform_sources()
+     {
+        let direct_output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+        ));
+        let main = callable(&direct_output, "main");
+        let direct_boundary = site_boundary(main, BoundarySiteKind::Call);
+        let LateLoweredBoundaryLowering::Call(direct_lowering) = direct_boundary
+            .lowering()
+            .expect("direct call boundary 应发布 lowering contract")
+        else {
+            panic!("main 的 boundary 应物化成 Call lowering")
+        };
+        assert!(matches!(
+            direct_lowering.operand_contract().source_consumption(),
+            LateLoweredBoundarySourceConsumption::Statement {
+                consumes_last_statement: true,
+                ..
+            }
+        ));
+        assert!(
+            direct_lowering
+                .operand_contract()
+                .carrier_source()
+                .is_none()
+        );
+        assert_eq!(direct_lowering.operand_contract().arg_sources().len(), 1);
+        assert_eq!(
+            direct_output
+                .types()
+                .display(direct_lowering.operand_contract().arg_sources()[0].source_ty())
+                .to_string(),
+            "Bool"
+        );
+        assert!(matches!(
+            direct_lowering.operand_contract().arg_sources()[0].value(),
+            LateLoweredOperandValueSource::Local(_)
+                | LateLoweredOperandValueSource::Const(crate::mir::ConstValue::Bool(_))
+        ));
+        assert!(
+            direct_lowering.operand_contract().arg_sources()[0]
+                .span()
+                .is_some()
+        );
+
+        let dynamic_output = load_output(&load_fixture(
+            "effect_facts",
+            "dynamic_fallback_widening.scoop",
+        ));
+        let call_value = callable(&dynamic_output, "sample.callValue");
+        let dynamic_boundary = site_boundary(call_value, BoundarySiteKind::Call);
+        let LateLoweredBoundaryLowering::Call(dynamic_lowering) = dynamic_boundary
+            .lowering()
+            .expect("dynamic call boundary 应发布 lowering contract")
+        else {
+            panic!("callValue 的 boundary 应物化成 Call lowering")
+        };
+        assert_eq!(dynamic_lowering.operand_contract().arg_sources().len(), 0);
+        assert!(matches!(
+            dynamic_lowering.operand_contract().source_consumption(),
+            LateLoweredBoundarySourceConsumption::Statement { .. }
+        ));
+        assert!(matches!(
+            dynamic_lowering
+                .operand_contract()
+                .carrier_source()
+                .expect("dynamic call 应发布 carrier source")
+                .value(),
+            LateLoweredOperandValueSource::Local(_)
+        ));
+
+        let perform_output = load_output(&load_fixture("effect_facts", "handle_perform.scoop"));
+        let handled_main = callable(&perform_output, "a.main");
+        let perform_boundary = site_boundary(handled_main, BoundarySiteKind::Perform);
+        let LateLoweredBoundaryLowering::Perform(perform_lowering) = perform_boundary
+            .lowering()
+            .expect("perform boundary 应发布 lowering contract")
+        else {
+            panic!("perform boundary 应物化成 Perform lowering")
+        };
+        assert!(matches!(
+            perform_lowering.operand_contract().source_consumption(),
+            LateLoweredBoundarySourceConsumption::Terminator { .. }
+        ));
+        assert_eq!(
+            perform_lowering.operand_contract().payload_sources().len(),
+            1
+        );
+        assert_eq!(
+            perform_output
+                .types()
+                .display(perform_lowering.operand_contract().payload_sources()[0].source_ty())
+                .to_string(),
+            "Int"
+        );
+        assert!(matches!(
+            perform_lowering.operand_contract().payload_sources()[0].value(),
+            LateLoweredOperandValueSource::Local(_)
+                | LateLoweredOperandValueSource::Const(crate::mir::ConstValue::Int)
+        ));
+        assert!(
+            perform_lowering.operand_contract().payload_sources()[0]
+                .span()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_boundary_operand_contract_publishes_resume_sources() {
+        let output = load_output(&load_fixture(
+            "effect_facts",
+            "dispatch_and_resume_call.scoop",
+        ));
+        let callable = callable(&output, "fixtures.mir.resumeBoom");
+        let resume_boundary = site_boundary(callable, BoundarySiteKind::Resume);
+        let LateLoweredBoundaryLowering::Resume(resume_lowering) = resume_boundary
+            .lowering()
+            .expect("resume boundary 应发布 lowering contract")
+        else {
+            panic!("resume boundary 应物化成 Resume lowering")
+        };
+        assert!(matches!(
+            resume_lowering.operand_contract().source_consumption(),
+            LateLoweredBoundarySourceConsumption::Statement {
+                consumes_last_statement: true,
+                ..
+            }
+        ));
+        assert!(matches!(
+            resume_lowering
+                .operand_contract()
+                .continuation_source()
+                .value(),
+            LateLoweredOperandValueSource::Local(_)
+        ));
+        assert!(
+            output
+                .types()
+                .display(
+                    resume_lowering
+                        .operand_contract()
+                        .continuation_source()
+                        .source_ty(),
+                )
+                .to_string()
+                .contains("Continuation")
+        );
+        assert_eq!(resume_lowering.operand_contract().arg_sources().len(), 1);
+        assert_eq!(
+            output
+                .types()
+                .display(resume_lowering.operand_contract().arg_sources()[0].source_ty())
+                .to_string(),
+            "Int"
+        );
+        assert!(matches!(
+            resume_lowering.operand_contract().arg_sources()[0].value(),
+            LateLoweredOperandValueSource::Local(_)
+                | LateLoweredOperandValueSource::Const(crate::mir::ConstValue::Int)
+        ));
+        assert!(
+            resume_lowering.operand_contract().arg_sources()[0]
+                .span()
+                .is_some()
         );
     }
 
