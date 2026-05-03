@@ -1987,7 +1987,8 @@ mod tests {
         BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredContinuationMethodReachability,
         LateLoweredContinuationResumeBody, LateLoweredHandleBoundaryCaseRoutingAction,
         LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion, LateLoweredOneShotPolicy,
-        LateLoweredStateTerminator, SystemSlotKind,
+        LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
+        LateLoweredSurfaceResumeDispatchSourceKind, SystemSlotKind,
     };
     use crate::effect_refactor_pipeline::load_effect_facts_stage_output_for_dump;
     use crate::mir::SiteId;
@@ -2215,6 +2216,178 @@ mod tests {
         assert!(object.surface_resumes().iter().any(|surface| {
             surface.concrete_op_key().instance_key().template.fqn == "scoop.core.Raise.raise"
                 && surface.reachability() == LateLoweredContinuationMethodReachability::Unreachable
+        }));
+    }
+
+    #[test]
+    fn refactor_surface_resume_dispatch_inventory_marks_shared_schema_object_method_sources() {
+        let output = load_output(&load_fixture(
+            "build",
+            "effect_refactor_step_enum_single_case.scoop",
+        ));
+        let worker = callable(&output, "fixtures.build.singleCaseWorker");
+        let step = output
+            .program()
+            .step_type(worker.step_schema())
+            .expect("worker step schema 应可回查");
+        let shared_schema = step
+            .case(crate::effect_facts::CaseTag::new(0))
+            .expect("worker c0 应存在")
+            .continuation_schema();
+        assert_eq!(
+            shared_schema,
+            step.case(crate::effect_facts::CaseTag::new(1))
+                .expect("worker c1 应存在")
+                .continuation_schema()
+        );
+
+        let entry = output
+            .program()
+            .surface_resume_dispatch(shared_schema)
+            .expect("shared schema 应发布 dispatch inventory");
+        assert_eq!(
+            entry.source_kind(),
+            LateLoweredSurfaceResumeDispatchSourceKind::ContinuationObjectMethod
+        );
+
+        let mut saw_surface_c0 = false;
+        let mut saw_surface_c1 = false;
+        let mut saw_method_c0 = false;
+        for publication in entry.publications() {
+            match publication {
+                LateLoweredSurfaceResumeDispatchPublication::SurfaceCase {
+                    object_id,
+                    case_tag,
+                    reachability,
+                } if *object_id == worker.continuation_object()
+                    && *case_tag == crate::effect_facts::CaseTag::new(0) =>
+                {
+                    assert_eq!(
+                        *reachability,
+                        LateLoweredContinuationMethodReachability::Reachable
+                    );
+                    saw_surface_c0 = true;
+                }
+                LateLoweredSurfaceResumeDispatchPublication::SurfaceCase {
+                    object_id,
+                    case_tag,
+                    reachability,
+                } if *object_id == worker.continuation_object()
+                    && *case_tag == crate::effect_facts::CaseTag::new(1) =>
+                {
+                    assert_eq!(
+                        *reachability,
+                        LateLoweredContinuationMethodReachability::Unreachable
+                    );
+                    saw_surface_c1 = true;
+                }
+                LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+                    object_id,
+                    case_tag,
+                    reachability,
+                    ..
+                } if *object_id == worker.continuation_object()
+                    && *case_tag == crate::effect_facts::CaseTag::new(0) =>
+                {
+                    assert_eq!(
+                        *reachability,
+                        LateLoweredContinuationMethodReachability::Reachable
+                    );
+                    saw_method_c0 = true;
+                }
+                _ => {}
+            }
+        }
+
+        assert!(
+            saw_surface_c0,
+            "shared schema 应保留 c0 surface publication"
+        );
+        assert!(
+            saw_surface_c1,
+            "shared schema 应保留 c1 surface publication"
+        );
+        assert!(
+            saw_method_c0,
+            "shared schema 应明确发布唯一可达的 internal method source"
+        );
+    }
+
+    #[test]
+    fn refactor_surface_resume_dispatch_inventory_covers_resume_site_only_and_handle_binder_schema()
+    {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+        ));
+        let run = callable(&output, "run");
+
+        let resume_schema = run
+            .boundary_map()
+            .entries()
+            .iter()
+            .find_map(|boundary| match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                    Some(lowering.facts().continuation_schema())
+                }
+                _ => None,
+            })
+            .expect("fixture 应至少包含一个 resume boundary schema");
+        let resume_entry = output
+            .program()
+            .surface_resume_dispatch(resume_schema)
+            .expect("resume-site-only schema 应发布 dispatch inventory");
+        assert_eq!(
+            resume_entry.source_kind(),
+            LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
+        );
+        assert!(resume_entry.publications().iter().any(|publication| {
+            matches!(
+                publication,
+                LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                    owner_continuation_object,
+                    site_id,
+                    ..
+                } if *owner_continuation_object == run.continuation_object() && site_id.as_u32() == 9
+            )
+        }));
+
+        let handle_schema = run
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| match state.terminator() {
+                LateLoweredStateTerminator::HandleDispatch { contract, .. } => {
+                    contract.handled_arms().iter().find_map(|arm| {
+                        arm.continuation_binder()
+                            .map(|binder| binder.continuation_schema())
+                    })
+                }
+                _ => None,
+            })
+            .expect("fixture 应至少包含一个 handle continuation binder schema");
+        let handle_entry = output
+            .program()
+            .surface_resume_dispatch(handle_schema)
+            .expect("handle binder schema 应发布 dispatch inventory");
+        assert_eq!(
+            handle_entry.source_kind(),
+            LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly
+        );
+        assert!(handle_entry.publications().iter().any(|publication| {
+            matches!(
+                publication,
+                LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                    owner_continuation_object,
+                    site_id,
+                    arm_ordinal,
+                    handled_case,
+                    ..
+                } if *owner_continuation_object == run.continuation_object()
+                    && site_id.as_u32() == 0
+                    && *arm_ordinal == 0
+                    && *handled_case == crate::effect_facts::CaseTag::new(0)
+            )
         }));
     }
 

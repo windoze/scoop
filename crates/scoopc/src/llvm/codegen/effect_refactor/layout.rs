@@ -223,8 +223,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
         let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
-        let handle_dispatch_layouts =
-            this.materialize_handle_dispatch_layouts(&frame_layouts, &continuation_layouts)?;
+        let handle_dispatch_layouts = this.materialize_handle_dispatch_layouts(
+            &frame_layouts,
+            &continuation_layouts,
+            &surface_resume_layouts,
+        )?;
 
         Ok(RefactorAbiQuery::new(
             this.source_value_layouts,
@@ -496,52 +499,21 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         LlvmEmitError,
     > {
         let mut layouts = BTreeMap::new();
-        for object in self.program.continuation_objects() {
-            for surface_resume in object.surface_resumes() {
-                self.register_surface_resume_layout(
-                    &mut layouts,
-                    surface_resume.continuation_schema(),
-                    surface_resume.resume_tuple_ty(),
-                    surface_resume.answer_ty(),
-                    surface_resume.out_step_schema(),
-                    &format!("continuation object {}", object.object_id().as_u32()),
-                    step_layouts,
-                )?;
-            }
-        }
-        for callable in self.program.callables() {
-            for boundary in callable.boundary_map().entries() {
-                let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering()
-                else {
-                    continue;
-                };
-                let site_id = match boundary.source() {
-                    LateLoweredBoundarySource::Site {
-                        site_id,
-                        kind: BoundarySiteKind::Resume,
-                    } => site_id,
-                    other => {
-                        return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` 的 resume lowering 绑定到了非 Resume boundary source {other:?}",
-                            callable.root_fqn(),
-                        )));
-                    }
-                };
-                let facts = lowering.facts();
-                self.register_surface_resume_layout(
-                    &mut layouts,
-                    facts.continuation_schema(),
-                    facts.resume_tuple_ty(),
-                    facts.answer_ty(),
-                    facts.out_step_schema(),
-                    &format!(
-                        "callable `{}` resume site {}",
-                        callable.root_fqn(),
-                        site_id.as_u32()
-                    ),
-                    step_layouts,
-                )?;
-            }
+        for entry in self.program.surface_resume_dispatch_inventory() {
+            let contract = entry.contract();
+            self.register_surface_resume_layout(
+                &mut layouts,
+                entry.continuation_schema(),
+                entry.source_kind(),
+                contract.resume_tuple_ty(),
+                contract.answer_ty(),
+                contract.out_step_schema(),
+                &format!(
+                    "surface-resume dispatch inventory k{}",
+                    entry.continuation_schema().as_u32()
+                ),
+                step_layouts,
+            )?;
         }
         Ok(layouts)
     }
@@ -551,6 +523,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         layouts: &mut BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
         continuation_schema: ContinuationSchemaId,
+        dispatch_source_kind: crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind,
         resume_tuple_ty: crate::ty::TypeId,
         answer_ty: crate::ty::TypeId,
         return_step_schema: StepSchemaId,
@@ -559,6 +532,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let layout = self.materialize_surface_resume_layout(
             continuation_schema,
+            dispatch_source_kind,
             resume_tuple_ty,
             answer_ty,
             return_step_schema,
@@ -596,6 +570,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     fn materialize_surface_resume_layout(
         &mut self,
         continuation_schema: ContinuationSchemaId,
+        dispatch_source_kind: crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind,
         resume_tuple_ty: crate::ty::TypeId,
         answer_ty: crate::ty::TypeId,
         step_schema: StepSchemaId,
@@ -627,6 +602,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         self.ensure_declared_function(&symbol_name, fn_ty);
         Ok(RefactorContinuationSurfaceResumeLayout::new(
             continuation_schema,
+            dispatch_source_kind,
             symbol_name,
             fn_ty,
             params.len(),
@@ -686,6 +662,19 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         facts.resume_tuple_ty().as_u32(),
                         facts.answer_ty().as_u32(),
                         facts.out_step_schema().as_u32(),
+                    )));
+                }
+                if matches!(
+                    layout.dispatch_source_kind(),
+                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly
+                        | crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::Unreachable
+                ) {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` resume site {} 的 continuation schema k{} dispatch source kind 为 {:?}，无法作为 authoritative resume-site surface source",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        facts.continuation_schema().as_u32(),
+                        layout.dispatch_source_kind(),
                     )));
                 }
             }
@@ -851,12 +840,16 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         BTreeMap<ContinuationSchemaId, Vec<RefactorContinuationSurfaceResumeBinding>>,
         LlvmEmitError,
     > {
-        let mut bindings = BTreeMap::new();
-        let mut register_binding = |continuation_schema: ContinuationSchemaId,
-                                    return_step_schema: StepSchemaId,
-                                    source_label: &str|
-         -> Result<(), LlvmEmitError> {
-            let layout = surface_resume_layouts
+        let mut bindings =
+            BTreeMap::<ContinuationSchemaId, Vec<RefactorContinuationSurfaceResumeBinding>>::new();
+        let mut register_binding =
+            |continuation_schema: ContinuationSchemaId,
+             return_step_schema: StepSchemaId,
+             case_tag: crate::effect_facts::CaseTag,
+             reachability: crate::effect_lowered::ir::LateLoweredContinuationMethodReachability,
+             source_label: &str|
+             -> Result<(), LlvmEmitError> {
+                let layout = surface_resume_layouts
                 .get(&continuation_schema)
                 .ok_or_else(|| {
                     frontend_error(format!(
@@ -865,60 +858,36 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         continuation_schema.as_u32(),
                     ))
                 })?;
-            if layout.return_step_schema() != return_step_schema {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation object {} 的 continuation schema k{} 在 {source_label} 上声明 out_step_schema=s{}，但已发布 surface-resume layout 的 return step schema 为 s{}",
-                    object.object_id().as_u32(),
-                    continuation_schema.as_u32(),
-                    return_step_schema.as_u32(),
-                    layout.return_step_schema().as_u32(),
-                )));
-            }
-            bindings.entry(continuation_schema).or_insert_with(|| {
-                vec![RefactorContinuationSurfaceResumeBinding::new(
-                    continuation_schema,
-                    return_step_schema,
-                )]
-            });
-            Ok(())
-        };
+                if layout.return_step_schema() != return_step_schema {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation object {} 的 continuation schema k{} 在 {source_label} 上声明 out_step_schema=s{}，但已发布 surface-resume layout 的 return step schema 为 s{}",
+                        object.object_id().as_u32(),
+                        continuation_schema.as_u32(),
+                        return_step_schema.as_u32(),
+                        layout.return_step_schema().as_u32(),
+                    )));
+                }
+                bindings.entry(continuation_schema).or_default().push(
+                    RefactorContinuationSurfaceResumeBinding::new(
+                        continuation_schema,
+                        return_step_schema,
+                        case_tag,
+                        reachability,
+                    ),
+                );
+                Ok(())
+            };
 
         for surface_resume in object.surface_resumes() {
             register_binding(
                 surface_resume.continuation_schema(),
                 surface_resume.out_step_schema(),
+                surface_resume.case_tag(),
+                surface_resume.reachability(),
                 &format!(
                     "continuation object {} published surface resume case {}",
                     object.object_id().as_u32(),
                     surface_resume.case_tag().as_u32()
-                ),
-            )?;
-        }
-
-        for boundary in owner_callable.boundary_map().entries() {
-            let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering() else {
-                continue;
-            };
-            let site_id = match boundary.source() {
-                LateLoweredBoundarySource::Site {
-                    site_id,
-                    kind: BoundarySiteKind::Resume,
-                } => site_id,
-                other => {
-                    return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` 的 resume lowering 绑定到了非 Resume boundary source {other:?}",
-                        owner_callable.root_fqn(),
-                    )));
-                }
-            };
-            let facts = lowering.facts();
-            register_binding(
-                facts.continuation_schema(),
-                facts.out_step_schema(),
-                &format!(
-                    "callable `{}` resume site {}",
-                    owner_callable.root_fqn(),
-                    site_id.as_u32()
                 ),
             )?;
         }
@@ -1680,6 +1649,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             crate::effect_lowered::ir::ContinuationObjectId,
             RefactorContinuationObjectLayout<'ctx>,
         >,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
     ) -> Result<
         BTreeMap<(StepSchemaId, crate::mir::SiteId), RefactorHandleDispatchLayout>,
         LlvmEmitError,
@@ -1831,6 +1804,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     contract,
                     frame_layout,
                     continuation_layouts,
+                    surface_resume_layouts,
                 )?;
 
                 let expected_outward_cases = collect_handle_contract_total_outward_cases(contract);
@@ -1988,6 +1962,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             crate::effect_lowered::ir::ContinuationObjectId,
             RefactorContinuationObjectLayout<'ctx>,
         >,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
     ) -> Result<Vec<RefactorHandleArmLayout>, LlvmEmitError> {
         let materialized_arms =
             self.lookup_materialized_handle_arms(callable.root_fqn(), site_id)?;
@@ -2122,16 +2100,30 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                             binder.continuation_object().as_u32(),
                         )),
                     )?;
-                    let surface_binding = continuation_layout
-                        .surface_resume_bindings(binder.continuation_schema())
-                        .and_then(|bindings| bindings.first().copied())
+                    let surface_layout = surface_resume_layouts
+                        .get(&binder.continuation_schema())
                         .ok_or_else(|| frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder 缺少 continuation schema k{} 的 published surface-resume binding",
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder 缺少 continuation schema k{} 的 authoritative surface-resume dispatch inventory",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
                             binder.continuation_schema().as_u32(),
                         )))?;
+                    if matches!(
+                        surface_layout.dispatch_source_kind(),
+                        crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
+                            | crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::Unreachable
+                    ) {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation schema k{} dispatch source kind 为 {:?}，无法作为 authoritative handle-binder surface source",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.handled_case().as_u32(),
+                            binder.continuation_schema().as_u32(),
+                            surface_layout.dispatch_source_kind(),
+                        )));
+                    }
+                    let _ = continuation_layout;
                     let frame_field_index = match binder.frame_slot() {
                         Some(frame_slot) => Some(frame_layout.field_index_for_slot(frame_slot).ok_or_else(
                             || frontend_error(format!(
@@ -2150,7 +2142,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         frame_field_index,
                         binder.continuation_schema(),
                         binder.continuation_object(),
-                        surface_binding,
+                        surface_layout.dispatch_source_kind(),
+                        surface_layout.return_step_schema(),
                     ))
                 }
                 (Some(_), None) => {
@@ -5626,15 +5619,11 @@ fun main(): Int {
                     callable.continuation_object()
                 );
                 assert_eq!(
-                    continuation_binder
-                        .surface_resume_binding()
-                        .continuation_schema(),
-                    continuation_binder.continuation_schema()
+                    continuation_binder.surface_resume_source_kind(),
+                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ContinuationObjectMethod
                 );
                 assert_eq!(
-                    continuation_binder
-                        .surface_resume_binding()
-                        .return_step_schema(),
+                    continuation_binder.surface_resume_return_step_schema(),
                     callable.step_schema()
                 );
             },
@@ -5677,10 +5666,8 @@ fun main(): Int {
                     .continuation_binder()
                     .expect("escape arm 应带 continuation binder layout");
                 assert_eq!(
-                    continuation_binder
-                        .surface_resume_binding()
-                        .continuation_schema(),
-                    continuation_binder.continuation_schema()
+                    continuation_binder.surface_resume_source_kind(),
+                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly
                 );
             },
         );
@@ -5965,6 +5952,54 @@ fun main(): Int {
     }
 
     #[test]
+    fn refactor_llvm_surface_resume_layout_keeps_shared_schema_multi_case_object_publications() {
+        with_fixture_query_result(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("shared-schema fixture 应可物化 surface-resume ABI");
+                let callable = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("singleCaseWorker callable 应存在");
+                let step = inputs
+                    .abi_visibility_program
+                    .step_type(callable.step_schema())
+                    .expect("worker step shell 应存在");
+                let shared_schema = step
+                    .case(CaseTag::new(0))
+                    .expect("worker c0 应存在")
+                    .continuation_schema();
+                let continuation_layout = query
+                    .continuation_layout(callable.continuation_object())
+                    .expect("continuation layout 应可查询");
+                let surface_layout = query
+                    .surface_resume_layout(shared_schema)
+                    .expect("shared schema surface-resume layout 应可查询");
+                let bindings = continuation_layout
+                    .surface_resume_bindings(shared_schema)
+                    .expect("object-side shared schema surface publication 应可查询");
+
+                assert_eq!(
+                    surface_layout.dispatch_source_kind(),
+                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ContinuationObjectMethod
+                );
+                assert_eq!(bindings.len(), 2);
+                assert!(bindings.iter().any(|binding| {
+                    binding.case_tag() == CaseTag::new(0)
+                        && binding.reachability()
+                            == crate::effect_lowered::ir::LateLoweredContinuationMethodReachability::Reachable
+                }));
+                assert!(bindings.iter().any(|binding| {
+                    binding.case_tag() == CaseTag::new(1)
+                        && binding.reachability()
+                            == crate::effect_lowered::ir::LateLoweredContinuationMethodReachability::Unreachable
+                }));
+            },
+        );
+    }
+
+    #[test]
     fn refactor_llvm_surface_resume_layout_resolves_resume_site_contracts() {
         with_phase_fixture_query_result(
             "run-pass",
@@ -5984,14 +6019,6 @@ fun main(): Int {
                         let surface_layout = query
                             .surface_resume_layout(facts.continuation_schema())
                             .expect("ResumeSiteEffectFacts 所需的 surface-resume layout 应已发布");
-                        let continuation_layout = query
-                            .continuation_layout(callable.continuation_object())
-                            .expect("continuation layout 应可查询");
-                        let bindings = continuation_layout
-                            .surface_resume_bindings(facts.continuation_schema())
-                            .expect(
-                                "continuation object 应发布 resume site 所需的 surface-resume 映射",
-                            );
 
                         assert_eq!(
                             surface_layout.continuation_schema(),
@@ -6009,13 +6036,10 @@ fun main(): Int {
                             module.get_function(surface_layout.symbol_name()).is_some(),
                             "surface-resume symbol 应被声明到 module 中"
                         );
-                        for binding in bindings {
-                            assert_eq!(binding.continuation_schema(), facts.continuation_schema());
-                            assert!(
-                                binding.return_step_schema() == facts.out_step_schema(),
-                                "surface-resume binding 必须与 resume site 的返回 Step schema 对齐"
-                            );
-                        }
+                        assert_eq!(
+                            surface_layout.dispatch_source_kind(),
+                            crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
+                        );
                         checked_resume_site = true;
                     }
                 }

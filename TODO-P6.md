@@ -1521,7 +1521,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02ma：发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema
+## [DONE] P6-T02ma：发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1584,7 +1584,23 @@
   - `P6-T02m` 可以只在这层 authoritative inventory 之上继续发布 LLVM-level owner dispatch contract。
 - 依赖：P6-T02c
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：在 `crates/scoopc/src/effect_lowered/ir.rs` 为 `LateLoweredProgram` 新增 program-level `surface_resume_dispatch_inventory`，由 `LateLoweredProgram::new(...)` 基于 continuation object surface/method、resume boundary、以及 handle continuation binder 自动派生；每个 `ContinuationSchemaId` 现在都会以显式 `source_kind` 发布为 `ContinuationObjectMethod`、`ResumeBoundaryOnly`、`HandleContinuationBinderOnly`、`OwnerTrampolineMixed` 或 `Unreachable` 之一，并保留对应 publication 列表。
+  - 2026-05-04：在 `crates/scoopc/src/effect_lowered/dump.rs` 把这层 inventory 纳入 `LateLoweredProgram` stable dump。`dump-effect-lowered` 现在能直接暴露：
+    - `effect_refactor_step_enum_single_case.scoop` 中 shared-schema `k0` 的 `c0/c1` surface publication 与唯一可达 `ri0::c0` method source；
+    - `effect_resume_if_else_branch_single_perform.scoop` 中 resume-site-only `k3` 的 `ResumeBoundaryOnly` source，以及 handle-binder-only `k0` 的 `HandleContinuationBinderOnly` source。
+  - 2026-05-04：在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 把 refactor LLVM ABI materializer 切到 inventory：
+    - `surface_resume_layout` 现在直接从 authoritative inventory 物化，并发布 `dispatch_source_kind`；
+    - continuation object layout 现在只保留 object-side surface case binding，并把 shared-schema 多 case publication 显式保留为多条 binding（含 `case_tag` / `reachability`）；
+    - handle continuation binder layout 现在直接消费 authoritative `dispatch_source_kind` / `return_step_schema`，不再假设 `continuation_object.surface_resume_bindings()` 必然能覆盖 resume-site-only 或 binder-only schema。
+  - 2026-05-04：补充定向测试，锁定 shared-schema、resume-site-only、handle-binder 三类 schema 的 published 形状与 LLVM query 行为。
+- 已运行验证：
+  - `cargo test -p scoopc refactor_surface_resume_dispatch_inventory`
+  - `cargo test -p scoopc refactor_llvm_surface_resume_layout`
+  - `cargo test -p scoopc refactor_handle_arm_continuation_binding`
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 

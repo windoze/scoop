@@ -9,10 +9,11 @@ use crate::effect_facts::{
 };
 use crate::effect_lowered::ir::{
     ContinuationObjectId, FrameSlotId, LateLoweredConsumedRuntimeErrorCase,
-    LateLoweredHandleBoundaryRouting, LateLoweredHandleDispatchContract,
-    LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
-    LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
-    LateLoweredPublishedRuntimeEntry, ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredContinuationMethodReachability, LateLoweredHandleBoundaryRouting,
+    LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
+    LateLoweredHandleStateRegion, LateLoweredHandleStateRegionEntry,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPublishedRuntimeEntry,
+    LateLoweredSurfaceResumeDispatchSourceKind, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{LocalId, SiteId};
@@ -799,7 +800,8 @@ pub(super) struct RefactorHandleContinuationBinderLayout {
     frame_field_index: Option<u32>,
     continuation_schema: ContinuationSchemaId,
     continuation_object: ContinuationObjectId,
-    surface_resume_binding: RefactorContinuationSurfaceResumeBinding,
+    surface_resume_source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+    surface_resume_return_step_schema: StepSchemaId,
 }
 
 impl RefactorHandleContinuationBinderLayout {
@@ -809,7 +811,8 @@ impl RefactorHandleContinuationBinderLayout {
         frame_field_index: Option<u32>,
         continuation_schema: ContinuationSchemaId,
         continuation_object: ContinuationObjectId,
-        surface_resume_binding: RefactorContinuationSurfaceResumeBinding,
+        surface_resume_source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+        surface_resume_return_step_schema: StepSchemaId,
     ) -> Self {
         Self {
             local,
@@ -817,7 +820,8 @@ impl RefactorHandleContinuationBinderLayout {
             frame_field_index,
             continuation_schema,
             continuation_object,
-            surface_resume_binding,
+            surface_resume_source_kind,
+            surface_resume_return_step_schema,
         }
     }
 
@@ -841,8 +845,12 @@ impl RefactorHandleContinuationBinderLayout {
         self.continuation_object
     }
 
-    pub(super) fn surface_resume_binding(&self) -> RefactorContinuationSurfaceResumeBinding {
-        self.surface_resume_binding
+    pub(super) fn surface_resume_source_kind(&self) -> LateLoweredSurfaceResumeDispatchSourceKind {
+        self.surface_resume_source_kind
+    }
+
+    pub(super) fn surface_resume_return_step_schema(&self) -> StepSchemaId {
+        self.surface_resume_return_step_schema
     }
 }
 
@@ -1010,6 +1018,7 @@ impl RefactorHandleDispatchLayout {
 /// 源码可见 `Continuation.resume(...) -> Step_F` 的 LLVM 级合同。
 pub(super) struct RefactorContinuationSurfaceResumeLayout<'ctx> {
     continuation_schema: ContinuationSchemaId,
+    dispatch_source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
@@ -1023,6 +1032,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         continuation_schema: ContinuationSchemaId,
+        dispatch_source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
         symbol_name: String,
         llvm_ty: FunctionType<'ctx>,
         param_count: usize,
@@ -1033,6 +1043,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
     ) -> Self {
         Self {
             continuation_schema,
+            dispatch_source_kind,
             symbol_name,
             llvm_ty,
             param_count,
@@ -1045,6 +1056,10 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
 
     pub(super) fn continuation_schema(&self) -> ContinuationSchemaId {
         self.continuation_schema
+    }
+
+    pub(super) fn dispatch_source_kind(&self) -> LateLoweredSurfaceResumeDispatchSourceKind {
+        self.dispatch_source_kind
     }
 
     pub(super) fn symbol_name(&self) -> &str {
@@ -1196,21 +1211,27 @@ impl<'ctx> RefactorResumeInterfaceLayout<'ctx> {
     }
 }
 
-/// continuation object 上单个 surface `resume(...)` 的已发布映射。
+/// continuation object 上单个 surface `resume(...)` case 的 object-side 已发布映射。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct RefactorContinuationSurfaceResumeBinding {
     continuation_schema: ContinuationSchemaId,
     return_step_schema: StepSchemaId,
+    case_tag: CaseTag,
+    reachability: LateLoweredContinuationMethodReachability,
 }
 
 impl RefactorContinuationSurfaceResumeBinding {
     pub(super) fn new(
         continuation_schema: ContinuationSchemaId,
         return_step_schema: StepSchemaId,
+        case_tag: CaseTag,
+        reachability: LateLoweredContinuationMethodReachability,
     ) -> Self {
         Self {
             continuation_schema,
             return_step_schema,
+            case_tag,
+            reachability,
         }
     }
 
@@ -1220,6 +1241,14 @@ impl RefactorContinuationSurfaceResumeBinding {
 
     pub(super) fn return_step_schema(&self) -> StepSchemaId {
         self.return_step_schema
+    }
+
+    pub(super) fn case_tag(&self) -> CaseTag {
+        self.case_tag
+    }
+
+    pub(super) fn reachability(&self) -> LateLoweredContinuationMethodReachability {
+        self.reachability
     }
 }
 

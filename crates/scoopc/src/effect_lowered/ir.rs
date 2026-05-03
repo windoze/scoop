@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::effect_facts::{
     CallSiteEffectFacts, CaseTag, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey,
     HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
@@ -19,6 +21,7 @@ pub struct LateLoweredProgram {
     step_types: Vec<LateLoweredStepType>,
     resume_interfaces: Vec<LateLoweredResumeInterface>,
     continuation_objects: Vec<LateLoweredContinuationObject>,
+    surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     callables: Vec<LateLoweredCallable>,
 }
 
@@ -29,10 +32,13 @@ impl LateLoweredProgram {
         continuation_objects: Vec<LateLoweredContinuationObject>,
         callables: Vec<LateLoweredCallable>,
     ) -> Self {
+        let surface_resume_dispatch_inventory =
+            build_surface_resume_dispatch_inventory(&step_types, &continuation_objects, &callables);
         Self {
             step_types,
             resume_interfaces,
             continuation_objects,
+            surface_resume_dispatch_inventory,
             callables,
         }
     }
@@ -71,6 +77,21 @@ impl LateLoweredProgram {
         self.continuation_objects
             .iter()
             .find(|object| object.object_id() == object_id)
+    }
+
+    pub fn surface_resume_dispatch_inventory(
+        &self,
+    ) -> &[LateLoweredSurfaceResumeDispatchInventoryEntry] {
+        &self.surface_resume_dispatch_inventory
+    }
+
+    pub fn surface_resume_dispatch(
+        &self,
+        continuation_schema: ContinuationSchemaId,
+    ) -> Option<&LateLoweredSurfaceResumeDispatchInventoryEntry> {
+        self.surface_resume_dispatch_inventory
+            .iter()
+            .find(|entry| entry.continuation_schema() == continuation_schema)
     }
 
     pub fn callables(&self) -> &[LateLoweredCallable] {
@@ -406,6 +427,335 @@ impl LateLoweredContinuationContract {
     pub fn surface_ty(&self) -> TypeId {
         self.surface_ty
     }
+}
+
+/// shared surface `resume(...) -> Step_F` 符号的最小 published contract。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredSurfaceResumeContract {
+    continuation_schema: ContinuationSchemaId,
+    resume_tuple_ty: TypeId,
+    answer_ty: TypeId,
+    out_step_schema: StepSchemaId,
+}
+
+impl LateLoweredSurfaceResumeContract {
+    pub(crate) fn new(
+        continuation_schema: ContinuationSchemaId,
+        resume_tuple_ty: TypeId,
+        answer_ty: TypeId,
+        out_step_schema: StepSchemaId,
+    ) -> Self {
+        Self {
+            continuation_schema,
+            resume_tuple_ty,
+            answer_ty,
+            out_step_schema,
+        }
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub fn resume_tuple_ty(&self) -> TypeId {
+        self.resume_tuple_ty
+    }
+
+    pub fn answer_ty(&self) -> TypeId {
+        self.answer_ty
+    }
+
+    pub fn out_step_schema(&self) -> StepSchemaId {
+        self.out_step_schema
+    }
+}
+
+/// 一个 shared surface-resume schema 当前 authoritative 来自哪类 source。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredSurfaceResumeDispatchSourceKind {
+    ContinuationObjectMethod,
+    ResumeBoundaryOnly,
+    HandleContinuationBinderOnly,
+    OwnerTrampolineMixed,
+    Unreachable,
+}
+
+/// 单个 `ContinuationSchemaId` 在 late-lowered handoff 中出现的位置记录。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LateLoweredSurfaceResumeDispatchPublication {
+    SurfaceCase {
+        object_id: ContinuationObjectId,
+        case_tag: CaseTag,
+        reachability: LateLoweredContinuationMethodReachability,
+    },
+    InternalMethod {
+        object_id: ContinuationObjectId,
+        interface_id: ResumeInterfaceId,
+        case_tag: CaseTag,
+        reachability: LateLoweredContinuationMethodReachability,
+    },
+    ResumeBoundary {
+        owner_version_key: LateLoweredBodyVersionKey,
+        owner_continuation_object: ContinuationObjectId,
+        site_id: SiteId,
+    },
+    HandleContinuationBinder {
+        owner_version_key: LateLoweredBodyVersionKey,
+        owner_continuation_object: ContinuationObjectId,
+        site_id: SiteId,
+        arm_ordinal: u32,
+        handled_case: CaseTag,
+    },
+}
+
+impl LateLoweredSurfaceResumeDispatchPublication {
+    pub fn owner_version_key(&self) -> Option<&LateLoweredBodyVersionKey> {
+        match self {
+            Self::ResumeBoundary {
+                owner_version_key, ..
+            }
+            | Self::HandleContinuationBinder {
+                owner_version_key, ..
+            } => Some(owner_version_key),
+            Self::SurfaceCase { .. } | Self::InternalMethod { .. } => None,
+        }
+    }
+}
+
+/// `ContinuationSchemaId` 到 authoritative dispatch source inventory 的 published entry。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredSurfaceResumeDispatchInventoryEntry {
+    continuation_schema: ContinuationSchemaId,
+    contract: LateLoweredSurfaceResumeContract,
+    source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+    publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
+}
+
+impl LateLoweredSurfaceResumeDispatchInventoryEntry {
+    pub(crate) fn new(
+        continuation_schema: ContinuationSchemaId,
+        contract: LateLoweredSurfaceResumeContract,
+        source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+        publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
+    ) -> Self {
+        Self {
+            continuation_schema,
+            contract,
+            source_kind,
+            publications,
+        }
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub fn contract(&self) -> LateLoweredSurfaceResumeContract {
+        self.contract
+    }
+
+    pub fn source_kind(&self) -> LateLoweredSurfaceResumeDispatchSourceKind {
+        self.source_kind
+    }
+
+    pub fn publications(&self) -> &[LateLoweredSurfaceResumeDispatchPublication] {
+        &self.publications
+    }
+}
+
+#[derive(Default)]
+struct SurfaceResumeDispatchInventoryAccumulator {
+    contract: Option<LateLoweredSurfaceResumeContract>,
+    publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
+    has_object_source: bool,
+    has_resume_boundary: bool,
+    has_handle_binder: bool,
+}
+
+impl SurfaceResumeDispatchInventoryAccumulator {
+    fn register(
+        &mut self,
+        contract: Option<LateLoweredSurfaceResumeContract>,
+        publication: LateLoweredSurfaceResumeDispatchPublication,
+    ) {
+        if self.contract.is_none() {
+            self.contract = contract;
+        }
+        match publication {
+            LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { reachability, .. }
+            | LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+                reachability, ..
+            } => {
+                if reachability == LateLoweredContinuationMethodReachability::Reachable {
+                    self.has_object_source = true;
+                }
+            }
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. } => {
+                self.has_resume_boundary = true;
+            }
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder { .. } => {
+                self.has_handle_binder = true;
+            }
+        }
+        self.publications.push(publication);
+    }
+
+    fn source_kind(&self) -> LateLoweredSurfaceResumeDispatchSourceKind {
+        if self.has_object_source {
+            LateLoweredSurfaceResumeDispatchSourceKind::ContinuationObjectMethod
+        } else if self.has_resume_boundary && self.has_handle_binder {
+            LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
+        } else if self.has_resume_boundary {
+            LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
+        } else if self.has_handle_binder {
+            LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly
+        } else {
+            LateLoweredSurfaceResumeDispatchSourceKind::Unreachable
+        }
+    }
+}
+
+fn build_surface_resume_dispatch_inventory(
+    step_types: &[LateLoweredStepType],
+    continuation_objects: &[LateLoweredContinuationObject],
+    callables: &[LateLoweredCallable],
+) -> Vec<LateLoweredSurfaceResumeDispatchInventoryEntry> {
+    let step_types_by_schema = step_types
+        .iter()
+        .map(|step_type| (step_type.step_schema(), step_type))
+        .collect::<BTreeMap<_, _>>();
+    let mut inventory =
+        BTreeMap::<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>::new();
+
+    for object in continuation_objects {
+        for surface_resume in object.surface_resumes() {
+            inventory
+                .entry(surface_resume.continuation_schema())
+                .or_default()
+                .register(
+                    Some(surface_resume_contract_from_continuation(
+                        surface_resume.continuation_contract(),
+                    )),
+                    LateLoweredSurfaceResumeDispatchPublication::SurfaceCase {
+                        object_id: object.object_id(),
+                        case_tag: surface_resume.case_tag(),
+                        reachability: surface_resume.reachability(),
+                    },
+                );
+        }
+        for method in object.methods() {
+            inventory
+                .entry(method.continuation_schema())
+                .or_default()
+                .register(
+                    Some(surface_resume_contract_from_continuation(
+                        method.continuation_contract(),
+                    )),
+                    LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+                        object_id: object.object_id(),
+                        interface_id: method.interface_id(),
+                        case_tag: method.case_tag(),
+                        reachability: method.reachability(),
+                    },
+                );
+        }
+    }
+
+    for callable in callables {
+        for boundary in callable.boundary_map().entries() {
+            let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering() else {
+                continue;
+            };
+            let LateLoweredBoundarySource::Site {
+                site_id,
+                kind: BoundarySiteKind::Resume,
+            } = boundary.source()
+            else {
+                continue;
+            };
+            let facts = lowering.facts();
+            inventory
+                .entry(facts.continuation_schema())
+                .or_default()
+                .register(
+                    Some(surface_resume_contract_from_resume_facts(facts)),
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                        owner_version_key: callable.body_version_key().clone(),
+                        owner_continuation_object: callable.continuation_object(),
+                        site_id,
+                    },
+                );
+        }
+
+        let owner_step = step_types_by_schema.get(&callable.step_schema()).copied();
+        for state in callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id, contract, ..
+            } = state.terminator()
+            else {
+                continue;
+            };
+            for arm in contract.handled_arms() {
+                let Some(binder) = arm.continuation_binder() else {
+                    continue;
+                };
+                let contract = owner_step.and_then(|step_type| {
+                    step_type.case(arm.handled_case()).map(|case| {
+                        surface_resume_contract_from_continuation(case.continuation_contract())
+                    })
+                });
+                inventory
+                    .entry(binder.continuation_schema())
+                    .or_default()
+                    .register(
+                        contract,
+                        LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                            owner_version_key: callable.body_version_key().clone(),
+                            owner_continuation_object: callable.continuation_object(),
+                            site_id: *site_id,
+                            arm_ordinal: arm.arm_ordinal(),
+                            handled_case: arm.handled_case(),
+                        },
+                    );
+            }
+        }
+    }
+
+    inventory
+        .into_iter()
+        .filter_map(|(continuation_schema, entry)| {
+            entry.contract.map(|contract| {
+                LateLoweredSurfaceResumeDispatchInventoryEntry::new(
+                    continuation_schema,
+                    contract,
+                    entry.source_kind(),
+                    entry.publications,
+                )
+            })
+        })
+        .collect()
+}
+
+fn surface_resume_contract_from_continuation(
+    contract: LateLoweredContinuationContract,
+) -> LateLoweredSurfaceResumeContract {
+    LateLoweredSurfaceResumeContract::new(
+        contract.continuation_schema(),
+        contract.resume_tuple_ty(),
+        contract.answer_ty(),
+        contract.out_step_schema(),
+    )
+}
+
+fn surface_resume_contract_from_resume_facts(
+    facts: &ResumeSiteEffectFacts,
+) -> LateLoweredSurfaceResumeContract {
+    LateLoweredSurfaceResumeContract::new(
+        facts.continuation_schema(),
+        facts.resume_tuple_ty(),
+        facts.answer_ty(),
+        facts.out_step_schema(),
+    )
 }
 
 /// `Step_F` 中某个 canonical outward case 的稳定记录。

@@ -85,7 +85,7 @@
 | `P6-T02k` | `TODO-P6.md` | [DONE] 发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状 |
 | `P6-T02kR` | `TODO-P6.md` | [DONE] Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状 |
 | `P6-T02l` | `TODO-P6.md` | [DONE] 发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属 |
-| `P6-T02ma` | `TODO-P6.md` | 发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema |
+| `P6-T02ma` | `TODO-P6.md` | [DONE] 发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema |
 | `P6-T02m` | `TODO-P6.md` | 发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable |
 | `P6-T03` | `TODO-P6.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |

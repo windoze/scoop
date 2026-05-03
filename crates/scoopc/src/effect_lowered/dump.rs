@@ -17,7 +17,9 @@ use super::ir::{
     LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
     LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
     LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
-    LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
+    LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
+    ResumeInterfaceId, StateId, SystemSlotKind,
 };
 
 /// 渲染 late-lowered program 的稳定文本格式。
@@ -40,6 +42,12 @@ pub fn render_late_lowered_program(program: &LateLoweredProgram) -> String {
         &mut rendered,
         "  continuation_object_count: {}",
         program.continuation_objects().len()
+    )
+    .unwrap();
+    writeln!(
+        &mut rendered,
+        "  surface_resume_dispatch_count: {}",
+        program.surface_resume_dispatch_inventory().len()
     )
     .unwrap();
     writeln!(&mut rendered, "  callable_count: {}", program.len()).unwrap();
@@ -68,6 +76,15 @@ pub fn render_late_lowered_program(program: &LateLoweredProgram) -> String {
     } else {
         for object in program.continuation_objects() {
             render_continuation_object(&mut rendered, object);
+        }
+    }
+
+    writeln!(&mut rendered, "  surface_resume_dispatch_inventory:").unwrap();
+    if program.surface_resume_dispatch_inventory().is_empty() {
+        writeln!(&mut rendered, "    <none>").unwrap();
+    } else {
+        for entry in program.surface_resume_dispatch_inventory() {
+            render_surface_resume_dispatch_inventory_entry(&mut rendered, entry);
         }
     }
 
@@ -263,6 +280,103 @@ fn render_surface_resume(
         render_continuation_resume_body(surface_resume.body()),
     )
     .unwrap();
+}
+
+fn render_surface_resume_dispatch_inventory_entry(
+    rendered: &mut String,
+    entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
+) {
+    let contract = entry.contract();
+    writeln!(
+        rendered,
+        "    - continuation_schema: k{} source={} resume_tuple_ty={} answer_ty={} out_step_schema=s{}",
+        entry.continuation_schema().as_u32(),
+        render_surface_resume_dispatch_source_kind(entry.source_kind()),
+        render_type_id(contract.resume_tuple_ty()),
+        render_type_id(contract.answer_ty()),
+        contract.out_step_schema().as_u32(),
+    )
+    .unwrap();
+    writeln!(rendered, "      publications:").unwrap();
+    if entry.publications().is_empty() {
+        writeln!(rendered, "        <none>").unwrap();
+        return;
+    }
+    for publication in entry.publications() {
+        writeln!(
+            rendered,
+            "        - {}",
+            render_surface_resume_dispatch_publication(publication)
+        )
+        .unwrap();
+    }
+}
+
+fn render_surface_resume_dispatch_source_kind(
+    kind: LateLoweredSurfaceResumeDispatchSourceKind,
+) -> &'static str {
+    match kind {
+        LateLoweredSurfaceResumeDispatchSourceKind::ContinuationObjectMethod => {
+            "ContinuationObjectMethod"
+        }
+        LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly => "ResumeBoundaryOnly",
+        LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly => {
+            "HandleContinuationBinderOnly"
+        }
+        LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed => "OwnerTrampolineMixed",
+        LateLoweredSurfaceResumeDispatchSourceKind::Unreachable => "Unreachable",
+    }
+}
+
+fn render_surface_resume_dispatch_publication(
+    publication: &LateLoweredSurfaceResumeDispatchPublication,
+) -> String {
+    match publication {
+        LateLoweredSurfaceResumeDispatchPublication::SurfaceCase {
+            object_id,
+            case_tag,
+            reachability,
+        } => format!(
+            "surface_case ko{}::c{} reachability={reachability:?}",
+            object_id.as_u32(),
+            case_tag.as_u32(),
+        ),
+        LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+            object_id,
+            interface_id,
+            case_tag,
+            reachability,
+        } => format!(
+            "internal_method ko{} ri{}::c{} reachability={reachability:?}",
+            object_id.as_u32(),
+            interface_id.as_u32(),
+            case_tag.as_u32(),
+        ),
+        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+            owner_version_key,
+            owner_continuation_object,
+            site_id,
+        } => format!(
+            "resume_boundary {} ko{} site{}",
+            render_body_version_key(owner_version_key),
+            owner_continuation_object.as_u32(),
+            site_id.as_u32(),
+        ),
+        LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+            owner_version_key,
+            owner_continuation_object,
+            site_id,
+            arm_ordinal,
+            handled_case,
+        } => format!(
+            "handle_continuation_binder {} ko{} site{} arm#{} handled_case=c{}",
+            render_body_version_key(owner_version_key),
+            owner_continuation_object.as_u32(),
+            site_id.as_u32(),
+            arm_ordinal,
+            handled_case.as_u32(),
+        ),
+    }
 }
 
 fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
