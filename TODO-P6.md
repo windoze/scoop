@@ -1316,6 +1316,121 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02k：发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16, §5.3.2-§5.3.6, §5.5.4-§5.5.7, §8
+  - `crates/scoopc/src/effect_lowered/{ir,frame,materialize,dump}.rs`
+  - `crates/scoopc/src/effect_facts/{facts,dump}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+  - `crates/scoopc/src/mir/mod.rs`（只能作当前缺口的对照，任务完成后禁止让 P6-T03 继续把这里当 authoritative source）
+- 背景：
+  - 2026-05-03 开始真正编写 `P6-T03` 的 handle-state emitter 时发现：当前 late-lowered / LLVM query handoff 已经 authoritative 发布了：
+    - `HandleDispatch` 的 handled case -> arm state 映射；
+    - `payload_carrier` / `state_tag` / `completion_tag` carrier；
+    - `body/arm/finally/exit` completion target 与 outward emission contract；
+  - 但它还没有进一步 authoritative 发布 arm 入口绑定本身：
+    - 某个 handled case 进入对应 arm state 时，payload tuple 的各个字段应写到哪些 binder；
+    - 该 arm 是否存在 escape continuation binder；
+    - 若存在 continuation binder，它应绑定哪个已发布 continuation schema / object query；
+    - 同一 handle site 下多 arm 的 binder 集合如何与 `handled_case` / `arm_state` 稳定对应。
+  - 当前 `LateLoweredFrameSlotKind::HandleBinder { site_id, ordinal }` 只给出了“同一 handle site 下存在某些 payload binder slot”的弱信息：
+    - 它没有把 binder slot authoritative 地挂到具体 `handled_case` / `arm_state`；
+    - continuation binder 也没有等价的 published contract；
+    - 因而一旦同一 handle site 有多个 arm，或 arm 同时绑定 payload + continuation，backend 仍无法只靠 handoff 还原 arm 入口绑定。
+  - 若直接继续 `P6-T03`，refactor body emitter 将不得不回 canonical MIR `TerminatorKind::Handle { arms, binder_locals, continuation_local, .. }`（甚至回 HIR）现场恢复 arm entry shape；这正是 `P6-T03` 明确禁止的 `mir::Body`/shape fallback。
+  - 因此必须先把这层 contract 作为新的 authoritative handoff 发布出来，再继续 `P6-T03`。
+
+- 目标：
+  - 为每个 `HandleDispatch` / handled arm authoritative 发布 arm-entry binding contract；
+  - 让 `P6-T03` 能只消费 late-lowered + LLVM query handoff，就完成 handled payload 与 escape continuation binder 初始化，而不再回 canonical MIR handle arm 或 HIR 恢复绑定形状。
+
+- 必须实现的内容：
+  1. 在 late-lowered handoff 中显式发布 handle arm binding contract。
+     - 至少需要 authoritative 暴露：
+       - handled case / arm state / arm ordinal；
+       - payload tuple ty 与 payload binder 列表（按 published ordinal 顺序）；
+       - optional escape continuation binder；
+       - continuation binder 关联的 continuation schema / continuation object / ABI query key（若适用）。
+     - 若需要新增独立结构（例如 `LateLoweredHandleArmBinding`），允许新增；
+     - 但禁止继续只靠 `HandleBinder { site_id, ordinal }` 这类 site-scoped 弱信息，让 backend 自己反推 arm 入口形状。
+  2. 把 payload binder / continuation binder contract 与已发布 `HandleDispatch` contract 绑定起来。
+     - backend 必须能够从 owner callable + handle site + handled case 稳定回查：
+       - 进入哪个 arm state；
+       - 需要初始化哪些 payload binder；
+       - 是否需要发布 continuation binder，以及它消费哪条 continuation contract；
+       - 若 arm 没有 binder / 没有 continuation binder，也必须显式可见，而不是靠“查不到就当没有”推断。
+  3. 在 LLVM ABI/query 层为上述 contract 提供直接查询面。
+     - `P6-T03` 不得再读取 canonical MIR `HandlerArm.binder_locals` / `continuation_local` 当 authoritative source；
+     - 缺失 handled-case 映射、payload binder 发布不完整、或 continuation binder contract 漂移时，必须在 ABI materialization / refactor lowering 准备阶段 fail fast。
+  4. 更新 dump / published surface。
+     - `dump-effect-lowered`（或等价 surface）必须公开 handle arm binding contract，使 review 能直接看到：
+       - handled case -> arm state；
+       - payload binder ordinals；
+       - optional continuation binder / continuation schema；
+       - 与 arm outward cases 的关系。
+  5. 若当前 frame schema 需要为 continuation binder 增加更稳定的 slot/query 分类，必须在本任务中一并发布。
+     - 明确禁止把 continuation binder 保留成“只有 canonical MIR arm locals 才知道的隐式输入”。
+
+- 必须遵从的约束：
+  - 禁止把 canonical MIR `TerminatorKind::Handle.arms` / `binder_locals` / `continuation_local` 当成 `P6-T03` 的 semantic source of truth。
+  - 禁止只发布 payload binder 数量而不发布具体 binder / continuation 绑定。
+  - 禁止通过“当前只支持单 arm / 无 continuation binder 的 handle”来规避该 contract 缺口。
+  - 禁止让 `P6-T03` 继续依赖 site-scoped heuristic（按 `site_id` + ordinal 扫 slot / local）去猜哪组 binder 属于哪条 handled case。
+
+- 验证：
+  1. 新增/更新定向单测，推荐命名：
+     - `refactor_handle_arm_binding_contract_*`
+     - `refactor_handle_arm_continuation_binding_*`
+  2. 至少覆盖：
+     - 单 arm + escape continuation 的 handle site，会 authoritative 发布 payload binder 与 continuation binder contract；
+     - 多 arm + mixed payload/continuation binder 的 handle site，handled case -> arm/binder 绑定不会歧义；
+     - 若缺失 continuation binder 发布、payload binder 次序漂移、或 handle site contract 不完整，会显式 fail fast；
+     - `dump-effect-lowered` 会公开新的 arm binding contract。
+  3. 运行：
+     - `cargo test -p scoopc refactor_handle_arm_binding_contract`
+     - `cargo test -p scoopc refactor_handle_arm_continuation_binding`
+     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - `HandleDispatch` arm payload binder / escape continuation binder contract 已在 late-lowered + LLVM query handoff 中 authoritative 发布；
+  - `P6-T03` 后续可以不再回 canonical MIR handle arm / HIR 恢复 binder 形状，而只消费已发布 contract 完成 arm 入口初始化。
+- 依赖：P6-T02j
+- 完成记录：
+  - （执行时填写）
+
+## P6-T02kR：Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16, §5.3.2-§5.3.6, §5.5.4-§5.5.7, §8
+  - `crates/scoopc/src/effect_lowered/{ir,frame,materialize,dump}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 重点：
+  - handled case -> arm state / payload binder / continuation binder 是否已经 authoritative 发布；
+  - continuation binder 是否有稳定 query，而不是继续藏在 canonical MIR arm locals 中；
+  - `P6-T03` 是否已经可以只消费 published contract 完成 arm 入口初始化。
+- 必须检查的文件/位置：
+  - 新增的 handle arm binding contract 定义位置
+  - `dump-effect-lowered` 对应渲染位置
+  - LLVM ABI/query 发布位置
+
+- 验证：
+  - 重新运行 P6-T02k 的全部测试与命令；
+  - 额外搜索：
+    - `rg "binder_locals|continuation_local|TerminatorKind::Handle" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline`
+  - 要求：
+    - 允许命中：测试、注释、late-lowered contract 发布代码；
+    - 不允许命中：refactor LLVM 主实现仍把 canonical MIR handle arm 当 semantic source of truth。
+
+- 完成条件：
+  - review 能明确说明：P6-T03 不再需要回 canonical MIR handle arm / HIR 恢复 payload 与 continuation binder 绑定；
+  - 可重新进入 P6-T03。
+- 依赖：P6-T02k
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1434,7 +1549,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -1452,6 +1567,8 @@
   - 因此新增前置任务 `P6-T02i`，先发布并实现 authoritative 的 synthetic invoke-carrier / source-type ABI value lowering contract，再继续本任务。
   - 2026-05-03：继续推进 handled path 时发现新的 blocker。`LateLoweredStateTerminator::HandleDispatch` 当前只显式发布了 `body_state` / `arm_states` / `finally_state` / `exit_state` 与系统槽位名字（`StateTag` / `CompletionTag`），但并没有 authoritative 地发布“body 子图完成后如何通过 internal completion/state carrier 进入 arm/finally/exit”的 lowering contract。当前唯一可见的具体协议仍藏在 legacy `state_machine_emitter.rs` 的 backend-private magic tags（例如 `STATE_TAG_HANDLE_RETURNED` / `STATE_TAG_FUNCTION_RETURNED`）与对应 completion slot 约定中。若直接继续 `P6-T03`，refactor backend 将不得不借壳这些隐藏常量，或在现场重新发明一套 handle completion-state 协议，违背本阶段 contract-first / no-workaround 约束。
   - 因此新增前置任务 `P6-T02j`，先把 `HandleDispatch` / completion-state lowering contract 显式发布到 late-lowered + LLVM query handoff 中，再继续本任务。
+  - 2026-05-03：继续真正落地 `HandleDispatch` arm entry lowering 时发现新的 blocker。当前 handoff 虽已发布 handled case -> arm state / completion-state / payload carrier 等 contract，但还没有 authoritative 发布 arm payload binder / escape continuation binder 绑定：`HandleBinder { site_id, ordinal }` 仍无法区分同一 handle site 的不同 arm，continuation binder 也没有 published query。若直接继续 `P6-T03`，backend 将不得不回 canonical MIR `TerminatorKind::Handle { binder_locals, continuation_local, .. }` 或 HIR 现场恢复 arm entry shape，直接违反本任务“不得回 `mir::Body`/shape source 猜边界语义”的约束。
+  - 因此新增前置任务 `P6-T02k` / `P6-T02kR`，先把 `HandleDispatch` arm payload binder / continuation binder contract authoritative 发布到 late-lowered + LLVM query handoff 中，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 

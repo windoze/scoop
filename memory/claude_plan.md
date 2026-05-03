@@ -1,44 +1,55 @@
-# 当前执行计划
+# 执行计划
 
-说明：这里记录简明执行计划与关键决策，不包含不可见的原始推理细节。
+说明：我不会记录或暴露不可公开的内部推理，但会在此维护可检查的执行计划、关键判断、进度与阻塞信息。
 
-## 初始计划
+1. 读取 `TODO.md`，把它当作任务索引而不是详细规范。
+2. 按索引顺序读取对应的 `TODO-Px.md`，定位首个标题未标记 `[DONE]` 的详细任务。
+3. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；若是，则将其视为当前任务的一部分或必要前置。
+4. 阅读当前任务涉及的代码、测试、规范与依赖范围，确认需要修改的最小文件集合。
+5. 实现当前任务；若发现阻塞当前任务且必须先修复的真实缺陷或缺失能力，则先在对应 `TODO-Px.md`/`TODO.md` 中加入最小前置任务并停止在该前置变更处。
+6. 运行与当前任务直接相关的验证命令；若任务完成，再补充运行要求中的质量命令（至少包含相关测试，并尽量满足 `cargo clippy --all-targets -- -D warnings`）。
+7. 更新进度文档：
+   - 在对应 `TODO-Px.md` 中把当前任务标题前缀改为 `[DONE]`，并补充完成记录。
+   - 如任务索引需要同步，则更新 `TODO.md`。
+   - 仅当阶段级计划发生变化时才更新 `PLAN.md`。
+8. 提交本次变更，提交信息使用当前任务号。
+9. 停止，不进入下一个任务。
 
-1. 读取 `TODO.md`，按索引定位相关的详细任务文件（如 `TODO-P0.md`、`TODO-P1.md` 等）。
-2. 在详细任务文件中按顺序查找第一个标题未标记 `[DONE]` 的任务，并将其视为本次唯一执行目标。
-3. 检查最近一次提交信息，确认是否存在与该任务直接相关且明确未完成的问题；如果有，将其并入当前任务范围或按要求记录为前置依赖。
-4. 阅读该任务的详细要求、约束、依赖、验证方式，以及相关代码和测试位置，确认实现边界。
-5. 直接实现该任务；若遇到阻塞当前任务的真实缺陷或缺失能力，不做绕过，而是在对应 `TODO-Px.md` 中补充最小前置任务并同步 `TODO.md`。
-6. 运行相关验证，包括任务要求的测试，以及必要的 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（若适用且能在当前任务范围内完成）。
-7. 更新文档记录：
-   - 将对应详细任务标题改为 `[DONE]`。
-   - 补充完成记录。
-   - 若任务索引或标题变化，同步更新 `TODO.md`。
-   - 仅在阶段计划实际变化时更新 `PLAN.md`。
-8. 提交本次变更，提交信息使用当前任务 id 和简明描述。
-9. 停止，不继续处理下一个任务。
+## 进度日志
 
-## 进度记录
+- 已创建执行计划文件，下一步开始读取任务索引并定位首个未完成详细任务。
+- 已确认首个未完成详细任务为 `TODO-P6.md` 中的 `P6-T03`：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering。
+- 最近一次提交为 `[P6-T02j] Publish handle-dispatch completion contract`，与当前任务直接相关，但未显示新的未完成 issue；因此继续按 `P6-T03` 执行。
+- 当前执行子计划：
+  1. 阅读 `effect_refactor` 现有 `types/layout/mod`、LLVM emit 入口、以及当前 body lowering/fail-fast 位置。
+  2. 阅读 P5 late-lowered IR 中 `State`/`Boundary`/`HandleDispatch`/`LocalRuntimeError`/`impl_plan` 的 authoritative handoff。
+  3. 判断是否仍存在阻塞 `P6-T03` 的未跟踪前置缺口；若有，按规则补到 `TODO-P6.md`/`TODO.md` 并停止。
+  4. 若无阻塞，则在 `crates/scoopc/src/llvm/codegen/effect_refactor/` 下实现最小正确的 body emitter / verifier，并把 refactor LLVM stage 接到该实现。
+  5. 补充任务要求的定向测试与 fixtures 验证。
+  6. 更新 `TODO-P6.md`（必要时同步 `TODO.md`）、提交并停止。
 
-- 已创建本计划文件，下一步开始读取任务索引并确定当前任务。
-- 已读取 `TODO.md` 与 `TODO-P6.md`，确认首个未完成详细任务为 `P6-T02j`：发布 `HandleDispatch` / completion-state lowering contract。
-- 最近一次提交标题为 `[P6-T02j] Track handle-dispatch completion-state prerequisite`，说明当前任务已被识别为 `P6-T03` 的真实前置项，但尚未完成实现。
-- 当前工作树中除本计划文件外没有其他未提交改动，可按单任务原子实现推进。
-- 下一步：检查 `effect_lowered` 与 `llvm/codegen/effect_refactor` 中现有 `HandleDispatch`、handle boundary、completion/state 槽位与 dump/query 发布面，找出需要补充的 authoritative contract 字段与 fail-fast 校验点。
-- 已确认当前缺口：`HandleDispatch` 只有 `body_state/arm_states/finally_state/exit_state/boundary_ids` 等状态边，缺少“body/arm/finally 完成后如何通过 completion/state carrier 继续到 arm/finally/exit/outward”的显式 contract。
-- 计划中的实现形状：
-  1. 在 `effect_lowered::ir` 为 `HandleDispatch` 新增结构化 contract，显式发布 handled case -> arm state、body/arm/finally completion target、body/arm/finally outward case 集、published outward emissions、pending completion token，以及 abandon 与 finally/cleanup 的分流边界。
-  2. 在 `effect_lowered::materialize` 基于 `HandleSiteEffectFacts` + handle boundary lowering 物化该 contract，并在缺失 handled-arm 映射、缺失 outward emission、或 boundary/source 漂移时 fail fast。
-  3. 在 `effect_lowered::dump` 公开渲染这层 contract，便于 `dump-effect-lowered` 审阅。
-  4. 在 `llvm/codegen/effect_refactor::{types,layout}` 中把该 contract 接到 `RefactorAbiQuery`，补充 `StateTag/CompletionTag/ResumePayloadCarrier` 字段索引与 completion tag identity 发布面，并在 ABI materialization 阶段校验 contract/slot/tag 一致性。
-  5. 增加定向测试：late-lowered contract 正例、dump 暴露、LLVM query 正例，以及缺失 handled-arm/completion-state contract 时的 fail-fast。
-- 以上 5 步已完成。
-- 已完成验证：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc refactor_handle_dispatch_contract`
-  - `cargo test -p scoopc refactor_completion_state_contract`
-  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
-  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
-  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
-- 已更新 `TODO-P6.md` 与 `TODO.md`：`P6-T02j` 已标记为 `[DONE]`，并补齐完成记录与验证记录。
-- 下一步：检查工作树、创建 `P6-T02j` 提交，然后停止。
+- 已完成上下文核对：
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 目前仍是空壳；
+  - `crates/scoopc/src/llvm/emit.rs` 仍会对 effectful reachable callable 执行 fail-fast，而不是 lower；
+  - P6-T02c ~ P6-T02j 已把 `resume`、dynamic invoke、runtime-error、synthetic source ABI、`HandleDispatch` 等 body lowering 所需 contract 发布到 authoritative handoff；
+  - 暂未发现必须新增到 TODO 的未跟踪前置缺口，当前缺的是实现而不是 contract。
+- 下一步实现重点：
+  1. 新建 refactor body/codegen 入口，消费 late-lowered callable + ABI query + canonical MIR body。
+  2. 用 state graph block/loop lower `Goto` / `Branch` / `Return` / `Suspend` / `HandleDispatch` / `LocalRuntimeError` / `Abandon`。
+  3. 先把 refactor callable entry / continuation / state dispatch 接到 `emit.rs`，替换当前对 effectful callable 的 fail-fast 主路径。
+
+- 关键阻塞判断（2026-05-03）：
+  - 在真正落地 `HandleDispatch` arm entry lowering 前，发现当前 authoritative handoff 还没有发布 arm payload binder / escape continuation binder 绑定合同。
+  - 现状问题：
+    - `HandleDispatch` 只发布了 handled case -> arm state / completion-state / carrier；
+    - `LateLoweredFrameSlotKind::HandleBinder { site_id, ordinal }` 只能说明“这个 handle site 有某些 payload binder slot”，无法把它们稳定绑定到具体 handled case / arm state；
+    - continuation binder 没有等价 published contract；
+    - 因而 `P6-T03` 若继续实现，只能回 canonical MIR `TerminatorKind::Handle { binder_locals, continuation_local, .. }` 或 HIR 现场恢复 arm entry shape。
+  - 这与 `P6-T03` 明确禁止回 `mir::Body` / shape source 猜语义的约束直接冲突，因此判断为真实前置缺口，而不是可接受的实现细节。
+- 已采取动作：
+  1. 在 `TODO-P6.md` 中插入新的前置任务 `P6-T02k` 与 review 任务 `P6-T02kR`。
+  2. 在 `TODO.md` 中同步新增索引条目。
+  3. 在 `P6-T03` 的依赖与完成记录中记录该 blocker。
+- 当前计划调整：
+  - 本次 invocation 不再继续实现 `P6-T03` 代码；
+  - 先提交前置任务重排与 blocker 记录，交由下一次 invocation 从 `P6-T02k` 开始继续。
