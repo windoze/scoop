@@ -1451,6 +1451,65 @@
   - 2026-05-03：额外搜索 `binder_locals|continuation_local|TerminatorKind::Handle` 显示，`crates/scoopc/src/effect_refactor_pipeline` 中的命中仅位于 `mir_stage.rs`（P3/P5 contract 生成与测试侧）；`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中的少量命中仅用于 ABI materialization fail-fast 交叉校验 published contract 与 canonical MIR 是否漂移，发布到 query 的 binder/continuation 数据仍以 late-lowered contract 为 authoritative source，而不是由 LLVM backend 重新从 MIR arm locals 推导。
   - 2026-05-03：重新运行 `cargo test -p scoopc refactor_handle_arm_binding_contract`、`cargo test -p scoopc refactor_handle_arm_continuation_binding`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`，均通过；本 review 未发现需要新增的 blocker 或前置任务，可重新进入 `P6-T03`。
 
+## P6-T02l：发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.5.3-§5.5.7, §8
+  - [`TODO-P6.md`](./TODO-P6.md) 中 `P6-T02j`、`P6-T02k`
+  - `crates/scoopc/src/effect_lowered/{ir,materialize,dump,opt}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout,body}.rs`
+- 背景：
+  - 2026-05-03 继续实现 `P6-T03` 时发现：当前 handoff 已经 authoritative 发布了 `HandleDispatch` 的 `body_state` / `arm_states` / `finally_state` / `exit_state`、handled case -> arm 映射、pending completion、以及 arm payload/continuation binder；
+  - 但它还没有 authoritative 发布“哪些 late-lowered states / boundaries 属于该 handle 的 body / arm / finally region，以及某个 boundary/outward case 是否应被当前 handle 本地消费、经 finally pending，还是直接向外传播”的稳定查询面；
+  - 以 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 为例，`run` 的 perform boundary `bd2` 需要在 body region 内命中 handled case `c0` 后跳到 arm `st3`，同时把 continuation 恢复点固定到 `st9`；当前 published contract 分别公开了这些点状事实，但没有把 `bd2/st6/st9` 与 handle site `site0` 的消费路由 authoritative 地连成可直接消费的 lowering contract。
+  - 若直接继续 `P6-T03`，backend 将不得不在 P6 现场通过 state-graph 遍历或回 canonical MIR 重新恢复 body/arm/finally 子图归属与 boundary 消费路由；这已经超出“只翻译已发布 handoff”的职责边界，等价于在 backend 再做一轮高层控制流分析。
+
+- 目标：
+  - 把 `HandleDispatch` 子图归属与 boundary 消费路由显式发布为 authoritative handoff；
+  - 让 `P6-T03` 可以仅凭 P5/P6 已发布查询面，判断某个 state/boundary 当前处在 handle 的 body / arm / finally 哪个 region，以及该 outward case 应被 arm 消费、转成 pending completion、还是直接 outward emission，而不再在 backend 现场重建这层语义。
+
+- 必须实现的内容：
+  1. 为 `HandleDispatch` 发布 authoritative 的 state-region / boundary-consumption contract。
+     - 允许表示方式：
+       - 在 `LateLoweredHandleDispatchContract` 中新增显式 region membership / boundary routing 字段；
+       - 或发布等价的 compiler-owned query 容器；
+     - 但无论使用哪种表示，都必须至少稳定回答：
+       - 给定 handle site / `StateId`，该 state 属于 body / 哪个 arm / finally / exit 之外的哪类 region；
+       - 给定 handle site / `BoundaryId`（或其 owner state），该 boundary 的 outward case 是被当前 handle 本地消费、经 finally pending，还是直接 outward emission；
+       - handled case 命中后应接到哪个 arm state，以及 continuation 应保留哪个已发布 `resume_state`。
+  2. 这层合同必须在 P5 authoritative 发布阶段生成，而不是留给 backend 现场重建。
+     - 可以消费 late-lowered state graph、boundary map、resume-state map 与现有 `HandleDispatch` contract；
+     - 但禁止把 region 归属恢复推迟到 LLVM emitter 再通过 DFS/回 MIR 推断。
+  3. 把新合同接到稳定 dump / LLVM query 面。
+     - `dump-effect-lowered` 必须能稳定公开每个 handle site 的 region / routing 信息；
+     - `RefactorAbiQuery` 或等价查询面必须能让 backend 只靠 owner step schema + handle site + state/boundary 完成回查；
+     - 若 region membership、boundary routing、handled-case arm target、或 resume target 与 state graph / boundary map 漂移，必须在 P5/P6 边界显式 fail fast。
+  4. 补充定向回归。
+     - 至少覆盖：
+       - `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 中 handle body 内 perform boundary 的 handled routing；
+       - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 中 handle body/arm tail 与 resume-state routing；
+       - 一个带 `finally` 的 handle fixture，证明 pending completion / finally routing 也拥有同样的 published contract。
+
+- 必须遵从的约束：
+  - 禁止把“从 `body_state` / `arm_states` 出发再遍历一次 CFG 就能算出来”当作 backend 合法职责；若 `P6-T03` 需要这层语义，就必须先 authoritative 发布。
+  - 禁止让 `P6-T03` 继续回 canonical MIR `Handle` terminator、HIR handle 结构、`Span`、或 legacy `STATE_TAG_*` magic tags 恢复 body/arm/finally 边界。
+  - 禁止把 handled routing 写成只在测试里存在的私有 helper；CLI 与 Rust 测试必须共享同一 published contract。
+
+- 验证：
+  - `cargo test -p scoopc refactor_handle_dispatch_region_contract`
+  - `cargo test -p scoopc refactor_handle_dispatch_region_routing`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+- 完成条件：
+  - `HandleDispatch` 的 body/arm/finally region 与 boundary 消费路由已作为 authoritative handoff 发布；
+  - `P6-T03` 可以只消费 published contract lower handle 子图，不再需要 backend 现场重建子图归属或 handled routing。
+- 依赖：`P6-T02kR`
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1569,7 +1628,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -1589,6 +1648,8 @@
   - 因此新增前置任务 `P6-T02j`，先把 `HandleDispatch` / completion-state lowering contract 显式发布到 late-lowered + LLVM query handoff 中，再继续本任务。
   - 2026-05-03：继续真正落地 `HandleDispatch` arm entry lowering 时发现新的 blocker。当前 handoff 虽已发布 handled case -> arm state / completion-state / payload carrier 等 contract，但还没有 authoritative 发布 arm payload binder / escape continuation binder 绑定：`HandleBinder { site_id, ordinal }` 仍无法区分同一 handle site 的不同 arm，continuation binder 也没有 published query。若直接继续 `P6-T03`，backend 将不得不回 canonical MIR `TerminatorKind::Handle { binder_locals, continuation_local, .. }` 或 HIR 现场恢复 arm entry shape，直接违反本任务“不得回 `mir::Body`/shape source 猜边界语义”的约束。
   - 因此新增前置任务 `P6-T02k` / `P6-T02kR`，先把 `HandleDispatch` arm payload binder / continuation binder contract authoritative 发布到 late-lowered + LLVM query handoff 中，再继续本任务。
+  - 2026-05-03：继续真正设计 handle 子图 lowering 时发现新的 blocker。当前 `HandleDispatch` handoff 虽已发布 `body_state` / `arm_states` / `finally_state` / `exit_state`、handled case -> arm、pending completion、以及 arm binder，但还没有 authoritative 发布“哪些 states / boundaries 属于该 handle 的 body / arm / finally region，以及某个 boundary/outward case 是否应被当前 handle 本地消费”的稳定 routing query。以 `effect_resume_if_else_branch_single_perform.scoop` 为例，body 内 perform boundary `bd2` 需要命中 handled case `c0` 后转入 arm `st3`，并把 continuation 恢复点固定到 `st9`；若没有这层 published routing，backend 只能在 P6 现场重新遍历 state graph 或回 MIR 恢复 handle 子图归属，违背本阶段“只翻译已发布 handoff”的边界。
+  - 因此新增前置任务 `P6-T02l`，先发布 `HandleDispatch` state-region / boundary-consumption contract，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
