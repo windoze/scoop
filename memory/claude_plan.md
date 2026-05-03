@@ -1,27 +1,56 @@
 # Claude Plan
 
-## 执行摘要
-- 本次调用先记录执行计划，再读取 `TODO.md` 作为索引，定位第一个未完成的详细任务。
-- 然后检查该任务对应的详细要求、依赖、最近提交是否有与该任务直接相关的未完成事项。
-- 若任务可直接完成，则实现、测试、更新 TODO 记录并提交一次 git commit 后停止。
-- 若存在阻塞且必须先补前置任务，则仅新增最小必要前置任务、同步 `TODO.md`，提交后停止。
+## Note
 
-## 步骤计划
-1. 读取 `TODO.md`，确认索引结构与指向的详细任务文件。
-2. 按索引顺序读取相关 `TODO-Px.md`，定位第一个标题未标记 `[DONE]` 的详细任务。
-3. 查看最近提交，判断是否存在与该任务直接相关但未完成的问题需要并入当前任务或记录为前置依赖。
-4. 阅读当前任务要求、限制、验证方式与依赖，确定需要改动的代码和测试范围。
-5. 实现任务；若发现阻塞当前任务且不能规避的问题，则在对应 `TODO-Px.md` 中添加最小前置任务并同步 `TODO.md`。
-6. 运行相关验证，至少覆盖任务要求的测试；如有必要，运行 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings` 或更小范围等效验证。
-7. 更新 `memory/claude_plan.md` 记录关键进展与计划变更。
-8. 任务完成后，将对应详细任务标题标记为 `[DONE]`，补全完成记录，并在需要时同步 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
-9. 按任务 id 生成清晰的提交信息，提交当前所有应纳入本次任务的未提交改动，然后停止，不继续下一个任务。
+I cannot provide private chain-of-thought logs, but I can maintain a concise execution plan and progress record here.
 
-## 进度记录
-- 已创建初始执行计划，待开始读取任务索引与详细任务文件。
-- 已读取 `TODO.md`，定位首个未完成详细任务为 `TODO-P6-part2.md` 中的 `P6-T02n`。
-- 已检查最近提交：`[P5-T07b] Demote resume interfaces to packings` 与当前任务直接相关，因此下一步先核对现有实现/测试是否已覆盖 `P6-T02n` 的全部要求，再决定补齐范围。
-- 已完成首轮实现：`crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 中把 LLVM ABI/query 的公开叙事从 `resume interface` 收口到 `resume packing`，新增 `surface_resume_method_layout(...)` 直接查询，并同步更新 continuation/surface-resume 相关测试用法与断言文案。
-- 下一步：运行 `cargo fmt`、定向 `cargo test`、`dump-effect-lowered` 验证以及 `cargo clippy`，若通过则更新 `TODO-P6-part2.md` / `TODO.md` 并提交。
-- 已完成验证：`cargo fmt --all`、3 组定向 `cargo test -p scoopc ...`、`cargo test -p scoopc refactor_llvm_`、2 个 `dump-effect-lowered` fixture，以及 `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings` 全部通过。
-- 已更新 `TODO-P6-part2.md` 与 `TODO.md`，将 `P6-T02n` 标记为 `[DONE]` 并写入完成记录；下一步只剩检查工作区并提交本次任务。
+## Initial Plan
+
+1. Read `TODO.md` as the task index.
+2. Open the referenced `TODO-Px.md` files in order and identify the first task whose heading is not prefixed with `[DONE]`.
+3. Inspect recent git history only as needed to detect whether the latest commit contains an unfinished issue directly relevant to that task.
+4. Read the task details carefully and inspect the relevant code, tests, and documentation.
+5. Implement the task completely with the smallest correct change set.
+6. Run targeted verification first, then broader required checks such as formatting, tests, and linting if they are relevant to the touched area.
+7. If a concrete blocker prevents correct completion, record the blocker in the appropriate detailed TODO file, add the minimum prerequisite task, sync `TODO.md`, and stop.
+8. If the task is completed, mark it `[DONE]` in the authoritative `TODO-Px.md` file, sync `TODO.md` if needed, and update this plan file with results.
+9. Commit all required changes with a task-specific git commit message, then stop after this single task.
+
+## Progress Log
+
+- Plan file created before repository inspection.
+- Read `TODO.md` and identified the first incomplete detailed task as `P6-T03` in `TODO-P6-part2.md`.
+- Reviewed `TODO-P6-part2.md` requirements and checked the latest commit `[P6-T02n] Demote LLVM resume packings`; no new directly relevant unfinished issue was called out there beyond the already-tracked prerequisites.
+- Inspected the current refactor LLVM path. `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` is still a placeholder, while `crates/scoopc/src/llvm/emit.rs` still fail-fast rejects effectful reachable callables before body lowering.
+- Reproduced the current failure with `cargo run -p scoop -- --effect-pipeline refactor build tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop -o /tmp/effect_resume_if_else_branch_single_perform.out`; it fails with `refactor LLVM backend 尚未迁移 ... call boundary lowering, resume-state lowering`.
+- Reviewed the published P5/P6 contracts and ABI query surface in `effect_lowered/ir.rs` and `llvm/codegen/effect_refactor/{layout,types}.rs`, including state graph, boundary lowering, dynamic invoke, local runtime-error, handle dispatch, and surface-resume dispatch contracts.
+
+## Refined Implementation Plan
+
+1. Wire refactor LLVM module building to retain and consume `RefactorAbiQuery` instead of discarding it after ABI materialization.
+2. Implement `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` with a state-graph-driven body emitter that defines refactor callable entry functions from the published late-lowered contract.
+3. Reuse existing MIR straight-line statement/rvalue lowering where possible, while mapping persistent values through published frame slots instead of reintroducing legacy effect lowering.
+4. Lower boundary terminators using published contracts only:
+   - direct/dynamic call dispatch via `call_target_layout(...)`
+   - resume via `surface_resume_dispatch_layout(...)` and `surface_resume_method_layout(...)`
+   - local runtime error via `call_local_runtime_error_contract(...)`
+   - handle dispatch via `handle_dispatch_layout(...)`
+   - outward `Step_F` construction via step/case/continuation layouts
+5. Define the remaining refactor-owned function bodies that ABI materialization already declares when they are needed by reachable code paths, including callable direct/dynamic entries and surface-resume owner dispatch/internal resume bodies.
+6. Update entry `main` lowering so refactor effectful entry callables run through the refactor callable entry path rather than legacy HIR body lowering.
+7. Add or update unit tests and fixtures for state-graph/body lowering, then run the required formatting, tests, fixtures, and clippy checks.
+8. If implementation reveals a concrete missing prerequisite contract that is not already tracked, record it in `TODO-P6-part2.md`, sync `TODO.md`, document it here, commit, and stop.
+
+## Blocker Update
+
+- I found a new prerequisite gap while trying to start `P6-T03` implementation.
+- Current handoff publishes boundary semantics and dispatch plans, but it does not publish the authoritative operand/source contract needed to lower statement/terminator-anchored `Call / Perform / Resume` boundaries.
+- Missing published facts include:
+  - ordered boundary argument sources
+  - dynamic call carrier source
+  - resume continuation source
+  - perform payload source
+  - which statement inside a source slice is consumed by the boundary
+- Without that contract, `P6-T03` would have to recover boundary inputs from raw `mir::Body` / `mir::Rvalue::Call` / `mir::TerminatorKind::Perform` / `mir::CallKind::Resume`, which conflicts with the task's contract-first boundary.
+- I inserted a new prerequisite task `P6-T02o` into `TODO-P6-part2.md`, synchronized `TODO.md`, and updated `P6-T03` to depend on it.
+- This invocation will stop after committing the blocker/task-file updates.

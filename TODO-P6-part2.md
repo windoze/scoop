@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -271,6 +271,85 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02o：发布 statement/terminator anchored boundary operand contract，禁止 P6-T03 在 body emitter 现场回 raw MIR statement/terminator 恢复 `Call / Perform / Resume` 输入
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.5.2-§5.5.6
+  - `crates/scoopc/src/effect_lowered/{segment,materialize,ir}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - `P6-T02d` / `P6-T02e` / `P6-T02f` / `P6-T02j` / `P6-T02m` / `P6-T02n` 已经把 dynamic invoke、local runtime error、handle dispatch、surface-resume owner dispatch 与 resume packing 主键等 LLVM ABI/query contract 发布到 refactor handoff；
+  - 但当前 `LateLoweredCallBoundaryLowering` / `LateLoweredPerformBoundaryLowering` / `LateLoweredResumeBoundaryLowering` 只发布了 boundary 语义、dispatch 计划与 emitted-step/runtime-error pairing，没有 authoritative 发布 boundary 本身的 lowering 输入：
+    - call/resume 的 ordered args source contract；
+    - dynamic call 的 carrier source；
+    - resume 的 continuation source；
+    - perform payload source；
+    - 以及 statement-anchored boundary 在 source slice 中究竟消费到哪一条语句的 contract；
+  - 与此同时，`LateLoweredStateSlice` 只保留了 `block + stmts[start..end] (+ 可选 terminator)`；若直接继续 `P6-T03`，body emitter 只能回 raw `mir::Body` / `mir::Rvalue::Call` / `mir::TerminatorKind::Perform` / `mir::CallKind::Resume` 现场恢复 boundary 输入与 anchor 位置，等价于把 boundary lowering 所需的 authoritative 事实重新留给 backend 自己猜。
+
+- 目标：
+  - 在进入 `P6-T03` 前，先把 statement/terminator anchored boundary 的 lowering 输入 contract 显式发布到 late-lowered / LLVM query handoff；
+  - 让后续 refactor body emitter 可以只消费 published contract + straight-line source slices，就完成 boundary lowering，而不需要再把 raw MIR boundary statement/terminator 当成语义事实来源。
+
+- 必须实现的内容：
+  1. 为 `Call` boundary 发布 authoritative operand/source contract。
+     - 至少要覆盖：
+       - direct known-instance call 的 ordered args source；
+       - closure / fun-value / virtual / interface dynamic call 的 carrier source 与 ordered args source；
+       - 与已发布 `invoke_args_tuple_ty` / `CallTargetMode` / callable layout 的一致性校验；
+     - 明确禁止：让 `P6-T03` 通过 raw `mir::Rvalue::Call` 重新决定 callee kind、receiver source、或实参次序。
+  2. 为 `Perform` boundary 发布 authoritative payload/source contract。
+     - payload 为 `()` / 零载荷时也必须显式发布，而不是让 backend 通过“args 恰好为空”临时推断；
+     - 若 perform payload 需要从 source locals / temporaries 读取，相关 source contract 必须在 handoff 中显式可查。
+  3. 为 `Resume` boundary 发布 authoritative continuation-source / ordered resume-arg contract。
+     - 至少要覆盖：
+       - continuation receiver source；
+       - ordered resume args source；
+       - 与已发布 `ContinuationSchemaId -> surface-resume layout` / owner dispatch contract 的一致性校验；
+     - 明确禁止：让 `P6-T03` 通过 raw `mir::CallKind::Resume` 恢复 continuation local 或参数顺序。
+  4. 为 statement/terminator anchored boundary 发布 source-slice consumption contract。
+     - 至少要能让 `P6-T03` 明确知道：
+       - 某个 boundary 是消费 statement anchor 还是 terminator anchor；
+       - statement-anchored boundary 在所属 source slice 中是否占用最后一条语句，以及该语句必须由 boundary lowering 而不是 generic straight-line statement lowering 消费；
+     - 明确禁止：让 backend 通过 raw MIR block 扫描 / “最后一条看起来像 call/perform/resume” 的 shape 规则临时恢复 anchor。
+  5. 对缺失、歧义或漂移的 boundary operand contract fail fast。
+     - 至少包括：
+       - boundary 已发布 dispatch/emission，但缺少 operand source contract；
+       - ordered args/payload source 与 published tuple ABI 漂移；
+       - 同一 boundary source 被重复发布为多个不兼容的 anchor/operand contract；
+       - `P6-T03` 若只消费 published contract 仍无法唯一决定 boundary lowering 输入。
+  6. 补充定向测试与回归。
+     - 推荐命名：
+       - `refactor_effect_lowered_boundary_operand_contract_*`
+       - `refactor_llvm_boundary_operand_contract_*`
+     - 至少覆盖：
+       - statement-anchored direct call boundary；
+       - non-`KnownInstance` call boundary；
+       - perform payload contract；
+       - resume boundary continuation/arg contract；
+       - 缺失/歧义 contract 时显式拒绝。
+
+- 必须遵从的约束：
+  - 禁止把 raw `mir::Body` / `mir::Rvalue::Call` / `mir::TerminatorKind::Perform` / `mir::CallKind::Resume` 当作 `P6-T03` 的 authoritative boundary 语义来源；
+  - 允许 `P6-T03` 继续使用 canonical MIR/source slice 作为 straight-line code lowering 的载体；但 boundary lowering 所需的 callee/receiver/args/payload/anchor facts，必须先以 published contract 形式显式给出；
+  - 禁止把“boundary 恰好是 source slice 最后一条语句/唯一语句”的当前样本形状当成默认规则，除非这本身就是显式发布并经过校验的 contract。
+
+- 验证：
+  - `cargo test -p scoopc refactor_effect_lowered_boundary_operand_contract`
+  - `cargo test -p scoopc refactor_llvm_boundary_operand_contract`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - `Call / Perform / Resume` boundary 的 lowering 输入已成为 published handoff，而不是留给 backend 现场恢复；
+  - statement/terminator anchored boundary 的 source-slice consumption contract 已显式可查；
+  - `P6-T03` 可以在不把 raw MIR boundary statement/terminator 当作语义事实来源的前提下继续 body lowering。
+- 依赖：P6-T02n
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -389,7 +468,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P5-T07a，P5-T07b
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -413,6 +492,8 @@
   - 因此新增前置任务 `P6-T02l`，先发布 `HandleDispatch` state-region / boundary-consumption contract，再继续本任务。
   - 2026-05-03：继续把 `Resume` boundary 与 surface `k.resume(...)` 真正接到 body emitter 时发现新的 blocker。当前 handoff 已发布 `ContinuationSchemaId -> surface-resume symbol/signature`，但还没有 authoritative 发布“shared surface-resume schema symbol 如何到达 owner-specific resume implementation”的 dispatch contract；`ContinuationSchemaId` 仍按 `(resume_tuple_ty, answer_ty, out_step_schema, surface_ty)` canonical 去重，允许被多个 continuation object / owner callable 复用。若直接继续 `P6-T03`，backend 将不得不在 surface-resume body 或 resume boundary lowering 现场扫描 raw continuation object / method 列表，或按 runtime type/header/符号名临时发明 dispatch 规则，直接违反 `P6-T02c` 已禁止的边界。
   - 因此新增前置任务 `P6-T02m`，先发布 continuation surface-resume -> owner dispatch contract，再继续本任务。
+  - 2026-05-04：继续真正落地 body emitter 时发现新的 blocker。当前 late-lowered handoff 虽已发布 state graph / boundary semantics / dispatch plan，但 `LateLoweredCallBoundaryLowering` / `LateLoweredPerformBoundaryLowering` / `LateLoweredResumeBoundaryLowering` 仍没有 authoritative 发布 boundary lowering 的 operand/source contract：call/resume 的 ordered args source、dynamic call carrier source、resume continuation source、perform payload source，以及 statement-anchored boundary 在 source slice 中消费到哪一条语句的 contract 仍未显式 handoff。若直接继续 `P6-T03`，backend 只能回 raw `mir::Body` / `mir::Rvalue::Call` / `mir::TerminatorKind::Perform` / `mir::CallKind::Resume` 现场恢复 boundary 输入与 anchor 位置，这会重新把 boundary lowering 的语义事实留给 MIR shape，而不是 published contract。
+  - 因此新增前置任务 `P6-T02o`，先发布 statement/terminator anchored boundary operand contract，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
