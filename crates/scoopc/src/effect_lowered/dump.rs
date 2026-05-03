@@ -6,7 +6,8 @@ use crate::ty::{EffectRow, TypeId};
 use super::ir::{
     BoundarySiteKind, LateLoweredBodyVersionKey, LateLoweredBoundary, LateLoweredBoundaryLowering,
     LateLoweredBoundarySource, LateLoweredCallable, LateLoweredCompleteStepDispatch,
-    LateLoweredContinuationCapture, LateLoweredContinuationMethod, LateLoweredContinuationObject,
+    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
+    LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
     LateLoweredOneShotPolicy, LateLoweredProgram, LateLoweredResumeInterface,
@@ -457,6 +458,9 @@ fn render_boundary_lowering(rendered: &mut String, lowering: &LateLoweredBoundar
                 render_call_target(lowering.facts().target()),
             )
             .unwrap();
+            if let Some(consumed_runtime_error_case) = lowering.consumed_runtime_error_case() {
+                render_consumed_runtime_error_case(rendered, consumed_runtime_error_case);
+            }
             render_step_dispatch_plan(rendered, lowering.dispatch());
         }
         LateLoweredBoundaryLowering::Perform(lowering) => {
@@ -546,6 +550,20 @@ fn render_step_dispatch_plan(rendered: &mut String, dispatch: &LateLoweredStepDi
             render_step_case_forwarding(rendered, forwarding);
         }
     }
+}
+
+fn render_consumed_runtime_error_case(
+    rendered: &mut String,
+    runtime_error_case: &LateLoweredConsumedRuntimeErrorCase,
+) {
+    writeln!(
+        rendered,
+        "            consumed_runtime_error_case: in c{} op={} payload_tuple_ty={}",
+        runtime_error_case.input_case_tag().as_u32(),
+        render_concrete_op_key(runtime_error_case.input_concrete_op_key()),
+        render_type_id(runtime_error_case.payload_tuple_ty()),
+    )
+    .unwrap();
 }
 
 fn render_complete_step_dispatch(

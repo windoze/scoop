@@ -1222,7 +1222,7 @@
   - 2026-05-03：随后在执行 `P6-T03` 定向验证时，发现 `effect_resume_if_else_branch_single_perform.scoop` 会在 P5 late-lowering 的 call-boundary case 投影上失败；该问题不是 LLVM backend workaround 可以绕过的，因此已追加 post-review 修复任务 `P5-T07a`，要求先修复 P5 -> P6 handoff 再继续 P6-T03。
   - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
 
-## P5-T07a：修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证
+## [DONE] P5-T07a：修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.9, §5.5.4, §8
@@ -1276,4 +1276,7 @@
   - `P6-T03` 可以继续聚焦 LLVM body lowering，而不再被 P5 阻塞。
 - 依赖：P5-T07R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：完成 `P5-T07a`。在 `crates/scoopc/src/effect_lowered/{ir,materialize,dump,opt,mod}.rs` 中为 `LateLoweredCallBoundaryLowering` 新增显式的 `consumed_runtime_error_case` contract：当 pure caller 调用带 compiler-generated one-shot `Raise<RuntimeError>` 上界的 callee 时，P5 继续保留 call boundary / complete dispatch，但不再把该 case 强行投影回 caller 的 outward `StepSchema`；取而代之，boundary 会显式发布“由当前 call boundary 本地消费的 ordinary runtime-error case”，从而保持 `surface_ty` / caller step shell 仍然是 `Pure`，同时不再静默抹掉 case。
+  - 2026-05-03：在 `crates/scoopc/src/effect_lowered/materialize.rs` 新增回归测试 `refactor_boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls`，直接覆盖 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`，断言 `main` 的两个 `run(...)` call boundary 都能成功物化、`dispatch.outward_cases()` 为空、且各自都显式携带本地消费的 `scoop.core.Raise.raise<scoop.core.RuntimeError>` contract，不再触发 `MissingProjectedStepCase`。
+  - 2026-05-03：为保持本任务要求的无警告验证，通过 `cfg_attr(not(feature = "llvm"), allow(dead_code))` 收口了仅在 LLVM feature 下使用的 helper（`crates/scoopc/src/effect_lowered/opt.rs`、`crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs`、`crates/scoopc/src/hir/lower/types.rs`），并在 `crates/scoop/src/commands/build.rs` 修正了 LLVM-only 测试的 feature gate，在 `crates/scoop/src/fixtures/mod.rs` 去除了会在带过滤器的 `cargo test ... effect_lowered` 下产生噪声的 module-level import；这些改动不改变语义，只用于让本任务的 no-default-features/driver 验证保持干净。
+  - 2026-05-03：已运行验证：`cargo test -p scoopc --no-default-features refactor_boundary_lowering`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-facts tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo run -q -p scoop -- --effect-pipeline refactor build tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop -o /tmp/p5_t07a_probe.out`（现已前进到 P6 fail-fast，报 `call boundary lowering, resume-state lowering` 尚未迁移，而不再在 P5 因 `MissingProjectedStepCase` 失败）、`cargo test -p scoop --no-default-features effect_lowered`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。`PLAN.md` 无需改动。

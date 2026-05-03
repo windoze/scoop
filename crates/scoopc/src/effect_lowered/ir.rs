@@ -1360,10 +1360,44 @@ impl LateLoweredStepDispatchPlan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredConsumedRuntimeErrorCase {
+    input_case_tag: CaseTag,
+    input_concrete_op_key: ConcreteOpKey,
+    payload_tuple_ty: TypeId,
+}
+
+impl LateLoweredConsumedRuntimeErrorCase {
+    pub(crate) fn new(
+        input_case_tag: CaseTag,
+        input_concrete_op_key: ConcreteOpKey,
+        payload_tuple_ty: TypeId,
+    ) -> Self {
+        Self {
+            input_case_tag,
+            input_concrete_op_key,
+            payload_tuple_ty,
+        }
+    }
+
+    pub fn input_case_tag(&self) -> CaseTag {
+        self.input_case_tag
+    }
+
+    pub fn input_concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.input_concrete_op_key
+    }
+
+    pub fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredCallBoundaryLowering {
     facts: CallSiteEffectFacts,
     result_local: LocalId,
     dispatch: LateLoweredStepDispatchPlan,
+    consumed_runtime_error_case: Option<LateLoweredConsumedRuntimeErrorCase>,
 }
 
 impl LateLoweredCallBoundaryLowering {
@@ -1371,11 +1405,13 @@ impl LateLoweredCallBoundaryLowering {
         facts: CallSiteEffectFacts,
         result_local: LocalId,
         dispatch: LateLoweredStepDispatchPlan,
+        consumed_runtime_error_case: Option<LateLoweredConsumedRuntimeErrorCase>,
     ) -> Self {
         Self {
             facts,
             result_local,
             dispatch,
+            consumed_runtime_error_case,
         }
     }
 
@@ -1389,6 +1425,10 @@ impl LateLoweredCallBoundaryLowering {
 
     pub fn dispatch(&self) -> &LateLoweredStepDispatchPlan {
         &self.dispatch
+    }
+
+    pub fn consumed_runtime_error_case(&self) -> Option<&LateLoweredConsumedRuntimeErrorCase> {
+        self.consumed_runtime_error_case.as_ref()
     }
 }
 

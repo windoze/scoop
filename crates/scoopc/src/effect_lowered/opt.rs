@@ -22,6 +22,7 @@ pub(crate) struct LateLoweredOptOptions {
 }
 
 impl LateLoweredOptOptions {
+    #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
     pub(crate) const fn preserve_published_resume_shells() -> Self {
         Self {
             preserve_published_resume_shells: true,
@@ -562,6 +563,7 @@ fn rewrite_boundary_lowering(
                 lowering.facts().clone(),
                 lowering.result_local(),
                 rewrite_step_dispatch(lowering.dispatch(), redirects),
+                lowering.consumed_runtime_error_case().cloned(),
             ))
         }
         LateLoweredBoundaryLowering::Perform(lowering) => {

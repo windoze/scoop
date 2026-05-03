@@ -1230,13 +1230,17 @@ fn build_codegen_source_map(
 mod tests {
     use std::path::PathBuf;
 
+    #[cfg(feature = "llvm")]
     use scoopc::effect_refactor_pipeline::LlvmArtifactKind;
+    #[cfg(feature = "llvm")]
     use scoopc::llvm::LlvmEmitError;
     use scoopc::opt::OptLevel;
-    use scoopc::session::{EffectPipelineMode, SessionOptions};
     use tempfile::tempdir;
 
+    #[cfg(feature = "llvm")]
     fn refactor_session() -> scoopc::session::Session {
+        use scoopc::session::{EffectPipelineMode, SessionOptions};
+
         scoopc::session::Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor))
             .unwrap()
     }

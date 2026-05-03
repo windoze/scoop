@@ -97,6 +97,7 @@ pub(crate) fn run(
     ))
 }
 
+#[cfg_attr(not(feature = "llvm"), allow(dead_code))]
 pub(crate) fn run_preserving_published_resume_shells(
     effect_facts_stage_output: RefactorEffectFactsStageOutput,
 ) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
@@ -106,6 +107,7 @@ pub(crate) fn run_preserving_published_resume_shells(
     )
 }
 
+#[cfg_attr(not(feature = "llvm"), allow(dead_code))]
 fn run_with_opt_options(
     effect_facts_stage_output: RefactorEffectFactsStageOutput,
     opt_options: LateLoweredOptOptions,

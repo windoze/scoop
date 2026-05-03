@@ -396,6 +396,7 @@ impl LoweredHir {
     ///   `production_lowered_hir` emit API 隐式回落；
     /// - P6-T02/P6-T03 会继续收缩这份 scaffolding 的职责，直到 backend 不再依赖它承载
     ///   effect lowering 语义。
+    #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
     pub(crate) fn clone_hir_compat_scaffold_without_materialized_mir(&self) -> Self {
         Self {
             file: self.file.clone(),

@@ -12,10 +12,10 @@ use super::EffectLoweringError;
 use super::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundaryLowering,
     LateLoweredBoundaryMap, LateLoweredCallBoundaryLowering, LateLoweredCompleteStepDispatch,
-    LateLoweredContinuationCapture, LateLoweredContinuationContract, LateLoweredContinuationMethod,
-    LateLoweredContinuationObject, LateLoweredContinuationResumeBody,
-    LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
-    LateLoweredHandleBoundaryLowering, LateLoweredOneShotPolicy,
+    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
+    LateLoweredContinuationContract, LateLoweredContinuationMethod, LateLoweredContinuationObject,
+    LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
+    LateLoweredDynamicInvokeEntry, LateLoweredHandleBoundaryLowering, LateLoweredOneShotPolicy,
     LateLoweredPerformBoundaryLowering, LateLoweredResumeBoundaryLowering,
     LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredRuntimeErrorBoundaryLowering,
     LateLoweredStepCase, LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding,
@@ -52,6 +52,22 @@ pub(crate) struct ContinuationObjectMaterializationInputs<'a> {
         &'a BTreeMap<(StepSchemaId, EffectFamilyKey), ResumeInterfaceId>,
     pub(crate) captures: Vec<LateLoweredContinuationCapture>,
     pub(crate) effect_facts: &'a MaterializedEffectFacts,
+}
+
+struct CallBoundaryDispatchMaterialization {
+    dispatch: LateLoweredStepDispatchPlan,
+    consumed_runtime_error_case: Option<LateLoweredConsumedRuntimeErrorCase>,
+}
+
+struct CallBoundaryDispatchInputs<'a> {
+    root_fqn: &'a str,
+    input_step: &'a LateLoweredStepType,
+    output_step: &'a LateLoweredStepType,
+    outward_case_tags: &'a [crate::effect_facts::CaseTag],
+    continuation_object: ContinuationObjectId,
+    target_state: StateId,
+    result_local: Option<LocalId>,
+    types: &'a TypeStore,
 }
 
 pub(crate) fn materialize_step_and_resume_interfaces(
@@ -208,19 +224,22 @@ pub(crate) fn materialize_boundary_map(
                         kind: "Call",
                     }
                 })?;
-                let dispatch = build_step_dispatch_plan(
-                    root_fqn,
-                    input_step,
-                    step_type,
-                    facts.resolved_cases().tags(),
-                    continuation_object,
-                    boundary.resume_state(),
-                    Some(result_local),
-                )?;
+                let call_dispatch =
+                    build_call_boundary_dispatch_plan(CallBoundaryDispatchInputs {
+                        root_fqn,
+                        input_step,
+                        output_step: step_type,
+                        outward_case_tags: facts.resolved_cases().tags(),
+                        continuation_object,
+                        target_state: boundary.resume_state(),
+                        result_local: Some(result_local),
+                        types,
+                    })?;
                 LateLoweredBoundaryLowering::Call(LateLoweredCallBoundaryLowering::new(
                     facts,
                     result_local,
-                    dispatch,
+                    call_dispatch.dispatch,
+                    call_dispatch.consumed_runtime_error_case,
                 ))
             }
             LateLoweredBoundarySource::Site {
@@ -301,6 +320,7 @@ pub(crate) fn materialize_boundary_map(
                     )?;
                 let emitted_step = build_emission_from_concrete_op(
                     root_fqn,
+                    input_step.step_schema(),
                     step_type,
                     runtime_case.concrete_op_key(),
                     continuation_object,
@@ -644,6 +664,7 @@ fn build_step_dispatch_plan(
             })?;
             let emission = build_emission_from_concrete_op(
                 root_fqn,
+                input_step.step_schema(),
                 output_step,
                 input_case.concrete_op_key(),
                 continuation_object,
@@ -660,6 +681,87 @@ fn build_step_dispatch_plan(
         complete,
         outward_cases,
     ))
+}
+
+fn build_call_boundary_dispatch_plan(
+    inputs: CallBoundaryDispatchInputs<'_>,
+) -> Result<CallBoundaryDispatchMaterialization, EffectLoweringError> {
+    let CallBoundaryDispatchInputs {
+        root_fqn,
+        input_step,
+        output_step,
+        outward_case_tags,
+        continuation_object,
+        target_state,
+        result_local,
+        types,
+    } = inputs;
+    let complete =
+        LateLoweredCompleteStepDispatch::new(input_step.complete_ty(), target_state, result_local);
+    let mut outward_cases = Vec::with_capacity(outward_case_tags.len());
+    let mut consumed_runtime_error_case = None;
+
+    for case_tag in outward_case_tags {
+        let input_case = input_step.case(*case_tag).ok_or_else(|| {
+            EffectLoweringError::MissingInputStepCase {
+                root_fqn: root_fqn.to_string(),
+                step_schema: input_step.step_schema().as_u32(),
+                case_tag: case_tag.as_u32(),
+            }
+        })?;
+        let projected_case = output_step
+            .cases()
+            .iter()
+            .find(|case| case.concrete_op_key() == input_case.concrete_op_key());
+        if let Some(projected_case) = projected_case {
+            outward_cases.push(LateLoweredStepCaseForwarding::new(
+                input_case.case_tag(),
+                input_case.concrete_op_key().clone(),
+                LateLoweredStepCaseEmission::new(
+                    projected_case.case_tag(),
+                    projected_case.concrete_op_key().clone(),
+                    projected_case.payload_tuple_ty(),
+                    projected_case.continuation_contract(),
+                    continuation_object,
+                ),
+            ));
+            continue;
+        }
+
+        // Pure caller 仍需保留 call boundary，但 compiler-generated RuntimeError case
+        // 由 boundary 本地消费，不应被强行投影回 caller outward StepSchema。
+        if is_runtime_error_raise_case(input_case, types) {
+            consumed_runtime_error_case.get_or_insert_with(|| {
+                LateLoweredConsumedRuntimeErrorCase::new(
+                    input_case.case_tag(),
+                    input_case.concrete_op_key().clone(),
+                    input_case.payload_tuple_ty(),
+                )
+            });
+            continue;
+        }
+
+        return Err(EffectLoweringError::MissingProjectedStepCase {
+            root_fqn: root_fqn.to_string(),
+            input_step_schema: input_step.step_schema().as_u32(),
+            output_step_schema: output_step.step_schema().as_u32(),
+            concrete_op: input_case
+                .concrete_op_key()
+                .instance_key()
+                .template
+                .fqn
+                .clone(),
+        });
+    }
+
+    Ok(CallBoundaryDispatchMaterialization {
+        dispatch: LateLoweredStepDispatchPlan::new(
+            input_step.step_schema(),
+            complete,
+            outward_cases,
+        ),
+        consumed_runtime_error_case,
+    })
 }
 
 fn build_current_step_emission(
@@ -687,6 +789,7 @@ fn build_current_step_emission(
 
 fn build_emission_from_concrete_op(
     root_fqn: &str,
+    input_step_schema: StepSchemaId,
     output_step: &LateLoweredStepType,
     concrete_op_key: &ConcreteOpKey,
     continuation_object: ContinuationObjectId,
@@ -697,7 +800,7 @@ fn build_emission_from_concrete_op(
         .find(|case| case.concrete_op_key() == concrete_op_key)
         .ok_or_else(|| EffectLoweringError::MissingProjectedStepCase {
             root_fqn: root_fqn.to_string(),
-            input_step_schema: output_step.step_schema().as_u32(),
+            input_step_schema: input_step_schema.as_u32(),
             output_step_schema: output_step.step_schema().as_u32(),
             concrete_op: concrete_op_key.instance_key().template.fqn.clone(),
         })?;
@@ -789,6 +892,20 @@ fn effect_family_for_effect_ty(
         }
         _ => None,
     }
+}
+
+fn is_runtime_error_raise_case(case: &LateLoweredStepCase, types: &TypeStore) -> bool {
+    if case.concrete_op_key().instance_key().template.fqn != "scoop.core.Raise.raise" {
+        return false;
+    }
+
+    types.display(case.payload_tuple_ty()).to_string() == "scoop.core.RuntimeError"
+        || case
+            .concrete_op_key()
+            .effect_family()
+            .type_args()
+            .iter()
+            .any(|&ty| types.display(ty).to_string() == "scoop.core.RuntimeError")
 }
 
 #[cfg(test)]
@@ -1024,6 +1141,7 @@ mod tests {
             boundary.resume_state()
         );
         assert_eq!(lowering.dispatch().outward_cases().len(), 2);
+        assert!(lowering.consumed_runtime_error_case().is_none());
         assert_eq!(
             lowering
                 .dispatch()
@@ -1043,6 +1161,58 @@ mod tests {
                 .into_iter()
                 .collect()
         );
+    }
+
+    #[test]
+    fn refactor_boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+        ));
+        let main = callable(&output, "main");
+        let step_type = output
+            .program()
+            .step_type(main.step_schema())
+            .expect("main 应能回查 canonical Step shell");
+        let call_boundaries = main
+            .boundary_map()
+            .entries()
+            .iter()
+            .filter_map(|boundary| match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Call(lowering)) => Some(lowering),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert!(main.resolved_outward_cases().is_empty());
+        assert!(step_type.cases().is_empty());
+        assert_eq!(call_boundaries.len(), 2);
+        assert!(
+            call_boundaries
+                .iter()
+                .all(|lowering| lowering.dispatch().outward_cases().is_empty())
+        );
+        for lowering in call_boundaries {
+            let runtime_error_case = lowering
+                .consumed_runtime_error_case()
+                .expect("pure caller 的 call boundary 应显式发布本地 runtime-error contract");
+            assert_eq!(runtime_error_case.input_case_tag().as_u32(), 1);
+            assert_eq!(
+                runtime_error_case
+                    .input_concrete_op_key()
+                    .instance_key()
+                    .template
+                    .fqn,
+                "scoop.core.Raise.raise"
+            );
+            assert_eq!(
+                output
+                    .types()
+                    .display(runtime_error_case.payload_tuple_ty())
+                    .to_string(),
+                "scoop.core.RuntimeError"
+            );
+        }
     }
 
     #[test]

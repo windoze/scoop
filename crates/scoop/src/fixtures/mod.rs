@@ -3061,7 +3061,6 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use scoopc::session::{EffectPipelineMode, SessionOptions};
     use tempfile::tempdir;
 
     use super::{
@@ -3251,7 +3250,7 @@ fun main(): Int {
         let ok = run_all(
             &fixture_dir,
             None,
-            SessionOptions::new(EffectPipelineMode::Refactor),
+            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();

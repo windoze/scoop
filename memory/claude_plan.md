@@ -1,44 +1,49 @@
-# 当前执行计划
+## 当前执行计划
 
-## 约束说明
-- 这里记录可公开的执行计划、关键决策、阻塞与进度，不记录内部推理细节。
-- 本次目标：先定位 `TODO.md` 所指向的第一个未完成详细任务，只完成这一个任务，然后停止。
+说明：按安全与协作规范，这里记录可审阅的执行计划、关键判断依据与进度更新，不记录私有推理细节。
 
-## 初始计划
-1. 读取 `TODO.md`，确认任务索引结构与详细任务文件引用。
-2. 按索引顺序读取对应 `TODO-Px.md`，定位第一个标题未标记 `[DONE]` 的详细任务。
-3. 检查最近一次提交信息，确认是否存在与该任务直接相关且未完成的问题；若有，按要求将其视为任务一部分或前置依赖。
-4. 阅读该任务的详细要求、约束、验证标准与完成记录。
-5. 检查工作区现状，避免覆盖非本次任务的已有改动。
-6. 实施任务所需的最小正确修改；若遇到真实阻塞，新增最小前置任务并同步 `TODO.md`。
-7. 运行与该任务直接相关的验证；若任务涉及通用质量门禁，再补充运行格式化、测试、`clippy` 等必要检查。
-8. 更新 `TODO-Px.md` 中该任务标题为 `[DONE]` 并填写完成记录；如索引受影响，同步更新 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
-9. 把本次执行的关键进展补充到本文件。
-10. 按仓库约定创建一次 git 提交，然后停止，不进入下一个任务。
+1. 读取 `TODO.md`，将其仅作为索引使用。
+2. 按 `TODO.md` 引用顺序读取对应的 `TODO-Px.md`，定位首个标题未带 `[DONE]` 的详细任务。
+3. 检查最近一次提交信息，确认是否存在与该任务直接相关且明确未完成的问题；若有，则将其视为当前任务的一部分，或在相应 `TODO-Px.md` 中登记为前置任务。
+4. 阅读当前任务要求、约束、依赖、验证方式与完成记录，确认需要修改的代码、测试和文档范围。
+5. 实施最小正确改动，避免规避性方案；若遇到阻塞当前任务的真实缺口或 spec mismatch，则先修复，或最小化新增前置任务并同步 `TODO.md`。
+6. 运行与当前任务直接相关的验证；随后运行必要的仓库级检查，至少包括相关测试，以及在可行时运行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+7. 完成后更新对应 `TODO-Px.md`：将任务标题标记为 `[DONE]`，补全完成记录；若任务索引信息变化，同步更新 `TODO.md`。仅在阶段计划发生变化时更新 `PLAN.md`。
+8. 检查工作区是否存在与本次任务相关的未提交变更；按要求将本次应提交内容一起提交，提交信息以任务 id 为前缀。
+9. 停止，不继续处理下一个任务。
 
-## 进度记录
-- 已创建本计划文件，准备开始读取任务索引并定位当前应执行任务。
-- 已读取 `TODO.md` 与 `TODO-P6.md`，确认首个未完成详细任务为 `P6-T03`：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering。
-- 已检查最新提交与当前任务关系：最新提交为 `P6-T02R` review 完成，不包含需要额外前插的新 unfinished issue。
-- 当前下一步：检查 `crates/scoopc/src/llvm/codegen/effect_refactor/**`、现有 LLVM body emission 入口，以及 P5 late-lowered representation，确认要替换/新建的最小实现边界。
-- 已确认当前 refactor 路径现状：`llvm/emit.rs` 只在 stage 边界做 fail-fast 和 ABI materialization，实际函数声明与 body emission 仍走 `declare_top_level_fun(...)` + `codegen_top_level_mir_fun(...)` / `codegen_top_level_fun(...)` 旧流程。
-- 这意味着 `P6-T03` 的核心工作至少包括：
-  1. 建立 refactor body emitter 与 verifier；
-  2. 为 refactor callable 声明/生成专用 LLVM 函数体；
-  3. 让 refactor build/run 能从入口函数实际调用这套 lowering，而不是继续经旧主体路径。
-- 当前正在确认 `Step_F` / direct-entry / dynamic-invoke ABI 的实际调用接线点，以便选择最小正确改动面。
-- 对 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 做定向复现后发现新的硬阻塞：
-  - refactor `build` 与 `dump-effect-lowered` 都在 P5 late-lowering 阶段失败；
-  - 错误为“无法把 `scoop.core.Raise.raise` 从 input StepSchema 投影到 output StepSchema”；
-  - 因此当前还不能开始 `P6-T03` 的 LLVM body emitter 验证，这属于直接阻塞当前任务的前置问题。
-- 当前下一步变更为：
-  1. 搜索该错误来源与相关现有 TODO；
-  2. 判断该问题是否已被跟踪；
-  3. 若未跟踪，则在合适的详细 TODO 文件中插入最小前置任务，并同步 `TODO.md`；
-  4. 如能在本次以小改动直接修复，也优先尝试修复后再回到 `P6-T03`。
-- 已完成 blocker 归档：
-  - 在 `TODO-P5.md` 末尾新增未完成任务 `P5-T07a`，专门跟踪“pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影”修复；
-  - 已同步更新 `TODO.md` 索引，把 `P5-T07a` 插入到 `P5-T07R` 与 `P6-T01` 之间；
-  - 已把 `TODO-P6.md` 中 `P6-T03` 的依赖改为 `P6-T02R，P5-T07a`；
-  - 已补充 `P5-T07R` 完成记录，说明该 post-review blocker 的来源与为什么必须先修 P5 handoff。
-- 本次不继续实现代码修复；按工作流，这里应提交“新增前置任务并停止”，由下一次调用从 `P5-T07a` 开始执行。
+## 进度日志
+
+- 已写入初始执行计划，下一步开始读取 `TODO.md` 和对应详细任务文件。
+- 已读取 `TODO.md` 与 `TODO-P5.md`，定位首个未完成详细任务为 `P5-T07a`。
+- 已检查最近一次提交：`[P5-T07a] Track late-lowering projection blocker`，与当前任务直接相关。
+- 已复现任务描述中的阻塞：
+  - `dump-effect-facts` 显示 `main -> run` 的 call site 已解析出 callee 的 compiler-generated `scoop.core.Raise.raise<scoop.core.RuntimeError>` case；
+  - `dump-effect-lowered` 与 refactor `build` 均在 P5 late-lowering 失败，错误为 `MissingProjectedStepCase`，确认问题发生在 P5 而不是 P6 LLVM body lowering。
+- 当前判断：
+  - pure caller 仍需要保留 call boundary，因为它调用的是已发布 `Step_F` contract 的 callee；
+  - 但 caller 自身的 `StepSchema` 不应因此被无端扩大；
+  - 因此需要在 P5 call-boundary contract 中显式记录“由 boundary 本地消费的 ordinary runtime-error case”，而不是把该 case 强行投影到 caller outward `StepSchema`，也不能静默丢弃。
+- 下一步：
+  1. 修改 `effect_lowered` IR / materialize 逻辑，为 call boundary 增加显式的本地 runtime-error case contract；
+  2. 增加针对 `effect_resume_if_else_branch_single_perform.scoop` 的回归测试；
+  3. 运行任务要求的定向验证与必要的格式化/测试/lint；
+  4. 更新 `TODO-P5.md` / `TODO.md` 完成记录并提交。
+- 已完成实现：
+  - `LateLoweredCallBoundaryLowering` 现在可显式发布 `consumed_runtime_error_case`；
+  - pure caller 调用带 compiler-generated one-shot `Raise<RuntimeError>` 上界的 callee 时，P5 保留 call boundary / complete dispatch，但不再把该 case 错误投影回 caller outward `StepSchema`；
+  - `dump-effect-lowered` 的稳定输出也会展示该本地消费 contract。
+- 已完成回归：
+  - 新增 `refactor_boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls`，覆盖 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`。
+- 已完成验证：
+  - `cargo test -p scoopc --no-default-features refactor_boundary_lowering`
+  - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
+  - `cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-facts tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -q -p scoop -- --effect-pipeline refactor build tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop -o /tmp/p5_t07a_probe.out`
+  - `cargo test -p scoop --no-default-features effect_lowered`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- 当前状态：
+  - `P5-T07a` 已满足完成条件；
+  - `build` 已不再被 P5 `MissingProjectedStepCase` 阻塞，而是按预期前进到 P6 fail-fast；
+  - 下一步只剩整理工作区并提交本次任务。

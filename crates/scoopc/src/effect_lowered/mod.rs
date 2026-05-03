@@ -146,7 +146,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 无法把 `{concrete_op}` 从 input StepSchema s{input_step_schema} 投影到 output StepSchema s{output_step_schema}` 上"
+        "refactor late-lowering stage 无法把 `{concrete_op}` 从 input StepSchema s{input_step_schema} 投影到 output StepSchema s{output_step_schema} 上"
     )]
     MissingProjectedStepCase {
         root_fqn: String,
