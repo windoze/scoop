@@ -1418,7 +1418,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02kR：Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状
+## [DONE] P6-T02kR：Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16, §5.3.2-§5.3.6, §5.5.4-§5.5.7, §8
@@ -1446,7 +1446,10 @@
   - 可重新进入 P6-T03。
 - 依赖：P6-T02k
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：复核 `crates/scoopc/src/effect_lowered/{ir,materialize,dump}.rs` 后确认，handled case -> arm state / payload binders / optional continuation binder 已在 `LateLoweredHandleDispatchContract` 中 authoritative 发布；`dump-effect-lowered` 也会稳定公开 `payload_binders:` 与 `continuation_binder:` surface，因此 arm 入口初始化所需的 published contract 已经齐全。
+  - 2026-05-03：复核 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 后确认，`RefactorHandleDispatchLayout` / `RefactorHandleArmLayout` 已直接发布 `payload_binders()` / `continuation_binder()` / `handled_arm(...)` 查询面；后续 `P6-T03` 可以只消费 LLVM query 完成 arm 入口初始化，而不必回 canonical MIR handle arm 恢复绑定形状。
+  - 2026-05-03：额外搜索 `binder_locals|continuation_local|TerminatorKind::Handle` 显示，`crates/scoopc/src/effect_refactor_pipeline` 中的命中仅位于 `mir_stage.rs`（P3/P5 contract 生成与测试侧）；`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中的少量命中仅用于 ABI materialization fail-fast 交叉校验 published contract 与 canonical MIR 是否漂移，发布到 query 的 binder/continuation 数据仍以 late-lowered contract 为 authoritative source，而不是由 LLVM backend 重新从 MIR arm locals 推导。
+  - 2026-05-03：重新运行 `cargo test -p scoopc refactor_handle_arm_binding_contract`、`cargo test -p scoopc refactor_handle_arm_continuation_binding`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`，均通过；本 review 未发现需要新增的 blocker 或前置任务，可重新进入 `P6-T03`。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

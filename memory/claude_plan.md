@@ -75,3 +75,19 @@
 - 当前计划调整：
   - 本次 invocation 不再继续实现 `P6-T03` 代码；
   - 先提交前置任务重排与 blocker 记录，交由下一次 invocation 从 `P6-T02k` 开始继续。
+
+- 2026-05-03（本轮，最新核对）：重新读取 `TODO.md` 与 `TODO-P6.md` 后，确认当前首个未完成详细任务并不是 `P6-T03`，而是 review 任务 `P6-T02kR`。
+- 本轮 `P6-T02kR` 执行计划：
+  1. 复核 `TODO-P6.md` 中 `P6-T02k` / `P6-T02kR` 的要求与完成条件，锁定 review 的判断标准。
+  2. 阅读 `crates/scoopc/src/effect_lowered/{ir,materialize,dump}.rs` 与 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`，确认 handle arm payload binder / continuation binder contract 是否已 authoritative 发布到 late-lowered handoff 与 LLVM query。
+  3. 搜索 `crates/scoopc/src/llvm/codegen/effect_refactor` 与 `crates/scoopc/src/effect_refactor_pipeline` 中是否仍把 canonical MIR `binder_locals` / `continuation_local` / `TerminatorKind::Handle` 当成 refactor LLVM 主实现的语义来源。
+  4. 重新运行 `P6-T02kR` 要求的测试与命令，确认 dump surface、query 发布、以及 fail-fast 行为仍成立。
+  5. 若 review 通过，则把 `P6-T02kR` 标记为 `[DONE]`、同步 `TODO.md`、更新完成记录并提交；若发现真实缺口，则按最小前置任务原则回写 `TODO-P6.md`/`TODO.md` 并停止。
+- 2026-05-03（本轮，`P6-T02kR` 结论）：review 通过，未发现新的 blocker。
+- 关键结论：
+  1. `LateLoweredHandleDispatchContract` 已 authoritative 发布 per-arm `payload_binders` 与 optional `continuation_binder`；`dump-effect-lowered` 也公开了这层 surface。
+  2. `RefactorHandleDispatchLayout` / `RefactorHandleArmLayout` 已把上述 binder contract 发布到 LLVM query，后续 `P6-T03` 可直接按 handled case 查询 arm payload/continuation 绑定。
+  3. `llvm/codegen/effect_refactor/layout.rs` 中对 `binder_locals` / `continuation_local` / `TerminatorKind::Handle` 的命中仅用于 ABI materialization fail-fast 交叉校验 published contract 漂移；它没有把 canonical MIR arm locals 当成 query/export 的 authoritative source。
+  4. `effect_refactor_pipeline` 中的相关命中仅位于 `mir_stage.rs`（contract 生成/测试侧），不在 refactor LLVM 主 lowering 入口。
+  5. 已复跑 review 要求的两组定向测试、两条 `dump-effect-lowered` 命令与 `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`，均通过。
+- 下一步：提交 `P6-T02kR` 完成记录与索引同步，然后停止，等待下一次 invocation 从 `P6-T03` 继续。
