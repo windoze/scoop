@@ -650,7 +650,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02R：Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型
+## [DONE] P6-T02R：Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §5.2, §5.3.2-§5.3.6
@@ -687,6 +687,23 @@
   - 2026-05-03：重新运行 `cargo test -p scoopc refactor_llvm_`、`cargo test -p scoopc refactor_resume_interface_completeness_groups_methods_by_effect_family`、三个 refactor build fixtures，以及一个 legacy build fixture 抽样；现有矩阵通过，且 `crates/scoopc/src/llvm/codegen/effect_refactor/**` 中未发现 `EffectSignal` / `EffectOutcome` / `LegacyEffectBoundary` 等 legacy ABI 载体残留。
   - 同次复审发现新的 blocker：`materialize_resume_interface_layout(...)` 当前只用 `published_case_tags` 检查重复发布，却没有把 `LateLoweredResumeInterface.methods()` 与同一 `effect_family` 在 authoritative `LateLoweredStepType` 中应有的完整 case 集做比对；这意味着少发某个 authoritative method 时，P6 仍会静默接受缩水的 vtable / method 布局，违背“resume interface method 集必须完整且缺口必须 fail fast”的合同。
   - 因此新增前置任务 `P6-T02b`，先补齐 authoritative resume-interface method completeness 校验，再继续本 review。
+  - 2026-05-03：`P6-T02b` 落地后重新执行 review，发现 `layout.rs` 里的 ABI 单测夹具仍把 authoritative reachable-body program 直接送入 ABI materializer，导致新增的 method completeness 校验把已裁剪 published shells 的默认测试路径判为失败；现已把测试夹具改为额外构造一份“保留 published resume shells”的 `abi_visibility_program`，让默认 ABI materialization 与真实 refactor LLVM stage 的 `abi_visibility_effect_lowered_stage_output` 保持一致，同时继续保留 authoritative handoff 供 fail-fast 负例测试使用。
+  - 2026-05-03：复审确认 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 已满足当前阶段合同：
+    - `Step_F` 物理形状继续只由 `StepSchemaId` 决定，`SingleCase` 仅影响 `impl_plan`/可达分支，不会生成第二套窄 ABI；
+    - frame/continuation/callable query API 已固定到 P5 发布的 schema、slot、resume-interface identity 与顺序；
+    - `Unit` 参数、`Complete(())` 与 `resume(())` 继续以零载荷 ABI 退化；
+    - refactor ABI materializer 不再依赖 `EffectSignal` / `EffectOutcome` / `LegacyEffectBoundary` 作为最终 ABI 载体。
+  - 已运行验证：
+    - `cargo test -p scoopc refactor_llvm_`
+    - `cargo test -p scoopc refactor_resume_interface_completeness_groups_methods_by_effect_family`
+    - `cargo test -p scoop refactor_build_`
+    - `cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+    - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/effect_no_perform_no_handler_symbols_basic.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+    - `rg "EffectSignal|EffectOutcome|LegacyEffectBoundary|Unit value|Signal \{|Todo\(" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/llvm/codegen/effect`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

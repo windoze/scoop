@@ -1014,6 +1014,9 @@ mod tests {
 
     use super::*;
     use crate::effect_facts::{CaseTag, ImplPlan};
+    use crate::effect_lowered::{
+        LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
+    };
     use crate::effect_lowered::ir::{
         LateLoweredCallable, LateLoweredContinuationObject, LateLoweredProgram,
         LateLoweredResumeInterface, LateLoweredResumeMethod, SystemSlotKind,
@@ -1040,6 +1043,7 @@ mod tests {
         hir_compat_scaffold: crate::hir::LoweredHir,
         effect_lowered_stage_output:
             crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        abi_visibility_program: LateLoweredProgram,
     }
 
     fn refactor_session() -> Session {
@@ -1088,12 +1092,25 @@ mod tests {
         let effect_lowered_stage_output =
             build_effect_lowered_stage_output(&session, effect_facts_stage_output)
                 .expect("effect lowered stage 应成功");
+        // ABI materializer 必须消费与真实 refactor LLVM stage 相同的 shell-preserving handoff，
+        // 不能误用会裁剪 published resume methods 的 authoritative reachable-body program。
+        let abi_visibility_program = optimize_program_with_options(
+            LateLoweredProgramBuilder::from_canonical_inputs(
+                effect_lowered_stage_output.materialized_pass_view(),
+                effect_lowered_stage_output.effect_facts(),
+                effect_lowered_stage_output.types(),
+            )
+            .build()
+            .expect("ABI visibility late-lowered program 应成功"),
+            LateLoweredOptOptions::preserve_published_resume_shells(),
+        );
         let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
         FixtureAbiInputs {
             source_map,
             entry_source_id,
             hir_compat_scaffold,
             effect_lowered_stage_output,
+            abi_visibility_program,
         }
     }
 
@@ -1180,7 +1197,7 @@ mod tests {
     ) {
         with_fixture_query_result(
             name,
-            |inputs| inputs.effect_lowered_stage_output.program().clone(),
+            |inputs| inputs.abi_visibility_program.clone(),
             |inputs, result, module| {
                 let query = result.expect("refactor ABI materialization 应成功");
                 check(inputs, &query, module);
@@ -1238,7 +1255,7 @@ mod tests {
         inputs: &FixtureAbiInputs,
         method_case_order: &[CaseTag],
     ) -> LateLoweredProgram {
-        let program = inputs.effect_lowered_stage_output.program();
+        let program = &inputs.abi_visibility_program;
         let callable = program
             .callable("fixtures.build.singleCaseWorker")
             .expect("callable 应存在");
@@ -1316,7 +1333,7 @@ mod tests {
     }
 
     fn unit_worker_program_with_ping_interface(inputs: &FixtureAbiInputs) -> LateLoweredProgram {
-        let program = inputs.effect_lowered_stage_output.program();
+        let program = &inputs.abi_visibility_program;
         let callable = program
             .callable("fixtures.build.unitWorker")
             .expect("callable 应存在");
@@ -1749,7 +1766,7 @@ mod tests {
         with_fixture_query_result(
             "effect_refactor_step_enum_single_case.scoop",
             |inputs| {
-                let program = inputs.effect_lowered_stage_output.program();
+                let program = &inputs.abi_visibility_program;
                 let callable = program
                     .callable("fixtures.build.singleCaseWorker")
                     .expect("callable 应存在");
