@@ -940,7 +940,7 @@
     - `refactor_llvm_local_runtime_error_contract_resolves_pure_call_boundary_targets` / `...rejects_missing_target_state` 锁定 ABI query 发布与 fail-fast 行为。
   - 2026-05-03：已运行验证：`cargo test -p scoopc refactor_boundary_lowering`、`cargo test -p scoopc refactor_effect_lowered_stage`、`cargo test -p scoopc refactor_llvm_local_runtime_error_contract`、`cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。`PLAN.md` 无需改动。
 
-## P6-T02f：发布 straight-line source-slice 非 boundary dynamic call 的 callable-object ABI/query contract，禁止 P6-T03 在 body emitter 现场回落旧 callable wrapper
+## [DONE] P6-T02f：发布 straight-line source-slice 非 boundary dynamic call 的 callable-object ABI/query contract，禁止 P6-T03 在 body emitter 现场回落旧 callable wrapper
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -996,7 +996,27 @@
   - `P6-T03` 可以在 whole-body lowering 中只消费已发布 query，而不再需要现场发明 dynamic call ABI 或回落 legacy wrapper。
 - 依赖：`P6-T02e`
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：在 `crates/scoopc/src/llvm/emit.rs` 给 refactor ABI materializer 补齐了 ABI visibility `MaterializedEffectFacts` handoff；P6 的 ABI query 现在不只拿到 late-lowered program / types / canonical MIR pass-view，还能对 source-slice call site 回查 authoritative `BodyEffectFacts`。
+  - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中把 `materialize_dynamic_invoke_layouts(...)` 从“只扫描 `boundary_map` 的 call boundary”扩展为“双通道发布”：
+    - 继续为 boundary call site 发布已有 dynamic invoke contract；
+    - 额外扫描 `LateLoweredState.source_slices()` 指向的 canonical MIR statement slice，找出未进入 `boundary_map`、但 `CallKind::{Closure, FunValue, Virtual, Interface}` 且 `target_mode != KnownInstance` 的 non-boundary dynamic call；对这些 site 结合 published `BodyEffectFacts` 与 canonical MIR call kind 发布同样的 `(owner_step_schema, site_id)` query。
+  - 2026-05-03：为 whole-body source-slice handoff 新增 fail-fast 校验：
+    - 若 source slice 指向越界 block/statement range；
+    - 若 dynamic call site 缺少 published `BodyEffectFacts`；
+    - 若 dynamic call 的 effect facts kind 与 canonical MIR `CallKind` 漂移；
+    - 若 non-boundary source-slice dynamic call 仍暴露 outward cases 却没有对应 call boundary；
+    都会在 ABI materialization 阶段显式拒绝，而不会把责任留给 `P6-T03` body emitter 现场猜测。
+  - 2026-05-03：新增 `tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`，用 pure `helper(base: Base)` 中的 `base.ping()` 锁定“source-slice non-boundary virtual CandidateSet call 也必须发布 dynamic invoke contract”。
+  - 2026-05-03：新增/更新定向测试：
+    - `refactor_llvm_dynamic_invoke_query_resolves_non_boundary_virtual_contract`
+    - `refactor_llvm_callable_carrier_layout_resolves_non_boundary_virtual_contracts`
+    它们共同验证：non-boundary source-slice dynamic call 不经过 `boundary_map` 也能稳定回查 query，且 carrier 仍是 canonical virtual receiver dispatch layout，而不是 legacy wrapper。
+- 已运行验证：
+  - `cargo test -p scoopc refactor_llvm_dynamic_invoke_query`
+  - `cargo test -p scoopc refactor_llvm_callable_carrier_layout`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

@@ -3,7 +3,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use inkwell::module::Linkage;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 
-use crate::effect_facts::{CallTargetMode, ContinuationSchemaId, StepSchemaId};
+use crate::effect_facts::{
+    CallSiteEffectFacts, CallSiteKind, CallTargetMode, ContinuationSchemaId,
+    MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
+};
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundarySource, LateLoweredCallable,
@@ -34,8 +37,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
+        effect_facts: &'a MaterializedEffectFacts,
     ) -> Result<RefactorAbiQuery<'ctx>, LlvmEmitError> {
-        RefactorAbiMaterializer::new(self, program, source_types, pass_view)?.materialize()
+        RefactorAbiMaterializer::new(self, program, source_types, pass_view, effect_facts)?
+            .materialize()
     }
 }
 
@@ -136,6 +141,7 @@ struct RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     program: &'a LateLoweredProgram,
     source_types: &'a TypeStore,
     pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
+    effect_facts: &'a MaterializedEffectFacts,
     view: ProgramLayoutView,
 }
 
@@ -145,12 +151,14 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
+        effect_facts: &'a MaterializedEffectFacts,
     ) -> Result<Self, LlvmEmitError> {
         Ok(Self {
             codegen,
             program,
             source_types,
             pass_view,
+            effect_facts,
             view: ProgramLayoutView::new(program)?,
         })
     }
@@ -1000,43 +1008,192 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     > {
         let mut layouts = BTreeMap::new();
         for callable in self.program.callables() {
-            for boundary in callable.boundary_map().entries() {
-                let (
-                    LateLoweredBoundarySource::Site {
-                        site_id,
-                        kind: BoundarySiteKind::Call,
-                    },
-                    Some(LateLoweredBoundaryLowering::Call(lowering)),
-                ) = (boundary.source(), boundary.lowering())
-                else {
-                    continue;
-                };
-                if lowering.facts().target_mode() == CallTargetMode::KnownInstance {
-                    continue;
-                }
-
-                let key = (callable.step_schema(), site_id);
-                if layouts.contains_key(&key) {
-                    return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 owner step schema {} call site {} 的 dynamic-invoke contract 重复发布",
-                        callable.step_schema().as_u32(),
-                        site_id.as_u32(),
-                    )));
-                }
-
-                let call_kind = self.lookup_materialized_call_kind(callable.root_fqn(), site_id)?;
-                let layout = self.materialize_dynamic_invoke_layout(
-                    callable.root_fqn(),
-                    callable.step_schema(),
-                    site_id,
-                    lowering.facts(),
-                    &call_kind,
-                    step_layouts,
-                )?;
-                layouts.insert(key, layout);
-            }
+            self.publish_boundary_dynamic_invoke_layouts(callable, step_layouts, &mut layouts)?;
+            self.publish_source_slice_dynamic_invoke_layouts(callable, step_layouts, &mut layouts)?;
         }
         Ok(layouts)
+    }
+
+    fn publish_boundary_dynamic_invoke_layouts(
+        &mut self,
+        callable: &LateLoweredCallable,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        layouts: &mut BTreeMap<
+            (StepSchemaId, crate::mir::SiteId),
+            RefactorDynamicInvokeLayout<'ctx>,
+        >,
+    ) -> Result<(), LlvmEmitError> {
+        for boundary in callable.boundary_map().entries() {
+            let (
+                LateLoweredBoundarySource::Site {
+                    site_id,
+                    kind: BoundarySiteKind::Call,
+                },
+                Some(LateLoweredBoundaryLowering::Call(lowering)),
+            ) = (boundary.source(), boundary.lowering())
+            else {
+                continue;
+            };
+            if lowering.facts().target_mode() == CallTargetMode::KnownInstance {
+                continue;
+            }
+            let call_kind = self.lookup_materialized_call_kind(callable.root_fqn(), site_id)?;
+
+            self.publish_dynamic_invoke_layout(
+                callable,
+                site_id,
+                lowering.facts(),
+                &call_kind,
+                step_layouts,
+                layouts,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn publish_source_slice_dynamic_invoke_layouts(
+        &mut self,
+        callable: &LateLoweredCallable,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        layouts: &mut BTreeMap<
+            (StepSchemaId, crate::mir::SiteId),
+            RefactorDynamicInvokeLayout<'ctx>,
+        >,
+    ) -> Result<(), LlvmEmitError> {
+        let boundary_call_sites = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .filter_map(|boundary| match boundary.source() {
+                LateLoweredBoundarySource::Site {
+                    site_id,
+                    kind: BoundarySiteKind::Call,
+                } => Some(site_id),
+                LateLoweredBoundarySource::RuntimeError { .. }
+                | LateLoweredBoundarySource::Site { .. } => None,
+            })
+            .collect::<BTreeSet<_>>();
+
+        let source_slice_sites = {
+            let body = self.lookup_materialized_callable_body(callable.root_fqn())?;
+            let body_facts = self.body_effect_facts(callable)?;
+            let mut sites = Vec::new();
+            for state in callable.state_graph().states() {
+                for slice in state.source_slices() {
+                    let Some(block) = body.blocks.get(slice.block_id().as_u32() as usize) else {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` 的 source slice 指向缺失的 canonical MIR block bb{}",
+                            callable.root_fqn(),
+                            slice.block_id().as_u32(),
+                        )));
+                    };
+                    let start = slice.start_statement_index() as usize;
+                    let end = slice.end_statement_index() as usize;
+                    if start > end || end > block.stmts.len() {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` 的 source slice [{start}..{end}) 越界于 canonical MIR block bb{}（stmt_count={}）",
+                            callable.root_fqn(),
+                            slice.block_id().as_u32(),
+                            block.stmts.len(),
+                        )));
+                    }
+                    for stmt in &block.stmts[start..end] {
+                        let MirStatementKind::Assign {
+                            value: MirRvalue::Call { site_id, kind, .. },
+                            ..
+                        } = &stmt.kind
+                        else {
+                            continue;
+                        };
+                        if boundary_call_sites.contains(site_id) {
+                            continue;
+                        }
+                        if !matches!(
+                            kind,
+                            MirCallKind::FunValue { .. }
+                                | MirCallKind::Closure { .. }
+                                | MirCallKind::Virtual { .. }
+                                | MirCallKind::Interface { .. }
+                        ) {
+                            continue;
+                        }
+
+                        let site = body_facts.site(*site_id).ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor LLVM ABI materialization 缺少 callable `{}` source-slice call site {} 的 published effect facts，无法发布 non-boundary dynamic-invoke contract",
+                                callable.root_fqn(),
+                                site_id.as_u32(),
+                            ))
+                        })?;
+                        let SiteEffectFacts::Call(facts) = site else {
+                            return Err(frontend_error(format!(
+                                "refactor LLVM ABI materialization 发现 callable `{}` source-slice call site {} 的 canonical MIR kind {:?} 不是普通 Call site，而 published facts 为 {site:?}",
+                                callable.root_fqn(),
+                                site_id.as_u32(),
+                                kind,
+                            )));
+                        };
+                        if !facts.resolved_cases().is_empty() {
+                            return Err(frontend_error(format!(
+                                "refactor LLVM ABI materialization 发现 callable `{}` source-slice dynamic call site {} 仍暴露 outward cases，但 late-lowered handoff 没有对应 call boundary",
+                                callable.root_fqn(),
+                                site_id.as_u32(),
+                            )));
+                        }
+                        if facts.target_mode() == CallTargetMode::KnownInstance {
+                            continue;
+                        }
+
+                        sites.push((*site_id, kind.clone(), facts.clone()));
+                    }
+                }
+            }
+            sites
+        };
+
+        for (site_id, kind, facts) in source_slice_sites {
+            self.publish_dynamic_invoke_layout(
+                callable,
+                site_id,
+                &facts,
+                &kind,
+                step_layouts,
+                layouts,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn publish_dynamic_invoke_layout(
+        &mut self,
+        callable: &LateLoweredCallable,
+        site_id: crate::mir::SiteId,
+        facts: &CallSiteEffectFacts,
+        call_kind: &MirCallKind,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        layouts: &mut BTreeMap<
+            (StepSchemaId, crate::mir::SiteId),
+            RefactorDynamicInvokeLayout<'ctx>,
+        >,
+    ) -> Result<(), LlvmEmitError> {
+        let key = (callable.step_schema(), site_id);
+        if layouts.contains_key(&key) {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 owner step schema {} call site {} 的 dynamic-invoke contract 重复发布",
+                callable.step_schema().as_u32(),
+                site_id.as_u32(),
+            )));
+        }
+        let layout = self.materialize_dynamic_invoke_layout(
+            callable.root_fqn(),
+            callable.step_schema(),
+            site_id,
+            facts,
+            call_kind,
+            step_layouts,
+        )?;
+        layouts.insert(key, layout);
+        Ok(())
     }
 
     fn materialize_dynamic_invoke_layout(
@@ -1044,10 +1201,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         owner_root_fqn: &str,
         owner_step_schema: StepSchemaId,
         site_id: crate::mir::SiteId,
-        facts: &crate::effect_facts::CallSiteEffectFacts,
+        facts: &CallSiteEffectFacts,
         call_kind: &MirCallKind,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     ) -> Result<RefactorDynamicInvokeLayout<'ctx>, LlvmEmitError> {
+        self.validate_dynamic_call_site_kind(owner_root_fqn, site_id, facts, call_kind)?;
         let step_ty = step_layouts
             .get(&facts.callee_schema())
             .ok_or_else(|| {
@@ -1230,21 +1388,72 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(contracts)
     }
 
-    fn lookup_materialized_call_kind(
+    fn body_effect_facts(
+        &self,
+        callable: &LateLoweredCallable,
+    ) -> Result<&crate::effect_facts::BodyEffectFacts, LlvmEmitError> {
+        self.effect_facts
+            .body(callable.instance_key())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` 的 BodyEffectFacts，无法发布 source-slice dynamic-invoke contract",
+                    callable.root_fqn(),
+                ))
+            })
+    }
+
+    fn validate_dynamic_call_site_kind(
         &self,
         owner_root_fqn: &str,
         site_id: crate::mir::SiteId,
-    ) -> Result<MirCallKind, LlvmEmitError> {
+        facts: &CallSiteEffectFacts,
+        call_kind: &MirCallKind,
+    ) -> Result<(), LlvmEmitError> {
+        let expected_kind = match call_kind {
+            MirCallKind::Closure { .. } => CallSiteKind::Closure,
+            MirCallKind::FunValue { .. } => CallSiteKind::FunValue,
+            MirCallKind::Virtual { .. } => CallSiteKind::Virtual,
+            MirCallKind::Interface { .. } => CallSiteKind::Interface,
+            other => {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 canonical MIR kind {other:?} 无法为 {:?} 发布 dynamic-invoke contract",
+                    site_id.as_u32(),
+                    facts.target_mode(),
+                )));
+            }
+        };
+        if facts.kind() != expected_kind {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 call kind contract 漂移：canonical MIR={call_kind:?}，effect facts={:?}",
+                site_id.as_u32(),
+                facts.kind(),
+            )));
+        }
+        Ok(())
+    }
+
+    fn lookup_materialized_callable_body(
+        &self,
+        owner_root_fqn: &str,
+    ) -> Result<&crate::mir::Body, LlvmEmitError> {
         let callable = self.pass_view.callable(owner_root_fqn).ok_or_else(|| {
             frontend_error(format!(
                 "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` 的 canonical MIR body，无法发布 dynamic-invoke contract"
             ))
         })?;
-        let body = callable.body.as_ref().ok_or_else(|| {
+        callable.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
                 "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` 的 canonical MIR body 内容，无法发布 dynamic-invoke contract"
             ))
-        })?;
+        })
+    }
+
+    fn lookup_materialized_call_kind(
+        &self,
+        owner_root_fqn: &str,
+        site_id: crate::mir::SiteId,
+    ) -> Result<MirCallKind, LlvmEmitError> {
+        let body = self.lookup_materialized_callable_body(owner_root_fqn)?;
         for block in &body.blocks {
             for stmt in &block.stmts {
                 let MirStatementKind::Assign {
@@ -1629,11 +1838,13 @@ fn render_resume_interface_ids(interface_ids: &[ResumeInterfaceId]) -> String {
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
     use std::rc::Rc;
 
     use super::*;
-    use crate::effect_facts::{CallTargetMode, CaseTag, ImplPlan};
+    use crate::effect_facts::{
+        CallSiteEffectFacts, CallTargetMode, CaseTag, ImplPlan, SiteEffectFacts,
+    };
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
         LateLoweredBoundarySource, LateLoweredCallBoundaryLowering, LateLoweredCallable,
@@ -1817,6 +2028,7 @@ mod tests {
             &program,
             inputs.effect_lowered_stage_output.types(),
             &inputs.effect_lowered_stage_output.materialized_pass_view(),
+            inputs.effect_lowered_stage_output.effect_facts(),
         );
         check(&inputs, result, &module);
     }
@@ -1968,6 +2180,78 @@ mod tests {
             panic!("boundary 应带 site source");
         };
         site_id
+    }
+
+    fn source_slice_non_boundary_dynamic_call_site(
+        inputs: &FixtureAbiInputs,
+        callable: &LateLoweredCallable,
+    ) -> (crate::mir::SiteId, CallSiteEffectFacts) {
+        let body = inputs
+            .effect_lowered_stage_output
+            .materialized_pass_view()
+            .callable(callable.root_fqn())
+            .expect("callable 的 canonical MIR body 应存在")
+            .body
+            .as_ref()
+            .expect("callable 的 canonical MIR body 内容应存在");
+        let body_facts = inputs
+            .effect_lowered_stage_output
+            .effect_facts()
+            .body(callable.instance_key())
+            .expect("callable 的 BodyEffectFacts 应存在");
+        let boundary_call_sites = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .filter_map(|boundary| match boundary.source() {
+                LateLoweredBoundarySource::Site {
+                    site_id,
+                    kind: BoundarySiteKind::Call,
+                } => Some(site_id),
+                LateLoweredBoundarySource::RuntimeError { .. }
+                | LateLoweredBoundarySource::Site { .. } => None,
+            })
+            .collect::<BTreeSet<_>>();
+
+        for state in callable.state_graph().states() {
+            for slice in state.source_slices() {
+                let block = &body.blocks[slice.block_id().as_u32() as usize];
+                let start = slice.start_statement_index() as usize;
+                let end = slice.end_statement_index() as usize;
+                for stmt in &block.stmts[start..end] {
+                    let MirStatementKind::Assign {
+                        value: MirRvalue::Call { site_id, kind, .. },
+                        ..
+                    } = &stmt.kind
+                    else {
+                        continue;
+                    };
+                    if boundary_call_sites.contains(site_id)
+                        || !matches!(
+                            kind,
+                            MirCallKind::FunValue { .. }
+                                | MirCallKind::Closure { .. }
+                                | MirCallKind::Virtual { .. }
+                                | MirCallKind::Interface { .. }
+                        )
+                    {
+                        continue;
+                    }
+                    let SiteEffectFacts::Call(facts) = body_facts
+                        .site(*site_id)
+                        .expect("source-slice dynamic call site 应带 published Call facts")
+                    else {
+                        panic!("source-slice dynamic call site 必须对应 Call facts");
+                    };
+                    if facts.target_mode() == CallTargetMode::KnownInstance {
+                        continue;
+                    }
+                    return (*site_id, facts.clone());
+                }
+            }
+        }
+
+        panic!("应找到一个 non-boundary source-slice dynamic call site");
     }
 
     fn clone_resume_interface_with_methods(
@@ -2713,6 +2997,93 @@ mod tests {
                     }
                     other => panic!(
                         "virtual CandidateSet 应发布 receiver-dispatch carrier，而不是 {other:?}"
+                    ),
+                }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_dynamic_invoke_query_resolves_non_boundary_virtual_contract() {
+        with_fixture_query(
+            "effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop",
+            |inputs, query, _module| {
+                let helper = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.build.helper")
+                    .expect("fixtures.build.helper callable 应存在");
+                assert!(
+                    helper
+                        .boundary_map()
+                        .entries()
+                        .iter()
+                        .all(|boundary| !matches!(
+                            boundary.source(),
+                            LateLoweredBoundarySource::Site {
+                                kind: BoundarySiteKind::Call,
+                                ..
+                            }
+                        )),
+                    "pure helper 的 dynamic call 不应被发布成 boundary"
+                );
+
+                let (site_id, facts) = source_slice_non_boundary_dynamic_call_site(inputs, helper);
+                assert!(
+                    facts.resolved_cases().is_empty(),
+                    "non-boundary dynamic call 的 resolved cases 应为空"
+                );
+                let RefactorCallTargetQuery::DynamicInvoke(layout) = query
+                    .call_target_layout(helper.step_schema(), site_id, &facts)
+                    .expect("non-boundary source-slice dynamic call 应可回查 published dynamic invoke contract")
+                else {
+                    panic!("non-boundary virtual call 应走 dynamic invoke contract");
+                };
+
+                assert_eq!(layout.owner_step_schema(), helper.step_schema());
+                assert_eq!(layout.site_id(), site_id);
+                assert_eq!(layout.target_mode(), CallTargetMode::CandidateSet);
+                assert_eq!(layout.invoke_args_tuple_ty(), facts.invoke_args_tuple_ty());
+                assert_eq!(layout.return_step_schema(), facts.callee_schema());
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_callable_carrier_layout_resolves_non_boundary_virtual_contracts() {
+        with_fixture_query(
+            "effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop",
+            |inputs, query, _module| {
+                let helper = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.build.helper")
+                    .expect("fixtures.build.helper callable 应存在");
+                let (site_id, facts) = source_slice_non_boundary_dynamic_call_site(inputs, helper);
+                let RefactorCallTargetQuery::DynamicInvoke(layout) = query
+                    .call_target_layout(helper.step_schema(), site_id, &facts)
+                    .expect("non-boundary source-slice dynamic call 应可回查 published dynamic invoke contract")
+                else {
+                    panic!("non-boundary virtual call 应走 dynamic invoke contract");
+                };
+
+                assert_eq!(layout.target_mode(), CallTargetMode::CandidateSet);
+                assert_eq!(layout.param_count(), 1);
+                assert!(layout.args_abi().is_elided());
+                match layout.carrier() {
+                    RefactorDynamicInvokeCarrierLayout::VirtualReceiver(dispatch) => {
+                        assert_eq!(
+                            inputs
+                                .effect_lowered_stage_output
+                                .types()
+                                .display(dispatch.receiver_ty())
+                                .to_string(),
+                            "fixtures.build.Base"
+                        );
+                        assert_eq!(dispatch.owner_fqn(), "fixtures.build.Base");
+                        assert_eq!(dispatch.member_name(), "ping");
+                        assert!(!dispatch.receiver_abi().is_elided());
+                    }
+                    other => panic!(
+                        "non-boundary virtual call 应发布 receiver-dispatch carrier，而不是 {other:?}"
                     ),
                 }
             },

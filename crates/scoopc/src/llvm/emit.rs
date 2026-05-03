@@ -35,6 +35,7 @@ struct LoweredCodegenEntry<'a> {
     refactor_abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     refactor_abi_types: Option<&'a crate::ty::TypeStore>,
     refactor_abi_materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    refactor_abi_effect_facts: Option<&'a crate::effect_facts::MaterializedEffectFacts>,
 }
 
 #[derive(Clone, Copy)]
@@ -72,6 +73,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             refactor_abi_program: None,
             refactor_abi_types: None,
             refactor_abi_materialized_pass_view: None,
+            refactor_abi_effect_facts: None,
         }
     }
 
@@ -87,6 +89,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             refactor_abi_program: None,
             refactor_abi_types: None,
             refactor_abi_materialized_pass_view: None,
+            refactor_abi_effect_facts: None,
         })
     }
 
@@ -112,6 +115,9 @@ impl<'a> LoweredCodegenEntry<'a> {
             refactor_abi_types: Some(abi_visibility_effect_lowered_stage_output.types()),
             refactor_abi_materialized_pass_view: Some(
                 abi_visibility_effect_lowered_stage_output.materialized_pass_view(),
+            ),
+            refactor_abi_effect_facts: Some(
+                abi_visibility_effect_lowered_stage_output.effect_facts(),
             ),
         }
     }
@@ -815,6 +821,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
         refactor_abi_program,
         refactor_abi_types,
         refactor_abi_materialized_pass_view,
+        refactor_abi_effect_facts,
     } = codegen_entry;
     let has_materialized_pass_view = materialized_pass_view.is_some();
 
@@ -993,7 +1000,16 @@ fn build_main_module_from_codegen_entry<'ctx>(
         let abi_pass_view = refactor_abi_materialized_pass_view
             .as_ref()
             .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
-        let _ = declare.materialize_refactor_program_abi(abi_program, abi_types, abi_pass_view)?;
+        let abi_effect_facts =
+            refactor_abi_effect_facts.ok_or_else(|| LlvmEmitError::Frontend {
+                message: "refactor LLVM stage handoff 缺少 ABI visibility effect facts".to_string(),
+            })?;
+        let _ = declare.materialize_refactor_program_abi(
+            abi_program,
+            abi_types,
+            abi_pass_view,
+            abi_effect_facts,
+        )?;
     }
 
     for fun in &reachable {
