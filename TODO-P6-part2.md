@@ -111,9 +111,9 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02m -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
-## P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
+## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -184,6 +184,20 @@
     - `effect_resume_if_else_branch_single_perform.scoop` 中，resume site 直接需要 `k3` 的 surface-resume symbol，而 `k3` 并不存在于任何 continuation object surface/method shell；同时 handle binder 仍要求 `k0` 具备 published surface-resume source。
   - 这说明 `P6-T02m` 不能只在 LLVM query 层补一个 schema -> method 选择器；必须先把 shared-schema / resume-site-only / handle-binder schema 的 authoritative dispatch-source inventory 显式发布出来。
   - 因此新增前置任务 `P6-T02ma`，先补齐 dispatch-source inventory，再继续本任务。
+  - 2026-05-04：在 `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` / `layout.rs` 新增 `RefactorContinuationSurfaceResumeDispatchLayout` 查询层：
+    - 每个非 `Unreachable` 的 `ContinuationSchemaId` 现在都会发布唯一 owner trampoline contract `__scoop_refactor_surface_resume_owner_dispatch__*`；
+    - `ContinuationObjectMethod` schema 额外发布 `method_targets[]`，显式列出 object-side `interface_id + field_index + case_tag + vtable_index` lookup；
+    - `ResumeBoundaryOnly` / `HandleContinuationBinderOnly` schema 则通过 owner trampoline 公开 resume-site 列表或 handle-binder route 列表。
+  - 2026-05-04：根据真实 fixture 修正了 contract 形状，不再错误假设“同一 schema 只能对应唯一 reachable method”。`tests/fixtures/effect_facts/dynamic_fallback_widening.scoop` 中共享 schema `k0` 现在会 authoritative 地保留同一 owner/object 下的多 method lookup（`ri0::c0`、`ri1::c1`），同时仍收口到单一 owner trampoline；backend 不再需要扫描 raw continuation object 或猜 owner callable。
+  - 2026-05-04：补上 fail-fast：若 `ContinuationObjectMethod` 缺失 reachable method target、若 object-side lookup / published method layout 漂移、或若多个 continuation object 共享同一 schema，则在 ABI materialization 阶段显式拒绝，而不是把歧义留给 `P6-T03`。
+- 已运行验证：
+  - `cargo test -p scoopc refactor_llvm_surface_resume_layout`
+  - `cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout`
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

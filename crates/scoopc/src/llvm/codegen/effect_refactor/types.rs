@@ -8,12 +8,13 @@ use crate::effect_facts::{
     CallSiteEffectFacts, CallTargetMode, CaseTag, ContinuationSchemaId, StepSchemaId,
 };
 use crate::effect_lowered::ir::{
-    ContinuationObjectId, FrameSlotId, LateLoweredConsumedRuntimeErrorCase,
-    LateLoweredContinuationMethodReachability, LateLoweredHandleBoundaryRouting,
-    LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
-    LateLoweredHandleStateRegion, LateLoweredHandleStateRegionEntry,
-    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPublishedRuntimeEntry,
-    LateLoweredSurfaceResumeDispatchSourceKind, ResumeInterfaceId, StateId, SystemSlotKind,
+    ContinuationObjectId, FrameSlotId, LateLoweredBodyVersionKey,
+    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationMethodReachability,
+    LateLoweredHandleBoundaryRouting, LateLoweredHandleDispatchContract,
+    LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
+    LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
+    LateLoweredPublishedRuntimeEntry, LateLoweredSurfaceResumeDispatchSourceKind,
+    ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{LocalId, SiteId};
@@ -1091,6 +1092,208 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
     }
 }
 
+/// surface-resume shared symbol 经过 continuation object 可回查到的唯一 method lookup。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RefactorContinuationSurfaceResumeMethodLookup {
+    continuation_object: ContinuationObjectId,
+    interface_id: ResumeInterfaceId,
+    interface_field_index: u32,
+    case_tag: CaseTag,
+    vtable_index: u32,
+}
+
+impl RefactorContinuationSurfaceResumeMethodLookup {
+    pub(super) fn new(
+        continuation_object: ContinuationObjectId,
+        interface_id: ResumeInterfaceId,
+        interface_field_index: u32,
+        case_tag: CaseTag,
+        vtable_index: u32,
+    ) -> Self {
+        Self {
+            continuation_object,
+            interface_id,
+            interface_field_index,
+            case_tag,
+            vtable_index,
+        }
+    }
+
+    pub(super) fn continuation_object(&self) -> ContinuationObjectId {
+        self.continuation_object
+    }
+
+    pub(super) fn interface_id(&self) -> ResumeInterfaceId {
+        self.interface_id
+    }
+
+    pub(super) fn interface_field_index(&self) -> u32 {
+        self.interface_field_index
+    }
+
+    pub(super) fn case_tag(&self) -> CaseTag {
+        self.case_tag
+    }
+
+    pub(super) fn vtable_index(&self) -> u32 {
+        self.vtable_index
+    }
+}
+
+/// owner trampoline 继续分派到 handle continuation binder 时所需的已发布 route。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RefactorContinuationSurfaceResumeHandleBinderRoute {
+    site_id: SiteId,
+    arm_ordinal: u32,
+    handled_case: CaseTag,
+}
+
+impl RefactorContinuationSurfaceResumeHandleBinderRoute {
+    pub(super) fn new(site_id: SiteId, arm_ordinal: u32, handled_case: CaseTag) -> Self {
+        Self {
+            site_id,
+            arm_ordinal,
+            handled_case,
+        }
+    }
+
+    pub(super) fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub(super) fn arm_ordinal(&self) -> u32 {
+        self.arm_ordinal
+    }
+
+    pub(super) fn handled_case(&self) -> CaseTag {
+        self.handled_case
+    }
+}
+
+/// surface-resume shared symbol 继续进入 owner-specific lowering 时的 trampoline contract。
+pub(super) struct RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
+    owner_version_key: LateLoweredBodyVersionKey,
+    owner_root_fqn: String,
+    owner_step_schema: StepSchemaId,
+    owner_continuation_object: ContinuationObjectId,
+    symbol_name: String,
+    llvm_ty: FunctionType<'ctx>,
+    param_count: usize,
+    resume_boundary_sites: Vec<SiteId>,
+    handle_binder_routes: Vec<RefactorContinuationSurfaceResumeHandleBinderRoute>,
+}
+
+impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn new(
+        owner_version_key: LateLoweredBodyVersionKey,
+        owner_root_fqn: String,
+        owner_step_schema: StepSchemaId,
+        owner_continuation_object: ContinuationObjectId,
+        symbol_name: String,
+        llvm_ty: FunctionType<'ctx>,
+        param_count: usize,
+        resume_boundary_sites: Vec<SiteId>,
+        handle_binder_routes: Vec<RefactorContinuationSurfaceResumeHandleBinderRoute>,
+    ) -> Self {
+        Self {
+            owner_version_key,
+            owner_root_fqn,
+            owner_step_schema,
+            owner_continuation_object,
+            symbol_name,
+            llvm_ty,
+            param_count,
+            resume_boundary_sites,
+            handle_binder_routes,
+        }
+    }
+
+    pub(super) fn owner_version_key(&self) -> &LateLoweredBodyVersionKey {
+        &self.owner_version_key
+    }
+
+    pub(super) fn owner_root_fqn(&self) -> &str {
+        &self.owner_root_fqn
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn owner_continuation_object(&self) -> ContinuationObjectId {
+        self.owner_continuation_object
+    }
+
+    pub(super) fn symbol_name(&self) -> &str {
+        &self.symbol_name
+    }
+
+    pub(super) fn llvm_ty(&self) -> FunctionType<'ctx> {
+        self.llvm_ty
+    }
+
+    pub(super) fn param_count(&self) -> usize {
+        self.param_count
+    }
+
+    pub(super) fn resume_boundary_sites(&self) -> &[SiteId] {
+        &self.resume_boundary_sites
+    }
+
+    pub(super) fn handle_binder_routes(
+        &self,
+    ) -> &[RefactorContinuationSurfaceResumeHandleBinderRoute] {
+        &self.handle_binder_routes
+    }
+}
+
+/// `ContinuationSchemaId` authoritative 地路由到 owner-specific lowering target。
+pub(super) enum RefactorContinuationSurfaceResumeDispatchTarget<'ctx> {
+    OwnerTrampoline(Box<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>),
+    Unreachable,
+}
+
+/// shared surface-resume symbol 到 owner dispatch target 的稳定 LLVM query。
+pub(super) struct RefactorContinuationSurfaceResumeDispatchLayout<'ctx> {
+    continuation_schema: ContinuationSchemaId,
+    source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+    method_targets: Vec<RefactorContinuationSurfaceResumeMethodLookup>,
+    target: RefactorContinuationSurfaceResumeDispatchTarget<'ctx>,
+}
+
+impl<'ctx> RefactorContinuationSurfaceResumeDispatchLayout<'ctx> {
+    pub(super) fn new(
+        continuation_schema: ContinuationSchemaId,
+        source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+        method_targets: Vec<RefactorContinuationSurfaceResumeMethodLookup>,
+        target: RefactorContinuationSurfaceResumeDispatchTarget<'ctx>,
+    ) -> Self {
+        Self {
+            continuation_schema,
+            source_kind,
+            method_targets,
+            target,
+        }
+    }
+
+    pub(super) fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub(super) fn source_kind(&self) -> LateLoweredSurfaceResumeDispatchSourceKind {
+        self.source_kind
+    }
+
+    pub(super) fn method_targets(&self) -> &[RefactorContinuationSurfaceResumeMethodLookup] {
+        &self.method_targets
+    }
+
+    pub(super) fn target(&self) -> &RefactorContinuationSurfaceResumeDispatchTarget<'ctx> {
+        &self.target
+    }
+}
+
 /// 单个 resume method 的 LLVM 级合同。
 pub(super) struct RefactorResumeMethodLayout<'ctx> {
     interface_id: ResumeInterfaceId,
@@ -1428,6 +1631,8 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
     resume_interface_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
     surface_resume_layouts:
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
+    surface_resume_dispatch_layouts:
+        BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeDispatchLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
     dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
     local_runtime_error_contracts:
@@ -1450,6 +1655,10 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             ContinuationSchemaId,
             RefactorContinuationSurfaceResumeLayout<'ctx>,
         >,
+        surface_resume_dispatch_layouts: BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeDispatchLayout<'ctx>,
+        >,
         callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
         local_runtime_error_contracts: BTreeMap<
@@ -1465,6 +1674,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             continuation_layouts,
             resume_interface_layouts,
             surface_resume_layouts,
+            surface_resume_dispatch_layouts,
             callable_layouts,
             dynamic_invoke_layouts,
             local_runtime_error_contracts,
@@ -1519,6 +1729,20 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         continuation_schema: ContinuationSchemaId,
     ) -> Option<&RefactorContinuationSurfaceResumeLayout<'ctx>> {
         self.surface_resume_layouts.get(&continuation_schema)
+    }
+
+    pub(super) fn surface_resume_dispatch_layout(
+        &self,
+        continuation_schema: ContinuationSchemaId,
+    ) -> Result<&RefactorContinuationSurfaceResumeDispatchLayout<'ctx>, LlvmEmitError> {
+        self.surface_resume_dispatch_layouts
+            .get(&continuation_schema)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 continuation schema k{} 的 surface-resume owner dispatch contract",
+                    continuation_schema.as_u32()
+                ),
+            })
     }
 
     pub(super) fn callable_layout(
