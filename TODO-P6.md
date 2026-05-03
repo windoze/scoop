@@ -1521,6 +1521,74 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.6, §5.5
+  - `crates/scoopc/src/effect_facts/builder.rs`
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - `P6-T02c` 已发布 `ContinuationSchemaId -> surface-resume layout/symbol` 查询面，也让 continuation object layout 额外发布了 object-level schema binding；
+  - 但当前 `RefactorContinuationSurfaceResumeLayout` 只固定了 `__scoop_refactor_surface_resume__k*` 的 symbol/signature/`out_step_schema`，`RefactorContinuationSurfaceResumeBinding` 只记录 `continuation_schema` 与 `return_step_schema`；
+  - 与此同时，`ContinuationSchemaId` 在 `crates/scoopc/src/effect_facts/builder.rs` 中按 `(resume_tuple_ty, answer_ty, out_step_schema, surface_ty)` canonical 去重，而不是按 owner callable / continuation object 唯一化；
+  - 这意味着同一个 surface-resume schema 允许被多个 continuation object / owner callable 复用，但当前 handoff 没有发布“这个 shared surface symbol 如何 authoritative 地到达 owner-specific resume implementation”的 contract；
+  - 若直接继续 `P6-T03`，backend 只能：
+    - 扫描 raw late-lowered continuation object 列表，临时拼出 schema -> owner/method 选择规则；
+    - 或按 runtime type desc / symbol 名字 / object layout 假定去猜该走哪条 owner body；
+    - 或在 surface resume shell 里偷偷发明一套未发布的 second-stage dispatch。
+  - 以上都违背 `P6-T02c` 已明确禁止的“不得靠扫描 raw late-lowered 列表或未发布规则补足 surface-resume dispatch”边界。
+
+- 目标：
+  - 在进入 `P6-T03` 之前，先把 continuation surface-resume 从 shared schema symbol 到 owner-specific resume implementation 的 authoritative dispatch contract 显式发布出来；
+  - 让后续 body emitter 能仅凭 published handoff 定义并调用 `__scoop_refactor_surface_resume__k*`，而不需要现场枚举 continuation object、比较 runtime type、或猜 owner callable。
+
+- 必须实现的内容：
+  1. 为 surface-resume implementation target 发布 compiler-owned dispatch contract。
+     - authoritative key 必须仍以 `ContinuationSchemaId` 或等价 stable identity 为主；
+     - contract 必须显式说明 shared surface-resume symbol 如何到达 owner-specific implementation；
+     - 可行形态包括但不限于：
+       - `ContinuationSchemaId -> (ResumeInterfaceId, CaseTag, object-side lookup contract)`；
+       - `ContinuationSchemaId -> owner-specific trampoline set + authoritative runtime selector`；
+       - 或其它等价且已发布的 compiler-owned dispatch plan；
+     - 明确禁止让 `P6-T03` 在 body emitter / surface-resume body 现场再扫描 raw continuation object / late-lowered method 列表临时恢复这层规则。
+  2. 为 continuation object / LLVM query 发布 surface-resume body 所需的 object-side lookup contract。
+     - 若 surface-resume 需要经由 object field / interface vtable / method slot / owner trampoline 继续分派，相关 identity 与 lookup path 必须作为 published contract 暴露；
+     - 若同一 `ContinuationSchemaId` 被多个 object 复用，必须显式说明 shared symbol 采用哪条 authoritative dispatch 路径，而不是让 backend 自己比较 runtime type 或 header；
+     - 若 contract 设计要求“同一 schema 只能对应唯一 owner/method identity”，则必须在 P5/P6 边界对多重发布显式 fail fast。
+  3. 对缺失、歧义或漂移的 surface-resume dispatch contract fail fast。
+     - 至少包括：
+       - schema 已发布 surface symbol，但缺少 owner dispatch target；
+       - 同一 schema 对应多个互不兼容的 owner/method/vtable lookup；
+       - continuation object layout 缺少 surface-resume body 继续分派所需的 published lookup；
+       - `P6-T03` 若只消费 ABI query / late-lowered contract 仍无法唯一决定 surface-resume body。
+  4. 补充定向测试与回归。
+     - 至少覆盖：
+       - ABI query / late-lowered handoff 可从真实 `ContinuationSchemaId` authoritative 地解析 surface-resume implementation target；
+       - 多个 continuation object 共享同一 schema 时，不需要 backend 现场扫描 raw object 列表；
+       - 缺失或歧义 contract 时显式拒绝；
+       - `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 这类真实 `k.resume(...)` 路径不再把责任留给 `P6-T03` 现场猜 owner dispatch。
+
+- 必须遵从的约束：
+  - 禁止在 `P6-T03` 的 surface-resume body 中按 symbol 名、runtime type desc、header 指针、`ResumeStateTag` 偶然分布、或 raw late-lowered object 顺序发明 dispatch 规则；
+  - 禁止把“扫描 continuation object 列表再找一个 continuation_schema 相等的 method”当成 backend 合法职责；若需要这层关系，必须先 authoritative 发布；
+  - 禁止把 surface-resume shared symbol 悄悄退化成 owner-private symbol，除非这也是显式发布并能由 `ContinuationSchemaId` authoritative 查询到的 contract。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_surface_resume_layout`
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+
+- 完成条件：
+  - surface-resume shared schema symbol 到 owner-specific implementation 的 dispatch contract 已成为 published handoff；
+  - `P6-T03` 可以只消费 authoritative contract 定义/调用 surface-resume body，而不再现场扫描 continuation object 或猜 owner callable；
+  - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝。
+- 依赖：P6-T02c
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1639,7 +1707,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -1661,6 +1729,8 @@
   - 因此新增前置任务 `P6-T02k` / `P6-T02kR`，先把 `HandleDispatch` arm payload binder / continuation binder contract authoritative 发布到 late-lowered + LLVM query handoff 中，再继续本任务。
   - 2026-05-03：继续真正设计 handle 子图 lowering 时发现新的 blocker。当前 `HandleDispatch` handoff 虽已发布 `body_state` / `arm_states` / `finally_state` / `exit_state`、handled case -> arm、pending completion、以及 arm binder，但还没有 authoritative 发布“哪些 states / boundaries 属于该 handle 的 body / arm / finally region，以及某个 boundary/outward case 是否应被当前 handle 本地消费”的稳定 routing query。以 `effect_resume_if_else_branch_single_perform.scoop` 为例，body 内 perform boundary `bd2` 需要命中 handled case `c0` 后转入 arm `st3`，并把 continuation 恢复点固定到 `st9`；若没有这层 published routing，backend 只能在 P6 现场重新遍历 state graph 或回 MIR 恢复 handle 子图归属，违背本阶段“只翻译已发布 handoff”的边界。
   - 因此新增前置任务 `P6-T02l`，先发布 `HandleDispatch` state-region / boundary-consumption contract，再继续本任务。
+  - 2026-05-03：继续把 `Resume` boundary 与 surface `k.resume(...)` 真正接到 body emitter 时发现新的 blocker。当前 handoff 已发布 `ContinuationSchemaId -> surface-resume symbol/signature`，但还没有 authoritative 发布“shared surface-resume schema symbol 如何到达 owner-specific resume implementation”的 dispatch contract；`ContinuationSchemaId` 仍按 `(resume_tuple_ty, answer_ty, out_step_schema, surface_ty)` canonical 去重，允许被多个 continuation object / owner callable 复用。若直接继续 `P6-T03`，backend 将不得不在 surface-resume body 或 resume boundary lowering 现场扫描 raw continuation object / method 列表，或按 runtime type/header/符号名临时发明 dispatch 规则，直接违反 `P6-T02c` 已禁止的边界。
+  - 因此新增前置任务 `P6-T02m`，先发布 continuation surface-resume -> owner dispatch contract，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
