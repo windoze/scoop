@@ -82,7 +82,7 @@
 | `P6-T02h` | `TODO-P6.md` | [DONE] 发布 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering contract，禁止 P6-T03 在 backend 现场发明 pure caller runtime-error 的结束路径 |
 | `P6-T02i` | `TODO-P6.md` | [DONE] 发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore` |
 | `P6-T02j` | `TODO-P6.md` | [DONE] 发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议 |
-| `P6-T02k` | `TODO-P6.md` | 发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状 |
+| `P6-T02k` | `TODO-P6.md` | [DONE] 发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状 |
 | `P6-T02kR` | `TODO-P6.md` | Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状 |
 | `P6-T03` | `TODO-P6.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |

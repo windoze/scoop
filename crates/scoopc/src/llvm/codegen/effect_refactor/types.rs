@@ -14,7 +14,7 @@ use crate::effect_lowered::ir::{
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
-use crate::mir::SiteId;
+use crate::mir::{LocalId, SiteId};
 use crate::ty::TypeId;
 
 /// 单个 refactor ABI 值位的 LLVM 形状。
@@ -751,6 +751,161 @@ impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
 }
 
 /// `HandleDispatch` 在 LLVM query 层发布的 field/tag 布局。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RefactorHandlePayloadBinderLayout {
+    ordinal: u32,
+    local: LocalId,
+    frame_slot: Option<FrameSlotId>,
+    frame_field_index: Option<u32>,
+}
+
+impl RefactorHandlePayloadBinderLayout {
+    pub(super) fn new(
+        ordinal: u32,
+        local: LocalId,
+        frame_slot: Option<FrameSlotId>,
+        frame_field_index: Option<u32>,
+    ) -> Self {
+        Self {
+            ordinal,
+            local,
+            frame_slot,
+            frame_field_index,
+        }
+    }
+
+    pub(super) fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+
+    pub(super) fn local(&self) -> LocalId {
+        self.local
+    }
+
+    pub(super) fn frame_slot(&self) -> Option<FrameSlotId> {
+        self.frame_slot
+    }
+
+    pub(super) fn frame_field_index(&self) -> Option<u32> {
+        self.frame_field_index
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RefactorHandleContinuationBinderLayout {
+    local: LocalId,
+    frame_slot: Option<FrameSlotId>,
+    frame_field_index: Option<u32>,
+    continuation_schema: ContinuationSchemaId,
+    continuation_object: ContinuationObjectId,
+    surface_resume_binding: RefactorContinuationSurfaceResumeBinding,
+}
+
+impl RefactorHandleContinuationBinderLayout {
+    pub(super) fn new(
+        local: LocalId,
+        frame_slot: Option<FrameSlotId>,
+        frame_field_index: Option<u32>,
+        continuation_schema: ContinuationSchemaId,
+        continuation_object: ContinuationObjectId,
+        surface_resume_binding: RefactorContinuationSurfaceResumeBinding,
+    ) -> Self {
+        Self {
+            local,
+            frame_slot,
+            frame_field_index,
+            continuation_schema,
+            continuation_object,
+            surface_resume_binding,
+        }
+    }
+
+    pub(super) fn local(&self) -> LocalId {
+        self.local
+    }
+
+    pub(super) fn frame_slot(&self) -> Option<FrameSlotId> {
+        self.frame_slot
+    }
+
+    pub(super) fn frame_field_index(&self) -> Option<u32> {
+        self.frame_field_index
+    }
+
+    pub(super) fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub(super) fn continuation_object(&self) -> ContinuationObjectId {
+        self.continuation_object
+    }
+
+    pub(super) fn surface_resume_binding(&self) -> RefactorContinuationSurfaceResumeBinding {
+        self.surface_resume_binding
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RefactorHandleArmLayout {
+    handled_case: CaseTag,
+    arm_state: StateId,
+    arm_ordinal: u32,
+    payload_tuple_ty: TypeId,
+    payload_binders: Vec<RefactorHandlePayloadBinderLayout>,
+    continuation_binder: Option<RefactorHandleContinuationBinderLayout>,
+    arm_outward_cases: Vec<CaseTag>,
+}
+
+impl RefactorHandleArmLayout {
+    pub(super) fn new(
+        handled_case: CaseTag,
+        arm_state: StateId,
+        arm_ordinal: u32,
+        payload_tuple_ty: TypeId,
+        payload_binders: Vec<RefactorHandlePayloadBinderLayout>,
+        continuation_binder: Option<RefactorHandleContinuationBinderLayout>,
+        arm_outward_cases: Vec<CaseTag>,
+    ) -> Self {
+        Self {
+            handled_case,
+            arm_state,
+            arm_ordinal,
+            payload_tuple_ty,
+            payload_binders,
+            continuation_binder,
+            arm_outward_cases,
+        }
+    }
+
+    pub(super) fn handled_case(&self) -> CaseTag {
+        self.handled_case
+    }
+
+    pub(super) fn arm_state(&self) -> StateId {
+        self.arm_state
+    }
+
+    pub(super) fn arm_ordinal(&self) -> u32 {
+        self.arm_ordinal
+    }
+
+    pub(super) fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+
+    pub(super) fn payload_binders(&self) -> &[RefactorHandlePayloadBinderLayout] {
+        &self.payload_binders
+    }
+
+    pub(super) fn continuation_binder(&self) -> Option<RefactorHandleContinuationBinderLayout> {
+        self.continuation_binder
+    }
+
+    pub(super) fn arm_outward_cases(&self) -> &[CaseTag] {
+        &self.arm_outward_cases
+    }
+}
+
 pub(super) struct RefactorHandleDispatchLayout {
     owner_step_schema: StepSchemaId,
     site_id: SiteId,
@@ -759,9 +914,11 @@ pub(super) struct RefactorHandleDispatchLayout {
     completion_tag_field_index: u32,
     payload_carrier_field_index: u32,
     completion_tags: BTreeMap<LateLoweredHandlePendingCompletion, u32>,
+    handled_arms: Vec<RefactorHandleArmLayout>,
 }
 
 impl RefactorHandleDispatchLayout {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
@@ -770,6 +927,7 @@ impl RefactorHandleDispatchLayout {
         completion_tag_field_index: u32,
         payload_carrier_field_index: u32,
         completion_tags: BTreeMap<LateLoweredHandlePendingCompletion, u32>,
+        handled_arms: Vec<RefactorHandleArmLayout>,
     ) -> Self {
         Self {
             owner_step_schema,
@@ -779,6 +937,7 @@ impl RefactorHandleDispatchLayout {
             completion_tag_field_index,
             payload_carrier_field_index,
             completion_tags,
+            handled_arms,
         }
     }
 
@@ -815,6 +974,16 @@ impl RefactorHandleDispatchLayout {
 
     pub(super) fn completion_tags(&self) -> &BTreeMap<LateLoweredHandlePendingCompletion, u32> {
         &self.completion_tags
+    }
+
+    pub(super) fn handled_arms(&self) -> &[RefactorHandleArmLayout] {
+        &self.handled_arms
+    }
+
+    pub(super) fn handled_arm(&self, handled_case: CaseTag) -> Option<&RefactorHandleArmLayout> {
+        self.handled_arms
+            .iter()
+            .find(|arm| arm.handled_case() == handled_case)
     }
 }
 

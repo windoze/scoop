@@ -15,10 +15,12 @@ use super::ir::{
     LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
     LateLoweredContinuationContract, LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
-    LateLoweredDynamicInvokeEntry, LateLoweredHandleArmDispatch, LateLoweredHandleBoundaryLowering,
+    LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredHandleArmDispatch,
+    LateLoweredHandleBoundaryLowering, LateLoweredHandleContinuationBinder,
     LateLoweredHandleDispatchCarrierContract, LateLoweredHandleDispatchContract,
-    LateLoweredHandlePendingCompletion, LateLoweredLocalRuntimeErrorTerminalAction,
-    LateLoweredOneShotPolicy, LateLoweredPerformBoundaryLowering, LateLoweredPublishedRuntimeEntry,
+    LateLoweredHandlePayloadBinder, LateLoweredHandlePendingCompletion,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy,
+    LateLoweredPerformBoundaryLowering, LateLoweredPublishedRuntimeEntry,
     LateLoweredResumeBoundaryLowering, LateLoweredResumeInterface, LateLoweredResumeMethod,
     LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState, LateLoweredStateGraph,
     LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepCase,
@@ -41,6 +43,7 @@ pub(crate) struct BoundaryMaterializationInputs<'a> {
     pub(crate) body_facts: &'a BodyEffectFacts,
     pub(crate) step_type: &'a LateLoweredStepType,
     pub(crate) state_graph: &'a LateLoweredStateGraph,
+    pub(crate) frame_schema: &'a LateLoweredFrameSchema,
     pub(crate) boundary_map: &'a LateLoweredBoundaryMap,
     pub(crate) continuation_object: ContinuationObjectId,
     pub(crate) step_types: &'a [LateLoweredStepType],
@@ -225,6 +228,7 @@ pub(crate) fn materialize_boundary_map(
         body_facts,
         step_type,
         state_graph,
+        frame_schema,
         boundary_map,
         continuation_object,
         step_types,
@@ -410,8 +414,15 @@ pub(crate) fn materialize_boundary_map(
     let boundary_map = LateLoweredBoundaryMap::new(entries);
     let state_graph =
         attach_local_runtime_error_states(root_fqn, state_graph, &local_runtime_error_targets)?;
-    let state_graph =
-        attach_handle_dispatch_contracts(root_fqn, body_facts, &state_graph, &boundary_map)?;
+    let state_graph = attach_handle_dispatch_contracts(
+        root_fqn,
+        body,
+        body_facts,
+        &state_graph,
+        frame_schema,
+        &boundary_map,
+        continuation_object,
+    )?;
 
     Ok(BoundaryMaterialization {
         state_graph,
@@ -509,9 +520,12 @@ fn attach_local_runtime_error_states(
 
 fn attach_handle_dispatch_contracts(
     root_fqn: &str,
+    body: &Body,
     body_facts: &BodyEffectFacts,
     state_graph: &LateLoweredStateGraph,
+    frame_schema: &LateLoweredFrameSchema,
     boundary_map: &LateLoweredBoundaryMap,
+    continuation_object: ContinuationObjectId,
 ) -> Result<LateLoweredStateGraph, EffectLoweringError> {
     let rewritten_states = state_graph
         .states()
@@ -531,14 +545,17 @@ fn attach_handle_dispatch_contracts(
                     let facts = clone_handle_site_facts(root_fqn, body_facts, site_id)?;
                     let contract = build_handle_dispatch_contract(
                         root_fqn,
+                        body,
                         site_id,
                         &facts,
                         &arm_states,
                         finally_state,
                         exit_state,
+                        frame_schema,
                         &boundary_ids,
                         drop_state,
                         boundary_map,
+                        continuation_object,
                     )?;
                     LateLoweredStateTerminator::HandleDispatch {
                         site_id,
@@ -574,14 +591,17 @@ fn attach_handle_dispatch_contracts(
 #[allow(clippy::too_many_arguments)]
 fn build_handle_dispatch_contract(
     root_fqn: &str,
+    body: &Body,
     site_id: SiteId,
     facts: &HandleSiteEffectFacts,
     arm_states: &[StateId],
     finally_state: Option<StateId>,
     exit_state: StateId,
+    frame_schema: &LateLoweredFrameSchema,
     boundary_ids: &[BoundaryId],
     drop_state: Option<StateId>,
     boundary_map: &LateLoweredBoundaryMap,
+    continuation_object: ContinuationObjectId,
 ) -> Result<LateLoweredHandleDispatchContract, EffectLoweringError> {
     if arm_states.len() != facts.arm_facts().len() {
         return Err(invalid_handle_dispatch_contract(
@@ -598,18 +618,93 @@ fn build_handle_dispatch_contract(
     let body_complete_target = finally_state.unwrap_or(exit_state);
     let arm_complete_target = finally_state.unwrap_or(exit_state);
     let finally_complete_target = finally_state.map(|_| exit_state);
+    let handle_arms = lookup_handle_arms(root_fqn, body, site_id)?;
+    if handle_arms.len() != facts.arm_facts().len() {
+        return Err(invalid_handle_dispatch_contract(
+            root_fqn,
+            site_id,
+            format!(
+                "canonical MIR handle arm 数量({}) 与 HandleSiteEffectFacts.arm_facts 数量({}) 不一致",
+                handle_arms.len(),
+                facts.arm_facts().len(),
+            ),
+        ));
+    }
     let handled_arms = facts
         .arm_facts()
         .iter()
         .zip(arm_states.iter().copied())
-        .map(|(arm_facts, arm_state)| {
-            LateLoweredHandleArmDispatch::new(
+        .zip(handle_arms.iter().enumerate())
+        .map(|((arm_facts, arm_state), (arm_ordinal, arm))| {
+            let published_payload_tuple_ty = arm.payload_tuple_ty.ok_or_else(|| {
+                invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "canonical MIR handle arm #{arm_ordinal} 缺少 payload tuple type，无法发布 authoritative binder contract",
+                    ),
+                )
+            })?;
+            if published_payload_tuple_ty != arm_facts.payload_tuple_ty() {
+                return Err(invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "canonical MIR handle arm #{arm_ordinal} 的 payload tuple ty t{} 与 HandleSiteEffectFacts 发布的 t{} 不一致",
+                        published_payload_tuple_ty.as_u32(),
+                        arm_facts.payload_tuple_ty().as_u32(),
+                    ),
+                ));
+            }
+            if arm.binder_count != arm.binder_locals.len() {
+                return Err(invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "canonical MIR handle arm #{arm_ordinal} 的 binder_count={} 与 binder_locals.len()={} 不一致",
+                        arm.binder_count,
+                        arm.binder_locals.len(),
+                    ),
+                ));
+            }
+            let payload_binders = arm
+                .binder_locals
+                .iter()
+                .copied()
+                .enumerate()
+                .map(|(ordinal, local)| {
+                    LateLoweredHandlePayloadBinder::new(
+                        ordinal as u32,
+                        local,
+                        frame_schema
+                            .slot_for_kind(crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleBinder {
+                                site_id,
+                                local,
+                                ordinal: ordinal as u32,
+                            })
+                            .map(|slot| slot.slot_id()),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let continuation_binder = arm.continuation_local.map(|local| {
+                LateLoweredHandleContinuationBinder::new(
+                    local,
+                    find_frame_slot_for_local(frame_schema, local),
+                    arm_facts.continuation_schema(),
+                    continuation_object,
+                )
+            });
+            Ok(LateLoweredHandleArmDispatch::new(
                 arm_facts.handled_case(),
                 arm_state,
+                arm_ordinal as u32,
+                arm_facts.payload_tuple_ty(),
+                payload_binders,
+                continuation_binder,
                 arm_facts.arm_outward_cases().tags().to_vec(),
-            )
+            ))
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
     let body_outward_cases = facts.body_outward_cases().tags().to_vec();
     let finally_outward_cases = facts.finally_outward_cases().tags().to_vec();
     let expected_outward_case_tags = collect_handle_outward_case_tags(facts);
@@ -674,6 +769,68 @@ fn build_handle_dispatch_contract(
         pending_completions,
         drop_state,
     ))
+}
+
+fn lookup_handle_arms<'a>(
+    root_fqn: &str,
+    body: &'a Body,
+    site_id: SiteId,
+) -> Result<&'a [crate::mir::HandlerArm], EffectLoweringError> {
+    let mut found = None;
+    for block in &body.blocks {
+        let crate::mir::TerminatorKind::Handle {
+            site_id: handle_site,
+            arms,
+            ..
+        } = &block.terminator.kind
+        else {
+            continue;
+        };
+        if *handle_site != site_id {
+            continue;
+        }
+        if found.replace(arms.as_slice()).is_some() {
+            return Err(invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                "canonical MIR 中同一 handle site 重复发布多个 Handle terminator".to_string(),
+            ));
+        }
+    }
+    found.ok_or_else(|| {
+        invalid_handle_dispatch_contract(
+            root_fqn,
+            site_id,
+            "缺少对应的 canonical MIR Handle terminator，无法发布 arm binder contract".to_string(),
+        )
+    })
+}
+
+fn find_frame_slot_for_local(
+    frame_schema: &LateLoweredFrameSchema,
+    local: LocalId,
+) -> Option<crate::effect_lowered::ir::FrameSlotId> {
+    frame_schema.slots().iter().find_map(|slot| {
+        let slot_local = match slot.kind() {
+            crate::effect_lowered::ir::LateLoweredFrameSlotKind::SourceLocal(slot_local)
+            | crate::effect_lowered::ir::LateLoweredFrameSlotKind::CompilerTemporary(slot_local)
+            | crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleBinder {
+                local: slot_local,
+                ..
+            }
+            | crate::effect_lowered::ir::LateLoweredFrameSlotKind::BoundaryResult {
+                local: slot_local,
+                ..
+            }
+            | crate::effect_lowered::ir::LateLoweredFrameSlotKind::JoinValue {
+                local: slot_local,
+                ..
+            } => Some(slot_local),
+            crate::effect_lowered::ir::LateLoweredFrameSlotKind::ResumePayload { .. }
+            | crate::effect_lowered::ir::LateLoweredFrameSlotKind::System(_) => None,
+        };
+        (slot_local == Some(local)).then_some(slot.slot_id())
+    })
 }
 
 fn find_handle_boundary_lowering<'a>(
@@ -1333,7 +1490,9 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::PathBuf;
 
-    use crate::effect_facts::{CallTargetMode, ImplPlan, NestedHandleClassification};
+    use crate::effect_facts::{
+        CallTargetMode, ImplPlan, NestedHandleClassification, SiteEffectFacts,
+    };
     use crate::effect_lowered::LateLoweredProgramBuilder;
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredContinuationMethodReachability,
@@ -1433,6 +1592,22 @@ mod tests {
                 )
             })
             .expect("应找到指定 site 的 HandleDispatch state")
+    }
+
+    fn handle_site_facts<'a>(
+        output: &'a RawMaterializedOutput,
+        callable: &crate::effect_lowered::LateLoweredCallable,
+        site_id: SiteId,
+    ) -> &'a crate::effect_facts::HandleSiteEffectFacts {
+        let body_facts = output
+            .effect_facts_stage_output
+            .effect_facts()
+            .body(callable.instance_key())
+            .expect("callable 应发布 body effect facts");
+        match body_facts.site(site_id) {
+            Some(SiteEffectFacts::Handle(facts)) => facts,
+            other => panic!("应找到指定 site 的 Handle facts，而不是 {other:?}"),
+        }
     }
 
     #[test]
@@ -1876,6 +2051,143 @@ mod tests {
     }
 
     #[test]
+    fn refactor_handle_arm_binding_contract_publishes_payload_and_escape_continuation_binding() {
+        let output = load_output(&SourceFile::new_virtual(
+            "<mem>/late_lowered_handle_arm_binding_single.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+fun run(): Int {
+    return handle {
+        Edge.visit("alpha", 1)
+    } with {
+        Edge.visit(from, to), k -> {
+            k.resume(to + 1)
+        }
+    }
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+        ));
+        let callable = callable(&output, "sample.run");
+        let (site_id, contract) = callable
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| match state.terminator() {
+                LateLoweredStateTerminator::HandleDispatch {
+                    site_id, contract, ..
+                } => Some((*site_id, contract)),
+                _ => None,
+            })
+            .expect("run 应发布 HandleDispatch contract");
+        let arm = contract
+            .handled_arms()
+            .first()
+            .expect("单 arm fixture 应发布唯一 handled arm");
+        let facts = handle_site_facts(&output, callable, site_id);
+        let expected = &facts.arm_facts()[0];
+
+        assert_eq!(arm.arm_ordinal(), 0);
+        assert_eq!(arm.payload_tuple_ty(), expected.payload_tuple_ty());
+        assert_eq!(arm.payload_binders().len(), 2);
+        assert_eq!(arm.payload_binders()[0].ordinal(), 0);
+        assert_eq!(arm.payload_binders()[1].ordinal(), 1);
+        assert_ne!(
+            arm.payload_binders()[0].local(),
+            arm.payload_binders()[1].local(),
+            "不同 payload binder 必须稳定绑定到不同 local"
+        );
+        let continuation_binder = arm
+            .continuation_binder()
+            .expect("escape continuation arm 必须发布 continuation binder contract");
+        assert_eq!(
+            continuation_binder.continuation_schema(),
+            expected.continuation_schema()
+        );
+        assert_eq!(
+            continuation_binder.continuation_object(),
+            callable.continuation_object()
+        );
+    }
+
+    #[test]
+    fn refactor_handle_arm_binding_contract_publishes_mixed_multi_arm_bindings_without_ambiguity() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+        let callable = callable(&output, "main");
+        let (site_id, contract) = callable
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| match state.terminator() {
+                LateLoweredStateTerminator::HandleDispatch {
+                    site_id, contract, ..
+                } => Some((*site_id, contract)),
+                _ => None,
+            })
+            .expect("main 应发布 HandleDispatch contract");
+        let facts = handle_site_facts(&output, callable, site_id);
+
+        assert_eq!(contract.handled_arms().len(), 2);
+        let mut arm_ordinals = contract
+            .handled_arms()
+            .iter()
+            .map(|arm| arm.arm_ordinal())
+            .collect::<Vec<_>>();
+        arm_ordinals.sort();
+        assert_eq!(arm_ordinals, vec![0, 1]);
+
+        let escape_arm = contract
+            .handled_arms()
+            .iter()
+            .find(|arm| arm.continuation_binder().is_some())
+            .expect("mixed fixture 应发布带 continuation binder 的 arm");
+        let payload_only_arm = contract
+            .handled_arms()
+            .iter()
+            .find(|arm| arm.continuation_binder().is_none())
+            .expect("mixed fixture 应发布纯 payload arm");
+        assert_eq!(escape_arm.payload_binders().len(), 1);
+        assert_eq!(payload_only_arm.payload_binders().len(), 1);
+
+        let expected_by_case = facts
+            .arm_facts()
+            .iter()
+            .map(|arm| (arm.handled_case(), arm.continuation_schema()))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        assert_eq!(
+            escape_arm
+                .continuation_binder()
+                .expect("escape arm 应带 continuation binder")
+                .continuation_schema(),
+            *expected_by_case
+                .get(&escape_arm.handled_case())
+                .expect("handled case 应能回查 arm facts continuation schema")
+        );
+        assert_eq!(
+            payload_only_arm.payload_tuple_ty(),
+            facts
+                .arm_facts()
+                .iter()
+                .find(|arm| arm.handled_case() == payload_only_arm.handled_case())
+                .expect("payload-only arm handled case 应能回查 facts")
+                .payload_tuple_ty()
+        );
+    }
+
+    #[test]
     fn refactor_completion_state_contract_tracks_body_outward_cases_across_finally() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_handle_body_outward_finally.scoop",
@@ -1965,6 +2277,19 @@ fun propagate_before_finally(): Int {
         assert!(dump.contains("pending_completions:"));
         assert!(dump.contains("PropagateOutward("));
         assert!(dump.contains("outward_emissions:"));
+    }
+
+    #[test]
+    fn refactor_handle_arm_binding_contract_dump_exposes_payload_and_continuation_binders() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+        let dump = output.program().stable_dump();
+
+        assert!(dump.contains("payload_binders:"));
+        assert!(dump.contains("continuation_binder:"));
+        assert!(dump.contains("continuation_schema="));
     }
 
     #[test]

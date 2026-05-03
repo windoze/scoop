@@ -16,7 +16,10 @@ use crate::effect_lowered::ir::{
     SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
-use crate::mir::{CallKind as MirCallKind, Rvalue as MirRvalue, StatementKind as MirStatementKind};
+use crate::mir::{
+    CallKind as MirCallKind, HandlerArm as MirHandlerArm, Rvalue as MirRvalue, SiteId,
+    StatementKind as MirStatementKind, TerminatorKind as MirTerminatorKind,
+};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::types::IntTy;
@@ -27,11 +30,13 @@ use super::types::{
     RefactorContinuationObjectLayout, RefactorContinuationSurfaceResumeBinding,
     RefactorContinuationSurfaceResumeLayout, RefactorDispatchReceiverLayout,
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameFieldKind,
-    RefactorFrameFieldLayout, RefactorFrameLayout, RefactorHandleDispatchLayout,
-    RefactorLocalRuntimeErrorContract, RefactorLocalRuntimeErrorTerminalAction,
-    RefactorPublishedRuntimeEntryLayout, RefactorResumeInterfaceLayout, RefactorResumeMethodLayout,
-    RefactorSourceAbiFieldLayout, RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind,
-    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
+    RefactorFrameFieldLayout, RefactorFrameLayout, RefactorHandleArmLayout,
+    RefactorHandleContinuationBinderLayout, RefactorHandleDispatchLayout,
+    RefactorHandlePayloadBinderLayout, RefactorLocalRuntimeErrorContract,
+    RefactorLocalRuntimeErrorTerminalAction, RefactorPublishedRuntimeEntryLayout,
+    RefactorResumeInterfaceLayout, RefactorResumeMethodLayout, RefactorSourceAbiFieldLayout,
+    RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout,
+    RefactorStepLayout, RefactorStepVariantLayout,
 };
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -218,7 +223,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
         let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
-        let handle_dispatch_layouts = this.materialize_handle_dispatch_layouts(&frame_layouts)?;
+        let handle_dispatch_layouts =
+            this.materialize_handle_dispatch_layouts(&frame_layouts, &continuation_layouts)?;
 
         Ok(RefactorAbiQuery::new(
             this.source_value_layouts,
@@ -1670,12 +1676,30 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     fn materialize_handle_dispatch_layouts(
         &mut self,
         frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        continuation_layouts: &BTreeMap<
+            crate::effect_lowered::ir::ContinuationObjectId,
+            RefactorContinuationObjectLayout<'ctx>,
+        >,
     ) -> Result<
         BTreeMap<(StepSchemaId, crate::mir::SiteId), RefactorHandleDispatchLayout>,
         LlvmEmitError,
     > {
         let mut layouts = BTreeMap::new();
         for callable in self.program.callables() {
+            let handle_states = callable
+                .state_graph()
+                .states()
+                .iter()
+                .filter(|state| {
+                    matches!(
+                        state.terminator(),
+                        LateLoweredStateTerminator::HandleDispatch { .. }
+                    )
+                })
+                .collect::<Vec<_>>();
+            if handle_states.is_empty() {
+                continue;
+            }
             let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
                 frontend_error(format!(
                     "refactor LLVM ABI materialization 缺少 callable `{}` 的 frame layout，无法发布 HandleDispatch contract",
@@ -1707,7 +1731,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     ))
                 })?;
 
-            for state in callable.state_graph().states() {
+            for state in handle_states {
                 let LateLoweredStateTerminator::HandleDispatch {
                     site_id,
                     arm_states,
@@ -1767,18 +1791,46 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         arm_states.len(),
                     )));
                 }
-                for (expected_state, arm) in arm_states.iter().zip(contract.handled_arms()) {
+                let mut published_arm_ordinals = BTreeSet::new();
+                for arm in contract.handled_arms() {
+                    let arm_ordinal = arm.arm_ordinal() as usize;
+                    let Some(expected_state) = arm_states.get(arm_ordinal) else {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 引用了越界 arm ordinal {}（state_graph arm 数量={})",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.handled_case().as_u32(),
+                            arm.arm_ordinal(),
+                            arm_states.len(),
+                        )));
+                    };
+                    if !published_arm_ordinals.insert(arm.arm_ordinal()) {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 arm ordinal {}",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.arm_ordinal(),
+                        )));
+                    }
                     if arm.arm_state() != *expected_state {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} arm state 漂移：contract=st{}，state_graph=st{}",
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} arm state 漂移：contract=st{}，state_graph=st{}（ordinal={})",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
                             arm.arm_state().as_u32(),
                             expected_state.as_u32(),
+                            arm.arm_ordinal(),
                         )));
                     }
                 }
+                let published_handled_arms = self.materialize_published_handle_arm_layouts(
+                    callable,
+                    *site_id,
+                    contract,
+                    frame_layout,
+                    continuation_layouts,
+                )?;
 
                 let expected_outward_cases = collect_handle_contract_total_outward_cases(contract);
                 let published_outward_cases = contract
@@ -1887,10 +1939,219 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         completion_tag_field_index,
                         payload_carrier_field_index,
                         completion_tags,
+                        published_handled_arms,
                     ),
                 );
             }
         }
+        Ok(layouts)
+    }
+
+    fn materialize_published_handle_arm_layouts(
+        &self,
+        callable: &LateLoweredCallable,
+        site_id: SiteId,
+        contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+        frame_layout: &RefactorFrameLayout<'ctx>,
+        continuation_layouts: &BTreeMap<
+            crate::effect_lowered::ir::ContinuationObjectId,
+            RefactorContinuationObjectLayout<'ctx>,
+        >,
+    ) -> Result<Vec<RefactorHandleArmLayout>, LlvmEmitError> {
+        let materialized_arms =
+            self.lookup_materialized_handle_arms(callable.root_fqn(), site_id)?;
+        if materialized_arms.len() != contract.handled_arms().len() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 canonical MIR arm 数量({}) 与 published HandleDispatch arm 数量({}) 不一致",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                materialized_arms.len(),
+                contract.handled_arms().len(),
+            )));
+        }
+
+        let mut layouts = Vec::with_capacity(contract.handled_arms().len());
+        for arm in contract.handled_arms() {
+            let materialized_arm = materialized_arms
+                .get(arm.arm_ordinal() as usize)
+                .ok_or_else(|| frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 引用了不存在的 canonical MIR arm ordinal {}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    arm.handled_case().as_u32(),
+                    arm.arm_ordinal(),
+                )))?;
+            if materialized_arm.payload_tuple_ty != Some(arm.payload_tuple_ty()) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload tuple ty 漂移：contract=t{}，canonical_mir={:?}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    arm.handled_case().as_u32(),
+                    arm.payload_tuple_ty().as_u32(),
+                    materialized_arm.payload_tuple_ty,
+                )));
+            }
+            if materialized_arm.binder_count != arm.payload_binders().len() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder 数量漂移：contract={}，canonical_mir={}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    arm.handled_case().as_u32(),
+                    arm.payload_binders().len(),
+                    materialized_arm.binder_count,
+                )));
+            }
+
+            let mut payload_binders = Vec::with_capacity(arm.payload_binders().len());
+            for (expected_ordinal, binder) in arm.payload_binders().iter().enumerate() {
+                if binder.ordinal() != expected_ordinal as u32 {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder ordinal 漂移：contract=#{}，expected=#{}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        arm.handled_case().as_u32(),
+                        binder.ordinal(),
+                        expected_ordinal,
+                    )));
+                }
+                let expected_local = materialized_arm
+                    .binder_locals
+                    .get(expected_ordinal)
+                    .copied()
+                    .ok_or_else(|| frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 缺少 canonical MIR payload binder #{}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        arm.handled_case().as_u32(),
+                        expected_ordinal,
+                    )))?;
+                if binder.local() != expected_local {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder #{} local 漂移：contract=local{}，canonical_mir=local{}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        arm.handled_case().as_u32(),
+                        expected_ordinal,
+                        binder.local().as_u32(),
+                        expected_local.as_u32(),
+                    )));
+                }
+                let frame_field_index = match binder.frame_slot() {
+                    Some(frame_slot) => Some(frame_layout.field_index_for_slot(frame_slot).ok_or_else(
+                        || frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder #{} 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.handled_case().as_u32(),
+                            expected_ordinal,
+                            frame_slot.as_u32(),
+                        )),
+                    )?),
+                    None => None,
+                };
+                payload_binders.push(RefactorHandlePayloadBinderLayout::new(
+                    binder.ordinal(),
+                    binder.local(),
+                    binder.frame_slot(),
+                    frame_field_index,
+                ));
+            }
+
+            let continuation_binder = match (
+                materialized_arm.continuation_local,
+                arm.continuation_binder(),
+            ) {
+                (Some(expected_local), Some(binder)) => {
+                    if binder.local() != expected_local {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder local 漂移：contract=local{}，canonical_mir=local{}",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.handled_case().as_u32(),
+                            binder.local().as_u32(),
+                            expected_local.as_u32(),
+                        )));
+                    }
+                    if binder.continuation_object() != callable.continuation_object() {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation object 漂移：contract=ko{}，owner=ko{}",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.handled_case().as_u32(),
+                            binder.continuation_object().as_u32(),
+                            callable.continuation_object().as_u32(),
+                        )));
+                    }
+                    let continuation_layout = continuation_layouts.get(&binder.continuation_object()).ok_or_else(
+                        || frontend_error(format!(
+                            "refactor LLVM ABI materialization 缺少 callable `{}` handle site {} 的 handled case c{} continuation object ko{} layout",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.handled_case().as_u32(),
+                            binder.continuation_object().as_u32(),
+                        )),
+                    )?;
+                    let surface_binding = continuation_layout
+                        .surface_resume_bindings(binder.continuation_schema())
+                        .and_then(|bindings| bindings.first().copied())
+                        .ok_or_else(|| frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder 缺少 continuation schema k{} 的 published surface-resume binding",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.handled_case().as_u32(),
+                            binder.continuation_schema().as_u32(),
+                        )))?;
+                    let frame_field_index = match binder.frame_slot() {
+                        Some(frame_slot) => Some(frame_layout.field_index_for_slot(frame_slot).ok_or_else(
+                            || frontend_error(format!(
+                                "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
+                                callable.root_fqn(),
+                                site_id.as_u32(),
+                                arm.handled_case().as_u32(),
+                                frame_slot.as_u32(),
+                            )),
+                        )?),
+                        None => None,
+                    };
+                    Some(RefactorHandleContinuationBinderLayout::new(
+                        binder.local(),
+                        binder.frame_slot(),
+                        frame_field_index,
+                        binder.continuation_schema(),
+                        binder.continuation_object(),
+                        surface_binding,
+                    ))
+                }
+                (Some(_), None) => {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 缺少 published continuation binder contract",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        arm.handled_case().as_u32(),
+                    )));
+                }
+                (None, Some(_)) => {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 不存在 canonical MIR continuation binder，却发布了 continuation binder contract",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        arm.handled_case().as_u32(),
+                    )));
+                }
+                (None, None) => None,
+            };
+
+            layouts.push(RefactorHandleArmLayout::new(
+                arm.handled_case(),
+                arm.arm_state(),
+                arm.arm_ordinal(),
+                arm.payload_tuple_ty(),
+                payload_binders,
+                continuation_binder,
+                arm.arm_outward_cases().to_vec(),
+            ));
+        }
+
         Ok(layouts)
     }
 
@@ -2024,6 +2285,40 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 canonical MIR call metadata，无法发布 dynamic-invoke contract",
             site_id.as_u32(),
         )))
+    }
+
+    fn lookup_materialized_handle_arms(
+        &self,
+        owner_root_fqn: &str,
+        site_id: crate::mir::SiteId,
+    ) -> Result<&[MirHandlerArm], LlvmEmitError> {
+        let body = self.lookup_materialized_callable_body(owner_root_fqn)?;
+        let mut found = None;
+        for block in &body.blocks {
+            let MirTerminatorKind::Handle {
+                site_id: terminator_site,
+                arms,
+                ..
+            } = &block.terminator.kind
+            else {
+                continue;
+            };
+            if *terminator_site != site_id {
+                continue;
+            }
+            if found.replace(arms.as_slice()).is_some() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 在 canonical MIR 中重复出现多个 Handle terminator",
+                    site_id.as_u32(),
+                )));
+            }
+        }
+        found.ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` handle site {} 的 canonical MIR arm metadata，无法校验 HandleDispatch arm binder contract",
+                site_id.as_u32(),
+            ))
+        })
     }
 
     fn validate_published_resume_interface_ids(
@@ -3084,6 +3379,42 @@ mod tests {
                 _ => None,
             })
             .expect("应找到指定 site 的 HandleDispatch contract")
+    }
+
+    fn first_handle_dispatch(
+        callable: &LateLoweredCallable,
+    ) -> (SiteId, &LateLoweredHandleDispatchContract) {
+        callable
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| match state.terminator() {
+                crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                    site_id,
+                    contract,
+                    ..
+                } => Some((*site_id, contract)),
+                _ => None,
+            })
+            .expect("应找到至少一个 HandleDispatch contract")
+    }
+
+    fn clone_handle_dispatch_contract_with_handled_arms(
+        contract: &LateLoweredHandleDispatchContract,
+        handled_arms: Vec<crate::effect_lowered::ir::LateLoweredHandleArmDispatch>,
+    ) -> LateLoweredHandleDispatchContract {
+        LateLoweredHandleDispatchContract::new(
+            contract.carrier(),
+            contract.body_complete_target(),
+            contract.arm_complete_target(),
+            contract.finally_complete_target(),
+            handled_arms,
+            contract.body_outward_cases().to_vec(),
+            contract.finally_outward_cases().to_vec(),
+            contract.outward_emissions().to_vec(),
+            contract.pending_completions().to_vec(),
+            contract.abandon_target(),
+        )
     }
 
     fn clone_callable_with_dynamic_invoke_entry(
@@ -4524,6 +4855,124 @@ mod tests {
     }
 
     #[test]
+    fn refactor_handle_arm_binding_contract_publishes_llvm_query_layout() {
+        with_inputs_query_result(
+            build_fixture_inputs_from_source(SourceFile::new_virtual(
+                "<mem>/llvm_handle_arm_binding_single.scoop",
+                r#"
+package sample
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+fun run(): Int {
+    return handle {
+        Edge.visit("alpha", 1)
+    } with {
+        Edge.visit(from, to), k -> {
+            k.resume(to + 1)
+        }
+    }
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+            )),
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("handle arm binder contract 应可发布到 LLVM ABI query");
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("sample.run")
+                    .expect("sample.run callable 应存在");
+                let (site_id, contract) = first_handle_dispatch(callable);
+                let published = query
+                    .handle_dispatch_layout(callable.step_schema(), site_id, contract)
+                    .expect("query 应能稳定回查 HandleDispatch arm binder contract");
+                let arm = published
+                    .handled_arms()
+                    .first()
+                    .expect("单 arm fixture 应发布唯一 handled arm layout");
+
+                assert_eq!(arm.arm_ordinal(), 0);
+                assert_eq!(arm.payload_binders().len(), 2);
+                assert_eq!(arm.payload_binders()[0].ordinal(), 0);
+                assert_eq!(arm.payload_binders()[1].ordinal(), 1);
+                let continuation_binder = arm
+                    .continuation_binder()
+                    .expect("escape continuation arm 应发布 continuation binder layout");
+                assert_eq!(
+                    continuation_binder.continuation_object(),
+                    callable.continuation_object()
+                );
+                assert_eq!(
+                    continuation_binder
+                        .surface_resume_binding()
+                        .continuation_schema(),
+                    continuation_binder.continuation_schema()
+                );
+                assert_eq!(
+                    continuation_binder
+                        .surface_resume_binding()
+                        .return_step_schema(),
+                    callable.step_schema()
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_handle_arm_continuation_binding_publishes_mixed_multi_arm_query_layout() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("mixed multi-arm handle 应可发布 arm binder query");
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("main")
+                    .expect("main callable 应存在");
+                let (site_id, contract) = first_handle_dispatch(callable);
+                let published = query
+                    .handle_dispatch_layout(callable.step_schema(), site_id, contract)
+                    .expect("query 应能稳定回查 mixed handle arm binder contract");
+
+                assert_eq!(published.handled_arms().len(), 2);
+                let escape_arm = published
+                    .handled_arms()
+                    .iter()
+                    .find(|arm| arm.continuation_binder().is_some())
+                    .expect("mixed fixture 应发布带 continuation binder 的 arm layout");
+                let payload_only_arm = published
+                    .handled_arms()
+                    .iter()
+                    .find(|arm| arm.continuation_binder().is_none())
+                    .expect("mixed fixture 应发布纯 payload arm layout");
+
+                assert_eq!(escape_arm.payload_binders().len(), 1);
+                assert_eq!(payload_only_arm.payload_binders().len(), 1);
+                let continuation_binder = escape_arm
+                    .continuation_binder()
+                    .expect("escape arm 应带 continuation binder layout");
+                assert_eq!(
+                    continuation_binder
+                        .surface_resume_binding()
+                        .continuation_schema(),
+                    continuation_binder.continuation_schema()
+                );
+            },
+        );
+    }
+
+    #[test]
     fn refactor_completion_state_contract_rejects_missing_completion_tag_slot() {
         with_phase_fixture_query_result(
             "effect_facts",
@@ -4576,6 +5025,96 @@ mod tests {
                 assert!(
                     message.contains("sample.nested_may_suspend_outward"),
                     "错误消息应指出出错 callable: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_handle_arm_binding_contract_rejects_payload_binder_order_drift() {
+        with_inputs_query_result(
+            build_fixture_inputs_from_source(SourceFile::new_virtual(
+                "<mem>/llvm_handle_arm_binding_order_drift.scoop",
+                r#"
+package sample
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+fun run(): Int {
+    return handle {
+        Edge.visit("alpha", 1)
+    } with {
+        Edge.visit(from, to), k -> {
+            k.resume(to + 1)
+        }
+    }
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+            )),
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callable = program
+                    .callable("sample.run")
+                    .expect("sample.run callable 应存在");
+                let (site_id, contract) = first_handle_dispatch(callable);
+                let original_arm = contract
+                    .handled_arms()
+                    .first()
+                    .expect("fixture 应发布唯一 handled arm");
+                let mut swapped_binders = original_arm.payload_binders().to_vec();
+                swapped_binders.swap(0, 1);
+                let broken_arm = crate::effect_lowered::ir::LateLoweredHandleArmDispatch::new(
+                    original_arm.handled_case(),
+                    original_arm.arm_state(),
+                    original_arm.arm_ordinal(),
+                    original_arm.payload_tuple_ty(),
+                    swapped_binders,
+                    original_arm.continuation_binder(),
+                    original_arm.arm_outward_cases().to_vec(),
+                );
+                let broken_contract =
+                    clone_handle_dispatch_contract_with_handled_arms(contract, vec![broken_arm]);
+                let state_graph = clone_state_graph_with_handle_contract(
+                    callable.state_graph(),
+                    site_id,
+                    broken_contract,
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == callable.step_schema() {
+                            clone_callable_with_state_graph(candidate, state_graph.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("payload binder 次序漂移时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("payload binder ordinal 漂移")
+                        || message.contains("payload binder #0 local 漂移"),
+                    "错误消息应指出 payload binder 顺序漂移: {message}"
                 );
             },
         );
@@ -4641,6 +5180,69 @@ mod tests {
                 assert!(
                     message.contains("handle site 1") || message.contains("site 1"),
                     "错误消息应指出出错 site: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_handle_arm_continuation_binding_rejects_missing_published_continuation_binder() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callable = program.callable("main").expect("main callable 应存在");
+                let (site_id, contract) = first_handle_dispatch(callable);
+                let broken_arms = contract
+                    .handled_arms()
+                    .iter()
+                    .map(|arm| {
+                        crate::effect_lowered::ir::LateLoweredHandleArmDispatch::new(
+                            arm.handled_case(),
+                            arm.arm_state(),
+                            arm.arm_ordinal(),
+                            arm.payload_tuple_ty(),
+                            arm.payload_binders().to_vec(),
+                            None,
+                            arm.arm_outward_cases().to_vec(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let broken_contract =
+                    clone_handle_dispatch_contract_with_handled_arms(contract, broken_arms);
+                let state_graph = clone_state_graph_with_handle_contract(
+                    callable.state_graph(),
+                    site_id,
+                    broken_contract,
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == callable.step_schema() {
+                            clone_callable_with_state_graph(candidate, state_graph.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 published continuation binder 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("缺少 published continuation binder contract"),
+                    "错误消息应指出缺失的是 continuation binder contract: {message}"
                 );
             },
         );

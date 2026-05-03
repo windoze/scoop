@@ -146,6 +146,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                         body_facts,
                         step_type,
                         state_graph: &state_graph,
+                        frame_schema: &frame_schema,
                         boundary_map: &boundary_map,
                         continuation_object: continuation_object_id,
                         step_types: &step_types,

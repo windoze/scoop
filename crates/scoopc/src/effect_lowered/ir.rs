@@ -973,10 +973,84 @@ impl LateLoweredHandleDispatchCarrierContract {
 }
 
 /// 单个 handled case 的 authoritative arm dispatch 映射。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredHandlePayloadBinder {
+    ordinal: u32,
+    local: LocalId,
+    frame_slot: Option<FrameSlotId>,
+}
+
+impl LateLoweredHandlePayloadBinder {
+    pub(crate) fn new(ordinal: u32, local: LocalId, frame_slot: Option<FrameSlotId>) -> Self {
+        Self {
+            ordinal,
+            local,
+            frame_slot,
+        }
+    }
+
+    pub fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+
+    pub fn local(&self) -> LocalId {
+        self.local
+    }
+
+    pub fn frame_slot(&self) -> Option<FrameSlotId> {
+        self.frame_slot
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredHandleContinuationBinder {
+    local: LocalId,
+    frame_slot: Option<FrameSlotId>,
+    continuation_schema: ContinuationSchemaId,
+    continuation_object: ContinuationObjectId,
+}
+
+impl LateLoweredHandleContinuationBinder {
+    pub(crate) fn new(
+        local: LocalId,
+        frame_slot: Option<FrameSlotId>,
+        continuation_schema: ContinuationSchemaId,
+        continuation_object: ContinuationObjectId,
+    ) -> Self {
+        Self {
+            local,
+            frame_slot,
+            continuation_schema,
+            continuation_object,
+        }
+    }
+
+    pub fn local(&self) -> LocalId {
+        self.local
+    }
+
+    pub fn frame_slot(&self) -> Option<FrameSlotId> {
+        self.frame_slot
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub fn continuation_object(&self) -> ContinuationObjectId {
+        self.continuation_object
+    }
+}
+
+/// 单个 handled case 的 authoritative arm dispatch 映射。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredHandleArmDispatch {
     handled_case: CaseTag,
     arm_state: StateId,
+    arm_ordinal: u32,
+    payload_tuple_ty: TypeId,
+    payload_binders: Vec<LateLoweredHandlePayloadBinder>,
+    continuation_binder: Option<LateLoweredHandleContinuationBinder>,
     arm_outward_cases: Vec<CaseTag>,
 }
 
@@ -984,11 +1058,19 @@ impl LateLoweredHandleArmDispatch {
     pub(crate) fn new(
         handled_case: CaseTag,
         arm_state: StateId,
+        arm_ordinal: u32,
+        payload_tuple_ty: TypeId,
+        payload_binders: Vec<LateLoweredHandlePayloadBinder>,
+        continuation_binder: Option<LateLoweredHandleContinuationBinder>,
         arm_outward_cases: Vec<CaseTag>,
     ) -> Self {
         Self {
             handled_case,
             arm_state,
+            arm_ordinal,
+            payload_tuple_ty,
+            payload_binders,
+            continuation_binder,
             arm_outward_cases,
         }
     }
@@ -999,6 +1081,22 @@ impl LateLoweredHandleArmDispatch {
 
     pub fn arm_state(&self) -> StateId {
         self.arm_state
+    }
+
+    pub fn arm_ordinal(&self) -> u32 {
+        self.arm_ordinal
+    }
+
+    pub fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+
+    pub fn payload_binders(&self) -> &[LateLoweredHandlePayloadBinder] {
+        &self.payload_binders
+    }
+
+    pub fn continuation_binder(&self) -> Option<LateLoweredHandleContinuationBinder> {
+        self.continuation_binder
     }
 
     pub fn arm_outward_cases(&self) -> &[CaseTag] {

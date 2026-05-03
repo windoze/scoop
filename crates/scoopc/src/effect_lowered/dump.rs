@@ -426,10 +426,44 @@ fn render_handle_dispatch_contract(
         for arm in contract.handled_arms() {
             writeln!(
                 rendered,
-                "                - handled=c{} -> st{} outward={}",
+                "                - handled=c{} ordinal={} -> st{} payload_tuple_ty={} outward={}",
                 arm.handled_case().as_u32(),
+                arm.arm_ordinal(),
                 arm.arm_state().as_u32(),
+                render_type_id(arm.payload_tuple_ty()),
                 render_cases(arm.arm_outward_cases()),
+            )
+            .unwrap();
+            writeln!(rendered, "                  payload_binders:").unwrap();
+            if arm.payload_binders().is_empty() {
+                writeln!(rendered, "                    <none>").unwrap();
+            } else {
+                for binder in arm.payload_binders() {
+                    writeln!(
+                        rendered,
+                        "                    - #{} local{} slot={}",
+                        binder.ordinal(),
+                        binder.local().as_u32(),
+                        render_optional_frame_slot(binder.frame_slot()),
+                    )
+                    .unwrap();
+                }
+            }
+            let continuation_binder = arm.continuation_binder().map_or_else(
+                || "<none>".to_string(),
+                |binder| {
+                    format!(
+                        "local{} slot={} continuation_schema=k{} continuation_object=ko{}",
+                        binder.local().as_u32(),
+                        render_optional_frame_slot(binder.frame_slot()),
+                        binder.continuation_schema().as_u32(),
+                        binder.continuation_object().as_u32(),
+                    )
+                },
+            );
+            writeln!(
+                rendered,
+                "                  continuation_binder: {continuation_binder}",
             )
             .unwrap();
         }
@@ -970,6 +1004,13 @@ fn render_handle_pending_completion(pending: LateLoweredHandlePendingCompletion)
 
 fn render_published_runtime_entry(entry: LateLoweredPublishedRuntimeEntry) -> &'static str {
     entry.symbol_name()
+}
+
+fn render_optional_frame_slot(slot: Option<super::ir::FrameSlotId>) -> String {
+    slot.map_or_else(
+        || "<none>".to_string(),
+        |slot| format!("fs{}", slot.as_u32()),
+    )
 }
 
 fn render_frame_slot_kind(kind: LateLoweredFrameSlotKind) -> String {

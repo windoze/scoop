@@ -17,6 +17,28 @@
 
 ## 进度日志
 
+- 2026-05-03（本轮）：已重新核对 `TODO.md` 与 `TODO-P6.md`，确认当前首个未完成详细任务为 `P6-T02k`：发布 `HandleDispatch` arm payload binder / escape-continuation binder contract。
+- 2026-05-03（本轮）：已核对最近一次提交为 `[P6-T02k] Track handle-arm binding prerequisite`；它直接对应当前任务的 blocker 记录，因此本轮按该前置任务本身继续执行，而不是额外插入新的前置项。
+- 2026-05-03（本轮）执行计划：
+  1. 阅读 late-lowered IR、frame schema、dump surface、以及 LLVM effect_refactor ABI/query 代码，确认现有 `HandleDispatch`/binder 发布缺口的最小改动面。
+  2. 为 handle arm payload binder 与 escape continuation binder 增加 authoritative handoff 结构与查询接口，并让 dump surface 可见。
+  3. 在 LLVM ABI/query 层接入 fail-fast 校验，确保 `P6-T03` 后续可以只依赖 published contract，而不回 canonical MIR handle arm 恢复绑定形状。
+  4. 补充/更新定向测试与 `dump-effect-lowered` 验证。
+  5. 若任务完成，则把 `P6-T02k` 标记为 `[DONE]`，同步 `TODO.md`，记录完成信息并提交；若发现新的真实前置缺口，则只记录最小前置任务并停止。
+- 2026-05-03（本轮）已完成实现：
+  - `LateLoweredHandleDispatchContract` 现已发布 per-arm payload binder / continuation binder contract，包含 arm ordinal、payload tuple type、payload binder local+optional frame slot，以及 optional continuation binder 的 local+optional frame slot+continuation schema+continuation object。
+  - `dump-effect-lowered` 已公开上述 contract。
+  - `RefactorHandleDispatchLayout` / LLVM ABI query 现已发布对应的 per-arm binder layout，并对 canonical MIR arm metadata、payload binder 次序、continuation binder presence、以及 continuation surface-resume binding 做 fail-fast 校验。
+  - 顺手修复了一个直接阻塞本任务验证的相关问题：HandleDispatch ABI materializer 现在只对实际含 `HandleDispatch` 的 callable 要求 handle system slots，不再错误拒绝纯 helper / 无 handle 的 callable。
+- 2026-05-03（本轮）已完成验证：
+  - `cargo test -p scoopc refactor_handle_arm_binding_contract`
+  - `cargo test -p scoopc refactor_handle_arm_continuation_binding`
+  - `cargo test -p scoopc refactor_handle_arm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- 2026-05-03（本轮）下一步：回写 `TODO-P6.md` / `TODO.md` 的完成状态并提交。
+
 - 已创建执行计划文件，下一步开始读取任务索引并定位首个未完成详细任务。
 - 已确认首个未完成详细任务为 `TODO-P6.md` 中的 `P6-T03`：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering。
 - 最近一次提交为 `[P6-T02j] Publish handle-dispatch completion contract`，与当前任务直接相关，但未显示新的未完成 issue；因此继续按 `P6-T03` 执行。

@@ -1316,7 +1316,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02k：发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状
+## [DONE] P6-T02k：发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1399,7 +1399,24 @@
   - `P6-T03` 后续可以不再回 canonical MIR handle arm / HIR 恢复 binder 形状，而只消费已发布 contract 完成 arm 入口初始化。
 - 依赖：P6-T02j
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：已在 `crates/scoopc/src/effect_lowered/ir.rs` 扩展 `LateLoweredHandleDispatchContract` / `LateLoweredHandleArmDispatch`，新增 per-arm payload binder 与 optional continuation binder published contract：每个 handled arm 现在都会 authoritative 发布 `handled_case -> arm_state -> arm_ordinal -> payload_tuple_ty -> payload_binders(local + optional frame_slot) -> optional continuation_binder(local + optional frame_slot + continuation_schema + continuation_object)`。
+  - 2026-05-03：已在 `crates/scoopc/src/effect_lowered/materialize.rs` 让 `build_handle_dispatch_contract(...)` 显式回读 canonical MIR `TerminatorKind::Handle` 仅用于 P5 authoritative 发布阶段，把 `binder_locals` / `continuation_local` 与 `HandleSiteEffectFacts.arm_facts()` 的 `payload_tuple_ty` / `continuation_schema` 接起来；`P6-T03` 后续不再需要自己回 MIR arm 恢复绑定形状。
+  - 2026-05-03：已在 `crates/scoopc/src/effect_lowered/dump.rs` 暴露新的 arm binding surface；`dump-effect-lowered` 现在会直接显示 `payload_binders:` 与 `continuation_binder:`，包括 binder ordinal、local、optional frame slot、continuation schema 与 continuation object。
+  - 2026-05-03：已在 `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` / `layout.rs` 增加对应的 per-arm LLVM query layout，并在 ABI materialization 阶段对以下漂移 fail fast：
+    - arm ordinal / arm state 与 state graph 不一致；
+    - payload tuple type、payload binder 次序或 local 漂移；
+    - 缺失/多余 continuation binder；
+    - continuation binder 指向的 continuation object / surface-resume binding 未发布。
+  - 2026-05-03：作为本任务验证中的直接相关修复，`materialize_handle_dispatch_layouts(...)` 现只对实际含 `HandleDispatch` 的 callable 要求 handle system slots，不再错误拒绝无 handle 的 pure helper / `main` callable；该问题会直接阻断本任务的 multi-callable ABI query 验证，因此一并纳入 `P6-T02k` 修复。
+  - 2026-05-03：新增/更新定向测试 `refactor_handle_arm_binding_contract_*` 与 `refactor_handle_arm_continuation_binding_*`，覆盖：单 arm payload+continuation binder 发布、多 arm mixed binder 发布、`dump-effect-lowered` 暴露、payload binder 次序漂移 fail-fast，以及缺失 published continuation binder fail-fast。
+- 已运行验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_handle_arm_binding_contract`
+  - `cargo test -p scoopc refactor_handle_arm_continuation_binding`
+  - `cargo test -p scoopc refactor_handle_arm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T02kR：Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状
 
