@@ -931,6 +931,210 @@ impl LateLoweredStateSlice {
 }
 
 /// 单个 state 结束时的显式控制流合同。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum LateLoweredHandlePendingCompletion {
+    ContinueToExit,
+    ReturnFromFunction,
+    PropagateOutward(CaseTag),
+}
+
+/// `HandleDispatch` 需要消费的 compiler-owned system carrier。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredHandleDispatchCarrierContract {
+    state_tag_slot: SystemSlotKind,
+    completion_tag_slot: SystemSlotKind,
+    payload_carrier_slot: SystemSlotKind,
+}
+
+impl LateLoweredHandleDispatchCarrierContract {
+    pub(crate) fn new(
+        state_tag_slot: SystemSlotKind,
+        completion_tag_slot: SystemSlotKind,
+        payload_carrier_slot: SystemSlotKind,
+    ) -> Self {
+        Self {
+            state_tag_slot,
+            completion_tag_slot,
+            payload_carrier_slot,
+        }
+    }
+
+    pub fn state_tag_slot(&self) -> SystemSlotKind {
+        self.state_tag_slot
+    }
+
+    pub fn completion_tag_slot(&self) -> SystemSlotKind {
+        self.completion_tag_slot
+    }
+
+    pub fn payload_carrier_slot(&self) -> SystemSlotKind {
+        self.payload_carrier_slot
+    }
+}
+
+/// 单个 handled case 的 authoritative arm dispatch 映射。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredHandleArmDispatch {
+    handled_case: CaseTag,
+    arm_state: StateId,
+    arm_outward_cases: Vec<CaseTag>,
+}
+
+impl LateLoweredHandleArmDispatch {
+    pub(crate) fn new(
+        handled_case: CaseTag,
+        arm_state: StateId,
+        arm_outward_cases: Vec<CaseTag>,
+    ) -> Self {
+        Self {
+            handled_case,
+            arm_state,
+            arm_outward_cases,
+        }
+    }
+
+    pub fn handled_case(&self) -> CaseTag {
+        self.handled_case
+    }
+
+    pub fn arm_state(&self) -> StateId {
+        self.arm_state
+    }
+
+    pub fn arm_outward_cases(&self) -> &[CaseTag] {
+        &self.arm_outward_cases
+    }
+}
+
+/// `HandleDispatch` 在 P5/P6 handoff 中显式发布的 completion/state contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredHandleDispatchContract {
+    carrier: LateLoweredHandleDispatchCarrierContract,
+    body_complete_target: StateId,
+    arm_complete_target: StateId,
+    finally_complete_target: Option<StateId>,
+    handled_arms: Vec<LateLoweredHandleArmDispatch>,
+    body_outward_cases: Vec<CaseTag>,
+    finally_outward_cases: Vec<CaseTag>,
+    outward_emissions: Vec<LateLoweredStepCaseEmission>,
+    pending_completions: Vec<LateLoweredHandlePendingCompletion>,
+    abandon_target: Option<StateId>,
+}
+
+impl LateLoweredHandleDispatchContract {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        carrier: LateLoweredHandleDispatchCarrierContract,
+        body_complete_target: StateId,
+        arm_complete_target: StateId,
+        finally_complete_target: Option<StateId>,
+        handled_arms: Vec<LateLoweredHandleArmDispatch>,
+        body_outward_cases: Vec<CaseTag>,
+        finally_outward_cases: Vec<CaseTag>,
+        outward_emissions: Vec<LateLoweredStepCaseEmission>,
+        pending_completions: Vec<LateLoweredHandlePendingCompletion>,
+        abandon_target: Option<StateId>,
+    ) -> Self {
+        Self {
+            carrier,
+            body_complete_target,
+            arm_complete_target,
+            finally_complete_target,
+            handled_arms,
+            body_outward_cases,
+            finally_outward_cases,
+            outward_emissions,
+            pending_completions,
+            abandon_target,
+        }
+    }
+
+    pub(crate) fn skeleton(
+        body_complete_target: StateId,
+        arm_complete_target: StateId,
+        finally_complete_target: Option<StateId>,
+        abandon_target: Option<StateId>,
+    ) -> Self {
+        Self::new(
+            LateLoweredHandleDispatchCarrierContract::new(
+                SystemSlotKind::StateTag,
+                SystemSlotKind::CompletionTag,
+                SystemSlotKind::ResumePayloadCarrier,
+            ),
+            body_complete_target,
+            arm_complete_target,
+            finally_complete_target,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            abandon_target,
+        )
+    }
+
+    pub(crate) fn with_abandon_target(mut self, abandon_target: Option<StateId>) -> Self {
+        self.abandon_target = abandon_target;
+        self
+    }
+
+    pub fn carrier(&self) -> LateLoweredHandleDispatchCarrierContract {
+        self.carrier
+    }
+
+    pub fn body_complete_target(&self) -> StateId {
+        self.body_complete_target
+    }
+
+    pub fn arm_complete_target(&self) -> StateId {
+        self.arm_complete_target
+    }
+
+    pub fn finally_complete_target(&self) -> Option<StateId> {
+        self.finally_complete_target
+    }
+
+    pub fn handled_arms(&self) -> &[LateLoweredHandleArmDispatch] {
+        &self.handled_arms
+    }
+
+    pub fn handled_arm(&self, handled_case: CaseTag) -> Option<&LateLoweredHandleArmDispatch> {
+        self.handled_arms
+            .iter()
+            .find(|arm| arm.handled_case() == handled_case)
+    }
+
+    pub fn body_outward_cases(&self) -> &[CaseTag] {
+        &self.body_outward_cases
+    }
+
+    pub fn finally_outward_cases(&self) -> &[CaseTag] {
+        &self.finally_outward_cases
+    }
+
+    pub fn outward_emissions(&self) -> &[LateLoweredStepCaseEmission] {
+        &self.outward_emissions
+    }
+
+    pub fn outward_emission(&self, case_tag: CaseTag) -> Option<&LateLoweredStepCaseEmission> {
+        self.outward_emissions
+            .iter()
+            .find(|emission| emission.case_tag() == case_tag)
+    }
+
+    pub fn pending_completions(&self) -> &[LateLoweredHandlePendingCompletion] {
+        &self.pending_completions
+    }
+
+    pub fn needs_completion_state(&self) -> bool {
+        !self.pending_completions.is_empty()
+    }
+
+    pub fn abandon_target(&self) -> Option<StateId> {
+        self.abandon_target
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LateLoweredStateTerminator {
     Suspend {
@@ -958,6 +1162,7 @@ pub enum LateLoweredStateTerminator {
         arm_states: Vec<StateId>,
         finally_state: Option<StateId>,
         exit_state: StateId,
+        contract: LateLoweredHandleDispatchContract,
         boundary_ids: Vec<BoundaryId>,
         drop_state: Option<StateId>,
     },
@@ -1062,6 +1267,7 @@ impl LateLoweredStateTerminator {
                 arm_states,
                 finally_state,
                 exit_state,
+                contract,
                 boundary_ids,
                 ..
             } => Self::HandleDispatch {
@@ -1070,6 +1276,7 @@ impl LateLoweredStateTerminator {
                 arm_states,
                 finally_state,
                 exit_state,
+                contract: contract.with_abandon_target(drop_state),
                 boundary_ids,
                 drop_state,
             },

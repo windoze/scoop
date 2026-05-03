@@ -10,9 +10,10 @@ use crate::effect_facts::{
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundarySource, LateLoweredCallable,
-    LateLoweredContinuationObject, LateLoweredFrameSlotKind,
+    LateLoweredContinuationObject, LateLoweredFrameSlotKind, LateLoweredHandlePendingCompletion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPublishedRuntimeEntry,
     LateLoweredResumeInterface, LateLoweredStateTerminator, LateLoweredStepType, ResumeInterfaceId,
+    SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{CallKind as MirCallKind, Rvalue as MirRvalue, StatementKind as MirStatementKind};
@@ -26,11 +27,11 @@ use super::types::{
     RefactorContinuationObjectLayout, RefactorContinuationSurfaceResumeBinding,
     RefactorContinuationSurfaceResumeLayout, RefactorDispatchReceiverLayout,
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameFieldKind,
-    RefactorFrameFieldLayout, RefactorFrameLayout, RefactorLocalRuntimeErrorContract,
-    RefactorLocalRuntimeErrorTerminalAction, RefactorPublishedRuntimeEntryLayout,
-    RefactorResumeInterfaceLayout, RefactorResumeMethodLayout, RefactorSourceAbiFieldLayout,
-    RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout,
-    RefactorStepLayout, RefactorStepVariantLayout,
+    RefactorFrameFieldLayout, RefactorFrameLayout, RefactorHandleDispatchLayout,
+    RefactorLocalRuntimeErrorContract, RefactorLocalRuntimeErrorTerminalAction,
+    RefactorPublishedRuntimeEntryLayout, RefactorResumeInterfaceLayout, RefactorResumeMethodLayout,
+    RefactorSourceAbiFieldLayout, RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind,
+    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
 };
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -217,6 +218,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
         let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
+        let handle_dispatch_layouts = this.materialize_handle_dispatch_layouts(&frame_layouts)?;
 
         Ok(RefactorAbiQuery::new(
             this.source_value_layouts,
@@ -228,6 +230,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             callable_layouts,
             dynamic_invoke_layouts,
             local_runtime_error_contracts,
+            handle_dispatch_layouts,
         ))
     }
 
@@ -1664,6 +1667,233 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(contracts)
     }
 
+    fn materialize_handle_dispatch_layouts(
+        &mut self,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+    ) -> Result<
+        BTreeMap<(StepSchemaId, crate::mir::SiteId), RefactorHandleDispatchLayout>,
+        LlvmEmitError,
+    > {
+        let mut layouts = BTreeMap::new();
+        for callable in self.program.callables() {
+            let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` 的 frame layout，无法发布 HandleDispatch contract",
+                    callable.root_fqn(),
+                ))
+            })?;
+            let state_tag_field_index = frame_layout
+                .field_index_for_system(SystemSlotKind::StateTag)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 StateTag system field，无法发布 HandleDispatch contract",
+                        callable.root_fqn(),
+                    ))
+                })?;
+            let completion_tag_field_index = frame_layout
+                .field_index_for_system(SystemSlotKind::CompletionTag)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 CompletionTag system field，无法发布 HandleDispatch contract",
+                        callable.root_fqn(),
+                    ))
+                })?;
+            let payload_carrier_field_index = frame_layout
+                .field_index_for_system(SystemSlotKind::ResumePayloadCarrier)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 ResumePayloadCarrier system field，无法发布 HandleDispatch contract",
+                        callable.root_fqn(),
+                    ))
+                })?;
+
+            for state in callable.state_graph().states() {
+                let LateLoweredStateTerminator::HandleDispatch {
+                    site_id,
+                    arm_states,
+                    finally_state,
+                    exit_state,
+                    contract,
+                    drop_state,
+                    ..
+                } = state.terminator()
+                else {
+                    continue;
+                };
+
+                let expected_complete_target = finally_state.unwrap_or(*exit_state);
+                if contract.body_complete_target() != expected_complete_target {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 body complete target 漂移：contract=st{}，state_graph=st{}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        contract.body_complete_target().as_u32(),
+                        expected_complete_target.as_u32(),
+                    )));
+                }
+                if contract.arm_complete_target() != expected_complete_target {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 arm complete target 漂移：contract=st{}，state_graph=st{}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        contract.arm_complete_target().as_u32(),
+                        expected_complete_target.as_u32(),
+                    )));
+                }
+                if contract.finally_complete_target() != finally_state.map(|_| *exit_state) {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 finally complete target 漂移：contract={:?}，state_graph={:?}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        contract.finally_complete_target(),
+                        finally_state.map(|_| *exit_state),
+                    )));
+                }
+                if contract.abandon_target() != *drop_state {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 abandon target 漂移：contract={:?}，state_graph={:?}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        contract.abandon_target(),
+                        drop_state,
+                    )));
+                }
+                if contract.handled_arms().len() != arm_states.len() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled-arm 数量({}) 与 state_graph arm 数量({}) 不一致",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        contract.handled_arms().len(),
+                        arm_states.len(),
+                    )));
+                }
+                for (expected_state, arm) in arm_states.iter().zip(contract.handled_arms()) {
+                    if arm.arm_state() != *expected_state {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} arm state 漂移：contract=st{}，state_graph=st{}",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            arm.handled_case().as_u32(),
+                            arm.arm_state().as_u32(),
+                            expected_state.as_u32(),
+                        )));
+                    }
+                }
+
+                let expected_outward_cases = collect_handle_contract_total_outward_cases(contract);
+                let published_outward_cases = contract
+                    .outward_emissions()
+                    .iter()
+                    .map(|emission| emission.case_tag())
+                    .collect::<BTreeSet<_>>();
+                if !published_outward_cases.is_subset(&expected_outward_cases) {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 outward emission 包含未在 HandleDispatch contract 中声明的 case：contract={}，emissions={}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        render_case_tags(&expected_outward_cases),
+                        render_case_tags(&published_outward_cases),
+                    )));
+                }
+
+                let expected_pending_outward =
+                    collect_handle_contract_pending_outward_cases(contract);
+                let published_pending_outward = contract
+                    .pending_completions()
+                    .iter()
+                    .filter_map(|pending| match pending {
+                        LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) => {
+                            Some(*case_tag)
+                        }
+                        LateLoweredHandlePendingCompletion::ContinueToExit
+                        | LateLoweredHandlePendingCompletion::ReturnFromFunction => None,
+                    })
+                    .collect::<BTreeSet<_>>();
+                if expected_pending_outward != published_pending_outward {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending outward completion 集合漂移：contract={}，pending={}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        render_case_tags(&expected_pending_outward),
+                        render_case_tags(&published_pending_outward),
+                    )));
+                }
+
+                if finally_state.is_some() {
+                    for required in [
+                        LateLoweredHandlePendingCompletion::ContinueToExit,
+                        LateLoweredHandlePendingCompletion::ReturnFromFunction,
+                    ] {
+                        if !contract.pending_completions().contains(&required) {
+                            return Err(frontend_error(format!(
+                                "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 缺少 required pending completion {:?}",
+                                callable.root_fqn(),
+                                site_id.as_u32(),
+                                required,
+                            )));
+                        }
+                    }
+                } else if !contract.pending_completions().is_empty() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 没有 finally state，却发布了 pending completion {:?}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        contract.pending_completions(),
+                    )));
+                }
+
+                let mut completion_tags = BTreeMap::new();
+                let mut next_completion_tag = 1u32;
+                for pending in contract.pending_completions() {
+                    if let LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) = pending
+                        && contract.outward_emission(*case_tag).is_none()
+                    {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending completion c{} 缺少 outward emission",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            case_tag.as_u32(),
+                        )));
+                    }
+                    if completion_tags
+                        .insert(*pending, next_completion_tag)
+                        .is_some()
+                    {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending completion {:?}",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            pending,
+                        )));
+                    }
+                    next_completion_tag = next_completion_tag.saturating_add(1);
+                }
+
+                let key = (callable.step_schema(), *site_id);
+                if layouts.contains_key(&key) {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 owner step schema s{} handle site {} 的 HandleDispatch contract 重复发布",
+                        callable.step_schema().as_u32(),
+                        site_id.as_u32(),
+                    )));
+                }
+                layouts.insert(
+                    key,
+                    RefactorHandleDispatchLayout::new(
+                        callable.step_schema(),
+                        *site_id,
+                        contract.clone(),
+                        state_tag_field_index,
+                        completion_tag_field_index,
+                        payload_carrier_field_index,
+                        completion_tags,
+                    ),
+                );
+            }
+        }
+        Ok(layouts)
+    }
+
     fn materialize_local_runtime_error_terminal_action(
         &mut self,
         action: LateLoweredLocalRuntimeErrorTerminalAction,
@@ -2207,6 +2437,46 @@ fn dummy_span() -> crate::span::Span {
     crate::span::Span::new(0, 0)
 }
 
+fn collect_handle_contract_total_outward_cases(
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+) -> BTreeSet<crate::effect_facts::CaseTag> {
+    let mut tags = contract
+        .body_outward_cases()
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    for arm in contract.handled_arms() {
+        tags.extend(arm.arm_outward_cases().iter().copied());
+    }
+    tags.extend(contract.finally_outward_cases().iter().copied());
+    tags
+}
+
+fn collect_handle_contract_pending_outward_cases(
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+) -> BTreeSet<crate::effect_facts::CaseTag> {
+    let emitted_cases = contract
+        .outward_emissions()
+        .iter()
+        .map(|emission| emission.case_tag())
+        .collect::<BTreeSet<_>>();
+    let mut tags = contract
+        .body_outward_cases()
+        .iter()
+        .copied()
+        .filter(|case_tag| emitted_cases.contains(case_tag))
+        .collect::<BTreeSet<_>>();
+    for arm in contract.handled_arms() {
+        tags.extend(
+            arm.arm_outward_cases()
+                .iter()
+                .copied()
+                .filter(|case_tag| emitted_cases.contains(case_tag)),
+        );
+    }
+    tags
+}
+
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
@@ -2230,6 +2500,19 @@ fn render_resume_interface_ids(interface_ids: &[ResumeInterfaceId]) -> String {
     )
 }
 
+fn render_case_tags(tags: &BTreeSet<crate::effect_facts::CaseTag>) -> String {
+    if tags.is_empty() {
+        return "[]".to_string();
+    }
+    format!(
+        "[{}]",
+        tags.iter()
+            .map(|case_tag| format!("c{}", case_tag.as_u32()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
@@ -2244,8 +2527,10 @@ mod tests {
         BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
         LateLoweredBoundarySource, LateLoweredCallBoundaryLowering, LateLoweredCallable,
         LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
-        LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry, LateLoweredProgram,
-        LateLoweredResumeInterface, LateLoweredResumeMethod, StateId, SystemSlotKind,
+        LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
+        LateLoweredFrameSchema, LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
+        LateLoweredHandlePendingCompletion, LateLoweredProgram, LateLoweredResumeInterface,
+        LateLoweredResumeMethod, StateId, SystemSlotKind,
     };
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
@@ -2260,7 +2545,7 @@ mod tests {
         CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState, MainCodegen,
     };
     use crate::llvm::target;
-    use crate::mir::{LoweredMir, MirLoweringFacts, lower_hir_file_for_dump_with_facts};
+    use crate::mir::{LoweredMir, MirLoweringFacts, SiteId, lower_hir_file_for_dump_with_facts};
     use crate::program_facts::ProgramFacts;
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::{SourceFile, SourceMap};
@@ -2716,6 +3001,89 @@ mod tests {
             callable.continuation_object(),
             callable.resume_interfaces().to_vec(),
         )
+    }
+
+    fn clone_callable_with_frame_schema(
+        callable: &LateLoweredCallable,
+        frame_schema: LateLoweredFrameSchema,
+    ) -> LateLoweredCallable {
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            callable.dynamic_invoke_entry().clone(),
+            callable.state_graph().clone(),
+            frame_schema,
+            callable.boundary_map().clone(),
+            callable.resume_state_map().clone(),
+            callable.continuation_object(),
+            callable.resume_interfaces().to_vec(),
+        )
+    }
+
+    fn clone_state_graph_with_handle_contract(
+        state_graph: &crate::effect_lowered::ir::LateLoweredStateGraph,
+        site_id: SiteId,
+        new_contract: LateLoweredHandleDispatchContract,
+    ) -> crate::effect_lowered::ir::LateLoweredStateGraph {
+        let states = state_graph
+            .states()
+            .iter()
+            .map(|state| match state.terminator() {
+                crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                    site_id: state_site,
+                    body_state,
+                    arm_states,
+                    finally_state,
+                    exit_state,
+                    boundary_ids,
+                    drop_state,
+                    ..
+                } if *state_site == site_id => crate::effect_lowered::ir::LateLoweredState::new(
+                    state.state_id(),
+                    state.role(),
+                    state.source_slices().to_vec(),
+                    crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                        site_id: *state_site,
+                        body_state: *body_state,
+                        arm_states: arm_states.clone(),
+                        finally_state: *finally_state,
+                        exit_state: *exit_state,
+                        contract: new_contract.clone(),
+                        boundary_ids: boundary_ids.clone(),
+                        drop_state: *drop_state,
+                    },
+                ),
+                _ => state.clone(),
+            })
+            .collect();
+        crate::effect_lowered::ir::LateLoweredStateGraph::new(
+            state_graph.entry_state(),
+            state_graph.complete_state(),
+            state_graph.cleanup_state(),
+            state_graph.drop_state(),
+            states,
+        )
+    }
+
+    fn handle_dispatch_contract(
+        callable: &LateLoweredCallable,
+        site_id: SiteId,
+    ) -> &LateLoweredHandleDispatchContract {
+        callable
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| match state.terminator() {
+                crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                    site_id: state_site,
+                    contract,
+                    ..
+                } if *state_site == site_id => Some(contract),
+                _ => None,
+            })
+            .expect("应找到指定 site 的 HandleDispatch contract")
     }
 
     fn clone_callable_with_dynamic_invoke_entry(
@@ -4084,6 +4452,195 @@ mod tests {
                 assert!(
                     message.contains("main") && message.contains("call site 1"),
                     "错误消息应指出缺失 contract 所属的 callable 和 site id: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_handle_dispatch_contract_publishes_llvm_query_layout() {
+        with_phase_fixture_query_result(
+            "effect_facts",
+            "nested_handle_self_contained_vs_outward.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("HandleDispatch contract 应可发布到 LLVM ABI query");
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("sample.nested_may_suspend_outward")
+                    .expect("callable 应存在");
+                let site_id = SiteId::from_raw(1);
+                let contract = handle_dispatch_contract(callable, site_id);
+                let published = query
+                    .handle_dispatch_layout(callable.step_schema(), site_id, contract)
+                    .expect("query 应能稳定回查 HandleDispatch contract");
+                let frame_layout = query
+                    .frame_layout(callable.step_schema())
+                    .expect("frame layout 应可查询");
+
+                assert_eq!(published.owner_step_schema(), callable.step_schema());
+                assert_eq!(published.site_id(), site_id);
+                assert_eq!(published.lowered_contract(), contract);
+                assert_eq!(
+                    published.state_tag_field_index(),
+                    frame_layout
+                        .field_index_for_system(SystemSlotKind::StateTag)
+                        .expect("frame 应保留 StateTag")
+                );
+                assert_eq!(
+                    published.completion_tag_field_index(),
+                    frame_layout
+                        .field_index_for_system(SystemSlotKind::CompletionTag)
+                        .expect("frame 应保留 CompletionTag")
+                );
+                assert_eq!(
+                    published.payload_carrier_field_index(),
+                    frame_layout
+                        .field_index_for_system(SystemSlotKind::ResumePayloadCarrier)
+                        .expect("frame 应保留 ResumePayloadCarrier")
+                );
+                assert!(
+                    published
+                        .completion_tag_value(LateLoweredHandlePendingCompletion::ContinueToExit)
+                        .is_some()
+                );
+                assert!(
+                    published
+                        .completion_tag_value(
+                            LateLoweredHandlePendingCompletion::ReturnFromFunction
+                        )
+                        .is_some()
+                );
+                assert!(
+                    published
+                        .completion_tag_value(LateLoweredHandlePendingCompletion::PropagateOutward(
+                            crate::effect_facts::CaseTag::new(1),
+                        ))
+                        .is_none()
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_completion_state_contract_rejects_missing_completion_tag_slot() {
+        with_phase_fixture_query_result(
+            "effect_facts",
+            "nested_handle_self_contained_vs_outward.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callable = program
+                    .callable("sample.nested_may_suspend_outward")
+                    .expect("callable 应存在");
+                let frame_schema = LateLoweredFrameSchema::new(
+                    callable
+                        .frame_schema()
+                        .slots()
+                        .iter()
+                        .filter(|slot| {
+                            slot.kind()
+                                != LateLoweredFrameSlotKind::System(SystemSlotKind::CompletionTag)
+                        })
+                        .cloned()
+                        .collect(),
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == callable.step_schema() {
+                            clone_callable_with_frame_schema(candidate, frame_schema.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 CompletionTag system field 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("缺少 CompletionTag system field"),
+                    "错误消息应指出缺失的是 CompletionTag 槽位: {message}"
+                );
+                assert!(
+                    message.contains("sample.nested_may_suspend_outward"),
+                    "错误消息应指出出错 callable: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_handle_dispatch_contract_rejects_missing_handled_arm_mapping() {
+        with_phase_fixture_query_result(
+            "effect_facts",
+            "nested_handle_self_contained_vs_outward.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callable = program
+                    .callable("sample.nested_may_suspend_outward")
+                    .expect("callable 应存在");
+                let site_id = SiteId::from_raw(1);
+                let contract = handle_dispatch_contract(callable, site_id);
+                let broken_contract = LateLoweredHandleDispatchContract::new(
+                    contract.carrier(),
+                    contract.body_complete_target(),
+                    contract.arm_complete_target(),
+                    contract.finally_complete_target(),
+                    Vec::new(),
+                    contract.body_outward_cases().to_vec(),
+                    contract.finally_outward_cases().to_vec(),
+                    contract.outward_emissions().to_vec(),
+                    contract.pending_completions().to_vec(),
+                    contract.abandon_target(),
+                );
+                let state_graph = clone_state_graph_with_handle_contract(
+                    callable.state_graph(),
+                    site_id,
+                    broken_contract,
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == callable.step_schema() {
+                            clone_callable_with_state_graph(candidate, state_graph.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 handled-arm 映射时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("handled-arm 数量"),
+                    "错误消息应指出缺失的是 handled-arm mapping: {message}"
+                );
+                assert!(
+                    message.contains("handle site 1") || message.contains("site 1"),
+                    "错误消息应指出出错 site: {message}"
                 );
             },
         );

@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::effect_facts::{
-    BodyEffectFacts, CallSiteEffectFacts, ConcreteOpKey, EffectFamilyKey, HandleSiteEffectFacts,
-    ImplPlan, MaterializedEffectFacts, PerformSiteEffectFacts, ResumeSiteEffectFacts,
-    SiteEffectFacts, StepCaseFact, StepSchema, StepSchemaId,
+    BodyEffectFacts, CallSiteEffectFacts, CaseTag, ConcreteOpKey, EffectFamilyKey,
+    HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts, PerformSiteEffectFacts,
+    ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema, StepSchemaId,
 };
 use crate::mir::{Body, CallKind, LocalId, ResumeMetadata, Rvalue, SiteId, StatementKind};
 use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeStore};
@@ -15,9 +15,10 @@ use super::ir::{
     LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
     LateLoweredContinuationContract, LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
-    LateLoweredDynamicInvokeEntry, LateLoweredHandleBoundaryLowering,
-    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy,
-    LateLoweredPerformBoundaryLowering, LateLoweredPublishedRuntimeEntry,
+    LateLoweredDynamicInvokeEntry, LateLoweredHandleArmDispatch, LateLoweredHandleBoundaryLowering,
+    LateLoweredHandleDispatchCarrierContract, LateLoweredHandleDispatchContract,
+    LateLoweredHandlePendingCompletion, LateLoweredLocalRuntimeErrorTerminalAction,
+    LateLoweredOneShotPolicy, LateLoweredPerformBoundaryLowering, LateLoweredPublishedRuntimeEntry,
     LateLoweredResumeBoundaryLowering, LateLoweredResumeInterface, LateLoweredResumeMethod,
     LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState, LateLoweredStateGraph,
     LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepCase,
@@ -406,13 +407,15 @@ pub(crate) fn materialize_boundary_map(
         entries.push(boundary.clone().with_lowering(lowering));
     }
 
+    let boundary_map = LateLoweredBoundaryMap::new(entries);
+    let state_graph =
+        attach_local_runtime_error_states(root_fqn, state_graph, &local_runtime_error_targets)?;
+    let state_graph =
+        attach_handle_dispatch_contracts(root_fqn, body_facts, &state_graph, &boundary_map)?;
+
     Ok(BoundaryMaterialization {
-        state_graph: attach_local_runtime_error_states(
-            root_fqn,
-            state_graph,
-            &local_runtime_error_targets,
-        )?,
-        boundary_map: LateLoweredBoundaryMap::new(entries),
+        state_graph,
+        boundary_map,
     })
 }
 
@@ -486,7 +489,7 @@ fn attach_local_runtime_error_states(
                     });
                 }
             };
-            Ok(LateLoweredState::new(
+            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new(
                 state.state_id(),
                 state.role(),
                 state.source_slices().to_vec(),
@@ -502,6 +505,271 @@ fn attach_local_runtime_error_states(
         state_graph.drop_state(),
         rewritten_states,
     ))
+}
+
+fn attach_handle_dispatch_contracts(
+    root_fqn: &str,
+    body_facts: &BodyEffectFacts,
+    state_graph: &LateLoweredStateGraph,
+    boundary_map: &LateLoweredBoundaryMap,
+) -> Result<LateLoweredStateGraph, EffectLoweringError> {
+    let rewritten_states = state_graph
+        .states()
+        .iter()
+        .map(|state| {
+            let terminator = match state.terminator().clone() {
+                LateLoweredStateTerminator::HandleDispatch {
+                    site_id,
+                    body_state,
+                    arm_states,
+                    finally_state,
+                    exit_state,
+                    boundary_ids,
+                    drop_state,
+                    ..
+                } => {
+                    let facts = clone_handle_site_facts(root_fqn, body_facts, site_id)?;
+                    let contract = build_handle_dispatch_contract(
+                        root_fqn,
+                        site_id,
+                        &facts,
+                        &arm_states,
+                        finally_state,
+                        exit_state,
+                        &boundary_ids,
+                        drop_state,
+                        boundary_map,
+                    )?;
+                    LateLoweredStateTerminator::HandleDispatch {
+                        site_id,
+                        body_state,
+                        arm_states,
+                        finally_state,
+                        exit_state,
+                        contract,
+                        boundary_ids,
+                        drop_state,
+                    }
+                }
+                other => other,
+            };
+            Result::<_, EffectLoweringError>::Ok(LateLoweredState::new(
+                state.state_id(),
+                state.role(),
+                state.source_slices().to_vec(),
+                terminator,
+            ))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(LateLoweredStateGraph::new(
+        state_graph.entry_state(),
+        state_graph.complete_state(),
+        state_graph.cleanup_state(),
+        state_graph.drop_state(),
+        rewritten_states,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_handle_dispatch_contract(
+    root_fqn: &str,
+    site_id: SiteId,
+    facts: &HandleSiteEffectFacts,
+    arm_states: &[StateId],
+    finally_state: Option<StateId>,
+    exit_state: StateId,
+    boundary_ids: &[BoundaryId],
+    drop_state: Option<StateId>,
+    boundary_map: &LateLoweredBoundaryMap,
+) -> Result<LateLoweredHandleDispatchContract, EffectLoweringError> {
+    if arm_states.len() != facts.arm_facts().len() {
+        return Err(invalid_handle_dispatch_contract(
+            root_fqn,
+            site_id,
+            format!(
+                "arm state 数量({}) 与 HandleSiteEffectFacts.arm_facts 数量({}) 不一致",
+                arm_states.len(),
+                facts.arm_facts().len(),
+            ),
+        ));
+    }
+
+    let body_complete_target = finally_state.unwrap_or(exit_state);
+    let arm_complete_target = finally_state.unwrap_or(exit_state);
+    let finally_complete_target = finally_state.map(|_| exit_state);
+    let handled_arms = facts
+        .arm_facts()
+        .iter()
+        .zip(arm_states.iter().copied())
+        .map(|(arm_facts, arm_state)| {
+            LateLoweredHandleArmDispatch::new(
+                arm_facts.handled_case(),
+                arm_state,
+                arm_facts.arm_outward_cases().tags().to_vec(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let body_outward_cases = facts.body_outward_cases().tags().to_vec();
+    let finally_outward_cases = facts.finally_outward_cases().tags().to_vec();
+    let expected_outward_case_tags = collect_handle_outward_case_tags(facts);
+    let handle_boundary_lowering =
+        find_handle_boundary_lowering(root_fqn, site_id, boundary_ids, boundary_map)?;
+    let outward_emissions = handle_boundary_lowering
+        .map(|lowering| lowering.outward_emissions().to_vec())
+        .unwrap_or_default();
+    let published_outward_case_tags = outward_emissions
+        .iter()
+        .map(|emission| emission.case_tag())
+        .collect::<BTreeSet<_>>();
+    if handle_boundary_lowering.is_some()
+        && published_outward_case_tags != expected_outward_case_tags
+    {
+        return Err(invalid_handle_dispatch_contract(
+            root_fqn,
+            site_id,
+            format!(
+                "published outward emissions {} 与 HandleSiteEffectFacts 期望的 outward cases {} 不一致",
+                format_case_tag_set(&published_outward_case_tags),
+                format_case_tag_set(&expected_outward_case_tags),
+            ),
+        ));
+    }
+
+    let mut pending_completions = Vec::new();
+    if finally_state.is_some() {
+        pending_completions.push(LateLoweredHandlePendingCompletion::ContinueToExit);
+        pending_completions.push(LateLoweredHandlePendingCompletion::ReturnFromFunction);
+        if handle_boundary_lowering.is_some() {
+            let mut pending_outward_cases = facts
+                .body_outward_cases()
+                .tags()
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>();
+            for arm in facts.arm_facts() {
+                pending_outward_cases.extend(arm.arm_outward_cases().tags().iter().copied());
+            }
+            for case_tag in pending_outward_cases {
+                pending_completions.push(LateLoweredHandlePendingCompletion::PropagateOutward(
+                    case_tag,
+                ));
+            }
+        }
+    }
+
+    Ok(LateLoweredHandleDispatchContract::new(
+        LateLoweredHandleDispatchCarrierContract::new(
+            crate::effect_lowered::ir::SystemSlotKind::StateTag,
+            crate::effect_lowered::ir::SystemSlotKind::CompletionTag,
+            crate::effect_lowered::ir::SystemSlotKind::ResumePayloadCarrier,
+        ),
+        body_complete_target,
+        arm_complete_target,
+        finally_complete_target,
+        handled_arms,
+        body_outward_cases,
+        finally_outward_cases,
+        outward_emissions,
+        pending_completions,
+        drop_state,
+    ))
+}
+
+fn find_handle_boundary_lowering<'a>(
+    root_fqn: &str,
+    site_id: SiteId,
+    boundary_ids: &[BoundaryId],
+    boundary_map: &'a LateLoweredBoundaryMap,
+) -> Result<Option<&'a LateLoweredHandleBoundaryLowering>, EffectLoweringError> {
+    let mut lowering = None;
+    for boundary_id in boundary_ids {
+        let Some(boundary) = boundary_map.boundary(*boundary_id) else {
+            return Err(invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!("boundary_ids 中引用了不存在的 bd{}", boundary_id.as_u32()),
+            ));
+        };
+        let (boundary_site, handle_lowering) = match (boundary.source(), boundary.lowering()) {
+            (
+                LateLoweredBoundarySource::Site {
+                    site_id: boundary_site,
+                    kind: BoundarySiteKind::Handle,
+                },
+                Some(LateLoweredBoundaryLowering::Handle(lowering)),
+            ) => (boundary_site, lowering),
+            (source, lowering) => {
+                return Err(invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "boundary bd{} 不是当前 handle site 的 published Handle lowering：source={source:?} lowering={lowering:?}",
+                        boundary_id.as_u32(),
+                    ),
+                ));
+            }
+        };
+        if boundary_site != site_id {
+            return Err(invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!(
+                    "boundary bd{} 属于 site{}，但当前 HandleDispatch 属于 site{}",
+                    boundary_id.as_u32(),
+                    boundary_site.as_u32(),
+                    site_id.as_u32(),
+                ),
+            ));
+        }
+        if lowering.replace(handle_lowering).is_some() {
+            return Err(invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                "同一 HandleDispatch 绑定了多个 handle boundary lowering".to_string(),
+            ));
+        }
+    }
+    Ok(lowering)
+}
+
+fn collect_handle_outward_case_tags(facts: &HandleSiteEffectFacts) -> BTreeSet<CaseTag> {
+    let mut tags = facts
+        .body_outward_cases()
+        .tags()
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    for arm in facts.arm_facts() {
+        tags.extend(arm.arm_outward_cases().tags().iter().copied());
+    }
+    tags.extend(facts.finally_outward_cases().tags().iter().copied());
+    tags
+}
+
+fn invalid_handle_dispatch_contract(
+    root_fqn: &str,
+    site_id: SiteId,
+    detail: String,
+) -> EffectLoweringError {
+    EffectLoweringError::InvalidHandleDispatchContract {
+        root_fqn: root_fqn.to_string(),
+        site_id: site_id.as_u32(),
+        detail,
+    }
+}
+
+fn format_case_tag_set(tags: &BTreeSet<CaseTag>) -> String {
+    if tags.is_empty() {
+        return "[]".to_string();
+    }
+    format!(
+        "[{}]",
+        tags.iter()
+            .map(|case_tag| format!("c{}", case_tag.as_u32()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 fn build_step_type(
@@ -1069,9 +1337,11 @@ mod tests {
     use crate::effect_lowered::LateLoweredProgramBuilder;
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredContinuationMethodReachability,
-        LateLoweredContinuationResumeBody, LateLoweredOneShotPolicy,
+        LateLoweredContinuationResumeBody, LateLoweredHandlePendingCompletion,
+        LateLoweredOneShotPolicy, LateLoweredStateTerminator, SystemSlotKind,
     };
     use crate::effect_refactor_pipeline::load_effect_facts_stage_output_for_dump;
+    use crate::mir::SiteId;
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -1145,6 +1415,24 @@ mod tests {
                 )
             })
             .expect("应找到指定 kind 的 boundary")
+    }
+
+    fn handle_dispatch_state(
+        callable: &crate::effect_lowered::LateLoweredCallable,
+        site_id: SiteId,
+    ) -> &crate::effect_lowered::ir::LateLoweredState {
+        callable
+            .state_graph()
+            .states()
+            .iter()
+            .find(|state| {
+                matches!(
+                    state.terminator(),
+                    LateLoweredStateTerminator::HandleDispatch { site_id: state_site, .. }
+                        if *state_site == site_id
+                )
+            })
+            .expect("应找到指定 site 的 HandleDispatch state")
     }
 
     #[test]
@@ -1506,6 +1794,177 @@ mod tests {
                 .fqn,
             "sample.Outer.again"
         );
+    }
+
+    #[test]
+    fn refactor_handle_dispatch_contract_publishes_body_arm_finally_and_outward_routes() {
+        let output = load_output(&load_fixture(
+            "effect_facts",
+            "nested_handle_self_contained_vs_outward.scoop",
+        ));
+        let callable = callable(&output, "sample.nested_may_suspend_outward");
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(1));
+        let LateLoweredStateTerminator::HandleDispatch {
+            arm_states,
+            finally_state,
+            exit_state,
+            contract,
+            ..
+        } = handle_state.terminator()
+        else {
+            panic!("指定 state 应保持 HandleDispatch terminator");
+        };
+
+        assert_eq!(
+            contract.carrier().state_tag_slot(),
+            SystemSlotKind::StateTag
+        );
+        assert_eq!(
+            contract.carrier().completion_tag_slot(),
+            SystemSlotKind::CompletionTag
+        );
+        assert_eq!(
+            contract.carrier().payload_carrier_slot(),
+            SystemSlotKind::ResumePayloadCarrier
+        );
+        assert_eq!(
+            contract.body_complete_target(),
+            finally_state.expect("fixture 应保留 finally state")
+        );
+        assert_eq!(
+            contract.arm_complete_target(),
+            finally_state.expect("fixture 应保留 finally state")
+        );
+        assert_eq!(contract.finally_complete_target(), Some(*exit_state));
+        assert_eq!(
+            contract.abandon_target(),
+            callable.state_graph().drop_state()
+        );
+        assert_eq!(contract.handled_arms().len(), 1);
+        assert_eq!(contract.handled_arms()[0].handled_case().as_u32(), 0);
+        assert_eq!(contract.handled_arms()[0].arm_state(), arm_states[0]);
+        assert!(contract.handled_arms()[0].arm_outward_cases().is_empty());
+        assert!(contract.body_outward_cases().is_empty());
+        assert_eq!(
+            contract.finally_outward_cases(),
+            &[crate::effect_facts::CaseTag::new(1)]
+        );
+        assert!(
+            contract
+                .outward_emission(crate::effect_facts::CaseTag::new(1))
+                .is_some(),
+            "finally outward case 应能回查 published outward emission"
+        );
+        assert!(
+            contract
+                .pending_completions()
+                .contains(&LateLoweredHandlePendingCompletion::ContinueToExit)
+        );
+        assert!(
+            contract
+                .pending_completions()
+                .contains(&LateLoweredHandlePendingCompletion::ReturnFromFunction)
+        );
+        assert!(
+            !contract.pending_completions().contains(
+                &LateLoweredHandlePendingCompletion::PropagateOutward(
+                    crate::effect_facts::CaseTag::new(1)
+                )
+            ),
+            "仅 finally outward 的 case 不应被误发布成 pending completion tag"
+        );
+    }
+
+    #[test]
+    fn refactor_completion_state_contract_tracks_body_outward_cases_across_finally() {
+        let output = load_output(&SourceFile::new_virtual(
+            "<mem>/late_lowered_handle_body_outward_finally.scoop",
+            r#"
+package sample
+
+effect Inner {
+    fun go(): Int
+}
+
+effect Outer {
+    fun again(): Unit
+}
+
+fun cleanup() {}
+
+fun propagate_before_finally(): Int {
+    return handle {
+        val nested: Int = handle {
+            Outer.again()
+            0
+        } with {
+            Inner.go() -> 1
+        } finally {
+            cleanup()
+        }
+        nested + 10
+    } with {
+        Outer.again() -> 99
+    }
+}
+"#,
+        ));
+        let callable = callable(&output, "sample.propagate_before_finally");
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(1));
+        let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
+        else {
+            panic!("指定 state 应保持 HandleDispatch terminator");
+        };
+
+        assert_eq!(contract.body_outward_cases().len(), 1);
+        let outward_case = contract.body_outward_cases()[0];
+        assert!(contract.finally_outward_cases().is_empty());
+        assert!(contract.pending_completions().contains(
+            &LateLoweredHandlePendingCompletion::PropagateOutward(outward_case,)
+        ));
+        assert!(contract.outward_emission(outward_case).is_some());
+    }
+
+    #[test]
+    fn refactor_handle_dispatch_contract_dump_exposes_published_completion_state() {
+        let output = load_output(&SourceFile::new_virtual(
+            "<mem>/late_lowered_handle_contract_dump.scoop",
+            r#"
+package sample
+
+effect Inner {
+    fun go(): Int
+}
+
+effect Outer {
+    fun again(): Unit
+}
+
+fun cleanup() {}
+
+fun propagate_before_finally(): Int {
+    return handle {
+        val nested: Int = handle {
+            Outer.again()
+            0
+        } with {
+            Inner.go() -> 1
+        } finally {
+            cleanup()
+        }
+        nested + 10
+    } with {
+        Outer.again() -> 99
+    }
+}
+"#,
+        ));
+        let dump = output.program().stable_dump();
+
+        assert!(dump.contains("handle_contract:"));
+        assert!(dump.contains("pending_completions:"));
+        assert!(dump.contains("PropagateOutward("));
+        assert!(dump.contains("outward_emissions:"));
     }
 
     #[test]

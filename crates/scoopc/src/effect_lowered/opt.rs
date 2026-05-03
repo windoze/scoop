@@ -480,6 +480,7 @@ fn rewrite_terminator(
             arm_states,
             finally_state,
             exit_state,
+            contract,
             boundary_ids,
             drop_state,
         } => LateLoweredStateTerminator::HandleDispatch {
@@ -491,11 +492,44 @@ fn rewrite_terminator(
                 .collect(),
             finally_state: finally_state.map(|state_id| redirect_state_id(state_id, redirects)),
             exit_state: redirect_state_id(exit_state, redirects),
+            contract: redirect_handle_dispatch_contract(contract, redirects),
             boundary_ids,
             drop_state: drop_state.map(|state_id| redirect_state_id(state_id, redirects)),
         },
         other => other,
     }
+}
+
+fn redirect_handle_dispatch_contract(
+    contract: crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    redirects: &BTreeMap<StateId, StateId>,
+) -> crate::effect_lowered::ir::LateLoweredHandleDispatchContract {
+    crate::effect_lowered::ir::LateLoweredHandleDispatchContract::new(
+        contract.carrier(),
+        redirect_state_id(contract.body_complete_target(), redirects),
+        redirect_state_id(contract.arm_complete_target(), redirects),
+        contract
+            .finally_complete_target()
+            .map(|state_id| redirect_state_id(state_id, redirects)),
+        contract
+            .handled_arms()
+            .iter()
+            .map(|arm| {
+                crate::effect_lowered::ir::LateLoweredHandleArmDispatch::new(
+                    arm.handled_case(),
+                    redirect_state_id(arm.arm_state(), redirects),
+                    arm.arm_outward_cases().to_vec(),
+                )
+            })
+            .collect(),
+        contract.body_outward_cases().to_vec(),
+        contract.finally_outward_cases().to_vec(),
+        contract.outward_emissions().to_vec(),
+        contract.pending_completions().to_vec(),
+        contract
+            .abandon_target()
+            .map(|state_id| redirect_state_id(state_id, redirects)),
+    )
 }
 
 fn redirect_state_id(state_id: StateId, redirects: &BTreeMap<StateId, StateId>) -> StateId {

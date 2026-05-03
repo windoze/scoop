@@ -192,6 +192,15 @@ pub enum EffectLoweringError {
         owner_state: u32,
     },
 
+    #[error(
+        "refactor late-lowering stage 无法为 `{root_fqn}` 的 handle site{site_id} 发布 HandleDispatch contract：{detail}"
+    )]
+    InvalidHandleDispatchContract {
+        root_fqn: String,
+        site_id: u32,
+        detail: String,
+    },
+
     #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
 }

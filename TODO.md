@@ -81,7 +81,7 @@
 | `P6-T02g` | `TODO-P6.md` | [DONE] 发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI |
 | `P6-T02h` | `TODO-P6.md` | [DONE] 发布 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering contract，禁止 P6-T03 在 backend 现场发明 pure caller runtime-error 的结束路径 |
 | `P6-T02i` | `TODO-P6.md` | [DONE] 发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore` |
-| `P6-T02j` | `TODO-P6.md` | 发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议 |
+| `P6-T02j` | `TODO-P6.md` | [DONE] 发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议 |
 | `P6-T03` | `TODO-P6.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
 | `P6-T04` | `TODO-P6.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |

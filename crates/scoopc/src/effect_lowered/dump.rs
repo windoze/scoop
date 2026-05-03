@@ -10,6 +10,7 @@ use super::ir::{
     LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
+    LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredProgram,
     LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredResumeMethod,
     LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
@@ -356,6 +357,9 @@ fn render_state(rendered: &mut String, state: &LateLoweredState) {
         render_state_successors(state.successors())
     )
     .unwrap();
+    if let LateLoweredStateTerminator::HandleDispatch { contract, .. } = state.terminator() {
+        render_handle_dispatch_contract(rendered, contract);
+    }
     writeln!(rendered, "            source_slices:").unwrap();
     if state.source_slices().is_empty() {
         writeln!(rendered, "              <synthetic>").unwrap();
@@ -363,6 +367,106 @@ fn render_state(rendered: &mut String, state: &LateLoweredState) {
     }
     for slice in state.source_slices() {
         render_state_slice(rendered, *slice);
+    }
+}
+
+fn render_handle_dispatch_contract(
+    rendered: &mut String,
+    contract: &LateLoweredHandleDispatchContract,
+) {
+    writeln!(rendered, "            handle_contract:").unwrap();
+    writeln!(
+        rendered,
+        "              carriers: state={} completion={} payload={}",
+        render_system_slot_kind(contract.carrier().state_tag_slot()),
+        render_system_slot_kind(contract.carrier().completion_tag_slot()),
+        render_system_slot_kind(contract.carrier().payload_carrier_slot()),
+    )
+    .unwrap();
+    writeln!(
+        rendered,
+        "              body_complete_target: st{}",
+        contract.body_complete_target().as_u32(),
+    )
+    .unwrap();
+    writeln!(
+        rendered,
+        "              arm_complete_target: st{}",
+        contract.arm_complete_target().as_u32(),
+    )
+    .unwrap();
+    writeln!(
+        rendered,
+        "              finally_complete_target: {}",
+        render_optional_state(contract.finally_complete_target()),
+    )
+    .unwrap();
+    writeln!(
+        rendered,
+        "              abandon_target: {}",
+        render_optional_state(contract.abandon_target()),
+    )
+    .unwrap();
+    writeln!(
+        rendered,
+        "              body_outward_cases: {}",
+        render_cases(contract.body_outward_cases()),
+    )
+    .unwrap();
+    writeln!(
+        rendered,
+        "              finally_outward_cases: {}",
+        render_cases(contract.finally_outward_cases()),
+    )
+    .unwrap();
+    writeln!(rendered, "              handled_arms:").unwrap();
+    if contract.handled_arms().is_empty() {
+        writeln!(rendered, "                <none>").unwrap();
+    } else {
+        for arm in contract.handled_arms() {
+            writeln!(
+                rendered,
+                "                - handled=c{} -> st{} outward={}",
+                arm.handled_case().as_u32(),
+                arm.arm_state().as_u32(),
+                render_cases(arm.arm_outward_cases()),
+            )
+            .unwrap();
+        }
+    }
+    writeln!(rendered, "              pending_completions:").unwrap();
+    if contract.pending_completions().is_empty() {
+        writeln!(rendered, "                <none>").unwrap();
+    } else {
+        for pending in contract.pending_completions() {
+            writeln!(
+                rendered,
+                "                - {}",
+                render_handle_pending_completion(*pending),
+            )
+            .unwrap();
+        }
+    }
+    writeln!(rendered, "              outward_emissions:").unwrap();
+    if contract.outward_emissions().is_empty() {
+        writeln!(rendered, "                <none>").unwrap();
+    } else {
+        for emission in contract.outward_emissions() {
+            writeln!(
+                rendered,
+                "                - c{} op={} payload_tuple_ty={} ko{} cont_schema=k{} out_step_schema=s{}",
+                emission.case_tag().as_u32(),
+                render_concrete_op_key(emission.concrete_op_key()),
+                render_type_id(emission.payload_tuple_ty()),
+                emission.continuation_object().as_u32(),
+                emission
+                    .continuation_contract()
+                    .continuation_schema()
+                    .as_u32(),
+                emission.continuation_contract().out_step_schema().as_u32(),
+            )
+            .unwrap();
+        }
     }
 }
 
@@ -812,6 +916,7 @@ fn render_state_terminator(terminator: &LateLoweredStateTerminator) -> String {
             arm_states,
             finally_state,
             exit_state,
+            contract: _,
             boundary_ids,
             drop_state,
         } => format!(
@@ -849,6 +954,16 @@ fn render_local_runtime_error_terminal_action(
                 "RuntimeFatal(runtime_entry={})",
                 render_published_runtime_entry(runtime_entry)
             )
+        }
+    }
+}
+
+fn render_handle_pending_completion(pending: LateLoweredHandlePendingCompletion) -> String {
+    match pending {
+        LateLoweredHandlePendingCompletion::ContinueToExit => "ContinueToExit".to_string(),
+        LateLoweredHandlePendingCompletion::ReturnFromFunction => "ReturnFromFunction".to_string(),
+        LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) => {
+            format!("PropagateOutward(c{})", case_tag.as_u32())
         }
     }
 }

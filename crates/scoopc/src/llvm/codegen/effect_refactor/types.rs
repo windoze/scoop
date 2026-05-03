@@ -9,6 +9,7 @@ use crate::effect_facts::{
 };
 use crate::effect_lowered::ir::{
     ContinuationObjectId, FrameSlotId, LateLoweredConsumedRuntimeErrorCase,
+    LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPublishedRuntimeEntry,
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
@@ -749,6 +750,74 @@ impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
     }
 }
 
+/// `HandleDispatch` 在 LLVM query 层发布的 field/tag 布局。
+pub(super) struct RefactorHandleDispatchLayout {
+    owner_step_schema: StepSchemaId,
+    site_id: SiteId,
+    lowered_contract: LateLoweredHandleDispatchContract,
+    state_tag_field_index: u32,
+    completion_tag_field_index: u32,
+    payload_carrier_field_index: u32,
+    completion_tags: BTreeMap<LateLoweredHandlePendingCompletion, u32>,
+}
+
+impl RefactorHandleDispatchLayout {
+    pub(super) fn new(
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        lowered_contract: LateLoweredHandleDispatchContract,
+        state_tag_field_index: u32,
+        completion_tag_field_index: u32,
+        payload_carrier_field_index: u32,
+        completion_tags: BTreeMap<LateLoweredHandlePendingCompletion, u32>,
+    ) -> Self {
+        Self {
+            owner_step_schema,
+            site_id,
+            lowered_contract,
+            state_tag_field_index,
+            completion_tag_field_index,
+            payload_carrier_field_index,
+            completion_tags,
+        }
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub(super) fn lowered_contract(&self) -> &LateLoweredHandleDispatchContract {
+        &self.lowered_contract
+    }
+
+    pub(super) fn state_tag_field_index(&self) -> u32 {
+        self.state_tag_field_index
+    }
+
+    pub(super) fn completion_tag_field_index(&self) -> u32 {
+        self.completion_tag_field_index
+    }
+
+    pub(super) fn payload_carrier_field_index(&self) -> u32 {
+        self.payload_carrier_field_index
+    }
+
+    pub(super) fn completion_tag_value(
+        &self,
+        completion: LateLoweredHandlePendingCompletion,
+    ) -> Option<u32> {
+        self.completion_tags.get(&completion).copied()
+    }
+
+    pub(super) fn completion_tags(&self) -> &BTreeMap<LateLoweredHandlePendingCompletion, u32> {
+        &self.completion_tags
+    }
+}
+
 /// 源码可见 `Continuation.resume(...) -> Step_F` 的 LLVM 级合同。
 pub(super) struct RefactorContinuationSurfaceResumeLayout<'ctx> {
     continuation_schema: ContinuationSchemaId,
@@ -1145,6 +1214,7 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
     dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
     local_runtime_error_contracts:
         BTreeMap<(StepSchemaId, SiteId), RefactorLocalRuntimeErrorContract<'ctx>>,
+    handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorHandleDispatchLayout>,
 }
 
 impl<'ctx> RefactorAbiQuery<'ctx> {
@@ -1168,6 +1238,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             (StepSchemaId, SiteId),
             RefactorLocalRuntimeErrorContract<'ctx>,
         >,
+        handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorHandleDispatchLayout>,
     ) -> Self {
         Self {
             source_value_layouts,
@@ -1179,6 +1250,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             callable_layouts,
             dynamic_invoke_layouts,
             local_runtime_error_contracts,
+            handle_dispatch_layouts,
         }
     }
 
@@ -1290,6 +1362,36 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                     contract.payload_tuple_ty().as_u32(),
                     contract.terminal_action(),
                     contract.target_state().as_u32(),
+                ),
+            });
+        }
+        Ok(published)
+    }
+
+    pub(super) fn handle_dispatch_layout(
+        &self,
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        contract: &LateLoweredHandleDispatchContract,
+    ) -> Result<&RefactorHandleDispatchLayout, LlvmEmitError> {
+        let published = self
+            .handle_dispatch_layouts
+            .get(&(owner_step_schema, site_id))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} handle site {} 的 HandleDispatch contract",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                ),
+            })?;
+        if published.lowered_contract() != contract {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 owner step schema s{} handle site {} 的 HandleDispatch contract 漂移：published={:?}，lowered={:?}",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                    published.lowered_contract(),
+                    contract,
                 ),
             });
         }

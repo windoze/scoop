@@ -1233,7 +1233,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02j：发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议
+## [DONE] P6-T02j：发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1303,7 +1303,18 @@
   - `P6-T03` 后续可以只消费这层 contract 来 lower handle body/arm/finally/exit，而不再借壳 legacy private tags 或现场发明新的内部返回协议。
 - 依赖：P6-T02i
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：在 `crates/scoopc/src/effect_lowered/ir.rs` 为 `LateLoweredStateTerminator::HandleDispatch` 新增结构化 `LateLoweredHandleDispatchContract`，显式发布 carrier（`StateTag` / `CompletionTag` / `ResumePayloadCarrier`）、handled case -> arm state 映射、body/arm/finally completion target、body/finally/arm outward case 集、published outward emissions、pending completion token，以及 abandon target。
+  - 2026-05-03：在 `crates/scoopc/src/effect_lowered/materialize.rs` 基于 `HandleSiteEffectFacts` + handle boundary lowering 物化该 contract，并对 handled-arm 数量、handle boundary source/kind、outward emission case 集等执行 fail-fast；`crates/scoopc/src/effect_lowered/opt.rs` 也已同步保持 state redirect 后的 contract 一致性。
+  - 2026-05-03：在 `crates/scoopc/src/effect_lowered/dump.rs` 把 `handle_contract` 渲染到 stable dump / `dump-effect-lowered` surface，后续 review 可以直接看到 body/arm/finally completion 与 pending completion 发布结果。
+  - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 为 `RefactorAbiQuery` 新增 `HandleDispatch` published layout，发布 `StateTag` / `CompletionTag` / `ResumePayloadCarrier` field index 与 completion tag identity，并在 ABI materialization 阶段对 lowered contract、frame system slot、pending completion tag、handled-arm mapping 做 fail-fast 校验。
+  - 2026-05-03：新增/更新定向测试 `refactor_handle_dispatch_contract_*` 与 `refactor_completion_state_contract_*`，覆盖 late-lowered 正例、dump 暴露、LLVM query 正例，以及缺失 handled-arm / completion-tag 槽位时的显式拒绝。
+- 已运行验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_handle_dispatch_contract`
+  - `cargo test -p scoopc refactor_completion_state_contract`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

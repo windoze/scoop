@@ -477,17 +477,28 @@ fn finalize_blueprint_terminator(
             finally_state,
             exit_state,
             boundary_anchor,
-        } => LateLoweredStateTerminator::HandleDispatch {
-            site_id: *site_id,
-            body_state: *body_state,
-            arm_states: arm_states.clone(),
-            finally_state: *finally_state,
-            exit_state: *exit_state,
-            boundary_ids: boundary_anchor
-                .and_then(|anchor| boundary_ids_by_anchor.get(&anchor).cloned())
-                .unwrap_or_default(),
-            drop_state: None,
-        },
+        } => {
+            let body_complete_target = finally_state.unwrap_or(*exit_state);
+            let arm_complete_target = finally_state.unwrap_or(*exit_state);
+            let contract = crate::effect_lowered::ir::LateLoweredHandleDispatchContract::skeleton(
+                body_complete_target,
+                arm_complete_target,
+                finally_state.map(|_| *exit_state),
+                None,
+            );
+            LateLoweredStateTerminator::HandleDispatch {
+                site_id: *site_id,
+                body_state: *body_state,
+                arm_states: arm_states.clone(),
+                finally_state: *finally_state,
+                exit_state: *exit_state,
+                contract,
+                boundary_ids: boundary_anchor
+                    .and_then(|anchor| boundary_ids_by_anchor.get(&anchor).cloned())
+                    .unwrap_or_default(),
+                drop_state: None,
+            }
+        }
         StateBlueprintTerminator::ResumeUnwind => LateLoweredStateTerminator::ResumeUnwind,
         StateBlueprintTerminator::Unreachable => LateLoweredStateTerminator::Unreachable,
     }
