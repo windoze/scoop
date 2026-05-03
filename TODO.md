@@ -66,6 +66,7 @@
 | `P5-T07` | `TODO-P5.md` | [DONE] 新增 `dump-effect-lowered` / snapshot 基线，并冻结 P5 -> P6 handoff contract |
 | `P5-T07R` | `TODO-P5.md` | [DONE] Review P5 阶段退出条件，确认 P6 只需把 late-lowered representation 翻译到 LLVM |
 | `P5-T07a` | `TODO-P5.md` | [DONE] 修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证 |
+| `P5-T07b` | `TODO-P5.md` | 清理 P5 late-lowered handoff 的 resume contract 主次关系，固定 per-op/per-schema authoritative 表达 |
 | `P6-T01` | `TODO-P6-part1.md` | [DONE] 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
 | `P6-T01a` | `TODO-P6-part1.md` | [DONE] 为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend |
 | `P6-T01R` | `TODO-P6-part1.md` | [DONE] Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离 |
@@ -87,6 +88,7 @@
 | `P6-T02l` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属 |
 | `P6-T02ma` | `TODO-P6-part1.md` | [DONE] 发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema |
 | `P6-T02m` | `TODO-P6-part2.md` | [DONE] 发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable |
+| `P6-T02n` | `TODO-P6-part2.md` | 清理 refactor LLVM ABI/query 的 resume 主键，降级 effect-level resume interface 为 packing 层 |
 | `P6-T03` | `TODO-P6-part2.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6-part2.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
 | `P6-T04` | `TODO-P6-part2.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |

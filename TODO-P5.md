@@ -47,10 +47,11 @@
   - 不允许在 P5 就设计两套不同的用户可见 surface（例如“optimized direct entry”与“canonical dynamic entry”并存）。
 - continuation object 必须按 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.5 建模。
   - continuation 是编译器生成的内部对象；
-  - 它实现对应 effect family 的内部 resume interfaces；
+  - authoritative 的 reverse-resume contract 必须按 `ConcreteOpKey` / `CaseTag` / `ContinuationSchema` 划分；
   - 每个 resume method 的返回类型统一为同一个 `Step_F<T>`；
   - method 参数类型来自对应 case 的 `ContinuationSchema.resume_tuple_ty`；
-  - interface method 集必须完整；对于不可能合法调用到的方法，允许 body 为 `unreachable`，但不能从类型上删掉。
+  - 若实现中保留按 effect family 分组的 internal resume interface，它只能作为 packing/query helper；
+  - 若保留这层 packing，则 interface method 集必须完整；对于不可能合法调用到的方法，允许 body 为 `unreachable`，但不能从类型上删掉。
 - capture 链必须被吸收到 continuation/state-machine 模型本身。
   - 明确禁止：在 P5 的新主线中继续把 ambient TLS handler stack / snapshot / bridge 当作语义前提；
   - 明确禁止：继续依赖 `crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs` 这一类 backend bridge 作为 P5 correctness 前提。
@@ -1280,3 +1281,64 @@
   - 2026-05-03：在 `crates/scoopc/src/effect_lowered/materialize.rs` 新增回归测试 `refactor_boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls`，直接覆盖 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`，断言 `main` 的两个 `run(...)` call boundary 都能成功物化、`dispatch.outward_cases()` 为空、且各自都显式携带本地消费的 `scoop.core.Raise.raise<scoop.core.RuntimeError>` contract，不再触发 `MissingProjectedStepCase`。
   - 2026-05-03：为保持本任务要求的无警告验证，通过 `cfg_attr(not(feature = "llvm"), allow(dead_code))` 收口了仅在 LLVM feature 下使用的 helper（`crates/scoopc/src/effect_lowered/opt.rs`、`crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs`、`crates/scoopc/src/hir/lower/types.rs`），并在 `crates/scoop/src/commands/build.rs` 修正了 LLVM-only 测试的 feature gate，在 `crates/scoop/src/fixtures/mod.rs` 去除了会在带过滤器的 `cargo test ... effect_lowered` 下产生噪声的 module-level import；这些改动不改变语义，只用于让本任务的 no-default-features/driver 验证保持干净。
   - 2026-05-03：已运行验证：`cargo test -p scoopc --no-default-features refactor_boundary_lowering`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-facts tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo run -q -p scoop -- --effect-pipeline refactor build tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop -o /tmp/p5_t07a_probe.out`（现已前进到 P6 fail-fast，报 `call boundary lowering, resume-state lowering` 尚未迁移，而不再在 P5 因 `MissingProjectedStepCase` 失败）、`cargo test -p scoop --no-default-features effect_lowered`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。`PLAN.md` 无需改动。
+
+## P5-T07b：清理 P5 late-lowered handoff 的 resume contract 主次关系，固定 per-op/per-schema authoritative 表达
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §0，§2/P5，§2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.6, §5.5, §8
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T02m`、`P6-T02ma`、`P6-T03`
+  - 当前实现参考：
+    - `crates/scoopc/src/effect_facts/{schema,builder}.rs`
+    - `crates/scoopc/src/effect_lowered/{ir,materialize,dump}.rs`
+    - `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs`
+- 背景：
+  - 当前 authoritative 的 reverse-resume 语义其实已经主要按 `ConcreteOpKey` / `CaseTag` / `ContinuationSchemaId` 发布：`StepCaseFact` 直接绑定具体 op/case，`ContinuationSchemaId` 按 `(resume_tuple_ty, answer_ty, out_step_schema, surface_ty)` canonical 去重，`surface_resume_dispatch_inventory` 也按 `ContinuationSchemaId` 发布 shared surface-resume contract；
+  - 但与此同时，P5 仍在 `group_cases_by_effect_family(...)` / `LateLoweredResumeInterface` 这一层按 effect family 分组生成 internal resume interface，导致 stage output、注释与 dump surface 仍容易给下游一种“resume 语义主体是整 effect interface”的印象；
+  - 这会让 P6 容易继续把 `ResumeInterfaceId` / effect family 当作 resume 语义主键，掩盖真正的 per-op/per-schema handoff，也让我们刚刚确认的设计问题继续留在 P5 -> P6 边界上。
+
+- 目标：
+  - 在 P5 阶段内把 resume contract 的 authoritative 层与 packing 层彻底分开；
+  - 让 P5 -> P6 handoff、dump surface、以及 late-lowered IR 文档都明确表达：`ConcreteOpKey` / `CaseTag` / `ContinuationSchemaId` 才是 reverse-resume 语义主键；
+  - 若仓库继续保留按 effect family 分组的 `LateLoweredResumeInterface`，它只能作为 compiler-owned packing/query helper，而不能继续反客为主成为 downstream 必须依赖的 semantic source of truth。
+
+- 必须实现的内容：
+  1. 清理 P5 authoritative handoff 的主键叙事。
+     - `LateLoweredProgram`、`LateLoweredCallable`、`LateLoweredContinuationObject`、`surface_resume_dispatch_inventory`、以及 stage 输出/注释中，必须明确区分：
+       - authoritative per-op/per-schema contract；
+       - optional effect-level packing layer；
+     - 明确禁止继续把“实现了哪些 `ResumeInterfaceId`”写成 reverse-resume 语义的第一叙事。
+  2. 调整 late-lowered published query / formatter。
+     - `dump-effect-lowered` 与稳定 formatter 必须能直接展示 per-op/per-schema authoritative contract；
+     - 任何 continuation object / boundary lowering / surface-resume 相关的 published query，都不得要求调用方先从 effect family 分组或 `ResumeInterfaceId` 倒推语义。
+  3. 为 packing 层建立从属约束，而不是主导语义。
+     - 若保留 `LateLoweredResumeInterface`，其 method completeness、顺序与 object-side publication 只能用于验证“与 authoritative case 集对齐”；
+     - 明确禁止再让 effect-level interface 反过来成为 `StepCaseFact` / `ContinuationSchema` / surface-resume dispatch contract 的唯一 source of truth。
+  4. 补齐定向测试与 snapshot。
+     - 至少覆盖：
+       - shared `ContinuationSchemaId` 不再被错误解释成单一 effect-level interface 身份；
+       - 同一 effect family 下多个 op/case 仍能在 dump / query 中保持 per-op authoritative 可见；
+       - `tests/fixtures/effect_lowered/dynamic_fallback_widening.scoop` 与 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 这类真实路径不会再要求读者从 effect-level interface 分组里补推关键 contract。
+
+- 必须遵从的约束：
+  - 允许保留 `LateLoweredResumeInterface`，但只有两种合法去向：
+    1. 降级为可选 packing/query helper；
+    2. 若收敛后证明没有必要，则从 authoritative handoff 中移除。
+  - 禁止把“目前 LLVM 还用到 interface/vtable”当作让 P5 authoritative handoff 继续以 `ResumeInterfaceId` 为主键的理由。
+  - 禁止把 per-op/per-schema authoritative 合同再包装回 effect-level 主叙事，只在注释里轻描淡写补一句。
+
+- 验证：
+  1. `cargo test -p scoopc --no-default-features refactor_late_lowered_ir`
+  2. `cargo test -p scoopc --no-default-features refactor_continuation_object`
+  3. `cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`
+  4. `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
+  5. `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dynamic_fallback_widening.scoop`
+  6. `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+
+- 完成条件：
+  - P5 authoritative handoff 已能明确区分 per-op/per-schema contract 与 effect-level packing；
+  - P6 不再需要把 `ResumeInterfaceId` / effect family 当成 reverse-resume 语义主键；
+  - 若仓库仍保留 `LateLoweredResumeInterface`，它已被明确降级为可替换 packing，而不是 late-lowered 语义本体。
+- 依赖：P5-T07a
+- 完成记录：
+  - （执行时填写）

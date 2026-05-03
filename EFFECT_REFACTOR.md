@@ -1019,9 +1019,9 @@ k.resume(...)
 - 编译器不必把内部生成类的布局、字段和实现细节泄露到语言 surface；
 - 后续 devirtualization / inlining 仍然可以针对编译器已知的具体 continuation 实现类继续工作。
 
-#### 5.3.2 每个 effect 对应一个内部的“逆向” resume interface
+#### 5.3.2 authoritative 的“逆向” resume contract 按 op/case 划分；按 effect 分 interface 只是可选 packing
 
-一个有用的统一模型是：对每个 effect，都让编译器在内部诱导出一个对应的 resume interface。
+一个更稳的统一模型是：语义上先按具体 `op` / `case` 建立 reverse resume contract，而不是先把“整个 effect interface”当作唯一主键。
 
 如果把一个 op 概念上写成：
 
@@ -1046,27 +1046,30 @@ op$ret : ResumeTuple(op) -> Step_F<T>
 
 - `Step_F` 描述 outward request 的 case 集合；
 - continuation `K_F` 描述 inward/upcall 的实现对象；
-- effect row 的组合也可以自然地被看成这些内部 resume interfaces 的组合。
+- 每次 inward `resume` / upcall 实际只涉及一个具体 op/case；
+- 因而 P5/P6 handoff 中 authoritative 的 identity 应是 `ConcreteOpKey`、`CaseTag`、`ContinuationSchema` 这类 per-op/per-case 稳定键，而不是“整个 effect interface”。
 
-例如，若某个函数实例允许 `E1 + E2`，则它的 continuation 概念上可以视为实现了：
+若实现层希望把同一 effect family 的多个 `op$ret` method 打包进一个内部 interface/vtable，也可以。例如，某个函数实例允许 `E1 + E2` 时，continuation 概念上可以视为实现了：
 
 ```text
 E1$Resume<Step_F<T>> + E2$Resume<Step_F<T>>
 ```
 
-这里的命名只是说明概念；是否真的在实现中生成名为 `E$Resume` 的接口并不重要，重要的是：
+这里的命名只是说明一种可能的 packing 方式；是否真的在实现中生成名为 `E$Resume` 的接口并不重要。真正需要固定的是：
 
-- 每个 effect 都有一组内部、编译器控制的 resume methods；
+- 每个 op/case 都有一个内部、编译器控制的 resume method contract；
 - 每个 method 的返回类型都统一为同一个 `Step_F<T>`；
 - method 的参数类型由对应 case 所关联 `ContinuationSchema.resume_tuple_ty` 决定。
+- 若实现中保留“按 effect family 分组的 resume interface”，它也只是 compiler-owned packing / object-layout convenience；下游阶段不能要求先经这层分组才能恢复 per-op 语义。
 
 #### 5.3.3 continuation 是编译器自动生成的内部对象
 
 在 correctness-first 的模型里，continuation 可以被视为一个编译器自动生成的内部对象：
 
 - 它的具体类型对同一个函数实例固定为 `K_F`；
-- 它实现当前 `StepSchema(F)` / `allowed_row(F)` 对应的那些内部 resume interfaces；
-- 它的方法体负责把某次 upcall/resume 重新送回同一个 `Step_F<T>` 协议。
+- 它承载当前 `StepSchema(F)` / `allowed_row(F)` 下各个 case 的 internal resume contracts；
+- 若实现中保留按 effect family 分组的内部 resume interface，则它可以实现这些 interface，但这只是 packing 方式，不改变 per-op authoritative identity；
+- 它的方法体或等价 entry 负责把某次 upcall/resume 重新送回同一个 `Step_F<T>` 协议。
 
 这有两个重要后果：
 
@@ -1077,18 +1080,23 @@ E1$Resume<Step_F<T>> + E2$Resume<Step_F<T>>
    - `K_F` 固定
 
 2. 实现上可以复用普通的对象/interface 优化
-   - `k.op$ret(...)` 只是普通的 interface/virtual call
+   - `k.op$ret(...)` 可以只是普通的 interface/virtual call，或其它 compiler-owned dispatch point
    - 后续可以直接送进 devirtualization、inlining、escape analysis、DCE 等通用 pass
 
-#### 5.3.4 continuation 必须完整实现对应的 resume interface
+#### 5.3.4 若保留 effect-level resume interface packing，continuation 仍需完整实现该 packing
 
-如果一个 effect 对应一个内部 resume interface，那么 continuation 为了满足接口语义，应该完整实现该 interface。
+如果实现选择把同一 effect 的多个 `op$ret` methods 打包成一个内部 resume interface，那么 continuation 为了满足这层 packing/vtable contract，仍应完整实现该 interface。
 
 也就是说：
 
-- 对当前 continuation 所属的那些 effect interfaces，method 集合应当是完整的；
+- 对当前 continuation 所属的那些 effect-level packing interfaces，method 集合应当是完整的；
 - 不应因为某个具体 continuation 实例在当前 call chain 上“看起来不会用到某个 op”，就把该 method 从类型上删掉；
-- 否则它就不再满足该 interface 的语义 contract。
+- 否则它就不再满足该 packing contract。
+
+但这里还要额外固定一条主次关系：
+
+- authoritative 的完整性来源仍应是当前 `StepSchema` 下对应 effect family 的 case/op 集，以及它们关联的 `ContinuationSchema`；
+- 不能反过来把某个 effect-level interface 当成 per-op 语义的唯一 source of truth，再让下游阶段从 interface 分组里倒推 case/schema。
 
 但这并不意味着每个 method 都必须有复杂实现。
 
@@ -1105,7 +1113,7 @@ E1$Resume<Step_F<T>> + E2$Resume<Step_F<T>>
 
 #### 5.3.5 这批内部 interface call 值得再送进一轮 devirtualization / inlining
 
-一旦编译器把 continuation materialize 成实现 resume interfaces 的内部对象，就会引入新的一批动态调用点，例如：
+一旦编译器把 continuation materialize 成承载 per-op resume contracts（必要时带 resume-interface packing）的内部对象，就会引入新的一批动态调用点，例如：
 
 ```text
 k.op$ret(resume_tuple)
@@ -1138,7 +1146,7 @@ k.op$ret(resume_tuple)
    - `Continuation<...>` 作为用户可持有/传递/恢复的接口类型存在。
 
 2. 编译器内部层
-   - 前面讨论的内部 `resume interface`
+   - 前面讨论的 per-op resume contracts，以及可选的内部 `resume interface` packing
    - 编译器生成的具体 continuation object
    - 它们的 method 集、对象头、vtable、字段布局
 
@@ -1819,7 +1827,7 @@ BodyVersionKey = (symbol, type_args, allowed_row, impl_ops, needs_reentry)
    - 对剩余仍需独立存在的 effectful callable，按 `resolved_outward_cases` 选择当前阶段的三档 `ImplPlan`（`NoOutward` / `SingleCase` / `CanonicalFull`）；
    - 用统一的“boundary segmentation + frame lifting + explicit resume-state”算法把整函数 `direct-style` body 转成状态机，而不是按某些特定 code shape 走专用 lowering；
    - 物化 canonical `Step` ABI；
-   - 将 continuation materialize 为实现内部 resume interfaces 的对象/entry 形态。
+   - 将 continuation materialize 为承载 per-op resume contract 的对象/entry 形态；若实现中保留按 effect 分组的 internal resume interface，则它只是一层可优化掉的 packing。
 7. `post-effect-object devirtualization + inlining`
    - 对新引入的 `k.op$ret(...)` 这类内部 interface call 再跑一轮 devirtualization / inlining / DCE；
    - 尽可能把 correctness-first 的对象/interface模型收敛回更直接的状态机/控制流形态；

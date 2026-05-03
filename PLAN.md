@@ -29,6 +29,7 @@
 - 每个阶段都必须向下一阶段输出**语义上闭包**的信息包，严格遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 顶部的“闭包原则”。
   - 下一阶段只能依赖：本阶段显式输入、上阶段显式产出的 facts/schema/table、以及外部输入（target ABI、opt level、feature flags）；
   - 不允许为补齐语义回看 HIR / AST / 旧 pass 私有缓存。
+- 若某阶段同时存在“per-op/per-case 的 authoritative contract”和“按 effect family 分组的 packing/vtable/interface 层”，则 authoritative key 必须始终是前者；后者只可作为实现/查询层的 packing helper，不能在下游阶段反向充当 semantic source of truth。
 - 对任何 `needs_reentry = true` 的 effectful callable，其 `direct-style body -> state machine` 转化必须统一遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16、§5.5。
   - boundary 选择、整函数 segmentation、frame lifting、control-transfer encoding 都必须由同一算法决定；
   - `NoOutward` 也只能被视为同一 facts + `ImplPlan` 框架下得到的退化结果，而不是 code-shape 特判通道；
@@ -303,7 +304,7 @@
   - `Step_F` enum
   - canonical dynamic `invoke(args_tuple) -> Step_F`
   - continuation object
-  - internal resume interfaces
+  - per-op resume contracts，以及必要时按 effect family 分组的 internal resume-interface packing
   - `ImplPlan` 对应的版本形态
 - 但此阶段仍不接 LLVM；先把表示和 contract 自己闭合。
 
@@ -343,9 +344,12 @@
   - `Step_F` variant 构造；
   - canonical dynamic `invoke(args_tuple) -> Step_F` surface；
   - continuation object；
-  - internal resume interfaces / icall boundary；
+  - per-op resume method/surface contract，以及必要时保留的 internal resume-interface packing / icall boundary；
   - state graph、frame schema、boundary/resume 映射。
-- continuation object / resume interface / boundary lowering 必须消费 `ContinuationSchema.resume_tuple_ty`、`answer_ty` 与 `out_step_schema` 作为 internal `Step` 协议来源；`surface_ty` 只保留源码层 `Continuation<..., eff Out>` 合同，不能从 `out_step_schema` 的 one-shot runtime-error upper bound 反推或扩大其 effect 参数。
+- continuation object / per-op resume contract / optional resume-interface packing / boundary lowering 必须消费 `ContinuationSchema.resume_tuple_ty`、`answer_ty` 与 `out_step_schema` 作为 internal `Step` 协议来源；`surface_ty` 只保留源码层 `Continuation<..., eff Out>` 合同，不能从 `out_step_schema` 的 one-shot runtime-error upper bound 反推或扩大其 effect 参数。
+- 在 P5 阶段末需要清理 reverse-resume contract 的主次关系，明确 `ConcreteOpKey` / `CaseTag` / `ContinuationSchema` 是 authoritative identity。
+- 若仓库继续保留按 effect family 分组的 `LateLoweredResumeInterface`，它只能作为 late-lowered representation 内的 packing/query helper，不能要求 P6 先经 `ResumeInterfaceId` 才能恢复 per-op 语义。
+- `dump-effect-lowered` 与 P5 -> P6 stage API 必须能直接展示/查询这一区分，避免分组层反客为主。
 - 若现有“单 `handle` 内部状态机”模块能在**不引入 code-shape 分叉**的前提下消费上述整函数 contract，可将其下沉为中立基础设施；否则在新路径中替换/重建，不继续把“仅 `handle` 局部状态机”当成目标架构。
 - 在 late-lowered representation 上立即加入一轮窄的：
   - devirtualization
@@ -357,14 +361,14 @@
 
 - 一套完整的 late-lowered internal representation；
 - 它的输入是 direct-style MIR + facts，输出是 LLVM 前的 `Step` / continuation / dynamic invoke 形态；
-- 其中必须显式包含整函数 state graph、frame schema、boundary/resume mapping，以及与 `StepSchema` / `ContinuationSchema` 对齐的 contract。
+- 其中必须显式包含整函数 state graph、frame schema、boundary/resume mapping，以及与 `StepSchema` / `ContinuationSchema` / `ConcreteOpKey` / `CaseTag` 对齐的 authoritative contract。
 
 验证：
 
 - 新增 late-lowered dump / snapshot 测试（必要时新增 `dump-effect-lowered` 或等价调试入口）；
 - 单元测试验证：
   - `Step_F` enum 形状与 `StepSchema` 一一对应
-  - continuation object / internal resume interfaces 形状正确
+  - continuation object / per-op resume contract 形状正确；若保留 internal resume-interface packing，则其 method 集与 authoritative case 集一致
   - dynamic `invoke(args_tuple) -> Step_F` surface 正确
   - 简单 `single perform`/线性函数与复杂函数共用同一 late-lowering 入口，而不是走另一条专用 transformation
   - boundary 位于 `if` / loop / nested expr / argument evaluation 时，都会被正确切分成 owner-state + resume-state
@@ -379,6 +383,7 @@
 
 - P6 只需把 late-lowered representation 翻译到 LLVM，而不是重新做 boundary 识别、整函数 segmentation 或 frame-lifting；
 - 新路径中不再保留按 code shape 另开入口的 effectful state-machine transformation；
+- P5 -> P6 handoff 已明确区分 per-op/per-schema authoritative contract 与可选的 effect-level packing，P6 不再需要把 `ResumeInterfaceId` / effect family 当成 resume 语义主键；
 - 不再允许 P6 再临时重做高层 effect lowering 设计。
 
 ### P6. LLVM codegen 新路径对接（仍不切主线）
@@ -397,10 +402,11 @@
   - `Step_F` enum lowering
   - dynamic `invoke` / ordinary direct invoke
   - continuation object lowering
-  - internal resume interface / icall lowering
+  - per-op resume contract lowering，以及必要时保留的 internal resume-interface / icall packing lowering
   - runtime error 作为普通 effect 分支的 lowering
   - dropped continuation / cleanup hook 语义的 lowering 对齐
 - LLVM backend 只消费 P5 产出的 late-lowered state graph / frame schema / boundary contract；不得在 backend 再重新识别源码 shape、再切一次 CFG、或临时发明第二套 state-machine transformation。
+- 在进入 body lowering 前，必须先清理 resume ABI/query 的主次关系：`ContinuationSchemaId` / `CaseTag` / `ConcreteOpKey` 是 authoritative lookup；若保留 `ResumeInterfaceId`，它只能服务 continuation object field/vtable packing 与 object-side method lookup，不能作为 backend 恢复 resume 语义的起点。
 - 保持 Managed ABI / extern 边界不承载 effect/continuation 语义。
 - 旧 LLVM 主线继续保留，直到 P7 切换。
 - 所有新路径 LLVM 验证继续通过 P0 引入的 CLI 参数进入，不改变默认主线行为。
@@ -434,6 +440,7 @@
 完成条件：
 
 - 新路径在 LLVM 层面对本文档覆盖的 effect/continuation 语义已经端到端闭合；
+- backend 已不再以 effect-level resume interface 作为 resume 语义 source of truth；
 - 只差把默认主线切过去和做 full regression。
 
 ### P7. 切换主线并执行 full regression
@@ -520,7 +527,7 @@
 4. `MaterializedEffectFacts` 已成为 downstream 唯一 effect contract 来源；后续阶段不再为补语义回看 HIR。
 5. `resolved_outward_cases`、`needs_reentry`、`impl_plan` 已在 facts 层闭合，并按统一 SCC/dataflow + budget 规则求解。
 6. 所有 `needs_reentry = true` 的 effectful callable 都按统一的整函数 boundary segmentation + frame lifting + explicit resume-state 算法完成 `direct-style -> state machine` 转化，不再按 code shape 分流。
-7. late-lowered `Step_F` / dynamic `invoke` / continuation object / internal resume interfaces 已形成新的中后端主线。
+7. late-lowered `Step_F` / dynamic `invoke` / continuation object / per-op resume contracts（必要时带 internal resume-interface packing）已形成新的中后端主线。
 8. 新 LLVM codegen 已能在并行路径上端到端生成并运行 effect/continuation 程序。
 9. 新路径切为默认主线后，full regression 与 GC env 相关全集验证全部通过。
 10. 旧主线已被删除，仓库中不再保留对旧 effect/continuation 主线或 code-shape-specific lowering 的隐藏依赖。
