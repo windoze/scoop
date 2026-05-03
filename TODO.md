@@ -66,33 +66,33 @@
 | `P5-T07` | `TODO-P5.md` | [DONE] 新增 `dump-effect-lowered` / snapshot 基线，并冻结 P5 -> P6 handoff contract |
 | `P5-T07R` | `TODO-P5.md` | [DONE] Review P5 阶段退出条件，确认 P6 只需把 late-lowered representation 翻译到 LLVM |
 | `P5-T07a` | `TODO-P5.md` | [DONE] 修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证 |
-| `P6-T01` | `TODO-P6.md` | [DONE] 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
-| `P6-T01a` | `TODO-P6.md` | [DONE] 为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend |
-| `P6-T01R` | `TODO-P6.md` | [DONE] Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离 |
-| `P6-T01b` | `TODO-P6.md` | [DONE] 扩展 refactor build/LLVM handoff 的 ABI 可见性，保证 P6-T02 build fixtures 能在不触发 legacy lowering 的前提下观察 effectful `Step` / continuation 形状 |
-| `P6-T02` | `TODO-P6.md` | [DONE] 把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering |
-| `P6-T02a` | `TODO-P6.md` | [DONE] 让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity |
-| `P6-T02b` | `TODO-P6.md` | [DONE] 让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell |
-| `P6-T02R` | `TODO-P6.md` | [DONE] Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型 |
-| `P6-T02c` | `TODO-P6.md` | [DONE] 发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口 |
-| `P6-T02d` | `TODO-P6.md` | [DONE] 发布 canonical dynamic-invoke callable-object ABI/query contract，禁止 P6-T03 在 backend 现场猜测 indirect call 入口 |
-| `P6-T02e` | `TODO-P6.md` | [DONE] 发布 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract，禁止 P6-T03 在 backend 现场发明传播路径 |
-| `P6-T02f` | `TODO-P6.md` | [DONE] 发布 straight-line source-slice 非 boundary dynamic call 的 callable-object ABI/query contract，禁止 P6-T03 在 body emitter 现场回落旧 callable wrapper |
-| `P6-T02g` | `TODO-P6.md` | [DONE] 发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI |
-| `P6-T02h` | `TODO-P6.md` | [DONE] 发布 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering contract，禁止 P6-T03 在 backend 现场发明 pure caller runtime-error 的结束路径 |
-| `P6-T02i` | `TODO-P6.md` | [DONE] 发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore` |
-| `P6-T02j` | `TODO-P6.md` | [DONE] 发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议 |
-| `P6-T02k` | `TODO-P6.md` | [DONE] 发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状 |
-| `P6-T02kR` | `TODO-P6.md` | [DONE] Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状 |
-| `P6-T02l` | `TODO-P6.md` | [DONE] 发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属 |
-| `P6-T02ma` | `TODO-P6.md` | [DONE] 发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema |
-| `P6-T02m` | `TODO-P6.md` | 发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable |
-| `P6-T03` | `TODO-P6.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
-| `P6-T03R` | `TODO-P6.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
-| `P6-T04` | `TODO-P6.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |
-| `P6-T04R` | `TODO-P6.md` | Review GC/runtime 集成，确认没有残留 legacy handler-stack 依赖，也没有错误的 dropped-continuation / FFI 语义 |
-| `P6-T05` | `TODO-P6.md` | 建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract |
-| `P6-T05R` | `TODO-P6.md` | Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |
+| `P6-T01` | `TODO-P6-part1.md` | [DONE] 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
+| `P6-T01a` | `TODO-P6-part1.md` | [DONE] 为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend |
+| `P6-T01R` | `TODO-P6-part1.md` | [DONE] Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离 |
+| `P6-T01b` | `TODO-P6-part1.md` | [DONE] 扩展 refactor build/LLVM handoff 的 ABI 可见性，保证 P6-T02 build fixtures 能在不触发 legacy lowering 的前提下观察 effectful `Step` / continuation 形状 |
+| `P6-T02` | `TODO-P6-part1.md` | [DONE] 把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering |
+| `P6-T02a` | `TODO-P6-part1.md` | [DONE] 让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity |
+| `P6-T02b` | `TODO-P6-part1.md` | [DONE] 让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell |
+| `P6-T02R` | `TODO-P6-part1.md` | [DONE] Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型 |
+| `P6-T02c` | `TODO-P6-part1.md` | [DONE] 发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口 |
+| `P6-T02d` | `TODO-P6-part1.md` | [DONE] 发布 canonical dynamic-invoke callable-object ABI/query contract，禁止 P6-T03 在 backend 现场猜测 indirect call 入口 |
+| `P6-T02e` | `TODO-P6-part1.md` | [DONE] 发布 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract，禁止 P6-T03 在 backend 现场发明传播路径 |
+| `P6-T02f` | `TODO-P6-part1.md` | [DONE] 发布 straight-line source-slice 非 boundary dynamic call 的 callable-object ABI/query contract，禁止 P6-T03 在 body emitter 现场回落旧 callable wrapper |
+| `P6-T02g` | `TODO-P6-part1.md` | [DONE] 发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI |
+| `P6-T02h` | `TODO-P6-part1.md` | [DONE] 发布 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering contract，禁止 P6-T03 在 backend 现场发明 pure caller runtime-error 的结束路径 |
+| `P6-T02i` | `TODO-P6-part1.md` | [DONE] 发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore` |
+| `P6-T02j` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议 |
+| `P6-T02k` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状 |
+| `P6-T02kR` | `TODO-P6-part1.md` | [DONE] Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状 |
+| `P6-T02l` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属 |
+| `P6-T02ma` | `TODO-P6-part1.md` | [DONE] 发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema |
+| `P6-T02m` | `TODO-P6-part2.md` | 发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable |
+| `P6-T03` | `TODO-P6-part2.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
+| `P6-T03R` | `TODO-P6-part2.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
+| `P6-T04` | `TODO-P6-part2.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |
+| `P6-T04R` | `TODO-P6-part2.md` | Review GC/runtime 集成，确认没有残留 legacy handler-stack 依赖，也没有错误的 dropped-continuation / FFI 语义 |
+| `P6-T05` | `TODO-P6-part2.md` | 建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract |
+| `P6-T05R` | `TODO-P6-part2.md` | Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |
 | `P7-T01` | `TODO-P7.md` | 翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口 |
 | `P7-T01R` | `TODO-P7.md` | Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口 |
 | `P7-T02` | `TODO-P7.md` | 更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy” |
