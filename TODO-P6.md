@@ -1521,6 +1521,71 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02ma：发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.6, §5.5
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/effect_lowered/materialize.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - 2026-05-03 继续实现 `P6-T02m` 时，直接把 `ContinuationSchemaId` 映射到“单一 `ResumeInterfaceId/CaseTag/object-field/vtable-slot`”在现有 handoff 上失败；失败不是 LLVM query 小缺口，而是 authoritative dispatch source 本身还没被 P5/P6 handoff 明确发布出来。
+  - 已复现的真实缺口至少有两类：
+    - `tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`：同一个 `ContinuationSchemaId k0` 同时出现在 `ko1` 的 `c0` / `c1` 两个 surface-resume case 上，但当前 late-lowered shell 只为 `ImplPlan::SingleCase(c0)` 保留了一个可达 internal resume method（`ri0::c0`）。这说明“schema -> 单一 method identity”并不是当前 handoff 的已发布事实，P6 不能自己从 object/method 列表补推 reachable target。
+    - `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`：真实 resume boundary `bd0/site9` 需要 `ContinuationSchemaId k3` 的 surface-resume symbol，但 `k3` 只存在于 `ResumeSiteEffectFacts` / `LateLoweredBoundaryLowering::Resume`，并没有对应的 continuation object surface/method shell；与此同时，handle arm continuation binder 仍要求 `k0` 拥有 published surface-resume dispatch contract。说明 authoritative source 不能只看 continuation object 的现有 surface/method 列表。
+  - 因此在进入 `P6-T02m` 之前，必须先把“一个 `ContinuationSchemaId` 的 shared surface-resume symbol 到底该消费哪类 dispatch source”显式发布出来；否则 P6 只能继续扫描 raw object、猜 `impl_plan` reachability，或从 boundary/handle contract 临时拼规则，违反 no-workaround / contract-first 边界。
+
+- 目标：
+  - 为每个需要 surface-resume shared symbol 的 `ContinuationSchemaId` 发布 authoritative dispatch-source inventory；
+  - 让后续 `P6-T02m` 只消费这层 inventory，就能把 schema 路由到已发布的 owner-specific source，而不再现场扫描 continuation object、猜 reachability、或把 resume-site/handle-binder 特判藏在 LLVM backend。
+
+- 必须实现的内容：
+  1. 为 `ContinuationSchemaId` 发布显式 dispatch-source kind。
+     - 至少要能区分：
+       - continuation object / internal resume method 驱动的 source；
+       - 只在 resume boundary 上存在的 source；
+       - 只通过 handle continuation binder / owner trampoline 暴露的 source；
+       - 明确的 unreachable source（若某 schema 当前没有合法可达实现）。
+     - 禁止让 P6 继续通过“surface case body 是否恰好 `Unreachable`”“object.methods 是否刚好缺某个 case”来倒推出 dispatch source kind。
+  2. 覆盖 shared-schema multi-case publication。
+     - 当同一 schema 同时出现在多个 surface case 上时，必须 authoritative 地说明：
+       - 哪个 dispatch source 对应 shared symbol；
+       - 哪些只是同 schema 的附属/不可达 publication；
+       - 何时属于真实冲突并必须 fail fast。
+     - 禁止把 `ImplPlan::SingleCase` / `CanonicalFull` 细节留给 P6-T02m 在 LLVM query 现场解释。
+  3. 覆盖 resume-site-only schema 与 handle-binder schema。
+     - 对像 `k3` 这类只出现在 `ResumeSiteEffectFacts` / boundary lowering 上的 schema，必须发布可 lower 的 owner dispatch target；
+     - 对 handle arm continuation binder 依赖的 schema，必须发布能被 binder/LLVM query authoritative 回查的 surface-resume source。
+  4. 对缺失或矛盾的 inventory fail fast。
+     - 至少包括：
+       - schema 已有 surface-resume layout，但没有任何 authoritative dispatch source；
+       - schema 同时被多个 source 以互不兼容的方式发布；
+       - handle binder / resume site 仍引用一个未入 inventory 的 schema；
+       - 只能靠 raw object 扫描、method 缺失、或 boundary 邻接关系猜出来的“隐式 source”。
+  5. 补充针对性验证。
+     - 至少锁定上面两个已复现 fixture 的 handoff 形状；
+     - 新增/更新单测，证明 inventory 已经能 authoritative 区分 shared-schema、resume-site-only、以及 handle-binder schema。
+
+- 必须遵从的约束：
+  - 禁止让 `P6-T02m` / `P6-T03` 继续把 `continuation_object.surface_resumes()`、`continuation_object.methods()`、`ResumeSiteEffectFacts`、`HandleDispatch` binder contract 当成几份需要现场拼接的半成品来源。
+  - 禁止靠扫描 raw continuation object 顺序、缺失 method、或 `impl_plan` 恰好裁掉某个 case 这种 incidental shape 作为 dispatch 依据。
+  - 若 authoritative source 需要新增到 late-lowered representation 或等价 handoff 中，必须在这一任务里显式发布；禁止把这一步留给 LLVM query 再临时整理。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_surface_resume_layout`
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+
+- 完成条件：
+  - 每个需要 shared surface-resume symbol 的 `ContinuationSchemaId` 都拥有唯一、显式、可回查的 dispatch-source publication；
+  - shared-schema multi-case、resume-site-only schema、以及 handle-binder schema 都不再需要 LLVM query / backend 现场拼规则；
+  - `P6-T02m` 可以只在这层 authoritative inventory 之上继续发布 LLVM-level owner dispatch contract。
+- 依赖：P6-T02c
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
 - 参考：
@@ -1585,9 +1650,13 @@
   - surface-resume shared schema symbol 到 owner-specific implementation 的 dispatch contract 已成为 published handoff；
   - `P6-T03` 可以只消费 authoritative contract 定义/调用 surface-resume body，而不再现场扫描 continuation object 或猜 owner callable；
   - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝。
-- 依赖：P6-T02c
+- 依赖：P6-T02c，P6-T02ma
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：尝试把 `ContinuationSchemaId` 直接收口到单一 `ResumeInterfaceId/CaseTag/object lookup` 时发现 blocker。当前 handoff 还没有 authoritative 发布 schema 对应的 dispatch-source inventory：
+    - `effect_refactor_step_enum_single_case.scoop` 中，同一 `k0` 同时对应 `ko1` 的 `c0/c1` 两个 surface case，但 only-one reachable method shell 被 `ImplPlan::SingleCase(c0)` 保留；
+    - `effect_resume_if_else_branch_single_perform.scoop` 中，resume site 直接需要 `k3` 的 surface-resume symbol，而 `k3` 并不存在于任何 continuation object surface/method shell；同时 handle binder 仍要求 `k0` 具备 published surface-resume source。
+  - 这说明 `P6-T02m` 不能只在 LLVM query 层补一个 schema -> method 选择器；必须先把 shared-schema / resume-site-only / handle-binder schema 的 authoritative dispatch-source inventory 显式发布出来。
+  - 因此新增前置任务 `P6-T02ma`，先补齐 dispatch-source inventory，再继续本任务。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
