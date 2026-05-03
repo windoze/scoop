@@ -1233,6 +1233,78 @@
   - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02j：发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16, §5.5.4-§5.5.7, §8
+  - `crates/scoopc/src/effect_lowered/{ir,segment,frame,materialize,dump}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{layout,types}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`（只能作 legacy 对照，禁止把其中的 magic state/completion tag 直接当成 refactor contract 复用）
+- 背景：
+  - 2026-05-03 开始真正实现 `P6-T03` 的 whole-body emitter 时发现：`LateLoweredStateTerminator::HandleDispatch` 当前虽然已经发布了 `body_state`、`arm_states`、`finally_state`、`exit_state`、`boundary_ids`，且 `frame_schema` 也已显式保留 `StateTag` / `CompletionTag` 系统槽位；
+  - 但现有 P5 -> P6 handoff 并没有进一步 authoritative 地说明：同一 callable 内部 handle body 子图完成后，backend 应如何区分“body 完成 / handled arm 命中 / finally 续点 / 向外继续传播 / dropped continuation abandon”，以及这些内部状态之间究竟通过什么已发布的 completion/state carrier 交接；
+  - 当前仓库里唯一可见的具体协议仍藏在 legacy `state_machine_emitter.rs` 的 backend-private 常量和约定中（例如 `STATE_TAG_HANDLE_RETURNED` / `STATE_TAG_FUNCTION_RETURNED` 一类 magic tags，以及对应 completion slot 的消费路径）。若直接继续 `P6-T03`，refactor backend 将不得不：
+    - 借壳 legacy emitter 的隐藏 magic values；或
+    - 在 P6 现场重新发明一套 body/arm/finally/exit completion-state 协议；或
+    - 错误地把 `HandleDispatch` 缩成“只跳 `body_state` 的普通 CFG 边”，从而无法实现 handled perform / finally / nested-handle 的正确语义。
+  - 以上都违背本阶段的 contract-first / no-workaround 约束，因此必须先把这层 lowering contract 显式发布出来，再继续 `P6-T03`。
+
+- 目标：
+  - 为 refactor LLVM backend 补齐 authoritative 的 intra-callable `HandleDispatch` lowering contract；
+  - 让 `P6-T03` 可以只消费已发布 handoff，就把 handle body / arm / finally / exit / outward-propagation 翻译成 LLVM CFG，而不再回 legacy state-machine emitter 借 private tags 或现场重造 completion 协议。
+
+- 必须实现的内容：
+  1. 在 P5/P6 handoff 中显式发布 `HandleDispatch` 的 internal completion/state contract。
+     - 若 `StateTag` / `CompletionTag` 确实是 authoritative carrier，必须把它们对 `HandleDispatch` 的语义显式写成结构化 contract，而不是只保留系统槽位名字；
+     - 若需要额外的 compiler-owned selector / case-dispatch / exit-state token，也必须作为已发布字段或 query 暴露出来；
+     - 明确禁止让 `P6-T03` 继续从 legacy `STATE_TAG_*` 常量、HIR/Span、或 hidden runtime side channel 反推这层协议。
+  2. 显式发布 handle body completion 到 arm/finally/exit 的 authoritative 映射。
+     - 至少需要覆盖：
+       - body 正常完成 -> `exit_state`
+       - handled case 命中 -> 对应 arm state
+       - arm 完成 / finally 完成后的续点
+       - body/arm/finally 向外继续传播时的 outward `Step_F` / boundary emission contract
+       - dropped continuation / abandon 与 pending cleanup 的分流边界
+     - 若这些映射依赖 `HandleSiteEffectFacts.arm_facts()`、`LateLoweredHandleBoundaryLowering.outward_emissions()`、`resume_state_map` 或其它现有 authoritative 数据，必须把消费关系显式固定下来。
+  3. 为 refactor ABI/query 层提供 backend 可直接消费的查询面或等价结构。
+     - `P6-T03` 必须能够从 owner callable + `HandleDispatch` state / handle site 稳定回查：
+       - handled case -> arm state
+       - body completion / finally completion -> exit target
+       - 向外传播时应构造的 canonical `Step_F` / boundary emission
+       - 若使用 completion/state carrier：其 LLVM 级 layout、tag identity、以及允许的 tag 集合
+     - 明确禁止把这些信息只保留在 dump 文本或测试私有 helper 中。
+  4. 在 stage 边界增加 fail-fast 校验。
+     - 缺失 `HandleDispatch` completion-state contract、缺失 handled case -> arm mapping、或 body/arm/finally/exit 与已发布 contract 漂移时，必须在 ABI materialization / refactor lowering 准备阶段显式拒绝；
+     - 禁止把问题留到 `P6-T03` body emitter 现场 panic，或静默回落 legacy handle lowering。
+  5. 更新文档 / dump surface。
+     - `dump-effect-lowered`（或等价 published dump）必须把新发布的 `HandleDispatch` / completion-state contract 公开出来，使后续 review 能确认 backend 消费的就是这层 contract。
+
+- 必须遵从的约束：
+  - 禁止把 legacy `state_machine_emitter.rs` 中的 magic state/completion tag 当作“默认正确值”直接照搬而不先发布为 refactor contract。
+  - 禁止让 `P6-T03` 通过 `Span`、HIR handle 结构、旧 handler-stack runtime ABI、或 source-shape 特判来补足 handle dispatch 语义。
+  - 禁止把问题通过“暂时只支持没有 handle 的 effectful callable”来规避；像 `effect_resume_if_else_branch_single_perform.scoop`、`effect_multi_escape_indirect_direct_while.scoop` 这类真实 handle 路径必须在 contract 层闭合。
+
+- 验证：
+  1. 新增/更新定向单测，推荐命名：
+     - `refactor_handle_dispatch_contract_*`
+     - `refactor_completion_state_contract_*`
+  2. 至少覆盖：
+     - `HandleDispatch` 能 authoritative 地回查 handled case -> arm state / exit state / outward emission；
+     - 若缺失 completion-state contract、handled case 映射、或 tag identity 漂移，会显式 fail fast；
+     - `dump-effect-lowered` 会公开新的 published contract。
+  3. 运行：
+     - `cargo test -p scoopc refactor_handle_dispatch_contract`
+     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - `HandleDispatch` / completion-state contract 已在 P5/P6 handoff 中 authoritative 发布；
+  - `P6-T03` 后续可以只消费这层 contract 来 lower handle body/arm/finally/exit，而不再借壳 legacy private tags 或现场发明新的内部返回协议。
+- 依赖：P6-T02i
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1351,7 +1423,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -1367,6 +1439,8 @@
   - 因此新增前置任务 `P6-T02h`，先把 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering/runtime contract 显式发布出来，再继续本任务。
   - 2026-05-03：继续真正接入 refactor body emitter 时发现新的 blocker。`P6-T03` 需要直接消费 P5/P6 handoff 中的 synthetic `invoke_args_tuple_ty` 与 `ResumeSurface::*` / `CallSurface::*` source type；但当前 LLVM codegen 的 value-lowering helper 仍默认这些类型已经存在于 legacy `hir::LoweredHir.types` / `CgTy` 键空间中。实际试接 direct entry / surface wrapper 时，synthetic carrier 会触发“无法映射到 codegen `TypeStore`”或错误地按旧 `CgTy::Ref`/pointer 规则解码，等价于要求 backend 把 refactor handoff 类型临时回塞 legacy 类型层或现场猜 carrier shape。
   - 因此新增前置任务 `P6-T02i`，先发布并实现 authoritative 的 synthetic invoke-carrier / source-type ABI value lowering contract，再继续本任务。
+  - 2026-05-03：继续推进 handled path 时发现新的 blocker。`LateLoweredStateTerminator::HandleDispatch` 当前只显式发布了 `body_state` / `arm_states` / `finally_state` / `exit_state` 与系统槽位名字（`StateTag` / `CompletionTag`），但并没有 authoritative 地发布“body 子图完成后如何通过 internal completion/state carrier 进入 arm/finally/exit”的 lowering contract。当前唯一可见的具体协议仍藏在 legacy `state_machine_emitter.rs` 的 backend-private magic tags（例如 `STATE_TAG_HANDLE_RETURNED` / `STATE_TAG_FUNCTION_RETURNED`）与对应 completion slot 约定中。若直接继续 `P6-T03`，refactor backend 将不得不借壳这些隐藏常量，或在现场重新发明一套 handle completion-state 协议，违背本阶段 contract-first / no-workaround 约束。
+  - 因此新增前置任务 `P6-T02j`，先把 `HandleDispatch` / completion-state lowering contract 显式发布到 late-lowered + LLVM query handoff 中，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
