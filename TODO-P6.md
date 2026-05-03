@@ -1166,7 +1166,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02i：发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore`
+## [DONE] P6-T02i：发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1223,7 +1223,15 @@
   - `P6-T03` 不再需要把 refactor handoff 类型回塞 legacy `TypeStore`，也不再需要 backend 现场猜 shape。
 - 依赖：P6-T02h
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` 中新增 `RefactorSourceAbiLayoutKind`、`RefactorSourceAbiFieldLayout`、`RefactorSourceAbiLayout`，并把 `source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout>` 挂到 `RefactorAbiQuery`。P6 后续 body emitter 现在可以只靠这层 query 回查 late-lowered source type 的 LLVM ABI value contract，而不必再把 synthetic type 回塞 legacy `TypeStore`。
+  - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中为 ABI materializer 增加 authoritative `source_value_layout(...)` 发布路径，并把它接到当前任务要求的全部 handoff 面：callable direct/dynamic entry `invoke_args_tuple_ty`、surface resume `resume_tuple_ty/answer_ty`、internal resume method payload、`Step` complete/case payload，以及 pure caller `LocalRuntimeError` payload。缺失或不可 lowering 的 source type 现在会在 ABI materialization 阶段以 `source-type ABI value lowering` 诊断显式 fail fast，而不会把问题留到 `P6-T03` body emitter。
+  - 2026-05-03：已为 `RefactorStepVariantLayout` 补充 `payload_source_ty` 元数据，使 `CallSurface::*` / `ResumeSurface::*` 对应的 step payload field 能通过统一 query 回查 source layout；`P6-T03` 后续只需消费已发布 contract，不必再靠 `equivalent_codegen_type_id(...)`、legacy `CgTy` 分支或手写 tuple 猜测来拆装 payload。
+  - 2026-05-03：已新增 `refactor_llvm_layout_*` 定向测试，覆盖 pure direct-entry invoke carrier（同时观察 single-value 与 tuple carrier）、unit case payload、tuple resume payload/answer，以及 synthetic invoke args 不可 lowering 时的 fail-fast。
+- 已运行验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_llvm_layout`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

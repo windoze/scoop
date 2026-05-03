@@ -40,9 +40,118 @@ impl<'ctx> RefactorAbiValue<'ctx> {
     }
 }
 
+/// refactor source type 在 LLVM ABI 中的稳定 carrier 分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum RefactorSourceAbiLayoutKind {
+    Scalar,
+    Tuple,
+}
+
+/// tuple-like source carrier 中单个 source field 对应的 ABI field 映射。
+#[derive(Debug, Clone, Copy)]
+pub(super) struct RefactorSourceAbiFieldLayout<'ctx> {
+    source_index: u32,
+    source_ty: TypeId,
+    abi_field_index: Option<u32>,
+    abi: RefactorAbiValue<'ctx>,
+}
+
+impl<'ctx> RefactorSourceAbiFieldLayout<'ctx> {
+    pub(super) fn new(
+        source_index: u32,
+        source_ty: TypeId,
+        abi_field_index: Option<u32>,
+        abi: RefactorAbiValue<'ctx>,
+    ) -> Self {
+        Self {
+            source_index,
+            source_ty,
+            abi_field_index,
+            abi,
+        }
+    }
+
+    pub(super) fn source_index(&self) -> u32 {
+        self.source_index
+    }
+
+    pub(super) fn source_ty(&self) -> TypeId {
+        self.source_ty
+    }
+
+    pub(super) fn abi_field_index(&self) -> Option<u32> {
+        self.abi_field_index
+    }
+
+    pub(super) fn abi(&self) -> &RefactorAbiValue<'ctx> {
+        &self.abi
+    }
+
+    pub(super) fn is_elided(&self) -> bool {
+        self.abi.is_elided()
+    }
+}
+
+/// late-lowered source type 到 LLVM ABI value 的 authoritative 查询面。
+#[derive(Debug, Clone)]
+pub(super) struct RefactorSourceAbiLayout<'ctx> {
+    source_ty: TypeId,
+    kind: RefactorSourceAbiLayoutKind,
+    abi: RefactorAbiValue<'ctx>,
+    fields: Vec<RefactorSourceAbiFieldLayout<'ctx>>,
+}
+
+impl<'ctx> RefactorSourceAbiLayout<'ctx> {
+    pub(super) fn new(
+        source_ty: TypeId,
+        kind: RefactorSourceAbiLayoutKind,
+        abi: RefactorAbiValue<'ctx>,
+        fields: Vec<RefactorSourceAbiFieldLayout<'ctx>>,
+    ) -> Self {
+        Self {
+            source_ty,
+            kind,
+            abi,
+            fields,
+        }
+    }
+
+    pub(super) fn source_ty(&self) -> TypeId {
+        self.source_ty
+    }
+
+    pub(super) fn kind(&self) -> RefactorSourceAbiLayoutKind {
+        self.kind
+    }
+
+    pub(super) fn is_tuple(&self) -> bool {
+        self.kind == RefactorSourceAbiLayoutKind::Tuple
+    }
+
+    pub(super) fn abi(&self) -> &RefactorAbiValue<'ctx> {
+        &self.abi
+    }
+
+    pub(super) fn fields(&self) -> &[RefactorSourceAbiFieldLayout<'ctx>] {
+        &self.fields
+    }
+
+    pub(super) fn field(&self, source_index: usize) -> Option<&RefactorSourceAbiFieldLayout<'ctx>> {
+        self.fields.get(source_index)
+    }
+
+    pub(super) fn abi_field_count(&self) -> usize {
+        self.fields
+            .iter()
+            .filter(|field| field.abi_field_index().is_some())
+            .count()
+    }
+}
+
 /// `Step_F` 的单个 variant 布局。
 pub(super) struct RefactorStepVariantLayout<'ctx> {
     tag_value: u32,
+    payload_source_ty: TypeId,
     payload_ty: StructType<'ctx>,
     payload_field_count: usize,
     payload_anchor_name: String,
@@ -52,6 +161,7 @@ pub(super) struct RefactorStepVariantLayout<'ctx> {
 impl<'ctx> RefactorStepVariantLayout<'ctx> {
     pub(super) fn new(
         tag_value: u32,
+        payload_source_ty: TypeId,
         payload_ty: StructType<'ctx>,
         payload_field_count: usize,
         payload_anchor_name: String,
@@ -59,6 +169,7 @@ impl<'ctx> RefactorStepVariantLayout<'ctx> {
     ) -> Self {
         Self {
             tag_value,
+            payload_source_ty,
             payload_ty,
             payload_field_count,
             payload_anchor_name,
@@ -68,6 +179,10 @@ impl<'ctx> RefactorStepVariantLayout<'ctx> {
 
     pub(super) fn tag_value(&self) -> u32 {
         self.tag_value
+    }
+
+    pub(super) fn payload_source_ty(&self) -> TypeId {
+        self.payload_source_ty
     }
 
     pub(super) fn payload_ty(&self) -> StructType<'ctx> {
@@ -1019,6 +1134,7 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
 
 /// refactor LLVM type/layout 层对下游 body emitter 暴露的稳定查询面。
 pub(crate) struct RefactorAbiQuery<'ctx> {
+    source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
     step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
     continuation_layouts: BTreeMap<ContinuationObjectId, RefactorContinuationObjectLayout<'ctx>>,
@@ -1034,6 +1150,7 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
 impl<'ctx> RefactorAbiQuery<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
+        source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
         step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
         frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
         continuation_layouts: BTreeMap<
@@ -1053,6 +1170,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         >,
     ) -> Self {
         Self {
+            source_value_layouts,
             step_layouts,
             frame_layouts,
             continuation_layouts,
@@ -1062,6 +1180,20 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             dynamic_invoke_layouts,
             local_runtime_error_contracts,
         }
+    }
+
+    pub(super) fn source_value_layout(
+        &self,
+        source_ty: TypeId,
+    ) -> Result<&RefactorSourceAbiLayout<'ctx>, LlvmEmitError> {
+        self.source_value_layouts
+            .get(&source_ty)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 source type {} 的 ABI value lowering contract",
+                    source_ty.as_u32()
+                ),
+            })
     }
 
     pub(super) fn step_layout(

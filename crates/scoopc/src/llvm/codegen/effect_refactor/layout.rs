@@ -28,7 +28,8 @@ use super::types::{
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameFieldKind,
     RefactorFrameFieldLayout, RefactorFrameLayout, RefactorLocalRuntimeErrorContract,
     RefactorLocalRuntimeErrorTerminalAction, RefactorPublishedRuntimeEntryLayout,
-    RefactorResumeInterfaceLayout, RefactorResumeMethodLayout, RefactorStepCaseLayout,
+    RefactorResumeInterfaceLayout, RefactorResumeMethodLayout, RefactorSourceAbiFieldLayout,
+    RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout,
     RefactorStepLayout, RefactorStepVariantLayout,
 };
 
@@ -145,6 +146,7 @@ struct RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
     view: ProgramLayoutView,
+    source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
 }
 
 impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
@@ -162,6 +164,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             pass_view,
             effect_facts,
             view: ProgramLayoutView::new(program)?,
+            source_value_layouts: BTreeMap::new(),
         })
     }
 
@@ -216,6 +219,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
 
         Ok(RefactorAbiQuery::new(
+            this.source_value_layouts,
             step_layouts,
             frame_layouts,
             continuation_layouts,
@@ -240,7 +244,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let complete_payload_anchor =
             format!("__scoop_refactor_step_variant_payload__{stem}__complete");
 
-        let complete_payload_abi = self.abi_value(step_type.complete_ty())?;
+        let complete_payload_layout = self.source_value_layout(step_type.complete_ty())?;
+        let complete_payload_abi = *complete_payload_layout.abi();
         let complete_fields = if complete_payload_abi.is_elided() {
             Vec::new()
         } else {
@@ -253,6 +258,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         let complete_variant = RefactorStepVariantLayout::new(
             0,
+            step_type.complete_ty(),
             complete_payload_ty,
             usize::from(!complete_payload_abi.is_elided()),
             complete_payload_anchor,
@@ -274,7 +280,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 "__scoop_refactor_step_case_tag__{stem}__case{}",
                 case.case_tag().as_u32()
             );
-            let payload_abi = self.abi_value(case.payload_tuple_ty())?;
+            let payload_layout = self.source_value_layout(case.payload_tuple_ty())?;
+            let payload_abi = *payload_layout.abi();
             let mut case_fields = Vec::new();
             if !payload_abi.is_elided() {
                 case_fields.push(payload_abi.llvm_ty());
@@ -293,6 +300,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     case_tag_name,
                     RefactorStepVariantLayout::new(
                         tag_value,
+                        case.payload_tuple_ty(),
                         case_payload_ty,
                         case_fields.len(),
                         case_payload_anchor,
@@ -421,7 +429,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 "__scoop_refactor_resume__{stem}__case{}",
                 method.case_tag().as_u32()
             );
-            let payload_abi = self.abi_value(method.resume_tuple_ty())?;
+            let payload_layout = self.source_value_layout(method.resume_tuple_ty())?;
+            let payload_abi = *payload_layout.abi();
+            let _answer_layout = self.source_value_layout(method.answer_ty())?;
             let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
                 vec![self.codegen.llvm_gc_i8_ptr_type().into()];
             if !payload_abi.is_elided() {
@@ -596,7 +606,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             "__scoop_refactor_surface_resume__k{}",
             continuation_schema.as_u32()
         );
-        let payload_abi = self.abi_value(resume_tuple_ty)?;
+        let payload_layout = self.source_value_layout(resume_tuple_ty)?;
+        let payload_abi = *payload_layout.abi();
+        let _answer_layout = self.source_value_layout(answer_ty)?;
         let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
             vec![self.codegen.llvm_gc_i8_ptr_type().into()];
         if !payload_abi.is_elided() {
@@ -942,7 +954,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?
             .llvm_ty();
-        let args_abi = self.abi_value(callable.dynamic_invoke_entry().invoke_args_tuple_ty())?;
+        let args_layout =
+            self.source_value_layout(callable.dynamic_invoke_entry().invoke_args_tuple_ty())?;
+        let args_abi = *args_layout.abi();
         let mut params: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
         if !args_abi.is_elided() {
             params.push(args_abi.llvm_ty().into());
@@ -1460,7 +1474,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?
             .llvm_ty();
-        let args_abi = self.abi_value(facts.invoke_args_tuple_ty())?;
+        let args_layout = self.source_value_layout(facts.invoke_args_tuple_ty())?;
+        let args_abi = *args_layout.abi();
         let carrier = match call_kind {
             MirCallKind::FunValue { .. } | MirCallKind::Closure { .. } => {
                 if facts.target_mode() != CallTargetMode::DynamicFallback {
@@ -1495,7 +1510,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 RefactorDynamicInvokeCarrierLayout::VirtualReceiver(
                     RefactorDispatchReceiverLayout::new(
                         dispatch.receiver_ty,
-                        self.abi_value(dispatch.receiver_ty)?,
+                        *self.source_value_layout(dispatch.receiver_ty)?.abi(),
                         dispatch.owner_fqn.clone(),
                         dispatch.member_name.clone(),
                     ),
@@ -1516,7 +1531,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(
                     RefactorDispatchReceiverLayout::new(
                         dispatch.receiver_ty,
-                        self.abi_value(dispatch.receiver_ty)?,
+                        *self.source_value_layout(dispatch.receiver_ty)?.abi(),
                         dispatch.owner_fqn.clone(),
                         dispatch.member_name.clone(),
                     ),
@@ -1626,7 +1641,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         site_id.as_u32(),
                     )));
                 }
-                let payload_abi = self.abi_value(contract.payload_tuple_ty())?;
+                let payload_layout = self.source_value_layout(contract.payload_tuple_ty())?;
+                let payload_abi = *payload_layout.abi();
                 let terminal_action = self.materialize_local_runtime_error_terminal_action(
                     terminal_action,
                     payload_abi,
@@ -1814,6 +1830,67 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
     fn abi_value(&mut self, ty: TypeId) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
         self.abi_value_from_types(self.source_types, ty)
+    }
+
+    fn source_value_layout(
+        &mut self,
+        ty: TypeId,
+    ) -> Result<RefactorSourceAbiLayout<'ctx>, LlvmEmitError> {
+        if let Some(layout) = self.source_value_layouts.get(&ty) {
+            return Ok(layout.clone());
+        }
+
+        let source_kind = self.source_types.kind(ty).clone();
+        let layout = match source_kind {
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                let abi = self
+                    .abi_value_from_types(self.source_types, ty)
+                    .map_err(|err| self.wrap_source_value_layout_error(ty, err))?;
+                let mut next_abi_field_index = 0u32;
+                let mut fields = Vec::with_capacity(elements.len());
+                for (source_index, element_ty) in elements.into_iter().enumerate() {
+                    let element_layout = self.source_value_layout(element_ty)?;
+                    let abi_field_index = if element_layout.abi().is_elided() {
+                        None
+                    } else {
+                        let field_index = next_abi_field_index;
+                        next_abi_field_index = next_abi_field_index.saturating_add(1);
+                        Some(field_index)
+                    };
+                    fields.push(RefactorSourceAbiFieldLayout::new(
+                        source_index as u32,
+                        element_ty,
+                        abi_field_index,
+                        *element_layout.abi(),
+                    ));
+                }
+                RefactorSourceAbiLayout::new(ty, RefactorSourceAbiLayoutKind::Tuple, abi, fields)
+            }
+            _ => {
+                let abi = self
+                    .abi_value_from_types(self.source_types, ty)
+                    .map_err(|err| self.wrap_source_value_layout_error(ty, err))?;
+                RefactorSourceAbiLayout::new(
+                    ty,
+                    RefactorSourceAbiLayoutKind::Scalar,
+                    abi,
+                    Vec::new(),
+                )
+            }
+        };
+        self.source_value_layouts.insert(ty, layout.clone());
+        Ok(layout)
+    }
+
+    fn wrap_source_value_layout_error(&self, ty: TypeId, err: LlvmEmitError) -> LlvmEmitError {
+        match err {
+            LlvmEmitError::Frontend { message } => frontend_error(format!(
+                "refactor LLVM source-type ABI value lowering 无法为 `{}`（t{}）建立 authoritative contract: {message}",
+                self.source_types.display(ty),
+                ty.as_u32()
+            )),
+            other => other,
+        }
     }
 
     fn abi_value_from_types(
@@ -2167,8 +2244,8 @@ mod tests {
         BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
         LateLoweredBoundarySource, LateLoweredCallBoundaryLowering, LateLoweredCallable,
         LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
-        LateLoweredContinuationSurfaceResume, LateLoweredProgram, LateLoweredResumeInterface,
-        LateLoweredResumeMethod, StateId, SystemSlotKind,
+        LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry, LateLoweredProgram,
+        LateLoweredResumeInterface, LateLoweredResumeMethod, StateId, SystemSlotKind,
     };
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
@@ -2187,7 +2264,7 @@ mod tests {
     use crate::program_facts::ProgramFacts;
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::{SourceFile, SourceMap};
-    use crate::ty::TypeStore;
+    use crate::ty::{TypeParamType, TypeStore};
     use inkwell::context::Context;
 
     struct FixtureAbiInputs {
@@ -2345,6 +2422,84 @@ mod tests {
         let result = codegen.materialize_refactor_program_abi(
             &program,
             inputs.effect_lowered_stage_output.types(),
+            &inputs.effect_lowered_stage_output.materialized_pass_view(),
+            inputs.effect_lowered_stage_output.effect_facts(),
+        );
+        check(&inputs, result, &module);
+    }
+
+    fn with_inputs_query_result_for_source_types(
+        inputs: FixtureAbiInputs,
+        rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
+        rewrite_source_types: impl FnOnce(&FixtureAbiInputs) -> TypeStore,
+        check: impl for<'ctx> FnOnce(
+            &FixtureAbiInputs,
+            Result<RefactorAbiQuery<'ctx>, LlvmEmitError>,
+            &inkwell::module::Module<'ctx>,
+        ),
+    ) {
+        let program = rewrite_program(&inputs);
+        let source_types = rewrite_source_types(&inputs);
+        let context = Context::create();
+        let module = context.create_module("refactor_abi_test");
+        let builder = context.create_builder();
+        let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
+        let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
+        let lowered = &inputs.hir_compat_scaffold;
+        let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                crate::hir::Item::Fun(fun) => Some(fun),
+                _ => None,
+            })
+            .chain(lowered.member_funs.iter())
+            .map(|fun| (fun.fqn.clone(), fun))
+            .collect();
+        let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+        let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+        let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+            context: &context,
+            module: &module,
+            builder: &builder,
+            target_data: &target_data,
+            host: &target_info,
+            source_map: &inputs.source_map,
+            entry_source_id: inputs.entry_source_id,
+            types: &lowered.types,
+            struct_layouts: &lowered.struct_layouts,
+            enum_layouts: &lowered.enum_layouts,
+            top_level_vars: &lowered.top_level_vars,
+            top_level_consts: &lowered.top_level_consts,
+            top_level_immutable_values: &lowered.top_level_immutable_values,
+            object_inits: &lowered.object_inits,
+            class_inits: &lowered.class_inits,
+            class_vtables: &lowered.class_vtables,
+            interfaces: &lowered.interfaces,
+            class_itables: &lowered.class_itables,
+            ctor_call_sites: &lowered.ctor_call_sites,
+            dispatch_call_sites: &lowered.dispatch_call_sites,
+            effect_op_call_sites: &lowered.effect_op_call_sites,
+            handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
+            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            when_pat_binding_tys: &lowered.when_pat_binding_tys,
+            nominal_kinds: &lowered.nominal_kinds,
+            nominal_variances: &lowered.nominal_variances,
+            direct_supertypes: &lowered.direct_supertypes,
+            builtins: lowered.builtins,
+            extern_funs: &lowered.extern_funs,
+            fun_index: &fun_index,
+            materialized_pass_view: Some(
+                inputs.effect_lowered_stage_output.materialized_pass_view(),
+            ),
+            program_facts,
+            effect_op_tags,
+        });
+        let mut codegen = unit_codegen.fresh_main_codegen();
+        let result = codegen.materialize_refactor_program_abi(
+            &program,
+            &source_types,
             &inputs.effect_lowered_stage_output.materialized_pass_view(),
             inputs.effect_lowered_stage_output.effect_facts(),
         );
@@ -2555,6 +2710,25 @@ mod tests {
             callable.resolved_outward_cases().to_vec(),
             callable.dynamic_invoke_entry().clone(),
             state_graph,
+            callable.frame_schema().clone(),
+            callable.boundary_map().clone(),
+            callable.resume_state_map().clone(),
+            callable.continuation_object(),
+            callable.resume_interfaces().to_vec(),
+        )
+    }
+
+    fn clone_callable_with_dynamic_invoke_entry(
+        callable: &LateLoweredCallable,
+        dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
+    ) -> LateLoweredCallable {
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            dynamic_invoke_entry,
+            callable.state_graph().clone(),
             callable.frame_schema().clone(),
             callable.boundary_map().clone(),
             callable.resume_state_map().clone(),
@@ -4023,6 +4197,244 @@ mod tests {
                 assert!(
                     message.contains("continuation schema k"),
                     "错误消息应指出缺失的 continuation schema: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_layout_binds_pure_direct_entries_without_legacy_typestore() {
+        with_fixture_query(
+            "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
+            |inputs, query, _module| {
+                let lambda_root = inputs
+                    .abi_visibility_program
+                    .callables()
+                    .iter()
+                    .find(|callable| callable.root_fqn().contains("$lambda"))
+                    .map(|callable| callable.root_fqn().to_string())
+                    .expect("fixture 应发布 lambda callable shell");
+                let roots = vec![
+                    "fixtures.build.makeClosure".to_string(),
+                    "fixtures.build.Base.ping".to_string(),
+                    lambda_root,
+                ];
+                let mut saw_scalar_invoke = false;
+                let mut saw_tuple_invoke = false;
+
+                for root in roots {
+                    let callable = query
+                        .callable_layout_by_root_fqn(&root)
+                        .expect("callable layout 应存在");
+                    let invoke_args = query
+                        .source_value_layout(callable.direct_entry().invoke_args_tuple_ty())
+                        .expect(
+                            "direct entry invoke_args_tuple_ty 应发布 source-type ABI contract",
+                        );
+                    assert_eq!(
+                        callable.direct_entry().param_count(),
+                        usize::from(!invoke_args.abi().is_elided()),
+                        "direct entry 形参个数必须由 published invoke carrier 是否零载荷唯一决定: {root}"
+                    );
+                    assert!(!invoke_args.abi().is_elided());
+                    match invoke_args.kind() {
+                        RefactorSourceAbiLayoutKind::Scalar => {
+                            saw_scalar_invoke = true;
+                            assert!(
+                                invoke_args.fields().is_empty(),
+                                "single-value invoke carrier 不应伪装成 tuple field 映射: {root}"
+                            );
+                        }
+                        RefactorSourceAbiLayoutKind::Tuple => {
+                            saw_tuple_invoke = true;
+                            assert!(
+                                !invoke_args.fields().is_empty(),
+                                "tuple invoke carrier 至少应发布一个 source field: {root}"
+                            );
+                            for (idx, field) in invoke_args.fields().iter().enumerate() {
+                                assert_eq!(field.source_index(), idx as u32);
+                                assert_eq!(field.abi_field_index(), Some(idx as u32));
+                                assert!(!field.is_elided());
+                            }
+                        }
+                    }
+                }
+
+                assert!(
+                    saw_scalar_invoke,
+                    "fixture 应至少覆盖一个 single-value invoke carrier"
+                );
+                assert!(
+                    saw_tuple_invoke,
+                    "fixture 应至少覆盖一个 tuple invoke carrier"
+                );
+
+                let make_closure = query
+                    .callable_layout_by_root_fqn("fixtures.build.makeClosure")
+                    .expect("makeClosure callable layout 应存在");
+                let complete_layout = query
+                    .source_value_layout(
+                        query
+                            .step_layout(make_closure.step_schema())
+                            .expect("step layout 应存在")
+                            .complete_variant()
+                            .payload_source_ty(),
+                    )
+                    .expect("complete payload source type 应发布 source-type ABI contract");
+                assert_eq!(complete_layout.kind(), RefactorSourceAbiLayoutKind::Scalar);
+                assert!(complete_layout.fields().is_empty());
+                assert!(!complete_layout.abi().is_elided());
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_layout_resolves_unit_case_payload_contract() {
+        with_fixture_query(
+            "effect_refactor_dynamic_invoke_unit_payload.scoop",
+            |inputs, query, _module| {
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("fixtures.build.unitWorker")
+                    .expect("unitWorker callable 应存在");
+                let step_layout = query
+                    .step_layout(callable.step_schema())
+                    .expect("step layout 应存在");
+                let case_variant = step_layout
+                    .case_layout(CaseTag::new(0))
+                    .expect("case0 layout 应存在")
+                    .variant();
+                let case_payload_layout = query
+                    .source_value_layout(case_variant.payload_source_ty())
+                    .expect("case payload source type 应发布 source-type ABI contract");
+                let complete_layout = query
+                    .source_value_layout(step_layout.complete_variant().payload_source_ty())
+                    .expect("complete payload source type 应发布 source-type ABI contract");
+
+                assert_eq!(
+                    case_payload_layout.kind(),
+                    RefactorSourceAbiLayoutKind::Scalar
+                );
+                assert!(case_payload_layout.abi().is_elided());
+                assert!(case_payload_layout.fields().is_empty());
+                assert!(case_variant.payload_is_elided());
+                assert_eq!(case_variant.payload_field_count(), 1);
+                assert!(complete_layout.abi().is_elided());
+                assert_eq!(step_layout.complete_variant().payload_field_count(), 0);
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_layout_resolves_tuple_resume_payload_and_answer_contract() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "continuation_resume_surface_named_tuple_and_unit_basic.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("tuple resume fixture 应可发布 source-type ABI contract");
+                let pair_surface = inputs
+                    .abi_visibility_program
+                    .continuation_objects()
+                    .iter()
+                    .flat_map(|object| object.surface_resumes().iter())
+                    .find(|surface| {
+                        inputs
+                            .effect_lowered_stage_output
+                            .types()
+                            .display(surface.resume_tuple_ty())
+                            .to_string()
+                            == "(Int, String)"
+                    })
+                    .expect("fixture 应包含 tuple resume surface");
+                let surface_layout = query
+                    .surface_resume_layout(pair_surface.continuation_schema())
+                    .expect("surface-resume layout 应可查询");
+                let resume_payload_layout = query
+                    .source_value_layout(surface_layout.resume_tuple_ty())
+                    .expect("resume tuple source type 应发布 source-type ABI contract");
+                let answer_layout = query
+                    .source_value_layout(surface_layout.answer_ty())
+                    .expect("resume answer source type 应发布 source-type ABI contract");
+
+                assert_eq!(
+                    resume_payload_layout.kind(),
+                    RefactorSourceAbiLayoutKind::Tuple
+                );
+                assert_eq!(resume_payload_layout.fields().len(), 2);
+                assert_eq!(resume_payload_layout.abi_field_count(), 2);
+                assert_eq!(resume_payload_layout.fields()[0].source_index(), 0);
+                assert_eq!(resume_payload_layout.fields()[0].abi_field_index(), Some(0));
+                assert_eq!(resume_payload_layout.fields()[1].source_index(), 1);
+                assert_eq!(resume_payload_layout.fields()[1].abi_field_index(), Some(1));
+                assert!(!resume_payload_layout.fields()[0].is_elided());
+                assert!(!resume_payload_layout.fields()[1].is_elided());
+                assert_eq!(answer_layout.kind(), RefactorSourceAbiLayoutKind::Scalar);
+                assert!(answer_layout.abi().is_elided());
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_layout_rejects_unlowerable_invoke_args_type() {
+        let inputs =
+            build_fixture_inputs("effect_refactor_dynamic_entry_publication_emit_llvm.scoop");
+        let mut source_types = inputs.effect_lowered_stage_output.types().clone();
+        let param_ty = source_types.ty_param(TypeParamType {
+            name: "SyntheticInvokeArgs".to_string(),
+            decl_file: std::path::PathBuf::from("tests/p6_t02i.synthetic"),
+            decl_span: dummy_span(),
+        });
+
+        with_inputs_query_result_for_source_types(
+            inputs,
+            move |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.root_fqn() == "fixtures.build.makeClosure" {
+                            clone_callable_with_dynamic_invoke_entry(
+                                candidate,
+                                LateLoweredDynamicInvokeEntry::new(
+                                    param_ty,
+                                    candidate.dynamic_invoke_entry().step_schema(),
+                                    candidate.dynamic_invoke_entry().entry_state(),
+                                    candidate.dynamic_invoke_entry().complete_state(),
+                                ),
+                            )
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            move |_inputs| source_types,
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("不可 lowering 的 synthetic invoke args type 必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("source-type ABI value lowering"),
+                    "错误消息应指出缺失的是 source-type ABI lowering contract: {message}"
+                );
+                assert!(
+                    message.contains("SyntheticInvokeArgs"),
+                    "错误消息应指出不可 lowering 的 synthetic source type: {message}"
+                );
+                assert!(
+                    message.contains("尚未实例化的类型参数"),
+                    "错误消息应明确拒绝未实例化类型参数: {message}"
                 );
             },
         );
