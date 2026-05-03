@@ -1538,7 +1538,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         None => self.declare_top_level_fun(sig_fun)?,
                     };
 
-                    let fn_ptr = llvm_fun.as_global_value().as_pointer_value();
+                    let fn_ptr = self.callable_carrier_target_fn_ptr(
+                        RefactorCallableCarrierKind::InterfaceItable,
+                        impl_fqn,
+                        llvm_fun.as_global_value().as_pointer_value(),
+                    )?;
                     inits.push(fn_ptr.const_cast(i8_ptr_ty));
                 }
 
@@ -1653,7 +1657,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None => self.declare_top_level_fun(sig_fun)?,
             };
 
-            let fn_ptr = llvm_fun.as_global_value().as_pointer_value();
+            let fn_ptr = self.callable_carrier_target_fn_ptr(
+                RefactorCallableCarrierKind::ClassVtable,
+                &slot.impl_member_fqn,
+                llvm_fun.as_global_value().as_pointer_value(),
+            )?;
             inits.push(fn_ptr.const_cast(i8_ptr_ty));
         }
 

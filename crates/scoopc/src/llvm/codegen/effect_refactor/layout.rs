@@ -18,7 +18,7 @@ use crate::mir::{CallKind as MirCallKind, Rvalue as MirRvalue, StatementKind as 
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::types::IntTy;
-use super::super::{MainCodegen, sanitize_llvm_ident};
+use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident};
 use super::types::{
     RefactorAbiQuery, RefactorAbiValue, RefactorCallableEntryLayout, RefactorCallableLayout,
     RefactorClosureCarrierLayout, RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
@@ -207,6 +207,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 this.materialize_callable_layout(callable, &step_layouts)?,
             );
         }
+
+        this.publish_callable_carrier_entry_shells(&callable_layouts, &step_layouts)?;
 
         let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
         let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
@@ -999,6 +1001,245 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         ))
     }
 
+    fn publish_callable_carrier_entry_shells(
+        &mut self,
+        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        let class_vtable_targets = self
+            .codegen
+            .class_vtables
+            .values()
+            .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
+            .collect::<BTreeSet<_>>();
+        let interface_itable_targets = self
+            .codegen
+            .class_itables
+            .values()
+            .flat_map(|entries| {
+                entries.iter().flat_map(|entry| {
+                    entry
+                        .method_impl_fqns
+                        .iter()
+                        .filter(|impl_fqn| !impl_fqn.is_empty())
+                        .map(String::as_str)
+                })
+            })
+            .collect::<BTreeSet<_>>();
+
+        for callable in self.program.callables() {
+            let callable_layout = callable_layouts
+                .get(&callable.step_schema())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 缺少 callable `{}` 的 callable layout，无法发布 closure carrier target",
+                        callable.root_fqn(),
+                    ))
+                })?;
+            self.publish_closure_carrier_entry_shell(callable, callable_layout, step_layouts)?;
+            if class_vtable_targets.contains(callable.root_fqn()) {
+                self.publish_dispatch_carrier_entry_shell(
+                    RefactorCallableCarrierKind::ClassVtable,
+                    callable.root_fqn(),
+                    callable_layouts,
+                    step_layouts,
+                )?;
+            }
+            if interface_itable_targets.contains(callable.root_fqn()) {
+                self.publish_dispatch_carrier_entry_shell(
+                    RefactorCallableCarrierKind::InterfaceItable,
+                    callable.root_fqn(),
+                    callable_layouts,
+                    step_layouts,
+                )?;
+            }
+        }
+
+        self.codegen.enable_refactor_callable_carrier_contract();
+        Ok(())
+    }
+
+    fn publish_closure_carrier_entry_shell(
+        &mut self,
+        callable: &LateLoweredCallable,
+        callable_layout: &RefactorCallableLayout<'ctx>,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        let step_ty = step_layouts
+            .get(&callable_layout.step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` closure carrier target 的 step layout {}",
+                    callable.root_fqn(),
+                    callable_layout.step_schema().as_u32(),
+                ))
+            })?
+            .llvm_ty();
+        let args_abi = self.closure_carrier_args_abi(callable.root_fqn())?;
+        let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
+            vec![self.codegen.llvm_gc_i8_ptr_type().into()];
+        if !args_abi.is_elided() {
+            params.push(args_abi.llvm_ty().into());
+        }
+        let symbol_name = format!(
+            "__scoop_refactor_closure_dynamic_entry__{}",
+            self.view.step_stem(callable_layout.step_schema())
+        );
+        self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
+        self.codegen.register_refactor_callable_carrier_entry_symbol(
+            RefactorCallableCarrierKind::ClosureObject,
+            callable.root_fqn(),
+            &symbol_name,
+        )?;
+        if let Some(alias) = legacy_hir_closure_carrier_alias(callable.root_fqn()) {
+            self.codegen.register_refactor_callable_carrier_entry_symbol(
+                RefactorCallableCarrierKind::ClosureObject,
+                &alias,
+                &symbol_name,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn publish_dispatch_carrier_entry_shell(
+        &mut self,
+        kind: RefactorCallableCarrierKind,
+        impl_fqn: &str,
+        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        let callable_layout = self.callable_layout_by_root_fqn(callable_layouts, impl_fqn)?;
+        let step_ty = step_layouts
+            .get(&callable_layout.step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 {} `{}` target 的 step layout {}",
+                    kind.label(),
+                    impl_fqn,
+                    callable_layout.step_schema().as_u32(),
+                ))
+            })?
+            .llvm_ty();
+        let (receiver_abi, args_abi) = self.dispatch_carrier_receiver_and_args_abi(impl_fqn)?;
+        let mut params: Vec<BasicMetadataTypeEnum<'ctx>> = vec![receiver_abi.llvm_ty().into()];
+        if !args_abi.is_elided() {
+            params.push(args_abi.llvm_ty().into());
+        }
+        let symbol_name = format!(
+            "__scoop_refactor_{}_dynamic_entry__{}",
+            match kind {
+                RefactorCallableCarrierKind::ClassVtable => "vtable",
+                RefactorCallableCarrierKind::InterfaceItable => "itable",
+                RefactorCallableCarrierKind::ClosureObject => "closure",
+            },
+            self.view.step_stem(callable_layout.step_schema())
+        );
+        self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
+        self.codegen.register_refactor_callable_carrier_entry_symbol(
+            kind,
+            impl_fqn,
+            &symbol_name,
+        )?;
+        Ok(())
+    }
+
+    fn callable_layout_by_root_fqn<'b>(
+        &self,
+        callable_layouts: &'b BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        root_fqn: &str,
+    ) -> Result<&'b RefactorCallableLayout<'ctx>, LlvmEmitError> {
+        let matches = callable_layouts
+            .values()
+            .filter(|layout| layout.root_fqn() == root_fqn)
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [] => Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{root_fqn}` 的 published callable shell，无法发布 carrier target"
+            ))),
+            [layout] => Ok(*layout),
+            _ => Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{root_fqn}` 存在多个 published callable shell，无法为 carrier 选择唯一 target"
+            ))),
+        }
+    }
+
+    fn closure_carrier_args_abi(
+        &mut self,
+        root_fqn: &str,
+    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+        if let Some(callable) = self.pass_view.callable(root_fqn) {
+            let skip = usize::from(callable.name.starts_with("$lambda"));
+            let component_tys = callable
+                .params
+                .iter()
+                .skip(skip)
+                .map(|param| param.ty)
+                .collect::<Vec<_>>();
+            return self
+                .canonical_tuple_abi_from_types(&self.pass_view.materialized().types, &component_tys);
+        }
+        if let Some(fun) = self.codegen.fun_index.get(root_fqn).copied() {
+            let component_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
+            return self.canonical_tuple_abi_from_types(self.codegen.types, &component_tys);
+        }
+        Err(frontend_error(format!(
+            "refactor LLVM ABI materialization 缺少 closure-like callable `{root_fqn}` 的 authoritative signature，无法发布 closure carrier target"
+        )))
+    }
+
+    fn dispatch_carrier_receiver_and_args_abi(
+        &mut self,
+        impl_fqn: &str,
+    ) -> Result<(RefactorAbiValue<'ctx>, RefactorAbiValue<'ctx>), LlvmEmitError> {
+        let fun = self.codegen.fun_index.get(impl_fqn).copied().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 dispatch target `{impl_fqn}` 的 authoritative HIR signature，无法发布 vtable/itable carrier target"
+            ))
+        })?;
+        let Some((receiver, explicit_params)) = fun.params.split_first() else {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 dispatch target `{impl_fqn}` 没有 receiver 参数，无法发布 vtable/itable carrier target"
+            )));
+        };
+        let args = explicit_params
+            .iter()
+            .map(|param| param.ty)
+            .collect::<Vec<_>>();
+        Ok((
+            self.abi_value_from_types(self.codegen.types, receiver.ty)?,
+            self.canonical_tuple_abi_from_types(self.codegen.types, &args)?,
+        ))
+    }
+
+    fn canonical_tuple_abi_from_types(
+        &mut self,
+        types: &TypeStore,
+        components: &[TypeId],
+    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+        match components {
+            [] => Ok(RefactorAbiValue::new(
+                self.codegen.context.struct_type(&[], false).into(),
+                true,
+            )),
+            [single] => self.abi_value_from_types(types, *single),
+            _ => {
+                let mut fields = Vec::with_capacity(components.len());
+                for component in components {
+                    let llvm_ty = self.llvm_abi_type_of_types(types, *component)?;
+                    if self.codegen.target_data.get_store_size(&llvm_ty) == 0 {
+                        continue;
+                    }
+                    fields.push(llvm_ty);
+                }
+                let llvm_ty = self.codegen.context.struct_type(&fields, false).into();
+                Ok(RefactorAbiValue::new(
+                    llvm_ty,
+                    self.codegen.target_data.get_store_size(&llvm_ty) == 0,
+                ))
+            }
+        }
+    }
+
     fn materialize_dynamic_invoke_layouts(
         &mut self,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
@@ -1512,21 +1753,30 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     }
 
     fn abi_value(&mut self, ty: TypeId) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
-        let llvm_ty = self.llvm_abi_type_of_source_type(ty)?;
+        self.abi_value_from_types(self.source_types, ty)
+    }
+
+    fn abi_value_from_types(
+        &mut self,
+        types: &TypeStore,
+        ty: TypeId,
+    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+        let llvm_ty = self.llvm_abi_type_of_types(types, ty)?;
         let elided = self.codegen.target_data.get_store_size(&llvm_ty) == 0;
         Ok(RefactorAbiValue::new(llvm_ty, elided))
     }
 
-    fn llvm_abi_type_of_source_type(
+    fn llvm_abi_type_of_types(
         &mut self,
+        types: &TypeStore,
         ty: TypeId,
     ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
-        match self.source_types.kind(ty) {
+        match types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => {
                 Ok(self.codegen.llvm_scoop_string_ptr_type().into())
             }
             TypeKind::Ref(_) => Ok(self.codegen.llvm_gc_i8_ptr_type().into()),
-            TypeKind::StarProjection(star) => self.llvm_abi_type_of_source_type(star.read_ty),
+            TypeKind::StarProjection(star) => self.llvm_abi_type_of_types(types, star.read_ty),
             TypeKind::Value(ValueTypeKind::Nothing) => Ok(self.codegen.context.i8_type().into()),
             TypeKind::Value(ValueTypeKind::Unit) => {
                 Ok(self.codegen.context.struct_type(&[], false).into())
@@ -1566,7 +1816,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
                 let mut fields = Vec::with_capacity(elements.len());
                 for element in elements {
-                    let element_ty = self.llvm_abi_type_of_source_type(*element)?;
+                    let element_ty = self.llvm_abi_type_of_types(types, *element)?;
                     if self.codegen.target_data.get_store_size(&element_ty) == 0 {
                         continue;
                     }
@@ -1575,11 +1825,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 Ok(self.codegen.context.struct_type(&fields, false).into())
             }
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
-                if let Some(codegen_ty) = self.equivalent_codegen_type_id(ty) {
+                if let Some(codegen_ty) = self.equivalent_codegen_type_id_from_types(types, ty) {
                     let cg_ty = self.codegen.cg_ty_of(codegen_ty).ok_or_else(|| {
                         frontend_error(format!(
                             "refactor LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
-                            self.source_types.display(ty)
+                            types.display(ty)
                         ))
                     })?;
                     return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
@@ -1587,12 +1837,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 let key = crate::hir::mangle_nominal_fqn(
                     "scoop.core.Option",
                     &[*inner],
-                    self.source_types,
+                    types,
                 );
                 let layout = self.codegen.enum_layouts.get(&key).ok_or_else(|| {
                     frontend_error(format!(
                         "refactor LLVM ABI materialization 缺少 `{}` 的 enum layout",
-                        self.source_types.display(ty)
+                        types.display(ty)
                     ))
                 })?;
                 self.llvm_enum_value_type_from_layout(layout)
@@ -1616,11 +1866,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         })
                         .into());
                 }
-                if let Some(codegen_ty) = self.equivalent_codegen_type_id(ty) {
+                if let Some(codegen_ty) = self.equivalent_codegen_type_id_from_types(types, ty) {
                     let cg_ty = self.codegen.cg_ty_of(codegen_ty).ok_or_else(|| {
                         frontend_error(format!(
                             "refactor LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
-                            self.source_types.display(ty)
+                            types.display(ty)
                         ))
                     })?;
                     return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
@@ -1629,7 +1879,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             }
             TypeKind::Param(_) => Err(frontend_error(format!(
                 "refactor LLVM ABI materialization 遇到尚未实例化的类型参数 `{}`",
-                self.source_types.display(ty)
+                types.display(ty)
             ))),
         }
     }
@@ -1718,8 +1968,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(self.codegen.int_type(int_ty).into())
     }
 
-    fn equivalent_codegen_type_id(&self, source_ty: TypeId) -> Option<TypeId> {
-        let source_display = self.source_types.display(source_ty).to_string();
+    fn equivalent_codegen_type_id_from_types(
+        &self,
+        types: &TypeStore,
+        source_ty: TypeId,
+    ) -> Option<TypeId> {
+        let source_display = types.display(source_ty).to_string();
         self.codegen
             .types
             .iter_ids()
@@ -1824,6 +2078,14 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
+fn legacy_hir_closure_carrier_alias(root_fqn: &str) -> Option<String> {
+    let (_, suffix) = root_fqn.rsplit_once(".$lambda")?;
+    suffix
+        .chars()
+        .all(|ch| ch.is_ascii_digit())
+        .then(|| format!("scoop.lambda${suffix}"))
+}
+
 fn render_resume_interface_ids(interface_ids: &[ResumeInterfaceId]) -> String {
     format!(
         "[{}]",
@@ -1862,7 +2124,7 @@ mod tests {
     use crate::llvm::build_single_file_source_map;
     use crate::llvm::codegen::effect_refactor::types::RefactorCallTargetQuery;
     use crate::llvm::codegen::{
-        CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState,
+        CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState, MainCodegen,
     };
     use crate::llvm::target;
     use crate::mir::{LoweredMir, MirLoweringFacts, lower_hir_file_for_dump_with_facts};
@@ -2031,6 +2293,84 @@ mod tests {
             inputs.effect_lowered_stage_output.effect_facts(),
         );
         check(&inputs, result, &module);
+    }
+
+    fn with_inputs_query_result_and_codegen(
+        inputs: FixtureAbiInputs,
+        rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
+        check: impl for<'ctx> FnOnce(
+            &FixtureAbiInputs,
+            &mut MainCodegen<'_, 'ctx>,
+            Result<RefactorAbiQuery<'ctx>, LlvmEmitError>,
+            &inkwell::module::Module<'ctx>,
+        ),
+    ) {
+        let program = rewrite_program(&inputs);
+        let context = Context::create();
+        let module = context.create_module("refactor_abi_test");
+        let builder = context.create_builder();
+        let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
+        let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
+        let lowered = &inputs.hir_compat_scaffold;
+        let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                crate::hir::Item::Fun(fun) => Some(fun),
+                _ => None,
+            })
+            .chain(lowered.member_funs.iter())
+            .map(|fun| (fun.fqn.clone(), fun))
+            .collect();
+        let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+        let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+        let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+            context: &context,
+            module: &module,
+            builder: &builder,
+            target_data: &target_data,
+            host: &target_info,
+            source_map: &inputs.source_map,
+            entry_source_id: inputs.entry_source_id,
+            types: &lowered.types,
+            struct_layouts: &lowered.struct_layouts,
+            enum_layouts: &lowered.enum_layouts,
+            top_level_vars: &lowered.top_level_vars,
+            top_level_consts: &lowered.top_level_consts,
+            top_level_immutable_values: &lowered.top_level_immutable_values,
+            object_inits: &lowered.object_inits,
+            class_inits: &lowered.class_inits,
+            class_vtables: &lowered.class_vtables,
+            interfaces: &lowered.interfaces,
+            class_itables: &lowered.class_itables,
+            ctor_call_sites: &lowered.ctor_call_sites,
+            dispatch_call_sites: &lowered.dispatch_call_sites,
+            effect_op_call_sites: &lowered.effect_op_call_sites,
+            handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
+            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            when_pat_binding_tys: &lowered.when_pat_binding_tys,
+            nominal_kinds: &lowered.nominal_kinds,
+            nominal_variances: &lowered.nominal_variances,
+            direct_supertypes: &lowered.direct_supertypes,
+            builtins: lowered.builtins,
+            extern_funs: &lowered.extern_funs,
+            fun_index: &fun_index,
+            materialized_pass_view: Some(
+                inputs.effect_lowered_stage_output.materialized_pass_view(),
+            ),
+            program_facts,
+            effect_op_tags,
+        });
+        let mut codegen = unit_codegen.fresh_main_codegen();
+        let pass_view = inputs.effect_lowered_stage_output.materialized_pass_view();
+        let result = codegen.materialize_refactor_program_abi(
+            &program,
+            inputs.effect_lowered_stage_output.types(),
+            &pass_view,
+            inputs.effect_lowered_stage_output.effect_facts(),
+        );
+        check(&inputs, &mut codegen, result, &module);
     }
 
     fn with_fixture_query_result(
@@ -3168,6 +3508,102 @@ mod tests {
                 assert!(
                     message.contains("fixtures.build.helper") && message.contains("999"),
                     "错误消息应指出缺失 contract 所属的 callable 和 site id: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_dynamic_entry_publication_declares_closure_vtable_and_itable_targets() {
+        with_inputs_query_result_and_codegen(
+            build_fixture_inputs("effect_refactor_dynamic_entry_publication_emit_llvm.scoop"),
+            |inputs| inputs.abi_visibility_program.clone(),
+            |_inputs, codegen, result, module| {
+                let query = result.expect("refactor ABI materialization 应成功");
+                let make_closure = query
+                    .callable_layout_by_root_fqn("fixtures.build.makeClosure")
+                    .expect("makeClosure callable layout 应存在");
+                let base_ping = query
+                    .callable_layout_by_root_fqn("fixtures.build.Base.ping")
+                    .expect("Base.ping callable layout 应存在");
+                let derived_ping = query
+                    .callable_layout_by_root_fqn("fixtures.build.Derived.ping")
+                    .expect("Derived.ping callable layout 应存在");
+
+                let closure_symbol = make_closure
+                    .dynamic_entry()
+                    .symbol_name()
+                    .replace(
+                        "__scoop_refactor_dynamic_invoke__",
+                        "__scoop_refactor_closure_dynamic_entry__",
+                    );
+                let base_vtable_symbol = base_ping.dynamic_entry().symbol_name().replace(
+                    "__scoop_refactor_dynamic_invoke__",
+                    "__scoop_refactor_vtable_dynamic_entry__",
+                );
+                let base_itable_symbol = base_ping.dynamic_entry().symbol_name().replace(
+                    "__scoop_refactor_dynamic_invoke__",
+                    "__scoop_refactor_itable_dynamic_entry__",
+                );
+                let derived_vtable_symbol = derived_ping.dynamic_entry().symbol_name().replace(
+                    "__scoop_refactor_dynamic_invoke__",
+                    "__scoop_refactor_vtable_dynamic_entry__",
+                );
+                let derived_itable_symbol = derived_ping.dynamic_entry().symbol_name().replace(
+                    "__scoop_refactor_dynamic_invoke__",
+                    "__scoop_refactor_itable_dynamic_entry__",
+                );
+
+                let _ = codegen
+                    .get_or_create_class_vtable_global(dummy_span(), "fixtures.build.Base")
+                    .expect("Base vtable 应可物化");
+                let _ = codegen
+                    .get_or_create_class_vtable_global(dummy_span(), "fixtures.build.Derived")
+                    .expect("Derived vtable 应可物化");
+                let _ = codegen
+                    .get_or_create_class_itable_global(dummy_span(), "fixtures.build.Base")
+                    .expect("Base itable 应可物化");
+                let _ = codegen
+                    .get_or_create_class_itable_global(dummy_span(), "fixtures.build.Derived")
+                    .expect("Derived itable 应可物化");
+
+                assert!(module.get_function(&closure_symbol).is_some());
+                assert!(module.get_function(&base_vtable_symbol).is_some());
+                assert!(module.get_function(&base_itable_symbol).is_some());
+                assert!(module.get_function(&derived_vtable_symbol).is_some());
+                assert!(module.get_function(&derived_itable_symbol).is_some());
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_dynamic_entry_publication_rejects_missing_dispatch_callable_shell() {
+        with_inputs_query_result_and_codegen(
+            build_fixture_inputs("effect_refactor_dynamic_entry_publication_emit_llvm.scoop"),
+            |inputs| inputs.abi_visibility_program.clone(),
+            |_inputs, codegen, result, _module| {
+                let _ = result.expect("ABI materialization 应成功");
+                let dummy_fn = codegen.module.add_function(
+                    "__scoop_refactor_missing_carrier_target_dummy",
+                    codegen.context.void_type().fn_type(&[], false),
+                    None,
+                );
+                let err = match codegen.callable_carrier_target_fn_ptr(
+                    RefactorCallableCarrierKind::ClassVtable,
+                    "fixtures.build.Missing.ping",
+                    dummy_fn.as_global_value().as_pointer_value(),
+                ) {
+                    Ok(_) => panic!("缺失 dispatch callable shell 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("fixtures.build.Missing.ping"),
+                    "错误消息应指出缺失 shell 的 target callable: {message}"
+                );
+                assert!(
+                    message.contains("published target entry") || message.contains("class vtable slot"),
+                    "错误消息应指出问题出在 carrier target 发布: {message}"
                 );
             },
         );

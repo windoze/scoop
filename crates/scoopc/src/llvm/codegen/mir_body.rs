@@ -3023,8 +3023,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
 
         let llvm_fun = self.ensure_materialized_mir_closure_callable_defined(span, fn_ptr)?;
-        let fn_i8 = self.builder.build_pointer_cast(
+        let fn_ptr = self.callable_carrier_target_fn_ptr(
+            RefactorCallableCarrierKind::ClosureObject,
+            fn_ptr,
             llvm_fun.as_global_value().as_pointer_value(),
+        )?;
+        let fn_i8 = self.builder.build_pointer_cast(
+            fn_ptr,
             i8_ptr_ty,
             "pass_mir_closure_fn_i8",
         )?;

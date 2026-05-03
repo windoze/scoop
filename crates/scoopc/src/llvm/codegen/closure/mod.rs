@@ -383,7 +383,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        let fn_ptr = llvm_fun.as_global_value().as_pointer_value();
+        let fn_ptr = self.callable_carrier_target_fn_ptr(
+            RefactorCallableCarrierKind::ClosureObject,
+            &fun_name,
+            llvm_fun.as_global_value().as_pointer_value(),
+        )?;
         let fn_i8 = self
             .builder
             .build_pointer_cast(fn_ptr, i8_ptr_ty, "closure_fn_i8")?;

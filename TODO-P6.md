@@ -1018,7 +1018,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02g：发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI
+## [DONE] P6-T02g：发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1082,7 +1082,17 @@
   - `P6-T03` 可以只消费 runtime carrier + published query lower dynamic call，而不再借壳 legacy callable wrapper / dispatch ABI。
 - 依赖：`P6-T02f`
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：完成 `P6-T02g`。在 `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中新增 callable carrier target 发布层：refactor ABI materializer 现在会为 closure carrier、class vtable slot、interface itable slot 预发布对应的 dynamic-entry shell，并把 `(carrier kind, callable fqn) -> published target symbol` 注册到编译单元共享 cache；若 refactor contract 已启用但 carrier 缺少 published target，后续 carrier materialization 会显式 fail fast，而不是静默回退到普通 ABI。
+  - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/{closure/mod.rs,mir_body.rs,gc.rs,mod.rs}` 中把 closure object、pass MIR `MakeClosure`、class vtable、interface itable 的 target 写入统一改成消费上述 authoritative mapping。legacy 路径在未启用 refactor carrier contract 时仍保持原行为；refactor 路径下则会把 closure `fn_ptr`、vtable slot、itable method array 改写为 `__scoop_refactor_{closure,vtable,itable}_dynamic_entry__*` published shell。
+  - 2026-05-03：新增 `tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`，并在 `layout.rs` 中补充 `refactor_llvm_dynamic_entry_publication_*` 单元测试，覆盖 carrier target shell 发布与缺失 published target 的 fail-fast 行为；fixture 现在会直接断言 emitted LLVM IR 中的 class vtable / interface itable / closure object target 已切到 refactor dynamic entry，而不再指向普通 ABI 符号。
+  - 已运行验证：
+    - `cargo test -p scoopc refactor_llvm_dynamic_invoke_query`
+    - `cargo test -p scoopc refactor_llvm_callable_carrier_layout`
+    - `cargo test -p scoopc refactor_llvm_dynamic_entry_publication`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

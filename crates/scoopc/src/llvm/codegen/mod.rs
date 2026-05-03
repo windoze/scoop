@@ -18,7 +18,7 @@
 //! “只做 backend lowering”的边界收口。后续 `T5000d+` 将让 early MIR / summary 直接复用
 //! 同一层共享事实，而不是回到 LLVM 现场拼装分析输入。
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::path::Path;
@@ -311,6 +311,26 @@ struct SharedCodegenCaches {
     enum_cg_layout_cache: RefCell<HashMap<TypeId, CgEnumLayout>>,
     class_init_layout_cache: RefCell<HashMap<String, hir::ClassInit>>,
     pack_field_indices: RefCell<HashMap<String, Vec<u32>>>,
+    refactor_callable_carrier_contract_enabled: Cell<bool>,
+    refactor_callable_carrier_entry_symbols:
+        RefCell<HashMap<(RefactorCallableCarrierKind, String), String>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum RefactorCallableCarrierKind {
+    ClosureObject,
+    ClassVtable,
+    InterfaceItable,
+}
+
+impl RefactorCallableCarrierKind {
+    pub(super) fn label(self) -> &'static str {
+        match self {
+            Self::ClosureObject => "closure callable object",
+            Self::ClassVtable => "class vtable slot",
+            Self::InterfaceItable => "interface itable slot",
+        }
+    }
 }
 
 /// 单个编译单元内可跨多个 `MainCodegen` 复用的稳定输入与共享状态。
@@ -753,6 +773,96 @@ impl<'a, 'ctx> Deref for MainCodegen<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(super) fn enable_refactor_callable_carrier_contract(&self) {
+        self.shared_caches
+            .refactor_callable_carrier_contract_enabled
+            .set(true);
+    }
+
+    fn refactor_callable_carrier_contract_enabled(&self) -> bool {
+        self.shared_caches
+            .refactor_callable_carrier_contract_enabled
+            .get()
+    }
+
+    pub(super) fn register_refactor_callable_carrier_entry_symbol(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+        symbol_name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let mut symbols = self
+            .shared_caches
+            .refactor_callable_carrier_entry_symbols
+            .borrow_mut();
+        let key = (kind, callable_fqn.to_string());
+        if let Some(existing) = symbols.get(&key) {
+            if existing == symbol_name {
+                return Ok(());
+            }
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor callable carrier contract 为 {} `{}` 重复发布了不同 target：已有 `{}`，新值 `{}`",
+                    kind.label(),
+                    callable_fqn,
+                    existing,
+                    symbol_name,
+                ),
+            });
+        }
+        symbols.insert(key, symbol_name.to_string());
+        Ok(())
+    }
+
+    fn refactor_callable_carrier_entry_symbol(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+    ) -> Result<Option<String>, LlvmEmitError> {
+        if let Some(symbol) = self
+            .shared_caches
+            .refactor_callable_carrier_entry_symbols
+            .borrow()
+            .get(&(kind, callable_fqn.to_string()))
+            .cloned()
+        {
+            return Ok(Some(symbol));
+        }
+        if self.refactor_callable_carrier_contract_enabled() {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor callable carrier contract 缺少 {} `{}` 的 published target entry",
+                    kind.label(),
+                    callable_fqn,
+                ),
+            });
+        }
+        Ok(None)
+    }
+
+    pub(super) fn callable_carrier_target_fn_ptr(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+        legacy_target: PointerValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let Some(symbol_name) = self.refactor_callable_carrier_entry_symbol(kind, callable_fqn)?
+        else {
+            return Ok(legacy_target);
+        };
+        let function = self
+            .module
+            .get_function(&symbol_name)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor callable carrier contract 为 {} `{}` 发布了 target `{symbol_name}`，但 LLVM module 中缺少对应 function shell",
+                    kind.label(),
+                    callable_fqn,
+                ),
+            })?;
+        Ok(function.as_global_value().as_pointer_value())
+    }
+
     pub(crate) fn begin_function_explicit_frame_layout(
         &mut self,
         llvm_fun: FunctionValue<'ctx>,
