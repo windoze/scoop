@@ -8,8 +8,9 @@ snapshot_binding:
 post_opt_program:
 LateLoweredProgram
   step_type_count: 2
-  resume_interface_count: 3
+  resume_packing_interface_count: 3
   continuation_object_count: 1
+  surface_resume_dispatch_count: 2
   callable_count: 1
   step_types:
     - step_schema: s0
@@ -27,27 +28,11 @@ LateLoweredProgram
       case_variants:
         - Case(c0) payload_tuple_ty=t2 continuation_schema=k2 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s1 concrete_op=sample.Alpha.go
         - Case(c1) payload_tuple_ty=t2 continuation_schema=k2 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s1 concrete_op=sample.Beta.go
-  resume_interfaces:
-    - resume_interface: ri0
-      effect_family: sample.Alpha
-      return_step_schema: s0
-      methods:
-        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go
-    - resume_interface: ri1
-      effect_family: sample.Beta
-      return_step_schema: s0
-      methods:
-        - case: c1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go
-    - resume_interface: ri2
-      effect_family: scoop.core.Raise<t217>
-      return_step_schema: s0
-      methods:
-        - case: c2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=sample.callValue allowed_row=(t460 + t461) impl_plan=CanonicalFull needs_reentry=true
       continuation_obj_ty: t473
-      implemented_interfaces: [ri0, ri1, ri2]
+      implemented_packings: [ri0, ri1, ri2]
       captures:
         - FrameSlot(slot0)
         - FrameSlot(slot1)
@@ -58,18 +43,45 @@ LateLoweredProgram
         - FrameSlot(slot6)
         - FrameSlot(slot7)
         - State(st2)
-      surface_resumes:
-        - c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - c1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - c2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-      methods:
-        - ri0::c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - ri1::c1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - ri2::c2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+      authoritative_surface_resumes:
+        - case=c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+      authoritative_internal_methods:
+        - case=c0 packed_by=ri0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 packed_by=ri1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c2 packed_by=ri2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+  authoritative_surface_resume_dispatch_inventory:
+    - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t2 answer_ty=t2 out_step_schema=s0
+      publications:
+        - surface_case ko0 case=c0 reachability=Reachable
+        - surface_case ko0 case=c1 reachability=Reachable
+        - internal_method ko0 case=c0 packed_by=ri0 reachability=Reachable
+        - internal_method ko0 case=c1 packed_by=ri1 reachability=Reachable
+    - continuation_schema: k1 source=ContinuationObjectMethod resume_tuple_ty=t3 answer_ty=t2 out_step_schema=s0
+      publications:
+        - surface_case ko0 case=c2 reachability=Reachable
+        - internal_method ko0 case=c2 packed_by=ri2 reachability=Reachable
+  resume_packing_interfaces:
+    - resume_packing_interface: ri0
+      packing_effect_family: sample.Alpha
+      authoritative_step_schema: s0
+      packed_methods:
+        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Alpha.go
+    - resume_packing_interface: ri1
+      packing_effect_family: sample.Beta
+      authoritative_step_schema: s0
+      packed_methods:
+        - case: c1 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Beta.go
+    - resume_packing_interface: ri2
+      packing_effect_family: scoop.core.Raise<t217>
+      authoritative_step_schema: s0
+      packed_methods:
+        - case: c2 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t476 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217>
   callables:
     - root: sample.callValue
       body_version_key: instance=sample.callValue allowed_row=(t460 + t461) impl_plan=CanonicalFull needs_reentry=true
-      step_schema: s0
+      authoritative_step_schema: s0
       resolved_outward_cases: [c0, c1]
       dynamic_invoke_entry: invoke(t462) -> s0 entry=st0 complete=st1
       state_graph:
@@ -78,7 +90,7 @@ LateLoweredProgram
         cleanup_state: <none>
         drop_state: st3
         states:
-          - st0 Entry term=Suspend(boundaries=[bd0], resume=st2, cleanup=<none>, drop=st3) successors=[st2]
+          - st0 Entry term=Suspend(boundaries=[bd0], resume=st2, local_runtime_error=[], cleanup=<none>, drop=st3) successors=[st2]
             source_slices:
               - bb0 stmts[0..1]
           - st1 Complete term=Unreachable successors=[]
@@ -110,5 +122,5 @@ LateLoweredProgram
               - in c1 op=sample.Beta.go -> out c1 op=sample.Beta.go payload_tuple_ty=t2 ko0 cont_schema=k0 out_step_schema=s0
       resume_state_map:
         - bd0 -> st2
-      resume_interfaces: [ri0, ri1, ri2]
+      resume_packing_interfaces: [ri0, ri1, ri2]
       continuation_object: ko0

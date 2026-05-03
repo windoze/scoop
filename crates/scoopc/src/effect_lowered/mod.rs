@@ -6,7 +6,8 @@
 //! - `segment.rs` 承接 TODO 推荐的 whole-function segmentation / boundary 选择骨架；
 //! - `frame.rs` 承接 TODO 推荐的 frame lifting 与显式控制流合同补全；
 //! - `materialize.rs` 承接 TODO 推荐的 `materialize.rs` 职责：物化 `Step_F`、dynamic
-//!   `invoke`、continuation object、resume interfaces 与 boundary lowering contract；
+//!   `invoke`、continuation object、authoritative per-op/per-schema resume publication，以及可选的
+//!   effect-family resume packing helper 与 boundary lowering contract；
 //! - `opt.rs` 承接 TODO 推荐的 late-lowered 窄后处理：在不改变 canonical contract 的前提下，
 //!   做闭世界 devirtualization / inlining / DCE；
 //! - `dump.rs` 提供稳定 formatter；

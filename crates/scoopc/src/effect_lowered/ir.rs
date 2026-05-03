@@ -9,17 +9,17 @@ use crate::ty::{EffectRow, TypeId};
 
 /// P5 late-lowering 阶段的顶层中间表示。
 ///
-/// 该容器现在固定住后续任务必须继续填充的最终骨架：
-/// - program-level `Step_F` materialization shell；
-/// - internal resume interface shell；
-/// - continuation object shell；
-/// - callable body version / state graph / frame schema / boundary mapping。
+/// 该容器显式区分两层 contract：
+/// - authoritative per-op/per-schema contract：`Step_F` shell、continuation object surface/internal
+///   resume publication、以及 shared `ContinuationSchemaId` -> dispatch inventory；
+/// - optional packing layer：按 effect family 分组的 compiler-owned `LateLoweredResumeInterface`
+///   helper，仅用于 object layout / query / completeness 校验，不再是 reverse-resume 语义主键。
 ///
 /// 后续 T03-T06 只能继续在这些类型里补算法和内容，而不能再另起一套临时 IR。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredProgram {
     step_types: Vec<LateLoweredStepType>,
-    resume_interfaces: Vec<LateLoweredResumeInterface>,
+    resume_packings: Vec<LateLoweredResumeInterface>,
     continuation_objects: Vec<LateLoweredContinuationObject>,
     surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     callables: Vec<LateLoweredCallable>,
@@ -28,7 +28,7 @@ pub struct LateLoweredProgram {
 impl LateLoweredProgram {
     pub(crate) fn new(
         step_types: Vec<LateLoweredStepType>,
-        resume_interfaces: Vec<LateLoweredResumeInterface>,
+        resume_packings: Vec<LateLoweredResumeInterface>,
         continuation_objects: Vec<LateLoweredContinuationObject>,
         callables: Vec<LateLoweredCallable>,
     ) -> Self {
@@ -36,7 +36,7 @@ impl LateLoweredProgram {
             build_surface_resume_dispatch_inventory(&step_types, &continuation_objects, &callables);
         Self {
             step_types,
-            resume_interfaces,
+            resume_packings,
             continuation_objects,
             surface_resume_dispatch_inventory,
             callables,
@@ -53,17 +53,30 @@ impl LateLoweredProgram {
             .find(|step_type| step_type.step_schema() == step_schema)
     }
 
-    pub fn resume_interfaces(&self) -> &[LateLoweredResumeInterface] {
-        &self.resume_interfaces
+    pub fn resume_packings(&self) -> &[LateLoweredResumeInterface] {
+        &self.resume_packings
     }
 
+    /// 兼容旧调用点；新的 handoff 应优先使用 `resume_packings()` 叙事。
+    pub fn resume_interfaces(&self) -> &[LateLoweredResumeInterface] {
+        self.resume_packings()
+    }
+
+    pub fn resume_packing(
+        &self,
+        interface_id: ResumeInterfaceId,
+    ) -> Option<&LateLoweredResumeInterface> {
+        self.resume_packings
+            .iter()
+            .find(|interface| interface.interface_id() == interface_id)
+    }
+
+    /// 兼容旧调用点；新的 handoff 应优先使用 `resume_packing(...)` 叙事。
     pub fn resume_interface(
         &self,
         interface_id: ResumeInterfaceId,
     ) -> Option<&LateLoweredResumeInterface> {
-        self.resume_interfaces
-            .iter()
-            .find(|interface| interface.interface_id() == interface_id)
+        self.resume_packing(interface_id)
     }
 
     pub fn continuation_objects(&self) -> &[LateLoweredContinuationObject] {
@@ -177,6 +190,10 @@ impl LateLoweredBodyVersionKey {
 }
 
 /// 单个 callable version 在 late lowering 入口处对应的最终目标骨架。
+///
+/// 其中 `step_schema` / boundary lowering / state graph 是 authoritative contract；
+/// `resume_packings` 只是该 callable continuation object 对外附带发布的 effect-family packing
+/// helper 列表，不能替代 per-op/per-schema 语义本体。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredCallable {
     root_fqn: String,
@@ -189,7 +206,7 @@ pub struct LateLoweredCallable {
     boundary_map: LateLoweredBoundaryMap,
     resume_state_map: LateLoweredResumeStateMap,
     continuation_object: ContinuationObjectId,
-    resume_interfaces: Vec<ResumeInterfaceId>,
+    resume_packings: Vec<ResumeInterfaceId>,
 }
 
 impl LateLoweredCallable {
@@ -205,7 +222,7 @@ impl LateLoweredCallable {
         boundary_map: LateLoweredBoundaryMap,
         resume_state_map: LateLoweredResumeStateMap,
         continuation_object: ContinuationObjectId,
-        resume_interfaces: Vec<ResumeInterfaceId>,
+        resume_packings: Vec<ResumeInterfaceId>,
     ) -> Self {
         Self {
             root_fqn,
@@ -218,7 +235,7 @@ impl LateLoweredCallable {
             boundary_map,
             resume_state_map,
             continuation_object,
-            resume_interfaces,
+            resume_packings,
         }
     }
 
@@ -278,8 +295,13 @@ impl LateLoweredCallable {
         self.continuation_object
     }
 
+    pub fn resume_packings(&self) -> &[ResumeInterfaceId] {
+        &self.resume_packings
+    }
+
+    /// 兼容旧调用点；新的 handoff 应优先使用 `resume_packings()` 叙事。
     pub fn resume_interfaces(&self) -> &[ResumeInterfaceId] {
-        &self.resume_interfaces
+        self.resume_packings()
     }
 }
 
@@ -490,7 +512,7 @@ pub enum LateLoweredSurfaceResumeDispatchPublication {
     },
     InternalMethod {
         object_id: ContinuationObjectId,
-        interface_id: ResumeInterfaceId,
+        packing_interface_id: ResumeInterfaceId,
         case_tag: CaseTag,
         reachability: LateLoweredContinuationMethodReachability,
     },
@@ -653,7 +675,7 @@ fn build_surface_resume_dispatch_inventory(
                     )),
                     LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
                         object_id: object.object_id(),
-                        interface_id: method.interface_id(),
+                        packing_interface_id: method.packing_interface_id(),
                         case_tag: method.case_tag(),
                         reachability: method.reachability(),
                     },
@@ -833,7 +855,12 @@ impl ResumeInterfaceId {
     }
 }
 
-/// internal resume interface 的最终目标形状。
+/// compiler-owned effect-family resume packing shell。
+///
+/// 该层只负责把 authoritative per-op/per-schema resume contracts 做成 effect-family 分组的
+/// object-side packing / query helper；语义主体仍然是 `LateLoweredStepCase`、
+/// `LateLoweredContinuationSurfaceResume`、`LateLoweredContinuationMethod` 与
+/// `LateLoweredSurfaceResumeDispatchInventoryEntry`。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredResumeInterface {
     interface_id: ResumeInterfaceId,
@@ -943,12 +970,15 @@ impl ContinuationObjectId {
 }
 
 /// continuation object 定义壳层。
+///
+/// `surface_resumes` / `methods` 是 authoritative per-case publication；
+/// `implemented_packings` 仅表示这些 publication 同时被哪些 effect-family packing helper 镜像。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredContinuationObject {
     object_id: ContinuationObjectId,
     owner_version_key: LateLoweredBodyVersionKey,
     continuation_obj_ty: TypeId,
-    implemented_interfaces: Vec<ResumeInterfaceId>,
+    implemented_packings: Vec<ResumeInterfaceId>,
     captures: Vec<LateLoweredContinuationCapture>,
     surface_resumes: Vec<LateLoweredContinuationSurfaceResume>,
     methods: Vec<LateLoweredContinuationMethod>,
@@ -959,7 +989,7 @@ impl LateLoweredContinuationObject {
         object_id: ContinuationObjectId,
         owner_version_key: LateLoweredBodyVersionKey,
         continuation_obj_ty: TypeId,
-        implemented_interfaces: Vec<ResumeInterfaceId>,
+        implemented_packings: Vec<ResumeInterfaceId>,
         captures: Vec<LateLoweredContinuationCapture>,
         surface_resumes: Vec<LateLoweredContinuationSurfaceResume>,
         methods: Vec<LateLoweredContinuationMethod>,
@@ -968,7 +998,7 @@ impl LateLoweredContinuationObject {
             object_id,
             owner_version_key,
             continuation_obj_ty,
-            implemented_interfaces,
+            implemented_packings,
             captures,
             surface_resumes,
             methods,
@@ -987,8 +1017,13 @@ impl LateLoweredContinuationObject {
         self.continuation_obj_ty
     }
 
+    pub fn implemented_packings(&self) -> &[ResumeInterfaceId] {
+        &self.implemented_packings
+    }
+
+    /// 兼容旧调用点；新的 handoff 应优先使用 `implemented_packings()` 叙事。
     pub fn implemented_interfaces(&self) -> &[ResumeInterfaceId] {
-        &self.implemented_interfaces
+        self.implemented_packings()
     }
 
     pub fn captures(&self) -> &[LateLoweredContinuationCapture] {
@@ -1107,7 +1142,7 @@ impl LateLoweredContinuationSurfaceResume {
 /// continuation method shell。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredContinuationMethod {
-    interface_id: ResumeInterfaceId,
+    packing_interface_id: ResumeInterfaceId,
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
     continuation_contract: LateLoweredContinuationContract,
@@ -1116,14 +1151,14 @@ pub struct LateLoweredContinuationMethod {
 
 impl LateLoweredContinuationMethod {
     pub(crate) fn new(
-        interface_id: ResumeInterfaceId,
+        packing_interface_id: ResumeInterfaceId,
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
         continuation_contract: LateLoweredContinuationContract,
         body: LateLoweredContinuationResumeBody,
     ) -> Self {
         Self {
-            interface_id,
+            packing_interface_id,
             case_tag,
             concrete_op_key,
             continuation_contract,
@@ -1131,8 +1166,13 @@ impl LateLoweredContinuationMethod {
         }
     }
 
+    pub fn packing_interface_id(&self) -> ResumeInterfaceId {
+        self.packing_interface_id
+    }
+
+    /// 兼容旧调用点；新的 handoff 应优先使用 `packing_interface_id()` 叙事。
     pub fn interface_id(&self) -> ResumeInterfaceId {
-        self.interface_id
+        self.packing_interface_id()
     }
 
     pub fn case_tag(&self) -> CaseTag {
@@ -3193,7 +3233,7 @@ mod tests {
             .continuation_object(callable.continuation_object())
             .expect("callable 应能回查 continuation object shell");
         let resume_interface = program
-            .resume_interface(callable.resume_interfaces()[0])
+            .resume_packing(callable.resume_packings()[0])
             .expect("callable 应能回查 resume interface shell");
 
         assert_eq!(
@@ -3207,8 +3247,8 @@ mod tests {
             callable.step_schema()
         );
         assert_eq!(
-            continuation_object.implemented_interfaces(),
-            callable.resume_interfaces()
+            continuation_object.implemented_packings(),
+            callable.resume_packings()
         );
         assert_eq!(continuation_object.methods().len(), 2);
         assert_eq!(continuation_object.surface_resumes().len(), 2);
@@ -3251,12 +3291,39 @@ mod tests {
     }
 
     #[test]
+    fn refactor_late_lowered_ir_stable_dump_demotes_packings_but_keeps_authoritative_cases_visible()
+    {
+        let program = sample_manual_program();
+        let dump = program.stable_dump();
+
+        for needle in [
+            "resume_packing_interface_count: 1",
+            "continuation_objects:",
+            "authoritative_surface_resume_dispatch_inventory:",
+            "resume_packing_interfaces:",
+            "implemented_packings: [ri0]",
+            "authoritative_surface_resumes:",
+            "authoritative_internal_methods:",
+            "resume_packing_interfaces: [ri0]",
+            "case=c0 packed_by=ri0",
+            "case=c1 packed_by=ri0",
+            "concrete_op=sample.Ping.hit",
+            "concrete_op=sample.Ping.pong",
+        ] {
+            assert!(
+                dump.contains(needle),
+                "stable dump 应把 authoritative contract 与 packing layer 清晰分开: {needle}\n{dump}"
+            );
+        }
+    }
+
+    #[test]
     fn refactor_late_lowered_ir_builder_materializes_program_shells_from_effect_facts() {
         let source = load_fixture("effect_facts", "single_case_impl_plan.scoop");
         let program = build_raw_program(&source);
 
         assert!(!program.step_types().is_empty());
-        assert!(!program.resume_interfaces().is_empty());
+        assert!(!program.resume_packings().is_empty());
         assert!(!program.continuation_objects().is_empty());
 
         let leaf = program
@@ -3269,11 +3336,11 @@ mod tests {
             .continuation_object(leaf.continuation_object())
             .expect("callable 应能回查 continuation object shell");
         let resume_interfaces = leaf
-            .resume_interfaces()
+            .resume_packings()
             .iter()
             .map(|interface_id| {
                 program
-                    .resume_interface(*interface_id)
+                    .resume_packing(*interface_id)
                     .expect("callable 应能回查 resume interface shell")
             })
             .collect::<Vec<_>>();
@@ -3299,8 +3366,8 @@ mod tests {
             step_type.cases().len()
         );
         assert_eq!(
-            continuation_object.implemented_interfaces(),
-            leaf.resume_interfaces(),
+            continuation_object.implemented_packings(),
+            leaf.resume_packings(),
         );
         assert_eq!(
             resume_interfaces
@@ -3331,7 +3398,7 @@ mod tests {
         let output = build_raw_output(&source);
         let method = output
             .program()
-            .resume_interfaces()
+            .resume_packings()
             .iter()
             .flat_map(|interface| interface.methods().iter())
             .find(|method| {
@@ -3422,7 +3489,7 @@ mod tests {
             .expect("fixture 应可通过 refactor late-lowering stage");
         let widened_surface_method = output
             .program()
-            .resume_interfaces()
+            .resume_packings()
             .iter()
             .flat_map(|interface| interface.methods().iter())
             .find(|method| {

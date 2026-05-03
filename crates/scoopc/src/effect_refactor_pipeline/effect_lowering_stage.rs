@@ -20,10 +20,12 @@ use super::RefactorEffectFactsStageOutput;
 /// - 对外暴露的输出不会混有“部分 callable 已 lowered、部分仍停留在 direct-style”的半成品状态；
 /// - P6 只应把这份输出翻译到 LLVM，而不是再重做高层 effect lowering 设计；
 /// - P6 可消费的 canonical 中层信息包括：`LateLoweredProgram` 内的 type references、
-///   state graph、frame schema、dynamic invoke entry、resume interface definitions 与
-///   continuation object definitions；
+///   state graph、frame schema、dynamic invoke entry、authoritative per-op/per-schema resume
+///   publication（step cases / continuation object / surface-resume dispatch inventory），以及可选的
+///   effect-family resume packing definitions；
 /// - P6 明确不得重新做 boundary 识别、whole-function segmentation、frame lifting、
-///   continuation capture 合同设计或 `ImplPlan` 选择；
+///   continuation capture 合同设计或 `ImplPlan` 选择，也不得把 packing layer 反客为主当成
+///   reverse-resume 语义主键；
 /// - LLVM 物理布局/ABI/runtime 集成仍属于 P6，而不是在 P5 逆向塞回本阶段。
 #[derive(Debug)]
 pub struct RefactorEffectLoweredStageOutput {
@@ -260,6 +262,15 @@ fun leaf(): Unit / Ping {
         )
     }
 
+    fn dynamic_fallback_fixture_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/dynamic_fallback_widening.scoop",
+            include_str!(
+                "../../../../tests/fixtures/effect_lowered/dynamic_fallback_widening.scoop"
+            ),
+        )
+    }
+
     #[test]
     fn refactor_effect_lowered_stage_output_is_constructible() {
         let output = run_sample();
@@ -336,8 +347,9 @@ fun leaf(): Unit / Ping {
         assert!(dump.contains("post_opt_program:"));
         assert!(dump.contains("LateLoweredProgram"));
         assert!(dump.contains("step_types:"));
-        assert!(dump.contains("resume_interfaces:"));
         assert!(dump.contains("continuation_objects:"));
+        assert!(dump.contains("authoritative_surface_resume_dispatch_inventory:"));
+        assert!(dump.contains("resume_packing_interfaces:"));
         assert!(dump.contains("callables:"));
         assert!(dump.contains("state_graph:"));
         assert!(dump.contains("frame_schema:"));
@@ -372,6 +384,62 @@ fun leaf(): Unit / Ping {
         assert!(dump.contains("local_runtime_error=[st"));
         assert!(dump.contains("terminal=RuntimeFatal(runtime_entry=scoop_runtime_error_fatal)"));
         assert!(dump.contains("LocalRuntimeError(payload_tuple_ty="));
+    }
+
+    #[test]
+    fn refactor_effect_lowered_stage_dump_prioritizes_authoritative_surface_resume_dispatch() {
+        let session = refactor_session();
+        let source = dynamic_fallback_fixture_source();
+        let effect_facts_output =
+            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
+        let dump = super::run(effect_facts_output).unwrap().stable_dump();
+
+        let dispatch_pos = dump
+            .find("authoritative_surface_resume_dispatch_inventory:")
+            .expect("stable dump 应显式列出 authoritative surface-resume inventory");
+        let packing_pos = dump
+            .find("resume_packing_interfaces:")
+            .expect("stable dump 应显式保留 packing layer");
+
+        assert!(
+            dispatch_pos < packing_pos,
+            "authoritative dispatch contract 应先于 packing layer 出现\n{dump}"
+        );
+        for needle in [
+            "continuation_schema: k0 source=ContinuationObjectMethod",
+            "surface_case ko0 case=c0 reachability=Reachable",
+            "surface_case ko0 case=c1 reachability=Reachable",
+            "internal_method ko0 case=c0 packed_by=ri0 reachability=Reachable",
+            "internal_method ko0 case=c1 packed_by=ri1 reachability=Reachable",
+            "resume_packing_interface: ri0",
+            "resume_packing_interface: ri1",
+        ] {
+            assert!(
+                dump.contains(needle),
+                "dynamic fallback dump 应直接暴露 authoritative per-op/per-schema contract: {needle}\n{dump}"
+            );
+        }
+    }
+
+    #[test]
+    fn refactor_effect_lowered_stage_dump_exposes_handle_and_resume_site_authoritative_sources() {
+        let session = refactor_session();
+        let source = local_runtime_error_fixture_source();
+        let effect_facts_output =
+            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
+        let dump = super::run(effect_facts_output).unwrap().stable_dump();
+
+        for needle in [
+            "continuation_schema: k0 source=HandleContinuationBinderOnly",
+            "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site0 arm#0 handled_case=c0",
+            "continuation_schema: k3 source=ResumeBoundaryOnly",
+            "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site9",
+        ] {
+            assert!(
+                dump.contains(needle),
+                "run-pass fixture dump 应直接暴露 non-object authoritative dispatch source: {needle}\n{dump}"
+            );
+        }
     }
 
     #[test]

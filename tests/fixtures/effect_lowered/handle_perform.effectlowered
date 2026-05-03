@@ -8,8 +8,9 @@ snapshot_binding:
 post_opt_program:
 LateLoweredProgram
   step_type_count: 1
-  resume_interface_count: 0
+  resume_packing_interface_count: 0
   continuation_object_count: 1
+  surface_resume_dispatch_count: 1
   callable_count: 1
   step_types:
     - step_schema: s0
@@ -18,13 +19,11 @@ LateLoweredProgram
       continuation_obj_ty: t468
       case_variants:
         - Case(c0) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t5>
-  resume_interfaces:
-    <none>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t468
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         - FrameSlot(slot0)
         - FrameSlot(slot1)
@@ -33,14 +32,20 @@ LateLoweredProgram
         - FrameSlot(slot4)
         - FrameSlot(slot5)
         - State(st5)
-      surface_resumes:
-        - c0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t5> => Unreachable
-      methods:
+      authoritative_surface_resumes:
+        - case=c0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t5> => Unreachable
+      authoritative_internal_methods:
         <none>
+  authoritative_surface_resume_dispatch_inventory:
+    - continuation_schema: k0 source=Unreachable resume_tuple_ty=t3 answer_ty=t5 out_step_schema=s0
+      publications:
+        - surface_case ko0 case=c0 reachability=Unreachable
+  resume_packing_interfaces:
+    <none>
   callables:
     - root: a.main
       body_version_key: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s0
+      authoritative_step_schema: s0
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t2) -> s0 entry=st0 complete=st1
       state_graph:
@@ -50,12 +55,39 @@ LateLoweredProgram
         drop_state: st6
         states:
           - st0 Entry term=Handle(site0 body=st2 arms=[st3] finally=<none> exit=st4 boundaries=[] drop=st6) successors=[st2, st3]
+            handle_contract:
+              carriers: state=StateTag completion=CompletionTag payload=ResumePayloadCarrier
+              body_complete_target: st4
+              arm_complete_target: st4
+              finally_complete_target: <none>
+              abandon_target: st6
+              body_outward_cases: []
+              finally_outward_cases: []
+              handled_arms:
+                - handled=c0 ordinal=0 -> st3 payload_tuple_ty=t5 outward=[]
+                  payload_binders:
+                    - #0 local1 slot=<none>
+                  continuation_binder: <none>
+              pending_completions:
+                <none>
+              state_regions:
+                - st0 => dispatch
+                - st2 => body
+                - st3 => arm(c0, ordinal=0)
+                - st4 => exit
+                - st5 => body
+              boundary_routings:
+                - bd0 owner=st2 region=body resume=st5
+                  case_routings:
+                    - c0 => consume_to_arm(st3, ordinal=0, resume=st5)
+              outward_emissions:
+                <none>
             source_slices:
               - bb0 stmts[0..0] + term
           - st1 Complete term=Unreachable successors=[]
             source_slices:
               <synthetic>
-          - st2 Segment term=Suspend(boundaries=[bd0], resume=st5, cleanup=<none>, drop=st6) successors=[st5]
+          - st2 Segment term=Suspend(boundaries=[bd0], resume=st5, local_runtime_error=[], cleanup=<none>, drop=st6) successors=[st5]
             source_slices:
               - bb1 stmts[0..2] + term
           - st3 Segment term=Goto(st4) successors=[st4]
@@ -84,5 +116,5 @@ LateLoweredProgram
             emit: c0 op=scoop.core.Raise.raise<t5> payload_tuple_ty=t5 ko0 cont_schema=k0 out_step_schema=s0
       resume_state_map:
         - bd0 -> st5
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko0

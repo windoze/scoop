@@ -42,9 +42,9 @@ impl<'a> LateLoweredProgramBuilder<'a> {
 
         let StepMaterialization {
             step_types,
-            resume_interfaces,
-            resume_interface_ids_by_step,
-            resume_interface_ids_by_group,
+            resume_packings,
+            resume_packing_ids_by_step,
+            resume_packing_ids_by_group,
         } = materialize_step_and_resume_interfaces(effect_facts)?;
 
         let mut continuation_objects = Vec::with_capacity(effect_facts.callable_facts().len());
@@ -88,7 +88,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 .iter()
                 .find(|step_type| step_type.step_schema() == step_schema_id)
                 .expect("every step schema should publish a canonical Step shell");
-            let resume_interface_ids = resume_interface_ids_by_step
+            let resume_packing_ids = resume_packing_ids_by_step
                 .get(&step_schema_id)
                 .cloned()
                 .unwrap_or_default();
@@ -166,8 +166,8 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     owner_version_key: body_version_key.clone(),
                     step_schema_id,
                     step_schema,
-                    implemented_interfaces: &resume_interface_ids,
-                    resume_interface_ids_by_group: &resume_interface_ids_by_group,
+                    implemented_packings: &resume_packing_ids,
+                    resume_packing_ids_by_group: &resume_packing_ids_by_group,
                     captures: continuation_captures,
                     effect_facts,
                 },
@@ -188,13 +188,13 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 boundary_map,
                 resume_state_map,
                 continuation_object_id,
-                resume_interface_ids,
+                resume_packing_ids,
             ));
         }
 
         Ok(LateLoweredProgram::new(
             step_types,
-            resume_interfaces,
+            resume_packings,
             continuation_objects,
             callables,
         ))

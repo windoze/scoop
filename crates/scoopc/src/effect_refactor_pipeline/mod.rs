@@ -292,10 +292,12 @@ pub fn build_effect_lowered_stage_output(
     // P5 -> P6 canonical handoff contract：
     // - 输入必须是 P4 的 authoritative `RefactorEffectFactsStageOutput`；
     // - 输出中的 `LateLoweredProgram` / types / state graph / frame schema / dynamic invoke /
-    //   resume interface / continuation object definitions 构成 P6 唯一允许消费的中层输入；
+    //   authoritative per-op/per-schema resume publication（step cases、continuation object、
+    //   surface-resume dispatch inventory）以及可选的 effect-family resume packing definitions
+    //   构成 P6 唯一允许消费的中层输入；
     // - P6 只能把这些 late-lowered structures 翻译到 LLVM，不得重新做 boundary 识别、
     //   whole-function segmentation、frame lifting、continuation capture 合同设计或 `ImplPlan`
-    //   选择；
+    //   选择，也不得把 packing layer 重新提升为 reverse-resume 语义主键；
     // - LLVM 物理布局、ABI 与 runtime 集成仍属于 P6，而不是在 P5 回填。
     let dispatcher = dispatcher_for_session(session).late_lowering();
     match dispatcher.entry {

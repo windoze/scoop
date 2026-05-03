@@ -8,8 +8,9 @@ snapshot_binding:
 post_opt_program:
 LateLoweredProgram
   step_type_count: 1
-  resume_interface_count: 1
+  resume_packing_interface_count: 1
   continuation_object_count: 1
+  surface_resume_dispatch_count: 2
   callable_count: 1
   step_types:
     - step_schema: s0
@@ -19,17 +20,11 @@ LateLoweredProgram
       case_variants:
         - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 concrete_op=sample.Ping.hit
         - Case(c1) payload_tuple_ty=t217 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t472 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t217>
-  resume_interfaces:
-    - resume_interface: ri0
-      effect_family: sample.Ping
-      return_step_schema: s0
-      methods:
-        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=sample.leaf allowed_row=(t460) impl_plan=SingleCase(c0) needs_reentry=true
       continuation_obj_ty: t470
-      implemented_interfaces: [ri0]
+      implemented_packings: [ri0]
       captures:
         - FrameSlot(slot0)
         - FrameSlot(slot1)
@@ -39,15 +34,29 @@ LateLoweredProgram
         - FrameSlot(slot5)
         - FrameSlot(slot6)
         - State(st2)
-      surface_resumes:
-        - c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t472 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
-      methods:
-        - ri0::c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+      authoritative_surface_resumes:
+        - case=c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t472 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+      authoritative_internal_methods:
+        - case=c0 packed_by=ri0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+  authoritative_surface_resume_dispatch_inventory:
+    - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t2 answer_ty=t2 out_step_schema=s0
+      publications:
+        - surface_case ko0 case=c0 reachability=Reachable
+        - internal_method ko0 case=c0 packed_by=ri0 reachability=Reachable
+    - continuation_schema: k1 source=Unreachable resume_tuple_ty=t3 answer_ty=t2 out_step_schema=s0
+      publications:
+        - surface_case ko0 case=c1 reachability=Unreachable
+  resume_packing_interfaces:
+    - resume_packing_interface: ri0
+      packing_effect_family: sample.Ping
+      authoritative_step_schema: s0
+      packed_methods:
+        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t471 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit
   callables:
     - root: sample.leaf
       body_version_key: instance=sample.leaf allowed_row=(t460) impl_plan=SingleCase(c0) needs_reentry=true
-      step_schema: s0
+      authoritative_step_schema: s0
       resolved_outward_cases: [c0]
       dynamic_invoke_entry: invoke(t2) -> s0 entry=st0 complete=st1
       state_graph:
@@ -56,7 +65,7 @@ LateLoweredProgram
         cleanup_state: <none>
         drop_state: st3
         states:
-          - st0 Entry term=Suspend(boundaries=[bd0], resume=st2, cleanup=<none>, drop=st3) successors=[st2]
+          - st0 Entry term=Suspend(boundaries=[bd0], resume=st2, local_runtime_error=[], cleanup=<none>, drop=st3) successors=[st2]
             source_slices:
               - bb0 stmts[0..1] + term
           - st1 Complete term=Unreachable successors=[]
@@ -83,5 +92,5 @@ LateLoweredProgram
             emit: c0 op=sample.Ping.hit payload_tuple_ty=t2 ko0 cont_schema=k0 out_step_schema=s0
       resume_state_map:
         - bd0 -> st2
-      resume_interfaces: [ri0]
+      resume_packing_interfaces: [ri0]
       continuation_object: ko0

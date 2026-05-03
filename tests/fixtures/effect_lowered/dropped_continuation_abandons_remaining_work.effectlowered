@@ -10,8 +10,9 @@ snapshot_binding:
 post_opt_program:
 LateLoweredProgram
   step_type_count: 3
-  resume_interface_count: 1
+  resume_packing_interface_count: 1
   continuation_object_count: 3
+  surface_resume_dispatch_count: 2
   callable_count: 3
   step_types:
     - step_schema: s0
@@ -34,27 +35,21 @@ LateLoweredProgram
       continuation_obj_ty: t475
       case_variants:
         <none>
-  resume_interfaces:
-    - resume_interface: ri1
-      effect_family: sample.Step
-      return_step_schema: s1
-      methods:
-        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=sample.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t472
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
+      authoritative_surface_resumes:
         <none>
-      methods:
+      authoritative_internal_methods:
         <none>
     - continuation_object: ko1
       owner_version: instance=sample.helper allowed_row=(t460) impl_plan=SingleCase(c1) needs_reentry=true
       continuation_obj_ty: t473
-      implemented_interfaces: [ri1]
+      implemented_packings: [ri1]
       captures:
         - FrameSlot(slot0)
         - FrameSlot(slot1)
@@ -64,26 +59,41 @@ LateLoweredProgram
         - FrameSlot(slot5)
         - FrameSlot(slot6)
         - State(st6)
-      surface_resumes:
-        - c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Other.ping => Unreachable
-        - c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t476 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
-      methods:
-        - ri1::c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+      authoritative_surface_resumes:
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Other.ping => Unreachable
+        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t476 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+      authoritative_internal_methods:
+        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
     - continuation_object: ko2
       owner_version: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t475
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
+      authoritative_surface_resumes:
         <none>
-      methods:
+      authoritative_internal_methods:
         <none>
+  authoritative_surface_resume_dispatch_inventory:
+    - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t5 answer_ty=t5 out_step_schema=s1
+      publications:
+        - surface_case ko1 case=c0 reachability=Unreachable
+        - surface_case ko1 case=c1 reachability=Reachable
+        - internal_method ko1 case=c1 packed_by=ri1 reachability=Reachable
+    - continuation_schema: k1 source=Unreachable resume_tuple_ty=t3 answer_ty=t5 out_step_schema=s1
+      publications:
+        - surface_case ko1 case=c2 reachability=Unreachable
+  resume_packing_interfaces:
+    - resume_packing_interface: ri1
+      packing_effect_family: sample.Step
+      authoritative_step_schema: s1
+      packed_methods:
+        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t474 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next
   callables:
     - root: sample.cleanup
       body_version_key: instance=sample.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s0
+      authoritative_step_schema: s0
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t2) -> s0 entry=st0 complete=st1
       state_graph:
@@ -105,11 +115,11 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko0
     - root: sample.helper
       body_version_key: instance=sample.helper allowed_row=(t460) impl_plan=SingleCase(c1) needs_reentry=true
-      step_schema: s1
+      authoritative_step_schema: s1
       resolved_outward_cases: [c1]
       dynamic_invoke_entry: invoke(t5) -> s1 entry=st0 complete=st1
       state_graph:
@@ -119,12 +129,43 @@ LateLoweredProgram
         drop_state: st9
         states:
           - st0 Entry term=Handle(site0 body=st2 arms=[st3] finally=st4 exit=st5 boundaries=[] drop=st9) successors=[st2, st3, st4]
+            handle_contract:
+              carriers: state=StateTag completion=CompletionTag payload=ResumePayloadCarrier
+              body_complete_target: st4
+              arm_complete_target: st4
+              finally_complete_target: st5
+              abandon_target: st9
+              body_outward_cases: [c1]
+              finally_outward_cases: []
+              handled_arms:
+                - handled=c0 ordinal=0 -> st3 payload_tuple_ty=t2 outward=[]
+                  payload_binders:
+                    <none>
+                  continuation_binder: <none>
+              pending_completions:
+                - ContinueToExit
+                - ReturnFromFunction
+              state_regions:
+                - st0 => dispatch
+                - st2 => body
+                - st3 => arm(c0, ordinal=0)
+                - st4 => finally
+                - st5 => exit
+                - st6 => body
+                - st7 => body
+                - st8 => body
+              boundary_routings:
+                - bd0 owner=st2 region=body resume=st6
+                  case_routings:
+                    - c1 => emit_outward
+              outward_emissions:
+                <none>
             source_slices:
               - bb0 stmts[0..0] + term
           - st1 Complete term=Unreachable successors=[]
             source_slices:
               <synthetic>
-          - st2 Segment term=Suspend(boundaries=[bd0], resume=st6, cleanup=st7, drop=st9) successors=[st6, st7]
+          - st2 Segment term=Suspend(boundaries=[bd0], resume=st6, local_runtime_error=[], cleanup=st7, drop=st9) successors=[st6, st7]
             source_slices:
               - bb1 stmts[0..1] + term
           - st3 Segment term=Goto(st4) successors=[st4]
@@ -163,11 +204,11 @@ LateLoweredProgram
             emit: c1 op=sample.Step.next payload_tuple_ty=t5 ko1 cont_schema=k0 out_step_schema=s1
       resume_state_map:
         - bd0 -> st6
-      resume_interfaces: [ri1]
+      resume_packing_interfaces: [ri1]
       continuation_object: ko1
     - root: sample.main
       body_version_key: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s2
+      authoritative_step_schema: s2
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t2) -> s2 entry=st0 complete=st1
       state_graph:
@@ -189,5 +230,5 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko2

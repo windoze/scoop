@@ -11,8 +11,9 @@ snapshot_binding:
 post_opt_program:
 LateLoweredProgram
   step_type_count: 5
-  resume_interface_count: 0
+  resume_packing_interface_count: 0
   continuation_object_count: 4
+  surface_resume_dispatch_count: 0
   callable_count: 4
   step_types:
     - step_schema: s0
@@ -45,53 +46,55 @@ LateLoweredProgram
       continuation_obj_ty: t474
       case_variants:
         <none>
-  resume_interfaces:
-    <none>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=a.apply allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t469
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
+      authoritative_surface_resumes:
         <none>
-      methods:
+      authoritative_internal_methods:
         <none>
     - continuation_object: ko1
       owner_version: instance=a.id allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t470
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
+      authoritative_surface_resumes:
         <none>
-      methods:
+      authoritative_internal_methods:
         <none>
     - continuation_object: ko2
       owner_version: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t471
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
+      authoritative_surface_resumes:
         <none>
-      methods:
+      authoritative_internal_methods:
         <none>
     - continuation_object: ko3
       owner_version: instance=a.main.$lambda0 allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t473
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
+      authoritative_surface_resumes:
         <none>
-      methods:
+      authoritative_internal_methods:
         <none>
+  authoritative_surface_resume_dispatch_inventory:
+    <none>
+  resume_packing_interfaces:
+    <none>
   callables:
     - root: a.apply
       body_version_key: instance=a.apply allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s0
+      authoritative_step_schema: s0
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t468) -> s0 entry=st0 complete=st1
       state_graph:
@@ -113,11 +116,11 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko0
     - root: a.id
       body_version_key: instance=a.id allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s1
+      authoritative_step_schema: s1
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t5) -> s1 entry=st0 complete=st1
       state_graph:
@@ -139,11 +142,11 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko1
     - root: a.main
       body_version_key: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s2
+      authoritative_step_schema: s2
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t2) -> s2 entry=st0 complete=st1
       state_graph:
@@ -165,11 +168,11 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko2
     - root: a.main.$lambda0
       body_version_key: instance=a.main.$lambda0 allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s3
+      authoritative_step_schema: s3
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t472) -> s3 entry=st0 complete=st1
       state_graph:
@@ -191,5 +194,5 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko3

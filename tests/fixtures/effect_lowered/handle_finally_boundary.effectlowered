@@ -11,8 +11,9 @@ snapshot_binding:
 post_opt_program:
 LateLoweredProgram
   step_type_count: 4
-  resume_interface_count: 0
+  resume_packing_interface_count: 0
   continuation_object_count: 4
+  surface_resume_dispatch_count: 2
   callable_count: 4
   step_types:
     - step_schema: s0
@@ -39,33 +40,31 @@ LateLoweredProgram
       continuation_obj_ty: t473
       case_variants:
         <none>
-  resume_interfaces:
-    <none>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=fixtures.mir_refactor.body_completes allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t469
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
-        - c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s0 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-      methods:
+      authoritative_surface_resumes:
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s0 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+      authoritative_internal_methods:
         <none>
     - continuation_object: ko1
       owner_version: instance=fixtures.mir_refactor.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t471
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
+      authoritative_surface_resumes:
         <none>
-      methods:
+      authoritative_internal_methods:
         <none>
     - continuation_object: ko2
       owner_version: instance=fixtures.mir_refactor.handled_raise allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t472
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         - FrameSlot(slot0)
         - FrameSlot(slot1)
@@ -74,24 +73,33 @@ LateLoweredProgram
         - FrameSlot(slot4)
         - FrameSlot(slot5)
         - State(st6)
-      surface_resumes:
-        - c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-      methods:
+      authoritative_surface_resumes:
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+      authoritative_internal_methods:
         <none>
     - continuation_object: ko3
       owner_version: instance=fixtures.mir_refactor.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       continuation_obj_ty: t473
-      implemented_interfaces: []
+      implemented_packings: []
       captures:
         <none>
-      surface_resumes:
+      authoritative_surface_resumes:
         <none>
-      methods:
+      authoritative_internal_methods:
         <none>
+  authoritative_surface_resume_dispatch_inventory:
+    - continuation_schema: k0 source=Unreachable resume_tuple_ty=t5 answer_ty=t5 out_step_schema=s0
+      publications:
+        - surface_case ko0 case=c0 reachability=Unreachable
+    - continuation_schema: k1 source=Unreachable resume_tuple_ty=t5 answer_ty=t5 out_step_schema=s2
+      publications:
+        - surface_case ko2 case=c0 reachability=Unreachable
+  resume_packing_interfaces:
+    <none>
   callables:
     - root: fixtures.mir_refactor.body_completes
       body_version_key: instance=fixtures.mir_refactor.body_completes allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s0
+      authoritative_step_schema: s0
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t2) -> s0 entry=st0 complete=st1
       state_graph:
@@ -101,6 +109,32 @@ LateLoweredProgram
         drop_state: <none>
         states:
           - st0 Entry term=Handle(site0 body=st2 arms=[st3] finally=st4 exit=st5 boundaries=[] drop=<none>) successors=[st2, st3, st4]
+            handle_contract:
+              carriers: state=StateTag completion=CompletionTag payload=ResumePayloadCarrier
+              body_complete_target: st4
+              arm_complete_target: st4
+              finally_complete_target: st5
+              abandon_target: <none>
+              body_outward_cases: []
+              finally_outward_cases: []
+              handled_arms:
+                - handled=c0 ordinal=0 -> st3 payload_tuple_ty=t5 outward=[]
+                  payload_binders:
+                    - #0 local1 slot=<none>
+                  continuation_binder: <none>
+              pending_completions:
+                - ContinueToExit
+                - ReturnFromFunction
+              state_regions:
+                - st0 => dispatch
+                - st2 => body
+                - st3 => arm(c0, ordinal=0)
+                - st4 => finally
+                - st5 => exit
+              boundary_routings:
+                <none>
+              outward_emissions:
+                <none>
             source_slices:
               - bb0 stmts[0..0] + term
           - st1 Complete term=Unreachable successors=[]
@@ -125,11 +159,11 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko0
     - root: fixtures.mir_refactor.cleanup
       body_version_key: instance=fixtures.mir_refactor.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s1
+      authoritative_step_schema: s1
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t2) -> s1 entry=st0 complete=st1
       state_graph:
@@ -151,11 +185,11 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko1
     - root: fixtures.mir_refactor.handled_raise
       body_version_key: instance=fixtures.mir_refactor.handled_raise allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s2
+      authoritative_step_schema: s2
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t2) -> s2 entry=st0 complete=st1
       state_graph:
@@ -165,12 +199,43 @@ LateLoweredProgram
         drop_state: st9
         states:
           - st0 Entry term=Handle(site0 body=st2 arms=[st3] finally=st4 exit=st5 boundaries=[] drop=st9) successors=[st2, st3, st4]
+            handle_contract:
+              carriers: state=StateTag completion=CompletionTag payload=ResumePayloadCarrier
+              body_complete_target: st4
+              arm_complete_target: st4
+              finally_complete_target: st5
+              abandon_target: st9
+              body_outward_cases: []
+              finally_outward_cases: []
+              handled_arms:
+                - handled=c0 ordinal=0 -> st3 payload_tuple_ty=t5 outward=[]
+                  payload_binders:
+                    - #0 local1 slot=<none>
+                  continuation_binder: <none>
+              pending_completions:
+                - ContinueToExit
+                - ReturnFromFunction
+              state_regions:
+                - st0 => dispatch
+                - st2 => body
+                - st3 => arm(c0, ordinal=0)
+                - st4 => finally
+                - st5 => exit
+                - st6 => body
+                - st7 => body
+                - st8 => body
+              boundary_routings:
+                - bd0 owner=st2 region=body resume=st6
+                  case_routings:
+                    - c0 => consume_to_arm(st3, ordinal=0, resume=st6)
+              outward_emissions:
+                <none>
             source_slices:
               - bb0 stmts[0..0] + term
           - st1 Complete term=Unreachable successors=[]
             source_slices:
               <synthetic>
-          - st2 Segment term=Suspend(boundaries=[bd0], resume=st6, cleanup=st7, drop=st9) successors=[st6, st7]
+          - st2 Segment term=Suspend(boundaries=[bd0], resume=st6, local_runtime_error=[], cleanup=st7, drop=st9) successors=[st6, st7]
             source_slices:
               - bb1 stmts[0..2] + term
           - st3 Segment term=Goto(st4) successors=[st4]
@@ -208,11 +273,11 @@ LateLoweredProgram
             emit: c0 op=fixtures.mir_refactor.Step.next payload_tuple_ty=t5 ko2 cont_schema=k1 out_step_schema=s2
       resume_state_map:
         - bd0 -> st6
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko2
     - root: fixtures.mir_refactor.main
       body_version_key: instance=fixtures.mir_refactor.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      step_schema: s3
+      authoritative_step_schema: s3
       resolved_outward_cases: []
       dynamic_invoke_entry: invoke(t2) -> s3 entry=st0 complete=st1
       state_graph:
@@ -234,5 +299,5 @@ LateLoweredProgram
         <none>
       resume_state_map:
         <none>
-      resume_interfaces: []
+      resume_packing_interfaces: []
       continuation_object: ko3

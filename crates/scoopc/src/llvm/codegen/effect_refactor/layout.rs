@@ -1094,7 +1094,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         for publication in entry.publications() {
             let LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
                 object_id,
-                interface_id,
+                packing_interface_id,
                 case_tag,
                 reachability,
             } = publication
@@ -1102,7 +1102,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 continue;
             };
             if *reachability == LateLoweredContinuationMethodReachability::Reachable {
-                candidates.insert((*object_id, *interface_id, *case_tag));
+                candidates.insert((*object_id, *packing_interface_id, *case_tag));
             }
         }
 

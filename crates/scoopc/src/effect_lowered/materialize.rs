@@ -33,9 +33,9 @@ use super::ir::{LateLoweredBodyVersionKey, LateLoweredBoundarySource};
 
 pub(crate) struct StepMaterialization {
     pub(crate) step_types: Vec<LateLoweredStepType>,
-    pub(crate) resume_interfaces: Vec<LateLoweredResumeInterface>,
-    pub(crate) resume_interface_ids_by_step: BTreeMap<StepSchemaId, Vec<ResumeInterfaceId>>,
-    pub(crate) resume_interface_ids_by_group:
+    pub(crate) resume_packings: Vec<LateLoweredResumeInterface>,
+    pub(crate) resume_packing_ids_by_step: BTreeMap<StepSchemaId, Vec<ResumeInterfaceId>>,
+    pub(crate) resume_packing_ids_by_group:
         BTreeMap<(StepSchemaId, EffectFamilyKey), ResumeInterfaceId>,
 }
 
@@ -57,8 +57,8 @@ pub(crate) struct ContinuationObjectMaterializationInputs<'a> {
     pub(crate) owner_version_key: LateLoweredBodyVersionKey,
     pub(crate) step_schema_id: StepSchemaId,
     pub(crate) step_schema: &'a StepSchema,
-    pub(crate) implemented_interfaces: &'a [ResumeInterfaceId],
-    pub(crate) resume_interface_ids_by_group:
+    pub(crate) implemented_packings: &'a [ResumeInterfaceId],
+    pub(crate) resume_packing_ids_by_group:
         &'a BTreeMap<(StepSchemaId, EffectFamilyKey), ResumeInterfaceId>,
     pub(crate) captures: Vec<LateLoweredContinuationCapture>,
     pub(crate) effect_facts: &'a MaterializedEffectFacts,
@@ -104,9 +104,9 @@ pub(crate) fn materialize_step_and_resume_interfaces(
     effect_facts: &MaterializedEffectFacts,
 ) -> Result<StepMaterialization, EffectLoweringError> {
     let mut step_types = Vec::with_capacity(effect_facts.step_schemas().len());
-    let mut resume_interfaces = Vec::new();
-    let mut resume_interface_ids_by_step = BTreeMap::new();
-    let mut resume_interface_ids_by_group = BTreeMap::new();
+    let mut resume_packings = Vec::new();
+    let mut resume_packing_ids_by_step = BTreeMap::new();
+    let mut resume_packing_ids_by_group = BTreeMap::new();
     let mut next_interface_raw = 0u32;
 
     for (&step_schema_id, step_schema) in effect_facts.step_schemas() {
@@ -117,7 +117,7 @@ pub(crate) fn materialize_step_and_resume_interfaces(
         for (effect_family, cases) in grouped_cases {
             let interface_id = ResumeInterfaceId::new(next_interface_raw);
             next_interface_raw = next_interface_raw.saturating_add(1);
-            resume_interfaces.push(build_resume_interface(
+            resume_packings.push(build_resume_interface(
                 interface_id,
                 effect_family.clone(),
                 step_schema_id,
@@ -125,17 +125,17 @@ pub(crate) fn materialize_step_and_resume_interfaces(
                 &cases,
                 effect_facts,
             )?);
-            resume_interface_ids_by_group.insert((step_schema_id, effect_family), interface_id);
+            resume_packing_ids_by_group.insert((step_schema_id, effect_family), interface_id);
             interface_ids.push(interface_id);
         }
-        resume_interface_ids_by_step.insert(step_schema_id, interface_ids);
+        resume_packing_ids_by_step.insert(step_schema_id, interface_ids);
     }
 
     Ok(StepMaterialization {
         step_types,
-        resume_interfaces,
-        resume_interface_ids_by_step,
-        resume_interface_ids_by_group,
+        resume_packings,
+        resume_packing_ids_by_step,
+        resume_packing_ids_by_group,
     })
 }
 
@@ -161,8 +161,8 @@ pub(crate) fn materialize_continuation_object(
         owner_version_key,
         step_schema_id,
         step_schema,
-        implemented_interfaces,
-        resume_interface_ids_by_group,
+        implemented_packings,
+        resume_packing_ids_by_group,
         captures,
         effect_facts,
     } = inputs;
@@ -185,7 +185,7 @@ pub(crate) fn materialize_continuation_object(
         .cases()
         .iter()
         .map(|case| {
-            let interface_id = *resume_interface_ids_by_group
+            let interface_id = *resume_packing_ids_by_group
                 .get(&(
                     step_schema_id,
                     case.concrete_op_key().effect_family().clone(),
@@ -214,7 +214,7 @@ pub(crate) fn materialize_continuation_object(
         continuation_object_id,
         owner_version_key,
         step_schema.continuation_obj_ty(),
-        implemented_interfaces.to_vec(),
+        implemented_packings.to_vec(),
         captures,
         surface_resumes,
         methods,
@@ -2143,12 +2143,12 @@ mod tests {
         let output = load_output(&load_fixture("effect_facts", "single_case_impl_plan.scoop"));
         let leaf = callable(&output, "sample.leaf");
         let interfaces = leaf
-            .resume_interfaces()
+            .resume_packings()
             .iter()
             .map(|interface_id| {
                 output
                     .program()
-                    .resume_interface(*interface_id)
+                    .resume_packing(*interface_id)
                     .expect("callable 应能回查 resume interface")
             })
             .collect::<Vec<_>>();

@@ -34,8 +34,8 @@ pub fn render_late_lowered_program(program: &LateLoweredProgram) -> String {
     .unwrap();
     writeln!(
         &mut rendered,
-        "  resume_interface_count: {}",
-        program.resume_interfaces().len()
+        "  resume_packing_interface_count: {}",
+        program.resume_packings().len()
     )
     .unwrap();
     writeln!(
@@ -61,15 +61,6 @@ pub fn render_late_lowered_program(program: &LateLoweredProgram) -> String {
         }
     }
 
-    writeln!(&mut rendered, "  resume_interfaces:").unwrap();
-    if program.resume_interfaces().is_empty() {
-        writeln!(&mut rendered, "    <none>").unwrap();
-    } else {
-        for interface in program.resume_interfaces() {
-            render_resume_interface(&mut rendered, interface);
-        }
-    }
-
     writeln!(&mut rendered, "  continuation_objects:").unwrap();
     if program.continuation_objects().is_empty() {
         writeln!(&mut rendered, "    <none>").unwrap();
@@ -79,12 +70,25 @@ pub fn render_late_lowered_program(program: &LateLoweredProgram) -> String {
         }
     }
 
-    writeln!(&mut rendered, "  surface_resume_dispatch_inventory:").unwrap();
+    writeln!(
+        &mut rendered,
+        "  authoritative_surface_resume_dispatch_inventory:"
+    )
+    .unwrap();
     if program.surface_resume_dispatch_inventory().is_empty() {
         writeln!(&mut rendered, "    <none>").unwrap();
     } else {
         for entry in program.surface_resume_dispatch_inventory() {
             render_surface_resume_dispatch_inventory_entry(&mut rendered, entry);
+        }
+    }
+
+    writeln!(&mut rendered, "  resume_packing_interfaces:").unwrap();
+    if program.resume_packings().is_empty() {
+        writeln!(&mut rendered, "    <none>").unwrap();
+    } else {
+        for interface in program.resume_packings() {
+            render_resume_interface(&mut rendered, interface);
         }
     }
 
@@ -154,23 +158,23 @@ fn render_step_case(rendered: &mut String, case: &LateLoweredStepCase) {
 fn render_resume_interface(rendered: &mut String, interface: &LateLoweredResumeInterface) {
     writeln!(
         rendered,
-        "    - resume_interface: ri{}",
+        "    - resume_packing_interface: ri{}",
         interface.interface_id().as_u32()
     )
     .unwrap();
     writeln!(
         rendered,
-        "      effect_family: {}",
+        "      packing_effect_family: {}",
         render_effect_family_key(interface.effect_family())
     )
     .unwrap();
     writeln!(
         rendered,
-        "      return_step_schema: s{}",
+        "      authoritative_step_schema: s{}",
         interface.return_step_schema().as_u32()
     )
     .unwrap();
-    writeln!(rendered, "      methods:").unwrap();
+    writeln!(rendered, "      packed_methods:").unwrap();
     if interface.methods().is_empty() {
         writeln!(rendered, "        <none>").unwrap();
         return;
@@ -216,8 +220,8 @@ fn render_continuation_object(rendered: &mut String, object: &LateLoweredContinu
     .unwrap();
     writeln!(
         rendered,
-        "      implemented_interfaces: {}",
-        render_resume_interface_ids(object.implemented_interfaces())
+        "      implemented_packings: {}",
+        render_resume_interface_ids(object.implemented_packings())
     )
     .unwrap();
     writeln!(rendered, "      captures:").unwrap();
@@ -228,7 +232,7 @@ fn render_continuation_object(rendered: &mut String, object: &LateLoweredContinu
             writeln!(rendered, "        - {}", render_capture(*capture)).unwrap();
         }
     }
-    writeln!(rendered, "      surface_resumes:").unwrap();
+    writeln!(rendered, "      authoritative_surface_resumes:").unwrap();
     if object.surface_resumes().is_empty() {
         writeln!(rendered, "        <none>").unwrap();
     } else {
@@ -236,7 +240,7 @@ fn render_continuation_object(rendered: &mut String, object: &LateLoweredContinu
             render_surface_resume(rendered, surface_resume);
         }
     }
-    writeln!(rendered, "      methods:").unwrap();
+    writeln!(rendered, "      authoritative_internal_methods:").unwrap();
     if object.methods().is_empty() {
         writeln!(rendered, "        <none>").unwrap();
         return;
@@ -249,9 +253,9 @@ fn render_continuation_object(rendered: &mut String, object: &LateLoweredContinu
 fn render_continuation_method(rendered: &mut String, method: &LateLoweredContinuationMethod) {
     writeln!(
         rendered,
-        "        - ri{}::c{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} concrete_op={} => {}",
-        method.interface_id().as_u32(),
+        "        - case=c{} packed_by=ri{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} concrete_op={} => {}",
         method.case_tag().as_u32(),
+        method.packing_interface_id().as_u32(),
         render_type_id(method.resume_tuple_ty()),
         render_type_id(method.answer_ty()),
         render_type_id(method.surface_ty()),
@@ -269,7 +273,7 @@ fn render_surface_resume(
 ) {
     writeln!(
         rendered,
-        "        - c{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} concrete_op={} => {}",
+        "        - case=c{} resume_tuple_ty={} answer_ty={} surface_ty={} out_step_schema=s{} continuation_schema=k{} concrete_op={} => {}",
         surface_resume.case_tag().as_u32(),
         render_type_id(surface_resume.resume_tuple_ty()),
         render_type_id(surface_resume.answer_ty()),
@@ -337,20 +341,20 @@ fn render_surface_resume_dispatch_publication(
             case_tag,
             reachability,
         } => format!(
-            "surface_case ko{}::c{} reachability={reachability:?}",
+            "surface_case ko{} case=c{} reachability={reachability:?}",
             object_id.as_u32(),
             case_tag.as_u32(),
         ),
         LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
             object_id,
-            interface_id,
+            packing_interface_id,
             case_tag,
             reachability,
         } => format!(
-            "internal_method ko{} ri{}::c{} reachability={reachability:?}",
+            "internal_method ko{} case=c{} packed_by=ri{} reachability={reachability:?}",
             object_id.as_u32(),
-            interface_id.as_u32(),
             case_tag.as_u32(),
+            packing_interface_id.as_u32(),
         ),
         LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
             owner_version_key,
@@ -389,7 +393,7 @@ fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
     .unwrap();
     writeln!(
         rendered,
-        "      step_schema: s{}",
+        "      authoritative_step_schema: s{}",
         callable.step_schema().as_u32()
     )
     .unwrap();
@@ -414,8 +418,8 @@ fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
     render_resume_state_map(rendered, callable.resume_state_map());
     writeln!(
         rendered,
-        "      resume_interfaces: {}",
-        render_resume_interface_ids(callable.resume_interfaces())
+        "      resume_packing_interfaces: {}",
+        render_resume_interface_ids(callable.resume_packings())
     )
     .unwrap();
     writeln!(

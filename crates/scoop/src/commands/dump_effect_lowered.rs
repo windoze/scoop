@@ -107,8 +107,9 @@ fun handled(): Int {
         assert!(rendered.contains("post_opt_program:"));
         assert!(rendered.contains("LateLoweredProgram"));
         assert!(rendered.contains("step_types:"));
-        assert!(rendered.contains("resume_interfaces:"));
         assert!(rendered.contains("continuation_objects:"));
+        assert!(rendered.contains("authoritative_surface_resume_dispatch_inventory:"));
+        assert!(rendered.contains("resume_packing_interfaces:"));
         assert!(rendered.contains("callables:"));
         assert!(rendered.contains("state_graph:"));
         assert!(rendered.contains("frame_schema:"));

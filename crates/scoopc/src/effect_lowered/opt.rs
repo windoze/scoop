@@ -68,7 +68,7 @@ pub(crate) fn optimize_program_with_options(
             .collect::<Vec<_>>();
         return LateLoweredProgram::new(
             program.step_types().to_vec(),
-            program.resume_interfaces().to_vec(),
+            program.resume_packings().to_vec(),
             continuation_objects,
             optimized_callables,
         );
@@ -80,8 +80,8 @@ pub(crate) fn optimize_program_with_options(
         .copied()
         .collect::<BTreeSet<_>>();
 
-    let resume_interfaces = program
-        .resume_interfaces()
+    let resume_packings = program
+        .resume_packings()
         .iter()
         .filter_map(|interface| {
             prune_resume_interface(
@@ -100,15 +100,15 @@ pub(crate) fn optimize_program_with_options(
                 .map(|optimized| prune_object_interfaces(optimized, &live_interface_ids))
         })
         .collect::<Vec<_>>();
-    let implemented_interfaces_by_object = continuation_objects
+    let implemented_packings_by_object = continuation_objects
         .iter()
-        .map(|object| (object.object_id(), object.implemented_interfaces().to_vec()))
+        .map(|object| (object.object_id(), object.implemented_packings().to_vec()))
         .collect::<BTreeMap<_, _>>();
 
     let callables = optimized_callables
         .into_iter()
         .map(|callable| {
-            let resume_interfaces = implemented_interfaces_by_object
+            let resume_packings = implemented_packings_by_object
                 .get(&callable.continuation_object())
                 .cloned()
                 .unwrap_or_default();
@@ -123,14 +123,14 @@ pub(crate) fn optimize_program_with_options(
                 callable.boundary_map().clone(),
                 callable.resume_state_map().clone(),
                 callable.continuation_object(),
-                resume_interfaces,
+                resume_packings,
             )
         })
         .collect::<Vec<_>>();
 
     LateLoweredProgram::new(
         program.step_types().to_vec(),
-        resume_interfaces,
+        resume_packings,
         continuation_objects,
         callables,
     )
@@ -180,13 +180,13 @@ fn optimize_callable(
         .collect::<Vec<_>>();
     let live_interfaces = methods
         .iter()
-        .map(LateLoweredContinuationMethod::interface_id)
+        .map(LateLoweredContinuationMethod::packing_interface_id)
         .collect::<BTreeSet<_>>();
-    let implemented_interfaces = if options.preserve_published_resume_shells {
-        continuation_object.implemented_interfaces().to_vec()
+    let implemented_packings = if options.preserve_published_resume_shells {
+        continuation_object.implemented_packings().to_vec()
     } else {
         continuation_object
-            .implemented_interfaces()
+            .implemented_packings()
             .iter()
             .copied()
             .filter(|interface_id| live_interfaces.contains(interface_id))
@@ -202,7 +202,7 @@ fn optimize_callable(
         continuation_object.object_id(),
         continuation_object.owner_version_key().clone(),
         continuation_object.continuation_obj_ty(),
-        implemented_interfaces.clone(),
+        implemented_packings.clone(),
         captures,
         continuation_object.surface_resumes().to_vec(),
         methods,
@@ -219,9 +219,9 @@ fn optimize_callable(
         resume_state_map_from_boundaries(&boundary_map),
         callable.continuation_object(),
         if options.preserve_published_resume_shells {
-            callable.resume_interfaces().to_vec()
+            callable.resume_packings().to_vec()
         } else {
-            implemented_interfaces.clone()
+            implemented_packings.clone()
         },
     );
 
@@ -238,7 +238,7 @@ fn collect_live_methods_by_interface<'a>(
     for continuation_object in continuation_objects {
         for method in continuation_object.methods() {
             live_methods
-                .entry(method.interface_id())
+                .entry(method.packing_interface_id())
                 .or_default()
                 .insert(method.case_tag());
         }
@@ -276,15 +276,15 @@ fn prune_object_interfaces(
     let methods = continuation_object
         .methods()
         .iter()
-        .filter(|method| live_interface_ids.contains(&method.interface_id()))
+        .filter(|method| live_interface_ids.contains(&method.packing_interface_id()))
         .cloned()
         .collect::<Vec<_>>();
     let used_interfaces = methods
         .iter()
-        .map(LateLoweredContinuationMethod::interface_id)
+        .map(LateLoweredContinuationMethod::packing_interface_id)
         .collect::<BTreeSet<_>>();
-    let implemented_interfaces = continuation_object
-        .implemented_interfaces()
+    let implemented_packings = continuation_object
+        .implemented_packings()
         .iter()
         .copied()
         .filter(|interface_id| used_interfaces.contains(interface_id))
@@ -294,7 +294,7 @@ fn prune_object_interfaces(
         continuation_object.object_id(),
         continuation_object.owner_version_key().clone(),
         continuation_object.continuation_obj_ty(),
-        implemented_interfaces,
+        implemented_packings,
         continuation_object.captures().to_vec(),
         continuation_object.surface_resumes().to_vec(),
         methods,
@@ -1178,10 +1178,10 @@ mod tests {
             .continuation_object(callable.continuation_object())
             .expect("优化后应保留 continuation object");
         let resume_interface = optimized
-            .resume_interface(callable.resume_interfaces()[0])
+            .resume_packing(callable.resume_packings()[0])
             .expect("优化后应保留 live resume interface");
 
-        assert_eq!(callable.resume_interfaces().len(), 1);
+        assert_eq!(callable.resume_packings().len(), 1);
         assert_eq!(resume_interface.methods().len(), 1);
         assert_eq!(resume_interface.methods()[0].case_tag(), CaseTag::new(0));
         assert_eq!(continuation_object.methods().len(), 1);
@@ -1353,7 +1353,7 @@ mod tests {
             .continuation_object(leaf.continuation_object())
             .expect("callable 应能回查 continuation object shell");
 
-        assert_eq!(leaf.resume_interfaces().len(), 1);
+        assert_eq!(leaf.resume_packings().len(), 1);
         assert_eq!(continuation_object.methods().len(), 1);
         assert_eq!(continuation_object.surface_resumes().len(), 2);
     }
