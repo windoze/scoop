@@ -1218,5 +1218,62 @@
   - 边界隔离复核：搜索 `crates/scoopc/src/effect_lowered/**` 与 `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs` 后，未发现生产路径依赖 `crate::llvm`、`crate::effect::state_machine`、`state_machine_bridge` 或 `production_lowered_hir`；`refactor_effect_lowered_stage_has_no_legacy_state_machine_or_llvm_imports` 继续把“P5 不借壳 legacy state-machine/LLVM backend”锁成测试合同。
   - 用户可见 surface 复核：`scoop dump-effect-lowered` 与 `tests/fixtures/effect_lowered/*.effectlowered` 继续共用 `render_effect_lowered_output(...)`；legacy pipeline 对该命令稳定返回 unsupported 诊断，没有静默回退到 `dump-ir`、LLVM 或 legacy state-machine 输出。dedicated snapshot/golden 基线已经存在，因此 P6 之后可以继续把 late-lowered surface 当作稳定中层契约，而不必重新发明 dump 入口。
   - 重新验证通过：`cargo test -q -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -q -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -q -p scoopc --no-default-features refactor_body_version_key`、`cargo test -q -p scoopc --no-default-features refactor_late_boundary_selection`、`cargo test -q -p scoopc --no-default-features refactor_late_segmentation`、`cargo test -q -p scoopc --no-default-features refactor_owner_resume_state`、`cargo test -q -p scoopc --no-default-features refactor_frame_lifting`、`cargo test -q -p scoopc --no-default-features refactor_late_control_flow`、`cargo test -q -p scoopc --no-default-features refactor_dropped_continuation`、`cargo test -q -p scoopc --no-default-features refactor_runtime_error_boundary`、`cargo test -q -p scoopc --no-default-features refactor_step_materialization`、`cargo test -q -p scoopc --no-default-features refactor_boundary_lowering`、`cargo test -q -p scoopc --no-default-features refactor_continuation_object`、`cargo test -q -p scoopc --no-default-features refactor_resume_interface_completeness`、`cargo test -q -p scoopc --no-default-features refactor_late_opt`、`cargo test -q -p scoop --no-default-features effect_lowered`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/handle_finally_boundary.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/handle_perform.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline legacy dump-effect-lowered tests/fixtures/effect_lowered/dispatch_and_resume_call.scoop`（按预期失败，且返回稳定 unsupported 诊断）、`cargo fmt --all --check`、`cargo clippy -q -p scoop -p scoopc --no-default-features --all-targets -- -D warnings`。
-  - 结论：P5 已完成“late-lowered `Step` 路径落地（尚不接 LLVM）”的阶段目标；未发现需要插入到 `P5-T07R` 之前的新前置任务，下一步可以按计划进入 `P6-T01`。`PLAN.md` 无需修改。
+  - 结论：基于当次 review 范围，P5 已完成“late-lowered `Step` 路径落地（尚不接 LLVM）”的阶段目标；`PLAN.md` 无需修改。
+  - 2026-05-03：随后在执行 `P6-T03` 定向验证时，发现 `effect_resume_if_else_branch_single_perform.scoop` 会在 P5 late-lowering 的 call-boundary case 投影上失败；该问题不是 LLVM backend workaround 可以绕过的，因此已追加 post-review 修复任务 `P5-T07a`，要求先修复 P5 -> P6 handoff 再继续 P6-T03。
   - 2026-05-03：按 detailed TODO 完成判定规则补齐本任务标题的 `[DONE]` 标记，并同步更新 `TODO.md` 索引；`PLAN.md` 无需改动。
+
+## P5-T07a：修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.9, §5.5.4, §8
+  - [`TODO-P5.md`](./TODO-P5.md) `P5-T05` / `P5-T07R`
+  - [`TODO-P6.md`](./TODO-P6.md) `P6-T03`
+  - 当前实现参考：
+    - `crates/scoopc/src/effect_lowered/materialize.rs`
+    - `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs`
+    - `crates/scoopc/src/effect_facts/**`
+- 背景：
+  - 在执行 `P6-T03` 的定向验证时，`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 与对应 refactor `build` 都会在 P5 late-lowering 阶段失败；
+  - 当前错误是 `effect_lowered/materialize.rs` 在 call-boundary outward forwarding 上报 `MissingProjectedStepCase`，无法把 `scoop.core.Raise.raise<scoop.core.RuntimeError>` 从 callee input `StepSchema` 投影到 caller output `StepSchema`；
+  - 同一 fixture 的 `dump-effect-facts` 已表明：caller `main` 的 call site 明确解析出了来自 callee `run` 的 compiler-generated ordinary runtime-error case，但 caller 当前发布的 late-lowered authoritative contract 没有给出可消费这条 case 的投影；
+  - 这会直接阻塞 `P6-T03`，因为 LLVM body lowering 还没开始，P5 handoff 就已经失败。
+
+- 目标：
+  - 修正 P5 late-lowering 对“surface 上声明 `Pure`，但经 call boundary 仍必须承接 compiler-generated ordinary runtime-error case”的 authoritative handoff；
+  - 保证 caller/callee 的 case projection 在 P5 内闭合，而不是把问题推给 P6 backend 或 CLI 特判。
+
+- 必须实现的内容：
+  1. 复现并锁定当前阻塞路径。
+     - 至少使用 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`；
+     - 明确证明问题发生在 P5 late-lowering，而不是 P6 LLVM body emitter。
+  2. 修正 authoritative projection contract。
+     - call boundary 从 callee `Step_F` 向 caller outward contract 做 forwarding 时，必须能正确处理 compiler-generated ordinary runtime-error case；
+     - 若 caller 需要为这类 case 承担传播责任，则对应 authoritative step/boundary contract 必须在 P5 明确发布；
+     - 明确禁止：靠 `surface_ty.eff` / declared row / P6 backend 临时兜底把这条 case 悄悄抹掉。
+  3. 补齐定向回归测试。
+     - 至少覆盖一个“pure caller 调用带 one-shot runtime-error upper bound 的 callee”样本；
+     - 断言 late-lowered program 可以成功物化 call boundary，而不会在 `MissingProjectedStepCase` 上失败。
+  4. 验证 P5 -> P6 handoff 恢复可用。
+     - 该 fixture 至少要能成功通过 `dump-effect-lowered`；
+     - refactor `build` 对同一 fixture 至少要前进到 P6 LLVM stage（即便随后仍可能因 `P6-T03` 未完成而在 LLVM 阶段 fail-fast）。
+
+- 必须遵从的约束：
+  - 禁止把 compiler-generated runtime-error case 重新并回 source-visible `surface_ty`，或借机扩大源码层 callable surface。
+  - 禁止把“caller surface 看起来是 `Pure`”当作可以忽略 internal runtime-error case forwarding 的理由。
+  - 禁止在 P6 backend / driver / fixture runner 里为该问题新增 workaround。
+
+- 验证：
+  1. `cargo test -p scoopc --no-default-features refactor_boundary_lowering`
+  2. `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
+  3. `cargo run -p scoop -- --effect-pipeline refactor dump-effect-facts tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  4. `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  5. `cargo run -p scoop -- --effect-pipeline refactor build tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop -o /tmp/p5_t07a_probe.out`
+  6. 要求：第 5 条命令即便后续仍因 `P6-T03` 未完成而在 LLVM 阶段失败，也不得再在 P5 late-lowering 阶段以 `MissingProjectedStepCase` / case 投影缺口失败。
+
+- 完成条件：
+  - P5 late-lowering 已能为 pure caller 正确发布/消费 compiler-generated runtime-error case 的 call-boundary projection；
+  - `effect_resume_if_else_branch_single_perform.scoop` 不再在 P5 handoff 处失败；
+  - `P6-T03` 可以继续聚焦 LLVM body lowering，而不再被 P5 阻塞。
+- 依赖：P5-T07R
+- 完成记录：
+  - （执行时填写）

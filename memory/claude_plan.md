@@ -1,51 +1,44 @@
-# Claude Plan
+# 当前执行计划
 
-## Constraints
-- 不记录或暴露内部逐字思维链；此文件只保留可审计的执行计划、关键决策依据、阻塞项与完成记录。
-- 本次调用只处理一个详细任务：先从 `TODO.md` 索引定位，再以对应 `TODO-Px.md` 为准。
-- 若遇到阻塞当前任务的真实前置问题，先修复；若本次无法直接修复，则在对应 `TODO-Px.md` 中插入最小必要前置任务，并同步 `TODO.md`，然后提交并停止。
+## 约束说明
+- 这里记录可公开的执行计划、关键决策、阻塞与进度，不记录内部推理细节。
+- 本次目标：先定位 `TODO.md` 所指向的第一个未完成详细任务，只完成这一个任务，然后停止。
 
-## Initial Execution Plan
-1. 读取 `TODO.md`，确认其仅作为索引使用，并找出引用的详细任务文件。
-2. 按任务顺序检查相关 `TODO-Px.md`，以标题是否带 `[DONE]` 作为完成判定，定位首个未完成详细任务。
-3. 查看最近一次提交信息，判断是否存在与该任务直接相关且明确未完成的问题；如有，将其纳入当前任务或记为前置依赖。
-4. 阅读当前任务涉及的代码、测试、规范与现状实现，确认约束、依赖与验证方式。
-5. 直接实现当前任务；若发现阻塞当前任务的规范不匹配或实现缺口，先处理阻塞或最小化地补充前置任务并同步索引。
-6. 运行与当前任务相关的测试与必要校验；若变更范围要求较高，再补充格式化、lint 或更广测试。
-7. 更新 `memory/claude_plan.md` 记录关键发现、计划变更、验证结果。
-8. 在对应 `TODO-Px.md` 中更新完成记录，并在任务标题前加 `[DONE]`；如任务索引内容有变化，同步更新 `TODO.md`。
-9. 仅在阶段计划或依赖结构变化时更新 `PLAN.md`。
-10. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
+## 初始计划
+1. 读取 `TODO.md`，确认任务索引结构与详细任务文件引用。
+2. 按索引顺序读取对应 `TODO-Px.md`，定位第一个标题未标记 `[DONE]` 的详细任务。
+3. 检查最近一次提交信息，确认是否存在与该任务直接相关且未完成的问题；若有，按要求将其视为任务一部分或前置依赖。
+4. 阅读该任务的详细要求、约束、验证标准与完成记录。
+5. 检查工作区现状，避免覆盖非本次任务的已有改动。
+6. 实施任务所需的最小正确修改；若遇到真实阻塞，新增最小前置任务并同步 `TODO.md`。
+7. 运行与该任务直接相关的验证；若任务涉及通用质量门禁，再补充运行格式化、测试、`clippy` 等必要检查。
+8. 更新 `TODO-Px.md` 中该任务标题为 `[DONE]` 并填写完成记录；如索引受影响，同步更新 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
+9. 把本次执行的关键进展补充到本文件。
+10. 按仓库约定创建一次 git 提交，然后停止，不进入下一个任务。
 
-## Progress Log
-- 已创建初始执行计划；下一步读取 `TODO.md` 与相关 `TODO-Px.md` 定位首个未完成任务。
-- 已读取 `TODO.md` 与 `TODO-P6.md`；当前首个未完成详细任务确认为 `P6-T02R`（`P6-T02`/`P6-T02a`/`P6-T02b` 已标记 `[DONE]`，`P6-T02R` 仍未完成）。
-- 已检查最近提交：`2c9f255d [P6-T02b] Enforce resume-interface method completeness`。该提交与当前 review 直接相关，说明本次任务需要复审 `P6-T02b` 是否已消除先前在 `P6-T02R` 完成记录里记下的 blocker。
-- 当前审查重点：
-  1. 复核 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 的 ABI contract 是否由 P5 authoritative handoff 决定。
-  2. 复核 `Step_F` / frame / continuation / resume-interface / dynamic invoke 的查询 API 是否已闭合，且 `Unit` ABI 是否已零载荷退化。
-  3. 搜索 refactor LLVM ABI 主实现中是否仍残留 `EffectSignal` / `EffectOutcome` / `LegacyEffectBoundary` 等 legacy ABI 载体。
-  4. 运行 `P6-T02R` 要求的测试与命令；若发现新 blocker，则按规则补前置任务并停止；否则把 `P6-T02R` 标记为 `[DONE]` 并提交。
-
-## Blocker Discovered During Review
-- `cargo test -p scoopc refactor_llvm_` 失败，失败点为：
-  - `refactor_llvm_step_layout_keeps_canonical_case_set_for_single_case_callable`
-  - `refactor_llvm_frame_layout_preserves_slot_indices_and_system_fields`
-- 失败原因：`materialize_refactor_program_abi(...)` 现在会对 published resume-interface method completeness fail fast；而这两个测试仍默认把 `effect_lowered_stage_output.program()`（authoritative reachable-body handoff）直接送入 ABI materializer。该 handoff 在常规 late-opt 下允许裁剪 ABI shell 上不再可达的方法，因此不再满足 `P6-T02b` 之后对 ABI materialization 的完整 method 集要求。
-- 结论：这不是要绕过的新限制，而是测试/审查入口与真实 refactor LLVM stage 已经不一致。真实 stage 在 ABI 物化时会使用单独的 `abi_visibility_effect_lowered_stage_output`，并在该 handoff 上保留 published resume shells。
-- 处理方案：最小化修正 `layout.rs` 的测试夹具，让默认 ABI materialization 路径改为使用“保留 published resume shells”的 ABI-visibility late-lowered program；保留 authoritative handoff 以便继续构造 fail-fast 负例测试。
-
-## Completed Key Steps
-- 已在 `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 的测试夹具中新增 `abi_visibility_program`，并让默认 ABI materialization 测试改用该程序；这样与真实 refactor LLVM stage 的 ABI shell 发布路径一致。
-- 已保留 authoritative `effect_lowered_stage_output` 供负例测试继续构造“缺失 interface / method 必须 fail fast”的场景，没有放宽实际 ABI contract。
-- 已重新运行完整 `P6-T02R` 验证矩阵，全部通过：
-  - `cargo test -p scoopc refactor_llvm_`
-  - `cargo test -p scoopc refactor_resume_interface_completeness_groups_methods_by_effect_family`
-  - `cargo test -p scoop refactor_build_`
-  - `cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`
-  - 三个 refactor build fixtures
-  - 一个 legacy build fixture 抽样
-  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
-- 已重新执行关键字搜索：`EffectSignal` / `EffectOutcome` / `LegacyEffectBoundary` 仅出现在 legacy `llvm/codegen/effect/**`；refactor ABI 主实现未发现继续把这些 legacy contract 当作最终 ABI 模型的残留。
-- 已更新 `TODO-P6.md` 与 `TODO.md`，把 `P6-T02R` 标记为完成；`PLAN.md` 无需变更。
-- 下一步仅剩提交当前变更并停止，不继续下一个任务。
+## 进度记录
+- 已创建本计划文件，准备开始读取任务索引并定位当前应执行任务。
+- 已读取 `TODO.md` 与 `TODO-P6.md`，确认首个未完成详细任务为 `P6-T03`：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering。
+- 已检查最新提交与当前任务关系：最新提交为 `P6-T02R` review 完成，不包含需要额外前插的新 unfinished issue。
+- 当前下一步：检查 `crates/scoopc/src/llvm/codegen/effect_refactor/**`、现有 LLVM body emission 入口，以及 P5 late-lowered representation，确认要替换/新建的最小实现边界。
+- 已确认当前 refactor 路径现状：`llvm/emit.rs` 只在 stage 边界做 fail-fast 和 ABI materialization，实际函数声明与 body emission 仍走 `declare_top_level_fun(...)` + `codegen_top_level_mir_fun(...)` / `codegen_top_level_fun(...)` 旧流程。
+- 这意味着 `P6-T03` 的核心工作至少包括：
+  1. 建立 refactor body emitter 与 verifier；
+  2. 为 refactor callable 声明/生成专用 LLVM 函数体；
+  3. 让 refactor build/run 能从入口函数实际调用这套 lowering，而不是继续经旧主体路径。
+- 当前正在确认 `Step_F` / direct-entry / dynamic-invoke ABI 的实际调用接线点，以便选择最小正确改动面。
+- 对 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 做定向复现后发现新的硬阻塞：
+  - refactor `build` 与 `dump-effect-lowered` 都在 P5 late-lowering 阶段失败；
+  - 错误为“无法把 `scoop.core.Raise.raise` 从 input StepSchema 投影到 output StepSchema”；
+  - 因此当前还不能开始 `P6-T03` 的 LLVM body emitter 验证，这属于直接阻塞当前任务的前置问题。
+- 当前下一步变更为：
+  1. 搜索该错误来源与相关现有 TODO；
+  2. 判断该问题是否已被跟踪；
+  3. 若未跟踪，则在合适的详细 TODO 文件中插入最小前置任务，并同步 `TODO.md`；
+  4. 如能在本次以小改动直接修复，也优先尝试修复后再回到 `P6-T03`。
+- 已完成 blocker 归档：
+  - 在 `TODO-P5.md` 末尾新增未完成任务 `P5-T07a`，专门跟踪“pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影”修复；
+  - 已同步更新 `TODO.md` 索引，把 `P5-T07a` 插入到 `P5-T07R` 与 `P6-T01` 之间；
+  - 已把 `TODO-P6.md` 中 `P6-T03` 的依赖改为 `P6-T02R，P5-T07a`；
+  - 已补充 `P5-T07R` 完成记录，说明该 post-review blocker 的来源与为什么必须先修 P5 handoff。
+- 本次不继续实现代码修复；按工作流，这里应提交“新增前置任务并停止”，由下一次调用从 `P5-T07a` 开始执行。

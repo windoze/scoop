@@ -823,7 +823,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R
+- 依赖：P6-T02R，P5-T07a
 - 完成记录：
   - （执行时填写）
 
