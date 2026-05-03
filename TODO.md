@@ -88,7 +88,7 @@
 | `P6-T02l` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属 |
 | `P6-T02ma` | `TODO-P6-part1.md` | [DONE] 发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema |
 | `P6-T02m` | `TODO-P6-part2.md` | [DONE] 发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable |
-| `P6-T02n` | `TODO-P6-part2.md` | 清理 refactor LLVM ABI/query 的 resume 主键，降级 effect-level resume interface 为 packing 层 |
+| `P6-T02n` | `TODO-P6-part2.md` | [DONE] 清理 refactor LLVM ABI/query 的 resume 主键，降级 effect-level resume interface 为 packing 层 |
 | `P6-T03` | `TODO-P6-part2.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6-part2.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
 | `P6-T04` | `TODO-P6-part2.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |

@@ -200,7 +200,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02n：清理 refactor LLVM ABI/query 的 resume 主键，降级 effect-level resume interface 为 packing 层
+## [DONE] P6-T02n：清理 refactor LLVM ABI/query 的 resume 主键，降级 effect-level resume interface 为 packing 层
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P5，§2/P6
@@ -258,7 +258,18 @@
   - backend 不再需要通过 effect-level interface 分组倒推 per-op/per-schema contract。
 - 依赖：P6-T02m，P6-T02ma，P5-T07b
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：完成 `P6-T02n`。`crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 现已把 LLVM ABI/query 的公开叙事改为 `resume packing`：`RefactorCallableLayout` / `RefactorAbiQuery` / `RefactorContinuationObjectLayout` 分别改用 `resume_packings()`、`resume_packing_layout(...)`、`field_index_for_packing(...)`，`RefactorContinuationSurfaceResumeMethodLookup` / `RefactorResumeMethodLayout` 也改用 `packing_interface_id` / `packing_field_index` 命名，明确 `ResumeInterfaceId` 只承担 object-side packing/vtable lookup，而不再充当 resume 语义主键。
+  - 2026-05-04：新增 `RefactorAbiQuery::surface_resume_method_layout(...)`，让后续 `P6-T03` body lowering 能直接从已发布的 `ContinuationSchemaId -> owner dispatch -> method lookup` contract 回查 surface-resume method layout，并在 query 层对 packing lookup 漂移显式 fail fast；backend 不再需要先扫描 effect family 分组或 interface 列表来恢复 per-op/per-schema contract。
+  - 2026-05-04：同步更新 continuation/surface-resume 相关测试与断言文案，覆盖 shared `ContinuationSchemaId`、同 owner 多 method target、`ResumeBoundaryOnly` / `HandleContinuationBinderOnly` 路径，以及 unit-payload ABI，不再把 effect-level interface 当成查询入口。`PLAN.md` 无需改动。
+- 已运行验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_llvm_surface_resume_layout`
+  - `cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout`
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

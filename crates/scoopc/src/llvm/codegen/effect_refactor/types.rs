@@ -1092,12 +1092,12 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
     }
 }
 
-/// surface-resume shared symbol 经过 continuation object 可回查到的唯一 method lookup。
+/// surface-resume shared symbol 经过 continuation object 可回查到的 object-side packing method lookup。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct RefactorContinuationSurfaceResumeMethodLookup {
     continuation_object: ContinuationObjectId,
-    interface_id: ResumeInterfaceId,
-    interface_field_index: u32,
+    packing_interface_id: ResumeInterfaceId,
+    packing_field_index: u32,
     case_tag: CaseTag,
     vtable_index: u32,
 }
@@ -1105,15 +1105,15 @@ pub(super) struct RefactorContinuationSurfaceResumeMethodLookup {
 impl RefactorContinuationSurfaceResumeMethodLookup {
     pub(super) fn new(
         continuation_object: ContinuationObjectId,
-        interface_id: ResumeInterfaceId,
-        interface_field_index: u32,
+        packing_interface_id: ResumeInterfaceId,
+        packing_field_index: u32,
         case_tag: CaseTag,
         vtable_index: u32,
     ) -> Self {
         Self {
             continuation_object,
-            interface_id,
-            interface_field_index,
+            packing_interface_id,
+            packing_field_index,
             case_tag,
             vtable_index,
         }
@@ -1123,12 +1123,12 @@ impl RefactorContinuationSurfaceResumeMethodLookup {
         self.continuation_object
     }
 
-    pub(super) fn interface_id(&self) -> ResumeInterfaceId {
-        self.interface_id
+    pub(super) fn packing_interface_id(&self) -> ResumeInterfaceId {
+        self.packing_interface_id
     }
 
-    pub(super) fn interface_field_index(&self) -> u32 {
-        self.interface_field_index
+    pub(super) fn packing_field_index(&self) -> u32 {
+        self.packing_field_index
     }
 
     pub(super) fn case_tag(&self) -> CaseTag {
@@ -1294,9 +1294,9 @@ impl<'ctx> RefactorContinuationSurfaceResumeDispatchLayout<'ctx> {
     }
 }
 
-/// 单个 resume method 的 LLVM 级合同。
+/// 单个 resume packing method 的 LLVM 级合同。
 pub(super) struct RefactorResumeMethodLayout<'ctx> {
-    interface_id: ResumeInterfaceId,
+    packing_interface_id: ResumeInterfaceId,
     case_tag: CaseTag,
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
@@ -1309,7 +1309,7 @@ pub(super) struct RefactorResumeMethodLayout<'ctx> {
 impl<'ctx> RefactorResumeMethodLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
-        interface_id: ResumeInterfaceId,
+        packing_interface_id: ResumeInterfaceId,
         case_tag: CaseTag,
         symbol_name: String,
         llvm_ty: FunctionType<'ctx>,
@@ -1319,7 +1319,7 @@ impl<'ctx> RefactorResumeMethodLayout<'ctx> {
         return_step_schema: StepSchemaId,
     ) -> Self {
         Self {
-            interface_id,
+            packing_interface_id,
             case_tag,
             symbol_name,
             llvm_ty,
@@ -1330,8 +1330,8 @@ impl<'ctx> RefactorResumeMethodLayout<'ctx> {
         }
     }
 
-    pub(super) fn interface_id(&self) -> ResumeInterfaceId {
-        self.interface_id
+    pub(super) fn packing_interface_id(&self) -> ResumeInterfaceId {
+        self.packing_interface_id
     }
 
     pub(super) fn case_tag(&self) -> CaseTag {
@@ -1363,10 +1363,13 @@ impl<'ctx> RefactorResumeMethodLayout<'ctx> {
     }
 }
 
-/// 单个 internal resume interface 的 vtable / method 布局。
+/// 单个 internal resume packing 的 vtable / method 布局。
+///
+/// 这里保留 effect-family 分组只为 continuation object 上的 packing/vtable 物理布局服务，
+/// 不能替代 `ContinuationSchemaId` / `CaseTag` 的 authoritative resume 语义入口。
 pub(super) struct RefactorResumeInterfaceLayout<'ctx> {
-    interface_id: ResumeInterfaceId,
-    effect_family_fqn: String,
+    packing_interface_id: ResumeInterfaceId,
+    packing_family_fqn: String,
     llvm_vtable_ty: StructType<'ctx>,
     layout_anchor_name: String,
     methods: BTreeMap<CaseTag, RefactorResumeMethodLayout<'ctx>>,
@@ -1374,27 +1377,27 @@ pub(super) struct RefactorResumeInterfaceLayout<'ctx> {
 
 impl<'ctx> RefactorResumeInterfaceLayout<'ctx> {
     pub(super) fn new(
-        interface_id: ResumeInterfaceId,
-        effect_family_fqn: String,
+        packing_interface_id: ResumeInterfaceId,
+        packing_family_fqn: String,
         llvm_vtable_ty: StructType<'ctx>,
         layout_anchor_name: String,
         methods: BTreeMap<CaseTag, RefactorResumeMethodLayout<'ctx>>,
     ) -> Self {
         Self {
-            interface_id,
-            effect_family_fqn,
+            packing_interface_id,
+            packing_family_fqn,
             llvm_vtable_ty,
             layout_anchor_name,
             methods,
         }
     }
 
-    pub(super) fn interface_id(&self) -> ResumeInterfaceId {
-        self.interface_id
+    pub(super) fn packing_interface_id(&self) -> ResumeInterfaceId {
+        self.packing_interface_id
     }
 
-    pub(super) fn effect_family_fqn(&self) -> &str {
-        &self.effect_family_fqn
+    pub(super) fn packing_family_fqn(&self) -> &str {
+        &self.packing_family_fqn
     }
 
     pub(super) fn llvm_vtable_ty(&self) -> StructType<'ctx> {
@@ -1462,7 +1465,7 @@ pub(super) enum RefactorContinuationFieldKind {
     CapturedFrame,
     ResumeStateTag,
     OneShotFlag,
-    InterfaceVtable(ResumeInterfaceId),
+    PackingVtable(ResumeInterfaceId),
 }
 
 /// 单个 continuation object field 的 LLVM 布局。
@@ -1505,7 +1508,7 @@ pub(super) struct RefactorContinuationObjectLayout<'ctx> {
     llvm_ty: StructType<'ctx>,
     layout_anchor_name: String,
     fields: Vec<RefactorContinuationFieldLayout<'ctx>>,
-    interface_field_indices: BTreeMap<ResumeInterfaceId, u32>,
+    packing_field_indices: BTreeMap<ResumeInterfaceId, u32>,
     surface_resume_bindings:
         BTreeMap<ContinuationSchemaId, Vec<RefactorContinuationSurfaceResumeBinding>>,
 }
@@ -1517,7 +1520,7 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
         llvm_ty: StructType<'ctx>,
         layout_anchor_name: String,
         fields: Vec<RefactorContinuationFieldLayout<'ctx>>,
-        interface_field_indices: BTreeMap<ResumeInterfaceId, u32>,
+        packing_field_indices: BTreeMap<ResumeInterfaceId, u32>,
         surface_resume_bindings: BTreeMap<
             ContinuationSchemaId,
             Vec<RefactorContinuationSurfaceResumeBinding>,
@@ -1529,7 +1532,7 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
             llvm_ty,
             layout_anchor_name,
             fields,
-            interface_field_indices,
+            packing_field_indices,
             surface_resume_bindings,
         }
     }
@@ -1554,8 +1557,13 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
         &self.fields
     }
 
-    pub(super) fn field_index_for_interface(&self, interface_id: ResumeInterfaceId) -> Option<u32> {
-        self.interface_field_indices.get(&interface_id).copied()
+    pub(super) fn field_index_for_packing(
+        &self,
+        packing_interface_id: ResumeInterfaceId,
+    ) -> Option<u32> {
+        self.packing_field_indices
+            .get(&packing_interface_id)
+            .copied()
     }
 
     pub(super) fn surface_resume_bindings(
@@ -1575,7 +1583,7 @@ pub(super) struct RefactorCallableLayout<'ctx> {
     dynamic_entry: RefactorCallableEntryLayout<'ctx>,
     direct_entry: RefactorCallableEntryLayout<'ctx>,
     continuation_object: ContinuationObjectId,
-    resume_interfaces: Vec<ResumeInterfaceId>,
+    resume_packings: Vec<ResumeInterfaceId>,
 }
 
 impl<'ctx> RefactorCallableLayout<'ctx> {
@@ -1585,7 +1593,7 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
         dynamic_entry: RefactorCallableEntryLayout<'ctx>,
         direct_entry: RefactorCallableEntryLayout<'ctx>,
         continuation_object: ContinuationObjectId,
-        resume_interfaces: Vec<ResumeInterfaceId>,
+        resume_packings: Vec<ResumeInterfaceId>,
     ) -> Self {
         Self {
             root_fqn,
@@ -1593,7 +1601,7 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
             dynamic_entry,
             direct_entry,
             continuation_object,
-            resume_interfaces,
+            resume_packings,
         }
     }
 
@@ -1617,8 +1625,8 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
         self.continuation_object
     }
 
-    pub(super) fn resume_interfaces(&self) -> &[ResumeInterfaceId] {
-        &self.resume_interfaces
+    pub(super) fn resume_packings(&self) -> &[ResumeInterfaceId] {
+        &self.resume_packings
     }
 }
 
@@ -1628,7 +1636,7 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
     step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
     continuation_layouts: BTreeMap<ContinuationObjectId, RefactorContinuationObjectLayout<'ctx>>,
-    resume_interface_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
+    resume_packing_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
     surface_resume_layouts:
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
     surface_resume_dispatch_layouts:
@@ -1650,7 +1658,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             ContinuationObjectId,
             RefactorContinuationObjectLayout<'ctx>,
         >,
-        resume_interface_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
+        resume_packing_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
         surface_resume_layouts: BTreeMap<
             ContinuationSchemaId,
             RefactorContinuationSurfaceResumeLayout<'ctx>,
@@ -1672,7 +1680,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             step_layouts,
             frame_layouts,
             continuation_layouts,
-            resume_interface_layouts,
+            resume_packing_layouts,
             surface_resume_layouts,
             surface_resume_dispatch_layouts,
             callable_layouts,
@@ -1717,11 +1725,11 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         self.continuation_layouts.get(&object_id)
     }
 
-    pub(super) fn resume_interface_layout(
+    pub(super) fn resume_packing_layout(
         &self,
-        interface_id: ResumeInterfaceId,
+        packing_interface_id: ResumeInterfaceId,
     ) -> Option<&RefactorResumeInterfaceLayout<'ctx>> {
-        self.resume_interface_layouts.get(&interface_id)
+        self.resume_packing_layouts.get(&packing_interface_id)
     }
 
     pub(super) fn surface_resume_layout(
@@ -1743,6 +1751,47 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                     continuation_schema.as_u32()
                 ),
             })
+    }
+
+    pub(super) fn surface_resume_method_layout(
+        &self,
+        lookup: RefactorContinuationSurfaceResumeMethodLookup,
+    ) -> Result<&RefactorResumeMethodLayout<'ctx>, LlvmEmitError> {
+        let packing = self.resume_packing_layout(lookup.packing_interface_id()).ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 continuation object ko{} surface-resume lookup 需要的 resume packing ri{}",
+                    lookup.continuation_object().as_u32(),
+                    lookup.packing_interface_id().as_u32(),
+                ),
+            }
+        })?;
+        let method = packing.method(lookup.case_tag()).ok_or_else(|| LlvmEmitError::Frontend {
+            message: format!(
+                "refactor LLVM ABI query 缺少 continuation object ko{} surface-resume lookup 需要的 resume packing ri{}::c{} method layout",
+                lookup.continuation_object().as_u32(),
+                lookup.packing_interface_id().as_u32(),
+                lookup.case_tag().as_u32(),
+            ),
+        })?;
+        if method.packing_interface_id() != lookup.packing_interface_id()
+            || method.vtable_index() != lookup.vtable_index()
+        {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 continuation object ko{} 的 surface-resume packing lookup 漂移：lookup=(ri{}, field={}, case=c{}, vtable_index={})，layout=(ri{}, case=c{}, vtable_index={})",
+                    lookup.continuation_object().as_u32(),
+                    lookup.packing_interface_id().as_u32(),
+                    lookup.packing_field_index(),
+                    lookup.case_tag().as_u32(),
+                    lookup.vtable_index(),
+                    method.packing_interface_id().as_u32(),
+                    method.case_tag().as_u32(),
+                    method.vtable_index(),
+                ),
+            });
+        }
+        Ok(method)
     }
 
     pub(super) fn callable_layout(
