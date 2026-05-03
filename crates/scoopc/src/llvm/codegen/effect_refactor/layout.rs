@@ -184,10 +184,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         for callable in this.program.callables() {
             callable_layouts.insert(
                 callable.step_schema(),
-                this.materialize_callable_layout(
-                    callable,
-                    &step_layouts,
-                )?,
+                this.materialize_callable_layout(callable, &step_layouts)?,
             );
         }
 
@@ -320,6 +317,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 step_schema.as_u32()
             ))
         })?;
+        let expected_case_tags = step_type
+            .cases()
+            .iter()
+            .filter(|case| case.concrete_op_key().effect_family() == interface.effect_family())
+            .map(|case| case.case_tag())
+            .collect::<BTreeSet<_>>();
 
         let mut methods = BTreeMap::new();
         let mut vtable_fields = Vec::new();
@@ -410,6 +413,19 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     step_schema,
                 ),
             );
+        }
+        let missing_case_tags = expected_case_tags
+            .difference(&published_case_tags)
+            .map(|case_tag| case_tag.as_u32().to_string())
+            .collect::<Vec<_>>();
+        if !missing_case_tags.is_empty() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 resume interface {} 在 step schema {} 的 effect family `{}` 下缺少 authoritative method cases [{}]",
+                interface.interface_id().as_u32(),
+                step_schema.as_u32(),
+                interface.effect_family().effect_fqn(),
+                missing_case_tags.join(", ")
+            )));
         }
 
         let vtable_ty = self.define_named_struct(&vtable_type_name, &vtable_fields);
@@ -1149,10 +1165,8 @@ mod tests {
             effect_op_tags,
         });
         let mut codegen = unit_codegen.fresh_main_codegen();
-        let result = codegen.materialize_refactor_program_abi(
-            &program,
-            inputs.effect_lowered_stage_output.types(),
-        );
+        let result = codegen
+            .materialize_refactor_program_abi(&program, inputs.effect_lowered_stage_output.types());
         check(&inputs, result, &module);
     }
 
@@ -1482,7 +1496,12 @@ mod tests {
     fn refactor_llvm_continuation_layout_keeps_full_method_set() {
         with_fixture_query_result(
             "effect_refactor_step_enum_single_case.scoop",
-            |inputs| single_case_worker_program_with_ping_method_order(inputs, &[CaseTag::new(0), CaseTag::new(1)]),
+            |inputs| {
+                single_case_worker_program_with_ping_method_order(
+                    inputs,
+                    &[CaseTag::new(0), CaseTag::new(1)],
+                )
+            },
             |inputs, result, module| {
                 let query = result.expect("published full method set 应可物化 ABI");
                 let callable = inputs
@@ -1550,7 +1569,10 @@ mod tests {
         with_fixture_query_result(
             "effect_refactor_step_enum_single_case.scoop",
             |inputs| {
-                let program = inputs.effect_lowered_stage_output.program();
+                let program = single_case_worker_program_with_ping_method_order(
+                    inputs,
+                    &[CaseTag::new(0), CaseTag::new(1)],
+                );
                 let callable = program
                     .callable("fixtures.build.singleCaseWorker")
                     .expect("callable 应存在");
@@ -1563,9 +1585,11 @@ mod tests {
                 let ping_interface = program
                     .resume_interfaces()
                     .iter()
-                    .find(|interface| interface.effect_family().effect_fqn() == "fixtures.build.Ping")
+                    .find(|interface| {
+                        interface.effect_family().effect_fqn() == "fixtures.build.Ping"
+                    })
                     .expect("应存在 Ping resume interface");
-                let raise_interface_id = next_resume_interface_id(program);
+                let raise_interface_id = next_resume_interface_id(&program);
                 let raise_method = resume_method_for_case(step_type, CaseTag::new(2));
                 let raise_interface = LateLoweredResumeInterface::new(
                     raise_interface_id,
@@ -1645,7 +1669,10 @@ mod tests {
                     .expect("应存在 Raise resume interface");
                 let expected_order = vec![raise_interface_id, ping_interface_id];
 
-                assert_eq!(callable_layout.resume_interfaces(), expected_order.as_slice());
+                assert_eq!(
+                    callable_layout.resume_interfaces(),
+                    expected_order.as_slice()
+                );
 
                 let continuation_layout = query
                     .continuation_layout(callable_layout.continuation_object())
@@ -1668,7 +1695,12 @@ mod tests {
     fn refactor_llvm_continuation_layout_preserves_authoritative_method_order() {
         with_fixture_query_result(
             "effect_refactor_step_enum_single_case.scoop",
-            |inputs| single_case_worker_program_with_ping_method_order(inputs, &[CaseTag::new(1), CaseTag::new(0)]),
+            |inputs| {
+                single_case_worker_program_with_ping_method_order(
+                    inputs,
+                    &[CaseTag::new(1), CaseTag::new(0)],
+                )
+            },
             |inputs, result, _module| {
                 let query = result.expect("reordered authoritative methods 应仍可物化 ABI");
                 let callable = inputs
@@ -1759,6 +1791,33 @@ mod tests {
                 assert!(
                     message.contains(&format!("resume interface {}", dropped_interface.as_u32())),
                     "错误消息应指出缺失的 authoritative interface: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_continuation_layout_rejects_missing_authoritative_method() {
+        with_fixture_query_result(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs| single_case_worker_program_with_ping_method_order(inputs, &[CaseTag::new(0)]),
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 authoritative method 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("authoritative method cases [1]"),
+                    "错误消息应指出缺失的 authoritative case tag: {message}"
+                );
+                assert!(
+                    message.contains("effect family `fixtures.build.Ping`"),
+                    "错误消息应指出缺失方法所属的 interface family: {message}"
+                );
+                assert!(
+                    message.contains("step schema"),
+                    "错误消息应指出缺失方法对应的 step schema: {message}"
                 );
             },
         );

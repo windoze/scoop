@@ -593,7 +593,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02b：让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell
+## [DONE] P6-T02b：让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -640,6 +640,15 @@
   - 对合法输入，resume-interface method 顺序与 vtable index 仍严格跟随 authoritative published order；
   - `P6-T02R` 可以据此继续确认 LLVM type/layout 合同已真正闭合。
 - 依赖：P6-T02a
+- 完成记录：
+  - 2026-05-03：`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中的 `materialize_resume_interface_layout(...)` 现已在逐个校验已发布 method 之外，额外从 authoritative `LateLoweredStepType.cases()` 中按 `(return_step_schema, effect_family)` 收集应覆盖的完整 case 集，并与 `LateLoweredResumeInterface.methods()` 的已发布 case tag 做最终比对；若缺失任一 authoritative case，会以结构化前端错误显式报出 interface id、step schema、effect family 与缺失 case tag，而不再静默接受缩水的 vtable/layout。
+  - 同一实现保持了 authoritative method 顺序不变：vtable index 仍严格按 `LateLoweredResumeInterface.methods()` 的发布顺序分配，新增逻辑只做 completeness 校验，不补造、不重排 method shell。
+  - 已新增定向单测 `refactor_llvm_continuation_layout_rejects_missing_authoritative_method`，覆盖“故意删掉 authoritative resume method 时必须 fail fast”；同时更新 `refactor_llvm_continuation_layout_preserves_authoritative_interface_order` 的构造输入，先补齐完整 Ping method 集，再只验证 interface 发布顺序，避免旧测试继续依赖不完整 shell。
+- 已运行验证：
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_resume_interface_completeness_groups_methods_by_effect_family`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T02R：Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型
 

@@ -2,80 +2,43 @@
 
 ## 说明
 
-按要求先记录执行思路与计划。这里保留的是可审计的执行摘要、判断依据和步骤计划，不包含原始内部推理草稿。
+按要求先记录可审计的执行摘要、判断依据和步骤计划，不写原始内部推理草稿。
 
-## 初始目标
+## 上一轮上下文
 
-1. 读取 `TODO.md`，把它当作任务索引而不是详细任务正文。
-2. 依照 `TODO.md` 引用顺序打开对应的 `TODO-Px.md` 文件。
-3. 找到第一个标题未带 `[DONE]` 的详细任务，并以该详细任务为本轮唯一执行单元。
-4. 检查最近提交是否直接提到与该任务相关且未完成的问题；若该问题构成当前任务前置条件，则先把它作为当前任务的一部分处理，或在对应 `TODO-Px.md` 中新增最小前置任务并同步 `TODO.md`。
-5. 在不规避规范、不缩小任务范围的前提下完成该任务。
-6. 运行与该任务直接相关的验证；若任务涉及整体质量门槛，则补充运行格式化、测试、以及 `cargo clippy --all-targets -- -D warnings`。
-7. 更新任务记录：
-   - 在对应 `TODO-Px.md` 中将该任务标题改为 `[DONE]`。
-   - 补充完成记录、验证命令和必要说明。
-   - 若任务标题、顺序或依赖发生变化，同步更新 `TODO.md`。
-   - 仅当阶段计划确实变化时才更新 `PLAN.md`。
-8. 检查工作区未提交改动，避免覆盖他人改动；若本轮是续做且存在本任务遗留未提交文件，则与本次改动一并提交。
-9. 按仓库约定创建一次提交，然后停止，不继续下一个任务。
+1. 上一轮唯一执行单元是 `P6-T02R`。
+2. 该 review 任务在复审 `P6-T02` / `P6-T02a` 时发现新的真实 blocker：`materialize_resume_interface_layout(...)` 只校验了已发布 method 自身是否匹配 step shell，但没有把 published case 集与 authoritative `LateLoweredStepType` 中同一 effect family 应有的完整 case 集做最终比对。
+3. 因此上一轮没有把 `P6-T02R` 标记完成，而是在 `TODO-P6.md` 中新增了前置任务 `P6-T02b`，并同步了 `TODO.md`。
 
-## 执行约束
+## 当前轮目标
 
-1. 不做开放式历史问题清扫。
-2. 不以变通方案代替规范实现。
-3. 仅在存在真实新前置依赖时才拆分任务，并把最小新增任务写回详细 TODO 文件与索引。
-4. 若遇到阻塞：保持当前任务未完成，新增前置任务、同步索引、必要时更新阶段计划，然后提交并停止。
-
-## 进度更新约定
-
-在以下节点更新本文件：
-
-1. 定位到本轮目标任务之后。
-2. 开始代码修改之前。
-3. 若执行路径、依赖判断或任务范围发生变化。
-4. 验证完成之后。
-5. 提交前，记录最终结果与未解决风险（如有）。
-
-## 当前已定位任务
-
-- 本轮唯一执行单元：`P6-T02R`。
-- 任务性质：review 任务，目标是确认 `P6-T02` 与 `P6-T02a` 是否已经把 refactor LLVM 的 type/layout ABI 合同真正固定下来。
-- 当前已知上下文：`P6-T02R` 之前曾在完成记录里识别出一个 blocker，随后新增并完成了 `P6-T02a`；本轮需要复审该 blocker 是否已被实质修复，而不是仅靠记录关闭。
+1. 读取 `TODO.md`，根据索引顺序定位对应的 `TODO-Px.md` 文件。
+2. 在详细任务文件中找到第一个标题未带 `[DONE]` 的任务，并核对其约束、依赖、验证要求与完成记录。
+3. 检查最近一次提交是否存在与该任务直接相关且未完成的事项；若是，则并入当前任务或作为前置依赖记录。
+4. 在不偏离规范、不使用 workaround 的前提下，实现该任务所需改动。
+5. 运行与该任务直接相关的验证、测试与必要的静态检查；若发现阻塞问题，先修复阻塞问题，或按要求在对应 `TODO-Px.md` / `TODO.md` 中新增最小前置任务并停止。
+6. 完成后更新任务记录：在对应 `TODO-Px.md` 中将任务标题标记为 `[DONE]`，补充完成记录；如任务索引信息发生变化，同步更新 `TODO.md`。仅当阶段计划发生变化时更新 `PLAN.md`。
+7. 检查工作区未提交改动，按要求提交本次任务相关变更，然后停止，不继续下一个任务。
 
 ## 当前执行步骤
 
-1. 审阅 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 及相关调用点，确认 canonical `Step_F`、frame、continuation、resume-interface ABI 的 authoritative 来源与查询面。
-2. 审阅是否仍存在对 legacy `EffectSignal` / `EffectOutcome` / `LegacyEffectBoundary` 合同的 ABI 依赖，尤其是在 refactor 主实现路径而非 legacy 对照路径中。
-3. 运行 `P6-T02R` 要求的测试与搜索命令，验证 review 结论。
-4. 若无 blocker，则把 `P6-T02R` 标记为 `[DONE]` 并更新完成记录；若发现 blocker，则按要求新增最小前置任务并同步索引。
-5. 最后提交本轮所有改动并停止。
+1. 定位首个未完成详细任务，并确认最新提交是否直接对应该任务。
+2. 审阅 `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中 `materialize_resume_interface_layout(...)` 的现状，确认缺少的是 authoritative method completeness 校验，而不是 interface identity/order 问题。
+3. 在 layout materializer 中补上按 `(return_step_schema, effect_family)` 对 authoritative case 集的完整性比对。
+4. 新增一个“故意删掉 authoritative method”的定向测试；若旧测试构造依赖了不完整 shell，同时修正该测试构造，但不改变它原本要验证的 contract。
+5. 运行任务要求的定向测试、fixture 验证与 `clippy -D warnings`。
+6. 回写 `TODO-P6.md`、同步 `TODO.md`，然后提交并停止。
 
-## 当前发现
+## 当前进度
 
-- 已重跑：
-  - `cargo test -p scoopc refactor_llvm_`
+- 已读取 `TODO.md` 与 `TODO-P6.md`，确认首个未完成详细任务为 `P6-T02b`。
+- 已检查最新提交：`[P6-T02b] Track resume-interface method completeness blocker`，与当前任务直接相关，说明该任务就是上一轮 review 新增的 blocker 修复项。
+- 已完成实现：`materialize_resume_interface_layout(...)` 现在会把 authoritative step shell 中、同一 `(return_step_schema, effect_family)` 下应发布的 case 集与 `LateLoweredResumeInterface.methods()` 实际发布的 case 集做最终比对；若缺失 method，会以结构化错误 fail fast，并指出 interface id、step schema、effect family 与缺失 case tag。
+- 已保持原 contract：vtable index 仍严格按 `LateLoweredResumeInterface.methods()` 的发布顺序分配，新增逻辑只做 completeness 校验，不补造、不重排 method shell。
+- 已补充测试：新增 `refactor_llvm_continuation_layout_rejects_missing_authoritative_method`；同时把 `refactor_llvm_continuation_layout_preserves_authoritative_interface_order` 的输入改为先构造完整 Ping method 集，再仅验证 interface 顺序，避免旧测试继续依赖不完整 shell。
+- 已完成验证：
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
   - `cargo test -p scoopc refactor_resume_interface_completeness_groups_methods_by_effect_family`
-  - 三个 refactor build fixtures
-  - 一个 legacy build fixture 抽样
-- 搜索结果表明：`crates/scoopc/src/llvm/codegen/effect_refactor/**` 中未发现 `EffectSignal` / `EffectOutcome` / `LegacyEffectBoundary` 命中；legacy 命中仍局限在 `crates/scoopc/src/llvm/codegen/effect/**`。
-- 但 review 识别出新的真实 blocker：
-  - `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中 `materialize_resume_interface_layout(...)` 只校验了“已发布 method 自身是否匹配 step shell”；
-  - 它维护了 `published_case_tags` 去检查重复，却没有把该集合与同一 effect family 在 authoritative `StepSchema` 中应有的 case 集做完整性比对；
-  - 因此若 `LateLoweredResumeInterface.methods()` 少发了某个 case，LLVM ABI materializer 仍会静默接受并产出缩水的 vtable/method 布局，这违背了 `P6-T02` / `P6-T02a` 对完整 method 集和 fail-fast 的要求。
-
-## 计划调整
-
-1. 不把 `P6-T02R` 标记完成。
-2. 在 `TODO-P6.md` 中于 `P6-T02a` 与 `P6-T02R` 之间新增一个最小前置实现任务，修复 authoritative resume-interface method completeness 校验漏洞。
-3. 同步 `TODO.md` 索引顺序与标题。
-4. 在 `P6-T02R` 完成记录中写明本轮新的 blocker 和证据。
-5. 提交这些任务编排更新并停止，等待下一轮先完成新增前置任务。
-
-## 当前结果
-
-- 已完成：
-  - 新增详细任务 `P6-T02b`；
-  - 同步 `TODO.md` 索引；
-  - 更新 `P6-T02R` 的依赖与 review 记录，明确当前不能标记完成。
-- 待提交内容只包含：`TODO-P6.md`、`TODO.md`、`memory/claude_plan.md`。
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- 接下来只剩检查工作区、生成本次任务提交并停止。
