@@ -940,6 +940,64 @@
     - `refactor_llvm_local_runtime_error_contract_resolves_pure_call_boundary_targets` / `...rejects_missing_target_state` 锁定 ABI query 发布与 fail-fast 行为。
   - 2026-05-03：已运行验证：`cargo test -p scoopc refactor_boundary_lowering`、`cargo test -p scoopc refactor_effect_lowered_stage`、`cargo test -p scoopc refactor_llvm_local_runtime_error_contract`、`cargo run -q -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。`PLAN.md` 无需改动。
 
+## P6-T02f：发布 straight-line source-slice 非 boundary dynamic call 的 callable-object ABI/query contract，禁止 P6-T03 在 body emitter 现场回落旧 callable wrapper
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9-§4.13, §5.5.1-§5.5.7, §8
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+  - `crates/scoopc/src/mir/pass_view.rs`
+- 背景：
+  - `P6-T02d` 已为 call boundary 发布 authoritative 的 canonical dynamic-invoke contract，但当前实现范围仍只覆盖 `boundary_map` 里的 `LateLoweredBoundaryLowering::Call`。
+  - 具体来说，`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 当前的 `materialize_dynamic_invoke_layouts(...)` 只扫描 `callable.boundary_map().entries()`；`RefactorAbiQuery::call_target_layout(...)` 也只消费这批已发布 query。
+  - 但 `P6-T03` 不是只 lower boundary terminator；它必须 lower 整个 state graph 的 straight-line `source_slices`。这些 slices 里仍可能出现**非 boundary** 的 `Rvalue::Call`，且其 `CallKind` 可能是 `Closure` / `FunValue` / `Virtual` / `Interface`。
+  - 若不先补齐这层 authoritative handoff，`P6-T03` 遇到这类 source-slice call 只能：
+    - 回落到 legacy closure/wrapper/dispatch ABI；或
+    - 在 backend 现场临时发明第二套 callable-object invoke 规则；或
+    - 错误地把 whole-body lowering 缩窄成“只支持 boundary call 上的 dynamic invoke”。
+  - 这三种做法都违背当前阶段 contract-first 约束，因此必须先把 non-boundary source-slice dynamic call 也纳入已发布 LLVM query。
+
+- 目标：
+  - 为 refactor LLVM body emitter 发布一层 authoritative 的“whole-body source-slice dynamic call” ABI/query contract；
+  - 让 `P6-T03` 在 lower `LateLoweredState.source_slices()` 时，可以只消费 handoff 就完成 non-boundary `Closure` / `FunValue` / `Virtual` / `Interface` call lowering，而不回 legacy callable wrapper 或现场补造 ABI。
+
+- 必须实现的内容：
+  1. 扩展 refactor LLVM ABI handoff，覆盖 non-boundary source-slice dynamic call site。
+     - 至少要能为 canonical MIR 中仍留在 straight-line state slice 里的 `CallKind::{Closure, FunValue, Virtual, Interface}` 发布 stable query；
+     - 这层 query 可以继续按 `owner step schema + site_id` 稳定索引，或使用等价但同样 authoritative 的 key；
+     - 但禁止只在 P6 body emitter 里临时缓存一份未发布规则。
+  2. 明确 non-boundary dynamic call 的 callable-object carrier / invoke surface。
+     - 必须继续对齐 canonical `invoke(args_tuple) -> Step_F` contract；
+     - 允许复用 `P6-T02d` 已有的 carrier 形状与 drift 校验逻辑；
+     - 但必须把发布范围从“boundary-only”扩到 `P6-T03` whole-body source-slice 真正可见的动态调用点。
+  3. 对缺失或漂移 contract fail fast。
+     - 若某个 source-slice dynamic call 仍无 authoritative query；
+     - 或 query 与 `CallKind` / carrier shape / `invoke_args_tuple_ty` / return `StepSchema` 漂移；
+     - 必须在 P5/P6 边界显式拒绝，而不是把责任留给 `P6-T03` 现场猜测。
+  4. 补充定向测试与 fixture。
+     - 至少覆盖一个 `NoOutward` 或 straight-line state slice 中包含 non-boundary dynamic call 的样例；
+     - 证明 ABI query 可以在不依赖 `boundary_map` Call entries 的前提下，仍稳定发布对应 callable-object invoke contract。
+
+- 必须遵从的约束：
+  - 禁止让 `P6-T03` 继续借壳 legacy closure object fn-ptr ABI、旧 dispatch helper、或 wrapper 名字约定来 lower non-boundary dynamic call。
+  - 禁止把“先只支持 boundary dynamic invoke，straight-line dynamic call 后面再说”当作当前任务的完成标准。
+  - 禁止把 site contract 重新退回到 HIR/`Span`/源码名字启发式。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_dynamic_invoke_query`
+  - `cargo test -p scoopc refactor_llvm_callable_carrier_layout`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+- 完成条件：
+  - refactor LLVM handoff 已为 straight-line source-slice non-boundary dynamic call 发布 authoritative callable-object invoke contract；
+  - `P6-T03` 可以在 whole-body lowering 中只消费已发布 query，而不再需要现场发明 dynamic call ABI 或回落 legacy wrapper。
+- 依赖：`P6-T02e`
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1058,7 +1116,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -1066,6 +1124,8 @@
   - 因此新增前置任务 `P6-T02d`，先补齐 canonical dynamic-invoke callable-object ABI/query contract，再继续本任务。
   - 2026-05-03：继续实现时发现第三个 blocker。`P5-T07a` 虽为 pure caller call boundary 新增了 `consumed_runtime_error_case`，但当前 handoff 只告诉 P6“callee 返回了哪条 compiler-generated ordinary runtime-error case”，并没有发布 caller-local 的 lowerable 控制流合同：state graph / boundary map / resume-state map 中都没有 dedicated synthetic path，ABI/query 层也没有说明 backend 应如何在不扩大 caller surface、也不发明 hidden trap 的前提下处理该 case。若直接继续 `P6-T03`，backend 只能现场猜测 pure caller 的 runtime-error 传播路径，违背本阶段 contract-first 约束。
   - 因此新增前置任务 `P6-T02e`，先把 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract 显式发布出来，再继续本任务。
+  - 2026-05-03：继续进入 whole-body emitter 设计时发现第四个 blocker。当前 `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 的 `materialize_dynamic_invoke_layouts(...)` 仍只扫描 `boundary_map` 里的 call boundary，因此 `RefactorAbiQuery` 只能为 effectful call boundary 发布 dynamic invoke query；但 `P6-T03` 必须 lower 整个 `LateLoweredState.source_slices()`，straight-line state slice 里仍可能出现 non-boundary 的 `CallKind::{Closure, FunValue, Virtual, Interface}`。若直接继续本任务，backend 仍会被迫在 source-slice lowering 现场回 legacy callable wrapper / dispatch ABI，或临时发明一套未发布的 invoke 规则，违背本阶段 contract-first 边界。
+  - 因此新增前置任务 `P6-T02f`，先把 straight-line source-slice non-boundary dynamic call 的 callable-object ABI/query contract 显式发布出来，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
