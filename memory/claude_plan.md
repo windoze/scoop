@@ -1,38 +1,36 @@
 # Claude Plan
 
 ## 约束说明
-- 不写入内部完整推理过程；这里记录可执行计划、关键决策与进度状态。
 
-## 初始执行计划
-1. 读取 `TODO.md`，把它当作索引，而不是任务细节来源。
-2. 按索引顺序读取对应的 `TODO-Px.md`，定位首个标题未带 `[DONE]` 的详细任务。
-3. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；若是，则将其作为当前任务的一部分或前置依赖处理。
-4. 阅读与当前任务直接相关的代码、测试、规范与任务约束，确认最小正确改动范围。
-5. 实现当前任务；如果遇到阻塞当前任务的真实缺口或规范不匹配，不做绕过，而是在对应 `TODO-Px.md` 中插入最小前置任务，并同步 `TODO.md` 后停止。
-6. 运行与改动直接相关的验证；必要时补充更广泛验证，目标包括无警告通过 `cargo clippy --all-targets -- -D warnings`。
-7. 更新 `memory/claude_plan.md` 记录关键进展；完成后在对应 `TODO-Px.md` 中将任务标题标记为 `[DONE]`，补全完成记录，并在需要时同步 `TODO.md` 与 `PLAN.md`。
-8. 按任务号创建一次 git 提交，然后停止，不继续下一个任务。
+- 不记录或暴露内部私有推理；这里仅维护可审计的执行计划、决策依据摘要、进度和验证结果。
+- 本次调用只处理第一个未完成的详细任务；完成后提交并停止。
 
-## 进度
-- 已写入初始计划，下一步开始定位首个未完成详细任务。
-- 已确认首个未完成任务是 `P6-T02h`；`TODO-P6.md` 中已有未提交的 blocker 记录与 `TODO.md` 索引同步改动，需要保留并纳入本次工作。
-- 已检查最近一次提交：`[P6-T02g] Publish carrier dynamic entry targets`，未显式留下必须先处理的相关未完成 issue。
-- 已读取当前实现：`P5` 只为 pure caller call boundary 发布了 `consumed_runtime_error_case(target_state)`，state graph 中新增的 `LocalRuntimeError` synthetic state 仍只携带 `payload_tuple_ty`；LLVM `RefactorAbiQuery` 也只公开 `input_case_tag / payload_abi / target_state`，没有 terminal action。
-- 已确认一个关键边界：带本地 `try/catch RuntimeError` 的 pure caller（如 `continuation_resume_answer_expression_basic.scoop`）当前不会生成 `LocalRuntimeError` synthetic state；因此 `P6-T02h` 处理的 `LocalRuntimeError` 路径可聚焦为“pure caller 无 outward/runtime-error catch 时的已发布终止语义”，预计应发布为显式 runtime-fatal contract，而不是让 backend 现场猜测。
-- 当前执行方案：
-  1. 在 `effect_lowered::ir` 中为 `LocalRuntimeError` 与 `consumed_runtime_error_case` 增补结构化 terminal action。
-  2. 在 `materialize.rs` 中 authoritative 地生成该 terminal action，并在 `dump.rs` 中公开它。
-  3. 在 LLVM refactor ABI query/type/layout 层发布对应 runtime terminal contract 与 fail-fast 校验。
-  4. 视需要补充 runtime entry 声明/实现，使 terminal action 对 backend 是可直接 lower 的已发布 contract。
-  5. 运行定向测试、fixture dump 与 `clippy`，随后更新 `TODO-P6.md` / `TODO.md` / `memory/claude_plan.md` 并提交。
-- 已完成实现：
-  - `effect_lowered` 已把 `LocalRuntimeError` / `consumed_runtime_error_case` 升级为显式 terminal contract，并在 dump 中公开 `RuntimeFatal(runtime_entry=scoop_runtime_error_fatal)`。
-  - LLVM refactor ABI query 已发布对应 runtime entry symbol/type，并对 target state、payload、terminal action 做 fail-fast 校验。
-  - runtime 已新增 `scoop_runtime_error_fatal(void* runtime_error)` 入口，当前实现为立即终止。
-- 已完成验证：
-  - `cargo test -p scoopc refactor_boundary_lowering`
-  - `cargo test -p scoopc refactor_effect_lowered_stage`
-  - `cargo test -p scoopc refactor_llvm_local_runtime_error_contract`
-  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
-  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
-- 收尾中：已将 `P6-T02h` 标记为 `[DONE]` 并同步 `TODO.md`，下一步检查工作树后创建本次提交并停止。
+## 执行计划
+
+1. 读取 `TODO.md`，确认索引结构、任务顺序和对应的 `TODO-Px.md` 文件。
+2. 按索引顺序读取相关 `TODO-Px.md`，以标题是否带有 `[DONE]` 为准，定位第一个未完成的详细任务。
+3. 检查最近一次提交是否直接提到该任务相关的未完成事项；如果是，将其并入当前任务范围，或在对应 `TODO-Px.md` 中记录为前置依赖。
+4. 阅读当前任务涉及的代码、测试、规范和依赖位置，确认实现边界，避免擅自缩小范围或采用规避性方案。
+5. 实现该任务所需的最小正确改动；若遇到阻塞当前任务的真实缺口或回归，先修复；若无法在本次内直接修复，则在正确位置添加最小前置任务并同步 `TODO.md`。
+6. 运行与当前任务直接相关的验证，再运行必要的仓库级验证，至少覆盖任务要求和回归风险；若失败则修复后重试。
+7. 更新 `memory/claude_plan.md`，记录关键发现、计划变化、实现步骤完成情况和验证结果。
+8. 在对应 `TODO-Px.md` 中把已完成任务标题改为 `[DONE]` 并补全完成记录；若任务索引、顺序或标题变化，同步更新 `TODO.md`；仅当阶段级计划变化时才更新 `PLAN.md`。
+9. 检查工作区变更，保留用户已有改动；按要求提交本次任务相关的全部未提交文件，提交信息使用当前任务 id。
+10. 停止，不继续处理后续任务。
+
+## 进度日志
+
+- 已创建本计划文件。
+- 已读取 `TODO.md` 索引并定位首个未完成详细任务为 `P6-T03`（`TODO-P6.md`）。
+- 已检查最近一次提交：`[P6-T02h] Publish local runtime-error terminal contract`。提交标题未引入额外未完成事项，当前继续按 `P6-T03` 任务本身执行。
+- 已检查工作区：除本计划文件外无未提交改动。
+- 已确认当前实现状态：
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 仍是占位文件；
+  - `crates/scoopc/src/llvm/emit.rs` 仍先做 `materialize_refactor_program_abi(...)`，随后沿用旧的 `codegen_top_level_mir_fun` / HIR fallback；
+  - `ensure_refactor_effect_lowering_is_supported(...)` 仍会对 outward case / boundary / resume-state 等 `P6-T03` 路径 fail fast。
+- 已阅读 `LateLoweredStateGraph`、boundary lowering contract、frame schema、continuation/resume shell、refactor ABI query 与现有相关 fixtures，确认 P6-T03 需要同时覆盖：callable direct/dynamic entry、state CFG、boundary dispatch、continuation surface resume / interface method body，以及 whole-body source-slice lowering。
+- 已复现当前失败：`effect_resume_if_else_branch_single_perform.scoop` 在 refactor 运行路径上被 `refactor_effect_lowering_unsupported` fail fast 拒绝。
+- 已继续验证 `dump-effect-lowered` / `dump-effect-facts`，确认 `P6-T03` 需要直接消费 synthetic `invoke_args_tuple_ty`、`ResumeSurface::*` / `CallSurface::*` step schema，以及这些 schema 上的 payload / answer carrier。
+- 已尝试接入新的 body emitter，并在 direct-entry / surface-wrapper 的实际落线中确认新的 blocker：这些 synthetic source type 并不总存在于 legacy codegen 使用的 `hir::LoweredHir.types` / `CgTy` 键空间；继续实现将被迫把 refactor handoff 类型回塞旧 `TypeStore`，或在 backend 现场猜 carrier 形状，均违背 contract-first 约束。
+- 已撤回本次半成品代码改动，恢复仓库到稳定状态。
+- 下一步：在 `TODO-P6.md` / `TODO.md` 中新增最小前置任务 `P6-T02i`，把 blocker 明确记录为 `P6-T03` 的先决条件，然后提交并停止。

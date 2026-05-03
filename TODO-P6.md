@@ -1159,12 +1159,71 @@
   - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 中为 `RefactorAbiQuery` 新增 LLVM 级 local runtime-error terminal contract：query 现在不仅发布 `input_case_tag / payload_abi / target_state`，还会发布对应的 runtime-fatal entry symbol/type，并在 P5/P6 边界对 `target_state`、payload、terminal action 一致性执行 fail-fast 校验，禁止 backend 在 `P6-T03` 现场自行决定 pure caller runtime-error 的结束路径。
   - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/{runtime_symbols,runtime_abi}.rs` 与 `runtime/c/scoop_runtime.c` 中新增已发布 runtime entry `scoop_runtime_error_fatal(void* runtime_error)`。当前实现仍是立即终止，但该语义现在被显式固定在 runtime contract 中，而不是藏在 backend 私有 trap 约定里。
   - 2026-05-03：新增/更新定向回归：`refactor_boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls`、`refactor_effect_lowered_stage_dump_exposes_local_runtime_error_call_contract`、`refactor_llvm_local_runtime_error_contract_*`，覆盖 published terminal action、module symbol 声明，以及缺失 target state / 缺失 LocalRuntimeError terminator 时的 fail-fast。
-  - 已运行验证：
-    - `cargo test -p scoopc refactor_boundary_lowering`
-    - `cargo test -p scoopc refactor_effect_lowered_stage`
-    - `cargo test -p scoopc refactor_llvm_local_runtime_error_contract`
-    - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
-    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- 已运行验证：
+  - `cargo test -p scoopc refactor_boundary_lowering`
+  - `cargo test -p scoopc refactor_effect_lowered_stage`
+  - `cargo test -p scoopc refactor_llvm_local_runtime_error_contract`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+## P6-T02i：发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore`
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.2, §5.3.9, §5.5.1-§5.5.7, §8
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout,body}.rs`
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+  - `crates/scoopc/src/effect_lowered/{ir,materialize}.rs`
+- 背景：
+  - `P6-T03` 需要直接消费 P5/P6 handoff 中的 `invoke_args_tuple_ty`、synthetic `ResumeSurface::*` / `CallSurface::*` step schema，以及这些 schema 上的 payload / answer carrier；
+  - 这些 source type 并不总是存在于 legacy codegen 使用的 `hir::LoweredHir.types` / `CgTy` 键空间中；
+  - 当前 LLVM codegen 里的 `cg_ty_of`、`build_tuple_cg_value_from_values`、`cg_value_from_loaded`、以及基于 `equivalent_codegen_type_id(...)` 的 helper 都默认“要 lower 的类型已经在 `lowered.types` 中有等价项”；
+  - 2026-05-03 开始实现 `P6-T03` 时已实际复现该缺口：一旦 direct entry / surface wrapper 尝试绑定 `invoke_args_tuple_ty` 为 synthetic carrier 的 callable（例如 closure / member invoke carrier），backend 就会被迫：
+    - 要么把 late-lowered synthetic type 现场回塞到 legacy `TypeStore` / `CgTy` 体系；
+    - 要么按源码/经验猜 carrier 形状并手写一套未发布的 load/store/build 规则；
+    - 二者都违背 P5 -> P6 handoff 的 contract-first 边界。
+
+- 目标：
+  - 为 refactor LLVM backend 补齐一层 authoritative 的“source-type -> ABI value” lowering contract；
+  - 让 `P6-T03` 可以在不依赖 legacy `lowered.types` 等价映射的前提下，稳定构造、装载、拆解和传递 synthetic invoke / resume carrier。
+
+- 必须实现的内容：
+  1. 建立 source-type ABI value lowering helper/query。
+     - 至少要能 authoritative 地处理：
+       - `Unit` / 单值 carrier；
+       - tuple carrier；
+       - synthetic `ResumeSurface::*` / `CallSurface::*` step schema 上的 complete / case payload field；
+       - direct entry / dynamic entry / surface resume / internal resume method 的参数与返回值装载。
+     - 这层 helper 必须直接消费 P5/P6 handoff 的 `TypeStore` / schema 信息，而不是偷偷回 HIR `lowered.types` 猜类型。
+  2. 为 source-type ABI value lowering 建立稳定边界。
+     - 推荐位置：`crates/scoopc/src/llvm/codegen/effect_refactor/{types,body}.rs`；
+     - 允许新增独立 helper / query type；
+     - 但禁止把 synthetic source type 临时重新 intern 到 legacy codegen `TypeStore` 里当 workaround。
+  3. 为缺失映射建立 fail-fast verifier。
+     - 若某个 synthetic carrier / payload / answer type 仍无法 lower，必须在 P5/P6 边界显式拒绝；
+     - 禁止把责任留给 `P6-T03` 在 body emitter 现场 panic、猜 tuple 形状、或按旧 `CgTy` 分支特判。
+  4. 建立定向回归。
+     - 至少覆盖：
+       - pure no-outward callable / lambda / member invoke 的 synthetic `invoke_args_tuple_ty` 能被 direct entry 稳定绑定；
+       - synthetic `ResumeSurface::*` / `CallSurface::*` step schema 的 payload / complete carrier 能被 authoritative 地 lower；
+       - 缺失这层 helper 时会显式 fail fast，而不是在 `P6-T03` 现场崩溃。
+
+- 必须遵从的约束：
+  - 禁止通过修改/污染 legacy `hir::LoweredHir.types` 来“补齐” refactor synthetic type。
+  - 禁止让 `P6-T03` 继续依赖 `equivalent_codegen_type_id(...)` 是否恰好能在旧键空间找到匹配结果。
+  - 禁止为 closure/member/resume 各写一套互不一致的私有 carrier lowering 规则。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_layout`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+- 完成条件：
+  - refactor LLVM backend 已能 authoritative 地 lower synthetic invoke/resume carrier 与 step payload source type；
+  - `P6-T03` 不再需要把 refactor handoff 类型回塞 legacy `TypeStore`，也不再需要 backend 现场猜 shape。
+- 依赖：P6-T02h
+- 完成记录：
+  - （执行时填写）
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
@@ -1284,7 +1343,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -1298,6 +1357,8 @@
   - 因此新增前置任务 `P6-T02g`，先把 callable carrier -> canonical dynamic entry 的 published contract 接到 closure/vtable/itable materialization，再继续本任务。
   - 2026-05-03：继续设计 `LocalRuntimeError` synthetic state lowering 时发现第六个 blocker。当前 late-lowered / ABI handoff 只为 pure caller call boundary 发布了 `input_case_tag` / `payload_abi` / `target_state`，但 `LateLoweredStateTerminator::LocalRuntimeError` 本身仍只携带 `payload_tuple_ty`，没有 authoritative terminal action 来说明 backend 应把这条 ordinary runtime-error 结束到哪条已发布语义路径。若直接继续 `P6-T03`，backend 将不得不现场决定是走 local catch、显式 outward emission，还是 runtime fatal path，违背 `P6-T02e` 本应建立的 contract-first 边界。
   - 因此新增前置任务 `P6-T02h`，先把 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering/runtime contract 显式发布出来，再继续本任务。
+  - 2026-05-03：继续真正接入 refactor body emitter 时发现新的 blocker。`P6-T03` 需要直接消费 P5/P6 handoff 中的 synthetic `invoke_args_tuple_ty` 与 `ResumeSurface::*` / `CallSurface::*` source type；但当前 LLVM codegen 的 value-lowering helper 仍默认这些类型已经存在于 legacy `hir::LoweredHir.types` / `CgTy` 键空间中。实际试接 direct entry / surface wrapper 时，synthetic carrier 会触发“无法映射到 codegen `TypeStore`”或错误地按旧 `CgTy::Ref`/pointer 规则解码，等价于要求 backend 把 refactor handoff 类型临时回塞 legacy 类型层或现场猜 carrier shape。
+  - 因此新增前置任务 `P6-T02i`，先发布并实现 authoritative 的 synthetic invoke-carrier / source-type ABI value lowering contract，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
