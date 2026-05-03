@@ -34,6 +34,7 @@ struct LoweredCodegenEntry<'a> {
     late_lowered_types: Option<&'a crate::ty::TypeStore>,
     refactor_abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     refactor_abi_types: Option<&'a crate::ty::TypeStore>,
+    refactor_abi_materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
 }
 
 #[derive(Clone, Copy)]
@@ -70,6 +71,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             late_lowered_types: None,
             refactor_abi_program: None,
             refactor_abi_types: None,
+            refactor_abi_materialized_pass_view: None,
         }
     }
 
@@ -84,6 +86,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             late_lowered_types: None,
             refactor_abi_program: None,
             refactor_abi_types: None,
+            refactor_abi_materialized_pass_view: None,
         })
     }
 
@@ -107,6 +110,9 @@ impl<'a> LoweredCodegenEntry<'a> {
             late_lowered_types: Some(effect_lowered_stage_output.types()),
             refactor_abi_program: Some(abi_visibility_effect_lowered_stage_output.program()),
             refactor_abi_types: Some(abi_visibility_effect_lowered_stage_output.types()),
+            refactor_abi_materialized_pass_view: Some(
+                abi_visibility_effect_lowered_stage_output.materialized_pass_view(),
+            ),
         }
     }
 }
@@ -808,6 +814,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
         late_lowered_types,
         refactor_abi_program,
         refactor_abi_types,
+        refactor_abi_materialized_pass_view,
     } = codegen_entry;
     let has_materialized_pass_view = materialized_pass_view.is_some();
 
@@ -983,7 +990,10 @@ fn build_main_module_from_codegen_entry<'ctx>(
                 .to_string(),
         })?;
         let abi_types = refactor_abi_types.unwrap_or(late_lowered_types);
-        let _ = declare.materialize_refactor_program_abi(abi_program, abi_types)?;
+        let abi_pass_view = refactor_abi_materialized_pass_view
+            .as_ref()
+            .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
+        let _ = declare.materialize_refactor_program_abi(abi_program, abi_types, abi_pass_view)?;
     }
 
     for fun in &reachable {

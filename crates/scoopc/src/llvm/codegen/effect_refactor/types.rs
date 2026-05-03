@@ -4,17 +4,21 @@ use std::collections::BTreeMap;
 
 use inkwell::types::{BasicTypeEnum, FunctionType, StructType};
 
-use crate::effect_facts::{CaseTag, ContinuationSchemaId, StepSchemaId};
+use crate::effect_facts::{
+    CallSiteEffectFacts, CallTargetMode, CaseTag, ContinuationSchemaId, StepSchemaId,
+};
 use crate::effect_lowered::ir::{
     ContinuationObjectId, FrameSlotId, ResumeInterfaceId, SystemSlotKind,
 };
+use crate::llvm::LlvmEmitError;
+use crate::mir::SiteId;
 use crate::ty::TypeId;
 
 /// 单个 refactor ABI 值位的 LLVM 形状。
 ///
 /// `elided=true` 表示该值在 function ABI 中可被省略；但若它出现在 frame/step payload field 中，
 /// 仍可能用零大小 struct 保留稳定 field index。
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(super) struct RefactorAbiValue<'ctx> {
     llvm_ty: BasicTypeEnum<'ctx>,
     elided: bool,
@@ -271,6 +275,7 @@ pub(super) struct RefactorCallableEntryLayout<'ctx> {
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
+    invoke_args_tuple_ty: TypeId,
     args_abi: RefactorAbiValue<'ctx>,
     return_step_schema: StepSchemaId,
 }
@@ -280,6 +285,7 @@ impl<'ctx> RefactorCallableEntryLayout<'ctx> {
         symbol_name: String,
         llvm_ty: FunctionType<'ctx>,
         param_count: usize,
+        invoke_args_tuple_ty: TypeId,
         args_abi: RefactorAbiValue<'ctx>,
         return_step_schema: StepSchemaId,
     ) -> Self {
@@ -287,6 +293,7 @@ impl<'ctx> RefactorCallableEntryLayout<'ctx> {
             symbol_name,
             llvm_ty,
             param_count,
+            invoke_args_tuple_ty,
             args_abi,
             return_step_schema,
         }
@@ -304,6 +311,10 @@ impl<'ctx> RefactorCallableEntryLayout<'ctx> {
         self.param_count
     }
 
+    pub(super) fn invoke_args_tuple_ty(&self) -> TypeId {
+        self.invoke_args_tuple_ty
+    }
+
     pub(super) fn args_abi(&self) -> &RefactorAbiValue<'ctx> {
         &self.args_abi
     }
@@ -311,6 +322,190 @@ impl<'ctx> RefactorCallableEntryLayout<'ctx> {
     pub(super) fn return_step_schema(&self) -> StepSchemaId {
         self.return_step_schema
     }
+}
+
+/// closure-like runtime callable object 的 carrier 布局。
+#[derive(Debug)]
+pub(super) struct RefactorClosureCarrierLayout<'ctx> {
+    object_ty: StructType<'ctx>,
+    receiver_abi: RefactorAbiValue<'ctx>,
+    env_field_index: u32,
+    fn_field_index: u32,
+}
+
+impl<'ctx> RefactorClosureCarrierLayout<'ctx> {
+    pub(super) fn new(
+        object_ty: StructType<'ctx>,
+        receiver_abi: RefactorAbiValue<'ctx>,
+        env_field_index: u32,
+        fn_field_index: u32,
+    ) -> Self {
+        Self {
+            object_ty,
+            receiver_abi,
+            env_field_index,
+            fn_field_index,
+        }
+    }
+
+    pub(super) fn object_ty(&self) -> StructType<'ctx> {
+        self.object_ty
+    }
+
+    pub(super) fn receiver_abi(&self) -> &RefactorAbiValue<'ctx> {
+        &self.receiver_abi
+    }
+
+    pub(super) fn env_field_index(&self) -> u32 {
+        self.env_field_index
+    }
+
+    pub(super) fn fn_field_index(&self) -> u32 {
+        self.fn_field_index
+    }
+}
+
+/// virtual/interface dispatch receiver 的 authoritative carrier 布局。
+#[derive(Debug)]
+pub(super) struct RefactorDispatchReceiverLayout<'ctx> {
+    receiver_ty: TypeId,
+    receiver_abi: RefactorAbiValue<'ctx>,
+    owner_fqn: String,
+    member_name: String,
+}
+
+impl<'ctx> RefactorDispatchReceiverLayout<'ctx> {
+    pub(super) fn new(
+        receiver_ty: TypeId,
+        receiver_abi: RefactorAbiValue<'ctx>,
+        owner_fqn: String,
+        member_name: String,
+    ) -> Self {
+        Self {
+            receiver_ty,
+            receiver_abi,
+            owner_fqn,
+            member_name,
+        }
+    }
+
+    pub(super) fn receiver_ty(&self) -> TypeId {
+        self.receiver_ty
+    }
+
+    pub(super) fn receiver_abi(&self) -> &RefactorAbiValue<'ctx> {
+        &self.receiver_abi
+    }
+
+    pub(super) fn owner_fqn(&self) -> &str {
+        &self.owner_fqn
+    }
+
+    pub(super) fn member_name(&self) -> &str {
+        &self.member_name
+    }
+}
+
+/// runtime callable value 在 call boundary 上的 carrier 形状。
+#[derive(Debug)]
+pub(super) enum RefactorDynamicInvokeCarrierLayout<'ctx> {
+    ClosureObject(RefactorClosureCarrierLayout<'ctx>),
+    VirtualReceiver(RefactorDispatchReceiverLayout<'ctx>),
+    InterfaceReceiver(RefactorDispatchReceiverLayout<'ctx>),
+}
+
+impl<'ctx> RefactorDynamicInvokeCarrierLayout<'ctx> {
+    pub(super) fn receiver_abi(&self) -> &RefactorAbiValue<'ctx> {
+        match self {
+            Self::ClosureObject(layout) => layout.receiver_abi(),
+            Self::VirtualReceiver(layout) | Self::InterfaceReceiver(layout) => {
+                layout.receiver_abi()
+            }
+        }
+    }
+}
+
+/// 按 call boundary 发布的 canonical dynamic-invoke surface：`invoke(receiver, args_tuple) -> Step_F`。
+#[derive(Debug)]
+pub(super) struct RefactorDynamicInvokeLayout<'ctx> {
+    owner_step_schema: StepSchemaId,
+    site_id: SiteId,
+    target_mode: CallTargetMode,
+    invoke_args_tuple_ty: TypeId,
+    llvm_ty: FunctionType<'ctx>,
+    param_count: usize,
+    args_abi: RefactorAbiValue<'ctx>,
+    return_step_schema: StepSchemaId,
+    carrier: RefactorDynamicInvokeCarrierLayout<'ctx>,
+}
+
+impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn new(
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        target_mode: CallTargetMode,
+        invoke_args_tuple_ty: TypeId,
+        llvm_ty: FunctionType<'ctx>,
+        param_count: usize,
+        args_abi: RefactorAbiValue<'ctx>,
+        return_step_schema: StepSchemaId,
+        carrier: RefactorDynamicInvokeCarrierLayout<'ctx>,
+    ) -> Self {
+        Self {
+            owner_step_schema,
+            site_id,
+            target_mode,
+            invoke_args_tuple_ty,
+            llvm_ty,
+            param_count,
+            args_abi,
+            return_step_schema,
+            carrier,
+        }
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub(super) fn target_mode(&self) -> CallTargetMode {
+        self.target_mode
+    }
+
+    pub(super) fn invoke_args_tuple_ty(&self) -> TypeId {
+        self.invoke_args_tuple_ty
+    }
+
+    pub(super) fn llvm_ty(&self) -> FunctionType<'ctx> {
+        self.llvm_ty
+    }
+
+    pub(super) fn param_count(&self) -> usize {
+        self.param_count
+    }
+
+    pub(super) fn args_abi(&self) -> &RefactorAbiValue<'ctx> {
+        &self.args_abi
+    }
+
+    pub(super) fn return_step_schema(&self) -> StepSchemaId {
+        self.return_step_schema
+    }
+
+    pub(super) fn carrier(&self) -> &RefactorDynamicInvokeCarrierLayout<'ctx> {
+        &self.carrier
+    }
+}
+
+/// `CallSiteTarget` 经 ABI query 解析后的稳定 lowering 入口。
+pub(super) enum RefactorCallTargetQuery<'a, 'ctx> {
+    KnownInstance(&'a RefactorCallableLayout<'ctx>),
+    DynamicInvoke(&'a RefactorDynamicInvokeLayout<'ctx>),
 }
 
 /// 源码可见 `Continuation.resume(...) -> Step_F` 的 LLVM 级合同。
@@ -705,6 +900,7 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
     surface_resume_layouts:
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+    dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
 }
 
 impl<'ctx> RefactorAbiQuery<'ctx> {
@@ -721,6 +917,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             RefactorContinuationSurfaceResumeLayout<'ctx>,
         >,
         callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
     ) -> Self {
         Self {
             step_layouts,
@@ -729,6 +926,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             resume_interface_layouts,
             surface_resume_layouts,
             callable_layouts,
+            dynamic_invoke_layouts,
         }
     }
 
@@ -781,5 +979,80 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         self.callable_layouts
             .values()
             .find(|layout| layout.root_fqn() == root_fqn)
+    }
+
+    pub(super) fn dynamic_invoke_layout(
+        &self,
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+    ) -> Option<&RefactorDynamicInvokeLayout<'ctx>> {
+        self.dynamic_invoke_layouts
+            .get(&(owner_step_schema, site_id))
+    }
+
+    pub(super) fn call_target_layout(
+        &self,
+        owner_step_schema: StepSchemaId,
+        site_id: SiteId,
+        facts: &CallSiteEffectFacts,
+    ) -> Result<RefactorCallTargetQuery<'_, 'ctx>, LlvmEmitError> {
+        match facts.target() {
+            crate::effect_facts::CallSiteTarget::KnownInstance(instance) => {
+                let layout = self
+                    .callable_layout_by_root_fqn(&instance.template.fqn)
+                    .ok_or_else(|| LlvmEmitError::Frontend {
+                        message: format!(
+                            "refactor LLVM ABI query 缺少 known-instance call target `{}` 的 callable layout",
+                            instance.template.fqn
+                        ),
+                    })?;
+                if layout.dynamic_entry().invoke_args_tuple_ty() != facts.invoke_args_tuple_ty()
+                    || layout.dynamic_entry().return_step_schema() != facts.callee_schema()
+                {
+                    return Err(LlvmEmitError::Frontend {
+                        message: format!(
+                            "refactor LLVM ABI query 发现 known-instance call target `{}` 的 dynamic entry contract 漂移：layout=(invoke_args_tuple_ty={}, return_step_schema={})，facts=(invoke_args_tuple_ty={}, callee_step_schema={})",
+                            instance.template.fqn,
+                            layout.dynamic_entry().invoke_args_tuple_ty().as_u32(),
+                            layout.dynamic_entry().return_step_schema().as_u32(),
+                            facts.invoke_args_tuple_ty().as_u32(),
+                            facts.callee_schema().as_u32(),
+                        ),
+                    });
+                }
+                Ok(RefactorCallTargetQuery::KnownInstance(layout))
+            }
+            crate::effect_facts::CallSiteTarget::CandidateSet(_)
+            | crate::effect_facts::CallSiteTarget::DynamicFallback => {
+                let layout = self.dynamic_invoke_layout(owner_step_schema, site_id).ok_or_else(
+                    || LlvmEmitError::Frontend {
+                        message: format!(
+                            "refactor LLVM ABI query 缺少 owner step schema s{} call site {} 的 dynamic-invoke contract",
+                            owner_step_schema.as_u32(),
+                            site_id.as_u32(),
+                        ),
+                    },
+                )?;
+                if layout.target_mode() != facts.target_mode()
+                    || layout.invoke_args_tuple_ty() != facts.invoke_args_tuple_ty()
+                    || layout.return_step_schema() != facts.callee_schema()
+                {
+                    return Err(LlvmEmitError::Frontend {
+                        message: format!(
+                            "refactor LLVM ABI query 发现 owner step schema s{} call site {} 的 dynamic-invoke contract 漂移：layout=(target_mode={:?}, invoke_args_tuple_ty={}, return_step_schema={})，facts=(target_mode={:?}, invoke_args_tuple_ty={}, callee_step_schema={})",
+                            owner_step_schema.as_u32(),
+                            site_id.as_u32(),
+                            layout.target_mode(),
+                            layout.invoke_args_tuple_ty().as_u32(),
+                            layout.return_step_schema().as_u32(),
+                            facts.target_mode(),
+                            facts.invoke_args_tuple_ty().as_u32(),
+                            facts.callee_schema().as_u32(),
+                        ),
+                    });
+                }
+                Ok(RefactorCallTargetQuery::DynamicInvoke(layout))
+            }
+        }
     }
 }

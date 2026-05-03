@@ -781,6 +781,101 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## [DONE] P6-T02d：发布 canonical dynamic-invoke callable-object ABI/query contract，禁止 P6-T03 在 backend 现场猜测 indirect call 入口
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9-§4.13, §5.5.1-§5.5.4, §8
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/effect_lowered/materialize.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+  - `crates/scoopc/src/llvm/codegen/{mir_body.rs,closure/mod.rs,call/dispatch.rs}`（只能作现有 runtime callable / closure / dispatch 形状对照，不能直接借壳 legacy effect ABI）
+- 背景：
+  - `P5-T05/P5-T07` 已把 call boundary 的语言级 contract 固定到 `LateLoweredCallBoundaryLowering`：site facts 会发布 `CallSiteTarget::{KnownInstance, CandidateSet, DynamicFallback}`、`invoke_args_tuple_ty`、callee `StepSchema`、以及 boundary dispatch plan。
+  - `EFFECT_REFACTOR.md` 已明确要求：dynamic boundary 不是第二套 effect-special transport，而是 compiler-owned callable object / closure-like carrier 上的 canonical `invoke(args_tuple) -> Step_F` ordinary indirect call。
+  - 但当前 `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` / `layout.rs` 只会按 callable version 发布 static `dynamic_entry` / `direct_entry` symbol 与签名；`RefactorAbiQuery` 也只支持按 `StepSchemaId` / root FQN 查询这些 entry。
+  - 这意味着 `P6-T03` 一旦开始 lower `CallTargetMode::CandidateSet` / `DynamicFallback`，就没有 authoritative LLVM-level query 可以把“runtime callee value / callable object”映射到 canonical dynamic `invoke` surface。若继续实现，backend 只能：
+    - 回 `CallKind::{Closure, FunValue, Virtual, Interface}` / HIR / 旧 callable wrapper 现场重建 ABI；或
+    - 错误地把任务范围缩窄成只支持 `KnownInstance` direct call。
+  - 两种做法都违背了 P5 -> P6 handoff contract 与本阶段“不得在 backend 现场猜语义/ABI”的约束，因此必须先补齐这层 query contract。
+
+- 目标：
+  - 为 refactor LLVM body emitter 发布一层 authoritative 的 canonical dynamic-invoke callable-object ABI/query contract；
+  - 让 `P6-T03` 可以只消费已发布 handoff 来 lower effectful `Call` boundary（含 `KnownInstance`、`CandidateSet`、`DynamicFallback`），而不回 legacy callable/effect dispatch 现场补造动态入口协议。
+
+- 必须实现的内容：
+  1. 扩展 refactor LLVM ABI handoff，显式发布 runtime callable value 的 canonical dynamic-invoke contract。
+     - 至少要覆盖：
+       - dynamic/candidate-set call target 需要的 callable carrier 形状（closure-like env/callee identity、或等价稳定 representation）；
+       - `invoke(args_tuple) -> Step_F` 的 LLVM-level call signature；
+       - backend 如何从 authoritative handoff 上取得该 surface，而不是再回旧 call wrapper / dispatch helper 猜测。
+     - 若现有 `LateLoweredProgram` 仍缺少发布这层 contract 所必需的稳定字段，允许最小化扩展 P5/P6 handoff；但扩展后的 contract 必须成为 authoritative 输入，不能只在 P6 局部缓存一份临时规则。
+  2. 把 `CallSiteTarget` / `CallTargetMode` 与新的 ABI query 接通。
+     - `KnownInstance`：继续允许 lower 到已发布 callable concrete entry；
+     - `CandidateSet` / `DynamicFallback`：必须通过新的 canonical dynamic-invoke query 取得 ordinary icall/interface-call 所需合同；
+     - 明确禁止让 `P6-T03` 通过 HIR 名字、旧 closure wrapper、或 legacy effect call ABI 反推出动态入口。
+  3. 对缺失/漂移 contract fail fast。
+     - 若某个 call boundary 需要 dynamic invoke contract，但 handoff 没有发布对应 callable carrier / invoke query；
+     - 或 query 与 `invoke_args_tuple_ty` / callee `StepSchema` / target mode 漂移；
+     - 必须返回结构化错误，不能静默回落到 legacy call/effect lowering。
+  4. 补充定向测试与 build fixture。
+     - 至少覆盖：
+       - ABI query 可从 authoritative handoff 查询到 dynamic callable invoke contract；
+       - `CandidateSet` / `DynamicFallback` 缺少 contract 时显式拒绝；
+       - `Unit` payload 的 dynamic invoke ABI 仍遵守 `invoke(args_tuple)` 零载荷退化规则。
+
+- 必须遵从的约束：
+  - 禁止把 dynamic invoke 再建模回 legacy hidden resume token / `EffectOutcome` / handler-stack call ABI。
+  - 禁止把 `CallTargetMode::CandidateSet` / `DynamicFallback` 缩窄成“暂只支持 `KnownInstance`”。
+  - 禁止在 body emitter 中重新根据 `CallKind` / HIR / `Span` / wrapper 名字发明 callable-object layout。
+
+- 验证：
+  1. 新增/更新单元测试，推荐命名：
+     - `refactor_llvm_dynamic_invoke_query_*`
+     - `refactor_llvm_callable_carrier_layout_*`
+  2. 新增/更新 build fixtures，推荐至少包括：
+     - `tests/fixtures/build/effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop`
+       - 目标：锁定 candidate-set / dynamic invoke ABI query 已发布
+     - `tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+       - 目标：锁定 dynamic invoke `Unit` 零载荷 ABI
+  3. 运行：
+     - `cargo test -p scoopc refactor_llvm_dynamic_invoke_query`
+     - `cargo test -p scoopc refactor_llvm_callable_carrier_layout`
+     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - refactor LLVM handoff 已显式发布 canonical dynamic callable invoke contract；
+  - `P6-T03` 可以只消费 query 就 lower effectful indirect/candidate-set call boundary；
+  - backend 不再需要借壳 legacy callable/effect ABI 或把范围缩到 direct known call。
+- 依赖：P6-T02c, P5-T07a
+- 完成记录：
+  - 2026-05-03：`crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` 新增了按 call boundary 发布的 dynamic invoke query 面：
+    - `RefactorDynamicInvokeLayout` 记录 `invoke(receiver, args_tuple) -> Step_F` 的 LLVM surface；
+    - `RefactorDynamicInvokeCarrierLayout` 区分 closure carrier 与 virtual/interface receiver-dispatch carrier；
+    - `RefactorCallTargetQuery` 把 `KnownInstance` / `CandidateSet` / `DynamicFallback` 收口到同一 ABI query API；
+    - 现有 `RefactorCallableEntryLayout` 也开始记录 `invoke_args_tuple_ty`，便于 query 对 drift 做 fail-fast 校验。
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 现已基于 authoritative handoff 发布 dynamic invoke contract：
+    - 直接消费 `LateLoweredBoundaryLowering::Call` 的 `CallSiteEffectFacts`；
+    - 通过 ABI visibility 对应的 canonical MIR `CallKind` 发布 closure / virtual receiver / interface receiver 的 carrier 形状；
+    - 对缺失 call-site metadata、缺失 CandidateSet published shell、以及 `target_mode` / `invoke_args_tuple_ty` / `callee_step_schema` 漂移一律结构化拒绝。
+  - `crates/scoopc/src/llvm/emit.rs` 已把 ABI visibility `MaterializedMirPassView` 一起接到 ABI materializer，修复了 pure `main` build fixture 下“ABI visibility program 已发布 helper shell，但 ABI query 仍错误读取 reachable-body pass-view”导致 helper dynamic-invoke contract 丢失的问题。
+  - 已新增 build fixture `tests/fixtures/build/effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop`，用 pure `main` + unreachable effectful virtual helper 锁定 CandidateSet dynamic invoke shell 的真实 refactor build 可见性；现有 `effect_refactor_dynamic_invoke_unit_payload.scoop` 继续覆盖 `Unit` 零载荷退化。
+  - 已新增/更新 `refactor_llvm_call_target_query_*` / `refactor_llvm_dynamic_invoke_query_*` / `refactor_llvm_callable_carrier_layout_*` 单测，覆盖：
+    - `KnownInstance` 继续回查 published callable entry；
+    - `DynamicFallback` fun-value 调用的 closure carrier 与 `Unit` 零载荷 ABI；
+    - `CandidateSet` virtual dispatch 的 receiver carrier contract；
+    - 缺失 authoritative dynamic-invoke contract 时的显式拒绝。
+- 已运行验证：
+  - `cargo test -p scoopc refactor_llvm_call_target_query`
+  - `cargo test -p scoopc refactor_llvm_dynamic_invoke_query`
+  - `cargo test -p scoopc refactor_llvm_callable_carrier_layout`
+  - `cargo test -p scoopc refactor_llvm_unit_abi`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -899,10 +994,12 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
+  - 2026-05-03：继续实现时发现第二个 blocker。当前 `LateLoweredCallBoundaryLowering` 虽发布了 `CallSiteTarget` / `CallTargetMode` / `invoke_args_tuple_ty` / callee `StepSchema`，但 refactor LLVM ABI query 仍只按 callable version 发布 static `dynamic_entry/direct_entry` 签名，没有 runtime callable value -> canonical dynamic `invoke(args_tuple) -> Step_F` 的 authoritative LLVM query。若直接继续 `P6-T03`，backend 将不得不回 `CallKind::{Closure, FunValue, Virtual, Interface}` / legacy callable wrapper 现场重建 ABI，或把范围错误缩窄成只支持 `KnownInstance`。
+  - 因此新增前置任务 `P6-T02d`，先补齐 canonical dynamic-invoke callable-object ABI/query contract，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 

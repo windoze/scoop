@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use inkwell::module::Linkage;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 
-use crate::effect_facts::{ContinuationSchemaId, StepSchemaId};
+use crate::effect_facts::{CallTargetMode, ContinuationSchemaId, StepSchemaId};
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundarySource, LateLoweredCallable,
@@ -11,17 +11,20 @@ use crate::effect_lowered::ir::{
     LateLoweredStepType, ResumeInterfaceId,
 };
 use crate::llvm::LlvmEmitError;
+use crate::mir::{CallKind as MirCallKind, Rvalue as MirRvalue, StatementKind as MirStatementKind};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::types::IntTy;
 use super::super::{MainCodegen, sanitize_llvm_ident};
 use super::types::{
     RefactorAbiQuery, RefactorAbiValue, RefactorCallableEntryLayout, RefactorCallableLayout,
-    RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
+    RefactorClosureCarrierLayout, RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
     RefactorContinuationObjectLayout, RefactorContinuationSurfaceResumeBinding,
-    RefactorContinuationSurfaceResumeLayout, RefactorFrameFieldKind, RefactorFrameFieldLayout,
-    RefactorFrameLayout, RefactorResumeInterfaceLayout, RefactorResumeMethodLayout,
-    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
+    RefactorContinuationSurfaceResumeLayout, RefactorDispatchReceiverLayout,
+    RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameFieldKind,
+    RefactorFrameFieldLayout, RefactorFrameLayout, RefactorResumeInterfaceLayout,
+    RefactorResumeMethodLayout, RefactorStepCaseLayout, RefactorStepLayout,
+    RefactorStepVariantLayout,
 };
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -30,8 +33,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
+        pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
     ) -> Result<RefactorAbiQuery<'ctx>, LlvmEmitError> {
-        RefactorAbiMaterializer::new(self, program, source_types)?.materialize()
+        RefactorAbiMaterializer::new(self, program, source_types, pass_view)?.materialize()
     }
 }
 
@@ -131,6 +135,7 @@ struct RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     codegen: &'cg mut MainCodegen<'a, 'ctx>,
     program: &'a LateLoweredProgram,
     source_types: &'a TypeStore,
+    pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
     view: ProgramLayoutView,
 }
 
@@ -139,11 +144,13 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         codegen: &'cg mut MainCodegen<'a, 'ctx>,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
+        pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
     ) -> Result<Self, LlvmEmitError> {
         Ok(Self {
             codegen,
             program,
             source_types,
+            pass_view,
             view: ProgramLayoutView::new(program)?,
         })
     }
@@ -193,6 +200,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             );
         }
 
+        let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
+
         Ok(RefactorAbiQuery::new(
             step_layouts,
             frame_layouts,
@@ -200,6 +209,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             resume_interface_layouts,
             surface_resume_layouts,
             callable_layouts,
+            dynamic_invoke_layouts,
         ))
     }
 
@@ -962,6 +972,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 dynamic_name,
                 dynamic_ty,
                 params.len(),
+                callable.dynamic_invoke_entry().invoke_args_tuple_ty(),
                 args_abi,
                 callable.step_schema(),
             ),
@@ -969,12 +980,211 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 direct_name,
                 direct_ty,
                 params.len(),
+                callable.dynamic_invoke_entry().invoke_args_tuple_ty(),
                 args_abi,
                 callable.step_schema(),
             ),
             callable.continuation_object(),
             resume_interfaces,
         ))
+    }
+
+    fn materialize_dynamic_invoke_layouts(
+        &mut self,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+    ) -> Result<
+        BTreeMap<(StepSchemaId, crate::mir::SiteId), RefactorDynamicInvokeLayout<'ctx>>,
+        LlvmEmitError,
+    > {
+        let mut layouts = BTreeMap::new();
+        for callable in self.program.callables() {
+            for boundary in callable.boundary_map().entries() {
+                let (
+                    LateLoweredBoundarySource::Site {
+                        site_id,
+                        kind: BoundarySiteKind::Call,
+                    },
+                    Some(LateLoweredBoundaryLowering::Call(lowering)),
+                ) = (boundary.source(), boundary.lowering())
+                else {
+                    continue;
+                };
+                if lowering.facts().target_mode() == CallTargetMode::KnownInstance {
+                    continue;
+                }
+
+                let key = (callable.step_schema(), site_id);
+                if layouts.contains_key(&key) {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 owner step schema {} call site {} 的 dynamic-invoke contract 重复发布",
+                        callable.step_schema().as_u32(),
+                        site_id.as_u32(),
+                    )));
+                }
+
+                let call_kind = self.lookup_materialized_call_kind(callable.root_fqn(), site_id)?;
+                let layout = self.materialize_dynamic_invoke_layout(
+                    callable.root_fqn(),
+                    callable.step_schema(),
+                    site_id,
+                    lowering.facts(),
+                    &call_kind,
+                    step_layouts,
+                )?;
+                layouts.insert(key, layout);
+            }
+        }
+        Ok(layouts)
+    }
+
+    fn materialize_dynamic_invoke_layout(
+        &mut self,
+        owner_root_fqn: &str,
+        owner_step_schema: StepSchemaId,
+        site_id: crate::mir::SiteId,
+        facts: &crate::effect_facts::CallSiteEffectFacts,
+        call_kind: &MirCallKind,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+    ) -> Result<RefactorDynamicInvokeLayout<'ctx>, LlvmEmitError> {
+        let step_ty = step_layouts
+            .get(&facts.callee_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} dynamic-invoke return step schema {} 的 step layout",
+                    site_id.as_u32(),
+                    facts.callee_schema().as_u32(),
+                ))
+            })?
+            .llvm_ty();
+        let args_abi = self.abi_value(facts.invoke_args_tuple_ty())?;
+        let carrier = match call_kind {
+            MirCallKind::FunValue { .. } | MirCallKind::Closure { .. } => {
+                if facts.target_mode() != CallTargetMode::DynamicFallback {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 {:?} lowering 只能绑定 DynamicFallback，但实际 target_mode 为 {:?}",
+                        site_id.as_u32(),
+                        call_kind,
+                        facts.target_mode(),
+                    )));
+                }
+                RefactorDynamicInvokeCarrierLayout::ClosureObject(
+                    RefactorClosureCarrierLayout::new(
+                        self.codegen.llvm_closure_object_type(),
+                        RefactorAbiValue::new(self.codegen.llvm_gc_i8_ptr_type().into(), false),
+                        1,
+                        2,
+                    ),
+                )
+            }
+            MirCallKind::Virtual { dispatch, .. } => {
+                if let crate::effect_facts::CallSiteTarget::CandidateSet(targets) = facts.target() {
+                    for target in targets {
+                        if self.program.callable(&target.template.fqn).is_none() {
+                            return Err(frontend_error(format!(
+                                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} CandidateSet target `{}` 的 published callable shell",
+                                site_id.as_u32(),
+                                target.template.fqn,
+                            )));
+                        }
+                    }
+                }
+                RefactorDynamicInvokeCarrierLayout::VirtualReceiver(
+                    RefactorDispatchReceiverLayout::new(
+                        dispatch.receiver_ty,
+                        self.abi_value(dispatch.receiver_ty)?,
+                        dispatch.owner_fqn.clone(),
+                        dispatch.member_name.clone(),
+                    ),
+                )
+            }
+            MirCallKind::Interface { dispatch, .. } => {
+                if let crate::effect_facts::CallSiteTarget::CandidateSet(targets) = facts.target() {
+                    for target in targets {
+                        if self.program.callable(&target.template.fqn).is_none() {
+                            return Err(frontend_error(format!(
+                                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} CandidateSet target `{}` 的 published callable shell",
+                                site_id.as_u32(),
+                                target.template.fqn,
+                            )));
+                        }
+                    }
+                }
+                RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(
+                    RefactorDispatchReceiverLayout::new(
+                        dispatch.receiver_ty,
+                        self.abi_value(dispatch.receiver_ty)?,
+                        dispatch.owner_fqn.clone(),
+                        dispatch.member_name.clone(),
+                    ),
+                )
+            }
+            other => {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 canonical MIR kind {other:?} 无法为 {:?} 发布 dynamic-invoke contract",
+                    site_id.as_u32(),
+                    facts.target_mode(),
+                )));
+            }
+        };
+
+        let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
+            vec![carrier.receiver_abi().llvm_ty().into()];
+        if !args_abi.is_elided() {
+            params.push(args_abi.llvm_ty().into());
+        }
+        let llvm_ty = step_ty.fn_type(&params, false);
+
+        Ok(RefactorDynamicInvokeLayout::new(
+            owner_step_schema,
+            site_id,
+            facts.target_mode(),
+            facts.invoke_args_tuple_ty(),
+            llvm_ty,
+            params.len(),
+            args_abi,
+            facts.callee_schema(),
+            carrier,
+        ))
+    }
+
+    fn lookup_materialized_call_kind(
+        &self,
+        owner_root_fqn: &str,
+        site_id: crate::mir::SiteId,
+    ) -> Result<MirCallKind, LlvmEmitError> {
+        let callable = self.pass_view.callable(owner_root_fqn).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` 的 canonical MIR body，无法发布 dynamic-invoke contract"
+            ))
+        })?;
+        let body = callable.body.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` 的 canonical MIR body 内容，无法发布 dynamic-invoke contract"
+            ))
+        })?;
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let MirStatementKind::Assign {
+                    value:
+                        MirRvalue::Call {
+                            site_id: stmt_site_id,
+                            kind,
+                            ..
+                        },
+                    ..
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                if *stmt_site_id == site_id {
+                    return Ok(kind.clone());
+                }
+            }
+        }
+        Err(frontend_error(format!(
+            "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 canonical MIR call metadata，无法发布 dynamic-invoke contract",
+            site_id.as_u32(),
+        )))
     }
 
     fn validate_published_resume_interface_ids(
@@ -1340,10 +1550,12 @@ mod tests {
     use std::rc::Rc;
 
     use super::*;
-    use crate::effect_facts::{CaseTag, ImplPlan};
+    use crate::effect_facts::{CallTargetMode, CaseTag, ImplPlan};
     use crate::effect_lowered::ir::{
-        LateLoweredCallable, LateLoweredContinuationObject, LateLoweredContinuationSurfaceResume,
-        LateLoweredProgram, LateLoweredResumeInterface, LateLoweredResumeMethod, SystemSlotKind,
+        BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
+        LateLoweredBoundarySource, LateLoweredCallBoundaryLowering, LateLoweredCallable,
+        LateLoweredContinuationObject, LateLoweredContinuationSurfaceResume, LateLoweredProgram,
+        LateLoweredResumeInterface, LateLoweredResumeMethod, SystemSlotKind,
     };
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
@@ -1353,6 +1565,7 @@ mod tests {
         load_typed_hir_stage_output_for_dump,
     };
     use crate::llvm::build_single_file_source_map;
+    use crate::llvm::codegen::effect_refactor::types::RefactorCallTargetQuery;
     use crate::llvm::codegen::{
         CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState,
     };
@@ -1516,8 +1729,11 @@ mod tests {
             effect_op_tags,
         });
         let mut codegen = unit_codegen.fresh_main_codegen();
-        let result = codegen
-            .materialize_refactor_program_abi(&program, inputs.effect_lowered_stage_output.types());
+        let result = codegen.materialize_refactor_program_abi(
+            &program,
+            inputs.effect_lowered_stage_output.types(),
+            &inputs.effect_lowered_stage_output.materialized_pass_view(),
+        );
         check(&inputs, result, &module);
     }
 
@@ -1615,6 +1831,59 @@ mod tests {
             surface_resumes,
             object.methods().to_vec(),
         )
+    }
+
+    fn clone_callable_with_boundary_map(
+        callable: &LateLoweredCallable,
+        boundary_map: LateLoweredBoundaryMap,
+    ) -> LateLoweredCallable {
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            callable.dynamic_invoke_entry().clone(),
+            callable.state_graph().clone(),
+            callable.frame_schema().clone(),
+            boundary_map,
+            callable.resume_state_map().clone(),
+            callable.continuation_object(),
+            callable.resume_interfaces().to_vec(),
+        )
+    }
+
+    fn site_boundary(
+        callable: &LateLoweredCallable,
+        kind: BoundarySiteKind,
+    ) -> &LateLoweredBoundary {
+        callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .find(|boundary| {
+                matches!(
+                    boundary.source(),
+                    LateLoweredBoundarySource::Site {
+                        kind: boundary_kind,
+                        ..
+                    } if boundary_kind == kind
+                )
+            })
+            .expect("应找到指定 kind 的 boundary")
+    }
+
+    fn call_boundary_lowering(boundary: &LateLoweredBoundary) -> &LateLoweredCallBoundaryLowering {
+        let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering() else {
+            panic!("boundary 应物化成 Call lowering");
+        };
+        lowering
+    }
+
+    fn boundary_site_id(boundary: &LateLoweredBoundary) -> crate::mir::SiteId {
+        let LateLoweredBoundarySource::Site { site_id, .. } = boundary.source() else {
+            panic!("boundary 应带 site source");
+        };
+        site_id
     }
 
     fn clone_resume_interface_with_methods(
@@ -2213,6 +2482,237 @@ mod tests {
                 assert!(
                     message.contains("step schema"),
                     "错误消息应指出缺失方法对应的 step schema: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_call_target_query_preserves_known_instance_direct_entries() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_handle_hidden_suspend_virtual_helper_basic.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |_inputs, result, _module| {
+                let query = result.expect("known-instance direct call 应可回查 callable entry");
+                let callable = query
+                    .callable_layout_by_root_fqn("main")
+                    .expect("main callable layout 应存在");
+                let program = _inputs.effect_lowered_stage_output.program();
+                let main = program.callable("main").expect("main callable 应存在");
+                let boundary = site_boundary(main, BoundarySiteKind::Call);
+                let lowering = call_boundary_lowering(boundary);
+
+                assert_eq!(
+                    lowering.facts().target_mode(),
+                    CallTargetMode::KnownInstance
+                );
+                let site_id = boundary_site_id(boundary);
+                let RefactorCallTargetQuery::KnownInstance(target) = query
+                    .call_target_layout(callable.step_schema(), site_id, lowering.facts())
+                    .expect("known-instance call target 应可回查 published direct entry")
+                else {
+                    panic!("known-instance direct call 不应走 dynamic invoke contract");
+                };
+                assert_eq!(target.root_fqn(), "helper");
+                assert_eq!(
+                    target.dynamic_entry().invoke_args_tuple_ty(),
+                    lowering.facts().invoke_args_tuple_ty()
+                );
+                assert_eq!(
+                    target.dynamic_entry().return_step_schema(),
+                    lowering.facts().callee_schema()
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_dynamic_invoke_query_resolves_fun_value_unit_contract() {
+        with_phase_fixture_query_result(
+            "effect_facts",
+            "dynamic_fallback_widening.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query =
+                    result.expect("fun-value DynamicFallback 应可物化 dynamic invoke contract");
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("sample.callValue")
+                    .expect("sample.callValue callable 应存在");
+                let boundary = site_boundary(callable, BoundarySiteKind::Call);
+                let lowering = call_boundary_lowering(boundary);
+
+                assert_eq!(
+                    lowering.facts().target_mode(),
+                    CallTargetMode::DynamicFallback
+                );
+                let site_id = boundary_site_id(boundary);
+                let RefactorCallTargetQuery::DynamicInvoke(layout) = query
+                    .call_target_layout(callable.step_schema(), site_id, lowering.facts())
+                    .expect("fun-value boundary 应可回查 dynamic invoke contract")
+                else {
+                    panic!("DynamicFallback fun-value call 应走 dynamic invoke contract");
+                };
+                assert_eq!(layout.owner_step_schema(), callable.step_schema());
+                assert_eq!(layout.site_id(), site_id);
+                assert_eq!(layout.target_mode(), CallTargetMode::DynamicFallback);
+                assert_eq!(
+                    layout.return_step_schema(),
+                    lowering.facts().callee_schema()
+                );
+                assert_eq!(
+                    layout.invoke_args_tuple_ty(),
+                    lowering.facts().invoke_args_tuple_ty()
+                );
+                assert!(layout.args_abi().is_elided());
+                assert_eq!(layout.param_count(), 1);
+                match layout.carrier() {
+                    RefactorDynamicInvokeCarrierLayout::ClosureObject(carrier) => {
+                        assert_eq!(carrier.object_ty().count_fields(), 3);
+                        assert_eq!(carrier.env_field_index(), 1);
+                        assert_eq!(carrier.fn_field_index(), 2);
+                        assert!(!carrier.receiver_abi().is_elided());
+                    }
+                    other => {
+                        panic!("fun-value dynamic invoke 应发布 closure carrier，而不是 {other:?}")
+                    }
+                }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_callable_carrier_layout_resolves_virtual_candidate_set_contracts() {
+        with_fixture_query_result(
+            "effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query =
+                    result.expect("candidate-set virtual helper 应可物化 dynamic invoke contract");
+                let callable = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.build.helper")
+                    .expect("fixtures.build.helper callable 应存在");
+                let boundary = site_boundary(callable, BoundarySiteKind::Call);
+                let lowering = call_boundary_lowering(boundary);
+
+                assert_eq!(lowering.facts().target_mode(), CallTargetMode::CandidateSet);
+                let site_id = boundary_site_id(boundary);
+                let RefactorCallTargetQuery::DynamicInvoke(layout) = query
+                    .call_target_layout(callable.step_schema(), site_id, lowering.facts())
+                    .expect("candidate-set virtual boundary 应可回查 dynamic invoke contract")
+                else {
+                    panic!("CandidateSet virtual call 应走 dynamic invoke contract");
+                };
+                assert_eq!(layout.target_mode(), CallTargetMode::CandidateSet);
+                assert_eq!(layout.param_count(), 1);
+                assert!(layout.args_abi().is_elided());
+                assert_eq!(
+                    layout.return_step_schema(),
+                    lowering.facts().callee_schema()
+                );
+                match layout.carrier() {
+                    RefactorDynamicInvokeCarrierLayout::VirtualReceiver(dispatch) => {
+                        assert_eq!(
+                            inputs
+                                .effect_lowered_stage_output
+                                .types()
+                                .display(dispatch.receiver_ty())
+                                .to_string(),
+                            "fixtures.build.Base"
+                        );
+                        assert_eq!(dispatch.owner_fqn(), "fixtures.build.Base");
+                        assert_eq!(dispatch.member_name(), "ping");
+                        assert!(!dispatch.receiver_abi().is_elided());
+                    }
+                    other => panic!(
+                        "virtual CandidateSet 应发布 receiver-dispatch carrier，而不是 {other:?}"
+                    ),
+                }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_dynamic_invoke_query_rejects_missing_published_contract() {
+        with_fixture_query_result(
+            "effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let helper = program
+                    .callable("fixtures.build.helper")
+                    .expect("fixtures.build.helper callable 应存在");
+                let bogus_site = crate::mir::SiteId::from_raw(999);
+                let rewritten_boundary_map = LateLoweredBoundaryMap::new(
+                    helper
+                        .boundary_map()
+                        .entries()
+                        .iter()
+                        .map(|boundary| {
+                            let source = match boundary.source() {
+                                LateLoweredBoundarySource::Site {
+                                    kind: BoundarySiteKind::Call,
+                                    ..
+                                } => LateLoweredBoundarySource::Site {
+                                    site_id: bogus_site,
+                                    kind: BoundarySiteKind::Call,
+                                },
+                                other => other,
+                            };
+                            let lowered = boundary
+                                .lowering()
+                                .cloned()
+                                .expect("candidate-set helper 的 boundary 应带 lowering");
+                            LateLoweredBoundary::new(
+                                boundary.boundary_id(),
+                                source,
+                                boundary.owner_state(),
+                                boundary.resume_state(),
+                            )
+                            .with_lowering(lowered)
+                        })
+                        .collect(),
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == helper.step_schema() {
+                            clone_callable_with_boundary_map(
+                                candidate,
+                                rewritten_boundary_map.clone(),
+                            )
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 dynamic-invoke contract 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("canonical MIR call metadata"),
+                    "错误消息应指出缺失的是 call-site authoritative metadata: {message}"
+                );
+                assert!(
+                    message.contains("dynamic-invoke contract"),
+                    "错误消息应指出缺失的是 dynamic-invoke contract: {message}"
+                );
+                assert!(
+                    message.contains("fixtures.build.helper") && message.contains("999"),
+                    "错误消息应指出缺失 contract 所属的 callable 和 site id: {message}"
                 );
             },
         );

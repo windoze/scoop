@@ -1,0 +1,39 @@
+// 目标：P6-T02d 的 CandidateSet dynamic invoke contract 必须在 refactor build ABI shell 中可见。
+// - `helper(base)` 内的 `base.ping()` 会形成 Virtual + CandidateSet call boundary；
+// - `Base.ping` / `DerivedA.ping` / `DerivedB.ping` / `helper` 的 canonical dynamic entry 应全部发布；
+// - pure `main()` 的 ABI visibility build 不得为此落回 legacy effect body lowering。
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_Base_ping
+// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_DerivedA_ping
+// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_DerivedB_ping
+// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_helper
+// BUILD-LLVM-NOT-CONTAINS: scoop.effect.frame.
+package fixtures.build
+
+effect Ping {
+    fun hit(seed: Int): Int
+}
+
+open class Base() {
+    open fun ping(): Int / (Ping) {
+        return Ping.hit(1)
+    }
+}
+
+class DerivedA() : Base() {
+    override fun ping(): Int / (Ping) {
+        return Ping.hit(11)
+    }
+}
+
+class DerivedB() : Base() {
+    override fun ping(): Int / (Ping) {
+        return Ping.hit(22)
+    }
+}
+
+fun helper(base: Base): Int / (Ping) {
+    return base.ping()
+}
+
+fun main() {}

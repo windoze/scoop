@@ -15,6 +15,10 @@
 9. 提交当前变更，提交信息使用当前任务号。
 
 ## Progress Log
+- 本次调用开始：先重新读取 `TODO.md` 作为索引，再按顺序检查相关 `TODO-Px.md`，确认当前首个未完成详细任务；若上一轮已插入新的前置任务，则以该前置任务为当前执行单元。
+- 当前高层计划：确认任务 -> 阅读相关代码与最近提交 -> 实现或在必要时最小化补充前置任务 -> 跑定向测试与 `clippy` -> 更新 `TODO-Px.md`/`TODO.md`/必要时 `PLAN.md` -> 提交并停止。
+- 已按 `TODO.md` 索引与 `TODO-P6.md` 详细任务顺序确认：当前首个未完成详细任务是 `P6-T02d`，不是 `P6-T03`；本次只处理 `P6-T02d`。
+- 本次调用开始：先复核 `TODO.md`/`TODO-Px.md` 与当前工作树状态，确认上次记录的 `P6-T02c` 是否已经提交；若未提交，则把这批变更作为当前任务收尾并原子提交。
 - 已创建本文件并记录初始计划，下一步开始读取任务索引与详细任务文件。
 - 已读取 `TODO.md` 与 `TODO-P6.md`，确认索引里的首个未完成详细任务是 `P6-T02c`：发布 continuation surface-resume ABI/query contract。
 - 已检查最近一次提交：`[P6-T02c] Track continuation surface-resume ABI blocker`。它直接说明 `P6-T03` 被当前任务阻塞，因此本次继续按 `P6-T02c` 执行，不做额外历史问题扫荡。
@@ -35,6 +39,10 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 - 已同步 `TODO-P6.md` 与 `TODO.md`，将 `P6-T02c` 标记为完成。
+- 本次调用复核后确认：`P6-T02c` 已由最新提交 `[P6-T02c] Publish continuation surface-resume ABI query` 落地，因此当前首个未完成详细任务是 `P6-T03`。
+- 已复现 `P6-T03` 当前失败：`cargo run -p scoop -- --effect-pipeline refactor build tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop -o /tmp/effect_resume_if_else_branch_single_perform.out` 仍会在 stage 边界报 `RefactorEffectLoweringUnsupported`。
+- 已进一步确认新的真实 blocker：`LateLoweredCallBoundaryLowering` 虽发布 `CallSiteTarget` / `CallTargetMode` / `invoke_args_tuple_ty` / callee `StepSchema`，但当前 `RefactorAbiQuery` 只按 callable version 暴露 static `dynamic_entry/direct_entry` 签名，没有 runtime callable value -> canonical dynamic `invoke(args_tuple) -> Step_F` 的 LLVM query/载体 contract。对 `CandidateSet` / `DynamicFallback` call boundary，继续实现 `P6-T03` 会被迫回 `CallKind::{Closure, FunValue, Virtual, Interface}` / legacy wrapper 现场重建 ABI，违背任务约束。
+- 计划已调整：本次不继续硬做 `P6-T03`，而是在 `TODO-P6.md` / `TODO.md` 中最小化新增前置任务 `P6-T02d`，把 dynamic invoke ABI/query gap 显式化并让下一次调用先补这层 contract。
 
 ## Task Plan: P6-T02c
 1. 检查当前工作树，确认是否存在未提交改动以及是否需要在结束时一并提交。
@@ -50,3 +58,32 @@
 5. 运行任务要求的测试与必要的 `clippy`，修复出现的问题。
 6. 更新 `TODO-P6.md`、同步 `TODO.md`，记录完成情况与验证命令。
 7. 提交本次所有未提交变更并停止。
+
+## Task Plan: P6-T02d
+1. 复核 `TODO-P6.md` / `TODO.md` 的未提交变更，确认它们确实只是把 `P6-T03` 的真实 blocker 显式化为新的前置任务 `P6-T02d`。
+2. 阅读 `P6-T02d` / `P6-T03` 相关段落，以及 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`、late-lowering call-boundary facts、和当前 ABI query 调用点，定位 canonical dynamic-invoke callable-object contract 缺口。
+3. 以最小正确改动补齐 callable object 的 canonical dynamic `invoke(args_tuple) -> Step_F` ABI/query contract，并在缺失 authoritative contract 时 fail fast，避免 `P6-T03` 在 backend 现场猜 indirect call 入口。
+4. 补充/更新定向测试，覆盖 dynamic invoke ABI query 可解析、缺失 contract 显式拒绝、以及 build/dump 路径可消费这层 contract。
+5. 运行任务要求的定向测试与 `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`，根据结果继续修正。
+6. 将 `P6-T02d` 标记为 `[DONE]`，同步 `TODO.md`，并把本轮涉及的全部未提交文件一并提交。
+
+## Progress Log (Current Invocation)
+- 已复核 `TODO.md` 索引与 `TODO-P6.md` 明细：当前首个未完成详细任务仍是 `P6-T02d`，`P6-T03` 必须等待它完成后才能继续。
+- 已检查最新提交：`[P6-T02c] Publish continuation surface-resume ABI query`；它与当前任务直接相邻，但未完成 `P6-T02d`。
+- 已检查工作树：存在未提交变更 `TODO-P6.md`、`TODO.md`、`memory/claude_plan.md`。这与上轮在识别 `P6-T03` blocker 后新增 `P6-T02d` 但尚未提交的状态一致；本轮会先核对这些改动，再把实现、任务记录与这些未提交文件一起原子提交。
+- 已完成首轮实现：
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` 新增按 call boundary 发布的 `RefactorDynamicInvokeLayout` / carrier layouts / `RefactorCallTargetQuery`，并让 `RefactorCallableEntryLayout` 记录 `invoke_args_tuple_ty`；
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 现在基于 `LateLoweredBoundaryLowering::Call` + canonical MIR `CallKind` 物化 dynamic invoke contract，并对缺失 metadata / CandidateSet shell / contract drift fail fast；
+  - `crates/scoopc/src/llvm/emit.rs` 已补上 ABI visibility pass-view handoff，修复 pure `main` build fixture 下不可达 helper dynamic-invoke contract 丢失；
+  - 已新增 build fixture `tests/fixtures/build/effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop`。
+- 已完成验证：
+  - `cargo test -p scoopc refactor_llvm_call_target_query`
+  - `cargo test -p scoopc refactor_llvm_dynamic_invoke_query`
+  - `cargo test -p scoopc refactor_llvm_callable_carrier_layout`
+  - `cargo test -p scoopc refactor_llvm_unit_abi`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+- 已同步 `TODO-P6.md` / `TODO.md`：将 `P6-T02d` 标记为完成并写入完成记录；`PLAN.md` 无需更新，因为阶段级顺序与退出条件没有改变。
+- 下一步：检查最终 diff，确认只包含本任务需要提交的文件，然后使用 `P6-T02d` 提交信息原子提交并停止。
