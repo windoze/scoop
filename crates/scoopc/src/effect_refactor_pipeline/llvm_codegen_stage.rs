@@ -422,7 +422,9 @@ fun main(): Int {
             "refactor LLVM stage 的 HIR scaffold 不应再携带旧 production pass-view 入口"
         );
         assert!(
-            stage_output.abi_visibility_effect_lowered_stage_output().is_none(),
+            stage_output
+                .abi_visibility_effect_lowered_stage_output()
+                .is_none(),
             "未显式提供 ABI visibility handoff 时，不应伪造第二份 stage 输出"
         );
 

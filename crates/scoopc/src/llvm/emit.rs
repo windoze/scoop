@@ -39,7 +39,8 @@ struct LoweredCodegenEntry<'a> {
 #[derive(Clone, Copy)]
 pub struct RefactorStageEmitInput<'a> {
     hir_compat_scaffold: &'a hir::LoweredHir,
-    effect_lowered_stage_output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    effect_lowered_stage_output:
+        &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
     abi_visibility_effect_lowered_stage_output:
         Option<&'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput>,
 }
@@ -97,8 +98,8 @@ impl<'a> LoweredCodegenEntry<'a> {
             lowered.materialized_pass_view().is_none(),
             "refactor LLVM stage 的 HIR scaffold 不应继续携带旧 production pass-view"
         );
-        let abi_visibility_effect_lowered_stage_output = abi_visibility_effect_lowered_stage_output
-            .unwrap_or(effect_lowered_stage_output);
+        let abi_visibility_effect_lowered_stage_output =
+            abi_visibility_effect_lowered_stage_output.unwrap_or(effect_lowered_stage_output);
         Self {
             lowered,
             materialized_pass_view: Some(effect_lowered_stage_output.materialized_pass_view()),
@@ -1127,8 +1128,7 @@ fn ensure_refactor_reachable_callables_do_not_require_legacy_effect_body_lowerin
             return Err(LlvmEmitError::RefactorEffectLoweringUnsupported {
                 entry: entry_fqn.to_string(),
                 callable: fun.fqn.clone(),
-                unsupported_paths: "legacy effect-frame / handler-stack body lowering"
-                    .to_string(),
+                unsupported_paths: "legacy effect-frame / handler-stack body lowering".to_string(),
             });
         }
     }

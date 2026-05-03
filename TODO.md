@@ -74,7 +74,7 @@
 | `P6-T02a` | `TODO-P6.md` | [DONE] 让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity |
 | `P6-T02b` | `TODO-P6.md` | [DONE] 让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell |
 | `P6-T02R` | `TODO-P6.md` | [DONE] Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型 |
-| `P6-T02c` | `TODO-P6.md` | 发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口 |
+| `P6-T02c` | `TODO-P6.md` | [DONE] 发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口 |
 | `P6-T03` | `TODO-P6.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
 | `P6-T04` | `TODO-P6.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |

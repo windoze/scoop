@@ -705,7 +705,7 @@
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
   - `rg "EffectSignal|EffectOutcome|LegacyEffectBoundary|Unit value|Signal \{|Todo\(" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/llvm/codegen/effect`
 
-## P6-T02c：发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口
+## [DONE] P6-T02c：发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -762,7 +762,24 @@
   - 若 contract 漏发或漂移，refactor LLVM path 会在 stage/codegen 边界显式拒绝。
 - 依赖：P6-T02R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：`crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` 已新增 `RefactorContinuationSurfaceResumeLayout`，并在 `RefactorAbiQuery` 上发布 `ContinuationSchemaId -> surface-resume layout` 查询面；该 layout 显式固定了 source-visible `Continuation.resume(args_tuple) -> Step_F` 的 symbol identity、函数签名、`resume_tuple_ty` / `answer_ty` / `out_step_schema`，不再要求后续 body emitter 通过成员名 `resume` 或 legacy helper 反推 ABI。
+  - 同一轮实现中，`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 现会同时消费两类 authoritative P5 handoff 来注册 surface-resume contract：
+    - continuation object 已发布的 `surface_resumes()`；
+    - owner callable `Resume` boundary lowering 里的 `ResumeSiteEffectFacts`。
+    这样就能覆盖像 `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 这类“resume site 的 `continuation_schema/out_step_schema` 比 owner callable outward `StepSchema` 更窄”的真实路径，避免 `P6-T03` 再在 backend 现场猜测 `k.resume(...)` 的 lowering 入口。
+  - continuation object layout 现已额外发布 per-object 的 surface-resume schema 绑定；该绑定既覆盖 owner step-case continuation schema，也覆盖 owner callable 内部真实出现的 `ResumeSiteEffectFacts` continuation schema。若对象少发 schema、resume site 引用了未发布 layout、或多处 authoritative source 对同一 `ContinuationSchemaId` 给出了漂移的 `resume_tuple_ty` / `answer_ty` / `out_step_schema`，ABI materializer 会在 stage 边界 fail fast。
+  - 已新增 `refactor_llvm_surface_resume_layout_*` 单测，覆盖：
+    - ABI query 可从真实 `k.resume(...)` fixture 的 authoritative `ContinuationSchemaId` 解析到 surface-resume layout；
+    - continuation object 可同步发布该 schema 的 object-level binding；
+    - 缺失 published surface-resume contract 时显式拒绝；
+    - `Unit` payload 的 source-visible `resume()` ABI 与 P6-T02 已固定的零载荷规则保持一致。
+- 已运行验证：
+  - `cargo test -p scoopc refactor_llvm_surface_resume_layout`
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_llvm_unit_abi`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

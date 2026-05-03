@@ -35,7 +35,8 @@ mod target;
 mod tests;
 
 pub use emit::{
-    emit_minimal_main_asm_to_file, emit_minimal_main_asm_to_file_from_lowered_hir,
+    RefactorStageEmitInput, emit_minimal_main_asm_to_file,
+    emit_minimal_main_asm_to_file_from_lowered_hir,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level,
@@ -54,7 +55,6 @@ pub use emit::{
     emit_minimal_main_obj_to_file_with_opt_level, emit_refactor_main_asm_to_file_from_stage_output,
     emit_refactor_main_ir_to_file_from_stage_output,
     emit_refactor_main_obj_to_file_from_stage_output,
-    RefactorStageEmitInput,
 };
 pub use target::{HostTargetInfo, LlvmTargetError};
 

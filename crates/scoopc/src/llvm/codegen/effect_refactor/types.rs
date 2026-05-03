@@ -4,10 +4,11 @@ use std::collections::BTreeMap;
 
 use inkwell::types::{BasicTypeEnum, FunctionType, StructType};
 
-use crate::effect_facts::{CaseTag, StepSchemaId};
+use crate::effect_facts::{CaseTag, ContinuationSchemaId, StepSchemaId};
 use crate::effect_lowered::ir::{
     ContinuationObjectId, FrameSlotId, ResumeInterfaceId, SystemSlotKind,
 };
+use crate::ty::TypeId;
 
 /// 单个 refactor ABI 值位的 LLVM 形状。
 ///
@@ -312,6 +313,75 @@ impl<'ctx> RefactorCallableEntryLayout<'ctx> {
     }
 }
 
+/// 源码可见 `Continuation.resume(...) -> Step_F` 的 LLVM 级合同。
+pub(super) struct RefactorContinuationSurfaceResumeLayout<'ctx> {
+    continuation_schema: ContinuationSchemaId,
+    symbol_name: String,
+    llvm_ty: FunctionType<'ctx>,
+    param_count: usize,
+    resume_tuple_ty: TypeId,
+    answer_ty: TypeId,
+    resume_payload_abi: RefactorAbiValue<'ctx>,
+    return_step_schema: StepSchemaId,
+}
+
+impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn new(
+        continuation_schema: ContinuationSchemaId,
+        symbol_name: String,
+        llvm_ty: FunctionType<'ctx>,
+        param_count: usize,
+        resume_tuple_ty: TypeId,
+        answer_ty: TypeId,
+        resume_payload_abi: RefactorAbiValue<'ctx>,
+        return_step_schema: StepSchemaId,
+    ) -> Self {
+        Self {
+            continuation_schema,
+            symbol_name,
+            llvm_ty,
+            param_count,
+            resume_tuple_ty,
+            answer_ty,
+            resume_payload_abi,
+            return_step_schema,
+        }
+    }
+
+    pub(super) fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub(super) fn symbol_name(&self) -> &str {
+        &self.symbol_name
+    }
+
+    pub(super) fn llvm_ty(&self) -> FunctionType<'ctx> {
+        self.llvm_ty
+    }
+
+    pub(super) fn param_count(&self) -> usize {
+        self.param_count
+    }
+
+    pub(super) fn resume_tuple_ty(&self) -> TypeId {
+        self.resume_tuple_ty
+    }
+
+    pub(super) fn answer_ty(&self) -> TypeId {
+        self.answer_ty
+    }
+
+    pub(super) fn resume_payload_abi(&self) -> &RefactorAbiValue<'ctx> {
+        &self.resume_payload_abi
+    }
+
+    pub(super) fn return_step_schema(&self) -> StepSchemaId {
+        self.return_step_schema
+    }
+}
+
 /// 单个 resume method 的 LLVM 级合同。
 pub(super) struct RefactorResumeMethodLayout<'ctx> {
     interface_id: ResumeInterfaceId,
@@ -432,6 +502,33 @@ impl<'ctx> RefactorResumeInterfaceLayout<'ctx> {
     }
 }
 
+/// continuation object 上单个 surface `resume(...)` 的已发布映射。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RefactorContinuationSurfaceResumeBinding {
+    continuation_schema: ContinuationSchemaId,
+    return_step_schema: StepSchemaId,
+}
+
+impl RefactorContinuationSurfaceResumeBinding {
+    pub(super) fn new(
+        continuation_schema: ContinuationSchemaId,
+        return_step_schema: StepSchemaId,
+    ) -> Self {
+        Self {
+            continuation_schema,
+            return_step_schema,
+        }
+    }
+
+    pub(super) fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub(super) fn return_step_schema(&self) -> StepSchemaId {
+        self.return_step_schema
+    }
+}
+
 /// continuation object field 的稳定分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RefactorContinuationFieldKind {
@@ -483,6 +580,8 @@ pub(super) struct RefactorContinuationObjectLayout<'ctx> {
     layout_anchor_name: String,
     fields: Vec<RefactorContinuationFieldLayout<'ctx>>,
     interface_field_indices: BTreeMap<ResumeInterfaceId, u32>,
+    surface_resume_bindings:
+        BTreeMap<ContinuationSchemaId, Vec<RefactorContinuationSurfaceResumeBinding>>,
 }
 
 impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
@@ -493,6 +592,10 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
         layout_anchor_name: String,
         fields: Vec<RefactorContinuationFieldLayout<'ctx>>,
         interface_field_indices: BTreeMap<ResumeInterfaceId, u32>,
+        surface_resume_bindings: BTreeMap<
+            ContinuationSchemaId,
+            Vec<RefactorContinuationSurfaceResumeBinding>,
+        >,
     ) -> Self {
         Self {
             object_id,
@@ -501,6 +604,7 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
             layout_anchor_name,
             fields,
             interface_field_indices,
+            surface_resume_bindings,
         }
     }
 
@@ -526,6 +630,15 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
 
     pub(super) fn field_index_for_interface(&self, interface_id: ResumeInterfaceId) -> Option<u32> {
         self.interface_field_indices.get(&interface_id).copied()
+    }
+
+    pub(super) fn surface_resume_bindings(
+        &self,
+        continuation_schema: ContinuationSchemaId,
+    ) -> Option<&[RefactorContinuationSurfaceResumeBinding]> {
+        self.surface_resume_bindings
+            .get(&continuation_schema)
+            .map(Vec::as_slice)
     }
 }
 
@@ -589,6 +702,8 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
     frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
     continuation_layouts: BTreeMap<ContinuationObjectId, RefactorContinuationObjectLayout<'ctx>>,
     resume_interface_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
+    surface_resume_layouts:
+        BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
 }
 
@@ -601,6 +716,10 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             RefactorContinuationObjectLayout<'ctx>,
         >,
         resume_interface_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
+        surface_resume_layouts: BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
         callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
     ) -> Self {
         Self {
@@ -608,6 +727,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             frame_layouts,
             continuation_layouts,
             resume_interface_layouts,
+            surface_resume_layouts,
             callable_layouts,
         }
     }
@@ -638,6 +758,13 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         interface_id: ResumeInterfaceId,
     ) -> Option<&RefactorResumeInterfaceLayout<'ctx>> {
         self.resume_interface_layouts.get(&interface_id)
+    }
+
+    pub(super) fn surface_resume_layout(
+        &self,
+        continuation_schema: ContinuationSchemaId,
+    ) -> Option<&RefactorContinuationSurfaceResumeLayout<'ctx>> {
+        self.surface_resume_layouts.get(&continuation_schema)
     }
 
     pub(super) fn callable_layout(
