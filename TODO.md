@@ -78,6 +78,7 @@
 | `P6-T02d` | `TODO-P6.md` | [DONE] 发布 canonical dynamic-invoke callable-object ABI/query contract，禁止 P6-T03 在 backend 现场猜测 indirect call 入口 |
 | `P6-T02e` | `TODO-P6.md` | [DONE] 发布 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract，禁止 P6-T03 在 backend 现场发明传播路径 |
 | `P6-T02f` | `TODO-P6.md` | [DONE] 发布 straight-line source-slice 非 boundary dynamic call 的 callable-object ABI/query contract，禁止 P6-T03 在 body emitter 现场回落旧 callable wrapper |
+| `P6-T02g` | `TODO-P6.md` | 发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI |
 | `P6-T03` | `TODO-P6.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
 | `P6-T04` | `TODO-P6.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |

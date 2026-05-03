@@ -1018,6 +1018,72 @@
   - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02g：发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §4.16, §5.2, §5.3.2-§5.3.6, §5.5.1-§5.5.7, §8
+  - `crates/scoopc/src/llvm/codegen/{closure/mod.rs,mir_body.rs,gc.rs}`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+  - `crates/scoopc/src/llvm/codegen/call/dispatch.rs`（只能作 legacy 对照）
+- 背景：
+  - `P6-T02d` / `P6-T02f` 已经为 boundary 与 source-slice dynamic call 发布了 authoritative 的 callable-object ABI/query：body emitter 现在可以按 `(owner_step_schema, site_id)` 回查 carrier 形状、`invoke_args_tuple_ty`、以及 canonical `invoke(args_tuple) -> Step_F` 返回合同。
+  - 但当前 runtime carrier 本身还没有切到这套 contract：
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs` 与 `crates/scoopc/src/llvm/codegen/closure/mod.rs` 仍把 closure object 的 `fn_ptr` 直接写成普通 lambda/top-level LLVM function 指针；
+    - `crates/scoopc/src/llvm/codegen/gc.rs` 仍用 `declare_top_level_fun(...)` 的普通函数符号去填 class vtable / interface itable method 槽位；
+    - 仓库中还没有任何地方把这些 carrier 稳定绑定到 `RefactorCallableLayout.dynamic_entry()` 或等价的已发布 refactor dynamic entry。
+  - 这意味着 `P6-T03` 即使拿到了 query，也仍无法只靠 runtime carrier + published contract 去 lower `CallKind::{Closure, FunValue, Virtual, Interface}`：
+    - 要么被迫把 legacy 普通函数指针重新解释成 refactor `invoke(args_tuple) -> Step_F` target；
+    - 要么在 backend 现场按名字/符号关系把普通 ABI remap 到 refactor entry；
+    - 要么继续借壳旧 closure wrapper / vtable / itable dispatch 主线。
+  - 这三条路都违背 `P6-T02d` / `P6-T02f` 的 contract-first 目标，因此在继续 `P6-T03` 之前，必须先把“runtime callable carrier 究竟指向哪个 canonical refactor entry”明确发布并真正接入 carrier materialization。
+
+- 目标：
+  - 为 refactor LLVM 新路径补齐 authoritative 的 callable carrier target-entry contract；
+  - 让 closure object、top-level function value、class vtable、interface itable 在 refactor 路径上都稳定指向 canonical published dynamic entry（或等价且同样已发布的 refactor invoke target），使 `P6-T03` 可以只消费 handoff lower dynamic call，而不再借壳 legacy callable ABI。
+
+- 必须实现的内容：
+  1. 为 runtime callable carrier 发布 authoritative 的 target-entry 绑定。
+     - 至少覆盖：
+       - MIR/source-slice `MakeClosure` 生成的 closure object；
+       - HIR closure value / top-level function value 对应的 closure-like callable object；
+       - class vtable method 槽位；
+       - interface itable method 槽位。
+     - 这些 carrier 必须稳定指向 canonical `invoke(args_tuple) -> Step_F` target；
+     - 允许用显式发布的 wrapper symbol 作为桥接；
+     - 但该 symbol 必须本身就是 refactor contract 的一部分，不能是 backend 现场猜出来的名字约定。
+  2. 对齐 carrier target 与 `RefactorAbiQuery`。
+     - `RefactorCallableLayout.dynamic_entry()` / 等价 published shell 必须能被 carrier materialization authoritative 地消费；
+     - 若某个 callable 已发布 dynamic entry，但 closure/vtable/itable 仍无法把它接入 carrier；
+     - 必须在 P6 边界显式 fail fast，而不是把 remap 责任留给 `P6-T03` body emitter。
+  3. 对齐 `Unit` / zero-payload 与 receiver 形状。
+     - `invoke_args_tuple_ty = ()` 时，carrier target 仍必须指向零载荷 canonical dynamic entry；
+     - `Closure` / `FunValue` / `Virtual` / `Interface` 的 receiver/callee carrier ABI 不得偷偷退回 legacy 普通参数列表。
+  4. 补充定向测试与 fixture。
+     - 至少覆盖：
+       - build fixture 能证明 refactor class vtable / interface itable / closure callable object 发布的 target 已切到 canonical dynamic entry；
+       - 若 carrier 仍指向普通 ABI 或缺失 published target，编译会显式拒绝。
+
+- 必须遵从的约束：
+  - 禁止把 legacy 普通 top-level/lambda 函数指针当作“默认也等价于 refactor dynamic entry”。
+  - 禁止在 `P6-T03` body emitter 中按符号名、wrapper 名字约定、`Span`、HIR 成员名、或旧 dispatch helper 反推 callable target。
+  - 禁止把“query 已发布，但 runtime carrier 仍沿用旧函数指针 ABI”视为当前阶段已完成。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_dynamic_invoke_query`
+  - `cargo test -p scoopc refactor_llvm_callable_carrier_layout`
+  - 新增/更新以 carrier target 发布为重点的定向单元测试（推荐命名：`refactor_llvm_dynamic_entry_publication_*`）
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+- 完成条件：
+  - refactor 路径上的 closure/vtable/itable carrier 已 authoritative 地指向 canonical published dynamic entry；
+  - `P6-T03` 可以只消费 runtime carrier + published query lower dynamic call，而不再借壳 legacy callable wrapper / dispatch ABI。
+- 依赖：`P6-T02f`
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1136,7 +1202,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -1146,6 +1212,8 @@
   - 因此新增前置任务 `P6-T02e`，先把 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract 显式发布出来，再继续本任务。
   - 2026-05-03：继续进入 whole-body emitter 设计时发现第四个 blocker。当前 `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 的 `materialize_dynamic_invoke_layouts(...)` 仍只扫描 `boundary_map` 里的 call boundary，因此 `RefactorAbiQuery` 只能为 effectful call boundary 发布 dynamic invoke query；但 `P6-T03` 必须 lower 整个 `LateLoweredState.source_slices()`，straight-line state slice 里仍可能出现 non-boundary 的 `CallKind::{Closure, FunValue, Virtual, Interface}`。若直接继续本任务，backend 仍会被迫在 source-slice lowering 现场回 legacy callable wrapper / dispatch ABI，或临时发明一套未发布的 invoke 规则，违背本阶段 contract-first 边界。
   - 因此新增前置任务 `P6-T02f`，先把 straight-line source-slice non-boundary dynamic call 的 callable-object ABI/query contract 显式发布出来，再继续本任务。
+  - 2026-05-03：继续核对 actual dynamic call lowering 时发现第五个 blocker。虽然 `P6-T02d` / `P6-T02f` 已经发布了 dynamic invoke query，但 runtime callable carrier 仍没有 authoritative 地指向这套 refactor target：`crates/scoopc/src/llvm/codegen/{mir_body.rs,closure/mod.rs}` 仍把 closure object `fn_ptr` 写成普通 lambda/top-level LLVM function 指针，`crates/scoopc/src/llvm/codegen/gc.rs` 仍用 `declare_top_level_fun(...)` 的普通符号去填 class vtable / interface itable method 槽位。若直接继续 `P6-T03`，backend 仍会被迫在现场把 legacy 普通 ABI remap 到 refactor dynamic entry，或借壳旧 closure/vtable/itable dispatch helper，违背 `P6-T02d` / `P6-T02f` 明确禁止的 contract-first 边界。
+  - 因此新增前置任务 `P6-T02g`，先把 callable carrier -> canonical dynamic entry 的 published contract 接到 closure/vtable/itable materialization，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
