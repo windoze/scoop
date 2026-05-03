@@ -8,8 +8,9 @@ use crate::effect_facts::{
     CallSiteEffectFacts, CallTargetMode, CaseTag, ContinuationSchemaId, StepSchemaId,
 };
 use crate::effect_lowered::ir::{
-    ContinuationObjectId, FrameSlotId, LateLoweredConsumedRuntimeErrorCase, ResumeInterfaceId,
-    StateId, SystemSlotKind,
+    ContinuationObjectId, FrameSlotId, LateLoweredConsumedRuntimeErrorCase,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPublishedRuntimeEntry,
+    ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::SiteId;
@@ -510,12 +511,76 @@ pub(super) enum RefactorCallTargetQuery<'a, 'ctx> {
 }
 
 /// pure caller call boundary 本地消费 compiler-generated runtime-error case 的稳定 lowering 查询面。
+pub(super) struct RefactorPublishedRuntimeEntryLayout<'ctx> {
+    kind: LateLoweredPublishedRuntimeEntry,
+    symbol_name: String,
+    llvm_ty: FunctionType<'ctx>,
+    param_count: usize,
+}
+
+impl<'ctx> RefactorPublishedRuntimeEntryLayout<'ctx> {
+    pub(super) fn new(
+        kind: LateLoweredPublishedRuntimeEntry,
+        symbol_name: String,
+        llvm_ty: FunctionType<'ctx>,
+        param_count: usize,
+    ) -> Self {
+        Self {
+            kind,
+            symbol_name,
+            llvm_ty,
+            param_count,
+        }
+    }
+
+    pub(super) fn kind(&self) -> LateLoweredPublishedRuntimeEntry {
+        self.kind
+    }
+
+    pub(super) fn symbol_name(&self) -> &str {
+        &self.symbol_name
+    }
+
+    pub(super) fn llvm_ty(&self) -> FunctionType<'ctx> {
+        self.llvm_ty
+    }
+
+    pub(super) fn param_count(&self) -> usize {
+        self.param_count
+    }
+}
+
+pub(super) enum RefactorLocalRuntimeErrorTerminalAction<'ctx> {
+    RuntimeFatal {
+        runtime_entry: RefactorPublishedRuntimeEntryLayout<'ctx>,
+    },
+}
+
+impl<'ctx> RefactorLocalRuntimeErrorTerminalAction<'ctx> {
+    pub(super) fn lowered_action(&self) -> LateLoweredLocalRuntimeErrorTerminalAction {
+        match self {
+            Self::RuntimeFatal { runtime_entry } => {
+                LateLoweredLocalRuntimeErrorTerminalAction::RuntimeFatal {
+                    runtime_entry: runtime_entry.kind(),
+                }
+            }
+        }
+    }
+
+    pub(super) fn runtime_entry(&self) -> &RefactorPublishedRuntimeEntryLayout<'ctx> {
+        match self {
+            Self::RuntimeFatal { runtime_entry } => runtime_entry,
+        }
+    }
+}
+
 pub(super) struct RefactorLocalRuntimeErrorContract<'ctx> {
     owner_step_schema: StepSchemaId,
     site_id: SiteId,
     input_case_tag: CaseTag,
     payload_tuple_ty: TypeId,
     payload_abi: RefactorAbiValue<'ctx>,
+    terminal_action: RefactorLocalRuntimeErrorTerminalAction<'ctx>,
     target_state: StateId,
 }
 
@@ -526,6 +591,7 @@ impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
         input_case_tag: CaseTag,
         payload_tuple_ty: TypeId,
         payload_abi: RefactorAbiValue<'ctx>,
+        terminal_action: RefactorLocalRuntimeErrorTerminalAction<'ctx>,
         target_state: StateId,
     ) -> Self {
         Self {
@@ -534,6 +600,7 @@ impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
             input_case_tag,
             payload_tuple_ty,
             payload_abi,
+            terminal_action,
             target_state,
         }
     }
@@ -556,6 +623,10 @@ impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
 
     pub(super) fn payload_abi(&self) -> &RefactorAbiValue<'ctx> {
         &self.payload_abi
+    }
+
+    pub(super) fn terminal_action(&self) -> &RefactorLocalRuntimeErrorTerminalAction<'ctx> {
+        &self.terminal_action
     }
 
     pub(super) fn target_state(&self) -> StateId {
@@ -1071,18 +1142,21 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             })?;
         if published.input_case_tag() != contract.input_case_tag()
             || published.payload_tuple_ty() != contract.payload_tuple_ty()
+            || published.terminal_action().lowered_action() != contract.terminal_action()
             || published.target_state() != contract.target_state()
         {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 owner step schema s{} call site {} 的 local runtime-error contract 漂移：layout=(input_case=c{}, payload_tuple_ty={}, target_state=st{})，lowering=(input_case=c{}, payload_tuple_ty={}, target_state=st{})",
+                    "refactor LLVM ABI query 发现 owner step schema s{} call site {} 的 local runtime-error contract 漂移：layout=(input_case=c{}, payload_tuple_ty={}, terminal_action={:?}, target_state=st{})，lowering=(input_case=c{}, payload_tuple_ty={}, terminal_action={:?}, target_state=st{})",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                     published.input_case_tag().as_u32(),
                     published.payload_tuple_ty().as_u32(),
+                    published.terminal_action().lowered_action(),
                     published.target_state().as_u32(),
                     contract.input_case_tag().as_u32(),
                     contract.payload_tuple_ty().as_u32(),
+                    contract.terminal_action(),
                     contract.target_state().as_u32(),
                 ),
             });

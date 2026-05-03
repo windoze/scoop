@@ -1094,6 +1094,78 @@
     - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## [DONE] P6-T02h：发布 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering contract，禁止 P6-T03 在 backend 现场发明 pure caller runtime-error 的结束路径
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.9, §5.5.3-§5.5.7, §8
+  - [`TODO-P6.md`](./TODO-P6.md) 中 `P6-T02e`
+  - `crates/scoopc/src/effect_lowered/{ir,materialize,dump,opt}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout,body}.rs`
+- 背景：
+  - `P6-T02e` 已经为 pure caller call boundary 发布了 `consumed_runtime_error_case` 的 `target_state`，并在 late-lowered state graph 中追加 `LocalRuntimeError(payload_tuple_ty=...)` synthetic terminal state；
+  - 但这条 synthetic state 目前仍只公开了 payload type / target-state 身份，并没有发布“backend 到底要把它 lower 成什么终止语义”的 authoritative contract：
+    - 是回到某个显式 published boundary / state；
+    - 还是走某个已发布的 runtime fatal surface；
+    - 还是进入某条已发布的 local handler / catch 结束路径；
+  - `RefactorAbiQuery` 当前也只发布了 `input_case_tag` / `payload_abi` / `target_state`，没有发布 terminal action；
+  - 因此若直接继续 `P6-T03`，backend 将不得不为 `LocalRuntimeError` 现场发明 pure caller runtime-error 的结束路径，违背本阶段的 contract-first / no-workaround 约束。
+
+- 目标：
+  - 为 `LocalRuntimeError` synthetic terminal state 补齐 authoritative、可 lower 的 terminal contract；
+  - 让 `P6-T03` 只消费已发布 handoff，就能正确处理 pure caller 本地消费的 ordinary runtime-error，而不必在 LLVM backend 现场补想象终止语义。
+
+- 必须实现的内容：
+  1. 为 `LocalRuntimeError` synthetic state 发布显式 terminal lowering contract。
+     - 允许方案：
+       - 给 `LateLoweredStateTerminator::LocalRuntimeError` 增补结构化 terminal action；
+       - 或用等价的结构化 lowering 节点替代当前只带 `payload_tuple_ty` 的壳；
+     - 但无论采用哪种表示，都必须至少 authoritative 地发布：
+       - 输入 runtime-error case 身份；
+       - payload materialization contract；
+       - terminal action（例如显式 outward emission、显式 local catch/handler path、或显式 runtime fatal surface）；
+       - 所需 target state / boundary / symbol / runtime entry。
+  2. 明确 pure caller local runtime-error 的语义边界。
+     - 必须同时满足：
+       - 不把 compiler-generated runtime-error case 反写回 caller `surface_ty` / outward `StepSchema`；
+       - 不把该路径降级成 backend 私有 hidden trap / outcome side channel；
+       - 若最终语义是 fatal/abort，也必须作为已发布 runtime contract 明确暴露，而不是 `P6-T03` 自己临时决定。
+  3. 把新 contract 接入稳定 dump/query 面。
+     - `dump-effect-lowered` 必须能公开 `LocalRuntimeError` 的 terminal action；
+     - `RefactorAbiQuery` 或等价查询面必须能让 backend 稳定回查这条 terminal contract；
+     - 若 terminal action 缺失、漂移、或与 state graph / payload contract 不一致，必须在 P5/P6 边界 fail fast。
+  4. 补充定向回归。
+     - 至少覆盖：
+       - `tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 中 pure caller `main -> run(...)` 的 local runtime-error synthetic state 已拥有 backend 可执行的 terminal contract；
+       - 缺失该 terminal contract 时会显式拒绝，而不是把责任留给 `P6-T03` 现场猜测。
+
+- 必须遵从的约束：
+  - 禁止把 `LocalRuntimeError(payload_tuple_ty=...)` 当成“backend 自己知道怎么收尾”的非正式约定。
+  - 禁止用未发布的 panic/abort 路径掩盖 handoff 缺失。
+  - 禁止借机扩大 pure caller 的 outward row / callable surface。
+
+- 验证：
+  - `cargo test -p scoopc refactor_boundary_lowering`
+  - `cargo test -p scoopc refactor_effect_lowered_stage`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+- 完成条件：
+  - `LocalRuntimeError` synthetic state 已拥有 authoritative、可 lower 的 terminal contract；
+  - `P6-T03` 可以只消费已发布 contract lower pure caller runtime-error 结束路径，而不再需要 backend 现场发明语义。
+- 依赖：`P6-T02e`
+- 完成记录：
+  - 2026-05-03：完成 `P6-T02h`。在 `crates/scoopc/src/effect_lowered/{ir,materialize,dump}.rs` 中把 pure caller `LocalRuntimeError` synthetic state 升级为结构化 terminal contract：`LateLoweredConsumedRuntimeErrorCase` 与 `LateLoweredStateTerminator::LocalRuntimeError` 现在都会 authoritative 地携带 `RuntimeFatal(runtime_entry=scoop_runtime_error_fatal)` terminal action，而不再只暴露 `payload_tuple_ty` 的非正式约定。`dump-effect-lowered` 也会同步公开 boundary/state 两侧的 terminal action。
+  - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 中为 `RefactorAbiQuery` 新增 LLVM 级 local runtime-error terminal contract：query 现在不仅发布 `input_case_tag / payload_abi / target_state`，还会发布对应的 runtime-fatal entry symbol/type，并在 P5/P6 边界对 `target_state`、payload、terminal action 一致性执行 fail-fast 校验，禁止 backend 在 `P6-T03` 现场自行决定 pure caller runtime-error 的结束路径。
+  - 2026-05-03：在 `crates/scoopc/src/llvm/codegen/{runtime_symbols,runtime_abi}.rs` 与 `runtime/c/scoop_runtime.c` 中新增已发布 runtime entry `scoop_runtime_error_fatal(void* runtime_error)`。当前实现仍是立即终止，但该语义现在被显式固定在 runtime contract 中，而不是藏在 backend 私有 trap 约定里。
+  - 2026-05-03：新增/更新定向回归：`refactor_boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls`、`refactor_effect_lowered_stage_dump_exposes_local_runtime_error_call_contract`、`refactor_llvm_local_runtime_error_contract_*`，覆盖 published terminal action、module symbol 声明，以及缺失 target state / 缺失 LocalRuntimeError terminator 时的 fail-fast。
+  - 已运行验证：
+    - `cargo test -p scoopc refactor_boundary_lowering`
+    - `cargo test -p scoopc refactor_effect_lowered_stage`
+    - `cargo test -p scoopc refactor_llvm_local_runtime_error_contract`
+    - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1212,7 +1284,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P5-T07a
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P5-T07a
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -1224,6 +1296,8 @@
   - 因此新增前置任务 `P6-T02f`，先把 straight-line source-slice non-boundary dynamic call 的 callable-object ABI/query contract 显式发布出来，再继续本任务。
   - 2026-05-03：继续核对 actual dynamic call lowering 时发现第五个 blocker。虽然 `P6-T02d` / `P6-T02f` 已经发布了 dynamic invoke query，但 runtime callable carrier 仍没有 authoritative 地指向这套 refactor target：`crates/scoopc/src/llvm/codegen/{mir_body.rs,closure/mod.rs}` 仍把 closure object `fn_ptr` 写成普通 lambda/top-level LLVM function 指针，`crates/scoopc/src/llvm/codegen/gc.rs` 仍用 `declare_top_level_fun(...)` 的普通符号去填 class vtable / interface itable method 槽位。若直接继续 `P6-T03`，backend 仍会被迫在现场把 legacy 普通 ABI remap 到 refactor dynamic entry，或借壳旧 closure/vtable/itable dispatch helper，违背 `P6-T02d` / `P6-T02f` 明确禁止的 contract-first 边界。
   - 因此新增前置任务 `P6-T02g`，先把 callable carrier -> canonical dynamic entry 的 published contract 接到 closure/vtable/itable materialization，再继续本任务。
+  - 2026-05-03：继续设计 `LocalRuntimeError` synthetic state lowering 时发现第六个 blocker。当前 late-lowered / ABI handoff 只为 pure caller call boundary 发布了 `input_case_tag` / `payload_abi` / `target_state`，但 `LateLoweredStateTerminator::LocalRuntimeError` 本身仍只携带 `payload_tuple_ty`，没有 authoritative terminal action 来说明 backend 应把这条 ordinary runtime-error 结束到哪条已发布语义路径。若直接继续 `P6-T03`，backend 将不得不现场决定是走 local catch、显式 outward emission，还是 runtime fatal path，违背 `P6-T02e` 本应建立的 contract-first 边界。
+  - 因此新增前置任务 `P6-T02h`，先把 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering/runtime contract 显式发布出来，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 

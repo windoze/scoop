@@ -15,12 +15,14 @@ use super::ir::{
     LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
     LateLoweredContinuationContract, LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
-    LateLoweredDynamicInvokeEntry, LateLoweredHandleBoundaryLowering, LateLoweredOneShotPolicy,
-    LateLoweredPerformBoundaryLowering, LateLoweredResumeBoundaryLowering,
-    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredRuntimeErrorBoundaryLowering,
-    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateTerminator,
-    LateLoweredStepCase, LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding,
-    LateLoweredStepDispatchPlan, LateLoweredStepType, ResumeInterfaceId, StateId,
+    LateLoweredDynamicInvokeEntry, LateLoweredHandleBoundaryLowering,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy,
+    LateLoweredPerformBoundaryLowering, LateLoweredPublishedRuntimeEntry,
+    LateLoweredResumeBoundaryLowering, LateLoweredResumeInterface, LateLoweredResumeMethod,
+    LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState, LateLoweredStateGraph,
+    LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepCase,
+    LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
+    LateLoweredStepType, ResumeInterfaceId, StateId,
 };
 use super::ir::{LateLoweredBodyVersionKey, LateLoweredBoundarySource};
 
@@ -70,6 +72,7 @@ struct PendingConsumedRuntimeErrorCase {
     input_case_tag: crate::effect_facts::CaseTag,
     input_concrete_op_key: ConcreteOpKey,
     payload_tuple_ty: crate::ty::TypeId,
+    terminal_action: LateLoweredLocalRuntimeErrorTerminalAction,
 }
 
 struct LocalRuntimeErrorStateTarget {
@@ -77,6 +80,7 @@ struct LocalRuntimeErrorStateTarget {
     owner_state: StateId,
     target_state: StateId,
     payload_tuple_ty: crate::ty::TypeId,
+    terminal_action: LateLoweredLocalRuntimeErrorTerminalAction,
 }
 
 struct CallBoundaryDispatchInputs<'a> {
@@ -273,11 +277,13 @@ pub(crate) fn materialize_boundary_map(
                             owner_state: boundary.owner_state(),
                             target_state,
                             payload_tuple_ty: pending.payload_tuple_ty,
+                            terminal_action: pending.terminal_action,
                         });
                         LateLoweredConsumedRuntimeErrorCase::new(
                             pending.input_case_tag,
                             pending.input_concrete_op_key,
                             pending.payload_tuple_ty,
+                            pending.terminal_action,
                             target_state,
                         )
                     });
@@ -432,6 +438,7 @@ fn attach_local_runtime_error_states(
             Vec::new(),
             LateLoweredStateTerminator::LocalRuntimeError {
                 payload_tuple_ty: target.payload_tuple_ty,
+                terminal_action: target.terminal_action,
             },
         ));
     }
@@ -875,6 +882,7 @@ fn build_call_boundary_dispatch_plan(
                 input_case_tag: input_case.case_tag(),
                 input_concrete_op_key: input_case.concrete_op_key().clone(),
                 payload_tuple_ty: input_case.payload_tuple_ty(),
+                terminal_action: local_runtime_error_terminal_action(),
             });
             continue;
         }
@@ -900,6 +908,12 @@ fn build_call_boundary_dispatch_plan(
         ),
         consumed_runtime_error_case,
     })
+}
+
+fn local_runtime_error_terminal_action() -> LateLoweredLocalRuntimeErrorTerminalAction {
+    LateLoweredLocalRuntimeErrorTerminalAction::RuntimeFatal {
+        runtime_entry: LateLoweredPublishedRuntimeEntry::RuntimeErrorFatal,
+    }
 }
 
 fn build_current_step_emission(
@@ -1350,6 +1364,13 @@ mod tests {
                     .to_string(),
                 "scoop.core.RuntimeError"
             );
+            assert_eq!(
+                runtime_error_case.terminal_action(),
+                crate::effect_lowered::ir::LateLoweredLocalRuntimeErrorTerminalAction::RuntimeFatal {
+                    runtime_entry:
+                        crate::effect_lowered::ir::LateLoweredPublishedRuntimeEntry::RuntimeErrorFatal,
+                }
+            );
             let target_state = main
                 .state_graph()
                 .states()
@@ -1370,7 +1391,9 @@ mod tests {
                 target_state.terminator(),
                 crate::effect_lowered::ir::LateLoweredStateTerminator::LocalRuntimeError {
                     payload_tuple_ty,
+                    terminal_action,
                 } if *payload_tuple_ty == runtime_error_case.payload_tuple_ty()
+                    && *terminal_action == runtime_error_case.terminal_action()
             ));
         }
     }

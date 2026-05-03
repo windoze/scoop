@@ -64,6 +64,7 @@ pub(super) const SCOOP_LEAVE_NATIVE: &str = "scoop_leave_native";
 pub(super) const SCOOP_ONCE_BEGIN: &str = "scoop_once_begin";
 pub(super) const SCOOP_ONCE_END: &str = "scoop_once_end";
 pub(super) const SCOOP_PANIC: &str = "scoop_panic";
+pub(super) const SCOOP_RUNTIME_ERROR_FATAL: &str = "scoop_runtime_error_fatal";
 pub(super) const SCOOP_PIN: &str = "scoop_pin";
 pub(super) const SCOOP_BOOL_TO_STRING: &str = "scoop_bool_to_string";
 pub(super) const SCOOP_CHAR_TO_STRING: &str = "scoop_char_to_string";

@@ -370,6 +370,7 @@ fun leaf(): Unit / Ping {
         assert!(dump.contains("consumed_runtime_error_case:"));
         assert!(dump.contains("target=st"));
         assert!(dump.contains("local_runtime_error=[st"));
+        assert!(dump.contains("terminal=RuntimeFatal(runtime_entry=scoop_runtime_error_fatal)"));
         assert!(dump.contains("LocalRuntimeError(payload_tuple_ty="));
     }
 

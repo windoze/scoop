@@ -5,5 +5,6 @@
 //! 后续 P6-T02/P6-T04 会在该目录下继续填入 type/layout/body/gc/runtime 等细分模块，
 //! 逐步把 refactor effect lowering 从 legacy `effect/` 主题中彻底拆开。
 
+mod body;
 mod layout;
 mod types;

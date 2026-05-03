@@ -15,9 +15,9 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use super::*;
 
 #[derive(Clone, Copy)]
-struct MirLocalSlot<'ctx> {
-    cg_ty: CgTy,
-    ptr: PointerValue<'ctx>,
+pub(super) struct MirLocalSlot<'ctx> {
+    pub(super) cg_ty: CgTy,
+    pub(super) ptr: PointerValue<'ctx>,
 }
 
 #[derive(Clone, Copy)]
@@ -581,7 +581,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn create_mir_local_slots(
+    pub(super) fn create_mir_local_slots(
         &mut self,
         body: &crate::mir::Body,
         mir_types: &TypeStore,
@@ -1003,7 +1003,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn cg_ty_of_mir_type(&self, mir_types: &TypeStore, ty: TypeId) -> Option<CgTy> {
+    pub(super) fn cg_ty_of_mir_type(&self, mir_types: &TypeStore, ty: TypeId) -> Option<CgTy> {
         match mir_types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
             TypeKind::Ref(_) => Some(CgTy::Ref),
@@ -1042,7 +1042,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn equivalent_codegen_type_id(
+    pub(super) fn equivalent_codegen_type_id(
         &self,
         source_types: &TypeStore,
         source_ty: TypeId,
@@ -1053,7 +1053,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .find(|&candidate| self.types.display(candidate).to_string() == source_display)
     }
 
-    fn equivalent_codegen_effect_row(
+    pub(super) fn equivalent_codegen_effect_row(
         &self,
         source_types: &TypeStore,
         source_row: &crate::ty::EffectRow,
@@ -1065,7 +1065,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Some(crate::ty::EffectRow::new(terms))
     }
 
-    fn equivalent_codegen_function_type(
+    pub(super) fn equivalent_codegen_function_type(
         &self,
         source_types: &TypeStore,
         fun_ty: &crate::ty::FunctionType,
@@ -1087,7 +1087,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn mir_local_cg_ty(
+    pub(super) fn mir_local_cg_ty(
         &self,
         body: &crate::mir::Body,
         mir_types: &TypeStore,
@@ -1097,7 +1097,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.cg_ty_of_mir_type(mir_types, local.ty)
     }
 
-    fn mir_operand_cg_ty(
+    pub(super) fn mir_operand_cg_ty(
         &self,
         body: &crate::mir::Body,
         mir_types: &TypeStore,
@@ -1109,7 +1109,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn mir_const_cg_ty(&self, value: &crate::mir::ConstValue) -> Option<CgTy> {
+    pub(super) fn mir_const_cg_ty(&self, value: &crate::mir::ConstValue) -> Option<CgTy> {
         match value {
             crate::mir::ConstValue::Bool(_) => Some(CgTy::Bool),
             crate::mir::ConstValue::Char => Some(CgTy::Int(IntTy {
@@ -1343,7 +1343,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn codegen_mir_statement(
+    pub(super) fn codegen_mir_statement(
         &mut self,
         stmt: &crate::mir::Statement,
         body: &crate::mir::Body,
@@ -1704,7 +1704,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn codegen_mir_operand(
+    pub(super) fn codegen_mir_operand(
         &mut self,
         span: crate::span::Span,
         operand: &crate::mir::Operand,
@@ -1713,7 +1713,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_mir_operand_expected(span, operand, slots, None)
     }
 
-    fn codegen_mir_operand_expected(
+    pub(super) fn codegen_mir_operand_expected(
         &mut self,
         span: crate::span::Span,
         operand: &crate::mir::Operand,
@@ -3028,11 +3028,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             fn_ptr,
             llvm_fun.as_global_value().as_pointer_value(),
         )?;
-        let fn_i8 = self.builder.build_pointer_cast(
-            fn_ptr,
-            i8_ptr_ty,
-            "pass_mir_closure_fn_i8",
-        )?;
+        let fn_i8 = self
+            .builder
+            .build_pointer_cast(fn_ptr, i8_ptr_ty, "pass_mir_closure_fn_i8")?;
         let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
             span,
             "pass_mir_closure_obj_store_fn",
@@ -4011,7 +4009,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn mir_local_slot(
+    pub(super) fn mir_local_slot(
         &self,
         span: crate::span::Span,
         slots: &[MirLocalSlot<'ctx>],
@@ -4026,7 +4024,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
-    fn load_mir_local(
+    pub(super) fn load_mir_local(
         &mut self,
         span: crate::span::Span,
         slot: MirLocalSlot<'ctx>,
@@ -4144,7 +4142,7 @@ fn map_mir_call_args_to_param_names(
     (out.len() == param_names.len()).then_some(out)
 }
 
-fn collect_mir_local_uses(body: &crate::mir::Body) -> HashSet<crate::mir::LocalId> {
+pub(super) fn collect_mir_local_uses(body: &crate::mir::Body) -> HashSet<crate::mir::LocalId> {
     let mut out = HashSet::new();
     for block in &body.blocks {
         for stmt in &block.stmts {

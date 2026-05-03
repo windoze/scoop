@@ -10,8 +10,9 @@ use crate::effect_facts::{
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundarySource, LateLoweredCallable,
-    LateLoweredContinuationObject, LateLoweredFrameSlotKind, LateLoweredResumeInterface,
-    LateLoweredStateTerminator, LateLoweredStepType, ResumeInterfaceId,
+    LateLoweredContinuationObject, LateLoweredFrameSlotKind,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPublishedRuntimeEntry,
+    LateLoweredResumeInterface, LateLoweredStateTerminator, LateLoweredStepType, ResumeInterfaceId,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{CallKind as MirCallKind, Rvalue as MirRvalue, StatementKind as MirStatementKind};
@@ -26,6 +27,7 @@ use super::types::{
     RefactorContinuationSurfaceResumeLayout, RefactorDispatchReceiverLayout,
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameFieldKind,
     RefactorFrameFieldLayout, RefactorFrameLayout, RefactorLocalRuntimeErrorContract,
+    RefactorLocalRuntimeErrorTerminalAction, RefactorPublishedRuntimeEntryLayout,
     RefactorResumeInterfaceLayout, RefactorResumeMethodLayout, RefactorStepCaseLayout,
     RefactorStepLayout, RefactorStepVariantLayout,
 };
@@ -1086,17 +1088,19 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             self.view.step_stem(callable_layout.step_schema())
         );
         self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
-        self.codegen.register_refactor_callable_carrier_entry_symbol(
-            RefactorCallableCarrierKind::ClosureObject,
-            callable.root_fqn(),
-            &symbol_name,
-        )?;
-        if let Some(alias) = legacy_hir_closure_carrier_alias(callable.root_fqn()) {
-            self.codegen.register_refactor_callable_carrier_entry_symbol(
+        self.codegen
+            .register_refactor_callable_carrier_entry_symbol(
                 RefactorCallableCarrierKind::ClosureObject,
-                &alias,
+                callable.root_fqn(),
                 &symbol_name,
             )?;
+        if let Some(alias) = legacy_hir_closure_carrier_alias(callable.root_fqn()) {
+            self.codegen
+                .register_refactor_callable_carrier_entry_symbol(
+                    RefactorCallableCarrierKind::ClosureObject,
+                    &alias,
+                    &symbol_name,
+                )?;
         }
         Ok(())
     }
@@ -1135,11 +1139,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             self.view.step_stem(callable_layout.step_schema())
         );
         self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
-        self.codegen.register_refactor_callable_carrier_entry_symbol(
-            kind,
-            impl_fqn,
-            &symbol_name,
-        )?;
+        self.codegen
+            .register_refactor_callable_carrier_entry_symbol(kind, impl_fqn, &symbol_name)?;
         Ok(())
     }
 
@@ -1175,8 +1176,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 .skip(skip)
                 .map(|param| param.ty)
                 .collect::<Vec<_>>();
-            return self
-                .canonical_tuple_abi_from_types(&self.pass_view.materialized().types, &component_tys);
+            return self.canonical_tuple_abi_from_types(
+                &self.pass_view.materialized().types,
+                &component_tys,
+            );
         }
         if let Some(fun) = self.codegen.fun_index.get(root_fqn).copied() {
             let component_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
@@ -1583,17 +1586,27 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         contract.target_state().as_u32(),
                     )));
                 };
-                match target_state.terminator() {
-                    LateLoweredStateTerminator::LocalRuntimeError { payload_tuple_ty }
-                        if *payload_tuple_ty == contract.payload_tuple_ty() => {}
-                    LateLoweredStateTerminator::LocalRuntimeError { payload_tuple_ty } => {
+                let terminal_action = match target_state.terminator() {
+                    LateLoweredStateTerminator::LocalRuntimeError {
+                        payload_tuple_ty,
+                        terminal_action,
+                    } if *payload_tuple_ty == contract.payload_tuple_ty()
+                        && *terminal_action == contract.terminal_action() =>
+                    {
+                        *terminal_action
+                    }
+                    LateLoweredStateTerminator::LocalRuntimeError {
+                        payload_tuple_ty,
+                        terminal_action,
+                    } => {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 local runtime-error target state st{} payload 漂移：state_graph=t{}，boundary lowering=t{}",
+                            "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 local runtime-error target state st{} contract 漂移：state_graph=(payload_tuple_ty=t{}, terminal_action={terminal_action:?})，boundary lowering=(payload_tuple_ty=t{}, terminal_action={:?})",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             contract.target_state().as_u32(),
                             payload_tuple_ty.as_u32(),
                             contract.payload_tuple_ty().as_u32(),
+                            contract.terminal_action(),
                         )));
                     }
                     other => {
@@ -1604,7 +1617,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                             contract.target_state().as_u32(),
                         )));
                     }
-                }
+                };
                 let key = (callable.step_schema(), site_id);
                 if contracts.contains_key(&key) {
                     return Err(frontend_error(format!(
@@ -1613,6 +1626,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         site_id.as_u32(),
                     )));
                 }
+                let payload_abi = self.abi_value(contract.payload_tuple_ty())?;
+                let terminal_action = self.materialize_local_runtime_error_terminal_action(
+                    terminal_action,
+                    payload_abi,
+                )?;
                 contracts.insert(
                     key,
                     RefactorLocalRuntimeErrorContract::new(
@@ -1620,13 +1638,55 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         site_id,
                         contract.input_case_tag(),
                         contract.payload_tuple_ty(),
-                        self.abi_value(contract.payload_tuple_ty())?,
+                        payload_abi,
+                        terminal_action,
                         contract.target_state(),
                     ),
                 );
             }
         }
         Ok(contracts)
+    }
+
+    fn materialize_local_runtime_error_terminal_action(
+        &mut self,
+        action: LateLoweredLocalRuntimeErrorTerminalAction,
+        payload_abi: RefactorAbiValue<'ctx>,
+    ) -> Result<RefactorLocalRuntimeErrorTerminalAction<'ctx>, LlvmEmitError> {
+        match action {
+            LateLoweredLocalRuntimeErrorTerminalAction::RuntimeFatal { runtime_entry } => {
+                Ok(RefactorLocalRuntimeErrorTerminalAction::RuntimeFatal {
+                    runtime_entry: self
+                        .materialize_published_runtime_entry(runtime_entry, payload_abi)?,
+                })
+            }
+        }
+    }
+
+    fn materialize_published_runtime_entry(
+        &mut self,
+        runtime_entry: LateLoweredPublishedRuntimeEntry,
+        payload_abi: RefactorAbiValue<'ctx>,
+    ) -> Result<RefactorPublishedRuntimeEntryLayout<'ctx>, LlvmEmitError> {
+        match runtime_entry {
+            LateLoweredPublishedRuntimeEntry::RuntimeErrorFatal => {
+                if payload_abi.is_elided() {
+                    return Err(frontend_error(
+                        "refactor LLVM ABI materialization 不允许把 local runtime-error payload 退化成零载荷 runtime fatal contract"
+                            .to_string(),
+                    ));
+                }
+                self.codegen.declare_runtime_error_fatal();
+                let params: [BasicMetadataTypeEnum<'ctx>; 1] = [payload_abi.llvm_ty().into()];
+                let llvm_ty = self.codegen.context.void_type().fn_type(&params, false);
+                Ok(RefactorPublishedRuntimeEntryLayout::new(
+                    runtime_entry,
+                    runtime_entry.symbol_name().to_string(),
+                    llvm_ty,
+                    params.len(),
+                ))
+            }
+        }
     }
 
     fn body_effect_facts(
@@ -1834,11 +1894,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     })?;
                     return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
                 }
-                let key = crate::hir::mangle_nominal_fqn(
-                    "scoop.core.Option",
-                    &[*inner],
-                    types,
-                );
+                let key = crate::hir::mangle_nominal_fqn("scoop.core.Option", &[*inner], types);
                 let layout = self.codegen.enum_layouts.get(&key).ok_or_else(|| {
                     frontend_error(format!(
                         "refactor LLVM ABI materialization 缺少 `{}` 的 enum layout",
@@ -2482,6 +2538,25 @@ mod tests {
             callable.state_graph().clone(),
             callable.frame_schema().clone(),
             boundary_map,
+            callable.resume_state_map().clone(),
+            callable.continuation_object(),
+            callable.resume_interfaces().to_vec(),
+        )
+    }
+
+    fn clone_callable_with_state_graph(
+        callable: &LateLoweredCallable,
+        state_graph: crate::effect_lowered::ir::LateLoweredStateGraph,
+    ) -> LateLoweredCallable {
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            callable.dynamic_invoke_entry().clone(),
+            state_graph,
+            callable.frame_schema().clone(),
+            callable.boundary_map().clone(),
             callable.resume_state_map().clone(),
             callable.continuation_object(),
             callable.resume_interfaces().to_vec(),
@@ -3530,13 +3605,10 @@ mod tests {
                     .callable_layout_by_root_fqn("fixtures.build.Derived.ping")
                     .expect("Derived.ping callable layout 应存在");
 
-                let closure_symbol = make_closure
-                    .dynamic_entry()
-                    .symbol_name()
-                    .replace(
-                        "__scoop_refactor_dynamic_invoke__",
-                        "__scoop_refactor_closure_dynamic_entry__",
-                    );
+                let closure_symbol = make_closure.dynamic_entry().symbol_name().replace(
+                    "__scoop_refactor_dynamic_invoke__",
+                    "__scoop_refactor_closure_dynamic_entry__",
+                );
                 let base_vtable_symbol = base_ping.dynamic_entry().symbol_name().replace(
                     "__scoop_refactor_dynamic_invoke__",
                     "__scoop_refactor_vtable_dynamic_entry__",
@@ -3602,7 +3674,8 @@ mod tests {
                     "错误消息应指出缺失 shell 的 target callable: {message}"
                 );
                 assert!(
-                    message.contains("published target entry") || message.contains("class vtable slot"),
+                    message.contains("published target entry")
+                        || message.contains("class vtable slot"),
                     "错误消息应指出问题出在 carrier target 发布: {message}"
                 );
             },
@@ -3615,7 +3688,7 @@ mod tests {
             "run-pass",
             "effect_resume_if_else_branch_single_perform.scoop",
             |inputs| inputs.abi_visibility_program.clone(),
-            |inputs, result, _module| {
+            |inputs, result, module| {
                 let query =
                     result.expect("pure caller local runtime-error contract 应可发布到 ABI query");
                 let main = inputs
@@ -3642,10 +3715,25 @@ mod tests {
                     assert_eq!(published.site_id(), site_id);
                     assert_eq!(published.input_case_tag(), contract.input_case_tag());
                     assert_eq!(published.payload_tuple_ty(), contract.payload_tuple_ty());
+                    assert_eq!(
+                        published.terminal_action().lowered_action(),
+                        contract.terminal_action()
+                    );
                     assert_eq!(published.target_state(), contract.target_state());
                     assert!(
                         !published.payload_abi().is_elided(),
                         "RuntimeError payload 不应被零载荷退化"
+                    );
+                    let runtime_entry = published.terminal_action().runtime_entry();
+                    assert_eq!(
+                        runtime_entry.kind(),
+                        LateLoweredPublishedRuntimeEntry::RuntimeErrorFatal
+                    );
+                    assert_eq!(runtime_entry.symbol_name(), "scoop_runtime_error_fatal");
+                    assert_eq!(runtime_entry.param_count(), 1);
+                    assert!(
+                        module.get_function(runtime_entry.symbol_name()).is_some(),
+                        "published runtime fatal entry 应声明到 LLVM module 中"
                     );
                     checked += 1;
                 }
@@ -3685,6 +3773,7 @@ mod tests {
                                                 contract.input_case_tag(),
                                                 contract.input_concrete_op_key().clone(),
                                                 contract.payload_tuple_ty(),
+                                                contract.terminal_action(),
                                                 StateId::new(999),
                                             )
                                         });
@@ -3736,6 +3825,87 @@ mod tests {
                 assert!(
                     message.contains("local runtime-error target state"),
                     "错误消息应指出缺失的是 local runtime-error target state: {message}"
+                );
+                assert!(
+                    message.contains("main") && message.contains("call site 1"),
+                    "错误消息应指出缺失 contract 所属的 callable 和 site id: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_local_runtime_error_contract_rejects_non_local_runtime_error_terminator() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let main = program.callable("main").expect("main callable 应存在");
+                let local_runtime_error_states = main
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .filter_map(|boundary| {
+                        let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering()
+                        else {
+                            return None;
+                        };
+                        lowering
+                            .consumed_runtime_error_case()
+                            .map(|contract| contract.target_state())
+                    })
+                    .collect::<BTreeSet<_>>();
+                let rewritten_states = main
+                    .state_graph()
+                    .states()
+                    .iter()
+                    .map(|state| {
+                        if !local_runtime_error_states.contains(&state.state_id()) {
+                            return state.clone();
+                        }
+                        crate::effect_lowered::ir::LateLoweredState::new(
+                            state.state_id(),
+                            state.role(),
+                            state.source_slices().to_vec(),
+                            crate::effect_lowered::ir::LateLoweredStateTerminator::Unreachable,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let state_graph = crate::effect_lowered::ir::LateLoweredStateGraph::new(
+                    main.state_graph().entry_state(),
+                    main.state_graph().complete_state(),
+                    main.state_graph().cleanup_state(),
+                    main.state_graph().drop_state(),
+                    rewritten_states,
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == main.step_schema() {
+                            clone_callable_with_state_graph(candidate, state_graph.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 LocalRuntimeError terminal contract 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("不是 LocalRuntimeError terminator"),
+                    "错误消息应指出 local runtime-error target state 缺少终止 contract: {message}"
                 );
                 assert!(
                     message.contains("main") && message.contains("call site 1"),

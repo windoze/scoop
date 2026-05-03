@@ -963,10 +963,39 @@ pub enum LateLoweredStateTerminator {
     },
     LocalRuntimeError {
         payload_tuple_ty: TypeId,
+        terminal_action: LateLoweredLocalRuntimeErrorTerminalAction,
     },
     ResumeUnwind,
     Unreachable,
     Abandon,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredPublishedRuntimeEntry {
+    RuntimeErrorFatal,
+}
+
+impl LateLoweredPublishedRuntimeEntry {
+    pub fn symbol_name(&self) -> &'static str {
+        match self {
+            Self::RuntimeErrorFatal => "scoop_runtime_error_fatal",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredLocalRuntimeErrorTerminalAction {
+    RuntimeFatal {
+        runtime_entry: LateLoweredPublishedRuntimeEntry,
+    },
+}
+
+impl LateLoweredLocalRuntimeErrorTerminalAction {
+    pub fn runtime_entry(&self) -> LateLoweredPublishedRuntimeEntry {
+        match self {
+            Self::RuntimeFatal { runtime_entry } => *runtime_entry,
+        }
+    }
 }
 
 impl LateLoweredStateTerminator {
@@ -1375,6 +1404,7 @@ pub struct LateLoweredConsumedRuntimeErrorCase {
     input_case_tag: CaseTag,
     input_concrete_op_key: ConcreteOpKey,
     payload_tuple_ty: TypeId,
+    terminal_action: LateLoweredLocalRuntimeErrorTerminalAction,
     target_state: StateId,
 }
 
@@ -1383,12 +1413,14 @@ impl LateLoweredConsumedRuntimeErrorCase {
         input_case_tag: CaseTag,
         input_concrete_op_key: ConcreteOpKey,
         payload_tuple_ty: TypeId,
+        terminal_action: LateLoweredLocalRuntimeErrorTerminalAction,
         target_state: StateId,
     ) -> Self {
         Self {
             input_case_tag,
             input_concrete_op_key,
             payload_tuple_ty,
+            terminal_action,
             target_state,
         }
     }
@@ -1403,6 +1435,10 @@ impl LateLoweredConsumedRuntimeErrorCase {
 
     pub fn payload_tuple_ty(&self) -> TypeId {
         self.payload_tuple_ty
+    }
+
+    pub fn terminal_action(&self) -> LateLoweredLocalRuntimeErrorTerminalAction {
+        self.terminal_action
     }
 
     pub fn target_state(&self) -> StateId {

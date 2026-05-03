@@ -10,9 +10,10 @@ use super::ir::{
     LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
-    LateLoweredOneShotPolicy, LateLoweredProgram, LateLoweredResumeInterface,
-    LateLoweredResumeMethod, LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph,
-    LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredProgram,
+    LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredResumeMethod,
+    LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
+    LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
     LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
     LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
 };
@@ -558,11 +559,12 @@ fn render_consumed_runtime_error_case(
 ) {
     writeln!(
         rendered,
-        "            consumed_runtime_error_case: in c{} op={} payload_tuple_ty={} target=st{}",
+        "            consumed_runtime_error_case: in c{} op={} payload_tuple_ty={} target=st{} terminal={}",
         runtime_error_case.input_case_tag().as_u32(),
         render_concrete_op_key(runtime_error_case.input_concrete_op_key()),
         render_type_id(runtime_error_case.payload_tuple_ty()),
         runtime_error_case.target_state().as_u32(),
+        render_local_runtime_error_terminal_action(runtime_error_case.terminal_action()),
     )
     .unwrap();
 }
@@ -822,16 +824,37 @@ fn render_state_terminator(terminator: &LateLoweredStateTerminator) -> String {
             render_boundary_ids(boundary_ids),
             render_optional_state(*drop_state),
         ),
-        LateLoweredStateTerminator::LocalRuntimeError { payload_tuple_ty } => {
+        LateLoweredStateTerminator::LocalRuntimeError {
+            payload_tuple_ty,
+            terminal_action,
+        } => {
             format!(
-                "LocalRuntimeError(payload_tuple_ty={})",
-                render_type_id(*payload_tuple_ty)
+                "LocalRuntimeError(payload_tuple_ty={}, terminal={})",
+                render_type_id(*payload_tuple_ty),
+                render_local_runtime_error_terminal_action(*terminal_action)
             )
         }
         LateLoweredStateTerminator::ResumeUnwind => "ResumeUnwind".to_string(),
         LateLoweredStateTerminator::Unreachable => "Unreachable".to_string(),
         LateLoweredStateTerminator::Abandon => "Abandon".to_string(),
     }
+}
+
+fn render_local_runtime_error_terminal_action(
+    action: LateLoweredLocalRuntimeErrorTerminalAction,
+) -> String {
+    match action {
+        LateLoweredLocalRuntimeErrorTerminalAction::RuntimeFatal { runtime_entry } => {
+            format!(
+                "RuntimeFatal(runtime_entry={})",
+                render_published_runtime_entry(runtime_entry)
+            )
+        }
+    }
+}
+
+fn render_published_runtime_entry(entry: LateLoweredPublishedRuntimeEntry) -> &'static str {
+    entry.symbol_name()
 }
 
 fn render_frame_slot_kind(kind: LateLoweredFrameSlotKind) -> String {

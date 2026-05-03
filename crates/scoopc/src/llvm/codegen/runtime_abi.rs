@@ -425,6 +425,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_error_fatal(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_RUNTIME_ERROR_FATAL;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_runtime_error_fatal(void* runtime_error)`
+        let payload_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [payload_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     // --- std v3：sync（T1319b） ---
 
     pub(super) fn declare_runtime_sync_mutex_create(&self) -> FunctionValue<'ctx> {
