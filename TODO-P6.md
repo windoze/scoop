@@ -593,6 +593,54 @@
   - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02b：让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.2, §5.3.2-§5.3.4
+  - `crates/scoopc/src/effect_lowered/materialize.rs`
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs`
+- 背景：
+  - `P6-T02R` 复审发现：`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中 `materialize_resume_interface_layout(...)` 当前会校验每个已发布 method 的 case tag、effect family、`concrete_op_key`、continuation contract 与 `out_step_schema` 是否和 step shell 对齐；
+  - 但它只把 `published_case_tags` 用于检查“重复发布”，没有把这组 case tag 与同一 `effect_family` 在 authoritative `LateLoweredStepType.cases()` 中应有的完整 case 集做最终比对；
+  - 结果是：如果 `LateLoweredResumeInterface.methods()` 少发了某个 authoritative case，P6 仍会静默接受并物化缩水的 vtable / method 布局，而不是 fail fast；
+  - 这违背了 `P6-T02` 对“resume interface method 集必须完整”的要求，也违背了 `P6-T02a` 对“P6 只能消费并验证 authoritative handoff，不能掩盖缺口”的要求。
+- 目标：
+  - 让 refactor LLVM ABI materializer 在 authoritative resume-interface shell 缺失 method 时返回结构化错误；
+  - 同时保持“method 顺序仍由 `LateLoweredResumeInterface.methods()` authoritative 发布顺序决定”，只做校验，不做补造或重排。
+
+- 必须实现的内容：
+  1. 在 `materialize_resume_interface_layout(...)` 中加入 authoritative method completeness 校验。
+     - 以当前 interface 的 `effect_family` + `return_step_schema` 为键，找出同一 authoritative `LateLoweredStepType` 中应由该 interface 覆盖的全部 case；
+     - 将该期望 case 集与 `LateLoweredResumeInterface.methods()` 实际发布的 case 集做对比；
+     - 若缺失任一 authoritative case，必须返回结构化错误并指出缺失的 case tag / interface id / step schema。
+  2. 明确禁止在校验失败时现场补造 method shell。
+     - 可以借助 `StepType` 回查期望 case 集做验证；
+     - 但不能像旧的 interface-id 漂移问题那样，在 P6 现场把缺失 method 自动补回去。
+  3. 保持 authoritative method 顺序不变。
+     - 对合法输入，vtable index 仍必须严格跟随 `LateLoweredResumeInterface.methods()` 的发布顺序；
+     - 校验逻辑不能把 method 集重新排序后再写回布局层。
+  4. 补充定向测试。
+     - 至少新增一个“故意从 authoritative resume interface 中删掉某个 method”的构造路径；
+     - 断言 ABI materializer 会显式拒绝，而不是继续产出缺失 method 的 interface layout。
+
+- 必须遵从的约束：
+  - 禁止把“缺失 method 时继续接受缩小后的 vtable”当作合法 ABI 变体；
+  - 禁止通过按 case tag 排序重写 `LateLoweredResumeInterface.methods()` 来掩盖缺口；
+  - 禁止把缺失 method 的修补下放到后续 P6-T03 body emitter。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_continuation_layout`
+  - `cargo test -p scoopc refactor_resume_interface_completeness_groups_methods_by_effect_family`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+
+- 完成条件：
+  - authoritative resume-interface shell 缺失 method 时，refactor LLVM ABI materializer 会 fail fast；
+  - 对合法输入，resume-interface method 顺序与 vtable index 仍严格跟随 authoritative published order；
+  - `P6-T02R` 可以据此继续确认 LLVM type/layout 合同已真正闭合。
+- 依赖：P6-T02a
+
 ## P6-T02R：Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型
 
 - 参考：
@@ -622,11 +670,14 @@
 - 完成条件：
   - review 能明确说明：refactor LLVM type/layout 合同已经固定，后续 body emitter 不会再回旧 contract 或 HIR 现场补 ABI；
   - 可进入 P6-T03。
-- 依赖：P6-T02a
+- 依赖：P6-T02b
 - 完成记录：
   - 2026-05-03：审阅发现 blocker。`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 当前仍会在 `derive_resume_interface_specs()` 中按 `(step_schema, effect_family)` 补齐/合成缺失的 `ResumeInterfaceId`，并在 `materialize_continuation_object_layout(...)` / `materialize_callable_layout(...)` 中继续消费按 step-schema 汇总的派生 interface 列表，而不是严格使用 `LateLoweredContinuationObject.implemented_interfaces()` / `LateLoweredCallable.resume_interfaces()`。
   - 这意味着 refactor LLVM ABI query 仍可能掩盖 P5 handoff 漏发/错配的 resume-interface identity，后续 P6-T03 body emitter 若直接依赖该 query，仍会被迫 remap 或现场重建 interface contract，违背“P6 只消费 P5 authoritative handoff”的审阅目标。
   - 因此新增前置任务 `P6-T02a`，先收紧 ABI materializer 对 authoritative resume-interface contract 的消费边界；待该问题修复后再继续本 review。
+  - 2026-05-03：重新运行 `cargo test -p scoopc refactor_llvm_`、`cargo test -p scoopc refactor_resume_interface_completeness_groups_methods_by_effect_family`、三个 refactor build fixtures，以及一个 legacy build fixture 抽样；现有矩阵通过，且 `crates/scoopc/src/llvm/codegen/effect_refactor/**` 中未发现 `EffectSignal` / `EffectOutcome` / `LegacyEffectBoundary` 等 legacy ABI 载体残留。
+  - 同次复审发现新的 blocker：`materialize_resume_interface_layout(...)` 当前只用 `published_case_tags` 检查重复发布，却没有把 `LateLoweredResumeInterface.methods()` 与同一 `effect_family` 在 authoritative `LateLoweredStepType` 中应有的完整 case 集做比对；这意味着少发某个 authoritative method 时，P6 仍会静默接受缩水的 vtable / method 布局，违背“resume interface method 集必须完整且缺口必须 fail fast”的合同。
+  - 因此新增前置任务 `P6-T02b`，先补齐 authoritative resume-interface method completeness 校验，再继续本 review。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

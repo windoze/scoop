@@ -71,6 +71,7 @@
 | `P6-T01b` | `TODO-P6.md` | [DONE] 扩展 refactor build/LLVM handoff 的 ABI 可见性，保证 P6-T02 build fixtures 能在不触发 legacy lowering 的前提下观察 effectful `Step` / continuation 形状 |
 | `P6-T02` | `TODO-P6.md` | [DONE] 把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering |
 | `P6-T02a` | `TODO-P6.md` | [DONE] 让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity |
+| `P6-T02b` | `TODO-P6.md` | 让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell |
 | `P6-T02R` | `TODO-P6.md` | Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型 |
 | `P6-T03` | `TODO-P6.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
