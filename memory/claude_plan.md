@@ -87,3 +87,17 @@
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 - 已同步 `TODO-P6.md` / `TODO.md`：将 `P6-T02d` 标记为完成并写入完成记录；`PLAN.md` 无需更新，因为阶段级顺序与退出条件没有改变。
 - 下一步：检查最终 diff，确认只包含本任务需要提交的文件，然后使用 `P6-T02d` 提交信息原子提交并停止。
+
+## Task Plan: P6-T03
+1. 重新读取 `TODO.md` / `TODO-P6.md`，确认 `P6-T03` 是当前首个未完成详细任务。
+2. 阅读 refactor LLVM emit、ABI query 与 late-lowered handoff，判断是否可以直接实现 body lowering。
+3. 若不存在新的结构性 blocker，则实现 `P6-T03`、补测试、跑验证并完成任务。
+4. 若发现新的真实前置缺口，则最小化新增前置任务、同步索引、提交并停止。
+
+## Progress Log (Current Invocation: P6-T03 blocker triage)
+- 已重新读取 `TODO.md` / `TODO-P6.md`，确认当前首个未完成详细任务原本是 `P6-T03`。
+- 已检查最近提交 `[P6-T02d] Publish canonical dynamic invoke ABI query`，确认 `P6-T02c` / `P6-T02d` 均已完成。
+- 已阅读 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/codegen/effect_refactor/**`、`crates/scoopc/src/effect_lowered/{ir,materialize,dump}.rs`，并复跑 `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`。
+- 已确认新的 blocker：`LateLoweredCallBoundaryLowering::consumed_runtime_error_case` 只发布了 runtime-error case 身份，没有发布 caller-local 的 lowerable 控制流/边界合同；若继续实现 `P6-T03`，backend 就必须自行发明 pure caller 的 runtime-error 传播路径。
+- 已将该 blocker 登记为新的前置任务 `P6-T02e`，并同步更新 `TODO-P6.md` / `TODO.md`。
+- 本次调用接下来只会提交这批 blocker 记录与索引同步变更，然后停止；下一次调用应先完成 `P6-T02e`。
