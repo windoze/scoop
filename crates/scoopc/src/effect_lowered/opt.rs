@@ -531,6 +531,59 @@ fn redirect_handle_dispatch_contract(
         contract.outward_emissions().to_vec(),
         contract.pending_completions().to_vec(),
         contract
+            .state_regions()
+            .iter()
+            .map(|entry| {
+                crate::effect_lowered::ir::LateLoweredHandleStateRegionEntry::new(
+                    redirect_state_id(entry.state_id(), redirects),
+                    entry.region(),
+                )
+            })
+            .collect(),
+        contract
+            .boundary_routings()
+            .iter()
+            .map(|routing| {
+                let case_routings = routing
+                    .case_routings()
+                    .iter()
+                    .map(|route| {
+                        let action = match route.action() {
+                            crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                                arm_state,
+                                arm_ordinal,
+                                continuation_resume_state,
+                            } => crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                                arm_state: redirect_state_id(arm_state, redirects),
+                                arm_ordinal,
+                                continuation_resume_state: redirect_state_id(
+                                    continuation_resume_state,
+                                    redirects,
+                                ),
+                            },
+                            crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion {
+                                completion,
+                            } => crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion {
+                                completion,
+                            },
+                            crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward => crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward,
+                        };
+                        crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRouting::new(
+                            route.case_tag(),
+                            action,
+                        )
+                    })
+                    .collect();
+                crate::effect_lowered::ir::LateLoweredHandleBoundaryRouting::new(
+                    routing.boundary_id(),
+                    redirect_state_id(routing.owner_state(), redirects),
+                    routing.owner_region(),
+                    redirect_state_id(routing.resume_state(), redirects),
+                    case_routings,
+                )
+            })
+            .collect(),
+        contract
             .abandon_target()
             .map(|state_id| redirect_state_id(state_id, redirects)),
     )

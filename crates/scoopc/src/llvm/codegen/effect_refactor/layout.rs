@@ -1734,6 +1734,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             for state in handle_states {
                 let LateLoweredStateTerminator::HandleDispatch {
                     site_id,
+                    body_state,
                     arm_states,
                     finally_state,
                     exit_state,
@@ -1893,6 +1894,36 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         contract.pending_completions(),
                     )));
                 }
+
+                let expected_state_regions = build_expected_handle_state_regions(
+                    callable.root_fqn(),
+                    *site_id,
+                    callable.state_graph(),
+                    state.state_id(),
+                    *body_state,
+                    contract,
+                    *finally_state,
+                    *exit_state,
+                )?;
+                validate_published_handle_state_regions(
+                    callable.root_fqn(),
+                    *site_id,
+                    contract,
+                    &expected_state_regions,
+                )?;
+                let expected_boundary_routings = build_expected_handle_boundary_routings(
+                    callable.root_fqn(),
+                    *site_id,
+                    contract,
+                    &expected_state_regions,
+                    callable.boundary_map(),
+                )?;
+                validate_published_handle_boundary_routings(
+                    callable.root_fqn(),
+                    *site_id,
+                    contract,
+                    &expected_boundary_routings,
+                )?;
 
                 let mut completion_tags = BTreeMap::new();
                 let mut next_completion_tag = 1u32;
@@ -2772,6 +2803,501 @@ fn collect_handle_contract_pending_outward_cases(
     tags
 }
 
+#[allow(clippy::too_many_arguments)]
+fn build_expected_handle_state_regions(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    state_graph: &crate::effect_lowered::ir::LateLoweredStateGraph,
+    dispatch_state: crate::effect_lowered::ir::StateId,
+    body_state: crate::effect_lowered::ir::StateId,
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    finally_state: Option<crate::effect_lowered::ir::StateId>,
+    exit_state: crate::effect_lowered::ir::StateId,
+) -> Result<
+    BTreeMap<
+        crate::effect_lowered::ir::StateId,
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion,
+    >,
+    LlvmEmitError,
+> {
+    let mut regions = BTreeMap::new();
+    insert_expected_handle_state_region(
+        owner_root_fqn,
+        site_id,
+        &mut regions,
+        dispatch_state,
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion::Dispatch,
+    )?;
+    insert_expected_handle_state_region(
+        owner_root_fqn,
+        site_id,
+        &mut regions,
+        exit_state,
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion::Exit,
+    )?;
+
+    let mut stop_states = BTreeSet::from([dispatch_state, exit_state]);
+    stop_states.extend(
+        contract
+            .handled_arms()
+            .iter()
+            .map(crate::effect_lowered::ir::LateLoweredHandleArmDispatch::arm_state),
+    );
+    if let Some(finally_state) = finally_state {
+        stop_states.insert(finally_state);
+    }
+
+    for state_id in collect_expected_handle_region_states(
+        owner_root_fqn,
+        site_id,
+        state_graph,
+        body_state,
+        &stop_states,
+    )? {
+        insert_expected_handle_state_region(
+            owner_root_fqn,
+            site_id,
+            &mut regions,
+            state_id,
+            crate::effect_lowered::ir::LateLoweredHandleStateRegion::Body,
+        )?;
+    }
+
+    for arm in contract.handled_arms() {
+        let mut arm_stops = stop_states.clone();
+        arm_stops.remove(&arm.arm_state());
+        let region = crate::effect_lowered::ir::LateLoweredHandleStateRegion::Arm {
+            handled_case: arm.handled_case(),
+            arm_ordinal: arm.arm_ordinal(),
+        };
+        for state_id in collect_expected_handle_region_states(
+            owner_root_fqn,
+            site_id,
+            state_graph,
+            arm.arm_state(),
+            &arm_stops,
+        )? {
+            insert_expected_handle_state_region(
+                owner_root_fqn,
+                site_id,
+                &mut regions,
+                state_id,
+                region,
+            )?;
+        }
+    }
+
+    if let Some(finally_state) = finally_state {
+        let mut finally_stops = stop_states;
+        finally_stops.remove(&finally_state);
+        for state_id in collect_expected_handle_region_states(
+            owner_root_fqn,
+            site_id,
+            state_graph,
+            finally_state,
+            &finally_stops,
+        )? {
+            insert_expected_handle_state_region(
+                owner_root_fqn,
+                site_id,
+                &mut regions,
+                state_id,
+                crate::effect_lowered::ir::LateLoweredHandleStateRegion::Finally,
+            )?;
+        }
+    }
+
+    Ok(regions)
+}
+
+fn collect_expected_handle_region_states(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    state_graph: &crate::effect_lowered::ir::LateLoweredStateGraph,
+    entry_state: crate::effect_lowered::ir::StateId,
+    stop_states: &BTreeSet<crate::effect_lowered::ir::StateId>,
+) -> Result<BTreeSet<crate::effect_lowered::ir::StateId>, LlvmEmitError> {
+    if state_graph.state(entry_state).is_none() {
+        return Err(frontend_error(format!(
+            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 region root st{} 不存在于 state graph 中",
+            site_id.as_u32(),
+            entry_state.as_u32(),
+        )));
+    }
+
+    let mut visited = BTreeSet::new();
+    let mut worklist = vec![entry_state];
+    while let Some(state_id) = worklist.pop() {
+        if stop_states.contains(&state_id) || !visited.insert(state_id) {
+            continue;
+        }
+        let state = state_graph.state(state_id).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 region traversal 命中了不存在的 state st{}",
+                site_id.as_u32(),
+                state_id.as_u32(),
+            ))
+        })?;
+        worklist.extend(state.successors().iter().rev().copied());
+    }
+    Ok(visited)
+}
+
+fn insert_expected_handle_state_region(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    regions: &mut BTreeMap<
+        crate::effect_lowered::ir::StateId,
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion,
+    >,
+    state_id: crate::effect_lowered::ir::StateId,
+    region: crate::effect_lowered::ir::LateLoweredHandleStateRegion,
+) -> Result<(), LlvmEmitError> {
+    match regions.insert(state_id, region) {
+        Some(existing) if existing != region => Err(frontend_error(format!(
+            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 state st{} 同时归属于 {:?} 和 {:?}",
+            site_id.as_u32(),
+            state_id.as_u32(),
+            existing,
+            region,
+        ))),
+        Some(_) | None => Ok(()),
+    }
+}
+
+fn validate_published_handle_state_regions(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    expected_regions: &BTreeMap<
+        crate::effect_lowered::ir::StateId,
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion,
+    >,
+) -> Result<(), LlvmEmitError> {
+    let mut published = BTreeMap::new();
+    for entry in contract.state_regions() {
+        if published.insert(entry.state_id(), entry.region()).is_some() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 published state region 重复声明 st{}",
+                site_id.as_u32(),
+                entry.state_id().as_u32(),
+            )));
+        }
+    }
+    if &published != expected_regions {
+        return Err(frontend_error(format!(
+            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 state-region contract 漂移：published={published:?}，state_graph={expected_regions:?}",
+            site_id.as_u32(),
+        )));
+    }
+    Ok(())
+}
+
+fn build_expected_handle_boundary_routings(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    expected_regions: &BTreeMap<
+        crate::effect_lowered::ir::StateId,
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion,
+    >,
+    boundary_map: &crate::effect_lowered::ir::LateLoweredBoundaryMap,
+) -> Result<
+    BTreeMap<
+        crate::effect_lowered::ir::BoundaryId,
+        crate::effect_lowered::ir::LateLoweredHandleBoundaryRouting,
+    >,
+    LlvmEmitError,
+> {
+    let handled_arms = contract
+        .handled_arms()
+        .iter()
+        .map(|arm| (arm.handled_case(), arm))
+        .collect::<BTreeMap<_, _>>();
+    let body_outward_cases = contract
+        .body_outward_cases()
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let finally_outward_cases = contract
+        .finally_outward_cases()
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let outward_emission_cases = contract
+        .outward_emissions()
+        .iter()
+        .map(|emission| emission.case_tag())
+        .collect::<BTreeSet<_>>();
+    let pending_outward_cases = contract
+        .pending_completions()
+        .iter()
+        .filter_map(|pending| match pending {
+            crate::effect_lowered::ir::LateLoweredHandlePendingCompletion::PropagateOutward(
+                case_tag,
+            ) => Some((*case_tag, *pending)),
+            crate::effect_lowered::ir::LateLoweredHandlePendingCompletion::ContinueToExit
+            | crate::effect_lowered::ir::LateLoweredHandlePendingCompletion::ReturnFromFunction => {
+                None
+            }
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut routes = BTreeMap::new();
+
+    for boundary in boundary_map.entries() {
+        let owner_region = expected_regions
+            .get(&boundary.owner_state())
+            .copied()
+            .unwrap_or(crate::effect_lowered::ir::LateLoweredHandleStateRegion::OutsideHandle);
+        if matches!(
+            owner_region,
+            crate::effect_lowered::ir::LateLoweredHandleStateRegion::OutsideHandle
+                | crate::effect_lowered::ir::LateLoweredHandleStateRegion::Exit
+        ) {
+            continue;
+        }
+        if matches!(
+            owner_region,
+            crate::effect_lowered::ir::LateLoweredHandleStateRegion::Dispatch
+        ) && !matches!(
+            boundary.source(),
+            crate::effect_lowered::ir::LateLoweredBoundarySource::Site {
+                site_id: boundary_site,
+                kind: crate::effect_lowered::ir::BoundarySiteKind::Handle,
+            } if boundary_site == site_id
+        ) {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 dispatch boundary bd{} source 漂移：{:?}",
+                site_id.as_u32(),
+                boundary.boundary_id().as_u32(),
+                boundary.source(),
+            )));
+        }
+        let case_tags =
+            collect_expected_handle_boundary_case_tags(owner_root_fqn, site_id, boundary)?;
+        let case_routings = case_tags
+            .into_iter()
+            .map(|case_tag| {
+                build_expected_handle_boundary_case_routing(
+                    owner_root_fqn,
+                    site_id,
+                    boundary,
+                    owner_region,
+                    case_tag,
+                    &handled_arms,
+                    &body_outward_cases,
+                    &finally_outward_cases,
+                    &outward_emission_cases,
+                    &pending_outward_cases,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        routes.insert(
+            boundary.boundary_id(),
+            crate::effect_lowered::ir::LateLoweredHandleBoundaryRouting::new(
+                boundary.boundary_id(),
+                boundary.owner_state(),
+                owner_region,
+                boundary.resume_state(),
+                case_routings,
+            ),
+        );
+    }
+    Ok(routes)
+}
+
+fn collect_expected_handle_boundary_case_tags(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+) -> Result<Vec<crate::effect_facts::CaseTag>, LlvmEmitError> {
+    let lowering = boundary.lowering().ok_or_else(|| {
+        frontend_error(format!(
+            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} 缺少 lowering，无法校验 routing contract",
+            site_id.as_u32(),
+            boundary.boundary_id().as_u32(),
+        ))
+    })?;
+    let mut tags = BTreeSet::new();
+    let raw_tags: Vec<crate::effect_facts::CaseTag> = match lowering {
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::Call(lowering) => lowering
+            .dispatch()
+            .outward_cases()
+            .iter()
+            .map(|forwarding| forwarding.emission().case_tag())
+            .collect(),
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::Perform(lowering) => {
+            vec![lowering.emitted_step().case_tag()]
+        }
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::Resume(lowering) => lowering
+            .dispatch()
+            .outward_cases()
+            .iter()
+            .map(|forwarding| forwarding.emission().case_tag())
+            .collect(),
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::RuntimeError(lowering) => {
+            vec![lowering.emitted_step().case_tag()]
+        }
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::Handle(lowering) => lowering
+            .outward_emissions()
+            .iter()
+            .map(|emission| emission.case_tag())
+            .collect(),
+    };
+    for case_tag in raw_tags {
+        if !tags.insert(case_tag) {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} 重复发布 case c{}，无法校验稳定 routing",
+                site_id.as_u32(),
+                boundary.boundary_id().as_u32(),
+                case_tag.as_u32(),
+            )));
+        }
+    }
+    Ok(tags.into_iter().collect())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_expected_handle_boundary_case_routing(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+    owner_region: crate::effect_lowered::ir::LateLoweredHandleStateRegion,
+    case_tag: crate::effect_facts::CaseTag,
+    handled_arms: &BTreeMap<
+        crate::effect_facts::CaseTag,
+        &crate::effect_lowered::ir::LateLoweredHandleArmDispatch,
+    >,
+    body_outward_cases: &BTreeSet<crate::effect_facts::CaseTag>,
+    finally_outward_cases: &BTreeSet<crate::effect_facts::CaseTag>,
+    outward_emission_cases: &BTreeSet<crate::effect_facts::CaseTag>,
+    pending_outward_cases: &BTreeMap<
+        crate::effect_facts::CaseTag,
+        crate::effect_lowered::ir::LateLoweredHandlePendingCompletion,
+    >,
+) -> Result<crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRouting, LlvmEmitError> {
+    let action = match owner_region {
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion::Body => {
+            if let Some(arm) = handled_arms.get(&case_tag) {
+                crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                    arm_state: arm.arm_state(),
+                    arm_ordinal: arm.arm_ordinal(),
+                    continuation_resume_state: boundary.resume_state(),
+                }
+            } else if body_outward_cases.contains(&case_tag) {
+                pending_outward_cases.get(&case_tag).copied().map_or(
+                    crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward,
+                    |completion| crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion },
+                )
+            } else if finally_outward_cases.contains(&case_tag) {
+                crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward
+            } else {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 body boundary bd{} 发布了未声明的 case c{}",
+                    site_id.as_u32(),
+                    boundary.boundary_id().as_u32(),
+                    case_tag.as_u32(),
+                )));
+            }
+        }
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion::Arm {
+            handled_case,
+            arm_ordinal,
+        } => {
+            let arm = handled_arms.get(&handled_case).ok_or_else(|| frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm region(c{}, ordinal={}) 缺少 handled-arm contract",
+                site_id.as_u32(),
+                handled_case.as_u32(),
+                arm_ordinal,
+            )))?;
+            if arm.arm_ordinal() != arm_ordinal {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm region(c{}, ordinal={}) 与 handled-arm ordinal {} 不一致",
+                    site_id.as_u32(),
+                    handled_case.as_u32(),
+                    arm_ordinal,
+                    arm.arm_ordinal(),
+                )));
+            }
+            if !arm.arm_outward_cases().contains(&case_tag) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm boundary bd{} 发布了未声明的 case c{}",
+                    site_id.as_u32(),
+                    boundary.boundary_id().as_u32(),
+                    case_tag.as_u32(),
+                )));
+            }
+            pending_outward_cases.get(&case_tag).copied().map_or(
+                crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward,
+                |completion| crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion },
+            )
+        }
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion::Finally => {
+            if !finally_outward_cases.contains(&case_tag) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 finally boundary bd{} 发布了未声明的 case c{}",
+                    site_id.as_u32(),
+                    boundary.boundary_id().as_u32(),
+                    case_tag.as_u32(),
+                )));
+            }
+            crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward
+        }
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion::Dispatch => {
+            if !outward_emission_cases.contains(&case_tag) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 dispatch boundary bd{} 发布了未声明的 outward emission case c{}",
+                    site_id.as_u32(),
+                    boundary.boundary_id().as_u32(),
+                    case_tag.as_u32(),
+                )));
+            }
+            crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward
+        }
+        crate::effect_lowered::ir::LateLoweredHandleStateRegion::Exit
+        | crate::effect_lowered::ir::LateLoweredHandleStateRegion::OutsideHandle => {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} owner state st{} 不属于当前 handle region",
+                site_id.as_u32(),
+                boundary.boundary_id().as_u32(),
+                boundary.owner_state().as_u32(),
+            )));
+        }
+    };
+    Ok(crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRouting::new(case_tag, action))
+}
+
+fn validate_published_handle_boundary_routings(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    expected_routes: &BTreeMap<
+        crate::effect_lowered::ir::BoundaryId,
+        crate::effect_lowered::ir::LateLoweredHandleBoundaryRouting,
+    >,
+) -> Result<(), LlvmEmitError> {
+    let mut published = BTreeMap::new();
+    for routing in contract.boundary_routings() {
+        if published
+            .insert(routing.boundary_id(), routing.clone())
+            .is_some()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 published boundary routing 重复声明 bd{}",
+                site_id.as_u32(),
+                routing.boundary_id().as_u32(),
+            )));
+        }
+    }
+    if &published != expected_routes {
+        return Err(frontend_error(format!(
+            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary-routing contract 漂移：published={published:?}，expected={expected_routes:?}",
+            site_id.as_u32(),
+        )));
+    }
+    Ok(())
+}
+
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
@@ -3413,6 +3939,29 @@ mod tests {
             contract.finally_outward_cases().to_vec(),
             contract.outward_emissions().to_vec(),
             contract.pending_completions().to_vec(),
+            contract.state_regions().to_vec(),
+            contract.boundary_routings().to_vec(),
+            contract.abandon_target(),
+        )
+    }
+
+    fn clone_handle_dispatch_contract_with_regions_and_routes(
+        contract: &LateLoweredHandleDispatchContract,
+        state_regions: Vec<crate::effect_lowered::ir::LateLoweredHandleStateRegionEntry>,
+        boundary_routings: Vec<crate::effect_lowered::ir::LateLoweredHandleBoundaryRouting>,
+    ) -> LateLoweredHandleDispatchContract {
+        LateLoweredHandleDispatchContract::new(
+            contract.carrier(),
+            contract.body_complete_target(),
+            contract.arm_complete_target(),
+            contract.finally_complete_target(),
+            contract.handled_arms().to_vec(),
+            contract.body_outward_cases().to_vec(),
+            contract.finally_outward_cases().to_vec(),
+            contract.outward_emissions().to_vec(),
+            contract.pending_completions().to_vec(),
+            state_regions,
+            boundary_routings,
             contract.abandon_target(),
         )
     }
@@ -4855,6 +5404,171 @@ mod tests {
     }
 
     #[test]
+    fn refactor_handle_dispatch_region_routing_publishes_query_lookup() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query =
+                    result.expect("handle region routing contract 应可发布到 LLVM ABI query");
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("run")
+                    .expect("run callable 应存在");
+                let (site_id, contract) = first_handle_dispatch(callable);
+                let published = query
+                    .handle_dispatch_layout(callable.step_schema(), site_id, contract)
+                    .expect("query 应能稳定回查 handle region routing contract");
+                let perform_boundary = callable
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .find(|boundary| {
+                        matches!(
+                            boundary.source(),
+                            LateLoweredBoundarySource::Site {
+                                kind: BoundarySiteKind::Perform,
+                                ..
+                            }
+                        )
+                    })
+                    .expect("fixture 应发布 body perform boundary");
+                let routing = published
+                    .boundary_routing(perform_boundary.boundary_id())
+                    .expect("perform boundary 应可通过 query 回查 routing contract");
+                let handled_arm = contract
+                    .handled_arms()
+                    .first()
+                    .expect("fixture 应发布唯一 handled arm");
+                let handled_route = routing
+                    .case_routing(handled_arm.handled_case())
+                    .expect("handled perform case 应发布 consume-to-arm routing");
+
+                assert_eq!(
+                    routing.owner_region(),
+                    crate::effect_lowered::ir::LateLoweredHandleStateRegion::Body
+                );
+                assert_eq!(
+                    published.state_region(routing.owner_state()),
+                    crate::effect_lowered::ir::LateLoweredHandleStateRegion::Body
+                );
+                assert_eq!(
+                    published.state_region(routing.resume_state()),
+                    crate::effect_lowered::ir::LateLoweredHandleStateRegion::Body
+                );
+                assert!(matches!(
+                    handled_route.action(),
+                    crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                        arm_state,
+                        arm_ordinal,
+                        continuation_resume_state,
+                    } if arm_state == handled_arm.arm_state()
+                        && arm_ordinal == handled_arm.arm_ordinal()
+                        && continuation_resume_state == routing.resume_state()
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_handle_dispatch_region_routing_rejects_resume_state_drift() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callable = program.callable("run").expect("run callable 应存在");
+                let (site_id, contract) = first_handle_dispatch(callable);
+                let handled_case = contract
+                    .handled_arms()
+                    .first()
+                    .expect("fixture 应发布唯一 handled arm")
+                    .handled_case();
+                let broken_routings = contract
+                    .boundary_routings()
+                    .iter()
+                    .map(|routing| {
+                        let broken_case_routings = routing
+                            .case_routings()
+                            .iter()
+                            .map(|route| {
+                                if route.case_tag() != handled_case {
+                                    return *route;
+                                }
+                                let broken_action = match route.action() {
+                                    crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                                        arm_state,
+                                        arm_ordinal,
+                                        ..
+                                    } => crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                                        arm_state,
+                                        arm_ordinal,
+                                        continuation_resume_state: contract.body_complete_target(),
+                                    },
+                                    other => other,
+                                };
+                                crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRouting::new(
+                                    route.case_tag(),
+                                    broken_action,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        crate::effect_lowered::ir::LateLoweredHandleBoundaryRouting::new(
+                            routing.boundary_id(),
+                            routing.owner_state(),
+                            routing.owner_region(),
+                            routing.resume_state(),
+                            broken_case_routings,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let broken_contract = clone_handle_dispatch_contract_with_regions_and_routes(
+                    contract,
+                    contract.state_regions().to_vec(),
+                    broken_routings,
+                );
+                let state_graph = clone_state_graph_with_handle_contract(
+                    callable.state_graph(),
+                    site_id,
+                    broken_contract,
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == callable.step_schema() {
+                            clone_callable_with_state_graph(candidate, state_graph.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_interfaces().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("handle boundary routing resume_state 漂移时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("boundary-routing contract 漂移")
+                        || message.contains("consume_to_arm")
+                        || message.contains("resume=st"),
+                    "错误消息应指出 published routing 与 state graph/boundary map 不一致: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
     fn refactor_handle_arm_binding_contract_publishes_llvm_query_layout() {
         with_inputs_query_result(
             build_fixture_inputs_from_source(SourceFile::new_virtual(
@@ -5142,6 +5856,8 @@ fun main(): Int {
                     contract.finally_outward_cases().to_vec(),
                     contract.outward_emissions().to_vec(),
                     contract.pending_completions().to_vec(),
+                    contract.state_regions().to_vec(),
+                    contract.boundary_routings().to_vec(),
                     contract.abandon_target(),
                 );
                 let state_graph = clone_state_graph_with_handle_contract(

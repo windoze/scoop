@@ -9,9 +9,10 @@ use crate::effect_facts::{
 };
 use crate::effect_lowered::ir::{
     ContinuationObjectId, FrameSlotId, LateLoweredConsumedRuntimeErrorCase,
-    LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
-    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPublishedRuntimeEntry,
-    ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredHandleBoundaryRouting, LateLoweredHandleDispatchContract,
+    LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
+    LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
+    LateLoweredPublishedRuntimeEntry, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{LocalId, SiteId};
@@ -984,6 +985,25 @@ impl RefactorHandleDispatchLayout {
         self.handled_arms
             .iter()
             .find(|arm| arm.handled_case() == handled_case)
+    }
+
+    pub(super) fn state_regions(&self) -> &[LateLoweredHandleStateRegionEntry] {
+        self.lowered_contract.state_regions()
+    }
+
+    pub(super) fn state_region(&self, state_id: StateId) -> LateLoweredHandleStateRegion {
+        self.lowered_contract.state_region(state_id)
+    }
+
+    pub(super) fn boundary_routings(&self) -> &[LateLoweredHandleBoundaryRouting] {
+        self.lowered_contract.boundary_routings()
+    }
+
+    pub(super) fn boundary_routing(
+        &self,
+        boundary_id: crate::effect_lowered::ir::BoundaryId,
+    ) -> Option<&LateLoweredHandleBoundaryRouting> {
+        self.lowered_contract.boundary_routing(boundary_id)
     }
 }
 

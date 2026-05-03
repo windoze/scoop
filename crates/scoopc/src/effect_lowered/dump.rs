@@ -10,7 +10,8 @@ use super::ir::{
     LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
-    LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
+    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleDispatchContract,
+    LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredProgram,
     LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredResumeMethod,
     LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
@@ -479,6 +480,50 @@ fn render_handle_dispatch_contract(
                 render_handle_pending_completion(*pending),
             )
             .unwrap();
+        }
+    }
+    writeln!(rendered, "              state_regions:").unwrap();
+    if contract.state_regions().is_empty() {
+        writeln!(rendered, "                <none>").unwrap();
+    } else {
+        for entry in contract.state_regions() {
+            writeln!(
+                rendered,
+                "                - st{} => {}",
+                entry.state_id().as_u32(),
+                render_handle_state_region(entry.region()),
+            )
+            .unwrap();
+        }
+    }
+    writeln!(rendered, "              boundary_routings:").unwrap();
+    if contract.boundary_routings().is_empty() {
+        writeln!(rendered, "                <none>").unwrap();
+    } else {
+        for routing in contract.boundary_routings() {
+            writeln!(
+                rendered,
+                "                - bd{} owner=st{} region={} resume=st{}",
+                routing.boundary_id().as_u32(),
+                routing.owner_state().as_u32(),
+                render_handle_state_region(routing.owner_region()),
+                routing.resume_state().as_u32(),
+            )
+            .unwrap();
+            writeln!(rendered, "                  case_routings:").unwrap();
+            if routing.case_routings().is_empty() {
+                writeln!(rendered, "                    <none>").unwrap();
+            } else {
+                for route in routing.case_routings() {
+                    writeln!(
+                        rendered,
+                        "                    - c{} => {}",
+                        route.case_tag().as_u32(),
+                        render_handle_boundary_case_routing_action(route.action()),
+                    )
+                    .unwrap();
+                }
+            }
         }
     }
     writeln!(rendered, "              outward_emissions:").unwrap();
@@ -999,6 +1044,41 @@ fn render_handle_pending_completion(pending: LateLoweredHandlePendingCompletion)
         LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) => {
             format!("PropagateOutward(c{})", case_tag.as_u32())
         }
+    }
+}
+
+fn render_handle_state_region(region: LateLoweredHandleStateRegion) -> String {
+    match region {
+        LateLoweredHandleStateRegion::OutsideHandle => "outside".to_string(),
+        LateLoweredHandleStateRegion::Dispatch => "dispatch".to_string(),
+        LateLoweredHandleStateRegion::Body => "body".to_string(),
+        LateLoweredHandleStateRegion::Arm {
+            handled_case,
+            arm_ordinal,
+        } => format!("arm(c{}, ordinal={arm_ordinal})", handled_case.as_u32()),
+        LateLoweredHandleStateRegion::Finally => "finally".to_string(),
+        LateLoweredHandleStateRegion::Exit => "exit".to_string(),
+    }
+}
+
+fn render_handle_boundary_case_routing_action(
+    action: LateLoweredHandleBoundaryCaseRoutingAction,
+) -> String {
+    match action {
+        LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+            arm_state,
+            arm_ordinal,
+            continuation_resume_state,
+        } => format!(
+            "consume_to_arm(st{}, ordinal={}, resume=st{})",
+            arm_state.as_u32(),
+            arm_ordinal,
+            continuation_resume_state.as_u32(),
+        ),
+        LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion } => {
+            format!("pending:{}", render_handle_pending_completion(completion))
+        }
+        LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward => "emit_outward".to_string(),
     }
 }
 

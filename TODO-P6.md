@@ -1451,7 +1451,7 @@
   - 2026-05-03：额外搜索 `binder_locals|continuation_local|TerminatorKind::Handle` 显示，`crates/scoopc/src/effect_refactor_pipeline` 中的命中仅位于 `mir_stage.rs`（P3/P5 contract 生成与测试侧）；`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中的少量命中仅用于 ABI materialization fail-fast 交叉校验 published contract 与 canonical MIR 是否漂移，发布到 query 的 binder/continuation 数据仍以 late-lowered contract 为 authoritative source，而不是由 LLVM backend 重新从 MIR arm locals 推导。
   - 2026-05-03：重新运行 `cargo test -p scoopc refactor_handle_arm_binding_contract`、`cargo test -p scoopc refactor_handle_arm_continuation_binding`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`，均通过；本 review 未发现需要新增的 blocker 或前置任务，可重新进入 `P6-T03`。
 
-## P6-T02l：发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属
+## [DONE] P6-T02l：发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1508,7 +1508,18 @@
   - `P6-T03` 可以只消费 published contract lower handle 子图，不再需要 backend 现场重建子图归属或 handled routing。
 - 依赖：`P6-T02kR`
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-03：已在 `crates/scoopc/src/effect_lowered/ir.rs` 扩展 `LateLoweredHandleDispatchContract`，新增 authoritative `state_regions` / `boundary_routings` published surface，以及 `LateLoweredHandleStateRegion*` / `LateLoweredHandleBoundary*Routing*` 结构。每个 handle site 现在都会显式发布 body / arm / finally / dispatch / exit state membership，以及 boundary 上每条 outward case 的 `consume_to_arm` / `pending completion` / `emit_outward` 路由动作。
+  - 2026-05-03：已在 `crates/scoopc/src/effect_lowered/materialize.rs` 让 P5 authoritative 发布阶段基于 state graph + boundary map 构造这层 contract，而不是把 region/routing 恢复留给 backend。实现中显式覆盖了：body perform handled routing、multi-boundary resume-state routing、pending completion、以及 body 区域 nested-handle finally-origin outward case 的直接 outward emission。
+  - 2026-05-03：已在 `crates/scoopc/src/effect_lowered/{dump,opt}.rs` 接上这层 surface。`dump-effect-lowered` 现在会稳定公开 `state_regions:` / `boundary_routings:` / `case_routings:`；post-opt state redirect 也会同步重写新 contract 中的 `StateId`，避免优化后 routing 漂移。
+  - 2026-05-03：已在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 为 `RefactorHandleDispatchLayout` 增加直接 query API（state region / boundary routing lookup），并在 ABI materialization 阶段对 published region membership、boundary routing、handled-arm target、以及 continuation resume-state 与 state graph / boundary map 的一致性执行 fail-fast 校验，禁止 `P6-T03` 再在 backend 现场重建 handle 子图归属。
+  - 2026-05-03：已新增定向测试 `refactor_handle_dispatch_region_contract_*` 与 `refactor_handle_dispatch_region_routing_*`，覆盖：`effect_resume_if_else_branch_single_perform.scoop` 的 body perform handled routing、`effect_multi_escape_indirect_direct_while.scoop` 的多 boundary resume-state routing、带 finally 的 pending/direct outward routing、以及 published routing 漂移时的 LLVM ABI fail-fast。
+- 已运行验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_handle_dispatch_region_contract`
+  - `cargo test -p scoopc refactor_handle_dispatch_region_routing`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

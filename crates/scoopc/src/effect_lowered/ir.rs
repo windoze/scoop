@@ -1104,6 +1104,133 @@ impl LateLoweredHandleArmDispatch {
     }
 }
 
+/// 当前 state 在某个 `HandleDispatch` 子图中的 authoritative region 归属。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredHandleStateRegion {
+    OutsideHandle,
+    Dispatch,
+    Body,
+    Arm {
+        handled_case: CaseTag,
+        arm_ordinal: u32,
+    },
+    Finally,
+    Exit,
+}
+
+/// `HandleDispatch` 对单个 state 发布的 region membership。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredHandleStateRegionEntry {
+    state_id: StateId,
+    region: LateLoweredHandleStateRegion,
+}
+
+impl LateLoweredHandleStateRegionEntry {
+    pub(crate) fn new(state_id: StateId, region: LateLoweredHandleStateRegion) -> Self {
+        Self { state_id, region }
+    }
+
+    pub fn state_id(&self) -> StateId {
+        self.state_id
+    }
+
+    pub fn region(&self) -> LateLoweredHandleStateRegion {
+        self.region
+    }
+}
+
+/// 单个 boundary outward case 在当前 handle 下的 authoritative routing。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredHandleBoundaryCaseRoutingAction {
+    ConsumeToArm {
+        arm_state: StateId,
+        arm_ordinal: u32,
+        continuation_resume_state: StateId,
+    },
+    PendingCompletion {
+        completion: LateLoweredHandlePendingCompletion,
+    },
+    EmitOutward,
+}
+
+/// `BoundaryId + CaseTag` 的 published handle-routing 结果。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredHandleBoundaryCaseRouting {
+    case_tag: CaseTag,
+    action: LateLoweredHandleBoundaryCaseRoutingAction,
+}
+
+impl LateLoweredHandleBoundaryCaseRouting {
+    pub(crate) fn new(
+        case_tag: CaseTag,
+        action: LateLoweredHandleBoundaryCaseRoutingAction,
+    ) -> Self {
+        Self { case_tag, action }
+    }
+
+    pub fn case_tag(&self) -> CaseTag {
+        self.case_tag
+    }
+
+    pub fn action(&self) -> LateLoweredHandleBoundaryCaseRoutingAction {
+        self.action
+    }
+}
+
+/// 单个 boundary 在当前 `HandleDispatch` 子图中的 region / case-routing published contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredHandleBoundaryRouting {
+    boundary_id: BoundaryId,
+    owner_state: StateId,
+    owner_region: LateLoweredHandleStateRegion,
+    resume_state: StateId,
+    case_routings: Vec<LateLoweredHandleBoundaryCaseRouting>,
+}
+
+impl LateLoweredHandleBoundaryRouting {
+    pub(crate) fn new(
+        boundary_id: BoundaryId,
+        owner_state: StateId,
+        owner_region: LateLoweredHandleStateRegion,
+        resume_state: StateId,
+        case_routings: Vec<LateLoweredHandleBoundaryCaseRouting>,
+    ) -> Self {
+        Self {
+            boundary_id,
+            owner_state,
+            owner_region,
+            resume_state,
+            case_routings,
+        }
+    }
+
+    pub fn boundary_id(&self) -> BoundaryId {
+        self.boundary_id
+    }
+
+    pub fn owner_state(&self) -> StateId {
+        self.owner_state
+    }
+
+    pub fn owner_region(&self) -> LateLoweredHandleStateRegion {
+        self.owner_region
+    }
+
+    pub fn resume_state(&self) -> StateId {
+        self.resume_state
+    }
+
+    pub fn case_routings(&self) -> &[LateLoweredHandleBoundaryCaseRouting] {
+        &self.case_routings
+    }
+
+    pub fn case_routing(&self, case_tag: CaseTag) -> Option<&LateLoweredHandleBoundaryCaseRouting> {
+        self.case_routings
+            .iter()
+            .find(|route| route.case_tag() == case_tag)
+    }
+}
+
 /// `HandleDispatch` 在 P5/P6 handoff 中显式发布的 completion/state contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredHandleDispatchContract {
@@ -1116,6 +1243,8 @@ pub struct LateLoweredHandleDispatchContract {
     finally_outward_cases: Vec<CaseTag>,
     outward_emissions: Vec<LateLoweredStepCaseEmission>,
     pending_completions: Vec<LateLoweredHandlePendingCompletion>,
+    state_regions: Vec<LateLoweredHandleStateRegionEntry>,
+    boundary_routings: Vec<LateLoweredHandleBoundaryRouting>,
     abandon_target: Option<StateId>,
 }
 
@@ -1131,6 +1260,8 @@ impl LateLoweredHandleDispatchContract {
         finally_outward_cases: Vec<CaseTag>,
         outward_emissions: Vec<LateLoweredStepCaseEmission>,
         pending_completions: Vec<LateLoweredHandlePendingCompletion>,
+        state_regions: Vec<LateLoweredHandleStateRegionEntry>,
+        boundary_routings: Vec<LateLoweredHandleBoundaryRouting>,
         abandon_target: Option<StateId>,
     ) -> Self {
         Self {
@@ -1143,6 +1274,8 @@ impl LateLoweredHandleDispatchContract {
             finally_outward_cases,
             outward_emissions,
             pending_completions,
+            state_regions,
+            boundary_routings,
             abandon_target,
         }
     }
@@ -1162,6 +1295,8 @@ impl LateLoweredHandleDispatchContract {
             body_complete_target,
             arm_complete_target,
             finally_complete_target,
+            Vec::new(),
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
@@ -1224,6 +1359,31 @@ impl LateLoweredHandleDispatchContract {
         &self.pending_completions
     }
 
+    pub fn state_regions(&self) -> &[LateLoweredHandleStateRegionEntry] {
+        &self.state_regions
+    }
+
+    pub fn state_region(&self, state_id: StateId) -> LateLoweredHandleStateRegion {
+        self.state_regions
+            .iter()
+            .find(|entry| entry.state_id() == state_id)
+            .map(LateLoweredHandleStateRegionEntry::region)
+            .unwrap_or(LateLoweredHandleStateRegion::OutsideHandle)
+    }
+
+    pub fn boundary_routings(&self) -> &[LateLoweredHandleBoundaryRouting] {
+        &self.boundary_routings
+    }
+
+    pub fn boundary_routing(
+        &self,
+        boundary_id: BoundaryId,
+    ) -> Option<&LateLoweredHandleBoundaryRouting> {
+        self.boundary_routings
+            .iter()
+            .find(|route| route.boundary_id() == boundary_id)
+    }
+
     pub fn needs_completion_state(&self) -> bool {
         !self.pending_completions.is_empty()
     }
@@ -1233,6 +1393,9 @@ impl LateLoweredHandleDispatchContract {
     }
 }
 
+// `HandleDispatch` 承载的是单个 handle site 的完整 published contract；
+// 这里保持按值内联，避免为了枚举大小把阶段 handoff 再拆成额外 Box 层。
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LateLoweredStateTerminator {
     Suspend {

@@ -17,11 +17,29 @@
 9. 检查工作区差异，按要求提交本次任务涉及的全部改动，并停止，不继续下一个任务。
 
 ## 进度记录
-- 已写入初始计划。
-- 已读取 `TODO.md` 并确认首个未完成的详细任务为 `TODO-P6.md` 中的 `P6-T03`。
-- 已检查最新提交正文：仅包含 `[P6-T02kR] Review handle-arm binder contract`，未发现需要并入当前任务的额外未完事项说明。
-- 当前工作区仅有 `memory/claude_plan.md` 的计划更新，未发现需要合并处理的遗留代码改动。
-- 已审查 `P6-T03` 直接相关的 refactor LLVM codegen 入口、`effect_refactor` ABI/query 层、`LateLoweredProgram` 状态图/边界合同，以及现有 legacy body lowering 的调用边界。
-- 新发现 blocker：当前 handoff 已发布 `HandleDispatch` 的 `body_state` / `arm_states` / `finally_state` / `handled case -> arm` / pending completion 等合同，但没有 authoritative 地发布“哪些 late-lowered state / boundary 属于该 handle 的 body / arm / finally region，以及某个 boundary 的 outward case 是否应被当前 handle 本地消费”的稳定查询面。若继续实现 `P6-T03`，backend 将被迫在 P6 现场通过 state-graph 遍历重建 handle 子图归属与 boundary 消费路由，等价于重新做高层控制流分析，违反任务约束。
-- 已把该 blocker 记录到 `TODO-P6.md`，新增最小前置任务 `P6-T02l`，并同步更新 `TODO.md` 索引与 `P6-T03` 依赖/阻塞记录。
-- 下一步：复核工作区差异，使用 `P6-T02l` 相关提交信息提交这些任务编排更新并停止，等待下次 invocation 先完成前置合同任务。
+- 已写入并保留执行计划文件，供本次 invocation 持续更新。
+- 已读取 `TODO.md` 作为索引，并核对 `TODO-P6.md` 中的完成标记；当前首个未完成详细任务为 `P6-T02l`，不是 `P6-T03`。
+- 已检查最近提交：`HEAD` 为 `[P6-T02l] Track handle region routing prerequisite`，说明上次 invocation 已把 `P6-T03` 的 blocker 升格为当前前置任务；工作区当前干净，无未提交遗留改动。
+- 当前任务目标：为 `HandleDispatch` 发布 authoritative 的 state-region / boundary-consumption contract，并把它接入 `dump-effect-lowered` 与 refactor LLVM ABI/query，避免 `P6-T03` 在 backend 现场重建 body/arm/finally 子图归属与 boundary 路由。
+- 当前执行步骤：
+  1. 审查 `effect_lowered` 中现有 `HandleDispatch` contract、state graph、boundary map、resume-state map 与 dump surface。
+  2. 审查 `llvm/codegen/effect_refactor/{types,layout,body}.rs` 中现有 HandleDispatch query/layout 边界，确认应扩展的 published query 形状。
+  3. 以最小改动在 P5 authoritative 发布阶段补齐 region membership 与 boundary routing contract，并补充 fail-fast 校验。
+  4. 更新 dump surface 与 LLVM query，使 backend 可以按 handle site + state/boundary 稳定回查 region/routing。
+  5. 增加/更新定向测试，覆盖 body/arm/finally routing、resume target、pending completion 与漂移 fail-fast。
+  6. 运行任务要求的测试与 `clippy`，修复问题后再更新 `TODO-P6.md` / `TODO.md` 的完成记录并提交。
+- 已完成关键实现草稿：
+  - `LateLoweredHandleDispatchContract` 已扩展为显式发布 `state_regions` 与 `boundary_routings`；同时补充了 case routing action 与 query helper。
+  - `effect_lowered/materialize.rs` 现会在 authoritative 发布阶段基于 state graph + boundary map 构造 body/arm/finally/dispatch/exit region membership，以及每个 boundary 的 handled/pending/outward routing。
+  - `effect_lowered/opt.rs` 已接上 state redirect，避免 post-opt 后新 contract 漂移。
+  - `effect_lowered/dump.rs` 已把 `state_regions:` / `boundary_routings:` / `case_routings:` 暴露到 `dump-effect-lowered` surface。
+  - `llvm/codegen/effect_refactor/types.rs` / `layout.rs` 已新增 query API 与 fail-fast 交叉校验，避免 P6-T03 读取漂移 routing。
+  - 已补入一组 materialize/query 定向测试草稿，下一步用格式化与测试把编译/契约细节收敛到可提交状态。
+- 当前验证结果：
+  - `cargo test -p scoopc refactor_handle_dispatch_region_contract` 通过。
+  - `cargo test -p scoopc refactor_handle_dispatch_region_routing` 通过。
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 通过，并确认 dump 中包含新 `state_regions` / `boundary_routings` surface。
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 通过，并确认 mixed body/arm routing 已发布。
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings` 通过。
+- 已完成记录更新：`TODO-P6.md` 已将 `P6-T02l` 标记为 `[DONE]` 并写入完成记录 / 验证命令；`TODO.md` 索引也已同步为 `[DONE]`。
+- 下一步：复核差异后提交 `[P6-T02l] Publish handle region routing contract`，然后停止，等待下次 invocation 进入 `P6-T03`。
