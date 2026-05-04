@@ -35,6 +35,10 @@
   - `NoOutward` 也只能被视为同一 facts + `ImplPlan` 框架下得到的退化结果，而不是 code-shape 特判通道；
   - 不允许因为 code shape 简单而切到“单 `perform`”“线性 body”“tail-`resume`”“仅 `handle` 内局部状态机”之类专用 lowering；
   - 若某些简单 shape 未来可以压缩，也只能作为统一 transformation 之后的优化，而不是另一条 lowering 入口。
+- P6 refactor LLVM backend 必须遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.6 的 clean backend 边界。
+  - refactor backend 拥有整个 function protocol：entry/return ABI、state CFG、boundary、handle、continuation、runtime error、GC/runtime；
+  - 允许共享的旧代码只能是 effect-neutral value/expression primitive；
+  - 禁止把 legacy statement/function/call/return/control-flow codegen 当成 refactor backend 的 fallback。
 - 阶段完成条件不是“代码大致可跑”，而是“这一阶段的输出已经有完整验证，且其输出本身符合设计预期”。
 - P7 切换主线后，必须先完成 full regression，再进入 P8 删除旧主线。
 - P8 清理完成后，必须再次完成 full regression，确保仓库中不再存在对旧主线的隐藏依赖。
@@ -388,12 +392,13 @@
 
 ### P6. LLVM codegen 新路径对接（仍不切主线）
 
-参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §4.16, §5.2, §5.3.7, §5.3.8, §5.3.9, §5.5, §8。
+参考：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §4.16, §5.2, §5.3.7, §5.3.8, §5.3.9, §5.5, §5.6, §8。
 
 目标：
 
 - 把 P5 产出的 late-lowered representation 接到新的 LLVM codegen 路径。
 - 在不切默认主线的前提下，让新路径可以端到端生成正确 IR 和可运行程序。
+- 以 clean refactor backend 方式完成 P6：新 backend 拥有整个函数执行协议，只复用 effect-neutral value/expression primitive，不把旧 statement/function codegen 胶合进新 body emitter。
 - 仍然不做 full regression；只做覆盖新路径的定向 LLVM/run-pass/runtime 验证。
 
 实现：
@@ -406,6 +411,8 @@
   - runtime error 作为普通 effect 分支的 lowering
   - dropped continuation / cleanup hook 语义的 lowering 对齐
 - LLVM backend 只消费 P5 产出的 late-lowered state graph / frame schema / boundary contract；不得在 backend 再重新识别源码 shape、再切一次 CFG、或临时发明第二套 state-machine transformation。
+- refactor body lowering 不能再以 legacy `codegen_mir_statement`、旧函数 ABI、旧 call dispatcher、旧 return lowering、legacy handler-stack/outcome 作为通用 fallback；若需要共享旧逻辑，必须先抽成不知道新旧线路的纯 value/expression primitive。
+- P6 后半段按小任务推进：wrapper completion payload projection、clean value/expression primitive、source-slice classification、pure statement lowering、function ABI、dynamic/virtual/interface call、boundary lowering、handle protocol、continuation protocol、runtime error/drop/unwind、GC/runtime、验证矩阵。
 - 在进入 body lowering 前，必须先清理 resume ABI/query 的主次关系：`ContinuationSchemaId` / `CaseTag` / `ConcreteOpKey` 是 authoritative lookup；若保留 `ResumeInterfaceId`，它只能服务 continuation object field/vtable packing 与 object-side method lookup，不能作为 backend 恢复 resume 语义的起点。
 - 保持 Managed ABI / extern 边界不承载 effect/continuation 语义。
 - 旧 LLVM 主线继续保留，直到 P7 切换。
@@ -441,6 +448,7 @@
 
 - 新路径在 LLVM 层面对本文档覆盖的 effect/continuation 语义已经端到端闭合；
 - backend 已不再以 effect-level resume interface 作为 resume 语义 source of truth；
+- backend 已不再依赖 legacy statement/function/control-flow fallback；旧 codegen 中被复用的部分已经收口为 effect-neutral primitive；
 - 只差把默认主线切过去和做 full regression。
 
 ### P7. 切换主线并执行 full regression

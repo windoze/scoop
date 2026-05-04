@@ -936,6 +936,7 @@ pub(crate) fn materialize_boundary_map(
         root_fqn,
         body,
         body_facts,
+        types,
         &state_graph,
         frame_schema,
         &boundary_map,
@@ -1040,6 +1041,7 @@ fn attach_handle_dispatch_contracts(
     root_fqn: &str,
     body: &Body,
     body_facts: &BodyEffectFacts,
+    types: &TypeStore,
     state_graph: &LateLoweredStateGraph,
     frame_schema: &LateLoweredFrameSchema,
     boundary_map: &LateLoweredBoundaryMap,
@@ -1068,6 +1070,7 @@ fn attach_handle_dispatch_contracts(
                         body_state,
                         site_id,
                         &facts,
+                        types,
                         state_graph,
                         &arm_states,
                         finally_state,
@@ -1117,6 +1120,7 @@ fn build_handle_dispatch_contract(
     body_state: StateId,
     site_id: SiteId,
     facts: &HandleSiteEffectFacts,
+    types: &TypeStore,
     state_graph: &LateLoweredStateGraph,
     arm_states: &[StateId],
     finally_state: Option<StateId>,
@@ -1218,11 +1222,21 @@ fn build_handle_dispatch_contract(
                     continuation_object,
                 )
             });
+            let completion_payload_source = handle_arm_completion_payload_source(
+                root_fqn,
+                site_id,
+                body,
+                types,
+                state_graph,
+                arm_state,
+                arm.body_ty,
+            )?;
             Ok(LateLoweredHandleArmDispatch::new(
                 arm_facts.handled_case(),
                 arm_state,
                 arm_ordinal as u32,
                 arm_facts.payload_tuple_ty(),
+                completion_payload_source,
                 payload_binders,
                 continuation_binder,
                 arm_facts.arm_outward_cases().tags().to_vec(),
@@ -1323,6 +1337,98 @@ fn build_handle_dispatch_contract(
         state_regions,
         boundary_routings,
         drop_state,
+    ))
+}
+
+fn handle_arm_completion_payload_source(
+    root_fqn: &str,
+    site_id: SiteId,
+    body: &Body,
+    types: &TypeStore,
+    state_graph: &LateLoweredStateGraph,
+    arm_state: StateId,
+    body_ty: TypeId,
+) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
+    if matches!(types.kind(body_ty), TypeKind::Value(ValueTypeKind::Unit)) {
+        return Ok(LateLoweredCompletionPayloadSource::unit(body_ty));
+    }
+    let state = state_graph.state(arm_state).ok_or_else(|| {
+        invalid_handle_dispatch_contract(
+            root_fqn,
+            site_id,
+            format!(
+                "handle arm completion payload source 引用了不存在的 arm state st{}",
+                arm_state.as_u32()
+            ),
+        )
+    })?;
+
+    for slice in state.source_slices().iter().rev() {
+        if slice.end_statement_index() == slice.start_statement_index() {
+            continue;
+        }
+        let block = body
+            .blocks
+            .get(slice.block_id().as_u32() as usize)
+            .ok_or_else(|| {
+                invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "handle arm completion payload source 引用了不存在的 block bb{}",
+                        slice.block_id().as_u32()
+                    ),
+                )
+            })?;
+        let stmt_index = slice.end_statement_index().saturating_sub(1) as usize;
+        let stmt = block.stmts.get(stmt_index).ok_or_else(|| {
+            invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!(
+                    "handle arm completion payload source 引用了不存在的 bb{} stmt{}",
+                    slice.block_id().as_u32(),
+                    stmt_index
+                ),
+            )
+        })?;
+        let StatementKind::Assign { target, .. } = &stmt.kind else {
+            continue;
+        };
+        let local = body.locals.get(target.as_u32() as usize).ok_or_else(|| {
+            invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!(
+                    "handle arm completion payload source 引用了不存在的 local{}",
+                    target.as_u32()
+                ),
+            )
+        })?;
+        if local.ty != body_ty {
+            return Err(invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!(
+                    "handle arm completion payload source local{} 类型 t{} 与 arm body_ty t{} 不一致",
+                    target.as_u32(),
+                    local.ty.as_u32(),
+                    body_ty.as_u32()
+                ),
+            ));
+        }
+        return Ok(LateLoweredCompletionPayloadSource::operand(
+            LateLoweredOperandSource::new_local(*target, body_ty, Some(stmt.span)),
+        ));
+    }
+
+    Err(invalid_handle_dispatch_contract(
+        root_fqn,
+        site_id,
+        format!(
+            "non-Unit handle arm state st{} 缺少 completion payload source",
+            arm_state.as_u32()
+        ),
     ))
 }
 
@@ -3614,7 +3720,7 @@ mod tests {
         LateLoweredHandleStateRegion, LateLoweredOneShotPolicy, LateLoweredOperandValueSource,
         LateLoweredStateTerminator, LateLoweredStepType,
         LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
-        SystemSlotKind,
+        LateLoweredSurfaceResumeWrapperCompletePayloadSource, SystemSlotKind,
     };
     use crate::effect_refactor_pipeline::load_effect_facts_stage_output_for_dump;
     use crate::mir::SiteId;
@@ -4543,6 +4649,97 @@ mod tests {
             ),
             "shared wrapper projection 应直接暴露 owner -> wrapper 映射\n{dump}"
         );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_surface_resume_wrapper_completion_publishes_handle_arm_payload_source()
+     {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+        let callable = callable(&output, "main");
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+        let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
+        else {
+            panic!("main site0 应保持 HandleDispatch terminator");
+        };
+        let arm_source = contract.handled_arms()[0].completion_payload_source();
+        let resume_schema = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .find_map(|boundary| match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                    Some(lowering.facts().continuation_schema())
+                }
+                _ => None,
+            })
+            .expect("fixture 应包含 shared wrapper resume schema");
+        let projection = output
+            .program()
+            .surface_resume_dispatch(resume_schema)
+            .and_then(|entry| entry.wrapper_projection())
+            .expect("shared wrapper schema 应发布 complete projection");
+
+        assert_eq!(
+            projection.complete().wrapper_answer_ty(),
+            arm_source.source_ty()
+        );
+        assert_eq!(
+            projection
+                .complete()
+                .payload_source()
+                .wrapper_payload_source(),
+            Some(arm_source),
+            "wrapper Complete(Int) 应直接引用 top-level handle arm 的 completion payload source"
+        );
+        assert!(matches!(
+            arm_source,
+            LateLoweredCompletionPayloadSource::Operand(source)
+                if matches!(source.value(), LateLoweredOperandValueSource::Local(_))
+        ));
+        let dump = output.program().stable_dump();
+        assert!(
+            dump.contains("complete: owner_answer_ty=t2 -> wrapper_answer_ty=t5 payload=local")
+        );
+        assert!(dump.contains("completion_payload: local"));
+    }
+
+    #[test]
+    fn refactor_effect_lowered_surface_resume_wrapper_completion_uses_owner_complete_for_matching_answer_type()
+     {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+        ));
+        let projection = output
+            .program()
+            .surface_resume_dispatch_inventory()
+            .iter()
+            .find_map(|entry| entry.wrapper_projection())
+            .expect("matching answer type fixture 应发布 wrapper projection");
+
+        assert_eq!(
+            projection.complete().owner_answer_ty(),
+            projection.complete().wrapper_answer_ty(),
+            "fixture 应覆盖 owner/wrapper answer type 相同的投影路径"
+        );
+        assert!(matches!(
+            projection.complete().payload_source(),
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { answer_ty }
+                if *answer_ty == projection.complete().wrapper_answer_ty()
+        ));
+        assert!(
+            projection
+                .complete()
+                .payload_source()
+                .wrapper_payload_source()
+                .is_none(),
+            "同型 Complete 投影应直接复用 owner Complete payload，而不是发布 wrapper payload source"
+        );
+        let dump = output.program().stable_dump();
+        assert!(dump.contains("payload=owner_complete:"));
     }
 
     #[test]

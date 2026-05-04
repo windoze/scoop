@@ -16,6 +16,10 @@
 > (1) 当前阶段的显式输入；(2) 上一阶段显式产出的 facts/schema/table；(3) 明确的外部输入（如 target ABI、优化级别、feature flags）。
 > 不允许为了补齐缺失语义而回看 HIR/AST/旧 pass 内部缓存。
 
+> Clean backend 原则：P6 refactor LLVM backend 不是把旧 statement/function codegen 与新 effect codegen 胶合在一起。
+> 它必须拥有整个函数执行协议：entry ABI、state CFG、boundary、return/completion、continuation、frame、runtime error、GC/runtime contract。
+> 允许共享的只是不携带 effect/control/ABI 决策的 value/expression lowering primitive；旧的 statement-level、function-level、call/return/control-flow lowering 不能作为 refactor backend 的 semantic fallback。
+
 ## 1. 背景
 
 当前实现里，单个 `handle` 内部的控制流已经部分被编译成状态机，但跨调用链的 effect 传播仍然带有较重的 runtime/TLS 痕迹，例如：
@@ -1625,6 +1629,74 @@ state_before
 - 但不能改变“先按统一规则完成整函数 segmentation、frame lifting、boundary lowering，再做优化”的主次关系；
 - `O0` / debug build 也必须遵守同一条 transformation 管线，只允许在预算和后续优化力度上更保守，而不是切到另一条 code-shape-driven 通道。
 
+### 5.6 P6 clean LLVM backend 边界
+
+P6 的目标不是“只重写 effect 相关几条分支，然后让其余函数体继续走旧 codegen”。一旦函数进入 refactor late-lowered `Step` 协议，函数级执行模型已经改变：entry/return ABI、state transition、boundary dispatch、continuation capture/resume、runtime error、cleanup/drop 与 GC roots 都必须服从 refactor handoff。因此 P6 backend 的正确边界应固定为：
+
+- refactor backend 拥有整个 function shell 与 control protocol；
+- P5/P6 handoff 是唯一 effect/control/continuation 语义来源；
+- legacy backend 只能提供完全中立的 value/expression primitive，不能提供 statement/function/control-flow fallback；
+- 若某段旧 helper 隐含旧函数 ABI、旧 call/return 规则、legacy handler-stack/outcome、或通过 MIR/HIR shape 猜 effect 语义，则不能被 refactor backend 直接调用。
+
+#### 5.6.1 refactor backend 必须拥有的职责
+
+以下职责必须由 refactor backend 自己从 published contract 翻译到 LLVM：
+
+- direct entry、dynamic entry、resume entry、surface resume entry、owner trampoline 与 main wrapper；
+- `StateId` / `BoundaryId` / `resume_state` 到 LLVM CFG 的映射；
+- `Call` / `Perform` / `Resume` / ordinary runtime error / nested-handle outward boundary lowering；
+- `Return` / completion payload / handle body-arm-finally-exit / pending completion transport；
+- continuation allocation、captured frame、resume state、one-shot、double-resume ordinary runtime error、wrapper projection；
+- dropped continuation、`ResumeUnwind`、`Abandon`、cleanup/finally 与 runtime fatal 的边界；
+- frame slots、source value ABI、GC roots、stackmaps、runtime object/header/tracing contract；
+- fail-fast diagnostics，证明 backend 没有 silent skip 或 legacy fallback。
+
+#### 5.6.2 允许共享的中立 primitive
+
+允许从旧 LLVM 层抽出并共享的仅限纯 value/expression lowering 能力，例如：
+
+- literal / constant / local load-store；
+- tuple/scalar packing 与 unpacking；
+- primitive arithmetic / compare / cast；
+- object/member read-write 的 layout-neutral primitive；
+- runtime symbol declaration、target data、LLVM pass pipeline、与 GC/runtime 无关的基础 IR builder helper。
+
+这些 primitive 必须满足：调用方显式传入类型/layout/ABI contract；primitive 不决定函数 ABI、call target、return path、boundary dispatch、continuation semantics、handler-stack/outcome，也不通过 `Span`、HIR node、旧 side table 或 raw MIR shape 恢复 effect 语义。
+
+#### 5.6.3 source slice 不能再靠 ad-hoc skip
+
+late-lowered `source_slices` 仍可承载 effect-neutral straight-line 代码，但每条 statement 的用途必须被显式分类。P6 不能继续依赖“看到 `Resume` / `Virtual` / `Interface` call 就跳过”“TopLevelRef 查不到就跳过”“某条语句恰好由 boundary 消费”等 ad-hoc shape 规则。
+
+refactor handoff 或 verifier 至少应能区分：
+
+- effect-neutral value statement；
+- 已被 boundary contract 消费的 statement/terminator；
+- resume payload / boundary result / completion payload 注入；
+- handle synthetic carrier/binder 写入；
+- 明确 unreachable 或 elided 的 statement；
+- 当前 backend 不支持且必须 fail fast 的 statement。
+
+#### 5.6.4 不允许的 P6 glue 形态
+
+以下形态不符合 clean refactor 目标：
+
+- 在 refactor `body.rs` 中直接调用 legacy statement-level `codegen_mir_statement` 作为通用 fallback；
+- 让 old function ABI / old call dispatcher / old return lowering 处理 refactor callable body 的一部分；
+- 在 body emitter 中扫描 raw `mir::Rvalue::Call`、HIR node、`Span`、成员名、或旧 effect side table 来恢复 boundary / continuation / completion 语义；
+- 对 dynamic invoke、virtual/interface call、runtime error、double resume、`ResumeUnwind`、`Abandon`、main unhandled outward case 使用 `unreachable` 或默认值来代表尚未建模的合法行为；
+- 用 raw `malloc`、null runtime-error payload、或未接入 GC root model 的 frame/continuation object 作为最终 runtime contract。
+
+#### 5.6.5 P6 推进顺序
+
+P6 应按 contract-first 的小任务继续推进，而不是继续扩大单个 `P6-T03`：
+
+- 先收口仍缺失的 published handoff，例如 wrapper completion payload projection；
+- 再抽出 clean value/expression primitive 与 source-slice classification；
+- 然后逐项闭合 function ABI、call lowering、boundary lowering、handle protocol、continuation protocol、runtime error/drop/unwind、diagnostics；
+- 最后接入 GC/runtime/stackmap 并建立 build/run-pass/runtime_gc 矩阵。
+
+只有完成这条顺序后，P6 才能称为“LLVM codegen 新路径对接完成”。
+
 ## 6. 计算 `actual_outward_cases` 与 `resolved_outward_cases`
 
 在语义/理想分析层面，真正希望得到的精确结果仍然是：
@@ -1833,8 +1905,10 @@ BodyVersionKey = (symbol, type_args, allowed_row, impl_ops, needs_reentry)
    - 尽可能把 correctness-first 的对象/interface模型收敛回更直接的状态机/控制流形态；
    - 这一轮属于 late-lowered representation 上的窄后处理，不重新回到高层 effect 语义分析，也不重新选择 `ImplPlan`。
 8. `LLVM / backend emit`
+   - refactor backend 拥有整个 function protocol，并只从 late-lowered state graph / frame schema / boundary contract / ABI query 翻译到 LLVM；
    - direct/static 路径尽量直接命中具体实现版本；
-   - 真正无法消掉的动态边界使用按 `allowed_ops(allowed_row)` 固定的 canonical `Step` 家族。
+   - 真正无法消掉的动态边界使用按 `allowed_ops(allowed_row)` 固定的 canonical `Step` 家族；
+   - 旧 LLVM backend 只能贡献 effect-neutral value/expression primitive，不能作为 statement/function/control-flow fallback。
 
 ## 9. 明确不采用的方向
 

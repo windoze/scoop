@@ -19,6 +19,7 @@ use crate::effect_lowered::ir::{
     LateLoweredResumePayloadBinding, LateLoweredStateSlice, LateLoweredStateTerminator,
     LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
     LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredSurfaceResumeWrapperCompletePayloadSource,
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
@@ -264,6 +265,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             &continuation_layouts,
             &resume_packing_layouts,
             &callable_layouts,
+            &frame_layouts,
         )?;
 
         let callable_carrier_target_layouts =
@@ -1122,6 +1124,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         >,
         resume_packing_layouts: &BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
     ) -> Result<
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeDispatchLayout<'ctx>>,
         LlvmEmitError,
@@ -1156,6 +1159,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         entry,
                         surface_layout,
                         callable_layouts,
+                        frame_layouts,
                         &method_targets,
                     )?,
                 )),
@@ -1341,6 +1345,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         surface_layout: &RefactorContinuationSurfaceResumeLayout<'ctx>,
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
         method_targets: &[RefactorContinuationSurfaceResumeMethodLookup],
     ) -> Result<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>, LlvmEmitError> {
         let mut owner_version_key = method_targets.first().map(|lookup| {
@@ -1506,7 +1511,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             )));
         }
         let wrapper_projection =
-            self.validate_surface_resume_wrapper_projection(entry, owner_callable)?;
+            self.validate_surface_resume_wrapper_projection(entry, owner_callable, frame_layouts)?;
 
         let symbol_name = format!(
             "__scoop_refactor_surface_resume_owner_dispatch__{}__k{}",
@@ -1539,9 +1544,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     }
 
     fn validate_surface_resume_wrapper_projection(
-        &self,
+        &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         owner_callable: &LateLoweredCallable,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
     ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
         let mut derived_candidates = Vec::<LateLoweredSurfaceResumeWrapperProjection>::new();
 
@@ -1552,8 +1558,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             if lowering.facts().continuation_schema() != entry.continuation_schema() {
                 continue;
             }
-            let derived =
-                self.derive_surface_resume_wrapper_projection(entry, owner_callable, lowering)?;
+            let derived = self.derive_surface_resume_wrapper_projection(
+                entry,
+                owner_callable,
+                frame_layouts,
+                lowering,
+            )?;
             let Some(derived) = derived else {
                 continue;
             };
@@ -1587,15 +1597,24 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 entry.continuation_schema().as_u32(),
                 derived.underlying_route().continuation_schema().as_u32(),
             ))),
-            (Some(published), None) => Ok(Some(published.clone())),
+            (Some(published), None) => {
+                self.validate_surface_resume_wrapper_complete_projection(
+                    entry,
+                    owner_callable,
+                    frame_layouts,
+                    published.complete(),
+                )?;
+                Ok(Some(published.clone()))
+            }
             (None, None) => Ok(None),
         }
     }
 
     fn derive_surface_resume_wrapper_projection(
-        &self,
+        &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         owner_callable: &LateLoweredCallable,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
         lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
     ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
         let underlying_route = lowering.operand_contract().underlying_continuation_route();
@@ -1684,12 +1703,209 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             underlying_route.clone(),
             owner_step.step_schema(),
             wrapper_step.step_schema(),
-            LateLoweredSurfaceResumeWrapperCompleteProjection::new(
+            self.derive_surface_resume_wrapper_complete_projection(
+                entry,
+                owner_callable,
+                frame_layouts,
+                underlying_route,
                 owner_step.complete_ty(),
                 lowering.dispatch().complete().answer_ty(),
-            ),
+            )?,
             outward_cases,
         )))
+    }
+
+    fn derive_surface_resume_wrapper_complete_projection(
+        &mut self,
+        entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
+        owner_callable: &LateLoweredCallable,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        underlying_route: &crate::effect_lowered::ir::LateLoweredContinuationRoute,
+        owner_answer_ty: TypeId,
+        wrapper_answer_ty: TypeId,
+    ) -> Result<LateLoweredSurfaceResumeWrapperCompleteProjection, LlvmEmitError> {
+        let payload_source = if owner_answer_ty == wrapper_answer_ty {
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::owner_complete(owner_answer_ty)
+        } else {
+            let source = self
+                .wrapper_complete_payload_source_from_handle_binder(
+                    entry,
+                    owner_callable,
+                    underlying_route,
+                    wrapper_answer_ty,
+                )?
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 需要 t{} payload，但缺少 published wrapper payload source",
+                        entry.continuation_schema().as_u32(),
+                        wrapper_answer_ty.as_u32(),
+                    ))
+                })?;
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::wrapper_payload(source)
+        };
+        let projection = LateLoweredSurfaceResumeWrapperCompleteProjection::new(
+            owner_answer_ty,
+            wrapper_answer_ty,
+            payload_source,
+        );
+        self.validate_surface_resume_wrapper_complete_projection(
+            entry,
+            owner_callable,
+            frame_layouts,
+            &projection,
+        )?;
+        Ok(projection)
+    }
+
+    fn wrapper_complete_payload_source_from_handle_binder(
+        &mut self,
+        entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
+        owner_callable: &LateLoweredCallable,
+        underlying_route: &crate::effect_lowered::ir::LateLoweredContinuationRoute,
+        wrapper_answer_ty: TypeId,
+    ) -> Result<Option<LateLoweredCompletionPayloadSource>, LlvmEmitError> {
+        let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+            site_id,
+            arm_ordinal,
+            handled_case,
+            ..
+        } = underlying_route.publication()
+        else {
+            return Ok(None);
+        };
+        let source = owner_callable
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| {
+                let LateLoweredStateTerminator::HandleDispatch {
+                    site_id: state_site,
+                    contract,
+                    ..
+                } = state.terminator()
+                else {
+                    return None;
+                };
+                if state_site != site_id {
+                    return None;
+                }
+                contract
+                    .handled_arms()
+                    .iter()
+                    .find(|arm| {
+                        arm.arm_ordinal() == *arm_ordinal && arm.handled_case() == *handled_case
+                    })
+                    .map(|arm| arm.completion_payload_source().clone())
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 找不到 handle binder site{} arm#{} case c{} 的 completion payload source",
+                    entry.continuation_schema().as_u32(),
+                    site_id.as_u32(),
+                    arm_ordinal,
+                    handled_case.as_u32(),
+                ))
+            })?;
+        if source.source_ty() != wrapper_answer_ty {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload source type t{} 与 wrapper answer t{} 不一致",
+                entry.continuation_schema().as_u32(),
+                source.source_ty().as_u32(),
+                wrapper_answer_ty.as_u32(),
+            )));
+        }
+        Ok(Some(source))
+    }
+
+    fn validate_surface_resume_wrapper_complete_projection(
+        &mut self,
+        entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
+        owner_callable: &LateLoweredCallable,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        complete: &LateLoweredSurfaceResumeWrapperCompleteProjection,
+    ) -> Result<(), LlvmEmitError> {
+        if complete.payload_source().source_ty() != complete.wrapper_answer_ty() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload source type t{} 与 wrapper answer t{} 不一致",
+                entry.continuation_schema().as_u32(),
+                complete.payload_source().source_ty().as_u32(),
+                complete.wrapper_answer_ty().as_u32(),
+            )));
+        }
+        match complete.payload_source() {
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { answer_ty } => {
+                if *answer_ty != complete.owner_answer_ty()
+                    || *answer_ty != complete.wrapper_answer_ty()
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 owner-complete wrapper payload 漂移：owner=t{} wrapper=t{} source=t{}",
+                        entry.continuation_schema().as_u32(),
+                        complete.owner_answer_ty().as_u32(),
+                        complete.wrapper_answer_ty().as_u32(),
+                        answer_ty.as_u32(),
+                    )));
+                }
+                self.source_value_layout(*answer_ty)?;
+            }
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(source) => {
+                if source.source_ty() != complete.wrapper_answer_ty() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper payload source type t{} 与 wrapper answer t{} 不一致",
+                        entry.continuation_schema().as_u32(),
+                        source.source_ty().as_u32(),
+                        complete.wrapper_answer_ty().as_u32(),
+                    )));
+                }
+                if matches!(source, LateLoweredCompletionPayloadSource::Unit { .. })
+                    && !matches!(
+                        self.source_types.kind(complete.wrapper_answer_ty()),
+                        TypeKind::Value(ValueTypeKind::Unit)
+                    )
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 对 non-Unit wrapper answer t{} 发布了 Unit wrapper complete payload source",
+                        entry.continuation_schema().as_u32(),
+                        complete.wrapper_answer_ty().as_u32(),
+                    )));
+                }
+                self.source_value_layout(source.source_ty())?;
+                if let LateLoweredCompletionPayloadSource::Operand(source) = source
+                    && let LateLoweredOperandValueSource::Local(local) = source.value()
+                    && let Some(slot_id) =
+                        Self::published_frame_slot_for_local(owner_callable.frame_schema(), *local)
+                {
+                    let slot = owner_callable
+                        .frame_schema()
+                        .slots()
+                        .iter()
+                        .find(|slot| slot.slot_id() == slot_id)
+                        .expect("published_frame_slot_for_local returned existing slot");
+                    if slot.ty() != source.source_ty() {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload home slot fs{} 类型 t{} 与 source type t{} 不一致",
+                            entry.continuation_schema().as_u32(),
+                            slot_id.as_u32(),
+                            slot.ty().as_u32(),
+                            source.source_ty().as_u32(),
+                        )));
+                    }
+                    let frame_layout = frame_layouts.get(&owner_callable.step_schema()).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 缺少 callable `{}` frame layout，无法校验 wrapper complete payload source",
+                            owner_callable.root_fqn(),
+                        ))
+                    })?;
+                    if frame_layout.field_index_for_slot(slot_id).is_none() {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload home slot fs{} 在 frame layout 中缺少 field",
+                            entry.continuation_schema().as_u32(),
+                            slot_id.as_u32(),
+                        )));
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn publish_callable_carrier_entry_shells(
@@ -9266,6 +9482,7 @@ fun main(): Int {
                     original_arm.arm_state(),
                     original_arm.arm_ordinal(),
                     original_arm.payload_tuple_ty(),
+                    original_arm.completion_payload_source().clone(),
                     swapped_binders,
                     original_arm.continuation_binder(),
                     original_arm.arm_outward_cases().to_vec(),
@@ -9396,6 +9613,7 @@ fun main(): Int {
                             arm.arm_state(),
                             arm.arm_ordinal(),
                             arm.payload_tuple_ty(),
+                            arm.completion_payload_source().clone(),
                             arm.payload_binders().to_vec(),
                             None,
                             arm.arm_outward_cases().to_vec(),
@@ -9872,6 +10090,174 @@ fun main(): Int {
                 assert!(
                     message.contains("underlying route k3"),
                     "错误消息应指出缺失投影所依赖的 underlying route: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_surface_resume_wrapper_completion_resolves_payload_source() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("refactor ABI materialization 应成功");
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("main")
+                    .expect("main callable 应存在");
+                let resume_schema = callable
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .find_map(|boundary| match boundary.lowering() {
+                        Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                            Some(lowering.facts().continuation_schema())
+                        }
+                        _ => None,
+                    })
+                    .expect("fixture 应包含 shared wrapper resume schema");
+                let dispatch = query
+                    .surface_resume_dispatch_layout(resume_schema)
+                    .expect("shared wrapper dispatch 应可查询");
+
+                let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) =
+                    dispatch.target()
+                else {
+                    panic!("shared wrapper schema 应发布 owner trampoline");
+                };
+                let projection = trampoline
+                    .wrapper_projection()
+                    .expect("shared wrapper schema 应发布 wrapper projection");
+
+                assert_eq!(projection.complete().owner_answer_ty().as_u32(), 2);
+                assert_eq!(projection.complete().wrapper_answer_ty().as_u32(), 5);
+                assert!(matches!(
+                    projection.complete().payload_source(),
+                    LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(
+                        LateLoweredCompletionPayloadSource::Operand(source)
+                    ) if source.source_ty() == projection.complete().wrapper_answer_ty()
+                        && matches!(source.value(), LateLoweredOperandValueSource::Local(_))
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_surface_resume_wrapper_completion_uses_owner_complete_for_matching_answer_type()
+     {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("refactor ABI materialization 应成功");
+                let resume_schema = inputs
+                    .abi_visibility_program
+                    .surface_resume_dispatch_inventory()
+                    .iter()
+                    .find_map(|entry| {
+                        let projection = entry.wrapper_projection()?;
+                        (projection.complete().owner_answer_ty()
+                            == projection.complete().wrapper_answer_ty())
+                        .then_some(entry.continuation_schema())
+                    })
+                    .expect("fixture 应包含 owner/wrapper answer type 相同的 wrapper projection");
+                let dispatch = query
+                    .surface_resume_dispatch_layout(resume_schema)
+                    .expect("shared wrapper dispatch 应可查询");
+
+                let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) =
+                    dispatch.target()
+                else {
+                    panic!("shared wrapper schema 应发布 owner trampoline");
+                };
+                let projection = trampoline
+                    .wrapper_projection()
+                    .expect("shared wrapper schema 应发布 wrapper projection");
+
+                assert_eq!(
+                    projection.complete().owner_answer_ty(),
+                    projection.complete().wrapper_answer_ty()
+                );
+                assert!(matches!(
+                    projection.complete().payload_source(),
+                    LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { answer_ty }
+                        if *answer_ty == projection.complete().wrapper_answer_ty()
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_surface_resume_wrapper_completion_rejects_type_drift() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callable = program.callable("main").expect("main callable 应存在");
+                let resume_schema = callable
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .find_map(|boundary| match boundary.lowering() {
+                        Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                            Some(lowering.facts().continuation_schema())
+                        }
+                        _ => None,
+                    })
+                    .expect("fixture 应至少包含一个 resume boundary schema");
+                let inventory = program
+                    .surface_resume_dispatch_inventory()
+                    .iter()
+                    .map(|entry| {
+                        let wrapper_projection = if entry.continuation_schema() == resume_schema {
+                            entry.wrapper_projection().map(|projection| {
+                                LateLoweredSurfaceResumeWrapperProjection::new(
+                                    projection.underlying_route().clone(),
+                                    projection.owner_step_schema(),
+                                    projection.wrapper_step_schema(),
+                                    LateLoweredSurfaceResumeWrapperCompleteProjection::new(
+                                        projection.complete().owner_answer_ty(),
+                                        projection.complete().wrapper_answer_ty(),
+                                        LateLoweredSurfaceResumeWrapperCompletePayloadSource::wrapper_payload(
+                                            LateLoweredCompletionPayloadSource::unit(
+                                                projection.complete().wrapper_answer_ty(),
+                                            ),
+                                        ),
+                                    ),
+                                    projection.outward_cases().to_vec(),
+                                )
+                            })
+                        } else {
+                            entry.wrapper_projection().cloned()
+                        };
+                        LateLoweredSurfaceResumeDispatchInventoryEntry::new(
+                            entry.continuation_schema(),
+                            entry.contract(),
+                            entry.source_kind(),
+                            entry.publications().to_vec(),
+                            wrapper_projection,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                program.with_surface_resume_dispatch_inventory(inventory)
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => {
+                        panic!("non-Unit wrapper answer 的 Unit payload source 必须 fail fast")
+                    }
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("wrapper complete payload")
+                        || message.contains("wrapper-step projection contract 漂移"),
+                    "错误消息应指出 wrapper complete payload contract 漂移: {message}"
                 );
             },
         );

@@ -19,9 +19,10 @@ use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundaryId, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundarySource,
     LateLoweredBoundarySourceConsumption, LateLoweredCallable, LateLoweredCompletionPayloadSource,
-    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredOperandSource,
-    LateLoweredOperandValueSource, LateLoweredResumePayloadBinding, LateLoweredState,
-    LateLoweredStateTerminator, StateId,
+    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleStateRegion,
+    LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredResumePayloadBinding,
+    LateLoweredState, LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
@@ -466,122 +467,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn refactor_project_owner_step_to_wrapper(
-        &mut self,
-        abi: &RefactorAbiQuery<'ctx>,
-        projection: &crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
-        owner_step: BasicValueEnum<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
-        let owner_step_schema = projection.owner_step_schema();
-        let wrapper_step_schema = projection.wrapper_step_schema();
-        let owner_layout = abi.step_layout(owner_step_schema).ok_or_else(|| {
-            frontend_error(format!(
-                "refactor wrapper projection 缺少 owner step schema s{} layout",
-                owner_step_schema.as_u32()
-            ))
-        })?;
-        let wrapper_layout = abi.step_layout(wrapper_step_schema).ok_or_else(|| {
-            frontend_error(format!(
-                "refactor wrapper projection 缺少 wrapper step schema s{} layout",
-                wrapper_step_schema.as_u32()
-            ))
-        })?;
-        let tag = self.refactor_extract_step_tag(owner_layout, owner_step)?;
-        let function = self.current_function()?;
-        let complete_bb = self
-            .context
-            .append_basic_block(function, "wrapper_project_complete");
-        let unmatched_bb = self
-            .context
-            .append_basic_block(function, "wrapper_project_unmatched");
-        let cases = projection
-            .outward_cases()
-            .into_iter()
-            .map(|case| {
-                let owner_case_tag = case.owner_case_tag();
-                let wrapper_case_tag = case.wrapper_case_tag();
-                let owner_case = owner_layout
-                    .case_layout(owner_case_tag)
-                    .expect("projection case was validated by helper");
-                (
-                    self.context
-                        .i32_type()
-                        .const_int(owner_case.variant().tag_value() as u64, false),
-                    self.context.append_basic_block(
-                        function,
-                        &format!("wrapper_project_case{}", wrapper_case_tag.as_u32()),
-                    ),
-                    owner_case_tag,
-                    wrapper_case_tag,
-                )
-            })
-            .collect::<Vec<_>>();
-        let switch_cases = cases
-            .iter()
-            .map(|(tag, bb, _, _)| (*tag, *bb))
-            .collect::<Vec<_>>();
-        let complete_tag = self.context.i32_type().const_int(STEP_TAG_COMPLETE, false);
-        let is_complete = self.builder.build_int_compare(
-            inkwell::IntPredicate::EQ,
-            tag,
-            complete_tag,
-            "wrapper_project_is_complete",
-        )?;
-        let dispatch_bb = self
-            .context
-            .append_basic_block(function, "wrapper_project_dispatch");
-        self.builder
-            .build_conditional_branch(is_complete, complete_bb, dispatch_bb)?;
-
-        self.builder.position_at_end(dispatch_bb);
-        self.builder
-            .build_switch(tag, unmatched_bb, &switch_cases)?;
-
-        self.builder.position_at_end(complete_bb);
-        let payload = self.refactor_extract_step_payload(
-            owner_layout,
-            owner_step,
-            owner_layout.complete_variant(),
-            "wrapper_project_complete_payload",
-        )?;
-        let projected = self.refactor_build_step_complete(wrapper_layout, payload)?;
-        self.builder.build_return(Some(&projected))?;
-
-        for (_, bb, owner_case, wrapper_case) in cases {
-            self.builder.position_at_end(bb);
-            let owner_case_layout = owner_layout.case_layout(owner_case).ok_or_else(|| {
-                frontend_error(format!(
-                    "wrapper projection 缺少 owner case c{}",
-                    owner_case.as_u32()
-                ))
-            })?;
-            let wrapper_case_layout =
-                wrapper_layout.case_layout(wrapper_case).ok_or_else(|| {
-                    frontend_error(format!(
-                        "wrapper projection 缺少 wrapper case c{}",
-                        wrapper_case.as_u32()
-                    ))
-                })?;
-            let (payload, continuation) = self.refactor_extract_step_case_parts(
-                owner_layout,
-                owner_step,
-                owner_case_layout,
-                "wrapper_project_case_payload",
-            )?;
-            let projected = self.refactor_build_step_case(
-                wrapper_layout,
-                wrapper_case_layout,
-                payload,
-                continuation,
-            )?;
-            self.builder.build_return(Some(&projected))?;
-        }
-
-        self.builder.position_at_end(unmatched_bb);
-        self.builder.build_unreachable()?;
-        Ok(())
-    }
-
     fn current_function(&self) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         self.builder
             .get_insert_block()
@@ -969,7 +854,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             return Ok(());
         }
         match state.terminator() {
-            LateLoweredStateTerminator::Goto { target } => self.branch_to_state(*target),
+            LateLoweredStateTerminator::Goto { target } => {
+                if self.try_return_wrapper_complete_from_handle_arm(state, *target)? {
+                    Ok(())
+                } else {
+                    self.branch_to_state(*target)
+                }
+            }
             LateLoweredStateTerminator::Branch {
                 cond_local,
                 then_state,
@@ -1479,12 +1370,248 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     fn return_step(&mut self, step: BasicValueEnum<'ctx>) -> Result<(), LlvmEmitError> {
         if let Some(projection) = self.return_projection {
-            self.codegen
-                .refactor_project_owner_step_to_wrapper(self.abi, projection, step)
+            self.project_owner_step_to_wrapper(projection, step)
         } else {
             self.codegen.builder.build_return(Some(&step))?;
             Ok(())
         }
+    }
+
+    fn project_owner_step_to_wrapper(
+        &mut self,
+        projection: &crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
+        owner_step: BasicValueEnum<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let owner_step_schema = projection.owner_step_schema();
+        let wrapper_step_schema = projection.wrapper_step_schema();
+        let owner_layout = self.abi.step_layout(owner_step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor wrapper projection 缺少 owner step schema s{} layout",
+                owner_step_schema.as_u32()
+            ))
+        })?;
+        let wrapper_layout = self.abi.step_layout(wrapper_step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor wrapper projection 缺少 wrapper step schema s{} layout",
+                wrapper_step_schema.as_u32()
+            ))
+        })?;
+        let tag = self
+            .codegen
+            .refactor_extract_step_tag(owner_layout, owner_step)?;
+        let complete_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "wrapper_project_complete");
+        let unmatched_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "wrapper_project_unmatched");
+        let cases = projection
+            .outward_cases()
+            .iter()
+            .map(|case| {
+                let owner_case_tag = case.owner_case_tag();
+                let wrapper_case_tag = case.wrapper_case_tag();
+                let owner_case = owner_layout
+                    .case_layout(owner_case_tag)
+                    .expect("projection case was validated by helper");
+                (
+                    self.codegen
+                        .context
+                        .i32_type()
+                        .const_int(owner_case.variant().tag_value() as u64, false),
+                    self.codegen.context.append_basic_block(
+                        self.function,
+                        &format!("wrapper_project_case{}", wrapper_case_tag.as_u32()),
+                    ),
+                    owner_case_tag,
+                    wrapper_case_tag,
+                )
+            })
+            .collect::<Vec<_>>();
+        let switch_cases = cases
+            .iter()
+            .map(|(tag, bb, _, _)| (*tag, *bb))
+            .collect::<Vec<_>>();
+        let complete_tag = self
+            .codegen
+            .context
+            .i32_type()
+            .const_int(STEP_TAG_COMPLETE, false);
+        let is_complete = self.codegen.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            tag,
+            complete_tag,
+            "wrapper_project_is_complete",
+        )?;
+        let dispatch_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "wrapper_project_dispatch");
+        self.codegen
+            .builder
+            .build_conditional_branch(is_complete, complete_bb, dispatch_bb)?;
+
+        self.codegen.builder.position_at_end(dispatch_bb);
+        self.codegen
+            .builder
+            .build_switch(tag, unmatched_bb, &switch_cases)?;
+
+        self.codegen.builder.position_at_end(complete_bb);
+        let payload = self.lower_wrapper_complete_payload(
+            projection.complete().payload_source(),
+            owner_layout,
+            owner_step,
+        )?;
+        let projected = self
+            .codegen
+            .refactor_build_step_complete(wrapper_layout, payload)?;
+        self.codegen.builder.build_return(Some(&projected))?;
+
+        for (_, bb, owner_case, wrapper_case) in cases {
+            self.codegen.builder.position_at_end(bb);
+            let owner_case_layout = owner_layout.case_layout(owner_case).ok_or_else(|| {
+                frontend_error(format!(
+                    "wrapper projection 缺少 owner case c{}",
+                    owner_case.as_u32()
+                ))
+            })?;
+            let wrapper_case_layout =
+                wrapper_layout.case_layout(wrapper_case).ok_or_else(|| {
+                    frontend_error(format!(
+                        "wrapper projection 缺少 wrapper case c{}",
+                        wrapper_case.as_u32()
+                    ))
+                })?;
+            let (payload, continuation) = self.codegen.refactor_extract_step_case_parts(
+                owner_layout,
+                owner_step,
+                owner_case_layout,
+                "wrapper_project_case_payload",
+            )?;
+            let projected = self.codegen.refactor_build_step_case(
+                wrapper_layout,
+                wrapper_case_layout,
+                payload,
+                continuation,
+            )?;
+            self.codegen.builder.build_return(Some(&projected))?;
+        }
+
+        self.codegen.builder.position_at_end(unmatched_bb);
+        self.codegen.builder.build_unreachable()?;
+        Ok(())
+    }
+
+    fn lower_wrapper_complete_payload(
+        &mut self,
+        source: &LateLoweredSurfaceResumeWrapperCompletePayloadSource,
+        owner_layout: &RefactorStepLayout<'ctx>,
+        owner_step: BasicValueEnum<'ctx>,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        match source {
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { .. } => {
+                self.codegen.refactor_extract_step_payload(
+                    owner_layout,
+                    owner_step,
+                    owner_layout.complete_variant(),
+                    "wrapper_project_complete_payload",
+                )
+            }
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(source) => {
+                self.lower_completion_payload(source)
+            }
+        }
+    }
+
+    fn try_return_wrapper_complete_from_handle_arm(
+        &mut self,
+        state: &LateLoweredState,
+        target: StateId,
+    ) -> Result<bool, LlvmEmitError> {
+        let Some(projection) = self.return_projection else {
+            return Ok(false);
+        };
+        let LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(payload_source) =
+            projection.complete().payload_source()
+        else {
+            return Ok(false);
+        };
+        let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+            site_id,
+            arm_ordinal,
+            handled_case,
+            ..
+        } = projection.underlying_route().publication()
+        else {
+            return Ok(false);
+        };
+
+        let mut matched_arm_source = None;
+        for candidate in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id: state_site,
+                contract,
+                ..
+            } = candidate.terminator()
+            else {
+                continue;
+            };
+            if state_site != site_id || target != contract.arm_complete_target() {
+                continue;
+            }
+            let LateLoweredHandleStateRegion::Arm {
+                handled_case: region_case,
+                arm_ordinal: region_ordinal,
+            } = contract.state_region(state.state_id())
+            else {
+                continue;
+            };
+            if region_case != *handled_case || region_ordinal != *arm_ordinal {
+                continue;
+            }
+            let arm = contract
+                .handled_arms()
+                .iter()
+                .find(|arm| {
+                    arm.arm_ordinal() == *arm_ordinal && arm.handled_case() == *handled_case
+                })
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor wrapper completion projection 找不到 site{} arm#{} case c{} 的 published arm contract",
+                        site_id.as_u32(),
+                        arm_ordinal,
+                        handled_case.as_u32()
+                    ))
+                })?;
+            matched_arm_source = Some(arm.completion_payload_source());
+            break;
+        }
+
+        let Some(arm_source) = matched_arm_source else {
+            return Ok(false);
+        };
+        if arm_source != payload_source {
+            return Err(frontend_error(format!(
+                "refactor wrapper completion projection payload source drift: published={payload_source:?}, arm={arm_source:?}"
+            )));
+        }
+        let wrapper_layout = self
+            .abi
+            .step_layout(projection.wrapper_step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor wrapper projection 缺少 wrapper step schema s{} layout",
+                    projection.wrapper_step_schema().as_u32()
+                ))
+            })?;
+        let payload = self.lower_completion_payload(payload_source)?;
+        let projected = self
+            .codegen
+            .refactor_build_step_complete(wrapper_layout, payload)?;
+        self.codegen.builder.build_return(Some(&projected))?;
+        Ok(true)
     }
 
     fn local_handle_consumption(

@@ -24,6 +24,7 @@ use super::ir::{
     LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
     LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
     LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredSurfaceResumeWrapperCompletePayloadSource,
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
@@ -433,11 +434,25 @@ fn render_surface_resume_wrapper_complete_projection(
 ) {
     writeln!(
         rendered,
-        "        complete: owner_answer_ty={} -> wrapper_answer_ty={}",
+        "        complete: owner_answer_ty={} -> wrapper_answer_ty={} payload={}",
         render_type_id(complete.owner_answer_ty()),
         render_type_id(complete.wrapper_answer_ty()),
+        render_surface_resume_wrapper_complete_payload_source(complete.payload_source()),
     )
     .unwrap();
+}
+
+fn render_surface_resume_wrapper_complete_payload_source(
+    source: &LateLoweredSurfaceResumeWrapperCompletePayloadSource,
+) -> String {
+    match source {
+        LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { answer_ty } => {
+            format!("owner_complete:{}", render_type_id(*answer_ty))
+        }
+        LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(source) => {
+            render_completion_payload_source(source)
+        }
+    }
 }
 
 fn render_surface_resume_wrapper_case_projection(
@@ -665,6 +680,12 @@ fn render_handle_dispatch_contract(
             writeln!(
                 rendered,
                 "                  continuation_binder: {continuation_binder}",
+            )
+            .unwrap();
+            writeln!(
+                rendered,
+                "                  completion_payload: {}",
+                render_completion_payload_source(arm.completion_payload_source()),
             )
             .unwrap();
         }

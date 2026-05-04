@@ -1603,7 +1603,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## 后续未完成任务
+## 后续任务归档与迁移
 
-- 未完成任务已移至 [`TODO-P6-part2.md`](./TODO-P6-part2.md)。
-- `TODO-P6-part2.md` 当前收录：`P6-T02m`、`P6-T03`、`P6-T03R`、`P6-T04`、`P6-T04R`、`P6-T05`、`P6-T05R`。
+- `TODO-P6-part2.md` 收录 `P6-T02m` ~ `P6-T02qg` 的已完成 contract 任务，并归档旧 `P6-T03` 单体任务的 blocker 记录。
+- 后续未完成任务已移至 [`TODO-P6-part3.md`](./TODO-P6-part3.md)，按 clean refactor backend 边界继续推进。

@@ -99,13 +99,23 @@
 | `P6-T02qe` | `TODO-P6-part2.md` | [DONE] 发布 refactor source-slice member read/write LLVM lowering contract，禁止 P6-T03 在 body emitter 现场回 HIR 或 legacy member lowering |
 | `P6-T02qf` | `TODO-P6-part2.md` | [DONE] 把 `scoop test` run-pass 子进程接到父级 effect-pipeline selector，确保 P6-T03 验证真实覆盖 refactor LLVM path |
 | `P6-T02qg` | `TODO-P6-part2.md` | [DONE] 发布 non-`Unit` completion payload source / return-value contract，禁止 P6-T03 在 backend 回 raw MIR/tail shape 恢复完成值 |
-| `P6-T02qh` | `TODO-P6-part2.md` | 发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值 |
-| `P6-T03` | `TODO-P6-part2.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
-| `P6-T03R` | `TODO-P6-part2.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
-| `P6-T04` | `TODO-P6-part2.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |
-| `P6-T04R` | `TODO-P6-part2.md` | Review GC/runtime 集成，确认没有残留 legacy handler-stack 依赖，也没有错误的 dropped-continuation / FFI 语义 |
-| `P6-T05` | `TODO-P6-part2.md` | 建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract |
-| `P6-T05R` | `TODO-P6-part2.md` | Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |
+| `P6-T02qga` | `TODO-P6-part3.md` | 发布 call-boundary 本地消费 outward case 的 continuation composition contract，禁止 escaped continuation 绕过 callee resume body |
+| `P6-T02qh` | `TODO-P6-part3.md` | 发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值 |
+| `P6-T03` | `TODO-P6-part2.md` | [ABANDONED] 旧单体 LLVM body lowering 任务，已拆分为 clean backend 小任务链 |
+| `P6-T03a` | `TODO-P6-part3.md` | 固化 clean refactor LLVM backend 边界，抽出 effect-neutral value/expression primitive |
+| `P6-T03b` | `TODO-P6-part3.md` | 发布 source-slice statement classification contract，禁止 body emitter 静默 skip 或回 raw shape 猜语义 |
+| `P6-T03c` | `TODO-P6-part3.md` | 实现 refactor pure statement lowering，停止调用 legacy statement-level lowering |
+| `P6-T03d` | `TODO-P6-part3.md` | 闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper |
+| `P6-T03e` | `TODO-P6-part3.md` | 闭合 direct/dynamic/virtual/interface call lowering，不再回 legacy callable wrapper |
+| `P6-T03f` | `TODO-P6-part3.md` | 闭合 boundary lowering，覆盖 Call / Perform / Resume / runtime-error / nested-handle outward |
+| `P6-T03g` | `TODO-P6-part3.md` | 闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport |
+| `P6-T03h` | `TODO-P6-part3.md` | 闭合 continuation protocol，覆盖 one-shot、double resume、wrapper projection、drop/unwind/abandon |
+| `P6-T03i` | `TODO-P6-part3.md` | 闭合 runtime error、diagnostics 与 body verifier，冻结 clean body lowering 完成条件 |
+| `P6-T03R` | `TODO-P6-part3.md` | Review clean LLVM body lowering，确认 backend 拥有 whole function protocol 且不再胶合 legacy codegen |
+| `P6-T04` | `TODO-P6-part3.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |
+| `P6-T04R` | `TODO-P6-part3.md` | Review GC/runtime 集成，确认 clean refactor path 没有 legacy runtime 语义依赖 |
+| `P6-T05` | `TODO-P6-part3.md` | 建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract |
+| `P6-T05R` | `TODO-P6-part3.md` | Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |
 | `P7-T01` | `TODO-P7.md` | 翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口 |
 | `P7-T01R` | `TODO-P7.md` | Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口 |
 | `P7-T02` | `TODO-P7.md` | 更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy” |

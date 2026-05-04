@@ -588,16 +588,53 @@ impl LateLoweredContinuationRoute {
 
 /// shared surface-resume wrapper 在 owner step 上观察到 `Complete` 时的显式投影。
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LateLoweredSurfaceResumeWrapperCompletePayloadSource {
+    OwnerComplete { answer_ty: TypeId },
+    WrapperPayload(LateLoweredCompletionPayloadSource),
+}
+
+impl LateLoweredSurfaceResumeWrapperCompletePayloadSource {
+    pub(crate) fn owner_complete(answer_ty: TypeId) -> Self {
+        Self::OwnerComplete { answer_ty }
+    }
+
+    pub(crate) fn wrapper_payload(payload_source: LateLoweredCompletionPayloadSource) -> Self {
+        Self::WrapperPayload(payload_source)
+    }
+
+    pub fn source_ty(&self) -> TypeId {
+        match self {
+            Self::OwnerComplete { answer_ty } => *answer_ty,
+            Self::WrapperPayload(source) => source.source_ty(),
+        }
+    }
+
+    pub fn wrapper_payload_source(&self) -> Option<&LateLoweredCompletionPayloadSource> {
+        match self {
+            Self::OwnerComplete { .. } => None,
+            Self::WrapperPayload(source) => Some(source),
+        }
+    }
+}
+
+/// shared surface-resume wrapper 在 owner step 上观察到 `Complete` 时的显式投影。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredSurfaceResumeWrapperCompleteProjection {
     owner_answer_ty: TypeId,
     wrapper_answer_ty: TypeId,
+    payload_source: LateLoweredSurfaceResumeWrapperCompletePayloadSource,
 }
 
 impl LateLoweredSurfaceResumeWrapperCompleteProjection {
-    pub(crate) fn new(owner_answer_ty: TypeId, wrapper_answer_ty: TypeId) -> Self {
+    pub(crate) fn new(
+        owner_answer_ty: TypeId,
+        wrapper_answer_ty: TypeId,
+        payload_source: LateLoweredSurfaceResumeWrapperCompletePayloadSource,
+    ) -> Self {
         Self {
             owner_answer_ty,
             wrapper_answer_ty,
+            payload_source,
         }
     }
 
@@ -607,6 +644,10 @@ impl LateLoweredSurfaceResumeWrapperCompleteProjection {
 
     pub fn wrapper_answer_ty(&self) -> TypeId {
         self.wrapper_answer_ty
+    }
+
+    pub fn payload_source(&self) -> &LateLoweredSurfaceResumeWrapperCompletePayloadSource {
+        &self.payload_source
     }
 }
 
@@ -1008,9 +1049,71 @@ fn build_surface_resume_wrapper_projection(
         LateLoweredSurfaceResumeWrapperCompleteProjection::new(
             owner_step.complete_ty(),
             lowering.dispatch().complete().answer_ty(),
+            build_surface_resume_wrapper_complete_payload_source(
+                callable,
+                underlying_route,
+                owner_step.complete_ty(),
+                lowering.dispatch().complete().answer_ty(),
+            )?,
         ),
         outward_cases,
     ))
+}
+
+fn build_surface_resume_wrapper_complete_payload_source(
+    callable: &LateLoweredCallable,
+    underlying_route: &LateLoweredContinuationRoute,
+    owner_answer_ty: TypeId,
+    wrapper_answer_ty: TypeId,
+) -> Option<LateLoweredSurfaceResumeWrapperCompletePayloadSource> {
+    if owner_answer_ty == wrapper_answer_ty {
+        return Some(
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::owner_complete(owner_answer_ty),
+        );
+    }
+    if let Some(source) = handle_binder_completion_payload_source(callable, underlying_route) {
+        if source.source_ty() == wrapper_answer_ty {
+            return Some(
+                LateLoweredSurfaceResumeWrapperCompletePayloadSource::wrapper_payload(
+                    source.clone(),
+                ),
+            );
+        }
+    }
+    None
+}
+
+fn handle_binder_completion_payload_source<'a>(
+    callable: &'a LateLoweredCallable,
+    underlying_route: &LateLoweredContinuationRoute,
+) -> Option<&'a LateLoweredCompletionPayloadSource> {
+    let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+        site_id,
+        arm_ordinal,
+        handled_case,
+        ..
+    } = underlying_route.publication()
+    else {
+        return None;
+    };
+    callable.state_graph().states().iter().find_map(|state| {
+        let LateLoweredStateTerminator::HandleDispatch {
+            site_id: state_site,
+            contract,
+            ..
+        } = state.terminator()
+        else {
+            return None;
+        };
+        if state_site != site_id {
+            return None;
+        }
+        contract
+            .handled_arms()
+            .iter()
+            .find(|arm| arm.arm_ordinal() == *arm_ordinal && arm.handled_case() == *handled_case)
+            .map(LateLoweredHandleArmDispatch::completion_payload_source)
+    })
 }
 
 fn surface_resume_contract_from_continuation(
@@ -1877,6 +1980,7 @@ pub struct LateLoweredHandleArmDispatch {
     arm_state: StateId,
     arm_ordinal: u32,
     payload_tuple_ty: TypeId,
+    completion_payload_source: LateLoweredCompletionPayloadSource,
     payload_binders: Vec<LateLoweredHandlePayloadBinder>,
     continuation_binder: Option<LateLoweredHandleContinuationBinder>,
     arm_outward_cases: Vec<CaseTag>,
@@ -1888,6 +1992,7 @@ impl LateLoweredHandleArmDispatch {
         arm_state: StateId,
         arm_ordinal: u32,
         payload_tuple_ty: TypeId,
+        completion_payload_source: LateLoweredCompletionPayloadSource,
         payload_binders: Vec<LateLoweredHandlePayloadBinder>,
         continuation_binder: Option<LateLoweredHandleContinuationBinder>,
         arm_outward_cases: Vec<CaseTag>,
@@ -1897,6 +2002,7 @@ impl LateLoweredHandleArmDispatch {
             arm_state,
             arm_ordinal,
             payload_tuple_ty,
+            completion_payload_source,
             payload_binders,
             continuation_binder,
             arm_outward_cases,
@@ -1917,6 +2023,10 @@ impl LateLoweredHandleArmDispatch {
 
     pub fn payload_tuple_ty(&self) -> TypeId {
         self.payload_tuple_ty
+    }
+
+    pub fn completion_payload_source(&self) -> &LateLoweredCompletionPayloadSource {
+        &self.completion_payload_source
     }
 
     pub fn payload_binders(&self) -> &[LateLoweredHandlePayloadBinder] {

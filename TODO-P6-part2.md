@@ -1,12 +1,12 @@
-# TODO（P6：LLVM codegen 新路径对接 Part 2 / 未完成任务）
+# TODO（P6：LLVM codegen 新路径对接 Part 2 / 已完成与迁移归档）
 
 > 生成时间：2026-05-02  
 > 设计基线：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 前置条件：`TODO-P5.md` 已完整完成；refactor late-lowering stage、`dump-effect-lowered`、以及 P5 -> P6 handoff contract 已存在并稳定；P5 产出的 late-lowered representation 已成为 LLVM 前唯一允许消费的 effect/continuation 中层合同。  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本阶段目标：把 P5 产出的 late-lowered representation 接到新的 LLVM codegen 路径；在不切默认主线的前提下，让 `--effect-pipeline refactor` 下的 `build` / `run` / `--emit-llvm` / `--emit-obj` / `--emit-asm` 能端到端生成正确 IR 和可运行程序，同时保持“backend 只翻译 P5 state graph / frame schema / boundary contract，而不再重新做高层 effect lowering 设计”的边界。
-> 拆分说明：已完成任务（`P6-T01` ~ `P6-T02ma`）见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)；当前文件保留未完成任务与继续推进所需的全局约束。
+> 本阶段目标：归档 `P6-T02m` ~ `P6-T02qg` 已完成 contract 任务，并记录旧 `P6-T03` 单体推进暴露出的 clean backend 边界问题。
+> 拆分说明：已完成任务（`P6-T01` ~ `P6-T02ma`）见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)；后续 P6 待完成任务已迁移到 [`TODO-P6-part3.md`](./TODO-P6-part3.md)。当前文件不再承载未完成任务。
 
 ## 全局约束
 
@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T02qe -> P6-T02qf -> P6-T02qg -> P6-T02qh -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 后续未完成链路已迁移到 [`TODO-P6-part3.md`](./TODO-P6-part3.md)，按 `P6-T02qh -> P6-T03a -> ... -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -1021,7 +1021,7 @@
     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02qh：发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值
+## [MOVED] P6-T02qh：发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值
 
 - 参考：
   - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T02qc`, `P6-T02qg`, `P6-T03`
@@ -1072,9 +1072,9 @@
   - 缺失、歧义或类型漂移时在 P5/P6 handoff 边界显式拒绝。
 - 依赖：P6-T02qc，P6-T02qg
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：任务迁移到 [`TODO-P6-part3.md`](./TODO-P6-part3.md)。这是继续 clean refactor body lowering 前仍需收口的 required blocker。
 
-## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
+## [ABANDONED] P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1194,6 +1194,7 @@
   - backend 不再承担第二套高层 effect lowering 语义工作。
 - 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P6-T02qf，P6-T02qg，P6-T02qh，P5-T07a，P5-T07b
 - 完成记录：
+  - 2026-05-04：废弃旧单体任务形态。继续推进时确认 `P6-T03` 已经不只是 effect-only body emitter，而是需要 clean refactor backend 拥有 whole function protocol；旧任务过大且容易把 legacy statement/function codegen 与新 effect lowering 胶合在一起。后续改由 [`TODO-P6-part3.md`](./TODO-P6-part3.md) 的 `P6-T03a` ~ `P6-T03i` 承接。
   - 2026-05-04：重新进入 `P6-T03` 前确认验证 blocker。`P6-T03` 指定的 run-pass 验证命令会通过 `scoop test` 调用 `run-pass` fixture runner，但当前 runner 子进程只构造 `scoop run <fixture>`，没有继承父级 `--effect-pipeline refactor`。这会让后续 run-pass 验证无法证明 refactor LLVM body lowering，存在静默走 legacy/default 的假阳性风险。因此新增前置任务 `P6-T02qf`，先把 run-pass 系列子进程接到父级 effect-pipeline selector，再继续本任务。
   - 2026-05-04：重新进入 `P6-T03` source-slice body emitter 准备时确认新的前置 blocker。`P6-T02qa` 已把 member write/read provenance 从 unresolved assign-lhs TODO 升级为 canonical `StatementKind::StoreMember` / `Rvalue::MemberAccess`，但当前 `crates/scoopc/src/llvm/codegen/mir_body.rs` 仍直接拒绝这两类 MIR 节点；`effect_multi_escape_indirect_direct_while.scoop` 的 P5 source slices 已真实包含 `cell.count` / `cell.k` member read/write。若继续实现 `P6-T03`，body emitter 必须回 HIR / member 文本 / legacy member lowering 猜字段布局，违反 contract-first 边界。因此新增前置任务 `P6-T02qe`，先发布并实现 effect-neutral source-slice member read/write LLVM lowering contract，再继续本任务。
   - 2026-05-04：继续真正实现 continuation object method / owner trampoline body 时确认新的 blocker。当前 handoff 已发布 boundary operand、underlying route、wrapper projection、以及 `ResumePayload(boundary, case)` / `BoundaryResult(boundary, local)` 等 slot identity；但还没有 authoritative 发布“incoming resume payload/answer 应写回哪个 resumed local/home”的统一 contract。`effect_multi_escape_indirect_direct_while.scoop` 中 `fetch` 的 outward `Ask.ask` continuation 以及 `main` 的 shared wrapper owner route 若继续由 `P6-T03` 落地，backend 只能回 canonical MIR `Rvalue::PerformResult` target、raw call assign target、或 paired boundary shape 恢复 consumer local，违反 contract-first 边界。因此新增前置任务 `P6-T02qd`，先发布 resumed local/home 注入 contract，再继续本任务。
@@ -1230,7 +1231,7 @@
   - 2026-05-04：再次进入 `P6-T03` 时发现新的 completion payload blocker。`effect_resume_if_else_branch_single_perform.scoop` 的 `run(): Int` 已发布 `Complete(t5)`，但 state graph 中完成路径仍是 `Return(Unit -> st1)`，没有 authoritative 说明 `Complete(answer)` 的 `Int` payload 来自哪个 local/frame/system slot。若继续实现 body emitter，P6 只能回 raw MIR terminator、tail expression 或 HIR handle shape 恢复返回值，违反本任务禁止 backend 重建控制/完成语义的约束。因此新增前置任务 `P6-T02qg`，先发布 non-`Unit` completion payload source / return-value contract，再继续本任务。
   - 2026-05-04：继续推进 `P6-T03` body emitter 并跑通 `effect_resume_if_else_branch_single_perform.scoop` 后，`effect_multi_escape_indirect_direct_while.scoop` 暴露新的 wrapper completion blocker。当前 `LateLoweredSurfaceResumeWrapperCompleteProjection` 只发布 `owner_answer_ty -> wrapper_answer_ty`，在真实 `owner Unit -> wrapper Int` 场景下没有 authoritative wrapper payload source；P6 若继续只能默认填值或回 raw MIR/source shape 找 escaped resume answer。因而新增前置任务 `P6-T02qh`，先发布 surface-resume wrapper completion payload projection contract，再继续本任务。
 
-## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
+## [ABANDONED] P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16, §5.5, §8
@@ -1260,9 +1261,9 @@
   - 可进入 P6-T04。
 - 依赖：P6-T03
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：旧 review 任务随旧单体 `P6-T03` 废弃。clean backend review 改由 [`TODO-P6-part3.md`](./TODO-P6-part3.md) 的 `P6-T03R` 承接，重点改为确认 backend 拥有 whole function protocol 且不再胶合 legacy codegen。
 
-## P6-T04：接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界
+## [MOVED] P6-T04：接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1354,9 +1355,9 @@
   - 后续 P6-T05 只需锁定定向验证矩阵并冻结 P6 -> P7 handoff。
 - 依赖：P6-T03R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：任务迁移到 [`TODO-P6-part3.md`](./TODO-P6-part3.md)，并更新为依赖 clean body lowering review。
 
-## P6-T04R：Review GC/runtime 集成，确认没有残留 legacy handler-stack 依赖，也没有错误的 dropped-continuation / FFI 语义
+## [MOVED] P6-T04R：Review GC/runtime 集成，确认没有残留 legacy handler-stack 依赖，也没有错误的 dropped-continuation / FFI 语义
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.7, §5.3.8, §5.3.9, §8
@@ -1388,9 +1389,9 @@
   - 可进入 P6-T05。
 - 依赖：P6-T04
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：任务迁移到 [`TODO-P6-part3.md`](./TODO-P6-part3.md)，review 范围扩展为 clean refactor runtime boundary。
 
-## P6-T05：建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract
+## [MOVED] P6-T05：建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6，§2/P7
@@ -1484,9 +1485,9 @@
   - P6 -> P7 handoff contract 已通过代码与测试锁定。
 - 依赖：P6-T04R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：任务迁移到 [`TODO-P6-part3.md`](./TODO-P6-part3.md)，验证矩阵增加 clean backend 无 legacy fallback 要求。
 
-## P6-T05R：Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression
+## [MOVED] P6-T05R：Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6，§2/P7，§3
@@ -1508,4 +1509,4 @@
   - P7 可以在不重新讨论 LLVM effect backend 架构、ABI、或 GC/runtime 语义的前提下，直接进入默认主线切换与 full regression。
 - 依赖：P6-T05
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：任务迁移到 [`TODO-P6-part3.md`](./TODO-P6-part3.md)，退出条件增加 clean refactor LLVM codegen 对接完成的确认。

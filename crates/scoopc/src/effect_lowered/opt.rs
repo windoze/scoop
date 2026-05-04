@@ -520,6 +520,7 @@ fn redirect_handle_dispatch_contract(
                     redirect_state_id(arm.arm_state(), redirects),
                     arm.arm_ordinal(),
                     arm.payload_tuple_ty(),
+                    arm.completion_payload_source().clone(),
                     arm.payload_binders().to_vec(),
                     arm.continuation_binder(),
                     arm.arm_outward_cases().to_vec(),
