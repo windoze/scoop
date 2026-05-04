@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02q -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -451,6 +451,71 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02q：发布 resume-boundary wrapper -> underlying continuation surface route contract，禁止 P6-T03 在 backend 现场从 continuation local / source type 猜 `k.resume(...)` 实际调用的 schema
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.6, §5.5.2-§5.5.7, §8
+  - [`TODO-P6-part1.md`](./TODO-P6-part1.md) `P6-T02c`, `P6-T02m`, `P6-T02n`
+  - `crates/scoopc/src/effect_facts/facts.rs`
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - `P6-T02c` 已为 `Resume` boundary 发布 boundary-local `ContinuationSchemaId -> surface-resume layout`；`P6-T02m/n` 也已为 shared surface schema 发布 owner dispatch / packing contract；
+  - 但当前 handoff 仍缺少一层更细的 authoritative bridge：当 `Resume` boundary 的 boundary-local schema 与 runtime continuation object 自身发布的 source-visible schema 不一致时，backend 还不知道“这个 boundary-local wrapper 到底应调用 runtime continuation object 上的哪条 surface route”；
+  - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 已经真实暴露出这层缺口：
+    - handle binder 把 `cell.k` 绑定为 `continuation_schema=k3`（`TODO-P6-part2.md` 当前 dump 中 `authoritative_surface_resume_dispatch_inventory` 可见 `k3 source=HandleContinuationBinderOnly`）；
+    - 但后续显式 `k.resume(...)` site25/site30/site35/site40 的 `Resume` boundary 只发布了 boundary-local `continuation_schema=k5`，且 `k5 source=ResumeBoundaryOnly` 并没有 object-side method target；
+    - `ResumeSiteEffectFacts` / `LateLoweredResumeBoundaryLowering` / `RefactorContinuationSurfaceResumeOwnerTrampolineLayout` 当前都只保留了 boundary-local `k5` 与 continuation source local，本身并没有 authoritative 地指出“这里实际应去调用 runtime continuation object 的哪条 published surface route（例如 `k3`）”。
+  - 若直接继续 `P6-T03`，backend 只能：
+    - 从 continuation local 的 raw source type / binder 来源 / object layout 反推真正的 surface schema；
+    - 或在 `ResumeBoundaryOnly` owner trampoline 里现场扫描 continuation object / source shape 临时恢复 route；
+    - 两者都直接违反本阶段 contract-first 边界。
+
+- 目标：
+  - 在进入 `P6-T03` 前，先把 `Resume` boundary-local wrapper schema 到 runtime continuation object 实际 surface route 的 authoritative bridge 显式发布出来；
+  - 让后续 body emitter 能仅凭 published handoff，就正确 lower `k.resume(...)` 这类 boundary-local wrapper，而不再现场猜 runtime continuation object 的真实 schema / symbol / route。
+
+- 必须实现的内容：
+  1. 为 `Resume` boundary 发布“wrapper schema -> underlying continuation surface route”的 authoritative contract。
+     - 至少要能让 `P6-T03` 直接查询到：
+       - boundary-local wrapper 自己的 `ContinuationSchemaId`；
+       - runtime continuation object 实际应调用的 published surface route（可表现为 underlying `ContinuationSchemaId`、shared surface symbol、owner trampoline，或等价稳定 bridge）；
+       - 若 wrapper 本身直接承担全部 owner-specific resume 语义，也必须显式发布这条 bridge，而不是让 backend 靠 raw local/source type 猜测。
+  2. 把这层 bridge 接到 late-lowered / LLVM query handoff。
+     - 推荐落点：
+       - `LateLoweredResumeBoundaryLowering`
+       - `RefactorAbiQuery`
+       - 或一个等价且已发布的 compiler-owned bridge query；
+     - 但禁止只在 `P6-T03` body emitter 内部偷偷缓存一张“local -> schema”私表。
+  3. 对缺失、歧义或漂移的 wrapper-route contract fail fast。
+     - 至少包括：
+       - boundary-local wrapper schema 已发布，但没有对应 underlying route；
+       - 同一 `Resume` boundary continuation source 可能对应多个互不兼容的 underlying schema / symbol；
+       - `P6-T03` 若只消费 published handoff 仍无法唯一决定 `k.resume(...)` 实际应调用哪条 surface route。
+  4. 补充定向测试与回归。
+     - 至少覆盖：
+       - `effect_multi_escape_indirect_direct_while.scoop` 中 `cell.k` 的 published surface schema 与 site25/site30/site35/site40 的 boundary-local wrapper schema 可 authoritative 地桥接；
+       - 缺失 bridge 时显式拒绝，而不是把责任留给 `P6-T03` backend 现场猜测。
+
+- 必须遵从的约束：
+  - 禁止让 backend 通过 continuation local 的 source type 文本、binder 变量来源、raw continuation object field 顺序、或 runtime header/type desc 猜 underlying surface schema；
+  - 禁止假定 `Resume` boundary 的 boundary-local `ContinuationSchemaId` 一定等于 runtime continuation object 自己发布的 source-visible schema；
+  - 禁止把这层关系继续埋在 owner trampoline 私有实现里而不先 published。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout`
+  - `cargo test -p scoopc refactor_llvm_boundary_operand_contract`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - `P6-T03` 可以仅凭 published handoff 唯一决定 boundary-local `k.resume(...)` wrapper 实际应调用的 runtime continuation surface route；
+  - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝，而不是由 backend 现场猜测。
+- 依赖：P6-T02m，P6-T02n，P6-T02o，P6-T02p
+- 完成记录：
+  - 2026-05-04：开始真正落地 `P6-T03` 时发现新的 blocker。当前 `Resume` boundary contract 仍只发布了 boundary-local wrapper schema，而没有 authoritative 发布它到 runtime continuation object 实际 surface route 的 bridge：`effect_multi_escape_indirect_direct_while.scoop` 中 handle binder 发布 `k3`，但后续 site25/site30/site35/site40 的 resume boundary 只发布 `k5`；`RefactorContinuationSurfaceResumeDispatchLayout` 对 `k5` 又是 `ResumeBoundaryOnly`、没有 object-side method target。若直接继续本任务，backend 必须回 continuation local/source type/shape 猜实际应调用的 surface route，违反 contract-first 约束。
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -569,7 +634,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P5-T07a，P5-T07b
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -597,6 +662,8 @@
   - 因此新增前置任务 `P6-T02o`，先发布 statement/terminator anchored boundary operand contract，再继续本任务。
   - 2026-05-04：继续核对 refactor callable shell / dynamic carrier target 时发现新的 blocker。P5 authoritative identity 已经是 `LateLoweredBodyVersionKey`，而 `layout.rs` 也已承认同一 `root_fqn` 可以发布多个 callable shell（会按 `schema*` 追加 symbol stem）；但当前 `RefactorAbiQuery` 仍主要按 `StepSchemaId` / `root_fqn` 暴露 callable layout，`layout.rs::callable_layout_by_root_fqn(...)` 仍把“同 root 只有唯一 shell”当成 carrier target 前提，`CallSiteEffectFacts` 也尚未显式发布 runtime callable carrier / known-instance target 应选择哪个 callable version 的 contract。若直接继续 `P6-T03`，backend 将不得不按 `root_fqn`、遍历顺序、或未发布的唯一性假设去碰运气选择 callee/current body version，违背本阶段 contract-first 边界。
   - 因此新增前置任务 `P6-T02p`，先把 callable version selection contract authoritative 发布到 late-lowered / LLVM query handoff，再继续本任务。
+  - 2026-05-04：继续真正把 `Resume` boundary 接到 body emitter 时发现新的 blocker。当前 handoff 仍没有 authoritative 发布“boundary-local resume wrapper schema -> runtime continuation object 实际 surface route”的 bridge：`effect_multi_escape_indirect_direct_while.scoop` 中 handle binder 发布 `k3`，但 site25/site30/site35/site40 的 `Resume` boundary 只发布了 `k5`；`k5` 的 published dispatch 又是 `ResumeBoundaryOnly`，没有 object-side method target。若直接继续本任务，backend 只能回 continuation local / source type / runtime object shape 猜 `k.resume(...)` 实际应调用哪条 surface route，直接违反本阶段 contract-first 约束。
+  - 因此新增前置任务 `P6-T02q`，先把 resume-boundary wrapper -> underlying continuation surface route contract 显式发布出来，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
