@@ -260,7 +260,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn pick_class_ctor_by_target<'b>(
+    pub(in crate::llvm::codegen) fn pick_class_ctor_by_target<'b>(
         &self,
         at: crate::span::Span,
         class: &'b hir::ClassInit,
@@ -670,7 +670,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn codegen_class_ctor_invoke(
+    pub(in crate::llvm::codegen) fn codegen_class_ctor_invoke(
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,

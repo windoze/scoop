@@ -2142,7 +2142,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn codegen_int_to_string(
+    pub(in crate::llvm::codegen) fn codegen_int_to_string(
         &mut self,
         span: crate::span::Span,
         int64: IntValue<'ctx>,

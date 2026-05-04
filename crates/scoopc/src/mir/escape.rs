@@ -388,6 +388,16 @@ fn analyze_rvalue_uses(
                 mark_operand_use(&arg.value, OperandUse::Escaping, aliases, facts);
             }
         }
+        Rvalue::EnumVariant { args, .. } => {
+            for arg in args {
+                mark_operand_use(&arg.value, OperandUse::Escaping, aliases, facts);
+            }
+        }
+        Rvalue::ClassCtor { args, .. } => {
+            for arg in args {
+                mark_operand_use(&arg.value, OperandUse::Escaping, aliases, facts);
+            }
+        }
         Rvalue::MakeTuple { elements } => {
             for element in elements {
                 mark_operand_use(element, OperandUse::Escaping, aliases, facts);

@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T02qe -> P6-T02qf -> P6-T02qg -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T02qe -> P6-T02qf -> P6-T02qg -> P6-T02qh -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -1021,6 +1021,59 @@
     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02qh：发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值
+
+- 参考：
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T02qc`, `P6-T02qg`, `P6-T03`
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.6, §5.5, §8
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout,body}.rs`
+- 背景：
+  - `P6-T02qc` 已发布 shared surface-resume wrapper 的 owner-step -> wrapper-step case 投影；
+  - `P6-T02qg` 已发布 callable `Complete(answer)` 的 payload source；
+  - 但 `LateLoweredSurfaceResumeWrapperCompleteProjection` 当前只携带 `owner_answer_ty` 与 `wrapper_answer_ty`，没有发布当两者不一致时 wrapper `Complete(answer)` 的 authoritative payload source；
+  - 重新推进 `P6-T03` 时，`tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 真实出现 `owner_answer_ty=Unit`、`wrapper_answer_ty=Int` 的 wrapper projection：owner callable `main` 的 `Step` complete 是 `Unit`，而 escaped `Continuation<String, Int>.resume(...)` 的 wrapper `Step` complete 必须携带 `Int`；
+  - 若 P6 继续实现 body emitter，只能发明默认 `Int`、回 raw MIR/source shape 找 resume call result、或在 wrapper body 内维护 task-private 状态表，均违反 contract-first 边界。
+
+- 目标：
+  - 在进入 `P6-T03` 前，把 surface-resume wrapper complete projection 的 payload source 显式发布到 P5/P6 handoff；
+  - 让 owner trampoline / surface wrapper lowering 能只消费 published contract 构造 wrapper `Complete(answer)`，不再现场猜测或默认填值。
+
+- 必须实现的内容：
+  1. 扩展 `LateLoweredSurfaceResumeWrapperCompleteProjection` 或等价 handoff，发布 wrapper complete payload source。
+     - 当 `owner_answer_ty == wrapper_answer_ty` 且 ABI 兼容时，可以显式发布“沿用 owner complete payload”；
+     - 当两者不一致时，必须发布 wrapper answer 来自哪个 authoritative local/frame/system slot/boundary result/handle completion carrier；
+     - `Unit` wrapper complete 也必须显式表示为 elided payload，而不是缺失 contract。
+  2. 将该 contract 接到 refactor LLVM ABI query。
+     - ABI materialization 必须校验 owner complete payload、wrapper payload source、`Step_F` complete layout、frame/home slot 与 source type一致；
+     - 对缺失、歧义或类型漂移 fail fast。
+  3. 更新 surface-resume owner trampoline lowering。
+     - wrapper projection complete 分支必须消费 published payload source；
+     - 禁止在 `body.rs` 中用默认值、source span、resume site 顺序、或 raw MIR tail shape 推导 wrapper answer。
+  4. 补充定向测试与回归。
+     - 至少覆盖 `effect_multi_escape_indirect_direct_while.scoop` 中 `owner Unit -> wrapper Int` 的 escaped continuation resume；
+     - 覆盖 owner/wrapper answer type 相同的投影继续沿用 owner complete payload；
+     - 覆盖缺失或类型漂移时显式拒绝。
+
+- 必须遵从的约束：
+  - 禁止把 wrapper `Complete(answer)` 的 payload 默认成零值或 fixture 私有常量；
+  - 禁止让 P6 回 raw MIR/source shape 或按 resume site 名称/顺序恢复 answer source；
+  - 禁止把 wrapper surface symbol 退化成 owner-private special case。
+
+- 验证：
+  - `cargo test -p scoopc refactor_effect_lowered_surface_resume_wrapper_completion`
+  - `cargo test -p scoopc refactor_llvm_surface_resume_wrapper_completion`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - surface-resume wrapper complete projection 已 authoritative 发布 wrapper payload source；
+  - `P6-T03` 可以只消费 state graph / ABI query 构造 wrapper `Complete(answer)`；
+  - 缺失、歧义或类型漂移时在 P5/P6 handoff 边界显式拒绝。
+- 依赖：P6-T02qc，P6-T02qg
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1139,7 +1192,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P6-T02qf，P6-T02qg，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P6-T02qf，P6-T02qg，P6-T02qh，P5-T07a，P5-T07b
 - 完成记录：
   - 2026-05-04：重新进入 `P6-T03` 前确认验证 blocker。`P6-T03` 指定的 run-pass 验证命令会通过 `scoop test` 调用 `run-pass` fixture runner，但当前 runner 子进程只构造 `scoop run <fixture>`，没有继承父级 `--effect-pipeline refactor`。这会让后续 run-pass 验证无法证明 refactor LLVM body lowering，存在静默走 legacy/default 的假阳性风险。因此新增前置任务 `P6-T02qf`，先把 run-pass 系列子进程接到父级 effect-pipeline selector，再继续本任务。
   - 2026-05-04：重新进入 `P6-T03` source-slice body emitter 准备时确认新的前置 blocker。`P6-T02qa` 已把 member write/read provenance 从 unresolved assign-lhs TODO 升级为 canonical `StatementKind::StoreMember` / `Rvalue::MemberAccess`，但当前 `crates/scoopc/src/llvm/codegen/mir_body.rs` 仍直接拒绝这两类 MIR 节点；`effect_multi_escape_indirect_direct_while.scoop` 的 P5 source slices 已真实包含 `cell.count` / `cell.k` member read/write。若继续实现 `P6-T03`，body emitter 必须回 HIR / member 文本 / legacy member lowering 猜字段布局，违反 contract-first 边界。因此新增前置任务 `P6-T02qe`，先发布并实现 effect-neutral source-slice member read/write LLVM lowering contract，再继续本任务。
@@ -1175,6 +1228,7 @@
   - 2026-05-04：继续真正把 `Resume` boundary 接到 body emitter 时发现新的 blocker。当前 handoff 仍没有 authoritative 发布“boundary-local resume wrapper schema -> runtime continuation object 实际 surface route”的 bridge：`effect_multi_escape_indirect_direct_while.scoop` 中 handle binder 发布 `k3`，但 site25/site30/site35/site40 的 `Resume` boundary 只发布了 `k5`；`k5` 的 published dispatch 又是 `ResumeBoundaryOnly`，没有 object-side method target。若直接继续本任务，backend 只能回 continuation local / source type / runtime object shape 猜 `k.resume(...)` 实际应调用哪条 surface route，直接违反本阶段 contract-first 约束。
   - 因此新增前置任务 `P6-T02q`，先把 resume-boundary wrapper -> underlying continuation surface route contract 显式发布出来，再继续本任务。
   - 2026-05-04：再次进入 `P6-T03` 时发现新的 completion payload blocker。`effect_resume_if_else_branch_single_perform.scoop` 的 `run(): Int` 已发布 `Complete(t5)`，但 state graph 中完成路径仍是 `Return(Unit -> st1)`，没有 authoritative 说明 `Complete(answer)` 的 `Int` payload 来自哪个 local/frame/system slot。若继续实现 body emitter，P6 只能回 raw MIR terminator、tail expression 或 HIR handle shape 恢复返回值，违反本任务禁止 backend 重建控制/完成语义的约束。因此新增前置任务 `P6-T02qg`，先发布 non-`Unit` completion payload source / return-value contract，再继续本任务。
+  - 2026-05-04：继续推进 `P6-T03` body emitter 并跑通 `effect_resume_if_else_branch_single_perform.scoop` 后，`effect_multi_escape_indirect_direct_while.scoop` 暴露新的 wrapper completion blocker。当前 `LateLoweredSurfaceResumeWrapperCompleteProjection` 只发布 `owner_answer_ty -> wrapper_answer_ty`，在真实 `owner Unit -> wrapper Int` 场景下没有 authoritative wrapper payload source；P6 若继续只能默认填值或回 raw MIR/source shape 找 escaped resume answer。因而新增前置任务 `P6-T02qh`，先发布 surface-resume wrapper completion payload projection contract，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 

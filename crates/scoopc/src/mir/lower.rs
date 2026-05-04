@@ -1800,6 +1800,48 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
+        if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind
+            && matches!(
+                self.types.kind(ty),
+                TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
+            )
+        {
+            let Some(args) = self.lower_call_args(args) else {
+                return result;
+            };
+            self.assign(
+                span,
+                result,
+                Rvalue::EnumVariant {
+                    enum_ty: ty,
+                    variant_name: name.clone(),
+                    args,
+                },
+            );
+            return result;
+        }
+
+        let unresolved_class_ctor_fqn = match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => Some(nominal.fqn.clone()),
+            _ => None,
+        };
+        if let hir::ExprKind::UnresolvedIdent { .. } = &callee.kind
+            && let Some(callee_fqn) = unresolved_class_ctor_fqn
+        {
+            let Some(args) = self.lower_call_args(args) else {
+                return result;
+            };
+            self.assign(
+                span,
+                result,
+                Rvalue::ClassCtor {
+                    class_fqn: callee_fqn,
+                    args,
+                },
+            );
+            return result;
+        }
+
         let callee_local = self.lower_expr_to_local(callee);
         if self.current_is_terminated() {
             return result;

@@ -412,6 +412,16 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                 collect_operand_use(&arg.value, out);
             }
         }
+        Rvalue::EnumVariant { args, .. } => {
+            for arg in args {
+                collect_operand_use(&arg.value, out);
+            }
+        }
+        Rvalue::ClassCtor { args, .. } => {
+            for arg in args {
+                collect_operand_use(&arg.value, out);
+            }
+        }
         Rvalue::MakeTuple { elements } => {
             for element in elements {
                 collect_operand_use(element, out);

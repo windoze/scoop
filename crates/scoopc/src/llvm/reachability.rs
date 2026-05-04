@@ -540,6 +540,8 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::MakeTuple { .. }
             | mir::Rvalue::TupleGet { .. }
             | mir::Rvalue::MakeClosure { .. }
+            | mir::Rvalue::EnumVariant { .. }
+            | mir::Rvalue::ClassCtor { .. }
             | mir::Rvalue::CaptureBoxNew { .. }
             | mir::Rvalue::CaptureBoxGet { .. }
             | mir::Rvalue::CaptureBoxSet { .. }
@@ -657,6 +659,16 @@ impl<'a> ReachabilityCollector<'a> {
             }
             mir::Rvalue::Call { kind, args, .. } => {
                 self.scan_mir_call_kind(kind);
+                for arg in args {
+                    self.scan_mir_operand(&arg.value);
+                }
+            }
+            mir::Rvalue::EnumVariant { args, .. } => {
+                for arg in args {
+                    self.scan_mir_operand(&arg.value);
+                }
+            }
+            mir::Rvalue::ClassCtor { args, .. } => {
                 for arg in args {
                     self.scan_mir_operand(&arg.value);
                 }

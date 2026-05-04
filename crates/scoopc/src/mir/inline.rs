@@ -290,6 +290,8 @@ impl BlockCallableProvenance {
             | Rvalue::Binary { .. }
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
+            | Rvalue::EnumVariant { .. }
+            | Rvalue::ClassCtor { .. }
             | Rvalue::Call { .. }
             | Rvalue::MakeTuple { .. }
             | Rvalue::TupleGet { .. }
@@ -572,6 +574,7 @@ fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
         Rvalue::Call { kind, .. } => {
             matches!(kind, CallKind::Direct { .. } | CallKind::Closure { .. })
         }
+        Rvalue::EnumVariant { .. } | Rvalue::ClassCtor { .. } => true,
         Rvalue::MakeTuple { .. } | Rvalue::TupleGet { .. } | Rvalue::MakeClosure { .. } => true,
         Rvalue::UnresolvedName { .. }
         | Rvalue::TypeCheck { .. }
@@ -610,6 +613,7 @@ fn rvalue_is_inlineable(
             true
         }
         Rvalue::Call { kind, .. } => call_kind_is_inlineable(kind, direct_call_param_provenance),
+        Rvalue::EnumVariant { .. } | Rvalue::ClassCtor { .. } => true,
         Rvalue::UnresolvedName { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
@@ -731,6 +735,16 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         Rvalue::MemberAccess { receiver, .. } => collect_operand_use(receiver, out),
         Rvalue::Call { kind, args, .. } => {
             collect_call_kind_uses(kind, out);
+            for arg in args {
+                collect_operand_use(&arg.value, out);
+            }
+        }
+        Rvalue::EnumVariant { args, .. } => {
+            for arg in args {
+                collect_operand_use(&arg.value, out);
+            }
+        }
+        Rvalue::ClassCtor { args, .. } => {
             for arg in args {
                 collect_operand_use(&arg.value, out);
             }
@@ -965,6 +979,19 @@ fn remap_rvalue(
                 local_map,
                 direct_call_param_provenance,
             )?,
+            args: remap_call_args(args, local_operands, local_map)?,
+        }),
+        Rvalue::EnumVariant {
+            enum_ty,
+            variant_name,
+            args,
+        } => Some(Rvalue::EnumVariant {
+            enum_ty: *enum_ty,
+            variant_name: variant_name.clone(),
+            args: remap_call_args(args, local_operands, local_map)?,
+        }),
+        Rvalue::ClassCtor { class_fqn, args } => Some(Rvalue::ClassCtor {
+            class_fqn: class_fqn.clone(),
             args: remap_call_args(args, local_operands, local_map)?,
         }),
         Rvalue::UnresolvedName { .. }

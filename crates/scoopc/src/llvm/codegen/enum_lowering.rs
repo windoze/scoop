@@ -89,7 +89,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.build_enum_variant_value_from_field_values(span, enum_ty, variant_name, &field_values)
     }
 
-    fn build_enum_variant_value_from_field_values(
+    pub(in crate::llvm::codegen) fn build_enum_variant_value_from_field_values(
         &mut self,
         span: crate::span::Span,
         enum_ty: TypeId,

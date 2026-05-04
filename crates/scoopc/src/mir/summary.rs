@@ -476,6 +476,16 @@ fn observe_rvalue(
                 observe_operand(&arg.value, OperandUsage::Escape, state, param_use_summaries);
             }
         }
+        Rvalue::EnumVariant { args, .. } => {
+            for arg in args {
+                observe_operand(&arg.value, OperandUsage::Escape, state, param_use_summaries);
+            }
+        }
+        Rvalue::ClassCtor { args, .. } => {
+            for arg in args {
+                observe_operand(&arg.value, OperandUsage::Escape, state, param_use_summaries);
+            }
+        }
         Rvalue::MakeTuple { elements } => {
             for element in elements {
                 observe_operand(element, OperandUsage::Escape, state, param_use_summaries);
@@ -614,6 +624,8 @@ fn rvalue_provenance(
         | Rvalue::Binary { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
+        | Rvalue::EnumVariant { .. }
+        | Rvalue::ClassCtor { .. }
         | Rvalue::Call { .. }
         | Rvalue::MakeTuple { .. }
         | Rvalue::TupleGet { .. }
@@ -774,6 +786,8 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         | Rvalue::PatternExtract { .. } => 2,
         Rvalue::Binary { .. } | Rvalue::MemberAccess { .. } => 3,
         Rvalue::Call { args, .. } => 4 + args.len() as u32,
+        Rvalue::EnumVariant { args, .. } => 2 + args.len() as u32,
+        Rvalue::ClassCtor { args, .. } => 4 + args.len() as u32,
         Rvalue::MakeTuple { elements } => 2 + elements.len() as u32,
         Rvalue::CaptureBoxNew { .. } | Rvalue::CaptureBoxSet { .. } => 4,
         Rvalue::MakeClosure { .. } => 5,

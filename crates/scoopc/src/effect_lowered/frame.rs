@@ -875,6 +875,16 @@ fn collect_rvalue_uses(
                 collect_operand_use(&arg.value, defs, uses_before_def, read_states, state_id);
             }
         }
+        Rvalue::EnumVariant { args, .. } => {
+            for arg in args {
+                collect_operand_use(&arg.value, defs, uses_before_def, read_states, state_id);
+            }
+        }
+        Rvalue::ClassCtor { args, .. } => {
+            for arg in args {
+                collect_operand_use(&arg.value, defs, uses_before_def, read_states, state_id);
+            }
+        }
         Rvalue::MakeTuple { elements } => {
             for element in elements {
                 collect_operand_use(element, defs, uses_before_def, read_states, state_id);

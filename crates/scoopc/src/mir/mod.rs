@@ -860,6 +860,17 @@ pub enum Rvalue {
         receiver: Operand,
         member: MemberAccessMetadata,
     },
+    /// Enum/Option variant constructor after typed HIR has supplied the expected enum type.
+    EnumVariant {
+        enum_ty: TypeId,
+        variant_name: String,
+        args: Vec<CallArg>,
+    },
+    /// Class constructor call after typed HIR has identified the nominal result class.
+    ClassCtor {
+        class_fqn: String,
+        args: Vec<CallArg>,
+    },
     /// 一个显式普通调用节点。
     ///
     /// 当前阶段承载 direct / closure / fun-value / virtual / interface / resume 六类调用；
@@ -1080,6 +1091,8 @@ impl Rvalue {
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
             | Rvalue::MemberAccess { .. }
+            | Rvalue::EnumVariant { .. }
+            | Rvalue::ClassCtor { .. }
             | Rvalue::MakeTuple { .. }
             | Rvalue::TupleGet { .. }
             | Rvalue::CaptureBoxNew { .. }

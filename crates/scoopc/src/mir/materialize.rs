@@ -3626,6 +3626,18 @@ impl MirInstanceMaterializer {
                 }
                 self.rewrite_call_kind(stmt_span, kind, args, ctx)?;
             }
+            Rvalue::EnumVariant { enum_ty, args, .. } => {
+                *enum_ty =
+                    substitute_type_and_effect_params(&mut self.types, *enum_ty, ctx.substitution);
+                for arg in args.iter_mut() {
+                    arg.value = self.rewrite_operand(arg.value.clone());
+                }
+            }
+            Rvalue::ClassCtor { args, .. } => {
+                for arg in args.iter_mut() {
+                    arg.value = self.rewrite_operand(arg.value.clone());
+                }
+            }
             Rvalue::MakeTuple { elements } => {
                 for element in elements.iter_mut() {
                     *element = self.rewrite_operand(element.clone());

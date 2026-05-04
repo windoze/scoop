@@ -8,7 +8,7 @@
 //! 它不负责定义 LLVM pass pipeline，也不在根模块中继续承载大段实现。
 
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -975,23 +975,10 @@ fn build_main_module_from_codegen_entry<'ctx>(
         .filter(|fun| !fun_has_param_types(fun))
         .collect();
 
-    if let Some(program) = late_lowered_program {
+    let refactor_abi_query = if let Some(program) = late_lowered_program {
         let late_lowered_types = late_lowered_types.ok_or_else(|| LlvmEmitError::Frontend {
             message: "refactor LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
         })?;
-        let mut callables_to_check = vec![hir_main];
-        callables_to_check.extend(
-            reachable
-                .iter()
-                .copied()
-                .filter(|fun| fun.fqn != hir_main.fqn),
-        );
-        ensure_refactor_effect_lowering_is_supported(&hir_main.fqn, &callables_to_check, program)?;
-        ensure_refactor_reachable_callables_do_not_require_legacy_effect_body_lowering(
-            &hir_main.fqn,
-            &callables_to_check,
-            &declare,
-        )?;
         let abi_program = refactor_abi_program.ok_or_else(|| LlvmEmitError::Frontend {
             message: "refactor LLVM stage handoff 缺少 ABI visibility late-lowered program"
                 .to_string(),
@@ -1004,19 +991,39 @@ fn build_main_module_from_codegen_entry<'ctx>(
             refactor_abi_effect_facts.ok_or_else(|| LlvmEmitError::Frontend {
                 message: "refactor LLVM stage handoff 缺少 ABI visibility effect facts".to_string(),
             })?;
-        let _ = declare.materialize_refactor_program_abi(
+        let abi_query = declare.materialize_refactor_program_abi(
             abi_program,
             abi_types,
             abi_pass_view,
             abi_effect_facts,
         )?;
-    }
+        let primary_pass_view = unit_codegen
+            .materialized_pass_view()
+            .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
+        declare.codegen_refactor_program_bodies(
+            program,
+            late_lowered_types,
+            primary_pass_view,
+            &abi_query,
+        )?;
+        Some(abi_query)
+    } else {
+        None
+    };
 
     for fun in &reachable {
         let _ = declare.declare_top_level_fun(fun)?;
     }
 
     for fun in &reachable {
+        if let Some(program) = late_lowered_program
+            && let Some(callable) = program.callable(&fun.fqn)
+            && (!callable.boundary_map().entries().is_empty()
+                || !callable.resume_state_map().entries().is_empty()
+                || !callable.resolved_outward_cases().is_empty())
+        {
+            continue;
+        }
         if !should_emit_reachable_fun_body(fun, &unit_codegen) {
             continue;
         }
@@ -1106,7 +1113,18 @@ fn build_main_module_from_codegen_entry<'ctx>(
         }
     };
 
-    let exit_code = main_codegen.codegen_main_exit_code(hir_main, entry_argv_array)?;
+    let exit_code = if let (Some(program), Some(abi_query)) =
+        (late_lowered_program, refactor_abi_query.as_ref())
+    {
+        main_codegen.codegen_refactor_main_exit_code(
+            hir_main,
+            entry_argv_array,
+            program,
+            abi_query,
+        )?
+    } else {
+        main_codegen.codegen_main_exit_code(hir_main, entry_argv_array)?
+    };
     builder.build_return(Some(&exit_code))?;
     main_codegen.finish_function_explicit_frame_layout(hir_main.span)?;
 
@@ -1117,104 +1135,6 @@ fn build_main_module_from_codegen_entry<'ctx>(
         })?;
 
     Ok(module)
-}
-
-/// P6-T01a: 在真正迁出 refactor LLVM type/body lowering 之前，只允许复用 effect-neutral
-/// helper；一旦 reachable callable 需要 outward/boundary/resume lowering，就在 stage 边界
-/// fail fast，而不是静默回落到 legacy handler-stack / EffectOutcome backend。
-fn ensure_refactor_effect_lowering_is_supported(
-    entry_fqn: &str,
-    reachable: &[&hir::FunDecl],
-    program: &crate::effect_lowered::LateLoweredProgram,
-) -> Result<(), LlvmEmitError> {
-    for fun in reachable {
-        let Some(callable) = program.callable(&fun.fqn) else {
-            continue;
-        };
-        let unsupported_paths = collect_refactor_unsupported_paths(callable);
-        if unsupported_paths.is_empty() {
-            continue;
-        }
-        return Err(LlvmEmitError::RefactorEffectLoweringUnsupported {
-            entry: entry_fqn.to_string(),
-            callable: callable.root_fqn().to_string(),
-            unsupported_paths: unsupported_paths.join(", "),
-        });
-    }
-    Ok(())
-}
-
-fn ensure_refactor_reachable_callables_do_not_require_legacy_effect_body_lowering(
-    entry_fqn: &str,
-    reachable: &[&hir::FunDecl],
-    codegen: &codegen::MainCodegen<'_, '_>,
-) -> Result<(), LlvmEmitError> {
-    for fun in reachable {
-        if codegen.fun_requires_legacy_effect_body_lowering(fun) {
-            return Err(LlvmEmitError::RefactorEffectLoweringUnsupported {
-                entry: entry_fqn.to_string(),
-                callable: fun.fqn.clone(),
-                unsupported_paths: "legacy effect-frame / handler-stack body lowering".to_string(),
-            });
-        }
-    }
-    Ok(())
-}
-
-fn collect_refactor_unsupported_paths(
-    callable: &crate::effect_lowered::LateLoweredCallable,
-) -> Vec<&'static str> {
-    let mut unsupported = BTreeSet::new();
-
-    if !callable.resolved_outward_cases().is_empty() {
-        unsupported.insert("outward Step_F case lowering");
-    }
-    if !callable.resume_state_map().entries().is_empty() {
-        unsupported.insert("resume-state lowering");
-    }
-
-    for boundary in callable.boundary_map().entries() {
-        match boundary.lowering() {
-            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::Call(_)) => {
-                unsupported.insert("call boundary lowering");
-            }
-            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::Perform(_)) => {
-                unsupported.insert("perform boundary lowering");
-            }
-            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::Resume(_)) => {
-                unsupported.insert("resume boundary lowering");
-            }
-            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::RuntimeError(_)) => {
-                unsupported.insert("runtime-error outward lowering");
-            }
-            Some(crate::effect_lowered::ir::LateLoweredBoundaryLowering::Handle(_)) => {
-                unsupported.insert("handle boundary lowering");
-            }
-            None => match boundary.source() {
-                crate::effect_lowered::ir::LateLoweredBoundarySource::Site { kind, .. } => {
-                    unsupported.insert(match kind {
-                        crate::effect_lowered::ir::BoundarySiteKind::Call => {
-                            "call boundary lowering"
-                        }
-                        crate::effect_lowered::ir::BoundarySiteKind::Perform => {
-                            "perform boundary lowering"
-                        }
-                        crate::effect_lowered::ir::BoundarySiteKind::Resume => {
-                            "resume boundary lowering"
-                        }
-                        crate::effect_lowered::ir::BoundarySiteKind::Handle => {
-                            "handle boundary lowering"
-                        }
-                    });
-                }
-                crate::effect_lowered::ir::LateLoweredBoundarySource::RuntimeError { .. } => {
-                    unsupported.insert("runtime-error outward lowering");
-                }
-            },
-        }
-    }
-
-    unsupported.into_iter().collect()
 }
 
 fn should_emit_reachable_fun_body(

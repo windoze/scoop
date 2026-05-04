@@ -31,7 +31,6 @@ struct MirStoreMemberSupport<'m> {
     receiver: &'m crate::mir::Operand,
     member: &'m crate::mir::MemberAccessMetadata,
     value: &'m crate::mir::Operand,
-    value_ty: TypeId,
     continuation_route: &'m crate::mir::StoredContinuationRoutePublication,
 }
 
@@ -680,7 +679,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 receiver,
                 member,
                 value,
-                value_ty,
+                value_ty: _,
                 continuation_route,
             } => self.raw_materialized_mir_store_member_is_supported(
                 stmt.span,
@@ -690,7 +689,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     receiver,
                     member,
                     value,
-                    value_ty: *value_ty,
                     continuation_route,
                 },
             ),
@@ -819,6 +817,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .raw_materialized_mir_member_access_is_supported(
                     span, body, mir_types, receiver, member, target_cg,
                 ),
+            crate::mir::Rvalue::EnumVariant {
+                enum_ty,
+                variant_name,
+                args,
+            } => self.raw_materialized_mir_enum_variant_is_supported(
+                span,
+                body,
+                mir_types,
+                *enum_ty,
+                variant_name,
+                args,
+                target_cg,
+            ),
+            crate::mir::Rvalue::ClassCtor { class_fqn, args } => {
+                self.class_inits.contains_key(class_fqn)
+                    && target_cg == Some(CgTy::Ref)
+                    && args.iter().all(|arg| {
+                        arg.name.is_none()
+                            && self.raw_materialized_mir_operand_is_supported(&arg.value)
+                    })
+            }
             crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
@@ -871,13 +890,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !field.writable {
             return false;
         }
-        let Some(value_cg) = self.cg_ty_of_mir_type(mir_types, store.value_ty) else {
-            return false;
-        };
         let Some(operand_cg) = self.mir_operand_cg_ty(body, mir_types, store.value) else {
             return false;
         };
-        value_cg == field.field_cg && operand_cg == field.field_cg
+        operand_cg == field.field_cg || matches!((operand_cg, field.field_cg), (_, CgTy::Enum(_)))
     }
 
     fn raw_materialized_mir_member_field_contract(
@@ -943,6 +959,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             }),
         }
+    }
+
+    fn raw_materialized_mir_enum_variant_is_supported(
+        &mut self,
+        span: crate::span::Span,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        enum_ty: TypeId,
+        variant_name: &str,
+        args: &[crate::mir::CallArg],
+        target_cg: Option<CgTy>,
+    ) -> bool {
+        let Some(enum_ty) = self.equivalent_codegen_type_id(mir_types, enum_ty) else {
+            return false;
+        };
+        if target_cg != Some(CgTy::Enum(enum_ty)) {
+            return false;
+        }
+        let Ok(layout) = self.cg_enum_layout(span, enum_ty) else {
+            return false;
+        };
+        let Some(variant) = layout
+            .variants
+            .iter()
+            .find(|variant| variant.name == variant_name)
+        else {
+            return false;
+        };
+        variant.fields.len() == args.len()
+            && variant
+                .fields
+                .iter()
+                .copied()
+                .zip(args)
+                .all(|(field_cg, arg)| {
+                    arg.name.is_none()
+                        && self.raw_materialized_mir_operand_is_supported(&arg.value)
+                        && self
+                            .mir_operand_cg_ty(body, mir_types, &arg.value)
+                            .is_some_and(|actual_cg| actual_cg == field_cg)
+                })
     }
 
     fn mir_member_receiver_codegen_type_id(
@@ -1165,6 +1222,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn raw_materialized_mir_direct_call_is_supported(&self, callee_fqn: &str) -> bool {
+        if self.class_inits.contains_key(callee_fqn) {
+            return true;
+        }
         if self.extern_funs.contains_key(callee_fqn) {
             return true;
         }
@@ -1757,6 +1817,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                     target_cg,
                 ),
+            crate::mir::Rvalue::EnumVariant {
+                enum_ty,
+                variant_name,
+                args,
+            } => self.codegen_mir_enum_variant_ctor_call(
+                span,
+                *enum_ty,
+                variant_name,
+                args,
+                body,
+                mir_types,
+                slots,
+            ),
+            crate::mir::Rvalue::ClassCtor { class_fqn, args } => {
+                self.codegen_mir_class_ctor_call(span, class_fqn, args, slots)
+            }
             crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
@@ -1798,6 +1874,59 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.coerce_value(span, value, target_cg)
     }
 
+    fn codegen_mir_enum_variant_ctor_call(
+        &mut self,
+        span: crate::span::Span,
+        enum_ty: TypeId,
+        variant_name: &str,
+        args: &[crate::mir::CallArg],
+        _body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let enum_ty = self.equivalent_codegen_type_id(mir_types, enum_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR enum ctor type",
+                at: span.into(),
+            },
+        )?;
+        let layout = self.cg_enum_layout(span, enum_ty)?;
+        let variant = layout
+            .variants
+            .iter()
+            .find(|variant| variant.name == variant_name)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR unknown enum variant",
+                at: span.into(),
+            })?
+            .clone();
+        if variant.fields.len() != args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR enum variant ctor arity",
+                at: span.into(),
+            });
+        }
+        let mut field_values = Vec::with_capacity(args.len());
+        for (idx, (field_cg, arg)) in variant.fields.iter().copied().zip(args).enumerate() {
+            if arg.name.is_some() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR named enum ctor arg",
+                    at: span.into(),
+                });
+            }
+            let value =
+                self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(field_cg))?;
+            let coerced = self.coerce_value(arg.span, value, field_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("pass_mir_enum_ctor_field_{idx}"),
+                coerced,
+            )?;
+            field_values.push((arg.span, field_cg, deferred));
+        }
+        self.build_enum_variant_value_from_field_values(span, enum_ty, variant_name, &field_values)
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn codegen_mir_store_member(
         &mut self,
@@ -1825,30 +1954,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         }
-        let value_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
+        let _value_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
             LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR member store value type",
                 at: span.into(),
             },
         )?;
-        if value_cg != place.field_cg {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member store value type drift",
-                at: span.into(),
-            });
-        }
-        let operand_cg = self.mir_operand_cg_ty(body, mir_types, value).ok_or(
+        let _operand_cg = self.mir_operand_cg_ty(body, mir_types, value).ok_or(
             LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR member store operand type",
                 at: span.into(),
             },
         )?;
-        if operand_cg != place.field_cg {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member store operand type drift",
-                at: span.into(),
-            });
-        }
 
         let value = self.codegen_mir_operand_expected(span, value, slots, Some(place.field_cg))?;
         let stored = self.coerce_value(span, value, place.field_cg)?;
@@ -2774,6 +2891,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match kind {
             crate::mir::CallKind::Direct { callee_fqn } => {
+                if self.class_inits.contains_key(callee_fqn) {
+                    return self.codegen_mir_class_ctor_call(span, callee_fqn, args, slots);
+                }
                 self.codegen_mir_direct_call(span, callee_fqn, args, body, slots)
             }
             crate::mir::CallKind::Closure { callee, fn_ptr } => {
@@ -2803,7 +2923,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn codegen_mir_direct_call(
+    pub(super) fn codegen_mir_direct_call(
         &mut self,
         span: crate::span::Span,
         fqn: &str,
@@ -2812,14 +2932,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let is_extern = self.extern_funs.contains_key(fqn);
-        let sig_fun =
-            self.fun_index
-                .get(fqn)
-                .copied()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR call callee type",
-                    at: span.into(),
-                })?;
+        let sig_fun = self
+            .fun_index
+            .get(fqn)
+            .copied()
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!("pass MIR direct call 缺少 callee `{fqn}` 的 callable signature"),
+            })?;
         if !is_extern && sig_fun.body.is_none() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR declaration-only direct call",
@@ -2957,6 +3076,236 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
+    }
+
+    pub(super) fn codegen_mir_class_ctor_call(
+        &mut self,
+        span: crate::span::Span,
+        class_fqn: &str,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let class = self.class_init_layout(span, class_fqn)?;
+        let selected_ctor = self.pick_class_ctor_by_target(
+            span,
+            &class,
+            None,
+            args.len(),
+            None,
+            "pass MIR class ctor call overload mismatch/ambiguous",
+        )?;
+        let ctor_params: &[crate::hir::ClassCtorParam] = match selected_ctor {
+            Some(ctor) => ctor.params.as_slice(),
+            None => &[][..],
+        };
+        if ctor_params.len() != args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR class ctor default/named args",
+                at: span.into(),
+            });
+        }
+
+        let obj_ty = self.llvm_class_object_type(span, &class)?;
+        let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+        let type_desc = self.get_or_create_class_type_desc_global(span, class_fqn)?;
+        let type_desc_i8 = self.builder.build_pointer_cast(
+            type_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "pass_mir_class_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_alloc,
+            &[type_desc_i8.into(), size_v.into()],
+            "pass_mir_rt_alloc_class",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR scoop_alloc_typed return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR scoop_alloc_typed return type",
+                at: span.into(),
+            });
+        };
+
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+        let typed_obj =
+            self.builder
+                .build_pointer_cast(obj_ptr, obj_ptr_ty, "pass_mir_class_obj_ptr")?;
+        let payload_ptr =
+            self.builder
+                .build_struct_gep(obj_ty, typed_obj, 1, "pass_mir_class_payload_gep")?;
+        let payload_ty = self.llvm_class_payload_type(span, &class)?;
+        let payload_size_bytes = self.target_data.get_store_size(&payload_ty);
+        if payload_size_bytes > 0 {
+            let payload_i8 = self
+                .builder
+                .build_bit_cast(
+                    payload_ptr,
+                    self.llvm_gc_i8_ptr_type(),
+                    "pass_mir_class_payload_i8",
+                )?
+                .into_pointer_value();
+            let size_ty = self.llvm_ptr_sized_int_type(None);
+            let size_v = size_ty.const_int(payload_size_bytes, false);
+            let zero = self.context.i8_type().const_int(0, false);
+            let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
+        }
+
+        let deferred_obj = self.defer_gc_sensitive_cg_value(
+            span,
+            "pass_mir_class_ctor_obj_root",
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(obj_ptr.into()),
+            },
+        )?;
+
+        let mut evaluated_args = Vec::with_capacity(args.len());
+        for (idx, (param, arg)) in ctor_params.iter().zip(args).enumerate() {
+            if arg.name.is_some() || param.has_default {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class ctor named/default arg",
+                    at: span.into(),
+                });
+            }
+            let param_cg = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class ctor param type",
+                    at: span.into(),
+                })?;
+            let value =
+                self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
+            let value = self.coerce_value(arg.span, value, param_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("pass_mir_class_ctor_arg_{idx}"),
+                value,
+            )?;
+            evaluated_args.push(self.materialize_deferred_cg_value(
+                arg.span,
+                &format!("pass_mir_class_ctor_arg_reload_{idx}"),
+                deferred,
+            )?);
+        }
+
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_class_ctor_obj_before_invoke",
+            &deferred_obj,
+        )?;
+        self.codegen_class_ctor_invoke(
+            span,
+            span,
+            &class,
+            selected_ctor,
+            evaluated_args.as_slice(),
+            current_obj,
+        )?;
+        self.emit_ordinary_call_effect_propagation_check(span, "pass_mir_class_ctor_effect")?;
+
+        if !self.ordinary_effect_propagation_enabled() {
+            let current_fn = self
+                .builder
+                .get_insert_block()
+                .and_then(|bb| bb.get_parent())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class ctor current function",
+                    at: span.into(),
+                })?;
+            let active_bb = self
+                .context
+                .append_basic_block(current_fn, "pass_mir_class_ctor_active");
+            let inactive_bb = self
+                .context
+                .append_basic_block(current_fn, "pass_mir_class_ctor_inactive");
+            let merge_bb = self
+                .context
+                .append_basic_block(current_fn, "pass_mir_class_ctor_merge");
+            let active_raw = self
+                .build_call_preserving_gc_local_roots(
+                    span,
+                    self.declare_runtime_effect_is_active(),
+                    &[],
+                    "pass_mir_class_ctor_effect_is_active",
+                )?
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class ctor effect active return",
+                    at: span.into(),
+                })?
+                .into_int_value();
+            let is_propagating = self.builder.build_int_compare(
+                IntPredicate::NE,
+                active_raw,
+                self.context.i32_type().const_zero(),
+                "pass_mir_class_ctor_effect_is_propagating",
+            )?;
+            self.builder
+                .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
+
+            self.builder.position_at_end(active_bb);
+            self.clear_deferred_cg_value_root_homes(
+                span,
+                "pass_mir_class_ctor_obj_active_drop",
+                &deferred_obj,
+            )?;
+            let active_bb_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR class ctor active block",
+                        at: span.into(),
+                    })?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+
+            self.builder.position_at_end(inactive_bb);
+            let current_obj = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                "pass_mir_class_ctor_obj_return",
+                &deferred_obj,
+            )?;
+            let inactive_bb_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR class ctor inactive block",
+                        at: span.into(),
+                    })?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+
+            self.builder.position_at_end(merge_bb);
+            let result_phi = self
+                .builder
+                .build_phi(self.llvm_gc_i8_ptr_type(), "pass_mir_class_ctor_result")?;
+            result_phi.add_incoming(&[
+                (&self.llvm_gc_i8_ptr_type().const_null(), active_bb_end),
+                (&current_obj, inactive_bb_end),
+            ]);
+            return Ok(CgValue {
+                ty: CgTy::Ref,
+                value: Some(result_phi.as_basic_value()),
+            });
+        }
+
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "pass_mir_class_ctor_obj_return",
+            &deferred_obj,
+        )?;
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(current_obj.into()),
+        })
     }
 
     fn codegen_bound_mir_call_args(
@@ -4671,6 +5020,16 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
         }
         crate::mir::Rvalue::Call { kind, args, .. } => {
             collect_mir_call_kind_uses(kind, out);
+            for arg in args {
+                collect_mir_operand_use(&arg.value, out);
+            }
+        }
+        crate::mir::Rvalue::EnumVariant { args, .. } => {
+            for arg in args {
+                collect_mir_operand_use(&arg.value, out);
+            }
+        }
+        crate::mir::Rvalue::ClassCtor { args, .. } => {
             for arg in args {
                 collect_mir_operand_use(&arg.value, out);
             }
