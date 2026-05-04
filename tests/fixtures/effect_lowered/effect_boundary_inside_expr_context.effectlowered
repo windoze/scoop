@@ -172,6 +172,8 @@ LateLoweredProgram
               pending_completions:
                 - ContinueToExit
                 - ReturnFromFunction
+              pending_payload_transports:
+                <none>
               state_regions:
                 - st0 => dispatch
                 - st2 => body
@@ -218,6 +220,8 @@ LateLoweredProgram
               pending_completions:
                 - ContinueToExit
                 - ReturnFromFunction
+              pending_payload_transports:
+                <none>
               state_regions:
                 - st5 => dispatch
                 - st8 => body
@@ -267,6 +271,8 @@ LateLoweredProgram
               pending_completions:
                 - ContinueToExit
                 - ReturnFromFunction
+              pending_payload_transports:
+                <none>
               state_regions:
                 - st11 => dispatch
                 - st15 => body
@@ -340,6 +346,8 @@ LateLoweredProgram
               pending_completions:
                 - ContinueToExit
                 - ReturnFromFunction
+              pending_payload_transports:
+                <none>
               state_regions:
                 - st25 => dispatch
                 - st26 => body

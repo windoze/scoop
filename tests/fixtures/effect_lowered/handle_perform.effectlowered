@@ -70,6 +70,8 @@ LateLoweredProgram
                   continuation_binder: <none>
               pending_completions:
                 <none>
+              pending_payload_transports:
+                <none>
               state_regions:
                 - st0 => dispatch
                 - st2 => body

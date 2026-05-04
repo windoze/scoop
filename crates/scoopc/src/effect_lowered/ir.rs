@@ -1504,6 +1504,40 @@ impl LateLoweredHandleDispatchCarrierContract {
     }
 }
 
+/// `HandleDispatch` 的 pending completion 在 cleanup/finally 之间传递 typed payload 的 published contract。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredHandlePendingPayloadTransport {
+    completion: LateLoweredHandlePendingCompletion,
+    payload_tuple_ty: TypeId,
+    frame_slot: FrameSlotId,
+}
+
+impl LateLoweredHandlePendingPayloadTransport {
+    pub(crate) fn new(
+        completion: LateLoweredHandlePendingCompletion,
+        payload_tuple_ty: TypeId,
+        frame_slot: FrameSlotId,
+    ) -> Self {
+        Self {
+            completion,
+            payload_tuple_ty,
+            frame_slot,
+        }
+    }
+
+    pub fn completion(&self) -> LateLoweredHandlePendingCompletion {
+        self.completion
+    }
+
+    pub fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
+    }
+
+    pub fn frame_slot(&self) -> FrameSlotId {
+        self.frame_slot
+    }
+}
+
 /// 单个 handled case 的 authoritative arm dispatch 映射。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LateLoweredHandlePayloadBinder {
@@ -1775,6 +1809,7 @@ pub struct LateLoweredHandleDispatchContract {
     finally_outward_cases: Vec<CaseTag>,
     outward_emissions: Vec<LateLoweredStepCaseEmission>,
     pending_completions: Vec<LateLoweredHandlePendingCompletion>,
+    pending_payload_transports: Vec<LateLoweredHandlePendingPayloadTransport>,
     state_regions: Vec<LateLoweredHandleStateRegionEntry>,
     boundary_routings: Vec<LateLoweredHandleBoundaryRouting>,
     abandon_target: Option<StateId>,
@@ -1792,6 +1827,7 @@ impl LateLoweredHandleDispatchContract {
         finally_outward_cases: Vec<CaseTag>,
         outward_emissions: Vec<LateLoweredStepCaseEmission>,
         pending_completions: Vec<LateLoweredHandlePendingCompletion>,
+        pending_payload_transports: Vec<LateLoweredHandlePendingPayloadTransport>,
         state_regions: Vec<LateLoweredHandleStateRegionEntry>,
         boundary_routings: Vec<LateLoweredHandleBoundaryRouting>,
         abandon_target: Option<StateId>,
@@ -1806,6 +1842,7 @@ impl LateLoweredHandleDispatchContract {
             finally_outward_cases,
             outward_emissions,
             pending_completions,
+            pending_payload_transports,
             state_regions,
             boundary_routings,
             abandon_target,
@@ -1827,6 +1864,7 @@ impl LateLoweredHandleDispatchContract {
             body_complete_target,
             arm_complete_target,
             finally_complete_target,
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
@@ -1889,6 +1927,19 @@ impl LateLoweredHandleDispatchContract {
 
     pub fn pending_completions(&self) -> &[LateLoweredHandlePendingCompletion] {
         &self.pending_completions
+    }
+
+    pub fn pending_payload_transports(&self) -> &[LateLoweredHandlePendingPayloadTransport] {
+        &self.pending_payload_transports
+    }
+
+    pub fn pending_payload_transport(
+        &self,
+        completion: LateLoweredHandlePendingCompletion,
+    ) -> Option<&LateLoweredHandlePendingPayloadTransport> {
+        self.pending_payload_transports
+            .iter()
+            .find(|transport| transport.completion() == completion)
     }
 
     pub fn state_regions(&self) -> &[LateLoweredHandleStateRegionEntry] {
@@ -2897,6 +2948,10 @@ pub enum LateLoweredFrameSlotKind {
         site_id: SiteId,
         local: LocalId,
         ordinal: u32,
+    },
+    HandlePendingPayload {
+        site_id: SiteId,
+        case_tag: CaseTag,
     },
     ResumePayload {
         boundary: BoundaryId,

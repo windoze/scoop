@@ -290,6 +290,12 @@ LateLoweredProgram
       boundary_map:
         - bd0 Resume(site0) owner=st0 resume=st2
           lowering: Resume continuation_schema=k3 out_step_schema=s6 result=local1 runtime_error_boundary=bd1
+            operand_contract:
+              anchor: statement bb0 stmt1 slice=bb0 stmts[0..2] slice_stmt_index=1 last_in_slice=true
+              continuation: local0:t467
+              underlying_route: continuation_schema=k3 via resume_boundary instance=fixtures.mir.resumeBoom allowed_row=(t218 + t466) impl_plan=CanonicalFull needs_reentry=true ko3 site0
+              ordered_args:
+                - local2:t5
             dispatch_input_step_schema: s6
             complete: answer_ty=t2 target=st2 result=local1
             outward_cases:
@@ -339,6 +345,12 @@ LateLoweredProgram
       boundary_map:
         - bd0 Resume(site0) owner=st0 resume=st2
           lowering: Resume continuation_schema=k6 out_step_schema=s7 result=local1 runtime_error_boundary=bd1
+            operand_contract:
+              anchor: statement bb0 stmt1 slice=bb0 stmts[0..2] slice_stmt_index=1 last_in_slice=true
+              continuation: local0:t464
+              underlying_route: continuation_schema=k6 via resume_boundary instance=fixtures.mir.resumeOnce allowed_row=(t218) impl_plan=SingleCase(c0) needs_reentry=true ko4 site0
+              ordered_args:
+                - local2:t5
             dispatch_input_step_schema: s7
             complete: answer_ty=t2 target=st2 result=local1
             outward_cases:

@@ -25,16 +25,16 @@ use super::ir::{
     LateLoweredHandleBoundaryLowering, LateLoweredHandleBoundaryRouting,
     LateLoweredHandleContinuationBinder, LateLoweredHandleDispatchCarrierContract,
     LateLoweredHandleDispatchContract, LateLoweredHandlePayloadBinder,
-    LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
-    LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
-    LateLoweredOneShotPolicy, LateLoweredOperandSource, LateLoweredPerformBoundaryLowering,
-    LateLoweredPerformBoundaryOperandContract, LateLoweredPublishedRuntimeEntry,
-    LateLoweredResumeBoundaryLowering, LateLoweredResumeBoundaryOperandContract,
-    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredRuntimeErrorBoundaryLowering,
-    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
-    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepCaseEmission,
-    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
-    ResumeInterfaceId, StateId,
+    LateLoweredHandlePendingCompletion, LateLoweredHandlePendingPayloadTransport,
+    LateLoweredHandleStateRegion, LateLoweredHandleStateRegionEntry,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredOperandSource,
+    LateLoweredPerformBoundaryLowering, LateLoweredPerformBoundaryOperandContract,
+    LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryLowering,
+    LateLoweredResumeBoundaryOperandContract, LateLoweredResumeInterface, LateLoweredResumeMethod,
+    LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState, LateLoweredStateGraph,
+    LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
+    LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
+    LateLoweredStepType, ResumeInterfaceId, StateId,
 };
 use super::ir::{
     LateLoweredBodyVersionKey, LateLoweredBoundarySource, LateLoweredContinuationRoute,
@@ -1295,6 +1295,13 @@ fn build_handle_dispatch_contract(
         &pending_completions,
         boundary_map,
     )?;
+    let pending_payload_transports = build_handle_pending_payload_transports(
+        root_fqn,
+        site_id,
+        &pending_completions,
+        &outward_emissions,
+        frame_schema,
+    )?;
 
     Ok(LateLoweredHandleDispatchContract::new(
         LateLoweredHandleDispatchCarrierContract::new(
@@ -1310,6 +1317,7 @@ fn build_handle_dispatch_contract(
         finally_outward_cases,
         outward_emissions,
         pending_completions,
+        pending_payload_transports,
         state_regions,
         boundary_routings,
         drop_state,
@@ -1522,6 +1530,81 @@ fn build_handle_boundary_routings(
     }
 
     Ok(routes)
+}
+
+fn build_handle_pending_payload_transports(
+    root_fqn: &str,
+    site_id: SiteId,
+    pending_completions: &[LateLoweredHandlePendingCompletion],
+    outward_emissions: &[LateLoweredStepCaseEmission],
+    frame_schema: &LateLoweredFrameSchema,
+) -> Result<Vec<LateLoweredHandlePendingPayloadTransport>, EffectLoweringError> {
+    let mut transports = Vec::new();
+    let mut seen = BTreeSet::new();
+
+    for completion in pending_completions {
+        let LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) = completion else {
+            continue;
+        };
+        if !seen.insert(*completion) {
+            return Err(invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!(
+                    "重复发布 pending payload transport {:?}，无法保持 cleanup/finally payload contract 唯一",
+                    completion
+                ),
+            ));
+        }
+        let emission = outward_emissions
+            .iter()
+            .find(|emission| emission.case_tag() == *case_tag)
+            .ok_or_else(|| {
+                invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "pending completion c{} 缺少 outward emission，无法发布 cleanup/finally payload transport",
+                        case_tag.as_u32()
+                    ),
+                )
+            })?;
+        let slot = frame_schema
+            .slot_for_kind(crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandlePendingPayload {
+                site_id,
+                case_tag: *case_tag,
+            })
+            .ok_or_else(|| {
+                invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "pending completion c{} 缺少 HandlePendingPayload frame slot，无法发布 cleanup/finally payload transport",
+                        case_tag.as_u32()
+                    ),
+                )
+            })?;
+        if slot.ty() != emission.payload_tuple_ty() {
+            return Err(invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!(
+                    "pending completion c{} 的 payload transport frame slot fs{} 类型漂移：slot=t{}，outward emission=t{}",
+                    case_tag.as_u32(),
+                    slot.slot_id().as_u32(),
+                    slot.ty().as_u32(),
+                    emission.payload_tuple_ty().as_u32(),
+                ),
+            ));
+        }
+        transports.push(LateLoweredHandlePendingPayloadTransport::new(
+            *completion,
+            emission.payload_tuple_ty(),
+            slot.slot_id(),
+        ));
+    }
+
+    Ok(transports)
 }
 
 fn collect_handle_region_states(
@@ -1829,7 +1912,10 @@ fn find_frame_slot_for_local(
                 local: slot_local,
                 ..
             } => Some(slot_local),
-            crate::effect_lowered::ir::LateLoweredFrameSlotKind::ResumePayload { .. }
+            crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandlePendingPayload {
+                ..
+            }
+            | crate::effect_lowered::ir::LateLoweredFrameSlotKind::ResumePayload { .. }
             | crate::effect_lowered::ir::LateLoweredFrameSlotKind::System(_) => None,
         };
         (slot_local == Some(local)).then_some(slot.slot_id())
@@ -4828,6 +4914,93 @@ fun propagate_before_finally(): Int {
     }
 
     #[test]
+    fn refactor_handle_dispatch_contract_publishes_pending_payload_transport_across_finally() {
+        let output = load_output(&SourceFile::new_virtual(
+            "<mem>/late_lowered_handle_pending_payload_transport.scoop",
+            r#"
+package sample
+
+effect Inner {
+    fun go(): Int
+}
+
+effect Outer {
+    fun again(): Unit
+}
+
+fun cleanup() {}
+
+fun propagate_before_finally(): Int {
+    return handle {
+        val nested: Int = handle {
+            Outer.again()
+            0
+        } with {
+            Inner.go() -> 1
+        } finally {
+            cleanup()
+        }
+        nested + 10
+    } with {
+        Outer.again() -> 99
+    }
+}
+"#,
+        ));
+        let callable = callable(&output, "sample.propagate_before_finally");
+        let (site_id, contract) = callable
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| match state.terminator() {
+                LateLoweredStateTerminator::HandleDispatch {
+                    site_id, contract, ..
+                } if contract.pending_completions().iter().any(|completion| {
+                    matches!(
+                        completion,
+                        LateLoweredHandlePendingCompletion::PropagateOutward(_)
+                    )
+                }) =>
+                {
+                    Some((*site_id, contract))
+                }
+                _ => None,
+            })
+            .expect("fixture 应发布带 pending outward completion 的 HandleDispatch contract");
+
+        let pending_case = *contract
+            .body_outward_cases()
+            .first()
+            .expect("fixture 应发布 body outward case");
+        let transport = contract
+            .pending_payload_transport(LateLoweredHandlePendingCompletion::PropagateOutward(
+                pending_case,
+            ))
+            .expect("pending outward case 应发布 typed payload transport");
+        let slot = callable
+            .frame_schema()
+            .slot_for_kind(
+                crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandlePendingPayload {
+                    site_id,
+                    case_tag: pending_case,
+                },
+            )
+            .expect("frame schema 应保留 HandlePendingPayload slot");
+        let emission = contract
+            .outward_emission(pending_case)
+            .expect("pending outward case 应保留 outward emission contract");
+
+        assert_eq!(transport.frame_slot(), slot.slot_id());
+        assert_eq!(transport.payload_tuple_ty(), slot.ty());
+        assert_eq!(transport.payload_tuple_ty(), emission.payload_tuple_ty());
+        assert!(
+            contract
+                .pending_payload_transport(LateLoweredHandlePendingCompletion::ContinueToExit)
+                .is_none()
+        );
+    }
+
+    #[test]
     fn refactor_handle_dispatch_contract_dump_exposes_published_completion_state() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_handle_contract_dump.scoop",
@@ -4865,10 +5038,12 @@ fun propagate_before_finally(): Int {
 
         assert!(dump.contains("handle_contract:"));
         assert!(dump.contains("pending_completions:"));
+        assert!(dump.contains("pending_payload_transports:"));
         assert!(dump.contains("state_regions:"));
         assert!(dump.contains("boundary_routings:"));
         assert!(dump.contains("case_routings:"));
         assert!(dump.contains("PropagateOutward("));
+        assert!(dump.contains("HandlePendingPayload("));
         assert!(dump.contains("outward_emissions:"));
     }
 

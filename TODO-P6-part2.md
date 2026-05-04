@@ -610,7 +610,7 @@
     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02qb：发布 cleanup/finally pending payload carrier contract，禁止 P6-T03 在 backend 现场发明 `ResumePayloadCarrier` 的 boxing / projection 规则
+## [DONE] P6-T02qb：发布 cleanup/finally pending payload carrier contract，禁止 P6-T03 在 backend 现场发明 `ResumePayloadCarrier` 的 boxing / projection 规则
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -679,6 +679,9 @@
 - 依赖：P6-T02h，P6-T02j，P6-T02l
 - 完成记录：
   - 2026-05-04：真正进入 `P6-T03` whole-body emitter 设计后确认新的未跟踪 blocker。当前 handoff 虽已发布 `CompletionTag` / `ResumePayloadCarrier` field index、pending completion 集合、以及 body/arm/finally/exit routing，但还没有 authoritative 发布“typed case payload 如何穿过 cleanup/finally/ResumeUnwind path”的 lowering contract。`ResumePayloadCarrier` 目前只是一格 `Any` system slot；对 `Int`/tuple 等非 ref payload，backend 若想继续实现 `PropagateOutward(case)` 或 cleanup 后的 outward/runtime-error emission，只能现场发明 boxing / projection 规则，违反 contract-first 边界。为此新增本前置任务，先把 payload carrier contract 发布清楚，再继续 `P6-T03`。
+  - 2026-05-04：已改为发布 typed per-case pending payload transport contract，而不是让 `P6-T03` 继续依赖 `ResumePayloadCarrier` 的 backend-private boxing。late-lowered `FrameSchema` 新增 `HandlePendingPayload { site_id, case_tag }` 稳定 slot identity；`LateLoweredHandleDispatchContract` 新增 `pending_payload_transports`，把 `PropagateOutward(case)` 对应的 `payload_tuple_ty + frame_slot` authoritative 地发布给 P6。
+  - 2026-05-04：LLVM ABI/query 已补齐对应发布与 fail-fast。`RefactorHandleDispatchLayout` 现在可直接按 `LateLoweredHandlePendingCompletion::PropagateOutward(case)` 查询 typed payload transport 的 frame field index；若缺失 published transport、outward emission、slot kind/ty、或 frame layout field，会在 P5/P6 handoff 物化阶段显式拒绝，而不是把歧义留给 `P6-T03` backend 现场猜测。
+  - 2026-05-04：验证通过：`cargo test -p scoopc refactor_handle_dispatch_contract_ --no-fail-fast`、`cargo test -p scoopc refactor_llvm_handle_dispatch --no-fail-fast`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/handle_finally_boundary.scoop`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

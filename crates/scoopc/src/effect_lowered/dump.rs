@@ -602,6 +602,21 @@ fn render_handle_dispatch_contract(
             .unwrap();
         }
     }
+    writeln!(rendered, "              pending_payload_transports:").unwrap();
+    if contract.pending_payload_transports().is_empty() {
+        writeln!(rendered, "                <none>").unwrap();
+    } else {
+        for transport in contract.pending_payload_transports() {
+            writeln!(
+                rendered,
+                "                - {} payload_tuple_ty={} frame_slot=fs{}",
+                render_handle_pending_completion(transport.completion()),
+                render_type_id(transport.payload_tuple_ty()),
+                transport.frame_slot().as_u32(),
+            )
+            .unwrap();
+        }
+    }
     writeln!(rendered, "              state_regions:").unwrap();
     if contract.state_regions().is_empty() {
         writeln!(rendered, "                <none>").unwrap();
@@ -1359,6 +1374,13 @@ fn render_frame_slot_kind(kind: LateLoweredFrameSlotKind) -> String {
                 "HandleBinder(site{}, local{}, #{ordinal})",
                 site_id.as_u32(),
                 local.as_u32(),
+            )
+        }
+        LateLoweredFrameSlotKind::HandlePendingPayload { site_id, case_tag } => {
+            format!(
+                "HandlePendingPayload(site{}, c{})",
+                site_id.as_u32(),
+                case_tag.as_u32(),
             )
         }
         LateLoweredFrameSlotKind::ResumePayload { boundary, case_tag } => {

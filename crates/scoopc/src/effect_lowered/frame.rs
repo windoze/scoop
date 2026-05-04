@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::effect_facts::{
-    BodyEffectFacts, CaseTag, ContinuationSchema, ContinuationSchemaId, ImplPlan, StepSchema,
-    StepSchemaId,
+    BodyEffectFacts, CaseTag, ContinuationSchema, ContinuationSchemaId, ImplPlan, SiteEffectFacts,
+    StepSchema, StepSchemaId,
 };
 use crate::mir::{
     BasicBlockId, Body, CallKind, LocalId, LocalSourceKind, Operand, Rvalue, SiteId, StatementKind,
@@ -43,7 +43,7 @@ pub(crate) fn build_callable_frame(
     let FrameBuildInputs {
         root_fqn,
         body,
-        _body_facts,
+        _body_facts: body_facts,
         step_schema_id,
         step_schema,
         continuation_schemas,
@@ -166,6 +166,28 @@ pub(crate) fn build_callable_frame(
             ));
             next_slot_raw += 1;
         }
+    }
+
+    for (kind, ty) in collect_handle_pending_payload_slots(
+        root_fqn,
+        body_facts,
+        step_schema_id,
+        step_schema,
+        &state_graph,
+    )? {
+        if !seen_kinds.insert(kind) {
+            continue;
+        }
+        // Pending outward payload transport 会在 HandleDispatch contract 中继续发布 routing；
+        // frame schema 这里只先保留稳定的 typed slot identity，避免后续 backend 再猜 carrier 形状。
+        slots.push(LateLoweredFrameSlot::new(
+            super::ir::FrameSlotId::new(next_slot_raw),
+            kind,
+            ty,
+            Vec::new(),
+            Vec::new(),
+        ));
+        next_slot_raw += 1;
     }
 
     for (system_kind, ty) in [
@@ -362,6 +384,81 @@ fn classify_local_slot_kind(
             Some(LateLoweredFrameSlotKind::CompilerTemporary(local))
         }
     }
+}
+
+fn collect_handle_pending_payload_slots(
+    root_fqn: &str,
+    body_facts: &BodyEffectFacts,
+    step_schema_id: StepSchemaId,
+    step_schema: &StepSchema,
+    state_graph: &LateLoweredStateGraph,
+) -> Result<Vec<(LateLoweredFrameSlotKind, crate::ty::TypeId)>, EffectLoweringError> {
+    let mut slots = Vec::new();
+    for state in state_graph.states() {
+        let LateLoweredStateTerminator::HandleDispatch {
+            site_id,
+            finally_state,
+            boundary_ids,
+            ..
+        } = state.terminator()
+        else {
+            continue;
+        };
+        if finally_state.is_none() || boundary_ids.is_empty() {
+            continue;
+        }
+        let handle_facts = match body_facts.site(*site_id) {
+            Some(SiteEffectFacts::Handle(facts)) => facts,
+            Some(other) => {
+                return Err(EffectLoweringError::UnexpectedSiteFactsKind {
+                    root_fqn: root_fqn.to_string(),
+                    site_id: site_id.as_u32(),
+                    expected: "Handle",
+                    actual: match other {
+                        SiteEffectFacts::Call(_) => "Call",
+                        SiteEffectFacts::Perform(_) => "Perform",
+                        SiteEffectFacts::Resume(_) => "Resume",
+                        SiteEffectFacts::Handle(_) => unreachable!("已在上方匹配 Handle"),
+                    },
+                });
+            }
+            None => {
+                return Err(EffectLoweringError::MissingSiteFacts {
+                    root_fqn: root_fqn.to_string(),
+                    site_id: site_id.as_u32(),
+                });
+            }
+        };
+        let mut pending_cases = handle_facts
+            .body_outward_cases()
+            .tags()
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for arm in handle_facts.arm_facts() {
+            pending_cases.extend(arm.arm_outward_cases().tags().iter().copied());
+        }
+        for case_tag in pending_cases {
+            let payload_tuple_ty = step_schema
+                .cases()
+                .iter()
+                .find(|case| case.case_tag() == case_tag)
+                .map(|case| case.payload_tuple_ty())
+                .ok_or_else(|| EffectLoweringError::MissingInputStepCase {
+                    root_fqn: root_fqn.to_string(),
+                    step_schema: step_schema_id.as_u32(),
+                    case_tag: case_tag.as_u32(),
+                })?;
+            slots.push((
+                LateLoweredFrameSlotKind::HandlePendingPayload {
+                    site_id: *site_id,
+                    case_tag,
+                },
+                payload_tuple_ty,
+            ));
+        }
+    }
+    Ok(slots)
 }
 
 fn collect_binder_info(body: &Body) -> HashMap<LocalId, BinderInfo> {

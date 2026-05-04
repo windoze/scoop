@@ -41,12 +41,12 @@ use super::types::{
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameFieldKind,
     RefactorFrameFieldLayout, RefactorFrameLayout, RefactorHandleArmLayout,
     RefactorHandleContinuationBinderLayout, RefactorHandleDispatchLayout,
-    RefactorHandlePayloadBinderLayout, RefactorLocalRuntimeErrorContract,
-    RefactorLocalRuntimeErrorTerminalAction, RefactorPerformBoundaryOperandLayout,
-    RefactorPublishedRuntimeEntryLayout, RefactorResumeBoundaryOperandLayout,
-    RefactorResumeInterfaceLayout, RefactorResumeMethodLayout, RefactorSourceAbiFieldLayout,
-    RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout,
-    RefactorStepLayout, RefactorStepVariantLayout,
+    RefactorHandlePayloadBinderLayout, RefactorHandlePendingPayloadTransportLayout,
+    RefactorLocalRuntimeErrorContract, RefactorLocalRuntimeErrorTerminalAction,
+    RefactorPerformBoundaryOperandLayout, RefactorPublishedRuntimeEntryLayout,
+    RefactorResumeBoundaryOperandLayout, RefactorResumeInterfaceLayout, RefactorResumeMethodLayout,
+    RefactorSourceAbiFieldLayout, RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind,
+    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
 };
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -2990,6 +2990,13 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                     next_completion_tag = next_completion_tag.saturating_add(1);
                 }
+                let pending_payload_transports = self
+                    .materialize_published_handle_pending_payload_transports(
+                        callable,
+                        *site_id,
+                        contract,
+                        frame_layout,
+                    )?;
 
                 let key = (callable.step_schema(), *site_id);
                 if layouts.contains_key(&key) {
@@ -3009,6 +3016,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         completion_tag_field_index,
                         payload_carrier_field_index,
                         completion_tags,
+                        pending_payload_transports,
                         published_handled_arms,
                     ),
                 );
@@ -3239,6 +3247,137 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 continuation_binder,
                 arm.arm_outward_cases().to_vec(),
             ));
+        }
+
+        Ok(layouts)
+    }
+
+    fn materialize_published_handle_pending_payload_transports(
+        &self,
+        callable: &LateLoweredCallable,
+        site_id: SiteId,
+        contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+        frame_layout: &RefactorFrameLayout<'ctx>,
+    ) -> Result<
+        BTreeMap<LateLoweredHandlePendingCompletion, RefactorHandlePendingPayloadTransportLayout>,
+        LlvmEmitError,
+    > {
+        let expected_pending_cases = collect_handle_contract_pending_outward_cases(contract);
+        let mut published_pending_cases = BTreeSet::new();
+        let mut layouts = BTreeMap::new();
+
+        for transport in contract.pending_payload_transports() {
+            let completion = transport.completion();
+            let case_tag = match completion {
+                LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) => case_tag,
+                LateLoweredHandlePendingCompletion::ContinueToExit
+                | LateLoweredHandlePendingCompletion::ReturnFromFunction => {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 为 {:?} 发布了 pending payload transport；只有 PropagateOutward(case) 才允许发布 typed payload transport",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        completion,
+                    )));
+                }
+            };
+            if !contract.pending_completions().contains(&completion) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport {:?} 没有对应的 pending completion",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    completion,
+                )));
+            }
+            let emission = contract.outward_emission(case_tag).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 缺少 outward emission",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    case_tag.as_u32(),
+                ))
+            })?;
+            if emission.payload_tuple_ty() != transport.payload_tuple_ty() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} payload tuple ty 漂移：transport=t{}，outward emission=t{}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    case_tag.as_u32(),
+                    transport.payload_tuple_ty().as_u32(),
+                    emission.payload_tuple_ty().as_u32(),
+                )));
+            }
+            let slot = callable
+                .frame_schema()
+                .slots()
+                .iter()
+                .find(|slot| slot.slot_id() == transport.frame_slot())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用了不存在的 frame slot fs{}",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        case_tag.as_u32(),
+                        transport.frame_slot().as_u32(),
+                    ))
+            })?;
+            if slot.kind() != (LateLoweredFrameSlotKind::HandlePendingPayload { site_id, case_tag })
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用的 frame slot fs{} kind 漂移：published={:?}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    case_tag.as_u32(),
+                    transport.frame_slot().as_u32(),
+                    slot.kind(),
+                )));
+            }
+            if slot.ty() != transport.payload_tuple_ty() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} frame slot fs{} 类型漂移：slot=t{}，transport=t{}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    case_tag.as_u32(),
+                    transport.frame_slot().as_u32(),
+                    slot.ty().as_u32(),
+                    transport.payload_tuple_ty().as_u32(),
+                )));
+            }
+            let frame_field_index = frame_layout
+                .field_index_for_slot(transport.frame_slot())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        case_tag.as_u32(),
+                        transport.frame_slot().as_u32(),
+                    ))
+                })?;
+            if layouts
+                .insert(
+                    completion,
+                    RefactorHandlePendingPayloadTransportLayout::new(*transport, frame_field_index),
+                )
+                .is_some()
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending payload transport {:?}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    completion,
+                )));
+            }
+            published_pending_cases.insert(case_tag);
+        }
+
+        if published_pending_cases != expected_pending_cases {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport 集合漂移：published={}，expected={}",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                render_case_tags(&published_pending_cases),
+                render_case_tags(&expected_pending_cases),
+            )));
         }
 
         Ok(layouts)
@@ -5048,6 +5187,32 @@ mod tests {
             .expect("应找到至少一个 HandleDispatch contract")
     }
 
+    fn handle_dispatch_with_pending_outward(
+        callable: &LateLoweredCallable,
+    ) -> (SiteId, &LateLoweredHandleDispatchContract) {
+        callable
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| match state.terminator() {
+                crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                    site_id,
+                    contract,
+                    ..
+                } if contract.pending_completions().iter().any(|completion| {
+                    matches!(
+                        completion,
+                        LateLoweredHandlePendingCompletion::PropagateOutward(_)
+                    )
+                }) =>
+                {
+                    Some((*site_id, contract))
+                }
+                _ => None,
+            })
+            .expect("应找到带 pending outward completion 的 HandleDispatch contract")
+    }
+
     fn clone_handle_dispatch_contract_with_handled_arms(
         contract: &LateLoweredHandleDispatchContract,
         handled_arms: Vec<crate::effect_lowered::ir::LateLoweredHandleArmDispatch>,
@@ -5062,6 +5227,7 @@ mod tests {
             contract.finally_outward_cases().to_vec(),
             contract.outward_emissions().to_vec(),
             contract.pending_completions().to_vec(),
+            contract.pending_payload_transports().to_vec(),
             contract.state_regions().to_vec(),
             contract.boundary_routings().to_vec(),
             contract.abandon_target(),
@@ -5083,6 +5249,7 @@ mod tests {
             contract.finally_outward_cases().to_vec(),
             contract.outward_emissions().to_vec(),
             contract.pending_completions().to_vec(),
+            contract.pending_payload_transports().to_vec(),
             state_regions,
             boundary_routings,
             contract.abandon_target(),
@@ -7375,6 +7542,201 @@ mod tests {
     }
 
     #[test]
+    fn refactor_llvm_handle_dispatch_publishes_pending_payload_transport_layout() {
+        with_inputs_query_result(
+            build_fixture_inputs_from_source(SourceFile::new_virtual(
+                "<mem>/llvm_handle_pending_payload_transport.scoop",
+                r#"
+package sample
+
+effect Inner {
+    fun go(): Int
+}
+
+effect Outer {
+    fun again(): Unit
+}
+
+fun cleanup() {}
+
+fun propagate_before_finally(): Int {
+    return handle {
+        val nested: Int = handle {
+            Outer.again()
+            0
+        } with {
+            Inner.go() -> 1
+        } finally {
+            cleanup()
+        }
+        nested + 10
+    } with {
+        Outer.again() -> 99
+    }
+}
+"#,
+            )),
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query =
+                    result.expect("pending payload transport 应可发布到 HandleDispatch LLVM query");
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("sample.propagate_before_finally")
+                    .expect("sample.propagate_before_finally callable 应存在");
+                let (site_id, contract) = handle_dispatch_with_pending_outward(callable);
+                let published = query
+                    .handle_dispatch_layout(callable.step_schema(), site_id, contract)
+                    .expect("query 应能稳定回查 pending payload transport contract");
+                let pending_case = *contract
+                    .body_outward_cases()
+                    .first()
+                    .expect("fixture 应发布 body outward case");
+                let transport = published
+                    .pending_payload_transport_layout(
+                        LateLoweredHandlePendingCompletion::PropagateOutward(pending_case),
+                    )
+                    .expect("pending outward case 应发布 typed payload transport layout");
+                let frame_layout = query
+                    .frame_layout(callable.step_schema())
+                    .expect("frame layout 应可查询");
+                let slot = callable
+                    .frame_schema()
+                    .slot_for_kind(LateLoweredFrameSlotKind::HandlePendingPayload {
+                        site_id,
+                        case_tag: pending_case,
+                    })
+                    .expect("frame schema 应保留 HandlePendingPayload slot");
+
+                assert_eq!(
+                    transport.completion(),
+                    LateLoweredHandlePendingCompletion::PropagateOutward(pending_case)
+                );
+                assert_eq!(transport.frame_slot(), slot.slot_id());
+                assert_eq!(
+                    transport.frame_field_index(),
+                    frame_layout
+                        .field_index_for_slot(slot.slot_id())
+                        .expect("frame layout 应可回查 pending payload field")
+                );
+                assert_eq!(
+                    transport.payload_tuple_ty(),
+                    contract
+                        .outward_emission(pending_case)
+                        .expect("pending outward case 应保留 outward emission")
+                        .payload_tuple_ty()
+                );
+                assert!(
+                    published
+                        .pending_payload_transport_layout(
+                            LateLoweredHandlePendingCompletion::ContinueToExit,
+                        )
+                        .is_none()
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_handle_dispatch_rejects_missing_pending_payload_transport() {
+        with_inputs_query_result(
+            build_fixture_inputs_from_source(SourceFile::new_virtual(
+                "<mem>/llvm_handle_pending_payload_transport_missing.scoop",
+                r#"
+package sample
+
+effect Inner {
+    fun go(): Int
+}
+
+effect Outer {
+    fun again(): Unit
+}
+
+fun cleanup() {}
+
+fun propagate_before_finally(): Int {
+    return handle {
+        val nested: Int = handle {
+            Outer.again()
+            0
+        } with {
+            Inner.go() -> 1
+        } finally {
+            cleanup()
+        }
+        nested + 10
+    } with {
+        Outer.again() -> 99
+    }
+}
+"#,
+            )),
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callable = program
+                    .callable("sample.propagate_before_finally")
+                    .expect("callable 应存在");
+                let (site_id, contract) = handle_dispatch_with_pending_outward(callable);
+                let broken_contract = LateLoweredHandleDispatchContract::new(
+                    contract.carrier(),
+                    contract.body_complete_target(),
+                    contract.arm_complete_target(),
+                    contract.finally_complete_target(),
+                    contract.handled_arms().to_vec(),
+                    contract.body_outward_cases().to_vec(),
+                    contract.finally_outward_cases().to_vec(),
+                    contract.outward_emissions().to_vec(),
+                    contract.pending_completions().to_vec(),
+                    Vec::new(),
+                    contract.state_regions().to_vec(),
+                    contract.boundary_routings().to_vec(),
+                    contract.abandon_target(),
+                );
+                let state_graph = clone_state_graph_with_handle_contract(
+                    callable.state_graph(),
+                    site_id,
+                    broken_contract,
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == callable.step_schema() {
+                            clone_callable_with_state_graph(candidate, state_graph.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 pending payload transport 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("pending payload transport"),
+                    "错误消息应指出缺失的是 pending payload transport contract: {message}"
+                );
+                assert!(
+                    message.contains("sample.propagate_before_finally")
+                        && message.contains("handle site"),
+                    "错误消息应指出出错 callable 和 site: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
     fn refactor_handle_dispatch_region_routing_publishes_query_lookup() {
         with_phase_fixture_query_result(
             "run-pass",
@@ -7821,6 +8183,7 @@ fun main(): Int {
                     contract.finally_outward_cases().to_vec(),
                     contract.outward_emissions().to_vec(),
                     contract.pending_completions().to_vec(),
+                    contract.pending_payload_transports().to_vec(),
                     contract.state_regions().to_vec(),
                     contract.boundary_routings().to_vec(),
                     contract.abandon_target(),

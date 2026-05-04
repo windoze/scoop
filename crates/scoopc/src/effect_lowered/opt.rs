@@ -530,6 +530,7 @@ fn redirect_handle_dispatch_contract(
         contract.finally_outward_cases().to_vec(),
         contract.outward_emissions().to_vec(),
         contract.pending_completions().to_vec(),
+        contract.pending_payload_transports().to_vec(),
         contract
             .state_regions()
             .iter()
@@ -792,6 +793,7 @@ fn rewrite_state_id_list(
 fn slot_is_live(kind: LateLoweredFrameSlotKind, read_points: &[StateId]) -> bool {
     match kind {
         LateLoweredFrameSlotKind::System(_)
+        | LateLoweredFrameSlotKind::HandlePendingPayload { .. }
         | LateLoweredFrameSlotKind::ResumePayload { .. }
         | LateLoweredFrameSlotKind::BoundaryResult { .. } => true,
         _ => !read_points.is_empty(),

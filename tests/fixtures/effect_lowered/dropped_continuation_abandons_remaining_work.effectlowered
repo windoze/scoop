@@ -145,6 +145,8 @@ LateLoweredProgram
               pending_completions:
                 - ContinueToExit
                 - ReturnFromFunction
+              pending_payload_transports:
+                <none>
               state_regions:
                 - st0 => dispatch
                 - st2 => body
@@ -201,6 +203,10 @@ LateLoweredProgram
       boundary_map:
         - bd0 Perform(site1) owner=st2 resume=st6
           lowering: Perform emitted_case=c1 captured_cont_schema=k0 payload_tuple_ty=t5
+            operand_contract:
+              anchor: terminator slice=bb1 stmts[0..1] + term
+              payload_sources:
+                - local0:t5
             emit: c1 op=sample.Step.next payload_tuple_ty=t5 ko1 cont_schema=k0 out_step_schema=s1
       resume_state_map:
         - bd0 -> st6
