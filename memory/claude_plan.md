@@ -46,3 +46,4 @@
   - `TODO.md` 索引；
   - `P6-T03` 依赖与完成记录。
 - 由于这是当前任务的真实前置缺口，本轮不继续实现 `P6-T03` 代码，改为提交任务分解结果并停止。
+- 已提交：`746534a4 [P6-T02qc] Track shared surface-resume projection prerequisite`。
