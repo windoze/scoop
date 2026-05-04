@@ -1,48 +1,36 @@
-# Claude Plan
+# 当前执行计划
 
-## Current Objective
+## 范围
+- 本次只完成任务列表中的第一个未完成详细任务。
+- 以 `TODO-Px.md` 的详细任务状态为准，`TODO.md` 仅作为索引同步。
+- 若遇到阻塞当前任务的实现缺口或规格不匹配，先修复；若无法在本次正确完成，则新增最小必要前置任务、同步索引、提交并停止。
 
-Complete exactly one task: the first incomplete detailed task referenced by `TODO.md`, using the corresponding `TODO-Px.md` file as the source of truth.
+## 步骤
+1. 读取 `TODO.md`，按索引顺序定位需要检查的详细任务文件。
+2. 读取对应 `TODO-Px.md`，找出第一个标题未带 `[DONE]` 的详细任务。
+3. 检查最近提交是否明确提到与该任务直接相关的未完成问题；如相关，将其纳入当前任务或登记为前置任务。
+4. 理解当前任务要求、依赖、验证命令和完成记录格式。
+5. 在最小范围内实现任务；不通过弱化规格、替换表示或 fixture-only hack 绕过问题。
+6. 运行相关测试；若失败，修复与当前任务直接相关的问题并重测。
+7. 更新详细任务文件：给完成的任务标题加 `[DONE]`，填写或刷新 completion record。
+8. 同步 `TODO.md` 中对应条目的 `[DONE]` 标记或任务顺序。
+9. 仅在阶段级计划变化时更新 `PLAN.md`。
+10. 检查 git diff，提交本次所有相关未提交更改，然后停止。
 
-## Execution Plan
+## 当前进度
+- 已读取 `TODO.md` 与 `TODO-P6-part2.md`。
+- 已确认本次唯一执行任务为 `P6-T02qe`：发布 refactor source-slice member read/write LLVM lowering contract。
+- 最近提交 `[P6-T02qe] Track source-slice member lowering prerequisite` 与当前任务直接相关；详细任务文件已把它登记为 `P6-T03` 的前置 blocker，因此本次继续实现 `P6-T02qe` 本体。
+- 已实现 canonical MIR member read/write 的 LLVM lowering helper，并修复 member value temp 类型过宽导致 raw MIR support 回落 HIR-compatible path 的直接 blocker。
+- 已补充定向测试覆盖 MIR member read/store codegen，以及 unresolved member metadata / ambiguous continuation route 的 fail-fast。
+- 已完成验证（含新增 build fixture）并更新 `TODO-P6-part2.md` / `TODO.md` 的 `[DONE]` 状态；`PLAN.md` 无阶段级变更，未修改。
 
-1. Read `TODO.md` as an index only.
-2. Open referenced `TODO-Px.md` files in task order and identify the first task whose detailed heading is not prefixed with `[DONE]`.
-3. Check the latest commit message only for directly relevant unfinished work tied to the selected task.
-4. Inspect the selected task requirements, dependencies, validation requirements, and completion record.
-5. Implement the selected task as specified, without narrowing scope or using fixture-only workarounds.
-6. If a concrete blocker prevents correct implementation, add the minimum prerequisite task in the correct `TODO-Px.md` position, sync `TODO.md`, commit that bookkeeping, and stop.
-7. Run relevant tests and formatting/lint checks required by the task and repository guidance.
-8. Mark the completed task heading with `[DONE]` in the detailed TODO file and update its completion record.
-9. Sync `TODO.md` if any indexed task title/status/order changed.
-10. Commit all changes for this task with a descriptive task-tagged commit message.
-11. Stop after the single task is complete.
-
-## Progress Log
-
-- Initialized execution plan before inspecting task files or running commands.
-- Read `TODO.md` and `TODO-P6-part2.md`; selected first incomplete detailed task `P6-T03`.
-- Latest commit is `[P6-T02qd] Publish resumed local/home binding contract`, which is directly relevant as the most recent prerequisite recorded under `P6-T03`.
-- Inspected the current refactor LLVM entry: `effect_refactor/body.rs` is still a placeholder and `llvm/emit.rs` still fail-fast rejects effectful refactor body lowering.
-- While checking source-slice lowering needs for `effect_multi_escape_indirect_direct_while.scoop`, found a concrete prerequisite gap: canonical MIR now publishes `StatementKind::StoreMember` and `Rvalue::MemberAccess`, but `llvm/codegen/mir_body.rs` still rejects both in the generic MIR lowering helpers that `P6-T03` would need for straight-line source slices.
-
-## Blocker Handling
-
-`P6-T03` cannot be implemented spec-correctly until source-slice member read/write lowering is available from published MIR metadata. I will add one prerequisite task immediately before `P6-T03`, sync `TODO.md`, record the dependency on `P6-T03`, commit the bookkeeping change, and stop.
-
-## Selected Task
-
-`P6-T03`: implement refactor LLVM body lowering from the P5 state graph / boundary contract, without redoing state-machine transformation in the backend.
-
-## Immediate Implementation Steps
-
-1. Add `P6-T02qe` before `P6-T03` in `TODO-P6-part2.md`.
-2. Add the same `P6-T02qe` index row in `TODO.md`.
-3. Update `P6-T03` dependencies and completion notes to point at `P6-T02qe`.
-4. Commit the blocker bookkeeping and stop without implementing `P6-T03`.
-
-## Final Status For This Invocation
-
-- Added prerequisite task `P6-T02qe` to track source-slice member read/write LLVM lowering.
-- Synced `TODO.md` with the detailed task order.
-- Left `P6-T03` incomplete, as required when a concrete prerequisite blocker is found.
+## P6-T02qe 执行步骤
+1. 检查 canonical MIR 中 `Rvalue::MemberAccess`、`StatementKind::StoreMember`、相关 metadata 与 continuation route 的定义。
+2. 检查 LLVM generic MIR lowering 中当前拒绝 member read/write 的位置，确认可扩展的 effect-neutral helper 边界。
+3. 实现 `MemberAccess` 的 LLVM value lowering，仅消费已 resolved 的 canonical metadata。
+4. 实现 `StoreMember` 的 LLVM statement lowering，并对 unresolved/ambiguous/类型漂移情况 fail fast。
+5. 补充 `refactor_mir_member_access_codegen` 与 `refactor_mir_store_member_codegen` 定向测试。
+6. 运行任务要求的验证命令，修复与本任务直接相关的问题。
+7. 标记 `TODO-P6-part2.md` 与 `TODO.md` 中 `P6-T02qe` 为 `[DONE]`，填写完成记录。
+8. 检查差异并提交本次相关更改。

@@ -52,6 +52,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
+    member_value_tys: HashMap<String, TypeId>,
 }
 
 impl Default for MirLoweringFacts {
@@ -67,6 +68,7 @@ impl Default for MirLoweringFacts {
             refactor_handle_sites: HashMap::new(),
             when_pat_binding_tys: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
+            member_value_tys: HashMap::new(),
         }
     }
 }
@@ -105,6 +107,7 @@ impl MirLoweringFacts {
             &lowered.when_pat_binding_tys,
             &lowered.top_level_fun_call_sites,
         )
+        .with_member_value_types(lowered)
     }
 
     pub(crate) fn from_refactor_typed_handoff(
@@ -130,6 +133,7 @@ impl MirLoweringFacts {
         facts
             .top_level_fun_call_sites
             .extend(lowered.top_level_fun_call_sites.clone());
+        facts = facts.with_member_value_types(lowered);
 
         facts.with_refactor_typed_contracts(contracts)
     }
@@ -186,6 +190,31 @@ impl MirLoweringFacts {
 
         self.top_level_fun_call_sites
             .extend(top_level_fun_call_sites.clone());
+
+        self
+    }
+
+    fn with_member_value_types(mut self, lowered: &hir::LoweredHir) -> Self {
+        for class in lowered.class_inits.values() {
+            for field in &class.fields {
+                self.member_value_tys.insert(field.fqn.clone(), field.ty);
+            }
+        }
+
+        for layout in lowered.struct_layouts.values() {
+            for field in &layout.fields {
+                if let Some(ty) = field.ty {
+                    self.member_value_tys.insert(field.fqn.clone(), ty);
+                }
+            }
+        }
+
+        for object in lowered.object_inits.values() {
+            for property in object.properties.values() {
+                self.member_value_tys
+                    .insert(format!("{}.{}", object.fqn, property.name), property.ty);
+            }
+        }
 
         self
     }
@@ -1553,7 +1582,8 @@ impl<'a> FnLowering<'a> {
         receiver: &hir::Expr,
         member: &hir::MemberAccess,
     ) -> LocalId {
-        let result = self.push_temp_local(span, ty);
+        let result_ty = self.member_value_ty(member).unwrap_or(ty);
+        let result = self.push_temp_local(span, result_ty);
         let receiver_local = self.lower_expr_to_local(receiver);
         if self.current_is_terminated() {
             return result;
@@ -1568,6 +1598,13 @@ impl<'a> FnLowering<'a> {
             },
         );
         result
+    }
+
+    fn member_value_ty(&self, member: &hir::MemberAccess) -> Option<TypeId> {
+        let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
+            return None;
+        };
+        self.facts.member_value_tys.get(fqn).copied()
     }
 
     fn lower_member_access_metadata(

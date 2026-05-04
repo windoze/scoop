@@ -27,7 +27,29 @@ struct MirBodyCodegenCtx<'m, 'ctx> {
     slots: &'m [MirLocalSlot<'ctx>],
 }
 
+struct MirStoreMemberSupport<'m> {
+    receiver: &'m crate::mir::Operand,
+    member: &'m crate::mir::MemberAccessMetadata,
+    value: &'m crate::mir::Operand,
+    value_ty: TypeId,
+    continuation_route: &'m crate::mir::StoredContinuationRoutePublication,
+}
+
 const MIR_CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
+
+#[derive(Clone, Copy)]
+struct MirMemberFieldContract {
+    field_cg: CgTy,
+    writable: bool,
+}
+
+#[derive(Clone, Copy)]
+struct MirMemberPlace<'ctx> {
+    ptr: PointerValue<'ctx>,
+    field_cg: CgTy,
+    writable: bool,
+    packed_alignment: Option<u32>,
+}
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(crate) fn raw_materialized_mir_body_requires_hir_compat_boundary(
@@ -647,13 +669,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return false;
                 };
                 self.raw_materialized_mir_rvalue_is_supported(
+                    stmt.span,
                     body,
                     mir_types,
                     value,
                     Some(target_cg),
                 )
             }
-            crate::mir::StatementKind::StoreMember { .. } => false,
+            crate::mir::StatementKind::StoreMember {
+                receiver,
+                member,
+                value,
+                value_ty,
+                continuation_route,
+            } => self.raw_materialized_mir_store_member_is_supported(
+                stmt.span,
+                body,
+                mir_types,
+                MirStoreMemberSupport {
+                    receiver,
+                    member,
+                    value,
+                    value_ty: *value_ty,
+                    continuation_route,
+                },
+            ),
             crate::mir::StatementKind::Todo(_) => false,
         }
     }
@@ -699,6 +739,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn raw_materialized_mir_rvalue_is_supported(
         &mut self,
+        span: crate::span::Span,
         body: &crate::mir::Body,
         mir_types: &TypeStore,
         value: &crate::mir::Rvalue,
@@ -774,12 +815,147 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     && self
                         .raw_materialized_mir_effect_instance_ty_is_supported(mir_types, *effect_ty)
             }
+            crate::mir::Rvalue::MemberAccess { receiver, member } => self
+                .raw_materialized_mir_member_access_is_supported(
+                    span, body, mir_types, receiver, member, target_cg,
+                ),
             crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
-            | crate::mir::Rvalue::MemberAccess { .. }
             | crate::mir::Rvalue::Todo(_) => false,
         }
+    }
+
+    fn raw_materialized_mir_member_access_is_supported(
+        &mut self,
+        span: crate::span::Span,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        receiver: &crate::mir::Operand,
+        member: &crate::mir::MemberAccessMetadata,
+        target_cg: Option<CgTy>,
+    ) -> bool {
+        let Some(target_cg) = target_cg else {
+            return false;
+        };
+        if !self.raw_materialized_mir_operand_is_supported(receiver) {
+            return false;
+        }
+        self.raw_materialized_mir_member_field_contract(span, body, mir_types, receiver, member)
+            .is_ok_and(|field| field.field_cg == target_cg)
+    }
+
+    fn raw_materialized_mir_store_member_is_supported(
+        &mut self,
+        span: crate::span::Span,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        store: MirStoreMemberSupport<'_>,
+    ) -> bool {
+        if mir_store_member_continuation_route_is_lowerable(span, store.continuation_route).is_err()
+            || !self.raw_materialized_mir_operand_is_supported(store.receiver)
+            || !self.raw_materialized_mir_operand_is_supported(store.value)
+        {
+            return false;
+        }
+
+        let Ok(field) = self.raw_materialized_mir_member_field_contract(
+            span,
+            body,
+            mir_types,
+            store.receiver,
+            store.member,
+        ) else {
+            return false;
+        };
+        if !field.writable {
+            return false;
+        }
+        let Some(value_cg) = self.cg_ty_of_mir_type(mir_types, store.value_ty) else {
+            return false;
+        };
+        let Some(operand_cg) = self.mir_operand_cg_ty(body, mir_types, store.value) else {
+            return false;
+        };
+        value_cg == field.field_cg && operand_cg == field.field_cg
+    }
+
+    fn raw_materialized_mir_member_field_contract(
+        &mut self,
+        span: crate::span::Span,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        receiver: &crate::mir::Operand,
+        member: &crate::mir::MemberAccessMetadata,
+    ) -> Result<MirMemberFieldContract, LlvmEmitError> {
+        let field_fqn = mir_member_value_fqn_for_codegen(span, member)?;
+        let receiver_type_id = self.mir_member_receiver_codegen_type_id(span, mir_types, member)?;
+        let receiver_contract_cg =
+            self.cg_ty_of(receiver_type_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR member receiver type",
+                    at: span.into(),
+                })?;
+        let receiver_cg = self.mir_operand_cg_ty(body, mir_types, receiver).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member receiver operand type",
+                at: span.into(),
+            },
+        )?;
+
+        if let Some((class, field_idx, field_cg)) =
+            self.lookup_class_field_by_fqn(field_fqn, span, Some(receiver_type_id))?
+        {
+            if receiver_cg != CgTy::Ref {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class member receiver type",
+                    at: span.into(),
+                });
+            }
+            let field =
+                class
+                    .fields
+                    .get(field_idx as usize)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR class member field index",
+                        at: span.into(),
+                    })?;
+            return Ok(MirMemberFieldContract {
+                field_cg,
+                writable: field.mutable,
+            });
+        }
+
+        match receiver_contract_cg {
+            CgTy::Struct(struct_ty) if receiver_cg == CgTy::Struct(struct_ty) => {
+                let (_, field_cg) = self.lookup_struct_field(struct_ty, field_fqn, span)?;
+                let packed = self
+                    .struct_clayout(struct_ty)
+                    .and_then(|layout| layout.packed)
+                    .is_some();
+                Ok(MirMemberFieldContract {
+                    field_cg,
+                    writable: matches!(receiver, crate::mir::Operand::Local(_)) && !packed,
+                })
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member field target",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn mir_member_receiver_codegen_type_id(
+        &self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        member: &crate::mir::MemberAccessMetadata,
+    ) -> Result<TypeId, LlvmEmitError> {
+        self.equivalent_codegen_type_id(mir_types, member.receiver_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member receiver type",
+                at: span.into(),
+            })
     }
 
     fn raw_materialized_mir_call_kind_is_supported(
@@ -1375,12 +1551,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
                 Ok(())
             }
-            crate::mir::StatementKind::StoreMember { .. } => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR member store contract",
-                    at: stmt.span.into(),
-                })
-            }
+            crate::mir::StatementKind::StoreMember {
+                receiver,
+                member,
+                value,
+                value_ty,
+                continuation_route,
+            } => self.codegen_mir_store_member(
+                stmt.span,
+                receiver,
+                member,
+                value,
+                *value_ty,
+                continuation_route,
+                body,
+                mir_types,
+                slots,
+            ),
             crate::mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR statement todo",
                 at: stmt.span.into(),
@@ -1558,15 +1745,248 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.codegen_mir_effect_instance_key(span, mir_types, *effect_ty)?;
                 self.default_value(span, target_cg)
             }
+            crate::mir::Rvalue::MemberAccess { receiver, member } => self
+                .codegen_mir_member_access(
+                    span,
+                    receiver,
+                    member,
+                    MirBodyCodegenCtx {
+                        body,
+                        mir_types,
+                        slots,
+                    },
+                    target_cg,
+                ),
             crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
-            | crate::mir::Rvalue::MemberAccess { .. }
             | crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR rvalue",
                 at: span.into(),
             }),
         }
+    }
+
+    fn codegen_mir_member_access(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &crate::mir::Operand,
+        member: &crate::mir::MemberAccessMetadata,
+        mir_ctx: MirBodyCodegenCtx<'_, 'ctx>,
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let place = self.codegen_mir_member_place(span, receiver, member, mir_ctx, false)?;
+        if place.field_cg != target_cg {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member access result type drift",
+                at: span.into(),
+            });
+        }
+        if place.field_cg == CgTy::Unit {
+            return self.coerce_value(span, CgValue::unit(), target_cg);
+        }
+        let llvm_ty = self.llvm_basic_type_of(span, place.field_cg)?;
+        let loaded = self
+            .builder
+            .build_load(llvm_ty, place.ptr, "pass_mir_member_load")?;
+        if let Some(alignment) = place.packed_alignment
+            && let Some(inst) = loaded.as_instruction_value()
+        {
+            inst.set_alignment(alignment)?;
+        }
+        let value = self.cg_value_from_loaded(span, place.field_cg, loaded)?;
+        self.coerce_value(span, value, target_cg)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_store_member(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &crate::mir::Operand,
+        member: &crate::mir::MemberAccessMetadata,
+        value: &crate::mir::Operand,
+        value_ty: TypeId,
+        continuation_route: &crate::mir::StoredContinuationRoutePublication,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        mir_store_member_continuation_route_is_lowerable(span, continuation_route)?;
+
+        let mir_ctx = MirBodyCodegenCtx {
+            body,
+            mir_types,
+            slots,
+        };
+        let place = self.codegen_mir_member_place(span, receiver, member, mir_ctx, true)?;
+        if !place.writable {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member store target not writable",
+                at: span.into(),
+            });
+        }
+        let value_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member store value type",
+                at: span.into(),
+            },
+        )?;
+        if value_cg != place.field_cg {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member store value type drift",
+                at: span.into(),
+            });
+        }
+        let operand_cg = self.mir_operand_cg_ty(body, mir_types, value).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member store operand type",
+                at: span.into(),
+            },
+        )?;
+        if operand_cg != place.field_cg {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member store operand type drift",
+                at: span.into(),
+            });
+        }
+
+        let value = self.codegen_mir_operand_expected(span, value, slots, Some(place.field_cg))?;
+        let stored = self.coerce_value(span, value, place.field_cg)?;
+        let _ = self.store_local_value(span, place.ptr, place.field_cg, stored)?;
+        Ok(())
+    }
+
+    fn codegen_mir_member_place(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &crate::mir::Operand,
+        member: &crate::mir::MemberAccessMetadata,
+        mir_ctx: MirBodyCodegenCtx<'_, 'ctx>,
+        require_writable: bool,
+    ) -> Result<MirMemberPlace<'ctx>, LlvmEmitError> {
+        let field_fqn = mir_member_value_fqn_for_codegen(span, member)?;
+        let receiver_type_id =
+            self.mir_member_receiver_codegen_type_id(span, mir_ctx.mir_types, member)?;
+        if let Some((class, field_idx, field_cg)) =
+            self.lookup_class_field_by_fqn(field_fqn, span, Some(receiver_type_id))?
+        {
+            let receiver_cg = self
+                .mir_operand_cg_ty(mir_ctx.body, mir_ctx.mir_types, receiver)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class member receiver operand type",
+                    at: span.into(),
+                })?;
+            if receiver_cg != CgTy::Ref {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class member receiver type drift",
+                    at: span.into(),
+                });
+            }
+            let field =
+                class
+                    .fields
+                    .get(field_idx as usize)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR class member field index",
+                        at: span.into(),
+                    })?;
+            if require_writable && !field.mutable {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR immutable class member store",
+                    at: span.into(),
+                });
+            }
+            let receiver_value =
+                self.codegen_mir_operand_expected(span, receiver, mir_ctx.slots, Some(CgTy::Ref))?;
+            let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
+            let Some(raw) = receiver_value.value else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class member receiver value",
+                    at: span.into(),
+                });
+            };
+            let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR class member receiver type",
+                    at: span.into(),
+                });
+            };
+            let ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
+            return Ok(MirMemberPlace {
+                ptr,
+                field_cg,
+                writable: field.mutable,
+                packed_alignment: None,
+            });
+        }
+
+        let receiver_cg =
+            self.cg_ty_of(receiver_type_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR member receiver type",
+                    at: span.into(),
+                })?;
+        let CgTy::Struct(struct_ty) = receiver_cg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member field target",
+                at: span.into(),
+            });
+        };
+        let (field_idx, field_cg) = self.lookup_struct_field(struct_ty, field_fqn, span)?;
+        let crate::mir::Operand::Local(local) = receiver else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member store receiver place",
+                at: span.into(),
+            });
+        };
+        let slot = self.mir_local_slot(span, mir_ctx.slots, *local)?;
+        if slot.cg_ty != CgTy::Struct(struct_ty) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR member receiver type drift",
+                at: span.into(),
+            });
+        }
+        let local_ptr = self.local_ptr_for_use(
+            span,
+            CgLocal {
+                hir_ty: None,
+                call_may_suspend: false,
+                ty: slot.cg_ty,
+                ptr: slot.ptr,
+                frame_backing_ptr: None,
+                mutable: false,
+            },
+            "pass_mir_member_base",
+        )?;
+        let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
+        let ptr = self.builder.build_struct_gep(
+            llvm_struct_ty,
+            local_ptr,
+            field_idx,
+            "pass_mir_member_gep",
+        )?;
+        let packed_alignment = if let Some(pack_n) = self
+            .struct_clayout(struct_ty)
+            .and_then(|layout| layout.packed)
+        {
+            if require_writable {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR packed struct member store",
+                    at: span.into(),
+                });
+            }
+            let field_ty = self.llvm_basic_type_of(span, field_cg)?;
+            let natural = self.target_data.get_abi_alignment(&field_ty);
+            Some(std::cmp::min(natural, pack_n))
+        } else {
+            None
+        };
+        Ok(MirMemberPlace {
+            ptr,
+            field_cg,
+            writable: matches!(receiver, crate::mir::Operand::Local(_)),
+            packed_alignment,
+        })
     }
 
     fn codegen_mir_effect_instance_key(
@@ -4062,6 +4482,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
+fn mir_member_value_fqn_for_codegen(
+    span: crate::span::Span,
+    member: &crate::mir::MemberAccessMetadata,
+) -> Result<&str, LlvmEmitError> {
+    match member.resolved.as_ref() {
+        Some(crate::mir::MemberTarget::Value { fqn }) => Ok(fqn.as_str()),
+        Some(_) => Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "pass MIR member target is not value",
+            at: span.into(),
+        }),
+        None => Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "pass MIR member target unresolved",
+            at: span.into(),
+        }),
+    }
+}
+
+fn mir_store_member_continuation_route_is_lowerable(
+    span: crate::span::Span,
+    continuation_route: &crate::mir::StoredContinuationRoutePublication,
+) -> Result<(), LlvmEmitError> {
+    match continuation_route {
+        crate::mir::StoredContinuationRoutePublication::Ambiguous => {
+            Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR ambiguous member continuation route",
+                at: span.into(),
+            })
+        }
+        crate::mir::StoredContinuationRoutePublication::None
+        | crate::mir::StoredContinuationRoutePublication::Unique(_) => Ok(()),
+    }
+}
+
 #[derive(Clone, Copy)]
 enum IntCompareKind {
     Lt,
@@ -4153,8 +4606,17 @@ pub(super) fn collect_mir_local_uses(body: &crate::mir::Body) -> HashSet<crate::
     let mut out = HashSet::new();
     for block in &body.blocks {
         for stmt in &block.stmts {
-            if let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind {
-                collect_mir_rvalue_uses(value, &mut out);
+            match &stmt.kind {
+                crate::mir::StatementKind::Assign { value, .. } => {
+                    collect_mir_rvalue_uses(value, &mut out);
+                }
+                crate::mir::StatementKind::StoreMember {
+                    receiver, value, ..
+                } => {
+                    collect_mir_operand_use(receiver, &mut out);
+                    collect_mir_operand_use(value, &mut out);
+                }
+                crate::mir::StatementKind::Nop | crate::mir::StatementKind::Todo(_) => {}
             }
         }
         collect_mir_terminator_uses(&block.terminator.kind, &mut out);
@@ -4251,5 +4713,43 @@ fn collect_mir_terminator_uses(
         | crate::mir::TerminatorKind::Unreachable
         | crate::mir::TerminatorKind::Handle { .. }
         | crate::mir::TerminatorKind::Todo(_) => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_unsupported_kind(result: Result<(), LlvmEmitError>, expected: &'static str) {
+        match result.expect_err("helper should reject invalid member contract") {
+            LlvmEmitError::UnsupportedMainBody { kind, .. } => assert_eq!(kind, expected),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn refactor_mir_member_access_codegen_rejects_unresolved_metadata() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let member = crate::mir::MemberAccessMetadata {
+            name: "count".to_string(),
+            receiver_ty: builtins.int,
+            resolved: None,
+        };
+
+        let result =
+            mir_member_value_fqn_for_codegen(crate::span::Span::new(0, 1), &member).map(|_| ());
+
+        assert_unsupported_kind(result, "pass MIR member target unresolved");
+    }
+
+    #[test]
+    fn refactor_mir_store_member_codegen_rejects_ambiguous_continuation_route() {
+        let result = mir_store_member_continuation_route_is_lowerable(
+            crate::span::Span::new(0, 1),
+            &crate::mir::StoredContinuationRoutePublication::Ambiguous,
+        );
+
+        assert_unsupported_kind(result, "pass MIR ambiguous member continuation route");
     }
 }

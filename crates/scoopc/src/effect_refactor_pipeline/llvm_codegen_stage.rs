@@ -353,6 +353,48 @@ fun main(): Int {
         )
     }
 
+    fn member_codegen_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_mir_member_codegen_fixture.scoop",
+            r#"
+package sample
+
+class Cell(var count: Int)
+
+fun bump(cell: Cell): Int {
+    cell.count = cell.count + 1
+    return cell.count
+}
+
+fun main(): Int {
+    val cell = Cell(41)
+    return bump(cell)
+}
+"#,
+        )
+    }
+
+    fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
+        let _guard = test_lock();
+        let temp = make_temp_dir();
+        let out = temp.path().join(file_name);
+        let (session, source_map, entry_source_id, lowered) =
+            emit_args_for_source(EffectPipelineMode::Refactor, source);
+        effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+            &session,
+            &source_map,
+            entry_source_id,
+            lowered,
+            None,
+            &out,
+            None,
+            OptLevel::O0,
+            LlvmArtifactKind::LlvmIr,
+        )
+        .unwrap();
+        std::fs::read_to_string(out).unwrap()
+    }
+
     fn emit_args_for_source(
         mode: EffectPipelineMode,
         source: SourceFile,
@@ -389,6 +431,26 @@ fun main(): Int {
         crate::hir::LoweredHir,
     ) {
         emit_args_for_source(mode, effectful_source())
+    }
+
+    #[test]
+    fn refactor_mir_member_access_codegen() {
+        let ir = emit_refactor_ir_for_source(member_codegen_source(), "member_access.ll");
+
+        assert!(
+            ir.contains("pass_mir_member_load"),
+            "member read should be lowered through the canonical MIR helper:\n{ir}"
+        );
+    }
+
+    #[test]
+    fn refactor_mir_store_member_codegen() {
+        let ir = emit_refactor_ir_for_source(member_codegen_source(), "store_member.ll");
+
+        assert!(
+            ir.contains("store i64 %pass_mir_iadd"),
+            "member store should use the canonical MIR StoreMember helper:\n{ir}"
+        );
     }
 
     #[test]

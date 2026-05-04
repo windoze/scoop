@@ -822,7 +822,7 @@
   - 2026-05-04：开始真正实现 `P6-T03` continuation object method / owner trampoline body 时确认新的未跟踪 blocker。当前 handoff 虽已发布 `ResumePayload(boundary, case)` slot identity、`BoundaryResult(boundary, local)`、`result_local`（call/resume），以及 shared wrapper/underlying route contract；但仍没有统一发布“incoming resume payload/answer 应写回哪个 resumed local/home”的 authoritative 查询面。`effect_multi_escape_indirect_direct_while.scoop` 中 `fetch` 的 outward `Ask.ask` continuation 与 `main` 的 shared wrapper owner route 若继续由 `P6-T03` 落地，backend 只能回 canonical MIR 的 `Rvalue::PerformResult` target、raw call assign target 或 paired boundary shape 恢复该绑定，违反 contract-first 边界。因此新增本前置任务，先把 resumed local/home 注入 contract 发布清楚，再继续 `P6-T03`。
   - 2026-05-04：已在 `LateLoweredFrameSchema` 上新增 authoritative `resume_payload_bindings`，统一发布 boundary/resume-state 到 resumed local/home（含 frame home slot）的注入 contract；`Call`/`Resume` 直接消费 `result_local + BoundaryResult`，`Perform` 显式发布 `PerformResult` consumer，paired `RuntimeError` boundary 显式继承对应 resume boundary 的 consumer。`dump-effect-lowered` 与 LLVM ABI/query 已同步暴露 boundary-keyed 与 resume-state-keyed 查询面，并对缺失/漂移 fail fast。验证通过：`cargo test -p scoopc refactor_effect_lowered_resume_payload_binding`、`cargo test -p scoopc refactor_llvm_resume_payload_binding`、`cargo test -p scoopc refactor_llvm_`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
 
-## P6-T02qe：发布 refactor source-slice member read/write LLVM lowering contract，禁止 P6-T03 在 body emitter 现场回 HIR 或 legacy member lowering
+## [DONE] P6-T02qe：发布 refactor source-slice member read/write LLVM lowering contract，禁止 P6-T03 在 body emitter 现场回 HIR 或 legacy member lowering
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -880,7 +880,19 @@
   - 缺失、歧义或漂移时会在 helper / P6 handoff 边界显式拒绝。
 - 依赖：P6-T02qa，P6-T02o，P6-T02qd
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：完成 `P6-T02qe`。`crates/scoopc/src/mir/lower.rs` 现在会把 class / struct / object member value type 作为 MIR lowering facts 发布，并在 lowering `Rvalue::MemberAccess` 时用 resolved value fqn 修正 member-read temp 的 canonical type；这样 `cell.count` / `cell.k` 这类 member read 不再因为 HIR expr.ty 过宽而迫使 raw MIR codegen 回落 HIR-compatible path。
+  - 2026-05-04：`crates/scoopc/src/llvm/codegen/mir_body.rs` 已新增 effect-neutral `Rvalue::MemberAccess` / `StatementKind::StoreMember` lowering helper：read/write 都只消费 `MemberAccessMetadata.receiver_ty`、resolved `MemberTarget::Value`、receiver/value operand、`value_ty` 与 `continuation_route`；class field read/write 走 canonical MIR helper，struct local field read也支持 packed load alignment，packed struct store、unresolved/non-value target、receiver/value type drift、immutable class field store、以及 `StoreMember.continuation_route=Ambiguous` 都会显式拒绝。
+  - 2026-05-04：新增 `tests/fixtures/build/effect_refactor_member_codegen_emit_llvm.scoop` 与定向 Rust 回归：`refactor_mir_member_access_codegen` / `refactor_mir_store_member_codegen` 锁定 pure `bump(cell: Cell)` 进入 pass-MIR member helper；底层 fail-fast 测试覆盖 unresolved member metadata 与 ambiguous continuation route。
+  - 2026-05-04：`PLAN.md` 无需改动。
+  - 已运行验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc refactor_mir_member_access_codegen`
+    - `cargo test -p scoopc refactor_mir_store_member_codegen`
+    - `cargo test -p scoopc refactor_llvm_`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_member_codegen_emit_llvm.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
