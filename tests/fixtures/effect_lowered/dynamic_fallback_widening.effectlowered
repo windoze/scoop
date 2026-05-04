@@ -81,8 +81,9 @@ LateLoweredProgram
   callables:
     - root: sample.callValue
       body_version_key: instance=sample.callValue allowed_row=(t460 + t461) impl_plan=CanonicalFull needs_reentry=true
-      authoritative_step_schema: s0
       resolved_outward_cases: [c0, c1]
+      abi: EffectStep
+      authoritative_step_schema: s0
       dynamic_invoke_entry: invoke(t462) -> s0 entry=st0 complete=st1
       state_graph:
         entry_state: st0
@@ -93,12 +94,16 @@ LateLoweredProgram
           - st0 Entry term=Suspend(boundaries=[bd0], resume=st2, local_runtime_error=[], cleanup=<none>, drop=st3) successors=[st2]
             source_slices:
               - bb0 stmts[0..1]
+                statement_classification:
+                  - stmt0: boundary-consumed-anchor bd0
           - st1 Complete term=Unreachable successors=[]
             source_slices:
               <synthetic>
-          - st2 Resume term=Return(Unit -> st1) successors=[st1]
+          - st2 Resume term=Return(Unit:t2 -> st1) successors=[st1]
             source_slices:
               - bb0 stmts[1..1] + term
+                statement_classification:
+                  <none>
           - st3 Drop term=Abandon successors=[]
             source_slices:
               <synthetic>
@@ -112,9 +117,21 @@ LateLoweredProgram
           - slot5 CleanupFlag ty=t4 writes=[] reads=[]
           - slot6 OneShotFlag ty=t4 writes=[] reads=[]
           - slot7 CompletionTag ty=t5 writes=[] reads=[]
+        resume_payload_bindings:
+          - bd0 resume=st2 local1 home=slot0
+        completion_payload_bindings:
+          - return=st2 complete=st1 payload=Unit:t2 home=<none>
       boundary_map:
         - bd0 Call(site0) owner=st0 resume=st2
           lowering: Call kind=FunValue target_mode=DynamicFallback callee_step=s1 result=local1 target=DynamicFallback
+            operand_contract:
+              anchor: statement bb0 stmt0 slice=bb0 stmts[0..1] slice_stmt_index=0 last_in_slice=true
+              carrier: local0:t462
+              ordered_args:
+                <none>
+            continuation_compositions:
+              - in c0 -> out c0 callee=k2 caller=k0 resume=st2 result=local1 frame=fs0 result_ty=t2
+              - in c1 -> out c1 callee=k2 caller=k0 resume=st2 result=local1 frame=fs0 result_ty=t2
             dispatch_input_step_schema: s1
             complete: answer_ty=t2 target=st2 result=local1
             outward_cases:

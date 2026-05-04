@@ -6,17 +6,18 @@ use crate::ty::{EffectRow, TypeId};
 use super::ir::{
     BoundarySiteKind, LateLoweredBodyVersionKey, LateLoweredBoundary, LateLoweredBoundaryLowering,
     LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
-    LateLoweredCallBoundaryOperandContract, LateLoweredCallable, LateLoweredCompleteStepDispatch,
-    LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
-    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
-    LateLoweredContinuationMethod, LateLoweredContinuationObject,
+    LateLoweredCallBoundaryOperandContract, LateLoweredCallable, LateLoweredCallableAbi,
+    LateLoweredCompleteStepDispatch, LateLoweredCompletionPayloadBinding,
+    LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
+    LateLoweredContinuationCapture, LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
     LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleDispatchContract,
     LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredOperandSource,
-    LateLoweredOperandValueSource, LateLoweredPerformBoundaryOperandContract, LateLoweredProgram,
-    LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
+    LateLoweredOperandValueSource, LateLoweredPerformBoundaryOperandContract,
+    LateLoweredPlainBodySlice, LateLoweredPlainCallSite, LateLoweredPlainCallable,
+    LateLoweredProgram, LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
     LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
     LateLoweredResumeStateMap, LateLoweredSourceStatementClassification,
     LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
@@ -491,14 +492,83 @@ fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
     .unwrap();
     writeln!(
         rendered,
-        "      authoritative_step_schema: s{}",
-        callable.step_schema().as_u32()
-    )
-    .unwrap();
-    writeln!(
-        rendered,
         "      resolved_outward_cases: {}",
         render_cases(callable.resolved_outward_cases())
+    )
+    .unwrap();
+    match callable.abi() {
+        LateLoweredCallableAbi::Plain(plain) => render_plain_callable(rendered, plain),
+        LateLoweredCallableAbi::EffectStep(_) => render_effect_step_callable(rendered, callable),
+    }
+}
+
+fn render_plain_callable(rendered: &mut String, plain: &LateLoweredPlainCallable) {
+    writeln!(rendered, "      abi: Plain").unwrap();
+    writeln!(
+        rendered,
+        "      ordinary_signature: fn_ty={} params=[{}] return={}",
+        render_type_id(plain.function_ty()),
+        plain
+            .param_tys()
+            .iter()
+            .copied()
+            .map(render_type_id)
+            .collect::<Vec<_>>()
+            .join(", "),
+        render_type_id(plain.return_ty()),
+    )
+    .unwrap();
+    writeln!(rendered, "      plain_source_slices:").unwrap();
+    if plain.body_slices().is_empty() {
+        writeln!(rendered, "        <none>").unwrap();
+    } else {
+        for slice in plain.body_slices() {
+            writeln!(rendered, "        - {}", render_plain_body_slice(*slice)).unwrap();
+        }
+    }
+    writeln!(rendered, "      plain_call_sites:").unwrap();
+    if plain.call_sites().is_empty() {
+        writeln!(rendered, "        <none>").unwrap();
+    } else {
+        for call_site in plain.call_sites() {
+            render_plain_call_site(rendered, call_site);
+        }
+    }
+    writeln!(rendered, "      effect_step_handoff: <none>").unwrap();
+}
+
+fn render_plain_call_site(rendered: &mut String, call_site: &LateLoweredPlainCallSite) {
+    let facts = call_site.facts();
+    writeln!(
+        rendered,
+        "        - site{} {:?} target_mode={:?} target={} callee_abi={} invoke_args_tuple_ty={} callee_step_schema={} resolved_cases={} anchor=bb{} stmt{} dispatch={}",
+        call_site.site_id().as_u32(),
+        facts.kind(),
+        facts.target_mode(),
+        render_call_target(facts.target()),
+        render_callable_abi_kind(facts.callee_abi_kind()),
+        render_type_id(facts.invoke_args_tuple_ty()),
+        facts
+            .callee_step_schema()
+            .map(|schema| format!("s{}", schema.as_u32()))
+            .unwrap_or_else(|| "<none>".to_string()),
+        render_cases(facts.resolved_cases().tags()),
+        call_site.source_slice().block_id().as_u32(),
+        call_site.statement_index(),
+        match facts.callee_abi_kind() {
+            crate::effect_facts::CallableAbiKind::Plain => "PlainCall",
+            crate::effect_facts::CallableAbiKind::EffectStep => "EffectStepDispatch",
+        },
+    )
+    .unwrap();
+}
+
+fn render_effect_step_callable(rendered: &mut String, callable: &LateLoweredCallable) {
+    writeln!(rendered, "      abi: EffectStep").unwrap();
+    writeln!(
+        rendered,
+        "      authoritative_step_schema: s{}",
+        callable.step_schema().as_u32()
     )
     .unwrap();
     writeln!(
@@ -526,6 +596,20 @@ fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
         callable.continuation_object().as_u32()
     )
     .unwrap();
+}
+
+fn render_plain_body_slice(slice: LateLoweredPlainBodySlice) -> String {
+    let terminator = if slice.includes_terminator() {
+        " + term"
+    } else {
+        ""
+    };
+    format!(
+        "bb{} stmts[{}..{}]{terminator}",
+        slice.block_id().as_u32(),
+        slice.start_statement_index(),
+        slice.end_statement_index(),
+    )
 }
 
 fn render_state_graph(rendered: &mut String, callable: &LateLoweredCallable) {
@@ -1417,6 +1501,13 @@ fn render_call_target(target: &crate::effect_facts::CallSiteTarget) -> String {
                 .join(", ")
         ),
         crate::effect_facts::CallSiteTarget::DynamicFallback => "DynamicFallback".to_string(),
+    }
+}
+
+fn render_callable_abi_kind(kind: crate::effect_facts::CallableAbiKind) -> &'static str {
+    match kind {
+        crate::effect_facts::CallableAbiKind::Plain => "Plain",
+        crate::effect_facts::CallableAbiKind::EffectStep => "EffectStep",
     }
 }
 

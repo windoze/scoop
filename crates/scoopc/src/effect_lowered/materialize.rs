@@ -4299,7 +4299,7 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::effect_facts::{
-        CallTargetMode, ImplPlan, NestedHandleClassification, SiteEffectFacts,
+        CallTargetMode, CallableAbiKind, ImplPlan, NestedHandleClassification, SiteEffectFacts,
     };
     use crate::effect_lowered::LateLoweredProgramBuilder;
     use crate::effect_lowered::ir::{
@@ -6747,7 +6747,10 @@ fun propagate_before_finally(): Int {
         ));
         let no_outward = callable(&no_outward_output, "sample.main");
         assert_eq!(no_outward.impl_plan(), ImplPlan::NoOutward);
-        assert!(no_outward.boundary_map().entries().is_empty());
+        assert_eq!(no_outward.call_abi_kind(), CallableAbiKind::Plain);
+        assert!(no_outward.body_step_schema().is_none());
+        assert!(no_outward.effect_step_abi().is_none());
+        assert!(no_outward.plain_abi().is_some());
 
         let single_case_output =
             load_output(&load_fixture("effect_facts", "single_case_impl_plan.scoop"));

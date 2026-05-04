@@ -19,10 +19,10 @@ use super::RefactorEffectFactsStageOutput;
 ///   late-lowered IR 上工作，而不是回头 patch P3/P4 产物；
 /// - 对外暴露的输出不会混有“部分 callable 已 lowered、部分仍停留在 direct-style”的半成品状态；
 /// - P6 只应把这份输出翻译到 LLVM，而不是再重做高层 effect lowering 设计；
-/// - P6 可消费的 canonical 中层信息包括：`LateLoweredProgram` 内的 type references、
-///   state graph、frame schema、dynamic invoke entry、authoritative per-op/per-schema resume
-///   publication（step cases / continuation object / surface-resume dispatch inventory），以及可选的
-///   effect-family resume packing definitions；
+/// - P6 可消费的 canonical 中层信息包括：`LateLoweredProgram` 内显式区分的 Plain callable
+///   ordinary ABI/source slices，以及 EffectStep callable 的 type references、state graph、frame schema、
+///   dynamic invoke entry、authoritative per-op/per-schema resume publication（step cases / continuation
+///   object / surface-resume dispatch inventory），以及可选的 effect-family resume packing definitions；
 /// - P6 明确不得重新做 boundary 识别、whole-function segmentation、frame lifting、
 ///   continuation capture 合同设计或 `ImplPlan` 选择，也不得把 packing layer 反客为主当成
 ///   reverse-resume 语义主键；
@@ -168,7 +168,7 @@ fn render_stage_output(output: &RefactorEffectLoweredStageOutput) -> String {
 #[cfg(test)]
 mod tests {
     use super::RefactorEffectLoweredStageOutput;
-    use crate::effect_facts::CanonicalMirQuerySurface;
+    use crate::effect_facts::{CallableAbiKind, CanonicalMirQuerySurface};
     use crate::opt::OptLevel;
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
@@ -309,10 +309,11 @@ fun leaf(): Unit / Ping {
             .callable_facts()
             .get(&main_key)
             .expect("P4 output 应发布 sample.main callable facts");
-        let expected_step_schema = main_facts.step_schema();
         let expected_impl_plan = main_facts.impl_plan();
         let expected_needs_reentry = main_facts.needs_reentry();
         let expected_cases = main_facts.resolved_outward_cases().tags().to_vec();
+        let expected_abi = main_facts.call_abi_kind();
+        let expected_body_step_schema = main_facts.body_step_schema();
 
         let output = super::run(effect_facts_output).unwrap();
         let lowered_main = output
@@ -320,7 +321,8 @@ fun leaf(): Unit / Ping {
             .callable("sample.main")
             .expect("late-lowered program 应保留 sample.main 边界记录");
 
-        assert_eq!(lowered_main.step_schema(), expected_step_schema);
+        assert_eq!(lowered_main.call_abi_kind(), expected_abi);
+        assert_eq!(lowered_main.body_step_schema(), expected_body_step_schema);
         assert_eq!(lowered_main.impl_plan(), expected_impl_plan);
         assert_eq!(lowered_main.needs_reentry(), expected_needs_reentry);
         assert_eq!(
@@ -328,9 +330,34 @@ fun leaf(): Unit / Ping {
             expected_cases.as_slice()
         );
         assert_eq!(
+            lowered_main.plain_abi().is_some(),
+            expected_abi == CallableAbiKind::Plain
+        );
+        assert_eq!(
             output.effect_facts().callable_facts().len(),
             output.program().len()
         );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_no_outward_plain_callable_handoff() {
+        let output = run_sample();
+        let main = output
+            .program()
+            .callable("sample.main")
+            .expect("late-lowered program 应保留 sample.main");
+
+        assert_eq!(main.call_abi_kind(), CallableAbiKind::Plain);
+        assert_eq!(main.impl_plan(), crate::effect_facts::ImplPlan::NoOutward);
+        assert!(main.body_step_schema().is_none());
+        assert!(main.effect_step_abi().is_none());
+        let plain = main
+            .plain_abi()
+            .expect("NoOutward callable 应发布 plain ABI handoff");
+        assert_eq!(plain.param_tys().len(), 0);
+        assert!(!plain.body_slices().is_empty());
+        assert!(output.program().step_types().is_empty());
+        assert!(output.program().continuation_objects().is_empty());
     }
 
     #[test]
@@ -372,18 +399,20 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_dump_exposes_local_runtime_error_call_contract() {
+    fn refactor_effect_lowered_stage_dump_exposes_plain_effect_step_call_contract() {
         let session = refactor_session();
         let source = local_runtime_error_fixture_source();
         let effect_facts_output =
             super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
         let dump = super::run(effect_facts_output).unwrap().stable_dump();
 
-        assert!(dump.contains("consumed_runtime_error_case:"));
-        assert!(dump.contains("target=st"));
-        assert!(dump.contains("local_runtime_error=[st"));
-        assert!(dump.contains("terminal=RuntimeFatal(runtime_entry=scoop_runtime_error_fatal)"));
-        assert!(dump.contains("LocalRuntimeError(payload_tuple_ty="));
+        assert!(dump.contains("root: main"));
+        assert!(dump.contains("abi: Plain"));
+        assert!(dump.contains("plain_call_sites:"));
+        assert!(dump.contains("target=run callee_abi=EffectStep"));
+        assert!(dump.contains("callee_step_schema=s1"));
+        assert!(dump.contains("resolved_cases=[c1]"));
+        assert!(dump.contains("dispatch=EffectStepDispatch"));
     }
 
     #[test]
@@ -431,9 +460,9 @@ fun leaf(): Unit / Ping {
 
         for needle in [
             "continuation_schema: k0 source=HandleContinuationBinderOnly",
-            "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site0 arm#0 handled_case=c0",
+            "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko0 site0 arm#0 handled_case=c0",
             "continuation_schema: k3 source=ResumeBoundaryOnly",
-            "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site9",
+            "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko0 site9",
         ] {
             assert!(
                 dump.contains(needle),

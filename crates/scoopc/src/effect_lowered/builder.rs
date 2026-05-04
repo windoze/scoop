@@ -1,12 +1,16 @@
-use crate::effect_facts::MaterializedEffectFacts;
-use crate::mir::MaterializedMirPassView;
+use crate::effect_facts::{CallableAbiKind, MaterializedEffectFacts, SiteEffectFacts};
+use crate::mir::{
+    BasicBlockId, Body, FunDecl, Item, MaterializedMir, MaterializedMirPassView, Rvalue,
+    StatementKind,
+};
 use crate::ty::TypeStore;
 
 use super::EffectLoweringError;
 use super::frame::{FrameBuildInputs, build_callable_frame};
 use super::ir::{
     ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
-    LateLoweredFrameSchema, LateLoweredProgram, LateLoweredResumeStateMap, LateLoweredStateGraph,
+    LateLoweredFrameSchema, LateLoweredPlainBodySlice, LateLoweredPlainCallSite,
+    LateLoweredPlainCallable, LateLoweredProgram, LateLoweredResumeStateMap, LateLoweredStateGraph,
 };
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs, StepMaterialization,
@@ -62,6 +66,29 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 }
                 continue;
             };
+            let body_version_key = LateLoweredBodyVersionKey::new(
+                family.key().clone(),
+                callable_facts.declared_row().clone(),
+                callable_facts.impl_plan(),
+                callable_facts.needs_reentry(),
+            );
+
+            if matches!(callable_facts.call_abi_kind(), CallableAbiKind::Plain) {
+                let fun = family
+                    .root_body()
+                    .or_else(|| find_materialized_fun(pass_view.materialized(), family.root_fqn()))
+                    .ok_or_else(|| EffectLoweringError::MissingPlainCallableSignature {
+                        root_fqn: root_fqn.clone(),
+                    })?;
+                callables.push(LateLoweredCallable::new_plain(
+                    root_fqn,
+                    body_version_key,
+                    callable_facts.resolved_outward_cases().tags().to_vec(),
+                    build_plain_callable_abi(fun, effect_facts.body(family.key()))?,
+                ));
+                continue;
+            }
+
             let step_schema_id = callable_facts.step_schema();
             let step_schema = effect_facts
                 .step_schemas()
@@ -79,13 +106,6 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     step_args_tuple: step_schema.invoke_args_tuple_ty().as_u32(),
                 });
             }
-
-            let body_version_key = LateLoweredBodyVersionKey::new(
-                family.key().clone(),
-                callable_facts.declared_row().clone(),
-                callable_facts.impl_plan(),
-                callable_facts.needs_reentry(),
-            );
             let step_type = step_types
                 .iter()
                 .find(|step_type| step_type.step_schema() == step_schema_id)
@@ -232,4 +252,102 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             callables,
         ))
     }
+}
+
+fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Option<&'a FunDecl> {
+    materialized.file.items.iter().find_map(|item| match item {
+        Item::Fun(fun) if fun.fqn == fqn => Some(fun),
+        Item::Fun(_) | Item::Todo { .. } => None,
+    })
+}
+
+fn build_plain_callable_abi(
+    fun: &FunDecl,
+    body_facts: Option<&crate::effect_facts::BodyEffectFacts>,
+) -> Result<LateLoweredPlainCallable, EffectLoweringError> {
+    let body_slices = fun.body.as_ref().map(plain_body_slices).unwrap_or_default();
+    let call_sites = match (&fun.body, body_facts) {
+        (Some(body), Some(body_facts)) => build_plain_call_sites(&fun.fqn, body, body_facts)?,
+        (Some(_), None) => {
+            return Err(EffectLoweringError::MissingBodyFacts {
+                root_fqn: fun.fqn.clone(),
+            });
+        }
+        (None, _) => Vec::new(),
+    };
+
+    Ok(LateLoweredPlainCallable::new(
+        fun.ty,
+        fun.params.iter().map(|param| param.ty).collect(),
+        fun.return_ty,
+        body_slices,
+        call_sites,
+    ))
+}
+
+fn plain_body_slices(body: &Body) -> Vec<LateLoweredPlainBodySlice> {
+    body.blocks
+        .iter()
+        .enumerate()
+        .map(|(block_index, block)| {
+            LateLoweredPlainBodySlice::new(
+                BasicBlockId::from_raw(block_index as u32),
+                0,
+                block.stmts.len() as u32,
+                true,
+            )
+        })
+        .collect()
+}
+
+fn build_plain_call_sites(
+    root_fqn: &str,
+    body: &Body,
+    body_facts: &crate::effect_facts::BodyEffectFacts,
+) -> Result<Vec<LateLoweredPlainCallSite>, EffectLoweringError> {
+    let mut call_sites = Vec::new();
+    for (block_index, block) in body.blocks.iter().enumerate() {
+        let source_slice = LateLoweredPlainBodySlice::new(
+            BasicBlockId::from_raw(block_index as u32),
+            0,
+            block.stmts.len() as u32,
+            true,
+        );
+        for (statement_index, statement) in block.stmts.iter().enumerate() {
+            let StatementKind::Assign {
+                value: Rvalue::Call { site_id, .. },
+                ..
+            } = &statement.kind
+            else {
+                continue;
+            };
+            let site_facts =
+                body_facts
+                    .site(*site_id)
+                    .ok_or_else(|| EffectLoweringError::MissingSiteFacts {
+                        root_fqn: root_fqn.to_string(),
+                        site_id: site_id.as_u32(),
+                    })?;
+            let SiteEffectFacts::Call(call_facts) = site_facts else {
+                return Err(EffectLoweringError::UnexpectedSiteFactsKind {
+                    root_fqn: root_fqn.to_string(),
+                    site_id: site_id.as_u32(),
+                    expected: "Call",
+                    actual: match site_facts {
+                        SiteEffectFacts::Call(_) => "Call",
+                        SiteEffectFacts::Perform(_) => "Perform",
+                        SiteEffectFacts::Resume(_) => "Resume",
+                        SiteEffectFacts::Handle(_) => "Handle",
+                    },
+                });
+            };
+            call_sites.push(LateLoweredPlainCallSite::new(
+                *site_id,
+                source_slice,
+                statement_index as u32,
+                call_facts.clone(),
+            ));
+        }
+    }
+    Ok(call_sites)
 }

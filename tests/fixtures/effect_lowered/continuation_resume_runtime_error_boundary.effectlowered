@@ -8,9 +8,9 @@ snapshot_binding:
     - sample.main
 post_opt_program:
 LateLoweredProgram
-  step_type_count: 3
+  step_type_count: 2
   resume_packing_interface_count: 2
-  continuation_object_count: 2
+  continuation_object_count: 1
   surface_resume_dispatch_count: 3
   callable_count: 2
   step_types:
@@ -21,12 +21,6 @@ LateLoweredProgram
       case_variants:
         - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t473 out_step_schema=s0 concrete_op=sample.Boom.next
         - Case(c1) payload_tuple_ty=t217 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t474 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t217>
-    - step_schema: s1
-      invoke_args_tuple_ty: t2
-      complete_variant: Complete(t5)
-      continuation_obj_ty: t475
-      case_variants:
-        <none>
     - step_schema: s2
       invoke_args_tuple_ty: t5
       complete_variant: Complete(t2)
@@ -57,16 +51,6 @@ LateLoweredProgram
       authoritative_internal_methods:
         - case=c0 packed_by=ri0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t473 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Boom.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
         - case=c1 packed_by=ri1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t474 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-    - continuation_object: ko1
-      owner_version: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      continuation_obj_ty: t475
-      implemented_packings: []
-      captures:
-        <none>
-      authoritative_surface_resumes:
-        <none>
-      authoritative_internal_methods:
-        <none>
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t5 answer_ty=t2 out_step_schema=s0
       publications:
@@ -79,6 +63,14 @@ LateLoweredProgram
     - continuation_schema: k2 source=ResumeBoundaryOnly resume_tuple_ty=t5 answer_ty=t2 out_step_schema=s2
       publications:
         - resume_boundary instance=sample.helper allowed_row=(t218 + t460) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+      wrapper_projection:
+        underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t218 + t460) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+        owner_step_schema: s0
+        wrapper_step_schema: s2
+        complete: owner_answer_ty=t2 -> wrapper_answer_ty=t2 payload=owner_complete:t2
+        outward_cases:
+          - owner c0 op=sample.Boom.next payload_tuple_ty=t2 -> wrapper c0 op=sample.Boom.next payload_tuple_ty=t2 cont_schema=k2 out_step_schema=s2
+          - owner c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 -> wrapper c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 cont_schema=k3 out_step_schema=s2
   resume_packing_interfaces:
     - resume_packing_interface: ri0
       packing_effect_family: sample.Boom
@@ -93,8 +85,9 @@ LateLoweredProgram
   callables:
     - root: sample.helper
       body_version_key: instance=sample.helper allowed_row=(t218 + t460) impl_plan=CanonicalFull needs_reentry=true
-      authoritative_step_schema: s0
       resolved_outward_cases: [c0, c1]
+      abi: EffectStep
+      authoritative_step_schema: s0
       dynamic_invoke_entry: invoke(t461) -> s0 entry=st0 complete=st1
       state_graph:
         entry_state: st0
@@ -105,12 +98,17 @@ LateLoweredProgram
           - st0 Entry term=Suspend(boundaries=[bd0, bd1], resume=st2, local_runtime_error=[], cleanup=<none>, drop=st3) successors=[st2]
             source_slices:
               - bb0 stmts[0..2]
+                statement_classification:
+                  - stmt0: effect-neutral-value
+                  - stmt1: boundary-consumed-anchor bd0
           - st1 Complete term=Unreachable successors=[]
             source_slices:
               <synthetic>
-          - st2 Resume term=Return(Unit -> st1) successors=[st1]
+          - st2 Resume term=Return(Unit:t2 -> st1) successors=[st1]
             source_slices:
               - bb0 stmts[2..2] + term
+                statement_classification:
+                  <none>
           - st3 Drop term=Abandon successors=[]
             source_slices:
               <synthetic>
@@ -126,6 +124,11 @@ LateLoweredProgram
           - slot7 CleanupFlag ty=t4 writes=[] reads=[]
           - slot8 OneShotFlag ty=t4 writes=[] reads=[]
           - slot9 CompletionTag ty=t5 writes=[] reads=[]
+        resume_payload_bindings:
+          - bd0 resume=st2 local1 home=slot0
+          - bd1 resume=st2 local1 home=slot0
+        completion_payload_bindings:
+          - return=st2 complete=st1 payload=Unit:t2 home=<none>
       boundary_map:
         - bd0 Resume(site0) owner=st0 resume=st2
           lowering: Resume continuation_schema=k2 out_step_schema=s2 result=local1 runtime_error_boundary=bd1
@@ -150,27 +153,11 @@ LateLoweredProgram
       continuation_object: ko0
     - root: sample.main
       body_version_key: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      authoritative_step_schema: s1
       resolved_outward_cases: []
-      dynamic_invoke_entry: invoke(t2) -> s1 entry=st0 complete=st1
-      state_graph:
-        entry_state: st0
-        complete_state: st1
-        cleanup_state: <none>
-        drop_state: <none>
-        states:
-          - st0 Entry term=Return(local0 -> st1) successors=[st1]
-            source_slices:
-              - bb0 stmts[0..1] + term
-          - st1 Complete term=Unreachable successors=[]
-            source_slices:
-              <synthetic>
-      frame_schema:
-        slots:
-          <none>
-      boundary_map:
+      abi: Plain
+      ordinary_signature: fn_ty=t128 params=[] return=t5
+      plain_source_slices:
+        - bb0 stmts[0..1] + term
+      plain_call_sites:
         <none>
-      resume_state_map:
-        <none>
-      resume_packing_interfaces: []
-      continuation_object: ko1
+      effect_step_handoff: <none>

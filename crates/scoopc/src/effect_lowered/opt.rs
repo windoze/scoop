@@ -49,8 +49,12 @@ pub(crate) fn optimize_program_with_options(
     let mut optimized_callables = Vec::with_capacity(program.len());
 
     for callable in program.callables() {
+        let Some(effect_callable) = callable.effect_step_abi() else {
+            optimized_callables.push(callable.clone());
+            continue;
+        };
         let continuation_object = program
-            .continuation_object(callable.continuation_object())
+            .continuation_object(effect_callable.continuation_object())
             .expect("every callable should point at a published continuation object");
         let optimized = optimize_callable(callable, continuation_object, options);
         optimized_objects.insert(
@@ -108,6 +112,9 @@ pub(crate) fn optimize_program_with_options(
     let callables = optimized_callables
         .into_iter()
         .map(|callable| {
+            if callable.effect_step_abi().is_none() {
+                return callable;
+            }
             let resume_packings = implemented_packings_by_object
                 .get(&callable.continuation_object())
                 .cloned()

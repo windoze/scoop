@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::effect_facts::{
-    CallSiteEffectFacts, CaseTag, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey,
-    HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
+    CallSiteEffectFacts, CallableAbiKind, CaseTag, ConcreteOpKey, ContinuationSchemaId,
+    EffectFamilyKey, HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts,
+    ResumeSiteEffectFacts, StepSchemaId,
 };
 use crate::mir::{BasicBlockId, ConstValue, InstanceKey, LocalId, SiteId};
 use crate::span::Span;
@@ -45,6 +46,7 @@ impl LateLoweredProgram {
     }
 
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn with_surface_resume_dispatch_inventory(
         &self,
         surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
@@ -204,17 +206,149 @@ impl LateLoweredBodyVersionKey {
     }
 }
 
-/// 单个 callable version 在 late lowering 入口处对应的最终目标骨架。
+/// plain callable body 在 P5 handoff 中保留的 ordinary source slice。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredPlainBodySlice {
+    block_id: BasicBlockId,
+    start_statement_index: u32,
+    end_statement_index: u32,
+    includes_terminator: bool,
+}
+
+/// Plain callable source slice 内的 call-site handoff。
 ///
-/// 其中 `step_schema` / boundary lowering / state graph 是 authoritative contract；
+/// Plain body 不拥有 state-machine boundary map；因此普通 call / effect-step callee call 的 ABI
+/// 选择必须直接发布在 source-slice call contract 上，供 P6 按 ordinary call 或 Step dispatch 消费。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredPlainCallSite {
+    site_id: SiteId,
+    source_slice: LateLoweredPlainBodySlice,
+    statement_index: u32,
+    facts: CallSiteEffectFacts,
+}
+
+impl LateLoweredPlainCallSite {
+    pub(crate) fn new(
+        site_id: SiteId,
+        source_slice: LateLoweredPlainBodySlice,
+        statement_index: u32,
+        facts: CallSiteEffectFacts,
+    ) -> Self {
+        Self {
+            site_id,
+            source_slice,
+            statement_index,
+            facts,
+        }
+    }
+
+    pub fn site_id(&self) -> SiteId {
+        self.site_id
+    }
+
+    pub fn source_slice(&self) -> LateLoweredPlainBodySlice {
+        self.source_slice
+    }
+
+    pub fn statement_index(&self) -> u32 {
+        self.statement_index
+    }
+
+    pub fn facts(&self) -> &CallSiteEffectFacts {
+        &self.facts
+    }
+}
+
+impl LateLoweredPlainBodySlice {
+    pub(crate) fn new(
+        block_id: BasicBlockId,
+        start_statement_index: u32,
+        end_statement_index: u32,
+        includes_terminator: bool,
+    ) -> Self {
+        Self {
+            block_id,
+            start_statement_index,
+            end_statement_index,
+            includes_terminator,
+        }
+    }
+
+    pub fn block_id(&self) -> BasicBlockId {
+        self.block_id
+    }
+
+    pub fn start_statement_index(&self) -> u32 {
+        self.start_statement_index
+    }
+
+    pub fn end_statement_index(&self) -> u32 {
+        self.end_statement_index
+    }
+
+    pub fn includes_terminator(&self) -> bool {
+        self.includes_terminator
+    }
+}
+
+/// Plain callable ABI handoff：普通函数签名 + canonical source slices。
+///
+/// 该分支不携带 `Step_F`、continuation object、state graph、frame、boundary map 或 resume map；
+/// P6 应按普通 callable ABI 翻译这些 source slices，而不是把它们重新包装成 complete-only step body。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredPlainCallable {
+    function_ty: TypeId,
+    param_tys: Vec<TypeId>,
+    return_ty: TypeId,
+    body_slices: Vec<LateLoweredPlainBodySlice>,
+    call_sites: Vec<LateLoweredPlainCallSite>,
+}
+
+impl LateLoweredPlainCallable {
+    pub(crate) fn new(
+        function_ty: TypeId,
+        param_tys: Vec<TypeId>,
+        return_ty: TypeId,
+        body_slices: Vec<LateLoweredPlainBodySlice>,
+        call_sites: Vec<LateLoweredPlainCallSite>,
+    ) -> Self {
+        Self {
+            function_ty,
+            param_tys,
+            return_ty,
+            body_slices,
+            call_sites,
+        }
+    }
+
+    pub fn function_ty(&self) -> TypeId {
+        self.function_ty
+    }
+
+    pub fn param_tys(&self) -> &[TypeId] {
+        &self.param_tys
+    }
+
+    pub fn return_ty(&self) -> TypeId {
+        self.return_ty
+    }
+
+    pub fn body_slices(&self) -> &[LateLoweredPlainBodySlice] {
+        &self.body_slices
+    }
+
+    pub fn call_sites(&self) -> &[LateLoweredPlainCallSite] {
+        &self.call_sites
+    }
+}
+
+/// Effect-step callable ABI handoff：`invoke(args_tuple) -> Step_F` + state-machine contract。
+///
 /// `resume_packings` 只是该 callable continuation object 对外附带发布的 effect-family packing
 /// helper 列表，不能替代 per-op/per-schema 语义本体。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LateLoweredCallable {
-    root_fqn: String,
-    body_version_key: LateLoweredBodyVersionKey,
+pub struct LateLoweredEffectStepCallable {
     step_schema: StepSchemaId,
-    resolved_outward_cases: Vec<CaseTag>,
     dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
     state_graph: LateLoweredStateGraph,
     frame_schema: LateLoweredFrameSchema,
@@ -225,13 +359,10 @@ pub struct LateLoweredCallable {
     resume_packings: Vec<ResumeInterfaceId>,
 }
 
-impl LateLoweredCallable {
+impl LateLoweredEffectStepCallable {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        root_fqn: String,
-        body_version_key: LateLoweredBodyVersionKey,
         step_schema: StepSchemaId,
-        resolved_outward_cases: Vec<CaseTag>,
         dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
         state_graph: LateLoweredStateGraph,
         frame_schema: LateLoweredFrameSchema,
@@ -241,10 +372,7 @@ impl LateLoweredCallable {
         resume_packings: Vec<ResumeInterfaceId>,
     ) -> Self {
         Self {
-            root_fqn,
-            body_version_key,
             step_schema,
-            resolved_outward_cases,
             dynamic_invoke_entry,
             state_graph,
             frame_schema,
@@ -256,44 +384,8 @@ impl LateLoweredCallable {
         }
     }
 
-    pub(crate) fn with_source_statement_classifications(
-        mut self,
-        classifications: Vec<LateLoweredSourceStatementClassification>,
-    ) -> Self {
-        self.source_statement_classifications = classifications;
-        self
-    }
-
-    pub fn root_fqn(&self) -> &str {
-        &self.root_fqn
-    }
-
-    pub fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
-        &self.body_version_key
-    }
-
-    pub fn instance_key(&self) -> &InstanceKey {
-        self.body_version_key.surface_instance()
-    }
-
-    pub fn allowed_row(&self) -> &EffectRow {
-        self.body_version_key.allowed_row()
-    }
-
     pub fn step_schema(&self) -> StepSchemaId {
         self.step_schema
-    }
-
-    pub fn impl_plan(&self) -> ImplPlan {
-        self.body_version_key.impl_plan()
-    }
-
-    pub fn needs_reentry(&self) -> bool {
-        self.body_version_key.needs_reentry()
-    }
-
-    pub fn resolved_outward_cases(&self) -> &[CaseTag] {
-        &self.resolved_outward_cases
     }
 
     pub fn dynamic_invoke_entry(&self) -> &LateLoweredDynamicInvokeEntry {
@@ -320,22 +412,203 @@ impl LateLoweredCallable {
         &self.source_statement_classifications
     }
 
-    pub fn source_statement_classification(
-        &self,
-        source_slice: LateLoweredStateSlice,
-        statement_index: u32,
-    ) -> Option<&LateLoweredSourceStatementClassification> {
-        self.source_statement_classifications.iter().find(|entry| {
-            entry.source_slice() == source_slice && entry.statement_index() == statement_index
-        })
-    }
-
     pub fn continuation_object(&self) -> ContinuationObjectId {
         self.continuation_object
     }
 
     pub fn resume_packings(&self) -> &[ResumeInterfaceId] {
         &self.resume_packings
+    }
+}
+
+/// callable version 在 P5 handoff 中选择的 ABI contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LateLoweredCallableAbi {
+    Plain(LateLoweredPlainCallable),
+    EffectStep(Box<LateLoweredEffectStepCallable>),
+}
+
+/// 单个 callable version 在 late lowering 入口处对应的最终目标骨架。
+///
+/// `abi` 显式区分普通函数 ABI 与 effect-step ABI：Plain 分支不携带 state-machine handoff，
+/// EffectStep 分支才发布 `step_schema` / boundary lowering / state graph 等 authoritative contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredCallable {
+    root_fqn: String,
+    body_version_key: LateLoweredBodyVersionKey,
+    resolved_outward_cases: Vec<CaseTag>,
+    abi: LateLoweredCallableAbi,
+}
+
+impl LateLoweredCallable {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        root_fqn: String,
+        body_version_key: LateLoweredBodyVersionKey,
+        step_schema: StepSchemaId,
+        resolved_outward_cases: Vec<CaseTag>,
+        dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
+        state_graph: LateLoweredStateGraph,
+        frame_schema: LateLoweredFrameSchema,
+        boundary_map: LateLoweredBoundaryMap,
+        resume_state_map: LateLoweredResumeStateMap,
+        continuation_object: ContinuationObjectId,
+        resume_packings: Vec<ResumeInterfaceId>,
+    ) -> Self {
+        Self {
+            root_fqn,
+            body_version_key,
+            resolved_outward_cases,
+            abi: LateLoweredCallableAbi::EffectStep(Box::new(LateLoweredEffectStepCallable::new(
+                step_schema,
+                dynamic_invoke_entry,
+                state_graph,
+                frame_schema,
+                boundary_map,
+                resume_state_map,
+                continuation_object,
+                resume_packings,
+            ))),
+        }
+    }
+
+    pub(crate) fn new_plain(
+        root_fqn: String,
+        body_version_key: LateLoweredBodyVersionKey,
+        resolved_outward_cases: Vec<CaseTag>,
+        plain_abi: LateLoweredPlainCallable,
+    ) -> Self {
+        Self {
+            root_fqn,
+            body_version_key,
+            resolved_outward_cases,
+            abi: LateLoweredCallableAbi::Plain(plain_abi),
+        }
+    }
+
+    pub(crate) fn with_source_statement_classifications(
+        mut self,
+        classifications: Vec<LateLoweredSourceStatementClassification>,
+    ) -> Self {
+        if let LateLoweredCallableAbi::EffectStep(effect) = &mut self.abi {
+            effect.source_statement_classifications = classifications;
+        }
+        self
+    }
+
+    pub fn root_fqn(&self) -> &str {
+        &self.root_fqn
+    }
+
+    pub fn abi(&self) -> &LateLoweredCallableAbi {
+        &self.abi
+    }
+
+    pub fn call_abi_kind(&self) -> CallableAbiKind {
+        match &self.abi {
+            LateLoweredCallableAbi::Plain(_) => CallableAbiKind::Plain,
+            LateLoweredCallableAbi::EffectStep(_) => CallableAbiKind::EffectStep,
+        }
+    }
+
+    pub fn plain_abi(&self) -> Option<&LateLoweredPlainCallable> {
+        match &self.abi {
+            LateLoweredCallableAbi::Plain(plain) => Some(plain),
+            LateLoweredCallableAbi::EffectStep(_) => None,
+        }
+    }
+
+    pub fn effect_step_abi(&self) -> Option<&LateLoweredEffectStepCallable> {
+        match &self.abi {
+            LateLoweredCallableAbi::EffectStep(effect) => Some(effect),
+            LateLoweredCallableAbi::Plain(_) => None,
+        }
+    }
+
+    fn expect_effect_step_abi(&self) -> &LateLoweredEffectStepCallable {
+        self.effect_step_abi()
+            .expect("plain callable does not publish an effect-step handoff")
+    }
+
+    pub fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
+        &self.body_version_key
+    }
+
+    pub fn instance_key(&self) -> &InstanceKey {
+        self.body_version_key.surface_instance()
+    }
+
+    pub fn allowed_row(&self) -> &EffectRow {
+        self.body_version_key.allowed_row()
+    }
+
+    pub fn step_schema(&self) -> StepSchemaId {
+        self.expect_effect_step_abi().step_schema()
+    }
+
+    pub fn body_step_schema(&self) -> Option<StepSchemaId> {
+        self.effect_step_abi()
+            .map(LateLoweredEffectStepCallable::step_schema)
+    }
+
+    pub fn impl_plan(&self) -> ImplPlan {
+        self.body_version_key.impl_plan()
+    }
+
+    pub fn needs_reentry(&self) -> bool {
+        self.body_version_key.needs_reentry()
+    }
+
+    pub fn resolved_outward_cases(&self) -> &[CaseTag] {
+        &self.resolved_outward_cases
+    }
+
+    pub fn dynamic_invoke_entry(&self) -> &LateLoweredDynamicInvokeEntry {
+        self.expect_effect_step_abi().dynamic_invoke_entry()
+    }
+
+    pub fn state_graph(&self) -> &LateLoweredStateGraph {
+        self.expect_effect_step_abi().state_graph()
+    }
+
+    pub fn frame_schema(&self) -> &LateLoweredFrameSchema {
+        self.expect_effect_step_abi().frame_schema()
+    }
+
+    pub fn boundary_map(&self) -> &LateLoweredBoundaryMap {
+        self.expect_effect_step_abi().boundary_map()
+    }
+
+    pub fn resume_state_map(&self) -> &LateLoweredResumeStateMap {
+        self.expect_effect_step_abi().resume_state_map()
+    }
+
+    pub fn source_statement_classifications(&self) -> &[LateLoweredSourceStatementClassification] {
+        self.effect_step_abi()
+            .map(LateLoweredEffectStepCallable::source_statement_classifications)
+            .unwrap_or(&[])
+    }
+
+    pub fn source_statement_classification(
+        &self,
+        source_slice: LateLoweredStateSlice,
+        statement_index: u32,
+    ) -> Option<&LateLoweredSourceStatementClassification> {
+        self.source_statement_classifications()
+            .iter()
+            .find(|entry| {
+                entry.source_slice() == source_slice && entry.statement_index() == statement_index
+            })
+    }
+
+    pub fn continuation_object(&self) -> ContinuationObjectId {
+        self.expect_effect_step_abi().continuation_object()
+    }
+
+    pub fn resume_packings(&self) -> &[ResumeInterfaceId] {
+        self.effect_step_abi()
+            .map(LateLoweredEffectStepCallable::resume_packings)
+            .unwrap_or(&[])
     }
 
     /// 兼容旧调用点；新的 handoff 应优先使用 `resume_packings()` 叙事。
@@ -936,7 +1209,10 @@ fn build_surface_resume_dispatch_inventory(
     }
 
     for callable in callables {
-        for boundary in callable.boundary_map().entries() {
+        let Some(effect_callable) = callable.effect_step_abi() else {
+            continue;
+        };
+        for boundary in effect_callable.boundary_map().entries() {
             let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering() else {
                 continue;
             };
@@ -977,14 +1253,16 @@ fn build_surface_resume_dispatch_inventory(
                     Some(surface_resume_contract_from_resume_facts(facts)),
                     LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
                         owner_version_key: callable.body_version_key().clone(),
-                        owner_continuation_object: callable.continuation_object(),
+                        owner_continuation_object: effect_callable.continuation_object(),
                         site_id,
                     },
                 );
         }
 
-        let owner_step = step_types_by_schema.get(&callable.step_schema()).copied();
-        for state in callable.state_graph().states() {
+        let owner_step = step_types_by_schema
+            .get(&effect_callable.step_schema())
+            .copied();
+        for state in effect_callable.state_graph().states() {
             let LateLoweredStateTerminator::HandleDispatch {
                 site_id, contract, ..
             } = state.terminator()
@@ -1007,7 +1285,7 @@ fn build_surface_resume_dispatch_inventory(
                         contract,
                         LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
                             owner_version_key: callable.body_version_key().clone(),
-                            owner_continuation_object: callable.continuation_object(),
+                            owner_continuation_object: effect_callable.continuation_object(),
                             site_id: *site_id,
                             arm_ordinal: arm.arm_ordinal(),
                             handled_case: arm.handled_case(),
@@ -4460,6 +4738,60 @@ mod tests {
             leaf.dynamic_invoke_entry().invoke_args_tuple_ty(),
             step_type.invoke_args_tuple_ty(),
         );
+    }
+
+    #[test]
+    fn refactor_late_lowered_ir_plain_callable_has_no_step_shell_for_no_outward_body() {
+        let source = load_fixture("effect_lowered", "direct_and_fun_value_call.scoop");
+        let program = build_raw_program(&source);
+
+        assert!(program.step_types().is_empty());
+        assert!(program.resume_packings().is_empty());
+        assert!(program.continuation_objects().is_empty());
+        for fqn in ["a.apply", "a.id", "a.main", "a.main.$lambda0"] {
+            let callable = program
+                .callable(fqn)
+                .unwrap_or_else(|| panic!("late-lowered program 应发布 {fqn}"));
+            assert_eq!(callable.call_abi_kind(), CallableAbiKind::Plain);
+            assert_eq!(callable.impl_plan(), ImplPlan::NoOutward);
+            assert!(callable.body_step_schema().is_none());
+            assert!(callable.effect_step_abi().is_none());
+            assert!(callable.plain_abi().is_some());
+        }
+    }
+
+    #[test]
+    fn refactor_source_slice_plain_call_keeps_ordinary_call_contract_without_boundary_dispatch() {
+        let source = load_fixture("effect_lowered", "direct_and_fun_value_call.scoop");
+        let program = build_raw_program(&source);
+        let main = program
+            .callable("a.main")
+            .expect("late-lowered program 应发布 a.main");
+        let plain = main
+            .plain_abi()
+            .expect("pure main 应保持 plain callable handoff");
+        let dump = program.stable_dump();
+
+        assert_eq!(main.resolved_outward_cases(), &[]);
+        assert!(plain.body_slices().iter().any(|slice| {
+            slice.block_id() == BasicBlockId::from_raw(0)
+                && slice.start_statement_index() == 0
+                && slice.end_statement_index() >= 1
+                && slice.includes_terminator()
+        }));
+        assert!(
+            plain
+                .call_sites()
+                .iter()
+                .all(|site| site.facts().callee_abi_kind() == CallableAbiKind::Plain),
+            "direct_and_fun_value_call 中的 plain call sites 应保持 ordinary dispatch contract"
+        );
+        assert!(dump.contains("abi: Plain"));
+        assert!(dump.contains("plain_source_slices:"));
+        assert!(dump.contains("plain_call_sites:"));
+        assert!(!dump.contains("dynamic_invoke_entry:"));
+        assert!(!dump.contains("continuation_object: ko"));
+        assert!(!dump.contains("boundary_map:"));
     }
 
     fn step_case_fqns(step_type: &LateLoweredStepType) -> BTreeSet<String> {

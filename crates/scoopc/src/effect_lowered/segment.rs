@@ -818,6 +818,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::build_callable_segmentation;
+    use crate::effect_facts::CallableAbiKind;
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundarySource, LateLoweredStateRole,
     };
@@ -1051,27 +1052,20 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_owner_resume_state_keeps_no_outward_callables_in_same_framework() {
+    fn refactor_owner_resume_state_keeps_no_outward_callables_plain_without_state_framework() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_segment_no_outward.scoop",
             "package sample\nfun helper() {}\nfun main() { helper() }\n",
         ));
         let callable = callable(&output, "sample.main");
-        let entry_state = callable
-            .state_graph()
-            .state(callable.state_graph().entry_state())
-            .expect("entry state 应存在");
-        let complete_state = callable
-            .state_graph()
-            .state(callable.state_graph().complete_state())
-            .expect("complete state 应存在");
 
-        assert!(callable.boundary_map().entries().is_empty());
-        assert!(callable.resume_state_map().entries().is_empty());
-        assert_eq!(entry_state.role(), LateLoweredStateRole::Entry);
-        assert_eq!(complete_state.role(), LateLoweredStateRole::Complete);
-        assert_eq!(entry_state.source_slices().len(), 1);
-        assert!(entry_state.source_slices()[0].includes_terminator());
+        assert_eq!(callable.call_abi_kind(), CallableAbiKind::Plain);
+        assert!(callable.effect_step_abi().is_none());
+        let plain = callable
+            .plain_abi()
+            .expect("NoOutward callable 应保持 plain ABI handoff");
+        assert_eq!(plain.body_slices().len(), 1);
+        assert!(plain.body_slices()[0].includes_terminator());
     }
 
     #[test]

@@ -22,7 +22,10 @@ pub(crate) mod segment;
 
 pub(crate) use builder::LateLoweredProgramBuilder;
 pub use dump::render_late_lowered_program;
-pub use ir::{LateLoweredCallable, LateLoweredProgram};
+pub use ir::{
+    LateLoweredCallable, LateLoweredCallableAbi, LateLoweredEffectStepCallable,
+    LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredProgram,
+};
 pub(crate) use opt::{LateLoweredOptOptions, optimize_program, optimize_program_with_options};
 
 use thiserror::Error;
@@ -37,6 +40,9 @@ pub enum EffectLoweringError {
 
     #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 body facts")]
     MissingBodyFacts { root_fqn: String },
+
+    #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 plain callable 普通签名")]
+    MissingPlainCallableSignature { root_fqn: String },
 
     #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 StepSchema s{step_schema}")]
     MissingStepSchema { root_fqn: String, step_schema: u32 },

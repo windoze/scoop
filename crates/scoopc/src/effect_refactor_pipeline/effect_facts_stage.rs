@@ -296,6 +296,9 @@ fun callInterface(i: IFace): Int {
         output: &RefactorEffectFactsStageOutput,
         case_set: &crate::effect_facts::CaseSet,
     ) -> BTreeSet<String> {
+        if case_set.is_empty() {
+            return BTreeSet::new();
+        }
         let schema = output
             .effect_facts()
             .step_schemas()
@@ -530,8 +533,8 @@ fun callInterface(i: IFace): Int {
         assert!(matches!(leaf_facts.impl_plan(), ImplPlan::SingleCase(_)));
 
         assert!(
-            schema_case_fqns(&output, pure_facts.step_schema()).is_empty(),
-            "truly no-outward callable 不应被无端补入 runtime-error case"
+            pure_facts.body_step_schema().is_none(),
+            "truly no-outward callable 不应发布 body step schema"
         );
         assert!(pure_facts.resolved_outward_cases().is_empty());
         assert!(matches!(pure_facts.impl_plan(), ImplPlan::NoOutward));
@@ -564,6 +567,7 @@ fun callInterface(i: IFace): Int {
 
         assert!(dump.contains("sample.callInterface:"));
         assert!(dump.contains("target: KnownInstance(sample.IFace.foo)"));
-        assert!(dump.contains("callee_schema: step_schema#"));
+        assert!(dump.contains("callee_abi_kind: Plain"));
+        assert!(dump.contains("callee_schema: <none>"));
     }
 }

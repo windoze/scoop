@@ -4,10 +4,10 @@ use crate::mir::{BasicBlockId, InstanceKey};
 use crate::opt::OptLevel;
 
 use super::{
-    BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteTarget, CallableEffectFacts,
-    CaseSet, CaseTag, ConcreteOpKey, EffectPrecision, HandleArmEffectFacts, HandleSiteEffectFacts,
-    HandleSiteSolverFacts, ImplPlan, MaterializedEffectFacts, SiteEffectFacts, StepSchema,
-    StepSchemaId,
+    BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteTarget, CallableAbiKind,
+    CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey, EffectPrecision, HandleArmEffectFacts,
+    HandleSiteEffectFacts, HandleSiteSolverFacts, ImplPlan, MaterializedEffectFacts,
+    SiteEffectFacts, StepSchema, StepSchemaId,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,6 +138,8 @@ impl SchemaProjectionIndex {
 
 #[derive(Debug, Clone)]
 struct CallResolution {
+    callee_abi_kind: CallableAbiKind,
+    callee_schema: Option<StepSchemaId>,
     resolved_cases: CaseSet,
     precision: EffectPrecision,
 }
@@ -179,6 +181,10 @@ impl MaterializedEffectFactsSolver {
         let (components, component_by_node) = tarjan_scc(&adjacency);
         let component_order =
             reverse_topological_component_order(&components, &component_by_node, &adjacency);
+        let callable_step_schemas = callable_facts
+            .iter()
+            .map(|(key, callable)| (key.clone(), callable.step_schema()))
+            .collect::<HashMap<_, _>>();
         let local_cases = sorted_keys
             .iter()
             .map(|key| {
@@ -284,12 +290,21 @@ impl MaterializedEffectFactsSolver {
                 let resolved_outward_cases = states[node_index].resolved_outward_cases.clone();
                 let needs_reentry = !resolved_outward_cases.is_empty();
                 let impl_plan = derive_impl_plan(self.config.opt_level, &resolved_outward_cases);
+                let call_abi_kind = derive_callable_abi_kind(&resolved_outward_cases);
+                let (invoke_args_tuple_ty, step_schema) = match call_abi_kind {
+                    CallableAbiKind::Plain => (None, None),
+                    CallableAbiKind::EffectStep => (
+                        Some(callable.invoke_args_tuple_ty()),
+                        Some(callable.step_schema()),
+                    ),
+                };
                 (
                     key,
                     CallableEffectFacts::new(
                         callable.declared_row().clone(),
-                        callable.invoke_args_tuple_ty(),
-                        callable.step_schema(),
+                        call_abi_kind,
+                        invoke_args_tuple_ty,
+                        step_schema,
                         resolved_outward_cases,
                         needs_reentry,
                         impl_plan,
@@ -304,8 +319,11 @@ impl MaterializedEffectFactsSolver {
                 let callable = solved_callable_facts
                     .get(&key)
                     .expect("every solved body should still have callable shell facts");
+                let current_schema = *callable_step_schemas
+                    .get(&key)
+                    .expect("every solved body should retain its analysis step schema");
                 let finalized_sites = finalize_body_sites(
-                    callable.step_schema(),
+                    current_schema,
                     &body,
                     &states,
                     &key_to_index,
@@ -313,7 +331,7 @@ impl MaterializedEffectFactsSolver {
                     self.config,
                 );
                 let finalized_blocks = finalize_body_blocks(
-                    callable.step_schema(),
+                    current_schema,
                     callable.resolved_outward_cases(),
                     &body,
                     &finalized_sites,
@@ -329,6 +347,22 @@ impl MaterializedEffectFactsSolver {
                 )
             })
             .collect();
+
+        let mut step_schemas = step_schemas;
+        for (key, callable) in &solved_callable_facts {
+            if !matches!(callable.call_abi_kind(), CallableAbiKind::Plain) {
+                continue;
+            }
+            let Some(schema_id) = callable_step_schemas.get(key).copied() else {
+                continue;
+            };
+            if step_schemas
+                .get(&schema_id)
+                .is_some_and(|schema| schema.cases().is_empty())
+            {
+                step_schemas.remove(&schema_id);
+            }
+        }
 
         MaterializedEffectFacts::new(
             snapshot_binding,
@@ -661,7 +695,8 @@ fn compute_callable_resolved_cases(
             let Some(SiteEffectFacts::Call(call_facts)) = body.site(*site_id) else {
                 continue;
             };
-            if matches!(call_facts.target(), CallSiteTarget::CandidateSet(targets) if targets.len() > config.budget.max_candidate_union_size)
+            if matches!(call_facts.callee_abi_kind(), CallableAbiKind::EffectStep)
+                && matches!(call_facts.target(), CallSiteTarget::CandidateSet(targets) if targets.len() > config.budget.max_candidate_union_size)
             {
                 return CallableResolution {
                     resolved_outward_cases: schema_index.full_case_set(current_schema),
@@ -708,11 +743,12 @@ fn finalize_body_sites(
                         schema_index,
                         config,
                     );
-                    SiteEffectFacts::Call(CallSiteEffectFacts::new(
+                    SiteEffectFacts::Call(CallSiteEffectFacts::new_with_abi(
                         call_facts.kind(),
                         call_facts.target().clone(),
+                        resolution.callee_abi_kind,
                         call_facts.invoke_args_tuple_ty(),
-                        call_facts.callee_schema(),
+                        resolution.callee_schema,
                         resolution.resolved_cases,
                         resolution.precision,
                     ))
@@ -924,28 +960,35 @@ fn finalize_call_site_resolution(
     match call_facts.target() {
         CallSiteTarget::KnownInstance(target) => {
             let Some(index) = key_to_index.get(target) else {
-                return CallResolution {
-                    resolved_cases: call_facts.resolved_cases().clone(),
-                    precision: call_facts.precision(),
-                };
+                return fallback_call_resolution(call_facts);
             };
-            let resolved_cases = schema_index.project_case_set(
-                &states[*index].resolved_outward_cases,
-                call_facts.callee_schema(),
-            );
             let precision = if states[*index].widened {
                 EffectPrecision::Widened
             } else {
                 EffectPrecision::Precise
             };
+            if states[*index].resolved_outward_cases.is_empty() {
+                return plain_call_resolution(call_facts, precision);
+            }
+            let resolved_cases = schema_index.project_case_set(
+                &states[*index].resolved_outward_cases,
+                call_facts.callee_schema(),
+            );
             CallResolution {
+                callee_abi_kind: CallableAbiKind::EffectStep,
+                callee_schema: Some(call_facts.callee_schema()),
                 resolved_cases,
                 precision,
             }
         }
         CallSiteTarget::CandidateSet(targets) => {
+            if matches!(call_facts.callee_abi_kind(), CallableAbiKind::Plain) {
+                return plain_call_resolution(call_facts, call_facts.precision());
+            }
             if targets.len() > config.budget.max_candidate_union_size {
                 return CallResolution {
+                    callee_abi_kind: CallableAbiKind::EffectStep,
+                    callee_schema: Some(call_facts.callee_schema()),
                     resolved_cases: schema_index.full_case_set(call_facts.callee_schema()),
                     precision: EffectPrecision::Widened,
                 };
@@ -956,6 +999,8 @@ fn finalize_call_site_resolution(
             for target in targets {
                 let Some(index) = key_to_index.get(target) else {
                     return CallResolution {
+                        callee_abi_kind: CallableAbiKind::EffectStep,
+                        callee_schema: Some(call_facts.callee_schema()),
                         resolved_cases: schema_index.full_case_set(call_facts.callee_schema()),
                         precision: EffectPrecision::Widened,
                     };
@@ -967,8 +1012,20 @@ fn finalize_call_site_resolution(
                 resolved_tags.extend(projected.tags().iter().copied());
                 precise &= !states[*index].widened;
             }
+            if resolved_tags.is_empty() {
+                return plain_call_resolution(
+                    call_facts,
+                    if precise {
+                        EffectPrecision::Precise
+                    } else {
+                        EffectPrecision::Widened
+                    },
+                );
+            }
 
             CallResolution {
+                callee_abi_kind: CallableAbiKind::EffectStep,
+                callee_schema: Some(call_facts.callee_schema()),
                 resolved_cases: CaseSet::new(
                     call_facts.callee_schema(),
                     resolved_tags.into_iter().collect(),
@@ -980,10 +1037,43 @@ fn finalize_call_site_resolution(
                 },
             }
         }
-        CallSiteTarget::DynamicFallback => CallResolution {
-            resolved_cases: schema_index.full_case_set(call_facts.callee_schema()),
-            precision: EffectPrecision::SignatureFallback,
+        CallSiteTarget::DynamicFallback => match call_facts.callee_abi_kind() {
+            CallableAbiKind::Plain => {
+                plain_call_resolution(call_facts, EffectPrecision::SignatureFallback)
+            }
+            CallableAbiKind::EffectStep => CallResolution {
+                callee_abi_kind: CallableAbiKind::EffectStep,
+                callee_schema: Some(call_facts.callee_schema()),
+                resolved_cases: schema_index.full_case_set(call_facts.callee_schema()),
+                precision: EffectPrecision::SignatureFallback,
+            },
         },
+    }
+}
+
+fn fallback_call_resolution(call_facts: &CallSiteEffectFacts) -> CallResolution {
+    CallResolution {
+        callee_abi_kind: call_facts.callee_abi_kind(),
+        callee_schema: call_facts.callee_step_schema(),
+        resolved_cases: call_facts.resolved_cases().clone(),
+        precision: call_facts.precision(),
+    }
+}
+
+fn plain_call_resolution(
+    call_facts: &CallSiteEffectFacts,
+    precision: EffectPrecision,
+) -> CallResolution {
+    let resolved_cases = if let Some(schema) = call_facts.callee_step_schema() {
+        CaseSet::new(schema, Vec::new())
+    } else {
+        call_facts.resolved_cases().clone()
+    };
+    CallResolution {
+        callee_abi_kind: CallableAbiKind::Plain,
+        callee_schema: None,
+        resolved_cases,
+        precision,
     }
 }
 
@@ -1116,12 +1206,22 @@ fn derive_impl_plan(opt_level: OptLevel, resolved_outward_cases: &CaseSet) -> Im
     }
 }
 
+fn derive_callable_abi_kind(resolved_outward_cases: &CaseSet) -> CallableAbiKind {
+    if resolved_outward_cases.is_empty() {
+        CallableAbiKind::Plain
+    } else {
+        CallableAbiKind::EffectStep
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
     use super::{EffectFactsSolverBudget, EffectFactsSolverConfig, MaterializedEffectFactsSolver};
-    use crate::effect_facts::{EffectPrecision, ImplPlan, SiteEffectFacts};
+    use crate::effect_facts::{
+        CallSiteKind, CallableAbiKind, EffectPrecision, ImplPlan, SiteEffectFacts,
+    };
     use crate::effect_refactor_pipeline::{
         build_effect_facts_stage_output, load_direct_style_mir_stage_output_for_dump,
     };
@@ -1189,6 +1289,9 @@ mod tests {
         facts: &crate::effect_facts::MaterializedEffectFacts,
         case_set: &crate::effect_facts::CaseSet,
     ) -> BTreeSet<String> {
+        if case_set.is_empty() {
+            return BTreeSet::new();
+        }
         let schema = facts
             .step_schemas()
             .get(&case_set.schema())
@@ -1431,6 +1534,197 @@ fun outer(): Unit / (Alpha + Beta) {
 }
 "#,
         )
+    }
+
+    fn pure_plain_abi_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_solver_pure_plain_abi.scoop",
+            r#"
+package sample
+
+fun pure(x: Int): Int {
+    return x + 1
+}
+
+fun caller(): Int {
+    return pure(41)
+}
+"#,
+        )
+    }
+
+    fn plain_and_effect_dynamic_call_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_solver_plain_and_effect_dynamic_call.scoop",
+            r#"
+package sample
+
+import scoop.core.Raise
+
+effect Boom {
+    fun hit(): Unit
+}
+
+fun pure(x: Int): Int {
+    return x + 1
+}
+
+fun plainHandled(x: Int): Int {
+    return handle {
+        Raise.raise(x)
+        0
+    } with {
+        Raise.raise(e) -> e
+    }
+}
+
+fun caller(): Int {
+    return plainHandled(41)
+}
+
+fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
+    return f(1)
+}
+"#,
+        )
+    }
+
+    #[test]
+    fn refactor_callable_effect_facts_no_outward_uses_plain_abi_after_solver() {
+        let output =
+            build_stage_output_for_source(&plain_and_effect_dynamic_call_source(), OptLevel::O2);
+        let facts = output.effect_facts();
+
+        let (_, pure_facts) = callable_facts_for(facts, "sample.pure");
+        assert_eq!(pure_facts.call_abi_kind(), CallableAbiKind::Plain);
+        assert!(pure_facts.body_step_schema().is_none());
+        assert!(pure_facts.invoke_args_tuple_ty_opt().is_none());
+        assert!(pure_facts.resolved_outward_cases().is_empty());
+        assert!(!pure_facts.needs_reentry());
+        assert!(matches!(pure_facts.impl_plan(), ImplPlan::NoOutward));
+
+        let (_, caller_facts) = callable_facts_for(facts, "sample.caller");
+        assert_eq!(caller_facts.call_abi_kind(), CallableAbiKind::Plain);
+        assert!(caller_facts.body_step_schema().is_none());
+        assert!(caller_facts.resolved_outward_cases().is_empty());
+
+        let (_, handled_facts) = callable_facts_for(facts, "sample.plainHandled");
+        assert_eq!(handled_facts.call_abi_kind(), CallableAbiKind::Plain);
+        assert!(handled_facts.body_step_schema().is_none());
+        assert!(handled_facts.resolved_outward_cases().is_empty());
+
+        let (_, dynamic_facts) = callable_facts_for(facts, "sample.callEffectTyped");
+        assert_eq!(dynamic_facts.call_abi_kind(), CallableAbiKind::EffectStep);
+        assert!(dynamic_facts.body_step_schema().is_some());
+        assert_eq!(
+            case_fqns(facts, dynamic_facts.resolved_outward_cases()),
+            ["sample.Boom.hit".to_string()].into_iter().collect()
+        );
+    }
+
+    #[test]
+    fn refactor_step_schema_not_published_for_plain_body_after_solver() {
+        let output = build_stage_output_for_source(&pure_plain_abi_source(), OptLevel::O2);
+        let facts = output.effect_facts();
+
+        assert!(facts.step_schemas().is_empty());
+        for callable in facts.callable_facts().values() {
+            assert_eq!(callable.call_abi_kind(), CallableAbiKind::Plain);
+            assert!(callable.body_step_schema().is_none());
+            assert!(callable.resolved_outward_cases().is_empty());
+        }
+
+        let dump = output.stable_dump();
+        assert!(dump.contains("step_schemas:\n  <none>"));
+        assert!(dump.contains("call_abi_kind: Plain"));
+        assert!(dump.contains("step_schema: <none>"));
+    }
+
+    #[test]
+    fn refactor_call_site_facts_distinguish_plain_call_and_effect_adapter_after_solver() {
+        let output =
+            build_stage_output_for_source(&plain_and_effect_dynamic_call_source(), OptLevel::O2);
+        let facts = output.effect_facts();
+        let pass_view = output.materialized_pass_view();
+
+        let (caller_key, _) = callable_facts_for(facts, "sample.caller");
+        let caller_body = pass_view
+            .instance(caller_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("caller 应有 canonical body");
+        let caller_site_id = caller_body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| {
+                let StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return None;
+                };
+                let Rvalue::Call {
+                    site_id,
+                    kind: CallKind::Direct { callee_fqn },
+                    ..
+                } = value
+                else {
+                    return None;
+                };
+                (callee_fqn == "sample.plainHandled").then_some(*site_id)
+            })
+            .expect("caller 应包含 direct plain call site");
+        let SiteEffectFacts::Call(plain_call) = facts
+            .body(caller_key)
+            .and_then(|body| body.site(caller_site_id))
+            .expect("plain call site 应有 facts")
+        else {
+            panic!("plain call site 应产生 CallSiteEffectFacts");
+        };
+        assert_eq!(plain_call.kind(), CallSiteKind::Direct);
+        assert_eq!(plain_call.callee_abi_kind(), CallableAbiKind::Plain);
+        assert!(plain_call.callee_step_schema().is_none());
+        assert!(plain_call.resolved_cases().is_empty());
+        assert_eq!(plain_call.precision(), EffectPrecision::Precise);
+
+        let (dynamic_key, _) = callable_facts_for(facts, "sample.callEffectTyped");
+        let dynamic_body = pass_view
+            .instance(dynamic_key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("callEffectTyped 应有 canonical body");
+        let dynamic_site_id = dynamic_body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| {
+                let StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return None;
+                };
+                let Rvalue::Call {
+                    site_id,
+                    kind: CallKind::FunValue { .. },
+                    ..
+                } = value
+                else {
+                    return None;
+                };
+                Some(*site_id)
+            })
+            .expect("callEffectTyped 应包含 effect-typed dynamic call site");
+        let SiteEffectFacts::Call(dynamic_call) = facts
+            .body(dynamic_key)
+            .and_then(|body| body.site(dynamic_site_id))
+            .expect("dynamic call site 应有 facts")
+        else {
+            panic!("dynamic call site 应产生 CallSiteEffectFacts");
+        };
+        assert_eq!(dynamic_call.kind(), CallSiteKind::FunValue);
+        assert_eq!(dynamic_call.callee_abi_kind(), CallableAbiKind::EffectStep);
+        assert!(dynamic_call.callee_step_schema().is_some());
+        assert_eq!(
+            case_fqns(facts, dynamic_call.resolved_cases()),
+            ["sample.Boom.hit".to_string()].into_iter().collect()
+        );
+        assert_eq!(dynamic_call.precision(), EffectPrecision::SignatureFallback);
     }
 
     #[test]

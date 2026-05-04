@@ -5,8 +5,8 @@ use crate::mir::{InstanceKey, MaterializedMirPassView, SiteId};
 use crate::ty::{EffectRow, TypeStore};
 
 use super::{
-    CallSiteTarget, CallableEffectFacts, CaseSet, CaseTag, HandleArmEffectFacts,
-    MaterializedEffectFacts, SiteEffectFacts,
+    BodyEffectFacts, CallSiteTarget, CallableAbiKind, CallableEffectFacts, CaseSet, CaseTag,
+    HandleArmEffectFacts, MaterializedEffectFacts, SiteEffectFacts,
 };
 
 pub fn render_materialized_effect_facts(
@@ -226,8 +226,19 @@ fn render_one_callable_facts(
         out,
         indent + 2,
         &format!(
+            "call_abi_kind: {}",
+            format_callable_abi_kind(callable_facts.call_abi_kind())
+        ),
+    );
+    write_line(
+        out,
+        indent + 2,
+        &format!(
             "invoke_args_tuple_ty: {}",
-            format_type(types, callable_facts.invoke_args_tuple_ty())
+            callable_facts
+                .invoke_args_tuple_ty_opt()
+                .map(|ty| format_type(types, ty))
+                .unwrap_or_else(|| "<none>".to_string())
         ),
     );
     write_line(
@@ -235,7 +246,10 @@ fn render_one_callable_facts(
         indent + 2,
         &format!(
             "step_schema: {}",
-            format_step_schema_id(callable_facts.step_schema())
+            callable_facts
+                .body_step_schema()
+                .map(format_step_schema_id)
+                .unwrap_or_else(|| "<none>".to_string())
         ),
     );
     write_line(
@@ -259,7 +273,7 @@ fn render_one_callable_facts(
             format_impl_plan(
                 facts,
                 types,
-                callable_facts.step_schema(),
+                callable_facts.body_step_schema(),
                 callable_facts.impl_plan()
             )
         ),
@@ -283,13 +297,11 @@ fn render_body_facts(
         let Some(body_facts) = facts.body(family.key()) else {
             continue;
         };
-        let Some(callable_step_schema) = facts
+        let callable_step_schema = facts
             .callable_facts()
             .get(family.key())
-            .map(CallableEffectFacts::step_schema)
-        else {
-            continue;
-        };
+            .and_then(CallableEffectFacts::body_step_schema)
+            .or_else(|| infer_body_step_schema(body_facts));
         write_line(out, indent + 2, &format!("{}:", family.root_fqn()));
         write_line(out, indent + 4, "blocks:");
         if body_facts.blocks().is_empty() {
@@ -353,7 +365,7 @@ fn render_site_facts(
     out: &mut String,
     facts: &MaterializedEffectFacts,
     types: &TypeStore,
-    current_step_schema: super::StepSchemaId,
+    current_step_schema: Option<super::StepSchemaId>,
     site_id: SiteId,
     site_facts: &SiteEffectFacts,
     indent: usize,
@@ -377,6 +389,14 @@ fn render_site_facts(
                 out,
                 indent + 2,
                 &format!(
+                    "callee_abi_kind: {}",
+                    format_callable_abi_kind(call.callee_abi_kind())
+                ),
+            );
+            write_line(
+                out,
+                indent + 2,
+                &format!(
                     "invoke_args_tuple_ty: {}",
                     format_type(types, call.invoke_args_tuple_ty())
                 ),
@@ -386,7 +406,9 @@ fn render_site_facts(
                 indent + 2,
                 &format!(
                     "callee_schema: {}",
-                    format_step_schema_id(call.callee_schema())
+                    call.callee_step_schema()
+                        .map(format_step_schema_id)
+                        .unwrap_or_else(|| "<none>".to_string())
                 ),
             );
             write_line(
@@ -410,12 +432,7 @@ fn render_site_facts(
                 indent + 2,
                 &format!(
                     "emitted_case: {}",
-                    format_case_ref(
-                        facts,
-                        types,
-                        perform.emitted_case(),
-                        Some(current_step_schema)
-                    )
+                    format_case_ref(facts, types, perform.emitted_case(), current_step_schema)
                 ),
             );
             write_line(
@@ -523,7 +540,7 @@ fn render_site_facts(
                         out,
                         facts,
                         types,
-                        handle.handled_cases().schema(),
+                        Some(handle.handled_cases().schema()),
                         arm,
                         indent + 4,
                     );
@@ -533,11 +550,46 @@ fn render_site_facts(
     }
 }
 
+fn infer_body_step_schema(body_facts: &BodyEffectFacts) -> Option<super::StepSchemaId> {
+    for block in body_facts.blocks().values() {
+        if !block.ambient_cases().is_empty() {
+            return Some(block.ambient_cases().schema());
+        }
+        if !block.outward_cases().is_empty() {
+            return Some(block.outward_cases().schema());
+        }
+    }
+    for site in body_facts.sites().values() {
+        match site {
+            SiteEffectFacts::Call(call) if !call.resolved_cases().is_empty() => {
+                return Some(call.resolved_cases().schema());
+            }
+            SiteEffectFacts::Resume(resume) if !resume.resolved_cases().is_empty() => {
+                return Some(resume.resolved_cases().schema());
+            }
+            SiteEffectFacts::Handle(handle) if !handle.handled_cases().is_empty() => {
+                return Some(handle.handled_cases().schema());
+            }
+            SiteEffectFacts::Handle(handle) if !handle.body_outward_cases().is_empty() => {
+                return Some(handle.body_outward_cases().schema());
+            }
+            SiteEffectFacts::Handle(handle) if !handle.finally_outward_cases().is_empty() => {
+                return Some(handle.finally_outward_cases().schema());
+            }
+            SiteEffectFacts::Call(_)
+            | SiteEffectFacts::Perform(_)
+            | SiteEffectFacts::Resume(_)
+            | SiteEffectFacts::Handle(_) => {}
+        }
+    }
+    None
+}
+
 fn render_handle_arm_facts(
     out: &mut String,
     facts: &MaterializedEffectFacts,
     types: &TypeStore,
-    handled_schema: super::StepSchemaId,
+    handled_schema: Option<super::StepSchemaId>,
     arm: &HandleArmEffectFacts,
     indent: usize,
 ) {
@@ -546,7 +598,7 @@ fn render_handle_arm_facts(
         indent,
         &format!(
             "- handled_case: {} payload_tuple_ty={} continuation_schema={} arm_outward_cases={}",
-            format_case_ref(facts, types, arm.handled_case(), Some(handled_schema)),
+            format_case_ref(facts, types, arm.handled_case(), handled_schema),
             format_type(types, arm.payload_tuple_ty()),
             format_continuation_schema_id(arm.continuation_schema()),
             format_case_set(facts, types, arm.arm_outward_cases())
@@ -571,10 +623,17 @@ fn format_call_site_target(types: &TypeStore, target: &CallSiteTarget) -> String
     }
 }
 
+fn format_callable_abi_kind(kind: CallableAbiKind) -> &'static str {
+    match kind {
+        CallableAbiKind::Plain => "Plain",
+        CallableAbiKind::EffectStep => "EffectStep",
+    }
+}
+
 fn format_impl_plan(
     facts: &MaterializedEffectFacts,
     types: &TypeStore,
-    schema_id: super::StepSchemaId,
+    schema_id: Option<super::StepSchemaId>,
     plan: super::ImplPlan,
 ) -> String {
     match plan {
@@ -582,7 +641,7 @@ fn format_impl_plan(
         super::ImplPlan::CanonicalFull => "CanonicalFull".to_string(),
         super::ImplPlan::SingleCase(tag) => format!(
             "SingleCase({})",
-            format_case_ref(facts, types, tag, Some(schema_id))
+            format_case_ref(facts, types, tag, schema_id)
         ),
     }
 }

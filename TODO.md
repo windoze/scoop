@@ -49,7 +49,7 @@
 | `P4-T05R` | `TODO-P4.md` | [DONE] Review P4 阶段退出条件，确认 P5 可以只消费 MIR + facts 完成 lowering 决策 |
 | `P4-T05a` | `TODO-P4.md` | [DONE] 把 compiler-generated continuation 的 one-shot runtime error 纳入 canonical `StepSchema` / facts handoff |
 | `P4-T05b` | `TODO-P4.md` | [DONE] 修正 `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界，避免把 one-shot runtime-error 上界并入 `Continuation` effect 参数 |
-| `P4-T06` | `TODO-P4.md` | 为 `NoOutward` 发布 plain callable ABI 合同，停止强制为 pure body 建 `StepSchema` |
+| `P4-T06` | `TODO-P4.md` | [DONE] 为 `NoOutward` 发布 plain callable ABI 合同，停止强制为 pure body 建 `StepSchema` |
 | `P5-T01` | `TODO-P5.md` | [DONE] 建立 refactor late-lowering stage 与独立 late-lowered representation 边界 |
 | `P5-T01R` | `TODO-P5.md` | [DONE] Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend |
 | `P5-T02` | `TODO-P5.md` | [DONE] 定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层 |
@@ -68,7 +68,7 @@
 | `P5-T07R` | `TODO-P5.md` | [DONE] Review P5 阶段退出条件，确认 P6 只需把 late-lowered representation 翻译到 LLVM |
 | `P5-T07a` | `TODO-P5.md` | [DONE] 修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证 |
 | `P5-T07b` | `TODO-P5.md` | [DONE] 清理 P5 late-lowered handoff 的 resume contract 主次关系，固定 per-op/per-schema authoritative 表达 |
-| `P5-T08` | `TODO-P5.md` | 让 `NoOutward` 在 late-lowered handoff 中保持 plain callable，不物化 `Step` / continuation / state-machine 壳 |
+| `P5-T08` | `TODO-P5.md` | [DONE] 让 `NoOutward` 在 late-lowered handoff 中保持 plain callable，不物化 `Step` / continuation / state-machine 壳 |
 | `P6-T01` | `TODO-P6-part1.md` | [DONE] 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
 | `P6-T01a` | `TODO-P6-part1.md` | [DONE] 为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend |
 | `P6-T01R` | `TODO-P6-part1.md` | [DONE] Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离 |

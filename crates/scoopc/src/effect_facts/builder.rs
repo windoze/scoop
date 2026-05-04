@@ -17,11 +17,12 @@ use crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol};
 
 use super::{
     BlockEffectFacts, BodyEffectFacts, BodyEffectSolverFacts, CallSiteEffectFacts, CallSiteKind,
-    CallSiteTarget, CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema,
-    ContinuationSchemaId, EffectFactsError, EffectPrecision, HandleArmEffectFacts,
-    HandleSiteEffectFacts, HandleSiteSolverFacts, ImplPlan, MaterializedEffectFacts,
-    MirSnapshotBinding, NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts,
-    SiteEffectFacts, StepCaseFact, StepSchema, StepSchemaId,
+    CallSiteTarget, CallableAbiKind, CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey,
+    ContinuationSchema, ContinuationSchemaId, EffectFactsError, EffectPrecision,
+    HandleArmEffectFacts, HandleSiteEffectFacts, HandleSiteSolverFacts, ImplPlan,
+    MaterializedEffectFacts, MirSnapshotBinding, NestedHandleClassification,
+    PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema,
+    StepSchemaId,
 };
 
 /// 从 canonical materialized MIR snapshot 生成 P4 facts 容器。
@@ -960,6 +961,17 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                     return Ok(facts);
                 }
                 let callee_ty = operand_ty(self.body(), types, callee);
+                if let Some(contract) = function_surface_contract_from_ty(types, callee_ty)
+                    && contract.declared_row.is_pure()
+                {
+                    return Ok(CallSiteEffectFacts::new_plain(
+                        CallSiteKind::FunValue,
+                        CallSiteTarget::DynamicFallback,
+                        invoke_args_tuple_ty,
+                        CaseSet::new(self.callable_step_schema, Vec::new()),
+                        EffectPrecision::Precise,
+                    ));
+                }
                 let (step_schema, resolved_cases) =
                     if let Some(contract) = function_surface_contract_from_ty(types, callee_ty) {
                         let schema = self.schema_pool.intern_synthetic_step_schema(
@@ -1026,26 +1038,16 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         types: &mut TypeStore,
         callee: &Operand,
         invoke_args_tuple_ty: TypeId,
-        result_ty: TypeId,
+        _result_ty: TypeId,
     ) -> Result<Option<CallSiteEffectFacts>, EffectFactsError> {
         if !self.fun_value_callee_is_builtin_string_concat(types, callee) {
             return Ok(None);
         }
-        let pure = EffectRow::pure();
-        let step_schema = self.schema_pool.intern_synthetic_step_schema(
-            types,
-            invoke_args_tuple_ty,
-            result_ty,
-            &pure,
-            &pure,
-            SyntheticStepSchemaKind::CallSurface,
-        )?;
-        Ok(Some(CallSiteEffectFacts::new(
+        Ok(Some(CallSiteEffectFacts::new_plain(
             CallSiteKind::FunValue,
             CallSiteTarget::DynamicFallback,
             invoke_args_tuple_ty,
-            step_schema,
-            self.schema_pool.full_case_set(step_schema),
+            CaseSet::new(self.callable_step_schema, Vec::new()),
             EffectPrecision::Precise,
         )))
     }
@@ -1093,6 +1095,15 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             self.known_callable_key(callable_fqn, explicit_arg_count, receiver_ty.is_some())
         {
             if let Some(facts) = self.callable_facts.get(&target_key) {
+                if matches!(facts.call_abi_kind(), CallableAbiKind::Plain) {
+                    return Ok(CallSiteEffectFacts::new_plain(
+                        kind,
+                        CallSiteTarget::KnownInstance(target_key),
+                        invoke_args_tuple_ty,
+                        CaseSet::new(self.callable_step_schema, Vec::new()),
+                        EffectPrecision::Precise,
+                    ));
+                }
                 // P4-T03 只发布 callable shell 的保守上界；直到 P4-T04 回填求解结果前，
                 // 只有空 case-set 才能提前视为精确，其余 known-instance call site 必须保守标宽。
                 let precision = if facts.resolved_outward_cases().is_empty() {
@@ -1125,6 +1136,15 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                     })?
                     .declared_row
             };
+            if declared_row.is_pure() {
+                return Ok(CallSiteEffectFacts::new_plain(
+                    kind,
+                    CallSiteTarget::KnownInstance(target_key),
+                    invoke_args_tuple_ty,
+                    CaseSet::new(self.callable_step_schema, Vec::new()),
+                    EffectPrecision::Precise,
+                ));
+            }
             let step_schema = self.schema_pool.intern_synthetic_step_schema(
                 types,
                 invoke_args_tuple_ty,
@@ -1158,6 +1178,15 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 })?
                 .declared_row
         };
+        if declared_row.is_pure() {
+            return Ok(CallSiteEffectFacts::new_plain(
+                kind,
+                CallSiteTarget::DynamicFallback,
+                invoke_args_tuple_ty,
+                CaseSet::new(self.callable_step_schema, Vec::new()),
+                EffectPrecision::SignatureFallback,
+            ));
+        }
         let step_schema = self.schema_pool.intern_synthetic_step_schema(
             types,
             invoke_args_tuple_ty,
@@ -1206,11 +1235,12 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 )
                 .map(|facts| match facts.target() {
                     CallSiteTarget::KnownInstance(_) => facts,
-                    _ => CallSiteEffectFacts::new(
+                    _ => CallSiteEffectFacts::new_with_abi(
                         kind,
                         CallSiteTarget::KnownInstance(single.clone()),
+                        facts.callee_abi_kind(),
                         facts.invoke_args_tuple_ty(),
-                        facts.callee_schema(),
+                        facts.callee_step_schema(),
                         facts.resolved_cases().clone(),
                         facts.precision(),
                     ),
@@ -1220,6 +1250,15 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         if !candidate_keys.is_empty() {
             let declared_row =
                 self.union_candidate_rows(types, candidate_fqns, explicit_arg_count, receiver_ty)?;
+            if declared_row.is_pure() {
+                return Ok(CallSiteEffectFacts::new_plain(
+                    kind,
+                    CallSiteTarget::CandidateSet(candidate_keys),
+                    invoke_args_tuple_ty,
+                    CaseSet::new(self.callable_step_schema, Vec::new()),
+                    EffectPrecision::Precise,
+                ));
+            }
             let step_schema = self.schema_pool.intern_synthetic_step_schema(
                 types,
                 invoke_args_tuple_ty,
@@ -1526,8 +1565,9 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
                 seed.key.clone(),
                 CallableEffectFacts::new(
                     seed.declared_row.clone(),
-                    invoke_args_tuple_ty,
-                    step_schema_id,
+                    CallableAbiKind::EffectStep,
+                    Some(invoke_args_tuple_ty),
+                    Some(step_schema_id),
                     resolved_outward_cases,
                     needs_reentry,
                     impl_plan,
@@ -2619,6 +2659,9 @@ fun pureHelper(): Unit {}
         facts: &crate::effect_facts::MaterializedEffectFacts,
         case_set: &crate::effect_facts::CaseSet,
     ) -> BTreeSet<String> {
+        if case_set.is_empty() {
+            return BTreeSet::new();
+        }
         let schema = facts
             .step_schemas()
             .get(&case_set.schema())

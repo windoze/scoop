@@ -7,6 +7,15 @@ use super::schema::{
     CaseSet, CaseTag, ContinuationSchema, ContinuationSchemaId, ImplPlan, StepSchema, StepSchemaId,
 };
 
+/// callable body 或 call-site 当前选择的 ABI protocol。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallableAbiKind {
+    /// 普通函数 ABI；不发布 body `StepSchema` / continuation object / state-machine shell。
+    Plain,
+    /// `invoke(args_tuple) -> Step_F` effect protocol；必须带 canonical `StepSchema`。
+    EffectStep,
+}
+
 /// `MaterializedEffectFacts` 当前绑定到哪一种 canonical MIR 查询面。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalMirQuerySurface {
@@ -56,8 +65,9 @@ impl MirSnapshotBinding {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallableEffectFacts {
     declared_row: EffectRow,
-    invoke_args_tuple_ty: TypeId,
-    step_schema: StepSchemaId,
+    call_abi_kind: CallableAbiKind,
+    invoke_args_tuple_ty: Option<TypeId>,
+    step_schema: Option<StepSchemaId>,
     resolved_outward_cases: CaseSet,
     needs_reentry: bool,
     impl_plan: ImplPlan,
@@ -66,14 +76,21 @@ pub struct CallableEffectFacts {
 impl CallableEffectFacts {
     pub fn new(
         declared_row: EffectRow,
-        invoke_args_tuple_ty: TypeId,
-        step_schema: StepSchemaId,
+        call_abi_kind: CallableAbiKind,
+        invoke_args_tuple_ty: Option<TypeId>,
+        step_schema: Option<StepSchemaId>,
         resolved_outward_cases: CaseSet,
         needs_reentry: bool,
         impl_plan: ImplPlan,
     ) -> Self {
+        debug_assert_eq!(
+            matches!(call_abi_kind, CallableAbiKind::EffectStep),
+            step_schema.is_some(),
+            "EffectStep callable facts must carry a StepSchema and Plain callable facts must not"
+        );
         Self {
             declared_row,
+            call_abi_kind,
             invoke_args_tuple_ty,
             step_schema,
             resolved_outward_cases,
@@ -86,12 +103,26 @@ impl CallableEffectFacts {
         &self.declared_row
     }
 
+    pub fn call_abi_kind(&self) -> CallableAbiKind {
+        self.call_abi_kind
+    }
+
+    pub fn invoke_args_tuple_ty_opt(&self) -> Option<TypeId> {
+        self.invoke_args_tuple_ty
+    }
+
     pub fn invoke_args_tuple_ty(&self) -> TypeId {
         self.invoke_args_tuple_ty
+            .expect("plain callable facts do not publish invoke args tuple ABI")
+    }
+
+    pub fn body_step_schema(&self) -> Option<StepSchemaId> {
+        self.step_schema
     }
 
     pub fn step_schema(&self) -> StepSchemaId {
         self.step_schema
+            .expect("plain callable facts do not publish a body StepSchema")
     }
 
     pub fn resolved_outward_cases(&self) -> &CaseSet {
@@ -157,8 +188,9 @@ pub struct CallSiteEffectFacts {
     kind: CallSiteKind,
     target_mode: CallTargetMode,
     target: CallSiteTarget,
+    callee_abi_kind: CallableAbiKind,
     invoke_args_tuple_ty: TypeId,
-    callee_schema: StepSchemaId,
+    callee_schema: Option<StepSchemaId>,
     resolved_cases: CaseSet,
     precision: EffectPrecision,
 }
@@ -177,10 +209,60 @@ impl CallSiteEffectFacts {
             kind,
             target_mode,
             target,
+            callee_abi_kind: CallableAbiKind::EffectStep,
             invoke_args_tuple_ty,
-            callee_schema,
+            callee_schema: Some(callee_schema),
             resolved_cases,
             precision,
+        }
+    }
+
+    pub fn new_plain(
+        kind: CallSiteKind,
+        target: CallSiteTarget,
+        invoke_args_tuple_ty: TypeId,
+        resolved_cases: CaseSet,
+        precision: EffectPrecision,
+    ) -> Self {
+        let target_mode = target.mode();
+        debug_assert!(resolved_cases.is_empty());
+        Self {
+            kind,
+            target_mode,
+            target,
+            callee_abi_kind: CallableAbiKind::Plain,
+            invoke_args_tuple_ty,
+            callee_schema: None,
+            resolved_cases,
+            precision,
+        }
+    }
+
+    pub fn new_with_abi(
+        kind: CallSiteKind,
+        target: CallSiteTarget,
+        callee_abi_kind: CallableAbiKind,
+        invoke_args_tuple_ty: TypeId,
+        callee_schema: Option<StepSchemaId>,
+        resolved_cases: CaseSet,
+        precision: EffectPrecision,
+    ) -> Self {
+        match callee_abi_kind {
+            CallableAbiKind::Plain => Self::new_plain(
+                kind,
+                target,
+                invoke_args_tuple_ty,
+                resolved_cases,
+                precision,
+            ),
+            CallableAbiKind::EffectStep => Self::new(
+                kind,
+                target,
+                invoke_args_tuple_ty,
+                callee_schema.expect("EffectStep call-site facts must carry a callee schema"),
+                resolved_cases,
+                precision,
+            ),
         }
     }
 
@@ -196,12 +278,21 @@ impl CallSiteEffectFacts {
         &self.target
     }
 
+    pub fn callee_abi_kind(&self) -> CallableAbiKind {
+        self.callee_abi_kind
+    }
+
     pub fn invoke_args_tuple_ty(&self) -> TypeId {
         self.invoke_args_tuple_ty
     }
 
+    pub fn callee_step_schema(&self) -> Option<StepSchemaId> {
+        self.callee_schema
+    }
+
     pub fn callee_schema(&self) -> StepSchemaId {
         self.callee_schema
+            .expect("plain call-site facts do not publish a callee StepSchema")
     }
 
     pub fn resolved_cases(&self) -> &CaseSet {

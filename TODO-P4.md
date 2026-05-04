@@ -1023,7 +1023,7 @@
 - 本任务未改变 P4/P5 阶段顺序或退出条件，因此 `PLAN.md` 无需改动；现已同步把 `TODO.md` 中对应索引标记为 `[DONE]`。
 - 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_continuation_schema_surface_ty`、`cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`、`cargo test -p scoopc --no-default-features refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell_uses_final_shape_and_runtime_error_case`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage_surface_ty`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dynamic_fallback_widening.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
 
-## P4-T06：为 `NoOutward` 发布 plain callable ABI 合同，停止强制为 pure body 建 `StepSchema`
+## [DONE] P4-T06：为 `NoOutward` 发布 plain callable ABI 合同，停止强制为 pure body 建 `StepSchema`
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5, §4.3.1, §4.9, §4.13, §5.2, §5.4, §7.3, §8
@@ -1079,4 +1079,7 @@
   - P5 可以在不回高层语义的前提下跳过 plain body 的 state-machine lowering。
 - 依赖：P4-T05b
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：完成。`CallableEffectFacts` 现在发布 `CallableAbiKind::Plain | EffectStep`，并把 callable body `StepSchema` / invoke args tuple 改为只在 `EffectStep` handoff 中存在；solver 由最终 `resolved_outward_cases` 派生 plain ABI，`NoOutward` callable 的 public facts 不再暴露 body `StepSchema`。
+  - 2026-05-05：call-site facts 现在同步发布 callee ABI kind；known plain callee 与 pure dynamic surface 使用 plain result ABI，effect dynamic surface 继续通过独立 synthetic call-surface `StepSchema` 表达 effect protocol，不把 plain body 改成 `EffectStep`。
+  - 2026-05-05：`dump-effect-facts` stable formatter 已显示 `call_abi_kind`、optional `step_schema` / `callee_schema`，pure/no-outward dump 样本显示 `Plain` 与 `<none>`，并且 empty plain body schema 会从 published schema pool 中剪除。
+  - 验证：`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_no_outward`；`cargo test -p scoopc --no-default-features refactor_step_schema_not_published_for_plain_body`；`cargo test -p scoopc --no-default-features refactor_call_site_facts_distinguish_plain_call_and_effect_adapter`；`cargo test -p scoopc --no-default-features refactor_effect_solver`；`cargo test -p scoop --no-default-features dump_effect_facts`；`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/direct_and_fun_value_call.scoop`；`cargo clippy --all-targets --no-default-features -- -D warnings`。
