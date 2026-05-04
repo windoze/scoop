@@ -271,4 +271,22 @@ mod tests {
         assert!(inventory.contains(&"local-store"));
         assert!(inventory.contains(&"member-write"));
     }
+
+    #[test]
+    fn refactor_llvm_source_slice_classification_audits_body_skip_heuristics() {
+        let body = include_str!("body.rs");
+        let forbidden = [
+            "skipped_statement_indices_for_state",
+            "statement_is_published_resume_payload_injection",
+            "try_lower_refactor_specialized_direct_call",
+            "CallKind::Resume { .. }",
+            "TopLevelRef(mir::TopLevelRef",
+        ];
+        for needle in forbidden {
+            assert!(
+                !body.contains(needle),
+                "refactor body must consume source-slice classifications instead of private skip heuristic `{needle}`"
+            );
+        }
+    }
 }

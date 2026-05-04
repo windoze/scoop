@@ -125,6 +125,9 @@ pub(crate) fn optimize_program_with_options(
                 callable.continuation_object(),
                 resume_packings,
             )
+            .with_source_statement_classifications(
+                callable.source_statement_classifications().to_vec(),
+            )
         })
         .collect::<Vec<_>>();
 
@@ -223,7 +226,8 @@ fn optimize_callable(
         } else {
             implemented_packings.clone()
         },
-    );
+    )
+    .with_source_statement_classifications(callable.source_statement_classifications().to_vec());
 
     OptimizedCallable {
         callable,

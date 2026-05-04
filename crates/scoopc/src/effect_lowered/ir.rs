@@ -220,6 +220,7 @@ pub struct LateLoweredCallable {
     frame_schema: LateLoweredFrameSchema,
     boundary_map: LateLoweredBoundaryMap,
     resume_state_map: LateLoweredResumeStateMap,
+    source_statement_classifications: Vec<LateLoweredSourceStatementClassification>,
     continuation_object: ContinuationObjectId,
     resume_packings: Vec<ResumeInterfaceId>,
 }
@@ -249,9 +250,18 @@ impl LateLoweredCallable {
             frame_schema,
             boundary_map,
             resume_state_map,
+            source_statement_classifications: Vec::new(),
             continuation_object,
             resume_packings,
         }
+    }
+
+    pub(crate) fn with_source_statement_classifications(
+        mut self,
+        classifications: Vec<LateLoweredSourceStatementClassification>,
+    ) -> Self {
+        self.source_statement_classifications = classifications;
+        self
     }
 
     pub fn root_fqn(&self) -> &str {
@@ -304,6 +314,20 @@ impl LateLoweredCallable {
 
     pub fn resume_state_map(&self) -> &LateLoweredResumeStateMap {
         &self.resume_state_map
+    }
+
+    pub fn source_statement_classifications(&self) -> &[LateLoweredSourceStatementClassification] {
+        &self.source_statement_classifications
+    }
+
+    pub fn source_statement_classification(
+        &self,
+        source_slice: LateLoweredStateSlice,
+        statement_index: u32,
+    ) -> Option<&LateLoweredSourceStatementClassification> {
+        self.source_statement_classifications.iter().find(|entry| {
+            entry.source_slice() == source_slice && entry.statement_index() == statement_index
+        })
     }
 
     pub fn continuation_object(&self) -> ContinuationObjectId {
@@ -1674,6 +1698,71 @@ impl LateLoweredStateSlice {
     pub fn includes_terminator(&self) -> bool {
         self.includes_terminator
     }
+}
+
+/// source-slice 中单条 statement 的 published 用途分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredSourceStatementClassification {
+    source_slice: LateLoweredStateSlice,
+    statement_index: u32,
+    kind: LateLoweredSourceStatementClassificationKind,
+}
+
+impl LateLoweredSourceStatementClassification {
+    pub(crate) fn new(
+        source_slice: LateLoweredStateSlice,
+        statement_index: u32,
+        kind: LateLoweredSourceStatementClassificationKind,
+    ) -> Self {
+        Self {
+            source_slice,
+            statement_index,
+            kind,
+        }
+    }
+
+    pub fn source_slice(&self) -> LateLoweredStateSlice {
+        self.source_slice
+    }
+
+    pub fn statement_index(&self) -> u32 {
+        self.statement_index
+    }
+
+    pub fn kind(&self) -> LateLoweredSourceStatementClassificationKind {
+        self.kind
+    }
+}
+
+/// backend 消费 source-slice statement 时唯一允许使用的语义分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LateLoweredSourceStatementClassificationKind {
+    EffectNeutralValue,
+    BoundaryConsumedAnchor {
+        boundary_id: BoundaryId,
+    },
+    ResumePayloadInjection {
+        boundary_id: BoundaryId,
+        resume_state: StateId,
+        consumer_local: LocalId,
+    },
+    BoundaryResultInjection {
+        boundary_id: BoundaryId,
+        resume_state: StateId,
+        result_local: LocalId,
+    },
+    CompletionPayloadInjection {
+        return_state: StateId,
+        complete_state: StateId,
+    },
+    HandleSyntheticCarrierBinder {
+        site_id: SiteId,
+        state_id: StateId,
+    },
+    ElidedUnreachable,
+    Unsupported {
+        reason: &'static str,
+    },
 }
 
 /// boundary operand 的最小值来源。

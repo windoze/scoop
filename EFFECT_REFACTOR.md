@@ -1676,6 +1676,8 @@ refactor handoff 或 verifier 至少应能区分：
 - 明确 unreachable 或 elided 的 statement；
 - 当前 backend 不支持且必须 fail fast 的 statement。
 
+`LateLoweredCallable.source_statement_classifications` 是该分类的 authoritative handoff。每个分类项绑定到具体 `LateLoweredStateSlice + statement_index`，由 late-lowering 在 materialization 阶段发布，并由 LLVM ABI materializer 校验是否覆盖全部 source-slice statements、是否与 boundary consumed anchor / resume payload binding 等 published contract 一致。refactor body emitter 只能消费这张表：`effect-neutral` / payload injection 类 statement 才能进入 value primitive；boundary anchor、resume injection、synthetic binder、elided statement 由对应 published protocol 消费；`unsupported` 或缺失分类必须 fail fast。
+
 #### 5.6.4 不允许的 P6 glue 形态
 
 以下形态不符合 clean refactor 目标：

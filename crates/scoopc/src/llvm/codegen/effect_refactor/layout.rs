@@ -17,17 +17,19 @@ use crate::effect_lowered::ir::{
     LateLoweredFrameSlotKind, LateLoweredHandlePendingCompletion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOperandSource,
     LateLoweredOperandValueSource, LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface,
-    LateLoweredResumePayloadBinding, LateLoweredStateSlice, LateLoweredStateTerminator,
-    LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
-    LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredResumePayloadBinding, LateLoweredSourceStatementClassificationKind,
+    LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepType,
+    LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredSurfaceResumeWrapperCaseProjection,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource,
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{
-    CallKind as MirCallKind, HandlerArm as MirHandlerArm, InstanceKey, Rvalue as MirRvalue, SiteId,
-    StatementKind as MirStatementKind, TerminatorKind as MirTerminatorKind,
+    BasicBlockId, CallKind as MirCallKind, HandlerArm as MirHandlerArm, InstanceKey,
+    Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
+    TerminatorKind as MirTerminatorKind,
 };
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
@@ -292,6 +294,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             &continuation_layouts,
             &surface_resume_layouts,
         )?;
+        this.validate_source_statement_classifications()?;
 
         Ok(RefactorAbiQuery::new(
             this.source_value_layouts,
@@ -2433,6 +2436,172 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         site_id.as_u32(),
                     )));
                 }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_source_statement_classifications(&self) -> Result<(), LlvmEmitError> {
+        for callable in self.program.callables() {
+            let Some(fun) = self.pass_view.callable(callable.root_fqn()) else {
+                if callable.source_statement_classifications().is_empty() {
+                    continue;
+                }
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` 发布了 source-slice statement classification，但 pass-view 缺少对应 body",
+                    callable.root_fqn(),
+                )));
+            };
+            let Some(body) = fun.body.as_ref() else {
+                if callable.source_statement_classifications().is_empty() {
+                    continue;
+                }
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` 发布了 source-slice statement classification，但 callable 无 body",
+                    callable.root_fqn(),
+                )));
+            };
+
+            let mut expected = BTreeSet::<(BasicBlockId, u32)>::new();
+            for state in callable.state_graph().states() {
+                for slice in state.source_slices() {
+                    let block = body
+                        .blocks
+                        .get(slice.block_id().as_u32() as usize)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor LLVM ABI materialization 发现 callable `{}` state st{} source slice 指向缺失 block bb{}",
+                                callable.root_fqn(),
+                                state.state_id().as_u32(),
+                                slice.block_id().as_u32(),
+                            ))
+                        })?;
+                    let start = slice.start_statement_index() as usize;
+                    let end = slice.end_statement_index() as usize;
+                    if start > end || end > block.stmts.len() {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` state st{} source slice [{}..{}) 越界于 bb{}（stmt_count={}）",
+                            callable.root_fqn(),
+                            state.state_id().as_u32(),
+                            slice.start_statement_index(),
+                            slice.end_statement_index(),
+                            slice.block_id().as_u32(),
+                            block.stmts.len(),
+                        )));
+                    }
+                    for stmt_index in slice.start_statement_index()..slice.end_statement_index() {
+                        expected.insert((slice.block_id(), stmt_index));
+                    }
+                }
+            }
+
+            let mut classified =
+                BTreeMap::<(BasicBlockId, u32), LateLoweredSourceStatementClassificationKind>::new(
+                );
+            for classification in callable.source_statement_classifications() {
+                let key = (
+                    classification.source_slice().block_id(),
+                    classification.statement_index(),
+                );
+                if !expected.contains(&key) {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` 的 source-slice statement classification bb{} stmt{} 不属于任何 published source_slices",
+                        callable.root_fqn(),
+                        key.0.as_u32(),
+                        key.1,
+                    )));
+                }
+                if classified.insert(key, classification.kind()).is_some() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` 的 source-slice statement classification bb{} stmt{} 重复发布",
+                        callable.root_fqn(),
+                        key.0.as_u32(),
+                        key.1,
+                    )));
+                }
+            }
+            if classified.len() != expected.len() {
+                let missing = expected
+                    .iter()
+                    .find(|key| !classified.contains_key(key))
+                    .expect("classified length drift should expose a missing key");
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` source-slice statement bb{} stmt{} 缺少 classification",
+                    callable.root_fqn(),
+                    missing.0.as_u32(),
+                    missing.1,
+                )));
+            }
+
+            self.validate_boundary_anchor_classifications(callable, &classified)?;
+            self.validate_resume_payload_classifications(callable, &classified)?;
+        }
+        Ok(())
+    }
+
+    fn validate_boundary_anchor_classifications(
+        &self,
+        callable: &LateLoweredCallable,
+        classified: &BTreeMap<(BasicBlockId, u32), LateLoweredSourceStatementClassificationKind>,
+    ) -> Result<(), LlvmEmitError> {
+        for boundary in callable.boundary_map().entries() {
+            let Some(LateLoweredBoundarySourceConsumption::Statement {
+                source_slice,
+                statement_index,
+                ..
+            }) = boundary_source_consumption(boundary)
+            else {
+                continue;
+            };
+            let key = (source_slice.block_id(), statement_index);
+            match classified.get(&key) {
+                Some(LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor {
+                    boundary_id,
+                }) if *boundary_id == boundary.boundary_id() => {}
+                other => {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 consumed anchor bb{} stmt{} classification 漂移：{:?}",
+                        callable.root_fqn(),
+                        boundary.boundary_id().as_u32(),
+                        key.0.as_u32(),
+                        key.1,
+                        other,
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_resume_payload_classifications(
+        &self,
+        callable: &LateLoweredCallable,
+        classified: &BTreeMap<(BasicBlockId, u32), LateLoweredSourceStatementClassificationKind>,
+    ) -> Result<(), LlvmEmitError> {
+        for kind in classified.values() {
+            let LateLoweredSourceStatementClassificationKind::ResumePayloadInjection {
+                boundary_id,
+                resume_state,
+                consumer_local,
+            } = kind
+            else {
+                continue;
+            };
+            let Some(binding) = callable.frame_schema().resume_payload_binding(*boundary_id) else {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} resume payload injection classification 缺少对应 binding",
+                    callable.root_fqn(),
+                    boundary_id.as_u32(),
+                )));
+            };
+            if binding.resume_state() != *resume_state
+                || binding.consumer_local() != *consumer_local
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} resume payload injection classification 漂移",
+                    callable.root_fqn(),
+                    boundary_id.as_u32(),
+                )));
             }
         }
         Ok(())
@@ -5137,6 +5306,25 @@ fn dummy_span() -> crate::span::Span {
     crate::span::Span::new(0, 0)
 }
 
+fn boundary_source_consumption(
+    boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+) -> Option<LateLoweredBoundarySourceConsumption> {
+    match boundary.lowering()? {
+        LateLoweredBoundaryLowering::Call(lowering) => {
+            Some(lowering.operand_contract().source_consumption())
+        }
+        LateLoweredBoundaryLowering::Perform(lowering) => {
+            Some(lowering.operand_contract().source_consumption())
+        }
+        LateLoweredBoundaryLowering::Resume(lowering) => {
+            Some(lowering.operand_contract().source_consumption())
+        }
+        LateLoweredBoundaryLowering::RuntimeError(_) | LateLoweredBoundaryLowering::Handle(_) => {
+            None
+        }
+    }
+}
+
 fn collect_handle_contract_total_outward_cases(
     contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
 ) -> BTreeSet<crate::effect_facts::CaseTag> {
@@ -5761,7 +5949,7 @@ mod tests {
         LateLoweredFrameSchema, LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
         LateLoweredHandlePendingCompletion, LateLoweredOperandValueSource, LateLoweredProgram,
         LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
-        LateLoweredStateTerminator, LateLoweredStepType,
+        LateLoweredSourceStatementClassification, LateLoweredStateTerminator, LateLoweredStepType,
         LateLoweredSurfaceResumeDispatchPublication, StateId, SystemSlotKind,
     };
     use crate::effect_lowered::{
@@ -6165,6 +6353,7 @@ mod tests {
             callable.continuation_object(),
             resume_interfaces,
         )
+        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
     }
 
     fn clone_continuation_object_with_interfaces(
@@ -6244,6 +6433,7 @@ mod tests {
             callable.continuation_object(),
             callable.resume_packings().to_vec(),
         )
+        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
     }
 
     fn clone_callable_with_state_graph(
@@ -6263,6 +6453,7 @@ mod tests {
             callable.continuation_object(),
             callable.resume_packings().to_vec(),
         )
+        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
     }
 
     fn clone_callable_with_frame_schema(
@@ -6282,6 +6473,27 @@ mod tests {
             callable.continuation_object(),
             callable.resume_packings().to_vec(),
         )
+        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
+    }
+
+    fn clone_callable_with_source_statement_classifications(
+        callable: &LateLoweredCallable,
+        classifications: Vec<LateLoweredSourceStatementClassification>,
+    ) -> LateLoweredCallable {
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            callable.dynamic_invoke_entry().clone(),
+            callable.state_graph().clone(),
+            callable.frame_schema().clone(),
+            callable.boundary_map().clone(),
+            callable.resume_state_map().clone(),
+            callable.continuation_object(),
+            callable.resume_packings().to_vec(),
+        )
+        .with_source_statement_classifications(classifications)
     }
 
     fn clone_state_graph_with_handle_contract(
@@ -6452,6 +6664,7 @@ mod tests {
             callable.continuation_object(),
             callable.resume_packings().to_vec(),
         )
+        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
     }
 
     fn next_step_schema_id(program: &LateLoweredProgram) -> StepSchemaId {
@@ -6543,6 +6756,7 @@ mod tests {
             continuation_object,
             Vec::new(),
         )
+        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
     }
 
     fn duplicate_no_outward_callable_version(
@@ -6897,6 +7111,52 @@ mod tests {
             continuation_objects,
             callables,
         )
+    }
+
+    #[test]
+    fn refactor_llvm_source_slice_classification_rejects_missing_handoff() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let mut removed = false;
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|callable| {
+                        if !removed && !callable.source_statement_classifications().is_empty() {
+                            removed = true;
+                            clone_callable_with_source_statement_classifications(
+                                callable,
+                                Vec::new(),
+                            )
+                        } else {
+                            callable.clone()
+                        }
+                    })
+                    .collect();
+                assert!(
+                    removed,
+                    "fixture 应发布至少一个 source statement classification"
+                );
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 classification handoff 必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(message.contains("source-slice statement"));
+                assert!(message.contains("classification"));
+            },
+        );
     }
 
     #[test]

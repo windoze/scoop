@@ -18,11 +18,12 @@ use crate::effect_facts::{CaseTag, StepSchemaId};
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundaryId, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundarySource,
-    LateLoweredBoundarySourceConsumption, LateLoweredCallBoundaryContinuationComposition,
-    LateLoweredCallBoundaryLowering, LateLoweredCallable, LateLoweredCompletionPayloadSource,
+    LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
+    LateLoweredCallable, LateLoweredCompletionPayloadSource,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleStateRegion,
-    LateLoweredOperandSource, LateLoweredResumePayloadBinding, LateLoweredState,
-    LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredOperandSource, LateLoweredResumePayloadBinding,
+    LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateTerminator,
+    LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
 };
 use crate::llvm::LlvmEmitError;
@@ -1032,7 +1033,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     }
 
     fn lower_state_source_slices(&mut self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
-        let skipped = self.skipped_statement_indices_for_state(state)?;
         for slice in state.source_slices() {
             let block = self
                 .body
@@ -1043,47 +1043,40 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     at: self.mir_fun.span.into(),
                 })?;
             for stmt_index in slice.start_statement_index()..slice.end_statement_index() {
-                if skipped.contains(&(slice.block_id(), stmt_index)) {
-                    continue;
-                }
                 let stmt = block.stmts.get(stmt_index as usize).ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "refactor source slice statement",
                         at: self.mir_fun.span.into(),
                     },
                 )?;
-                if self.statement_is_published_resume_payload_injection(state.state_id(), stmt)? {
-                    continue;
-                }
-                if let mir::StatementKind::Assign {
-                    value: mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }),
-                    ..
-                } = &stmt.kind
-                    && !self.codegen.object_inits.contains_key(fqn)
-                    && !self.codegen.top_level_consts.contains_key(fqn)
-                    && !self.codegen.top_level_immutable_values.contains_key(fqn)
-                    && !self.codegen.top_level_vars.contains_key(fqn)
-                {
-                    continue;
-                }
-                if matches!(
-                    &stmt.kind,
-                    mir::StatementKind::Assign {
-                        value: mir::Rvalue::Call {
-                            kind: mir::CallKind::Resume { .. }
-                                | mir::CallKind::Virtual { .. }
-                                | mir::CallKind::Interface { .. },
-                            ..
-                        },
-                        ..
+                let classification = self
+                    .callable
+                    .source_statement_classification(*slice, stmt_index)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor source-slice statement bb{} stmt{} 缺少 published classification",
+                            slice.block_id().as_u32(),
+                            stmt_index,
+                        ))
+                    })?;
+                match classification.kind() {
+                    LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+                    | LateLoweredSourceStatementClassificationKind::BoundaryResultInjection { .. }
+                    | LateLoweredSourceStatementClassificationKind::CompletionPayloadInjection { .. } => {
+                        self.lower_effect_neutral_statement(stmt)?;
                     }
-                ) {
-                    continue;
+                    LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor { .. }
+                    | LateLoweredSourceStatementClassificationKind::ResumePayloadInjection { .. }
+                    | LateLoweredSourceStatementClassificationKind::HandleSyntheticCarrierBinder { .. }
+                    | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {}
+                    LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
+                        return Err(frontend_error(format!(
+                            "refactor source-slice statement bb{} stmt{} classified unsupported: {reason}",
+                            slice.block_id().as_u32(),
+                            stmt_index,
+                        )));
+                    }
                 }
-                if self.try_lower_refactor_specialized_direct_call(stmt)? {
-                    continue;
-                }
-                self.lower_effect_neutral_statement(stmt)?;
             }
         }
         Ok(())
@@ -1169,98 +1162,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 Ok(())
             }
         }
-    }
-
-    fn try_lower_refactor_specialized_direct_call(
-        &mut self,
-        stmt: &mir::Statement,
-    ) -> Result<bool, LlvmEmitError> {
-        let mir::StatementKind::Assign {
-            target,
-            value:
-                mir::Rvalue::Call {
-                    kind: mir::CallKind::Direct { callee_fqn },
-                    args,
-                    ..
-                },
-        } = &stmt.kind
-        else {
-            return Ok(false);
-        };
-        if self.codegen.fun_index.contains_key(callee_fqn) {
-            return Ok(false);
-        }
-        if matches!(
-            callee_fqn.as_str(),
-            "scoop.core.println"
-                | "scoop.core.__scoop_println_string"
-                | "scoop.core.println::<Int>"
-                | "scoop.core.println::<String>"
-        ) {
-            return self.lower_refactor_print_statement(stmt.span, *target, args, "scoop_println");
-        }
-        if matches!(
-            callee_fqn.as_str(),
-            "scoop.core.print"
-                | "scoop.core.__scoop_print_string"
-                | "scoop.core.print::<Int>"
-                | "scoop.core.print::<String>"
-        ) {
-            return self.lower_refactor_print_statement(stmt.span, *target, args, "scoop_print");
-        }
-        Ok(false)
-    }
-
-    fn lower_refactor_print_statement(
-        &mut self,
-        span: crate::span::Span,
-        target: LocalId,
-        args: &[mir::CallArg],
-        runtime_name: &str,
-    ) -> Result<bool, LlvmEmitError> {
-        if args.len() != 1 {
-            return Ok(false);
-        }
-        let value = self
-            .codegen
-            .codegen_mir_operand(span, &args[0].value, &self.slots)?;
-        let str_ptr = match value.ty {
-            CgTy::String => {
-                let value = self.codegen.coerce_value(span, value, CgTy::String)?;
-                let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
-                    return Err(frontend_error(
-                        "refactor println String argument 缺少 pointer value".to_string(),
-                    ));
-                };
-                ptr
-            }
-            CgTy::Int(int_ty) => {
-                let (raw, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor println int value",
-                    at: span.into(),
-                })?;
-                let int64_ty = super::super::types::IntTy {
-                    bits: 64,
-                    signed: int_ty.signed,
-                };
-                let int64 = self.codegen.cast_int(raw, int_ty, int64_ty)?;
-                self.codegen
-                    .codegen_int_to_string(span, int64, int64_ty.signed)?
-            }
-            _ => return Ok(false),
-        };
-        let rt_fun = self.codegen.declare_runtime_print_like(runtime_name);
-        let _ = self.codegen.build_call_preserving_gc_local_roots(
-            span,
-            rt_fun,
-            &[str_ptr.into()],
-            "refactor_println",
-        )?;
-        let unit = self
-            .codegen
-            .coerce_value(span, CgValue::unit(), CgTy::Unit)?;
-        let _ = self.store_local_value(span, target, unit)?;
-        Ok(true)
     }
 
     fn lower_suspend(
@@ -2354,55 +2255,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .unpack_payload_field(payload, payload_ty, ordinal)
     }
 
-    fn skipped_statement_indices_for_state(
-        &self,
-        state: &LateLoweredState,
-    ) -> Result<HashSet<(mir::BasicBlockId, u32)>, LlvmEmitError> {
-        let mut skipped = HashSet::new();
-        if let LateLoweredStateTerminator::Suspend { boundary_ids, .. } = state.terminator() {
-            for boundary_id in boundary_ids {
-                let Some(boundary) = self.callable.boundary_map().boundary(*boundary_id) else {
-                    continue;
-                };
-                let Some(consumption) = boundary_consumption(boundary) else {
-                    continue;
-                };
-                if let LateLoweredBoundarySourceConsumption::Statement {
-                    source_slice,
-                    statement_index,
-                    ..
-                } = consumption
-                {
-                    skipped.insert((source_slice.block_id(), statement_index));
-                }
-            }
-        }
-        Ok(skipped)
-    }
-
-    fn statement_is_published_resume_payload_injection(
-        &self,
-        state_id: StateId,
-        stmt: &mir::Statement,
-    ) -> Result<bool, LlvmEmitError> {
-        let Some(binding) = self
-            .callable
-            .frame_schema()
-            .resume_payload_bindings()
-            .iter()
-            .find(|binding| binding.resume_state() == state_id)
-        else {
-            return Ok(false);
-        };
-        Ok(matches!(
-            &stmt.kind,
-            mir::StatementKind::Assign {
-                target,
-                value: mir::Rvalue::PerformResult { .. },
-            } if *target == binding.consumer_local()
-        ))
-    }
-
     fn branch_to_state(&mut self, state_id: StateId) -> Result<(), LlvmEmitError> {
         if self.current_block_is_terminated() {
             return Ok(());
@@ -2694,25 +2546,6 @@ fn boundary_site(boundary: &LateLoweredBoundary, expected: &str) -> Result<SiteI
             "refactor {expected} boundary bd{} 绑定到非 site source {other:?}",
             boundary.boundary_id().as_u32()
         ))),
-    }
-}
-
-fn boundary_consumption(
-    boundary: &LateLoweredBoundary,
-) -> Option<LateLoweredBoundarySourceConsumption> {
-    match boundary.lowering()? {
-        LateLoweredBoundaryLowering::Call(lowering) => {
-            Some(lowering.operand_contract().source_consumption())
-        }
-        LateLoweredBoundaryLowering::Perform(lowering) => {
-            Some(lowering.operand_contract().source_consumption())
-        }
-        LateLoweredBoundaryLowering::Resume(lowering) => {
-            Some(lowering.operand_contract().source_consumption())
-        }
-        LateLoweredBoundaryLowering::RuntimeError(_) | LateLoweredBoundaryLowering::Handle(_) => {
-            None
-        }
     }
 }
 

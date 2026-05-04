@@ -145,7 +145,7 @@
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
   - 额外非必需检查：`cargo test -p scoopc refactor_llvm_` 仍有既有 layout/stage 测试失败，失败点不来自本任务新增的 clean backend boundary 测试。
 
-## P6-T03b：发布 source-slice statement classification contract，禁止 body emitter 静默 skip 或回 raw shape 猜语义
+## [DONE] P6-T03b：发布 source-slice statement classification contract，禁止 body emitter 静默 skip 或回 raw shape 猜语义
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.6.3
@@ -173,7 +173,11 @@
   - body emitter 不再有 silent skip 作为 correctness 前提。
 - 依赖：P6-T03a
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：新增 `LateLoweredCallable.source_statement_classifications` published handoff，为每个 source-slice statement 发布 `effect-neutral`、boundary-consumed anchor、resume payload injection、boundary/result/completion payload injection、handle synthetic binder、elided/unreachable 或 unsupported 分类。
+  - 2026-05-04：late-lowering materialization 现在生成分类并校验 source-slice 覆盖、boundary statement anchor 唯一性与 resume payload binding 一致性；stable dump 渲染 `statement_classification`，便于 fixture / snapshot 锁定。
+  - 2026-05-04：refactor LLVM ABI materializer 增加 classification handoff verifier；body emitter 移除私有 skip heuristic，只按 published classification lower、skip 或 fail fast，未分类 / unsupported statement 不再静默跳过。
+  - 2026-05-04：`EFFECT_REFACTOR.md` §5.6.3 已补充 `LateLoweredCallable.source_statement_classifications` contract 说明。
+  - 验证通过：`cargo test -p scoopc refactor_effect_lowered_source_slice_classification`；`cargo test -p scoopc refactor_llvm_source_slice_classification`；`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T03c：实现 refactor pure statement lowering，停止调用 legacy statement-level lowering
 

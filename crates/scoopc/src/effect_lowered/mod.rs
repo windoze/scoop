@@ -226,6 +226,11 @@ pub enum EffectLoweringError {
     )]
     InvalidCompletionPayloadContract { root_fqn: String, detail: String },
 
+    #[error(
+        "refactor late-lowering stage 无法为 `{root_fqn}` 发布 source-slice statement classification contract：{detail}"
+    )]
+    InvalidSourceSliceClassificationContract { root_fqn: String, detail: String },
+
     #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
 }

@@ -12,7 +12,8 @@ use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs, StepMaterialization,
     materialize_boundary_map, materialize_completion_payload_bindings,
     materialize_continuation_object, materialize_dynamic_invoke_entry,
-    materialize_resume_payload_bindings, materialize_step_and_resume_interfaces,
+    materialize_resume_payload_bindings, materialize_source_statement_classifications,
+    materialize_step_and_resume_interfaces,
 };
 use super::segment::build_callable_segmentation;
 
@@ -178,6 +179,17 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             let frame_schema = frame_schema
                 .with_resume_payload_bindings(resume_payload_bindings)
                 .with_completion_payload_bindings(completion_payload_bindings);
+            let source_statement_classifications =
+                match family.root_body().and_then(|fun| fun.body.as_ref()) {
+                    Some(body) => materialize_source_statement_classifications(
+                        &root_fqn,
+                        body,
+                        &state_graph,
+                        &frame_schema,
+                        &boundary_map,
+                    )?,
+                    None => Vec::new(),
+                };
             continuation_objects.push(materialize_continuation_object(
                 ContinuationObjectMaterializationInputs {
                     continuation_object_id,
@@ -190,24 +202,27 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     effect_facts,
                 },
             )?);
-            callables.push(LateLoweredCallable::new(
-                family.root_fqn().to_string(),
-                body_version_key,
-                step_schema_id,
-                callable_facts.resolved_outward_cases().tags().to_vec(),
-                materialize_dynamic_invoke_entry(
+            callables.push(
+                LateLoweredCallable::new(
+                    family.root_fqn().to_string(),
+                    body_version_key,
                     step_schema_id,
-                    step_type,
-                    state_graph.entry_state(),
-                    state_graph.complete_state(),
-                ),
-                state_graph,
-                frame_schema,
-                boundary_map,
-                resume_state_map,
-                continuation_object_id,
-                resume_packing_ids,
-            ));
+                    callable_facts.resolved_outward_cases().tags().to_vec(),
+                    materialize_dynamic_invoke_entry(
+                        step_schema_id,
+                        step_type,
+                        state_graph.entry_state(),
+                        state_graph.complete_state(),
+                    ),
+                    state_graph,
+                    frame_schema,
+                    boundary_map,
+                    resume_state_map,
+                    continuation_object_id,
+                    resume_packing_ids,
+                )
+                .with_source_statement_classifications(source_statement_classifications),
+            );
         }
 
         Ok(LateLoweredProgram::new(

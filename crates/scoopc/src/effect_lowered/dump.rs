@@ -18,7 +18,8 @@ use super::ir::{
     LateLoweredOperandValueSource, LateLoweredPerformBoundaryOperandContract, LateLoweredProgram,
     LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
     LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
-    LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
+    LateLoweredResumeStateMap, LateLoweredSourceStatementClassification,
+    LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
     LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
     LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
     LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
@@ -509,7 +510,7 @@ fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
         callable.dynamic_invoke_entry().complete_state().as_u32(),
     )
     .unwrap();
-    render_state_graph(rendered, callable.state_graph());
+    render_state_graph(rendered, callable);
     render_frame_schema(rendered, callable.frame_schema());
     render_boundary_map(rendered, callable.boundary_map().entries());
     render_resume_state_map(rendered, callable.resume_state_map());
@@ -527,7 +528,8 @@ fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
     .unwrap();
 }
 
-fn render_state_graph(rendered: &mut String, state_graph: &LateLoweredStateGraph) {
+fn render_state_graph(rendered: &mut String, callable: &LateLoweredCallable) {
+    let state_graph = callable.state_graph();
     writeln!(rendered, "      state_graph:").unwrap();
     writeln!(
         rendered,
@@ -559,11 +561,15 @@ fn render_state_graph(rendered: &mut String, state_graph: &LateLoweredStateGraph
         return;
     }
     for state in state_graph.states() {
-        render_state(rendered, state);
+        render_state(rendered, state, callable.source_statement_classifications());
     }
 }
 
-fn render_state(rendered: &mut String, state: &LateLoweredState) {
+fn render_state(
+    rendered: &mut String,
+    state: &LateLoweredState,
+    classifications: &[LateLoweredSourceStatementClassification],
+) {
     writeln!(
         rendered,
         "          - st{} {} term={} successors={}",
@@ -583,6 +589,93 @@ fn render_state(rendered: &mut String, state: &LateLoweredState) {
     }
     for slice in state.source_slices() {
         render_state_slice(rendered, *slice);
+        render_state_slice_classifications(rendered, *slice, classifications);
+    }
+}
+
+fn render_state_slice_classifications(
+    rendered: &mut String,
+    slice: LateLoweredStateSlice,
+    classifications: &[LateLoweredSourceStatementClassification],
+) {
+    writeln!(rendered, "                statement_classification:").unwrap();
+    let mut rendered_any = false;
+    for classification in classifications.iter().filter(|classification| {
+        classification.source_slice() == slice
+            && classification.statement_index() >= slice.start_statement_index()
+            && classification.statement_index() < slice.end_statement_index()
+    }) {
+        rendered_any = true;
+        writeln!(
+            rendered,
+            "                  - stmt{}: {}",
+            classification.statement_index(),
+            render_source_statement_classification_kind(classification.kind()),
+        )
+        .unwrap();
+    }
+    if !rendered_any {
+        let marker = if slice.start_statement_index() == slice.end_statement_index() {
+            "<none>"
+        } else {
+            "<unclassified>"
+        };
+        writeln!(rendered, "                  {marker}").unwrap();
+    }
+}
+
+fn render_source_statement_classification_kind(
+    kind: LateLoweredSourceStatementClassificationKind,
+) -> String {
+    match kind {
+        LateLoweredSourceStatementClassificationKind::EffectNeutralValue => {
+            "effect-neutral-value".to_string()
+        }
+        LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor { boundary_id } => {
+            format!("boundary-consumed-anchor bd{}", boundary_id.as_u32())
+        }
+        LateLoweredSourceStatementClassificationKind::ResumePayloadInjection {
+            boundary_id,
+            resume_state,
+            consumer_local,
+        } => format!(
+            "resume-payload-injection bd{} resume=st{} local{}",
+            boundary_id.as_u32(),
+            resume_state.as_u32(),
+            consumer_local.as_u32(),
+        ),
+        LateLoweredSourceStatementClassificationKind::BoundaryResultInjection {
+            boundary_id,
+            resume_state,
+            result_local,
+        } => format!(
+            "boundary-result-injection bd{} resume=st{} local{}",
+            boundary_id.as_u32(),
+            resume_state.as_u32(),
+            result_local.as_u32(),
+        ),
+        LateLoweredSourceStatementClassificationKind::CompletionPayloadInjection {
+            return_state,
+            complete_state,
+        } => format!(
+            "completion-payload-injection return=st{} complete=st{}",
+            return_state.as_u32(),
+            complete_state.as_u32(),
+        ),
+        LateLoweredSourceStatementClassificationKind::HandleSyntheticCarrierBinder {
+            site_id,
+            state_id,
+        } => format!(
+            "handle-synthetic-carrier-binder site{} state=st{}",
+            site_id.as_u32(),
+            state_id.as_u32(),
+        ),
+        LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {
+            "elided-unreachable".to_string()
+        }
+        LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
+            format!("unsupported reason={reason}")
+        }
     }
 }
 
