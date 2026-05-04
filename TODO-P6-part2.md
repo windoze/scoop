@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T02qe -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -822,6 +822,66 @@
   - 2026-05-04：开始真正实现 `P6-T03` continuation object method / owner trampoline body 时确认新的未跟踪 blocker。当前 handoff 虽已发布 `ResumePayload(boundary, case)` slot identity、`BoundaryResult(boundary, local)`、`result_local`（call/resume），以及 shared wrapper/underlying route contract；但仍没有统一发布“incoming resume payload/answer 应写回哪个 resumed local/home”的 authoritative 查询面。`effect_multi_escape_indirect_direct_while.scoop` 中 `fetch` 的 outward `Ask.ask` continuation 与 `main` 的 shared wrapper owner route 若继续由 `P6-T03` 落地，backend 只能回 canonical MIR 的 `Rvalue::PerformResult` target、raw call assign target 或 paired boundary shape 恢复该绑定，违反 contract-first 边界。因此新增本前置任务，先把 resumed local/home 注入 contract 发布清楚，再继续 `P6-T03`。
   - 2026-05-04：已在 `LateLoweredFrameSchema` 上新增 authoritative `resume_payload_bindings`，统一发布 boundary/resume-state 到 resumed local/home（含 frame home slot）的注入 contract；`Call`/`Resume` 直接消费 `result_local + BoundaryResult`，`Perform` 显式发布 `PerformResult` consumer，paired `RuntimeError` boundary 显式继承对应 resume boundary 的 consumer。`dump-effect-lowered` 与 LLVM ABI/query 已同步暴露 boundary-keyed 与 resume-state-keyed 查询面，并对缺失/漂移 fail fast。验证通过：`cargo test -p scoopc refactor_effect_lowered_resume_payload_binding`、`cargo test -p scoopc refactor_llvm_resume_payload_binding`、`cargo test -p scoopc refactor_llvm_`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
 
+## P6-T02qe：发布 refactor source-slice member read/write LLVM lowering contract，禁止 P6-T03 在 body emitter 现场回 HIR 或 legacy member lowering
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.5.2-§5.5.7, §8
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T02qa`, `P6-T03`
+  - `crates/scoopc/src/mir/{mod,lower,materialize}.rs`
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs`
+- 背景：
+  - `P6-T02qa` 已把 aggregate/member write-read provenance 发布成 canonical `StatementKind::StoreMember` 与 `Rvalue::MemberAccess` metadata，避免后续阶段通过 unresolved assign-lhs TODO 或源码 shape 猜 `cell.k` route；
+  - 但当前 `crates/scoopc/src/llvm/codegen/mir_body.rs` 的 generic MIR lowering 仍明确拒绝 `StatementKind::StoreMember`，并把 `Rvalue::MemberAccess` 归为 unsupported；
+  - `P6-T03` 的 straight-line source-slice lowering 必须消费 P5 state graph 中的 canonical MIR slices，`tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 已真实包含 `cell.count` / `cell.k` 的 member read/write；
+  - 若直接继续 `P6-T03`，body emitter 只能回 HIR member lowering、源码 member 名、legacy object/member helper，或在 effect_refactor body 内私下重建一套 member access 规则，都会违反 contract-first 边界。
+
+- 目标：
+  - 在进入 `P6-T03` body emitter 前，先让 refactor source-slice lowering 可以直接消费 canonical MIR 的 member read/write contract；
+  - 让 `P6-T03` 对 source slices 只调用一个已发布、effect-neutral 的 MIR value/statement lowering helper，而不需要回 HIR 或 legacy effect backend 恢复 member semantics。
+
+- 必须实现的内容：
+  1. 为 canonical MIR `Rvalue::MemberAccess` 实现 LLVM value lowering。
+     - lowering 必须以 `MemberAccessMetadata.receiver_ty` 与 `MemberAccessMetadata.resolved` 为 authoritative input；
+     - 至少覆盖 class/object field read、`Cell.k` / `Cell.count` 这类普通 member value read，以及后续 source slices 中已由 canonical MIR 发布的 resolved value target；
+     - 缺失或不支持的 `resolved` target 必须结构化 fail fast，不能回 HIR / span / member 文本猜字段。
+  2. 为 canonical MIR `StatementKind::StoreMember` 实现 LLVM statement lowering。
+     - lowering 必须消费 published receiver/value operand、member metadata、`value_ty` 与可选 continuation route；
+     - 至少覆盖 mutable class/object field write（如 `cell.k = Some(k)`、`cell.count = cell.count + 1`、`cell.k = none_k`）；
+     - `continuation_route` 只作为 provenance contract 校验/保留，不允许在 LLVM backend 中重新推导 route。
+  3. 把该能力暴露成 refactor body emitter 可复用的 source-slice lowering surface。
+     - 允许扩展 `mir_body.rs` 中现有 `codegen_mir_statement` / `codegen_mir_rvalue` / 支持性判断的可见性或 helper 形态；
+     - 但 helper 必须保持 effect-neutral，不得调用 legacy `build_unified_lowering_contract`、`effect_analysis_ctx`、`effect_op_call_sites` 或 handler-stack lowering；
+     - `P6-T03` 后续应能通过该 helper lower straight-line source slices，而不是在 `effect_refactor/body.rs` 内另写 fixture-private member access lowering。
+  4. 对缺失、歧义或漂移 fail fast。
+     - 至少包括：member metadata 未 resolved、resolved target 不是可 lower 的 value field、receiver LLVM type 与 metadata receiver type 漂移、store value type 与 field type 漂移、`StoreMember.continuation_route=Ambiguous` 被继续 lower。
+  5. 补充定向测试与回归。
+     - 至少覆盖：
+       - `effect_multi_escape_indirect_direct_while.scoop` 的 MIR/source-slice 中 `cell.count` read/write 与 `cell.k` write/read 不再被 generic MIR lowering 拒绝；
+       - 缺失 resolved metadata 或 ambiguous continuation route 时显式拒绝；
+       - 新 helper 不依赖 `Cell` / `k` / `count` 私名，而是按 canonical member metadata 一般生效。
+
+- 必须遵从的约束：
+  - 禁止在 `P6-T03` body emitter 中通过 HIR `MemberAccess`、源码 span、member 文本名、class field 顺序猜测 member layout；
+  - 禁止把 `StoreMember` / `MemberAccess` 暂时回退到 legacy HIR-compatible body lowering；
+  - 禁止只为 `effect_multi_escape_indirect_direct_while.scoop` 的 `Cell.k` 或 `Cell.count` 做私有特判。
+
+- 验证：
+  - `cargo test -p scoopc refactor_mir_member_access_codegen`
+  - `cargo test -p scoopc refactor_mir_store_member_codegen`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - canonical MIR source slices 中的 member read/write 已有 effect-neutral LLVM lowering helper；
+  - `P6-T03` 可以复用该 helper lower straight-line source slices，而不需要回 HIR / legacy member lowering；
+  - 缺失、歧义或漂移时会在 helper / P6 handoff 边界显式拒绝。
+- 依赖：P6-T02qa，P6-T02o，P6-T02qd
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -940,8 +1000,9 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P5-T07a，P5-T07b
 - 完成记录：
+  - 2026-05-04：重新进入 `P6-T03` source-slice body emitter 准备时确认新的前置 blocker。`P6-T02qa` 已把 member write/read provenance 从 unresolved assign-lhs TODO 升级为 canonical `StatementKind::StoreMember` / `Rvalue::MemberAccess`，但当前 `crates/scoopc/src/llvm/codegen/mir_body.rs` 仍直接拒绝这两类 MIR 节点；`effect_multi_escape_indirect_direct_while.scoop` 的 P5 source slices 已真实包含 `cell.count` / `cell.k` member read/write。若继续实现 `P6-T03`，body emitter 必须回 HIR / member 文本 / legacy member lowering 猜字段布局，违反 contract-first 边界。因此新增前置任务 `P6-T02qe`，先发布并实现 effect-neutral source-slice member read/write LLVM lowering contract，再继续本任务。
   - 2026-05-04：继续真正实现 continuation object method / owner trampoline body 时确认新的 blocker。当前 handoff 已发布 boundary operand、underlying route、wrapper projection、以及 `ResumePayload(boundary, case)` / `BoundaryResult(boundary, local)` 等 slot identity；但还没有 authoritative 发布“incoming resume payload/answer 应写回哪个 resumed local/home”的统一 contract。`effect_multi_escape_indirect_direct_while.scoop` 中 `fetch` 的 outward `Ask.ask` continuation 以及 `main` 的 shared wrapper owner route 若继续由 `P6-T03` 落地，backend 只能回 canonical MIR `Rvalue::PerformResult` target、raw call assign target、或 paired boundary shape 恢复 consumer local，违反 contract-first 边界。因此新增前置任务 `P6-T02qd`，先发布 resumed local/home 注入 contract，再继续本任务。
   - 2026-05-04：继续真正实现 shared surface-resume body 时确认新的 blocker。当前 handoff 已能 authoritative 地桥接 `ResumeBoundaryOnly` wrapper schema 到 underlying route（例如 `effect_multi_escape_indirect_direct_while.scoop` 中 `k5 -> k3`），但还没有显式发布“underlying owner step -> wrapper step”的 projection contract。若继续实现 `__scoop_refactor_surface_resume__k5`，backend 只能反向推导现有 boundary dispatch（例如 `s4.c0 -> s1.c2`）来拼 wrapper body 返回语义，违反 contract-first 边界。因此新增前置任务 `P6-T02qc`，先发布 wrapper projection contract，再继续本任务。
   - 2026-05-04：继续真正落地 body emitter 时确认新的 blocker。当前 handoff 对 `HandleDispatch` cleanup/finally/pending-outward path 只发布了 `CompletionTag` / `ResumePayloadCarrier` 的 field index 与 pending completion 集合，但没有 authoritative 发布 typed case payload 如何穿过该 carrier。对 `handle_finally_boundary.scoop` / `dropped_continuation_abandons_remaining_work.scoop` 这类 path，backend 若继续实现就必须现场发明 `Any` boxing / projection 或 raw transport 规则。为此新增前置任务 `P6-T02qb`，先把 cleanup/finally pending payload carrier contract 显式发布出来，再继续本任务。
