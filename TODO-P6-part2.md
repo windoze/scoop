@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T02qe -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T02qe -> P6-T02qf -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -894,6 +894,60 @@
     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02qf：把 `scoop test` run-pass 子进程接到父级 effect-pipeline selector，确保 P6-T03 验证真实覆盖 refactor LLVM path
+
+- 参考：
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T03` 验证矩阵
+  - `crates/scoop/src/commands/test.rs`
+  - `crates/scoop/src/fixtures/mod.rs`
+  - `crates/scoop/src/fixtures/run_pass.rs`
+  - `crates/scoop/src/fixtures/run_pass_cone` 相关执行路径
+- 背景：
+  - `P6-T03` 的验证命令明确要求通过 `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/...` 运行真实 run-pass fixture；
+  - 当前 `scoop test` 顶层会构造 refactor `SessionOptions`，但 run-pass phase 的子进程只执行 `scoop run <fixture>`，没有把父级 `--effect-pipeline refactor` 透传给子进程；
+  - 这意味着 `P6-T03` 即使实现了 refactor LLVM body lowering，指定 run-pass 验证也可能实际走默认/legacy 子进程路径，无法证明 refactor backend 正确性；
+  - 这属于当前任务的验证 blocker，必须在继续 `P6-T03` 前先修复。
+
+- 目标：
+  - 让 `scoop --effect-pipeline refactor test --fixtures <run-pass fixture>` 下的 run-pass / runtime_gc / codegen / run_pass_cone 子进程都显式继承父级 effect-pipeline selector；
+  - 保证 P6-T03 之后的 run-pass 验证真实进入 refactor LLVM stage，而不是由 legacy/default 路径兜底。
+
+- 必须实现的内容：
+  1. 把父级 `SessionOptions` 或等价的 `EffectPipelineMode` 传入 run-pass 执行器。
+     - `run_one(...)` / `run_pass::run_fixture(...)` / `run_run_pass_cone_case(...)` 等路径必须能拿到当前 selector；
+     - `EffectPipelineMode::Refactor` 时，子进程命令必须显式包含 `--effect-pipeline refactor`，且位置必须对 `scoop run` / `scoop build` 等子命令有效；
+     - legacy/default 行为不能被意外改变。
+  2. 覆盖 run-pass 真实执行路径。
+     - 默认 `RUN-MODE: run` 必须传递 selector；
+     - `RUN-MODE: dump-stackmaps` 中先 build 再 dump 的路径也必须在 build 子进程上传递 selector；
+     - `run_pass_cone` 的 `scoop run` / `scoop build` 子进程也必须继承 selector。
+  3. 增加回归测试。
+     - 至少覆盖：refactor session 下构造出的 run-pass 子命令含 `--effect-pipeline refactor`；
+     - legacy session 下不得多插入 refactor selector；
+     - 如果有单独的 dump-stackmaps / run_pass_cone 命令构造 helper，也要覆盖其 selector 传播。
+  4. 建立防止“假 refactor 验证”的 fail-fast 或断言。
+     - 如果未来新增 run-pass 子命令路径，不能绕过 selector 传播；
+     - 禁止通过环境变量、fixture 私有参数或测试专用分支伪造 refactor 覆盖。
+
+- 必须遵从的约束：
+  - 禁止把 `--effect-pipeline refactor` 写死到所有 run-pass 子进程；只有父级 selector 为 refactor 时才传递；
+  - 禁止把 P6-T03 的 run-pass fixture 改成直接调用 `scoop run` 绕过 `scoop test`；
+  - 禁止用 fixture-only `ARGS` 或 env 作为 refactor selector 的传递机制。
+
+- 验证：
+  - `cargo test -p scoop run_pass_effect_pipeline`
+  - `cargo test -p scoop run_pass_cone_effect_pipeline`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/minimal_main.scoop`
+  - 可选 smoke：在 `P6-T03` 完成前，运行 `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 应进入 refactor LLVM path，并因尚未完成的 body lowering 显式失败，而不是静默走 legacy。
+
+- 完成条件：
+  - `scoop test` 下 run-pass 系列子进程已继承父级 refactor selector；
+  - P6-T03 的指定 run-pass 验证命令不再存在“实际走 legacy/default 子进程”的假阳性风险；
+  - legacy/default fixture runner 行为保持稳定。
+- 依赖：P6-T02qe
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1012,8 +1066,9 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P6-T02qf，P5-T07a，P5-T07b
 - 完成记录：
+  - 2026-05-04：重新进入 `P6-T03` 前确认验证 blocker。`P6-T03` 指定的 run-pass 验证命令会通过 `scoop test` 调用 `run-pass` fixture runner，但当前 runner 子进程只构造 `scoop run <fixture>`，没有继承父级 `--effect-pipeline refactor`。这会让后续 run-pass 验证无法证明 refactor LLVM body lowering，存在静默走 legacy/default 的假阳性风险。因此新增前置任务 `P6-T02qf`，先把 run-pass 系列子进程接到父级 effect-pipeline selector，再继续本任务。
   - 2026-05-04：重新进入 `P6-T03` source-slice body emitter 准备时确认新的前置 blocker。`P6-T02qa` 已把 member write/read provenance 从 unresolved assign-lhs TODO 升级为 canonical `StatementKind::StoreMember` / `Rvalue::MemberAccess`，但当前 `crates/scoopc/src/llvm/codegen/mir_body.rs` 仍直接拒绝这两类 MIR 节点；`effect_multi_escape_indirect_direct_while.scoop` 的 P5 source slices 已真实包含 `cell.count` / `cell.k` member read/write。若继续实现 `P6-T03`，body emitter 必须回 HIR / member 文本 / legacy member lowering 猜字段布局，违反 contract-first 边界。因此新增前置任务 `P6-T02qe`，先发布并实现 effect-neutral source-slice member read/write LLVM lowering contract，再继续本任务。
   - 2026-05-04：继续真正实现 continuation object method / owner trampoline body 时确认新的 blocker。当前 handoff 已发布 boundary operand、underlying route、wrapper projection、以及 `ResumePayload(boundary, case)` / `BoundaryResult(boundary, local)` 等 slot identity；但还没有 authoritative 发布“incoming resume payload/answer 应写回哪个 resumed local/home”的统一 contract。`effect_multi_escape_indirect_direct_while.scoop` 中 `fetch` 的 outward `Ask.ask` continuation 以及 `main` 的 shared wrapper owner route 若继续由 `P6-T03` 落地，backend 只能回 canonical MIR `Rvalue::PerformResult` target、raw call assign target、或 paired boundary shape 恢复 consumer local，违反 contract-first 边界。因此新增前置任务 `P6-T02qd`，先发布 resumed local/home 注入 contract，再继续本任务。
   - 2026-05-04：继续真正实现 shared surface-resume body 时确认新的 blocker。当前 handoff 已能 authoritative 地桥接 `ResumeBoundaryOnly` wrapper schema 到 underlying route（例如 `effect_multi_escape_indirect_direct_while.scoop` 中 `k5 -> k3`），但还没有显式发布“underlying owner step -> wrapper step”的 projection contract。若继续实现 `__scoop_refactor_surface_resume__k5`，backend 只能反向推导现有 boundary dispatch（例如 `s4.c0 -> s1.c2`）来拼 wrapper body 返回语义，违反 contract-first 边界。因此新增前置任务 `P6-T02qc`，先发布 wrapper projection contract，再继续本任务。

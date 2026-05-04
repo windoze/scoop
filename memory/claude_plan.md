@@ -21,3 +21,9 @@
 
 - 已在执行仓库命令或代码前写入初始计划。
 - 已发现 `memory/claude_plan.md` 是受跟踪文件，本次会先提交计划更新，再继续选择任务。
+- 已读取 `TODO.md` 与 `TODO-P6-part2.md`，确认第一个未完成详细任务为 `P6-T03`：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering。
+- 最新任务相关提交未留下需要优先登记的新 blocker；接下来检查 P5 late-lowered 表达、P6 ABI/query 和现有 refactor LLVM stage 的实现边界。
+- 已确认 `P6-T03` 的指定 run-pass 验证命令存在直接 blocker：fixture runner 的 `run-pass` 子进程没有继承父级 `--effect-pipeline refactor`，会导致验证不能证明 refactor LLVM body lowering。
+- 计划改为新增最小前置任务 `P6-T02qf`，要求先修复 run-pass fixture 子进程的 effect-pipeline 传播，再继续 `P6-T03`；同步 `TODO.md` 后提交并停止。
+- 已在 `TODO-P6-part2.md` 中把 `P6-T02qf` 插入 `P6-T03` 之前，并把 `P6-T03` 依赖更新为包含 `P6-T02qf`。
+- 已同步 `TODO.md` 索引；`PLAN.md` 不涉及阶段级计划变化，保持不改。
