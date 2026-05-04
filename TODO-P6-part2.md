@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -360,6 +360,81 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02p：发布 callable version 选择 contract，禁止 P6-T03 在 backend 现场按 `root_fqn` / 单壳层假定选择 late-lowered body
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9-§4.13, §5.5, §8
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/effect_facts/facts.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - P5 authoritative handoff 已把 callable identity 固定到 `LateLoweredBodyVersionKey`，同一 `root_fqn` 在不同 `allowed_row` / `impl_plan` / `needs_reentry` 下允许对应多个 late-lowered callable version；`layout.rs` 甚至已经会在 `root_counts[root_fqn] > 1` 时为不同 callable shell 生成不同的 LLVM symbol stem。
+  - 但当前 P6 ABI/query 仍没有把“如何 authoritative 地从 surface callable / runtime callable carrier / known-instance call target 选到具体 callable version”显式发布出来：
+    - `RefactorCallableLayout` / `RefactorAbiQuery` 主要按 `StepSchemaId` 暴露 callable shell；
+    - `layout.rs::callable_layout_by_root_fqn(...)` 在同一 `root_fqn` 出现多个 published shell 时会直接拒绝，说明 carrier target 仍默认“每个 root 只有唯一 callable shell”；
+    - `CallSiteEffectFacts` 当前只发布 `CallSiteTarget::{KnownInstance, CandidateSet, DynamicFallback}`、`invoke_args_tuple_ty` 与 `callee_schema`，没有显式说明 runtime callable carrier / known-instance target 应落到哪一个 callable version。
+  - 若直接继续 `P6-T03`，一旦同一 surface callable 物化出多个 late-lowered versions，backend 就只能：
+    - 按 `root_fqn`、遍历顺序、或“当前恰好 `StepSchemaId` 全局唯一”的未发布约定去碰运气；
+    - 或把 runtime callable carrier / known-instance target 错误地塌缩成唯一壳层。
+  - 这会让 body emitter、carrier publication、dynamic invoke 与 owner dispatch 再次依赖 backend 现场猜测，而不是 published contract，因此必须先补齐这层 version-selection handoff。
+
+- 目标：
+  - 为 refactor LLVM backend 发布 authoritative 的 callable version 选择 contract；
+  - 让 `P6-T03` 能只消费已发布 handoff，在“当前 callable version”“callee callable version”“runtime callable carrier target”三类场景下唯一确定正确的 late-lowered body，而不再假定 `root_fqn -> 唯一 callable shell`。
+
+- 必须实现的内容：
+  1. 为 callable shell / ABI query 发布稳定的 callable version identity。
+     - authoritative key 必须至少覆盖 `LateLoweredBodyVersionKey`，或一个等价且已明确冻结的 version selector；
+     - query 必须能从该 key 直接回查：
+       - direct entry
+       - dynamic entry
+       - frame layout
+       - continuation object / owner dispatch 所需 shell
+     - 明确禁止让 `P6-T03` 通过 `root_fqn` 唯一性假设或遍历顺序恢复 version。
+  2. 把 runtime callable carrier / known-instance target 与 callable version 选择 contract 接通。
+     - closure object / class vtable / interface itable 发布的 canonical dynamic entry target，必须显式说明对应哪个 callable version；
+     - `CallSiteTarget::KnownInstance` 若当前只发布了 `InstanceKey + callee_schema`，则必须把这对信息显式冻结为 authoritative version selector，或最小化扩展 handoff 以直接发布 callee `LateLoweredBodyVersionKey`；
+     - 明确禁止让 backend 在 body emitter 现场通过 `root_fqn`、symbol 名字、或“先找到哪个 shell 就用哪个”来补选版本。
+  3. 对缺失、歧义或漂移的 version-selection contract fail fast。
+     - 至少包括：
+       - 同一 `root_fqn` 存在多个 published callable shell，但 carrier target / known-instance query 仍没有唯一 version selector；
+       - published callable version identity 与 `callee_schema` / entry shell / continuation object 漂移；
+       - `P6-T03` 若只消费 ABI query / late-lowered contract 仍无法唯一决定当前或 callee callable version。
+  4. 补充定向测试与回归。
+     - 至少覆盖：
+       - 同一 surface callable 物化多个 late-lowered versions 时，ABI query 仍能唯一回查各自 callable shell；
+       - runtime callable carrier publication 不再因为“同 root 多 shell”而回到 `callable_layout_by_root_fqn(...)` 的唯一性假设；
+       - 缺失 version-selection contract 时显式拒绝，而不是留给 `P6-T03` 现场猜测。
+
+- 必须遵从的约束：
+  - 禁止把 `root_fqn` 当成 callable version 的 authoritative 主键。
+  - 禁止依赖 `StepSchemaId`“当前恰好全局唯一”的隐含实现细节，除非这层关系被显式发布并冻结为 contract。
+  - 禁止把 runtime callable carrier target 重新回退到 legacy callable wrapper 或其它 backend-private 规则。
+
+- 验证：
+  1. 新增/更新单元测试，推荐命名：
+     - `refactor_llvm_callable_version_query_*`
+     - `refactor_llvm_callable_carrier_version_selection_*`
+     - `refactor_llvm_known_instance_version_selection_*`
+  2. 新增/更新 build fixture，推荐至少包括：
+     - `tests/fixtures/build/effect_refactor_multi_version_callable_emit_llvm.scoop`
+       - 目标：锁定同一 surface callable 发布多个 late-lowered versions 时，carrier/query 仍能唯一选中正确 callable shell
+  3. 运行：
+      - `cargo test -p scoopc refactor_llvm_callable_version_query`
+      - `cargo test -p scoopc refactor_llvm_callable_carrier_version_selection`
+      - `cargo test -p scoopc refactor_llvm_known_instance_version_selection`
+      - `cargo test -p scoopc refactor_llvm_`
+      - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - callable version 的 authoritative 选择 contract 已作为 P5/P6 handoff 一部分发布；
+  - runtime callable carrier / known-instance target / 当前 body emitter 入口都不再依赖 `root_fqn -> 唯一 shell` 假设；
+  - `P6-T03` 可以只消费 published contract 唯一决定当前/被调 callable version。
+- 依赖：P6-T02o
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -478,7 +553,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P5-T07a，P5-T07b
 - 完成记录：
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
@@ -504,6 +579,8 @@
   - 因此新增前置任务 `P6-T02m`，先发布 continuation surface-resume -> owner dispatch contract，再继续本任务。
   - 2026-05-04：继续真正落地 body emitter 时发现新的 blocker。当前 late-lowered handoff 虽已发布 state graph / boundary semantics / dispatch plan，但 `LateLoweredCallBoundaryLowering` / `LateLoweredPerformBoundaryLowering` / `LateLoweredResumeBoundaryLowering` 仍没有 authoritative 发布 boundary lowering 的 operand/source contract：call/resume 的 ordered args source、dynamic call carrier source、resume continuation source、perform payload source，以及 statement-anchored boundary 在 source slice 中消费到哪一条语句的 contract 仍未显式 handoff。若直接继续 `P6-T03`，backend 只能回 raw `mir::Body` / `mir::Rvalue::Call` / `mir::TerminatorKind::Perform` / `mir::CallKind::Resume` 现场恢复 boundary 输入与 anchor 位置，这会重新把 boundary lowering 的语义事实留给 MIR shape，而不是 published contract。
   - 因此新增前置任务 `P6-T02o`，先发布 statement/terminator anchored boundary operand contract，再继续本任务。
+  - 2026-05-04：继续核对 refactor callable shell / dynamic carrier target 时发现新的 blocker。P5 authoritative identity 已经是 `LateLoweredBodyVersionKey`，而 `layout.rs` 也已承认同一 `root_fqn` 可以发布多个 callable shell（会按 `schema*` 追加 symbol stem）；但当前 `RefactorAbiQuery` 仍主要按 `StepSchemaId` / `root_fqn` 暴露 callable layout，`layout.rs::callable_layout_by_root_fqn(...)` 仍把“同 root 只有唯一 shell”当成 carrier target 前提，`CallSiteEffectFacts` 也尚未显式发布 runtime callable carrier / known-instance target 应选择哪个 callable version 的 contract。若直接继续 `P6-T03`，backend 将不得不按 `root_fqn`、遍历顺序、或未发布的唯一性假设去碰运气选择 callee/current body version，违背本阶段 contract-first 边界。
+  - 因此新增前置任务 `P6-T02p`，先把 callable version selection contract authoritative 发布到 late-lowered / LLVM query handoff，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
