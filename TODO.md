@@ -98,6 +98,7 @@
 | `P6-T02qd` | `TODO-P6-part2.md` | [DONE] 发布 continuation resume payload -> resumed local/home 注入 contract，禁止 P6-T03 在 backend 现场回 canonical MIR 恢复 `PerformResult` / boundary-result 绑定 |
 | `P6-T02qe` | `TODO-P6-part2.md` | [DONE] 发布 refactor source-slice member read/write LLVM lowering contract，禁止 P6-T03 在 body emitter 现场回 HIR 或 legacy member lowering |
 | `P6-T02qf` | `TODO-P6-part2.md` | [DONE] 把 `scoop test` run-pass 子进程接到父级 effect-pipeline selector，确保 P6-T03 验证真实覆盖 refactor LLVM path |
+| `P6-T02qg` | `TODO-P6-part2.md` | 发布 non-`Unit` completion payload source / return-value contract，禁止 P6-T03 在 backend 回 raw MIR/tail shape 恢复完成值 |
 | `P6-T03` | `TODO-P6-part2.md` | 按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation |
 | `P6-T03R` | `TODO-P6-part2.md` | Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断 |
 | `P6-T04` | `TODO-P6-part2.md` | 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |

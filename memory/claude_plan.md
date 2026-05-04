@@ -1,33 +1,25 @@
-# Claude Execution Plan
+# Claude Plan
 
-## Scope
+## Current Invocation Plan
 
-- Follow the project task workflow exactly: identify the first incomplete detailed task from `TODO.md` and the referenced `TODO-Px.md` files, complete that one task only, update task records, verify, commit, then stop.
-- Treat `TODO-Px.md` files as authoritative when they disagree with `TODO.md`.
-- Do not perform broad historical bug triage before selecting the current task.
-- Do not use workarounds or weaken fixtures; if a concrete blocker prevents correct implementation, add the minimum prerequisite task in the appropriate detailed TODO file, sync the index, commit, and stop.
+1. Read `TODO.md` as the task index.
+2. Inspect referenced `TODO-Px.md` files in order until the first detailed task whose heading is not prefixed with `[DONE]` is found.
+3. Read the selected task body, constraints, dependencies, and validation requirements.
+4. Check recent git context only as needed to identify directly relevant unfinished work for the selected task.
+5. Implement the selected task exactly as specified, without narrowing scope or using workarounds.
+6. Run targeted validation first, then broader required checks if feasible for the task.
+7. Update the detailed `TODO-Px.md` completion record and prefix the completed task heading with `[DONE]`.
+8. Sync `TODO.md` with the same `[DONE]` marker or any task ordering/title changes.
+9. Update this file when key steps complete or if the plan changes.
+10. Commit all relevant changes with a descriptive task-tagged commit message, then stop.
 
-## Step-by-Step Plan
+## Status
 
-1. Read the task index in `TODO.md`.
-2. Open the referenced detailed TODO files in indexed order and identify the first task whose heading is not prefixed with `[DONE]`.
-3. Check the latest commit message only for unfinished issues directly relevant to that selected task.
-4. Inspect the selected task's requirements, constraints, dependencies, and validation commands.
-5. Examine the relevant source, tests, and fixtures needed for that task.
-6. Implement the smallest correct change that satisfies the detailed task requirements.
-7. Add or update tests/fixtures required by the task.
-8. Run the task-specific validation first, then broader relevant checks if feasible.
-9. If validation exposes a directly blocking spec or implementation gap, fix it if it is part of the task; otherwise add a prerequisite task, sync `TODO.md`, commit, and stop.
-10. When the task is complete, prefix the detailed task heading with `[DONE]`, update its completion record, and sync the matching `TODO.md` index entry.
-11. Update this plan file with key progress and final validation status.
-12. Review the worktree, commit all relevant changes with a descriptive task-tagged message, and stop without starting the next task.
-
-## Progress Log
-
-- Plan initialized before repository inspection.
-- Read `TODO.md` and `TODO-P6-part2.md`; selected first incomplete detailed task: `P6-T02qf`.
-- Latest commit mentions `P6-T02qf`, so any existing unfinished selector-propagation work is directly in scope for this invocation.
-- Implemented selector propagation through run-pass, dump-stackmaps build, and run_pass_cone command construction paths; added focused command-construction regression tests.
-- Validation completed: formatting, selector propagation unit tests, refactor minimal run-pass smoke, and `cargo clippy -p scoop --all-targets -- -D warnings` passed.
-- Optional effect run-pass smoke now fails through the refactor path with `scoop::llvm::refactor_effect_lowering_unsupported`, confirming it no longer silently falls back to legacy before `P6-T03`.
-- Marked `P6-T02qf` complete in `TODO-P6-part2.md` and synchronized `TODO.md`.
+- Initial plan written.
+- Identified first incomplete detailed task: `P6-T03` in `TODO-P6-part2.md`.
+- Task scope: complete refactor LLVM body lowering from the P5 state graph and published boundary contracts, then validate and mark only `P6-T03` complete.
+- Inspected current refactor LLVM codegen entry, ABI/query helpers, and P5 dumps for `P6-T03` fixtures.
+- Blocker found: P5/P6 handoff still lacks an authoritative completion payload source for non-`Unit` returns. Example: `effect_resume_if_else_branch_single_perform.scoop` publishes `run(): Int` with `Complete(t5)`, but the relevant state terminator is still `Return(Unit -> st1)`. P6 would have to inspect raw MIR/tail shape to recover the value, which is forbidden by `P6-T03`.
+- Plan change completed: added prerequisite `P6-T02qg` before `P6-T03` in `TODO-P6-part2.md`, synced `TODO.md`, kept `P6-T03` incomplete, and recorded the blocker in `P6-T03` completion notes.
+- Validation run: `cargo check -p scoopc`.
+- Next step: commit the task-graph update and stop.

@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T02qe -> P6-T02qf -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T02qe -> P6-T02qf -> P6-T02qg -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -957,6 +957,59 @@
     - `cargo clippy -p scoop --all-targets -- -D warnings`
     - 可选 smoke：`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 现在通过 run-pass 子进程得到非零退出；直接运行 `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 显示 `scoop::llvm::refactor_effect_lowering_unsupported`，确认失败来自尚未完成的 refactor LLVM body lowering，而不是静默回 legacy。
 
+## P6-T02qg：发布 non-`Unit` completion payload source / return-value contract，禁止 P6-T03 在 backend 回 raw MIR/tail shape 恢复完成值
+
+- 参考：
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T03`
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.5.1-§5.5.7, §8
+  - `crates/scoopc/src/effect_lowered/{ir,materialize,dump}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - 重新进入 `P6-T03` 时，`tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 的 P5 dump 暴露出新的 contract 缺口：`run(): Int` 的 `Step` complete variant 是 `Complete(t5)`，但 state graph 中对应完成路径仍发布为 `Return(Unit -> st1)`；
+  - 这意味着 P6 若继续实现 LLVM body emitter，只能回 canonical MIR terminator、tail expression shape、handle body source slice 或旧 HIR 去恢复真正的 `Int` 完成值；
+  - 这直接违反 `P6-T03` “return / handler arm 结束后的续点必须来自 P5 state graph 显式路径，backend 不能按源码形状重建”的约束。
+
+- 目标：
+  - 在进入 `P6-T03` 前，把 callable / handle / arm / finally / resume path 的 completion payload source 明确发布到 P5/P6 handoff；
+  - 让 P6 body emitter 只凭 late-lowered state graph + ABI query 就能构造 `Complete(answer)`，而不需要回 raw MIR/tail shape 恢复返回值。
+
+- 必须实现的内容：
+  1. 为 `LateLoweredStateTerminator::Return` 或等价 completion terminator 发布 authoritative payload source。
+     - 非 `Unit` `complete_ty` 必须显式携带 `LocalId`、frame slot、system slot 或等价 `LateLoweredOperandSource`；
+     - `Unit` complete 可以继续 elide 物理 payload，但也必须在 contract 中明确这是 `Unit` completion，而不是缺失值。
+  2. 覆盖 handle / arm / finally / cleanup 完成路径。
+     - handle body 完成、handled arm 完成、finally 后完成、pending completion、`break` / `continue` / `return` 经 cleanup 后完成，都必须能唯一追踪到要写入 `Step_F.Complete` 的 payload source；
+     - 若值已被 frame lifting，必须发布 local/home slot 的 authoritative 关系，而不能要求 P6 回 source slice 或 raw MIR terminator 猜。
+  3. 将该 contract 接入 `dump-effect-lowered` 与 refactor LLVM ABI query。
+     - dump 中应能看出每条 non-`Unit` complete path 的 payload source；
+     - ABI materialization 应校验 `complete_ty`、payload source type、frame/home slot 与 callable `StepSchema.complete_ty` 一致。
+  4. 对缺失、歧义或漂移 fail fast。
+     - 至少包括：non-`Unit` complete 没有 payload source；payload source type 与 `complete_ty` 不一致；多个完成路径对同一 completion state 发布互不兼容来源；P6 只消费 handoff 仍无法唯一构造 `Complete(answer)`。
+  5. 补充定向测试与回归。
+     - 至少覆盖：
+       - `effect_resume_if_else_branch_single_perform.scoop` 中 `run(): Int` 的 handle body complete source 不再显示为无信息的 `Return(Unit -> ...)`；
+       - 普通 explicit `return value`、tail expression、handle arm result、cleanup/finally 后 completion；
+       - 缺失或类型漂移时显式拒绝。
+
+- 必须遵从的约束：
+  - 禁止让 `P6-T03` 通过 raw `mir::TerminatorKind::Return`、tail expression convention、HIR handle body shape、source span 或旧 state-machine emitter 恢复 complete payload；
+  - 禁止把当前 fixture 缩窄成 `Unit` 返回来绕过缺失 contract；
+  - 禁止只在 LLVM body emitter 内维护 task-private `state -> return local` 私表。
+
+- 验证：
+  - `cargo test -p scoopc refactor_effect_lowered_completion_payload_contract`
+  - `cargo test -p scoopc refactor_llvm_completion_payload_contract`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - P5/P6 handoff 已 authoritative 发布所有 non-`Unit` completion payload source；
+  - `P6-T03` 可以只消费 state graph / frame schema / ABI query 构造 `Complete(answer)`；
+  - 缺失、歧义或类型漂移时在 P5/P6 边界显式拒绝。
+- 依赖：P6-T02qd，P6-T02qe，P6-T02qf
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -1075,7 +1128,7 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P6-T02qf，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P6-T02qf，P6-T02qg，P5-T07a，P5-T07b
 - 完成记录：
   - 2026-05-04：重新进入 `P6-T03` 前确认验证 blocker。`P6-T03` 指定的 run-pass 验证命令会通过 `scoop test` 调用 `run-pass` fixture runner，但当前 runner 子进程只构造 `scoop run <fixture>`，没有继承父级 `--effect-pipeline refactor`。这会让后续 run-pass 验证无法证明 refactor LLVM body lowering，存在静默走 legacy/default 的假阳性风险。因此新增前置任务 `P6-T02qf`，先把 run-pass 系列子进程接到父级 effect-pipeline selector，再继续本任务。
   - 2026-05-04：重新进入 `P6-T03` source-slice body emitter 准备时确认新的前置 blocker。`P6-T02qa` 已把 member write/read provenance 从 unresolved assign-lhs TODO 升级为 canonical `StatementKind::StoreMember` / `Rvalue::MemberAccess`，但当前 `crates/scoopc/src/llvm/codegen/mir_body.rs` 仍直接拒绝这两类 MIR 节点；`effect_multi_escape_indirect_direct_while.scoop` 的 P5 source slices 已真实包含 `cell.count` / `cell.k` member read/write。若继续实现 `P6-T03`，body emitter 必须回 HIR / member 文本 / legacy member lowering 猜字段布局，违反 contract-first 边界。因此新增前置任务 `P6-T02qe`，先发布并实现 effect-neutral source-slice member read/write LLVM lowering contract，再继续本任务。
@@ -1110,6 +1163,7 @@
   - 因此新增前置任务 `P6-T02p`，先把 callable version selection contract authoritative 发布到 late-lowered / LLVM query handoff，再继续本任务。
   - 2026-05-04：继续真正把 `Resume` boundary 接到 body emitter 时发现新的 blocker。当前 handoff 仍没有 authoritative 发布“boundary-local resume wrapper schema -> runtime continuation object 实际 surface route”的 bridge：`effect_multi_escape_indirect_direct_while.scoop` 中 handle binder 发布 `k3`，但 site25/site30/site35/site40 的 `Resume` boundary 只发布了 `k5`；`k5` 的 published dispatch 又是 `ResumeBoundaryOnly`，没有 object-side method target。若直接继续本任务，backend 只能回 continuation local / source type / runtime object shape 猜 `k.resume(...)` 实际应调用哪条 surface route，直接违反本阶段 contract-first 约束。
   - 因此新增前置任务 `P6-T02q`，先把 resume-boundary wrapper -> underlying continuation surface route contract 显式发布出来，再继续本任务。
+  - 2026-05-04：再次进入 `P6-T03` 时发现新的 completion payload blocker。`effect_resume_if_else_branch_single_perform.scoop` 的 `run(): Int` 已发布 `Complete(t5)`，但 state graph 中完成路径仍是 `Return(Unit -> st1)`，没有 authoritative 说明 `Complete(answer)` 的 `Int` payload 来自哪个 local/frame/system slot。若继续实现 body emitter，P6 只能回 raw MIR terminator、tail expression 或 HIR handle shape 恢复返回值，违反本任务禁止 backend 重建控制/完成语义的约束。因此新增前置任务 `P6-T02qg`，先发布 non-`Unit` completion payload source / return-value contract，再继续本任务。
 
 ## P6-T03R：Review LLVM body lowering，确认 backend 只翻译 state graph，而不再重做 segmentation / frame lifting / shape 推断
 
