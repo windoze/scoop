@@ -5257,6 +5257,52 @@ mod tests {
     }
 
     #[test]
+    fn refactor_effect_lowered_resume_boundary_self_route_publishes_step_projection() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_escape_continuation_resume_later_exit.scoop",
+        ));
+        let callable = callable(&output, "main");
+        let resume_lowering = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .find_map(|boundary| match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Resume(lowering)) => Some(lowering),
+                _ => None,
+            })
+            .expect("fixture 应包含 resume boundary");
+        assert_eq!(
+            resume_lowering
+                .operand_contract()
+                .underlying_continuation_route()
+                .continuation_schema(),
+            resume_lowering.facts().continuation_schema(),
+            "fixture 应覆盖 same-schema resume-boundary route"
+        );
+
+        let projection = output
+            .program()
+            .surface_resume_dispatch(resume_lowering.facts().continuation_schema())
+            .and_then(|entry| entry.wrapper_projection())
+            .expect("same-schema 但不同 StepSchema 的 resume boundary 应发布 wrapper projection");
+
+        assert_eq!(projection.owner_step_schema(), callable.step_schema());
+        assert_eq!(
+            projection.wrapper_step_schema(),
+            resume_lowering.facts().out_step_schema()
+        );
+        assert_ne!(
+            projection.owner_step_schema(),
+            projection.wrapper_step_schema()
+        );
+        assert!(matches!(
+            projection.complete().payload_source(),
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { .. }
+        ));
+    }
+
+    #[test]
     fn refactor_boundary_lowering_publishes_direct_resume_self_route() {
         let output = load_output(&load_fixture(
             "effect_facts",

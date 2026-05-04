@@ -954,7 +954,12 @@ fn build_surface_resume_dispatch_inventory(
                 let continuation_schema = facts.continuation_schema();
                 if !conflicting_wrapper_projections.contains(&continuation_schema) {
                     match wrapper_projections.get(&continuation_schema) {
-                        Some(existing) if existing != &projection => {
+                        Some(existing)
+                            if !same_surface_resume_wrapper_projection_shape(
+                                existing,
+                                &projection,
+                            ) =>
+                        {
                             wrapper_projections.remove(&continuation_schema);
                             conflicting_wrapper_projections.insert(continuation_schema);
                         }
@@ -1040,14 +1045,15 @@ fn build_surface_resume_wrapper_projection(
     step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
 ) -> Option<LateLoweredSurfaceResumeWrapperProjection> {
     let underlying_route = lowering.operand_contract().underlying_continuation_route();
-    if underlying_route.continuation_schema() == lowering.facts().continuation_schema() {
-        return None;
-    }
-
     let owner_step = step_types_by_schema.get(&callable.step_schema()).copied()?;
     let wrapper_step = step_types_by_schema
         .get(&lowering.facts().out_step_schema())
         .copied()?;
+    if underlying_route.continuation_schema() == lowering.facts().continuation_schema()
+        && owner_step.step_schema() == wrapper_step.step_schema()
+    {
+        return None;
+    }
     let outward_cases = lowering
         .dispatch()
         .outward_cases()
@@ -1082,6 +1088,29 @@ fn build_surface_resume_wrapper_projection(
         ),
         outward_cases,
     ))
+}
+
+fn same_surface_resume_wrapper_projection_shape(
+    left: &LateLoweredSurfaceResumeWrapperProjection,
+    right: &LateLoweredSurfaceResumeWrapperProjection,
+) -> bool {
+    left == right
+        || (left.underlying_route().continuation_schema()
+            == right.underlying_route().continuation_schema()
+            && matches!(
+                (
+                    left.underlying_route().publication(),
+                    right.underlying_route().publication()
+                ),
+                (
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. }
+                )
+            )
+            && left.owner_step_schema() == right.owner_step_schema()
+            && left.wrapper_step_schema() == right.wrapper_step_schema()
+            && left.complete() == right.complete()
+            && left.outward_cases() == right.outward_cases())
 }
 
 fn build_surface_resume_wrapper_complete_payload_source(

@@ -343,7 +343,7 @@
   - 验证通过：`cargo test -p scoopc refactor_llvm_handle_dispatch_lowering`；`cargo test -p scoopc refactor_llvm_handle_pending_completion`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/handle_finally_boundary.scoop`；额外回归 `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_finally_normal.scoop`；`cargo clippy --all-targets -- -D warnings`。
   - `PLAN.md` 无需改动。
 
-## P6-T03h：闭合 continuation protocol，覆盖 one-shot、double resume、wrapper projection、drop/unwind/abandon
+## [DONE] P6-T03h：闭合 continuation protocol，覆盖 one-shot、double resume、wrapper projection、drop/unwind/abandon
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.7, §5.5, §5.6
@@ -369,7 +369,11 @@
   - double resume、drop/unwind/abandon 不再是 placeholder。
 - 依赖：P6-T03g
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：same-schema resume-boundary surface route 现在也会在 owner `StepSchema` 与 wrapper `out_step_schema` 不同时发布 wrapper projection；ABI materialization 允许多个 resume site 共享同一 projection shape，并继续对真正漂移 fail fast。
+  - 2026-05-05：refactor LLVM resume entry 现在按 published continuation object layout 恢复 frame/local、检查并置位 one-shot flag；double resume 不再 `unreachable`，而是构造普通 `RuntimeError.ContinuationAlreadyResumed` outward `Step` 并走既有 wrapper projection / boundary dispatch。
+  - 2026-05-05：resume-entry handle completion 现在按 published handle completion payload contract 返回 caller，避免 escaped continuation resume 后重放已完成的外层 handle continuation；同一 handler arm 内已发布为 completion payload 的 resume 结果会完成 handle，而不是继续执行后续重复 resume。
+  - 2026-05-05：`ResumeUnwind` / `Abandon` 不再合并到裸 placeholder 分支；`ResumeUnwind` 对缺失 unwind payload/cleanup continuation contract fail fast，`Abandon` 只允许 contract-defined drop state 终止，防止普通 CFG 直接触达 dropped-continuation path。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_continuation_protocol`；`cargo test -p scoopc refactor_llvm_double_resume_runtime_error`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.scoop`；相邻回归 `cargo test -p scoopc refactor_effect_lowered_surface_resume_wrapper_completion`；`cargo test -p scoopc refactor_llvm_surface_resume_wrapper_completion`；`cargo test -p scoopc refactor_llvm_handle_dispatch_lowering`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/handle_finally_boundary.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T03i：闭合 runtime error、diagnostics 与 body verifier，冻结 clean body lowering 完成条件
 

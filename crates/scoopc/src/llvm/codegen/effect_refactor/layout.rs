@@ -1585,7 +1585,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             };
             if !derived_candidates
                 .iter()
-                .any(|candidate| candidate == &derived)
+                .any(|candidate| same_surface_resume_wrapper_projection_shape(candidate, &derived))
             {
                 derived_candidates.push(derived);
             }
@@ -1600,7 +1600,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         match (entry.wrapper_projection(), derived_candidates.pop()) {
             (Some(published), Some(derived)) => {
-                if published != &derived {
+                if !same_surface_resume_wrapper_projection_shape(published, &derived) {
                     return Err(frontend_error(format!(
                         "refactor LLVM ABI materialization 发现 continuation schema k{} 的 owner-step -> wrapper-step projection contract 漂移：published={published:?}，derived={derived:?}",
                         entry.continuation_schema().as_u32(),
@@ -1634,10 +1634,6 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
     ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
         let underlying_route = lowering.operand_contract().underlying_continuation_route();
-        if underlying_route.continuation_schema() == entry.continuation_schema() {
-            return Ok(None);
-        }
-
         let owner_step = self
             .program
             .step_type(owner_callable.step_schema())
@@ -1658,6 +1654,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     lowering.facts().out_step_schema().as_u32(),
                 ))
             })?;
+        if underlying_route.continuation_schema() == entry.continuation_schema()
+            && owner_step.step_schema() == wrapper_step.step_schema()
+        {
+            return Ok(None);
+        }
         let underlying_inventory = self
             .program
             .surface_resume_dispatch(underlying_route.continuation_schema())
@@ -1668,7 +1669,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     underlying_route.continuation_schema().as_u32(),
                 ))
             })?;
-        if underlying_inventory.contract().out_step_schema() != owner_step.step_schema() {
+        if underlying_route.continuation_schema() != entry.continuation_schema()
+            && underlying_inventory.contract().out_step_schema() != owner_step.step_schema()
+        {
             return Err(frontend_error(format!(
                 "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection underlying route k{} 漂移：underlying owner step=s{}，callable owner step=s{}",
                 entry.continuation_schema().as_u32(),
@@ -6034,6 +6037,29 @@ fn render_resume_packing_ids(interface_ids: &[ResumeInterfaceId]) -> String {
             .collect::<Vec<_>>()
             .join(", ")
     )
+}
+
+fn same_surface_resume_wrapper_projection_shape(
+    left: &LateLoweredSurfaceResumeWrapperProjection,
+    right: &LateLoweredSurfaceResumeWrapperProjection,
+) -> bool {
+    left == right
+        || (left.underlying_route().continuation_schema()
+            == right.underlying_route().continuation_schema()
+            && matches!(
+                (
+                    left.underlying_route().publication(),
+                    right.underlying_route().publication()
+                ),
+                (
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. }
+                )
+            )
+            && left.owner_step_schema() == right.owner_step_schema()
+            && left.wrapper_step_schema() == right.wrapper_step_schema()
+            && left.complete() == right.complete()
+            && left.outward_cases() == right.outward_cases())
 }
 
 fn render_case_tags(tags: &BTreeSet<crate::effect_facts::CaseTag>) -> String {

@@ -21,8 +21,9 @@ use crate::effect_lowered::ir::{
     LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
     LateLoweredCallable, LateLoweredCompletionPayloadSource,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
-    LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredResumePayloadBinding,
-    LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateTerminator,
+    LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredOperandValueSource,
+    LateLoweredResumePayloadBinding, LateLoweredSourceStatementClassificationKind,
+    LateLoweredState, LateLoweredStateTerminator, LateLoweredStepCaseEmission,
     LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
 };
@@ -1372,7 +1373,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )?;
 
         self.codegen.builder.position_at_end(double_resume_bb);
-        self.codegen.builder.build_unreachable()?;
+        self.emit_double_resume_runtime_error(resume_state_tag)?;
 
         self.codegen.builder.position_at_end(first_resume_bb);
         self.store_continuation_one_shot(cont_ptr, true)?;
@@ -1461,6 +1462,72 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.position_at_end(invalid_bb);
         self.codegen.builder.build_unreachable()?;
         self.emit_states()
+    }
+
+    fn emit_double_resume_runtime_error(
+        &mut self,
+        resume_state_tag: IntValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let emission = self.double_resume_runtime_error_emission()?;
+        if emission.continuation_object() != self.callable.continuation_object() {
+            return Err(frontend_error(format!(
+                "refactor double resume runtime error continuation object 漂移：emission=ko{} callable=ko{}",
+                emission.continuation_object().as_u32(),
+                self.callable.continuation_object().as_u32(),
+            )));
+        }
+        let payload = self.lower_runtime_error_boundary_payload(emission.payload_tuple_ty())?;
+        let continuation =
+            self.create_continuation_object_with_state_tag(None, resume_state_tag, None, None)?;
+        let out_layout = self.step_layout.case_layout(emission.case_tag()).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor callable `{}` step schema s{} 缺少 double resume runtime error case c{}",
+                self.callable.root_fqn(),
+                self.abi_step_schema.as_u32(),
+                emission.case_tag().as_u32(),
+            ))
+        })?;
+        let step = self.codegen.refactor_build_step_case(
+            self.step_layout,
+            out_layout,
+            payload,
+            continuation,
+        )?;
+        self.return_step(step)
+    }
+
+    fn double_resume_runtime_error_emission(
+        &self,
+    ) -> Result<LateLoweredStepCaseEmission, LlvmEmitError> {
+        let mut selected = None::<LateLoweredStepCaseEmission>;
+        for boundary in self.callable.boundary_map().entries() {
+            let Some(LateLoweredBoundaryLowering::RuntimeError(lowering)) = boundary.lowering()
+            else {
+                continue;
+            };
+            let emission = lowering.emitted_step().clone();
+            if self.step_layout.case_layout(emission.case_tag()).is_none() {
+                continue;
+            }
+            match &selected {
+                Some(existing) if existing != &emission => {
+                    return Err(frontend_error(format!(
+                        "refactor callable `{}` 存在多义 double resume runtime error emission：{:?} 与 {:?}",
+                        self.callable.root_fqn(),
+                        existing,
+                        emission,
+                    )));
+                }
+                Some(_) => {}
+                None => selected = Some(emission),
+            }
+        }
+        selected.ok_or_else(|| {
+            frontend_error(format!(
+                "refactor callable `{}` 缺少 double resume 可用的 ordinary runtime error boundary emission",
+                self.callable.root_fqn(),
+            ))
+        })
     }
 
     fn dispatch_composed_call_boundary_resume(
@@ -1803,7 +1870,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         match state.terminator() {
             LateLoweredStateTerminator::Goto { target } => {
-                if self.try_return_wrapper_complete_from_handle_completion(state, *target)?
+                if self.try_return_handle_completion_from_resume_entry(state, *target)?
+                    || self.try_return_wrapper_complete_from_handle_completion(state, *target)?
                     || self.try_route_handle_completion_goto(state, *target)?
                 {
                     Ok(())
@@ -2257,7 +2325,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             "refactor_boundary_complete_payload",
         )?;
         self.store_boundary_result(boundary.boundary_id(), payload, boundary.resume_state())?;
-        self.branch_to_state(boundary.resume_state())?;
+        if !self.try_route_boundary_complete_to_handle_completion(boundary)? {
+            self.branch_to_state(boundary.resume_state())?;
+        }
 
         for (_, bb, input_case, output_case, payload_ty) in cases {
             self.codegen.builder.position_at_end(bb);
@@ -2310,6 +2380,64 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.position_at_end(unmatched_bb);
         self.codegen.builder.build_unreachable()?;
         Ok(())
+    }
+
+    fn try_route_boundary_complete_to_handle_completion(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+    ) -> Result<bool, LlvmEmitError> {
+        let Some(result_local) = boundary_complete_result_local(boundary) else {
+            return Ok(false);
+        };
+        let mut matched_target = None;
+        for state in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch { contract, .. } = state.terminator()
+            else {
+                continue;
+            };
+            if contract.needs_completion_state()
+                || contract.boundary_routing(boundary.boundary_id()).is_none()
+            {
+                continue;
+            }
+            let target = match contract.state_region(boundary.owner_state()) {
+                LateLoweredHandleStateRegion::Body => contract
+                    .body_completion_payload_source()
+                    .filter(|source| completion_payload_source_is_local(source, result_local))
+                    .map(|_| contract.body_complete_target()),
+                LateLoweredHandleStateRegion::Arm {
+                    handled_case,
+                    arm_ordinal,
+                } => contract
+                    .handled_arms()
+                    .iter()
+                    .find(|arm| {
+                        arm.arm_ordinal() == arm_ordinal && arm.handled_case() == handled_case
+                    })
+                    .filter(|arm| {
+                        completion_payload_source_is_local(
+                            arm.completion_payload_source(),
+                            result_local,
+                        )
+                    })
+                    .map(|_| contract.arm_complete_target()),
+                _ => None,
+            };
+            let Some(target) = target else {
+                continue;
+            };
+            if matched_target.replace(target).is_some() {
+                return Err(frontend_error(format!(
+                    "refactor boundary bd{} complete 命中多个 handle completion target",
+                    boundary.boundary_id().as_u32(),
+                )));
+            }
+        }
+        let Some(target) = matched_target else {
+            return Ok(false);
+        };
+        self.branch_to_state(target)?;
+        Ok(true)
     }
 
     fn emit_or_consume_outward_case(
@@ -2628,6 +2756,106 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .refactor_build_step_complete(wrapper_layout, payload)?;
         self.codegen.builder.build_return(Some(&projected))?;
+        Ok(true)
+    }
+
+    fn try_return_handle_completion_from_resume_entry(
+        &mut self,
+        state: &LateLoweredState,
+        target: StateId,
+    ) -> Result<bool, LlvmEmitError> {
+        if self.handle_completion_mode != RefactorHandleCompletionMode::ReturnFromFunction {
+            return Ok(false);
+        }
+        let mut matched_payload_source = None;
+        for candidate in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch { contract, .. } =
+                candidate.terminator()
+            else {
+                continue;
+            };
+            if contract.needs_completion_state() {
+                continue;
+            }
+            let payload_source = match contract.state_region(state.state_id()) {
+                LateLoweredHandleStateRegion::Body if target == contract.body_complete_target() => {
+                    contract.body_completion_payload_source().ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor resume entry handle body st{} 缺少 body completion payload source",
+                            state.state_id().as_u32()
+                        ))
+                    })?
+                }
+                LateLoweredHandleStateRegion::Arm {
+                    handled_case,
+                    arm_ordinal,
+                } if target == contract.arm_complete_target() => contract
+                    .handled_arms()
+                    .iter()
+                    .find(|arm| {
+                        arm.arm_ordinal() == arm_ordinal && arm.handled_case() == handled_case
+                    })
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor resume entry handle arm st{} 缺少 arm#{} case c{} completion payload source",
+                            state.state_id().as_u32(),
+                            arm_ordinal,
+                            handled_case.as_u32()
+                        ))
+                    })?
+                    .completion_payload_source(),
+                _ => continue,
+            };
+            if matched_payload_source
+                .replace(payload_source.clone())
+                .is_some()
+            {
+                return Err(frontend_error(format!(
+                    "refactor resume entry state st{} -> st{} 命中多个 handle completion return contract",
+                    state.state_id().as_u32(),
+                    target.as_u32(),
+                )));
+            }
+        }
+        let Some(payload_source) = matched_payload_source else {
+            return Ok(false);
+        };
+        self.return_handle_completion_payload(payload_source)
+    }
+
+    fn return_handle_completion_payload(
+        &mut self,
+        owner_payload_source: LateLoweredCompletionPayloadSource,
+    ) -> Result<bool, LlvmEmitError> {
+        if let Some(projection) = self.return_projection {
+            let wrapper_layout = self
+                .abi
+                .step_layout(projection.wrapper_step_schema())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor wrapper projection 缺少 wrapper step schema s{} layout",
+                        projection.wrapper_step_schema().as_u32()
+                    ))
+                })?;
+            let payload = match projection.complete().payload_source() {
+                LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { .. } => {
+                    self.lower_completion_payload(&owner_payload_source)?
+                }
+                LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(source) => {
+                    self.lower_completion_payload(source)?
+                }
+            };
+            let projected = self
+                .codegen
+                .refactor_build_step_complete(wrapper_layout, payload)?;
+            self.codegen.builder.build_return(Some(&projected))?;
+        } else {
+            let payload = self.lower_completion_payload(&owner_payload_source)?;
+            let step = self
+                .codegen
+                .refactor_build_step_complete(self.step_layout, payload)?;
+            self.codegen.builder.build_return(Some(&step))?;
+        }
         Ok(true)
     }
 
@@ -3559,12 +3787,32 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         callee_continuation: Option<PointerValue<'ctx>>,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let resume_state_tag = self
+            .codegen
+            .context
+            .i32_type()
+            .const_int(resume_state.as_u32() as u64, false);
+        self.create_continuation_object_with_state_tag(
+            Some(resume_state),
+            resume_state_tag,
+            callee_continuation,
+            composition,
+        )
+    }
+
+    fn create_continuation_object_with_state_tag(
+        &mut self,
+        resume_state: Option<StateId>,
+        resume_state_tag: IntValue<'ctx>,
+        callee_continuation: Option<PointerValue<'ctx>>,
+        composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         if let Some(composition) = composition
-            && composition.caller_resume_state() != resume_state
+            && Some(composition.caller_resume_state()) != resume_state
         {
             return Err(frontend_error(format!(
-                "refactor continuation composition resume_state 漂移：object=st{} contract=st{}",
-                resume_state.as_u32(),
+                "refactor continuation composition resume_state 漂移：object={:?} contract=st{}",
+                resume_state,
                 composition.caller_resume_state().as_u32(),
             )));
         }
@@ -3599,13 +3847,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             CONT_FIELD_RESUME_STATE,
             "refactor_cont_state_gep",
         )?;
-        self.codegen.builder.build_store(
-            state_gep,
-            self.codegen
-                .context
-                .i32_type()
-                .const_int(resume_state.as_u32() as u64, false),
-        )?;
+        self.codegen
+            .builder
+            .build_store(state_gep, resume_state_tag)?;
         let one_shot_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
@@ -4221,6 +4465,27 @@ fn pending_completion_resume_state(
     })
 }
 
+fn boundary_complete_result_local(boundary: &LateLoweredBoundary) -> Option<LocalId> {
+    match boundary.lowering()? {
+        LateLoweredBoundaryLowering::Call(lowering) => Some(lowering.result_local()),
+        LateLoweredBoundaryLowering::Resume(lowering) => Some(lowering.result_local()),
+        LateLoweredBoundaryLowering::Perform(_)
+        | LateLoweredBoundaryLowering::RuntimeError(_)
+        | LateLoweredBoundaryLowering::Handle(_) => None,
+    }
+}
+
+fn completion_payload_source_is_local(
+    source: &LateLoweredCompletionPayloadSource,
+    local: LocalId,
+) -> bool {
+    matches!(
+        source,
+        LateLoweredCompletionPayloadSource::Operand(operand)
+            if matches!(operand.value(), LateLoweredOperandValueSource::Local(source_local) if *source_local == local)
+    )
+}
+
 fn validate_callable_entry_layout(
     layout: &RefactorCallableLayout<'_>,
 ) -> Result<(), LlvmEmitError> {
@@ -4368,5 +4633,30 @@ mod tests {
         assert!(body.contains("load_handle_pending_payload"));
         assert!(body.contains("store_handle_completion_tag"));
         assert!(body.contains("load_handle_completion_tag"));
+    }
+
+    #[test]
+    fn refactor_llvm_continuation_protocol_uses_published_resume_contracts() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("load_frame_from_continuation"));
+        assert!(body.contains("restore_frame_slots_to_locals"));
+        assert!(body.contains("load_continuation_resume_state"));
+        assert!(body.contains("store_continuation_one_shot"));
+        assert!(body.contains("project_owner_step_to_wrapper"));
+        assert!(body.contains("lower_abandon_terminator"));
+        assert!(body.contains("lower_resume_unwind_terminator"));
+    }
+
+    #[test]
+    fn refactor_llvm_double_resume_runtime_error_uses_ordinary_step() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("emit_double_resume_runtime_error"));
+        assert!(body.contains("double_resume_runtime_error_emission"));
+        assert!(body.contains("lower_runtime_error_boundary_payload"));
+        assert!(body.contains("scoop.core.RuntimeError.ContinuationAlreadyResumed"));
+        assert!(body.contains("create_continuation_object_with_state_tag"));
+        assert!(!body.contains("self.codegen.builder.position_at_end(double_resume_bb);\n        self.codegen.builder.build_unreachable()?;"));
     }
 }
