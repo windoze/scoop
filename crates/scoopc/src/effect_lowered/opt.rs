@@ -468,10 +468,10 @@ fn rewrite_terminator(
             else_state: redirect_state_id(else_state, redirects),
         },
         LateLoweredStateTerminator::Return {
-            value_local,
+            payload_source,
             complete_state,
         } => LateLoweredStateTerminator::Return {
-            value_local,
+            payload_source,
             complete_state: redirect_state_id(complete_state, redirects),
         },
         LateLoweredStateTerminator::HandleDispatch {
@@ -782,7 +782,30 @@ fn rewrite_frame_schema(
             ))
         })
         .collect();
-    LateLoweredFrameSchema::new(slots).with_resume_payload_bindings(resume_payload_bindings)
+    let completion_payload_bindings = frame_schema
+        .completion_payload_bindings()
+        .iter()
+        .filter_map(|binding| {
+            let return_state = redirect_state_id(binding.return_state(), redirects);
+            let complete_state = redirect_state_id(binding.complete_state(), redirects);
+            if !live_states.contains(&return_state) || !live_states.contains(&complete_state) {
+                return None;
+            }
+            Some(
+                crate::effect_lowered::ir::LateLoweredCompletionPayloadBinding::new(
+                    return_state,
+                    complete_state,
+                    binding.payload_source().clone(),
+                    binding
+                        .payload_frame_slot()
+                        .filter(|slot_id| live_slots.contains(slot_id)),
+                ),
+            )
+        })
+        .collect();
+    LateLoweredFrameSchema::new(slots)
+        .with_resume_payload_bindings(resume_payload_bindings)
+        .with_completion_payload_bindings(completion_payload_bindings)
 }
 
 fn rewrite_frame_slot_kind(
@@ -866,11 +889,12 @@ mod tests {
     use crate::effect_lowered::ir::{
         BoundaryId, BoundarySiteKind, ContinuationObjectId, FrameSlotId, LateLoweredBodyVersionKey,
         LateLoweredBoundary, LateLoweredBoundaryMap, LateLoweredBoundarySource,
-        LateLoweredCallable, LateLoweredContinuationCapture, LateLoweredContinuationContract,
-        LateLoweredContinuationMethod, LateLoweredContinuationObject,
-        LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
-        LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredFrameSlot,
-        LateLoweredFrameSlotKind, LateLoweredOneShotPolicy, LateLoweredProgram,
+        LateLoweredCallable, LateLoweredCompletionPayloadSource, LateLoweredContinuationCapture,
+        LateLoweredContinuationContract, LateLoweredContinuationMethod,
+        LateLoweredContinuationObject, LateLoweredContinuationResumeBody,
+        LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
+        LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
+        LateLoweredOneShotPolicy, LateLoweredOperandSource, LateLoweredProgram,
         LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeState,
         LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
         LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
@@ -1125,7 +1149,13 @@ mod tests {
                             true,
                         )],
                         LateLoweredStateTerminator::Return {
-                            value_local: Some(LocalId::from_raw(0)),
+                            payload_source: LateLoweredCompletionPayloadSource::operand(
+                                LateLoweredOperandSource::new_local(
+                                    LocalId::from_raw(0),
+                                    builtins.int,
+                                    None,
+                                ),
+                            ),
                             complete_state,
                         },
                     ),

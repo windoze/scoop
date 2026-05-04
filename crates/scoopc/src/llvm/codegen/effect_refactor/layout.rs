@@ -11,13 +11,14 @@ use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey,
     LateLoweredBoundaryLowering, LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
-    LateLoweredCallable, LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
+    LateLoweredCallable, LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
+    LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
     LateLoweredFrameSlotKind, LateLoweredHandlePendingCompletion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOperandSource,
-    LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredResumePayloadBinding,
-    LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepType,
-    LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
-    LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredOperandValueSource, LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface,
+    LateLoweredResumePayloadBinding, LateLoweredStateSlice, LateLoweredStateTerminator,
+    LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
+    LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeWrapperCaseProjection,
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
@@ -33,7 +34,8 @@ use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident
 use super::types::{
     RefactorAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
     RefactorCallableCarrierTargetLayout, RefactorCallableEntryLayout, RefactorCallableLayout,
-    RefactorClosureCarrierLayout, RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
+    RefactorClosureCarrierLayout, RefactorCompletionPayloadBindingLayout,
+    RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
     RefactorContinuationObjectLayout, RefactorContinuationSurfaceResumeBinding,
     RefactorContinuationSurfaceResumeDispatchLayout,
     RefactorContinuationSurfaceResumeDispatchTarget,
@@ -82,6 +84,9 @@ type ResumePayloadBindingLayouts =
     BTreeMap<ResumePayloadBindingBoundaryKey, RefactorResumePayloadBindingLayout>;
 type ResumePayloadBindingLayoutsByState =
     BTreeMap<ResumePayloadBindingStateKey, RefactorResumePayloadBindingLayout>;
+type CompletionPayloadBindingKey = (StepSchemaId, StateId);
+type CompletionPayloadBindingLayouts<'ctx> =
+    BTreeMap<CompletionPayloadBindingKey, RefactorCompletionPayloadBindingLayout<'ctx>>;
 type BoundaryOperandLayoutSets = (
     CallBoundaryOperandLayouts,
     PerformBoundaryOperandLayouts,
@@ -276,6 +281,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         )?;
         let (resume_payload_binding_layouts, resume_payload_bindings_by_state) =
             this.materialize_resume_payload_binding_layouts(&frame_layouts)?;
+        let completion_payload_binding_layouts =
+            this.materialize_completion_payload_binding_layouts(&step_layouts, &frame_layouts)?;
         let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
         let handle_dispatch_layouts = this.materialize_handle_dispatch_layouts(
             &frame_layouts,
@@ -301,6 +308,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             resume_boundary_operand_layouts,
             resume_payload_binding_layouts,
             resume_payload_bindings_by_state,
+            completion_payload_binding_layouts,
             local_runtime_error_contracts,
             handle_dispatch_layouts,
         ))
@@ -2742,6 +2750,226 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             .transpose()
     }
 
+    fn materialize_completion_payload_binding_layouts(
+        &mut self,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+    ) -> Result<CompletionPayloadBindingLayouts<'ctx>, LlvmEmitError> {
+        let mut layouts = CompletionPayloadBindingLayouts::new();
+
+        for callable in self.program.callables() {
+            let step_type = self.program.step_type(callable.step_schema()).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 Step shell，无法发布 completion payload contract",
+                    callable.root_fqn(),
+                    callable.step_schema().as_u32(),
+                ))
+            })?;
+            let step_layout = step_layouts.get(&callable.step_schema()).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 Step layout，无法发布 completion payload contract",
+                    callable.root_fqn(),
+                    callable.step_schema().as_u32(),
+                ))
+            })?;
+            if step_layout.complete_variant().payload_source_ty() != step_type.complete_ty() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` 的 Step complete variant 类型漂移：layout=t{}，step=t{}",
+                    callable.root_fqn(),
+                    step_layout.complete_variant().payload_source_ty().as_u32(),
+                    step_type.complete_ty().as_u32(),
+                )));
+            }
+            let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 frame layout，无法发布 completion payload contract",
+                    callable.root_fqn(),
+                    callable.step_schema().as_u32(),
+                ))
+            })?;
+
+            for state in callable.state_graph().states() {
+                if !matches!(
+                    state.terminator(),
+                    LateLoweredStateTerminator::Return { .. }
+                ) {
+                    continue;
+                }
+                if callable
+                    .frame_schema()
+                    .completion_payload_binding_for_state(state.state_id())
+                    .is_none()
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 缺少 completion payload contract",
+                        callable.root_fqn(),
+                        state.state_id().as_u32(),
+                    )));
+                }
+            }
+
+            for binding in callable.frame_schema().completion_payload_bindings() {
+                let (payload_abi, frame_field_index) = self.validate_completion_payload_binding(
+                    callable,
+                    step_type,
+                    frame_layout,
+                    binding,
+                )?;
+                let layout = RefactorCompletionPayloadBindingLayout::new(
+                    callable.step_schema(),
+                    binding.clone(),
+                    payload_abi,
+                    frame_field_index,
+                );
+                let key = (callable.step_schema(), binding.return_state());
+                if layouts.insert(key, layout).is_some() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 owner step schema s{} return state st{} 的 completion payload contract 重复发布",
+                        callable.step_schema().as_u32(),
+                        binding.return_state().as_u32(),
+                    )));
+                }
+            }
+        }
+
+        Ok(layouts)
+    }
+
+    fn validate_completion_payload_binding(
+        &mut self,
+        callable: &LateLoweredCallable,
+        step_type: &LateLoweredStepType,
+        frame_layout: &RefactorFrameLayout<'ctx>,
+        binding: &LateLoweredCompletionPayloadBinding,
+    ) -> Result<(RefactorAbiValue<'ctx>, Option<u32>), LlvmEmitError> {
+        let state = callable
+            .state_graph()
+            .states()
+            .iter()
+            .find(|state| state.state_id() == binding.return_state())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` 的 completion payload contract 引用了不存在的 return state st{}",
+                    callable.root_fqn(),
+                    binding.return_state().as_u32(),
+                ))
+            })?;
+        let LateLoweredStateTerminator::Return {
+            payload_source,
+            complete_state,
+        } = state.terminator()
+        else {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` state st{} 不是 Return，却发布了 completion payload contract",
+                callable.root_fqn(),
+                binding.return_state().as_u32(),
+            )));
+        };
+        if binding.complete_state() != *complete_state
+            || binding.complete_state() != callable.state_graph().complete_state()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 complete_state 漂移：binding=st{}，state_graph_return=st{}，callable_complete=st{}",
+                callable.root_fqn(),
+                binding.return_state().as_u32(),
+                binding.complete_state().as_u32(),
+                complete_state.as_u32(),
+                callable.state_graph().complete_state().as_u32(),
+            )));
+        }
+        if binding.payload_source() != payload_source {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload source 漂移：binding={:?}，state_graph={:?}",
+                callable.root_fqn(),
+                binding.return_state().as_u32(),
+                binding.payload_source(),
+                payload_source,
+            )));
+        }
+        if binding.payload_source().source_ty() != step_type.complete_ty() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload source type t{} 与 StepSchema s{} complete_ty t{} 不一致",
+                callable.root_fqn(),
+                binding.return_state().as_u32(),
+                binding.payload_source().source_ty().as_u32(),
+                step_type.step_schema().as_u32(),
+                step_type.complete_ty().as_u32(),
+            )));
+        }
+        if matches!(
+            binding.payload_source(),
+            LateLoweredCompletionPayloadSource::Unit { .. }
+        ) && !matches!(
+            self.source_types.kind(step_type.complete_ty()),
+            TypeKind::Value(ValueTypeKind::Unit)
+        ) {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 对 non-Unit complete_ty t{} 发布了 Unit completion payload source",
+                callable.root_fqn(),
+                binding.return_state().as_u32(),
+                step_type.complete_ty().as_u32(),
+            )));
+        }
+
+        let expected_frame_slot = match binding.payload_source() {
+            LateLoweredCompletionPayloadSource::Operand(source) => match source.value() {
+                LateLoweredOperandValueSource::Local(local) => {
+                    Self::published_frame_slot_for_local(callable.frame_schema(), *local)
+                }
+                LateLoweredOperandValueSource::Const(_) => None,
+            },
+            LateLoweredCompletionPayloadSource::Unit { .. } => None,
+        };
+        if binding.payload_frame_slot() != expected_frame_slot {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload frame home 漂移：binding={:?}，expected={:?}",
+                callable.root_fqn(),
+                binding.return_state().as_u32(),
+                binding.payload_frame_slot(),
+                expected_frame_slot,
+            )));
+        }
+
+        let frame_field_index = binding
+            .payload_frame_slot()
+            .map(|slot_id| {
+                let slot = callable
+                    .frame_schema()
+                    .slots()
+                    .iter()
+                    .find(|slot| slot.slot_id() == slot_id)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload contract 引用了不存在的 frame slot fs{}",
+                            callable.root_fqn(),
+                            binding.return_state().as_u32(),
+                            slot_id.as_u32(),
+                        ))
+                    })?;
+                if slot.ty() != binding.payload_source().source_ty() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload home slot fs{} 类型 t{} 与 payload source type t{} 不一致",
+                        callable.root_fqn(),
+                        binding.return_state().as_u32(),
+                        slot_id.as_u32(),
+                        slot.ty().as_u32(),
+                        binding.payload_source().source_ty().as_u32(),
+                    )));
+                }
+                frame_layout.field_index_for_slot(slot_id).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload frame slot fs{} 在 frame layout 中缺少对应 field",
+                        callable.root_fqn(),
+                        binding.return_state().as_u32(),
+                        slot_id.as_u32(),
+                    ))
+                })
+            })
+            .transpose()?;
+        let payload_layout = self.source_value_layout(binding.payload_source().source_ty())?;
+        Ok((*payload_layout.abi(), frame_field_index))
+    }
+
     fn published_boundary_result_slot(
         frame_schema: &crate::effect_lowered::ir::LateLoweredFrameSchema,
         boundary_id: BoundaryId,
@@ -2757,6 +2985,15 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 _ => None,
             })
+    }
+
+    fn published_frame_slot_for_local(
+        frame_schema: &crate::effect_lowered::ir::LateLoweredFrameSchema,
+        local: crate::mir::LocalId,
+    ) -> Option<crate::effect_lowered::ir::FrameSlotId> {
+        frame_schema.slots().iter().find_map(|slot| {
+            (Self::frame_slot_local(slot.kind()) == Some(local)).then_some(slot.slot_id())
+        })
     }
 
     fn frame_slot_local(kind: LateLoweredFrameSlotKind) -> Option<crate::mir::LocalId> {
@@ -5035,6 +5272,7 @@ mod tests {
         LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySource,
         LateLoweredBoundarySourceConsumption, LateLoweredCallBoundaryLowering,
         LateLoweredCallBoundaryOperandContract, LateLoweredCallable,
+        LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
         LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
         LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
         LateLoweredFrameSchema, LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
@@ -7153,7 +7391,10 @@ mod tests {
                 let program = &inputs.abi_visibility_program;
                 let fetch = program.callable("fetch").expect("fetch callable 应存在");
                 let frame_schema =
-                    LateLoweredFrameSchema::new(fetch.frame_schema().slots().to_vec());
+                    LateLoweredFrameSchema::new(fetch.frame_schema().slots().to_vec())
+                        .with_completion_payload_bindings(
+                            fetch.frame_schema().completion_payload_bindings().to_vec(),
+                        );
                 let callables = program
                     .callables()
                     .iter()
@@ -7236,7 +7477,10 @@ mod tests {
                     .collect();
                 let frame_schema =
                     LateLoweredFrameSchema::new(main.frame_schema().slots().to_vec())
-                        .with_resume_payload_bindings(bindings);
+                        .with_resume_payload_bindings(bindings)
+                        .with_completion_payload_bindings(
+                            main.frame_schema().completion_payload_bindings().to_vec(),
+                        );
                 let callables = program
                     .callables()
                     .iter()
@@ -7267,6 +7511,170 @@ mod tests {
                             || message.contains("漂移")
                             || message.contains("冲突")),
                     "错误消息应指出 runtime-error resumed local/home contract 漂移: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_completion_payload_contract_resolves_return_state_query() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("completion payload contract 应成功发布到 LLVM query");
+                let run = inputs
+                    .abi_visibility_program
+                    .callable("run")
+                    .expect("run callable 应存在");
+                let binding = run
+                    .frame_schema()
+                    .completion_payload_bindings()
+                    .iter()
+                    .find(|binding| !binding.payload_source().is_unit())
+                    .expect("run(): Int 应发布 non-Unit completion payload binding");
+                let layout = query
+                    .completion_payload_binding_layout(run.step_schema(), binding)
+                    .expect("return state 应可回查 completion payload contract");
+                let state_layout = query
+                    .completion_payload_binding_for_state(run.step_schema(), binding.return_state())
+                    .expect("return state 应可直接回查 completion payload contract");
+                let frame_layout = query
+                    .frame_layout(run.step_schema())
+                    .expect("run frame layout 应可查询");
+
+                assert_eq!(layout.owner_step_schema(), run.step_schema());
+                assert_eq!(layout.return_state(), binding.return_state());
+                assert_eq!(layout.complete_state(), run.state_graph().complete_state());
+                assert_eq!(state_layout.binding(), binding);
+                assert_eq!(layout.payload_source(), binding.payload_source());
+                assert_eq!(
+                    inputs
+                        .effect_lowered_stage_output
+                        .types()
+                        .display(layout.payload_source().source_ty())
+                        .to_string(),
+                    "Int"
+                );
+                assert!(
+                    !layout.payload_abi().is_elided(),
+                    "Int completion payload 不应在 ABI 中被 elide"
+                );
+                if let Some(slot_id) = binding.payload_frame_slot() {
+                    assert_eq!(
+                        layout.frame_field_index(),
+                        frame_layout.field_index_for_slot(slot_id),
+                    );
+                }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_completion_payload_contract_rejects_missing_contract() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let run = program.callable("run").expect("run callable 应存在");
+                let frame_schema = LateLoweredFrameSchema::new(run.frame_schema().slots().to_vec())
+                    .with_resume_payload_bindings(
+                        run.frame_schema().resume_payload_bindings().to_vec(),
+                    );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == run.step_schema() {
+                            clone_callable_with_frame_schema(candidate, frame_schema.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 completion payload contract 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("completion payload contract"),
+                    "错误消息应指出缺失的是 completion payload contract: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_completion_payload_contract_rejects_source_drift() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let run = program.callable("run").expect("run callable 应存在");
+                let drifted_bindings = run
+                    .frame_schema()
+                    .completion_payload_bindings()
+                    .iter()
+                    .map(|binding| {
+                        if binding.payload_source().is_unit() {
+                            binding.clone()
+                        } else {
+                            LateLoweredCompletionPayloadBinding::new(
+                                binding.return_state(),
+                                binding.complete_state(),
+                                LateLoweredCompletionPayloadSource::unit(
+                                    binding.payload_source().source_ty(),
+                                ),
+                                binding.payload_frame_slot(),
+                            )
+                        }
+                    })
+                    .collect();
+                let frame_schema = LateLoweredFrameSchema::new(run.frame_schema().slots().to_vec())
+                    .with_resume_payload_bindings(
+                        run.frame_schema().resume_payload_bindings().to_vec(),
+                    )
+                    .with_completion_payload_bindings(drifted_bindings);
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == run.step_schema() {
+                            clone_callable_with_frame_schema(candidate, frame_schema.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("completion payload source 漂移时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("completion payload source")
+                        || message.contains("completion payload frame home"),
+                    "错误消息应指出 completion payload contract 漂移: {message}"
                 );
             },
         );
@@ -8766,6 +9174,15 @@ fun main(): Int {
                         })
                         .cloned()
                         .collect(),
+                )
+                .with_resume_payload_bindings(
+                    callable.frame_schema().resume_payload_bindings().to_vec(),
+                )
+                .with_completion_payload_bindings(
+                    callable
+                        .frame_schema()
+                        .completion_payload_bindings()
+                        .to_vec(),
                 );
                 let callables = program
                     .callables()

@@ -9,7 +9,8 @@ use crate::effect_facts::{
 };
 use crate::effect_lowered::ir::{
     BoundaryId, ContinuationObjectId, FrameSlotId, LateLoweredBodyVersionKey,
-    LateLoweredCallBoundaryOperandContract, LateLoweredConsumedRuntimeErrorCase,
+    LateLoweredCallBoundaryOperandContract, LateLoweredCompletionPayloadBinding,
+    LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
     LateLoweredContinuationMethodReachability, LateLoweredHandleBoundaryRouting,
     LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
     LateLoweredHandlePendingPayloadTransport, LateLoweredHandleStateRegion,
@@ -775,6 +776,62 @@ impl RefactorResumePayloadBindingLayout {
 
     pub(super) fn consumer_frame_slot(&self) -> Option<FrameSlotId> {
         self.binding.consumer_frame_slot()
+    }
+
+    pub(super) fn frame_field_index(&self) -> Option<u32> {
+        self.frame_field_index
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct RefactorCompletionPayloadBindingLayout<'ctx> {
+    owner_step_schema: StepSchemaId,
+    binding: LateLoweredCompletionPayloadBinding,
+    payload_abi: RefactorAbiValue<'ctx>,
+    frame_field_index: Option<u32>,
+}
+
+impl<'ctx> RefactorCompletionPayloadBindingLayout<'ctx> {
+    pub(super) fn new(
+        owner_step_schema: StepSchemaId,
+        binding: LateLoweredCompletionPayloadBinding,
+        payload_abi: RefactorAbiValue<'ctx>,
+        frame_field_index: Option<u32>,
+    ) -> Self {
+        Self {
+            owner_step_schema,
+            binding,
+            payload_abi,
+            frame_field_index,
+        }
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn binding(&self) -> &LateLoweredCompletionPayloadBinding {
+        &self.binding
+    }
+
+    pub(super) fn return_state(&self) -> StateId {
+        self.binding.return_state()
+    }
+
+    pub(super) fn complete_state(&self) -> StateId {
+        self.binding.complete_state()
+    }
+
+    pub(super) fn payload_source(&self) -> &LateLoweredCompletionPayloadSource {
+        self.binding.payload_source()
+    }
+
+    pub(super) fn payload_frame_slot(&self) -> Option<FrameSlotId> {
+        self.binding.payload_frame_slot()
+    }
+
+    pub(super) fn payload_abi(&self) -> &RefactorAbiValue<'ctx> {
+        &self.payload_abi
     }
 
     pub(super) fn frame_field_index(&self) -> Option<u32> {
@@ -1922,6 +1979,8 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
         BTreeMap<(StepSchemaId, BoundaryId), RefactorResumePayloadBindingLayout>,
     resume_payload_bindings_by_state:
         BTreeMap<(StepSchemaId, StateId), RefactorResumePayloadBindingLayout>,
+    completion_payload_binding_layouts:
+        BTreeMap<(StepSchemaId, StateId), RefactorCompletionPayloadBindingLayout<'ctx>>,
     local_runtime_error_contracts:
         BTreeMap<(StepSchemaId, SiteId), RefactorLocalRuntimeErrorContract<'ctx>>,
     handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorHandleDispatchLayout>,
@@ -1977,6 +2036,10 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             (StepSchemaId, StateId),
             RefactorResumePayloadBindingLayout,
         >,
+        completion_payload_binding_layouts: BTreeMap<
+            (StepSchemaId, StateId),
+            RefactorCompletionPayloadBindingLayout<'ctx>,
+        >,
         local_runtime_error_contracts: BTreeMap<
             (StepSchemaId, SiteId),
             RefactorLocalRuntimeErrorContract<'ctx>,
@@ -2001,6 +2064,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             resume_boundary_operand_layouts,
             resume_payload_binding_layouts,
             resume_payload_bindings_by_state,
+            completion_payload_binding_layouts,
             local_runtime_error_contracts,
             handle_dispatch_layouts,
         }
@@ -2320,6 +2384,51 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                     "refactor LLVM ABI query 缺少 owner step schema s{} resume state st{} 的 resumed local/home contract",
                     owner_step_schema.as_u32(),
                     resume_state.as_u32(),
+                ),
+            })
+    }
+
+    pub(super) fn completion_payload_binding_layout(
+        &self,
+        owner_step_schema: StepSchemaId,
+        binding: &LateLoweredCompletionPayloadBinding,
+    ) -> Result<&RefactorCompletionPayloadBindingLayout<'ctx>, LlvmEmitError> {
+        let published = self
+            .completion_payload_binding_layouts
+            .get(&(owner_step_schema, binding.return_state()))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} return state st{} 的 completion payload contract",
+                    owner_step_schema.as_u32(),
+                    binding.return_state().as_u32(),
+                ),
+            })?;
+        if published.binding() != binding {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 owner step schema s{} return state st{} 的 completion payload contract 漂移：published={:?}，lowered={:?}",
+                    owner_step_schema.as_u32(),
+                    binding.return_state().as_u32(),
+                    published.binding(),
+                    binding,
+                ),
+            });
+        }
+        Ok(published)
+    }
+
+    pub(super) fn completion_payload_binding_for_state(
+        &self,
+        owner_step_schema: StepSchemaId,
+        return_state: StateId,
+    ) -> Result<&RefactorCompletionPayloadBindingLayout<'ctx>, LlvmEmitError> {
+        self.completion_payload_binding_layouts
+            .get(&(owner_step_schema, return_state))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} return state st{} 的 completion payload contract",
+                    owner_step_schema.as_u32(),
+                    return_state.as_u32(),
                 ),
             })
     }

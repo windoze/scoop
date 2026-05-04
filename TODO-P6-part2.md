@@ -957,7 +957,7 @@
     - `cargo clippy -p scoop --all-targets -- -D warnings`
     - 可选 smoke：`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 现在通过 run-pass 子进程得到非零退出；直接运行 `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 显示 `scoop::llvm::refactor_effect_lowering_unsupported`，确认失败来自尚未完成的 refactor LLVM body lowering，而不是静默回 legacy。
 
-## P6-T02qg：发布 non-`Unit` completion payload source / return-value contract，禁止 P6-T03 在 backend 回 raw MIR/tail shape 恢复完成值
+## [DONE] P6-T02qg：发布 non-`Unit` completion payload source / return-value contract，禁止 P6-T03 在 backend 回 raw MIR/tail shape 恢复完成值
 
 - 参考：
   - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T03`
@@ -1008,7 +1008,18 @@
   - 缺失、歧义或类型漂移时在 P5/P6 边界显式拒绝。
 - 依赖：P6-T02qd，P6-T02qe，P6-T02qf
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：完成 `P6-T02qg`。`crates/scoopc/src/mir/lower.rs` 现在会为非 `Unit` 函数体尾表达式生成带值 `Return` terminator，避免 `run(): Int` 这类 callable 在 P5 state graph 中丢失完成值来源。
+  - 2026-05-04：`crates/scoopc/src/effect_lowered/{ir,segment,materialize,dump,opt}.rs` 已把 `LateLoweredStateTerminator::Return` 改为携带 `LateLoweredCompletionPayloadSource`，并在 `LateLoweredFrameSchema` 中发布 `LateLoweredCompletionPayloadBinding`；`dump-effect-lowered` 现在会显示每条 completion path 的 `payload=...` 与可选 frame home，`Unit` completion 也显式渲染为 `Unit:t*` 而不是缺失值。
+  - 2026-05-04：`crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 新增 `RefactorCompletionPayloadBindingLayout` 与 return-state query，ABI materializer 会校验 return state、`complete_ty`、payload source、frame/home slot 与 `Step_F.Complete` layout 一致；缺失、source 漂移或类型漂移会在 P6 handoff 边界显式拒绝。
+  - 2026-05-04：新增定向测试 `refactor_effect_lowered_completion_payload_contract_*` 与 `refactor_llvm_completion_payload_contract_*`，覆盖 `effect_resume_if_else_branch_single_perform.scoop` 的 `run(): Int` non-`Unit` completion source、dump 可见性、缺失 contract 和 source/type drift fail-fast。`PLAN.md` 无需改动。
+  - 已运行验证：
+    - `cargo test -p scoopc refactor_effect_lowered_completion_payload_contract`
+    - `cargo test -p scoopc refactor_llvm_completion_payload_contract`
+    - `cargo test -p scoopc refactor_llvm_`
+    - `cargo test -p scoopc refactor_effect_lowered_`
+    - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

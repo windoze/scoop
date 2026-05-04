@@ -221,6 +221,11 @@ pub enum EffectLoweringError {
         detail: String,
     },
 
+    #[error(
+        "refactor late-lowering stage 无法为 `{root_fqn}` 发布 completion payload contract：{detail}"
+    )]
+    InvalidCompletionPayloadContract { root_fqn: String, detail: String },
+
     #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
 }

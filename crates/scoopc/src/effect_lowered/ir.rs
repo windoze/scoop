@@ -1620,6 +1620,41 @@ impl LateLoweredOperandSource {
     }
 }
 
+/// callable completion path 的 published payload source。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LateLoweredCompletionPayloadSource {
+    Unit { complete_ty: TypeId },
+    Operand(LateLoweredOperandSource),
+}
+
+impl LateLoweredCompletionPayloadSource {
+    pub(crate) fn unit(complete_ty: TypeId) -> Self {
+        Self::Unit { complete_ty }
+    }
+
+    pub(crate) fn operand(source: LateLoweredOperandSource) -> Self {
+        Self::Operand(source)
+    }
+
+    pub fn source_ty(&self) -> TypeId {
+        match self {
+            Self::Unit { complete_ty } => *complete_ty,
+            Self::Operand(source) => source.source_ty(),
+        }
+    }
+
+    pub fn operand_source(&self) -> Option<&LateLoweredOperandSource> {
+        match self {
+            Self::Unit { .. } => None,
+            Self::Operand(source) => Some(source),
+        }
+    }
+
+    pub fn is_unit(&self) -> bool {
+        matches!(self, Self::Unit { .. })
+    }
+}
+
 /// boundary 在 owner state source-slice 中消费哪一个 anchor。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LateLoweredBoundarySourceConsumption {
@@ -2224,7 +2259,7 @@ pub enum LateLoweredStateTerminator {
         else_state: StateId,
     },
     Return {
-        value_local: Option<LocalId>,
+        payload_source: LateLoweredCompletionPayloadSource,
         complete_state: StateId,
     },
     HandleDispatch {
@@ -3283,11 +3318,53 @@ impl LateLoweredResumePayloadBinding {
     }
 }
 
+/// callable `Complete(answer)` 构造时使用的 payload source 与 frame home contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredCompletionPayloadBinding {
+    return_state: StateId,
+    complete_state: StateId,
+    payload_source: LateLoweredCompletionPayloadSource,
+    payload_frame_slot: Option<FrameSlotId>,
+}
+
+impl LateLoweredCompletionPayloadBinding {
+    pub(crate) fn new(
+        return_state: StateId,
+        complete_state: StateId,
+        payload_source: LateLoweredCompletionPayloadSource,
+        payload_frame_slot: Option<FrameSlotId>,
+    ) -> Self {
+        Self {
+            return_state,
+            complete_state,
+            payload_source,
+            payload_frame_slot,
+        }
+    }
+
+    pub fn return_state(&self) -> StateId {
+        self.return_state
+    }
+
+    pub fn complete_state(&self) -> StateId {
+        self.complete_state
+    }
+
+    pub fn payload_source(&self) -> &LateLoweredCompletionPayloadSource {
+        &self.payload_source
+    }
+
+    pub fn payload_frame_slot(&self) -> Option<FrameSlotId> {
+        self.payload_frame_slot
+    }
+}
+
 /// late-lowered callable 的 frame schema 壳层。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredFrameSchema {
     slots: Vec<LateLoweredFrameSlot>,
     resume_payload_bindings: Vec<LateLoweredResumePayloadBinding>,
+    completion_payload_bindings: Vec<LateLoweredCompletionPayloadBinding>,
 }
 
 impl LateLoweredFrameSchema {
@@ -3295,6 +3372,7 @@ impl LateLoweredFrameSchema {
         Self {
             slots,
             resume_payload_bindings: Vec::new(),
+            completion_payload_bindings: Vec::new(),
         }
     }
 
@@ -3302,6 +3380,7 @@ impl LateLoweredFrameSchema {
         Self {
             slots: Vec::new(),
             resume_payload_bindings: Vec::new(),
+            completion_payload_bindings: Vec::new(),
         }
     }
 
@@ -3310,6 +3389,14 @@ impl LateLoweredFrameSchema {
         resume_payload_bindings: Vec<LateLoweredResumePayloadBinding>,
     ) -> Self {
         self.resume_payload_bindings = resume_payload_bindings;
+        self
+    }
+
+    pub(crate) fn with_completion_payload_bindings(
+        mut self,
+        completion_payload_bindings: Vec<LateLoweredCompletionPayloadBinding>,
+    ) -> Self {
+        self.completion_payload_bindings = completion_payload_bindings;
         self
     }
 
@@ -3341,6 +3428,19 @@ impl LateLoweredFrameSchema {
         self.resume_payload_bindings
             .iter()
             .find(|binding| binding.resume_state() == resume_state)
+    }
+
+    pub fn completion_payload_bindings(&self) -> &[LateLoweredCompletionPayloadBinding] {
+        &self.completion_payload_bindings
+    }
+
+    pub fn completion_payload_binding_for_state(
+        &self,
+        return_state: StateId,
+    ) -> Option<&LateLoweredCompletionPayloadBinding> {
+        self.completion_payload_bindings
+            .iter()
+            .find(|binding| binding.return_state() == return_state)
     }
 }
 
@@ -3622,7 +3722,7 @@ mod tests {
                             true,
                         )],
                         LateLoweredStateTerminator::Return {
-                            value_local: Some(LocalId::from_raw(0)),
+                            payload_source: LateLoweredCompletionPayloadSource::unit(builtins.unit),
                             complete_state: state1,
                         },
                     ),

@@ -7,6 +7,7 @@ use super::ir::{
     BoundarySiteKind, LateLoweredBodyVersionKey, LateLoweredBoundary, LateLoweredBoundaryLowering,
     LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
     LateLoweredCallBoundaryOperandContract, LateLoweredCallable, LateLoweredCompleteStepDispatch,
+    LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
     LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
     LateLoweredContinuationMethod, LateLoweredContinuationObject,
     LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
@@ -804,6 +805,14 @@ fn render_frame_schema(rendered: &mut String, frame_schema: &LateLoweredFrameSch
             render_resume_payload_binding(rendered, binding);
         }
     }
+    writeln!(rendered, "        completion_payload_bindings:").unwrap();
+    if frame_schema.completion_payload_bindings().is_empty() {
+        writeln!(rendered, "          <none>").unwrap();
+    } else {
+        for binding in frame_schema.completion_payload_bindings() {
+            render_completion_payload_binding(rendered, binding);
+        }
+    }
 }
 
 fn render_frame_slot(rendered: &mut String, slot: &LateLoweredFrameSlot) {
@@ -830,6 +839,21 @@ fn render_resume_payload_binding(rendered: &mut String, binding: &LateLoweredRes
             .consumer_frame_slot()
             .map(|slot| format!("slot{}", slot.as_u32()))
             .unwrap_or_else(|| "<none>".to_string()),
+    )
+    .unwrap();
+}
+
+fn render_completion_payload_binding(
+    rendered: &mut String,
+    binding: &LateLoweredCompletionPayloadBinding,
+) {
+    writeln!(
+        rendered,
+        "          - return=st{} complete=st{} payload={} home={}",
+        binding.return_state().as_u32(),
+        binding.complete_state().as_u32(),
+        render_completion_payload_source(binding.payload_source()),
+        render_optional_frame_slot(binding.payload_frame_slot()),
     )
     .unwrap();
 }
@@ -1107,6 +1131,15 @@ fn render_operand_source(source: &LateLoweredOperandSource) -> String {
     format!("{value}:{}", render_type_id(source.source_ty()))
 }
 
+fn render_completion_payload_source(source: &LateLoweredCompletionPayloadSource) -> String {
+    match source {
+        LateLoweredCompletionPayloadSource::Unit { complete_ty } => {
+            format!("Unit:{}", render_type_id(*complete_ty))
+        }
+        LateLoweredCompletionPayloadSource::Operand(source) => render_operand_source(source),
+    }
+}
+
 fn render_complete_step_dispatch(
     rendered: &mut String,
     complete: &LateLoweredCompleteStepDispatch,
@@ -1335,13 +1368,11 @@ fn render_state_terminator(terminator: &LateLoweredStateTerminator) -> String {
             else_state.as_u32(),
         ),
         LateLoweredStateTerminator::Return {
-            value_local,
+            payload_source,
             complete_state,
         } => format!(
             "Return({} -> st{})",
-            value_local
-                .map(|local| format!("local{}", local.as_u32()))
-                .unwrap_or_else(|| "Unit".to_string()),
+            render_completion_payload_source(payload_source),
             complete_state.as_u32(),
         ),
         LateLoweredStateTerminator::HandleDispatch {

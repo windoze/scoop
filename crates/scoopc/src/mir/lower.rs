@@ -625,8 +625,21 @@ impl<'a> FnLowering<'a> {
         let mir_body = if let Some(block) = fun.body.as_ref() {
             // 先扫描函数体：若某个 `var` 被任意深度的嵌套 closure 捕获，则该 `var` 在本函数内需要 box 存储。
             self.boxed_symbols = boxed_symbols_in_block(block);
-            self.lower_block_as_stmt(block);
-            self.finish_function(fun.span);
+            if fun.return_ty == self.builtins.unit {
+                self.lower_block_as_stmt(block);
+                self.finish_function(fun.span);
+            } else {
+                let body_result = self.lower_block_as_expr(block);
+                if !self.current_is_terminated() {
+                    self.set_terminator(
+                        self.current_bb,
+                        fun.span,
+                        TerminatorKind::Return {
+                            value: Some(Operand::Local(body_result)),
+                        },
+                    );
+                }
+            }
             Some(std::mem::replace(&mut self.body, Body::new_empty()))
         } else {
             None

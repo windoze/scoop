@@ -17,7 +17,8 @@ use super::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundary,
     LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption,
     LateLoweredCallBoundaryLowering, LateLoweredCallBoundaryOperandContract,
-    LateLoweredCompleteStepDispatch, LateLoweredConsumedRuntimeErrorCase,
+    LateLoweredCompleteStepDispatch, LateLoweredCompletionPayloadBinding,
+    LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
     LateLoweredContinuationCapture, LateLoweredContinuationContract, LateLoweredContinuationMethod,
     LateLoweredContinuationObject, LateLoweredContinuationResumeBody,
     LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
@@ -2017,6 +2018,130 @@ pub(crate) fn materialize_resume_payload_bindings(
         .collect())
 }
 
+pub(crate) fn materialize_completion_payload_bindings(
+    root_fqn: &str,
+    step_type: &LateLoweredStepType,
+    state_graph: &LateLoweredStateGraph,
+    frame_schema: &LateLoweredFrameSchema,
+    types: &TypeStore,
+) -> Result<Vec<LateLoweredCompletionPayloadBinding>, EffectLoweringError> {
+    let mut bindings = BTreeMap::<StateId, LateLoweredCompletionPayloadBinding>::new();
+    for state in state_graph.states() {
+        let LateLoweredStateTerminator::Return {
+            payload_source,
+            complete_state,
+        } = state.terminator()
+        else {
+            continue;
+        };
+        if *complete_state != state_graph.complete_state() {
+            return Err(invalid_completion_payload_contract(
+                root_fqn,
+                format!(
+                    "return state st{} 指向 st{}，但 callable complete_state 是 st{}",
+                    state.state_id().as_u32(),
+                    complete_state.as_u32(),
+                    state_graph.complete_state().as_u32(),
+                ),
+            ));
+        }
+        validate_completion_payload_source(root_fqn, step_type, payload_source, types)?;
+        let payload_frame_slot =
+            completion_payload_frame_slot(root_fqn, frame_schema, payload_source)?;
+        let binding = LateLoweredCompletionPayloadBinding::new(
+            state.state_id(),
+            *complete_state,
+            payload_source.clone(),
+            payload_frame_slot,
+        );
+        if bindings.insert(state.state_id(), binding).is_some() {
+            return Err(invalid_completion_payload_contract(
+                root_fqn,
+                format!(
+                    "return state st{} 重复发布 completion payload source",
+                    state.state_id().as_u32(),
+                ),
+            ));
+        }
+    }
+    Ok(bindings.into_values().collect())
+}
+
+fn validate_completion_payload_source(
+    root_fqn: &str,
+    step_type: &LateLoweredStepType,
+    payload_source: &LateLoweredCompletionPayloadSource,
+    types: &TypeStore,
+) -> Result<(), EffectLoweringError> {
+    if payload_source.source_ty() != step_type.complete_ty() {
+        return Err(invalid_completion_payload_contract(
+            root_fqn,
+            format!(
+                "payload source type t{} 与 StepSchema s{} complete_ty t{} 不一致",
+                payload_source.source_ty().as_u32(),
+                step_type.step_schema().as_u32(),
+                step_type.complete_ty().as_u32(),
+            ),
+        ));
+    }
+    if payload_source.is_unit() && !is_unit_type(types, step_type.complete_ty()) {
+        return Err(invalid_completion_payload_contract(
+            root_fqn,
+            format!(
+                "non-Unit complete_ty t{} 不能发布 Unit completion payload source",
+                step_type.complete_ty().as_u32(),
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn completion_payload_frame_slot(
+    root_fqn: &str,
+    frame_schema: &LateLoweredFrameSchema,
+    payload_source: &LateLoweredCompletionPayloadSource,
+) -> Result<Option<crate::effect_lowered::ir::FrameSlotId>, EffectLoweringError> {
+    let Some(source) = payload_source.operand_source() else {
+        return Ok(None);
+    };
+    let crate::effect_lowered::ir::LateLoweredOperandValueSource::Local(local) = source.value()
+    else {
+        return Ok(None);
+    };
+    let Some(slot_id) = find_frame_slot_for_local(frame_schema, *local) else {
+        return Ok(None);
+    };
+    let slot = frame_schema
+        .slots()
+        .iter()
+        .find(|slot| slot.slot_id() == slot_id)
+        .expect("frame slot id returned by find_frame_slot_for_local should exist");
+    if slot.ty() != source.source_ty() {
+        return Err(invalid_completion_payload_contract(
+            root_fqn,
+            format!(
+                "completion payload local{} 的 home slot{} 类型为 t{}，但 payload source type 为 t{}",
+                local.as_u32(),
+                slot.slot_id().as_u32(),
+                slot.ty().as_u32(),
+                source.source_ty().as_u32(),
+            ),
+        ));
+    }
+    Ok(Some(slot_id))
+}
+
+fn invalid_completion_payload_contract(root_fqn: &str, detail: String) -> EffectLoweringError {
+    EffectLoweringError::InvalidCompletionPayloadContract {
+        root_fqn: root_fqn.to_string(),
+        detail,
+    }
+}
+
+fn is_unit_type(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(types.kind(ty), TypeKind::Value(ValueTypeKind::Unit))
+}
+
 fn build_resume_payload_binding_from_result_local(
     root_fqn: &str,
     frame_schema: &LateLoweredFrameSchema,
@@ -3483,10 +3608,11 @@ mod tests {
     use crate::effect_lowered::LateLoweredProgramBuilder;
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundarySourceConsumption,
-        LateLoweredContinuationMethodReachability, LateLoweredContinuationResumeBody,
-        LateLoweredFrameSlotKind, LateLoweredHandleBoundaryCaseRoutingAction,
-        LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion, LateLoweredOneShotPolicy,
-        LateLoweredOperandValueSource, LateLoweredStateTerminator,
+        LateLoweredCompletionPayloadSource, LateLoweredContinuationMethodReachability,
+        LateLoweredContinuationResumeBody, LateLoweredFrameSlotKind,
+        LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
+        LateLoweredHandleStateRegion, LateLoweredOneShotPolicy, LateLoweredOperandValueSource,
+        LateLoweredStateTerminator, LateLoweredStepType,
         LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
         SystemSlotKind,
     };
@@ -4588,6 +4714,104 @@ mod tests {
         assert!(dump.contains("resume_payload_bindings:"));
         assert!(dump.contains("bd0 resume=st2"));
         assert!(dump.contains("home=slot"));
+    }
+
+    #[test]
+    fn refactor_effect_lowered_completion_payload_contract_publishes_non_unit_return_source() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+        ));
+        let run = callable(&output, "run");
+        let step_type = output
+            .program()
+            .step_type(run.step_schema())
+            .expect("run 应能回查 Step shell");
+        let (return_state, payload_source, complete_state) = run
+            .state_graph()
+            .states()
+            .iter()
+            .find_map(|state| match state.terminator() {
+                LateLoweredStateTerminator::Return {
+                    payload_source,
+                    complete_state,
+                } => Some((state.state_id(), payload_source, *complete_state)),
+                _ => None,
+            })
+            .expect("run(): Int 应发布 Return terminator");
+        let binding = run
+            .frame_schema()
+            .completion_payload_binding_for_state(return_state)
+            .expect("return state 应发布 completion payload binding");
+
+        assert_eq!(complete_state, run.state_graph().complete_state());
+        assert_eq!(binding.complete_state(), complete_state);
+        assert_eq!(binding.payload_source(), payload_source);
+        assert_eq!(payload_source.source_ty(), step_type.complete_ty());
+        assert_eq!(
+            output
+                .types()
+                .display(payload_source.source_ty())
+                .to_string(),
+            "Int"
+        );
+        assert!(
+            !payload_source.is_unit(),
+            "non-Unit completion 不应退化成 Unit payload source"
+        );
+        assert!(matches!(
+            payload_source,
+            LateLoweredCompletionPayloadSource::Operand(source)
+                if matches!(source.value(), LateLoweredOperandValueSource::Local(_))
+        ));
+    }
+
+    #[test]
+    fn refactor_effect_lowered_completion_payload_contract_dump_exposes_sources() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+        ));
+        let dump = output.program().stable_dump();
+
+        assert!(dump.contains("completion_payload_bindings:"));
+        assert!(dump.contains("root: run"));
+        assert!(dump.contains("payload=local"));
+    }
+
+    #[test]
+    fn refactor_effect_lowered_completion_payload_contract_rejects_type_drift() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+        ));
+        let run = callable(&output, "run");
+        let step_type = output
+            .program()
+            .step_type(run.step_schema())
+            .expect("run 应能回查 Step shell");
+        let builtins = output.types().builtins().expect("builtins 应已 intern");
+        let wrong_step_type = LateLoweredStepType::new(
+            step_type.step_schema(),
+            step_type.invoke_args_tuple_ty(),
+            builtins.unit,
+            step_type.continuation_obj_ty(),
+            step_type.cases().to_vec(),
+        );
+
+        let err = super::materialize_completion_payload_bindings(
+            run.root_fqn(),
+            &wrong_step_type,
+            run.state_graph(),
+            run.frame_schema(),
+            output.types(),
+        )
+        .expect_err("completion payload type drift 必须 fail fast");
+        assert!(
+            err.to_string().contains("completion payload contract")
+                && err.to_string().contains("complete_ty"),
+            "错误消息应指出 completion payload complete_ty 漂移: {err}"
+        );
     }
 
     #[test]

@@ -10,7 +10,8 @@ use super::ir::{
 };
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs, StepMaterialization,
-    materialize_boundary_map, materialize_continuation_object, materialize_dynamic_invoke_entry,
+    materialize_boundary_map, materialize_completion_payload_bindings,
+    materialize_continuation_object, materialize_dynamic_invoke_entry,
     materialize_resume_payload_bindings, materialize_step_and_resume_interfaces,
 };
 use super::segment::build_callable_segmentation;
@@ -102,8 +103,12 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                                 root_fqn: root_fqn.clone(),
                             }
                         })?;
-                        let segmentation =
-                            build_callable_segmentation(&root_fqn, body, body_facts)?;
+                        let segmentation = build_callable_segmentation(
+                            &root_fqn,
+                            body,
+                            body_facts,
+                            step_schema.complete_ty(),
+                        )?;
                         let frame = build_callable_frame(FrameBuildInputs {
                             root_fqn: &root_fqn,
                             body,
@@ -163,7 +168,16 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             let boundary_map = boundary_map.boundary_map;
             let resume_payload_bindings =
                 materialize_resume_payload_bindings(&root_fqn, &frame_schema, &boundary_map)?;
-            let frame_schema = frame_schema.with_resume_payload_bindings(resume_payload_bindings);
+            let completion_payload_bindings = materialize_completion_payload_bindings(
+                &root_fqn,
+                step_type,
+                &state_graph,
+                &frame_schema,
+                types,
+            )?;
+            let frame_schema = frame_schema
+                .with_resume_payload_bindings(resume_payload_bindings)
+                .with_completion_payload_bindings(completion_payload_bindings);
             continuation_objects.push(materialize_continuation_object(
                 ContinuationObjectMaterializationInputs {
                     continuation_object_id,

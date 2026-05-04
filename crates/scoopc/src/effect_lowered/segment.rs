@@ -5,13 +5,14 @@ use crate::mir::{
     BasicBlockId, Body, LocalId, Operand, Rvalue, SiteId, StatementKind, Terminator,
     TerminatorKind, UnwindAction,
 };
+use crate::ty::TypeId;
 
 use super::EffectLoweringError;
 use super::ir::{
     BoundaryId, BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryMap,
-    LateLoweredBoundarySource, LateLoweredResumeState, LateLoweredResumeStateMap, LateLoweredState,
-    LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator,
-    StateId,
+    LateLoweredBoundarySource, LateLoweredCompletionPayloadSource, LateLoweredOperandSource,
+    LateLoweredResumeState, LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph,
+    LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator, StateId,
 };
 
 /// P5-T03 产出的 whole-function segmentation skeleton。
@@ -25,8 +26,9 @@ pub(crate) fn build_callable_segmentation(
     root_fqn: &str,
     body: &Body,
     body_facts: &BodyEffectFacts,
+    complete_ty: TypeId,
 ) -> Result<LateLoweredSegmentation, EffectLoweringError> {
-    SegmentationBuilder::new(root_fqn, body, body_facts)?.build()
+    SegmentationBuilder::new(root_fqn, body, body_facts, complete_ty)?.build()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -108,7 +110,7 @@ enum StateBlueprintTerminator {
         else_state: StateId,
     },
     Return {
-        value_local: Option<LocalId>,
+        payload_source: LateLoweredCompletionPayloadSource,
     },
     HandleDispatch {
         site_id: SiteId,
@@ -125,6 +127,7 @@ enum StateBlueprintTerminator {
 struct SegmentationBuilder<'a> {
     root_fqn: &'a str,
     body: &'a Body,
+    complete_ty: TypeId,
     selected_boundaries: BTreeMap<BoundaryAnchor, SelectedBoundary>,
     cursor_ids: BTreeMap<StateCursor, StateId>,
     pending: VecDeque<StateCursor>,
@@ -141,6 +144,7 @@ impl<'a> SegmentationBuilder<'a> {
         root_fqn: &'a str,
         body: &'a Body,
         body_facts: &BodyEffectFacts,
+        complete_ty: TypeId,
     ) -> Result<Self, EffectLoweringError> {
         let selected_boundaries = collect_selected_boundaries(root_fqn, body, body_facts)?;
         let entry_cursor = StateCursor::block_start(body.start);
@@ -153,6 +157,7 @@ impl<'a> SegmentationBuilder<'a> {
         Ok(Self {
             root_fqn,
             body,
+            complete_ty,
             selected_boundaries,
             cursor_ids,
             pending,
@@ -347,7 +352,7 @@ impl<'a> SegmentationBuilder<'a> {
                 statement_len as u32,
                 true,
             )],
-            terminator: self.build_terminator_blueprint(&block.terminator, boundary_anchor),
+            terminator: self.build_terminator_blueprint(&block.terminator, boundary_anchor)?,
         })
     }
 
@@ -355,30 +360,30 @@ impl<'a> SegmentationBuilder<'a> {
         &mut self,
         terminator: &Terminator,
         boundary_anchor: Option<BoundaryAnchor>,
-    ) -> StateBlueprintTerminator {
+    ) -> Result<StateBlueprintTerminator, EffectLoweringError> {
         match &terminator.kind {
-            TerminatorKind::Return { value } => StateBlueprintTerminator::Return {
-                value_local: value.as_ref().and_then(operand_local),
-            },
-            TerminatorKind::Goto { target } => StateBlueprintTerminator::Goto {
+            TerminatorKind::Return { value } => Ok(StateBlueprintTerminator::Return {
+                payload_source: self.completion_payload_source(terminator, value)?,
+            }),
+            TerminatorKind::Goto { target } => Ok(StateBlueprintTerminator::Goto {
                 target: self.ensure_state(StateCursor::block_start(*target), false),
-            },
+            }),
             TerminatorKind::CondBr {
                 cond,
                 then_target,
                 else_target,
-            } => StateBlueprintTerminator::Branch {
+            } => Ok(StateBlueprintTerminator::Branch {
                 cond_local: operand_local(cond)
                     .expect("direct-style CondBr should lower condition into a local"),
                 then_state: self.ensure_state(StateCursor::block_start(*then_target), false),
                 else_state: self.ensure_state(StateCursor::block_start(*else_target), false),
-            },
+            }),
             TerminatorKind::Perform { resume_target, .. } if boundary_anchor.is_some() => {
-                StateBlueprintTerminator::Suspend {
+                Ok(StateBlueprintTerminator::Suspend {
                     anchor: boundary_anchor.expect("perform boundary anchor should exist"),
                     resume_state: self.ensure_state(StateCursor::block_start(*resume_target), true),
                     cleanup_target: cleanup_state_from_unwind(self, &terminator.unwind),
-                }
+                })
             }
             TerminatorKind::Handle {
                 site_id,
@@ -387,7 +392,7 @@ impl<'a> SegmentationBuilder<'a> {
                 finally_target,
                 exit_target,
                 ..
-            } => StateBlueprintTerminator::HandleDispatch {
+            } => Ok(StateBlueprintTerminator::HandleDispatch {
                 site_id: *site_id,
                 body_state: self.ensure_state(StateCursor::block_start(*body_target), false),
                 arm_states: arm_targets
@@ -401,14 +406,62 @@ impl<'a> SegmentationBuilder<'a> {
                     boundary_anchor.is_some(),
                 ),
                 boundary_anchor,
-            },
-            TerminatorKind::ResumeUnwind => StateBlueprintTerminator::ResumeUnwind,
+            }),
+            TerminatorKind::ResumeUnwind => Ok(StateBlueprintTerminator::ResumeUnwind),
             TerminatorKind::Unreachable | TerminatorKind::Todo(_) => {
-                StateBlueprintTerminator::Unreachable
+                Ok(StateBlueprintTerminator::Unreachable)
             }
-            TerminatorKind::Perform { resume_target, .. } => StateBlueprintTerminator::Goto {
+            TerminatorKind::Perform { resume_target, .. } => Ok(StateBlueprintTerminator::Goto {
                 target: self.ensure_state(StateCursor::block_start(*resume_target), true),
-            },
+            }),
+        }
+    }
+
+    fn completion_payload_source(
+        &self,
+        terminator: &Terminator,
+        value: &Option<Operand>,
+    ) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
+        let Some(value) = value else {
+            return Ok(LateLoweredCompletionPayloadSource::unit(self.complete_ty));
+        };
+        match value {
+            Operand::Local(local) => {
+                let local_ty = self
+                    .body
+                    .locals
+                    .get(local.as_u32() as usize)
+                    .map(|decl| decl.ty)
+                    .ok_or_else(|| EffectLoweringError::InvalidCompletionPayloadContract {
+                        root_fqn: self.root_fqn.to_string(),
+                        detail: format!("return payload 引用了不存在的 local{}", local.as_u32()),
+                    })?;
+                if local_ty != self.complete_ty {
+                    return Err(EffectLoweringError::InvalidCompletionPayloadContract {
+                        root_fqn: self.root_fqn.to_string(),
+                        detail: format!(
+                            "return payload local{} 的类型为 t{}，但 Step complete_ty 为 t{}",
+                            local.as_u32(),
+                            local_ty.as_u32(),
+                            self.complete_ty.as_u32()
+                        ),
+                    });
+                }
+                Ok(LateLoweredCompletionPayloadSource::operand(
+                    LateLoweredOperandSource::new_local(
+                        *local,
+                        self.complete_ty,
+                        Some(terminator.span),
+                    ),
+                ))
+            }
+            Operand::Const(value) => Ok(LateLoweredCompletionPayloadSource::operand(
+                LateLoweredOperandSource::new_const(
+                    value.clone(),
+                    self.complete_ty,
+                    Some(terminator.span),
+                ),
+            )),
         }
     }
 
@@ -466,8 +519,8 @@ fn finalize_blueprint_terminator(
             then_state: *then_state,
             else_state: *else_state,
         },
-        StateBlueprintTerminator::Return { value_local } => LateLoweredStateTerminator::Return {
-            value_local: *value_local,
+        StateBlueprintTerminator::Return { payload_source } => LateLoweredStateTerminator::Return {
+            payload_source: payload_source.clone(),
             complete_state,
         },
         StateBlueprintTerminator::HandleDispatch {
@@ -1208,17 +1261,21 @@ fun main(): Int {
         let family = pass_view
             .root_family_for_fqn("sample.callValue")
             .expect("sample.callValue 应有 canonical family");
-        let body = family
+        let root_fun = family
             .root_body()
-            .and_then(|fun| fun.body.as_ref())
+            .expect("sample.callValue 应有 canonical root fun");
+        let body = root_fun
+            .body
+            .as_ref()
             .expect("sample.callValue 应有 canonical body");
         let body_facts = effect_lowered_output
             .effect_facts()
             .body(family.key())
             .expect("sample.callValue 应有 P4 body facts");
 
-        let segmentation = build_callable_segmentation("sample.callValue", body, body_facts)
-            .expect("segmentation builder 应直接消费 canonical body + body facts");
+        let segmentation =
+            build_callable_segmentation("sample.callValue", body, body_facts, root_fun.return_ty)
+                .expect("segmentation builder 应直接消费 canonical body + body facts");
         assert_eq!(segmentation.boundary_map.entries().len(), 1);
         assert_eq!(segmentation.resume_state_map.entries().len(), 1);
     }
