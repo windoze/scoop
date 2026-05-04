@@ -24,7 +24,8 @@ use crate::effect_lowered::ir::{
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
     LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredOperandValueSource,
     LateLoweredResumePayloadBinding, LateLoweredSourceStatementClassificationKind,
-    LateLoweredState, LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredState, LateLoweredStateRole, LateLoweredStateTerminator,
+    LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
 };
 use crate::llvm::LlvmEmitError;
@@ -1336,6 +1337,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 for local_state in local_runtime_error_states {
                     self.verify_state_exists(*local_state, "local runtime-error target")?;
                 }
+                self.verify_suspend_primary_boundary_contract(state, boundary_ids)?;
                 if let Some(cleanup_state) = cleanup_state {
                     self.verify_state_exists(*cleanup_state, "suspend cleanup state")?;
                 }
@@ -1390,10 +1392,68 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 }
                 Ok(())
             }
-            LateLoweredStateTerminator::ResumeUnwind
-            | LateLoweredStateTerminator::Unreachable
-            | LateLoweredStateTerminator::Abandon => Ok(()),
+            LateLoweredStateTerminator::ResumeUnwind => self.verify_resume_unwind_contract(state),
+            LateLoweredStateTerminator::Unreachable => Ok(()),
+            LateLoweredStateTerminator::Abandon => self.verify_abandon_contract(state),
         }
+    }
+
+    fn verify_suspend_primary_boundary_contract(
+        &self,
+        state: &LateLoweredState,
+        boundary_ids: &[BoundaryId],
+    ) -> Result<(), LlvmEmitError> {
+        let mut primary_count = 0usize;
+        let mut runtime_count = 0usize;
+        for boundary_id in boundary_ids {
+            let boundary = self.verify_boundary_exists(*boundary_id, "suspend primary boundary")?;
+            match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::RuntimeError(_)) => runtime_count += 1,
+                Some(_) => primary_count += 1,
+                None => {
+                    return Err(frontend_error(format!(
+                        "refactor suspend state st{} boundary bd{} 缺少 published lowering",
+                        state.state_id().as_u32(),
+                        boundary_id.as_u32()
+                    )));
+                }
+            }
+        }
+        if primary_count > 1 || (primary_count == 0 && runtime_count > 1) {
+            return Err(frontend_error(format!(
+                "refactor suspend state st{} 发布了多义 primary boundary：non_runtime={} runtime_error={}，backend 不能用 find() 静默选择",
+                state.state_id().as_u32(),
+                primary_count,
+                runtime_count
+            )));
+        }
+        Ok(())
+    }
+
+    fn verify_resume_unwind_contract(&self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
+        if state.role() == LateLoweredStateRole::Cleanup
+            && self.callable.state_graph().cleanup_state().is_some()
+            && state.successors().is_empty()
+        {
+            return Ok(());
+        }
+        Err(frontend_error(format!(
+            "refactor ResumeUnwind state st{} 缺少 published unwind payload / cleanup continuation contract，不能用 placeholder unreachable 表示合法语义",
+            state.state_id().as_u32()
+        )))
+    }
+
+    fn verify_abandon_contract(&self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
+        if self.callable.state_graph().drop_state() != Some(state.state_id())
+            || state.role() != LateLoweredStateRole::Drop
+            || !state.source_slices().is_empty()
+        {
+            return Err(frontend_error(format!(
+                "refactor Abandon state st{} 只能作为 published drop_state 的空 Drop state 终止，不能作为普通 CFG fallback",
+                state.state_id().as_u32()
+            )));
+        }
+        Ok(())
     }
 
     fn verify_frame_contract(&self) -> Result<(), LlvmEmitError> {
@@ -2512,11 +2572,24 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                                 .cg_value_from_loaded(param.span, param_cg, raw)?
                         }
                     } else {
-                        self.codegen.default_value(param.span, param_cg)?
+                        return Err(frontend_error(format!(
+                            "refactor direct entry `{}` args tuple ABI 缺少 param#{} 的 field；不能用默认值掩盖 contract 漂移",
+                            entry_layout.symbol_name(),
+                            index
+                        )));
                     }
                 }
-                RefactorSourceAbiLayoutKind::Scalar => {
+                RefactorSourceAbiLayoutKind::Scalar
+                    if index == 0 && args_layout.abi().is_elided() =>
+                {
                     self.codegen.default_value(param.span, param_cg)?
+                }
+                RefactorSourceAbiLayoutKind::Scalar => {
+                    return Err(frontend_error(format!(
+                        "refactor direct entry `{}` scalar args ABI 不能绑定 param#{}；不能用默认值掩盖 contract 漂移",
+                        entry_layout.symbol_name(),
+                        index
+                    )));
                 }
             };
             let _ = self.store_local_value(param.span, param.local, value)?;
@@ -2679,13 +2752,32 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     self.lower_runtime_error_boundary_payload(runtime.payload_tuple_ty)?;
                 self.emit_local_runtime_error_terminal(&runtime, payload)
             }
-            LateLoweredStateTerminator::Unreachable
-            | LateLoweredStateTerminator::ResumeUnwind
-            | LateLoweredStateTerminator::Abandon => {
+            LateLoweredStateTerminator::Unreachable => {
                 self.codegen.builder.build_unreachable()?;
                 Ok(())
             }
+            LateLoweredStateTerminator::ResumeUnwind => self.lower_resume_unwind_terminator(state),
+            LateLoweredStateTerminator::Abandon => self.lower_abandon_terminator(state),
         }
+    }
+
+    fn lower_resume_unwind_terminator(
+        &mut self,
+        state: &LateLoweredState,
+    ) -> Result<(), LlvmEmitError> {
+        self.verify_resume_unwind_contract(state)?;
+        // A cleanup unwind terminal has no ordinary `Step_F` result in the P5
+        // state graph; non-cleanup `ResumeUnwind` remains rejected above.
+        self.codegen.builder.build_unreachable()?;
+        Ok(())
+    }
+
+    fn lower_abandon_terminator(&mut self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
+        self.verify_abandon_contract(state)?;
+        // The drop state is entered by the continuation runtime/GC contract; no
+        // remaining source-level computation is resumed from this block.
+        self.codegen.builder.build_unreachable()?;
+        Ok(())
     }
 
     fn lower_suspend(
@@ -2900,26 +2992,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         if layout.abi().is_elided() {
             return Ok(None);
         }
-        let value = self
-            .codegen
-            .try_codegen_qualified_enum_unit_variant_value(
-                self.mir_fun.span,
-                "scoop.core.RuntimeError.ContinuationAlreadyResumed",
-            )?
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor runtime-error boundary payload variant",
-                at: self.mir_fun.span.into(),
-            })?;
-        let expected = self
-            .codegen
-            .cg_ty_of_mir_type(self.source_types, payload_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor runtime-error boundary payload type",
-                at: self.mir_fun.span.into(),
-            })?;
-        let value = self
-            .codegen
-            .coerce_value(self.mir_fun.span, value, expected)?;
+        let value =
+            self.runtime_error_unit_variant_payload(payload_ty, "ContinuationAlreadyResumed")?;
         match layout.kind() {
             RefactorSourceAbiLayoutKind::Scalar => Ok(value.value),
             RefactorSourceAbiLayoutKind::Tuple => Err(frontend_error(format!(
@@ -2927,6 +3001,93 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 payload_ty.as_u32()
             ))),
         }
+    }
+
+    fn runtime_error_unit_variant_payload(
+        &mut self,
+        payload_ty: TypeId,
+        variant_name: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !self.source_ty_is_runtime_error(payload_ty) {
+            return Err(frontend_error(format!(
+                "refactor runtime-error payload t{} 不是 scoop.core.RuntimeError",
+                payload_ty.as_u32()
+            )));
+        }
+        let enum_layout = self
+            .codegen
+            .enum_layouts
+            .get("scoop.core.RuntimeError")
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor RuntimeError enum layout",
+                at: self.mir_fun.span.into(),
+            })?;
+        let variant = enum_layout
+            .variants
+            .iter()
+            .find(|variant| variant.name == variant_name)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor RuntimeError variant layout",
+                at: self.mir_fun.span.into(),
+            })?;
+        if !variant.fields.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor RuntimeError payload variant arity",
+                at: self.mir_fun.span.into(),
+            });
+        }
+        let abi = self.abi.source_value_layout(payload_ty)?.abi();
+        let raw = match abi.llvm_ty() {
+            BasicTypeEnum::IntType(int_ty) => int_ty.const_int(variant.tag, false).into(),
+            BasicTypeEnum::StructType(struct_ty) => {
+                let Some(BasicTypeEnum::IntType(tag_ty)) = struct_ty.get_field_type_at_index(0)
+                else {
+                    return Err(frontend_error(
+                        "refactor RuntimeError tagged-union payload 缺少整数 tag field".to_string(),
+                    ));
+                };
+                let mut aggregate = struct_ty.get_undef();
+                aggregate = self
+                    .codegen
+                    .builder
+                    .build_insert_value(
+                        aggregate,
+                        tag_ty.const_int(variant.tag, false),
+                        0,
+                        "refactor_runtime_error_tag",
+                    )?
+                    .into_struct_value();
+                for field_index in 1..struct_ty.count_fields() {
+                    let Some(field_ty) = struct_ty.get_field_type_at_index(field_index) else {
+                        return Err(frontend_error(format!(
+                            "refactor RuntimeError tagged-union payload 缺少 field {}",
+                            field_index
+                        )));
+                    };
+                    aggregate = self
+                        .codegen
+                        .builder
+                        .build_insert_value(
+                            aggregate,
+                            field_ty.const_zero(),
+                            field_index,
+                            "refactor_runtime_error_payload_zero",
+                        )?
+                        .into_struct_value();
+                }
+                aggregate.into()
+            }
+            other => {
+                return Err(frontend_error(format!(
+                    "refactor RuntimeError payload ABI 不是 int/struct：{:?}",
+                    other
+                )));
+            }
+        };
+        Ok(CgValue {
+            ty: CgTy::Enum(payload_ty),
+            value: Some(raw),
+        })
     }
 
     fn emit_local_runtime_error_terminal(
@@ -4134,9 +4295,40 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 if let Some(frame_slot) = binder.frame_slot() {
                     self.store_local_to_frame_slot(binder.local(), frame_slot)?;
                 }
+            } else if !self.payload_field_is_elided(payload_ty, binder.ordinal())? {
+                return Err(frontend_error(format!(
+                    "refactor handle arm payload binder local{} ordinal {} 需要 non-elided payload t{}，但 boundary lowering 未提供 payload",
+                    binder.local().as_u32(),
+                    binder.ordinal(),
+                    payload_ty.as_u32()
+                )));
             }
         }
         Ok(())
+    }
+
+    fn payload_field_is_elided(
+        &self,
+        payload_ty: TypeId,
+        ordinal: u32,
+    ) -> Result<bool, LlvmEmitError> {
+        let layout = self.abi.source_value_layout(payload_ty)?;
+        if layout.abi().is_elided() {
+            return Ok(true);
+        }
+        match layout.kind() {
+            RefactorSourceAbiLayoutKind::Scalar => Ok(false),
+            RefactorSourceAbiLayoutKind::Tuple => layout
+                .field(ordinal as usize)
+                .map(|field| field.is_elided())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor payload tuple t{} 缺少 ordinal {}",
+                        payload_ty.as_u32(),
+                        ordinal
+                    ))
+                }),
+        }
     }
 
     fn store_gc_ref_to_binder(
@@ -5279,9 +5471,8 @@ fn boundary_source_consumption(
         LateLoweredBoundaryLowering::Resume(lowering) => {
             Some(lowering.operand_contract().source_consumption())
         }
-        LateLoweredBoundaryLowering::RuntimeError(_) | LateLoweredBoundaryLowering::Handle(_) => {
-            None
-        }
+        LateLoweredBoundaryLowering::RuntimeError(_) => None,
+        LateLoweredBoundaryLowering::Handle(_) => None,
     }
 }
 

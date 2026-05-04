@@ -147,7 +147,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             mir::Rvalue::ClassCtor { class_fqn, args } => self
                 .codegen
-                .codegen_mir_class_ctor_call(span, class_fqn, args, self.slots),
+                .codegen_mir_refactor_class_ctor_call(span, class_fqn, args, self.slots),
             _ => self.codegen.codegen_mir_effect_neutral_rvalue(
                 span,
                 value,
@@ -709,6 +709,8 @@ mod tests {
         assert!(value.contains("lower_refactor_pure_direct_call"));
         assert!(value.contains("refactor_extract_step_payload"));
         assert!(value.contains("mir::Rvalue::ClassCtor"));
+        assert!(value.contains("codegen_mir_refactor_class_ctor_call"));
+        assert!(!value.contains(concat!("codegen_mir_", "class_ctor_call")));
         assert!(value.contains("mir::Rvalue::MakeClosure"));
     }
 

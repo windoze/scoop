@@ -3438,6 +3438,161 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(super) fn codegen_mir_refactor_class_ctor_call(
+        &mut self,
+        span: crate::span::Span,
+        class_fqn: &str,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let class = self.class_init_layout(span, class_fqn)?;
+        let selected_ctor = self.pick_class_ctor_by_target(
+            span,
+            &class,
+            None,
+            args.len(),
+            None,
+            "refactor class ctor overload mismatch/ambiguous",
+        )?;
+        let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
+            Some(ctor) => ctor.params.as_slice(),
+            None => &[][..],
+        };
+        if ctor_params.len() != args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor class ctor arg/param len mismatch",
+                at: span.into(),
+            });
+        }
+        self.verify_refactor_class_init_contract(span, &class, selected_ctor)?;
+
+        let obj_ty = self.llvm_class_object_type(span, &class)?;
+        let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+        let type_desc = self.get_or_create_class_type_desc_global(span, class_fqn)?;
+        let type_desc_i8 = self.builder.build_pointer_cast(
+            type_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "refactor_class_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_alloc,
+            &[type_desc_i8.into(), size_v.into()],
+            "rt_alloc_refactor_class",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor scoop_alloc_typed return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor scoop_alloc_typed return type",
+                at: span.into(),
+            });
+        };
+
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+        let typed_obj =
+            self.builder
+                .build_pointer_cast(obj_ptr, obj_ptr_ty, "refactor_class_obj_ptr")?;
+        let payload_ptr =
+            self.builder
+                .build_struct_gep(obj_ty, typed_obj, 1, "refactor_class_payload_gep")?;
+        let payload_ty = self.llvm_class_payload_type(span, &class)?;
+        let payload_size_bytes = self.target_data.get_store_size(&payload_ty);
+        if payload_size_bytes > 0 {
+            let payload_i8 = self
+                .builder
+                .build_bit_cast(
+                    payload_ptr,
+                    self.llvm_gc_i8_ptr_type(),
+                    "refactor_class_payload_i8",
+                )?
+                .into_pointer_value();
+            let size_ty = self.llvm_ptr_sized_int_type(None);
+            let size_v = size_ty.const_int(payload_size_bytes, false);
+            let zero = self.context.i8_type().const_int(0, false);
+            let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
+        }
+
+        for (param, arg) in ctor_params.iter().zip(args) {
+            if arg.name.is_some() || param.has_default {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor class ctor named/default arg",
+                    at: arg.span.into(),
+                });
+            }
+            let param_cg = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor class ctor param type",
+                    at: arg.span.into(),
+                })?;
+            let value =
+                self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
+            let value = self.coerce_value(arg.span, value, param_cg)?;
+            if param.is_property {
+                let field_fqn = param.property_field_fqn.as_ref().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor class ctor property field fqn",
+                        at: param.decl_span.into(),
+                    },
+                )?;
+                let field_idx = *class.field_indices.get(field_fqn).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor class ctor property field index",
+                        at: param.decl_span.into(),
+                    },
+                )?;
+                let field_ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
+                let _ = self.store_local_value(arg.span, field_ptr, param_cg, value)?;
+            }
+        }
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(obj_ptr.into()),
+        })
+    }
+
+    fn verify_refactor_class_init_contract(
+        &mut self,
+        span: crate::span::Span,
+        class: &hir::ClassInit,
+        selected_ctor: Option<&hir::ClassCtor>,
+    ) -> Result<(), LlvmEmitError> {
+        if !class.steps.is_empty()
+            || !class.super_ctor_args.is_empty()
+            || selected_ctor.is_some_and(|ctor| ctor.delegation.is_some() || ctor.body.is_some())
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor non-trivial class ctor requires published ctor ABI",
+                at: span.into(),
+            });
+        }
+        if let Some(super_fqn) = &class.super_class_fqn {
+            let super_class = self.class_init_layout(span, super_fqn)?;
+            let super_ctor = self.pick_class_ctor_by_target(
+                span,
+                &super_class,
+                super_class
+                    .super_ctor_call
+                    .as_ref()
+                    .and_then(|call| call.ctor_span),
+                super_class.super_ctor_args.len(),
+                None,
+                "refactor super class ctor overload mismatch/ambiguous",
+            )?;
+            self.verify_refactor_class_init_contract(span, &super_class, super_ctor)?;
+        }
+        Ok(())
+    }
+
     fn codegen_bound_mir_call_args(
         &mut self,
         span: crate::span::Span,
@@ -3928,11 +4083,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        let llvm_fun = self.ensure_materialized_mir_closure_callable_defined(span, fn_ptr)?;
+        let legacy_target = if self.refactor_callable_carrier_contract_enabled() {
+            // Refactor callable carriers publish their own dynamic entry shell; do
+            // not define the legacy lambda body just to obtain a fallback pointer.
+            self.llvm_i8_ptr_type().const_null()
+        } else {
+            self.ensure_materialized_mir_closure_callable_defined(span, fn_ptr)?
+                .as_global_value()
+                .as_pointer_value()
+        };
         let fn_ptr = self.callable_carrier_target_fn_ptr(
             RefactorCallableCarrierKind::ClosureObject,
             fn_ptr,
-            llvm_fun.as_global_value().as_pointer_value(),
+            legacy_target,
         )?;
         let fn_i8 = self
             .builder
