@@ -480,7 +480,7 @@
   - 验证通过：`cargo test -p scoopc refactor_llvm_gc_roots`；`cargo test -p scoopc refactor_llvm_stackmap`；`cargo test -p scoopc refactor_llvm_dropped_continuation`；`cargo test -p scoopc refactor_llvm_managed_abi_boundary`；`cargo test -p scoopc refactor_effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema`；`cargo test -p scoopc refactor_continuation_schema_surface_ty_preserves_residual_out_row_for_compiler_runtime_error_upper_bound`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop`；`cargo clippy --all-targets -- -D warnings`。
   - `PLAN.md` 无需改动。
 
-## P6-T04R：Review GC/runtime 集成，确认 clean refactor path 没有 legacy runtime 语义依赖
+## [DONE] P6-T04R：Review GC/runtime 集成，确认 clean refactor path 没有 legacy runtime 语义依赖
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.7, §5.3.8, §5.3.9, §5.6, §8
@@ -499,7 +499,10 @@
   - 可进入 `P6-T05`。
 - 依赖：P6-T04
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：完成 GC/runtime 集成 review。确认 refactor frame / continuation allocation 通过 typed GC allocation 与 type descriptor，frame root / resume continuation / newly allocated continuation 通过 explicit root slot 和 root-preserving call path 保持 moving-GC 可见，GC pointer stores 使用 write barrier 或 GC-aware store。
+  - 2026-05-05：确认 dropped continuation 仍只进入 published drop state 的 terminal `Abandon` path，不通过 cleanup hook 或 finally replay 继续执行剩余语言级计算；ordinary runtime error 仍以 `Step_F` case 传播，本地消费的 runtime-error case 只在 published `LocalRuntimeError` terminal contract 下调用 `scoop_runtime_error_fatal`。
+  - 2026-05-05：确认 Managed ABI / extern 边界仍保持 pure-only / fail-fast contract；refactor body/value lowering 没有调用 legacy handler-stack / outcome runtime，指定 `rg` 命中只剩 refactor extern/native ABI fail-fast/测试守卫与 legacy backend 自身旧符号。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_gc_roots`；`cargo test -p scoopc refactor_llvm_stackmap`；`cargo test -p scoopc refactor_llvm_dropped_continuation`；`cargo test -p scoopc refactor_llvm_managed_abi_boundary`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop`；`rg "scoop_effect_handler_stack|scoop_effect_outcome|LegacyEffectBoundary|cleanup hook|Managed ABI|extern" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline crates/scoopc/src/llvm/codegen/effect`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T05：建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract
 
