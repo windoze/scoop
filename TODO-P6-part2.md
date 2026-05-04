@@ -894,7 +894,7 @@
     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02qf：把 `scoop test` run-pass 子进程接到父级 effect-pipeline selector，确保 P6-T03 验证真实覆盖 refactor LLVM path
+## [DONE] P6-T02qf：把 `scoop test` run-pass 子进程接到父级 effect-pipeline selector，确保 P6-T03 验证真实覆盖 refactor LLVM path
 
 - 参考：
   - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T03` 验证矩阵
@@ -946,7 +946,16 @@
   - legacy/default fixture runner 行为保持稳定。
 - 依赖：P6-T02qe
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：完成父级 selector 传播。`crates/scoop/src/fixtures/mod.rs` 现在把 `SessionOptions` 继续传入 run-pass / run_pass_cone 路径，并通过共享 `append_effect_pipeline_selector(...)` 只在父级选择 `EffectPipelineMode::Refactor` 时给子命令插入全局 `--effect-pipeline refactor`；legacy/default 路径不额外插入 selector。
+  - 2026-05-04：`crates/scoop/src/fixtures/run_pass.rs` 的默认 `RUN-MODE: run` 子进程、`RUN-MODE: dump-stackmaps` 的 build 阶段与 dump-stackmaps 子进程均继承父级 selector；run_pass_cone 的 `scoop run` 子进程与 fail-case 内部 build 也同步接收同一 `SessionOptions`。
+  - 2026-05-04：新增定向回归 `run_pass_effect_pipeline_*` 与 `run_pass_cone_effect_pipeline_*`，覆盖 refactor session 会构造显式 selector、legacy session 不插入 refactor selector，以及 dump-stackmaps 命令构造不会绕过 selector 传播。`PLAN.md` 无需改动。
+  - 已运行验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoop run_pass_effect_pipeline`
+    - `cargo test -p scoop run_pass_cone_effect_pipeline`
+    - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/minimal_main.scoop`
+    - `cargo clippy -p scoop --all-targets -- -D warnings`
+    - 可选 smoke：`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 现在通过 run-pass 子进程得到非零退出；直接运行 `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 显示 `scoop::llvm::refactor_effect_lowering_unsupported`，确认失败来自尚未完成的 refactor LLVM body lowering，而不是静默回 legacy。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

@@ -46,6 +46,7 @@ use std::process::Command;
 use miette::Diagnostic;
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 use scoopc::opt::OptLevel;
+use scoopc::session::{EffectPipelineMode, SessionOptions};
 use thiserror::Error;
 
 use expectations::{Expect, FixtureExpectation};
@@ -105,6 +106,13 @@ pub(crate) fn current_scoop_exe_path() -> std::io::Result<PathBuf> {
     Ok(current)
 }
 
+fn append_effect_pipeline_selector(cmd: &mut Command, session_options: SessionOptions) {
+    if session_options.effect_pipeline == EffectPipelineMode::Refactor {
+        cmd.arg("--effect-pipeline")
+            .arg(EffectPipelineMode::Refactor.as_str());
+    }
+}
+
 fn strip_deleted_exe_suffix(path: &Path) -> Option<PathBuf> {
     let file_name = path.file_name()?.to_str()?;
     let stripped = file_name.strip_suffix(" (deleted)")?;
@@ -114,7 +122,7 @@ fn strip_deleted_exe_suffix(path: &Path) -> Option<PathBuf> {
 pub fn run_all(
     fixtures_root: &Path,
     opt_level: Option<OptLevel>,
-    session_options: scoopc::session::SessionOptions,
+    session_options: SessionOptions,
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<usize> {
     if fixtures_root.is_file() {
@@ -132,8 +140,14 @@ pub fn run_all(
     }
     if is_run_pass_cone_case_root(fixtures_root) {
         let run_pass_cone_root = fixtures_root.parent().unwrap_or(fixtures_root);
-        return run_run_pass_cone_case(run_pass_cone_root, fixtures_root, opt_level, run_pass_env)
-            .wrap_err_with(|| format!("run_pass_cone case 失败：{}", fixtures_root.display()));
+        return run_run_pass_cone_case(
+            run_pass_cone_root,
+            fixtures_root,
+            opt_level,
+            session_options,
+            run_pass_env,
+        )
+        .wrap_err_with(|| format!("run_pass_cone case 失败：{}", fixtures_root.display()));
     }
 
     // T0307：`resolve_multi/<case>/` 采用“目录作为编译单元”的形式，因此需要把这些 `.scoop`
@@ -224,8 +238,14 @@ pub fn run_all(
     }
 
     for case_dir in run_pass_cone_cases {
-        ok += run_run_pass_cone_case(fixtures_root, &case_dir, opt_level, run_pass_env)
-            .wrap_err_with(|| format!("run_pass_cone case 失败：{}", case_dir.display()))?;
+        ok += run_run_pass_cone_case(
+            fixtures_root,
+            &case_dir,
+            opt_level,
+            session.options(),
+            run_pass_env,
+        )
+        .wrap_err_with(|| format!("run_pass_cone case 失败：{}", case_dir.display()))?;
     }
 
     Ok(ok)
@@ -296,6 +316,7 @@ fn run_run_pass_cone_case(
     fixtures_root: &Path,
     case_dir: &Path,
     opt_level: Option<OptLevel>,
+    session_options: SessionOptions,
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<usize> {
     let rel_case = case_dir.strip_prefix(fixtures_root).unwrap_or(case_dir);
@@ -350,22 +371,14 @@ fn run_run_pass_cone_case(
                     return Ok(());
                 }
 
-                let mut cmd = Command::new(&scoop_exe);
-                cmd.arg("run");
-                if let Some(level) = opt_level {
-                    let args_has_opt_level = exp.args.iter().any(|a| {
-                        a == "--opt-level" || a == "--opt_level" || a == "-O" || a.starts_with("-O")
-                    });
-                    if !args_has_opt_level {
-                        cmd.arg("--opt-level").arg(level.as_str());
-                    }
-                }
-                // 约定：run_pass_cone fixtures 的 `// ARGS:` 传给 `scoop run` 本身（例如 `--release`）。
-                if !exp.args.is_empty() {
-                    cmd.args(&exp.args);
-                }
-                cmd.current_dir(case_dir);
-                run_pass_env.apply_to_command(&mut cmd);
+                let cmd = build_run_pass_cone_run_command(
+                    &scoop_exe,
+                    case_dir,
+                    opt_level,
+                    session_options,
+                    run_pass_env,
+                    &exp,
+                );
                 run_pass::run_fixture_command(rel_case, &expect_file_path, &exp, cmd)?;
 
                 if !exe.is_file() {
@@ -385,6 +398,7 @@ fn run_run_pass_cone_case(
                     crate::commands::build::BuildOptions {
                         profile: crate::commands::build::BuildProfile::Debug,
                         opt_level,
+                        session_options,
                         ..crate::commands::build::BuildOptions::default()
                     },
                 );
@@ -428,6 +442,35 @@ fn run_run_pass_cone_case(
             Ok(1)
         }
     }
+}
+
+fn build_run_pass_cone_run_command(
+    scoop_exe: &Path,
+    case_dir: &Path,
+    opt_level: Option<OptLevel>,
+    session_options: SessionOptions,
+    run_pass_env: &RunPassEnvOverrides,
+    exp: &FixtureExpectation<'_>,
+) -> Command {
+    let mut cmd = Command::new(scoop_exe);
+    append_effect_pipeline_selector(&mut cmd, session_options);
+    cmd.arg("run");
+    if let Some(level) = opt_level {
+        let args_has_opt_level = exp
+            .args
+            .iter()
+            .any(|a| a == "--opt-level" || a == "--opt_level" || a == "-O" || a.starts_with("-O"));
+        if !args_has_opt_level {
+            cmd.arg("--opt-level").arg(level.as_str());
+        }
+    }
+    // 约定：run_pass_cone fixtures 的 `// ARGS:` 传给 `scoop run` 本身（例如 `--release`）。
+    if !exp.args.is_empty() {
+        cmd.args(&exp.args);
+    }
+    cmd.current_dir(case_dir);
+    run_pass_env.apply_to_command(&mut cmd);
+    cmd
 }
 
 fn validate_run_pass_golden_files_readable(
@@ -519,7 +562,9 @@ fn run_one(
         FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
         FixturePhase::Infer => infer_fixture(session, &source, &exp),
         FixturePhase::Comptime => comptime_fixture(session, &source, path),
-        FixturePhase::RunPass => run_pass::run_fixture(rel, path, opt_level, &exp, run_pass_env),
+        FixturePhase::RunPass => {
+            run_pass::run_fixture(rel, path, opt_level, session.options(), &exp, run_pass_env)
+        }
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
         FixturePhase::MirRefactor => mir_refactor_fixture(session, &source, path),
@@ -3064,9 +3109,15 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        RunPassEnvOverrides, is_run_pass_cone_case_root, phase_name, run_all, run_pass_cone_root,
-        strip_deleted_exe_suffix,
+        RunPassEnvOverrides, build_run_pass_cone_run_command, is_run_pass_cone_case_root,
+        phase_name, run_all, run_pass_cone_root, strip_deleted_exe_suffix,
     };
+
+    fn command_args(cmd: &std::process::Command) -> Vec<String> {
+        cmd.get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect()
+    }
 
     #[test]
     fn phase_name_uses_relative_phase_dir_when_present() {
@@ -3147,6 +3198,42 @@ mod tests {
         .unwrap();
 
         assert!(is_run_pass_cone_case_root(&case_dir));
+    }
+
+    #[test]
+    fn run_pass_cone_effect_pipeline_refactor_command_includes_selector() {
+        let exp = super::expectations::FixtureExpectation::from_source(
+            "// EXPECT: pass\n// ARGS: --release\n",
+        );
+        let cmd = build_run_pass_cone_run_command(
+            Path::new("scoop"),
+            Path::new("tests/fixtures/run_pass_cone/demo"),
+            None,
+            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+            &RunPassEnvOverrides::new(),
+            &exp,
+        );
+
+        let args = command_args(&cmd);
+        assert_eq!(args[0..3], ["--effect-pipeline", "refactor", "run"]);
+        assert!(args.iter().any(|arg| arg == "--release"));
+    }
+
+    #[test]
+    fn run_pass_cone_effect_pipeline_legacy_command_does_not_insert_refactor_selector() {
+        let exp = super::expectations::FixtureExpectation::from_source("// EXPECT: pass\n");
+        let cmd = build_run_pass_cone_run_command(
+            Path::new("scoop"),
+            Path::new("tests/fixtures/run_pass_cone/demo"),
+            None,
+            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Legacy),
+            &RunPassEnvOverrides::new(),
+            &exp,
+        );
+
+        let args = command_args(&cmd);
+        assert_eq!(args.first().map(String::as_str), Some("run"));
+        assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
     }
 
     #[test]

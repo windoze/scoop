@@ -165,6 +165,7 @@ pub(crate) fn run_fixture(
     rel_fixture: &Path,
     fixture_path: &Path,
     opt_level: Option<scoopc::opt::OptLevel>,
+    session_options: scoopc::session::SessionOptions,
     exp: &FixtureExpectation<'_>,
     run_pass_env: &super::RunPassEnvOverrides,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
@@ -220,28 +221,53 @@ pub(crate) fn run_fixture(
     match mode {
         // 默认模式：真正运行该 fixture 对应的 Scoop 程序。
         "run" => {
-            let mut cmd = Command::new(scoop_exe);
-            cmd.arg("run");
-            if let Some(level) = opt_level {
-                cmd.arg("--opt-level").arg(level.as_str());
-            }
-            cmd.arg(fixture_path);
-            run_pass_env.apply_to_command(&mut cmd);
-            // 约定：run-pass fixtures 可通过 `// ARGS: ...` 向 `scoop run` 透传参数（最终作为程序 argv）。
-            if !exp.args.is_empty() {
-                cmd.args(&exp.args);
-            }
+            let cmd = build_run_mode_command(
+                scoop_exe,
+                fixture_path,
+                opt_level,
+                session_options,
+                exp,
+                run_pass_env,
+            );
             run_fixture_command(rel_fixture, fixture_path, exp, cmd)
         }
         // 工具链可观测性：构建该 fixture 的可执行文件，然后运行 `scoop dump-stackmaps <bin>`。
-        "dump-stackmaps" => {
-            run_fixture_dump_stackmaps(rel_fixture, fixture_path, exp, run_pass_env, scoop_exe)
-        }
+        "dump-stackmaps" => run_fixture_dump_stackmaps(
+            rel_fixture,
+            fixture_path,
+            exp,
+            run_pass_env,
+            scoop_exe,
+            session_options,
+        ),
         other => Err(super::box_diagnostic(super::UnimplementedPhase {
             phase: format!("run-pass/{other}"),
             fixture: rel_fixture.display().to_string(),
         })),
     }
+}
+
+fn build_run_mode_command(
+    scoop_exe: PathBuf,
+    fixture_path: &Path,
+    opt_level: Option<scoopc::opt::OptLevel>,
+    session_options: scoopc::session::SessionOptions,
+    exp: &FixtureExpectation<'_>,
+    run_pass_env: &super::RunPassEnvOverrides,
+) -> Command {
+    let mut cmd = Command::new(scoop_exe);
+    super::append_effect_pipeline_selector(&mut cmd, session_options);
+    cmd.arg("run");
+    if let Some(level) = opt_level {
+        cmd.arg("--opt-level").arg(level.as_str());
+    }
+    cmd.arg(fixture_path);
+    run_pass_env.apply_to_command(&mut cmd);
+    // 约定：run-pass fixtures 可通过 `// ARGS: ...` 向 `scoop run` 透传参数（最终作为程序 argv）。
+    if !exp.args.is_empty() {
+        cmd.args(&exp.args);
+    }
+    cmd
 }
 
 fn run_fixture_dump_stackmaps(
@@ -250,6 +276,7 @@ fn run_fixture_dump_stackmaps(
     exp: &FixtureExpectation<'_>,
     run_pass_env: &super::RunPassEnvOverrides,
     scoop_exe: PathBuf,
+    session_options: scoopc::session::SessionOptions,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // 说明：该模式不执行程序本身，只用于验证“编译产物包含可读 stackmaps”。
     let dir =
@@ -266,7 +293,10 @@ fn run_fixture_dump_stackmaps(
         crate::commands::build::run(
             fixture_path.to_path_buf(),
             Some(exe_path.clone()),
-            crate::commands::build::BuildOptions::default(),
+            crate::commands::build::BuildOptions {
+                session_options,
+                ..crate::commands::build::BuildOptions::default()
+            },
         )
         .map_err(|e| {
             super::box_diagnostic(RunExecFailed {
@@ -276,11 +306,7 @@ fn run_fixture_dump_stackmaps(
             })
         })?;
 
-        let mut cmd = Command::new(scoop_exe);
-        // GC-FIX Phase E2：`dump-stackmaps` 作为 GC 调试主工具时应默认可校验 roots slot 契约。
-        cmd.arg("dump-stackmaps")
-            .arg("--verify-roots")
-            .arg(&exe_path);
+        let mut cmd = build_dump_stackmaps_command(scoop_exe, &exe_path, session_options);
         run_pass_env.apply_to_command(&mut cmd);
         run_fixture_command(rel_fixture, fixture_path, exp, cmd)
     })();
@@ -288,6 +314,20 @@ fn run_fixture_dump_stackmaps(
     // 清理临时目录（尽力而为；不影响最终结果）。
     let _ = std::fs::remove_dir_all(&dir);
     result
+}
+
+fn build_dump_stackmaps_command(
+    scoop_exe: PathBuf,
+    exe_path: &Path,
+    session_options: scoopc::session::SessionOptions,
+) -> Command {
+    let mut cmd = Command::new(scoop_exe);
+    super::append_effect_pipeline_selector(&mut cmd, session_options);
+    // GC-FIX Phase E2：`dump-stackmaps` 作为 GC 调试主工具时应默认可校验 roots slot 契约。
+    cmd.arg("dump-stackmaps")
+        .arg("--verify-roots")
+        .arg(exe_path);
+    cmd
 }
 
 /// 与 `scoop run` 保持一致的默认可执行文件名（用于临时产物）。
@@ -778,6 +818,12 @@ mod tests {
 
     use super::*;
 
+    fn command_args(cmd: &Command) -> Vec<String> {
+        cmd.get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect()
+    }
+
     fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -980,6 +1026,60 @@ mod tests {
         run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn run_pass_effect_pipeline_refactor_command_includes_selector() {
+        let exp = FixtureExpectation::from_source("// ARGS: --program-arg\n");
+        let cmd = build_run_mode_command(
+            PathBuf::from("scoop"),
+            Path::new("tests/fixtures/run-pass/minimal_main.scoop"),
+            None,
+            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+            &exp,
+            &crate::fixtures::RunPassEnvOverrides::new(),
+        );
+
+        let args = command_args(&cmd);
+        assert_eq!(args[0..3], ["--effect-pipeline", "refactor", "run"]);
+        assert!(args.iter().any(|arg| arg == "--program-arg"));
+    }
+
+    #[test]
+    fn run_pass_effect_pipeline_legacy_command_does_not_insert_refactor_selector() {
+        let exp = FixtureExpectation::from_source("");
+        let cmd = build_run_mode_command(
+            PathBuf::from("scoop"),
+            Path::new("tests/fixtures/run-pass/minimal_main.scoop"),
+            None,
+            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Legacy),
+            &exp,
+            &crate::fixtures::RunPassEnvOverrides::new(),
+        );
+
+        let args = command_args(&cmd);
+        assert_eq!(args.first().map(String::as_str), Some("run"));
+        assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
+    }
+
+    #[test]
+    fn run_pass_effect_pipeline_dump_stackmaps_command_includes_selector() {
+        let cmd = build_dump_stackmaps_command(
+            PathBuf::from("scoop"),
+            Path::new("/tmp/a.out"),
+            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+        );
+
+        let args = command_args(&cmd);
+        assert_eq!(
+            args[0..4],
+            [
+                "--effect-pipeline",
+                "refactor",
+                "dump-stackmaps",
+                "--verify-roots"
+            ]
+        );
     }
 
     #[cfg(unix)]
