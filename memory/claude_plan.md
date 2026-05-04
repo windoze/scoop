@@ -28,4 +28,5 @@
 - `cargo clippy --all-targets -- -D warnings` 返回成功但暴露 macOS SDK C deprecation warning；已将 `runtime/c/scoop_stackmap.c` 中 deprecated `getsectbynamefromheader_64` 调用替换为 `getsectiondata()`，准备重新验证。
 - 已补齐 runtime API allowlist 中缺失的 `scoop_runtime_error_fatal`，使 `cargo test -p scoop_runtime` 通过。
 - 已将 `P6-T02qh` 在 `TODO-P6-part3.md` 与 `TODO.md` 中标记为 `[DONE]`，并写入完成记录。
-- 下一步：检查最终 diff/status，确认没有无关改动，然后提交本轮变更并停止。
+- 已提交本轮主要变更：`f9e99658 [P6-T02qh] Complete wrapper resume payload projection`。
+- 下一步：提交本文件的最终进度记录后停止，不继续下一个任务。
