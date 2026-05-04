@@ -499,6 +499,8 @@ pub(super) struct RefactorDispatchReceiverLayout<'ctx> {
     receiver_abi: RefactorAbiValue<'ctx>,
     owner_fqn: String,
     member_name: String,
+    method_slot: u32,
+    interface_id: Option<u64>,
 }
 
 impl<'ctx> RefactorDispatchReceiverLayout<'ctx> {
@@ -507,12 +509,16 @@ impl<'ctx> RefactorDispatchReceiverLayout<'ctx> {
         receiver_abi: RefactorAbiValue<'ctx>,
         owner_fqn: String,
         member_name: String,
+        method_slot: u32,
+        interface_id: Option<u64>,
     ) -> Self {
         Self {
             receiver_ty,
             receiver_abi,
             owner_fqn,
             member_name,
+            method_slot,
+            interface_id,
         }
     }
 
@@ -530,6 +536,14 @@ impl<'ctx> RefactorDispatchReceiverLayout<'ctx> {
 
     pub(super) fn member_name(&self) -> &str {
         &self.member_name
+    }
+
+    pub(super) fn method_slot(&self) -> u32 {
+        self.method_slot
+    }
+
+    pub(super) fn interface_id(&self) -> Option<u64> {
+        self.interface_id
     }
 }
 
@@ -2243,6 +2257,20 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                     callable_fqn,
                 ),
             })
+    }
+
+    pub(super) fn callable_carrier_target_layouts(
+        &self,
+    ) -> impl Iterator<
+        Item = (
+            RefactorCallableCarrierKind,
+            &str,
+            &RefactorCallableCarrierTargetLayout,
+        ),
+    > + '_ {
+        self.callable_carrier_target_layouts
+            .iter()
+            .map(|((kind, callable_fqn), layout)| (*kind, callable_fqn.as_str(), layout))
     }
 
     pub(super) fn dynamic_invoke_layout(

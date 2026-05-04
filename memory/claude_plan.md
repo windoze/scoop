@@ -25,16 +25,22 @@
 
 ## Current Status
 
-- Plan file initialized before reading task files or running commands.
-- Selected task: `P6-T03d` in `TODO-P6-part3.md` - close refactor function ABI and entry shell lowering, including main wrapper.
-- Latest commit checked: `84edfe87 [P6-T03c] Implement refactor pure statement lowering`; it directly precedes the selected task and does not advertise an unfinished blocker.
-- Implementation status: code changes complete for `P6-T03d`; `TODO-P6-part3.md` and `TODO.md` marked `[DONE]` with completion notes.
-- Validation status: passed `cargo test -p scoopc refactor_llvm_function_abi`, `cargo test -p scoopc refactor_llvm_main_wrapper`, `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_main.ll`, and `cargo clippy --all-targets -- -D warnings`.
-- Commit status: committed as `05ae0939 [P6-T03d] Close refactor function ABI shells`; recording final status in a follow-up progress commit.
+- Selected task: `P6-T03e` in `TODO-P6-part3.md` - close direct/dynamic/virtual/interface call lowering without legacy callable wrappers.
+- Source of truth: `TODO-P6-part3.md` lines 247-273. Dependencies through `P6-T03d` are marked `[DONE]` in both the detailed file and `TODO.md`.
+- Latest commit checked: `913f4b52 [P6-T03d] Record completion status`; it does not identify an unfinished blocker for `P6-T03e`.
+- Implementation direction: define published callable carrier shells and lower dynamic invoke sites by consuming `RefactorDynamicInvokeLayout` plus carrier/args ABI, not legacy callable wrappers.
+- Implementation status: code changes and fixture updates are complete for `P6-T03e`.
+- Validation status: passed `cargo test -p scoopc refactor_llvm_call_lowering`, `cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`, `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`, `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`, and `cargo clippy --all-targets -- -D warnings`.
+- TODO status: `P6-T03e` is marked `[DONE]` in `TODO-P6-part3.md`, and `TODO.md` is synchronized.
+- Next step: commit all changes for this invocation and stop.
 
 ## Current Edit Plan
 
-1. Add fail-fast handling before refactor main tries to reuse the legacy `scoop_entry_argv_array` helper for `main(args: Array<String>)`.
-2. Change refactor main wrapper so `Step_F::Complete` still maps `Unit`/`Int` to process exit codes, while a non-Complete `Step` with published outward cases returns a stable nonzero exit code instead of using `unreachable`.
-3. Keep `unreachable` only when the published entry `Step` layout proves there are no outward cases.
-4. Add tests named for the required validation filters: `refactor_llvm_function_abi*` and `refactor_llvm_main_wrapper*`.
+1. Check latest commit for direct blockers relevant to `P6-T03e`.
+2. Inspect refactor LLVM call lowering, callable ABI/query publication, dynamic invoke tests, and any existing fail-fast diagnostics.
+3. Extend dispatch carrier layouts with published slot metadata needed by body lowering.
+4. Define closure/vtable/itable carrier shell bodies that bridge receiver + explicit args into the callable direct-entry args tuple.
+5. Lower boundary dynamic calls and source-slice non-boundary dynamic calls through the same published dynamic invoke layout; dispatch boundary `Step_F` or extract no-outward `Complete` for pure source-slice calls.
+6. Add or update targeted tests for `refactor_llvm_call_lowering` and `refactor_llvm_dynamic_invoke_lowering`.
+7. Run the required validations: `cargo test -p scoopc refactor_llvm_call_lowering`, `cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`, the specified refactor fixture command, and `cargo clippy --all-targets -- -D warnings` if feasible.
+8. Mark `P6-T03e` `[DONE]`, update its completion record, sync `TODO.md`, commit, and stop.

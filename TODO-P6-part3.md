@@ -244,7 +244,7 @@
   - 2026-05-05：新增定向测试覆盖 refactor direct/dynamic entry shell、C main wrapper 调用 refactor direct entry、unhandled outward case 的显式 exit path，以及 Array<String> argv ABI 未发布时的 fail-fast 诊断。
   - 验证通过：`cargo test -p scoopc refactor_llvm_function_abi`；`cargo test -p scoopc refactor_llvm_main_wrapper`；`cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_main.ll`；`cargo clippy --all-targets -- -D warnings`。
 
-## P6-T03e：闭合 direct/dynamic/virtual/interface call lowering，不再回 legacy callable wrapper
+## [DONE] P6-T03e：闭合 direct/dynamic/virtual/interface call lowering，不再回 legacy callable wrapper
 
 - 参考：
   - [`TODO-P6-part1.md`](./TODO-P6-part1.md) `P6-T02d`, `P6-T02f`, `P6-T02g`
@@ -270,7 +270,11 @@
   - refactor path 不再需要 legacy callable wrapper。
 - 依赖：P6-T03d
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：refactor body lowering 现在对 `RefactorCallTargetQuery::KnownInstance` 统一调用 published direct entry；对 `RefactorCallTargetQuery::DynamicInvoke` 通过 published carrier source、`RefactorDynamicInvokeLayout` 与 canonical receiver/args ABI 发出 indirect `invoke(...) -> Step_F` 调用，不再把 dynamic boundary 作为 unsupported path。
+  - 2026-05-05：source-slice 中的 non-boundary `Closure` / `FunValue` / `Virtual` / `Interface` call 现在按 `(owner_step_schema, site_id)` 回查 published dynamic-invoke layout，调用后要求 no-outward `Complete` 并写回目标 local；若返回 step 仍含 outward cases，会显式要求走 boundary lowering。
+  - 2026-05-05：closure/vtable/itable carrier target shell 现在有 refactor wrapper body，把 receiver/closure-env 与 explicit args 组装成 callable direct-entry args tuple，再调用 published direct entry；virtual/interface carrier layout 同步发布 method slot / interface id，body emitter 不再按 legacy dispatch helper 现场恢复 slot。
+  - 2026-05-05：更新 `effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`，让 `main` 真实触发 pure source-slice virtual dynamic call，并锁定 emitted LLVM 中的 `refactor_dynamic_call_step`。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_call_lowering`；`cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T03f：闭合 boundary lowering，覆盖 Call / Perform / Resume / runtime-error / nested-handle outward
 

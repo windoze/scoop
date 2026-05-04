@@ -97,6 +97,11 @@ type BoundaryOperandLayoutSets = (
     ResumeBoundaryOperandLayouts,
 );
 
+struct MaterializedDynamicCallSite {
+    kind: MirCallKind,
+    arg_count: usize,
+}
+
 impl ProgramLayoutView {
     fn new(program: &LateLoweredProgram) -> Result<Self, LlvmEmitError> {
         let mut step_types_by_schema = BTreeMap::new();
@@ -3655,13 +3660,14 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             if lowering.facts().target_mode() == CallTargetMode::KnownInstance {
                 continue;
             }
-            let call_kind = self.lookup_materialized_call_kind(callable.root_fqn(), site_id)?;
+            let call_site = self.lookup_materialized_call_site(callable.root_fqn(), site_id)?;
 
             self.publish_dynamic_invoke_layout(
                 callable,
                 site_id,
                 lowering.facts(),
-                &call_kind,
+                &call_site.kind,
+                call_site.arg_count,
                 step_layouts,
                 layouts,
             )?;
@@ -3717,7 +3723,13 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                     for stmt in &block.stmts[start..end] {
                         let MirStatementKind::Assign {
-                            value: MirRvalue::Call { site_id, kind, .. },
+                            value:
+                                MirRvalue::Call {
+                                    site_id,
+                                    kind,
+                                    args,
+                                    ..
+                                },
                             ..
                         } = &stmt.kind
                         else {
@@ -3762,19 +3774,20 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                             continue;
                         }
 
-                        sites.push((*site_id, kind.clone(), facts.clone()));
+                        sites.push((*site_id, kind.clone(), args.len(), facts.clone()));
                     }
                 }
             }
             sites
         };
 
-        for (site_id, kind, facts) in source_slice_sites {
+        for (site_id, kind, arg_count, facts) in source_slice_sites {
             self.publish_dynamic_invoke_layout(
                 callable,
                 site_id,
                 &facts,
                 &kind,
+                arg_count,
                 step_layouts,
                 layouts,
             )?;
@@ -3782,12 +3795,14 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn publish_dynamic_invoke_layout(
         &mut self,
         callable: &LateLoweredCallable,
         site_id: crate::mir::SiteId,
         facts: &CallSiteEffectFacts,
         call_kind: &MirCallKind,
+        arg_count: usize,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
         layouts: &mut BTreeMap<
             (StepSchemaId, crate::mir::SiteId),
@@ -3808,12 +3823,14 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             site_id,
             facts,
             call_kind,
+            arg_count,
             step_layouts,
         )?;
         layouts.insert(key, layout);
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn materialize_dynamic_invoke_layout(
         &mut self,
         owner_root_fqn: &str,
@@ -3821,6 +3838,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         site_id: crate::mir::SiteId,
         facts: &CallSiteEffectFacts,
         call_kind: &MirCallKind,
+        arg_count: usize,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     ) -> Result<RefactorDynamicInvokeLayout<'ctx>, LlvmEmitError> {
         self.validate_dynamic_call_site_kind(owner_root_fqn, site_id, facts, call_kind)?;
@@ -3856,6 +3874,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 )
             }
             MirCallKind::Virtual { dispatch, .. } => {
+                let method_slot = self.resolve_virtual_dispatch_slot(
+                    owner_root_fqn,
+                    site_id,
+                    dispatch,
+                    arg_count,
+                )?;
                 if let crate::effect_facts::CallSiteTarget::CandidateSet(targets) = facts.target() {
                     for target in targets {
                         if self.program.callable(&target.template.fqn).is_none() {
@@ -3873,10 +3897,18 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         *self.source_value_layout(dispatch.receiver_ty)?.abi(),
                         dispatch.owner_fqn.clone(),
                         dispatch.member_name.clone(),
+                        method_slot,
+                        None,
                     ),
                 )
             }
             MirCallKind::Interface { dispatch, .. } => {
+                let (interface_id, method_slot) = self.resolve_interface_dispatch_slot(
+                    owner_root_fqn,
+                    site_id,
+                    dispatch,
+                    arg_count,
+                )?;
                 if let crate::effect_facts::CallSiteTarget::CandidateSet(targets) = facts.target() {
                     for target in targets {
                         if self.program.callable(&target.template.fqn).is_none() {
@@ -3894,6 +3926,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         *self.source_value_layout(dispatch.receiver_ty)?.abi(),
                         dispatch.owner_fqn.clone(),
                         dispatch.member_name.clone(),
+                        method_slot,
+                        Some(interface_id),
                     ),
                 )
             }
@@ -4801,11 +4835,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         })
     }
 
-    fn lookup_materialized_call_kind(
+    fn lookup_materialized_call_site(
         &self,
         owner_root_fqn: &str,
         site_id: crate::mir::SiteId,
-    ) -> Result<MirCallKind, LlvmEmitError> {
+    ) -> Result<MaterializedDynamicCallSite, LlvmEmitError> {
         let body = self.lookup_materialized_callable_body(owner_root_fqn)?;
         for block in &body.blocks {
             for stmt in &block.stmts {
@@ -4814,6 +4848,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         MirRvalue::Call {
                             site_id: stmt_site_id,
                             kind,
+                            args,
                             ..
                         },
                     ..
@@ -4822,7 +4857,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     continue;
                 };
                 if *stmt_site_id == site_id {
-                    return Ok(kind.clone());
+                    return Ok(MaterializedDynamicCallSite {
+                        kind: kind.clone(),
+                        arg_count: args.len(),
+                    });
                 }
             }
         }
@@ -4830,6 +4868,90 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 canonical MIR call metadata，无法发布 dynamic-invoke contract",
             site_id.as_u32(),
         )))
+    }
+
+    fn resolve_virtual_dispatch_slot(
+        &self,
+        owner_root_fqn: &str,
+        site_id: crate::mir::SiteId,
+        dispatch: &crate::mir::DispatchMetadata,
+        explicit_arg_count: usize,
+    ) -> Result<u32, LlvmEmitError> {
+        let slots = self
+            .codegen
+            .class_vtables
+            .get(&dispatch.owner_fqn)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` virtual call site {} owner `{}` 的 class vtable，无法发布 dispatch slot",
+                    site_id.as_u32(),
+                    dispatch.owner_fqn,
+                ))
+            })?;
+        let mut candidates = slots.iter().filter(|slot| {
+            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+        });
+        let first = candidates.next().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` virtual call site {} `{}`.`{}`/{} 的 vtable slot",
+                site_id.as_u32(),
+                dispatch.owner_fqn,
+                dispatch.member_name,
+                explicit_arg_count,
+            ))
+        })?;
+        if candidates.next().is_some() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` virtual call site {} `{}`.`{}`/{} 的 vtable slot 多义",
+                site_id.as_u32(),
+                dispatch.owner_fqn,
+                dispatch.member_name,
+                explicit_arg_count,
+            )));
+        }
+        Ok(first.slot)
+    }
+
+    fn resolve_interface_dispatch_slot(
+        &self,
+        owner_root_fqn: &str,
+        site_id: crate::mir::SiteId,
+        dispatch: &crate::mir::DispatchMetadata,
+        explicit_arg_count: usize,
+    ) -> Result<(u64, u32), LlvmEmitError> {
+        let iface = self
+            .codegen
+            .interfaces
+            .get(&dispatch.owner_fqn)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` interface call site {} owner `{}` 的 interface metadata，无法发布 itable slot",
+                    site_id.as_u32(),
+                    dispatch.owner_fqn,
+                ))
+            })?;
+        let mut candidates = iface.method_slots.iter().filter(|slot| {
+            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+        });
+        let first = candidates.next().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` interface call site {} `{}`.`{}`/{} 的 itable slot",
+                site_id.as_u32(),
+                dispatch.owner_fqn,
+                dispatch.member_name,
+                explicit_arg_count,
+            ))
+        })?;
+        if candidates.next().is_some() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` interface call site {} `{}`.`{}`/{} 的 itable slot 多义",
+                site_id.as_u32(),
+                dispatch.owner_fqn,
+                dispatch.member_name,
+                explicit_arg_count,
+            )));
+        }
+        Ok((iface.interface_id, first.slot))
     }
 
     fn lookup_materialized_handle_arms(

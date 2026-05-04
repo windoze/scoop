@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use inkwell::AddressSpace;
 use inkwell::basic_block::BasicBlock;
-use inkwell::types::StructType;
+use inkwell::types::{BasicTypeEnum, StructType};
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue, PointerValue,
 };
@@ -28,16 +28,17 @@ use crate::effect_lowered::ir::{
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
-use crate::ty::{TypeId, TypeStore};
+use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::super::MainCodegen;
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue};
+use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident};
 use super::types::{
     RefactorAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
     RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
-    RefactorFrameLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
-    RefactorStepVariantLayout,
+    RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameLayout,
+    RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout,
+    RefactorStepLayout, RefactorStepVariantLayout,
 };
 use super::value::RefactorValuePrimitives;
 
@@ -55,6 +56,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
+        abi_source_types: &'a TypeStore,
+        abi_pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &RefactorAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         for callable in program.callables() {
@@ -65,6 +68,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 pass_view,
                 abi,
                 callable,
+            )?;
+        }
+        for (kind, carrier_fqn, target) in abi.callable_carrier_target_layouts() {
+            let mut child = self.fresh_child_codegen();
+            child.codegen_refactor_callable_carrier_entry_shell(
+                kind,
+                carrier_fqn,
+                target,
+                abi_source_types,
+                abi_pass_view,
+                abi,
             )?;
         }
         for interface in program.resume_packings() {
@@ -327,6 +341,399 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.build_return(Some(&value))?;
         }
         Ok(())
+    }
+
+    fn codegen_refactor_callable_carrier_entry_shell(
+        &mut self,
+        kind: RefactorCallableCarrierKind,
+        carrier_fqn: &str,
+        target: &super::types::RefactorCallableCarrierTargetLayout,
+        source_types: &'a TypeStore,
+        pass_view: &'a mir::MaterializedMirPassView<'a>,
+        abi: &RefactorAbiQuery<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let target_layout = abi.callable_layout_by_version_key(target.body_version_key())?;
+        if target_layout.step_schema() != target.step_schema() {
+            return Err(frontend_error(format!(
+                "refactor carrier shell `{}` target step schema 漂移：layout=s{} target=s{}",
+                target.symbol_name(),
+                target_layout.step_schema().as_u32(),
+                target.step_schema().as_u32(),
+            )));
+        }
+        let function = self.refactor_function(target.symbol_name())?;
+        if function.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+        let mir_fun = refactor_mir_callable(pass_view, target_layout.root_fqn())?;
+        let entry = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry);
+        let direct_entry = target_layout.direct_entry();
+        let args_payload = self.build_refactor_carrier_direct_args(
+            kind,
+            carrier_fqn,
+            function,
+            mir_fun,
+            source_types,
+            abi,
+            direct_entry,
+        )?;
+        let direct_fun = self.refactor_function(direct_entry.symbol_name())?;
+        let mut args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
+        if !direct_entry.args_abi().is_elided() {
+            args.push(
+                args_payload
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor carrier shell `{}` 需要 non-elided direct args payload",
+                            target.symbol_name()
+                        ))
+                    })?
+                    .into(),
+            );
+        }
+        let call = self
+            .builder
+            .build_call(direct_fun, &args, "refactor_carrier_to_direct")?;
+        let step = call.try_as_basic_value().basic().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor carrier shell `{}` direct entry 未返回 Step_F",
+                target.symbol_name()
+            ))
+        })?;
+        self.builder.build_return(Some(&step))?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_refactor_carrier_direct_args(
+        &mut self,
+        kind: RefactorCallableCarrierKind,
+        carrier_fqn: &str,
+        function: FunctionValue<'ctx>,
+        mir_fun: &mir::FunDecl,
+        source_types: &TypeStore,
+        abi: &RefactorAbiQuery<'ctx>,
+        direct_entry: &RefactorCallableEntryLayout<'ctx>,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let mut components = vec![None; mir_fun.params.len()];
+        let receiver = function.get_nth_param(0).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor carrier shell `{}` 缺少 receiver/carrier 参数",
+                carrier_fqn
+            ))
+        })?;
+        let explicit_start = match kind {
+            RefactorCallableCarrierKind::ClosureObject if mir_fun.name.starts_with("$lambda") => {
+                if components.is_empty() {
+                    return Err(frontend_error(format!(
+                        "refactor closure carrier `{carrier_fqn}` 指向 lambda，但 direct entry 没有 env 参数"
+                    )));
+                }
+                components[0] = self.load_refactor_closure_env_payload(
+                    receiver.into_pointer_value(),
+                    mir_fun,
+                    source_types,
+                )?;
+                1
+            }
+            RefactorCallableCarrierKind::ClosureObject => 0,
+            RefactorCallableCarrierKind::ClassVtable
+            | RefactorCallableCarrierKind::InterfaceItable => {
+                if components.is_empty() {
+                    return Err(frontend_error(format!(
+                        "refactor dispatch carrier `{carrier_fqn}` direct entry 缺少 receiver 参数"
+                    )));
+                }
+                components[0] = Some(receiver);
+                1
+            }
+        };
+        self.unpack_refactor_carrier_explicit_args(
+            function,
+            mir_fun,
+            explicit_start,
+            source_types,
+            &mut components,
+        )?;
+        let direct_args_layout = abi.source_value_layout(direct_entry.invoke_args_tuple_ty())?;
+        self.build_refactor_source_payload_from_components(
+            direct_args_layout,
+            &components,
+            "refactor_carrier_direct_args",
+        )
+    }
+
+    fn unpack_refactor_carrier_explicit_args(
+        &mut self,
+        function: FunctionValue<'ctx>,
+        mir_fun: &mir::FunDecl,
+        explicit_start: usize,
+        source_types: &TypeStore,
+        components: &mut [Option<BasicValueEnum<'ctx>>],
+    ) -> Result<(), LlvmEmitError> {
+        if explicit_start > mir_fun.params.len() {
+            return Err(frontend_error(format!(
+                "refactor carrier shell `{}` explicit arg 起点越界：start={} params={}",
+                mir_fun.fqn,
+                explicit_start,
+                mir_fun.params.len(),
+            )));
+        }
+        let explicit_params = &mir_fun.params[explicit_start..];
+        if explicit_params.is_empty() {
+            return Ok(());
+        }
+        let elided = explicit_params
+            .iter()
+            .map(|param| self.refactor_source_type_is_elided(param.span, source_types, param.ty))
+            .collect::<Result<Vec<_>, _>>()?;
+        if elided.iter().all(|is_elided| *is_elided) {
+            return Ok(());
+        }
+        let raw = function.get_nth_param(1).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor carrier shell `{}` 缺少 explicit args payload 参数",
+                mir_fun.fqn
+            ))
+        })?;
+        if explicit_params.len() == 1 {
+            components[explicit_start] = Some(raw);
+            return Ok(());
+        }
+        let BasicValueEnum::StructValue(tuple) = raw else {
+            return Err(frontend_error(format!(
+                "refactor carrier shell `{}` explicit args payload 不是 tuple struct",
+                mir_fun.fqn
+            )));
+        };
+        let mut abi_field = 0u32;
+        for (offset, is_elided) in elided.into_iter().enumerate() {
+            if is_elided {
+                continue;
+            }
+            let raw_field = self.builder.build_extract_value(
+                tuple,
+                abi_field,
+                &format!("refactor_carrier_arg{offset}"),
+            )?;
+            components[explicit_start + offset] = Some(raw_field);
+            abi_field += 1;
+        }
+        Ok(())
+    }
+
+    fn refactor_source_type_is_elided(
+        &mut self,
+        span: crate::span::Span,
+        source_types: &TypeStore,
+        ty: TypeId,
+    ) -> Result<bool, LlvmEmitError> {
+        let cg_ty =
+            self.cg_ty_of_mir_type(source_types, ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor carrier arg type",
+                    at: span.into(),
+                })?;
+        let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
+        Ok(self.target_data.get_store_size(&llvm_ty) == 0)
+    }
+
+    fn load_refactor_closure_env_payload(
+        &mut self,
+        closure_obj_i8: PointerValue<'ctx>,
+        mir_fun: &mir::FunDecl,
+        source_types: &TypeStore,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let Some(env_param) = mir_fun.params.first() else {
+            return Err(frontend_error(format!(
+                "refactor closure carrier `{}` 缺少 lambda env 参数",
+                mir_fun.fqn
+            )));
+        };
+        let env_cg = self.cg_ty_of_mir_type(source_types, env_param.ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor closure env type",
+                at: env_param.span.into(),
+            },
+        )?;
+        if env_cg == CgTy::Unit {
+            return Ok(None);
+        }
+        let CgTy::Tuple(tuple_ty) = env_cg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor closure env payload shape",
+                at: env_param.span.into(),
+            });
+        };
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor closure env tuple type",
+                at: env_param.span.into(),
+            });
+        };
+        let capture_cgs = elements
+            .iter()
+            .map(|ty| {
+                self.cg_ty_of(*ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor closure env capture type",
+                        at: env_param.span.into(),
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let env_obj_ty =
+            self.refactor_closure_env_object_type(env_param.span, &mir_fun.fqn, &capture_cgs)?;
+        let env_i8 = self.load_refactor_closure_env_ref(closure_obj_i8)?;
+        let env_ptr = self.refactor_cast_ptr(
+            env_i8,
+            self.context.ptr_type(self.gc_address_space()),
+            "refactor_closure_env_obj",
+        )?;
+        let BasicTypeEnum::StructType(tuple_struct_ty) =
+            self.llvm_basic_type_of(env_param.span, env_cg)?
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor closure env tuple LLVM type",
+                at: env_param.span.into(),
+            });
+        };
+        let mut tuple = tuple_struct_ty.get_undef();
+        for (index, capture_cg) in capture_cgs.iter().enumerate() {
+            if matches!(capture_cg, CgTy::Unit | CgTy::Never) {
+                continue;
+            }
+            let field_ty = self.llvm_basic_type_of(env_param.span, *capture_cg)?;
+            let env_field_index = (index + 1) as u32;
+            if env_field_index >= env_obj_ty.count_fields() {
+                return Err(frontend_error(format!(
+                    "refactor closure env object `{}` 缺少 capture field {}（field_count={}）",
+                    mir_fun.fqn,
+                    env_field_index,
+                    env_obj_ty.count_fields(),
+                )));
+            }
+            let field_gep = self.builder.build_struct_gep(
+                env_obj_ty,
+                env_ptr,
+                env_field_index,
+                &format!("refactor_closure_env_field{index}_gep"),
+            )?;
+            let raw = self.builder.build_load(
+                field_ty,
+                field_gep,
+                &format!("refactor_closure_env_field{index}"),
+            )?;
+            tuple = self
+                .builder
+                .build_insert_value(tuple, raw, index as u32, "refactor_closure_env_tuple")?
+                .into_struct_value();
+        }
+        Ok(Some(tuple.into()))
+    }
+
+    fn load_refactor_closure_env_ref(
+        &mut self,
+        closure_obj_i8: PointerValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let closure_ty = self.llvm_closure_object_type();
+        if closure_ty.count_fields() <= 1 {
+            return Err(frontend_error(format!(
+                "refactor closure object layout 缺少 env field（field_count={}）",
+                closure_ty.count_fields(),
+            )));
+        }
+        let closure_ptr = self.refactor_cast_ptr(
+            closure_obj_i8,
+            self.context.ptr_type(self.gc_address_space()),
+            "refactor_closure_obj",
+        )?;
+        let env_gep = self.builder.build_struct_gep(
+            closure_ty,
+            closure_ptr,
+            1,
+            "refactor_closure_env_gep",
+        )?;
+        Ok(self
+            .builder
+            .build_load(self.llvm_gc_i8_ptr_type(), env_gep, "refactor_closure_env")?
+            .into_pointer_value())
+    }
+
+    fn refactor_closure_env_object_type(
+        &mut self,
+        span: crate::span::Span,
+        fn_ptr: &str,
+        field_cgs: &[CgTy],
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let name = format!("scoop.mir.lambda_env${}", sanitize_llvm_ident(fn_ptr));
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return Ok(existing);
+        }
+        let env_ty = self.context.opaque_struct_type(&name);
+        let mut fields = Vec::with_capacity(1 + field_cgs.len());
+        fields.push(self.llvm_gc_object_header_type().into());
+        for cg in field_cgs {
+            fields.push(self.llvm_basic_type_of(span, *cg)?);
+        }
+        env_ty.set_body(&fields, false);
+        Ok(env_ty)
+    }
+
+    fn build_refactor_source_payload_from_components(
+        &mut self,
+        layout: &RefactorSourceAbiLayout<'ctx>,
+        components: &[Option<BasicValueEnum<'ctx>>],
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        if layout.abi().is_elided() {
+            return Ok(None);
+        }
+        match layout.kind() {
+            RefactorSourceAbiLayoutKind::Scalar => components
+                .first()
+                .and_then(|value| *value)
+                .map(Some)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor ABI scalar payload `{name}` 缺少 source component"
+                    ))
+                }),
+            RefactorSourceAbiLayoutKind::Tuple => {
+                let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
+                    return Err(frontend_error(format!(
+                        "refactor ABI tuple payload `{name}` layout 不是 struct"
+                    )));
+                };
+                let mut aggregate = struct_ty.get_undef();
+                for field in layout.fields() {
+                    if field.is_elided() {
+                        continue;
+                    }
+                    let source_index = field.source_index() as usize;
+                    let raw = components
+                        .get(source_index)
+                        .and_then(|value| *value)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor ABI tuple payload `{name}` 缺少 source component {source_index}"
+                            ))
+                        })?;
+                    aggregate = self
+                        .builder
+                        .build_insert_value(
+                            aggregate,
+                            raw,
+                            field
+                                .abi_field_index()
+                                .expect("non-elided field has ABI index"),
+                            &format!("{name}_field{source_index}"),
+                        )?
+                        .into_struct_value();
+                }
+                Ok(Some(aggregate.into()))
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -625,6 +1032,58 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let used_locals = &self.used_locals;
         RefactorValuePrimitives::new(codegen, source_types, body, slots, abi)
             .lower_effect_neutral_statement(stmt, used_locals)
+    }
+
+    fn lower_published_call_statement(
+        &mut self,
+        stmt: &mir::Statement,
+    ) -> Result<bool, LlvmEmitError> {
+        let mir::StatementKind::Assign {
+            target,
+            value:
+                mir::Rvalue::Call {
+                    site_id,
+                    kind,
+                    args,
+                },
+        } = &stmt.kind
+        else {
+            return Ok(false);
+        };
+        if !matches!(
+            kind,
+            mir::CallKind::Closure { .. }
+                | mir::CallKind::FunValue { .. }
+                | mir::CallKind::Virtual { .. }
+                | mir::CallKind::Interface { .. }
+        ) {
+            return Ok(false);
+        }
+        let layout = self
+            .abi
+            .dynamic_invoke_layout(self.abi_step_schema, *site_id)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor source-slice dynamic call site {} 缺少 published dynamic-invoke contract",
+                    site_id.as_u32()
+                ))
+            })?;
+        let args_payload = self.pack_call_args_for_invoke(
+            stmt.span,
+            layout.invoke_args_tuple_ty(),
+            args,
+            "refactor_dynamic_call",
+        )?;
+        let carrier = self.lower_dynamic_call_carrier(stmt.span, kind, layout)?;
+        let step = self.emit_refactor_dynamic_invoke_step(layout, carrier, args_payload)?;
+        self.store_no_outward_call_complete(
+            stmt.span,
+            *site_id,
+            layout.return_step_schema(),
+            step,
+            *target,
+        )?;
+        Ok(true)
     }
 
     fn load_local_value(
@@ -1115,7 +1574,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     LateLoweredSourceStatementClassificationKind::EffectNeutralValue
                     | LateLoweredSourceStatementClassificationKind::BoundaryResultInjection { .. }
                     | LateLoweredSourceStatementClassificationKind::CompletionPayloadInjection { .. } => {
-                        self.lower_effect_neutral_statement(stmt)?;
+                        if !self.lower_published_call_statement(stmt)? {
+                            self.lower_effect_neutral_statement(stmt)?;
+                        }
                     }
                     LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor { .. }
                     | LateLoweredSourceStatementClassificationKind::ResumePayloadInjection { .. }
@@ -1281,40 +1742,36 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let target =
                     self.abi
                         .call_target_layout(self.abi_step_schema, source, lowering.facts())?;
-                let (callee_fun, callee_step_schema, callee_args_abi) = match target {
+                let (step, callee_step_schema) = match target {
                     RefactorCallTargetQuery::KnownInstance(layout) => (
-                        self.codegen
-                            .refactor_function(layout.direct_entry().symbol_name())?,
+                        self.emit_known_instance_call_step(
+                            source,
+                            layout.direct_entry(),
+                            args_payload,
+                        )?,
                         layout.step_schema(),
-                        *layout.direct_entry().args_abi(),
                     ),
                     RefactorCallTargetQuery::DynamicInvoke(layout) => {
-                        return Err(frontend_error(format!(
-                            "refactor body lowering 尚未支持 dynamic invoke body call site {}，但 ABI query 已发布 contract",
-                            layout.site_id().as_u32()
-                        )));
+                        let carrier_source = lowering.operand_contract().carrier_source().ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor dynamic call boundary site {} 缺少 published carrier source",
+                                source.as_u32()
+                            ))
+                        })?;
+                        let carrier_value = self.lower_operand_source(carrier_source)?;
+                        let Some(BasicValueEnum::PointerValue(carrier)) = carrier_value.value
+                        else {
+                            return Err(frontend_error(format!(
+                                "refactor dynamic call boundary site {} carrier source 不是 pointer",
+                                source.as_u32()
+                            )));
+                        };
+                        (
+                            self.emit_refactor_dynamic_invoke_step(layout, carrier, args_payload)?,
+                            layout.return_step_schema(),
+                        )
                     }
                 };
-                let mut args = Vec::new();
-                if !callee_args_abi.is_elided() {
-                    args.push(
-                        args_payload
-                            .ok_or_else(|| {
-                                frontend_error(format!(
-                                    "refactor call site {} 需要 non-elided args payload",
-                                    source.as_u32()
-                                ))
-                            })?
-                            .into(),
-                    );
-                }
-                let call =
-                    self.codegen
-                        .builder
-                        .build_call(callee_fun, &args, "refactor_call_step")?;
-                let step = call.try_as_basic_value().basic().ok_or_else(|| {
-                    frontend_error("refactor call boundary callee 未返回 Step_F".to_string())
-                })?;
                 self.dispatch_boundary_step(
                     boundary,
                     callee_step_schema,
@@ -2013,6 +2470,281 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .pack_sources(source_ty, sources, name)
     }
 
+    fn pack_call_args_for_invoke(
+        &mut self,
+        span: crate::span::Span,
+        invoke_args_tuple_ty: TypeId,
+        args: &[mir::CallArg],
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        self.value_primitives()
+            .pack_call_args_for_invoke_args_tuple(span, invoke_args_tuple_ty, args, name)
+    }
+
+    fn emit_known_instance_call_step(
+        &mut self,
+        site_id: SiteId,
+        entry: &RefactorCallableEntryLayout<'ctx>,
+        args_payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+        let callee = self.codegen.refactor_function(entry.symbol_name())?;
+        let mut args = Vec::new();
+        if !entry.args_abi().is_elided() {
+            args.push(
+                args_payload
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor call site {} 需要 non-elided args payload",
+                            site_id.as_u32()
+                        ))
+                    })?
+                    .into(),
+            );
+        }
+        let call = self
+            .codegen
+            .builder
+            .build_call(callee, &args, "refactor_call_step")?;
+        call.try_as_basic_value().basic().ok_or_else(|| {
+            frontend_error("refactor call boundary callee 未返回 Step_F".to_string())
+        })
+    }
+
+    fn lower_dynamic_call_carrier(
+        &mut self,
+        span: crate::span::Span,
+        kind: &mir::CallKind,
+        layout: &RefactorDynamicInvokeLayout<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let (operand, expected_ty) = match (kind, layout.carrier()) {
+            (
+                mir::CallKind::Closure { callee, .. } | mir::CallKind::FunValue { callee },
+                RefactorDynamicInvokeCarrierLayout::ClosureObject(_),
+            ) => (callee, CgTy::Ref),
+            (
+                mir::CallKind::Virtual { receiver, .. },
+                RefactorDynamicInvokeCarrierLayout::VirtualReceiver(dispatch),
+            ) => {
+                let expected = self
+                    .codegen
+                    .cg_ty_of_mir_type(self.source_types, dispatch.receiver_ty())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor virtual receiver type",
+                        at: span.into(),
+                    })?;
+                (receiver, expected)
+            }
+            (
+                mir::CallKind::Interface { receiver, .. },
+                RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(dispatch),
+            ) => {
+                let expected = self
+                    .codegen
+                    .cg_ty_of_mir_type(self.source_types, dispatch.receiver_ty())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor interface receiver type",
+                        at: span.into(),
+                    })?;
+                (receiver, expected)
+            }
+            _ => {
+                return Err(frontend_error(format!(
+                    "refactor dynamic call site {} 的 CallKind 与 published carrier layout 漂移",
+                    layout.site_id().as_u32()
+                )));
+            }
+        };
+        let value = self.codegen.codegen_mir_operand_expected(
+            span,
+            operand,
+            &self.slots,
+            Some(expected_ty),
+        )?;
+        let value = self.codegen.coerce_value(span, value, expected_ty)?;
+        let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
+            return Err(frontend_error(format!(
+                "refactor dynamic call site {} carrier source 不是 pointer",
+                layout.site_id().as_u32()
+            )));
+        };
+        Ok(ptr)
+    }
+
+    fn emit_refactor_dynamic_invoke_step(
+        &mut self,
+        layout: &RefactorDynamicInvokeLayout<'ctx>,
+        carrier: PointerValue<'ctx>,
+        args_payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+        let fn_i8 = self.load_dynamic_invoke_fn_ptr(layout, carrier)?;
+        let typed_fn = self.codegen.refactor_cast_ptr(
+            fn_i8,
+            self.codegen.context.ptr_type(AddressSpace::default()),
+            "refactor_dynamic_fn",
+        )?;
+        let mut args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
+        args.push(carrier.into());
+        if !layout.args_abi().is_elided() {
+            args.push(
+                args_payload
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor dynamic call site {} 需要 non-elided args payload",
+                            layout.site_id().as_u32()
+                        ))
+                    })?
+                    .into(),
+            );
+        }
+        let call = self.codegen.builder.build_indirect_call(
+            layout.llvm_ty(),
+            typed_fn,
+            &args,
+            "refactor_dynamic_call_step",
+        )?;
+        call.try_as_basic_value().basic().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor dynamic call site {} 未返回 Step_F",
+                layout.site_id().as_u32()
+            ))
+        })
+    }
+
+    fn load_dynamic_invoke_fn_ptr(
+        &mut self,
+        layout: &RefactorDynamicInvokeLayout<'ctx>,
+        carrier: PointerValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        match layout.carrier() {
+            RefactorDynamicInvokeCarrierLayout::ClosureObject(closure) => {
+                if closure.fn_field_index() >= closure.object_ty().count_fields() {
+                    return Err(frontend_error(format!(
+                        "refactor dynamic closure carrier site {} fn field {} 越界（field_count={}）",
+                        layout.site_id().as_u32(),
+                        closure.fn_field_index(),
+                        closure.object_ty().count_fields(),
+                    )));
+                }
+                let obj_ptr = self.codegen.refactor_cast_ptr(
+                    carrier,
+                    self.codegen
+                        .context
+                        .ptr_type(self.codegen.gc_address_space()),
+                    "refactor_dynamic_closure_obj",
+                )?;
+                let fn_gep = self.codegen.builder.build_struct_gep(
+                    closure.object_ty(),
+                    obj_ptr,
+                    closure.fn_field_index(),
+                    "refactor_dynamic_closure_fn_gep",
+                )?;
+                Ok(self
+                    .codegen
+                    .builder
+                    .build_load(
+                        self.codegen.llvm_i8_ptr_type(),
+                        fn_gep,
+                        "refactor_dynamic_closure_fn",
+                    )?
+                    .into_pointer_value())
+            }
+            RefactorDynamicInvokeCarrierLayout::VirtualReceiver(dispatch) => {
+                self.codegen.load_class_vtable_slot_fn_ptr_i8(
+                    self.mir_fun.span,
+                    carrier,
+                    dispatch.method_slot(),
+                )
+            }
+            RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(dispatch) => {
+                let interface_id = dispatch.interface_id().ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor dynamic interface call site {} 缺少 published interface id",
+                        layout.site_id().as_u32()
+                    ))
+                })?;
+                let fn_i8 = self.codegen.load_interface_itable_slot_fn_ptr_i8(
+                    self.mir_fun.span,
+                    carrier,
+                    interface_id,
+                    dispatch.method_slot(),
+                )?;
+                let is_null = self
+                    .codegen
+                    .builder
+                    .build_is_null(fn_i8, "refactor_dynamic_itable_fn_is_null")?;
+                let function = self.function;
+                let ok_bb = self
+                    .codegen
+                    .context
+                    .append_basic_block(function, "refactor_dynamic_itable_ok");
+                let bad_bb = self
+                    .codegen
+                    .context
+                    .append_basic_block(function, "refactor_dynamic_itable_null");
+                self.codegen
+                    .builder
+                    .build_conditional_branch(is_null, bad_bb, ok_bb)?;
+                self.codegen.builder.position_at_end(bad_bb);
+                let exit = self.codegen.declare_libc_exit();
+                let code = self.codegen.context.i32_type().const_int(7, false);
+                self.codegen.builder.build_call(
+                    exit,
+                    &[code.into()],
+                    "refactor_dynamic_itable_null_exit",
+                )?;
+                self.codegen.builder.build_unreachable()?;
+                self.codegen.builder.position_at_end(ok_bb);
+                Ok(fn_i8)
+            }
+        }
+    }
+
+    fn store_no_outward_call_complete(
+        &mut self,
+        span: crate::span::Span,
+        site_id: SiteId,
+        step_schema: StepSchemaId,
+        step: BasicValueEnum<'ctx>,
+        target: LocalId,
+    ) -> Result<(), LlvmEmitError> {
+        let step_layout = self.abi.step_layout(step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor dynamic call site {} 缺少 return step schema s{} layout",
+                site_id.as_u32(),
+                step_schema.as_u32()
+            ))
+        })?;
+        if !step_layout.cases().is_empty() {
+            return Err(frontend_error(format!(
+                "refactor source-slice dynamic call site {} return step schema s{} 含 outward case，必须走 boundary lowering",
+                site_id.as_u32(),
+                step_schema.as_u32()
+            )));
+        }
+        let payload = self.codegen.refactor_extract_step_payload(
+            step_layout,
+            step,
+            step_layout.complete_variant(),
+            "refactor_dynamic_complete_payload",
+        )?;
+        match payload {
+            Some(raw) => {
+                let _ = self.store_loaded_raw_local(span, target, raw)?;
+            }
+            None => {
+                let slot = self.codegen.mir_local_slot(span, &self.slots, target)?;
+                if slot.cg_ty != CgTy::Unit && slot.cg_ty != CgTy::Never {
+                    return Err(frontend_error(format!(
+                        "refactor dynamic call site {} non-Unit target 缺少 Complete payload",
+                        site_id.as_u32()
+                    )));
+                }
+                let _ = self.store_local_value(span, target, CgValue::unit())?;
+            }
+        }
+        Ok(())
+    }
+
     fn create_continuation_object(
         &mut self,
         resume_state: StateId,
@@ -2696,4 +3428,30 @@ fn same_completion_payload_source_ignoring_span(
 
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn refactor_llvm_call_lowering_uses_published_call_targets() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("RefactorCallTargetQuery::KnownInstance"));
+        assert!(body.contains("RefactorCallTargetQuery::DynamicInvoke"));
+        assert!(body.contains("emit_known_instance_call_step"));
+        assert!(body.contains("emit_refactor_dynamic_invoke_step"));
+        assert!(!body.contains(concat!("尚未支持 dynamic invoke ", "body call site")));
+    }
+
+    #[test]
+    fn refactor_llvm_dynamic_invoke_lowering_uses_carrier_layouts() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("RefactorDynamicInvokeCarrierLayout::ClosureObject"));
+        assert!(body.contains("RefactorDynamicInvokeCarrierLayout::VirtualReceiver"));
+        assert!(body.contains("RefactorDynamicInvokeCarrierLayout::InterfaceReceiver"));
+        assert!(body.contains("load_dynamic_invoke_fn_ptr"));
+        assert!(body.contains("build_indirect_call"));
+        assert!(!body.contains(concat!("codegen_mir_", "direct_call(")));
+    }
 }

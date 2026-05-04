@@ -254,26 +254,39 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         entry: &RefactorCallableEntryLayout<'ctx>,
         args: &[mir::CallArg],
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        self.pack_call_args_for_invoke_args_tuple(
+            span,
+            entry.invoke_args_tuple_ty(),
+            args,
+            "refactor_pure_call",
+        )
+    }
+
+    pub(super) fn pack_call_args_for_invoke_args_tuple(
+        &mut self,
+        span: Span,
+        invoke_args_tuple_ty: TypeId,
+        args: &[mir::CallArg],
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
         if args.iter().any(|arg| arg.name.is_some()) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor pure statement named call arg",
+                kind: "refactor named call arg",
                 at: span.into(),
             });
         }
-        let layout = self.abi.source_value_layout(entry.invoke_args_tuple_ty())?;
+        let layout = self.abi.source_value_layout(invoke_args_tuple_ty)?;
         if layout.abi().is_elided() {
             return Ok(None);
         }
         match layout.kind() {
             RefactorSourceAbiLayoutKind::Scalar => {
                 let arg = args.first().ok_or_else(|| {
-                    frontend_error(
-                        "refactor pure statement scalar call ABI 缺少 argument".to_string(),
-                    )
+                    frontend_error(format!("{name} scalar call ABI 缺少 argument"))
                 })?;
                 if args.len() != 1 {
                     return Err(frontend_error(format!(
-                        "refactor pure statement scalar call ABI 期望 1 个 argument，实际 {} 个",
+                        "{name} scalar call ABI 期望 1 个 argument，实际 {} 个",
                         args.len()
                     )));
                 }
@@ -281,7 +294,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, layout.source_ty())
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor pure statement scalar call arg type",
+                        kind: "refactor scalar call arg type",
                         at: arg.span.into(),
                     })?;
                 let value = self.codegen.codegen_mir_operand_expected(
@@ -293,7 +306,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let value = self.codegen.coerce_value(arg.span, value, expected)?;
                 Ok(Some(value.value.ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor pure statement scalar call arg value",
+                        kind: "refactor scalar call arg value",
                         at: arg.span.into(),
                     },
                 )?))
@@ -301,15 +314,15 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             RefactorSourceAbiLayoutKind::Tuple => {
                 if args.len() != layout.fields().len() {
                     return Err(frontend_error(format!(
-                        "refactor pure statement tuple call ABI 期望 {} 个 argument，实际 {} 个",
+                        "{name} tuple call ABI 期望 {} 个 argument，实际 {} 个",
                         layout.fields().len(),
                         args.len()
                     )));
                 }
                 let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
-                    return Err(frontend_error(
-                        "refactor pure statement tuple call ABI layout 不是 struct".to_string(),
-                    ));
+                    return Err(frontend_error(format!(
+                        "{name} tuple call ABI layout 不是 struct"
+                    )));
                 };
                 let mut aggregate = struct_ty.get_undef();
                 for (index, field) in layout.fields().iter().enumerate() {
@@ -325,7 +338,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         .codegen
                         .cg_ty_of_mir_type(self.source_types, field.source_ty())
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "refactor pure statement tuple call arg type",
+                            kind: "refactor tuple call arg type",
                             at: arg.span.into(),
                         })?;
                     let value = self.codegen.codegen_mir_operand_expected(
@@ -336,7 +349,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     )?;
                     let value = self.codegen.coerce_value(arg.span, value, expected)?;
                     let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor pure statement tuple call arg value",
+                        kind: "refactor tuple call arg value",
                         at: arg.span.into(),
                     })?;
                     aggregate = self
@@ -348,7 +361,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                             field
                                 .abi_field_index()
                                 .expect("non-elided field has ABI index"),
-                            &format!("refactor_pure_call_arg{index}"),
+                            &format!("{name}_arg{index}"),
                         )?
                         .into_struct_value();
                 }

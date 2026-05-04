@@ -1011,6 +1011,8 @@ fn build_main_module_from_codegen_entry<'ctx>(
             program,
             late_lowered_types,
             primary_pass_view,
+            abi_types,
+            abi_pass_view,
             &abi_query,
         )?;
         Some(abi_query)
