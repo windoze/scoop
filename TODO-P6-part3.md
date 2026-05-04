@@ -64,7 +64,7 @@
   - 同步修复 `Step_F` union storage 的 by-value ABI 字节保真问题，避免 Complete(String) 被最大 case layout 误解释；同时放宽 wrapper completion 对 sibling handle arm 的 span-only payload source drift，保证 composed continuation 完成后能返回 resume caller 而不是重跑 owner tail。
   - 验证通过：`cargo test -p scoopc refactor_effect_lowered_call_boundary_continuation_composition`；`cargo test -p scoopc refactor_llvm_call_boundary_continuation_composition`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo clippy --all-targets -- -D warnings`（Rust clippy 通过，构建脚本仍输出 macOS SDK 对 `getsectbynamefromheader_64` 的 C deprecation warning）。
 
-## P6-T02qh：发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值
+## [DONE] P6-T02qh：发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值
 
 - 来源：从 [`TODO-P6-part2.md`](./TODO-P6-part2.md) 迁移。
 - 参考：
@@ -97,7 +97,12 @@
   - 缺失、歧义或类型漂移时在 P5/P6 handoff 边界显式拒绝。
 - 依赖：P6-T02qc，P6-T02qg，P6-T02qga
 - 完成记录：
-  - 阻塞记录：执行本任务验证时已补齐 wrapper payload source handoff、ABI 校验、body owner-trampoline `WrapperPayload` complete 返回路径与同型/非同型单测；但 `effect_multi_escape_indirect_direct_while.scoop` refactor run-pass 仍失败。直接原因为 call-boundary outward case 被本地 handle arm 消费时丢弃 callee continuation，escaped continuation resume 跳过 `fetch_resume`，该缺口已拆为前置任务 `P6-T02qga`。
+  - 已发布 surface-resume wrapper complete payload source handoff：同型 owner/wrapper answer 复用 owner `Complete` payload，`owner Unit -> wrapper Int` 等非同型路径引用 published handle-arm completion payload source。
+  - ABI materialization 现在校验 wrapper answer type、payload source type、`Step_F` complete layout 与 frame/home slot；缺失、Unit/non-Unit 漂移和类型漂移会 fail fast。
+  - refactor LLVM owner trampoline / wrapper projection complete 分支消费 published payload source，构造 wrapper `Complete(answer)` 时不再默认填值或回 raw MIR/source shape 恢复 answer。
+  - 前置 blocker `P6-T02qga` 已完成，`effect_multi_escape_indirect_direct_while.scoop` 的 composed continuation 路径现在会先执行 callee resume body，再回 caller resume state 并投影 wrapper completion payload。
+  - 本轮同时消除 macOS SDK 对 runtime stackmap section lookup 的 C deprecation warning：`scoop_stackmap.c` 改用 `getsectiondata()`，并补齐 `scoop_runtime_error_fatal` runtime ABI allowlist，保证相关验证无警告、无 allowlist 失败。
+  - 验证通过：`cargo test -p scoopc refactor_effect_lowered_surface_resume_wrapper_completion`；`cargo test -p scoopc refactor_llvm_surface_resume_wrapper_completion`；`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo test -p scoop_runtime`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T03a：固化 clean refactor LLVM backend 边界，抽出 effect-neutral value/expression primitive
 

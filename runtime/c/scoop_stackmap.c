@@ -1188,10 +1188,9 @@ uint32_t scoop_stackmap_registry_register_current_process(void) {
 #if defined(__LP64__)
   // 先尝试直接从主程序（`_mh_execute_header`）定位 stackmaps section：
   // - 该路径不依赖 dyld image 索引，便于在极早期阶段快速确认“main binary 可发现”；
-  // - 对 PIE/ASLR 需要加上 slide 才是实际映射地址。
+  // - section 数据地址由 getsectiondata() 解析，避免直接读取已废弃的 section header API。
   extern const struct mach_header_64 _mh_execute_header;
   uint32_t main_index = UINT32_MAX;
-  intptr_t main_slide = 0;
 #endif
 
   const uint32_t image_count = _dyld_image_count();
@@ -1202,25 +1201,21 @@ uint32_t scoop_stackmap_registry_register_current_process(void) {
     }
 
 #if defined(__LP64__)
-    // 记录主程序的 dyld image index 与 slide（避免假设 main 固定为 0）。
+    // 记录主程序的 dyld image index（避免假设 main 固定为 0）。
     if (main_index == UINT32_MAX && hdr == (const struct mach_header *)&_mh_execute_header) {
       main_index = i;
-      main_slide = _dyld_get_image_vmaddr_slide(i);
     }
 
-    // 注意：对 PIE/ASLR image，section 的 `addr` 需要加上 slide 才是实际映射地址。
-    const intptr_t slide = _dyld_get_image_vmaddr_slide(i);
-    const struct section_64 *sect = getsectbynamefromheader_64(
-        (const struct mach_header_64 *)hdr, "__LLVM_STACKMAPS", "__llvm_stackmaps");
-    if (sect == 0 || sect->size == 0) {
+    // getsectiondata() 是 macOS 13+ 推荐接口，返回已可读取的 section 数据地址。
+    unsigned long sect_size = 0;
+    const uint8_t *data = getsectiondata((const struct mach_header_64 *)hdr,
+                                         "__LLVM_STACKMAPS",
+                                         "__llvm_stackmaps",
+                                         &sect_size);
+    if (data == 0 || sect_size == 0) {
       continue;
     }
-    const intptr_t start = (intptr_t)sect->addr + slide;
-    if (start <= 0) {
-      continue;
-    }
-    const uint8_t *data = (const uint8_t *)(uintptr_t)start;
-    total_added += scoop_stackmap_registry_register_section(data, (size_t)sect->size);
+    total_added += scoop_stackmap_registry_register_section(data, (size_t)sect_size);
 #else
     // 早期阶段仅支持 64-bit host。
     (void)hdr;
@@ -1230,15 +1225,14 @@ uint32_t scoop_stackmap_registry_register_current_process(void) {
 #if defined(__LP64__)
   // 若主程序尚未注册（例如遍历 dyld images 时跳过/未命中），在这里补一次“主程序优先”注册。
   if (main_index != UINT32_MAX) {
-    const struct section_64 *main_sect = getsectbynamefromheader_64(
-        &_mh_execute_header, "__LLVM_STACKMAPS", "__llvm_stackmaps");
-    if (main_sect != 0 && main_sect->size != 0) {
-      const intptr_t start = (intptr_t)main_sect->addr + main_slide;
-      if (start > 0) {
-        const uint8_t *main_data = (const uint8_t *)(uintptr_t)start;
-        total_added +=
-            scoop_stackmap_registry_register_section(main_data, (size_t)main_sect->size);
-      }
+    unsigned long main_sect_size = 0;
+    const uint8_t *main_data = getsectiondata(&_mh_execute_header,
+                                              "__LLVM_STACKMAPS",
+                                              "__llvm_stackmaps",
+                                              &main_sect_size);
+    if (main_data != 0 && main_sect_size != 0) {
+      total_added +=
+          scoop_stackmap_registry_register_section(main_data, (size_t)main_sect_size);
     }
   }
 #endif

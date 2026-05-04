@@ -100,7 +100,7 @@
 | `P6-T02qf` | `TODO-P6-part2.md` | [DONE] 把 `scoop test` run-pass 子进程接到父级 effect-pipeline selector，确保 P6-T03 验证真实覆盖 refactor LLVM path |
 | `P6-T02qg` | `TODO-P6-part2.md` | [DONE] 发布 non-`Unit` completion payload source / return-value contract，禁止 P6-T03 在 backend 回 raw MIR/tail shape 恢复完成值 |
 | `P6-T02qga` | `TODO-P6-part3.md` | [DONE] 发布 call-boundary 本地消费 outward case 的 continuation composition contract，禁止 escaped continuation 绕过 callee resume body |
-| `P6-T02qh` | `TODO-P6-part3.md` | 发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值 |
+| `P6-T02qh` | `TODO-P6-part3.md` | [DONE] 发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值 |
 | `P6-T03` | `TODO-P6-part2.md` | [ABANDONED] 旧单体 LLVM body lowering 任务，已拆分为 clean backend 小任务链 |
 | `P6-T03a` | `TODO-P6-part3.md` | 固化 clean refactor LLVM backend 边界，抽出 effect-neutral value/expression primitive |
 | `P6-T03b` | `TODO-P6-part3.md` | 发布 source-slice statement classification contract，禁止 body emitter 静默 skip 或回 raw shape 猜语义 |
