@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02q -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -451,6 +451,68 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02qa：发布 escaped continuation aggregate/member write-read provenance contract，禁止 P6-T02q 在 late-lowered/ABI materialization 现场从 unresolved assign-lhs TODO 或 source shape 猜 `cell.k` 回读 continuation 的底层 surface route
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.5.2-§5.5.7, §8
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T02kR`, `P6-T02o`, `P6-T02q`
+  - `crates/scoopc/src/mir/{mod,lower}.rs`
+  - `crates/scoopc/src/effect_lowered/{ir,materialize}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - `P6-T02o` 已让 `Resume` boundary 发布 continuation source local 与 ordered resume args；`P6-T02kR` 也已让 handle continuation binder 发布 authoritative binder local/schema/object contract；
+  - 但当前 canonical MIR 仍没有把 aggregate/member assignment lower 成可追踪 contract：`crates/scoopc/src/mir/lower.rs::lower_assign_stmt(...)` 只覆盖 `local = expr`，像 `cell.k = Some(k)` / `cell.k = none_k` 这类写入仍会落成 `StatementKind::Todo("assign lhs lowering pending")`；
+  - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 真实暴露了这层缺口：handle arm binder 发布 `local10 -> continuation_schema=k3`，但后续 site25/site30/site35/site40 的 `Resume` boundary continuation local（`local95` / `local116` / `local137` / `local158`）只来自 `MemberAccess(Cell.k)` + `PatternExtract(Some[0])`，当前 handoff 并没有 authoritative 地说明这些 readback local 究竟承接了哪条已发布 continuation source route；
+  - 若不先补齐这层 write-read provenance，`P6-T02q` 就只能依赖 unresolved assign-lhs TODO、source span、member 名字、或 continuation nominal type 去猜 `cell.k` 回读 continuation 的真实 surface route，直接违反 contract-first 边界。
+
+- 目标：
+  - 在进入 `P6-T02q` 之前，先把 compiler-owned continuation 值穿过 aggregate/member write/read 时的 authoritative provenance contract 显式发布出来；
+  - 让后续 wrapper-schema bridge 能只消费已发布 handoff，就把 `cell.k` 这类 readback continuation authoritative 地接回原始 surface route，而不再回 MIR/source shape 猜测。
+
+- 必须实现的内容：
+  1. 为 continuation-bearing aggregate/member assignment 发布稳定 write contract。
+     - 至少要覆盖 `cell.k = Some(k)` / `cell.k = none_k` 这类当前会落成 `assign lhs lowering pending` 的路径；
+     - published contract 至少要能表达：写入目标的 member identity、写入值来源，以及写入发生在何处；
+     - 明确禁止继续把这类路径留成只有 `Todo("assign lhs lowering pending")` 的不透明 source shape，然后期待 P6 现场自行恢复 provenance。
+  2. 为后续 member readback / variant extract 发布 continuation provenance contract。
+     - 至少要覆盖 `MemberAccess(Cell.k)` 后接 `PatternExtract(Some[0])` 的 canonical readback 路径；
+     - handoff 必须能 authoritative 地说明：readback continuation local 承接了哪条已发布 continuation source route（例如 handle continuation binder 对应的 `ContinuationSchemaId` / shared surface schema / object route）；
+     - 若同一 readback 可能承接多个互不兼容 route，必须显式 fail fast，而不是留给 `P6-T02q` 现场猜。
+  3. 把这层 provenance 接到 late-lowered / LLVM query handoff。
+     - 推荐落点包括但不限于：canonical MIR published contract、`LateLoweredResumeBoundaryLowering`、`LateLoweredHandleContinuationBinder`、`RefactorResumeBoundaryOperandLayout`，或一个等价的 compiler-owned provenance query；
+     - 但禁止只在 `P6-T02q` / `P6-T03` body emitter 内偷偷缓存“local -> continuation route”私表。
+  4. 对缺失、歧义或漂移的 continuation write-read provenance fail fast。
+     - 至少包括：
+       - continuation 经 aggregate/member 写入后，后续 readback 仍没有 published provenance；
+       - published write target 与 readback member 不一致；
+       - readback continuation local 可能对应多个互不兼容的 authoritative surface route；
+       - `P6-T02q` 若只消费 published handoff 仍无法唯一决定 readback continuation 的底层 route。
+  5. 补充定向测试与回归。
+     - 至少覆盖：
+       - `effect_multi_escape_indirect_direct_while.scoop` 中 `cell.k` 的 write/read path 会显式发布 continuation provenance，而不是只留下 `assign lhs lowering pending`；
+       - 缺失或歧义 provenance 时显式拒绝；
+       - 新 contract 不依赖 `Cell.k` 这个 fixture 私名，而是对 continuation-bearing aggregate/member write/read 作为一般 contract 生效。
+
+- 必须遵从的约束：
+  - 禁止对 `cell.k`、`Some(k)`、或某个具体 fixture block/site 做 task-private 特判。
+  - 禁止让 `P6-T02q` / `P6-T03` 通过 unresolved `Todo("assign lhs lowering pending")`、source span、member 文本名、或 continuation nominal type 反推 provenance。
+  - 若实现需要扩展 canonical MIR 对非 local 赋值 lhs 的 published 表达，必须把该表达作为 compiler-owned contract 显式发布，而不是把责任继续留给后续 backend。
+
+- 验证：
+  - `cargo test -p scoopc refactor_effect_lowered_`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - compiler-owned continuation 值穿过 aggregate/member write/read 后，late-lowered/P6 handoff 仍能 authoritative 地保留其 surface-route provenance；
+  - `P6-T02q` 可以只消费 published contract，把 `cell.k` 这类 readback continuation 唯一桥接回底层 surface route；
+  - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝，而不是由 backend 现场猜测。
+- 依赖：P6-T02kR，P6-T02o，P6-T02p
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T02q：发布 resume-boundary wrapper -> underlying continuation surface route contract，禁止 P6-T03 在 backend 现场从 continuation local / source type 猜 `k.resume(...)` 实际调用的 schema
 
 - 参考：
@@ -512,9 +574,10 @@
 - 完成条件：
   - `P6-T03` 可以仅凭 published handoff 唯一决定 boundary-local `k.resume(...)` wrapper 实际应调用的 runtime continuation surface route；
   - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝，而不是由 backend 现场猜测。
-- 依赖：P6-T02m，P6-T02n，P6-T02o，P6-T02p
+- 依赖：P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02qa
 - 完成记录：
   - 2026-05-04：开始真正落地 `P6-T03` 时发现新的 blocker。当前 `Resume` boundary contract 仍只发布了 boundary-local wrapper schema，而没有 authoritative 发布它到 runtime continuation object 实际 surface route 的 bridge：`effect_multi_escape_indirect_direct_while.scoop` 中 handle binder 发布 `k3`，但后续 site25/site30/site35/site40 的 resume boundary 只发布 `k5`；`RefactorContinuationSurfaceResumeDispatchLayout` 对 `k5` 又是 `ResumeBoundaryOnly`、没有 object-side method target。若直接继续本任务，backend 必须回 continuation local/source type/shape 猜实际应调用的 surface route，违反 contract-first 约束。
+  - 2026-05-04：继续追根后确认 blocker 更前移。`crates/scoopc/src/mir/lower.rs::lower_assign_stmt(...)` 当前只覆盖 `local = expr`，`cell.k = Some(k)` / `cell.k = none_k` 仍落成 `StatementKind::Todo("assign lhs lowering pending")`；因此 late-lowered/P6 handoff 只能看到 `MemberAccess(Cell.k)` + `PatternExtract(Some[0])` 生成的 continuation local，却看不到它与 handle binder `local10 -> k3` 之间的 authoritative write-read provenance。若不先补这层 contract，`P6-T02q` 仍会被迫通过 unresolved assign-lhs TODO 或 source shape 猜 route。为此新增前置任务 `P6-T02qa`。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
