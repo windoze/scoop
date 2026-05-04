@@ -533,7 +533,7 @@
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
   - 2026-05-04：`PLAN.md` 无需改动。
 
-## P6-T02q：发布 resume-boundary wrapper -> underlying continuation surface route contract，禁止 P6-T03 在 backend 现场从 continuation local / source type 猜 `k.resume(...)` 实际调用的 schema
+## [DONE] P6-T02q：发布 resume-boundary wrapper -> underlying continuation surface route contract，禁止 P6-T03 在 backend 现场从 continuation local / source type 猜 `k.resume(...)` 实际调用的 schema
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -598,6 +598,17 @@
 - 完成记录：
   - 2026-05-04：开始真正落地 `P6-T03` 时发现新的 blocker。当前 `Resume` boundary contract 仍只发布了 boundary-local wrapper schema，而没有 authoritative 发布它到 runtime continuation object 实际 surface route 的 bridge：`effect_multi_escape_indirect_direct_while.scoop` 中 handle binder 发布 `k3`，但后续 site25/site30/site35/site40 的 resume boundary 只发布 `k5`；`RefactorContinuationSurfaceResumeDispatchLayout` 对 `k5` 又是 `ResumeBoundaryOnly`、没有 object-side method target。若直接继续本任务，backend 必须回 continuation local/source type/shape 猜实际应调用的 surface route，违反 contract-first 约束。
   - 2026-05-04：继续追根后确认 blocker 更前移。`crates/scoopc/src/mir/lower.rs::lower_assign_stmt(...)` 当前只覆盖 `local = expr`，`cell.k = Some(k)` / `cell.k = none_k` 仍落成 `StatementKind::Todo("assign lhs lowering pending")`；因此 late-lowered/P6 handoff 只能看到 `MemberAccess(Cell.k)` + `PatternExtract(Some[0])` 生成的 continuation local，却看不到它与 handle binder `local10 -> k3` 之间的 authoritative write-read provenance。若不先补这层 contract，`P6-T02q` 仍会被迫通过 unresolved assign-lhs TODO 或 source shape 猜 route。为此新增前置任务 `P6-T02qa`。
+  - 2026-05-04：`LateLoweredResumeBoundaryOperandContract` 现已把 `underlying_continuation_route` 升级为必填 published contract；`build_resume_boundary_operand_contract(...)` 会优先消费 `P6-T02qa` 发布的 member write/read provenance，把 boundary-local wrapper authoritative 地桥接回底层 continuation surface route。
+  - 2026-05-04：若 resume operand 没有更深的 binder/member provenance，可直接发布 boundary 自身的 self-route（`ContinuationSchemaId + ResumeBoundary publication`），从而保证 `P6-T03` 后续不需要再回 continuation local/source type 猜测 `k.resume(...)` 的实际 surface schema。
+  - 2026-05-04：`crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 现已把该 bridge 作为 ABI/query 校验的一部分：缺失 underlying route publication 或 publication 漂移时，P5/P6 边界会显式 fail fast；`dump-effect-lowered` 也会稳定打印 `underlying_route:`。
+  - 2026-05-04：新增/更新定向测试覆盖 direct resume self-route、member readback bridge、以及 LLVM query 对缺失 publication 的拒绝；`effect_multi_escape_indirect_direct_while.scoop` 的 dump 已显示 site25/site30/site35/site40 从 boundary-local `k5` authoritative 地桥接到 handle binder 发布的 `k3`。
+  - 2026-05-04：已运行验证：
+    - `cargo test -p scoopc refactor_boundary_lowering_`
+    - `cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout`
+    - `cargo test -p scoopc refactor_llvm_boundary_operand_contract`
+    - `cargo test -p scoopc refactor_llvm_`
+    - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

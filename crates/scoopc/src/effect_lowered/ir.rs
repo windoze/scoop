@@ -2510,7 +2510,7 @@ pub struct LateLoweredResumeBoundaryOperandContract {
     source_consumption: LateLoweredBoundarySourceConsumption,
     continuation_source: LateLoweredOperandSource,
     arg_sources: Vec<LateLoweredOperandSource>,
-    underlying_continuation_route: Option<LateLoweredContinuationRoute>,
+    underlying_continuation_route: LateLoweredContinuationRoute,
 }
 
 impl LateLoweredResumeBoundaryOperandContract {
@@ -2518,7 +2518,7 @@ impl LateLoweredResumeBoundaryOperandContract {
         source_consumption: LateLoweredBoundarySourceConsumption,
         continuation_source: LateLoweredOperandSource,
         arg_sources: Vec<LateLoweredOperandSource>,
-        underlying_continuation_route: Option<LateLoweredContinuationRoute>,
+        underlying_continuation_route: LateLoweredContinuationRoute,
     ) -> Self {
         Self {
             source_consumption,
@@ -2540,8 +2540,8 @@ impl LateLoweredResumeBoundaryOperandContract {
         &self.arg_sources
     }
 
-    pub fn underlying_continuation_route(&self) -> Option<&LateLoweredContinuationRoute> {
-        self.underlying_continuation_route.as_ref()
+    pub fn underlying_continuation_route(&self) -> &LateLoweredContinuationRoute {
+        &self.underlying_continuation_route
     }
 }
 

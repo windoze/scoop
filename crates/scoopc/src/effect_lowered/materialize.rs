@@ -849,12 +849,14 @@ pub(crate) fn materialize_boundary_map(
                 )?;
                 let operand_contract = build_resume_boundary_operand_contract(
                     root_fqn,
+                    owner_version_key,
                     body,
                     state_graph,
                     boundary,
                     &facts,
                     result_local,
                     &continuation_provenance,
+                    continuation_object,
                     types,
                 )?;
                 LateLoweredBoundaryLowering::Resume(LateLoweredResumeBoundaryLowering::new(
@@ -2543,12 +2545,14 @@ fn build_perform_boundary_operand_contract(
 #[allow(clippy::too_many_arguments)]
 fn build_resume_boundary_operand_contract(
     root_fqn: &str,
+    owner_version_key: &LateLoweredBodyVersionKey,
     body: &Body,
     state_graph: &LateLoweredStateGraph,
     boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
     facts: &ResumeSiteEffectFacts,
     result_local: LocalId,
     continuation_provenance: &PublishedContinuationProvenance,
+    continuation_object: ContinuationObjectId,
     types: &TypeStore,
 ) -> Result<LateLoweredResumeBoundaryOperandContract, EffectLoweringError> {
     let LateLoweredBoundarySource::Site {
@@ -2633,7 +2637,20 @@ fn build_resume_boundary_operand_contract(
                     continuation_provenance.resolve_resume_local_route(root_fqn, site_id, *local)?
                 }
                 crate::effect_lowered::ir::LateLoweredOperandValueSource::Const(_) => None,
-            };
+            }
+            // Even when there is no deeper binder/member provenance to follow, the boundary must
+            // still publish an authoritative self-route so later LLVM lowering never falls back to
+            // source-type guesses for `k.resume(...)`.
+            .unwrap_or_else(|| {
+                LateLoweredContinuationRoute::new(
+                    facts.continuation_schema(),
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                        owner_version_key: owner_version_key.clone(),
+                        owner_continuation_object: continuation_object,
+                        site_id,
+                    },
+                )
+            });
             let arg_sources = build_ordered_call_arg_sources(
                 root_fqn,
                 site_id,
@@ -3911,15 +3928,7 @@ mod tests {
                 _ => None,
             })
             .map(|(site_id, lowering)| {
-                let route = lowering
-                    .operand_contract()
-                    .underlying_continuation_route()
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "resume site{} 应为 member readback continuation 发布 underlying route",
-                            site_id.as_u32()
-                        )
-                    });
+                let route = lowering.operand_contract().underlying_continuation_route();
                 (site_id, route)
             })
             .collect::<Vec<_>>();
@@ -3945,6 +3954,45 @@ mod tests {
                     && site_id.as_u32() == 0
                     && *arm_ordinal == 0
                     && *handled_case == contract.handled_arms()[0].handled_case()
+            ));
+        }
+    }
+
+    #[test]
+    fn refactor_boundary_lowering_publishes_direct_resume_self_route() {
+        let output = load_output(&load_fixture(
+            "effect_facts",
+            "dispatch_and_resume_call.scoop",
+        ));
+
+        for callable_fqn in ["fixtures.mir.resumeBoom", "fixtures.mir.resumeOnce"] {
+            let callable = callable(&output, callable_fqn);
+            let boundary = site_boundary(callable, BoundarySiteKind::Resume);
+            let site_id = match boundary.source() {
+                crate::effect_lowered::ir::LateLoweredBoundarySource::Site {
+                    site_id,
+                    kind: BoundarySiteKind::Resume,
+                } => site_id,
+                other => panic!("{callable_fqn} 应发布 resume boundary，而不是 {other:?}"),
+            };
+            let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering() else {
+                panic!("{callable_fqn} resume boundary 应带 lowering");
+            };
+
+            let route = lowering.operand_contract().underlying_continuation_route();
+            assert_eq!(
+                route.continuation_schema(),
+                lowering.facts().continuation_schema()
+            );
+            assert!(matches!(
+                route.publication(),
+                LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                    owner_version_key,
+                    owner_continuation_object,
+                    site_id: route_site_id,
+                } if owner_version_key == callable.body_version_key()
+                    && *owner_continuation_object == callable.continuation_object()
+                    && *route_site_id == site_id
             ));
         }
     }

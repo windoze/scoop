@@ -2263,27 +2263,26 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             lowering.operand_contract().arg_sources(),
             lowering.facts().resume_tuple_ty(),
         )?;
-        if let Some(route) = lowering.operand_contract().underlying_continuation_route() {
-            let inventory = self
-                .program
-                .surface_resume_dispatch(route.continuation_schema())
-                .ok_or_else(|| {
-                    frontend_error(format!(
-                        "refactor LLVM ABI materialization 缺少 callable `{}` resume site {} underlying continuation schema k{} 的 published surface-resume dispatch inventory",
-                        callable.root_fqn(),
-                        site_id.as_u32(),
-                        route.continuation_schema().as_u32(),
-                    ))
-                })?;
-            if !inventory.publications().contains(route.publication()) {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` resume site {} 的 underlying continuation route 漂移：schema k{} 缺少 publication {:?}",
+        let route = lowering.operand_contract().underlying_continuation_route();
+        let inventory = self
+            .program
+            .surface_resume_dispatch(route.continuation_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` resume site {} underlying continuation schema k{} 的 published surface-resume dispatch inventory",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     route.continuation_schema().as_u32(),
-                    route.publication(),
-                )));
-            }
+                ))
+            })?;
+        if !inventory.publications().contains(route.publication()) {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` resume site {} 的 underlying continuation route 漂移：schema k{} 缺少 publication {:?}",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                route.continuation_schema().as_u32(),
+                route.publication(),
+            )));
         }
         let surface_layout = surface_resume_layouts
             .get(&lowering.facts().continuation_schema())
@@ -6280,6 +6279,21 @@ mod tests {
                         | LateLoweredOperandValueSource::Const(crate::mir::ConstValue::Int)
                 ));
                 assert!(layout.contract().arg_sources()[0].span().is_some());
+                let route = layout.contract().underlying_continuation_route();
+                assert_eq!(
+                    route.continuation_schema(),
+                    lowering.facts().continuation_schema()
+                );
+                assert!(matches!(
+                    route.publication(),
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                        owner_version_key,
+                        owner_continuation_object,
+                        site_id: route_site_id,
+                    } if owner_version_key == callable.body_version_key()
+                        && *owner_continuation_object == callable.continuation_object()
+                        && *route_site_id == site_id
+                ));
             },
         );
 
@@ -6327,10 +6341,7 @@ mod tests {
                                     site_id.as_u32()
                                 )
                             });
-                        let route = layout
-                            .contract()
-                            .underlying_continuation_route()
-                            .expect("member readback resume boundary 应保留 underlying route");
+                        let route = layout.contract().underlying_continuation_route();
                         (site_id, route)
                     })
                     .collect::<Vec<_>>();
@@ -6544,24 +6555,21 @@ mod tests {
                                 LateLoweredBoundaryLowering::Resume(lowering) => {
                                     let route = lowering
                                         .operand_contract()
-                                        .underlying_continuation_route()
-                                        .expect("fixture resume boundary 应带 underlying route");
+                                        .underlying_continuation_route();
                                     let broken_contract =
                                         crate::effect_lowered::ir::LateLoweredResumeBoundaryOperandContract::new(
                                             lowering.operand_contract().source_consumption(),
                                             lowering.operand_contract().continuation_source().clone(),
                                             lowering.operand_contract().arg_sources().to_vec(),
-                                            Some(
-                                                crate::effect_lowered::ir::LateLoweredContinuationRoute::new(
-                                                    route.continuation_schema(),
-                                                    LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-                                                        owner_version_key: main.body_version_key().clone(),
-                                                        owner_continuation_object: main.continuation_object(),
-                                                        site_id: SiteId::from_raw(999),
-                                                        arm_ordinal: 0,
-                                                        handled_case: CaseTag::new(1),
-                                                    },
-                                                ),
+                                            crate::effect_lowered::ir::LateLoweredContinuationRoute::new(
+                                                route.continuation_schema(),
+                                                LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                                                    owner_version_key: main.body_version_key().clone(),
+                                                    owner_continuation_object: main.continuation_object(),
+                                                    site_id: SiteId::from_raw(999),
+                                                    arm_ordinal: 0,
+                                                    handled_case: CaseTag::new(1),
+                                                },
                                             ),
                                         );
                                     LateLoweredBoundaryLowering::Resume(
