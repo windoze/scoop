@@ -9,7 +9,7 @@
 
 use std::collections::HashSet;
 
-use inkwell::types::BasicTypeEnum;
+use inkwell::types::{BasicTypeEnum, FunctionType};
 use inkwell::values::{BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FunctionValue};
 use inkwell::{AddressSpace, IntPredicate};
 
@@ -17,11 +17,11 @@ use crate::effect_lowered::ir::{LateLoweredOperandSource, LateLoweredOperandValu
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId};
 use crate::span::Span;
-use crate::ty::{TypeId, TypeStore};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::super::MainCodegen;
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue};
+use super::super::{MainCodegen, sanitize_llvm_ident};
 use super::types::{
     RefactorAbiQuery, RefactorCallableEntryLayout, RefactorContinuationSurfaceResumeLayout,
     RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepLayout,
@@ -34,6 +34,29 @@ pub(super) struct RefactorValuePrimitives<'p, 'a, 'ctx> {
     body: &'a mir::Body,
     slots: &'p [MirLocalSlot<'ctx>],
     abi: &'p RefactorAbiQuery<'ctx>,
+}
+
+#[derive(Clone, Copy)]
+struct RefactorPlainAdapterLayout<'ctx> {
+    llvm_ty: FunctionType<'ctx>,
+    invoke_args_tuple_ty: TypeId,
+    return_step_schema: crate::effect_facts::StepSchemaId,
+}
+
+fn function_type_source_args(fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
+    fun_ty
+        .receiver
+        .into_iter()
+        .chain(fun_ty.params.iter().copied())
+        .collect()
+}
+
+fn source_carrier_types(types: &TypeStore, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
+    match types.kind(carrier_ty) {
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
+        TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
+        _ => Some(vec![carrier_ty]),
+    }
 }
 
 impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
@@ -83,7 +106,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .codegen
                     .mir_local_slot(stmt.span, self.slots, *target)?;
                 let value = self
-                    .lower_effect_neutral_rvalue(stmt.span, rvalue, slot.cg_ty)
+                    .lower_effect_neutral_rvalue(stmt.span, rvalue, slot.cg_ty, Some(*target))
                     .map_err(|err| {
                         frontend_error(format!(
                             "refactor pure assignment local{} rvalue {:?} lowering failed: {err}",
@@ -133,6 +156,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         span: Span,
         value: &mir::Rvalue,
         target_cg: super::super::types::CgTy,
+        target_local: Option<LocalId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match value {
             mir::Rvalue::Call { kind, args, .. } => {
@@ -146,6 +170,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         kind: "refactor pure closure carrier env type",
                         at: span.into(),
                     })?;
+                if let Some(adapter) =
+                    self.maybe_build_effect_typed_plain_closure_adapter(span, target_local, fn_ptr)?
+                {
+                    return self.codegen.codegen_mir_make_closure_with_target_fn_ptr(
+                        span, env, fn_ptr, env_cg, target_cg, self.slots, adapter,
+                    );
+                }
                 self.codegen
                     .codegen_mir_make_closure(span, env, fn_ptr, env_cg, target_cg, self.slots)
             }
@@ -160,6 +191,267 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.slots,
                 target_cg,
             ),
+        }
+    }
+
+    fn maybe_build_effect_typed_plain_closure_adapter(
+        &mut self,
+        span: Span,
+        target_local: Option<LocalId>,
+        fn_ptr: &str,
+    ) -> Result<Option<inkwell::values::PointerValue<'ctx>>, LlvmEmitError> {
+        if self
+            .abi
+            .maybe_plain_callable_layout_by_root_fqn(fn_ptr)?
+            .is_none()
+        {
+            return Ok(None);
+        }
+        let Some(target_ty) = target_local
+            .and_then(|local| self.body.locals.get(local.as_u32() as usize))
+            .map(|local| local.ty)
+        else {
+            return Ok(None);
+        };
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.source_types.kind(target_ty) else {
+            return Ok(None);
+        };
+        let Some(fun_ty) = self
+            .codegen
+            .equivalent_codegen_function_type(self.source_types, fun_ty)
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor effect-typed plain adapter function type",
+                at: span.into(),
+            });
+        };
+        if fun_ty.effects.is_pure() {
+            return Ok(None);
+        }
+        let layout = self.effect_typed_plain_adapter_layout(&fun_ty)?;
+        self.build_effect_typed_plain_closure_adapter(span, fn_ptr, &fun_ty, layout)
+            .map(Some)
+    }
+
+    fn effect_typed_plain_adapter_layout(
+        &self,
+        fun_ty: &crate::ty::FunctionType,
+    ) -> Result<RefactorPlainAdapterLayout<'ctx>, LlvmEmitError> {
+        let expected_args = function_type_source_args(fun_ty);
+        let mut matches = self.abi.dynamic_invoke_layouts().filter_map(|layout| {
+            let args = source_carrier_types(self.source_types, layout.invoke_args_tuple_ty())?;
+            if args != expected_args {
+                return None;
+            }
+            let step_layout = self.abi.step_layout(layout.return_step_schema())?;
+            (step_layout.complete_variant().payload_source_ty() == fun_ty.return_ty).then_some(
+                RefactorPlainAdapterLayout {
+                    llvm_ty: layout.llvm_ty(),
+                    invoke_args_tuple_ty: layout.invoke_args_tuple_ty(),
+                    return_step_schema: layout.return_step_schema(),
+                },
+            )
+        });
+        let first = matches.next().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor effect-typed plain adapter 缺少匹配 function type args={:?} return=t{} 的 dynamic-invoke layout",
+                expected_args.iter().map(|ty| ty.as_u32()).collect::<Vec<_>>(),
+                fun_ty.return_ty.as_u32(),
+            ))
+        })?;
+        if matches.next().is_some() {
+            return Err(frontend_error(format!(
+                "refactor effect-typed plain adapter function type args={:?} return=t{} 匹配多个 dynamic-invoke layout",
+                expected_args
+                    .iter()
+                    .map(|ty| ty.as_u32())
+                    .collect::<Vec<_>>(),
+                fun_ty.return_ty.as_u32(),
+            )));
+        }
+        Ok(first)
+    }
+
+    fn build_effect_typed_plain_closure_adapter(
+        &mut self,
+        span: Span,
+        fn_ptr: &str,
+        fun_ty: &crate::ty::FunctionType,
+        adapter: RefactorPlainAdapterLayout<'ctx>,
+    ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
+        let name = format!(
+            "__scoop_refactor_plain_adapter__{}__s{}",
+            sanitize_llvm_ident(fn_ptr),
+            adapter.return_step_schema.as_u32(),
+        );
+        if let Some(existing) = self.codegen.module.get_function(&name) {
+            if existing.count_basic_blocks() == 0 {
+                self.define_effect_typed_plain_closure_adapter(
+                    span, fn_ptr, fun_ty, adapter, existing,
+                )?;
+            }
+            return Ok(existing.as_global_value().as_pointer_value());
+        }
+        let function = self
+            .codegen
+            .module
+            .add_function(&name, adapter.llvm_ty, None);
+        self.define_effect_typed_plain_closure_adapter(span, fn_ptr, fun_ty, adapter, function)?;
+        Ok(function.as_global_value().as_pointer_value())
+    }
+
+    fn define_effect_typed_plain_closure_adapter(
+        &mut self,
+        span: Span,
+        fn_ptr: &str,
+        fun_ty: &crate::ty::FunctionType,
+        adapter: RefactorPlainAdapterLayout<'ctx>,
+        function: FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let saved_block = self.codegen.builder.get_insert_block();
+        let entry = self.codegen.context.append_basic_block(function, "entry");
+        self.codegen.builder.position_at_end(entry);
+
+        let plain = self.abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
+        let plain_fun = self
+            .codegen
+            .module
+            .get_function(plain.direct_entry().symbol_name())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor effect-typed plain adapter `{}` 缺少 plain entry `{}`",
+                    fn_ptr,
+                    plain.direct_entry().symbol_name(),
+                ))
+            })?;
+        if self
+            .codegen
+            .hidden_sret_result_ty(
+                span,
+                self.codegen.cg_ty_of(fun_ty.return_ty).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor effect-typed plain adapter return type",
+                        at: span.into(),
+                    },
+                )?,
+            )?
+            .is_some()
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor effect-typed plain adapter hidden-sret return",
+                at: span.into(),
+            });
+        }
+
+        let carrier = function
+            .get_nth_param(0)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor effect-typed plain adapter carrier param",
+                at: span.into(),
+            })?
+            .into_pointer_value();
+        let closure_ptr = self.codegen.refactor_cast_ptr(
+            carrier,
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
+            "refactor_adapter_closure_obj",
+        )?;
+        let env_gep = self.codegen.builder.build_struct_gep(
+            self.codegen.llvm_closure_object_type(),
+            closure_ptr,
+            1,
+            "refactor_adapter_env_gep",
+        )?;
+        let env = self
+            .codegen
+            .builder
+            .build_load(
+                self.codegen.llvm_gc_i8_ptr_type(),
+                env_gep,
+                "refactor_adapter_env",
+            )?
+            .into_pointer_value();
+        let mut call_args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
+        call_args.push(env.into());
+        call_args.extend(self.adapter_explicit_args(
+            span,
+            function,
+            adapter.invoke_args_tuple_ty,
+        )?);
+        let call =
+            self.codegen
+                .builder
+                .build_call(plain_fun, &call_args, "refactor_carrier_to_plain")?;
+        let ret_cg =
+            self.codegen
+                .cg_ty_of(fun_ty.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor effect-typed plain adapter return type",
+                    at: span.into(),
+                })?;
+        let payload = match ret_cg {
+            CgTy::Unit | CgTy::Never => None,
+            _ => Some(call.try_as_basic_value().basic().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor effect-typed plain adapter plain return value",
+                    at: span.into(),
+                },
+            )?),
+        };
+        let step_layout = self
+            .abi
+            .step_layout(adapter.return_step_schema)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor effect-typed plain adapter 缺少 return step schema s{} layout",
+                    adapter.return_step_schema.as_u32(),
+                ))
+            })?;
+        let step = self
+            .codegen
+            .refactor_build_step_complete(step_layout, payload)
+            .map_err(|err| frontend_error(format!("refactor_adapter_complete failed: {err}")))?;
+        self.codegen.builder.build_return(Some(&step))?;
+
+        if let Some(saved) = saved_block {
+            self.codegen.builder.position_at_end(saved);
+        }
+        Ok(())
+    }
+
+    fn adapter_explicit_args(
+        &mut self,
+        span: Span,
+        function: FunctionValue<'ctx>,
+        invoke_args_tuple_ty: TypeId,
+    ) -> Result<Vec<BasicMetadataValueEnum<'ctx>>, LlvmEmitError> {
+        let layout = self.abi.source_value_layout(invoke_args_tuple_ty)?;
+        if layout.abi().is_elided() {
+            return Ok(Vec::new());
+        }
+        let raw = function
+            .get_nth_param(1)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor effect-typed plain adapter args payload",
+                at: span.into(),
+            })?;
+        match layout.kind() {
+            RefactorSourceAbiLayoutKind::Scalar => Ok(vec![raw.into()]),
+            RefactorSourceAbiLayoutKind::Tuple => {
+                let tuple = raw.into_struct_value();
+                let mut args = Vec::new();
+                for field in layout.fields() {
+                    let Some(index) = field.abi_field_index() else {
+                        continue;
+                    };
+                    let value = self.codegen.builder.build_extract_value(
+                        tuple,
+                        index,
+                        &format!("refactor_adapter_arg{}", field.source_index()),
+                    )?;
+                    args.push(value.into());
+                }
+                Ok(args)
+            }
         }
     }
 
@@ -197,11 +489,27 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             let string = self.refactor_core_print_to_string(span, value)?;
             return self.codegen.coerce_value(span, string, target_cg);
         }
-        let mir::CallKind::Direct { callee_fqn } = kind else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor pure statement dynamic/virtual call requires published call lowering",
-                at: span.into(),
-            });
+        let callee_fqn = match kind {
+            mir::CallKind::Direct { callee_fqn } => callee_fqn,
+            mir::CallKind::Closure { .. }
+            | mir::CallKind::FunValue { .. }
+            | mir::CallKind::Virtual { .. }
+            | mir::CallKind::Interface { .. } => {
+                return self.codegen.codegen_mir_plain_dynamic_call(
+                    span,
+                    kind,
+                    args,
+                    self.body,
+                    self.source_types,
+                    self.slots,
+                );
+            }
+            mir::CallKind::Resume { .. } => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor pure statement resume call requires boundary lowering",
+                    at: span.into(),
+                });
+            }
         };
         if let Some(value) = self.lower_refactor_internal_print_string(span, callee_fqn, args)? {
             return Ok(value);
@@ -1230,7 +1538,18 @@ mod tests {
 
         assert!(value.contains("maybe_plain_callable_layout_by_root_fqn"));
         assert!(value.contains("codegen_mir_direct_call"));
+        assert!(value.contains("codegen_mir_plain_dynamic_call"));
         assert!(value.contains("refactor_pure_call_step"));
+    }
+
+    #[test]
+    fn refactor_llvm_effect_typed_adapter_wraps_plain_body() {
+        let value = include_str!("value.rs");
+
+        assert!(value.contains("maybe_build_effect_typed_plain_closure_adapter"));
+        assert!(value.contains("__scoop_refactor_plain_adapter__"));
+        assert!(value.contains("refactor_carrier_to_plain"));
+        assert!(value.contains("refactor_adapter_complete"));
     }
 
     #[test]

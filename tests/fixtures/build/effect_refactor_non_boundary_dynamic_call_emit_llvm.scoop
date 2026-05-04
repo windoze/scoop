@@ -1,11 +1,14 @@
-// 目标：P6-T02f 要求 source-slice 中的 non-boundary dynamic call 也发布 authoritative ABI query。
-// - `helper(base)` 内的 `base.ping()` 是 Virtual + CandidateSet，但因为它是 pure call，不会进入 boundary_map；
-// - refactor LLVM ABI materializer 仍必须为该 site 发布 canonical dynamic-invoke contract，供 P6-T03 whole-body lowering 直接消费；
-// - `main()` 调用 `helper(DerivedA())`，让 P6-T03e 的 body lowering 真实发出 dynamic invoke；
+// 目标：P6-T06 要求 NoOutward / plain callable 的 non-boundary virtual call 使用普通 vtable ABI。
+// - `helper(base)` 内的 `base.ping()` 是 Virtual + CandidateSet，但没有 outward case；
+// - refactor LLVM lowering 必须发出普通 vtable indirect call，不得包装成 `Step_F` dynamic invoke；
+// - `main()` 调用 `helper(DerivedA())`，真实覆盖 plain virtual call 的 ordinary ABI 路径；
 // - 该路径仍不得触发 legacy effect lowering。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_helper
-// BUILD-LLVM-CONTAINS: refactor_dynamic_call_step = call %scoop.refactor.Step__
+// BUILD-LLVM-CONTAINS: define i64 @fixtures.build.helper(
+// BUILD-LLVM-CONTAINS: refactor_plain_dispatch_call = call i64 %load_vtable_fn
+// BUILD-LLVM-CONTAINS: %pass_mir_call = call i64 @fixtures.build.helper(
+// BUILD-LLVM-NOT-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_helper
+// BUILD-LLVM-NOT-CONTAINS: %scoop.refactor.Step__
 // BUILD-LLVM-NOT-CONTAINS: scoop.effect.frame.
 package fixtures.build
 

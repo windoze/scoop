@@ -458,17 +458,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
 
-        let hir_fun = self
-            .fun_index
-            .get(callable.root_fqn())
-            .copied()
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor plain body lowering callable `{}` 缺少 HIR signature",
-                    callable.root_fqn()
-                ))
-            })?;
+        let hir_fun = self.fun_index.get(callable.root_fqn()).copied();
         let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let is_materialized_closure = hir_fun.is_none() && mir_fun.name.starts_with("$lambda");
+        if hir_fun.is_none() && !is_materialized_closure {
+            return Err(frontend_error(format!(
+                "refactor plain body lowering callable `{}` 缺少 HIR signature",
+                callable.root_fqn()
+            )));
+        }
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
                 "refactor plain body lowering callable `{}` 缺少 canonical MIR body",
@@ -482,9 +480,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let body_slices = validate_plain_body_slices(callable.root_fqn(), plain, body)?;
 
-        self.current_source_id =
-            self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?;
-        self.function_cx.current_callable_fqn = Some(hir_fun.fqn.clone());
+        self.current_source_id = if let Some(hir_fun) = hir_fun {
+            self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?
+        } else {
+            self.materialized_mir_callable_source_id(callable.root_fqn(), mir_fun.span)?
+        };
+        self.function_cx.current_callable_fqn = Some(callable.root_fqn().to_string());
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
@@ -522,6 +523,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let (return_bb, return_alloca) =
             self.setup_function_return_context(mir_fun.span, function, declared_return_cg)?;
         if plain.local_effect_control().is_some() {
+            let hir_fun = hir_fun.ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor plain closure `{}` 的 local effect/control path 缺少 HIR function shell；需要先发布 closure control-body handoff",
+                    callable.root_fqn(),
+                ))
+            })?;
             RefactorCallableEmitter::new(
                 self,
                 program,
@@ -550,13 +557,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
         let mut slots = self.create_mir_local_slots(body, source_types)?;
-        self.bind_mir_params(
-            hir_fun,
-            mir_fun,
-            function,
-            u32::from(uses_hidden_sret),
-            &mut slots,
-        )?;
+        if let Some(hir_fun) = hir_fun {
+            self.bind_mir_params(
+                hir_fun,
+                mir_fun,
+                function,
+                u32::from(uses_hidden_sret),
+                &mut slots,
+            )?;
+        } else {
+            self.bind_mir_closure_params(
+                mir_fun,
+                source_types,
+                function,
+                u32::from(uses_hidden_sret),
+                &mut slots,
+            )?;
+        }
         let used_locals = collect_mir_local_uses(body);
         let llvm_blocks = body
             .blocks
@@ -5992,7 +6009,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn refactor_cast_ptr(
+    pub(super) fn refactor_cast_ptr(
         &self,
         ptr: PointerValue<'ctx>,
         target_ty: inkwell::types::PointerType<'ctx>,
@@ -6007,7 +6024,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn refactor_build_step_complete(
+    pub(super) fn refactor_build_step_complete(
         &mut self,
         step_layout: &RefactorStepLayout<'ctx>,
         payload: Option<BasicValueEnum<'ctx>>,

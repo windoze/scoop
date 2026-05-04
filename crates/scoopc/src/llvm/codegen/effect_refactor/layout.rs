@@ -1126,18 +1126,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 callable.root_fqn()
             ))
         })?;
-        let hir_fun = self
-            .codegen
-            .fun_index
-            .get(callable.root_fqn())
-            .copied()
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 plain callable `{}` 的 HIR signature",
-                    callable.root_fqn()
-                ))
-            })?;
-        let mir_fun = self.materialized_callable_for_plain_signature(callable.root_fqn())?;
+        let mir_fun = self
+            .materialized_callable_for_plain_signature(callable.root_fqn())?
+            .clone();
         if mir_fun.ty != plain.function_ty()
             || mir_fun.return_ty != plain.return_ty()
             || mir_fun
@@ -1152,14 +1143,28 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 callable.root_fqn()
             )));
         }
-        let plain_symbol_override =
-            (callable.root_fqn() == "main").then_some("__scoop_refactor_plain_source_main");
-        let llvm_fun = match plain_symbol_override {
-            Some(symbol) => self
-                .codegen
-                .declare_top_level_fun_with_symbol(hir_fun, symbol)?,
-            None => self.codegen.declare_top_level_fun(hir_fun)?,
-        };
+        let llvm_fun =
+            if let Some(hir_fun) = self.codegen.fun_index.get(callable.root_fqn()).copied() {
+                let plain_symbol_override =
+                    (callable.root_fqn() == "main").then_some("__scoop_refactor_plain_source_main");
+                match plain_symbol_override {
+                    Some(symbol) => self
+                        .codegen
+                        .declare_top_level_fun_with_symbol(hir_fun, symbol)?,
+                    None => self.codegen.declare_top_level_fun(hir_fun)?,
+                }
+            } else if mir_fun.name.starts_with("$lambda") {
+                self.codegen.declare_materialized_mir_closure_fun(
+                    mir_fun.span,
+                    &mir_fun,
+                    &self.pass_view.materialized().types,
+                )?
+            } else {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 plain callable `{}` 的 HIR signature",
+                    callable.root_fqn()
+                )));
+            };
         let symbol_name = llvm_fun
             .get_name()
             .to_str()
@@ -2071,13 +2076,28 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             .filter(|callable| callable.effect_step_abi().is_some())
             .map(|callable| callable.root_fqn())
             .collect::<BTreeSet<_>>();
+        let plain_callable_roots = self
+            .program
+            .callables()
+            .iter()
+            .filter(|callable| callable.plain_abi().is_some())
+            .map(|callable| callable.root_fqn())
+            .collect::<BTreeSet<_>>();
         let closure_targets = published_callable_roots.clone();
+        let plain_closure_targets = plain_callable_roots.clone();
         let class_vtable_targets = self
             .codegen
             .class_vtables
             .values()
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
             .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
+            .collect::<BTreeSet<_>>();
+        let plain_class_vtable_targets = self
+            .codegen
+            .class_vtables
+            .values()
+            .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
+            .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
         let interface_itable_targets = self
             .codegen
@@ -2094,8 +2114,41 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             })
             .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
+        let plain_interface_itable_targets = self
+            .codegen
+            .class_itables
+            .values()
+            .flat_map(|entries| {
+                entries.iter().flat_map(|entry| {
+                    entry
+                        .method_impl_fqns
+                        .iter()
+                        .filter(|impl_fqn| !impl_fqn.is_empty())
+                        .map(String::as_str)
+                })
+            })
+            .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn))
+            .collect::<BTreeSet<_>>();
 
         let mut carrier_layouts = HashMap::new();
+        for callable_fqn in plain_closure_targets {
+            self.publish_plain_carrier_fallback_target(
+                RefactorCallableCarrierKind::ClosureObject,
+                callable_fqn,
+            )?;
+        }
+        for impl_fqn in plain_class_vtable_targets {
+            self.publish_plain_carrier_fallback_target(
+                RefactorCallableCarrierKind::ClassVtable,
+                impl_fqn,
+            )?;
+        }
+        for impl_fqn in plain_interface_itable_targets {
+            self.publish_plain_carrier_fallback_target(
+                RefactorCallableCarrierKind::InterfaceItable,
+                impl_fqn,
+            )?;
+        }
         for callable_fqn in closure_targets {
             self.publish_closure_carrier_entry_shell(
                 callable_fqn,
@@ -2125,6 +2178,22 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         self.codegen.enable_refactor_callable_carrier_contract();
         Ok(carrier_layouts)
+    }
+
+    fn publish_plain_carrier_fallback_target(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.codegen
+            .register_refactor_plain_callable_carrier_fallback(kind, callable_fqn)?;
+        if matches!(kind, RefactorCallableCarrierKind::ClosureObject)
+            && let Some(alias) = legacy_hir_closure_carrier_alias(callable_fqn)
+        {
+            self.codegen
+                .register_refactor_plain_callable_carrier_fallback(kind, &alias)?;
+        }
+        Ok(())
     }
 
     fn publish_closure_carrier_entry_shell(

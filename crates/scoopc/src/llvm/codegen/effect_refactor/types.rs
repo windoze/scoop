@@ -2204,6 +2204,12 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         self.step_layouts.get(&step_schema)
     }
 
+    pub(super) fn dynamic_invoke_layouts(
+        &self,
+    ) -> impl Iterator<Item = &RefactorDynamicInvokeLayout<'ctx>> {
+        self.dynamic_invoke_layouts.values()
+    }
+
     pub(super) fn frame_layout(
         &self,
         step_schema: StepSchemaId,

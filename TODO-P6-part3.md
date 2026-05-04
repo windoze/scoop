@@ -594,7 +594,7 @@
   - 2026-05-05：`EFFECT_REFACTOR.md` 已明确 plain callable 可以附带仅供本 body 内部消费的 local effect/control handoff，但不能把公开 callable ABI 改成 effect-step body。
   - 验证通过：`cargo test -p scoopc refactor_effect_lowered_plain_local_effect_control`；`cargo test -p scoopc refactor_llvm_plain_local_effect_control`；`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
-## P6-T06：把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall
+## [DONE] P6-T06：把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5, §4.9, §5.2, §5.4, §5.5, §7.3, §8
@@ -656,7 +656,12 @@
   - effect-typed dynamic adapter 与 true effectful callable 仍正确使用 `Step_F`。
 - 依赖：P4-T06，P5-T08，P6-T05，P6-T05a
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：refactor LLVM ABI materializer 现在为 `CallableAbiKind::Plain` 发布 `RefactorPlainCallableLayout`，plain callable 不再发布 body `Step_F` layout、complete tag、refactor direct/dynamic invoke shell；plain `main` wrapper 直接调用普通入口并按 `Unit` / `Int` 返回值生成进程退出码。
+  - 2026-05-05：plain direct call lowering 改为普通 `codegen_mir_direct_call`，plain closure/fun-value/virtual/interface call 走普通 closure object / vtable / itable ABI；NoOutward callable carrier 在 refactor carrier contract 启用时允许 ordinary fallback，effect-step carrier 仍必须有 published refactor target entry。
+  - 2026-05-05：plain materialization 支持 materialized MIR lambda 的普通 closure ABI，避免 NoOutward lambda 被误要求 HIR top-level signature 或被包装成 `Step_F` body；effect-typed plain closure adapter shell 已接入 unambiguous dynamic-invoke layout，调用 plain entry 后包装 `Step_F::Complete`，缺失/歧义 layout 会 fail fast。
+  - 2026-05-05：更新 `effect_refactor_step_enum_no_outward.scoop`、`effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop` 与 `effect_refactor_dynamic_entry_publication_emit_llvm.scoop`，锁定 plain helper/main、plain virtual call、plain vtable/itable/closure carrier 不再包含 complete-only `Step_F` / refactor dynamic entry；保留 `SingleCase` / `CanonicalFull` fixture 对 effect `Step_F` 的覆盖。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_no_outward_plain_abi`；`cargo test -p scoopc refactor_llvm_plain_call_lowering`；`cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`；`cargo test -p scoopc refactor_llvm_effect_typed_adapter_wraps_plain_body`；`cargo test -p scoopc refactor_llvm_plain_local_effect_control`；`cargo test -p scoopc refactor_effect_lowered_plain_local_effect_control`。
+  - 验证通过：`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_canonical_full_O0.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T06R：Review `NoOutward` plain ABI 修复，确认 P7 前不再存在 complete-only `Step_F` 回归
 

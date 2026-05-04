@@ -34,7 +34,38 @@ struct MirStoreMemberSupport<'m> {
     continuation_route: &'m crate::mir::StoredContinuationRoutePublication,
 }
 
+enum PlainDispatchTarget<'h> {
+    Virtual {
+        slot: u32,
+        sig_fun: &'h hir::FunDecl,
+    },
+    Interface {
+        interface_id: u64,
+        slot: u32,
+        sig_fun: &'h hir::FunDecl,
+    },
+}
+
+impl<'h> PlainDispatchTarget<'h> {
+    fn sig_fun(&self) -> &'h hir::FunDecl {
+        match self {
+            Self::Virtual { sig_fun, .. } | Self::Interface { sig_fun, .. } => sig_fun,
+        }
+    }
+
+    fn label(&self) -> &'static str {
+        match self {
+            Self::Virtual { .. } => "plain virtual",
+            Self::Interface { .. } => "plain interface",
+        }
+    }
+}
+
 const MIR_CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
+
+fn frontend_error(message: String) -> LlvmEmitError {
+    LlvmEmitError::Frontend { message }
+}
 
 #[derive(Clone, Copy)]
 struct MirMemberFieldContract {
@@ -279,7 +310,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
-    fn materialized_mir_callable_source_id(
+    pub(super) fn materialized_mir_callable_source_id(
         &self,
         fqn: &str,
         span: crate::span::Span,
@@ -300,7 +331,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn declare_materialized_mir_closure_fun(
+    pub(super) fn declare_materialized_mir_closure_fun(
         &mut self,
         span: crate::span::Span,
         mir_fun: &crate::mir::FunDecl,
@@ -461,7 +492,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn bind_mir_closure_params(
+    pub(super) fn bind_mir_closure_params(
         &mut self,
         mir_fun: &crate::mir::FunDecl,
         mir_types: &TypeStore,
@@ -3053,6 +3084,346 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(super) fn codegen_mir_plain_dynamic_call(
+        &mut self,
+        span: crate::span::Span,
+        kind: &crate::mir::CallKind,
+        args: &[crate::mir::CallArg],
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match kind {
+            crate::mir::CallKind::Closure { callee, fn_ptr } => {
+                let fun_ty = self
+                    .mir_operand_function_type(body, mir_types, callee)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain closure callee type",
+                        at: span.into(),
+                    })?;
+                if !fun_ty.effects.is_pure() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain closure call effect-typed surface requires adapter",
+                        at: span.into(),
+                    });
+                }
+                if let Some(fun) = self.fun_index.get(fn_ptr).copied()
+                    && self.known_fun_body_may_outward_effect(fn_ptr, fun.ty)
+                {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain closure call target may outward-effect",
+                        at: span.into(),
+                    });
+                }
+                self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
+            }
+            crate::mir::CallKind::FunValue { callee } => {
+                let fun_ty = self
+                    .mir_operand_function_type(body, mir_types, callee)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain function-value callee type",
+                        at: span.into(),
+                    })?;
+                if !fun_ty.effects.is_pure() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain function-value call effect-typed surface requires adapter",
+                        at: span.into(),
+                    });
+                }
+                self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
+            }
+            crate::mir::CallKind::Virtual { receiver, dispatch } => {
+                let target = self.resolve_plain_virtual_dispatch_target(dispatch, args.len())?;
+                self.codegen_mir_plain_dispatch_call(span, receiver, args, slots, target)
+            }
+            crate::mir::CallKind::Interface { receiver, dispatch } => {
+                let target = self.resolve_plain_interface_dispatch_target(dispatch, args.len())?;
+                self.codegen_mir_plain_dispatch_call(span, receiver, args, slots, target)
+            }
+            crate::mir::CallKind::Direct { .. } | crate::mir::CallKind::Resume { .. } => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor plain dynamic call kind",
+                    at: span.into(),
+                })
+            }
+        }
+    }
+
+    fn codegen_mir_plain_function_value_call(
+        &mut self,
+        span: crate::span::Span,
+        callee: &crate::mir::Operand,
+        args: &[crate::mir::CallArg],
+        fun_ty: &crate::ty::FunctionType,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let callee_value =
+            self.codegen_mir_operand_expected(span, callee, slots, Some(CgTy::Ref))?;
+        let callee_value = self.coerce_value(span, callee_value, CgTy::Ref)?;
+        let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor plain function-value callee value",
+                at: span.into(),
+            });
+        };
+        self.codegen_mir_function_value_call_from_closure_obj(
+            span,
+            closure_obj_i8,
+            fun_ty,
+            false,
+            args,
+            slots,
+        )
+    }
+
+    fn resolve_plain_virtual_dispatch_target(
+        &self,
+        dispatch: &crate::mir::DispatchMetadata,
+        explicit_arg_count: usize,
+    ) -> Result<PlainDispatchTarget<'a>, LlvmEmitError> {
+        let slots = self.class_vtables.get(&dispatch.owner_fqn).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor plain virtual call 缺少 `{}` 的 class vtable metadata",
+                dispatch.owner_fqn,
+            ))
+        })?;
+        let mut candidates = slots.iter().filter(|slot| {
+            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+        });
+        let slot = candidates.next().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor plain virtual call 缺少 `{}`.`{}`/{} 的 vtable slot",
+                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+            ))
+        })?;
+        if candidates.next().is_some() {
+            return Err(frontend_error(format!(
+                "refactor plain virtual call `{}`.`{}`/{} 的 vtable slot 多义",
+                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+            )));
+        }
+        let sig_fun = self
+            .fun_index
+            .get(slot.impl_member_fqn.as_str())
+            .copied()
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor plain virtual call 缺少 target `{}` 的 signature",
+                    slot.impl_member_fqn,
+                ))
+            })?;
+        Ok(PlainDispatchTarget::Virtual {
+            slot: slot.slot,
+            sig_fun,
+        })
+    }
+
+    fn resolve_plain_interface_dispatch_target(
+        &self,
+        dispatch: &crate::mir::DispatchMetadata,
+        explicit_arg_count: usize,
+    ) -> Result<PlainDispatchTarget<'a>, LlvmEmitError> {
+        let iface = self.interfaces.get(&dispatch.owner_fqn).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor plain interface call 缺少 `{}` 的 interface metadata",
+                dispatch.owner_fqn,
+            ))
+        })?;
+        let mut slots = iface.method_slots.iter().filter(|slot| {
+            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+        });
+        let slot = slots.next().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor plain interface call 缺少 `{}`.`{}`/{} 的 itable slot",
+                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+            ))
+        })?;
+        if slots.next().is_some() {
+            return Err(frontend_error(format!(
+                "refactor plain interface call `{}`.`{}`/{} 的 itable slot 多义",
+                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+            )));
+        }
+
+        let owner_prefix = format!("{}.", dispatch.owner_fqn);
+        let mut sig_candidates = self.fun_index.values().copied().filter(|fun| {
+            fun.name == dispatch.member_name
+                && fun.params.len() == explicit_arg_count + 1
+                && fun.fqn.starts_with(&owner_prefix)
+        });
+        let sig_fun = sig_candidates.next().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor plain interface call 缺少 `{}`.`{}`/{} 的 signature",
+                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+            ))
+        })?;
+        if sig_candidates.next().is_some() {
+            return Err(frontend_error(format!(
+                "refactor plain interface call `{}`.`{}`/{} 的 signature 多义",
+                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+            )));
+        }
+        Ok(PlainDispatchTarget::Interface {
+            interface_id: iface.interface_id,
+            slot: slot.slot,
+            sig_fun,
+        })
+    }
+
+    fn codegen_mir_plain_dispatch_call(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &crate::mir::Operand,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        target: PlainDispatchTarget<'a>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let sig_fun = target.sig_fun();
+        if sig_fun.params.len() != args.len() + 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor plain dispatch arity mismatch",
+                at: span.into(),
+            });
+        }
+        if self.known_fun_body_may_outward_effect(&sig_fun.fqn, sig_fun.ty) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor plain dispatch target may outward-effect",
+                at: span.into(),
+            });
+        }
+
+        let ret_cg =
+            self.cg_ty_of(sig_fun.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor plain dispatch return type",
+                    at: span.into(),
+                })?;
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(sig_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        if hidden_sret_result_ty.is_some() {
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        for param in &sig_fun.params {
+            llvm_param_tys.push(self.ordinary_param_abi(span, param.ty)?.llvm_param_ty());
+        }
+        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(span, other)?
+                .fn_type(&llvm_param_tys, false),
+        };
+
+        let mut all_args = Vec::with_capacity(args.len() + 1);
+        all_args.push(crate::mir::CallArg {
+            span,
+            name: None,
+            value: receiver.clone(),
+        });
+        all_args.extend(args.iter().cloned());
+        let evaluated_args =
+            self.codegen_bound_mir_call_args(span, sig_fun, &all_args, slots, false)?;
+        let receiver_ptr = evaluated_args
+            .first()
+            .and_then(|arg| arg.pointer_value)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor plain dispatch receiver value",
+                at: span.into(),
+            })?;
+        let deferred_receiver = self.defer_gc_ref_pointer(
+            span,
+            &format!("{}_receiver", target.label().replace(' ', "_")),
+            receiver_ptr,
+        )?;
+        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let sret_result_slot = if let Some(result_ty) = hidden_sret_result_ty {
+            let slot = self.create_entry_alloca(span, "refactor_plain_dispatch_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some((slot, result_ty))
+        } else {
+            None
+        };
+        llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
+
+        let receiver_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "refactor_plain_dispatch_receiver_reload",
+            &deferred_receiver,
+        )?;
+        let fn_i8 = match target {
+            PlainDispatchTarget::Virtual { slot, .. } => {
+                self.load_class_vtable_slot_fn_ptr_i8(span, receiver_ptr, slot)?
+            }
+            PlainDispatchTarget::Interface {
+                interface_id, slot, ..
+            } => {
+                self.load_interface_itable_slot_fn_ptr_i8(span, receiver_ptr, interface_id, slot)?
+            }
+        };
+        let typed_fn_ptr = self.builder.build_pointer_cast(
+            fn_i8,
+            self.llvm_ptr_type(AddressSpace::default()),
+            "refactor_plain_dispatch_fn_typed",
+        )?;
+        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
+            let call_site = cg.builder.build_indirect_call(
+                llvm_fun_ty,
+                typed_fn_ptr,
+                &llvm_args,
+                "refactor_plain_dispatch_call",
+            )?;
+            if let Some((_, result_ty)) = sret_result_slot {
+                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+            }
+            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(&sig_fun.fqn));
+            Ok(call_site)
+        });
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
+        if let Some((result_ptr, _)) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(
+                span,
+                ret_cg,
+                result_ptr,
+                "refactor_plain_dispatch_sret",
+            )?;
+        }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(
+                span,
+                ret_cg,
+                call_site,
+                "refactor_plain_dispatch_direct_result",
+            )?
+        } else {
+            None
+        };
+        match ret_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => Ok(if let Some((result_ptr, _)) = sret_result_slot {
+                self.load_hidden_sret_result_from_ptr(
+                    span,
+                    ret_cg,
+                    result_ptr,
+                    "refactor_plain_dispatch_sret",
+                )?
+            } else {
+                self.materialize_deferred_cg_value(
+                    span,
+                    "refactor_plain_dispatch_direct_result_reload",
+                    deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain dispatch deferred return value",
+                        at: span.into(),
+                    })?,
+                )?
+            }),
+        }
+    }
+
     pub(super) fn codegen_mir_direct_call(
         &mut self,
         span: crate::span::Span,
@@ -3913,6 +4284,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_mir_make_closure_impl(span, env, fn_ptr, env_cg, target_cg, slots, None)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn codegen_mir_make_closure_with_target_fn_ptr(
+        &mut self,
+        span: crate::span::Span,
+        env: &crate::mir::Operand,
+        fn_ptr: &str,
+        env_cg: CgTy,
+        target_cg: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+        target_fn_ptr: PointerValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_mir_make_closure_impl(
+            span,
+            env,
+            fn_ptr,
+            env_cg,
+            target_cg,
+            slots,
+            Some(target_fn_ptr),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_make_closure_impl(
+        &mut self,
+        span: crate::span::Span,
+        env: &crate::mir::Operand,
+        fn_ptr: &str,
+        env_cg: CgTy,
+        target_cg: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+        target_fn_ptr: Option<PointerValue<'ctx>>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if target_cg != CgTy::Ref {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR closure target type",
@@ -4083,7 +4490,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        let legacy_target = if self.refactor_callable_carrier_contract_enabled() {
+        let use_plain_fallback = self.refactor_plain_callable_carrier_fallback_allowed(
+            RefactorCallableCarrierKind::ClosureObject,
+            fn_ptr,
+        );
+        let legacy_target = if target_fn_ptr.is_some() {
+            self.llvm_i8_ptr_type().const_null()
+        } else if self.refactor_callable_carrier_contract_enabled() && !use_plain_fallback {
             // Refactor callable carriers publish their own dynamic entry shell; do
             // not define the legacy lambda body just to obtain a fallback pointer.
             self.llvm_i8_ptr_type().const_null()
@@ -4092,11 +4505,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .as_global_value()
                 .as_pointer_value()
         };
-        let fn_ptr = self.callable_carrier_target_fn_ptr(
-            RefactorCallableCarrierKind::ClosureObject,
-            fn_ptr,
-            legacy_target,
-        )?;
+        let fn_ptr = match target_fn_ptr {
+            Some(ptr) => ptr,
+            None => self.callable_carrier_target_fn_ptr(
+                RefactorCallableCarrierKind::ClosureObject,
+                fn_ptr,
+                legacy_target,
+            )?,
+        };
         let fn_i8 = self
             .builder
             .build_pointer_cast(fn_ptr, i8_ptr_ty, "pass_mir_closure_fn_i8")?;

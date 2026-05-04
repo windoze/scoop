@@ -314,6 +314,8 @@ struct SharedCodegenCaches {
     refactor_callable_carrier_contract_enabled: Cell<bool>,
     refactor_callable_carrier_entry_symbols:
         RefCell<HashMap<(RefactorCallableCarrierKind, String), String>>,
+    refactor_plain_callable_carrier_fallback_targets:
+        RefCell<HashSet<(RefactorCallableCarrierKind, String)>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -796,6 +798,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .refactor_callable_carrier_entry_symbols
             .borrow_mut();
         let key = (kind, callable_fqn.to_string());
+        if self
+            .shared_caches
+            .refactor_plain_callable_carrier_fallback_targets
+            .borrow()
+            .contains(&key)
+        {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor callable carrier contract 同时把 {} `{}` 发布为 plain fallback 和 effect-step target",
+                    kind.label(),
+                    callable_fqn,
+                ),
+            });
+        }
         if let Some(existing) = symbols.get(&key) {
             if existing == symbol_name {
                 return Ok(());
@@ -814,6 +830,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    pub(super) fn register_refactor_plain_callable_carrier_fallback(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let key = (kind, callable_fqn.to_string());
+        if self
+            .shared_caches
+            .refactor_callable_carrier_entry_symbols
+            .borrow()
+            .contains_key(&key)
+        {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor callable carrier contract 同时把 {} `{}` 发布为 effect-step target 和 plain fallback",
+                    kind.label(),
+                    callable_fqn,
+                ),
+            });
+        }
+        self.shared_caches
+            .refactor_plain_callable_carrier_fallback_targets
+            .borrow_mut()
+            .insert(key);
+        Ok(())
+    }
+
     fn refactor_callable_carrier_entry_symbol(
         &self,
         kind: RefactorCallableCarrierKind,
@@ -829,6 +872,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(Some(symbol));
         }
         if self.refactor_callable_carrier_contract_enabled() {
+            if self
+                .shared_caches
+                .refactor_plain_callable_carrier_fallback_targets
+                .borrow()
+                .contains(&(kind, callable_fqn.to_string()))
+            {
+                return Ok(None);
+            }
             return Err(LlvmEmitError::Frontend {
                 message: format!(
                     "refactor callable carrier contract 缺少 {} `{}` 的 published target entry",
@@ -838,6 +889,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
         Ok(None)
+    }
+
+    fn refactor_plain_callable_carrier_fallback_allowed(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+    ) -> bool {
+        self.shared_caches
+            .refactor_plain_callable_carrier_fallback_targets
+            .borrow()
+            .contains(&(kind, callable_fqn.to_string()))
     }
 
     pub(super) fn callable_carrier_target_fn_ptr(

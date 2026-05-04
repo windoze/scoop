@@ -1,14 +1,16 @@
-// 目标：P6-T02g 要求 runtime callable carrier 的 published target 切到 refactor dynamic entry。
+// 目标：P6-T06 后，NoOutward callable carrier 必须保持普通 callable ABI。
 // - `Derived()` 会触发 class vtable / interface itable 的物化；
 // - `makeClosure(41)` 会触发 closure callable object 的物化；
-// - `main()` 不直接调用这些 carrier，避免在 P6-T03 前混入 body lowering 语义。
+// - 这些 target 都没有 outward case，因此不得再发布 refactor dynamic entry / `Step_F` shell。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: @__scoop_vtable__fixtures_build_Base = internal constant [1 x ptr] [ptr @__scoop_refactor_vtable_dynamic_entry__fixtures_build_Base_ping]
+// BUILD-LLVM-CONTAINS: @__scoop_vtable__fixtures_build_Base = internal constant [1 x ptr] [ptr @fixtures.build.Base.ping]
 // BUILD-LLVM-CONTAINS: @__scoop_itable_methods__fixtures_build_Base__
-// BUILD-LLVM-CONTAINS: [1 x ptr] [ptr @__scoop_refactor_itable_dynamic_entry__fixtures_build_Base_ping]
-// BUILD-LLVM-CONTAINS: store ptr @__scoop_refactor_closure_dynamic_entry__fixtures_build_makeClosure__lambda0, ptr addrspace(1) %pass_mir_closure_fn_gep, align 8
-// BUILD-LLVM-NOT-CONTAINS: @__scoop_vtable__fixtures_build_Base = internal constant [1 x ptr] [ptr @fixtures.build.Base.ping]
-// BUILD-LLVM-NOT-CONTAINS: store ptr @"fixtures.build.makeClosure.$lambda0", ptr addrspace(1) %pass_mir_closure_fn_gep, align 8
+// BUILD-LLVM-CONTAINS: [1 x ptr] [ptr @fixtures.build.Base.ping]
+// BUILD-LLVM-CONTAINS: store ptr @"fixtures.build.makeClosure.$lambda0", ptr addrspace(1) %pass_mir_closure_fn_gep, align 8
+// BUILD-LLVM-NOT-CONTAINS: __scoop_refactor_vtable_dynamic_entry__fixtures_build_Base_ping
+// BUILD-LLVM-NOT-CONTAINS: __scoop_refactor_itable_dynamic_entry__fixtures_build_Base_ping
+// BUILD-LLVM-NOT-CONTAINS: __scoop_refactor_closure_dynamic_entry__fixtures_build_makeClosure__lambda0
+// BUILD-LLVM-NOT-CONTAINS: %scoop.refactor.Step__
 package fixtures.build
 
 interface IFace {
