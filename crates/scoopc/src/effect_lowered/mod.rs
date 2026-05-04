@@ -237,6 +237,11 @@ pub enum EffectLoweringError {
     )]
     InvalidSourceSliceClassificationContract { root_fqn: String, detail: String },
 
+    #[error(
+        "refactor late-lowering stage 无法为 plain callable `{root_fqn}` 发布本地 effect/control contract：{detail}"
+    )]
+    InvalidPlainLocalEffectControlContract { root_fqn: String, detail: String },
+
     #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
 }

@@ -170,6 +170,33 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         args: &[mir::CallArg],
         target_cg: super::super::types::CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let mir::CallKind::Interface { receiver, dispatch } = kind
+            && dispatch.owner_fqn == "scoop.core.ToString"
+            && dispatch.member_name == "toString"
+        {
+            if !args.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor pure ToString.toString arg contract",
+                    at: span.into(),
+                });
+            }
+            let receiver_cg = self
+                .codegen
+                .mir_operand_cg_ty(self.body, self.source_types, receiver)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor pure ToString.toString receiver type",
+                    at: span.into(),
+                })?;
+            let value = self.codegen.codegen_mir_operand_expected(
+                span,
+                receiver,
+                self.slots,
+                Some(receiver_cg),
+            )?;
+            let value = self.codegen.coerce_value(span, value, receiver_cg)?;
+            let string = self.refactor_core_print_to_string(span, value)?;
+            return self.codegen.coerce_value(span, string, target_cg);
+        }
         let mir::CallKind::Direct { callee_fqn } = kind else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor pure statement dynamic/virtual call requires published call lowering",

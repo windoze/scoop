@@ -49,13 +49,18 @@ pub(crate) fn optimize_program_with_options(
     let mut optimized_callables = Vec::with_capacity(program.len());
 
     for callable in program.callables() {
-        let Some(effect_callable) = callable.effect_step_abi() else {
+        if !callable.has_control_body() {
+            optimized_callables.push(callable.clone());
+            continue;
+        }
+        let continuation_object = program
+            .continuation_object(callable.continuation_object())
+            .expect("every callable should point at a published continuation object");
+        let Some(_) = callable.effect_step_abi() else {
+            optimized_objects.insert(continuation_object.object_id(), continuation_object.clone());
             optimized_callables.push(callable.clone());
             continue;
         };
-        let continuation_object = program
-            .continuation_object(effect_callable.continuation_object())
-            .expect("every callable should point at a published continuation object");
         let optimized = optimize_callable(callable, continuation_object, options);
         optimized_objects.insert(
             optimized.continuation_object.object_id(),

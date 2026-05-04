@@ -200,7 +200,7 @@ needs_reentry(F) = !resolved_outward_cases(F).is_empty()
 
 因此，当前阶段 `needs_reentry` 更准确地说是一个“是否需要保守地进入 resumable lowering”的 flag，而不是对“是否存在真正 resumed-body re-entry path”的最精确语义描述。
 
-当 `needs_reentry(F) = false` 时，当前实例不应物化 resumable frame、continuation object、state-machine body、或 complete-only `Step_F` 壳层。它应继续使用普通函数 ABI：direct call 走普通 dcall，动态/虚调用在其 surface 仍为 pure/no-outward 时走普通 icall/vcall 并直接返回源码返回值。
+当 `needs_reentry(F) = false` 时，当前实例不应把 callable body 暴露为 resumable direct/dynamic `Step_F` ABI，也不应物化 complete-only `Step_F` 壳层。它应继续使用普通函数 ABI：direct call 走普通 dcall，动态/虚调用在其 surface 仍为 pure/no-outward 时走普通 icall/vcall 并直接返回源码返回值。若 plain body 内部仍含本地 `handle` / `perform` / `resume` / runtime-error catch，P5 可以发布仅供该 plain body 消费的 local effect/control handoff（state graph、frame、boundary、continuation object、surface-resume dispatch）；该 handoff 不改变 callable 的 plain ABI，也不能作为 effect-typed dynamic surface 的 body ABI。
 
 这不是按 code shape 的特殊快路径，而是 `resolved_outward_cases = ∅` 这一 facts 结果导出的 ABI / lowering 决策。若某个 effect-typed dynamic surface 仍必须保留 `invoke(args_tuple) -> Step_F`，应发布独立 adapter/thunk，把 plain body 的返回值包装成 `Step_F::Complete`；不能因此把 body 本身改写成 state machine。
 
@@ -1280,7 +1280,7 @@ ImplPlan = NoOutward | SingleCase(CaseTag) | CanonicalFull
 - `ContinuationSchemaId` 标识某个 continuation surface / resume contract 的规范形状；
 - `CaseTag` 只在该 schema 内部有意义；
 - `ConcreteOpKey` 表示 generic-specialized concrete effect op 的语义身份；其底层持有 `InstanceKey`；
-- `CallableAbiKind::Plain` 表示 body 使用普通函数 ABI，不发布 `Step_F` / continuation object / state-machine body；
+- `CallableAbiKind::Plain` 表示 body 使用普通函数 ABI，不发布 direct/dynamic `Step_F` body ABI；若 body 内部存在本地 effect/control，允许附带 plain-local handoff 发布内部 state graph / continuation object / resume dispatch，但这些只服务于本 body 内部控制流；
 - `CallableAbiKind::EffectStep` 表示 body 或 adapter 使用 `Step_F` 协议；
 - `CaseTag` 不因 `impl_ops` 子集变化而重新编号。
 
@@ -1528,7 +1528,7 @@ MaterializedEffectFacts {
 
 这里的目标不是“只把某个 `handle` 的内部改写成局部状态机”，而是：当 `F` 仍需独立存在并进入 effectful lowering 时，把 **整个函数实例** 视为转化对象。现有“单个 `handle` 内部状态机”更应被理解为这个统一过程中的局部子区域，而不是长期并存的另一套 lowering 语义。
 
-进入本节 transformation 的前提是 `needs_reentry(F) = true` 或 body 明确选择 `CallableAbiKind::EffectStep`。`NoOutward` / `CallableAbiKind::Plain` body 不进入本节状态机转化；它仍然可以在 facts / `ImplPlan` 框架中被统一分析，但最终 lowering 结果是普通函数 body。
+进入本节整函数 `EffectStep` transformation 的前提是 `needs_reentry(F) = true` 或 body 明确选择 `CallableAbiKind::EffectStep`。`NoOutward` / `CallableAbiKind::Plain` body 的公开 ABI 不进入 effect-step callable 转化；它仍然可以在 facts / `ImplPlan` 框架中被统一分析。若 plain body 内含本地 effect/control，P5 只发布 plain-local control handoff 供 P6 在普通函数 body 内 lower 本地 handle/resume 语义，不能把 plain body 改成对外可见的 state-machine callable。
 
 #### 5.5.1 转化输入与输出
 
@@ -1537,7 +1537,7 @@ MaterializedEffectFacts {
 - 输入是当前 materialized MIR snapshot 与 `MaterializedEffectFacts`；
 - 这一步只消费已经显式化的 facts/schema/table，不回 HIR/AST/typecheck 内部缓存补语义；
 - 对 `needs_reentry=true` 的实例，输出是某个具体函数实例 `F` 的内部 state-machine 实现形态，它的 outward `Step` 协议由 `StepSchema(F)` 决定，continuation/re-entry 协议由关联的 `ContinuationSchema` 决定；
-- 对 `needs_reentry=false` 的实例，输出是 plain callable contract，P6 应以普通函数 ABI lower 它；
+- 对 `needs_reentry=false` 的实例，输出是 plain callable contract，P6 应以普通函数 ABI lower 它；若存在本地 effect/control，则同时输出 plain-local control contract，供普通函数 body 内部使用；
 - 实现层可把它理解为“编译器生成的 state-machine object/frame + 对应 entry/step/resume dispatch 代码”，但这只是物化形态，不影响其必须由统一 transformation 产生这一点。
 
 #### 5.5.2 切分点不是只有 `perform`，而是所有 suspend/dispatch boundary
@@ -1958,7 +1958,7 @@ BodyVersionKey = (symbol, type_args, allowed_row, impl_ops, needs_reentry)
    - 在 inlining / devirtualization 之后重新收敛 `resolved_outward_cases` 与 `needs_reentry`。
 6. `late effect lowering`
    - 对剩余 callable，按 `resolved_outward_cases` 选择当前阶段的三档 `ImplPlan`（`NoOutward` / `SingleCase` / `CanonicalFull`）；
-   - `NoOutward` 产出 plain callable contract，不进入状态机转化；
+   - `NoOutward` 产出 plain callable contract，不进入对外 `EffectStep` callable 转化；若 body 内有本地 effect/control，额外发布 plain-local control handoff，而不是 complete-only `Step` body；
    - 对 `needs_reentry=true` / `EffectStep` callable，用统一的“boundary segmentation + frame lifting + explicit resume-state”算法把整函数 `direct-style` body 转成状态机，而不是按某些特定 code shape 走专用 lowering；
    - 仅为 `EffectStep` body 或 effect-typed adapter 物化 canonical `Step` ABI；
    - 将 continuation materialize 为承载 per-op resume contract 的对象/entry 形态；若实现中保留按 effect 分组的 internal resume interface，则它只是一层可优化掉的 packing。

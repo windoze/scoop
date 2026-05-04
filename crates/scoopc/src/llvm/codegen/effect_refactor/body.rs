@@ -61,6 +61,12 @@ enum RefactorHandleCompletionMode {
     ReturnFromFunction,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RefactorCallableReturnMode {
+    Step,
+    Plain { declared_return_cg: CgTy },
+}
+
 impl RefactorHandleCompletionMode {
     fn pending_completion(self) -> LateLoweredHandlePendingCompletion {
         match self {
@@ -149,6 +155,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut child = self.fresh_child_codegen();
             if callable.plain_abi().is_some() {
                 child.codegen_refactor_plain_callable_entry(
+                    program,
                     source_types,
                     pass_view,
                     abi,
@@ -432,6 +439,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn codegen_refactor_plain_callable_entry(
         &mut self,
+        program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &RefactorAbiQuery<'ctx>,
@@ -513,6 +521,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let (return_bb, return_alloca) =
             self.setup_function_return_context(mir_fun.span, function, declared_return_cg)?;
+        if plain.local_effect_control().is_some() {
+            RefactorCallableEmitter::new(
+                self,
+                program,
+                source_types,
+                abi,
+                callable,
+                mir_fun,
+                body,
+                function,
+                None,
+                RefactorHandleCompletionMode::ContinueToExit,
+            )?
+            .emit_plain_direct(
+                hir_fun,
+                u32::from(uses_hidden_sret),
+                declared_return_cg,
+            )?;
+            self.emit_function_return_block(
+                mir_fun.span,
+                declared_return_cg,
+                return_bb,
+                return_alloca,
+            )?;
+            self.finish_function_explicit_frame_layout(mir_fun.span)?;
+            self.function_cx.current_sret_return_ptr = None;
+            return Ok(());
+        }
         let mut slots = self.create_mir_local_slots(body, source_types)?;
         self.bind_mir_params(
             hir_fun,
@@ -1324,6 +1360,7 @@ struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     return_projection:
         Option<&'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection>,
     handle_completion_mode: RefactorHandleCompletionMode,
+    return_mode: RefactorCallableReturnMode,
 }
 
 impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
@@ -1342,15 +1379,24 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         >,
         handle_completion_mode: RefactorHandleCompletionMode,
     ) -> Result<Self, LlvmEmitError> {
-        let callable_layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
-        if callable_layout.root_fqn() != callable.root_fqn() {
+        if let Some(callable_layout) = callable
+            .effect_step_abi()
+            .map(|_| abi.callable_layout_by_version_key(callable.body_version_key()))
+            .transpose()?
+            && callable_layout.root_fqn() != callable.root_fqn()
+        {
             return Err(frontend_error(format!(
                 "refactor body lowering callable `{}` 的 ABI layout root 漂移：layout=`{}`",
                 callable.root_fqn(),
                 callable_layout.root_fqn(),
             )));
         }
-        let abi_step_schema = callable_layout.step_schema();
+        let abi_step_schema = callable.body_step_schema().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor body lowering callable `{}` 缺少 control-body step schema",
+                callable.root_fqn()
+            ))
+        })?;
         let frame_layout = abi.frame_layout(abi_step_schema).ok_or_else(|| {
             frontend_error(format!(
                 "refactor body lowering 缺少 callable `{}` 的 ABI frame layout s{}",
@@ -1405,6 +1451,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             state_blocks,
             return_projection,
             handle_completion_mode,
+            return_mode: RefactorCallableReturnMode::Step,
         };
         emitter.verify_body_contract()?;
         Ok(emitter)
@@ -2568,6 +2615,26 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.emit_states()
     }
 
+    fn emit_plain_direct(
+        mut self,
+        hir_fun: &crate::hir::FunDecl,
+        param_offset: u32,
+        declared_return_cg: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        self.return_mode = RefactorCallableReturnMode::Plain { declared_return_cg };
+        self.codegen.bind_mir_params(
+            hir_fun,
+            self.mir_fun,
+            self.function,
+            param_offset,
+            &mut self.slots,
+        )?;
+        self.initialize_new_frame()?;
+        let entry_state = self.callable.state_graph().entry_state();
+        self.branch_to_state(entry_state)?;
+        self.emit_states()
+    }
+
     fn emit_resume_method(
         self,
         _case_tag: CaseTag,
@@ -3191,21 +3258,47 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         self.step_layout.complete_variant().payload_anchor_name()
                     )));
                 }
-                let step = self
-                    .codegen
-                    .refactor_build_step_complete(self.step_layout, payload)
-                    .map_err(|err| {
-                        frontend_error(format!(
-                            "refactor return state st{} build Complete step failed: {err}",
-                            state.state_id().as_u32(),
-                        ))
-                    })?;
-                self.return_step(step).map_err(|err| {
-                    frontend_error(format!(
-                        "refactor return state st{} return Step failed: {err}",
-                        state.state_id().as_u32(),
-                    ))
-                })
+                match self.return_mode {
+                    RefactorCallableReturnMode::Step => {
+                        let step = self
+                            .codegen
+                            .refactor_build_step_complete(self.step_layout, payload)
+                            .map_err(|err| {
+                                frontend_error(format!(
+                                    "refactor return state st{} build Complete step failed: {err}",
+                                    state.state_id().as_u32(),
+                                ))
+                            })?;
+                        self.return_step(step).map_err(|err| {
+                            frontend_error(format!(
+                                "refactor return state st{} return Step failed: {err}",
+                                state.state_id().as_u32(),
+                            ))
+                        })
+                    }
+                    RefactorCallableReturnMode::Plain { declared_return_cg } => {
+                        let value = match payload {
+                            Some(raw) => self.codegen.cg_value_from_loaded(
+                                self.mir_fun.span,
+                                declared_return_cg,
+                                raw,
+                            )?,
+                            None => self
+                                .codegen
+                                .default_value(self.mir_fun.span, declared_return_cg)?,
+                        };
+                        let value = self.codegen.coerce_value(
+                            self.mir_fun.span,
+                            value,
+                            declared_return_cg,
+                        )?;
+                        self.codegen.finish_function_return_path(
+                            self.mir_fun.span,
+                            declared_return_cg,
+                            value,
+                        )
+                    }
+                }
             }
             LateLoweredStateTerminator::Suspend { boundary_ids, .. } => {
                 self.lower_suspend(state, boundary_ids)
@@ -4000,6 +4093,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     }
 
     fn return_step(&mut self, step: BasicValueEnum<'ctx>) -> Result<(), LlvmEmitError> {
+        if let RefactorCallableReturnMode::Plain { .. } = self.return_mode {
+            return Err(frontend_error(format!(
+                "refactor plain callable `{}` 的本地 effect/control path 尝试向外返回 Step_F；P5 handoff 应保证 NoOutward body 的 case 被本地 handle/catch 消费",
+                self.callable.root_fqn()
+            )));
+        }
         if let Some(projection) = self.return_projection {
             self.project_owner_step_to_wrapper(projection, step)
         } else {
@@ -6553,5 +6652,21 @@ mod tests {
         assert!(!body.contains(concat!("emit_extern_", "native_call")));
         assert!(!body.contains(concat!("scoop_effect_", "handler_stack")));
         assert!(!body.contains(concat!("scoop_effect_", "outcome")));
+    }
+
+    #[test]
+    fn refactor_llvm_plain_local_effect_control_uses_published_handoff() {
+        let body = include_str!("body.rs");
+        let layout = include_str!("layout.rs");
+        let value = include_str!("value.rs");
+
+        assert!(body.contains("plain.local_effect_control().is_some()"));
+        assert!(body.contains("emit_plain_direct"));
+        assert!(body.contains("RefactorCallableReturnMode::Plain"));
+        assert!(body.contains("P5 handoff 应保证 NoOutward body 的 case 被本地 handle/catch 消费"));
+        assert!(layout.contains("has_control_body()"));
+        assert!(layout.contains("__scoop_refactor_plain_source_main"));
+        assert!(value.contains("scoop.core.ToString"));
+        assert!(!body.contains(concat!("codegen_mir_", "statement")));
     }
 }

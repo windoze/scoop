@@ -1,4 +1,8 @@
-use crate::effect_facts::{CallableAbiKind, MaterializedEffectFacts, SiteEffectFacts};
+use std::collections::BTreeSet;
+
+use crate::effect_facts::{
+    CallableAbiKind, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
+};
 use crate::mir::{
     BasicBlockId, Body, FunDecl, Item, MaterializedMir, MaterializedMirPassView, Rvalue,
     StatementKind,
@@ -10,7 +14,8 @@ use super::frame::{FrameBuildInputs, build_callable_frame};
 use super::ir::{
     ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
     LateLoweredFrameSchema, LateLoweredPlainBodySlice, LateLoweredPlainCallSite,
-    LateLoweredPlainCallable, LateLoweredProgram, LateLoweredResumeStateMap, LateLoweredStateGraph,
+    LateLoweredPlainCallable, LateLoweredPlainLocalEffectControl, LateLoweredProgram,
+    LateLoweredResumeStateMap, LateLoweredStateGraph,
 };
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs, StepMaterialization,
@@ -80,11 +85,28 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     .ok_or_else(|| EffectLoweringError::MissingPlainCallableSignature {
                         root_fqn: root_fqn.clone(),
                     })?;
+                let plain = build_plain_callable_abi(PlainCallableBuildInputs {
+                    root_fqn: &root_fqn,
+                    body_version_key: &body_version_key,
+                    fun,
+                    body_facts: effect_facts.body(family.key()),
+                    effect_facts,
+                    step_types: &step_types,
+                    resume_packing_ids_by_step: &resume_packing_ids_by_step,
+                    resume_packing_ids_by_group: &resume_packing_ids_by_group,
+                    continuation_object_id: ContinuationObjectId::new(
+                        continuation_objects.len() as u32
+                    ),
+                    types,
+                })?;
+                if let Some(object) = plain.continuation_object {
+                    continuation_objects.push(object);
+                }
                 callables.push(LateLoweredCallable::new_plain(
                     root_fqn,
                     body_version_key,
                     callable_facts.resolved_outward_cases().tags().to_vec(),
-                    build_plain_callable_abi(fun, effect_facts.body(family.key()))?,
+                    plain.callable,
                 ));
                 continue;
             }
@@ -261,10 +283,45 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     })
 }
 
+struct PlainCallableBuildInputs<'a> {
+    root_fqn: &'a str,
+    body_version_key: &'a LateLoweredBodyVersionKey,
+    fun: &'a FunDecl,
+    body_facts: Option<&'a crate::effect_facts::BodyEffectFacts>,
+    effect_facts: &'a MaterializedEffectFacts,
+    step_types: &'a [crate::effect_lowered::ir::LateLoweredStepType],
+    resume_packing_ids_by_step: &'a std::collections::BTreeMap<
+        StepSchemaId,
+        Vec<crate::effect_lowered::ir::ResumeInterfaceId>,
+    >,
+    resume_packing_ids_by_group: &'a std::collections::BTreeMap<
+        (StepSchemaId, crate::effect_facts::EffectFamilyKey),
+        crate::effect_lowered::ir::ResumeInterfaceId,
+    >,
+    continuation_object_id: ContinuationObjectId,
+    types: &'a TypeStore,
+}
+
+struct PlainCallableBuildOutput {
+    callable: LateLoweredPlainCallable,
+    continuation_object: Option<crate::effect_lowered::ir::LateLoweredContinuationObject>,
+}
+
 fn build_plain_callable_abi(
-    fun: &FunDecl,
-    body_facts: Option<&crate::effect_facts::BodyEffectFacts>,
-) -> Result<LateLoweredPlainCallable, EffectLoweringError> {
+    inputs: PlainCallableBuildInputs<'_>,
+) -> Result<PlainCallableBuildOutput, EffectLoweringError> {
+    let PlainCallableBuildInputs {
+        root_fqn,
+        body_version_key,
+        fun,
+        body_facts,
+        effect_facts,
+        step_types,
+        resume_packing_ids_by_step,
+        resume_packing_ids_by_group,
+        continuation_object_id,
+        types,
+    } = inputs;
     let body_slices = fun.body.as_ref().map(plain_body_slices).unwrap_or_default();
     let call_sites = match (&fun.body, body_facts) {
         (Some(body), Some(body_facts)) => build_plain_call_sites(&fun.fqn, body, body_facts)?,
@@ -275,14 +332,282 @@ fn build_plain_callable_abi(
         }
         (None, _) => Vec::new(),
     };
+    let local_effect_control = match (&fun.body, body_facts) {
+        (Some(body), Some(body_facts)) if plain_body_has_local_effect_control(body_facts) => Some(
+            build_plain_local_effect_control(PlainLocalEffectControlBuildInputs {
+                root_fqn,
+                body_version_key,
+                body,
+                body_facts,
+                effect_facts,
+                step_types,
+                resume_packing_ids_by_step,
+                resume_packing_ids_by_group,
+                continuation_object_id,
+                types,
+                return_ty: fun.return_ty,
+            })?,
+        ),
+        (Some(_), Some(_)) | (None, _) => None,
+        (Some(_), None) => unreachable!("body_facts absence handled before local control build"),
+    };
+    let (local_effect_control, continuation_object) = match local_effect_control {
+        Some(output) => (Some(output.control), Some(output.continuation_object)),
+        None => (None, None),
+    };
 
-    Ok(LateLoweredPlainCallable::new(
-        fun.ty,
-        fun.params.iter().map(|param| param.ty).collect(),
-        fun.return_ty,
-        body_slices,
-        call_sites,
-    ))
+    Ok(PlainCallableBuildOutput {
+        callable: LateLoweredPlainCallable::new(
+            fun.ty,
+            fun.params.iter().map(|param| param.ty).collect(),
+            fun.return_ty,
+            body_slices,
+            call_sites,
+            local_effect_control,
+        ),
+        continuation_object,
+    })
+}
+
+struct PlainLocalEffectControlBuildInputs<'a> {
+    root_fqn: &'a str,
+    body_version_key: &'a LateLoweredBodyVersionKey,
+    body: &'a Body,
+    body_facts: &'a crate::effect_facts::BodyEffectFacts,
+    effect_facts: &'a MaterializedEffectFacts,
+    step_types: &'a [crate::effect_lowered::ir::LateLoweredStepType],
+    resume_packing_ids_by_step: &'a std::collections::BTreeMap<
+        StepSchemaId,
+        Vec<crate::effect_lowered::ir::ResumeInterfaceId>,
+    >,
+    resume_packing_ids_by_group: &'a std::collections::BTreeMap<
+        (StepSchemaId, crate::effect_facts::EffectFamilyKey),
+        crate::effect_lowered::ir::ResumeInterfaceId,
+    >,
+    continuation_object_id: ContinuationObjectId,
+    types: &'a TypeStore,
+    return_ty: crate::ty::TypeId,
+}
+
+struct PlainLocalEffectControlBuildOutput {
+    control: LateLoweredPlainLocalEffectControl,
+    continuation_object: crate::effect_lowered::ir::LateLoweredContinuationObject,
+}
+
+fn build_plain_local_effect_control(
+    inputs: PlainLocalEffectControlBuildInputs<'_>,
+) -> Result<PlainLocalEffectControlBuildOutput, EffectLoweringError> {
+    let PlainLocalEffectControlBuildInputs {
+        root_fqn,
+        body_version_key,
+        body,
+        body_facts,
+        effect_facts,
+        step_types,
+        resume_packing_ids_by_step,
+        resume_packing_ids_by_group,
+        continuation_object_id,
+        types,
+        return_ty,
+    } = inputs;
+    let step_schema_id =
+        discover_plain_local_effect_control_step_schema(root_fqn, body_facts, effect_facts)?;
+    let step_schema = effect_facts
+        .step_schemas()
+        .get(&step_schema_id)
+        .ok_or_else(|| EffectLoweringError::MissingStepSchema {
+            root_fqn: root_fqn.to_string(),
+            step_schema: step_schema_id.as_u32(),
+        })?;
+    if step_schema.complete_ty() != return_ty {
+        return Err(
+            EffectLoweringError::InvalidPlainLocalEffectControlContract {
+                root_fqn: root_fqn.to_string(),
+                detail: format!(
+                    "local effect/control StepSchema s{} complete_ty=t{} 与 plain return_ty=t{} 不一致",
+                    step_schema_id.as_u32(),
+                    step_schema.complete_ty().as_u32(),
+                    return_ty.as_u32(),
+                ),
+            },
+        );
+    }
+    let step_type = step_types
+        .iter()
+        .find(|step_type| step_type.step_schema() == step_schema_id)
+        .ok_or_else(|| EffectLoweringError::MissingStepSchema {
+            root_fqn: root_fqn.to_string(),
+            step_schema: step_schema_id.as_u32(),
+        })?;
+    let segmentation =
+        build_callable_segmentation(root_fqn, body, body_facts, step_schema.complete_ty())?;
+    let local_case_tags = step_schema
+        .cases()
+        .iter()
+        .map(|case| case.case_tag())
+        .collect::<Vec<_>>();
+    let frame = build_callable_frame(FrameBuildInputs {
+        root_fqn,
+        body,
+        _body_facts: body_facts,
+        step_schema_id,
+        step_schema,
+        continuation_schemas: effect_facts.continuation_schemas(),
+        resolved_outward_cases: &local_case_tags,
+        impl_plan: crate::effect_facts::ImplPlan::CanonicalFull,
+        state_graph: &segmentation.state_graph,
+        boundary_map: &segmentation.boundary_map,
+        types,
+    })?;
+    let boundary_map = materialize_boundary_map(BoundaryMaterializationInputs {
+        root_fqn,
+        owner_version_key: body_version_key,
+        body,
+        body_facts,
+        step_type,
+        state_graph: &frame.state_graph,
+        frame_schema: &frame.frame_schema,
+        boundary_map: &segmentation.boundary_map,
+        continuation_object: continuation_object_id,
+        step_types,
+        types,
+    })?;
+    let state_graph = boundary_map.state_graph;
+    let boundary_map = boundary_map.boundary_map;
+    let resume_payload_bindings =
+        materialize_resume_payload_bindings(root_fqn, &frame.frame_schema, &boundary_map)?;
+    let completion_payload_bindings = materialize_completion_payload_bindings(
+        root_fqn,
+        step_type,
+        &state_graph,
+        &frame.frame_schema,
+        types,
+    )?;
+    let frame_schema = frame
+        .frame_schema
+        .with_resume_payload_bindings(resume_payload_bindings)
+        .with_completion_payload_bindings(completion_payload_bindings);
+    let source_statement_classifications = materialize_source_statement_classifications(
+        root_fqn,
+        body,
+        &state_graph,
+        &frame_schema,
+        &boundary_map,
+    )?;
+    let resume_packings = resume_packing_ids_by_step
+        .get(&step_schema_id)
+        .cloned()
+        .unwrap_or_default();
+    let continuation_object =
+        materialize_continuation_object(ContinuationObjectMaterializationInputs {
+            continuation_object_id,
+            owner_version_key: body_version_key.clone(),
+            step_schema_id,
+            step_schema,
+            implemented_packings: &resume_packings,
+            resume_packing_ids_by_group,
+            captures: frame.continuation_captures,
+            effect_facts,
+        })?;
+    Ok(PlainLocalEffectControlBuildOutput {
+        control: LateLoweredPlainLocalEffectControl::new(
+            step_schema_id,
+            state_graph,
+            frame_schema,
+            boundary_map,
+            segmentation.resume_state_map,
+            source_statement_classifications,
+            continuation_object_id,
+            resume_packings,
+        ),
+        continuation_object,
+    })
+}
+
+fn plain_body_has_local_effect_control(body_facts: &crate::effect_facts::BodyEffectFacts) -> bool {
+    body_facts.sites().values().any(|site| match site {
+        SiteEffectFacts::Call(facts) => !facts.resolved_cases().is_empty(),
+        SiteEffectFacts::Perform(_) | SiteEffectFacts::Resume(_) | SiteEffectFacts::Handle(_) => {
+            true
+        }
+    })
+}
+
+fn discover_plain_local_effect_control_step_schema(
+    root_fqn: &str,
+    body_facts: &crate::effect_facts::BodyEffectFacts,
+    effect_facts: &MaterializedEffectFacts,
+) -> Result<StepSchemaId, EffectLoweringError> {
+    let mut candidates = BTreeSet::new();
+    for site in body_facts.sites().values() {
+        match site {
+            SiteEffectFacts::Perform(facts) => {
+                push_continuation_owner_step_schema(
+                    root_fqn,
+                    facts.captured_cont_schema(),
+                    effect_facts,
+                    &mut candidates,
+                )?;
+            }
+            SiteEffectFacts::Handle(facts) => {
+                for arm in facts.arm_facts() {
+                    push_continuation_owner_step_schema(
+                        root_fqn,
+                        arm.continuation_schema(),
+                        effect_facts,
+                        &mut candidates,
+                    )?;
+                }
+            }
+            SiteEffectFacts::Call(_) | SiteEffectFacts::Resume(_) => {}
+        }
+    }
+    match candidates.len() {
+        1 => Ok(*candidates.iter().next().expect("one candidate exists")),
+        0 => Err(
+            EffectLoweringError::InvalidPlainLocalEffectControlContract {
+                root_fqn: root_fqn.to_string(),
+                detail:
+                    "plain body 含本地 effect/control，但 P4/P5 未发布可归属的 owner StepSchema"
+                        .to_string(),
+            },
+        ),
+        _ => Err(
+            EffectLoweringError::InvalidPlainLocalEffectControlContract {
+                root_fqn: root_fqn.to_string(),
+                detail: format!(
+                    "plain body 本地 effect/control 对应多个 owner StepSchema：{}",
+                    candidates
+                        .iter()
+                        .map(|schema| format!("s{}", schema.as_u32()))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            },
+        ),
+    }
+}
+
+fn push_continuation_owner_step_schema(
+    root_fqn: &str,
+    continuation_schema: crate::effect_facts::ContinuationSchemaId,
+    effect_facts: &MaterializedEffectFacts,
+    candidates: &mut BTreeSet<StepSchemaId>,
+) -> Result<(), EffectLoweringError> {
+    let schema = effect_facts
+        .continuation_schemas()
+        .get(&continuation_schema)
+        .ok_or_else(
+            || EffectLoweringError::InvalidPlainLocalEffectControlContract {
+                root_fqn: root_fqn.to_string(),
+                detail: format!(
+                    "本地 continuation schema k{} 缺少 authoritative schema contract",
+                    continuation_schema.as_u32()
+                ),
+            },
+        )?;
+    candidates.insert(schema.out_step_schema());
+    Ok(())
 }
 
 fn plain_body_slices(body: &Body) -> Vec<LateLoweredPlainBodySlice> {
@@ -329,17 +654,7 @@ fn build_plain_call_sites(
                         site_id: site_id.as_u32(),
                     })?;
             let SiteEffectFacts::Call(call_facts) = site_facts else {
-                return Err(EffectLoweringError::UnexpectedSiteFactsKind {
-                    root_fqn: root_fqn.to_string(),
-                    site_id: site_id.as_u32(),
-                    expected: "Call",
-                    actual: match site_facts {
-                        SiteEffectFacts::Call(_) => "Call",
-                        SiteEffectFacts::Perform(_) => "Perform",
-                        SiteEffectFacts::Resume(_) => "Resume",
-                        SiteEffectFacts::Handle(_) => "Handle",
-                    },
-                });
+                continue;
             };
             call_sites.push(LateLoweredPlainCallSite::new(
                 *site_id,

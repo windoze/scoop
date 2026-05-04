@@ -1,28 +1,30 @@
 # Claude Execution Plan
 
 ## Scope
+- Follow the repository task workflow exactly: complete the first incomplete detailed task and stop.
+- Treat `TODO-Px.md` files as authoritative and keep `TODO.md` synchronized with any task status or ordering changes.
+- Avoid unrelated triage; only address blockers that directly affect the selected task.
 
-- Read `TODO.md` as the task index, then inspect the referenced detailed `TODO-Px.md` files in order.
-- Select the first detailed task whose heading is not prefixed with `[DONE]`.
-- Complete exactly that one task, or if it is blocked by a concrete prerequisite, record the prerequisite in the correct detailed TODO file, sync `TODO.md`, commit, and stop.
+## Steps
+1. Read `TODO.md` as the global index.
+2. Open the referenced `TODO-Px.md` files in indexed order and identify the first task whose detailed heading is not prefixed with `[DONE]`.
+3. Inspect the selected task requirements, dependencies, constraints, validation commands, and completion record.
+4. Check the latest commit only for unfinished issues directly relevant to the selected task.
+5. Implement the selected task as written, using minimal, spec-correct changes and avoiding workarounds.
+6. If a concrete blocker prevents correct implementation, add the minimum prerequisite task in the appropriate detailed TODO file, sync `TODO.md`, commit, and stop.
+7. Run the relevant validation commands for the task and fix any failures caused by this work.
+8. Mark the completed task heading with `[DONE]` in its `TODO-Px.md` file and update its completion record.
+9. Sync the corresponding `TODO.md` index entry with the same `[DONE]` marker if applicable.
+10. Run final targeted verification after documentation updates when feasible.
+11. Review the worktree, commit all relevant changes with a clear task-prefixed message, and stop without starting the next task.
 
-## Execution Steps
-
-1. Identify the first incomplete detailed task from the TODO index and detailed phase files.
-2. Inspect only the code, fixtures, tests, and documentation relevant to that task.
-3. Implement the smallest spec-correct change for the selected task; do not use workarounds or weaken fixtures.
-4. Run targeted validation first, then broader required validation if feasible.
-5. Update the detailed TODO file by prefixing the completed task heading with `[DONE]` and adding a completion record.
-6. Sync `TODO.md` with any changed task status, title, ordering, or new prerequisite tasks.
-7. Update this plan file whenever a key step completes or the plan changes.
-8. Commit all relevant changes with a descriptive task-tagged commit message.
-9. Stop after the commit without starting the next task.
-
-## Current Status
-
-- Selected task: `P6-T06` in `TODO-P6-part3.md` - make `NoOutward` LLVM lowering use plain ABI and ordinary call dispatch.
-- Latest commit `26193bc1 [P5-T08] Keep NoOutward late-lowered handoff plain` is a completed prerequisite and does not record an unfinished issue.
-- Implemented initial plain-ABI path in P6: ABI query now publishes plain callable layouts separately from effect-step layouts; plain callable bodies are emitted as ordinary functions from P5 plain source slices; pure direct calls to plain callees use ordinary direct calls; generic reachable-body emission now skips refactor-owned plain callables.
-- Validation passed for pure NoOutward plain ABI and effect-step SingleCase/CanonicalFull fixtures.
-- Blocking issue found while running `continuation_resume_surface_named_tuple_and_unit_basic.scoop`: P4/P5 can publish a `NoOutward` callable as `Plain` even when the body still contains local effect/control constructs (`Handle` / `Perform` / `Resume`), but the plain handoff/emitter does not yet publish or consume a spec-correct lowering contract for those constructs.
-- Updated plan: add a prerequisite task before `P6-T06`, sync `TODO.md`, leave `P6-T06` incomplete, commit current progress plus the new prerequisite, and stop.
+## Progress Log
+- Created initial execution plan before running repository commands.
+- Selected `P6-T05a` as the first incomplete detailed task after reading `TODO.md` and `TODO-P6-part3.md`.
+- Latest commit explicitly tracks this same `P6-T05a` blocker, so its unfinished issue is in scope for this invocation.
+- Reproduced the blocker: `dump-effect-lowered continuation_resume_surface_named_tuple_and_unit_basic.scoop` fails because plain lowering treats a `Resume` site as an ordinary `Call`.
+- Implementation direction: extend `Plain` callable handoff with an optional local effect/control contract that publishes state graph, frame, boundary map, resume map, continuation object, resume packings, and source statement classifications without changing the callable's public plain ABI.
+- Implemented the plain-local handoff and P6 consumer path: plain bodies with local `handle` / `perform` / `resume` now publish and consume local control state while keeping ordinary callable ABI.
+- Fixed direct root `main` symbol collision for plain main wrappers by giving the source plain entry an internal refactor symbol.
+- Validation passed for the P6-T05a unit tests, required continuation/no-outward fixtures, and `cargo clippy --all-targets -- -D warnings`.
+- Marked `P6-T05a` as `[DONE]` in `TODO-P6-part3.md`, synchronized `TODO.md`, and updated the detailed completion record.

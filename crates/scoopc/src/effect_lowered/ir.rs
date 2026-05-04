@@ -227,6 +227,79 @@ pub struct LateLoweredPlainCallSite {
     facts: CallSiteEffectFacts,
 }
 
+/// Plain callable 内部本地 effect/control 的 published handoff。
+///
+/// 该 contract 只服务于 plain body 内部的 `handle` / `perform` / `resume` / runtime-error
+/// 控制流；callable 的公开 ABI 仍是普通函数 ABI，不暴露 direct/dynamic `Step_F` entry。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredPlainLocalEffectControl {
+    step_schema: StepSchemaId,
+    state_graph: LateLoweredStateGraph,
+    frame_schema: LateLoweredFrameSchema,
+    boundary_map: LateLoweredBoundaryMap,
+    resume_state_map: LateLoweredResumeStateMap,
+    source_statement_classifications: Vec<LateLoweredSourceStatementClassification>,
+    continuation_object: ContinuationObjectId,
+    resume_packings: Vec<ResumeInterfaceId>,
+}
+
+impl LateLoweredPlainLocalEffectControl {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        step_schema: StepSchemaId,
+        state_graph: LateLoweredStateGraph,
+        frame_schema: LateLoweredFrameSchema,
+        boundary_map: LateLoweredBoundaryMap,
+        resume_state_map: LateLoweredResumeStateMap,
+        source_statement_classifications: Vec<LateLoweredSourceStatementClassification>,
+        continuation_object: ContinuationObjectId,
+        resume_packings: Vec<ResumeInterfaceId>,
+    ) -> Self {
+        Self {
+            step_schema,
+            state_graph,
+            frame_schema,
+            boundary_map,
+            resume_state_map,
+            source_statement_classifications,
+            continuation_object,
+            resume_packings,
+        }
+    }
+
+    pub fn step_schema(&self) -> StepSchemaId {
+        self.step_schema
+    }
+
+    pub fn state_graph(&self) -> &LateLoweredStateGraph {
+        &self.state_graph
+    }
+
+    pub fn frame_schema(&self) -> &LateLoweredFrameSchema {
+        &self.frame_schema
+    }
+
+    pub fn boundary_map(&self) -> &LateLoweredBoundaryMap {
+        &self.boundary_map
+    }
+
+    pub fn resume_state_map(&self) -> &LateLoweredResumeStateMap {
+        &self.resume_state_map
+    }
+
+    pub fn source_statement_classifications(&self) -> &[LateLoweredSourceStatementClassification] {
+        &self.source_statement_classifications
+    }
+
+    pub fn continuation_object(&self) -> ContinuationObjectId {
+        self.continuation_object
+    }
+
+    pub fn resume_packings(&self) -> &[ResumeInterfaceId] {
+        &self.resume_packings
+    }
+}
+
 impl LateLoweredPlainCallSite {
     pub(crate) fn new(
         site_id: SiteId,
@@ -302,6 +375,7 @@ pub struct LateLoweredPlainCallable {
     return_ty: TypeId,
     body_slices: Vec<LateLoweredPlainBodySlice>,
     call_sites: Vec<LateLoweredPlainCallSite>,
+    local_effect_control: Option<Box<LateLoweredPlainLocalEffectControl>>,
 }
 
 impl LateLoweredPlainCallable {
@@ -311,6 +385,7 @@ impl LateLoweredPlainCallable {
         return_ty: TypeId,
         body_slices: Vec<LateLoweredPlainBodySlice>,
         call_sites: Vec<LateLoweredPlainCallSite>,
+        local_effect_control: Option<LateLoweredPlainLocalEffectControl>,
     ) -> Self {
         Self {
             function_ty,
@@ -318,6 +393,7 @@ impl LateLoweredPlainCallable {
             return_ty,
             body_slices,
             call_sites,
+            local_effect_control: local_effect_control.map(Box::new),
         }
     }
 
@@ -339,6 +415,16 @@ impl LateLoweredPlainCallable {
 
     pub fn call_sites(&self) -> &[LateLoweredPlainCallSite] {
         &self.call_sites
+    }
+
+    pub fn local_effect_control(&self) -> Option<&LateLoweredPlainLocalEffectControl> {
+        self.local_effect_control.as_deref()
+    }
+
+    pub(crate) fn local_effect_control_mut(
+        &mut self,
+    ) -> Option<&mut LateLoweredPlainLocalEffectControl> {
+        self.local_effect_control.as_deref_mut()
     }
 }
 
@@ -430,8 +516,9 @@ pub enum LateLoweredCallableAbi {
 
 /// 单个 callable version 在 late lowering 入口处对应的最终目标骨架。
 ///
-/// `abi` 显式区分普通函数 ABI 与 effect-step ABI：Plain 分支不携带 state-machine handoff，
-/// EffectStep 分支才发布 `step_schema` / boundary lowering / state graph 等 authoritative contract。
+/// `abi` 显式区分普通函数 ABI 与 effect-step ABI：Plain 分支的公开 callable ABI 始终是
+/// 普通函数；若 body 内含本地 effect/control，则在 plain ABI 内额外发布仅供本地控制流消费的
+/// `LateLoweredPlainLocalEffectControl`，而不是把 plain body 暴露成 direct/dynamic `Step_F` entry。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredCallable {
     root_fqn: String,
@@ -490,8 +577,15 @@ impl LateLoweredCallable {
         mut self,
         classifications: Vec<LateLoweredSourceStatementClassification>,
     ) -> Self {
-        if let LateLoweredCallableAbi::EffectStep(effect) = &mut self.abi {
-            effect.source_statement_classifications = classifications;
+        match &mut self.abi {
+            LateLoweredCallableAbi::EffectStep(effect) => {
+                effect.source_statement_classifications = classifications;
+            }
+            LateLoweredCallableAbi::Plain(plain) => {
+                if let Some(local) = plain.local_effect_control_mut() {
+                    local.source_statement_classifications = classifications;
+                }
+            }
         }
         self
     }
@@ -525,6 +619,15 @@ impl LateLoweredCallable {
         }
     }
 
+    pub fn plain_local_effect_control(&self) -> Option<&LateLoweredPlainLocalEffectControl> {
+        self.plain_abi()
+            .and_then(LateLoweredPlainCallable::local_effect_control)
+    }
+
+    pub fn has_control_body(&self) -> bool {
+        self.effect_step_abi().is_some() || self.plain_local_effect_control().is_some()
+    }
+
     fn expect_effect_step_abi(&self) -> &LateLoweredEffectStepCallable {
         self.effect_step_abi()
             .expect("plain callable does not publish an effect-step handoff")
@@ -543,12 +646,17 @@ impl LateLoweredCallable {
     }
 
     pub fn step_schema(&self) -> StepSchemaId {
-        self.expect_effect_step_abi().step_schema()
+        self.body_step_schema()
+            .expect("callable does not publish a control-body step schema")
     }
 
     pub fn body_step_schema(&self) -> Option<StepSchemaId> {
         self.effect_step_abi()
             .map(LateLoweredEffectStepCallable::step_schema)
+            .or_else(|| {
+                self.plain_local_effect_control()
+                    .map(LateLoweredPlainLocalEffectControl::step_schema)
+            })
     }
 
     pub fn impl_plan(&self) -> ImplPlan {
@@ -568,24 +676,52 @@ impl LateLoweredCallable {
     }
 
     pub fn state_graph(&self) -> &LateLoweredStateGraph {
-        self.expect_effect_step_abi().state_graph()
+        match &self.abi {
+            LateLoweredCallableAbi::EffectStep(effect) => effect.state_graph(),
+            LateLoweredCallableAbi::Plain(plain) => plain
+                .local_effect_control()
+                .expect("plain callable does not publish local effect/control")
+                .state_graph(),
+        }
     }
 
     pub fn frame_schema(&self) -> &LateLoweredFrameSchema {
-        self.expect_effect_step_abi().frame_schema()
+        match &self.abi {
+            LateLoweredCallableAbi::EffectStep(effect) => effect.frame_schema(),
+            LateLoweredCallableAbi::Plain(plain) => plain
+                .local_effect_control()
+                .expect("plain callable does not publish local effect/control")
+                .frame_schema(),
+        }
     }
 
     pub fn boundary_map(&self) -> &LateLoweredBoundaryMap {
-        self.expect_effect_step_abi().boundary_map()
+        match &self.abi {
+            LateLoweredCallableAbi::EffectStep(effect) => effect.boundary_map(),
+            LateLoweredCallableAbi::Plain(plain) => plain
+                .local_effect_control()
+                .expect("plain callable does not publish local effect/control")
+                .boundary_map(),
+        }
     }
 
     pub fn resume_state_map(&self) -> &LateLoweredResumeStateMap {
-        self.expect_effect_step_abi().resume_state_map()
+        match &self.abi {
+            LateLoweredCallableAbi::EffectStep(effect) => effect.resume_state_map(),
+            LateLoweredCallableAbi::Plain(plain) => plain
+                .local_effect_control()
+                .expect("plain callable does not publish local effect/control")
+                .resume_state_map(),
+        }
     }
 
     pub fn source_statement_classifications(&self) -> &[LateLoweredSourceStatementClassification] {
         self.effect_step_abi()
             .map(LateLoweredEffectStepCallable::source_statement_classifications)
+            .or_else(|| {
+                self.plain_local_effect_control()
+                    .map(LateLoweredPlainLocalEffectControl::source_statement_classifications)
+            })
             .unwrap_or(&[])
     }
 
@@ -602,12 +738,22 @@ impl LateLoweredCallable {
     }
 
     pub fn continuation_object(&self) -> ContinuationObjectId {
-        self.expect_effect_step_abi().continuation_object()
+        match &self.abi {
+            LateLoweredCallableAbi::EffectStep(effect) => effect.continuation_object(),
+            LateLoweredCallableAbi::Plain(plain) => plain
+                .local_effect_control()
+                .expect("plain callable does not publish local effect/control")
+                .continuation_object(),
+        }
     }
 
     pub fn resume_packings(&self) -> &[ResumeInterfaceId] {
         self.effect_step_abi()
             .map(LateLoweredEffectStepCallable::resume_packings)
+            .or_else(|| {
+                self.plain_local_effect_control()
+                    .map(LateLoweredPlainLocalEffectControl::resume_packings)
+            })
             .unwrap_or(&[])
     }
 
@@ -1209,10 +1355,10 @@ fn build_surface_resume_dispatch_inventory(
     }
 
     for callable in callables {
-        let Some(effect_callable) = callable.effect_step_abi() else {
+        if !callable.has_control_body() {
             continue;
-        };
-        for boundary in effect_callable.boundary_map().entries() {
+        }
+        for boundary in callable.boundary_map().entries() {
             let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering() else {
                 continue;
             };
@@ -1253,16 +1399,14 @@ fn build_surface_resume_dispatch_inventory(
                     Some(surface_resume_contract_from_resume_facts(facts)),
                     LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
                         owner_version_key: callable.body_version_key().clone(),
-                        owner_continuation_object: effect_callable.continuation_object(),
+                        owner_continuation_object: callable.continuation_object(),
                         site_id,
                     },
                 );
         }
 
-        let owner_step = step_types_by_schema
-            .get(&effect_callable.step_schema())
-            .copied();
-        for state in effect_callable.state_graph().states() {
+        let owner_step = step_types_by_schema.get(&callable.step_schema()).copied();
+        for state in callable.state_graph().states() {
             let LateLoweredStateTerminator::HandleDispatch {
                 site_id, contract, ..
             } = state.terminator()
@@ -1285,7 +1429,7 @@ fn build_surface_resume_dispatch_inventory(
                         contract,
                         LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
                             owner_version_key: callable.body_version_key().clone(),
-                            owner_continuation_object: effect_callable.continuation_object(),
+                            owner_continuation_object: callable.continuation_object(),
                             site_id: *site_id,
                             arm_ordinal: arm.arm_ordinal(),
                             handled_case: arm.handled_case(),
@@ -4792,6 +4936,69 @@ mod tests {
         assert!(!dump.contains("dynamic_invoke_entry:"));
         assert!(!dump.contains("continuation_object: ko"));
         assert!(!dump.contains("boundary_map:"));
+    }
+
+    #[test]
+    fn refactor_effect_lowered_plain_local_effect_control() {
+        let source = load_fixture(
+            "run-pass",
+            "continuation_resume_surface_named_tuple_and_unit_basic.scoop",
+        );
+        let program = build_raw_program(&source);
+        let main = program
+            .callable("main")
+            .expect("fixture 应发布 plain main callable");
+        let plain = main.plain_abi().expect("main 应保持 plain callable ABI");
+        let local = plain
+            .local_effect_control()
+            .expect("plain main 应发布本地 effect/control handoff");
+        let dump = program.stable_dump();
+
+        assert_eq!(main.call_abi_kind(), CallableAbiKind::Plain);
+        assert!(main.effect_step_abi().is_none());
+        assert_eq!(main.body_step_schema(), Some(local.step_schema()));
+        assert!(
+            program
+                .continuation_object(local.continuation_object())
+                .is_some(),
+            "plain local continuation object 必须保留在 program handoff 中"
+        );
+        assert!(
+            plain
+                .call_sites()
+                .iter()
+                .all(|site| !matches!(site.site_id().as_u32(), 8 | 21)),
+            "plain_call_sites 只记录 ordinary call facts，不能把 Resume/Perform/Handle 塞入 Call contract"
+        );
+        assert!(
+            local
+                .boundary_map()
+                .entries()
+                .iter()
+                .any(|boundary| matches!(
+                    boundary.source(),
+                    LateLoweredBoundarySource::Site {
+                        kind: BoundarySiteKind::Perform,
+                        ..
+                    }
+                ))
+        );
+        assert!(
+            local
+                .boundary_map()
+                .entries()
+                .iter()
+                .any(|boundary| matches!(
+                    boundary.source(),
+                    LateLoweredBoundarySource::Site {
+                        kind: BoundarySiteKind::Resume,
+                        ..
+                    }
+                ))
+        );
+        assert!(dump.contains("plain_local_effect_control: s"));
+        assert!(dump.contains("lowering: Perform"));
+        assert!(dump.contains("lowering: Resume"));
     }
 
     fn step_case_fqns(step_type: &LateLoweredStepType) -> BTreeSet<String> {

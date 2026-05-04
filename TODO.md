@@ -117,7 +117,7 @@
 | `P6-T04` | `TODO-P6-part3.md` | [DONE] 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |
 | `P6-T04R` | `TODO-P6-part3.md` | [DONE] Review GC/runtime 集成，确认 clean refactor path 没有 legacy runtime 语义依赖 |
 | `P6-T05` | `TODO-P6-part3.md` | [DONE] 建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract |
-| `P6-T05a` | `TODO-P6-part3.md` | 闭合 `NoOutward` plain callable 对本地 effect/control body 的 handoff，禁止 P6-T06 用 legacy fallback 或 complete-only `Step_F` 绕过 |
+| `P6-T05a` | `TODO-P6-part3.md` | [DONE] 闭合 `NoOutward` plain callable 对本地 effect/control body 的 handoff，禁止 P6-T06 用 legacy fallback 或 complete-only `Step_F` 绕过 |
 | `P6-T06` | `TODO-P6-part3.md` | 把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall |
 | `P6-T06R` | `TODO-P6-part3.md` | Review `NoOutward` plain ABI 修复，确认 P7 前不再存在 complete-only `Step_F` 回归 |
 | `P6-T05R` | `TODO-P6-part3.md` | Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |

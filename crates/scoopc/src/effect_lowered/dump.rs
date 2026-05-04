@@ -497,12 +497,16 @@ fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {
     )
     .unwrap();
     match callable.abi() {
-        LateLoweredCallableAbi::Plain(plain) => render_plain_callable(rendered, plain),
+        LateLoweredCallableAbi::Plain(plain) => render_plain_callable(rendered, callable, plain),
         LateLoweredCallableAbi::EffectStep(_) => render_effect_step_callable(rendered, callable),
     }
 }
 
-fn render_plain_callable(rendered: &mut String, plain: &LateLoweredPlainCallable) {
+fn render_plain_callable(
+    rendered: &mut String,
+    callable: &LateLoweredCallable,
+    plain: &LateLoweredPlainCallable,
+) {
     writeln!(rendered, "      abi: Plain").unwrap();
     writeln!(
         rendered,
@@ -533,6 +537,27 @@ fn render_plain_callable(rendered: &mut String, plain: &LateLoweredPlainCallable
         for call_site in plain.call_sites() {
             render_plain_call_site(rendered, call_site);
         }
+    }
+    if let Some(local) = plain.local_effect_control() {
+        writeln!(
+            rendered,
+            "      plain_local_effect_control: s{} ko{}",
+            local.step_schema().as_u32(),
+            local.continuation_object().as_u32()
+        )
+        .unwrap();
+        render_state_graph(rendered, callable);
+        render_frame_schema(rendered, callable.frame_schema());
+        render_boundary_map(rendered, callable.boundary_map().entries());
+        render_resume_state_map(rendered, callable.resume_state_map());
+        writeln!(
+            rendered,
+            "      resume_packing_interfaces: {}",
+            render_resume_interface_ids(local.resume_packings())
+        )
+        .unwrap();
+    } else {
+        writeln!(rendered, "      plain_local_effect_control: <none>").unwrap();
     }
     writeln!(rendered, "      effect_step_handoff: <none>").unwrap();
 }

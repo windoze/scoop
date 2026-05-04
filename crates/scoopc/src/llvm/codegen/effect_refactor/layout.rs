@@ -126,27 +126,27 @@ impl ProgramLayoutView {
         let mut callables_by_step_schema = BTreeMap::new();
         let mut callable_stems_by_step_schema = BTreeMap::new();
         for callable in program.callables() {
-            if callable.effect_step_abi().is_none() {
+            let Some(step_schema) = callable.body_step_schema() else {
                 continue;
-            }
+            };
             if callables_by_step_schema
-                .insert(callable.step_schema(), callable)
+                .insert(step_schema, callable)
                 .is_some()
             {
                 return Err(frontend_error(format!(
                     "refactor LLVM ABI materialization 遇到重复 callable step schema {}（callable={})",
-                    callable.step_schema().as_u32(),
+                    step_schema.as_u32(),
                     callable.root_fqn()
                 )));
             }
 
             let base = sanitize_llvm_ident(callable.root_fqn());
             let stem = if root_counts.get(callable.root_fqn()).copied().unwrap_or(0) > 1 {
-                format!("{base}__schema{}", callable.step_schema().as_u32())
+                format!("{base}__schema{}", step_schema.as_u32())
             } else {
                 base
             };
-            callable_stems_by_step_schema.insert(callable.step_schema(), stem);
+            callable_stems_by_step_schema.insert(step_schema, stem);
         }
 
         for step_schema in step_types_by_schema.keys().copied() {
@@ -246,7 +246,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         let mut frame_layouts = BTreeMap::new();
         for callable in this.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             frame_layouts.insert(
@@ -731,7 +731,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         >,
     ) -> Result<(), LlvmEmitError> {
         for callable in self.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             for boundary in callable.boundary_map().entries() {
@@ -1152,7 +1152,14 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 callable.root_fqn()
             )));
         }
-        let llvm_fun = self.codegen.declare_top_level_fun(hir_fun)?;
+        let plain_symbol_override =
+            (callable.root_fqn() == "main").then_some("__scoop_refactor_plain_source_main");
+        let llvm_fun = match plain_symbol_override {
+            Some(symbol) => self
+                .codegen
+                .declare_top_level_fun_with_symbol(hir_fun, symbol)?,
+            None => self.codegen.declare_top_level_fun(hir_fun)?,
+        };
         let symbol_name = llvm_fun
             .get_name()
             .to_str()
@@ -1631,22 +1638,21 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 owner_continuation_object.as_u32(),
             )));
         }
-        let callable_layout = callable_layouts
-            .get(&owner_callable.step_schema())
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} owner callable `{}` 的 callable layout，无法发布 owner trampoline contract",
+        if let Some(callable_layout) = callable_layouts.get(&owner_callable.step_schema()) {
+            if callable_layout.continuation_object() != owner_continuation_object {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 callable layout continuation object 漂移：callable `{}` -> ko{}，owner trampoline inventory -> ko{}",
                     entry.continuation_schema().as_u32(),
                     owner_callable.root_fqn(),
-                ))
-            })?;
-        if callable_layout.continuation_object() != owner_continuation_object {
+                    callable_layout.continuation_object().as_u32(),
+                    owner_continuation_object.as_u32(),
+                )));
+            }
+        } else if owner_callable.effect_step_abi().is_some() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 callable layout continuation object 漂移：callable `{}` -> ko{}，owner trampoline inventory -> ko{}",
+                "refactor LLVM ABI materialization 缺少 continuation schema k{} owner callable `{}` 的 callable layout，无法发布 effect-step owner trampoline contract",
                 entry.continuation_schema().as_u32(),
                 owner_callable.root_fqn(),
-                callable_layout.continuation_object().as_u32(),
-                owner_continuation_object.as_u32(),
             )));
         }
         let wrapper_projection =
@@ -2379,7 +2385,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     > {
         let mut layouts = BTreeMap::new();
         for callable in self.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             self.publish_boundary_dynamic_invoke_layouts(callable, step_layouts, &mut layouts)?;
@@ -2408,7 +2414,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let mut resume_layouts = BTreeMap::new();
 
         for callable in self.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             for boundary in callable.boundary_map().entries() {
@@ -2581,7 +2587,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
     fn validate_source_statement_classifications(&self) -> Result<(), LlvmEmitError> {
         for callable in self.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             let Some(fun) = self.pass_view.callable(callable.root_fqn()) else {
@@ -3271,7 +3277,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let mut bindings_by_state = ResumePayloadBindingLayoutsByState::new();
 
         for callable in self.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
@@ -3525,7 +3531,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let mut layouts = CompletionPayloadBindingLayouts::new();
 
         for callable in self.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             let step_type = self.program.step_type(callable.step_schema()).ok_or_else(|| {
@@ -4110,7 +4116,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     > {
         let mut contracts = BTreeMap::new();
         for callable in self.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             for boundary in callable.boundary_map().entries() {
@@ -4220,7 +4226,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     > {
         let mut layouts = BTreeMap::new();
         for callable in self.program.callables() {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 continue;
             }
             let handle_states = callable

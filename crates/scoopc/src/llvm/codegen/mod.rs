@@ -2210,12 +2210,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let is_extern = self.extern_funs.contains_key(&fun.fqn);
         let llvm_name = self
             .extern_funs
             .get(&fun.fqn)
             .map(|e| e.symbol.as_str())
             .unwrap_or(fun.fqn.as_str());
+        self.declare_top_level_fun_with_symbol(fun, llvm_name)
+    }
+
+    pub(crate) fn declare_top_level_fun_with_symbol(
+        &mut self,
+        fun: &hir::FunDecl,
+        llvm_name: &str,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let is_extern = self.extern_funs.contains_key(&fun.fqn);
 
         // `@Extern` 调用点会在进入 native 前把 managed roots 暴露为 `native_roots` slots；
         // 从 LLVM GC/statepoint 的视角看，这些调用必须视作 leaf：
