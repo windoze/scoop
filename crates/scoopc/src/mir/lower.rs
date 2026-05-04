@@ -18,7 +18,9 @@ use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::ty::{
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+};
 
 use super::{
     BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
@@ -1302,8 +1304,8 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::StructLit { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "struct literal lowering pending")
             }
-            hir::ExprKind::TupleLit { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "tuple literal lowering pending")
+            hir::ExprKind::TupleLit { elements } => {
+                self.lower_tuple_lit_expr(expr.span, expr.ty, elements)
             }
             hir::ExprKind::InterpolatedString { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "interpolated string lowering pending")
@@ -1381,6 +1383,20 @@ impl<'a> FnLowering<'a> {
         let tmp = self.push_temp_local(span, ty);
         self.assign(span, tmp, Rvalue::Todo(msg));
         tmp
+    }
+
+    fn lower_tuple_lit_expr(&mut self, span: Span, ty: TypeId, elements: &[hir::Expr]) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+        let mut lowered = Vec::with_capacity(elements.len());
+        for element in elements {
+            let local = self.lower_expr_to_local(element);
+            if self.current_is_terminated() {
+                return result;
+            }
+            lowered.push(Operand::Local(local));
+        }
+        self.assign(span, result, Rvalue::MakeTuple { elements: lowered });
+        result
     }
 
     fn lower_unary_expr(
@@ -1595,22 +1611,53 @@ impl<'a> FnLowering<'a> {
         receiver: &hir::Expr,
         member: &hir::MemberAccess,
     ) -> LocalId {
-        let result_ty = self.member_value_ty(member).unwrap_or(ty);
+        let tuple_member = self.tuple_member_access(member, receiver.ty);
+        let result_ty = tuple_member
+            .map(|(_, elem_ty)| elem_ty)
+            .or_else(|| self.member_value_ty(member))
+            .unwrap_or(ty);
         let result = self.push_temp_local(span, result_ty);
         let receiver_local = self.lower_expr_to_local(receiver);
         if self.current_is_terminated() {
             return result;
         }
         let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
-        self.assign(
-            span,
-            result,
-            Rvalue::MemberAccess {
-                receiver: Operand::Local(receiver_local),
-                member: self.lower_member_access_metadata(member, receiver_ty),
-            },
-        );
+        let tuple_member = tuple_member.or_else(|| self.tuple_member_access(member, receiver_ty));
+        if let Some((index, _)) = tuple_member {
+            self.assign(
+                span,
+                result,
+                Rvalue::TupleGet {
+                    tuple: Operand::Local(receiver_local),
+                    index,
+                },
+            );
+        } else {
+            self.assign(
+                span,
+                result,
+                Rvalue::MemberAccess {
+                    receiver: Operand::Local(receiver_local),
+                    member: self.lower_member_access_metadata(member, receiver_ty),
+                },
+            );
+        }
         result
+    }
+
+    fn tuple_member_access(
+        &self,
+        member: &hir::MemberAccess,
+        receiver_ty: TypeId,
+    ) -> Option<(usize, TypeId)> {
+        if member.resolved.is_some() {
+            return None;
+        }
+        let index = parse_tuple_member_index(&member.name)?;
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(receiver_ty) else {
+            return None;
+        };
+        elements.get(index).copied().map(|elem_ty| (index, elem_ty))
     }
 
     fn member_value_ty(&self, member: &hir::MemberAccess) -> Option<TypeId> {
@@ -3070,6 +3117,14 @@ impl<'a> FnLowering<'a> {
         self.current_bb = merge_bb;
         result
     }
+}
+
+fn parse_tuple_member_index(text: &str) -> Option<usize> {
+    let digits = text.strip_prefix('_')?;
+    if digits.is_empty() || !digits.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
 }
 
 fn payload_tuple_ty_from_components(

@@ -1,0 +1,50 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_STRESS=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: effect_cross_thread_resume_payload_refs.stdout.txt
+//
+// P6-T05: runtime_gc matrix 覆盖 escaped continuation 跨线程 resume、captured String ref、
+// resume payload 与 GC-stress allocation 下的 moving-GC root writeback。
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+
+effect Await {
+    fun pause(): Int
+}
+
+fun main() {
+    var saved: Continuation<Int, Unit>? = None()
+    val marker: String = "payload_ref"
+
+    val _: Unit = handle {
+        println("body_start")
+        val value: Int = Await.pause()
+        println("resumed")
+        println(marker)
+        println(value)
+    } with {
+        Await.pause(), k -> {
+            saved = Some(k)
+            println("captured")
+        }
+    }
+
+    val before: String = "before".concat("_thread")
+    println(before)
+
+    when (saved) {
+        Some(k) -> {
+            saved = None()
+            __scoop_thread_spawn_join_resume_u64(k, 42)
+            val after: String = "after".concat("_thread")
+            println(after)
+        }
+        None -> println("missing")
+    }
+
+    val done: String = "do".concat("ne")
+    println(done)
+}

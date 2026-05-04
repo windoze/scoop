@@ -10,7 +10,8 @@
 use std::collections::HashSet;
 
 use inkwell::types::BasicTypeEnum;
-use inkwell::values::{BasicMetadataValueEnum, BasicValueEnum};
+use inkwell::values::{BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FunctionValue};
+use inkwell::{AddressSpace, IntPredicate};
 
 use crate::effect_lowered::ir::{LateLoweredOperandSource, LateLoweredOperandValueSource};
 use crate::llvm::LlvmEmitError;
@@ -21,7 +22,10 @@ use crate::ty::{TypeId, TypeStore};
 use super::super::MainCodegen;
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue};
-use super::types::{RefactorAbiQuery, RefactorCallableEntryLayout, RefactorSourceAbiLayoutKind};
+use super::types::{
+    RefactorAbiQuery, RefactorCallableEntryLayout, RefactorContinuationSurfaceResumeLayout,
+    RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepLayout,
+};
 
 /// A borrow-scoped facade over effect-neutral LLVM value primitives.
 pub(super) struct RefactorValuePrimitives<'p, 'a, 'ctx> {
@@ -175,6 +179,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_refactor_internal_print_string(span, callee_fqn, args)? {
             return Ok(value);
         }
+        if let Some(value) =
+            self.lower_refactor_thread_spawn_join_resume_u64(span, callee_fqn, args)?
+        {
+            return Ok(value);
+        }
         if self.codegen.extern_funs.contains_key(callee_fqn) {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor pure statement extern/runtime helper call requires published native ABI",
@@ -205,6 +214,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 kind: "refactor pure statement effectful direct call requires boundary lowering",
                 at: span.into(),
             });
+        }
+        if let Some(value) = self.lower_refactor_core_print_call(span, callee_fqn, args)? {
+            return Ok(value);
         }
 
         let layout = self.abi.callable_layout_by_root_fqn(callee_fqn)?;
@@ -249,6 +261,255 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             ))
         })?;
         self.extract_refactor_pure_call_complete(span, layout.step_schema(), step, target_cg)
+    }
+
+    fn lower_refactor_thread_spawn_join_resume_u64(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        if callee_fqn != "scoop.core.__scoop_thread_spawn_join_resume_u64" {
+            return Ok(None);
+        }
+        if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor thread spawn+resume arg contract",
+                at: span.into(),
+            });
+        }
+        let continuation = &args[0];
+        let continuation = self.codegen.codegen_mir_operand_expected(
+            continuation.span,
+            &continuation.value,
+            self.slots,
+            Some(CgTy::Ref),
+        )?;
+        let continuation = self
+            .codegen
+            .coerce_value(args[0].span, continuation, CgTy::Ref)?;
+        let Some(BasicValueEnum::PointerValue(k_ptr)) = continuation.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor thread spawn+resume continuation value",
+                at: args[0].span.into(),
+            });
+        };
+
+        let value_arg = &args[1];
+        let resume_ty =
+            self.operand_source_ty(&value_arg.value)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor thread spawn+resume value source type",
+                    at: value_arg.span.into(),
+                })?;
+        let value_cg = self
+            .codegen
+            .mir_operand_cg_ty(self.body, self.source_types, &value_arg.value)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor thread spawn+resume value type",
+                at: value_arg.span.into(),
+            })?;
+        let value = self.codegen.codegen_mir_operand_expected(
+            value_arg.span,
+            &value_arg.value,
+            self.slots,
+            Some(value_cg),
+        )?;
+        let value = self.codegen.coerce_value(value_arg.span, value, value_cg)?;
+        let value_word = self.codegen.coerce_u64_word(value_arg.span, value)?;
+
+        let surface = self.abi.unique_surface_resume_layout_for_signature(
+            resume_ty,
+            self.codegen.builtins.unit,
+            "thread spawn+resume u64",
+        )?;
+        if surface.param_count() != 2 {
+            return Err(frontend_error(format!(
+                "refactor thread spawn+resume u64 需要单 payload surface resume，实际参数数为 {}",
+                surface.param_count()
+            )));
+        }
+        if surface.resume_payload_abi().is_elided()
+            || !matches!(surface.resume_payload_abi().llvm_ty(), BasicTypeEnum::IntType(int_ty) if int_ty == self.codegen.context.i64_type())
+        {
+            return Err(frontend_error(
+                "refactor thread spawn+resume u64 需要 i64 resume payload ABI".to_string(),
+            ));
+        }
+        let step_layout = self
+            .abi
+            .step_layout(surface.return_step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor thread spawn+resume u64 缺少 surface return step s{} layout",
+                    surface.return_step_schema().as_u32()
+                ))
+            })?;
+        let thunk =
+            get_or_create_refactor_thread_resume_u64_thunk(self.codegen, surface, step_layout)?;
+
+        let runtime = self
+            .codegen
+            .declare_runtime_thread_spawn_join_refactor_resume_u64();
+        let k_i8 = self.codegen.builder.build_pointer_cast(
+            k_ptr,
+            self.codegen.llvm_gc_i8_ptr_type(),
+            "refactor_thread_resume_k_i8",
+        )?;
+        let thunk_ptr = self.codegen.builder.build_pointer_cast(
+            thunk.as_global_value().as_pointer_value(),
+            self.codegen.context.ptr_type(AddressSpace::default()),
+            "refactor_thread_resume_fn",
+        )?;
+        let _ = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[k_i8.into(), value_word.into(), thunk_ptr.into()],
+            "refactor_thread_spawn_join_resume",
+        )?;
+        Ok(Some(CgValue::unit()))
+    }
+
+    fn lower_refactor_core_print_call(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(runtime_name) = refactor_core_print_runtime_name(callee_fqn) else {
+            return Ok(None);
+        };
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core print arg contract",
+                at: span.into(),
+            });
+        }
+        let arg = &args[0];
+        let arg_cg = self
+            .codegen
+            .mir_operand_cg_ty(self.body, self.source_types, &arg.value)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core print arg type",
+                at: arg.span.into(),
+            })?;
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(arg_cg),
+        )?;
+        let value = self.codegen.coerce_value(arg.span, value, arg_cg)?;
+        let string = self.refactor_core_print_to_string(arg.span, value)?;
+        let Some(BasicValueEnum::PointerValue(str_ptr)) = string.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core print string value",
+                at: arg.span.into(),
+            });
+        };
+        let runtime = self.codegen.declare_runtime_print_like(runtime_name);
+        let _ = self.codegen.build_call_preserving_gc_local_roots(
+            arg.span,
+            runtime,
+            &[str_ptr.into()],
+            "refactor_core_print",
+        )?;
+        Ok(Some(CgValue::unit()))
+    }
+
+    fn refactor_core_print_to_string(
+        &mut self,
+        span: Span,
+        value: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match value.ty {
+            CgTy::String => Ok(value),
+            CgTy::Bool => {
+                let Some(BasicValueEnum::IntValue(raw)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor core print Bool value",
+                        at: span.into(),
+                    });
+                };
+                let widened = self.codegen.builder.build_int_z_extend(
+                    raw,
+                    self.codegen.context.i64_type(),
+                    "refactor_core_print_bool_arg",
+                )?;
+                let runtime = self.codegen.declare_runtime_bool_to_string();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[widened.into()],
+                    "refactor_core_print_bool_to_string",
+                )?;
+                self.string_result_from_runtime_call(span, call, "Bool")
+            }
+            CgTy::Int(_) => {
+                let Some(BasicValueEnum::IntValue(raw)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor core print Int value",
+                        at: span.into(),
+                    });
+                };
+                let runtime = self.codegen.declare_runtime_int_to_string();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[raw.into()],
+                    "refactor_core_print_int_to_string",
+                )?;
+                self.string_result_from_runtime_call(span, call, "Int")
+            }
+            CgTy::Float64 | CgTy::Float32 => {
+                let Some(BasicValueEnum::FloatValue(raw)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor core print Float value",
+                        at: span.into(),
+                    });
+                };
+                let runtime = match value.ty {
+                    CgTy::Float64 => self.codegen.declare_runtime_float64_to_string(),
+                    CgTy::Float32 => self.codegen.declare_runtime_float32_to_string(),
+                    _ => unreachable!("value.ty matched float above"),
+                };
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[raw.into()],
+                    "refactor_core_print_float_to_string",
+                )?;
+                self.string_result_from_runtime_call(span, call, "Float")
+            }
+            _ => Err(frontend_error(format!(
+                "refactor core print unsupported ToString receiver {:?}",
+                value.ty
+            ))),
+        }
+    }
+
+    fn string_result_from_runtime_call(
+        &self,
+        span: Span,
+        call: CallSiteValue<'ctx>,
+        label: &'static str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core print ToString runtime ret",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(str_ptr) = ret else {
+            return Err(frontend_error(format!(
+                "refactor core print {label} ToString runtime ret type mismatch"
+            )));
+        };
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
     }
 
     fn lower_refactor_internal_print_string(
@@ -297,7 +558,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             || self.codegen.extern_funs.contains_key(fqn)
             || matches!(
                 fqn,
-                "scoop.core.__scoop_print_string" | "scoop.core.__scoop_println_string"
+                "scoop.core.__scoop_print_string"
+                    | "scoop.core.__scoop_println_string"
+                    | "scoop.core.__scoop_thread_spawn_join_resume_u64"
             )
     }
 
@@ -365,6 +628,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )?))
             }
             RefactorSourceAbiLayoutKind::Tuple => {
+                if args.len() == 1
+                    && self.operand_source_ty(&args[0].value) == Some(layout.source_ty())
+                {
+                    return self.pack_whole_tuple_operand(layout, &args[0].value, name);
+                }
                 if args.len() != layout.fields().len() {
                     return Err(frontend_error(format!(
                         "{name} tuple call ABI 期望 {} 个 argument，实际 {} 个",
@@ -546,6 +814,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(self.lower_operand_source(source)?.value)
             }
             RefactorSourceAbiLayoutKind::Tuple => {
+                if sources.len() == 1 && sources[0].source_ty() == source_ty {
+                    return self.pack_whole_tuple_source(layout, &sources[0], name);
+                }
                 let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
                     return Err(frontend_error(format!(
                         "refactor ABI tuple payload `{name}` layout 不是 struct"
@@ -581,6 +852,99 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 }
                 Ok(Some(aggregate.into()))
             }
+        }
+    }
+
+    fn pack_whole_tuple_operand(
+        &mut self,
+        layout: &RefactorSourceAbiLayout<'ctx>,
+        operand: &mir::Operand,
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        if layout.abi().is_elided() {
+            return Ok(None);
+        }
+        let value = self.codegen.codegen_mir_operand_expected(
+            self.body_span(),
+            operand,
+            self.slots,
+            self.codegen
+                .cg_ty_of_mir_type(self.source_types, layout.source_ty()),
+        )?;
+        self.pack_whole_tuple_value(layout, value, name)
+    }
+
+    fn pack_whole_tuple_source(
+        &mut self,
+        layout: &RefactorSourceAbiLayout<'ctx>,
+        source: &LateLoweredOperandSource,
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        if layout.abi().is_elided() {
+            return Ok(None);
+        }
+        let value = self.lower_operand_source(source)?;
+        self.pack_whole_tuple_value(layout, value, name)
+    }
+
+    fn pack_whole_tuple_value(
+        &mut self,
+        layout: &RefactorSourceAbiLayout<'ctx>,
+        value: CgValue<'ctx>,
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let Some(BasicValueEnum::StructValue(tuple)) = value.value else {
+            return Err(frontend_error(format!(
+                "refactor ABI tuple payload `{name}` whole tuple source 缺少 struct value"
+            )));
+        };
+        let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
+            return Err(frontend_error(format!(
+                "refactor ABI tuple payload `{name}` whole tuple layout 不是 struct"
+            )));
+        };
+        let mut aggregate = struct_ty.get_undef();
+        for field in layout.fields() {
+            if field.is_elided() {
+                continue;
+            }
+            let raw = self.codegen.builder.build_extract_value(
+                tuple,
+                field.source_index(),
+                &format!("{name}_whole_field{}", field.source_index()),
+            )?;
+            aggregate = self
+                .codegen
+                .builder
+                .build_insert_value(
+                    aggregate,
+                    raw,
+                    field
+                        .abi_field_index()
+                        .expect("non-elided field has ABI index"),
+                    &format!("{name}_field{}", field.source_index()),
+                )?
+                .into_struct_value();
+        }
+        Ok(Some(aggregate.into()))
+    }
+
+    fn operand_source_ty(&self, operand: &mir::Operand) -> Option<TypeId> {
+        match operand {
+            mir::Operand::Local(local) => self
+                .body
+                .locals
+                .get(local.as_u32() as usize)
+                .map(|local| local.ty),
+            mir::Operand::Const(mir::ConstValue::Bool(_)) => Some(self.codegen.builtins.bool_),
+            mir::Operand::Const(mir::ConstValue::Char) => Some(self.codegen.builtins.char_),
+            mir::Operand::Const(mir::ConstValue::Unit) => Some(self.codegen.builtins.unit),
+            mir::Operand::Const(mir::ConstValue::Int | mir::ConstValue::SynthInt(_)) => {
+                Some(self.codegen.builtins.int)
+            }
+            mir::Operand::Const(mir::ConstValue::Float64) => Some(self.codegen.builtins.float64),
+            mir::Operand::Const(mir::ConstValue::Float32) => Some(self.codegen.builtins.float32),
+            mir::Operand::Const(mir::ConstValue::String) => Some(self.codegen.builtins.string),
         }
     }
 
@@ -633,6 +997,115 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .map(|block| block.terminator.span)
             .unwrap_or_else(|| Span::new(0, 0))
     }
+}
+
+fn refactor_core_print_runtime_name(callee_fqn: &str) -> Option<&'static str> {
+    if callee_fqn == "scoop.core.println" || callee_fqn.starts_with("scoop.core.println::<") {
+        Some("scoop_println")
+    } else if callee_fqn == "scoop.core.print" || callee_fqn.starts_with("scoop.core.print::<") {
+        Some("scoop_print")
+    } else {
+        None
+    }
+}
+
+fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
+    codegen: &mut MainCodegen<'a, 'ctx>,
+    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    step_layout: &RefactorStepLayout<'ctx>,
+) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+    let symbol = format!(
+        "__scoop_refactor_thread_resume_u64__k{}",
+        surface.continuation_schema().as_u32()
+    );
+    let k_ty = codegen.llvm_gc_i8_ptr_type();
+    let i64_ty = codegen.context.i64_type();
+    let fn_ty = codegen
+        .context
+        .void_type()
+        .fn_type(&[k_ty.into(), i64_ty.into()], false);
+    let function = codegen
+        .module
+        .get_function(&symbol)
+        .unwrap_or_else(|| codegen.module.add_function(&symbol, fn_ty, None));
+    if function.count_basic_blocks() > 0 {
+        return Ok(function);
+    }
+
+    let restore_block = codegen.builder.get_insert_block();
+    let entry = codegen.context.append_basic_block(function, "entry");
+    let complete = codegen.context.append_basic_block(function, "complete");
+    let non_complete = codegen.context.append_basic_block(function, "non_complete");
+
+    codegen.builder.position_at_end(entry);
+    let continuation = function.get_nth_param(0).ok_or_else(|| {
+        frontend_error(format!(
+            "refactor thread resume thunk `{symbol}` 缺少 continuation 参数"
+        ))
+    })?;
+    let payload = function.get_nth_param(1).ok_or_else(|| {
+        frontend_error(format!(
+            "refactor thread resume thunk `{symbol}` 缺少 payload 参数"
+        ))
+    })?;
+    let surface_fun = codegen
+        .module
+        .get_function(surface.symbol_name())
+        .unwrap_or_else(|| {
+            codegen
+                .module
+                .add_function(surface.symbol_name(), surface.llvm_ty(), None)
+        });
+    let call = codegen.builder.build_call(
+        surface_fun,
+        &[continuation.into(), payload.into()],
+        "refactor_thread_surface_resume",
+    )?;
+    let step = call.try_as_basic_value().basic().ok_or_else(|| {
+        frontend_error("refactor thread surface resume 未返回 Step_F".to_string())
+    })?;
+    let BasicValueEnum::StructValue(step_struct) = step else {
+        return Err(frontend_error(
+            "refactor thread surface resume Step_F 不是 struct".to_string(),
+        ));
+    };
+    if step_struct.get_type() != step_layout.llvm_ty() {
+        return Err(frontend_error(format!(
+            "refactor thread surface resume Step_F layout 漂移：surface s{}",
+            surface.return_step_schema().as_u32()
+        )));
+    }
+    let tag = codegen
+        .builder
+        .build_extract_value(step_struct, 0, "refactor_thread_resume_step_tag")?
+        .into_int_value();
+    let is_complete = codegen.builder.build_int_compare(
+        IntPredicate::EQ,
+        tag,
+        codegen.context.i32_type().const_zero(),
+        "refactor_thread_resume_is_complete",
+    )?;
+    codegen
+        .builder
+        .build_conditional_branch(is_complete, complete, non_complete)?;
+
+    codegen.builder.position_at_end(complete);
+    codegen.builder.build_return(None)?;
+
+    codegen.builder.position_at_end(non_complete);
+    let fatal = codegen.declare_runtime_error_fatal();
+    let null_payload = codegen.llvm_gc_i8_ptr_type().const_null();
+    let _ = codegen.builder.build_call(
+        fatal,
+        &[null_payload.into()],
+        "refactor_thread_resume_noncomplete",
+    )?;
+    codegen.builder.build_return(None)?;
+
+    if let Some(block) = restore_block {
+        codegen.builder.position_at_end(block);
+    }
+    Ok(function)
 }
 
 fn frontend_error(message: String) -> LlvmEmitError {

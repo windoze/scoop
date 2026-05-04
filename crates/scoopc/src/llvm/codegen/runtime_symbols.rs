@@ -103,6 +103,8 @@ pub(super) const SCOOP_THREAD_CURRENT_ID: &str = "scoop_thread_current_id";
 pub(super) const SCOOP_THREAD_JOIN: &str = "scoop_thread_join";
 pub(super) const SCOOP_THREAD_SLEEP_MILLIS: &str = "scoop_thread_sleep_millis";
 pub(super) const SCOOP_THREAD_SPAWN: &str = "scoop_thread_spawn";
+pub(super) const SCOOP_THREAD_SPAWN_JOIN_REFACTOR_RESUME_U64: &str =
+    "scoop_thread_spawn_join_refactor_resume_u64";
 pub(super) const SCOOP_THREAD_SPAWN_JOIN_RESUME_U64: &str = "scoop_thread_spawn_join_resume_u64";
 pub(super) const SCOOP_THREAD_YIELD: &str = "scoop_thread_yield";
 pub(super) const SCOOP_UNPIN: &str = "scoop_unpin";

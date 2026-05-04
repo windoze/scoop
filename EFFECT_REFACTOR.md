@@ -1699,6 +1699,38 @@ P6 应按 contract-first 的小任务继续推进，而不是继续扩大单个 
 
 只有完成这条顺序后，P6 才能称为“LLVM codegen 新路径对接完成”。
 
+#### 5.6.6 P6 -> P7 定向验证矩阵与 handoff
+
+P6 完成时，refactor LLVM path 的定向验证矩阵固定为显式 selector 下的 build / run-pass / runtime_gc fixtures。P7 只负责把 selector 默认值切到 refactor 并运行 full regression；不得在 P7 重新设计 LLVM effect backend、ABI、GC/runtime 或 legacy fallback 边界。
+
+build matrix 通过 `cargo run -p scoop -- --effect-pipeline refactor test --fixtures <fixture>` 运行，覆盖以下固定样本：
+
+| 覆盖点 | fixture |
+| --- | --- |
+| `NoOutward` / Complete-only `Step_F` | `tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop` |
+| `SingleCase` case identity | `tests/fixtures/build/effect_refactor_step_enum_single_case.scoop` |
+| `CanonicalFull` full case layout at O0 | `tests/fixtures/build/effect_refactor_step_enum_canonical_full_O0.scoop` |
+| direct perform / handle / resume body lowering | `tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop` |
+| dynamic callable carrier / fallback publication | `tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop` and `tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop` |
+| one-shot runtime-error, typed allocation, no legacy handler-stack/outcome calls | `tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop` |
+| `Unit` zero-payload invoke/resume ABI | `tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop` |
+| shared artifact helper for object emission | `tests/fixtures/build/effect_refactor_emit_obj_smoke.scoop` |
+| shared artifact helper at higher optimization for asm emission | `tests/fixtures/build/effect_refactor_emit_asm_O2.scoop` |
+
+run-pass / runtime_gc matrix 继续使用真实 CLI path，不引入测试专用语义入口：
+
+| 覆盖点 | fixture / command |
+| --- | --- |
+| direct effect call、handle dispatch、continuation capture/resume、double-resume runtime error | `tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop` |
+| indirect + direct effect call、dynamic callable path、nested handle outward/self-contained routing | `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` |
+| surface `Continuation.resume` Unit sugar and tuple payload | `tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop` |
+| frame/continuation roots、effect body writeback、payload refs under moving GC | `tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop` |
+| delayed cross-thread resume with captured payload refs under moving GC | `tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop` |
+| direct `scoop run` entry uses the same refactor executable build path | `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop` |
+| direct `build --emit-llvm` entry uses the same refactor artifact helper | `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_resume.ll` |
+
+`scoop build` is the single CLI owner for refactor LLVM artifact generation. `scoop run` calls executable `build`; build fixtures call `commands::build::run`; `--emit-llvm` / `--emit-obj` / `--emit-asm` all enter `effect_refactor_pipeline::emit_production_llvm_artifact_to_file` through the same build helper. This is the P6 -> P7 handoff boundary: P7 may change selector defaults and widen regression scope, but not add another lowering route.
+
 ## 6. 计算 `actual_outward_cases` 与 `resolved_outward_cases`
 
 在语义/理想分析层面，真正希望得到的精确结果仍然是：

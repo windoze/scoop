@@ -2134,6 +2134,38 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         self.surface_resume_layouts.get(&continuation_schema)
     }
 
+    pub(super) fn unique_surface_resume_layout_for_signature(
+        &self,
+        resume_tuple_ty: TypeId,
+        answer_ty: TypeId,
+        context: &str,
+    ) -> Result<&RefactorContinuationSurfaceResumeLayout<'ctx>, LlvmEmitError> {
+        let mut matches = self.surface_resume_layouts.values().filter(|layout| {
+            layout.resume_tuple_ty() == resume_tuple_ty && layout.answer_ty() == answer_ty
+        });
+        let Some(first) = matches.next() else {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 {context} 需要的 surface-resume contract: resume_ty=t{} answer_ty=t{}",
+                    resume_tuple_ty.as_u32(),
+                    answer_ty.as_u32()
+                ),
+            });
+        };
+        if let Some(second) = matches.next() {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 {context} 的 surface-resume contract 多义：k{} 与 k{} 都匹配 resume_ty=t{} answer_ty=t{}",
+                    first.continuation_schema().as_u32(),
+                    second.continuation_schema().as_u32(),
+                    resume_tuple_ty.as_u32(),
+                    answer_ty.as_u32()
+                ),
+            });
+        }
+        Ok(first)
+    }
+
     pub(super) fn surface_resume_dispatch_layout(
         &self,
         continuation_schema: ContinuationSchemaId,

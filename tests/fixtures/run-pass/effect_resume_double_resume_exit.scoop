@@ -1,12 +1,13 @@
-// EXPECT: pass
+// EXPECT-EXIT: 3
 // T4016b1: 删除用户态 `-> resume` 后，旧 immediate-resume 专用的前端静态约束也随之移除。
-// 该 fixture 保留“同一 arm 内出现多个 `k.resume(...)` 调用”的 migrated source shape，
-// 只要求它不再因为旧 special form 规则而在前端失败。
+// P6-T05: 该 fixture 保留“同一 arm 内出现多个 `k.resume(...)` 调用”的 migrated source shape，
+// 并在 refactor LLVM path 上锁定未捕获 double-resume RuntimeError 经 main wrapper 的 fatal exit。
 //
 // 说明：
-// - 真正的 one-shot 运行期重复 resume 语义由
+// - 可捕获的 one-shot 运行期重复 resume 语义由
 //   `effect_escape_continuation_resume_later_exit.scoop` 覆盖；
-// - 本例不再承担“必须在 typecheck 阶段报错”的回归职责。
+// - 本例不再承担“必须在 typecheck 阶段报错”的回归职责，但必须证明未捕获路径不会
+//   退回 legacy handler-stack/outcome 通道。
 
 import scoop.core.*
 

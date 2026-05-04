@@ -1,0 +1,15 @@
+// 目标：P6-T05 build matrix 的 `NoOutward` 样本。
+// `main` 只有 pure local/value lowering，refactor `Step_F` 只能发布 Complete tag。
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_main__complete = internal constant i32 0
+// BUILD-LLVM-NOT-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_main__case0
+
+package fixtures.build
+
+fun helper(): Int {
+    return 41
+}
+
+fun main(): Int {
+    return helper() + 1
+}

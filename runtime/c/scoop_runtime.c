@@ -1853,6 +1853,14 @@ typedef struct ScoopThreadResumeU64Args {
   uint64_t resume_value;
 } ScoopThreadResumeU64Args;
 
+typedef void (*ScoopRefactorResumeU64Fn)(void *continuation, uint64_t resume_value);
+
+typedef struct ScoopThreadRefactorResumeU64Args {
+  uint64_t continuation_handle;
+  uint64_t resume_value;
+  ScoopRefactorResumeU64Fn resume_fn;
+} ScoopThreadRefactorResumeU64Args;
+
 static void *scoop_thread_entry_resume_u64(void *arg) {
   if (arg == 0) {
     return 0;
@@ -1916,6 +1924,70 @@ void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_valu
   // Without this, the calling thread stays RUNNING but cannot reach a safepoint
   // (blocked in kernel); if the child thread triggers GC, STW will deadlock
   // waiting for this thread to park.
+  scoop_enter_native(0, 0);
+  rc = pthread_join(t, 0);
+  scoop_leave_native();
+  if (rc != 0) {
+    exit(3);
+  }
+}
+
+static void *scoop_thread_entry_refactor_resume_u64(void *arg) {
+  if (arg == 0) {
+    return 0;
+  }
+
+  scoop_thread_register();
+
+  ScoopThreadRefactorResumeU64Args *args = (ScoopThreadRefactorResumeU64Args *)arg;
+  void *continuation = scoop_handle_get(args->continuation_handle);
+  if (args->resume_fn != 0 && continuation != 0) {
+    args->resume_fn(continuation, args->resume_value);
+  }
+  if (args->continuation_handle != 0) {
+    scoop_handle_drop(args->continuation_handle);
+    args->continuation_handle = 0;
+  }
+
+  scoop_gc_thread_clear_managed_root_snapshot_current();
+  scoop_thread_unregister();
+  free(args);
+
+  return 0;
+}
+
+void scoop_thread_spawn_join_refactor_resume_u64(void *continuation, uint64_t resume_value,
+                                                ScoopRefactorResumeU64Fn resume_fn) {
+  if (!scoop_rt_initialized) {
+    scoop_runtime_init();
+  }
+  if (resume_fn == 0) {
+    exit(3);
+  }
+
+  ScoopThreadRefactorResumeU64Args *args = (ScoopThreadRefactorResumeU64Args *)malloc(
+      sizeof(ScoopThreadRefactorResumeU64Args));
+  if (args == 0) {
+    exit(3);
+  }
+  args->continuation_handle = scoop_handle_new(continuation);
+  if (continuation != 0 && args->continuation_handle == 0) {
+    free(args);
+    exit(3);
+  }
+  args->resume_value = resume_value;
+  args->resume_fn = resume_fn;
+
+  pthread_t t;
+  int rc = pthread_create(&t, 0, scoop_thread_entry_refactor_resume_u64, (void *)args);
+  if (rc != 0) {
+    if (args->continuation_handle != 0) {
+      scoop_handle_drop(args->continuation_handle);
+    }
+    free(args);
+    exit(3);
+  }
+
   scoop_enter_native(0, 0);
   rc = pthread_join(t, 0);
   scoop_leave_native();
