@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -610,6 +610,76 @@
     - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
     - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
+## P6-T02qb：发布 cleanup/finally pending payload carrier contract，禁止 P6-T03 在 backend 现场发明 `ResumePayloadCarrier` 的 boxing / projection 规则
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.7, §5.3.9, §5.5.4-§5.5.7, §8
+  - [`TODO-P6-part1.md`](./TODO-P6-part1.md) `P6-T02h`, `P6-T02j`, `P6-T02l`
+  - `crates/scoopc/src/effect_lowered/{frame,materialize,ir}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - `P6-T02j` / `P6-T02l` 已把 `HandleDispatch` 的 `CompletionTag`、`ResumePayloadCarrier`、pending completion 集合，以及 body/arm/finally/exit 的 region/routing contract 发布到 late-lowered + LLVM query handoff；
+  - 但当前 handoff 仍只把 `SystemSlotKind::ResumePayloadCarrier` 固定成一个 `Any` typed system slot（`crates/scoopc/src/effect_lowered/frame.rs`），并没有继续发布“某个 pending outward / cleanup / finally path 的 typed case payload 应如何 authoritative 地装入这个 carrier、以及稍后如何再按 published contract 投影回具体 payload tuple”的 lowering 规则；
+  - 这在 `handle_finally_boundary.scoop` / `dropped_continuation_abandons_remaining_work.scoop` 这类真实 `finally` / cleanup path 上已经成为直接 blocker：例如 `PropagateOutward(case)` 可能需要把 `Int` / tuple payload 穿过 cleanup state 与 `ResumeUnwind`，但当前 query 只告诉 backend 有一个 `Any` slot，并没有告诉它是否应 box、如何 box、何时 unbox、或是否应改走 typed per-case carrier；
+  - 若直接继续 `P6-T03`，backend 只能：
+    - 现场发明 `Int/Bool/Unit/tuple/ref -> Any` 的 boxing / projection 规则；
+    - 或临时退回 raw word + gc_ref transport / legacy effect payload 语义；
+    - 或按具体 fixture shape 偷偷为 `ResumeUnwind` / `finally` path 保留 backend-private 特判；
+  - 以上都直接违反本阶段 contract-first / no-workaround 边界。
+
+- 目标：
+  - 在进入 `P6-T03` 前，先把 cleanup/finally/pending-outward path 所需的 payload carrier contract authoritative 地发布出来；
+  - 让后续 body emitter 能只消费 published handoff，就正确把 typed case payload 穿过 `CompletionTag` / cleanup / `ResumeUnwind`，而不需要现场猜 `ResumePayloadCarrier` 的 boxing / projection 规则。
+
+- 必须实现的内容：
+  1. 为 pending completion / cleanup path 发布 authoritative payload transport contract。
+     - 至少覆盖：
+       - `LateLoweredHandlePendingCompletion::PropagateOutward(case_tag)`；
+       - 与 `cleanup_state` / `ResumeUnwind` / `finally_complete_target` 相连、需要暂存 payload 后再继续 lowering 的 path；
+       - typed payload tuple 如何在“boundary/arm/finally 现场”和“cleanup/ResumeUnwind/最终 outward emission”之间保持同一 contract。
+     - 若继续复用 `ResumePayloadCarrier`，必须显式发布：
+       - 哪些 payload 进入 carrier；
+       - carrier 的 boxing / transport / projection 规则；
+       - `Unit` / scalar / tuple / ref payload 的边界；
+       - carrier 中哪些事实是 authoritative，哪些只是 layout/packing 细节。
+     - 若改为 typed per-case carrier / frame slot，也必须把它 authoritative 地发布到 late-lowered + LLVM query handoff，而不是只在 backend 内部偷偷新建私表。
+  2. 把该 contract 接到 LLVM query 与 verifier / fail-fast。
+     - 至少要让 `P6-T03` 能直接查询到：
+       - 某条 pending completion / cleanup path 应读取哪个 published payload transport；
+       - `ResumeUnwind` / finally 结束后如何把 carrier authoritative 地还原成 typed payload；
+       - 若最终要构造 outward `Step_F`，应使用哪个 published emission contract。
+  3. 对缺失、歧义或漂移的 carrier contract fail fast。
+     - 至少包括：
+       - 存在 pending outward / cleanup path，但没有 published payload transport；
+       - published carrier 需要 boxing/projection，但 handoff 没有 authoritative 规则；
+       - `P6-T03` 若只消费 published handoff 仍无法唯一决定 payload transport / re-projection。
+  4. 补充定向测试与回归。
+     - 至少覆盖：
+       - `handle_finally_boundary.scoop` 一类 pending completion/finally path 的 payload transport contract 会被稳定 dump/query；
+       - `dropped_continuation_abandons_remaining_work.scoop` 一类 cleanup/drop path 在缺失 carrier contract 时显式拒绝，而不是由 backend 现场发明 transport；
+       - LLVM query / verifier 会对缺失或漂移的 published carrier contract fail fast。
+
+- 必须遵从的约束：
+  - 禁止让 `P6-T03` 在 backend 现场临时决定 `Any` carrier 的 boxing / unboxing / pointer-word transport 规则；
+  - 禁止把这层 payload transport 再借壳 legacy `EffectOutcome` / old resume payload channel；
+  - 禁止仅针对某个 fixture/shape 私下缓存 `case_tag -> payload` 或 `cleanup state -> payload slot`，而不先把它作为 published contract 暴露。
+
+- 验证：
+  - `cargo test -p scoopc refactor_handle_dispatch_contract_`
+  - `cargo test -p scoopc refactor_llvm_handle_dispatch`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/handle_finally_boundary.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+- 完成条件：
+  - `P6-T03` 可以只凭 published handoff lower cleanup/finally/pending-outward payload transport；
+  - backend 不再需要现场发明 `ResumePayloadCarrier` 的 boxing / projection / raw transport 规则；
+  - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝。
+- 依赖：P6-T02h，P6-T02j，P6-T02l
+- 完成记录：
+  - 2026-05-04：真正进入 `P6-T03` whole-body emitter 设计后确认新的未跟踪 blocker。当前 handoff 虽已发布 `CompletionTag` / `ResumePayloadCarrier` field index、pending completion 集合、以及 body/arm/finally/exit routing，但还没有 authoritative 发布“typed case payload 如何穿过 cleanup/finally/ResumeUnwind path”的 lowering contract。`ResumePayloadCarrier` 目前只是一格 `Any` system slot；对 `Int`/tuple 等非 ref payload，backend 若想继续实现 `PropagateOutward(case)` 或 cleanup 后的 outward/runtime-error emission，只能现场发明 boxing / projection 规则，违反 contract-first 边界。为此新增本前置任务，先把 payload carrier contract 发布清楚，再继续 `P6-T03`。
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -728,8 +798,9 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P5-T07a，P5-T07b
 - 完成记录：
+  - 2026-05-04：继续真正落地 body emitter 时确认新的 blocker。当前 handoff 对 `HandleDispatch` cleanup/finally/pending-outward path 只发布了 `CompletionTag` / `ResumePayloadCarrier` 的 field index 与 pending completion 集合，但没有 authoritative 发布 typed case payload 如何穿过该 carrier。对 `handle_finally_boundary.scoop` / `dropped_continuation_abandons_remaining_work.scoop` 这类 path，backend 若继续实现就必须现场发明 `Any` boxing / projection 或 raw transport 规则。为此新增前置任务 `P6-T02qb`，先把 cleanup/finally pending payload carrier contract 显式发布出来，再继续本任务。
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
   - 2026-05-03：继续实现时发现第二个 blocker。当前 `LateLoweredCallBoundaryLowering` 虽发布了 `CallSiteTarget` / `CallTargetMode` / `invoke_args_tuple_ty` / callee `StepSchema`，但 refactor LLVM ABI query 仍只按 callable version 发布 static `dynamic_entry/direct_entry` 签名，没有 runtime callable value -> canonical dynamic `invoke(args_tuple) -> Step_F` 的 authoritative LLVM query。若直接继续 `P6-T03`，backend 将不得不回 `CallKind::{Closure, FunValue, Virtual, Interface}` / legacy callable wrapper 现场重建 ABI，或把范围错误缩窄成只支持 `KnownInstance`。
