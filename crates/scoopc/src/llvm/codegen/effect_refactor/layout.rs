@@ -9,8 +9,8 @@ use crate::effect_facts::{
 };
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
-    BoundarySiteKind, ContinuationObjectId, LateLoweredBoundaryLowering, LateLoweredBoundarySource,
-    LateLoweredBoundarySourceConsumption, LateLoweredCallable,
+    BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryLowering,
+    LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption, LateLoweredCallable,
     LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
     LateLoweredFrameSlotKind, LateLoweredHandlePendingCompletion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOperandSource,
@@ -21,7 +21,7 @@ use crate::effect_lowered::ir::{
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{
-    CallKind as MirCallKind, HandlerArm as MirHandlerArm, Rvalue as MirRvalue, SiteId,
+    CallKind as MirCallKind, HandlerArm as MirHandlerArm, InstanceKey, Rvalue as MirRvalue, SiteId,
     StatementKind as MirStatementKind, TerminatorKind as MirTerminatorKind,
 };
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -30,8 +30,8 @@ use super::super::types::IntTy;
 use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident};
 use super::types::{
     RefactorAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
-    RefactorCallableEntryLayout, RefactorCallableLayout, RefactorClosureCarrierLayout,
-    RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
+    RefactorCallableCarrierTargetLayout, RefactorCallableEntryLayout, RefactorCallableLayout,
+    RefactorClosureCarrierLayout, RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
     RefactorContinuationObjectLayout, RefactorContinuationSurfaceResumeBinding,
     RefactorContinuationSurfaceResumeDispatchLayout,
     RefactorContinuationSurfaceResumeDispatchTarget,
@@ -240,6 +240,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 this.materialize_callable_layout(callable, &step_layouts)?,
             );
         }
+        let callable_layouts_by_version_key =
+            this.materialize_callable_version_layout_index(&callable_layouts)?;
+        let known_instance_callable_versions =
+            this.materialize_known_instance_callable_versions(&callable_layouts)?;
 
         let surface_resume_dispatch_layouts = this.materialize_surface_resume_dispatch_layouts(
             &surface_resume_layouts,
@@ -248,7 +252,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             &callable_layouts,
         )?;
 
-        this.publish_callable_carrier_entry_shells(&callable_layouts, &step_layouts)?;
+        let callable_carrier_target_layouts =
+            this.publish_callable_carrier_entry_shells(&callable_layouts, &step_layouts)?;
 
         let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
         let (
@@ -276,6 +281,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             surface_resume_layouts,
             surface_resume_dispatch_layouts,
             callable_layouts,
+            callable_layouts_by_version_key,
+            known_instance_callable_versions,
+            callable_carrier_target_layouts,
             dynamic_invoke_layouts,
             call_boundary_operand_layouts,
             perform_boundary_operand_layouts,
@@ -1015,6 +1023,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         Ok(RefactorCallableLayout::new(
             callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
             callable.step_schema(),
             RefactorCallableEntryLayout::new(
                 dynamic_name,
@@ -1035,6 +1044,49 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             callable.continuation_object(),
             resume_packings,
         ))
+    }
+
+    fn materialize_callable_version_layout_index(
+        &self,
+        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+    ) -> Result<HashMap<LateLoweredBodyVersionKey, StepSchemaId>, LlvmEmitError> {
+        let mut index = HashMap::with_capacity(callable_layouts.len());
+        for layout in callable_layouts.values() {
+            let version_key = layout.body_version_key().clone();
+            if let Some(existing_step_schema) =
+                index.insert(version_key.clone(), layout.step_schema())
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 body version key {:?} 同时指向 callable step schema s{} 与 s{}",
+                    version_key,
+                    existing_step_schema.as_u32(),
+                    layout.step_schema().as_u32(),
+                )));
+            }
+        }
+        Ok(index)
+    }
+
+    fn materialize_known_instance_callable_versions(
+        &self,
+        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+    ) -> Result<HashMap<(InstanceKey, StepSchemaId), LateLoweredBodyVersionKey>, LlvmEmitError>
+    {
+        let mut selectors = HashMap::with_capacity(callable_layouts.len());
+        for layout in callable_layouts.values() {
+            let selector = (layout.surface_instance().clone(), layout.step_schema());
+            let version_key = layout.body_version_key().clone();
+            if let Some(existing) = selectors.insert(selector.clone(), version_key.clone()) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 known-instance selector ({:?}, s{}) 同时指向多个 callable version：已有 {:?}，新值 {:?}",
+                    selector.0,
+                    selector.1.as_u32(),
+                    existing,
+                    version_key,
+                )));
+            }
+        }
+        Ok(selectors)
     }
 
     fn materialize_surface_resume_dispatch_layouts(
@@ -1466,12 +1518,23 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
-    ) -> Result<(), LlvmEmitError> {
+    ) -> Result<
+        HashMap<(RefactorCallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
+        LlvmEmitError,
+    > {
+        let published_callable_roots = self
+            .program
+            .callables()
+            .iter()
+            .map(|callable| callable.root_fqn())
+            .collect::<BTreeSet<_>>();
+        let closure_targets = published_callable_roots.clone();
         let class_vtable_targets = self
             .codegen
             .class_vtables
             .values()
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
+            .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
         let interface_itable_targets = self
             .codegen
@@ -1486,57 +1549,67 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         .map(String::as_str)
                 })
             })
+            .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
 
-        for callable in self.program.callables() {
-            let callable_layout = callable_layouts
-                .get(&callable.step_schema())
-                .ok_or_else(|| {
-                    frontend_error(format!(
-                        "refactor LLVM ABI materialization 缺少 callable `{}` 的 callable layout，无法发布 closure carrier target",
-                        callable.root_fqn(),
-                    ))
-                })?;
-            self.publish_closure_carrier_entry_shell(callable, callable_layout, step_layouts)?;
-            if class_vtable_targets.contains(callable.root_fqn()) {
-                self.publish_dispatch_carrier_entry_shell(
-                    RefactorCallableCarrierKind::ClassVtable,
-                    callable.root_fqn(),
-                    callable_layouts,
-                    step_layouts,
-                )?;
-            }
-            if interface_itable_targets.contains(callable.root_fqn()) {
-                self.publish_dispatch_carrier_entry_shell(
-                    RefactorCallableCarrierKind::InterfaceItable,
-                    callable.root_fqn(),
-                    callable_layouts,
-                    step_layouts,
-                )?;
-            }
+        let mut carrier_layouts = HashMap::new();
+        for callable_fqn in closure_targets {
+            self.publish_closure_carrier_entry_shell(
+                callable_fqn,
+                callable_layouts,
+                step_layouts,
+                &mut carrier_layouts,
+            )?;
+        }
+        for impl_fqn in class_vtable_targets {
+            self.publish_dispatch_carrier_entry_shell(
+                RefactorCallableCarrierKind::ClassVtable,
+                impl_fqn,
+                callable_layouts,
+                step_layouts,
+                &mut carrier_layouts,
+            )?;
+        }
+        for impl_fqn in interface_itable_targets {
+            self.publish_dispatch_carrier_entry_shell(
+                RefactorCallableCarrierKind::InterfaceItable,
+                impl_fqn,
+                callable_layouts,
+                step_layouts,
+                &mut carrier_layouts,
+            )?;
         }
 
         self.codegen.enable_refactor_callable_carrier_contract();
-        Ok(())
+        Ok(carrier_layouts)
     }
 
     fn publish_closure_carrier_entry_shell(
         &mut self,
-        callable: &LateLoweredCallable,
-        callable_layout: &RefactorCallableLayout<'ctx>,
+        callable_fqn: &str,
+        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        carrier_layouts: &mut HashMap<
+            (RefactorCallableCarrierKind, String),
+            RefactorCallableCarrierTargetLayout,
+        >,
     ) -> Result<(), LlvmEmitError> {
+        let callable_layout = self.callable_layout_for_carrier_target(
+            callable_layouts,
+            RefactorCallableCarrierKind::ClosureObject,
+            callable_fqn,
+        )?;
         let step_ty = step_layouts
             .get(&callable_layout.step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
                     "refactor LLVM ABI materialization 缺少 callable `{}` closure carrier target 的 step layout {}",
-                    callable.root_fqn(),
+                    callable_fqn,
                     callable_layout.step_schema().as_u32(),
                 ))
             })?
             .llvm_ty();
-        let args_abi = self.closure_carrier_args_abi(callable.root_fqn())?;
+        let args_abi = self.closure_carrier_args_abi(callable_fqn)?;
         let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
             vec![self.codegen.llvm_gc_i8_ptr_type().into()];
         if !args_abi.is_elided() {
@@ -1547,19 +1620,21 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             self.view.step_stem(callable_layout.step_schema())
         );
         self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
-        self.codegen
-            .register_refactor_callable_carrier_entry_symbol(
+        self.register_callable_carrier_target_contract(
+            RefactorCallableCarrierKind::ClosureObject,
+            callable_fqn,
+            callable_layout,
+            &symbol_name,
+            carrier_layouts,
+        )?;
+        if let Some(alias) = legacy_hir_closure_carrier_alias(callable_fqn) {
+            self.register_callable_carrier_target_contract(
                 RefactorCallableCarrierKind::ClosureObject,
-                callable.root_fqn(),
+                &alias,
+                callable_layout,
                 &symbol_name,
+                carrier_layouts,
             )?;
-        if let Some(alias) = legacy_hir_closure_carrier_alias(callable.root_fqn()) {
-            self.codegen
-                .register_refactor_callable_carrier_entry_symbol(
-                    RefactorCallableCarrierKind::ClosureObject,
-                    &alias,
-                    &symbol_name,
-                )?;
         }
         Ok(())
     }
@@ -1570,8 +1645,13 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         impl_fqn: &str,
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        carrier_layouts: &mut HashMap<
+            (RefactorCallableCarrierKind, String),
+            RefactorCallableCarrierTargetLayout,
+        >,
     ) -> Result<(), LlvmEmitError> {
-        let callable_layout = self.callable_layout_by_root_fqn(callable_layouts, impl_fqn)?;
+        let callable_layout =
+            self.callable_layout_for_carrier_target(callable_layouts, kind, impl_fqn)?;
         let step_ty = step_layouts
             .get(&callable_layout.step_schema())
             .ok_or_else(|| {
@@ -1598,27 +1678,78 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             self.view.step_stem(callable_layout.step_schema())
         );
         self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
-        self.codegen
-            .register_refactor_callable_carrier_entry_symbol(kind, impl_fqn, &symbol_name)?;
+        self.register_callable_carrier_target_contract(
+            kind,
+            impl_fqn,
+            callable_layout,
+            &symbol_name,
+            carrier_layouts,
+        )?;
         Ok(())
     }
 
-    fn callable_layout_by_root_fqn<'b>(
+    fn register_callable_carrier_target_contract(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+        callable_layout: &RefactorCallableLayout<'ctx>,
+        symbol_name: &str,
+        carrier_layouts: &mut HashMap<
+            (RefactorCallableCarrierKind, String),
+            RefactorCallableCarrierTargetLayout,
+        >,
+    ) -> Result<(), LlvmEmitError> {
+        self.codegen
+            .register_refactor_callable_carrier_entry_symbol(kind, callable_fqn, symbol_name)?;
+
+        let key = (kind, callable_fqn.to_string());
+        let published = RefactorCallableCarrierTargetLayout::new(
+            callable_fqn.to_string(),
+            callable_layout.body_version_key().clone(),
+            callable_layout.step_schema(),
+            symbol_name.to_string(),
+        );
+        if let Some(existing) = carrier_layouts.get(&key) {
+            if existing != &published {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 {} `{}` 重复发布了不兼容的 callable version contract：已有 {:?}，新值 {:?}",
+                    kind.label(),
+                    callable_fqn,
+                    existing,
+                    published,
+                )));
+            }
+            return Ok(());
+        }
+        carrier_layouts.insert(key, published);
+        Ok(())
+    }
+
+    fn callable_layout_for_carrier_target<'b>(
         &self,
         callable_layouts: &'b BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
-        root_fqn: &str,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
     ) -> Result<&'b RefactorCallableLayout<'ctx>, LlvmEmitError> {
         let matches = callable_layouts
             .values()
-            .filter(|layout| layout.root_fqn() == root_fqn)
+            .filter(|layout| layout.root_fqn() == callable_fqn)
             .collect::<Vec<_>>();
         match matches.as_slice() {
             [] => Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 callable `{root_fqn}` 的 published callable shell，无法发布 carrier target"
+                "refactor LLVM ABI materialization 缺少 {} `{}` 的 published callable version，无法发布 carrier target",
+                kind.label(),
+                callable_fqn,
             ))),
             [layout] => Ok(*layout),
             _ => Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{root_fqn}` 存在多个 published callable shell，无法为 carrier 选择唯一 target"
+                "refactor LLVM ABI materialization 发现 {} `{}` 存在多个 published callable version {:?}，缺少 authoritative version selector，无法发布 carrier target",
+                kind.label(),
+                callable_fqn,
+                matches
+                    .iter()
+                    .map(|layout| layout.body_version_key())
+                    .collect::<Vec<_>>(),
             ))),
         }
     }
@@ -4279,17 +4410,20 @@ mod tests {
 
     use super::*;
     use crate::effect_facts::{
-        CallSiteEffectFacts, CallTargetMode, CaseTag, ImplPlan, SiteEffectFacts,
+        CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallTargetMode, CaseTag,
+        EffectPrecision, ImplPlan, SiteEffectFacts, StepSchemaId,
     };
     use crate::effect_lowered::ir::{
-        BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
-        LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
-        LateLoweredCallBoundaryLowering, LateLoweredCallBoundaryOperandContract,
-        LateLoweredCallable, LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
+        BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundary,
+        LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySource,
+        LateLoweredBoundarySourceConsumption, LateLoweredCallBoundaryLowering,
+        LateLoweredCallBoundaryOperandContract, LateLoweredCallable,
+        LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
         LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
         LateLoweredFrameSchema, LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
         LateLoweredHandlePendingCompletion, LateLoweredOperandValueSource, LateLoweredProgram,
-        LateLoweredResumeInterface, LateLoweredResumeMethod, StateId, SystemSlotKind,
+        LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredStepType, StateId,
+        SystemSlotKind,
     };
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
@@ -4953,6 +5087,156 @@ mod tests {
         )
     }
 
+    fn next_step_schema_id(program: &LateLoweredProgram) -> StepSchemaId {
+        let next = program
+            .step_types()
+            .iter()
+            .map(|step_type| step_type.step_schema().as_u32())
+            .max()
+            .map(|raw| raw.saturating_add(1))
+            .unwrap_or(0);
+        StepSchemaId::new(next)
+    }
+
+    fn next_continuation_object_id(program: &LateLoweredProgram) -> ContinuationObjectId {
+        let next = program
+            .continuation_objects()
+            .iter()
+            .map(|object| object.object_id().as_u32())
+            .max()
+            .map(|raw| raw.saturating_add(1))
+            .unwrap_or(0);
+        ContinuationObjectId::new(next)
+    }
+
+    fn clone_step_type_with_step_schema(
+        step_type: &LateLoweredStepType,
+        step_schema: StepSchemaId,
+    ) -> LateLoweredStepType {
+        assert!(
+            step_type.cases().is_empty(),
+            "当前 helper 只支持无 outward case 的 callable version 克隆"
+        );
+        LateLoweredStepType::new(
+            step_schema,
+            step_type.invoke_args_tuple_ty(),
+            step_type.complete_ty(),
+            step_type.continuation_obj_ty(),
+            Vec::new(),
+        )
+    }
+
+    fn clone_no_outward_continuation_object_with_version(
+        object: &LateLoweredContinuationObject,
+        object_id: ContinuationObjectId,
+        owner_version_key: LateLoweredBodyVersionKey,
+    ) -> LateLoweredContinuationObject {
+        assert!(
+            object.implemented_packings().is_empty()
+                && object.surface_resumes().is_empty()
+                && object.methods().is_empty(),
+            "当前 helper 只支持无 resume publication 的 continuation object 克隆"
+        );
+        LateLoweredContinuationObject::new(
+            object_id,
+            owner_version_key,
+            object.continuation_obj_ty(),
+            Vec::new(),
+            object.captures().to_vec(),
+            Vec::new(),
+            Vec::new(),
+        )
+    }
+
+    fn clone_no_outward_callable_with_version(
+        callable: &LateLoweredCallable,
+        body_version_key: LateLoweredBodyVersionKey,
+        step_schema: StepSchemaId,
+        continuation_object: ContinuationObjectId,
+    ) -> LateLoweredCallable {
+        assert!(
+            callable.resolved_outward_cases().is_empty() && callable.resume_packings().is_empty(),
+            "当前 helper 只支持无 outward case / 无 resume packing 的 callable version 克隆"
+        );
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            body_version_key,
+            step_schema,
+            Vec::new(),
+            LateLoweredDynamicInvokeEntry::new(
+                callable.dynamic_invoke_entry().invoke_args_tuple_ty(),
+                step_schema,
+                callable.dynamic_invoke_entry().entry_state(),
+                callable.dynamic_invoke_entry().complete_state(),
+            ),
+            callable.state_graph().clone(),
+            callable.frame_schema().clone(),
+            callable.boundary_map().clone(),
+            callable.resume_state_map().clone(),
+            continuation_object,
+            Vec::new(),
+        )
+    }
+
+    fn duplicate_no_outward_callable_version(
+        program: &LateLoweredProgram,
+        root_fqn: &str,
+    ) -> LateLoweredProgram {
+        let callable = program
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn() == root_fqn)
+            .unwrap_or_else(|| panic!("应存在 callable `{root_fqn}`"));
+        assert_eq!(
+            callable.impl_plan(),
+            ImplPlan::NoOutward,
+            "当前 helper 只支持 NoOutward callable version"
+        );
+
+        let step_type = program
+            .step_type(callable.step_schema())
+            .expect("step type 应存在");
+        let continuation_object = program
+            .continuation_object(callable.continuation_object())
+            .expect("continuation object 应存在");
+        let next_step_schema = next_step_schema_id(program);
+        let next_object_id = next_continuation_object_id(program);
+        let cloned_version_key = LateLoweredBodyVersionKey::new(
+            callable.instance_key().clone(),
+            callable.allowed_row().clone(),
+            callable.impl_plan(),
+            !callable.needs_reentry(),
+        );
+
+        let mut step_types = program.step_types().to_vec();
+        step_types.push(clone_step_type_with_step_schema(
+            step_type,
+            next_step_schema,
+        ));
+
+        let mut continuation_objects = program.continuation_objects().to_vec();
+        continuation_objects.push(clone_no_outward_continuation_object_with_version(
+            continuation_object,
+            next_object_id,
+            cloned_version_key.clone(),
+        ));
+
+        let mut callables = program.callables().to_vec();
+        callables.push(clone_no_outward_callable_with_version(
+            callable,
+            cloned_version_key,
+            next_step_schema,
+            next_object_id,
+        ));
+
+        LateLoweredProgram::new(
+            step_types,
+            program.resume_packings().to_vec(),
+            continuation_objects,
+            callables,
+        )
+    }
+
     fn site_boundary(
         callable: &LateLoweredCallable,
         kind: BoundarySiteKind,
@@ -5493,10 +5777,14 @@ mod tests {
                     callables,
                 )
             },
-            |_inputs, result, _module| {
+            |inputs, result, _module| {
                 let query = result.expect("reordered published resume packings 应仍可物化 ABI");
+                let callable = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("singleCaseWorker callable 应存在");
                 let callable_layout = query
-                    .callable_layout_by_root_fqn("fixtures.build.singleCaseWorker")
+                    .callable_layout_by_version_key(callable.body_version_key())
                     .expect("callable layout 应可查询");
                 let ping_interface_id = callable_layout
                     .resume_packings()
@@ -5681,13 +5969,14 @@ mod tests {
             "run-pass",
             "effect_handle_hidden_suspend_virtual_helper_basic.scoop",
             |inputs| inputs.abi_visibility_program.clone(),
-            |_inputs, result, _module| {
+            |inputs, result, _module| {
                 let query = result.expect("known-instance direct call 应可回查 callable entry");
-                let callable = query
-                    .callable_layout_by_root_fqn("main")
-                    .expect("main callable layout 应存在");
-                let program = _inputs.effect_lowered_stage_output.program();
+                let program = inputs.effect_lowered_stage_output.program();
                 let main = program.callable("main").expect("main callable 应存在");
+                let helper = program.callable("helper").expect("helper callable 应存在");
+                let callable = query
+                    .callable_layout_by_version_key(main.body_version_key())
+                    .expect("main callable layout 应存在");
                 let boundary = site_boundary(main, BoundarySiteKind::Call);
                 let lowering = call_boundary_lowering(boundary);
 
@@ -5703,6 +5992,7 @@ mod tests {
                     panic!("known-instance direct call 不应走 dynamic invoke contract");
                 };
                 assert_eq!(target.root_fqn(), "helper");
+                assert_eq!(target.body_version_key(), helper.body_version_key());
                 assert_eq!(
                     target.dynamic_entry().invoke_args_tuple_ty(),
                     lowering.facts().invoke_args_tuple_ty()
@@ -5711,6 +6001,61 @@ mod tests {
                     target.dynamic_entry().return_step_schema(),
                     lowering.facts().callee_schema()
                 );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_callable_version_query_resolves_layout_by_body_version_key() {
+        with_fixture_query(
+            "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
+            |inputs, query, _module| {
+                for callable in inputs.abi_visibility_program.callables() {
+                    let layout = query
+                        .callable_layout_by_version_key(callable.body_version_key())
+                        .expect("published callable version 应可按 body version key 回查");
+                    assert_eq!(layout.root_fqn(), callable.root_fqn());
+                    assert_eq!(layout.step_schema(), callable.step_schema());
+                    assert_eq!(layout.continuation_object(), callable.continuation_object());
+                }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_known_instance_version_selection_resolves_generic_instance_keys() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query =
+                    result.expect("generic known-instance callable 应可回查 callable version");
+                let println_int = inputs
+                    .abi_visibility_program
+                    .callables()
+                    .iter()
+                    .find(|callable| callable.root_fqn() == "scoop.core.println::<Int>")
+                    .expect("fixture 应发布 println::<Int> callable shell");
+                let facts = CallSiteEffectFacts::new(
+                    CallSiteKind::Direct,
+                    CallSiteTarget::KnownInstance(println_int.instance_key().clone()),
+                    println_int.dynamic_invoke_entry().invoke_args_tuple_ty(),
+                    println_int.step_schema(),
+                    crate::effect_facts::CaseSet::new(println_int.step_schema(), Vec::new()),
+                    EffectPrecision::Precise,
+                );
+
+                let RefactorCallTargetQuery::KnownInstance(target) = query
+                    .call_target_layout(println_int.step_schema(), SiteId::from_raw(900), &facts)
+                    .expect("generic known-instance selector 应按 instance key + callee step schema 解析")
+                else {
+                    panic!("generic known-instance call 不应走 dynamic invoke contract");
+                };
+
+                assert_eq!(target.root_fqn(), println_int.root_fqn());
+                assert_eq!(target.body_version_key(), println_int.body_version_key());
+                assert_eq!(target.surface_instance(), println_int.instance_key());
             },
         );
     }
@@ -6342,37 +6687,71 @@ mod tests {
         with_inputs_query_result_and_codegen(
             build_fixture_inputs("effect_refactor_dynamic_entry_publication_emit_llvm.scoop"),
             |inputs| inputs.abi_visibility_program.clone(),
-            |_inputs, codegen, result, module| {
+            |inputs, codegen, result, module| {
                 let query = result.expect("refactor ABI materialization 应成功");
-                let make_closure = query
-                    .callable_layout_by_root_fqn("fixtures.build.makeClosure")
-                    .expect("makeClosure callable layout 应存在");
-                let base_ping = query
-                    .callable_layout_by_root_fqn("fixtures.build.Base.ping")
-                    .expect("Base.ping callable layout 应存在");
-                let derived_ping = query
-                    .callable_layout_by_root_fqn("fixtures.build.Derived.ping")
-                    .expect("Derived.ping callable layout 应存在");
+                let make_closure_callable = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.build.makeClosure")
+                    .expect("makeClosure callable 应存在");
+                let base_ping_callable = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.build.Base.ping")
+                    .expect("Base.ping callable 应存在");
+                let derived_ping_callable = inputs
+                    .abi_visibility_program
+                    .callable("fixtures.build.Derived.ping")
+                    .expect("Derived.ping callable 应存在");
 
-                let closure_symbol = make_closure.dynamic_entry().symbol_name().replace(
-                    "__scoop_refactor_dynamic_invoke__",
-                    "__scoop_refactor_closure_dynamic_entry__",
+                let make_closure = query
+                    .callable_carrier_target_layout(
+                        RefactorCallableCarrierKind::ClosureObject,
+                        "fixtures.build.makeClosure",
+                    )
+                    .expect("makeClosure closure carrier target 应存在");
+                let base_vtable = query
+                    .callable_carrier_target_layout(
+                        RefactorCallableCarrierKind::ClassVtable,
+                        "fixtures.build.Base.ping",
+                    )
+                    .expect("Base.ping vtable carrier target 应存在");
+                let base_itable = query
+                    .callable_carrier_target_layout(
+                        RefactorCallableCarrierKind::InterfaceItable,
+                        "fixtures.build.Base.ping",
+                    )
+                    .expect("Base.ping itable carrier target 应存在");
+                let derived_vtable = query
+                    .callable_carrier_target_layout(
+                        RefactorCallableCarrierKind::ClassVtable,
+                        "fixtures.build.Derived.ping",
+                    )
+                    .expect("Derived.ping vtable carrier target 应存在");
+                let derived_itable = query
+                    .callable_carrier_target_layout(
+                        RefactorCallableCarrierKind::InterfaceItable,
+                        "fixtures.build.Derived.ping",
+                    )
+                    .expect("Derived.ping itable carrier target 应存在");
+
+                assert_eq!(
+                    make_closure.body_version_key(),
+                    make_closure_callable.body_version_key()
                 );
-                let base_vtable_symbol = base_ping.dynamic_entry().symbol_name().replace(
-                    "__scoop_refactor_dynamic_invoke__",
-                    "__scoop_refactor_vtable_dynamic_entry__",
+                assert_eq!(
+                    base_vtable.body_version_key(),
+                    base_ping_callable.body_version_key()
                 );
-                let base_itable_symbol = base_ping.dynamic_entry().symbol_name().replace(
-                    "__scoop_refactor_dynamic_invoke__",
-                    "__scoop_refactor_itable_dynamic_entry__",
+                assert_eq!(
+                    base_itable.body_version_key(),
+                    base_ping_callable.body_version_key()
                 );
-                let derived_vtable_symbol = derived_ping.dynamic_entry().symbol_name().replace(
-                    "__scoop_refactor_dynamic_invoke__",
-                    "__scoop_refactor_vtable_dynamic_entry__",
+                assert_eq!(
+                    derived_vtable.body_version_key(),
+                    derived_ping_callable.body_version_key()
                 );
-                let derived_itable_symbol = derived_ping.dynamic_entry().symbol_name().replace(
-                    "__scoop_refactor_dynamic_invoke__",
-                    "__scoop_refactor_itable_dynamic_entry__",
+                assert_eq!(
+                    derived_itable.body_version_key(),
+                    derived_ping_callable.body_version_key()
                 );
 
                 let _ = codegen
@@ -6388,11 +6767,50 @@ mod tests {
                     .get_or_create_class_itable_global(dummy_span(), "fixtures.build.Derived")
                     .expect("Derived itable 应可物化");
 
-                assert!(module.get_function(&closure_symbol).is_some());
-                assert!(module.get_function(&base_vtable_symbol).is_some());
-                assert!(module.get_function(&base_itable_symbol).is_some());
-                assert!(module.get_function(&derived_vtable_symbol).is_some());
-                assert!(module.get_function(&derived_itable_symbol).is_some());
+                assert!(module.get_function(make_closure.symbol_name()).is_some());
+                assert!(module.get_function(base_vtable.symbol_name()).is_some());
+                assert!(module.get_function(base_itable.symbol_name()).is_some());
+                assert!(module.get_function(derived_vtable.symbol_name()).is_some());
+                assert!(module.get_function(derived_itable.symbol_name()).is_some());
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_callable_carrier_version_selection_rejects_ambiguous_root_targets() {
+        with_fixture_query_result(
+            "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
+            |inputs| {
+                duplicate_no_outward_callable_version(
+                    &inputs.abi_visibility_program,
+                    "fixtures.build.makeClosure",
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!(
+                        "缺少 callable version selector 的 duplicate carrier target 必须 fail fast"
+                    ),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("closure callable object"),
+                    "错误消息应指出歧义 carrier kind: {message}"
+                );
+                assert!(
+                    message.contains("fixtures.build.makeClosure"),
+                    "错误消息应指出歧义 callable: {message}"
+                );
+                assert!(
+                    message.contains("多个 published callable version")
+                        || message.contains("多个 published callable version"),
+                    "错误消息应指出存在多个 callable version: {message}"
+                );
+                assert!(
+                    message.contains("authoritative version selector"),
+                    "错误消息应指出缺少 authoritative selector: {message}"
+                );
             },
         );
     }

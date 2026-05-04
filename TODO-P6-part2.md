@@ -360,7 +360,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02p：发布 callable version 选择 contract，禁止 P6-T03 在 backend 现场按 `root_fqn` / 单壳层假定选择 late-lowered body
+## [DONE] P6-T02p：发布 callable version 选择 contract，禁止 P6-T03 在 backend 现场按 `root_fqn` / 单壳层假定选择 late-lowered body
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -433,7 +433,23 @@
   - `P6-T03` 可以只消费 published contract 唯一决定当前/被调 callable version。
 - 依赖：P6-T02o
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：在 `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` 中把 callable shell 的 published identity 从“仅有 `step_schema`”扩展为显式携带 `LateLoweredBodyVersionKey`：`RefactorCallableLayout` 新增 `body_version_key()` / `surface_instance()`，`RefactorAbiQuery` 新增 `callable_layout_by_version_key(...)`，并把 `callable_layout_by_root_fqn(...)` 收口为仅供单-version 场景使用的便利查询；一旦同 root 存在多个 published callable version，会显式要求调用方改用 version-key 查询，而不是继续依赖遍历顺序或 root 唯一性假设。
+  - 2026-05-04：在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 中补齐了两类 authoritative selector：
+    - `body_version_key -> step_schema/callable shell` 索引；
+    - `(InstanceKey, callee StepSchemaId) -> LateLoweredBodyVersionKey` 的 known-instance selector。
+    `RefactorAbiQuery::call_target_layout(...)` 现在会通过这两个已发布 contract 回查被调 callable version，并在 instance、callee schema、dynamic-entry signature 漂移时 fail fast。
+  - 2026-05-04：为 runtime callable carrier 发布 `RefactorCallableCarrierTargetLayout`，把 closure/vtable/itable target 明确绑定到 `body_version_key + step_schema + symbol_name`。carrier target 发布仍只覆盖“当前 late-lowered program 已发布的 callable roots”；这样既保留了 refactor contract 的 published selection 语义，也避免把 `class_itables` / `class_vtables` 中未进入当前程序的 `Hashable.hash` 一类槽位误判成 P6-T02p blocker。
+  - 2026-05-04：补齐定向测试：`refactor_llvm_callable_version_query_*`、`refactor_llvm_known_instance_version_selection_*`、`refactor_llvm_callable_carrier_version_selection_*`。其中 duplicate-version coverage 通过 `layout.rs` 内部 helper 人工构造“同 root 多 callable version”场景，锁定 carrier target 会显式拒绝缺失 authoritative selector 的发布，而不是把歧义留给 `P6-T03` backend 现场猜测。现有 build fixture `tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop` 继续覆盖 emitted LLVM 中 closure/vtable/itable carrier 指向 refactor dynamic entry 的 contract。
+  - 2026-05-04：`PLAN.md` 无需改动。
+- 已运行验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_llvm_callable_version_query`
+  - `cargo test -p scoopc refactor_llvm_callable_carrier_version_selection`
+  - `cargo test -p scoopc refactor_llvm_known_instance_version_selection`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

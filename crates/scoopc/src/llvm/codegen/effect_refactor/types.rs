@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use inkwell::types::{BasicTypeEnum, FunctionType, StructType};
 
@@ -18,8 +18,10 @@ use crate::effect_lowered::ir::{
     LateLoweredSurfaceResumeDispatchSourceKind, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
-use crate::mir::{LocalId, SiteId};
+use crate::mir::{InstanceKey, LocalId, SiteId};
 use crate::ty::TypeId;
+
+use super::super::RefactorCallableCarrierKind;
 
 /// 单个 refactor ABI 值位的 LLVM 形状。
 ///
@@ -1679,6 +1681,7 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
 /// 单个 callable version 暴露给后续 body emitter 的 LLVM ABI 查询面。
 pub(super) struct RefactorCallableLayout<'ctx> {
     root_fqn: String,
+    body_version_key: LateLoweredBodyVersionKey,
     step_schema: StepSchemaId,
     dynamic_entry: RefactorCallableEntryLayout<'ctx>,
     direct_entry: RefactorCallableEntryLayout<'ctx>,
@@ -1689,6 +1692,7 @@ pub(super) struct RefactorCallableLayout<'ctx> {
 impl<'ctx> RefactorCallableLayout<'ctx> {
     pub(super) fn new(
         root_fqn: String,
+        body_version_key: LateLoweredBodyVersionKey,
         step_schema: StepSchemaId,
         dynamic_entry: RefactorCallableEntryLayout<'ctx>,
         direct_entry: RefactorCallableEntryLayout<'ctx>,
@@ -1697,6 +1701,7 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
     ) -> Self {
         Self {
             root_fqn,
+            body_version_key,
             step_schema,
             dynamic_entry,
             direct_entry,
@@ -1707,6 +1712,14 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
 
     pub(super) fn root_fqn(&self) -> &str {
         &self.root_fqn
+    }
+
+    pub(super) fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
+        &self.body_version_key
+    }
+
+    pub(super) fn surface_instance(&self) -> &InstanceKey {
+        self.body_version_key.surface_instance()
     }
 
     pub(super) fn step_schema(&self) -> StepSchemaId {
@@ -1730,6 +1743,47 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
     }
 }
 
+/// runtime callable carrier 对应的 canonical dynamic entry target contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RefactorCallableCarrierTargetLayout {
+    callable_fqn: String,
+    body_version_key: LateLoweredBodyVersionKey,
+    step_schema: StepSchemaId,
+    symbol_name: String,
+}
+
+impl RefactorCallableCarrierTargetLayout {
+    pub(super) fn new(
+        callable_fqn: String,
+        body_version_key: LateLoweredBodyVersionKey,
+        step_schema: StepSchemaId,
+        symbol_name: String,
+    ) -> Self {
+        Self {
+            callable_fqn,
+            body_version_key,
+            step_schema,
+            symbol_name,
+        }
+    }
+
+    pub(super) fn callable_fqn(&self) -> &str {
+        &self.callable_fqn
+    }
+
+    pub(super) fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
+        &self.body_version_key
+    }
+
+    pub(super) fn step_schema(&self) -> StepSchemaId {
+        self.step_schema
+    }
+
+    pub(super) fn symbol_name(&self) -> &str {
+        &self.symbol_name
+    }
+}
+
 /// refactor LLVM type/layout 层对下游 body emitter 暴露的稳定查询面。
 pub(crate) struct RefactorAbiQuery<'ctx> {
     source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
@@ -1742,6 +1796,11 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
     surface_resume_dispatch_layouts:
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeDispatchLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+    callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
+    known_instance_callable_versions:
+        HashMap<(InstanceKey, StepSchemaId), LateLoweredBodyVersionKey>,
+    callable_carrier_target_layouts:
+        HashMap<(RefactorCallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
     dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
     call_boundary_operand_layouts:
         BTreeMap<(StepSchemaId, SiteId), RefactorCallBoundaryOperandLayout>,
@@ -1774,6 +1833,15 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             RefactorContinuationSurfaceResumeDispatchLayout<'ctx>,
         >,
         callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
+        known_instance_callable_versions: HashMap<
+            (InstanceKey, StepSchemaId),
+            LateLoweredBodyVersionKey,
+        >,
+        callable_carrier_target_layouts: HashMap<
+            (RefactorCallableCarrierKind, String),
+            RefactorCallableCarrierTargetLayout,
+        >,
         dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
         call_boundary_operand_layouts: BTreeMap<
             (StepSchemaId, SiteId),
@@ -1802,6 +1870,9 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             surface_resume_layouts,
             surface_resume_dispatch_layouts,
             callable_layouts,
+            callable_layouts_by_version_key,
+            known_instance_callable_versions,
+            callable_carrier_target_layouts,
             dynamic_invoke_layouts,
             call_boundary_operand_layouts,
             perform_boundary_operand_layouts,
@@ -1925,10 +1996,64 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
     pub(super) fn callable_layout_by_root_fqn(
         &self,
         root_fqn: &str,
-    ) -> Option<&RefactorCallableLayout<'ctx>> {
-        self.callable_layouts
+    ) -> Result<&RefactorCallableLayout<'ctx>, LlvmEmitError> {
+        let matches = self
+            .callable_layouts
             .values()
-            .find(|layout| layout.root_fqn() == root_fqn)
+            .filter(|layout| layout.root_fqn() == root_fqn)
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [] => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 callable `{root_fqn}` 的 published callable version"
+                ),
+            }),
+            [layout] => Ok(*layout),
+            _ => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
+                ),
+            }),
+        }
+    }
+
+    pub(super) fn callable_layout_by_version_key(
+        &self,
+        version_key: &LateLoweredBodyVersionKey,
+    ) -> Result<&RefactorCallableLayout<'ctx>, LlvmEmitError> {
+        let step_schema = self
+            .callable_layouts_by_version_key
+            .get(version_key)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 body version key {:?} 的 callable layout",
+                    version_key
+                ),
+            })?;
+        self.callable_layout(*step_schema)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 body version key {:?} 指向缺失的 callable step schema s{}",
+                    version_key,
+                    step_schema.as_u32()
+                ),
+            })
+    }
+
+    pub(super) fn callable_carrier_target_layout(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+    ) -> Result<&RefactorCallableCarrierTargetLayout, LlvmEmitError> {
+        self.callable_carrier_target_layouts
+            .get(&(kind, callable_fqn.to_string()))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 {} `{}` 的 callable version 选择 contract",
+                    kind.label(),
+                    callable_fqn,
+                ),
+            })
     }
 
     pub(super) fn dynamic_invoke_layout(
@@ -2108,23 +2233,41 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
     ) -> Result<RefactorCallTargetQuery<'_, 'ctx>, LlvmEmitError> {
         match facts.target() {
             crate::effect_facts::CallSiteTarget::KnownInstance(instance) => {
-                let layout = self
-                    .callable_layout_by_root_fqn(&instance.template.fqn)
+                let version_key = self
+                    .known_instance_callable_versions
+                    .get(&(instance.clone(), facts.callee_schema()))
                     .ok_or_else(|| LlvmEmitError::Frontend {
                         message: format!(
-                            "refactor LLVM ABI query 缺少 known-instance call target `{}` 的 callable layout",
-                            instance.template.fqn
+                            "refactor LLVM ABI query 缺少 known-instance call target `{:?}` + callee step schema s{} 的 callable version selector",
+                            instance,
+                            facts.callee_schema().as_u32()
                         ),
                     })?;
+                let layout = self.callable_layout_by_version_key(version_key)?;
+                if layout.surface_instance() != instance
+                    || layout.step_schema() != facts.callee_schema()
+                {
+                    return Err(LlvmEmitError::Frontend {
+                        message: format!(
+                            "refactor LLVM ABI query 发现 known-instance call target `{:?}` + s{} 的 callable version selector 漂移：layout=(instance={:?}, step_schema=s{}, version={:?})",
+                            instance,
+                            facts.callee_schema().as_u32(),
+                            layout.surface_instance(),
+                            layout.step_schema().as_u32(),
+                            layout.body_version_key(),
+                        ),
+                    });
+                }
                 if layout.dynamic_entry().invoke_args_tuple_ty() != facts.invoke_args_tuple_ty()
                     || layout.dynamic_entry().return_step_schema() != facts.callee_schema()
                 {
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
-                            "refactor LLVM ABI query 发现 known-instance call target `{}` 的 dynamic entry contract 漂移：layout=(invoke_args_tuple_ty={}, return_step_schema={})，facts=(invoke_args_tuple_ty={}, callee_step_schema={})",
-                            instance.template.fqn,
+                            "refactor LLVM ABI query 发现 known-instance call target `{:?}` 的 dynamic entry contract 漂移：layout=(invoke_args_tuple_ty={}, return_step_schema={}, version={:?})，facts=(invoke_args_tuple_ty={}, callee_step_schema={})",
+                            instance,
                             layout.dynamic_entry().invoke_args_tuple_ty().as_u32(),
                             layout.dynamic_entry().return_step_schema().as_u32(),
+                            layout.body_version_key(),
                             facts.invoke_args_tuple_ty().as_u32(),
                             facts.callee_schema().as_u32(),
                         ),

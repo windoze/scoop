@@ -1,20 +1,38 @@
-# Claude Plan
+# 执行计划
 
-## 初始执行计划
-1. 读取 `TODO.md`，确认它只是任务索引，并按索引顺序找到对应的 `TODO-Px.md` 详细任务文件。
-2. 在详细任务文件中按顺序定位第一个标题未标记 `[DONE]` 的任务；必要时对照最新提交信息，判断是否存在与该任务直接相关且未完成的问题需要一并处理或登记为前置依赖。
-3. 阅读该任务的详细要求、约束、验证方式与依赖，检查当前代码和测试现状，确认是否可以直接实现。
-4. 若任务可直接完成：实现任务要求，补充或调整测试，并运行相关验证命令与必要的质量检查。
-5. 若任务存在无法绕过的真实阻塞：在对应 `TODO-Px.md` 中添加最小必要前置任务，保持顺序正确，并同步更新 `TODO.md`；仅在阶段计划发生变化时更新 `PLAN.md`。
-6. 在执行过程中持续更新本文件，记录当前步骤、关键发现、计划变更、验证结果与完成状态。
-7. 完成当前任务后：在对应 `TODO-Px.md` 中将任务标题标记为 `[DONE]` 并填写完成记录；如索引有变化则同步 `TODO.md`；然后按仓库约定创建一次 git 提交并停止，不继续下一个任务。
+## 约束说明
+- 不提供逐字内部思维链，但会持续记录可审计的执行计划、关键判断、阻塞信息与已完成步骤。
+- 本次调用只处理第一个未完成的详细任务；完成后更新对应 TODO 记录、验证、提交并停止。
+
+## 初始步骤
+1. 读取 `TODO.md`，把它当作索引文件使用。
+2. 按 `TODO.md` 中引用的顺序读取对应 `TODO-Px.md`，确认第一个标题未带 `[DONE]` 的详细任务。
+3. 检查最近一次提交是否明确提到与该任务直接相关但未完成的问题；若是，则把它视为当前任务的一部分或必要前置。
+4. 在不做开放式历史问题排查的前提下，阅读当前任务所需的最小范围代码、测试、规格和相关文档。
+
+## 执行策略
+1. 严格按当前任务原始要求实现，不因困难主动拆分。
+2. 若发现阻塞当前任务、导致规格不成立、或由本次修改引入的回归：
+   - 先确认是否必须新增前置任务。
+   - 仅在无法正确落地当前任务时，向对应 `TODO-Px.md` 插入最小必要前置任务，并同步 `TODO.md`。
+   - 仅当阶段级计划变化时更新 `PLAN.md`。
+3. 修改代码时采用最小正确变更，避免引入规避性实现或临时兼容层。
+
+## 验证与收尾
+1. 运行与当前任务直接相关的测试。
+2. 如任务涉及通用编译/静态检查风险，补充运行 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 或更小但足够的目标命令。
+3. 更新 `TODO-Px.md`：仅在任务真正完成时给标题加 `[DONE]`，并填写完成记录。
+4. 若索引状态、标题、顺序或任务集发生变化，同步更新 `TODO.md`。
+5. 若阶段计划确实变化，再更新 `PLAN.md`。
+6. 检查工作区变更，按要求提交本次任务相关全部未提交内容，然后停止。
 
 ## 进度记录
-- 已写入初始计划，下一步开始读取任务索引与详细任务文件。
-- 已确认 `TODO.md` 索引中的首个未完成任务是 `P6-T03`，并在 `TODO-P6-part2.md` 中核对了完整任务体与既有 blocker 记录。
-- 关键发现：`TODO-P6-part2.md` 当前未完成链路已手工插入 `P6-T02p`，但详细任务体尚未补齐；进一步检查 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`、`crates/scoopc/src/effect_facts/facts.rs` 后确认，当前 ABI/query 仍缺少 callable version 选择 contract：
-  - late-lowered authoritative 身份是 `LateLoweredBodyVersionKey`；
-  - 但 `RefactorAbiQuery` 的 callable shell 仍主要按 `StepSchemaId` / `root_fqn` 暴露；
-  - `layout.rs::callable_layout_by_root_fqn(...)` 甚至在同一 `root_fqn` 出现多个 published shell 时直接 fail fast；
-  - `CallSiteEffectFacts` 也还没有显式发布“运行时 callable carrier / known-instance target 应落到哪个 callable version”的 authoritative 选择合同。
-- 计划已调整：本次不直接实现 `P6-T03`，先把上述 blocker 记为新的前置详细任务 `P6-T02p`，同步 `TODO.md`，并在 `P6-T03` 中显式声明依赖后停止。
+- 已完成：创建本计划文件。
+- 已完成：读取 `TODO.md` 与 `TODO-P6-part2.md`，确认首个未完成详细任务为 `P6-T02p`（发布 callable version 选择 contract）。
+- 已确认：最新提交标题为 `[P6-T03] Add callable version selection prerequisite`，与当前任务直接相关，说明仓库已把该问题前置到当前执行单元，继续按 `P6-T02p` 落地即可。
+- 已完成：审阅未提交 diff，确认当前任务已有中断残留实现，主要内容包括 `body_version_key` 查询、known-instance selector、carrier target contract 与定向测试。
+- 已完成：运行 `refactor_llvm_callable_version_query` / `refactor_llvm_known_instance_version_selection` / `refactor_llvm_callable_carrier_version_selection` 定向测试，定位到一个真实回归：carrier target 发布错误地扫描了整个 `class_itables` / `class_vtables` 索引，把未进入 late-lowered program 的 `Hashable.hash` 等槽位也当成必须发布对象。
+- 已完成：把 carrier target 发布范围收敛到“当前 late-lowered program 已发布的 callable roots”，保留同 root 多 version 的显式拒绝语义；三组定向测试现已通过。
+- 已完成：运行 `cargo fmt --all`、`cargo test -p scoopc refactor_llvm_`、相关 build fixture / dump-effect-lowered 命令与 `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`，全部通过。
+- 已完成：更新 `TODO-P6-part2.md` 与 `TODO.md`，将 `P6-T02p` 标记为 `[DONE]` 并补齐完成记录与验证清单。
+- 下一步：检查最终 diff，按 `P6-T02p` 主题提交当前全部未提交文件，然后停止。
