@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -683,6 +683,70 @@
   - 2026-05-04：LLVM ABI/query 已补齐对应发布与 fail-fast。`RefactorHandleDispatchLayout` 现在可直接按 `LateLoweredHandlePendingCompletion::PropagateOutward(case)` 查询 typed payload transport 的 frame field index；若缺失 published transport、outward emission、slot kind/ty、或 frame layout field，会在 P5/P6 handoff 物化阶段显式拒绝，而不是把歧义留给 `P6-T03` backend 现场猜测。
   - 2026-05-04：验证通过：`cargo test -p scoopc refactor_handle_dispatch_contract_ --no-fail-fast`、`cargo test -p scoopc refactor_llvm_handle_dispatch --no-fail-fast`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/handle_finally_boundary.scoop`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。
 
+## P6-T02qc：发布 shared surface-resume wrapper 的 owner-step -> wrapper-step 投影 contract，禁止 P6-T03 在 shared surface body 现场反推 inverse dispatch
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.6, §5.5.2-§5.5.7, §8
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T02q`, `P6-T03`
+  - `crates/scoopc/src/effect_lowered/ir.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs`
+- 背景：
+  - `P6-T02q` 已把 boundary-local `ContinuationSchemaId` authoritative 地桥接到 runtime continuation object 实际应调用的 underlying surface route；
+  - 但当前 handoff 仍只发布了“caller 侧如何消费 wrapper step”的 forward contract，没有发布“shared surface-resume wrapper 自身如何把 underlying owner step authoritative 地投影回 wrapper step”的 reverse/projection contract；
+  - `tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 现在已经形成真实 blocker：
+    - shared surface schema `k5` 的 published source 是 `ResumeBoundaryOnly`，`out_step_schema=s4`；
+    - 它的 underlying route authoritative 地桥接到 handle-binder schema `k3`，而 `k3` 继续回到 owner callable `main` 的 `StepSchema s1`；
+    - 当前 boundary lowering / dump 只发布了 caller 侧的 forward 消费：`Resume(site25/site30/site35/site40)` 观察 `dispatch_input_step_schema=s4`，并把 wrapper case `c0` forward 成 owner outward `c2`；
+    - 对于要定义 `__scoop_refactor_surface_resume__k5` 的 `P6-T03` 而言，缺失的恰恰是相反方向：当 shared surface body 调用 underlying route 并拿到 owner step `s1` 后，究竟该如何 authoritative 地回投影成 wrapper step `s4`；当前 handoff 没有显式发布这层关系。
+  - 若直接继续 `P6-T03`，backend 只能：
+    - 现场反向推导 `LateLoweredStepDispatchPlan`；
+    - 或按 case tag / `ConcreteOpKey` / boundary pairing 临时拼出 inverse mapping；
+    - 这会把 shared surface-resume wrapper 的语义再次留给 backend 现场猜测，违反本阶段 contract-first 边界。
+
+- 目标：
+  - 在进入 `P6-T03` 前，先为 shared surface-resume wrapper 发布 authoritative 的 owner-step -> wrapper-step 投影 contract；
+  - 让后续 LLVM body emitter 能仅凭 published handoff 定义 `ResumeBoundaryOnly` / 等价 wrapper schema 的 shared surface body，而不再现场反推 inverse dispatch。
+
+- 必须实现的内容：
+  1. 为 wrapper surface-resume schema 发布 authoritative projection contract。
+     - 至少要覆盖：underlying route 返回 owner step 后，wrapper 的 `Complete` / outward case 应如何映射；
+     - 可接受落点包括但不限于：
+       - `LateLoweredResumeBoundaryLowering`
+       - `LateLoweredContinuationRoute`
+       - `LateLoweredSurfaceResumeDispatchInventoryEntry`
+       - `RefactorAbiQuery`
+       - 或一个等价的 compiler-owned published query；
+     - 但明确禁止把这层关系继续留给 `P6-T03` 在 shared surface body 里自行“反向理解”现有 dispatch plan。
+  2. 让缺失、歧义或漂移的 wrapper projection 在 P5/P6 边界 fail fast。
+     - 至少包括：
+       - wrapper schema 已桥接到 underlying route，但没有 published owner-step -> wrapper-step projection；
+       - 多个 owner outward case 会塌缩到同一个 wrapper case，而 handoff 没有显式发布 authoritative 规则；
+       - `P6-T03` 若只消费 published handoff，仍无法唯一决定 shared surface body 该返回哪条 wrapper case / payload / continuation。
+  3. 补充 query / dump / regression。
+     - 至少覆盖：
+       - `effect_multi_escape_indirect_direct_while.scoop` 中 `k5 -> k3 -> owner s1` 的 shared surface wrapper 不再要求 backend 反推 inverse dispatch；
+       - dump / query 能直接展示或校验这层 projection；
+       - 缺失 projection 时显式拒绝，而不是把 shared surface body 语义留给 `P6-T03` 现场拼装。
+
+- 必须遵从的约束：
+  - 禁止让 `P6-T03` 通过反向遍历 `LateLoweredStepDispatchPlan`、比较 `CaseTag` / `ConcreteOpKey`、扫描 owner boundary list、或依赖当前 fixture 的 `in c0 -> out c2` 偶然形状来恢复 wrapper surface-resume 的返回语义；
+  - 禁止把“caller 侧 forward dispatch 已存在”视作 shared surface body 反向 projection 已经显式发布；
+  - 若 relation 需要 inversion，必须先把 inversion 本身 authoritative 地发布为 contract，而不是让 backend 自行推导。
+
+- 验证：
+  - `cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+
+- 完成条件：
+  - `P6-T03` 可以只凭 published handoff 定义 `ResumeBoundaryOnly` / 等价 shared surface-resume wrapper body；
+  - owner step -> wrapper step 的 projection relation 已成为 authoritative contract，而不是 backend 现场反推；
+  - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝。
+- 依赖：P6-T02q
+- 完成记录：
+  - 2026-05-04：在真正实现 `P6-T03` shared surface-resume body 时确认新 blocker。当前 handoff 虽然已经 authoritative 地发布了 `k5 -> underlying route k3`，但并没有继续发布 `underlying owner step s1 -> wrapper step s4` 的投影 contract。`effect_multi_escape_indirect_direct_while.scoop` 中 site25/site30/site35/site40 的 `ResumeBoundaryOnly` wrapper 若继续由 `P6-T03` 落地，backend 只能通过反向推导现有 `dispatch_input_step_schema=s4` / `in c0 -> out c2` caller-side contract 来拼 shared surface body 的返回语义；这违反本阶段“不得把 effect/control contract 留给 backend 现场恢复”的约束。因此新增本前置任务，先把 wrapper projection contract 显式发布出来，再继续 `P6-T03`。
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -801,8 +865,9 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P5-T07a，P5-T07b
 - 完成记录：
+  - 2026-05-04：继续真正实现 shared surface-resume body 时确认新的 blocker。当前 handoff 已能 authoritative 地桥接 `ResumeBoundaryOnly` wrapper schema 到 underlying route（例如 `effect_multi_escape_indirect_direct_while.scoop` 中 `k5 -> k3`），但还没有显式发布“underlying owner step -> wrapper step”的 projection contract。若继续实现 `__scoop_refactor_surface_resume__k5`，backend 只能反向推导现有 boundary dispatch（例如 `s4.c0 -> s1.c2`）来拼 wrapper body 返回语义，违反 contract-first 边界。因此新增前置任务 `P6-T02qc`，先发布 wrapper projection contract，再继续本任务。
   - 2026-05-04：继续真正落地 body emitter 时确认新的 blocker。当前 handoff 对 `HandleDispatch` cleanup/finally/pending-outward path 只发布了 `CompletionTag` / `ResumePayloadCarrier` 的 field index 与 pending completion 集合，但没有 authoritative 发布 typed case payload 如何穿过该 carrier。对 `handle_finally_boundary.scoop` / `dropped_continuation_abandons_remaining_work.scoop` 这类 path，backend 若继续实现就必须现场发明 `Any` boxing / projection 或 raw transport 规则。为此新增前置任务 `P6-T02qb`，先把 cleanup/finally pending payload carrier contract 显式发布出来，再继续本任务。
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
   - 因此新增前置任务 `P6-T02c`，先补齐 continuation surface-resume ABI/query handoff，再继续本任务。
