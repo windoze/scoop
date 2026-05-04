@@ -1059,6 +1059,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         ) {
             return Ok(false);
         }
+        if let Some(value) = self.lower_builtin_to_string_call(stmt.span, kind, args)? {
+            self.store_local_value(stmt.span, *target, value)?;
+            return Ok(true);
+        }
         let layout = self
             .abi
             .dynamic_invoke_layout(self.abi_step_schema, *site_id)
@@ -1084,6 +1088,128 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             *target,
         )?;
         Ok(true)
+    }
+
+    fn lower_builtin_to_string_call(
+        &mut self,
+        span: crate::span::Span,
+        kind: &mir::CallKind,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let mir::CallKind::Interface { receiver, dispatch } = kind else {
+            return Ok(None);
+        };
+        if dispatch.owner_fqn != "scoop.core.ToString" || dispatch.member_name != "toString" {
+            return Ok(None);
+        }
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin ToString.toString args",
+                at: span.into(),
+            });
+        }
+        let receiver_cg = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, dispatch.receiver_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin ToString receiver type",
+                at: span.into(),
+            })?;
+        let value = self.codegen.codegen_mir_operand_expected(
+            span,
+            receiver,
+            &self.slots,
+            Some(receiver_cg),
+        )?;
+        let value = self.codegen.coerce_value(span, value, receiver_cg)?;
+        match receiver_cg {
+            CgTy::String => Ok(Some(value)),
+            CgTy::Bool => {
+                let Some(BasicValueEnum::IntValue(raw)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor builtin ToString Bool value",
+                        at: span.into(),
+                    });
+                };
+                let widened = self.codegen.builder.build_int_z_extend(
+                    raw,
+                    self.codegen.context.i64_type(),
+                    "refactor_bool_to_string_arg",
+                )?;
+                let runtime = self.codegen.declare_runtime_bool_to_string();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[widened.into()],
+                    "refactor_bool_to_string",
+                )?;
+                self.string_result_from_runtime_call(span, call, "Bool")
+                    .map(Some)
+            }
+            CgTy::Int(_) => {
+                let Some(BasicValueEnum::IntValue(raw)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor builtin ToString Int value",
+                        at: span.into(),
+                    });
+                };
+                let runtime = self.codegen.declare_runtime_int_to_string();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[raw.into()],
+                    "refactor_int_to_string",
+                )?;
+                self.string_result_from_runtime_call(span, call, "Int")
+                    .map(Some)
+            }
+            CgTy::Float64 | CgTy::Float32 => {
+                let Some(BasicValueEnum::FloatValue(raw)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor builtin ToString Float value",
+                        at: span.into(),
+                    });
+                };
+                let runtime = match receiver_cg {
+                    CgTy::Float64 => self.codegen.declare_runtime_float64_to_string(),
+                    CgTy::Float32 => self.codegen.declare_runtime_float32_to_string(),
+                    _ => unreachable!("receiver_cg matched float above"),
+                };
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[raw.into()],
+                    "refactor_float_to_string",
+                )?;
+                self.string_result_from_runtime_call(span, call, "Float")
+                    .map(Some)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn string_result_from_runtime_call(
+        &self,
+        span: crate::span::Span,
+        call: inkwell::values::CallSiteValue<'ctx>,
+        label: &'static str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin ToString runtime ret",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(str_ptr) = ret else {
+            return Err(frontend_error(format!(
+                "refactor builtin ToString {label} runtime ret type mismatch"
+            )));
+        };
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
     }
 
     fn load_local_value(
@@ -1715,6 +1841,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     Some(LateLoweredBoundaryLowering::RuntimeError(_))
                 )
             })
+            .or_else(|| {
+                boundary_ids.iter().find_map(|id| {
+                    self.callable
+                        .boundary_map()
+                        .boundary(*id)
+                        .filter(|boundary| {
+                            matches!(
+                                boundary.lowering(),
+                                Some(LateLoweredBoundaryLowering::RuntimeError(_))
+                            )
+                        })
+                })
+            })
             .ok_or_else(|| {
                 frontend_error(format!(
                     "refactor suspend state st{} 缺少可 lower 的 primary boundary",
@@ -1866,11 +2005,88 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     None,
                 )
             }
-            LateLoweredBoundaryLowering::RuntimeError(_)
-            | LateLoweredBoundaryLowering::Handle(_) => Err(frontend_error(format!(
-                "refactor suspend state st{} primary boundary bd{} 不是 Call/Perform/Resume",
-                state.state_id().as_u32(),
-                boundary.boundary_id().as_u32()
+            LateLoweredBoundaryLowering::RuntimeError(lowering) => {
+                self.lower_runtime_error_boundary(boundary, lowering)
+            }
+            LateLoweredBoundaryLowering::Handle(lowering) => {
+                self.lower_handle_boundary(boundary, lowering)
+            }
+        }
+    }
+
+    fn lower_runtime_error_boundary(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+        lowering: &crate::effect_lowered::ir::LateLoweredRuntimeErrorBoundaryLowering,
+    ) -> Result<(), LlvmEmitError> {
+        let payload =
+            self.lower_runtime_error_boundary_payload(lowering.emitted_step().payload_tuple_ty())?;
+        self.emit_or_consume_outward_case(
+            boundary,
+            lowering.emitted_step().case_tag(),
+            payload,
+            lowering.emitted_step().payload_tuple_ty(),
+            None,
+            None,
+        )
+    }
+
+    fn lower_runtime_error_boundary_payload(
+        &mut self,
+        payload_ty: TypeId,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let layout = self.abi.source_value_layout(payload_ty)?;
+        if layout.abi().is_elided() {
+            return Ok(None);
+        }
+        let value = self
+            .codegen
+            .try_codegen_qualified_enum_unit_variant_value(
+                self.mir_fun.span,
+                "scoop.core.RuntimeError.ContinuationAlreadyResumed",
+            )?
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor runtime-error boundary payload variant",
+                at: self.mir_fun.span.into(),
+            })?;
+        let expected = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, payload_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor runtime-error boundary payload type",
+                at: self.mir_fun.span.into(),
+            })?;
+        let value = self
+            .codegen
+            .coerce_value(self.mir_fun.span, value, expected)?;
+        match layout.kind() {
+            RefactorSourceAbiLayoutKind::Scalar => Ok(value.value),
+            RefactorSourceAbiLayoutKind::Tuple => Err(frontend_error(format!(
+                "refactor runtime-error boundary payload t{} 需要 scalar ABI，当前 tuple ABI 尚未发布 payload field contract",
+                payload_ty.as_u32()
+            ))),
+        }
+    }
+
+    fn lower_handle_boundary(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+        lowering: &crate::effect_lowered::ir::LateLoweredHandleBoundaryLowering,
+    ) -> Result<(), LlvmEmitError> {
+        match lowering.outward_emissions() {
+            [] => self.branch_to_state(boundary.resume_state()),
+            [emission] => self.emit_or_consume_outward_case(
+                boundary,
+                emission.case_tag(),
+                None,
+                emission.payload_tuple_ty(),
+                None,
+                None,
+            ),
+            emissions => Err(frontend_error(format!(
+                "refactor handle boundary bd{} 发布了 {} 个 outward emission；需要 HandleDispatch contract 选择具体 case",
+                boundary.boundary_id().as_u32(),
+                emissions.len()
             ))),
         }
     }
@@ -3453,5 +3669,35 @@ mod tests {
         assert!(body.contains("load_dynamic_invoke_fn_ptr"));
         assert!(body.contains("build_indirect_call"));
         assert!(!body.contains(concat!("codegen_mir_", "direct_call(")));
+    }
+
+    #[test]
+    fn refactor_llvm_boundary_lowering_covers_published_boundary_categories() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("LateLoweredBoundaryLowering::Call(lowering)"));
+        assert!(body.contains("LateLoweredBoundaryLowering::Perform(lowering)"));
+        assert!(body.contains("LateLoweredBoundaryLowering::Resume(lowering)"));
+        assert!(body.contains("LateLoweredBoundaryLowering::RuntimeError(lowering)"));
+        assert!(body.contains("LateLoweredBoundaryLowering::Handle(lowering)"));
+        assert!(body.contains("lower_runtime_error_boundary"));
+        assert!(body.contains("lower_handle_boundary"));
+        assert!(!body.contains(concat!(
+            "primary boundary bd{} 不是 ",
+            "Call/Perform/Resume"
+        )));
+    }
+
+    #[test]
+    fn refactor_llvm_runtime_error_case_uses_ordinary_step_payload() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("scoop.core.RuntimeError.ContinuationAlreadyResumed"));
+        assert!(body.contains("emit_or_consume_outward_case"));
+        assert!(body.contains("lower_runtime_error_boundary_payload"));
+        assert!(!body.contains(concat!(
+            "RuntimeError(_) | ",
+            "LateLoweredBoundaryLowering::Handle(_)"
+        )));
     }
 }

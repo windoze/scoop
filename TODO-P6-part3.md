@@ -276,7 +276,7 @@
   - 2026-05-05：更新 `effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`，让 `main` 真实触发 pure source-slice virtual dynamic call，并锁定 emitted LLVM 中的 `refactor_dynamic_call_step`。
   - 验证通过：`cargo test -p scoopc refactor_llvm_call_lowering`；`cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
-## P6-T03f：闭合 boundary lowering，覆盖 Call / Perform / Resume / runtime-error / nested-handle outward
+## [DONE] P6-T03f：闭合 boundary lowering，覆盖 Call / Perform / Resume / runtime-error / nested-handle outward
 
 - 参考：
   - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T02o`, `P6-T02q`, `P6-T02qd`, `P6-T02qg`, `P6-T02qh`
@@ -303,7 +303,11 @@
   - backend 不再通过 raw MIR shape 恢复 boundary semantics。
 - 依赖：P6-T03e
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：refactor LLVM body lowering 现在显式覆盖 `Call` / `Perform` / `Resume` / `RuntimeError` / `Handle` boundary lowering 分支；`RuntimeError` boundary 通过普通 `Step_F` outward case 传播 `RuntimeError.ContinuationAlreadyResumed` payload，`Handle` boundary 通过已发布 outward emission 进入统一 outward `Step_F` helper，不再把合法 primary boundary 长期拒绝为非 `Call/Perform/Resume`。
+  - 2026-05-05：补齐当前 P6-T03f run-pass 验证的直接前置缺口：refactor value primitive 会跳过未使用的 sysroot internal print callee ref，直接把 `__scoop_print[_ln]_string(String)` lower 到 runtime print ABI；primitive/String `ToString.toString` interface call 在缺少 dynamic-invoke handoff 时走明确的 builtin runtime primitive，用户类型仍要求 published dynamic-invoke contract。
+  - 2026-05-05：新增 `refactor_llvm_boundary_lowering` 与 `refactor_llvm_runtime_error_case` 定向单测，锁定 boundary category 覆盖和 runtime-error ordinary step payload 路径。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_boundary_lowering`；`cargo test -p scoopc refactor_llvm_runtime_error_case`；`cargo test -p scoopc refactor_llvm_value_primitive`；`cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo clippy --all-targets -- -D warnings`。
+  - `PLAN.md` 无需改动。
 
 ## P6-T03g：闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport
 

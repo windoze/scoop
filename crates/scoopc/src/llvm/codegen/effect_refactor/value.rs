@@ -20,7 +20,7 @@ use crate::ty::{TypeId, TypeStore};
 
 use super::super::MainCodegen;
 use super::super::mir_body::MirLocalSlot;
-use super::super::types::CgValue;
+use super::super::types::{CgTy, CgValue};
 use super::types::{RefactorAbiQuery, RefactorCallableEntryLayout, RefactorSourceAbiLayoutKind};
 
 /// A borrow-scoped facade over effect-neutral LLVM value primitives.
@@ -71,7 +71,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             } => {
                 if !used_locals.contains(target)
                     && let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) = rvalue
-                    && self.codegen.fun_index.contains_key(fqn)
+                    && self.is_unused_callee_ref(fqn)
                 {
                     return Ok(());
                 }
@@ -172,6 +172,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 at: span.into(),
             });
         };
+        if let Some(value) = self.lower_refactor_internal_print_string(span, callee_fqn, args)? {
+            return Ok(value);
+        }
         if self.codegen.extern_funs.contains_key(callee_fqn) {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor pure statement extern/runtime helper call requires published native ABI",
@@ -246,6 +249,56 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             ))
         })?;
         self.extract_refactor_pure_call_complete(span, layout.step_schema(), step, target_cg)
+    }
+
+    fn lower_refactor_internal_print_string(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let runtime_name = match callee_fqn {
+            "scoop.core.__scoop_print_string" => "scoop_print",
+            "scoop.core.__scoop_println_string" => "scoop_println",
+            _ => return Ok(None),
+        };
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor internal print string arg contract",
+                at: span.into(),
+            });
+        }
+        let arg = &args[0];
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let value = self.codegen.coerce_value(arg.span, value, CgTy::String)?;
+        let Some(BasicValueEnum::PointerValue(str_ptr)) = value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor internal print string arg value",
+                at: arg.span.into(),
+            });
+        };
+        let runtime = self.codegen.declare_runtime_print_like(runtime_name);
+        let _ = self.codegen.build_call_preserving_gc_local_roots(
+            arg.span,
+            runtime,
+            &[str_ptr.into()],
+            "refactor_internal_print",
+        )?;
+        Ok(Some(CgValue::unit()))
+    }
+
+    fn is_unused_callee_ref(&self, fqn: &str) -> bool {
+        self.codegen.fun_index.contains_key(fqn)
+            || self.codegen.extern_funs.contains_key(fqn)
+            || matches!(
+                fqn,
+                "scoop.core.__scoop_print_string" | "scoop.core.__scoop_println_string"
+            )
     }
 
     fn pack_refactor_call_args(
