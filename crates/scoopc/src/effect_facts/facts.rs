@@ -633,6 +633,8 @@ impl BodyEffectSolverFacts {
 pub struct BodyEffectFacts {
     blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
     sites: BTreeMap<SiteId, SiteEffectFacts>,
+    /// Plain callable 内部 effect/control lowering 使用的 schema；不改变 callable 的公开 Plain ABI。
+    local_control_step_schema: Option<StepSchemaId>,
     solver_facts: BodyEffectSolverFacts,
 }
 
@@ -644,6 +646,7 @@ impl BodyEffectFacts {
         Self {
             blocks,
             sites,
+            local_control_step_schema: None,
             solver_facts: BodyEffectSolverFacts::default(),
         }
     }
@@ -651,11 +654,13 @@ impl BodyEffectFacts {
     pub(crate) fn with_solver_facts(
         blocks: BTreeMap<BasicBlockId, BlockEffectFacts>,
         sites: BTreeMap<SiteId, SiteEffectFacts>,
+        local_control_step_schema: Option<StepSchemaId>,
         solver_facts: BodyEffectSolverFacts,
     ) -> Self {
         Self {
             blocks,
             sites,
+            local_control_step_schema,
             solver_facts,
         }
     }
@@ -674,6 +679,10 @@ impl BodyEffectFacts {
 
     pub fn site(&self, site: SiteId) -> Option<&SiteEffectFacts> {
         self.sites.get(&site)
+    }
+
+    pub fn local_control_step_schema(&self) -> Option<StepSchemaId> {
+        self.local_control_step_schema
     }
 
     pub(crate) fn solver_facts(&self) -> &BodyEffectSolverFacts {

@@ -413,6 +413,8 @@ fun leaf(): Unit / Ping {
         assert!(dump.contains("callee_step_schema=s1"));
         assert!(dump.contains("resolved_cases=[c1]"));
         assert!(dump.contains("dispatch=EffectStepDispatch"));
+        assert!(dump.contains("plain_local_effect_control: s0"));
+        assert!(dump.contains("consumed_runtime_error_case: in c1 op=scoop.core.Raise.raise"));
     }
 
     #[test]
@@ -460,9 +462,9 @@ fun leaf(): Unit / Ping {
 
         for needle in [
             "continuation_schema: k0 source=HandleContinuationBinderOnly",
-            "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko0 site0 arm#0 handled_case=c0",
+            "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site0 arm#0 handled_case=c0",
             "continuation_schema: k3 source=ResumeBoundaryOnly",
-            "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko0 site9",
+            "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site9",
         ] {
             assert!(
                 dump.contains(needle),

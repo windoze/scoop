@@ -301,6 +301,7 @@ fn render_body_facts(
             .callable_facts()
             .get(family.key())
             .and_then(CallableEffectFacts::body_step_schema)
+            .or_else(|| body_facts.local_control_step_schema())
             .or_else(|| infer_body_step_schema(body_facts));
         write_line(out, indent + 2, &format!("{}:", family.root_fqn()));
         write_line(out, indent + 4, "blocks:");

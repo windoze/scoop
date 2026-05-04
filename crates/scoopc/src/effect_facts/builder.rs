@@ -546,6 +546,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         Ok(BodyEffectFacts::with_solver_facts(
             blocks,
             self.sites,
+            None,
             solver_facts,
         ))
     }

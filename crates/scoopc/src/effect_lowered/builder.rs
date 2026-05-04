@@ -538,6 +538,10 @@ fn discover_plain_local_effect_control_step_schema(
     body_facts: &crate::effect_facts::BodyEffectFacts,
     effect_facts: &MaterializedEffectFacts,
 ) -> Result<StepSchemaId, EffectLoweringError> {
+    if let Some(step_schema) = body_facts.local_control_step_schema() {
+        return Ok(step_schema);
+    }
+
     let mut candidates = BTreeSet::new();
     for site in body_facts.sites().values() {
         match site {

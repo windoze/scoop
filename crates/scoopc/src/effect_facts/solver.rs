@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
-use crate::mir::{BasicBlockId, InstanceKey};
+use crate::mir::{BasicBlockId, InstanceKey, SiteId};
 use crate::opt::OptLevel;
 
 use super::{
@@ -313,7 +313,7 @@ impl MaterializedEffectFactsSolver {
             })
             .collect();
 
-        let solved_bodies = bodies
+        let solved_bodies: HashMap<InstanceKey, BodyEffectFacts> = bodies
             .into_iter()
             .map(|(key, body)| {
                 let callable = solved_callable_facts
@@ -337,11 +337,20 @@ impl MaterializedEffectFactsSolver {
                     &finalized_sites,
                     &schema_index,
                 );
+                let local_control_step_schema =
+                    if matches!(callable.call_abi_kind(), CallableAbiKind::Plain)
+                        && body_needs_plain_local_control(&finalized_sites)
+                    {
+                        Some(current_schema)
+                    } else {
+                        None
+                    };
                 (
                     key,
                     BodyEffectFacts::with_solver_facts(
                         finalized_blocks,
                         finalized_sites,
+                        local_control_step_schema,
                         body.solver_facts().clone(),
                     ),
                 )
@@ -356,6 +365,13 @@ impl MaterializedEffectFactsSolver {
             let Some(schema_id) = callable_step_schemas.get(key).copied() else {
                 continue;
             };
+            let retained_for_local_control = solved_bodies
+                .get(key)
+                .and_then(BodyEffectFacts::local_control_step_schema)
+                == Some(schema_id);
+            if retained_for_local_control {
+                continue;
+            }
             if step_schemas
                 .get(&schema_id)
                 .is_some_and(|schema| schema.cases().is_empty())
@@ -1196,6 +1212,18 @@ fn subtract_case_set(source: &CaseSet, removed: &CaseSet) -> CaseSet {
             .filter(|tag| !removed.contains(tag))
             .collect(),
     )
+}
+
+fn body_needs_plain_local_control(sites: &BTreeMap<SiteId, SiteEffectFacts>) -> bool {
+    sites.values().any(|site| match site {
+        SiteEffectFacts::Call(call) => {
+            matches!(call.callee_abi_kind(), CallableAbiKind::EffectStep)
+                && !call.resolved_cases().is_empty()
+        }
+        SiteEffectFacts::Perform(_) | SiteEffectFacts::Resume(_) | SiteEffectFacts::Handle(_) => {
+            true
+        }
+    })
 }
 
 fn derive_impl_plan(opt_level: OptLevel, resolved_outward_cases: &CaseSet) -> ImplPlan {
