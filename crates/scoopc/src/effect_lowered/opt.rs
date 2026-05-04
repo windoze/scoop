@@ -515,6 +515,7 @@ fn redirect_handle_dispatch_contract(
         contract
             .finally_complete_target()
             .map(|state_id| redirect_state_id(state_id, redirects)),
+        contract.body_completion_payload_source().cloned(),
         contract
             .handled_arms()
             .iter()

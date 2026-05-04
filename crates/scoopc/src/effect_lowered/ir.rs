@@ -2264,6 +2264,7 @@ pub struct LateLoweredHandleDispatchContract {
     body_complete_target: StateId,
     arm_complete_target: StateId,
     finally_complete_target: Option<StateId>,
+    body_completion_payload_source: Option<LateLoweredCompletionPayloadSource>,
     handled_arms: Vec<LateLoweredHandleArmDispatch>,
     body_outward_cases: Vec<CaseTag>,
     finally_outward_cases: Vec<CaseTag>,
@@ -2282,6 +2283,7 @@ impl LateLoweredHandleDispatchContract {
         body_complete_target: StateId,
         arm_complete_target: StateId,
         finally_complete_target: Option<StateId>,
+        body_completion_payload_source: Option<LateLoweredCompletionPayloadSource>,
         handled_arms: Vec<LateLoweredHandleArmDispatch>,
         body_outward_cases: Vec<CaseTag>,
         finally_outward_cases: Vec<CaseTag>,
@@ -2297,6 +2299,7 @@ impl LateLoweredHandleDispatchContract {
             body_complete_target,
             arm_complete_target,
             finally_complete_target,
+            body_completion_payload_source,
             handled_arms,
             body_outward_cases,
             finally_outward_cases,
@@ -2324,6 +2327,7 @@ impl LateLoweredHandleDispatchContract {
             body_complete_target,
             arm_complete_target,
             finally_complete_target,
+            None,
             Vec::new(),
             Vec::new(),
             Vec::new(),
@@ -2355,6 +2359,10 @@ impl LateLoweredHandleDispatchContract {
 
     pub fn finally_complete_target(&self) -> Option<StateId> {
         self.finally_complete_target
+    }
+
+    pub fn body_completion_payload_source(&self) -> Option<&LateLoweredCompletionPayloadSource> {
+        self.body_completion_payload_source.as_ref()
     }
 
     pub fn handled_arms(&self) -> &[LateLoweredHandleArmDispatch] {

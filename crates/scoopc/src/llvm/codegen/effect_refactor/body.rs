@@ -20,8 +20,8 @@ use crate::effect_lowered::ir::{
     BoundaryId, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundarySource,
     LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
     LateLoweredCallable, LateLoweredCompletionPayloadSource,
-    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleStateRegion,
-    LateLoweredOperandSource, LateLoweredResumePayloadBinding,
+    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
+    LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredResumePayloadBinding,
     LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateTerminator,
     LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
@@ -37,6 +37,7 @@ use super::types::{
     RefactorAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
     RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameLayout,
+    RefactorHandleContinuationBinderLayout, RefactorHandlePayloadBinderLayout,
     RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout,
     RefactorStepLayout, RefactorStepVariantLayout,
 };
@@ -48,6 +49,75 @@ const CONT_FIELD_CAPTURED_FRAME: u32 = 1;
 const CONT_FIELD_RESUME_STATE: u32 = 2;
 const CONT_FIELD_ONE_SHOT: u32 = 3;
 const CONT_FIELD_COMPOSED_CALLEE: u32 = 4;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RefactorHandleCompletionMode {
+    ContinueToExit,
+    ReturnFromFunction,
+}
+
+impl RefactorHandleCompletionMode {
+    fn pending_completion(self) -> LateLoweredHandlePendingCompletion {
+        match self {
+            Self::ContinueToExit => LateLoweredHandlePendingCompletion::ContinueToExit,
+            Self::ReturnFromFunction => LateLoweredHandlePendingCompletion::ReturnFromFunction,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct RefactorHandleConsumeArmRuntime {
+    arm_state: StateId,
+    payload_binders: Vec<RefactorHandlePayloadBinderLayout>,
+    continuation_binder: Option<RefactorHandleContinuationBinderLayout>,
+}
+
+#[derive(Clone, Copy)]
+struct RefactorHandlePendingPayloadRuntime {
+    completion: LateLoweredHandlePendingCompletion,
+    payload_tuple_ty: TypeId,
+    frame_field_index: u32,
+}
+
+#[derive(Clone)]
+struct RefactorHandlePendingCompletionRuntime {
+    completion: LateLoweredHandlePendingCompletion,
+    completion_tag_value: u32,
+    completion_tag_field_index: u32,
+    finally_state: StateId,
+    payload_transport: Option<RefactorHandlePendingPayloadRuntime>,
+}
+
+#[derive(Clone)]
+enum RefactorHandleBoundaryRuntimeAction {
+    ConsumeToArm(RefactorHandleConsumeArmRuntime),
+    PendingCompletion(RefactorHandlePendingCompletionRuntime),
+    EmitOutward,
+}
+
+#[derive(Clone)]
+enum RefactorHandleGotoRuntimeAction {
+    BeginCompletion(RefactorHandlePendingCompletionRuntime),
+    FinishFinally(RefactorHandleFinallyRuntime),
+}
+
+#[derive(Clone, Copy)]
+struct RefactorHandleOutwardCompletionRuntime {
+    completion_tag_value: u32,
+    case_tag: CaseTag,
+    resume_state: StateId,
+    payload_transport: Option<RefactorHandlePendingPayloadRuntime>,
+}
+
+#[derive(Clone)]
+struct RefactorHandleFinallyRuntime {
+    site_id: SiteId,
+    completion_tag_field_index: u32,
+    exit_state: StateId,
+    continue_to_exit_tag: u32,
+    return_from_function_tag: u32,
+    propagate_outward: Vec<RefactorHandleOutwardCompletionRuntime>,
+}
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Defines all refactor ABI function bodies published by the P5/P6 handoff.
@@ -310,6 +380,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 body,
                 direct_fun,
                 None,
+                RefactorHandleCompletionMode::ContinueToExit,
             )?
             .emit_direct(layout.direct_entry())?;
             self.finish_function_explicit_frame_layout(mir_fun.span)?;
@@ -776,6 +847,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             body,
             function,
             None,
+            RefactorHandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_method(case_tag, resume_tuple_ty)?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
@@ -895,6 +967,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             body,
             function,
             target.wrapper_projection(),
+            RefactorHandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_entry(surface.resume_tuple_ty())?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
@@ -938,6 +1011,7 @@ struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     state_blocks: BTreeMap<StateId, BasicBlock<'ctx>>,
     return_projection:
         Option<&'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection>,
+    handle_completion_mode: RefactorHandleCompletionMode,
 }
 
 impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
@@ -954,6 +1028,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         return_projection: Option<
             &'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
         >,
+        handle_completion_mode: RefactorHandleCompletionMode,
     ) -> Result<Self, LlvmEmitError> {
         let callable_layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
         if callable_layout.root_fqn() != callable.root_fqn() {
@@ -1007,6 +1082,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             frame_ptr,
             state_blocks,
             return_projection,
+            handle_completion_mode,
         })
     }
 
@@ -1727,7 +1803,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         match state.terminator() {
             LateLoweredStateTerminator::Goto { target } => {
-                if self.try_return_wrapper_complete_from_handle_arm(state, *target)? {
+                if self.try_return_wrapper_complete_from_handle_completion(state, *target)?
+                    || self.try_route_handle_completion_goto(state, *target)?
+                {
                     Ok(())
                 } else {
                     self.branch_to_state(*target)
@@ -1797,7 +1875,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             LateLoweredStateTerminator::Suspend { boundary_ids, .. } => {
                 self.lower_suspend(state, boundary_ids)
             }
-            LateLoweredStateTerminator::HandleDispatch { body_state, .. } => {
+            LateLoweredStateTerminator::HandleDispatch {
+                site_id,
+                contract,
+                body_state,
+                ..
+            } => {
+                let _ =
+                    self.abi
+                        .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
                 self.branch_to_state(*body_state)
             }
             LateLoweredStateTerminator::LocalRuntimeError {
@@ -2243,24 +2329,28 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             )));
         }
         self.sync_frame_slots_from_locals()?;
-        if let Some((arm_state, continuation_local)) =
-            self.local_handle_consumption(boundary.boundary_id(), case_tag)
-        {
-            if let Some(local) = continuation_local {
-                let continuation = self.create_continuation_object(
-                    boundary.resume_state(),
-                    callee_continuation,
-                    composition,
+        match self.handle_boundary_action(boundary.boundary_id(), case_tag)? {
+            Some(RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action)) => {
+                if let Some(binder) = action.continuation_binder {
+                    let continuation = self.create_continuation_object(
+                        boundary.resume_state(),
+                        callee_continuation,
+                        composition,
+                    )?;
+                    self.store_gc_ref_to_binder(binder, continuation)?;
+                }
+                self.store_case_payload_to_arm_binders(
+                    &action.payload_binders,
+                    payload,
+                    payload_ty,
                 )?;
-                self.store_gc_ref_to_local(local, continuation)?;
+                return self.branch_to_state(action.arm_state);
             }
-            self.store_case_payload_to_arm_binders(
-                boundary.boundary_id(),
-                case_tag,
-                payload,
-                payload_ty,
-            )?;
-            return self.branch_to_state(arm_state);
+            Some(RefactorHandleBoundaryRuntimeAction::PendingCompletion(action)) => {
+                self.begin_handle_pending_completion(action, Some((payload, payload_ty)))?;
+                return Ok(());
+            }
+            Some(RefactorHandleBoundaryRuntimeAction::EmitOutward) | None => {}
         }
         let continuation = self.create_continuation_object(
             boundary.resume_state(),
@@ -2441,17 +2531,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
     }
 
-    fn try_return_wrapper_complete_from_handle_arm(
+    fn try_return_wrapper_complete_from_handle_completion(
         &mut self,
         state: &LateLoweredState,
         target: StateId,
     ) -> Result<bool, LlvmEmitError> {
         let Some(projection) = self.return_projection else {
-            return Ok(false);
-        };
-        let LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(payload_source) =
-            projection.complete().payload_source()
-        else {
             return Ok(false);
         };
         let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
@@ -2461,7 +2546,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             return Ok(false);
         };
 
-        let mut matched_arm_source = None;
+        let mut matched_payload_source = None;
         for candidate in self.callable.state_graph().states() {
             let LateLoweredStateTerminator::HandleDispatch {
                 site_id: state_site,
@@ -2471,42 +2556,64 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             else {
                 continue;
             };
-            if state_site != site_id || target != contract.arm_complete_target() {
+            if state_site != site_id {
                 continue;
             }
-            let LateLoweredHandleStateRegion::Arm {
-                handled_case: region_case,
-                arm_ordinal: region_ordinal,
-            } = contract.state_region(state.state_id())
-            else {
-                continue;
-            };
-            let arm = contract
-                .handled_arms()
-                .iter()
-                .find(|arm| {
-                    arm.arm_ordinal() == region_ordinal && arm.handled_case() == region_case
-                })
-                .ok_or_else(|| {
-                    frontend_error(format!(
-                        "refactor wrapper completion projection 找不到 site{} arm#{} case c{} 的 published arm contract",
-                        site_id.as_u32(),
-                        region_ordinal,
-                        region_case.as_u32()
-                    ))
-                })?;
-            matched_arm_source = Some(arm.completion_payload_source());
-            break;
+            match contract.state_region(state.state_id()) {
+                LateLoweredHandleStateRegion::Body if target == contract.body_complete_target() => {
+                    let source = contract.body_completion_payload_source().ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor wrapper completion projection 找不到 site{} 的 published body completion payload source",
+                            site_id.as_u32()
+                        ))
+                    })?;
+                    matched_payload_source = Some(source);
+                    break;
+                }
+                LateLoweredHandleStateRegion::Arm {
+                    handled_case: region_case,
+                    arm_ordinal: region_ordinal,
+                } if target == contract.arm_complete_target() => {
+                    let LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(
+                        payload_source,
+                    ) = projection.complete().payload_source()
+                    else {
+                        return Ok(false);
+                    };
+                    let arm = contract
+                        .handled_arms()
+                        .iter()
+                        .find(|arm| {
+                            arm.arm_ordinal() == region_ordinal
+                                && arm.handled_case() == region_case
+                        })
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor wrapper completion projection 找不到 site{} arm#{} case c{} 的 published arm contract",
+                                site_id.as_u32(),
+                                region_ordinal,
+                                region_case.as_u32()
+                            ))
+                        })?;
+                    if !same_completion_payload_source_ignoring_span(
+                        arm.completion_payload_source(),
+                        payload_source,
+                    ) {
+                        return Err(frontend_error(format!(
+                            "refactor wrapper completion projection payload source drift: published={payload_source:?}, arm={:?}",
+                            arm.completion_payload_source()
+                        )));
+                    }
+                    matched_payload_source = Some(arm.completion_payload_source());
+                    break;
+                }
+                _ => continue,
+            }
         }
 
-        let Some(arm_source) = matched_arm_source else {
+        let Some(payload_source) = matched_payload_source else {
             return Ok(false);
         };
-        if !same_completion_payload_source_ignoring_span(arm_source, payload_source) {
-            return Err(frontend_error(format!(
-                "refactor wrapper completion projection payload source drift: published={payload_source:?}, arm={arm_source:?}"
-            )));
-        }
         let wrapper_layout = self
             .abi
             .step_layout(projection.wrapper_step_schema())
@@ -2524,45 +2631,117 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         Ok(true)
     }
 
-    fn local_handle_consumption(
+    fn try_route_handle_completion_goto(
+        &mut self,
+        state: &LateLoweredState,
+        target: StateId,
+    ) -> Result<bool, LlvmEmitError> {
+        let Some(action) = self.handle_goto_action(state.state_id(), target)? else {
+            return Ok(false);
+        };
+        match action {
+            RefactorHandleGotoRuntimeAction::BeginCompletion(action) => {
+                self.begin_handle_pending_completion(action, None)?;
+            }
+            RefactorHandleGotoRuntimeAction::FinishFinally(finally) => {
+                self.finish_handle_finally_completion(finally)?;
+            }
+        }
+        Ok(true)
+    }
+
+    fn handle_goto_action(
         &self,
-        boundary_id: BoundaryId,
-        case_tag: CaseTag,
-    ) -> Option<(StateId, Option<LocalId>)> {
-        for state in self.callable.state_graph().states() {
-            let LateLoweredStateTerminator::HandleDispatch { contract, .. } = state.terminator()
+        state_id: StateId,
+        target: StateId,
+    ) -> Result<Option<RefactorHandleGotoRuntimeAction>, LlvmEmitError> {
+        let mut matched = None;
+        for candidate in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id, contract, ..
+            } = candidate.terminator()
             else {
                 continue;
             };
-            let routing = contract.boundary_routing(boundary_id)?;
-            let case = routing.case_routing(case_tag)?;
-            if let LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
-                arm_state,
-                arm_ordinal,
-                ..
-            } = case.action()
-            {
-                let continuation_local = contract
-                    .handled_arms()
-                    .iter()
-                    .find(|arm| arm.arm_ordinal() == arm_ordinal)
-                    .and_then(|arm| arm.continuation_binder())
-                    .map(|binder| binder.local());
-                return Some((arm_state, continuation_local));
+            let layout =
+                self.abi
+                    .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
+            let action = match contract.state_region(state_id) {
+                LateLoweredHandleStateRegion::Body if target == contract.body_complete_target() => {
+                    self.handle_begin_completion_action(layout, *site_id)?
+                        .map(RefactorHandleGotoRuntimeAction::BeginCompletion)
+                }
+                LateLoweredHandleStateRegion::Arm { .. }
+                    if target == contract.arm_complete_target() =>
+                {
+                    self.handle_begin_completion_action(layout, *site_id)?
+                        .map(RefactorHandleGotoRuntimeAction::BeginCompletion)
+                }
+                LateLoweredHandleStateRegion::Finally
+                    if Some(target) == contract.finally_complete_target() =>
+                {
+                    Some(RefactorHandleGotoRuntimeAction::FinishFinally(
+                        self.handle_finally_runtime(layout, *site_id)?,
+                    ))
+                }
+                _ => None,
+            };
+            let Some(action) = action else {
+                continue;
+            };
+            if matched.replace(action).is_some() {
+                return Err(frontend_error(format!(
+                    "refactor state st{} -> st{} 命中多个 HandleDispatch completion contract",
+                    state_id.as_u32(),
+                    target.as_u32()
+                )));
             }
         }
-        None
+        Ok(matched)
     }
 
-    fn store_case_payload_to_arm_binders(
-        &mut self,
+    fn handle_begin_completion_action(
+        &self,
+        layout: &super::types::RefactorHandleDispatchLayout,
+        site_id: SiteId,
+    ) -> Result<Option<RefactorHandlePendingCompletionRuntime>, LlvmEmitError> {
+        let contract = layout.lowered_contract();
+        if !contract.needs_completion_state() {
+            return Ok(None);
+        }
+        let completion = self.handle_completion_mode.pending_completion();
+        let completion_tag_value = layout.completion_tag_value(completion).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor HandleDispatch site{} 缺少 completion tag {:?}",
+                site_id.as_u32(),
+                completion
+            ))
+        })?;
+        let finally_state = handle_finally_state(contract).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor HandleDispatch site{} 需要 completion state 但缺少 finally region",
+                site_id.as_u32()
+            ))
+        })?;
+        Ok(Some(RefactorHandlePendingCompletionRuntime {
+            completion,
+            completion_tag_value,
+            completion_tag_field_index: layout.completion_tag_field_index(),
+            finally_state,
+            payload_transport: None,
+        }))
+    }
+
+    fn handle_boundary_action(
+        &self,
         boundary_id: BoundaryId,
         case_tag: CaseTag,
-        payload: Option<BasicValueEnum<'ctx>>,
-        payload_ty: TypeId,
-    ) -> Result<(), LlvmEmitError> {
+    ) -> Result<Option<RefactorHandleBoundaryRuntimeAction>, LlvmEmitError> {
+        let mut matched = None;
         for state in self.callable.state_graph().states() {
-            let LateLoweredStateTerminator::HandleDispatch { contract, .. } = state.terminator()
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id, contract, ..
+            } = state.terminator()
             else {
                 continue;
             };
@@ -2572,26 +2751,439 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let Some(case) = routing.case_routing(case_tag) else {
                 continue;
             };
-            let LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm { arm_ordinal, .. } =
-                case.action()
-            else {
+            let layout =
+                self.abi
+                    .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
+            let action = match case.action() {
+                LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                    arm_state,
+                    arm_ordinal,
+                    ..
+                } => {
+                    let arm = layout
+                        .handled_arms()
+                        .iter()
+                        .find(|arm| arm.arm_ordinal() == arm_ordinal)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 arm#{} layout",
+                                site_id.as_u32(),
+                                boundary_id.as_u32(),
+                                case_tag.as_u32(),
+                                arm_ordinal
+                            ))
+                        })?;
+                    if arm.arm_state() != arm_state {
+                        return Err(frontend_error(format!(
+                            "refactor HandleDispatch site{} boundary bd{} case c{} arm state 漂移：routing=st{} layout=st{}",
+                            site_id.as_u32(),
+                            boundary_id.as_u32(),
+                            case_tag.as_u32(),
+                            arm_state.as_u32(),
+                            arm.arm_state().as_u32()
+                        )));
+                    }
+                    RefactorHandleBoundaryRuntimeAction::ConsumeToArm(
+                        RefactorHandleConsumeArmRuntime {
+                            arm_state,
+                            payload_binders: arm.payload_binders().to_vec(),
+                            continuation_binder: arm.continuation_binder(),
+                        },
+                    )
+                }
+                LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion } => {
+                    let completion_tag_value = layout.completion_tag_value(completion).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 pending completion tag {:?}",
+                            site_id.as_u32(),
+                            boundary_id.as_u32(),
+                            case_tag.as_u32(),
+                            completion
+                        ))
+                    })?;
+                    let finally_state = handle_finally_state(contract).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor HandleDispatch site{} boundary bd{} pending completion 缺少 finally region",
+                            site_id.as_u32(),
+                            boundary_id.as_u32()
+                        ))
+                    })?;
+                    RefactorHandleBoundaryRuntimeAction::PendingCompletion(
+                        RefactorHandlePendingCompletionRuntime {
+                            completion,
+                            completion_tag_value,
+                            completion_tag_field_index: layout.completion_tag_field_index(),
+                            finally_state,
+                            payload_transport: layout
+                                .pending_payload_transport_layout(completion)
+                                .map(|transport| RefactorHandlePendingPayloadRuntime {
+                                    completion: transport.completion(),
+                                    payload_tuple_ty: transport.payload_tuple_ty(),
+                                    frame_field_index: transport.frame_field_index(),
+                                }),
+                        },
+                    )
+                }
+                LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward => {
+                    RefactorHandleBoundaryRuntimeAction::EmitOutward
+                }
+            };
+            if matched.replace(action).is_some() {
+                return Err(frontend_error(format!(
+                    "refactor boundary bd{} case c{} 命中多个 HandleDispatch routing contract",
+                    boundary_id.as_u32(),
+                    case_tag.as_u32()
+                )));
+            }
+        }
+        Ok(matched)
+    }
+
+    fn handle_finally_runtime(
+        &self,
+        layout: &super::types::RefactorHandleDispatchLayout,
+        site_id: SiteId,
+    ) -> Result<RefactorHandleFinallyRuntime, LlvmEmitError> {
+        let contract = layout.lowered_contract();
+        let exit_state = contract.finally_complete_target().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor HandleDispatch site{} finally region 缺少 complete target",
+                site_id.as_u32()
+            ))
+        })?;
+        let continue_to_exit_tag = layout
+            .completion_tag_value(LateLoweredHandlePendingCompletion::ContinueToExit)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor HandleDispatch site{} 缺少 ContinueToExit completion tag",
+                    site_id.as_u32()
+                ))
+            })?;
+        let return_from_function_tag = layout
+            .completion_tag_value(LateLoweredHandlePendingCompletion::ReturnFromFunction)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor HandleDispatch site{} 缺少 ReturnFromFunction completion tag",
+                    site_id.as_u32()
+                ))
+            })?;
+        let mut propagate_outward = Vec::new();
+        for completion in contract.pending_completions() {
+            let LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) = completion else {
                 continue;
             };
-            let Some(arm) = contract
-                .handled_arms()
-                .iter()
-                .find(|arm| arm.arm_ordinal() == arm_ordinal)
-            else {
-                continue;
+            let _ = contract.outward_emission(*case_tag).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor HandleDispatch site{} pending outward c{} 缺少 outward emission",
+                    site_id.as_u32(),
+                    case_tag.as_u32()
+                ))
+            })?;
+            let resume_state = pending_completion_resume_state(contract, *completion)?;
+            let completion_tag_value =
+                layout.completion_tag_value(*completion).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor HandleDispatch site{} 缺少 pending outward completion tag {:?}",
+                        site_id.as_u32(),
+                        completion
+                    ))
+                })?;
+            propagate_outward.push(RefactorHandleOutwardCompletionRuntime {
+                completion_tag_value,
+                case_tag: *case_tag,
+                resume_state,
+                payload_transport: layout.pending_payload_transport_layout(*completion).map(
+                    |transport| RefactorHandlePendingPayloadRuntime {
+                        completion: transport.completion(),
+                        payload_tuple_ty: transport.payload_tuple_ty(),
+                        frame_field_index: transport.frame_field_index(),
+                    },
+                ),
+            });
+        }
+        Ok(RefactorHandleFinallyRuntime {
+            site_id,
+            completion_tag_field_index: layout.completion_tag_field_index(),
+            exit_state,
+            continue_to_exit_tag,
+            return_from_function_tag,
+            propagate_outward,
+        })
+    }
+
+    fn begin_handle_pending_completion(
+        &mut self,
+        action: RefactorHandlePendingCompletionRuntime,
+        payload: Option<(Option<BasicValueEnum<'ctx>>, TypeId)>,
+    ) -> Result<(), LlvmEmitError> {
+        if let Some(transport) = action.payload_transport {
+            let Some((payload, payload_ty)) = payload else {
+                return Err(frontend_error(format!(
+                    "refactor HandleDispatch pending completion {:?} 需要 payload transport，但当前 completion 没有 payload",
+                    action.completion
+                )));
             };
-            for binder in arm.payload_binders() {
-                let value = self.unpack_payload_field(payload, payload_ty, binder.ordinal())?;
-                if let Some(raw) = value {
-                    let _ = self.store_loaded_raw_local(self.mir_fun.span, binder.local(), raw)?;
+            self.store_handle_pending_payload(transport, payload, payload_ty)?;
+        } else if let Some((payload, payload_ty)) = payload {
+            let payload_layout = self.abi.source_value_layout(payload_ty)?;
+            if payload.is_some() || !payload_layout.abi().is_elided() {
+                return Err(frontend_error(format!(
+                    "refactor HandleDispatch pending completion {:?} 缺少 published payload transport for t{}",
+                    action.completion,
+                    payload_ty.as_u32()
+                )));
+            }
+        }
+        self.store_handle_completion_tag(
+            action.completion_tag_field_index,
+            action.completion_tag_value,
+        )?;
+        self.branch_to_state(action.finally_state)
+    }
+
+    fn finish_handle_finally_completion(
+        &mut self,
+        finally: RefactorHandleFinallyRuntime,
+    ) -> Result<(), LlvmEmitError> {
+        let tag = self.load_handle_completion_tag(finally.completion_tag_field_index)?;
+        let function = self.function;
+        let continue_bb = self.codegen.context.append_basic_block(
+            function,
+            &format!("handle{}_continue_exit", finally.site_id.as_u32()),
+        );
+        let return_bb = self.codegen.context.append_basic_block(
+            function,
+            &format!("handle{}_return_function", finally.site_id.as_u32()),
+        );
+        let invalid_bb = self.codegen.context.append_basic_block(
+            function,
+            &format!("handle{}_invalid_completion", finally.site_id.as_u32()),
+        );
+        let mut cases = vec![
+            (
+                tag.get_type()
+                    .const_int(u64::from(finally.continue_to_exit_tag), false),
+                continue_bb,
+            ),
+            (
+                tag.get_type()
+                    .const_int(u64::from(finally.return_from_function_tag), false),
+                return_bb,
+            ),
+        ];
+        let mut outward_blocks = Vec::new();
+        for outward in &finally.propagate_outward {
+            let bb = self.codegen.context.append_basic_block(
+                function,
+                &format!(
+                    "handle{}_propagate_c{}",
+                    finally.site_id.as_u32(),
+                    outward.case_tag.as_u32()
+                ),
+            );
+            cases.push((
+                tag.get_type()
+                    .const_int(u64::from(outward.completion_tag_value), false),
+                bb,
+            ));
+            outward_blocks.push((*outward, bb));
+        }
+        self.codegen.builder.build_switch(tag, invalid_bb, &cases)?;
+
+        self.codegen.builder.position_at_end(continue_bb);
+        self.branch_to_state(finally.exit_state)?;
+
+        self.codegen.builder.position_at_end(return_bb);
+        let step = self.build_complete_step_for_return_state(finally.exit_state)?;
+        self.return_step(step)?;
+
+        for (outward, bb) in outward_blocks {
+            self.codegen.builder.position_at_end(bb);
+            let payload = self.load_handle_pending_payload(outward.payload_transport)?;
+            let case_layout = self.step_layout.case_layout(outward.case_tag).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor HandleDispatch site{} pending outward c{} 缺少 owner Step case layout",
+                    finally.site_id.as_u32(),
+                    outward.case_tag.as_u32()
+                ))
+            })?;
+            let continuation = self.create_continuation_object(outward.resume_state, None, None)?;
+            let step = self.codegen.refactor_build_step_case(
+                self.step_layout,
+                case_layout,
+                payload,
+                continuation,
+            )?;
+            self.return_step(step)?;
+        }
+
+        self.codegen.builder.position_at_end(invalid_bb);
+        self.codegen.builder.build_unreachable()?;
+        Ok(())
+    }
+
+    fn build_complete_step_for_return_state(
+        &mut self,
+        return_state: StateId,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+        let binding = self
+            .abi
+            .completion_payload_binding_for_state(self.abi_step_schema, return_state)?;
+        let payload = self.lower_completion_payload(binding.payload_source())?;
+        if payload.is_none() && !self.step_layout.complete_variant().payload_is_elided() {
+            return Err(frontend_error(format!(
+                "refactor HandleDispatch return state st{} produced no payload for non-elided Complete layout {}",
+                return_state.as_u32(),
+                self.step_layout.complete_variant().payload_anchor_name()
+            )));
+        }
+        self.codegen
+            .refactor_build_step_complete(self.step_layout, payload)
+    }
+
+    fn store_case_payload_to_arm_binders(
+        &mut self,
+        binders: &[RefactorHandlePayloadBinderLayout],
+        payload: Option<BasicValueEnum<'ctx>>,
+        payload_ty: TypeId,
+    ) -> Result<(), LlvmEmitError> {
+        for binder in binders {
+            let value = self.unpack_payload_field(payload, payload_ty, binder.ordinal())?;
+            if let Some(raw) = value {
+                let _ = self.store_loaded_raw_local(self.mir_fun.span, binder.local(), raw)?;
+                if let Some(frame_slot) = binder.frame_slot() {
+                    self.store_local_to_frame_slot(binder.local(), frame_slot)?;
                 }
             }
         }
         Ok(())
+    }
+
+    fn store_gc_ref_to_binder(
+        &mut self,
+        binder: RefactorHandleContinuationBinderLayout,
+        value: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        self.store_gc_ref_to_local(binder.local(), value)?;
+        if let Some(frame_slot) = binder.frame_slot() {
+            self.store_local_to_frame_slot(binder.local(), frame_slot)?;
+        }
+        Ok(())
+    }
+
+    fn store_handle_pending_payload(
+        &mut self,
+        transport: RefactorHandlePendingPayloadRuntime,
+        payload: Option<BasicValueEnum<'ctx>>,
+        payload_ty: TypeId,
+    ) -> Result<(), LlvmEmitError> {
+        if transport.payload_tuple_ty != payload_ty {
+            return Err(frontend_error(format!(
+                "refactor HandleDispatch pending payload transport {:?} 类型漂移：transport=t{} payload=t{}",
+                transport.completion,
+                transport.payload_tuple_ty.as_u32(),
+                payload_ty.as_u32()
+            )));
+        }
+        let Some(payload) = payload else {
+            let payload_layout = self.abi.source_value_layout(payload_ty)?;
+            if payload_layout.abi().is_elided() {
+                return Ok(());
+            }
+            return Err(frontend_error(format!(
+                "refactor HandleDispatch pending payload transport {:?} 需要 non-elided payload t{}",
+                transport.completion,
+                payload_ty.as_u32()
+            )));
+        };
+        let field_ptr = self.frame_field_ptr(
+            transport.frame_field_index,
+            "refactor_handle_pending_payload_store_gep",
+        )?;
+        self.codegen.builder.build_store(field_ptr, payload)?;
+        Ok(())
+    }
+
+    fn load_handle_pending_payload(
+        &mut self,
+        transport: Option<RefactorHandlePendingPayloadRuntime>,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let Some(transport) = transport else {
+            return Ok(None);
+        };
+        let field_ty = self.frame_field_type(transport.frame_field_index)?;
+        let field_ptr = self.frame_field_ptr(
+            transport.frame_field_index,
+            "refactor_handle_pending_payload_load_gep",
+        )?;
+        Ok(Some(self.codegen.builder.build_load(
+            field_ty,
+            field_ptr,
+            "refactor_handle_pending_payload",
+        )?))
+    }
+
+    fn store_handle_completion_tag(
+        &mut self,
+        field_index: u32,
+        tag_value: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let field_ty = self.frame_field_type(field_index)?;
+        let BasicTypeEnum::IntType(int_ty) = field_ty else {
+            return Err(frontend_error(format!(
+                "refactor HandleDispatch completion tag field {field_index} 不是 integer"
+            )));
+        };
+        let field_ptr = self.frame_field_ptr(field_index, "refactor_handle_completion_tag_gep")?;
+        self.codegen
+            .builder
+            .build_store(field_ptr, int_ty.const_int(u64::from(tag_value), false))?;
+        Ok(())
+    }
+
+    fn load_handle_completion_tag(
+        &mut self,
+        field_index: u32,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let field_ty = self.frame_field_type(field_index)?;
+        let BasicTypeEnum::IntType(int_ty) = field_ty else {
+            return Err(frontend_error(format!(
+                "refactor HandleDispatch completion tag field {field_index} 不是 integer"
+            )));
+        };
+        let field_ptr = self.frame_field_ptr(field_index, "refactor_handle_completion_tag_gep")?;
+        Ok(self
+            .codegen
+            .builder
+            .build_load(int_ty, field_ptr, "refactor_handle_completion_tag")?
+            .into_int_value())
+    }
+
+    fn frame_field_type(&self, field_index: u32) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
+        self.frame_layout
+            .llvm_ty()
+            .get_field_type_at_index(field_index)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor frame layout 缺少 field index {field_index}"
+                ))
+            })
+    }
+
+    fn frame_field_ptr(
+        &mut self,
+        field_index: u32,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.codegen
+            .builder
+            .build_struct_gep(
+                self.frame_layout.llvm_ty(),
+                self.frame_ptr,
+                field_index,
+                name,
+            )
+            .map_err(Into::into)
     }
 
     fn store_boundary_result(
@@ -3578,6 +4170,57 @@ fn boundary_site(boundary: &LateLoweredBoundary, expected: &str) -> Result<SiteI
     }
 }
 
+fn handle_finally_state(
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+) -> Option<StateId> {
+    let mut states = contract.state_regions().iter().filter_map(|entry| {
+        matches!(entry.region(), LateLoweredHandleStateRegion::Finally).then_some(entry.state_id())
+    });
+    let first = states.next()?;
+    if states.next().is_some() {
+        None
+    } else {
+        Some(first)
+    }
+}
+
+fn pending_completion_resume_state(
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    completion: LateLoweredHandlePendingCompletion,
+) -> Result<StateId, LlvmEmitError> {
+    let mut resume_state: Option<StateId> = None;
+    for routing in contract.boundary_routings() {
+        for case in routing.case_routings() {
+            if !matches!(
+                case.action(),
+                LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion {
+                    completion: action_completion,
+                } if action_completion == completion
+            ) {
+                continue;
+            }
+            match resume_state {
+                Some(existing) if existing != routing.resume_state() => {
+                    return Err(frontend_error(format!(
+                        "refactor HandleDispatch pending completion {:?} 对应多个 resume state：st{} 与 st{}",
+                        completion,
+                        existing.as_u32(),
+                        routing.resume_state().as_u32()
+                    )));
+                }
+                Some(_) => {}
+                None => resume_state = Some(routing.resume_state()),
+            }
+        }
+    }
+    resume_state.ok_or_else(|| {
+        frontend_error(format!(
+            "refactor HandleDispatch pending completion {:?} 缺少 boundary routing resume state",
+            completion
+        ))
+    })
+}
+
 fn validate_callable_entry_layout(
     layout: &RefactorCallableLayout<'_>,
 ) -> Result<(), LlvmEmitError> {
@@ -3699,5 +4342,31 @@ mod tests {
             "RuntimeError(_) | ",
             "LateLoweredBoundaryLowering::Handle(_)"
         )));
+    }
+
+    #[test]
+    fn refactor_llvm_handle_dispatch_lowering_uses_published_protocol() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("handle_dispatch_layout"));
+        assert!(body.contains("handle_boundary_action"));
+        assert!(body.contains("try_route_handle_completion_goto"));
+        assert!(body.contains("try_return_wrapper_complete_from_handle_completion"));
+        assert!(body.contains("body_completion_payload_source"));
+        assert!(!body.contains(concat!("local_handle_", "consumption")));
+    }
+
+    #[test]
+    fn refactor_llvm_handle_pending_completion_uses_published_transport() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("LateLoweredHandlePendingCompletion::ContinueToExit"));
+        assert!(body.contains("LateLoweredHandlePendingCompletion::ReturnFromFunction"));
+        assert!(body.contains("LateLoweredHandlePendingCompletion::PropagateOutward"));
+        assert!(body.contains("pending_payload_transport_layout"));
+        assert!(body.contains("store_handle_pending_payload"));
+        assert!(body.contains("load_handle_pending_payload"));
+        assert!(body.contains("store_handle_completion_tag"));
+        assert!(body.contains("load_handle_completion_tag"));
     }
 }

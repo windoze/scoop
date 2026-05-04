@@ -710,6 +710,15 @@ fn render_handle_dispatch_contract(
         render_optional_state(contract.finally_complete_target()),
     )
     .unwrap();
+    let body_completion_payload = contract
+        .body_completion_payload_source()
+        .map(render_completion_payload_source)
+        .unwrap_or_else(|| "<unpublished>".to_string());
+    writeln!(
+        rendered,
+        "              body_completion_payload: {body_completion_payload}",
+    )
+    .unwrap();
     writeln!(
         rendered,
         "              abandon_target: {}",

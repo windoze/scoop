@@ -54,7 +54,7 @@ pub(crate) fn build_callable_frame(
         types,
     } = inputs;
 
-    if boundary_map.entries().is_empty() {
+    if boundary_map.entries().is_empty() && !state_graph_contains_handle_dispatch(state_graph) {
         return Ok(FrameLiftingResult {
             state_graph: state_graph.clone(),
             frame_schema: LateLoweredFrameSchema::empty(),
@@ -217,6 +217,15 @@ pub(crate) fn build_callable_frame(
         state_graph,
         frame_schema,
         continuation_captures,
+    })
+}
+
+fn state_graph_contains_handle_dispatch(state_graph: &LateLoweredStateGraph) -> bool {
+    state_graph.states().iter().any(|state| {
+        matches!(
+            state.terminator(),
+            LateLoweredStateTerminator::HandleDispatch { .. }
+        )
     })
 }
 

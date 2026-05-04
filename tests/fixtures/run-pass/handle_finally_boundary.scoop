@@ -1,0 +1,28 @@
+// EXPECT: pass
+// RUN-STDOUT: handle_finally_boundary.stdout
+//
+// P6-T03g: HandleDispatch 的 body/arm/finally/exit 路径必须由 published
+// completion-state protocol lower；finally 恰好执行一次并保留 handle result。
+
+import scoop.core.*
+
+effect Step {
+    fun next(seed: Int): Int
+}
+
+fun main() {
+    val result: Int = handle {
+        println("body_before")
+        val value: Int = Step.next(1)
+        println("body_after")
+        value + 10
+    } with {
+        Step.next(seed), k -> {
+            println("arm")
+            k.resume(seed + 1)
+        }
+    } finally {
+        println("cleanup")
+    }
+    println(result)
+}

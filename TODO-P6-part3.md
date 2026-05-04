@@ -309,7 +309,7 @@
   - 验证通过：`cargo test -p scoopc refactor_llvm_boundary_lowering`；`cargo test -p scoopc refactor_llvm_runtime_error_case`；`cargo test -p scoopc refactor_llvm_value_primitive`；`cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo clippy --all-targets -- -D warnings`。
   - `PLAN.md` 无需改动。
 
-## P6-T03g：闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport
+## [DONE] P6-T03g：闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport
 
 - 参考：
   - [`TODO-P6-part1.md`](./TODO-P6-part1.md) `P6-T02j`, `P6-T02k`, `P6-T02l`
@@ -336,7 +336,12 @@
   - backend 不再重建 handle 局部状态机。
 - 依赖：P6-T03f
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：`HandleDispatch` body/arm/finally/exit routing 现在由 published `RefactorHandleDispatchLayout` 驱动；body/arm completion、boundary case consumption、pending completion tag 与 pending outward payload transport 均在 refactor LLVM body emitter 中显式 lower。
+  - 2026-05-05：late-lowered handoff 新增 body completion payload source，避免 surface `resume` 在 body completion 时提前进入 `finally`；wrapper completion 现在使用 published body/arm payload source 投影，`finally` 在 immediate resume 路径只执行一次。
+  - 2026-05-05：frame lifting 为 handle-only callable 保留 system frame slots，并为 pending outward payload 发布 typed `HandlePendingPayload` slot；ABI query 校验/发布 pending payload transport field、completion tag field 与 arm binder layout。
+  - 2026-05-05：新增 `tests/fixtures/run-pass/handle_finally_boundary.scoop`，覆盖 `resume -> body tail -> finally -> exit` 的 refactor run-pass 路径；新增 `refactor_llvm_handle_dispatch_lowering` / `refactor_llvm_handle_pending_completion` 定向测试入口。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_handle_dispatch_lowering`；`cargo test -p scoopc refactor_llvm_handle_pending_completion`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/handle_finally_boundary.scoop`；额外回归 `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_finally_normal.scoop`；`cargo clippy --all-targets -- -D warnings`。
+  - `PLAN.md` 无需改动。
 
 ## P6-T03h：闭合 continuation protocol，覆盖 one-shot、double resume、wrapper projection、drop/unwind/abandon
 

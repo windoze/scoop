@@ -1313,6 +1313,16 @@ fn build_handle_dispatch_contract(
         finally_state,
         exit_state,
     )?;
+    let body_completion_payload_source = handle_body_completion_payload_source(
+        root_fqn,
+        site_id,
+        body,
+        types,
+        state_graph,
+        &state_regions,
+        body_complete_target,
+        facts.result_ty(),
+    )?;
     let boundary_routings = build_handle_boundary_routings(
         root_fqn,
         site_id,
@@ -1341,6 +1351,7 @@ fn build_handle_dispatch_contract(
         body_complete_target,
         arm_complete_target,
         finally_complete_target,
+        Some(body_completion_payload_source),
         handled_arms,
         body_outward_cases,
         finally_outward_cases,
@@ -1362,17 +1373,114 @@ fn handle_arm_completion_payload_source(
     arm_state: StateId,
     body_ty: TypeId,
 ) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
-    if matches!(types.kind(body_ty), TypeKind::Value(ValueTypeKind::Unit)) {
-        return Ok(LateLoweredCompletionPayloadSource::unit(body_ty));
+    handle_completion_payload_source_from_state(
+        root_fqn,
+        site_id,
+        body,
+        types,
+        state_graph,
+        arm_state,
+        body_ty,
+        "handle arm completion payload source",
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_body_completion_payload_source(
+    root_fqn: &str,
+    site_id: SiteId,
+    body: &Body,
+    types: &TypeStore,
+    state_graph: &LateLoweredStateGraph,
+    state_regions: &[LateLoweredHandleStateRegionEntry],
+    body_complete_target: StateId,
+    result_ty: TypeId,
+) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
+    if matches!(types.kind(result_ty), TypeKind::Value(ValueTypeKind::Unit)) {
+        return Ok(LateLoweredCompletionPayloadSource::unit(result_ty));
     }
-    let state = state_graph.state(arm_state).ok_or_else(|| {
+
+    let mut published = None;
+    for entry in state_regions {
+        if entry.region() != LateLoweredHandleStateRegion::Body {
+            continue;
+        }
+        let state = state_graph.state(entry.state_id()).ok_or_else(|| {
+            invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!(
+                    "handle body completion payload source 引用了不存在的 body state st{}",
+                    entry.state_id().as_u32()
+                ),
+            )
+        })?;
+        if !matches!(
+            state.terminator(),
+            LateLoweredStateTerminator::Goto { target } if *target == body_complete_target
+        ) {
+            continue;
+        }
+        let candidate = handle_completion_payload_source_from_state(
+            root_fqn,
+            site_id,
+            body,
+            types,
+            state_graph,
+            state.state_id(),
+            result_ty,
+            "handle body completion payload source",
+        )?;
+        if let Some(existing) = &published {
+            if !same_completion_payload_source_ignoring_span(existing, &candidate) {
+                return Err(invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "handle body completion payload source 歧义：已发布 {:?}，又发现 {:?}",
+                        existing, candidate
+                    ),
+                ));
+            }
+            continue;
+        }
+        published = Some(candidate);
+    }
+
+    published.ok_or_else(|| {
         invalid_handle_dispatch_contract(
             root_fqn,
             site_id,
             format!(
-                "handle arm completion payload source 引用了不存在的 arm state st{}",
-                arm_state.as_u32()
+                "non-Unit handle body 缺少指向 st{} 的 completion payload source",
+                body_complete_target.as_u32()
             ),
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_completion_payload_source_from_state(
+    root_fqn: &str,
+    site_id: SiteId,
+    body: &Body,
+    types: &TypeStore,
+    state_graph: &LateLoweredStateGraph,
+    state_id: StateId,
+    complete_ty: TypeId,
+    context: &str,
+) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
+    if matches!(
+        types.kind(complete_ty),
+        TypeKind::Value(ValueTypeKind::Unit)
+    ) {
+        return Ok(LateLoweredCompletionPayloadSource::unit(complete_ty));
+    }
+    let state = state_graph.state(state_id).ok_or_else(|| {
+        invalid_handle_dispatch_contract(
+            root_fqn,
+            site_id,
+            format!("{context} 引用了不存在的 state st{}", state_id.as_u32()),
         )
     })?;
 
@@ -1399,7 +1507,7 @@ fn handle_arm_completion_payload_source(
                 root_fqn,
                 site_id,
                 format!(
-                    "handle arm completion payload source 引用了不存在的 bb{} stmt{}",
+                    "{context} 引用了不存在的 bb{} stmt{}",
                     slice.block_id().as_u32(),
                     stmt_index
                 ),
@@ -1412,26 +1520,23 @@ fn handle_arm_completion_payload_source(
             invalid_handle_dispatch_contract(
                 root_fqn,
                 site_id,
-                format!(
-                    "handle arm completion payload source 引用了不存在的 local{}",
-                    target.as_u32()
-                ),
+                format!("{context} 引用了不存在的 local{}", target.as_u32()),
             )
         })?;
-        if local.ty != body_ty {
+        if local.ty != complete_ty {
             return Err(invalid_handle_dispatch_contract(
                 root_fqn,
                 site_id,
                 format!(
-                    "handle arm completion payload source local{} 类型 t{} 与 arm body_ty t{} 不一致",
+                    "{context} local{} 类型 t{} 与 complete_ty t{} 不一致",
                     target.as_u32(),
                     local.ty.as_u32(),
-                    body_ty.as_u32()
+                    complete_ty.as_u32()
                 ),
             ));
         }
         return Ok(LateLoweredCompletionPayloadSource::operand(
-            LateLoweredOperandSource::new_local(*target, body_ty, Some(stmt.span)),
+            LateLoweredOperandSource::new_local(*target, complete_ty, Some(stmt.span)),
         ));
     }
 
@@ -1439,10 +1544,31 @@ fn handle_arm_completion_payload_source(
         root_fqn,
         site_id,
         format!(
-            "non-Unit handle arm state st{} 缺少 completion payload source",
-            arm_state.as_u32()
+            "non-Unit {context} state st{} 缺少 completion payload source",
+            state_id.as_u32()
         ),
     ))
+}
+
+fn same_completion_payload_source_ignoring_span(
+    left: &LateLoweredCompletionPayloadSource,
+    right: &LateLoweredCompletionPayloadSource,
+) -> bool {
+    match (left, right) {
+        (
+            LateLoweredCompletionPayloadSource::Unit {
+                complete_ty: left_ty,
+            },
+            LateLoweredCompletionPayloadSource::Unit {
+                complete_ty: right_ty,
+            },
+        ) => left_ty == right_ty,
+        (
+            LateLoweredCompletionPayloadSource::Operand(left),
+            LateLoweredCompletionPayloadSource::Operand(right),
+        ) => left.source_ty() == right.source_ty() && left.value() == right.value(),
+        _ => false,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

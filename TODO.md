@@ -108,7 +108,7 @@
 | `P6-T03d` | `TODO-P6-part3.md` | [DONE] 闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper |
 | `P6-T03e` | `TODO-P6-part3.md` | [DONE] 闭合 direct/dynamic/virtual/interface call lowering，不再回 legacy callable wrapper |
 | `P6-T03f` | `TODO-P6-part3.md` | [DONE] 闭合 boundary lowering，覆盖 Call / Perform / Resume / runtime-error / nested-handle outward |
-| `P6-T03g` | `TODO-P6-part3.md` | 闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport |
+| `P6-T03g` | `TODO-P6-part3.md` | [DONE] 闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport |
 | `P6-T03h` | `TODO-P6-part3.md` | 闭合 continuation protocol，覆盖 one-shot、double resume、wrapper projection、drop/unwind/abandon |
 | `P6-T03i` | `TODO-P6-part3.md` | 闭合 runtime error、diagnostics 与 body verifier，冻结 clean body lowering 完成条件 |
 | `P6-T03R` | `TODO-P6-part3.md` | Review clean LLVM body lowering，确认 backend 拥有 whole function protocol 且不再胶合 legacy codegen |
