@@ -1074,7 +1074,7 @@
 - 完成记录：
   - 2026-05-04：任务迁移到 [`TODO-P6-part3.md`](./TODO-P6-part3.md)。这是继续 clean refactor body lowering 前仍需收口的 required blocker。
 
-## [ABANDONED] P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
+## [DONE] [ABANDONED] P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -1194,6 +1194,7 @@
   - backend 不再承担第二套高层 effect lowering 语义工作。
 - 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P6-T02qe，P6-T02qf，P6-T02qg，P6-T02qh，P5-T07a，P5-T07b
 - 完成记录：
+  - 2026-05-04：按任务执行规则补齐归档任务的 `[DONE]` 标记，并同步 `TODO.md`。该旧单体任务已由 [`TODO-P6-part3.md`](./TODO-P6-part3.md) 的 clean backend 小任务链承接，本轮不进入 `P6-T03b`。
   - 2026-05-04：废弃旧单体任务形态。继续推进时确认 `P6-T03` 已经不只是 effect-only body emitter，而是需要 clean refactor backend 拥有 whole function protocol；旧任务过大且容易把 legacy statement/function codegen 与新 effect lowering 胶合在一起。后续改由 [`TODO-P6-part3.md`](./TODO-P6-part3.md) 的 `P6-T03a` ~ `P6-T03i` 承接。
   - 2026-05-04：重新进入 `P6-T03` 前确认验证 blocker。`P6-T03` 指定的 run-pass 验证命令会通过 `scoop test` 调用 `run-pass` fixture runner，但当前 runner 子进程只构造 `scoop run <fixture>`，没有继承父级 `--effect-pipeline refactor`。这会让后续 run-pass 验证无法证明 refactor LLVM body lowering，存在静默走 legacy/default 的假阳性风险。因此新增前置任务 `P6-T02qf`，先把 run-pass 系列子进程接到父级 effect-pipeline selector，再继续本任务。
   - 2026-05-04：重新进入 `P6-T03` source-slice body emitter 准备时确认新的前置 blocker。`P6-T02qa` 已把 member write/read provenance 从 unresolved assign-lhs TODO 升级为 canonical `StatementKind::StoreMember` / `Rvalue::MemberAccess`，但当前 `crates/scoopc/src/llvm/codegen/mir_body.rs` 仍直接拒绝这两类 MIR 节点；`effect_multi_escape_indirect_direct_while.scoop` 的 P5 source slices 已真实包含 `cell.count` / `cell.k` member read/write。若继续实现 `P6-T03`，body emitter 必须回 HIR / member 文本 / legacy member lowering 猜字段布局，违反 contract-first 边界。因此新增前置任务 `P6-T02qe`，先发布并实现 effect-neutral source-slice member read/write LLVM lowering contract，再继续本任务。

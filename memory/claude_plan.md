@@ -2,32 +2,37 @@
 
 ## Scope
 
-- Follow `TODO.md` as the index and the referenced `TODO-Px.md` files as the authoritative task details.
-- Complete exactly the first incomplete detailed task, then stop after committing the result.
-- Keep task bookkeeping synchronized between the detailed TODO file and `TODO.md`.
-- Update this file whenever the plan changes or a key step completes.
+- Follow the indexed task workflow: read `TODO.md`, then inspect referenced `TODO-Px.md` files in order.
+- Select the first detailed task whose heading is not prefixed with `[DONE]`.
+- Complete exactly that one detailed task, then stop after committing.
+- Do not perform unrelated bug sweeps or move to later tasks.
 
-## Execution Plan
+## Current Plan
 
-1. Inspect `TODO.md` to determine the ordered task index and referenced detailed TODO files.
-2. Inspect the relevant `TODO-Px.md` files in index order to find the first detailed task whose heading is not prefixed with `[DONE]`.
-3. Check the latest commit message for directly relevant unfinished work only after identifying the current detailed task.
-4. Read the selected task requirements, dependencies, constraints, validation expectations, and completion-record format.
-5. Inspect the minimum relevant code and tests needed to implement that task correctly.
-6. Implement the task without workarounds or scope narrowing. If a concrete blocker prevents correct implementation, add the minimum prerequisite task in the appropriate TODO file, sync `TODO.md`, commit, and stop.
-7. Add or update focused tests/fixtures required by the task.
-8. Run the task-relevant validation commands, then broader validation if appropriate and feasible.
-9. Update the detailed TODO file by prefixing the completed task heading with `[DONE]` and filling in its completion record.
-10. Sync `TODO.md` so the index uses the same `[DONE]` marker and task metadata.
-11. Review the git diff to ensure only intended changes are included and no secrets or unrelated destructive changes are present.
-12. Commit all currently uncommitted files relevant to the completed/resumed task with a clear task-tagged message.
-13. Stop without starting the next task.
+1. Read `TODO.md` as the global index.
+2. Inspect the referenced detailed TODO files in task order to identify the first incomplete task.
+3. Read the selected task details, dependencies, validation requirements, and completion record.
+4. Inspect only the relevant code, fixtures, docs, and tests needed for that task.
+5. Implement the smallest spec-correct change that fully satisfies the selected task.
+6. Add or update tests/fixtures required by the task.
+7. Run targeted validation first, then broader relevant validation as needed.
+8. Fix any failures that block the selected task without using workarounds or weakening the required behavior.
+9. Mark the selected detailed task `[DONE]`, update its completion record, and sync `TODO.md` if needed.
+10. Commit all changes for this invocation with a task-specific message.
+11. Stop without starting the next task.
 
-## Progress Log
+## Roadblock Policy
 
-- Initialized execution plan before reading project task files or running commands.
-- Read `TODO.md`, `TODO-P6-part2.md`, and `TODO-P6-part3.md`. The first executable incomplete detailed task is `P6-T03a` in `TODO-P6-part3.md`; `TODO-P6-part2.md` states that the old monolithic `P6-T03` was abandoned/migrated and no longer carries pending work.
-- Implemented the first pass of `P6-T03a`: added `effect_refactor/value.rs` as the effect-neutral value primitive facade, routed refactor source-slice lowering through it, removed direct use of the legacy statement fallback from `effect_refactor/body.rs`, and removed the old direct-call helper path from refactor print lowering.
-- Ran validation for the task: `cargo test -p scoopc refactor_llvm_clean_backend_boundary`, `cargo test -p scoopc refactor_llvm_value_primitive`, the requested audit `rg` command, and `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`. The audit command now has no statement/function fallback hits under `effect_refactor`; remaining `effect_op_call_sites` hits are in typed HIR/ABI test scaffolding rather than the refactor body implementation.
-- Extra non-required `cargo test -p scoopc refactor_llvm_` was run and still has existing layout/stage failures unrelated to the new value primitive boundary; the task-specific tests passed.
-- Updated `TODO-P6-part3.md` and `TODO.md` to mark `P6-T03a` as `[DONE]` and recorded implementation details plus validation commands.
+- If a concrete prerequisite blocks correct implementation, keep the current task incomplete.
+- Add the minimum prerequisite task in the appropriate detailed TODO file, sync `TODO.md`, commit those bookkeeping changes, and stop.
+- Update `PLAN.md` only if phase-level sequencing or completion criteria change.
+
+## Status Log
+
+- Started invocation and recorded the initial execution plan.
+- Read `TODO.md` and the referenced P6 detailed files.
+- Identified the first non-`[DONE]` detailed task as archived old `P6-T03` in `TODO-P6-part2.md`, not active `P6-T03b`.
+- Confirmed latest commit is `[P6-T03a] Extract refactor value primitives` and does not mention a directly relevant unfinished issue.
+- Current action: repair task bookkeeping for the already migrated old `P6-T03` by marking it `[DONE] [ABANDONED]` in the detailed file and syncing `TODO.md`; do not implement `P6-T03b` in this invocation.
+- Updated `TODO-P6-part2.md` and `TODO.md` so archived old `P6-T03` is visibly `[DONE] [ABANDONED]` in both the source-of-truth detail file and index.
+- Next action: verify the diff, then commit only this bookkeeping change and stop.
