@@ -30,4 +30,5 @@
 - 已实现 P6-T03f：补齐 refactor boundary lowering 的 `RuntimeError` / `Handle` 显式分支，保留既有 `Call` / `Perform` / `Resume` 路径；同时修复阻塞验证的 sysroot internal print 与 primitive/String `ToString` refactor value primitive。
 - 已运行并通过任务验证：`cargo test -p scoopc refactor_llvm_boundary_lowering`、`cargo test -p scoopc refactor_llvm_runtime_error_case`、两个指定 run-pass fixture、相关 value/dynamic 单测，以及 `cargo clippy --all-targets -- -D warnings`。
 - 已将 `P6-T03f` 在 `TODO-P6-part3.md` 与 `TODO.md` 标记为 `[DONE]`，`PLAN.md` 无阶段级变更，无需更新。
-- 下一步是检查最终 diff 并提交本轮改动，提交后停止。
+- 已检查最终 diff，并提交实现与 TODO 更新：`c8affbb8 [P6-T03f] Close refactor boundary lowering`。
+- 下一步仅提交本计划文件的最终状态记录，然后停止。
