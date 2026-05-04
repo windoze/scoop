@@ -26,7 +26,7 @@
 - [`TODO-P6-part2.md`](./TODO-P6-part2.md) 中旧 `P6-T03` 单体任务已废弃，改由本文件的 `P6-T03a` ~ `P6-T03i` 与 `P6-T03R` 承接。
 - [`TODO-P6-part2.md`](./TODO-P6-part2.md) 中旧 `P6-T04` / `P6-T04R` / `P6-T05` / `P6-T05R` 迁移到本文件，并按 clean backend 边界更新依赖。
 
-## P6-T02qga：发布 call-boundary 本地消费 outward case 的 continuation composition contract，禁止 escaped continuation 绕过 callee resume body
+## [DONE] P6-T02qga：发布 call-boundary 本地消费 outward case 的 continuation composition contract，禁止 escaped continuation 绕过 callee resume body
 
 - 来源：执行 `P6-T02qh` 验证时发现的前置 blocker。
 - 参考：
@@ -58,7 +58,11 @@
   - `P6-T02qh` 可以只处理 wrapper completion payload projection，不再被 call-boundary continuation composition 缺口阻塞。
 - 依赖：P6-T02o，P6-T02qd，P6-T02qg
 - 完成记录：
-  - （执行时填写）
+  - 已在 late-lowered handoff 中为 call-boundary outward forwarding 发布 `LateLoweredCallBoundaryContinuationComposition`，记录 callee continuation、caller continuation、caller resume state 与 caller result local/home slot。
+  - ABI materialization 现在校验 composition 与 callee `Step_F` case、callee surface resume ABI、caller dispatch forwarding、caller result binding/frame home 和 source type 一致，并对缺失或多义 composition fail fast。
+  - refactor LLVM body emitter 在 call-boundary outward case 被本地 handle arm 捕获或继续向外投影时会保留 callee continuation，构造 composed caller continuation；surface resume 该 continuation 时先调用 callee resume，再按 caller call-boundary dispatch 回写 result 并回到 caller resume state。
+  - 同步修复 `Step_F` union storage 的 by-value ABI 字节保真问题，避免 Complete(String) 被最大 case layout 误解释；同时放宽 wrapper completion 对 sibling handle arm 的 span-only payload source drift，保证 composed continuation 完成后能返回 resume caller 而不是重跑 owner tail。
+  - 验证通过：`cargo test -p scoopc refactor_effect_lowered_call_boundary_continuation_composition`；`cargo test -p scoopc refactor_llvm_call_boundary_continuation_composition`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo clippy --all-targets -- -D warnings`（Rust clippy 通过，构建脚本仍输出 macOS SDK 对 `getsectbynamefromheader_64` 的 C deprecation warning）。
 
 ## P6-T02qh：发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值
 

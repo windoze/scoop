@@ -961,6 +961,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn raw_materialized_mir_enum_variant_is_supported(
         &mut self,
         span: crate::span::Span,
@@ -1874,6 +1875,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.coerce_value(span, value, target_cg)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_mir_enum_variant_ctor_call(
         &mut self,
         span: crate::span::Span,

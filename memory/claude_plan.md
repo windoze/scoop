@@ -2,32 +2,31 @@
 
 ## Scope
 
-Complete exactly one detailed TODO task in this invocation: the first incomplete task found by reading `TODO.md` as the index and then checking the referenced `TODO-Px.md` files in task order. Stop after implementing, validating, documenting, and committing that one task, or after committing any required prerequisite/blocker bookkeeping if the task cannot be completed spec-correctly.
+- Complete exactly one detailed task: the first task in the authoritative `TODO-Px.md` files whose heading is not prefixed with `[DONE]`.
+- Treat `TODO.md` as an index only and keep it synchronized with the detailed task files.
+- If a concrete blocker prevents the current task from being implemented correctly, add the minimum prerequisite task in the appropriate detailed TODO file, sync `TODO.md`, commit that bookkeeping, and stop.
 
-## Execution Plan
+## Step-by-Step Plan
 
-1. Read `TODO.md` as the global index only.
-2. Open the referenced `TODO-Px.md` files in indexed order and identify the first task whose detailed heading is not prefixed with `[DONE]`.
-3. Check the latest commit message only for unfinished work directly relevant to that selected task.
-4. Inspect the selected task requirements, constraints, dependencies, validation steps, and completion-record format in the authoritative `TODO-Px.md` file.
-5. Examine only the code, fixtures, docs, and tests needed to implement that task correctly.
-6. Implement the smallest spec-correct change without workarounds or fixture-only special cases.
-7. Add or update focused tests/fixtures required by the task.
-8. Run the task-specific validation commands first, then broader relevant checks if needed.
-9. If a concrete blocker prevents correct implementation, add the minimum prerequisite task in the appropriate `TODO-Px.md`, sync `TODO.md`, record the blocker here, commit, and stop.
-10. If validation passes, mark the selected detailed task heading as `[DONE]`, update its completion record, and sync the same `[DONE]` marker in `TODO.md` if present there.
-11. Update this plan file when key steps complete or if the plan changes.
-12. Review the final diff, commit all relevant uncommitted changes with a descriptive task-tagged message, and stop without starting the next task.
+1. Read `TODO.md` to understand the indexed task order and referenced detailed TODO files.
+2. Inspect the referenced `TODO-Px.md` files in order and identify the first detailed task heading without `[DONE]`.
+3. Check the latest commit only for an explicitly mentioned unfinished issue directly relevant to the selected task.
+4. Read the selected task body, constraints, dependencies, validation requirements, and completion-record format.
+5. Inspect only the code, fixtures, docs, and tests needed to implement that selected task correctly.
+6. Implement the task with the smallest spec-correct change set; do not use workarounds or weaken tests/fixtures.
+7. Add or update targeted tests and fixtures required by the task.
+8. Run relevant verification commands, escalating to broader tests if the task or failures require it.
+9. Fix any issue introduced by this work, or add a prerequisite task if a pre-existing implementation gap blocks the specified behavior.
+10. Mark the completed task heading with `[DONE]` in the authoritative `TODO-Px.md` file and update its completion record.
+11. Sync `TODO.md` with any changed task title/status/order.
+12. Update this plan file when major steps complete or if the execution path changes.
+13. Review the final diff, commit all relevant uncommitted files with a clear task-tagged message, and stop without starting the next task.
 
-## Progress
+## Current Status
 
-- Initial execution plan written before reading TODO files or running commands.
-- Read `TODO.md`; selected first incomplete detailed task `P6-T02qh` in `TODO-P6-part3.md`.
-- Latest commit `f6ccbdcd [P6-T03] Record wrapper completion projection blocker` is directly relevant to `P6-T02qh`, so its blocker context will be treated as part of this task.
-- Initial focused tests passed for existing `P6-T02qh` coverage. Remaining implementation work is to add explicit owner/wrapper same-answer-type coverage for the `OwnerComplete` payload source path.
-- Implemented same-answer-type tests and a wrapper owner-trampoline path that returns `WrapperPayload` complete directly from the published handle arm completion source.
-- `cargo test -p scoopc refactor_effect_lowered_surface_resume_wrapper_completion` passed.
-- `cargo test -p scoopc refactor_llvm_surface_resume_wrapper_completion` passed.
-- `dump-effect-lowered` for `effect_multi_escape_indirect_direct_while.scoop` shows the published `owner Unit -> wrapper Int` payload source (`payload=local6:t5`).
-- The required refactor run-pass fixture still fails because call-boundary local consumption discards the callee continuation, so the escaped continuation resumes the caller directly and skips the callee `fetch_resume` path. This is a distinct missing continuation-composition contract, so the plan changes to add the minimum prerequisite task before `P6-T02qh`, keep `P6-T02qh` incomplete, sync `TODO.md`, commit, and stop.
-- Added prerequisite task `P6-T02qga` in `TODO-P6-part3.md`, updated `P6-T02qh` dependency/blocker record, and synced the new task into `TODO.md`.
+- `TODO.md` and `TODO-P6-part3.md` identify `P6-T02qga` as the first incomplete detailed task.
+- Latest commit is `[P6-T02qga] Track call-boundary continuation prerequisite`, so its recorded blocker is directly part of the current task.
+- Implemented the first pass of the `P6-T02qga` approach: late-lowered call-boundary composition contracts, dump rendering, ABI validation, continuation object storage for composed callee continuations, and body-emitter resume dispatch that calls callee resume before caller boundary dispatch.
+- Verification completed for the required targeted tests and fixture run-pass. `cargo clippy --all-targets -- -D warnings` completed successfully for Rust lints, while the existing C runtime build script still emits macOS SDK deprecation warnings for `getsectbynamefromheader_64`.
+- `TODO-P6-part3.md` and `TODO.md` have been updated to mark `P6-T02qga` as `[DONE]` with completion notes.
+- Next step: review the final diff, commit all relevant changes with a `P6-T02qga` message, then stop.

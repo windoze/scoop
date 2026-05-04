@@ -935,6 +935,10 @@ fn render_boundary_lowering(rendered: &mut String, lowering: &LateLoweredBoundar
             if let Some(consumed_runtime_error_case) = lowering.consumed_runtime_error_case() {
                 render_consumed_runtime_error_case(rendered, consumed_runtime_error_case);
             }
+            render_call_boundary_continuation_compositions(
+                rendered,
+                lowering.continuation_compositions(),
+            );
             render_step_dispatch_plan(rendered, lowering.dispatch());
         }
         LateLoweredBoundaryLowering::Perform(lowering) => {
@@ -1042,6 +1046,35 @@ fn render_consumed_runtime_error_case(
         render_local_runtime_error_terminal_action(runtime_error_case.terminal_action()),
     )
     .unwrap();
+}
+
+fn render_call_boundary_continuation_compositions(
+    rendered: &mut String,
+    compositions: &[crate::effect_lowered::ir::LateLoweredCallBoundaryContinuationComposition],
+) {
+    writeln!(rendered, "            continuation_compositions:").unwrap();
+    if compositions.is_empty() {
+        writeln!(rendered, "              <none>").unwrap();
+        return;
+    }
+    for composition in compositions {
+        writeln!(
+            rendered,
+            "              - in c{} -> out c{} callee=k{} caller=k{} resume=st{} result=local{}{} result_ty={}",
+            composition.input_case_tag().as_u32(),
+            composition.output_case_tag().as_u32(),
+            composition.callee_continuation_schema().as_u32(),
+            composition.caller_continuation_schema().as_u32(),
+            composition.caller_resume_state().as_u32(),
+            composition.caller_result_local().as_u32(),
+            composition
+                .caller_result_frame_slot()
+                .map(|slot| format!(" frame=fs{}", slot.as_u32()))
+                .unwrap_or_default(),
+            render_type_id(composition.caller_result_ty()),
+        )
+        .unwrap();
+    }
 }
 
 fn render_call_operand_contract(

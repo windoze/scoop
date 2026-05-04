@@ -18,7 +18,8 @@ use crate::effect_facts::{CaseTag, StepSchemaId};
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundaryId, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundarySource,
-    LateLoweredBoundarySourceConsumption, LateLoweredCallable, LateLoweredCompletionPayloadSource,
+    LateLoweredBoundarySourceConsumption, LateLoweredCallBoundaryContinuationComposition,
+    LateLoweredCallBoundaryLowering, LateLoweredCallable, LateLoweredCompletionPayloadSource,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleStateRegion,
     LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredResumePayloadBinding,
     LateLoweredState, LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
@@ -42,6 +43,7 @@ const STEP_TAG_COMPLETE: u64 = 0;
 const CONT_FIELD_CAPTURED_FRAME: u32 = 1;
 const CONT_FIELD_RESUME_STATE: u32 = 2;
 const CONT_FIELD_ONE_SHOT: u32 = 3;
+const CONT_FIELD_COMPOSED_CALLEE: u32 = 4;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Defines all refactor ABI function bodies published by the P5/P6 handoff.
@@ -621,6 +623,34 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
         self.codegen.builder.position_at_end(first_resume_bb);
         self.store_continuation_one_shot(cont_ptr, true)?;
+        let composed_callee = self.load_composed_callee_continuation(cont_ptr)?;
+        let composed_is_null = self
+            .codegen
+            .builder
+            .build_is_null(composed_callee, "refactor_composed_callee_is_null")?;
+        let ordinary_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_plain_dispatch");
+        let composed_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_composed_dispatch");
+        self.codegen.builder.build_conditional_branch(
+            composed_is_null,
+            ordinary_resume_bb,
+            composed_resume_bb,
+        )?;
+
+        self.codegen.builder.position_at_end(composed_resume_bb);
+        self.dispatch_composed_call_boundary_resume(
+            resume_state_tag,
+            composed_callee,
+            resume_tuple_ty,
+            payload,
+        )?;
+
+        self.codegen.builder.position_at_end(ordinary_resume_bb);
         let invalid_bb = self
             .codegen
             .context
@@ -679,6 +709,176 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.position_at_end(invalid_bb);
         self.codegen.builder.build_unreachable()?;
         self.emit_states()
+    }
+
+    fn dispatch_composed_call_boundary_resume(
+        &mut self,
+        resume_state_tag: IntValue<'ctx>,
+        callee_continuation: PointerValue<'ctx>,
+        resume_tuple_ty: TypeId,
+        payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        let composition_entries = self
+            .callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .filter_map(|boundary| {
+                let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering() else {
+                    return None;
+                };
+                Some(
+                    lowering
+                        .continuation_compositions()
+                        .iter()
+                        .filter(|composition| {
+                            composition.caller_continuation_contract().resume_tuple_ty()
+                                == resume_tuple_ty
+                        })
+                        .map(|composition| {
+                            (boundary.clone(), lowering.clone(), composition.clone())
+                        }),
+                )
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+        if composition_entries.is_empty() {
+            self.codegen.builder.build_unreachable()?;
+            return Ok(());
+        }
+        let invalid_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_composed_invalid_state");
+        let mut cases = Vec::with_capacity(composition_entries.len());
+        let mut seen_states = BTreeMap::new();
+        for (boundary, lowering, composition) in composition_entries {
+            if let Some(existing) = seen_states.insert(
+                composition.caller_resume_state(),
+                composition.input_case_tag(),
+            ) {
+                return Err(frontend_error(format!(
+                    "refactor callable `{}` resume state st{} 存在多义 call-boundary continuation composition：c{} 与 c{}",
+                    self.callable.root_fqn(),
+                    composition.caller_resume_state().as_u32(),
+                    existing.as_u32(),
+                    composition.input_case_tag().as_u32(),
+                )));
+            }
+            let bb = self.codegen.context.append_basic_block(
+                self.function,
+                &format!(
+                    "resume_composed_bd{}_case{}",
+                    boundary.boundary_id().as_u32(),
+                    composition.input_case_tag().as_u32(),
+                ),
+            );
+            cases.push((
+                self.codegen
+                    .context
+                    .i32_type()
+                    .const_int(composition.caller_resume_state().as_u32() as u64, false),
+                bb,
+                boundary,
+                lowering,
+                composition,
+            ));
+        }
+        let switch_cases = cases
+            .iter()
+            .map(|(tag, bb, _, _, _)| (*tag, *bb))
+            .collect::<Vec<_>>();
+        self.codegen
+            .builder
+            .build_switch(resume_state_tag, invalid_bb, &switch_cases)?;
+
+        for (_, bb, boundary, lowering, composition) in cases {
+            self.codegen.builder.position_at_end(bb);
+            self.resume_composed_call_boundary_case(
+                &boundary,
+                &lowering,
+                &composition,
+                callee_continuation,
+                resume_tuple_ty,
+                payload,
+            )?;
+        }
+
+        self.codegen.builder.position_at_end(invalid_bb);
+        self.codegen.builder.build_unreachable()?;
+        Ok(())
+    }
+
+    fn resume_composed_call_boundary_case(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+        lowering: &LateLoweredCallBoundaryLowering,
+        composition: &LateLoweredCallBoundaryContinuationComposition,
+        callee_continuation: PointerValue<'ctx>,
+        resume_tuple_ty: TypeId,
+        payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        if composition.boundary_id() != boundary.boundary_id()
+            || composition.caller_resume_state() != boundary.resume_state()
+        {
+            return Err(frontend_error(format!(
+                "refactor composed call boundary bd{} continuation composition 与 boundary resume state 漂移：composition={:?}",
+                boundary.boundary_id().as_u32(),
+                composition,
+            )));
+        }
+        let surface = self
+            .abi
+            .surface_resume_layout(composition.callee_continuation_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor composed call boundary bd{} 缺少 callee continuation schema k{} surface ABI",
+                    boundary.boundary_id().as_u32(),
+                    composition.callee_continuation_schema().as_u32(),
+                ))
+            })?;
+        if surface.resume_tuple_ty() != resume_tuple_ty
+            || surface.return_step_schema() != composition.input_step_schema()
+        {
+            return Err(frontend_error(format!(
+                "refactor composed call boundary bd{} callee surface ABI 漂移：surface_resume=t{} surface_out=s{} composition_resume=t{} composition_out=s{}",
+                boundary.boundary_id().as_u32(),
+                surface.resume_tuple_ty().as_u32(),
+                surface.return_step_schema().as_u32(),
+                resume_tuple_ty.as_u32(),
+                composition.input_step_schema().as_u32(),
+            )));
+        }
+        let callee = self.codegen.refactor_function(surface.symbol_name())?;
+        let mut args = vec![callee_continuation.into()];
+        if surface.param_count() > 1 {
+            args.push(
+                payload
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor composed call boundary bd{} callee resume 需要 non-elided payload",
+                            boundary.boundary_id().as_u32(),
+                        ))
+                    })?
+                    .into(),
+            );
+        }
+        let call =
+            self.codegen
+                .builder
+                .build_call(callee, &args, "refactor_composed_callee_resume")?;
+        let step = call.try_as_basic_value().basic().ok_or_else(|| {
+            frontend_error(
+                "refactor composed call boundary callee resume 未返回 Step_F".to_string(),
+            )
+        })?;
+        self.dispatch_boundary_step(
+            boundary,
+            surface.return_step_schema(),
+            step,
+            lowering.dispatch(),
+            Some(lowering),
+        )
     }
 
     fn resume_payload_binding_accepts_tuple(
@@ -1130,7 +1330,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let step = call.try_as_basic_value().basic().ok_or_else(|| {
                     frontend_error("refactor call boundary callee 未返回 Step_F".to_string())
                 })?;
-                self.dispatch_boundary_step(boundary, callee_step_schema, step, lowering.dispatch())
+                self.dispatch_boundary_step(
+                    boundary,
+                    callee_step_schema,
+                    step,
+                    lowering.dispatch(),
+                    Some(lowering),
+                )
             }
             LateLoweredBoundaryLowering::Perform(lowering) => {
                 let source = boundary_site(boundary, "Perform")?;
@@ -1149,6 +1355,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     lowering.emitted_step().case_tag(),
                     payload,
                     lowering.emitted_step().payload_tuple_ty(),
+                    None,
+                    None,
                 )
             }
             LateLoweredBoundaryLowering::Resume(lowering) => {
@@ -1213,6 +1421,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     lowering.facts().out_step_schema(),
                     step,
                     lowering.dispatch(),
+                    None,
                 )
             }
             LateLoweredBoundaryLowering::RuntimeError(_)
@@ -1230,6 +1439,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         input_step_schema: StepSchemaId,
         step: BasicValueEnum<'ctx>,
         dispatch: &crate::effect_lowered::ir::LateLoweredStepDispatchPlan,
+        call_lowering: Option<&LateLoweredCallBoundaryLowering>,
     ) -> Result<(), LlvmEmitError> {
         let input_layout = self.abi.step_layout(input_step_schema).ok_or_else(|| {
             frontend_error(format!(
@@ -1313,13 +1523,44 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     input_case.as_u32()
                 ))
             })?;
-            let (payload, _callee_cont) = self.codegen.refactor_extract_step_case_parts(
+            let (payload, callee_continuation) = self.codegen.refactor_extract_step_case_parts(
                 input_layout,
                 step,
                 case_layout,
                 "refactor_boundary_case_payload",
             )?;
-            self.emit_or_consume_outward_case(boundary, output_case, payload, payload_ty)?;
+            let composition = match call_lowering {
+                Some(lowering) => {
+                    let composition = lowering
+                        .continuation_composition_for_input_case(input_case)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor call boundary bd{} case c{} 缺少 continuation composition contract",
+                                boundary.boundary_id().as_u32(),
+                                input_case.as_u32(),
+                            ))
+                        })?;
+                    if composition.output_case_tag() != output_case {
+                        return Err(frontend_error(format!(
+                            "refactor call boundary bd{} case c{} continuation composition 输出 case 漂移：composition=c{} dispatch=c{}",
+                            boundary.boundary_id().as_u32(),
+                            input_case.as_u32(),
+                            composition.output_case_tag().as_u32(),
+                            output_case.as_u32(),
+                        )));
+                    }
+                    Some(composition)
+                }
+                None => None,
+            };
+            self.emit_or_consume_outward_case(
+                boundary,
+                output_case,
+                payload,
+                payload_ty,
+                composition.map(|_| callee_continuation),
+                composition,
+            )?;
         }
 
         self.codegen.builder.position_at_end(unmatched_bb);
@@ -1333,13 +1574,26 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         case_tag: CaseTag,
         payload: Option<BasicValueEnum<'ctx>>,
         payload_ty: TypeId,
+        callee_continuation: Option<PointerValue<'ctx>>,
+        composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<(), LlvmEmitError> {
+        if callee_continuation.is_some() != composition.is_some() {
+            return Err(frontend_error(format!(
+                "refactor boundary bd{} case c{} 的 callee continuation 与 composition contract 不一致",
+                boundary.boundary_id().as_u32(),
+                case_tag.as_u32(),
+            )));
+        }
         self.sync_frame_slots_from_locals()?;
         if let Some((arm_state, continuation_local)) =
             self.local_handle_consumption(boundary.boundary_id(), case_tag)
         {
             if let Some(local) = continuation_local {
-                let continuation = self.create_continuation_object(boundary.resume_state())?;
+                let continuation = self.create_continuation_object(
+                    boundary.resume_state(),
+                    callee_continuation,
+                    composition,
+                )?;
                 self.store_gc_ref_to_local(local, continuation)?;
             }
             self.store_case_payload_to_arm_binders(
@@ -1350,7 +1604,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             )?;
             return self.branch_to_state(arm_state);
         }
-        let continuation = self.create_continuation_object(boundary.resume_state())?;
+        let continuation = self.create_continuation_object(
+            boundary.resume_state(),
+            callee_continuation,
+            composition,
+        )?;
         let out_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
             frontend_error(format!(
                 "refactor callable `{}` step schema s{} 缺少 outward case c{}",
@@ -1539,10 +1797,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             return Ok(false);
         };
         let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-            site_id,
-            arm_ordinal,
-            handled_case,
-            ..
+            site_id, ..
         } = projection.underlying_route().publication()
         else {
             return Ok(false);
@@ -1568,21 +1823,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             else {
                 continue;
             };
-            if region_case != *handled_case || region_ordinal != *arm_ordinal {
-                continue;
-            }
             let arm = contract
                 .handled_arms()
                 .iter()
                 .find(|arm| {
-                    arm.arm_ordinal() == *arm_ordinal && arm.handled_case() == *handled_case
+                    arm.arm_ordinal() == region_ordinal && arm.handled_case() == region_case
                 })
                 .ok_or_else(|| {
                     frontend_error(format!(
                         "refactor wrapper completion projection 找不到 site{} arm#{} case c{} 的 published arm contract",
                         site_id.as_u32(),
-                        arm_ordinal,
-                        handled_case.as_u32()
+                        region_ordinal,
+                        region_case.as_u32()
                     ))
                 })?;
             matched_arm_source = Some(arm.completion_payload_source());
@@ -1592,7 +1844,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let Some(arm_source) = matched_arm_source else {
             return Ok(false);
         };
-        if arm_source != payload_source {
+        if !same_completion_payload_source_ignoring_span(arm_source, payload_source) {
             return Err(frontend_error(format!(
                 "refactor wrapper completion projection payload source drift: published={payload_source:?}, arm={arm_source:?}"
             )));
@@ -1857,7 +2109,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     fn create_continuation_object(
         &mut self,
         resume_state: StateId,
+        callee_continuation: Option<PointerValue<'ctx>>,
+        composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if let Some(composition) = composition
+            && composition.caller_resume_state() != resume_state
+        {
+            return Err(frontend_error(format!(
+                "refactor continuation composition resume_state 漂移：object=st{} contract=st{}",
+                resume_state.as_u32(),
+                composition.caller_resume_state().as_u32(),
+            )));
+        }
         let cont_layout = self
             .abi
             .continuation_layout(self.callable.continuation_object())
@@ -1905,6 +2168,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen
             .builder
             .build_store(one_shot_gep, self.codegen.context.bool_type().const_zero())?;
+        let composed_gep = self.codegen.builder.build_struct_gep(
+            cont_layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_COMPOSED_CALLEE,
+            "refactor_cont_composed_callee_gep",
+        )?;
+        let composed_callee =
+            callee_continuation.unwrap_or_else(|| self.codegen.llvm_gc_i8_ptr_type().const_null());
+        self.codegen
+            .builder
+            .build_store(composed_gep, composed_callee)?;
         self.codegen.refactor_cast_ptr(
             cont_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
@@ -1997,6 +2271,31 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .builder
             .build_load(self.codegen.context.bool_type(), gep, "refactor_one_shot")?
             .into_int_value())
+    }
+
+    fn load_composed_callee_continuation(
+        &mut self,
+        cont_ptr: PointerValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let layout = self
+            .abi
+            .continuation_layout(self.callable.continuation_object())
+            .unwrap();
+        let gep = self.codegen.builder.build_struct_gep(
+            layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_COMPOSED_CALLEE,
+            "refactor_composed_callee_gep",
+        )?;
+        Ok(self
+            .codegen
+            .builder
+            .build_load(
+                self.codegen.llvm_gc_i8_ptr_type(),
+                gep,
+                "refactor_composed_callee",
+            )?
+            .into_pointer_value())
     }
 
     fn store_continuation_one_shot(
@@ -2545,6 +2844,27 @@ fn frame_slot_local(kind: crate::effect_lowered::ir::LateLoweredFrameSlotKind) -
         crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandlePendingPayload { .. }
         | crate::effect_lowered::ir::LateLoweredFrameSlotKind::ResumePayload { .. }
         | crate::effect_lowered::ir::LateLoweredFrameSlotKind::System(_) => None,
+    }
+}
+
+fn same_completion_payload_source_ignoring_span(
+    left: &LateLoweredCompletionPayloadSource,
+    right: &LateLoweredCompletionPayloadSource,
+) -> bool {
+    match (left, right) {
+        (
+            LateLoweredCompletionPayloadSource::Unit {
+                complete_ty: left_ty,
+            },
+            LateLoweredCompletionPayloadSource::Unit {
+                complete_ty: right_ty,
+            },
+        ) => left_ty == right_ty,
+        (
+            LateLoweredCompletionPayloadSource::Operand(left),
+            LateLoweredCompletionPayloadSource::Operand(right),
+        ) => left.source_ty() == right.source_ty() && left.value() == right.value(),
+        _ => false,
     }
 }
 

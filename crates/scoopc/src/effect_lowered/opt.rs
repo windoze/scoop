@@ -662,6 +662,16 @@ fn rewrite_boundary_lowering(
                 lowering.result_local(),
                 lowering.operand_contract().clone(),
                 rewrite_step_dispatch(lowering.dispatch(), redirects),
+                lowering
+                    .continuation_compositions()
+                    .iter()
+                    .cloned()
+                    .map(|composition| {
+                        let caller_resume_state =
+                            redirect_state_id(composition.caller_resume_state(), redirects);
+                        composition.with_caller_resume_state(caller_resume_state)
+                    })
+                    .collect(),
                 lowering.consumed_runtime_error_case().cloned(),
             ))
         }

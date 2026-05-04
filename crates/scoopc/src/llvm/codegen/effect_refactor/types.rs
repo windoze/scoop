@@ -1734,6 +1734,7 @@ pub(super) enum RefactorContinuationFieldKind {
     CapturedFrame,
     ResumeStateTag,
     OneShotFlag,
+    ComposedCalleeContinuation,
     PackingVtable(ResumeInterfaceId),
 }
 

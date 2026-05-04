@@ -1071,14 +1071,12 @@ fn build_surface_resume_wrapper_complete_payload_source(
             LateLoweredSurfaceResumeWrapperCompletePayloadSource::owner_complete(owner_answer_ty),
         );
     }
-    if let Some(source) = handle_binder_completion_payload_source(callable, underlying_route) {
-        if source.source_ty() == wrapper_answer_ty {
-            return Some(
-                LateLoweredSurfaceResumeWrapperCompletePayloadSource::wrapper_payload(
-                    source.clone(),
-                ),
-            );
-        }
+    if let Some(source) = handle_binder_completion_payload_source(callable, underlying_route)
+        && source.source_ty() == wrapper_answer_ty
+    {
+        return Some(
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::wrapper_payload(source.clone()),
+        );
     }
     None
 }
@@ -1987,6 +1985,7 @@ pub struct LateLoweredHandleArmDispatch {
 }
 
 impl LateLoweredHandleArmDispatch {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         handled_case: CaseTag,
         arm_state: StateId,
@@ -2822,6 +2821,107 @@ impl LateLoweredStepDispatchPlan {
     }
 }
 
+/// call boundary outward case continuation composition 的 authoritative handoff。
+///
+/// 当 callee 的 outward `Step_F` case 被 caller 本地 handle arm 捕获，或继续向外投影时，
+/// 暴露给源码的 continuation 必须先恢复 callee continuation，再把 callee `Complete` 写回 caller
+/// boundary result home，并回到 caller resume state。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredCallBoundaryContinuationComposition {
+    boundary_id: BoundaryId,
+    input_step_schema: StepSchemaId,
+    input_case_tag: CaseTag,
+    output_case_tag: CaseTag,
+    callee_continuation_contract: LateLoweredContinuationContract,
+    caller_continuation_contract: LateLoweredContinuationContract,
+    caller_resume_state: StateId,
+    caller_result_local: LocalId,
+    caller_result_frame_slot: Option<FrameSlotId>,
+    caller_result_ty: TypeId,
+}
+
+impl LateLoweredCallBoundaryContinuationComposition {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        boundary_id: BoundaryId,
+        input_step_schema: StepSchemaId,
+        input_case_tag: CaseTag,
+        output_case_tag: CaseTag,
+        callee_continuation_contract: LateLoweredContinuationContract,
+        caller_continuation_contract: LateLoweredContinuationContract,
+        caller_resume_state: StateId,
+        caller_result_local: LocalId,
+        caller_result_frame_slot: Option<FrameSlotId>,
+        caller_result_ty: TypeId,
+    ) -> Self {
+        Self {
+            boundary_id,
+            input_step_schema,
+            input_case_tag,
+            output_case_tag,
+            callee_continuation_contract,
+            caller_continuation_contract,
+            caller_resume_state,
+            caller_result_local,
+            caller_result_frame_slot,
+            caller_result_ty,
+        }
+    }
+
+    pub fn boundary_id(&self) -> BoundaryId {
+        self.boundary_id
+    }
+
+    pub fn input_step_schema(&self) -> StepSchemaId {
+        self.input_step_schema
+    }
+
+    pub fn input_case_tag(&self) -> CaseTag {
+        self.input_case_tag
+    }
+
+    pub fn output_case_tag(&self) -> CaseTag {
+        self.output_case_tag
+    }
+
+    pub fn callee_continuation_contract(&self) -> LateLoweredContinuationContract {
+        self.callee_continuation_contract
+    }
+
+    pub fn caller_continuation_contract(&self) -> LateLoweredContinuationContract {
+        self.caller_continuation_contract
+    }
+
+    pub fn callee_continuation_schema(&self) -> ContinuationSchemaId {
+        self.callee_continuation_contract.continuation_schema()
+    }
+
+    pub fn caller_continuation_schema(&self) -> ContinuationSchemaId {
+        self.caller_continuation_contract.continuation_schema()
+    }
+
+    pub fn caller_resume_state(&self) -> StateId {
+        self.caller_resume_state
+    }
+
+    pub fn caller_result_local(&self) -> LocalId {
+        self.caller_result_local
+    }
+
+    pub fn caller_result_frame_slot(&self) -> Option<FrameSlotId> {
+        self.caller_result_frame_slot
+    }
+
+    pub fn caller_result_ty(&self) -> TypeId {
+        self.caller_result_ty
+    }
+
+    pub(crate) fn with_caller_resume_state(mut self, caller_resume_state: StateId) -> Self {
+        self.caller_resume_state = caller_resume_state;
+        self
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredConsumedRuntimeErrorCase {
     input_case_tag: CaseTag,
@@ -2974,6 +3074,7 @@ pub struct LateLoweredCallBoundaryLowering {
     result_local: LocalId,
     operand_contract: Box<LateLoweredCallBoundaryOperandContract>,
     dispatch: LateLoweredStepDispatchPlan,
+    continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
     consumed_runtime_error_case: Option<LateLoweredConsumedRuntimeErrorCase>,
 }
 
@@ -2983,6 +3084,7 @@ impl LateLoweredCallBoundaryLowering {
         result_local: LocalId,
         operand_contract: LateLoweredCallBoundaryOperandContract,
         dispatch: LateLoweredStepDispatchPlan,
+        continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
         consumed_runtime_error_case: Option<LateLoweredConsumedRuntimeErrorCase>,
     ) -> Self {
         Self {
@@ -2990,6 +3092,7 @@ impl LateLoweredCallBoundaryLowering {
             result_local,
             operand_contract: Box::new(operand_contract),
             dispatch,
+            continuation_compositions,
             consumed_runtime_error_case,
         }
     }
@@ -3008,6 +3111,19 @@ impl LateLoweredCallBoundaryLowering {
 
     pub fn dispatch(&self) -> &LateLoweredStepDispatchPlan {
         &self.dispatch
+    }
+
+    pub fn continuation_compositions(&self) -> &[LateLoweredCallBoundaryContinuationComposition] {
+        &self.continuation_compositions
+    }
+
+    pub fn continuation_composition_for_input_case(
+        &self,
+        input_case_tag: CaseTag,
+    ) -> Option<&LateLoweredCallBoundaryContinuationComposition> {
+        self.continuation_compositions
+            .iter()
+            .find(|composition| composition.input_case_tag() == input_case_tag)
     }
 
     pub fn consumed_runtime_error_case(&self) -> Option<&LateLoweredConsumedRuntimeErrorCase> {
@@ -3154,6 +3270,7 @@ impl LateLoweredHandleBoundaryLowering {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LateLoweredBoundaryLowering {
     Call(LateLoweredCallBoundaryLowering),

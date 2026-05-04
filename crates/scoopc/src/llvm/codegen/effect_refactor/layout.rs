@@ -11,7 +11,8 @@ use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey,
     LateLoweredBoundaryLowering, LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
-    LateLoweredCallable, LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
+    LateLoweredCallBoundaryContinuationComposition, LateLoweredCallable,
+    LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
     LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
     LateLoweredFrameSlotKind, LateLoweredHandlePendingCompletion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOperandSource,
@@ -826,6 +827,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let frame_ptr_ty = self.codegen.llvm_gc_i8_ptr_type();
         let resume_state_ty = self.codegen.context.i32_type();
         let one_shot_ty = self.codegen.context.bool_type();
+        let composed_callee_ty = self.codegen.llvm_gc_i8_ptr_type();
         let vtable_ptr_ty = self.codegen.llvm_i8_ptr_type();
         self.validate_published_resume_packing_ids(
             &format!("continuation object {}", object.object_id().as_u32()),
@@ -853,6 +855,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             frame_ptr_ty.into(),
             resume_state_ty.into(),
             one_shot_ty.into(),
+            composed_callee_ty.into(),
         ];
         let mut fields = vec![
             RefactorContinuationFieldLayout::new(
@@ -874,6 +877,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 3,
                 RefactorContinuationFieldKind::OneShotFlag,
                 one_shot_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                4,
+                RefactorContinuationFieldKind::ComposedCalleeContinuation,
+                composed_callee_ty.into(),
             ),
         ];
         let mut packing_field_indices = BTreeMap::new();
@@ -2277,6 +2285,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                             site_id,
                             lowering,
                             dynamic_invoke_layouts,
+                            surface_resume_layouts,
                         )?;
                         let key = (callable.step_schema(), site_id);
                         if call_layouts.contains_key(&key) {
@@ -2503,6 +2512,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             (StepSchemaId, crate::mir::SiteId),
             RefactorDynamicInvokeLayout<'ctx>,
         >,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
     ) -> Result<(), LlvmEmitError> {
         let owner_state = callable.state_graph().state(boundary.owner_state()).ok_or_else(|| {
             frontend_error(format!(
@@ -2574,6 +2587,231 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     )));
                 }
             }
+        }
+        self.validate_call_boundary_continuation_compositions(
+            callable,
+            boundary,
+            site_id,
+            lowering,
+            surface_resume_layouts,
+        )?;
+        Ok(())
+    }
+
+    fn validate_call_boundary_continuation_compositions(
+        &self,
+        callable: &LateLoweredCallable,
+        boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+        site_id: crate::mir::SiteId,
+        lowering: &crate::effect_lowered::ir::LateLoweredCallBoundaryLowering,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
+    ) -> Result<(), LlvmEmitError> {
+        let input_step = self
+            .program
+            .step_type(lowering.dispatch().input_step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 continuation composition 缺少 input StepSchema s{}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    lowering.dispatch().input_step_schema().as_u32(),
+                ))
+            })?;
+        let mut seen_input_cases = BTreeSet::new();
+        for composition in lowering.continuation_compositions() {
+            if !seen_input_cases.insert(composition.input_case_tag()) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` call site {} 对 input case c{} 重复发布 call-boundary continuation composition",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    composition.input_case_tag().as_u32(),
+                )));
+            }
+            self.validate_call_boundary_continuation_composition(
+                callable,
+                boundary,
+                site_id,
+                lowering,
+                input_step,
+                composition,
+                surface_resume_layouts,
+            )?;
+        }
+        for forwarding in lowering.dispatch().outward_cases() {
+            if lowering
+                .continuation_composition_for_input_case(forwarding.input_case_tag())
+                .is_none()
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` call site {} outward case c{} 缺少 call-boundary continuation composition contract",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    forwarding.input_case_tag().as_u32(),
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn validate_call_boundary_continuation_composition(
+        &self,
+        callable: &LateLoweredCallable,
+        boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+        site_id: crate::mir::SiteId,
+        lowering: &crate::effect_lowered::ir::LateLoweredCallBoundaryLowering,
+        input_step: &LateLoweredStepType,
+        composition: &LateLoweredCallBoundaryContinuationComposition,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
+    ) -> Result<(), LlvmEmitError> {
+        if composition.boundary_id() != boundary.boundary_id()
+            || composition.input_step_schema() != lowering.dispatch().input_step_schema()
+            || composition.caller_resume_state() != boundary.resume_state()
+            || composition.caller_result_local() != lowering.result_local()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition 与 boundary/result contract 漂移：composition={:?}",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                composition,
+            )));
+        }
+        let binding = callable
+            .frame_schema()
+            .resume_payload_binding(boundary.boundary_id())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition 缺少 result home binding",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                ))
+            })?;
+        if binding.resume_state() != composition.caller_resume_state()
+            || binding.consumer_local() != composition.caller_result_local()
+            || binding.consumer_frame_slot() != composition.caller_result_frame_slot()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition result home 漂移：binding={:?} composition={:?}",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                binding,
+                composition,
+            )));
+        }
+        if let Some(frame_slot) = composition.caller_result_frame_slot() {
+            let slot = callable
+                .frame_schema()
+                .slots()
+                .iter()
+                .find(|slot| slot.slot_id() == frame_slot)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition result frame fs{} 不存在",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        frame_slot.as_u32(),
+                    ))
+                })?;
+            if slot.ty() != composition.caller_result_ty() {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition result frame fs{} 类型 t{} 与 result t{} 不一致",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    frame_slot.as_u32(),
+                    slot.ty().as_u32(),
+                    composition.caller_result_ty().as_u32(),
+                )));
+            }
+        }
+        let input_case = input_step
+            .case(composition.input_case_tag())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition 引用缺失 input case c{}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    composition.input_case_tag().as_u32(),
+                ))
+            })?;
+        if input_case.continuation_contract() != composition.callee_continuation_contract()
+            || input_step.complete_ty() != composition.caller_result_ty()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition callee contract 漂移：composition={:?}",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                composition,
+            )));
+        }
+        let forwarding = lowering
+            .dispatch()
+            .outward_cases()
+            .iter()
+            .find(|forwarding| forwarding.input_case_tag() == composition.input_case_tag())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition 没有对应 dispatch forwarding c{}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    composition.input_case_tag().as_u32(),
+                ))
+            })?;
+        if forwarding.emission().case_tag() != composition.output_case_tag()
+            || forwarding.emission().continuation_contract()
+                != composition.caller_continuation_contract()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition caller contract 漂移：composition={:?}",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                composition,
+            )));
+        }
+        if input_case.resume_tuple_ty()
+            != forwarding
+                .emission()
+                .continuation_contract()
+                .resume_tuple_ty()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition resume payload type 漂移：callee=t{} caller=t{}",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                input_case.resume_tuple_ty().as_u32(),
+                forwarding
+                    .emission()
+                    .continuation_contract()
+                    .resume_tuple_ty()
+                    .as_u32(),
+            )));
+        }
+        let callee_surface = surface_resume_layouts
+            .get(&composition.callee_continuation_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition 缺少 callee continuation schema k{} surface resume ABI",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    composition.callee_continuation_schema().as_u32(),
+                ))
+            })?;
+        if callee_surface.resume_tuple_ty()
+            != composition.callee_continuation_contract().resume_tuple_ty()
+            || callee_surface.return_step_schema()
+                != composition.callee_continuation_contract().out_step_schema()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 call-boundary continuation composition callee surface ABI 漂移：composition={:?}",
+                callable.root_fqn(),
+                site_id.as_u32(),
+                composition,
+            )));
         }
         Ok(())
     }
@@ -4822,18 +5060,47 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             return storage_ty;
         }
 
-        let anchor_ty = anchor_ty.expect("payload_tys 至少包含 Complete variant");
-        let anchor_size = self.codegen.target_data.get_store_size(&anchor_ty);
-        let mut fields: Vec<BasicTypeEnum<'ctx>> = vec![anchor_ty.into()];
-        if max_size > anchor_size {
-            fields.push(
-                self.codegen
-                    .context
-                    .i8_type()
-                    .array_type((max_size - anchor_size) as u32)
-                    .into(),
-            );
-        }
+        let _anchor_ty = anchor_ty.expect("payload_tys 至少包含 Complete variant");
+        let unit_size = if max_align > 8 {
+            16
+        } else if max_align > 4 {
+            8
+        } else if max_align > 2 {
+            4
+        } else if max_align > 1 {
+            2
+        } else {
+            1
+        };
+        let unit_count = max_size.div_ceil(unit_size) as u32;
+        let storage_field: BasicTypeEnum<'ctx> = match unit_size {
+            16 => self
+                .codegen
+                .context
+                .i128_type()
+                .array_type(unit_count)
+                .into(),
+            8 => self
+                .codegen
+                .context
+                .i64_type()
+                .array_type(unit_count)
+                .into(),
+            4 => self
+                .codegen
+                .context
+                .i32_type()
+                .array_type(unit_count)
+                .into(),
+            2 => self
+                .codegen
+                .context
+                .i16_type()
+                .array_type(unit_count)
+                .into(),
+            _ => self.codegen.context.i8_type().array_type(unit_count).into(),
+        };
+        let fields: Vec<BasicTypeEnum<'ctx>> = vec![storage_field];
         storage_ty.set_body(&fields, false);
         storage_ty
     }
@@ -7925,6 +8192,7 @@ mod tests {
                                                 Vec::new(),
                                             ),
                                             lowering.dispatch().clone(),
+                                            lowering.continuation_compositions().to_vec(),
                                             lowering.consumed_runtime_error_case().cloned(),
                                         ),
                                     )
@@ -8008,6 +8276,7 @@ mod tests {
                                                 lowering.operand_contract().arg_sources().to_vec(),
                                             ),
                                             lowering.dispatch().clone(),
+                                            lowering.continuation_compositions().to_vec(),
                                             lowering.consumed_runtime_error_case().cloned(),
                                         ),
                                     )
@@ -8431,6 +8700,122 @@ mod tests {
     }
 
     #[test]
+    fn refactor_llvm_call_boundary_continuation_composition() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result.expect("refactor ABI materialization 应成功");
+                let main = inputs
+                    .abi_visibility_program
+                    .callable("main")
+                    .expect("main callable 应存在");
+                let composition = main
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .find_map(|boundary| {
+                        let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering()
+                        else {
+                            return None;
+                        };
+                        lowering.continuation_compositions().first()
+                    })
+                    .expect("main 的 fetch call boundary 应发布 composition contract");
+                let continuation_layout = query
+                    .continuation_layout(main.continuation_object())
+                    .expect("main continuation object layout 应存在");
+                assert!(continuation_layout.fields().iter().any(|field| {
+                    field.kind() == RefactorContinuationFieldKind::ComposedCalleeContinuation
+                }));
+                let callee_surface = query
+                    .surface_resume_layout(composition.callee_continuation_schema())
+                    .expect("callee continuation surface resume ABI 应发布");
+                assert_eq!(
+                    callee_surface.return_step_schema(),
+                    composition.input_step_schema()
+                );
+                assert_eq!(
+                    callee_surface.resume_tuple_ty(),
+                    composition.callee_continuation_contract().resume_tuple_ty()
+                );
+            },
+        );
+
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let main = program.callable("main").expect("main callable 应存在");
+                let boundary_map = LateLoweredBoundaryMap::new(
+                    main.boundary_map()
+                        .entries()
+                        .iter()
+                        .map(|boundary| {
+                            let lowering = match boundary
+                                .lowering()
+                                .cloned()
+                                .expect("main boundary 应带 lowering")
+                            {
+                                LateLoweredBoundaryLowering::Call(lowering) => {
+                                    LateLoweredBoundaryLowering::Call(
+                                        LateLoweredCallBoundaryLowering::new(
+                                            lowering.facts().clone(),
+                                            lowering.result_local(),
+                                            lowering.operand_contract().clone(),
+                                            lowering.dispatch().clone(),
+                                            Vec::new(),
+                                            lowering.consumed_runtime_error_case().cloned(),
+                                        ),
+                                    )
+                                }
+                                other => other,
+                            };
+                            LateLoweredBoundary::new(
+                                boundary.boundary_id(),
+                                boundary.source(),
+                                boundary.owner_state(),
+                                boundary.resume_state(),
+                            )
+                            .with_lowering(lowering)
+                        })
+                        .collect(),
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == main.step_schema() {
+                            clone_callable_with_boundary_map(candidate, boundary_map.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 continuation composition 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("continuation composition"),
+                    "错误消息应指出缺失 call-boundary continuation composition: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
     fn refactor_llvm_dynamic_entry_publication_declares_closure_vtable_and_itable_targets() {
         with_inputs_query_result_and_codegen(
             build_fixture_inputs("effect_refactor_dynamic_entry_publication_emit_llvm.scoop"),
@@ -8698,6 +9083,7 @@ mod tests {
                                             lowering.result_local(),
                                             lowering.operand_contract().clone(),
                                             lowering.dispatch().clone(),
+                                            lowering.continuation_compositions().to_vec(),
                                             consumed_runtime_error_case,
                                         ),
                                     )

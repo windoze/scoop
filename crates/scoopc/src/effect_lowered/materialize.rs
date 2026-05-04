@@ -16,13 +16,14 @@ use super::EffectLoweringError;
 use super::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundary,
     LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption,
-    LateLoweredCallBoundaryLowering, LateLoweredCallBoundaryOperandContract,
-    LateLoweredCompleteStepDispatch, LateLoweredCompletionPayloadBinding,
-    LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
-    LateLoweredContinuationCapture, LateLoweredContinuationContract, LateLoweredContinuationMethod,
-    LateLoweredContinuationObject, LateLoweredContinuationResumeBody,
-    LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
-    LateLoweredFrameSlotKind, LateLoweredHandleArmDispatch, LateLoweredHandleBoundaryCaseRouting,
+    LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
+    LateLoweredCallBoundaryOperandContract, LateLoweredCompleteStepDispatch,
+    LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
+    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
+    LateLoweredContinuationContract, LateLoweredContinuationMethod, LateLoweredContinuationObject,
+    LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
+    LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredFrameSlotKind,
+    LateLoweredHandleArmDispatch, LateLoweredHandleBoundaryCaseRouting,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleBoundaryLowering,
     LateLoweredHandleBoundaryRouting, LateLoweredHandleContinuationBinder,
     LateLoweredHandleDispatchCarrierContract, LateLoweredHandleDispatchContract,
@@ -79,6 +80,7 @@ pub(crate) struct ContinuationObjectMaterializationInputs<'a> {
 
 struct CallBoundaryDispatchMaterialization {
     dispatch: LateLoweredStepDispatchPlan,
+    continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
     consumed_runtime_error_case: Option<PendingConsumedRuntimeErrorCase>,
 }
 
@@ -104,12 +106,14 @@ struct LocalRuntimeErrorStateTarget {
 
 struct CallBoundaryDispatchInputs<'a> {
     root_fqn: &'a str,
+    boundary_id: BoundaryId,
     input_step: &'a LateLoweredStepType,
     output_step: &'a LateLoweredStepType,
     outward_case_tags: &'a [crate::effect_facts::CaseTag],
     continuation_object: ContinuationObjectId,
     target_state: StateId,
     result_local: Option<LocalId>,
+    result_frame_slot: Option<crate::effect_lowered::ir::FrameSlotId>,
     types: &'a TypeStore,
 }
 
@@ -748,15 +752,21 @@ pub(crate) fn materialize_boundary_map(
                         kind: "Call",
                     }
                 })?;
+                let result_frame_slot =
+                    published_boundary_result_slot(frame_schema, boundary.boundary_id()).and_then(
+                        |(slot_local, slot_id)| (slot_local == result_local).then_some(slot_id),
+                    );
                 let call_dispatch =
                     build_call_boundary_dispatch_plan(CallBoundaryDispatchInputs {
                         root_fqn,
+                        boundary_id: boundary.boundary_id(),
                         input_step,
                         output_step: step_type,
                         outward_case_tags: facts.resolved_cases().tags(),
                         continuation_object,
                         target_state: boundary.resume_state(),
                         result_local: Some(result_local),
+                        result_frame_slot,
                         types,
                     })?;
                 let operand_contract = build_call_boundary_operand_contract(
@@ -792,6 +802,7 @@ pub(crate) fn materialize_boundary_map(
                     result_local,
                     operand_contract,
                     call_dispatch.dispatch,
+                    call_dispatch.continuation_compositions,
                     consumed_runtime_error_case,
                 ))
             }
@@ -1037,6 +1048,7 @@ fn attach_local_runtime_error_states(
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn attach_handle_dispatch_contracts(
     root_fqn: &str,
     body: &Body,
@@ -3478,18 +3490,30 @@ fn build_call_boundary_dispatch_plan(
 ) -> Result<CallBoundaryDispatchMaterialization, EffectLoweringError> {
     let CallBoundaryDispatchInputs {
         root_fqn,
+        boundary_id,
         input_step,
         output_step,
         outward_case_tags,
         continuation_object,
         target_state,
         result_local,
+        result_frame_slot,
         types,
     } = inputs;
     let complete =
         LateLoweredCompleteStepDispatch::new(input_step.complete_ty(), target_state, result_local);
     let mut outward_cases = Vec::with_capacity(outward_case_tags.len());
+    let mut continuation_compositions = Vec::with_capacity(outward_case_tags.len());
     let mut consumed_runtime_error_case = None;
+    let caller_result_local =
+        result_local.ok_or_else(
+            || EffectLoweringError::InvalidResumePayloadBindingContract {
+                root_fqn: root_fqn.to_string(),
+                boundary_id: boundary_id.as_u32(),
+                detail: "call-boundary continuation composition 缺少 caller result local"
+                    .to_string(),
+            },
+        )?;
 
     for case_tag in outward_case_tags {
         let input_case = input_step.case(*case_tag).ok_or_else(|| {
@@ -3504,7 +3528,7 @@ fn build_call_boundary_dispatch_plan(
             .iter()
             .find(|case| case.concrete_op_key() == input_case.concrete_op_key());
         if let Some(projected_case) = projected_case {
-            outward_cases.push(LateLoweredStepCaseForwarding::new(
+            let forwarding = LateLoweredStepCaseForwarding::new(
                 input_case.case_tag(),
                 input_case.concrete_op_key().clone(),
                 LateLoweredStepCaseEmission::new(
@@ -3514,7 +3538,20 @@ fn build_call_boundary_dispatch_plan(
                     projected_case.continuation_contract(),
                     continuation_object,
                 ),
+            );
+            continuation_compositions.push(LateLoweredCallBoundaryContinuationComposition::new(
+                boundary_id,
+                input_step.step_schema(),
+                input_case.case_tag(),
+                projected_case.case_tag(),
+                input_case.continuation_contract(),
+                projected_case.continuation_contract(),
+                target_state,
+                caller_result_local,
+                result_frame_slot,
+                input_step.complete_ty(),
             ));
+            outward_cases.push(forwarding);
             continue;
         }
 
@@ -3549,6 +3586,7 @@ fn build_call_boundary_dispatch_plan(
             complete,
             outward_cases,
         ),
+        continuation_compositions,
         consumed_runtime_error_case,
     })
 }
@@ -4897,6 +4935,87 @@ mod tests {
         assert_eq!(
             runtime_error_binding.consumer_frame_slot(),
             resume_binding.consumer_frame_slot(),
+        );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_call_boundary_continuation_composition() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+
+        let main = callable(&output, "main");
+        let (boundary, lowering) = main
+            .boundary_map()
+            .entries()
+            .iter()
+            .find_map(|boundary| {
+                let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering() else {
+                    return None;
+                };
+                (!lowering.continuation_compositions().is_empty()).then_some((boundary, lowering))
+            })
+            .expect("main 的 fetch call boundary 应发布 continuation composition");
+        let input_step = output
+            .program()
+            .step_type(lowering.dispatch().input_step_schema())
+            .expect("call boundary input step schema 应可回查");
+        let result_binding = main
+            .frame_schema()
+            .resume_payload_binding(boundary.boundary_id())
+            .expect("call boundary 应发布 caller result home binding");
+
+        assert_eq!(result_binding.resume_state(), boundary.resume_state());
+        assert_eq!(result_binding.consumer_local(), lowering.result_local());
+        assert_eq!(
+            lowering.continuation_compositions().len(),
+            lowering.dispatch().outward_cases().len(),
+            "每个 call-boundary outward forwarding 都必须有 composition contract"
+        );
+
+        for composition in lowering.continuation_compositions() {
+            assert_eq!(composition.boundary_id(), boundary.boundary_id());
+            assert_eq!(composition.input_step_schema(), input_step.step_schema());
+            assert_eq!(composition.caller_resume_state(), boundary.resume_state());
+            assert_eq!(
+                composition.caller_result_local(),
+                result_binding.consumer_local()
+            );
+            assert_eq!(
+                composition.caller_result_frame_slot(),
+                result_binding.consumer_frame_slot()
+            );
+            assert_eq!(composition.caller_result_ty(), input_step.complete_ty());
+
+            let input_case = input_step
+                .case(composition.input_case_tag())
+                .expect("composition input case 应存在于 callee Step_F");
+            let forwarding = lowering
+                .dispatch()
+                .outward_cases()
+                .iter()
+                .find(|forwarding| forwarding.input_case_tag() == composition.input_case_tag())
+                .expect("composition 应对应一个 dispatch forwarding");
+
+            assert_eq!(
+                composition.callee_continuation_contract(),
+                input_case.continuation_contract()
+            );
+            assert_eq!(
+                composition.output_case_tag(),
+                forwarding.emission().case_tag()
+            );
+            assert_eq!(
+                composition.caller_continuation_contract(),
+                forwarding.emission().continuation_contract()
+            );
+        }
+
+        let rendered = crate::effect_lowered::render_late_lowered_program(output.program());
+        assert!(
+            rendered.contains("continuation_compositions:"),
+            "dump-effect-lowered 应渲染 call-boundary continuation composition handoff"
         );
     }
 
