@@ -1242,6 +1242,9 @@ fn build_handle_dispatch_contract(
                 types,
                 state_graph,
                 arm_state,
+                arm_states,
+                finally_state,
+                exit_state,
                 arm.body_ty,
             )?;
             Ok(LateLoweredHandleArmDispatch::new(
@@ -1364,6 +1367,7 @@ fn build_handle_dispatch_contract(
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_arm_completion_payload_source(
     root_fqn: &str,
     site_id: SiteId,
@@ -1371,18 +1375,84 @@ fn handle_arm_completion_payload_source(
     types: &TypeStore,
     state_graph: &LateLoweredStateGraph,
     arm_state: StateId,
+    arm_states: &[StateId],
+    finally_state: Option<StateId>,
+    exit_state: StateId,
     body_ty: TypeId,
 ) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
-    handle_completion_payload_source_from_state(
-        root_fqn,
-        site_id,
-        body,
-        types,
-        state_graph,
-        arm_state,
-        body_ty,
-        "handle arm completion payload source",
-    )
+    let arm_complete_target = finally_state.unwrap_or(exit_state);
+    if matches!(types.kind(body_ty), TypeKind::Value(ValueTypeKind::Unit)) {
+        return Ok(LateLoweredCompletionPayloadSource::unit(body_ty));
+    }
+
+    let mut stop_states = BTreeSet::from([exit_state]);
+    stop_states.extend(
+        arm_states
+            .iter()
+            .copied()
+            .filter(|state| *state != arm_state),
+    );
+    if let Some(finally_state) = finally_state {
+        stop_states.insert(finally_state);
+    }
+
+    let mut published = None;
+    for state_id in
+        collect_handle_region_states(root_fqn, site_id, state_graph, arm_state, &stop_states)?
+    {
+        let state = state_graph.state(state_id).ok_or_else(|| {
+            invalid_handle_dispatch_contract(
+                root_fqn,
+                site_id,
+                format!(
+                    "handle arm completion payload source 引用了不存在的 arm state st{}",
+                    state_id.as_u32()
+                ),
+            )
+        })?;
+        if !matches!(
+            state.terminator(),
+            LateLoweredStateTerminator::Goto { target } if *target == arm_complete_target
+        ) {
+            continue;
+        }
+        let candidate = handle_completion_payload_source_from_state(
+            root_fqn,
+            site_id,
+            body,
+            types,
+            state_graph,
+            state.state_id(),
+            body_ty,
+            "handle arm completion payload source",
+        )?;
+        if let Some(existing) = &published {
+            if !same_completion_payload_source_ignoring_span(existing, &candidate) {
+                return Err(invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "handle arm completion payload source 歧义：已发布 {:?}，又发现 {:?}",
+                        existing, candidate
+                    ),
+                ));
+            }
+            continue;
+        }
+        published = Some(candidate);
+    }
+
+    published.ok_or_else(|| {
+        invalid_handle_dispatch_contract(
+            root_fqn,
+            site_id,
+            format!(
+                "non-Unit handle arm completion payload source 从 st{} 到 st{} 缺少 completion payload source",
+                arm_state.as_u32(),
+                arm_complete_target.as_u32()
+            ),
+        )
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1483,6 +1553,7 @@ fn handle_completion_payload_source_from_state(
             format!("{context} 引用了不存在的 state st{}", state_id.as_u32()),
         )
     })?;
+    let mut skipped_type_mismatches = Vec::new();
 
     for slice in state.source_slices().iter().rev() {
         if slice.end_statement_index() == slice.start_statement_index() {
@@ -1524,28 +1595,34 @@ fn handle_completion_payload_source_from_state(
             )
         })?;
         if local.ty != complete_ty {
-            return Err(invalid_handle_dispatch_contract(
-                root_fqn,
-                site_id,
-                format!(
-                    "{context} local{} 类型 t{} 与 complete_ty t{} 不一致",
-                    target.as_u32(),
-                    local.ty.as_u32(),
-                    complete_ty.as_u32()
-                ),
+            skipped_type_mismatches.push(format!(
+                "local{}:t{}",
+                target.as_u32(),
+                local.ty.as_u32()
             ));
+            continue;
         }
         return Ok(LateLoweredCompletionPayloadSource::operand(
             LateLoweredOperandSource::new_local(*target, complete_ty, Some(stmt.span)),
         ));
     }
 
+    let skipped = if skipped_type_mismatches.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "；已跳过非 completion 类型赋值 [{}]，目标 complete_ty=t{}",
+            skipped_type_mismatches.join(", "),
+            complete_ty.as_u32()
+        )
+    };
     Err(invalid_handle_dispatch_contract(
         root_fqn,
         site_id,
         format!(
-            "non-Unit {context} state st{} 缺少 completion payload source",
-            state_id.as_u32()
+            "non-Unit {context} state st{} 缺少 completion payload source{}",
+            state_id.as_u32(),
+            skipped
         ),
     ))
 }

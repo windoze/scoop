@@ -11,7 +11,7 @@ use inkwell::AddressSpace;
 use inkwell::basic_block::BasicBlock;
 use inkwell::types::{BasicTypeEnum, StructType};
 use inkwell::values::{
-    BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue, PointerValue,
+    BasicMetadataValueEnum, BasicValueEnum, FunctionValue, GlobalValue, IntValue, PointerValue,
 };
 
 use crate::effect_facts::{CaseTag, StepSchemaId};
@@ -34,7 +34,9 @@ use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue};
-use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident};
+use super::super::{
+    MainCodegen, RefactorCallableCarrierKind, TypeDescriptorSpec, sanitize_llvm_ident,
+};
 use super::types::{
     RefactorAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
     RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
@@ -1019,7 +1021,7 @@ struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     abi_step_schema: StepSchemaId,
     frame_layout: &'cg RefactorFrameLayout<'ctx>,
     step_layout: &'cg RefactorStepLayout<'ctx>,
-    frame_ptr: PointerValue<'ctx>,
+    frame_root_slot: PointerValue<'ctx>,
     state_blocks: BTreeMap<StateId, BasicBlock<'ctx>>,
     return_projection:
         Option<&'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection>,
@@ -1067,7 +1069,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         })?;
         let slots = codegen.create_mir_local_slots(body, source_types)?;
         let used_locals = super::super::mir_body::collect_mir_local_uses(body);
-        let frame_ptr = codegen.refactor_alloc_struct(frame_layout.llvm_ty(), "refactor_frame")?;
+        let frame_root_slot =
+            codegen.create_refactor_gc_root_slot(mir_fun.span, "refactor_frame_root")?;
         let mut state_blocks = BTreeMap::new();
         for state in callable.state_graph().states() {
             if state_blocks
@@ -1100,7 +1103,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             abi_step_schema,
             frame_layout,
             step_layout,
-            frame_ptr,
+            frame_root_slot,
             state_blocks,
             return_projection,
             handle_completion_mode,
@@ -1762,6 +1765,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         matches!(
             self.source_types.kind(ty),
             TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal))
                 if nominal.fqn == "scoop.core.RuntimeError"
         )
     }
@@ -1860,6 +1864,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         stmt: &mir::Statement,
     ) -> Result<(), LlvmEmitError> {
+        if self.is_builtin_string_concat_callee_statement(stmt) {
+            return Ok(());
+        }
         let codegen = &mut *self.codegen;
         let source_types = self.source_types;
         let body = self.body;
@@ -1868,6 +1875,37 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let used_locals = &self.used_locals;
         RefactorValuePrimitives::new(codegen, source_types, body, slots, abi)
             .lower_effect_neutral_statement(stmt, used_locals)
+    }
+
+    fn is_builtin_string_concat_callee_statement(&self, stmt: &mir::Statement) -> bool {
+        let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+            return false;
+        };
+        let mir::Rvalue::MemberAccess { member, .. } = value else {
+            return false;
+        };
+        if member.name != "concat"
+            || self
+                .codegen
+                .cg_ty_of_mir_type(self.source_types, member.receiver_ty)
+                != Some(CgTy::String)
+        {
+            return false;
+        }
+        self.body.blocks.iter().any(|block| {
+            block.stmts.iter().any(|candidate| {
+                matches!(
+                    &candidate.kind,
+                    mir::StatementKind::Assign {
+                        value: mir::Rvalue::Call {
+                            kind: mir::CallKind::FunValue { callee: mir::Operand::Local(local) },
+                            ..
+                        },
+                        ..
+                    } if local == target
+                )
+            })
+        })
     }
 
     fn lower_published_call_statement(
@@ -1894,6 +1932,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 | mir::CallKind::Interface { .. }
         ) {
             return Ok(false);
+        }
+        if let Some(value) = self.lower_builtin_string_concat_call(stmt.span, kind, args)? {
+            self.store_local_value(stmt.span, *target, value)?;
+            return Ok(true);
         }
         if let Some(value) = self.lower_builtin_to_string_call(stmt.span, kind, args)? {
             self.store_local_value(stmt.span, *target, value)?;
@@ -1924,6 +1966,89 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             *target,
         )?;
         Ok(true)
+    }
+
+    fn lower_builtin_string_concat_call(
+        &mut self,
+        span: crate::span::Span,
+        kind: &mir::CallKind,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let mir::CallKind::FunValue { callee } = kind else {
+            return Ok(None);
+        };
+        let Some(receiver) = self.string_concat_receiver(callee) else {
+            return Ok(None);
+        };
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin String.concat args",
+                at: span.into(),
+            });
+        }
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            span,
+            &receiver,
+            &self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver = self.codegen.coerce_value(span, receiver, CgTy::String)?;
+        let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin String.concat receiver value",
+                at: span.into(),
+            });
+        };
+        let arg = &args[0];
+        let arg_value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            &self.slots,
+            Some(CgTy::String),
+        )?;
+        let arg_value = self
+            .codegen
+            .coerce_value(arg.span, arg_value, CgTy::String)?;
+        let Some(BasicValueEnum::PointerValue(arg_ptr)) = arg_value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin String.concat arg value",
+                at: arg.span.into(),
+            });
+        };
+        let runtime = self.codegen.declare_runtime_string_concat();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into(), arg_ptr.into()],
+            "refactor_string_concat",
+        )?;
+        self.string_result_from_runtime_call(span, call, "String.concat")
+            .map(Some)
+    }
+
+    fn string_concat_receiver(&self, callee: &mir::Operand) -> Option<mir::Operand> {
+        let mir::Operand::Local(callee_local) = callee else {
+            return None;
+        };
+        self.body.blocks.iter().find_map(|block| {
+            block.stmts.iter().find_map(|stmt| {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    return None;
+                };
+                if target != callee_local {
+                    return None;
+                }
+                let mir::Rvalue::MemberAccess { receiver, member } = value else {
+                    return None;
+                };
+                (member.name == "concat"
+                    && self
+                        .codegen
+                        .cg_ty_of_mir_type(self.source_types, member.receiver_ty)
+                        == Some(CgTy::String))
+                .then_some(receiver.clone())
+            })
+        })
     }
 
     fn lower_builtin_to_string_call(
@@ -2075,6 +2200,60 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .store_loaded_raw_local(span, local, raw)
     }
 
+    fn initialize_new_frame(&mut self) -> Result<(), LlvmEmitError> {
+        let frame_ptr = self.codegen.refactor_alloc_gc_struct(
+            self.mir_fun.span,
+            self.frame_layout.llvm_ty(),
+            self.frame_layout.layout_anchor_name(),
+            "refactor_frame",
+        )?;
+        self.store_frame_root(frame_ptr)
+    }
+
+    fn store_frame_root(&mut self, frame_ptr: PointerValue<'ctx>) -> Result<(), LlvmEmitError> {
+        let frame_gc = self.codegen.refactor_cast_ptr(
+            frame_ptr,
+            self.codegen.llvm_gc_i8_ptr_type(),
+            "refactor_frame_root_value",
+        )?;
+        self.codegen.store_refactor_gc_root_slot(
+            self.mir_fun.span,
+            self.frame_root_slot,
+            frame_gc,
+            "refactor_frame_root",
+        )?;
+        Ok(())
+    }
+
+    fn current_frame_ptr(&mut self) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let frame_gc = self
+            .codegen
+            .load_refactor_gc_root_slot(self.frame_root_slot, "refactor_frame_root")?;
+        self.codegen.refactor_cast_ptr(
+            frame_gc,
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
+            "refactor_frame_current",
+        )
+    }
+
+    fn root_gc_pointer(
+        &mut self,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let slot = self
+            .codegen
+            .create_refactor_gc_root_slot(self.mir_fun.span, name)?;
+        let value = self.codegen.refactor_cast_ptr(
+            value,
+            self.codegen.llvm_gc_i8_ptr_type(),
+            &format!("{name}_value"),
+        )?;
+        self.codegen
+            .store_refactor_gc_root_slot(self.mir_fun.span, slot, value, name)?;
+        self.codegen.load_refactor_gc_root_slot(slot, name)
+    }
+
     fn emit_direct(
         mut self,
         entry_layout: &RefactorCallableEntryLayout<'ctx>,
@@ -2085,6 +2264,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 entry_layout.symbol_name()
             ))
         })?;
+        self.initialize_new_frame()?;
         let entry_state = self.callable.state_graph().entry_state();
         self.branch_to_state(entry_state)?;
         self.emit_states()
@@ -2106,7 +2286,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             ))
         })?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont.into_pointer_value())?;
-        self.frame_ptr = self.load_frame_from_continuation(cont_ptr)?;
+        let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_resume_cont_root")?;
+        let captured_frame = self.load_frame_from_continuation(cont_ptr)?;
+        self.store_frame_root(captured_frame)?;
         self.restore_frame_slots_to_locals()?;
         let payload = if self.function.count_params() > 1 {
             Some(self.function.get_nth_param(1).ok_or_else(|| {
@@ -2454,10 +2636,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .into(),
             );
         }
-        let call =
-            self.codegen
-                .builder
-                .build_call(callee, &args, "refactor_composed_callee_resume")?;
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            self.mir_fun.span,
+            callee,
+            &args,
+            "refactor_composed_callee_resume",
+        )?;
         let step = call.try_as_basic_value().basic().ok_or_else(|| {
             frontend_error(
                 "refactor composed call boundary callee resume 未返回 Step_F".to_string(),
@@ -2943,10 +3127,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                             .into(),
                     );
                 }
-                let call =
-                    self.codegen
-                        .builder
-                        .build_call(callee, &args, "refactor_resume_step")?;
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    self.mir_fun.span,
+                    callee,
+                    &args,
+                    "refactor_resume_step",
+                )?;
                 let step = call.try_as_basic_value().basic().ok_or_else(|| {
                     frontend_error("refactor resume boundary callee 未返回 Step_F".to_string())
                 })?;
@@ -4372,7 +4558,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             transport.frame_field_index,
             "refactor_handle_pending_payload_store_gep",
         )?;
-        self.codegen.builder.build_store(field_ptr, payload)?;
+        self.codegen.refactor_store_gc_aware_value(
+            self.mir_fun.span,
+            field_ptr,
+            payload,
+            "refactor_handle_pending_payload_store",
+        )?;
         Ok(())
     }
 
@@ -4447,14 +4638,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         field_index: u32,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let frame_ptr = self.current_frame_ptr()?;
         self.codegen
             .builder
-            .build_struct_gep(
-                self.frame_layout.llvm_ty(),
-                self.frame_ptr,
-                field_index,
-                name,
-            )
+            .build_struct_gep(self.frame_layout.llvm_ty(), frame_ptr, field_index, name)
             .map_err(Into::into)
     }
 
@@ -4581,10 +4768,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .into(),
             );
         }
-        let call = self
-            .codegen
-            .builder
-            .build_call(callee, &args, "refactor_call_step")?;
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            self.mir_fun.span,
+            callee,
+            &args,
+            "refactor_call_step",
+        )?;
         call.try_as_basic_value().basic().ok_or_else(|| {
             frontend_error("refactor call boundary callee 未返回 Step_F".to_string())
         })
@@ -4676,12 +4865,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .into(),
             );
         }
-        let call = self.codegen.builder.build_indirect_call(
-            layout.llvm_ty(),
-            typed_fn,
-            &args,
-            "refactor_dynamic_call_step",
-        )?;
+        let call =
+            self.codegen
+                .with_conservative_gc_local_root_spills(self.mir_fun.span, |codegen| {
+                    Ok(codegen.builder.build_indirect_call(
+                        layout.llvm_ty(),
+                        typed_fn,
+                        &args,
+                        "refactor_dynamic_call_step",
+                    )?)
+                })?;
         call.try_as_basic_value().basic().ok_or_else(|| {
             frontend_error(format!(
                 "refactor dynamic call site {} 未返回 Step_F",
@@ -4870,11 +5063,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     self.callable.continuation_object().as_u32()
                 ))
             })?;
-        let cont_ptr = self
-            .codegen
-            .refactor_alloc_struct(cont_layout.llvm_ty(), "refactor_cont")?;
+        let cont_ptr = self.codegen.refactor_alloc_gc_struct(
+            self.mir_fun.span,
+            cont_layout.llvm_ty(),
+            cont_layout.layout_anchor_name(),
+            "refactor_cont",
+        )?;
+        let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_cont_root")?;
+        let current_frame = self.current_frame_ptr()?;
         let frame_gc = self.codegen.refactor_cast_ptr(
-            self.frame_ptr,
+            current_frame,
             self.codegen.llvm_gc_i8_ptr_type(),
             "refactor_frame_gc",
         )?;
@@ -4884,7 +5082,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             CONT_FIELD_CAPTURED_FRAME,
             "refactor_cont_frame_gep",
         )?;
-        self.codegen.builder.build_store(frame_gep, frame_gc)?;
+        self.codegen.store_gc_pointer_slot_with_write_barrier(
+            self.mir_fun.span,
+            frame_gep,
+            frame_gc,
+        )?;
         let state_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
@@ -4911,9 +5113,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )?;
         let composed_callee =
             callee_continuation.unwrap_or_else(|| self.codegen.llvm_gc_i8_ptr_type().const_null());
-        self.codegen
-            .builder
-            .build_store(composed_gep, composed_callee)?;
+        self.codegen.store_gc_pointer_slot_with_write_barrier(
+            self.mir_fun.span,
+            composed_gep,
+            composed_callee,
+        )?;
         self.codegen.refactor_cast_ptr(
             cont_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
@@ -4925,7 +5129,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         ptr: PointerValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let target_ty = self.codegen.context.ptr_type(AddressSpace::default());
+        let target_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
         self.codegen
             .refactor_cast_ptr(ptr, target_ty, "refactor_cont_typed")
     }
@@ -4957,7 +5161,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .into_pointer_value();
         self.codegen.refactor_cast_ptr(
             raw,
-            self.codegen.context.ptr_type(AddressSpace::default()),
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
             "refactor_frame_typed",
         )
     }
@@ -5087,12 +5291,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         slot.slot_id().as_u32()
                     ))
                 })?;
-            let field_ptr = self.codegen.builder.build_struct_gep(
-                self.frame_layout.llvm_ty(),
-                self.frame_ptr,
-                field_index,
-                "refactor_frame_slot_load_gep",
-            )?;
+            let field_ptr = self.frame_field_ptr(field_index, "refactor_frame_slot_load_gep")?;
             let loaded = self.codegen.builder.build_load(
                 self.codegen
                     .llvm_basic_type_of(self.mir_fun.span, local_slot.cg_ty)?,
@@ -5124,15 +5323,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     frame_slot.as_u32()
                 ))
             })?;
-        let field_ptr = self.codegen.builder.build_struct_gep(
-            self.frame_layout.llvm_ty(),
-            self.frame_ptr,
-            field_index,
-            "refactor_frame_slot_store_gep",
-        )?;
+        let field_ptr = self.frame_field_ptr(field_index, "refactor_frame_slot_store_gep")?;
         let value = self.load_local_value(self.mir_fun.span, local)?;
         if let Some(raw) = value.value {
-            self.codegen.builder.build_store(field_ptr, raw)?;
+            self.codegen.refactor_store_gc_aware_value(
+                self.mir_fun.span,
+                field_ptr,
+                raw,
+                "refactor_frame_slot_store",
+            )?;
         }
         Ok(())
     }
@@ -5190,27 +5389,210 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn refactor_alloc_struct(
+    fn create_refactor_gc_root_slot(
         &mut self,
-        struct_ty: StructType<'ctx>,
+        at: crate::span::Span,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let malloc = self.declare_libc_malloc();
+        let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let slot = self.create_entry_alloca_raw(at, name, gc_ptr_ty.into())?;
+        self.builder.build_store(slot, gc_ptr_ty.const_null())?;
+        self.sync_storage_slot_into_explicit_frame(at, slot, gc_ptr_ty.into(), name)?;
+        self.track_gc_root_slots_for_spill_slot(at, slot, gc_ptr_ty.into(), name)?;
+        Ok(slot)
+    }
+
+    fn store_refactor_gc_root_slot(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let value =
+            self.refactor_cast_ptr(value, self.llvm_gc_i8_ptr_type(), &format!("{name}_gc"))?;
+        self.builder.build_store(slot, value)?;
+        self.sync_storage_slot_into_explicit_frame(
+            at,
+            slot,
+            self.llvm_gc_i8_ptr_type().into(),
+            name,
+        )
+    }
+
+    fn load_refactor_gc_root_slot(
+        &mut self,
+        slot: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        Ok(self
+            .builder
+            .build_load(self.llvm_gc_i8_ptr_type(), slot, &format!("{name}_reload"))?
+            .into_pointer_value())
+    }
+
+    fn refactor_alloc_gc_struct(
+        &mut self,
+        at: crate::span::Span,
+        struct_ty: StructType<'ctx>,
+        layout_anchor_name: &str,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let desc =
+            self.get_or_create_refactor_gc_type_descriptor(at, struct_ty, layout_anchor_name)?;
+        let desc_i8 = self.builder.build_pointer_cast(
+            desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            &format!("{name}_type_desc"),
+        )?;
+        let alloc = self.declare_runtime_alloc_typed();
         let size = self.target_data.get_store_size(&struct_ty);
-        let call = self.builder.build_call(
-            malloc,
-            &[self.context.i64_type().const_int(size, false).into()],
-            &format!("{name}_raw"),
+        let call = self.build_call_preserving_gc_local_roots(
+            at,
+            alloc,
+            &[
+                desc_i8.into(),
+                self.context.i64_type().const_int(size, false).into(),
+            ],
+            &format!("rt_alloc_{name}"),
         )?;
         let raw = call
             .try_as_basic_value()
             .basic()
-            .ok_or_else(|| frontend_error("malloc 未返回 pointer".to_string()))?
+            .ok_or_else(|| frontend_error("scoop_alloc_typed 未返回 pointer".to_string()))?
             .into_pointer_value();
-        let ptr =
-            self.refactor_cast_ptr(raw, self.context.ptr_type(AddressSpace::default()), name)?;
-        self.builder.build_store(ptr, struct_ty.const_zero())?;
+        let ptr = self.refactor_cast_ptr(raw, self.llvm_ptr_type(self.gc_address_space()), name)?;
+        self.refactor_zero_gc_object_payload(struct_ty, ptr, name)?;
         Ok(ptr)
+    }
+
+    fn get_or_create_refactor_gc_type_descriptor(
+        &mut self,
+        at: crate::span::Span,
+        struct_ty: StructType<'ctx>,
+        layout_anchor_name: &str,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let global_name = format!("{layout_anchor_name}__type_desc");
+        let trace_start_offset_bytes = if struct_ty.count_fields() > 1 {
+            self.target_data
+                .offset_of_element(&struct_ty, 1)
+                .unwrap_or(0)
+        } else {
+            self.target_data.get_store_size(&struct_ty)
+        };
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at,
+            global_name: &global_name,
+            canonical_name: layout_anchor_name,
+            obj_ty: struct_ty,
+            trace_start_offset_bytes,
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
+    }
+
+    fn refactor_zero_gc_object_payload(
+        &mut self,
+        struct_ty: StructType<'ctx>,
+        ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        for field_index in 1..struct_ty.count_fields() {
+            let Some(field_ty) = struct_ty.get_field_type_at_index(field_index) else {
+                return Err(frontend_error(format!(
+                    "refactor GC object `{name}` 缺少 field {}",
+                    field_index
+                )));
+            };
+            let field_ptr = self.builder.build_struct_gep(
+                struct_ty,
+                ptr,
+                field_index,
+                &format!("{name}_zero_field_{field_index}"),
+            )?;
+            self.builder.build_store(field_ptr, field_ty.const_zero())?;
+        }
+        Ok(())
+    }
+
+    fn refactor_store_gc_aware_value(
+        &mut self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        value: BasicValueEnum<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.refactor_store_gc_aware_basic_value(at, ptr, value.get_type(), value, name)
+    }
+
+    fn refactor_store_gc_aware_basic_value(
+        &mut self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        value: BasicValueEnum<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        match value_ty {
+            BasicTypeEnum::PointerType(ptr_ty)
+                if ptr_ty.get_address_space() == self.gc_address_space()
+                    && ptr.get_type().get_address_space() == self.gc_address_space() =>
+            {
+                let BasicValueEnum::PointerValue(value_ptr) = value else {
+                    return Err(frontend_error(format!(
+                        "refactor GC-aware store `{name}` 的值不是 pointer"
+                    )));
+                };
+                self.store_gc_pointer_slot_with_write_barrier(at, ptr, value_ptr)
+            }
+            BasicTypeEnum::StructType(struct_ty)
+                if ptr.get_type().get_address_space() == self.gc_address_space()
+                    && self.basic_type_contains_gc_ptrs(at, value_ty)? =>
+            {
+                let BasicValueEnum::StructValue(struct_value) = value else {
+                    return Err(frontend_error(format!(
+                        "refactor GC-aware store `{name}` 的值不是 struct"
+                    )));
+                };
+                for field_index in 0..struct_ty.count_fields() {
+                    let Some(field_ty) = struct_ty.get_field_type_at_index(field_index) else {
+                        return Err(frontend_error(format!(
+                            "refactor GC-aware store `{name}` 缺少 field {}",
+                            field_index
+                        )));
+                    };
+                    let field_ptr = self.builder.build_struct_gep(
+                        struct_ty,
+                        ptr,
+                        field_index,
+                        &format!("{name}_field_{field_index}"),
+                    )?;
+                    let field_value = self.builder.build_extract_value(
+                        struct_value,
+                        field_index,
+                        &format!("{name}_field_value_{field_index}"),
+                    )?;
+                    self.refactor_store_gc_aware_basic_value(
+                        at,
+                        field_ptr,
+                        field_ty,
+                        field_value,
+                        name,
+                    )?;
+                }
+                Ok(())
+            }
+            BasicTypeEnum::ArrayType(_) if self.basic_type_contains_gc_ptrs(at, value_ty)? => {
+                Err(frontend_error(format!(
+                    "refactor GC-aware store `{name}` 尚未发布 array payload root/write-barrier contract"
+                )))
+            }
+            _ => {
+                self.builder.build_store(ptr, value)?;
+                Ok(())
+            }
+        }
     }
 
     fn refactor_cast_ptr(
@@ -5745,5 +6127,56 @@ mod tests {
         assert!(body.contains("source_ty_is_runtime_error"));
         assert!(body.contains("copy_boundary_complete_to_handle_return_payload"));
         assert!(!body.contains(concat!("null_", "payload")));
+    }
+
+    #[test]
+    fn refactor_llvm_gc_roots_allocates_refactor_objects_with_typed_gc() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("refactor_alloc_gc_struct"));
+        assert!(body.contains("declare_runtime_alloc_typed"));
+        assert!(body.contains("get_or_create_refactor_gc_type_descriptor"));
+        assert!(body.contains("create_refactor_gc_root_slot"));
+        assert!(body.contains("store_refactor_gc_root_slot"));
+        assert!(body.contains("store_gc_pointer_slot_with_write_barrier"));
+        assert!(!body.contains(concat!("declare_libc_", "malloc")));
+    }
+
+    #[test]
+    fn refactor_llvm_stackmap_keeps_refactor_path_on_explicit_roots() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("build_call_preserving_gc_local_roots"));
+        assert!(body.contains("with_conservative_gc_local_root_spills"));
+        assert!(body.contains("current_frame_ptr"));
+        assert!(body.contains("load_refactor_gc_root_slot"));
+        assert!(!body.contains(concat!("statepoint", "-example")));
+        assert!(!body.contains(concat!("llvm.experimental.", "stackmap")));
+    }
+
+    #[test]
+    fn refactor_llvm_dropped_continuation_keeps_drop_state_terminal() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("verify_abandon_contract"));
+        assert!(body.contains("lower_abandon_terminator"));
+        assert!(body.contains("published drop_state"));
+        assert!(body.contains("no\n        // remaining source-level computation is resumed"));
+        assert!(!body.contains(concat!("cleanup ", "hook")));
+        assert!(!body.contains(concat!("finish finally", " from drop")));
+    }
+
+    #[test]
+    fn refactor_llvm_managed_abi_boundary_rejects_refactor_effect_carriers() {
+        let body = include_str!("body.rs");
+        let value = include_str!("value.rs");
+
+        assert!(value.contains("extern_funs.contains_key"));
+        assert!(value.contains("requires published native ABI"));
+        assert!(body.contains("RefactorContinuationSurfaceResumeLayout"));
+        assert!(body.contains("RefactorDynamicInvokeLayout"));
+        assert!(!body.contains(concat!("emit_extern_", "native_call")));
+        assert!(!body.contains(concat!("scoop_effect_", "handler_stack")));
+        assert!(!body.contains(concat!("scoop_effect_", "outcome")));
     }
 }

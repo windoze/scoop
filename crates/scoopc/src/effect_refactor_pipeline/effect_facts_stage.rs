@@ -1,6 +1,6 @@
 use crate::effect_facts::{
-    EffectFactsError, MaterializedEffectFacts, MaterializedEffectFactsBuilder,
-    MaterializedEffectFactsSolver,
+    BodyEffectFacts, EffectFactsError, MaterializedEffectFacts, MaterializedEffectFactsBuilder,
+    MaterializedEffectFactsSolver, SiteEffectFacts,
 };
 use crate::mir::{File as MirFile, MaterializedMir, MaterializedMirPassView};
 use crate::session::Session;
@@ -97,7 +97,13 @@ pub(crate) fn run(
     let compiler_continuation_runtime_error_callables = provisional_facts
         .callable_facts()
         .iter()
-        .filter_map(|(key, callable)| callable.needs_reentry().then_some(key.clone()))
+        .filter_map(|(key, callable)| {
+            (callable.needs_reentry()
+                || provisional_facts
+                    .body(key)
+                    .is_some_and(body_has_escaped_continuation))
+            .then_some(key.clone())
+        })
         .collect::<Vec<_>>();
     let effect_facts = if compiler_continuation_runtime_error_callables.is_empty() {
         provisional_facts
@@ -125,6 +131,15 @@ pub(crate) fn run(
         mir_stage_output,
         effect_facts,
     ))
+}
+
+fn body_has_escaped_continuation(body: &BodyEffectFacts) -> bool {
+    body.sites().values().any(|site| {
+        matches!(
+            site,
+            SiteEffectFacts::Handle(handle) if !handle.arm_facts().is_empty()
+        )
+    })
 }
 
 #[cfg(test)]

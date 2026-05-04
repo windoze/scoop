@@ -951,6 +951,14 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 None,
             ),
             CallKind::FunValue { callee } => {
+                if let Some(facts) = self.build_builtin_fun_value_call_site(
+                    types,
+                    callee,
+                    invoke_args_tuple_ty,
+                    result_ty,
+                )? {
+                    return Ok(facts);
+                }
                 let callee_ty = operand_ty(self.body(), types, callee);
                 let (step_schema, resolved_cases) =
                     if let Some(contract) = function_surface_contract_from_ty(types, callee_ty) {
@@ -1011,6 +1019,63 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             ),
             CallKind::Resume { .. } => unreachable!("resume call sites are handled separately"),
         }
+    }
+
+    fn build_builtin_fun_value_call_site(
+        &mut self,
+        types: &mut TypeStore,
+        callee: &Operand,
+        invoke_args_tuple_ty: TypeId,
+        result_ty: TypeId,
+    ) -> Result<Option<CallSiteEffectFacts>, EffectFactsError> {
+        if !self.fun_value_callee_is_builtin_string_concat(types, callee) {
+            return Ok(None);
+        }
+        let pure = EffectRow::pure();
+        let step_schema = self.schema_pool.intern_synthetic_step_schema(
+            types,
+            invoke_args_tuple_ty,
+            result_ty,
+            &pure,
+            &pure,
+            SyntheticStepSchemaKind::CallSurface,
+        )?;
+        Ok(Some(CallSiteEffectFacts::new(
+            CallSiteKind::FunValue,
+            CallSiteTarget::DynamicFallback,
+            invoke_args_tuple_ty,
+            step_schema,
+            self.schema_pool.full_case_set(step_schema),
+            EffectPrecision::Precise,
+        )))
+    }
+
+    fn fun_value_callee_is_builtin_string_concat(
+        &self,
+        types: &TypeStore,
+        callee: &Operand,
+    ) -> bool {
+        let Operand::Local(callee_local) = callee else {
+            return false;
+        };
+        self.body().blocks.iter().any(|block| {
+            block.stmts.iter().any(|stmt| {
+                let StatementKind::Assign { target, value } = &stmt.kind else {
+                    return false;
+                };
+                if target != callee_local {
+                    return false;
+                }
+                let Rvalue::MemberAccess { member, .. } = value else {
+                    return false;
+                };
+                member.name == "concat"
+                    && matches!(
+                        types.kind(member.receiver_ty),
+                        TypeKind::Ref(RefTypeKind::String)
+                    )
+            })
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
