@@ -212,7 +212,7 @@
   - 2026-05-05：修正 body emitter 对 ABI visibility layout 的消费边界：按 callable `body_version_key` 取得 ABI step/frame layout，避免 `--opt-level 0` primary handoff 的局部 schema id 与 ABI visibility handoff 漂移时取错 completion binding。
   - 验证通过：`cargo test -p scoopc refactor_llvm_pure_statement_lowering`；`cargo test -p scoopc refactor_llvm_member_read_write_lowering`；`cargo test -p scoopc refactor_effect_lowered_source_slice_classification`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
-## P6-T03d：闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper
+## [DONE] P6-T03d：闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.9, §5.2, §5.6
@@ -238,7 +238,11 @@
   - main wrapper 对 refactor `Step_F` 协议有完整语义或显式诊断。
 - 依赖：P6-T03c
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：refactor callable body emission 现在在定义 direct/dynamic entry 前校验 ABI query 发布的 entry pair contract，确保 direct/dynamic 的 invoke args tuple、参数 elision、参数个数与返回 `StepSchema` 一致，并且 callable body 继续按 `body_version_key` 选择 ABI layout。
+  - 2026-05-05：refactor C `main` wrapper 改为只通过 published refactor direct entry 调用入口；零参入口不再用默认零值伪造 args payload，遇到非 elided args ABI 会 fail fast。`main(args: Array<String>)` 在 refactor argv tuple ABI 发布前会在 body emission 之前显式拒绝，避免借 legacy `scoop_entry_argv_array` 路径继续前进。
+  - 2026-05-05：`main` wrapper 现在区分 `Step_F::Complete` 与 non-Complete `Step`：`Unit`/`Int` Complete 继续映射为进程 exit code；当入口 `Step` layout 发布了 outward cases 时，non-Complete 分支进入显式非零 exit path，而不是把合法 outward case 表示为 `unreachable`。仅当 ABI contract 证明入口 step 没有 outward cases 时，保留 unreachable 分支。
+  - 2026-05-05：新增定向测试覆盖 refactor direct/dynamic entry shell、C main wrapper 调用 refactor direct entry、unhandled outward case 的显式 exit path，以及 Array<String> argv ABI 未发布时的 fail-fast 诊断。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_function_abi`；`cargo test -p scoopc refactor_llvm_main_wrapper`；`cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_main.ll`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T03e：闭合 direct/dynamic/virtual/interface call lowering，不再回 legacy callable wrapper
 

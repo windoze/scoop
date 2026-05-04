@@ -34,7 +34,7 @@ use super::super::MainCodegen;
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue};
 use super::types::{
-    RefactorAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout,
+    RefactorAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
     RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
     RefactorFrameLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
     RefactorStepVariantLayout,
@@ -42,6 +42,7 @@ use super::types::{
 use super::value::RefactorValuePrimitives;
 
 const STEP_TAG_COMPLETE: u64 = 0;
+const REFACTOR_MAIN_UNHANDLED_EXIT_CODE: u64 = 3;
 const CONT_FIELD_CAPTURED_FRAME: u32 = 1;
 const CONT_FIELD_RESUME_STATE: u32 = 2;
 const CONT_FIELD_ONE_SHOT: u32 = 3;
@@ -146,24 +147,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "refactor LLVM main wrapper 尚未发布 Array<String> argv tuple ABI".to_string(),
             ));
         }
-        let callable = program.callable(&hir_main.fqn).ok_or_else(|| {
+        let mut entry_callables = program
+            .callables()
+            .iter()
+            .filter(|callable| callable.root_fqn() == hir_main.fqn);
+        let callable = entry_callables.next().ok_or_else(|| {
             frontend_error(format!(
                 "refactor LLVM main wrapper 缺少入口 `{}` 的 callable body",
                 hir_main.fqn
             ))
         })?;
+        if entry_callables.next().is_some() {
+            return Err(frontend_error(format!(
+                "refactor LLVM main wrapper 发现入口 `{}` 存在多个 callable body version；必须通过 body version key 明确选择入口 shell",
+                hir_main.fqn
+            )));
+        }
         let layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
         let direct = self.refactor_function(layout.direct_entry().symbol_name())?;
-        let mut args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
+        let args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
         if !layout.direct_entry().args_abi().is_elided() {
-            args.push(
-                layout
-                    .direct_entry()
-                    .args_abi()
-                    .llvm_ty()
-                    .const_zero()
-                    .into(),
-            );
+            return Err(frontend_error(format!(
+                "refactor LLVM main wrapper 入口 `{}` 的 direct entry args ABI 非 elided；Array<String> argv tuple ABI 尚未发布或 entry contract 漂移",
+                hir_main.fqn
+            )));
         }
         let call = self
             .builder
@@ -197,7 +204,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_conditional_branch(is_complete, ok_bb, bad_bb)?;
 
         self.builder.position_at_end(bad_bb);
-        self.builder.build_unreachable()?;
+        let unhandled_exit = if step_layout.cases().is_empty() {
+            self.builder.build_unreachable()?;
+            None
+        } else {
+            // The process ABI cannot return `Step_F`; an escaped outward case is a
+            // terminal program result at this boundary.
+            let exit = self
+                .context
+                .i32_type()
+                .const_int(REFACTOR_MAIN_UNHANDLED_EXIT_CODE, false);
+            self.builder.build_unconditional_branch(done_bb)?;
+            Some(exit)
+        };
 
         self.builder.position_at_end(ok_bb);
         let exit_value = match self.cg_ty_of(hir_main.return_ty) {
@@ -239,6 +258,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_phi(self.context.i32_type(), "refactor_main_exit")?;
         phi.add_incoming(&[(&exit_value, ok_bb)]);
+        if let Some(exit) = unhandled_exit {
+            phi.add_incoming(&[(&exit, bad_bb)]);
+        }
         Ok(phi.as_basic_value().into_int_value())
     }
 
@@ -251,6 +273,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable: &'a LateLoweredCallable,
     ) -> Result<(), LlvmEmitError> {
         let layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
+        validate_callable_entry_layout(layout)?;
         let direct_fun = self.refactor_function(layout.direct_entry().symbol_name())?;
         if direct_fun.count_basic_blocks() == 0 {
             let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
@@ -2605,6 +2628,34 @@ fn boundary_site(boundary: &LateLoweredBoundary, expected: &str) -> Result<SiteI
             boundary.boundary_id().as_u32()
         ))),
     }
+}
+
+fn validate_callable_entry_layout(
+    layout: &RefactorCallableLayout<'_>,
+) -> Result<(), LlvmEmitError> {
+    let direct = layout.direct_entry();
+    let dynamic = layout.dynamic_entry();
+    if direct.invoke_args_tuple_ty() != dynamic.invoke_args_tuple_ty()
+        || direct.param_count() != dynamic.param_count()
+        || direct.args_abi().is_elided() != dynamic.args_abi().is_elided()
+        || direct.return_step_schema() != dynamic.return_step_schema()
+        || direct.return_step_schema() != layout.step_schema()
+    {
+        return Err(frontend_error(format!(
+            "refactor callable `{}` entry ABI contract 漂移：direct=(args=t{}, params={}, elided={}, return=s{}) dynamic=(args=t{}, params={}, elided={}, return=s{}) layout_step=s{}",
+            layout.root_fqn(),
+            direct.invoke_args_tuple_ty().as_u32(),
+            direct.param_count(),
+            direct.args_abi().is_elided(),
+            direct.return_step_schema().as_u32(),
+            dynamic.invoke_args_tuple_ty().as_u32(),
+            dynamic.param_count(),
+            dynamic.args_abi().is_elided(),
+            dynamic.return_step_schema().as_u32(),
+            layout.step_schema().as_u32(),
+        )));
+    }
+    Ok(())
 }
 
 fn frame_slot_local(kind: crate::effect_lowered::ir::LateLoweredFrameSlotKind) -> Option<LocalId> {

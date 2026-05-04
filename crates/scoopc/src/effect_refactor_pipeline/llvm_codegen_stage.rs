@@ -374,7 +374,49 @@ fun main(): Int {
         )
     }
 
+    fn unhandled_outward_entry_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_main_unhandled_outward_fixture.scoop",
+            r#"
+package sample
+
+effect Ping {
+    fun hit(): Unit
+}
+
+fun effectEntry(): Unit / Ping {
+    Ping.hit()
+}
+
+fun main() {}
+"#,
+        )
+    }
+
+    fn array_string_main_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_main_array_string_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+fun main(args: Array<String>): Int {
+    return args.size()
+}
+"#,
+        )
+    }
+
     fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
+        emit_refactor_ir_for_source_with_entry(source, file_name, None).unwrap()
+    }
+
+    fn emit_refactor_ir_for_source_with_entry(
+        source: SourceFile,
+        file_name: &str,
+        entry_main_fqn: Option<&str>,
+    ) -> Result<String, LlvmEmitError> {
         let _guard = test_lock();
         let temp = make_temp_dir();
         let out = temp.path().join(file_name);
@@ -387,12 +429,23 @@ fun main(): Int {
             lowered,
             None,
             &out,
-            None,
+            entry_main_fqn,
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
-        )
-        .unwrap();
-        std::fs::read_to_string(out).unwrap()
+        )?;
+        Ok(std::fs::read_to_string(out).unwrap())
+    }
+
+    fn ir_function_body(ir: &str, header: &str) -> String {
+        let start = ir
+            .find(header)
+            .unwrap_or_else(|| panic!("IR should contain function header `{header}`:\n{ir}"));
+        let rest = &ir[start..];
+        let end = rest
+            .find("\n}")
+            .map(|index| index + 2)
+            .unwrap_or(rest.len());
+        rest[..end].to_string()
     }
 
     fn emit_args_for_source(
@@ -450,6 +503,75 @@ fun main(): Int {
         assert!(
             ir.contains("store i64 %pass_mir_iadd"),
             "member store should use the canonical MIR StoreMember helper:\n{ir}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry() {
+        let ir = emit_refactor_ir_for_source(sample_source(), "function_abi.ll");
+
+        let dynamic = ir_function_body(
+            &ir,
+            "define %scoop.refactor.Step__sample_main @__scoop_refactor_dynamic_invoke__sample_main(",
+        );
+        assert!(
+            dynamic.contains(
+                "call %scoop.refactor.Step__sample_main @__scoop_refactor_direct_invoke__sample_main("
+            ),
+            "dynamic entry should forward through the published refactor direct entry:\n{dynamic}"
+        );
+
+        let main = ir_function_body(&ir, "define i32 @main(");
+        assert!(
+            main.contains(
+                "call %scoop.refactor.Step__sample_main @__scoop_refactor_direct_invoke__sample_main("
+            ),
+            "C main wrapper should call the refactor direct entry, not the legacy function ABI:\n{main}"
+        );
+        assert!(
+            !main.contains("@\"sample.main\""),
+            "refactor main wrapper must not call the legacy callable ABI:\n{main}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_main_wrapper_routes_unhandled_outward_to_exit_code() {
+        let ir = emit_refactor_ir_for_source_with_entry(
+            unhandled_outward_entry_source(),
+            "main_unhandled.ll",
+            Some("sample.effectEntry"),
+        )
+        .unwrap();
+        let main = ir_function_body(&ir, "define i32 @main(");
+        let unhandled = main
+            .split("refactor_main_unhandled:")
+            .nth(1)
+            .and_then(|tail| tail.split("refactor_main_done:").next())
+            .expect("main wrapper should contain an unhandled Step branch");
+
+        assert!(
+            unhandled.contains("br label %refactor_main_done"),
+            "unhandled outward case should rejoin the explicit exit path:\n{main}"
+        );
+        assert!(
+            !unhandled.contains("unreachable"),
+            "published outward cases must not be represented as unreachable at the main wrapper:\n{main}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_main_wrapper_rejects_array_string_argv_until_abi_is_published() {
+        let err = emit_refactor_ir_for_source_with_entry(
+            array_string_main_source(),
+            "main_argv.ll",
+            None,
+        )
+        .expect_err("refactor argv ABI should fail fast until published");
+        let message = err.to_string();
+
+        assert!(
+            message.contains("Array<String> argv tuple ABI"),
+            "diagnostic should name the missing argv ABI contract: {message}"
         );
     }
 

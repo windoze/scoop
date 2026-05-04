@@ -105,7 +105,7 @@
 | `P6-T03a` | `TODO-P6-part3.md` | [DONE] 固化 clean refactor LLVM backend 边界，抽出 effect-neutral value/expression primitive |
 | `P6-T03b` | `TODO-P6-part3.md` | [DONE] 发布 source-slice statement classification contract，禁止 body emitter 静默 skip 或回 raw shape 猜语义 |
 | `P6-T03c` | `TODO-P6-part3.md` | [DONE] 实现 refactor pure statement lowering，停止调用 legacy statement-level lowering |
-| `P6-T03d` | `TODO-P6-part3.md` | 闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper |
+| `P6-T03d` | `TODO-P6-part3.md` | [DONE] 闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper |
 | `P6-T03e` | `TODO-P6-part3.md` | 闭合 direct/dynamic/virtual/interface call lowering，不再回 legacy callable wrapper |
 | `P6-T03f` | `TODO-P6-part3.md` | 闭合 boundary lowering，覆盖 Call / Perform / Resume / runtime-error / nested-handle outward |
 | `P6-T03g` | `TODO-P6-part3.md` | 闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport |

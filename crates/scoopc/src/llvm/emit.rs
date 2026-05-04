@@ -845,6 +845,13 @@ fn build_main_module_from_codegen_entry<'ctx>(
             ),
         });
     }
+    if late_lowered_program.is_some()
+        && matches!(selected_main.arg_shape, EntryMainArgShape::ArrayString)
+    {
+        return Err(LlvmEmitError::Frontend {
+            message: "refactor LLVM main wrapper 尚未发布 Array<String> argv tuple ABI".to_string(),
+        });
+    }
 
     let builder = context.create_builder();
 
