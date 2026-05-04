@@ -30,7 +30,7 @@
 - Latest commit checked: `84edfe87 [P6-T03c] Implement refactor pure statement lowering`; it directly precedes the selected task and does not advertise an unfinished blocker.
 - Implementation status: code changes complete for `P6-T03d`; `TODO-P6-part3.md` and `TODO.md` marked `[DONE]` with completion notes.
 - Validation status: passed `cargo test -p scoopc refactor_llvm_function_abi`, `cargo test -p scoopc refactor_llvm_main_wrapper`, `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_main.ll`, and `cargo clippy --all-targets -- -D warnings`.
-- Commit status: not committed.
+- Commit status: committed as `05ae0939 [P6-T03d] Close refactor function ABI shells`; recording final status in a follow-up progress commit.
 
 ## Current Edit Plan
 
