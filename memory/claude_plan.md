@@ -32,7 +32,8 @@
 - Implementation status: code changes and fixture updates are complete for `P6-T03e`.
 - Validation status: passed `cargo test -p scoopc refactor_llvm_call_lowering`, `cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`, `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`, `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`, and `cargo clippy --all-targets -- -D warnings`.
 - TODO status: `P6-T03e` is marked `[DONE]` in `TODO-P6-part3.md`, and `TODO.md` is synchronized.
-- Next step: commit all changes for this invocation and stop.
+- Commit status: committed implementation and TODO updates as `b974f838 [P6-T03e] Close refactor dynamic call lowering`.
+- Next step: commit this final plan-status update and stop.
 
 ## Current Edit Plan
 
