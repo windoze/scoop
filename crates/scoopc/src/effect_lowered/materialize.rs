@@ -2569,6 +2569,9 @@ fn classify_effect_neutral_rvalue(value: &Rvalue) -> LateLoweredSourceStatementC
         | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
         | Rvalue::EnumVariant { .. }
+        | Rvalue::ClassCtor { .. }
+        | Rvalue::Call { .. }
+        | Rvalue::MakeClosure { .. }
         | Rvalue::MakeTuple { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
@@ -2583,15 +2586,6 @@ fn classify_effect_neutral_rvalue(value: &Rvalue) -> LateLoweredSourceStatementC
                 reason: "unresolved name requires earlier lowering",
             }
         }
-        Rvalue::ClassCtor { .. } => LateLoweredSourceStatementClassificationKind::Unsupported {
-            reason: "class constructor requires published object ABI",
-        },
-        Rvalue::Call { .. } => LateLoweredSourceStatementClassificationKind::Unsupported {
-            reason: "call statement requires published call-lowering contract",
-        },
-        Rvalue::MakeClosure { .. } => LateLoweredSourceStatementClassificationKind::Unsupported {
-            reason: "closure value requires published callable carrier ABI",
-        },
         Rvalue::PerformResult { .. } => LateLoweredSourceStatementClassificationKind::Unsupported {
             reason: "perform result requires published resume payload injection",
         },

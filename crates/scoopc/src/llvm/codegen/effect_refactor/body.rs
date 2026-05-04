@@ -501,6 +501,7 @@ struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     function: FunctionValue<'ctx>,
     slots: Vec<MirLocalSlot<'ctx>>,
     used_locals: HashSet<LocalId>,
+    abi_step_schema: StepSchemaId,
     frame_layout: &'cg RefactorFrameLayout<'ctx>,
     step_layout: &'cg RefactorStepLayout<'ctx>,
     frame_ptr: PointerValue<'ctx>,
@@ -524,18 +525,27 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             &'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
         >,
     ) -> Result<Self, LlvmEmitError> {
-        let frame_layout = abi.frame_layout(callable.step_schema()).ok_or_else(|| {
-            frontend_error(format!(
-                "refactor body lowering 缺少 callable `{}` 的 frame layout s{}",
+        let callable_layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
+        if callable_layout.root_fqn() != callable.root_fqn() {
+            return Err(frontend_error(format!(
+                "refactor body lowering callable `{}` 的 ABI layout root 漂移：layout=`{}`",
                 callable.root_fqn(),
-                callable.step_schema().as_u32()
+                callable_layout.root_fqn(),
+            )));
+        }
+        let abi_step_schema = callable_layout.step_schema();
+        let frame_layout = abi.frame_layout(abi_step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor body lowering 缺少 callable `{}` 的 ABI frame layout s{}",
+                callable.root_fqn(),
+                abi_step_schema.as_u32()
             ))
         })?;
-        let step_layout = abi.step_layout(callable.step_schema()).ok_or_else(|| {
+        let step_layout = abi.step_layout(abi_step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor body lowering 缺少 callable `{}` 的 step layout s{}",
+                "refactor body lowering 缺少 callable `{}` 的 ABI step layout s{}",
                 callable.root_fqn(),
-                callable.step_schema().as_u32()
+                abi_step_schema.as_u32()
             ))
         })?;
         let slots = codegen.create_mir_local_slots(body, source_types)?;
@@ -561,6 +571,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             function,
             slots,
             used_locals,
+            abi_step_schema,
             frame_layout,
             step_layout,
             frame_ptr,
@@ -624,7 +635,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         mut self,
         entry_layout: &RefactorCallableEntryLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        self.bind_direct_args(entry_layout)?;
+        self.bind_direct_args(entry_layout).map_err(|err| {
+            frontend_error(format!(
+                "refactor direct entry `{}` bind args failed: {err}",
+                entry_layout.symbol_name()
+            ))
+        })?;
         let entry_state = self.callable.state_graph().entry_state();
         self.branch_to_state(entry_state)?;
         self.emit_states()
@@ -726,10 +742,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 }
                 continue;
             }
-            let _ = self.abi.resume_payload_binding_for_state(
-                self.callable.step_schema(),
-                binding.resume_state(),
-            )?;
+            let _ = self
+                .abi
+                .resume_payload_binding_for_state(self.abi_step_schema, binding.resume_state())?;
             bindings_by_state.insert(binding.resume_state(), *binding);
         }
         let mut cases = Vec::new();
@@ -957,8 +972,22 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         for state in self.callable.state_graph().states() {
             let bb = self.state_block(state.state_id())?;
             self.codegen.builder.position_at_end(bb);
-            self.lower_state_source_slices(state)?;
-            self.lower_state_terminator(state)?;
+            self.lower_state_source_slices(state).map_err(|err| {
+                frontend_error(format!(
+                    "refactor callable `{}` state st{} source-slice lowering failed: {err}",
+                    self.callable.root_fqn(),
+                    state.state_id().as_u32()
+                ))
+            })?;
+            self.lower_state_terminator(state).map_err(|err| {
+                frontend_error(format!(
+                    "refactor callable `{}` step schema s{} (ABI s{}) state st{} terminator lowering failed: {err}",
+                    self.callable.root_fqn(),
+                    self.callable.step_schema().as_u32(),
+                    self.abi_step_schema.as_u32(),
+                    state.state_id().as_u32()
+                ))
+            })?;
         }
         Ok(())
     }
@@ -1114,22 +1143,46 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 Ok(())
             }
             LateLoweredStateTerminator::Return {
-                payload_source,
+                payload_source: _,
                 complete_state: _,
             } => {
-                let binding = self.abi.completion_payload_binding_for_state(
-                    self.callable.step_schema(),
-                    state.state_id(),
-                )?;
-                let _ = self.abi.completion_payload_binding_layout(
-                    self.callable.step_schema(),
-                    binding.binding(),
-                )?;
-                let payload = self.lower_completion_payload(payload_source)?;
+                let binding = self
+                    .abi
+                    .completion_payload_binding_for_state(self.abi_step_schema, state.state_id())?;
+                let _ = self
+                    .abi
+                    .completion_payload_binding_layout(self.abi_step_schema, binding.binding())?;
+                let payload_source = binding.payload_source();
+                let payload = self.lower_completion_payload(payload_source).map_err(|err| {
+                    frontend_error(format!(
+                        "refactor return state st{} completion payload {:?} lowering failed: {err}",
+                        state.state_id().as_u32(),
+                        payload_source,
+                    ))
+                })?;
+                if payload.is_none() && !self.step_layout.complete_variant().payload_is_elided() {
+                    return Err(frontend_error(format!(
+                        "refactor return state st{} payload source {:?} produced no payload for non-elided Complete layout {}",
+                        state.state_id().as_u32(),
+                        payload_source,
+                        self.step_layout.complete_variant().payload_anchor_name()
+                    )));
+                }
                 let step = self
                     .codegen
-                    .refactor_build_step_complete(self.step_layout, payload)?;
-                self.return_step(step)
+                    .refactor_build_step_complete(self.step_layout, payload)
+                    .map_err(|err| {
+                        frontend_error(format!(
+                            "refactor return state st{} build Complete step failed: {err}",
+                            state.state_id().as_u32(),
+                        ))
+                    })?;
+                self.return_step(step).map_err(|err| {
+                    frontend_error(format!(
+                        "refactor return state st{} return Step failed: {err}",
+                        state.state_id().as_u32(),
+                    ))
+                })
             }
             LateLoweredStateTerminator::Suspend { boundary_ids, .. } => {
                 self.lower_suspend(state, boundary_ids)
@@ -1193,7 +1246,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             LateLoweredBoundaryLowering::Call(lowering) => {
                 let source = boundary_site(boundary, "Call")?;
                 let _ = self.abi.call_boundary_operand_layout(
-                    self.callable.step_schema(),
+                    self.abi_step_schema,
                     source,
                     lowering.operand_contract(),
                 )?;
@@ -1202,11 +1255,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     lowering.operand_contract().arg_sources(),
                     "refactor_call_args",
                 )?;
-                let target = self.abi.call_target_layout(
-                    self.callable.step_schema(),
-                    source,
-                    lowering.facts(),
-                )?;
+                let target =
+                    self.abi
+                        .call_target_layout(self.abi_step_schema, source, lowering.facts())?;
                 let (callee_fun, callee_step_schema, callee_args_abi) = match target {
                     RefactorCallTargetQuery::KnownInstance(layout) => (
                         self.codegen
@@ -1252,7 +1303,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             LateLoweredBoundaryLowering::Perform(lowering) => {
                 let source = boundary_site(boundary, "Perform")?;
                 let _ = self.abi.perform_boundary_operand_layout(
-                    self.callable.step_schema(),
+                    self.abi_step_schema,
                     source,
                     lowering.operand_contract(),
                 )?;
@@ -1273,7 +1324,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             LateLoweredBoundaryLowering::Resume(lowering) => {
                 let source = boundary_site(boundary, "Resume")?;
                 let _ = self.abi.resume_boundary_operand_layout(
-                    self.callable.step_schema(),
+                    self.abi_step_schema,
                     source,
                     lowering.operand_contract(),
                 )?;
@@ -1524,7 +1575,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             frontend_error(format!(
                 "refactor callable `{}` step schema s{} 缺少 outward case c{}",
                 self.callable.root_fqn(),
-                self.callable.step_schema().as_u32(),
+                self.abi_step_schema.as_u32(),
                 case_tag.as_u32()
             ))
         })?;
@@ -1873,7 +1924,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         let _ = self
             .abi
-            .resume_payload_binding_layout(self.callable.step_schema(), binding)?;
+            .resume_payload_binding_layout(self.abi_step_schema, binding)?;
         self.store_payload_to_binding(binding, payload)
     }
 
@@ -1911,6 +1962,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             LateLoweredCompletionPayloadSource::Unit { .. } => Ok(None),
             LateLoweredCompletionPayloadSource::Operand(source) => {
                 let value = self.lower_operand_source(source)?;
+                if value.value.is_none() {
+                    return Err(frontend_error(format!(
+                        "refactor completion payload source {:?} lowered to no runtime value",
+                        source
+                    )));
+                }
                 Ok(value.value)
             }
         }
@@ -2389,8 +2446,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !variant.payload_is_elided() {
             let payload = payload.ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor Step variant tag {} 需要 payload，但 lowering 未提供",
-                    tag
+                    "refactor Step variant tag {} ({}) 需要 payload，但 lowering 未提供",
+                    tag,
+                    variant.payload_anchor_name()
                 ))
             })?;
             payload_value = self
@@ -2437,7 +2495,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_int_value())
     }
 
-    fn refactor_extract_step_payload(
+    pub(super) fn refactor_extract_step_payload(
         &mut self,
         step_layout: &RefactorStepLayout<'ctx>,
         step: BasicValueEnum<'ctx>,

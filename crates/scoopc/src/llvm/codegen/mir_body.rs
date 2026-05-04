@@ -1636,62 +1636,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(super) fn codegen_mir_effect_neutral_statement(
-        &mut self,
-        stmt: &crate::mir::Statement,
-        body: &crate::mir::Body,
-        mir_types: &TypeStore,
-        slots: &[MirLocalSlot<'ctx>],
-        used_locals: &HashSet<crate::mir::LocalId>,
-    ) -> Result<(), LlvmEmitError> {
-        if self
-            .builder
-            .get_insert_block()
-            .is_some_and(|bb| bb.get_terminator().is_some())
-        {
-            return Ok(());
-        }
-
-        match &stmt.kind {
-            crate::mir::StatementKind::Nop => Ok(()),
-            crate::mir::StatementKind::Assign { target, value } => {
-                if !used_locals.contains(target)
-                    && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) = value
-                    && self.fun_index.contains_key(fqn)
-                {
-                    return Ok(());
-                }
-                let slot = self.mir_local_slot(stmt.span, slots, *target)?;
-                let value = self.codegen_mir_effect_neutral_rvalue(
-                    stmt.span, value, body, mir_types, slots, slot.cg_ty,
-                )?;
-                let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
-                Ok(())
-            }
-            crate::mir::StatementKind::StoreMember {
-                receiver,
-                member,
-                value,
-                value_ty,
-                continuation_route,
-            } => self.codegen_mir_store_member(
-                stmt.span,
-                receiver,
-                member,
-                value,
-                *value_ty,
-                continuation_route,
-                body,
-                mir_types,
-                slots,
-            ),
-            crate::mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor value primitive statement todo",
-                at: stmt.span.into(),
-            }),
-        }
-    }
-
     fn codegen_mir_terminator(
         &mut self,
         terminator: &crate::mir::Terminator,
@@ -1900,7 +1844,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn codegen_mir_effect_neutral_rvalue(
+    pub(super) fn codegen_mir_effect_neutral_rvalue(
         &mut self,
         span: crate::span::Span,
         value: &crate::mir::Rvalue,
@@ -2114,7 +2058,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn codegen_mir_store_member(
+    pub(super) fn codegen_mir_store_member(
         &mut self,
         span: crate::span::Span,
         receiver: &crate::mir::Operand,
@@ -3805,7 +3749,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.extract_mir_tuple_element_value(span, tuple_v, index, elem_cg)
     }
 
-    fn codegen_mir_make_closure(
+    pub(super) fn codegen_mir_make_closure(
         &mut self,
         span: crate::span::Span,
         env: &crate::mir::Operand,

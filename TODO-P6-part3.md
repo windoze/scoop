@@ -179,7 +179,7 @@
   - 2026-05-04：`EFFECT_REFACTOR.md` §5.6.3 已补充 `LateLoweredCallable.source_statement_classifications` contract 说明。
   - 验证通过：`cargo test -p scoopc refactor_effect_lowered_source_slice_classification`；`cargo test -p scoopc refactor_llvm_source_slice_classification`；`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
-## P6-T03c：实现 refactor pure statement lowering，停止调用 legacy statement-level lowering
+## [DONE] P6-T03c：实现 refactor pure statement lowering，停止调用 legacy statement-level lowering
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.6.1-§5.6.2
@@ -206,7 +206,11 @@
   - legacy statement-level fallback 已移除或在 refactor path 上 fail fast。
 - 依赖：P6-T03b
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：`crates/scoopc/src/llvm/codegen/effect_refactor/value.rs` 现在由 refactor value primitive 本地分派 classified pure source statements，不再委托 legacy/shared 的整条 MIR statement lowering；旧 `codegen_mir_effect_neutral_statement` 已删除。
+  - 2026-05-05：source-slice classification 已把 `ClassCtor`、`MakeClosure` 与 pure `Call` 纳入 `effect-neutral-value`，由 refactor body emitter 显式 lower 或 fail fast；effectful/dynamic/virtual/interface/resume call 不会被当作普通 pure statement 静默 lower。
+  - 2026-05-05：pure direct call lowering 现在通过 published refactor callable layout 调用 direct entry，按 source value ABI 打包实参，并从 returned `Step_F::Complete` 提取 payload；class/object/closure carrier materialization 继续通过已发布 callable carrier target 保持 refactor dynamic entry。
+  - 2026-05-05：修正 body emitter 对 ABI visibility layout 的消费边界：按 callable `body_version_key` 取得 ABI step/frame layout，避免 `--opt-level 0` primary handoff 的局部 schema id 与 ABI visibility handoff 漂移时取错 completion binding。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_pure_statement_lowering`；`cargo test -p scoopc refactor_llvm_member_read_write_lowering`；`cargo test -p scoopc refactor_effect_lowered_source_slice_classification`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T03d：闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper
 
