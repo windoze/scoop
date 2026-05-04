@@ -10,10 +10,10 @@ use super::ir::{
     LateLoweredContinuationObject, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
     LateLoweredFrameSlot, LateLoweredFrameSlotKind, LateLoweredHandleBoundaryLowering,
     LateLoweredPerformBoundaryLowering, LateLoweredProgram, LateLoweredResumeBoundaryLowering,
-    LateLoweredResumeInterface, LateLoweredResumeState, LateLoweredResumeStateMap,
-    LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState, LateLoweredStateGraph,
-    LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepDispatchPlan,
-    ResumeInterfaceId, StateId,
+    LateLoweredResumeInterface, LateLoweredResumePayloadBinding, LateLoweredResumeState,
+    LateLoweredResumeStateMap, LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState,
+    LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateTerminator,
+    LateLoweredStepDispatchPlan, ResumeInterfaceId, StateId,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -756,8 +756,33 @@ fn rewrite_frame_schema(
                 read_points,
             ))
         })
+        .collect::<Vec<_>>();
+    let live_slots = slots
+        .iter()
+        .map(LateLoweredFrameSlot::slot_id)
+        .collect::<BTreeSet<_>>();
+    let resume_payload_bindings = frame_schema
+        .resume_payload_bindings()
+        .iter()
+        .filter_map(|binding| {
+            if !live_boundaries.contains(&binding.boundary_id()) {
+                return None;
+            }
+            let resume_state = redirect_state_id(binding.resume_state(), redirects);
+            if !live_states.contains(&resume_state) {
+                return None;
+            }
+            Some(LateLoweredResumePayloadBinding::new(
+                binding.boundary_id(),
+                resume_state,
+                binding.consumer_local(),
+                binding
+                    .consumer_frame_slot()
+                    .filter(|slot_id| live_slots.contains(slot_id)),
+            ))
+        })
         .collect();
-    LateLoweredFrameSchema::new(slots)
+    LateLoweredFrameSchema::new(slots).with_resume_payload_bindings(resume_payload_bindings)
 }
 
 fn rewrite_frame_slot_kind(

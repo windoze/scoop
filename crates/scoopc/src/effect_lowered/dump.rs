@@ -16,12 +16,13 @@ use super::ir::{
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredOperandSource,
     LateLoweredOperandValueSource, LateLoweredPerformBoundaryOperandContract, LateLoweredProgram,
     LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
-    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeStateMap,
-    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
-    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepCaseEmission,
-    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
-    LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
-    LateLoweredSurfaceResumeDispatchSourceKind, LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
+    LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
+    LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
+    LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
+    LateLoweredStepType, LateLoweredSurfaceResumeDispatchInventoryEntry,
+    LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
+    LateLoweredSurfaceResumeWrapperCaseProjection,
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
@@ -790,10 +791,18 @@ fn render_frame_schema(rendered: &mut String, frame_schema: &LateLoweredFrameSch
     writeln!(rendered, "        slots:").unwrap();
     if frame_schema.slots().is_empty() {
         writeln!(rendered, "          <none>").unwrap();
-        return;
+    } else {
+        for slot in frame_schema.slots() {
+            render_frame_slot(rendered, slot);
+        }
     }
-    for slot in frame_schema.slots() {
-        render_frame_slot(rendered, slot);
+    writeln!(rendered, "        resume_payload_bindings:").unwrap();
+    if frame_schema.resume_payload_bindings().is_empty() {
+        writeln!(rendered, "          <none>").unwrap();
+    } else {
+        for binding in frame_schema.resume_payload_bindings() {
+            render_resume_payload_binding(rendered, binding);
+        }
     }
 }
 
@@ -806,6 +815,21 @@ fn render_frame_slot(rendered: &mut String, slot: &LateLoweredFrameSlot) {
         render_type_id(slot.ty()),
         render_state_successors(slot.write_points()),
         render_state_successors(slot.read_points()),
+    )
+    .unwrap();
+}
+
+fn render_resume_payload_binding(rendered: &mut String, binding: &LateLoweredResumePayloadBinding) {
+    writeln!(
+        rendered,
+        "          - bd{} resume=st{} local{} home={}",
+        binding.boundary_id().as_u32(),
+        binding.resume_state().as_u32(),
+        binding.consumer_local().as_u32(),
+        binding
+            .consumer_frame_slot()
+            .map(|slot| format!("slot{}", slot.as_u32()))
+            .unwrap_or_else(|| "<none>".to_string()),
     )
     .unwrap();
 }

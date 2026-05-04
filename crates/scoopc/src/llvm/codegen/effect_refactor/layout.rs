@@ -9,17 +9,17 @@ use crate::effect_facts::{
 };
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
-    BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryLowering,
-    LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption, LateLoweredCallable,
-    LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
+    BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey,
+    LateLoweredBoundaryLowering, LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
+    LateLoweredCallable, LateLoweredContinuationMethodReachability, LateLoweredContinuationObject,
     LateLoweredFrameSlotKind, LateLoweredHandlePendingCompletion,
     LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOperandSource,
-    LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredStateSlice,
-    LateLoweredStateTerminator, LateLoweredStepType,
+    LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredResumePayloadBinding,
+    LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepType,
     LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCaseProjection,
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
-    ResumeInterfaceId, SystemSlotKind,
+    ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{
@@ -47,8 +47,9 @@ use super::types::{
     RefactorLocalRuntimeErrorContract, RefactorLocalRuntimeErrorTerminalAction,
     RefactorPerformBoundaryOperandLayout, RefactorPublishedRuntimeEntryLayout,
     RefactorResumeBoundaryOperandLayout, RefactorResumeInterfaceLayout, RefactorResumeMethodLayout,
-    RefactorSourceAbiFieldLayout, RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind,
-    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
+    RefactorResumePayloadBindingLayout, RefactorSourceAbiFieldLayout, RefactorSourceAbiLayout,
+    RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
+    RefactorStepVariantLayout,
 };
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -75,6 +76,12 @@ type PerformBoundaryOperandLayouts =
     BTreeMap<BoundaryOperandKey, RefactorPerformBoundaryOperandLayout>;
 type ResumeBoundaryOperandLayouts =
     BTreeMap<BoundaryOperandKey, RefactorResumeBoundaryOperandLayout>;
+type ResumePayloadBindingBoundaryKey = (StepSchemaId, BoundaryId);
+type ResumePayloadBindingStateKey = (StepSchemaId, StateId);
+type ResumePayloadBindingLayouts =
+    BTreeMap<ResumePayloadBindingBoundaryKey, RefactorResumePayloadBindingLayout>;
+type ResumePayloadBindingLayoutsByState =
+    BTreeMap<ResumePayloadBindingStateKey, RefactorResumePayloadBindingLayout>;
 type BoundaryOperandLayoutSets = (
     CallBoundaryOperandLayouts,
     PerformBoundaryOperandLayouts,
@@ -267,6 +274,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             &surface_resume_layouts,
             &surface_resume_dispatch_layouts,
         )?;
+        let (resume_payload_binding_layouts, resume_payload_bindings_by_state) =
+            this.materialize_resume_payload_binding_layouts(&frame_layouts)?;
         let local_runtime_error_contracts = this.materialize_local_runtime_error_contracts()?;
         let handle_dispatch_layouts = this.materialize_handle_dispatch_layouts(
             &frame_layouts,
@@ -290,6 +299,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             call_boundary_operand_layouts,
             perform_boundary_operand_layouts,
             resume_boundary_operand_layouts,
+            resume_payload_binding_layouts,
+            resume_payload_bindings_by_state,
             local_runtime_error_contracts,
             handle_dispatch_layouts,
         ))
@@ -2472,6 +2483,293 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             )));
         }
         Ok(())
+    }
+
+    fn materialize_resume_payload_binding_layouts(
+        &mut self,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+    ) -> Result<
+        (
+            ResumePayloadBindingLayouts,
+            ResumePayloadBindingLayoutsByState,
+        ),
+        LlvmEmitError,
+    > {
+        let mut bindings_by_boundary = ResumePayloadBindingLayouts::new();
+        let mut bindings_by_state = ResumePayloadBindingLayoutsByState::new();
+
+        for callable in self.program.callables() {
+            let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 frame layout，无法发布 resumed local/home contract",
+                    callable.root_fqn(),
+                    callable.step_schema().as_u32(),
+                ))
+            })?;
+
+            for boundary in callable.boundary_map().entries() {
+                let requires_binding = matches!(
+                    boundary.lowering(),
+                    Some(
+                        LateLoweredBoundaryLowering::Call(_)
+                            | LateLoweredBoundaryLowering::Perform(_)
+                            | LateLoweredBoundaryLowering::Resume(_)
+                            | LateLoweredBoundaryLowering::RuntimeError(_)
+                    )
+                );
+                if requires_binding
+                    && callable
+                        .frame_schema()
+                        .resume_payload_binding(boundary.boundary_id())
+                        .is_none()
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 缺少 resumed local/home contract",
+                        callable.root_fqn(),
+                        boundary.boundary_id().as_u32(),
+                    )));
+                }
+            }
+
+            for binding in callable.frame_schema().resume_payload_bindings() {
+                let frame_field_index =
+                    self.validate_resume_payload_binding(callable, frame_layout, binding)?;
+                let layout = RefactorResumePayloadBindingLayout::new(
+                    callable.step_schema(),
+                    *binding,
+                    frame_field_index,
+                );
+                let boundary_key = (callable.step_schema(), binding.boundary_id());
+                if bindings_by_boundary.insert(boundary_key, layout).is_some() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 owner step schema s{} boundary bd{} 的 resumed local/home contract 重复发布",
+                        callable.step_schema().as_u32(),
+                        binding.boundary_id().as_u32(),
+                    )));
+                }
+                let state_key = (callable.step_schema(), binding.resume_state());
+                match bindings_by_state.get(&state_key) {
+                    Some(existing)
+                        if existing.consumer_local() == layout.consumer_local()
+                            && existing.consumer_frame_slot() == layout.consumer_frame_slot()
+                            && existing.frame_field_index() == layout.frame_field_index() => {}
+                    Some(existing) => {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 owner step schema s{} resume state st{} 的 resumed local/home contract 冲突：已发布 boundary bd{} -> local{} home={:?}，当前 boundary bd{} -> local{} home={:?}",
+                            callable.step_schema().as_u32(),
+                            binding.resume_state().as_u32(),
+                            existing.boundary_id().as_u32(),
+                            existing.consumer_local().as_u32(),
+                            existing.consumer_frame_slot(),
+                            binding.boundary_id().as_u32(),
+                            binding.consumer_local().as_u32(),
+                            binding.consumer_frame_slot(),
+                        )));
+                    }
+                    None => {
+                        bindings_by_state.insert(state_key, layout);
+                    }
+                }
+            }
+        }
+
+        Ok((bindings_by_boundary, bindings_by_state))
+    }
+
+    fn validate_resume_payload_binding(
+        &mut self,
+        callable: &LateLoweredCallable,
+        frame_layout: &RefactorFrameLayout<'ctx>,
+        binding: &LateLoweredResumePayloadBinding,
+    ) -> Result<Option<u32>, LlvmEmitError> {
+        let boundary = callable
+            .boundary_map()
+            .boundary(binding.boundary_id())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` 的 resumed local/home contract 引用了不存在的 boundary bd{}",
+                    callable.root_fqn(),
+                    binding.boundary_id().as_u32(),
+                ))
+            })?;
+        if binding.resume_state() != boundary.resume_state() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract resume_state 漂移：published=st{}，boundary=st{}",
+                callable.root_fqn(),
+                binding.boundary_id().as_u32(),
+                binding.resume_state().as_u32(),
+                boundary.resume_state().as_u32(),
+            )));
+        }
+
+        let (expected_local, expected_home_boundary) = match boundary.lowering() {
+            Some(LateLoweredBoundaryLowering::Call(lowering)) => {
+                (lowering.result_local(), binding.boundary_id())
+            }
+            Some(LateLoweredBoundaryLowering::Perform(_)) => {
+                let (local, _) = Self::published_boundary_result_slot(
+                    callable.frame_schema(),
+                    binding.boundary_id(),
+                )
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` perform boundary bd{} 缺少 BoundaryResult slot，无法校验 resumed local/home contract",
+                        callable.root_fqn(),
+                        binding.boundary_id().as_u32(),
+                    ))
+                })?;
+                (local, binding.boundary_id())
+            }
+            Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                (lowering.result_local(), binding.boundary_id())
+            }
+            Some(LateLoweredBoundaryLowering::RuntimeError(lowering)) => {
+                let paired_binding = callable
+                    .frame_schema()
+                    .resume_payload_binding(lowering.resume_boundary())
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` runtime-error boundary bd{} 的 paired resume boundary bd{} 缺少 resumed local/home contract",
+                            callable.root_fqn(),
+                            binding.boundary_id().as_u32(),
+                            lowering.resume_boundary().as_u32(),
+                        ))
+                    })?;
+                if paired_binding.consumer_local() != binding.consumer_local()
+                    || paired_binding.consumer_frame_slot() != binding.consumer_frame_slot()
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` runtime-error boundary bd{} 的 resumed local/home contract 与 paired resume boundary bd{} 漂移",
+                        callable.root_fqn(),
+                        binding.boundary_id().as_u32(),
+                        lowering.resume_boundary().as_u32(),
+                    )));
+                }
+                (paired_binding.consumer_local(), lowering.resume_boundary())
+            }
+            Some(LateLoweredBoundaryLowering::Handle(_)) | None => {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 不应发布 resumed local/home contract",
+                    callable.root_fqn(),
+                    binding.boundary_id().as_u32(),
+                )));
+            }
+        };
+
+        if binding.consumer_local() != expected_local {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract local 漂移：published=local{}，expected=local{}",
+                callable.root_fqn(),
+                binding.boundary_id().as_u32(),
+                binding.consumer_local().as_u32(),
+                expected_local.as_u32(),
+            )));
+        }
+
+        let boundary_result_slot =
+            Self::published_boundary_result_slot(callable.frame_schema(), expected_home_boundary);
+        match (boundary_result_slot, binding.consumer_frame_slot()) {
+            (Some((slot_local, slot_id)), Some(binding_slot)) => {
+                if slot_local != binding.consumer_local() || slot_id != binding_slot {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home slot 漂移：published=slot{}，expected BoundaryResult home=slot{}",
+                        callable.root_fqn(),
+                        binding.boundary_id().as_u32(),
+                        binding_slot.as_u32(),
+                        slot_id.as_u32(),
+                    )));
+                }
+            }
+            (Some((_slot_local, slot_id)), None) => {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 已有 BoundaryResult home slot{}，但 resumed local/home contract 未发布 frame home",
+                    callable.root_fqn(),
+                    binding.boundary_id().as_u32(),
+                    slot_id.as_u32(),
+                )));
+            }
+            (None, Some(binding_slot)) => {
+                let slot = callable
+                    .frame_schema()
+                    .slots()
+                    .iter()
+                    .find(|slot| slot.slot_id() == binding_slot)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了不存在的 frame slot fs{}",
+                            callable.root_fqn(),
+                            binding.boundary_id().as_u32(),
+                            binding_slot.as_u32(),
+                        ))
+                    })?;
+                let Some(slot_local) = Self::frame_slot_local(slot.kind()) else {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了不能承载 local 的 frame slot fs{} kind={:?}",
+                        callable.root_fqn(),
+                        binding.boundary_id().as_u32(),
+                        binding_slot.as_u32(),
+                        slot.kind(),
+                    )));
+                };
+                if slot_local != binding.consumer_local() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract frame slot fs{} 绑定到了 local{}，但 published local 为 local{}",
+                        callable.root_fqn(),
+                        binding.boundary_id().as_u32(),
+                        binding_slot.as_u32(),
+                        slot_local.as_u32(),
+                        binding.consumer_local().as_u32(),
+                    )));
+                }
+            }
+            (None, None) => {}
+        }
+
+        binding
+            .consumer_frame_slot()
+            .map(|slot_id| {
+                frame_layout
+                    .field_index_for_slot(slot_id)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
+                            callable.root_fqn(),
+                            binding.boundary_id().as_u32(),
+                            slot_id.as_u32(),
+                        ))
+                    })
+            })
+            .transpose()
+    }
+
+    fn published_boundary_result_slot(
+        frame_schema: &crate::effect_lowered::ir::LateLoweredFrameSchema,
+        boundary_id: BoundaryId,
+    ) -> Option<(crate::mir::LocalId, crate::effect_lowered::ir::FrameSlotId)> {
+        frame_schema
+            .slots()
+            .iter()
+            .find_map(|slot| match slot.kind() {
+                LateLoweredFrameSlotKind::BoundaryResult { boundary, local }
+                    if boundary == boundary_id =>
+                {
+                    Some((local, slot.slot_id()))
+                }
+                _ => None,
+            })
+    }
+
+    fn frame_slot_local(kind: LateLoweredFrameSlotKind) -> Option<crate::mir::LocalId> {
+        match kind {
+            LateLoweredFrameSlotKind::SourceLocal(local)
+            | LateLoweredFrameSlotKind::CompilerTemporary(local)
+            | LateLoweredFrameSlotKind::JoinValue { local, .. }
+            | LateLoweredFrameSlotKind::BoundaryResult { local, .. }
+            | LateLoweredFrameSlotKind::HandleBinder { local, .. } => Some(local),
+            LateLoweredFrameSlotKind::HandlePendingPayload { .. }
+            | LateLoweredFrameSlotKind::ResumePayload { .. }
+            | LateLoweredFrameSlotKind::System(_) => None,
+        }
     }
 
     fn publish_boundary_dynamic_invoke_layouts(
@@ -4741,8 +5039,9 @@ mod tests {
         LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
         LateLoweredFrameSchema, LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
         LateLoweredHandlePendingCompletion, LateLoweredOperandValueSource, LateLoweredProgram,
-        LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredStateTerminator,
-        LateLoweredStepType, LateLoweredSurfaceResumeDispatchPublication, StateId, SystemSlotKind,
+        LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
+        LateLoweredStateTerminator, LateLoweredStepType,
+        LateLoweredSurfaceResumeDispatchPublication, StateId, SystemSlotKind,
     };
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
@@ -6695,6 +6994,280 @@ mod tests {
                             && *handled_case == contract.handled_arms()[0].handled_case()
                     ));
                 }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_resume_payload_binding_resolves_boundary_and_state_queries() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query =
+                    result.expect("call/resume boundary 的 resumed local/home contract 应成功发布");
+
+                let main = inputs
+                    .abi_visibility_program
+                    .callable("main")
+                    .expect("main callable 应存在");
+                let call_boundary = site_boundary(main, BoundarySiteKind::Call);
+                let call_binding = main
+                    .frame_schema()
+                    .resume_payload_binding(call_boundary.boundary_id())
+                    .expect("call boundary 应发布 resumed local/home binding");
+                let call_layout = query
+                    .resume_payload_binding_layout(main.step_schema(), call_binding)
+                    .expect("call boundary 应可回查 resumed local/home contract");
+                let call_frame_layout = query
+                    .frame_layout(main.step_schema())
+                    .expect("callable frame layout 应可查询");
+                let call_home_slot = call_binding
+                    .consumer_frame_slot()
+                    .expect("call boundary 应发布 frame home slot");
+
+                assert_eq!(call_layout.boundary_id(), call_boundary.boundary_id());
+                assert_eq!(call_layout.resume_state(), call_boundary.resume_state());
+                assert_eq!(call_layout.consumer_local(), call_binding.consumer_local());
+                assert_eq!(
+                    call_layout.frame_field_index(),
+                    call_frame_layout.field_index_for_slot(call_home_slot),
+                );
+
+                let run = inputs
+                    .abi_visibility_program
+                    .callable("run")
+                    .expect("run callable 应存在");
+                let resume_boundary = site_boundary(run, BoundarySiteKind::Resume);
+                let resume_binding = run
+                    .frame_schema()
+                    .resume_payload_binding(resume_boundary.boundary_id())
+                    .expect("resume boundary 应发布 resumed local/home binding");
+                let resume_layout = query
+                    .resume_payload_binding_layout(run.step_schema(), resume_binding)
+                    .expect("resume boundary 应可回查 resumed local/home contract");
+                let state_layout = query
+                    .resume_payload_binding_for_state(
+                        run.step_schema(),
+                        resume_boundary.resume_state(),
+                    )
+                    .expect("resume state 应可直接回查 resumed local/home contract");
+
+                assert_eq!(
+                    resume_layout.consumer_local(),
+                    resume_binding.consumer_local()
+                );
+                assert_eq!(
+                    state_layout.consumer_frame_slot(),
+                    resume_binding.consumer_frame_slot(),
+                );
+            },
+        );
+
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query = result
+                    .expect("perform/runtime-error 的 resumed local/home contract 应成功发布");
+
+                let fetch = inputs
+                    .abi_visibility_program
+                    .callable("fetch")
+                    .expect("fetch callable 应存在");
+                let perform_boundary = site_boundary(fetch, BoundarySiteKind::Perform);
+                let perform_binding = fetch
+                    .frame_schema()
+                    .resume_payload_binding(perform_boundary.boundary_id())
+                    .expect("perform boundary 应发布 resumed local/home binding");
+                let perform_layout = query
+                    .resume_payload_binding_layout(fetch.step_schema(), perform_binding)
+                    .expect("perform boundary 应可回查 resumed local/home contract");
+                let fetch_frame_layout = query
+                    .frame_layout(fetch.step_schema())
+                    .expect("fetch frame layout 应可查询");
+                let perform_home_slot = perform_binding
+                    .consumer_frame_slot()
+                    .expect("perform boundary 应发布 frame home slot");
+
+                assert_eq!(perform_layout.boundary_id(), perform_boundary.boundary_id());
+                assert_eq!(
+                    perform_layout.resume_state(),
+                    perform_boundary.resume_state()
+                );
+                assert_eq!(
+                    perform_layout.frame_field_index(),
+                    fetch_frame_layout.field_index_for_slot(perform_home_slot),
+                );
+
+                let main = inputs
+                    .abi_visibility_program
+                    .callable("main")
+                    .expect("main callable 应存在");
+                let runtime_error_boundary = main
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .find(|boundary| {
+                        matches!(
+                            boundary.source(),
+                            LateLoweredBoundarySource::RuntimeError { origin_site }
+                                if origin_site == SiteId::from_raw(25)
+                        )
+                    })
+                    .expect("site25 的 runtime-error boundary 应存在");
+                let runtime_error_binding = main
+                    .frame_schema()
+                    .resume_payload_binding(runtime_error_boundary.boundary_id())
+                    .expect("runtime-error boundary 应发布 resumed local/home binding");
+                let runtime_error_layout = query
+                    .resume_payload_binding_layout(main.step_schema(), runtime_error_binding)
+                    .expect("runtime-error boundary 应可回查 resumed local/home contract");
+                let state_layout = query
+                    .resume_payload_binding_for_state(
+                        main.step_schema(),
+                        runtime_error_boundary.resume_state(),
+                    )
+                    .expect("runtime-error resume state 应可直接回查 resumed local/home contract");
+
+                assert_eq!(
+                    runtime_error_layout.consumer_local(),
+                    runtime_error_binding.consumer_local(),
+                );
+                assert_eq!(
+                    state_layout.consumer_frame_slot(),
+                    runtime_error_binding.consumer_frame_slot(),
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_resume_payload_binding_rejects_missing_contract() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let fetch = program.callable("fetch").expect("fetch callable 应存在");
+                let frame_schema =
+                    LateLoweredFrameSchema::new(fetch.frame_schema().slots().to_vec());
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == fetch.step_schema() {
+                            clone_callable_with_frame_schema(candidate, frame_schema.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 resumed local/home contract 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("resumed local/home contract"),
+                    "错误消息应指出缺失的是 resumed local/home contract: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_resume_payload_binding_rejects_runtime_error_binding_drift() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let main = program.callable("main").expect("main callable 应存在");
+                let runtime_error_boundary = main
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .find(|boundary| {
+                        matches!(
+                            boundary.source(),
+                            LateLoweredBoundarySource::RuntimeError { origin_site }
+                                if origin_site == SiteId::from_raw(25)
+                        )
+                    })
+                    .expect("site25 的 runtime-error boundary 应存在");
+                let replacement = main
+                    .frame_schema()
+                    .resume_payload_bindings()
+                    .iter()
+                    .find(|binding| {
+                        binding.boundary_id() != runtime_error_boundary.boundary_id()
+                            && binding.resume_state() != runtime_error_boundary.resume_state()
+                    })
+                    .copied()
+                    .expect("应存在可用于构造 drift 的其它 resumed local/home binding");
+                let bindings = main
+                    .frame_schema()
+                    .resume_payload_bindings()
+                    .iter()
+                    .copied()
+                    .map(|binding| {
+                        if binding.boundary_id() == runtime_error_boundary.boundary_id() {
+                            LateLoweredResumePayloadBinding::new(
+                                binding.boundary_id(),
+                                binding.resume_state(),
+                                replacement.consumer_local(),
+                                replacement.consumer_frame_slot(),
+                            )
+                        } else {
+                            binding
+                        }
+                    })
+                    .collect();
+                let frame_schema =
+                    LateLoweredFrameSchema::new(main.frame_schema().slots().to_vec())
+                        .with_resume_payload_bindings(bindings);
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == main.step_schema() {
+                            clone_callable_with_frame_schema(candidate, frame_schema.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("runtime-error binding 漂移时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("resumed local/home contract")
+                        && (message.contains("runtime-error boundary")
+                            || message.contains("漂移")
+                            || message.contains("冲突")),
+                    "错误消息应指出 runtime-error resumed local/home contract 漂移: {message}"
+                );
             },
         );
     }

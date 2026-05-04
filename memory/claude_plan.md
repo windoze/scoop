@@ -1,82 +1,83 @@
-# 本次执行计划
+## 当前执行计划
 
-说明：按安全约束，这里记录可审计的高层推理摘要与执行计划，不写出逐字内部思维。
+1. 读取 `TODO.md` 作为索引，并按顺序检查对应的 `TODO-Px.md` 详细任务文件。
+2. 确认第一个标题未带 `[DONE]` 的详细任务，必要时结合最近一次提交信息判断是否存在与该任务直接相关且未完成的问题需要先处理。
+3. 阅读该任务涉及的代码、测试、规范与依赖，确认实现边界与验证要求。
+4. 直接实现该任务；若遇到会阻塞规格正确实现的真实缺口，则在对应 `TODO-Px.md` 中插入最小前置任务，并同步 `TODO.md`，然后停止。
+5. 运行与该任务直接相关的测试、格式化、以及需要的质量检查；若仓库要求，补充执行 `cargo clippy --all-targets -- -D warnings`。
+6. 更新任务记录：在对应 `TODO-Px.md` 中把任务标题标为 `[DONE]` 并填写完成记录；若索引有变化，同步更新 `TODO.md`；仅在阶段计划变化时更新 `PLAN.md`。
+7. 检查工作区中与本任务相关的改动，使用清晰的提交信息创建一次 git 提交，然后停止，不进入下一个任务。
 
-1. 先读取 `TODO.md`，把它当作索引使用。
-2. 按 `TODO.md` 引用顺序读取对应的 `TODO-Px.md` 详细任务文件。
-3. 依据任务标题是否带有 `[DONE]`，定位第一个未完成的详细任务；若 `TODO.md` 与详细文件不一致，以详细文件为准。
-4. 检查最近一次提交信息，确认是否存在与该任务直接相关且未完成的问题；若存在，将其视为当前任务的一部分或必要前置。
-5. 阅读当前任务的详细要求、约束、依赖、验证标准，并结合代码库现状确认实现边界。
-6. 实现当前任务；若遇到阻塞当前任务且不能规避的真实缺口，先修复该缺口，或在对应 `TODO-Px.md` 中插入最小必要前置任务并同步 `TODO.md`，随后停止。
-7. 运行与当前任务直接相关的测试、构建、格式化和 lint（至少覆盖任务要求及必要回归范围），修复发现的问题，目标是无警告通过，包括 `cargo clippy --all-targets -- -D warnings`（若适用且不与任务上下文冲突）。
-8. 更新文档记录：
-   - 在对应 `TODO-Px.md` 中把当前任务标题标记为 `[DONE]`，并填写/更新完成记录。
-   - 若任务索引、标题、顺序或新增前置任务发生变化，同步更新 `TODO.md`。
-   - 仅当阶段计划本身变化时才更新 `PLAN.md`。
-9. 复查工作区，确保不回退或覆盖他人未请求的更改；若是恢复上次失败留下的同一任务未提交工作，则与本次变更一并提交。
-10. 使用清晰的 git 提交信息提交当前任务成果，然后停止，不进入下一个任务。
+## 进度记录约定
 
-进度更新规则：
-- 定位到当前任务后，补充任务编号、目标与验证方案。
-- 开始编辑前，记录计划是否有调整。
-- 完成关键实现、测试、文档更新、提交前，各追加一次简要进度记录。
+- 在确认当前目标任务后，补充更具体的实施步骤。
+- 在实施过程中如果计划变化、发现阻塞、完成关键实现或完成验证，会继续更新本文件。
+- 本文件记录的是可审计的执行计划与进度摘要，不包含隐式推理细节。
 
-## 进度记录
+## 当前目标任务
 
-### 2026-05-04 当前任务确认
+- 已根据 `TODO.md` 与 `TODO-P6-part2.md` 确认首个未完成详细任务为 `P6-T02qd`：发布 continuation resume payload -> resumed local/home 注入 contract。
+- 最近一次提交信息为 `[P6-T02qd] Track resumed local/home binding prerequisite`，说明这是从 `P6-T03` 落地过程中显式抽出的当前前置任务，应作为本次唯一执行目标。
 
-- 当前按 `TODO.md` 索引与完成标记核对后，第一个未完成详细任务是 `TODO-P6-part2.md` 中的 `P6-T02qc`。
-- 最新提交标题为 `[P6-T02qc] Record plan log update`，与当前任务直接相关，因此需要把当前工作区视为该任务的可能续做现场，检查是否存在未提交实现并在完成后一并提交。
-- 当前目标：发布 shared surface-resume wrapper 的 owner-step -> wrapper-step 投影 contract，使后续 `P6-T03` 不必在 shared surface body 中反向推导 wrapper 返回语义。
-- 初步验证方案：
-  - 读取 `TODO-P6-part2.md` 中 `P6-T02qc` 的详细约束与完成标准。
-  - 检查 refactor late-lowered / LLVM ABI query / surface-resume 相关实现与现有测试。
-  - 为 owner-step -> wrapper-step projection 增加 authoritative handoff/query 与 fail-fast。
-  - 运行定向单元测试、相关 build/fixture 测试，以及必要的 `cargo clippy --all-targets -- -D warnings`/格式化检查。
+## 针对 P6-T02qd 的细化步骤
 
-### 2026-05-04 设计收敛
+1. 检查当前工作区状态，确认是否存在未提交改动，并在后续提交时一并考虑用户要求的恢复场景。
+2. 阅读 `TODO-P6-part2.md` 中 `P6-T02qd` 的完整要求，以及相关实现文件：
+   - `crates/scoopc/src/effect_lowered/{frame,materialize,ir}.rs`
+   - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,body}.rs`
+3. 搜索现有 `ResumePayload`、`BoundaryResult`、`result_local`、continuation surface-resume / wrapper projection 等 handoff 结构，定位“恢复值写回 local/home”信息当前缺失的发布点与消费点。
+4. 以最小改动为原则实现 authoritative published contract，并补齐 query/fail-fast：
+   - 覆盖 call/resume/perfom 相关 continuation resume consumer；
+   - 覆盖 shared wrapper / owner trampoline 所需注入信息；
+   - 对缺失、歧义和漂移显式拒绝。
+5. 补充或修正 dump/query/tests，使 `dump-effect-lowered` 与 LLVM query 测试能直接观察该 contract。
+6. 运行与任务直接相关的测试、必要的 `cargo clippy --all-targets -- -D warnings`，若失败则先修复。
+7. 更新 `TODO-P6-part2.md`（必要时同步 `TODO.md`），将 `P6-T02qd` 标记为 `[DONE]` 并记录完成结果；若未能规格正确完成，则只记录 blocker 与新增前置任务。
+8. 创建一次 git 提交并停止，不进入 `P6-T03`。
 
-- 现状确认：`P6-T02q` 已在 resume boundary operand contract 上发布 `wrapper schema -> underlying route`，但 shared surface-resume schema inventory / owner trampoline query 仍未发布 `owner step -> wrapper step` 的反向投影。
-- 实现策略调整为：
-  - 在 `crates/scoopc/src/effect_lowered/ir.rs` 的 surface-resume dispatch inventory entry 上新增可 stable dump 的 wrapper projection contract；
-  - 该 contract 从 resume boundary 已发布的 forward dispatch 中派生，但以独立结构显式发布，避免 `P6-T03` 以后再反向遍历 dispatch plan；
-  - 在 `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` / `layout.rs` 把该 contract 挂到 owner trampoline query，并对缺失、跨 site 漂移或歧义执行 fail-fast；
-  - 用 `effect_multi_escape_indirect_direct_while.scoop` 补齐 dump/query/拒绝场景测试。
+## 当前实现方案（已确认）
 
-### 2026-05-04 实现完成
+- 现有 `BoundaryResult(boundary, local)`、`result_local` 与 `ResumePayload(boundary, case)` 彼此分散，仍不足以让后续 continuation object method / owner trampoline 仅凭 published handoff 找到恢复值写回位置。
+- 采用最小且统一的落点：
+  1. 在 late-lowered IR 的 `LateLoweredFrameSchema` 上补充一个 authoritative 的 resume 注入绑定表，显式发布“某个 boundary / resume state 的 incoming resume payload/answer 应写回哪个 local，以及它的 frame home 是哪个 slot（如果有）”。
+  2. 在 builder 阶段基于已物化的 `boundary_map + frame_schema` 生成这张表；对 paired runtime-error boundary 显式继承或校验其对应 binding；若缺失或冲突则 fail fast。
+  3. 在 stable dump 中直接展示该绑定表，便于 `dump-effect-lowered` 验证。
+  4. 在 LLVM ABI/query 层继续物化成可查询 layout，补上 boundary-keyed 与 resume-state-keyed 查询面，并验证 frame slot / field index 漂移。
+- 这样可以同时覆盖：
+  - `fetch` 的 `PerformResult` 恢复目标；
+  - `Resume` boundary 的 assign target；
+  - shared wrapper / handle-binder owner route 通过 captured `resume_state` 选择正确 consumer local/home；
+  - paired runtime-error route 的显式绑定继承与 fail-fast。
 
-- 已在 `effect_lowered` authoritative surface-resume dispatch inventory 上发布 `wrapper_projection`：
-  - 显式包含 `underlying_route`；
-  - 显式包含 `owner_step_schema -> wrapper_step_schema`；
-  - 显式包含 `complete` 与 `outward_cases` 投影。
-- 已在 stable dump 中直接展示该 contract，`dump-effect-lowered` 现在能看到 `k5` 的 `wrapper_projection` 段落。
-- 已在 LLVM owner trampoline query 上补齐消费与 fail-fast：
-  - 缺失 published projection 时拒绝；
-  - derived projection 与 published projection 漂移时拒绝；
-  - 多个 resume site 导出不同 projection 时拒绝。
-- 已补充测试：
-  - late-lowered inventory getter 测试；
-  - late-lowered stable dump 测试；
-  - LLVM query 正向发布测试；
-  - LLVM query 缺失 projection 拒绝测试。
-- 已完成验证：
-  - `cargo test -p scoopc refactor_surface_resume_dispatch_inventory_ --no-fail-fast`
-  - `cargo test -p scoopc refactor_surface_resume_dispatch_dump_exposes_shared_wrapper_projection --no-fail-fast`
-  - `cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout_ --no-fail-fast`
-  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
-  - `cargo fmt --all`
-  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+## 已完成的关键步骤
 
-### 2026-05-04 新一轮执行（P6-T03）
+1. 已在 `LateLoweredFrameSchema` 上新增 authoritative `resume_payload_bindings` 表，并补充访问器。
+2. 已在 late-lowered builder/materialize 阶段生成这张表：
+   - `Call` / `Resume` 直接基于 `result_local` + `BoundaryResult` home；
+   - `Perform` 基于 `BoundaryResult` slot 发布 `PerformResult` consumer；
+   - paired `RuntimeError` boundary 显式继承对应 resume boundary 的 consumer；
+   - 对缺失、重复、resume-state 冲突显式 fail fast。
+3. 已在 stable dump 中显示 `resume_payload_bindings`，`dump-effect-lowered` 可直接观察该 contract。
+4. 已在 LLVM ABI/query 层新增 resumed local/home layout 与查询面：
+   - boundary-keyed query；
+   - resume-state-keyed query；
+   - frame field index 校验与 drift/missing fail-fast。
+5. 已补充定向回归：
+   - `refactor_effect_lowered_resume_payload_binding_*`
+   - `refactor_llvm_resume_payload_binding_*`
 
-- 本轮先按 `TODO.md` / `TODO-P6-part2.md` 重新定位任务，确认当前第一个未完成详细任务是 `P6-T03`。
-- 已确认 `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 仍为空壳，而 `llvm/emit.rs` 当前仍对 effectful refactor body 直接 fail-fast；因此本任务不是小修，而是完整 body emitter 落地。
-- 已读取 late-lowered IR、LLVM ABI query，并运行真实 fixture 的 `dump-effect-lowered` / `dump-mir` 做 contract 核对。
-- 新确认的 blocker：当前 handoff 只发布了 `ResumePayload(boundary, case)` slot identity 与部分 `result_local`，但没有 authoritative 发布“continuation resume 的 incoming payload/answer 应写回哪个 resumed local/home”的统一 contract。
-- 若继续硬写 `P6-T03`，backend 将不得不回 canonical MIR 的 `Rvalue::PerformResult` / assign target / paired boundary shape 恢复该绑定，这违反当前阶段“只能消费 published handoff，不得回 shape 恢复语义”的约束。
-- 因此本轮计划已切换为：
-  - 在 `TODO-P6-part2.md` 中插入最小前置任务 `P6-T02qd`；
-  - 同步更新 `TODO.md` 索引与 `P6-T03` 依赖/阻塞记录；
-  - 提交这些任务文档与执行记录更新；
-  - 停止，等待下一轮按新顺序先完成 `P6-T02qd`。
-- 已完成文档同步自检：`TODO-P6-part2.md` 的未完成链路、`P6-T03` 依赖与阻塞记录，以及 `TODO.md` 索引都已更新；当前新的首个未完成详细任务是 `P6-T02qd`。
+## 当前验证结果
+
+- `cargo test -p scoopc refactor_effect_lowered_resume_payload_binding` 通过。
+- `cargo test -p scoopc refactor_llvm_resume_payload_binding` 通过。
+- `cargo test -p scoopc refactor_llvm_` 通过。
+- `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop` 通过，并可见 `resume_payload_bindings`。
+- `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop` 通过，并可见 `resume_payload_bindings`。
+- `cargo clippy -p scoopc --all-targets -- -D warnings` 通过。
+- 额外说明：`cargo clippy --workspace --all-targets -- -D warnings` 会输出 `scoop_runtime` 的现存 macOS C SDK 弃用警告（`runtime/c/scoop_stackmap.c` 使用 `getsectbynamefromheader_64`）；该警告不在本任务修改范围内，但已记录为验证时观察到的外部噪音。
+
+## 当前收尾状态
+
+- 已将 `TODO-P6-part2.md` 中的 `P6-T02qd` 标记为 `[DONE]`，并同步更新 `TODO.md` 索引。
+- `PLAN.md` 未改动：本次没有改变阶段顺序、依赖结构或退出条件。
+- 下一步仅剩：复核 git 状态、创建一次提交，然后停止，不进入 `P6-T03`。

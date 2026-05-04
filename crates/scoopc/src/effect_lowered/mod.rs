@@ -212,6 +212,15 @@ pub enum EffectLoweringError {
         detail: String,
     },
 
+    #[error(
+        "refactor late-lowering stage 无法为 `{root_fqn}` 的 boundary bd{boundary_id} 发布 resumed local/home contract：{detail}"
+    )]
+    InvalidResumePayloadBindingContract {
+        root_fqn: String,
+        boundary_id: u32,
+        detail: String,
+    },
+
     #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
 }

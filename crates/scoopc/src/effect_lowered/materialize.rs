@@ -14,23 +14,24 @@ use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueType
 
 use super::EffectLoweringError;
 use super::ir::{
-    BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundaryLowering,
-    LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption, LateLoweredCallBoundaryLowering,
-    LateLoweredCallBoundaryOperandContract, LateLoweredCompleteStepDispatch,
-    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
-    LateLoweredContinuationContract, LateLoweredContinuationMethod, LateLoweredContinuationObject,
-    LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
-    LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredHandleArmDispatch,
-    LateLoweredHandleBoundaryCaseRouting, LateLoweredHandleBoundaryCaseRoutingAction,
-    LateLoweredHandleBoundaryLowering, LateLoweredHandleBoundaryRouting,
-    LateLoweredHandleContinuationBinder, LateLoweredHandleDispatchCarrierContract,
-    LateLoweredHandleDispatchContract, LateLoweredHandlePayloadBinder,
-    LateLoweredHandlePendingCompletion, LateLoweredHandlePendingPayloadTransport,
-    LateLoweredHandleStateRegion, LateLoweredHandleStateRegionEntry,
-    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredOperandSource,
-    LateLoweredPerformBoundaryLowering, LateLoweredPerformBoundaryOperandContract,
-    LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryLowering,
-    LateLoweredResumeBoundaryOperandContract, LateLoweredResumeInterface, LateLoweredResumeMethod,
+    BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundary,
+    LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption,
+    LateLoweredCallBoundaryLowering, LateLoweredCallBoundaryOperandContract,
+    LateLoweredCompleteStepDispatch, LateLoweredConsumedRuntimeErrorCase,
+    LateLoweredContinuationCapture, LateLoweredContinuationContract, LateLoweredContinuationMethod,
+    LateLoweredContinuationObject, LateLoweredContinuationResumeBody,
+    LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
+    LateLoweredFrameSlotKind, LateLoweredHandleArmDispatch, LateLoweredHandleBoundaryCaseRouting,
+    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleBoundaryLowering,
+    LateLoweredHandleBoundaryRouting, LateLoweredHandleContinuationBinder,
+    LateLoweredHandleDispatchCarrierContract, LateLoweredHandleDispatchContract,
+    LateLoweredHandlePayloadBinder, LateLoweredHandlePendingCompletion,
+    LateLoweredHandlePendingPayloadTransport, LateLoweredHandleStateRegion,
+    LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
+    LateLoweredOneShotPolicy, LateLoweredOperandSource, LateLoweredPerformBoundaryLowering,
+    LateLoweredPerformBoundaryOperandContract, LateLoweredPublishedRuntimeEntry,
+    LateLoweredResumeBoundaryLowering, LateLoweredResumeBoundaryOperandContract,
+    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
     LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState, LateLoweredStateGraph,
     LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
     LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
@@ -1892,6 +1893,275 @@ fn lookup_handle_arms<'a>(
     })
 }
 
+pub(crate) fn materialize_resume_payload_bindings(
+    root_fqn: &str,
+    frame_schema: &LateLoweredFrameSchema,
+    boundary_map: &LateLoweredBoundaryMap,
+) -> Result<Vec<LateLoweredResumePayloadBinding>, EffectLoweringError> {
+    let (resume_boundaries, _) = paired_resume_boundaries(boundary_map);
+    let mut bindings_by_boundary = BTreeMap::<BoundaryId, LateLoweredResumePayloadBinding>::new();
+    let mut bindings_by_state = BTreeMap::<StateId, LateLoweredResumePayloadBinding>::new();
+
+    for boundary in boundary_map.entries() {
+        let Some(binding) = (match (boundary.source(), boundary.lowering()) {
+            (
+                LateLoweredBoundarySource::Site {
+                    kind: BoundarySiteKind::Call,
+                    ..
+                },
+                Some(LateLoweredBoundaryLowering::Call(lowering)),
+            ) => Some(build_resume_payload_binding_from_result_local(
+                root_fqn,
+                frame_schema,
+                boundary,
+                "Call",
+                lowering.result_local(),
+            )?),
+            (
+                LateLoweredBoundarySource::Site {
+                    kind: BoundarySiteKind::Perform,
+                    ..
+                },
+                Some(LateLoweredBoundaryLowering::Perform(_)),
+            ) => Some(build_resume_payload_binding_from_boundary_result_slot(
+                root_fqn,
+                frame_schema,
+                boundary,
+                "Perform",
+            )?),
+            (
+                LateLoweredBoundarySource::Site {
+                    kind: BoundarySiteKind::Resume,
+                    ..
+                },
+                Some(LateLoweredBoundaryLowering::Resume(lowering)),
+            ) => Some(build_resume_payload_binding_from_result_local(
+                root_fqn,
+                frame_schema,
+                boundary,
+                "Resume",
+                lowering.result_local(),
+            )?),
+            (
+                LateLoweredBoundarySource::Site {
+                    kind: BoundarySiteKind::Handle,
+                    ..
+                },
+                Some(LateLoweredBoundaryLowering::Handle(_)),
+            )
+            | (
+                LateLoweredBoundarySource::RuntimeError { .. },
+                Some(LateLoweredBoundaryLowering::RuntimeError(_)),
+            ) => None,
+            _ => None,
+        }) else {
+            continue;
+        };
+
+        insert_resume_payload_binding(
+            root_fqn,
+            &mut bindings_by_boundary,
+            &mut bindings_by_state,
+            binding,
+        )?;
+    }
+
+    for boundary in boundary_map.entries() {
+        let origin_site = match (boundary.source(), boundary.lowering()) {
+            (
+                LateLoweredBoundarySource::RuntimeError { origin_site },
+                Some(LateLoweredBoundaryLowering::RuntimeError(_)),
+            ) => origin_site,
+            _ => continue,
+        };
+        let paired_resume_boundary = resume_boundaries.get(&origin_site).ok_or_else(|| {
+            invalid_resume_payload_binding_contract(
+                root_fqn,
+                boundary.boundary_id(),
+                format!(
+                    "runtime-error route origin=site{} 缺少配对的 resume boundary，无法继承 resumed local/home binding",
+                    origin_site.as_u32(),
+                ),
+            )
+        })?;
+        let paired_binding = bindings_by_boundary.get(paired_resume_boundary).copied().ok_or_else(
+            || {
+                invalid_resume_payload_binding_contract(
+                    root_fqn,
+                    boundary.boundary_id(),
+                    format!(
+                        "paired resume boundary bd{} 缺少 resumed local/home binding，无法为 runtime-error route 继承 authoritative consumer",
+                        paired_resume_boundary.as_u32(),
+                    ),
+                )
+            },
+        )?;
+        let binding = LateLoweredResumePayloadBinding::new(
+            boundary.boundary_id(),
+            boundary.resume_state(),
+            paired_binding.consumer_local(),
+            paired_binding.consumer_frame_slot(),
+        );
+        insert_resume_payload_binding(
+            root_fqn,
+            &mut bindings_by_boundary,
+            &mut bindings_by_state,
+            binding,
+        )?;
+    }
+
+    Ok(boundary_map
+        .entries()
+        .iter()
+        .filter_map(|boundary| bindings_by_boundary.get(&boundary.boundary_id()).copied())
+        .collect())
+}
+
+fn build_resume_payload_binding_from_result_local(
+    root_fqn: &str,
+    frame_schema: &LateLoweredFrameSchema,
+    boundary: &LateLoweredBoundary,
+    kind: &'static str,
+    result_local: LocalId,
+) -> Result<LateLoweredResumePayloadBinding, EffectLoweringError> {
+    let boundary_result_slot = published_boundary_result_slot(frame_schema, boundary.boundary_id());
+    if let Some((slot_local, _)) = boundary_result_slot
+        && slot_local != result_local
+    {
+        return Err(invalid_resume_payload_binding_contract(
+            root_fqn,
+            boundary.boundary_id(),
+            format!(
+                "{kind} boundary 的 BoundaryResult slot 绑定到了 local{}，但 published result local 为 local{}",
+                slot_local.as_u32(),
+                result_local.as_u32(),
+            ),
+        ));
+    }
+    let consumer_frame_slot = boundary_result_slot
+        .map(|(_, slot_id)| slot_id)
+        .or_else(|| find_frame_slot_for_local(frame_schema, result_local));
+    Ok(LateLoweredResumePayloadBinding::new(
+        boundary.boundary_id(),
+        boundary.resume_state(),
+        result_local,
+        consumer_frame_slot,
+    ))
+}
+
+fn build_resume_payload_binding_from_boundary_result_slot(
+    root_fqn: &str,
+    frame_schema: &LateLoweredFrameSchema,
+    boundary: &LateLoweredBoundary,
+    kind: &'static str,
+) -> Result<LateLoweredResumePayloadBinding, EffectLoweringError> {
+    let Some((consumer_local, consumer_frame_slot)) =
+        published_boundary_result_slot(frame_schema, boundary.boundary_id())
+    else {
+        return Err(invalid_resume_payload_binding_contract(
+            root_fqn,
+            boundary.boundary_id(),
+            format!(
+                "{kind} boundary 缺少 BoundaryResult frame slot，无法 authoritative 发布 resumed local/home",
+            ),
+        ));
+    };
+    Ok(LateLoweredResumePayloadBinding::new(
+        boundary.boundary_id(),
+        boundary.resume_state(),
+        consumer_local,
+        Some(consumer_frame_slot),
+    ))
+}
+
+fn insert_resume_payload_binding(
+    root_fqn: &str,
+    bindings_by_boundary: &mut BTreeMap<BoundaryId, LateLoweredResumePayloadBinding>,
+    bindings_by_state: &mut BTreeMap<StateId, LateLoweredResumePayloadBinding>,
+    binding: LateLoweredResumePayloadBinding,
+) -> Result<(), EffectLoweringError> {
+    if bindings_by_boundary
+        .insert(binding.boundary_id(), binding)
+        .is_some()
+    {
+        return Err(invalid_resume_payload_binding_contract(
+            root_fqn,
+            binding.boundary_id(),
+            "重复发布多个 resumed local/home binding".to_string(),
+        ));
+    }
+    match bindings_by_state.get(&binding.resume_state()) {
+        Some(existing)
+            if existing.consumer_local() == binding.consumer_local()
+                && existing.consumer_frame_slot() == binding.consumer_frame_slot() => {}
+        Some(existing) => {
+            return Err(invalid_resume_payload_binding_contract(
+                root_fqn,
+                binding.boundary_id(),
+                format!(
+                    "resume state st{} 同时映射到不兼容的 resumed local/home：已发布 {}，当前尝试发布 {}",
+                    binding.resume_state().as_u32(),
+                    render_resume_payload_binding_target(
+                        existing.consumer_local(),
+                        existing.consumer_frame_slot(),
+                    ),
+                    render_resume_payload_binding_target(
+                        binding.consumer_local(),
+                        binding.consumer_frame_slot(),
+                    ),
+                ),
+            ));
+        }
+        None => {
+            bindings_by_state.insert(binding.resume_state(), binding);
+        }
+    }
+    Ok(())
+}
+
+fn published_boundary_result_slot(
+    frame_schema: &LateLoweredFrameSchema,
+    boundary_id: BoundaryId,
+) -> Option<(LocalId, crate::effect_lowered::ir::FrameSlotId)> {
+    frame_schema
+        .slots()
+        .iter()
+        .find_map(|slot| match slot.kind() {
+            LateLoweredFrameSlotKind::BoundaryResult { boundary, local }
+                if boundary == boundary_id =>
+            {
+                Some((local, slot.slot_id()))
+            }
+            _ => None,
+        })
+}
+
+fn render_resume_payload_binding_target(
+    consumer_local: LocalId,
+    consumer_frame_slot: Option<crate::effect_lowered::ir::FrameSlotId>,
+) -> String {
+    match consumer_frame_slot {
+        Some(slot_id) => format!(
+            "local{} / slot{}",
+            consumer_local.as_u32(),
+            slot_id.as_u32()
+        ),
+        None => format!("local{} / <no-frame-slot>", consumer_local.as_u32()),
+    }
+}
+
+fn invalid_resume_payload_binding_contract(
+    root_fqn: &str,
+    boundary_id: BoundaryId,
+    detail: String,
+) -> EffectLoweringError {
+    EffectLoweringError::InvalidResumePayloadBindingContract {
+        root_fqn: root_fqn.to_string(),
+        boundary_id: boundary_id.as_u32(),
+        detail,
+    }
+}
+
 fn find_frame_slot_for_local(
     frame_schema: &LateLoweredFrameSchema,
     local: LocalId,
@@ -3214,10 +3484,11 @@ mod tests {
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundarySourceConsumption,
         LateLoweredContinuationMethodReachability, LateLoweredContinuationResumeBody,
-        LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
-        LateLoweredHandleStateRegion, LateLoweredOneShotPolicy, LateLoweredOperandValueSource,
-        LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
-        LateLoweredSurfaceResumeDispatchSourceKind, SystemSlotKind,
+        LateLoweredFrameSlotKind, LateLoweredHandleBoundaryCaseRoutingAction,
+        LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion, LateLoweredOneShotPolicy,
+        LateLoweredOperandValueSource, LateLoweredStateTerminator,
+        LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
+        SystemSlotKind,
     };
     use crate::effect_refactor_pipeline::load_effect_facts_stage_output_for_dump;
     use crate::mir::SiteId;
@@ -4185,6 +4456,138 @@ mod tests {
                     && *route_site_id == site_id
             ));
         }
+    }
+
+    #[test]
+    fn refactor_effect_lowered_resume_payload_binding_covers_call_and_resume_boundaries() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_if_else_branch_single_perform.scoop",
+        ));
+
+        let main = callable(&output, "main");
+        let call_boundary = site_boundary(main, BoundarySiteKind::Call);
+        let call_binding = main
+            .frame_schema()
+            .resume_payload_binding(call_boundary.boundary_id())
+            .expect("call boundary 应发布 resumed local/home contract");
+        let call_slot = main
+            .frame_schema()
+            .slot_for_kind(LateLoweredFrameSlotKind::BoundaryResult {
+                boundary: call_boundary.boundary_id(),
+                local: call_binding.consumer_local(),
+            })
+            .expect("call boundary 应保留 BoundaryResult home slot");
+
+        assert_eq!(call_binding.resume_state(), call_boundary.resume_state());
+        assert_eq!(
+            call_binding.consumer_frame_slot(),
+            Some(call_slot.slot_id())
+        );
+
+        let run = callable(&output, "run");
+        let resume_boundary = site_boundary(run, BoundarySiteKind::Resume);
+        let resume_binding = run
+            .frame_schema()
+            .resume_payload_binding(resume_boundary.boundary_id())
+            .expect("resume boundary 应发布 resumed local/home contract");
+        let resume_slot = run
+            .frame_schema()
+            .slot_for_kind(LateLoweredFrameSlotKind::BoundaryResult {
+                boundary: resume_boundary.boundary_id(),
+                local: resume_binding.consumer_local(),
+            })
+            .expect("resume boundary 应保留 BoundaryResult home slot");
+
+        assert_eq!(
+            resume_binding.resume_state(),
+            resume_boundary.resume_state()
+        );
+        assert_eq!(
+            resume_binding.consumer_frame_slot(),
+            Some(resume_slot.slot_id())
+        );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_resume_payload_binding_covers_perform_and_runtime_error_paths() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+
+        let fetch = callable(&output, "fetch");
+        let perform_boundary = site_boundary(fetch, BoundarySiteKind::Perform);
+        let perform_binding = fetch
+            .frame_schema()
+            .resume_payload_binding(perform_boundary.boundary_id())
+            .expect("perform boundary 应发布 resumed local/home contract");
+        let perform_slot = fetch
+            .frame_schema()
+            .slot_for_kind(LateLoweredFrameSlotKind::BoundaryResult {
+                boundary: perform_boundary.boundary_id(),
+                local: perform_binding.consumer_local(),
+            })
+            .expect("perform boundary 应保留 PerformResult 对应的 BoundaryResult slot");
+
+        assert_eq!(
+            perform_binding.resume_state(),
+            perform_boundary.resume_state()
+        );
+        assert_eq!(
+            perform_binding.consumer_frame_slot(),
+            Some(perform_slot.slot_id())
+        );
+
+        let main = callable(&output, "main");
+        let resume_boundary = site_boundary(main, BoundarySiteKind::Resume);
+        let runtime_error_boundary = main
+            .boundary_map()
+            .entries()
+            .iter()
+            .find(|boundary| {
+                matches!(
+                    boundary.source(),
+                    crate::effect_lowered::ir::LateLoweredBoundarySource::RuntimeError {
+                        origin_site
+                    } if origin_site == SiteId::from_raw(25)
+                )
+            })
+            .expect("site25 的 paired runtime-error boundary 应存在");
+        let resume_binding = main
+            .frame_schema()
+            .resume_payload_binding(resume_boundary.boundary_id())
+            .expect("resume boundary 应发布 resumed local/home contract");
+        let runtime_error_binding = main
+            .frame_schema()
+            .resume_payload_binding(runtime_error_boundary.boundary_id())
+            .expect("runtime-error boundary 应显式继承 resumed local/home contract");
+
+        assert_eq!(
+            runtime_error_binding.resume_state(),
+            runtime_error_boundary.resume_state()
+        );
+        assert_eq!(
+            runtime_error_binding.consumer_local(),
+            resume_binding.consumer_local()
+        );
+        assert_eq!(
+            runtime_error_binding.consumer_frame_slot(),
+            resume_binding.consumer_frame_slot(),
+        );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_resume_payload_binding_dump_exposes_consumers() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+        let dump = output.program().stable_dump();
+
+        assert!(dump.contains("resume_payload_bindings:"));
+        assert!(dump.contains("bd0 resume=st2"));
+        assert!(dump.contains("home=slot"));
     }
 
     #[test]

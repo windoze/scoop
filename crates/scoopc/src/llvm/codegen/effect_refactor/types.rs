@@ -8,15 +8,16 @@ use crate::effect_facts::{
     CallSiteEffectFacts, CallTargetMode, CaseTag, ContinuationSchemaId, StepSchemaId,
 };
 use crate::effect_lowered::ir::{
-    ContinuationObjectId, FrameSlotId, LateLoweredBodyVersionKey,
+    BoundaryId, ContinuationObjectId, FrameSlotId, LateLoweredBodyVersionKey,
     LateLoweredCallBoundaryOperandContract, LateLoweredConsumedRuntimeErrorCase,
     LateLoweredContinuationMethodReachability, LateLoweredHandleBoundaryRouting,
     LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
     LateLoweredHandlePendingPayloadTransport, LateLoweredHandleStateRegion,
     LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
     LateLoweredPerformBoundaryOperandContract, LateLoweredPublishedRuntimeEntry,
-    LateLoweredResumeBoundaryOperandContract, LateLoweredSurfaceResumeDispatchSourceKind,
-    LateLoweredSurfaceResumeWrapperProjection, ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredResumeBoundaryOperandContract, LateLoweredResumePayloadBinding,
+    LateLoweredSurfaceResumeDispatchSourceKind, LateLoweredSurfaceResumeWrapperProjection,
+    ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{InstanceKey, LocalId, SiteId};
@@ -729,6 +730,55 @@ impl RefactorResumeBoundaryOperandLayout {
 
     pub(super) fn contract(&self) -> &LateLoweredResumeBoundaryOperandContract {
         &self.contract
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RefactorResumePayloadBindingLayout {
+    owner_step_schema: StepSchemaId,
+    binding: LateLoweredResumePayloadBinding,
+    frame_field_index: Option<u32>,
+}
+
+impl RefactorResumePayloadBindingLayout {
+    pub(super) fn new(
+        owner_step_schema: StepSchemaId,
+        binding: LateLoweredResumePayloadBinding,
+        frame_field_index: Option<u32>,
+    ) -> Self {
+        Self {
+            owner_step_schema,
+            binding,
+            frame_field_index,
+        }
+    }
+
+    pub(super) fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub(super) fn binding(&self) -> &LateLoweredResumePayloadBinding {
+        &self.binding
+    }
+
+    pub(super) fn boundary_id(&self) -> BoundaryId {
+        self.binding.boundary_id()
+    }
+
+    pub(super) fn resume_state(&self) -> StateId {
+        self.binding.resume_state()
+    }
+
+    pub(super) fn consumer_local(&self) -> LocalId {
+        self.binding.consumer_local()
+    }
+
+    pub(super) fn consumer_frame_slot(&self) -> Option<FrameSlotId> {
+        self.binding.consumer_frame_slot()
+    }
+
+    pub(super) fn frame_field_index(&self) -> Option<u32> {
+        self.frame_field_index
     }
 }
 
@@ -1868,6 +1918,10 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
         BTreeMap<(StepSchemaId, SiteId), RefactorPerformBoundaryOperandLayout>,
     resume_boundary_operand_layouts:
         BTreeMap<(StepSchemaId, SiteId), RefactorResumeBoundaryOperandLayout>,
+    resume_payload_binding_layouts:
+        BTreeMap<(StepSchemaId, BoundaryId), RefactorResumePayloadBindingLayout>,
+    resume_payload_bindings_by_state:
+        BTreeMap<(StepSchemaId, StateId), RefactorResumePayloadBindingLayout>,
     local_runtime_error_contracts:
         BTreeMap<(StepSchemaId, SiteId), RefactorLocalRuntimeErrorContract<'ctx>>,
     handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorHandleDispatchLayout>,
@@ -1915,6 +1969,14 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             (StepSchemaId, SiteId),
             RefactorResumeBoundaryOperandLayout,
         >,
+        resume_payload_binding_layouts: BTreeMap<
+            (StepSchemaId, BoundaryId),
+            RefactorResumePayloadBindingLayout,
+        >,
+        resume_payload_bindings_by_state: BTreeMap<
+            (StepSchemaId, StateId),
+            RefactorResumePayloadBindingLayout,
+        >,
         local_runtime_error_contracts: BTreeMap<
             (StepSchemaId, SiteId),
             RefactorLocalRuntimeErrorContract<'ctx>,
@@ -1937,6 +1999,8 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             call_boundary_operand_layouts,
             perform_boundary_operand_layouts,
             resume_boundary_operand_layouts,
+            resume_payload_binding_layouts,
+            resume_payload_bindings_by_state,
             local_runtime_error_contracts,
             handle_dispatch_layouts,
         }
@@ -2213,6 +2277,51 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             });
         }
         Ok(published)
+    }
+
+    pub(super) fn resume_payload_binding_layout(
+        &self,
+        owner_step_schema: StepSchemaId,
+        binding: &LateLoweredResumePayloadBinding,
+    ) -> Result<&RefactorResumePayloadBindingLayout, LlvmEmitError> {
+        let published = self
+            .resume_payload_binding_layouts
+            .get(&(owner_step_schema, binding.boundary_id()))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} boundary bd{} 的 resumed local/home contract",
+                    owner_step_schema.as_u32(),
+                    binding.boundary_id().as_u32(),
+                ),
+            })?;
+        if published.binding() != binding {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 owner step schema s{} boundary bd{} 的 resumed local/home contract 漂移：published={:?}，lowered={:?}",
+                    owner_step_schema.as_u32(),
+                    binding.boundary_id().as_u32(),
+                    published.binding(),
+                    binding,
+                ),
+            });
+        }
+        Ok(published)
+    }
+
+    pub(super) fn resume_payload_binding_for_state(
+        &self,
+        owner_step_schema: StepSchemaId,
+        resume_state: StateId,
+    ) -> Result<&RefactorResumePayloadBindingLayout, LlvmEmitError> {
+        self.resume_payload_bindings_by_state
+            .get(&(owner_step_schema, resume_state))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 owner step schema s{} resume state st{} 的 resumed local/home contract",
+                    owner_step_schema.as_u32(),
+                    resume_state.as_u32(),
+                ),
+            })
     }
 
     pub(super) fn call_local_runtime_error_contract(

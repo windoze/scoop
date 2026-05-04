@@ -11,7 +11,7 @@ use super::ir::{
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs, StepMaterialization,
     materialize_boundary_map, materialize_continuation_object, materialize_dynamic_invoke_entry,
-    materialize_step_and_resume_interfaces,
+    materialize_resume_payload_bindings, materialize_step_and_resume_interfaces,
 };
 use super::segment::build_callable_segmentation;
 
@@ -161,6 +161,9 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             };
             let state_graph = boundary_map.state_graph;
             let boundary_map = boundary_map.boundary_map;
+            let resume_payload_bindings =
+                materialize_resume_payload_bindings(&root_fqn, &frame_schema, &boundary_map)?;
+            let frame_schema = frame_schema.with_resume_payload_bindings(resume_payload_bindings);
             continuation_objects.push(materialize_continuation_object(
                 ContinuationObjectMaterializationInputs {
                     continuation_object_id,

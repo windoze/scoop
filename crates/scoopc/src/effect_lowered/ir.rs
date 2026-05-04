@@ -3239,19 +3239,78 @@ impl LateLoweredFrameSlot {
     }
 }
 
+/// continuation 恢复到 owner state 时，incoming payload/answer 应写回的 authoritative local/home。
+///
+/// 这里显式区分“恢复值写回哪个源码 local”与“若该 local 已被 lifting，它在 frame 中的 home slot 是哪个”。
+/// 后续 P6 backend 只能消费这张已发布表，不能再回 canonical MIR 找 `PerformResult` / assign target。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LateLoweredResumePayloadBinding {
+    boundary_id: BoundaryId,
+    resume_state: StateId,
+    consumer_local: LocalId,
+    consumer_frame_slot: Option<FrameSlotId>,
+}
+
+impl LateLoweredResumePayloadBinding {
+    pub(crate) fn new(
+        boundary_id: BoundaryId,
+        resume_state: StateId,
+        consumer_local: LocalId,
+        consumer_frame_slot: Option<FrameSlotId>,
+    ) -> Self {
+        Self {
+            boundary_id,
+            resume_state,
+            consumer_local,
+            consumer_frame_slot,
+        }
+    }
+
+    pub fn boundary_id(&self) -> BoundaryId {
+        self.boundary_id
+    }
+
+    pub fn resume_state(&self) -> StateId {
+        self.resume_state
+    }
+
+    pub fn consumer_local(&self) -> LocalId {
+        self.consumer_local
+    }
+
+    pub fn consumer_frame_slot(&self) -> Option<FrameSlotId> {
+        self.consumer_frame_slot
+    }
+}
+
 /// late-lowered callable 的 frame schema 壳层。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredFrameSchema {
     slots: Vec<LateLoweredFrameSlot>,
+    resume_payload_bindings: Vec<LateLoweredResumePayloadBinding>,
 }
 
 impl LateLoweredFrameSchema {
     pub fn new(slots: Vec<LateLoweredFrameSlot>) -> Self {
-        Self { slots }
+        Self {
+            slots,
+            resume_payload_bindings: Vec::new(),
+        }
     }
 
     pub(crate) fn empty() -> Self {
-        Self { slots: Vec::new() }
+        Self {
+            slots: Vec::new(),
+            resume_payload_bindings: Vec::new(),
+        }
+    }
+
+    pub(crate) fn with_resume_payload_bindings(
+        mut self,
+        resume_payload_bindings: Vec<LateLoweredResumePayloadBinding>,
+    ) -> Self {
+        self.resume_payload_bindings = resume_payload_bindings;
+        self
     }
 
     pub fn slots(&self) -> &[LateLoweredFrameSlot] {
@@ -3260,6 +3319,28 @@ impl LateLoweredFrameSchema {
 
     pub fn slot_for_kind(&self, kind: LateLoweredFrameSlotKind) -> Option<&LateLoweredFrameSlot> {
         self.slots.iter().find(|slot| slot.kind() == kind)
+    }
+
+    pub fn resume_payload_bindings(&self) -> &[LateLoweredResumePayloadBinding] {
+        &self.resume_payload_bindings
+    }
+
+    pub fn resume_payload_binding(
+        &self,
+        boundary_id: BoundaryId,
+    ) -> Option<&LateLoweredResumePayloadBinding> {
+        self.resume_payload_bindings
+            .iter()
+            .find(|binding| binding.boundary_id() == boundary_id)
+    }
+
+    pub fn resume_payload_binding_for_state(
+        &self,
+        resume_state: StateId,
+    ) -> Option<&LateLoweredResumePayloadBinding> {
+        self.resume_payload_bindings
+            .iter()
+            .find(|binding| binding.resume_state() == resume_state)
     }
 }
 
