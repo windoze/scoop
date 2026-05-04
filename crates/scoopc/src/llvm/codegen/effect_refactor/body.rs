@@ -5,7 +5,7 @@
 //! resume payload binding, completion payload, and state transition comes from
 //! the published late-lowered / ABI query contract.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use inkwell::AddressSpace;
 use inkwell::basic_block::BasicBlock;
@@ -17,14 +17,14 @@ use inkwell::values::{
 use crate::effect_facts::{CaseTag, StepSchemaId};
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
-    BoundaryId, LateLoweredBoundary, LateLoweredBoundaryLowering, LateLoweredBoundarySource,
+    BoundaryId, BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering,
+    LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
     LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
-    LateLoweredCallable, LateLoweredCompletionPayloadSource,
+    LateLoweredCallable, LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
     LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredOperandValueSource,
     LateLoweredResumePayloadBinding, LateLoweredSourceStatementClassificationKind,
-    LateLoweredState, LateLoweredStateTerminator, LateLoweredStepCaseEmission,
-    LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredState, LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
 };
 use crate::llvm::LlvmEmitError;
@@ -39,8 +39,8 @@ use super::types::{
     RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameLayout,
     RefactorHandleContinuationBinderLayout, RefactorHandlePayloadBinderLayout,
-    RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout,
-    RefactorStepLayout, RefactorStepVariantLayout,
+    RefactorLocalRuntimeErrorTerminalAction, RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind,
+    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
 };
 use super::value::RefactorValuePrimitives;
 
@@ -87,6 +87,16 @@ struct RefactorHandlePendingCompletionRuntime {
     completion_tag_field_index: u32,
     finally_state: StateId,
     payload_transport: Option<RefactorHandlePendingPayloadRuntime>,
+}
+
+#[derive(Clone)]
+struct RefactorLocalRuntimeErrorRuntime {
+    site_id: SiteId,
+    input_case_tag: CaseTag,
+    payload_tuple_ty: TypeId,
+    target_state: StateId,
+    runtime_symbol: String,
+    runtime_param_count: usize,
 }
 
 #[derive(Clone)]
@@ -1059,15 +1069,24 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let frame_ptr = codegen.refactor_alloc_struct(frame_layout.llvm_ty(), "refactor_frame")?;
         let mut state_blocks = BTreeMap::new();
         for state in callable.state_graph().states() {
-            state_blocks.insert(
-                state.state_id(),
-                codegen.context.append_basic_block(
-                    function,
-                    &format!("refactor.st{}", state.state_id().as_u32()),
-                ),
-            );
+            if state_blocks
+                .insert(
+                    state.state_id(),
+                    codegen.context.append_basic_block(
+                        function,
+                        &format!("refactor.st{}", state.state_id().as_u32()),
+                    ),
+                )
+                .is_some()
+            {
+                return Err(frontend_error(format!(
+                    "refactor body verifier 发现 callable `{}` 重复发布 state st{}",
+                    callable.root_fqn(),
+                    state.state_id().as_u32()
+                )));
+            }
         }
-        Ok(Self {
+        let emitter = Self {
             codegen,
             source_types,
             abi,
@@ -1084,7 +1103,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             state_blocks,
             return_projection,
             handle_completion_mode,
-        })
+        };
+        emitter.verify_body_contract()?;
+        Ok(emitter)
     }
 
     fn value_primitives(&mut self) -> RefactorValuePrimitives<'_, 'a, 'ctx> {
@@ -1095,6 +1116,684 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             &self.slots,
             self.abi,
         )
+    }
+
+    fn verify_body_contract(&self) -> Result<(), LlvmEmitError> {
+        self.verify_state_graph_contract()?;
+        self.verify_frame_contract()?;
+        self.verify_boundary_contracts()?;
+        Ok(())
+    }
+
+    fn verify_state_graph_contract(&self) -> Result<(), LlvmEmitError> {
+        if self.callable.state_graph().states().is_empty() {
+            return Err(frontend_error(format!(
+                "refactor body verifier 发现 callable `{}` 没有 state graph body",
+                self.callable.root_fqn()
+            )));
+        }
+        self.verify_state_exists(self.callable.state_graph().entry_state(), "entry")?;
+        self.verify_state_exists(self.callable.state_graph().complete_state(), "complete")?;
+        if let Some(cleanup_state) = self.callable.state_graph().cleanup_state() {
+            self.verify_state_exists(cleanup_state, "cleanup")?;
+        }
+        if let Some(drop_state) = self.callable.state_graph().drop_state() {
+            self.verify_state_exists(drop_state, "drop")?;
+        }
+
+        let mut seen_states = BTreeSet::new();
+        for state in self.callable.state_graph().states() {
+            if !seen_states.insert(state.state_id()) {
+                return Err(frontend_error(format!(
+                    "refactor body verifier 发现 callable `{}` 重复发布 state st{}",
+                    self.callable.root_fqn(),
+                    state.state_id().as_u32()
+                )));
+            }
+            self.verify_state_exists(state.state_id(), "state block")?;
+            for successor in state.successors() {
+                self.verify_state_exists(*successor, "state successor")?;
+            }
+            self.verify_state_source_slices(state)?;
+            self.verify_state_terminator_contract(state)?;
+        }
+        Ok(())
+    }
+
+    fn verify_state_source_slices(&self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
+        for slice in state.source_slices() {
+            let block = self
+                .body
+                .blocks
+                .get(slice.block_id().as_u32() as usize)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor body verifier 发现 callable `{}` state st{} source slice 指向缺失 block bb{}",
+                        self.callable.root_fqn(),
+                        state.state_id().as_u32(),
+                        slice.block_id().as_u32()
+                    ))
+                })?;
+            if slice.start_statement_index() > slice.end_statement_index()
+                || slice.end_statement_index() as usize > block.stmts.len()
+            {
+                return Err(frontend_error(format!(
+                    "refactor body verifier 发现 callable `{}` state st{} source slice [{}..{}) 越界于 bb{}（stmt_count={}）",
+                    self.callable.root_fqn(),
+                    state.state_id().as_u32(),
+                    slice.start_statement_index(),
+                    slice.end_statement_index(),
+                    slice.block_id().as_u32(),
+                    block.stmts.len()
+                )));
+            }
+            for stmt_index in slice.start_statement_index()..slice.end_statement_index() {
+                let classification = self
+                    .callable
+                    .source_statement_classification(*slice, stmt_index)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor body verifier 发现 callable `{}` state st{} source-slice bb{} stmt{} 缺少 classification",
+                            self.callable.root_fqn(),
+                            state.state_id().as_u32(),
+                            slice.block_id().as_u32(),
+                            stmt_index
+                        ))
+                    })?;
+                self.verify_source_statement_classification(classification.kind())?;
+            }
+        }
+        Ok(())
+    }
+
+    fn verify_source_statement_classification(
+        &self,
+        kind: LateLoweredSourceStatementClassificationKind,
+    ) -> Result<(), LlvmEmitError> {
+        match kind {
+            LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+            | LateLoweredSourceStatementClassificationKind::ElidedUnreachable
+            | LateLoweredSourceStatementClassificationKind::Unsupported { .. } => Ok(()),
+            LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor {
+                boundary_id,
+            } => self
+                .verify_boundary_exists(boundary_id, "statement classification anchor")
+                .map(|_| ()),
+            LateLoweredSourceStatementClassificationKind::ResumePayloadInjection {
+                boundary_id,
+                resume_state,
+                consumer_local,
+            } => {
+                self.verify_state_exists(resume_state, "resume payload classification state")?;
+                self.verify_local_exists(consumer_local, "resume payload classification local")?;
+                let binding = self
+                    .callable
+                    .frame_schema()
+                    .resume_payload_binding(boundary_id)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor body verifier 发现 boundary bd{} resume payload classification 缺少 frame binding",
+                            boundary_id.as_u32()
+                        ))
+                    })?;
+                if binding.resume_state() != resume_state
+                    || binding.consumer_local() != consumer_local
+                {
+                    return Err(frontend_error(format!(
+                        "refactor body verifier 发现 boundary bd{} resume payload classification 与 frame binding 漂移",
+                        boundary_id.as_u32()
+                    )));
+                }
+                Ok(())
+            }
+            LateLoweredSourceStatementClassificationKind::BoundaryResultInjection {
+                boundary_id,
+                resume_state,
+                result_local,
+            } => {
+                self.verify_boundary_exists(boundary_id, "boundary result classification")?;
+                self.verify_state_exists(resume_state, "boundary result classification state")?;
+                self.verify_local_exists(result_local, "boundary result classification local")
+            }
+            LateLoweredSourceStatementClassificationKind::CompletionPayloadInjection {
+                return_state,
+                complete_state,
+            } => {
+                self.verify_state_exists(return_state, "completion payload classification return")?;
+                self.verify_state_exists(
+                    complete_state,
+                    "completion payload classification complete",
+                )
+            }
+            LateLoweredSourceStatementClassificationKind::HandleSyntheticCarrierBinder {
+                state_id,
+                ..
+            } => self.verify_state_exists(state_id, "handle synthetic carrier binder state"),
+        }
+    }
+
+    fn verify_state_terminator_contract(
+        &self,
+        state: &LateLoweredState,
+    ) -> Result<(), LlvmEmitError> {
+        match state.terminator() {
+            LateLoweredStateTerminator::Goto { target } => {
+                self.verify_state_exists(*target, "goto target")
+            }
+            LateLoweredStateTerminator::Branch {
+                cond_local,
+                then_state,
+                else_state,
+            } => {
+                self.verify_local_exists(*cond_local, "branch condition local")?;
+                self.verify_state_exists(*then_state, "branch then target")?;
+                self.verify_state_exists(*else_state, "branch else target")
+            }
+            LateLoweredStateTerminator::Return { payload_source, .. } => {
+                let binding = self
+                    .abi
+                    .completion_payload_binding_for_state(self.abi_step_schema, state.state_id())?;
+                self.abi
+                    .completion_payload_binding_layout(self.abi_step_schema, binding.binding())?;
+                if binding.payload_source() != payload_source {
+                    return Err(frontend_error(format!(
+                        "refactor body verifier 发现 return state st{} completion payload source 漂移：terminator={:?} binding={:?}",
+                        state.state_id().as_u32(),
+                        payload_source,
+                        binding.payload_source()
+                    )));
+                }
+                self.verify_completion_payload_source(payload_source)
+            }
+            LateLoweredStateTerminator::Suspend {
+                boundary_ids,
+                resume_state,
+                local_runtime_error_states,
+                cleanup_state,
+                drop_state,
+            } => {
+                self.verify_state_exists(*resume_state, "suspend resume state")?;
+                for boundary_id in boundary_ids {
+                    let boundary = self.verify_boundary_exists(*boundary_id, "suspend boundary")?;
+                    if boundary.owner_state() != state.state_id() {
+                        return Err(frontend_error(format!(
+                            "refactor body verifier 发现 suspend state st{} 引用 boundary bd{}，但 boundary owner 是 st{}",
+                            state.state_id().as_u32(),
+                            boundary.boundary_id().as_u32(),
+                            boundary.owner_state().as_u32()
+                        )));
+                    }
+                    if boundary.resume_state() != *resume_state {
+                        return Err(frontend_error(format!(
+                            "refactor body verifier 发现 suspend state st{} boundary bd{} resume state 漂移：terminator=st{} boundary=st{}",
+                            state.state_id().as_u32(),
+                            boundary.boundary_id().as_u32(),
+                            resume_state.as_u32(),
+                            boundary.resume_state().as_u32()
+                        )));
+                    }
+                }
+                for local_state in local_runtime_error_states {
+                    self.verify_state_exists(*local_state, "local runtime-error target")?;
+                }
+                if let Some(cleanup_state) = cleanup_state {
+                    self.verify_state_exists(*cleanup_state, "suspend cleanup state")?;
+                }
+                if let Some(drop_state) = drop_state {
+                    self.verify_state_exists(*drop_state, "suspend drop state")?;
+                }
+                Ok(())
+            }
+            LateLoweredStateTerminator::HandleDispatch {
+                site_id,
+                body_state,
+                arm_states,
+                finally_state,
+                exit_state,
+                drop_state,
+                contract,
+                boundary_ids,
+            } => {
+                self.abi
+                    .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
+                self.verify_state_exists(*body_state, "handle body state")?;
+                for arm_state in arm_states {
+                    self.verify_state_exists(*arm_state, "handle arm state")?;
+                }
+                if let Some(finally_state) = finally_state {
+                    self.verify_state_exists(*finally_state, "handle finally state")?;
+                }
+                self.verify_state_exists(*exit_state, "handle exit state")?;
+                if let Some(drop_state) = drop_state {
+                    self.verify_state_exists(*drop_state, "handle drop state")?;
+                }
+                for boundary_id in boundary_ids {
+                    self.verify_boundary_exists(*boundary_id, "handle boundary")?;
+                }
+                Ok(())
+            }
+            LateLoweredStateTerminator::LocalRuntimeError {
+                payload_tuple_ty,
+                terminal_action,
+            } => {
+                let runtime = self.local_runtime_error_runtime_for_target_state(
+                    state.state_id(),
+                    *payload_tuple_ty,
+                    *terminal_action,
+                )?;
+                if runtime.target_state != state.state_id() {
+                    return Err(frontend_error(format!(
+                        "refactor body verifier 发现 LocalRuntimeError st{} target contract 漂移为 st{}",
+                        state.state_id().as_u32(),
+                        runtime.target_state.as_u32()
+                    )));
+                }
+                Ok(())
+            }
+            LateLoweredStateTerminator::ResumeUnwind
+            | LateLoweredStateTerminator::Unreachable
+            | LateLoweredStateTerminator::Abandon => Ok(()),
+        }
+    }
+
+    fn verify_frame_contract(&self) -> Result<(), LlvmEmitError> {
+        if self.frame_layout.step_schema() != self.abi_step_schema {
+            return Err(frontend_error(format!(
+                "refactor body verifier 发现 frame layout step schema 漂移：layout=s{} abi=s{}",
+                self.frame_layout.step_schema().as_u32(),
+                self.abi_step_schema.as_u32()
+            )));
+        }
+        for slot in self.callable.frame_schema().slots() {
+            if self
+                .frame_layout
+                .field_index_for_slot(slot.slot_id())
+                .is_none()
+            {
+                return Err(frontend_error(format!(
+                    "refactor body verifier 发现 frame slot fs{} 缺少 ABI field layout",
+                    slot.slot_id().as_u32()
+                )));
+            }
+            if let Some(local) = frame_slot_local(slot.kind()) {
+                self.verify_local_exists(local, "frame slot local")?;
+            }
+            for write_state in slot.write_points() {
+                self.verify_state_exists(*write_state, "frame slot write point")?;
+            }
+            for read_state in slot.read_points() {
+                self.verify_state_exists(*read_state, "frame slot read point")?;
+            }
+        }
+        for binding in self.callable.frame_schema().resume_payload_bindings() {
+            self.abi
+                .resume_payload_binding_layout(self.abi_step_schema, binding)?;
+            self.verify_boundary_exists(binding.boundary_id(), "resume payload binding boundary")?;
+            self.verify_state_exists(binding.resume_state(), "resume payload binding state")?;
+            self.verify_local_exists(binding.consumer_local(), "resume payload binding local")?;
+            if let Some(frame_slot) = binding.consumer_frame_slot()
+                && self.frame_layout.field_index_for_slot(frame_slot).is_none()
+            {
+                return Err(frontend_error(format!(
+                    "refactor body verifier 发现 resume payload binding bd{} 的 frame slot fs{} 缺少 ABI field layout",
+                    binding.boundary_id().as_u32(),
+                    frame_slot.as_u32()
+                )));
+            }
+        }
+        for binding in self.callable.frame_schema().completion_payload_bindings() {
+            self.abi
+                .completion_payload_binding_layout(self.abi_step_schema, binding)?;
+            self.verify_state_exists(binding.return_state(), "completion payload return state")?;
+            self.verify_completion_payload_source(binding.payload_source())?;
+        }
+        Ok(())
+    }
+
+    fn verify_boundary_contracts(&self) -> Result<(), LlvmEmitError> {
+        let mut seen_boundaries = BTreeSet::new();
+        for boundary in self.callable.boundary_map().entries() {
+            if !seen_boundaries.insert(boundary.boundary_id()) {
+                return Err(frontend_error(format!(
+                    "refactor body verifier 发现 callable `{}` 重复发布 boundary bd{}",
+                    self.callable.root_fqn(),
+                    boundary.boundary_id().as_u32()
+                )));
+            }
+            self.verify_state_exists(boundary.owner_state(), "boundary owner state")?;
+            self.verify_state_exists(boundary.resume_state(), "boundary resume state")?;
+            let lowering = boundary.lowering().ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor body verifier 发现 boundary bd{} 缺少 published lowering",
+                    boundary.boundary_id().as_u32()
+                ))
+            })?;
+            self.verify_boundary_source_consumption(boundary)?;
+            match lowering {
+                LateLoweredBoundaryLowering::Call(lowering) => {
+                    let source = boundary_site(boundary, "Call")?;
+                    self.abi.call_boundary_operand_layout(
+                        self.abi_step_schema,
+                        source,
+                        lowering.operand_contract(),
+                    )?;
+                    self.abi
+                        .call_target_layout(self.abi_step_schema, source, lowering.facts())?;
+                    if let Some(carrier) = lowering.operand_contract().carrier_source() {
+                        self.verify_operand_source(carrier)?;
+                    }
+                    for arg in lowering.operand_contract().arg_sources() {
+                        self.verify_operand_source(arg)?;
+                    }
+                    if let Some(contract) = lowering.consumed_runtime_error_case() {
+                        let runtime =
+                            self.local_runtime_error_runtime_for_call(source, contract)?;
+                        self.verify_state_exists(
+                            runtime.target_state,
+                            "call local runtime-error target",
+                        )?;
+                    }
+                }
+                LateLoweredBoundaryLowering::Perform(lowering) => {
+                    let source = boundary_site(boundary, "Perform")?;
+                    self.abi.perform_boundary_operand_layout(
+                        self.abi_step_schema,
+                        source,
+                        lowering.operand_contract(),
+                    )?;
+                    for payload_source in lowering.operand_contract().payload_sources() {
+                        self.verify_operand_source(payload_source)?;
+                    }
+                    self.verify_step_case_payload_contract(
+                        lowering.emitted_step().case_tag(),
+                        lowering.emitted_step().payload_tuple_ty(),
+                    )?;
+                }
+                LateLoweredBoundaryLowering::Resume(lowering) => {
+                    let source = boundary_site(boundary, "Resume")?;
+                    self.abi.resume_boundary_operand_layout(
+                        self.abi_step_schema,
+                        source,
+                        lowering.operand_contract(),
+                    )?;
+                    self.verify_operand_source(lowering.operand_contract().continuation_source())?;
+                    for arg in lowering.operand_contract().arg_sources() {
+                        self.verify_operand_source(arg)?;
+                    }
+                    let surface = self
+                        .abi
+                        .surface_resume_layout(lowering.facts().continuation_schema())
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor body verifier 缺少 continuation schema k{} 的 surface resume ABI",
+                                lowering.facts().continuation_schema().as_u32()
+                            ))
+                        })?;
+                    self.verify_source_value_layout(
+                        surface.resume_tuple_ty(),
+                        "surface resume tuple",
+                    )?;
+                }
+                LateLoweredBoundaryLowering::RuntimeError(lowering) => {
+                    self.verify_step_case_payload_contract(
+                        lowering.emitted_step().case_tag(),
+                        lowering.emitted_step().payload_tuple_ty(),
+                    )?;
+                }
+                LateLoweredBoundaryLowering::Handle(lowering) => {
+                    for emission in lowering.outward_emissions() {
+                        self.verify_step_case_payload_contract(
+                            emission.case_tag(),
+                            emission.payload_tuple_ty(),
+                        )?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn verify_boundary_source_consumption(
+        &self,
+        boundary: &LateLoweredBoundary,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(consumption) = boundary_source_consumption(boundary) else {
+            return Ok(());
+        };
+        match consumption {
+            LateLoweredBoundarySourceConsumption::Statement {
+                source_slice,
+                statement_index,
+                ..
+            } => {
+                let classification = self
+                    .callable
+                    .source_statement_classification(source_slice, statement_index)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor body verifier 发现 boundary bd{} statement anchor bb{} stmt{} 缺少 classification",
+                            boundary.boundary_id().as_u32(),
+                            source_slice.block_id().as_u32(),
+                            statement_index
+                        ))
+                    })?;
+                match classification.kind() {
+                    LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor {
+                        boundary_id,
+                    } if boundary_id == boundary.boundary_id() => Ok(()),
+                    other => Err(frontend_error(format!(
+                        "refactor body verifier 发现 boundary bd{} statement anchor classification 漂移：{:?}",
+                        boundary.boundary_id().as_u32(),
+                        other
+                    ))),
+                }
+            }
+            LateLoweredBoundarySourceConsumption::Terminator { source_slice } => {
+                if !source_slice.includes_terminator() {
+                    return Err(frontend_error(format!(
+                        "refactor body verifier 发现 boundary bd{} terminator anchor 所在 source slice 没有包含 terminator",
+                        boundary.boundary_id().as_u32()
+                    )));
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn verify_step_case_payload_contract(
+        &self,
+        case_tag: CaseTag,
+        payload_ty: TypeId,
+    ) -> Result<(), LlvmEmitError> {
+        self.step_layout.case_layout(case_tag).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor body verifier 发现 step schema s{} 缺少 case c{} layout",
+                self.abi_step_schema.as_u32(),
+                case_tag.as_u32()
+            ))
+        })?;
+        self.verify_source_value_layout(payload_ty, "step case payload")?;
+        Ok(())
+    }
+
+    fn verify_completion_payload_source(
+        &self,
+        source: &LateLoweredCompletionPayloadSource,
+    ) -> Result<(), LlvmEmitError> {
+        if source.is_unit() && self.source_ty_is_unit(source.source_ty()) {
+            return Ok(());
+        }
+        self.verify_source_value_layout(source.source_ty(), "completion payload source")?;
+        if let Some(operand) = source.operand_source() {
+            self.verify_operand_source(operand)?;
+        }
+        Ok(())
+    }
+
+    fn verify_operand_source(
+        &self,
+        source: &LateLoweredOperandSource,
+    ) -> Result<(), LlvmEmitError> {
+        self.verify_source_value_layout(source.source_ty(), "operand source")?;
+        if let LateLoweredOperandValueSource::Local(local) = source.value() {
+            self.verify_local_exists(*local, "operand source local")?;
+        }
+        Ok(())
+    }
+
+    fn verify_state_exists(&self, state_id: StateId, label: &str) -> Result<(), LlvmEmitError> {
+        if self.state_blocks.contains_key(&state_id) {
+            Ok(())
+        } else {
+            Err(frontend_error(format!(
+                "refactor body verifier 发现 {label} 引用缺失 state st{}",
+                state_id.as_u32()
+            )))
+        }
+    }
+
+    fn verify_boundary_exists(
+        &self,
+        boundary_id: BoundaryId,
+        label: &str,
+    ) -> Result<&LateLoweredBoundary, LlvmEmitError> {
+        self.callable
+            .boundary_map()
+            .boundary(boundary_id)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor body verifier 发现 {label} 引用缺失 boundary bd{}",
+                    boundary_id.as_u32()
+                ))
+            })
+    }
+
+    fn verify_local_exists(&self, local: LocalId, label: &str) -> Result<(), LlvmEmitError> {
+        if self.slots.get(local.as_u32() as usize).is_some() {
+            Ok(())
+        } else {
+            Err(frontend_error(format!(
+                "refactor body verifier 发现 {label} 引用缺失 local l{}",
+                local.as_u32()
+            )))
+        }
+    }
+
+    fn verify_source_value_layout(&self, ty: TypeId, label: &str) -> Result<(), LlvmEmitError> {
+        if self.source_ty_is_unit(ty) {
+            return Ok(());
+        }
+        self.abi.source_value_layout(ty).map(|_| ()).map_err(|err| {
+            frontend_error(format!(
+                "refactor body verifier 发现 {label} t{} 缺少 ABI value lowering contract：{err}",
+                ty.as_u32()
+            ))
+        })
+    }
+
+    fn source_ty_is_unit(&self, ty: TypeId) -> bool {
+        matches!(
+            self.source_types.kind(ty),
+            TypeKind::Value(ValueTypeKind::Unit)
+        )
+    }
+
+    fn source_ty_is_runtime_error(&self, ty: TypeId) -> bool {
+        matches!(
+            self.source_types.kind(ty),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.RuntimeError"
+        )
+    }
+
+    fn local_runtime_error_runtime_for_call(
+        &self,
+        site_id: SiteId,
+        contract: &LateLoweredConsumedRuntimeErrorCase,
+    ) -> Result<RefactorLocalRuntimeErrorRuntime, LlvmEmitError> {
+        let published =
+            self.abi
+                .call_local_runtime_error_contract(self.abi_step_schema, site_id, contract)?;
+        if published.owner_step_schema() != self.abi_step_schema || published.site_id() != site_id {
+            return Err(frontend_error(format!(
+                "refactor body verifier 发现 local runtime-error contract identity 漂移：layout=(s{}, site={}) expected=(s{}, site={})",
+                published.owner_step_schema().as_u32(),
+                published.site_id().as_u32(),
+                self.abi_step_schema.as_u32(),
+                site_id.as_u32()
+            )));
+        }
+        if published.payload_abi().is_elided() {
+            return Err(frontend_error(format!(
+                "refactor body verifier 发现 call site {} 的 local runtime-error payload ABI 被错误 elide",
+                site_id.as_u32()
+            )));
+        }
+        let runtime_entry = match published.terminal_action() {
+            RefactorLocalRuntimeErrorTerminalAction::RuntimeFatal { runtime_entry } => {
+                runtime_entry
+            }
+        };
+        Ok(RefactorLocalRuntimeErrorRuntime {
+            site_id,
+            input_case_tag: published.input_case_tag(),
+            payload_tuple_ty: published.payload_tuple_ty(),
+            target_state: published.target_state(),
+            runtime_symbol: runtime_entry.symbol_name().to_string(),
+            runtime_param_count: runtime_entry.param_count(),
+        })
+    }
+
+    fn local_runtime_error_runtime_for_target_state(
+        &self,
+        target_state: StateId,
+        payload_tuple_ty: TypeId,
+        terminal_action: crate::effect_lowered::ir::LateLoweredLocalRuntimeErrorTerminalAction,
+    ) -> Result<RefactorLocalRuntimeErrorRuntime, LlvmEmitError> {
+        let mut selected = None::<RefactorLocalRuntimeErrorRuntime>;
+        for boundary in self.callable.boundary_map().entries() {
+            let LateLoweredBoundarySource::Site {
+                site_id,
+                kind: BoundarySiteKind::Call,
+            } = boundary.source()
+            else {
+                continue;
+            };
+            let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering() else {
+                continue;
+            };
+            let Some(contract) = lowering.consumed_runtime_error_case() else {
+                continue;
+            };
+            if contract.target_state() != target_state {
+                continue;
+            }
+            if contract.payload_tuple_ty() != payload_tuple_ty
+                || contract.terminal_action() != terminal_action
+            {
+                return Err(frontend_error(format!(
+                    "refactor body verifier 发现 LocalRuntimeError st{} 与 call site {} consumed contract 漂移",
+                    target_state.as_u32(),
+                    site_id.as_u32()
+                )));
+            }
+            let runtime = self.local_runtime_error_runtime_for_call(site_id, contract)?;
+            if let Some(existing) = &selected {
+                return Err(frontend_error(format!(
+                    "refactor body verifier 发现 LocalRuntimeError st{} 被多个 call site 消费：{} 与 {}",
+                    target_state.as_u32(),
+                    existing.site_id.as_u32(),
+                    site_id.as_u32()
+                )));
+            }
+            selected = Some(runtime);
+        }
+        selected.ok_or_else(|| {
+            frontend_error(format!(
+                "refactor body verifier 发现 LocalRuntimeError st{} 缺少对应 consumed runtime-error case contract",
+                target_state.as_u32()
+            ))
+        })
     }
 
     fn lower_effect_neutral_statement(
@@ -1468,23 +2167,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         resume_state_tag: IntValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let emission = self.double_resume_runtime_error_emission()?;
-        if emission.continuation_object() != self.callable.continuation_object() {
-            return Err(frontend_error(format!(
-                "refactor double resume runtime error continuation object 漂移：emission=ko{} callable=ko{}",
-                emission.continuation_object().as_u32(),
-                self.callable.continuation_object().as_u32(),
-            )));
-        }
-        let payload = self.lower_runtime_error_boundary_payload(emission.payload_tuple_ty())?;
+        let (case_tag, payload_tuple_ty) = self.double_resume_runtime_error_case()?;
+        let payload = self.lower_runtime_error_boundary_payload(payload_tuple_ty)?;
         let continuation =
             self.create_continuation_object_with_state_tag(None, resume_state_tag, None, None)?;
-        let out_layout = self.step_layout.case_layout(emission.case_tag()).ok_or_else(|| {
+        let out_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
             frontend_error(format!(
                 "refactor callable `{}` step schema s{} 缺少 double resume runtime error case c{}",
                 self.callable.root_fqn(),
                 self.abi_step_schema.as_u32(),
-                emission.case_tag().as_u32(),
+                case_tag.as_u32(),
             ))
         })?;
         let step = self.codegen.refactor_build_step_case(
@@ -1496,10 +2188,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.return_step(step)
     }
 
-    fn double_resume_runtime_error_emission(
-        &self,
-    ) -> Result<LateLoweredStepCaseEmission, LlvmEmitError> {
-        let mut selected = None::<LateLoweredStepCaseEmission>;
+    fn double_resume_runtime_error_case(&self) -> Result<(CaseTag, TypeId), LlvmEmitError> {
+        let mut selected = None::<(CaseTag, TypeId)>;
         for boundary in self.callable.boundary_map().entries() {
             let Some(LateLoweredBoundaryLowering::RuntimeError(lowering)) = boundary.lowering()
             else {
@@ -1509,17 +2199,39 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             if self.step_layout.case_layout(emission.case_tag()).is_none() {
                 continue;
             }
+            let candidate = (emission.case_tag(), emission.payload_tuple_ty());
             match &selected {
-                Some(existing) if existing != &emission => {
+                Some(existing) if existing != &candidate => {
                     return Err(frontend_error(format!(
                         "refactor callable `{}` 存在多义 double resume runtime error emission：{:?} 与 {:?}",
                         self.callable.root_fqn(),
                         existing,
-                        emission,
+                        candidate,
                     )));
                 }
                 Some(_) => {}
-                None => selected = Some(emission),
+                None => selected = Some(candidate),
+            }
+        }
+        if selected.is_none() {
+            for (case_tag, case_layout) in self.step_layout.cases() {
+                let payload_ty = case_layout.variant().payload_source_ty();
+                if !self.source_ty_is_runtime_error(payload_ty) {
+                    continue;
+                }
+                let candidate = (*case_tag, payload_ty);
+                match &selected {
+                    Some(existing) if existing != &candidate => {
+                        return Err(frontend_error(format!(
+                            "refactor callable `{}` 存在多义 double resume runtime error Step case：{:?} 与 {:?}",
+                            self.callable.root_fqn(),
+                            existing,
+                            candidate,
+                        )));
+                    }
+                    Some(_) => {}
+                    None => selected = Some(candidate),
+                }
             }
         }
         selected.ok_or_else(|| {
@@ -1955,22 +2667,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 self.branch_to_state(*body_state)
             }
             LateLoweredStateTerminator::LocalRuntimeError {
-                terminal_action, ..
+                payload_tuple_ty,
+                terminal_action,
             } => {
-                let runtime = terminal_action.runtime_entry();
-                let callee = self
-                    .codegen
-                    .module
-                    .get_function(runtime.symbol_name())
-                    .unwrap_or_else(|| self.codegen.declare_runtime_error_fatal());
-                let null_payload = self.codegen.llvm_gc_i8_ptr_type().const_null();
-                self.codegen.builder.build_call(
-                    callee,
-                    &[null_payload.into()],
-                    "refactor_runtime_error",
+                let runtime = self.local_runtime_error_runtime_for_target_state(
+                    state.state_id(),
+                    *payload_tuple_ty,
+                    *terminal_action,
                 )?;
-                self.codegen.builder.build_unreachable()?;
-                Ok(())
+                let payload =
+                    self.lower_runtime_error_boundary_payload(runtime.payload_tuple_ty)?;
+                self.emit_local_runtime_error_terminal(&runtime, payload)
             }
             LateLoweredStateTerminator::Unreachable
             | LateLoweredStateTerminator::ResumeUnwind
@@ -2222,6 +2929,68 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
     }
 
+    fn emit_local_runtime_error_terminal(
+        &mut self,
+        runtime: &RefactorLocalRuntimeErrorRuntime,
+        payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        let payload = payload.ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LocalRuntimeError st{} call site {} case c{} 需要 materialized payload t{}，但 lowering 产出了 elided payload",
+                runtime.target_state.as_u32(),
+                runtime.site_id.as_u32(),
+                runtime.input_case_tag.as_u32(),
+                runtime.payload_tuple_ty.as_u32()
+            ))
+        })?;
+        let callee = self
+            .codegen
+            .module
+            .get_function(&runtime.runtime_symbol)
+            .unwrap_or_else(|| self.codegen.declare_runtime_error_fatal());
+        if callee.count_params() as usize != runtime.runtime_param_count {
+            return Err(frontend_error(format!(
+                "refactor LocalRuntimeError runtime entry `{}` 参数数量漂移：module={} contract={}",
+                runtime.runtime_symbol,
+                callee.count_params(),
+                runtime.runtime_param_count
+            )));
+        }
+        let payload = self.materialize_runtime_error_fatal_payload(payload)?;
+        self.codegen.builder.build_call(
+            callee,
+            &[payload.into()],
+            "refactor_local_runtime_error_fatal",
+        )?;
+        self.codegen.builder.build_unreachable()?;
+        Ok(())
+    }
+
+    fn materialize_runtime_error_fatal_payload(
+        &mut self,
+        payload: BasicValueEnum<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let runtime_payload_ty = self.codegen.llvm_gc_i8_ptr_type();
+        if let BasicValueEnum::PointerValue(ptr) = payload {
+            return self.codegen.refactor_cast_ptr(
+                ptr,
+                runtime_payload_ty,
+                "refactor_runtime_error_payload_ptr",
+            );
+        }
+
+        let slot = self
+            .codegen
+            .builder
+            .build_alloca(payload.get_type(), "refactor_runtime_error_payload_obj")?;
+        self.codegen.builder.build_store(slot, payload)?;
+        self.codegen.refactor_cast_ptr(
+            slot,
+            runtime_payload_ty,
+            "refactor_runtime_error_payload_ptr",
+        )
+    }
+
     fn lower_handle_boundary(
         &mut self,
         boundary: &LateLoweredBoundary,
@@ -2291,6 +3060,39 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 ));
             }
         }
+        let local_runtime_error_case = match call_lowering
+            .and_then(LateLoweredCallBoundaryLowering::consumed_runtime_error_case)
+        {
+            Some(contract) => {
+                let case_layout = input_layout.case_layout(contract.input_case_tag()).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor call boundary bd{} local runtime-error case c{} 缺少 input Step layout",
+                        boundary.boundary_id().as_u32(),
+                        contract.input_case_tag().as_u32()
+                    ))
+                })?;
+                let source = boundary_site(boundary, "Call")?;
+                let runtime = self.local_runtime_error_runtime_for_call(source, contract)?;
+                let bb = self.codegen.context.append_basic_block(
+                    function,
+                    &format!(
+                        "bd{}_local_runtime_error_case{}",
+                        boundary.boundary_id().as_u32(),
+                        contract.input_case_tag().as_u32()
+                    ),
+                );
+                Some((
+                    self.codegen
+                        .context
+                        .i32_type()
+                        .const_int(case_layout.variant().tag_value() as u64, false),
+                    bb,
+                    contract.input_case_tag(),
+                    runtime,
+                ))
+            }
+            None => None,
+        };
         let tag = self.codegen.refactor_extract_step_tag(input_layout, step)?;
         let dispatch_bb = self.codegen.context.append_basic_block(
             function,
@@ -2309,10 +3111,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .builder
             .build_conditional_branch(is_complete, complete_bb, dispatch_bb)?;
         self.codegen.builder.position_at_end(dispatch_bb);
-        let switch_cases = cases
+        let mut switch_cases = cases
             .iter()
             .map(|(tag, bb, _, _, _)| (*tag, *bb))
             .collect::<Vec<_>>();
+        if let Some((tag, bb, _, _)) = &local_runtime_error_case {
+            switch_cases.push((*tag, *bb));
+        }
         self.codegen
             .builder
             .build_switch(tag, unmatched_bb, &switch_cases)?;
@@ -2377,6 +3182,23 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             )?;
         }
 
+        if let Some((_, bb, input_case, runtime)) = local_runtime_error_case {
+            self.codegen.builder.position_at_end(bb);
+            let case_layout = input_layout.case_layout(input_case).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor boundary dispatch 缺少 local runtime-error case c{}",
+                    input_case.as_u32()
+                ))
+            })?;
+            let (payload, _continuation) = self.codegen.refactor_extract_step_case_parts(
+                input_layout,
+                step,
+                case_layout,
+                "refactor_local_runtime_error_payload",
+            )?;
+            self.emit_local_runtime_error_terminal(&runtime, payload)?;
+        }
+
         self.codegen.builder.position_at_end(unmatched_bb);
         self.codegen.builder.build_unreachable()?;
         Ok(())
@@ -2436,8 +3258,38 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let Some(target) = matched_target else {
             return Ok(false);
         };
+        self.copy_boundary_complete_to_handle_return_payload(result_local, target)?;
         self.branch_to_state(target)?;
         Ok(true)
+    }
+
+    fn copy_boundary_complete_to_handle_return_payload(
+        &mut self,
+        result_local: LocalId,
+        target: StateId,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(binding) = self
+            .callable
+            .frame_schema()
+            .completion_payload_binding_for_state(target)
+        else {
+            return Ok(());
+        };
+        let Some(source) = binding.payload_source().operand_source() else {
+            return Ok(());
+        };
+        let LateLoweredOperandValueSource::Local(target_local) = source.value() else {
+            return Ok(());
+        };
+        if *target_local == result_local {
+            return Ok(());
+        }
+        let value = self.load_local_value(self.mir_fun.span, result_local)?;
+        let _ = self.store_local_value(self.mir_fun.span, *target_local, value)?;
+        if let Some(frame_slot) = binding.payload_frame_slot() {
+            self.store_local_to_frame_slot(*target_local, frame_slot)?;
+        }
+        Ok(())
     }
 
     fn emit_or_consume_outward_case(
@@ -4414,6 +5266,25 @@ fn boundary_site(boundary: &LateLoweredBoundary, expected: &str) -> Result<SiteI
     }
 }
 
+fn boundary_source_consumption(
+    boundary: &LateLoweredBoundary,
+) -> Option<LateLoweredBoundarySourceConsumption> {
+    match boundary.lowering()? {
+        LateLoweredBoundaryLowering::Call(lowering) => {
+            Some(lowering.operand_contract().source_consumption())
+        }
+        LateLoweredBoundaryLowering::Perform(lowering) => {
+            Some(lowering.operand_contract().source_consumption())
+        }
+        LateLoweredBoundaryLowering::Resume(lowering) => {
+            Some(lowering.operand_contract().source_consumption())
+        }
+        LateLoweredBoundaryLowering::RuntimeError(_) | LateLoweredBoundaryLowering::Handle(_) => {
+            None
+        }
+    }
+}
+
 fn handle_finally_state(
     contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
 ) -> Option<StateId> {
@@ -4564,7 +5435,7 @@ mod tests {
         assert!(body.contains("RefactorCallTargetQuery::DynamicInvoke"));
         assert!(body.contains("emit_known_instance_call_step"));
         assert!(body.contains("emit_refactor_dynamic_invoke_step"));
-        assert!(!body.contains(concat!("尚未支持 dynamic invoke ", "body call site")));
+        assert!(!body.contains(concat!("尚未支持 dynamic ", "invoke ", "body call site")));
     }
 
     #[test]
@@ -4653,10 +5524,35 @@ mod tests {
         let body = include_str!("body.rs");
 
         assert!(body.contains("emit_double_resume_runtime_error"));
-        assert!(body.contains("double_resume_runtime_error_emission"));
+        assert!(body.contains("double_resume_runtime_error_case"));
         assert!(body.contains("lower_runtime_error_boundary_payload"));
         assert!(body.contains("scoop.core.RuntimeError.ContinuationAlreadyResumed"));
         assert!(body.contains("create_continuation_object_with_state_tag"));
         assert!(!body.contains("self.codegen.builder.position_at_end(double_resume_bb);\n        self.codegen.builder.build_unreachable()?;"));
+    }
+
+    #[test]
+    fn refactor_llvm_body_verifier_checks_published_contracts() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("verify_body_contract"));
+        assert!(body.contains("verify_state_graph_contract"));
+        assert!(body.contains("verify_frame_contract"));
+        assert!(body.contains("verify_boundary_contracts"));
+        assert!(body.contains("verify_boundary_source_consumption"));
+        assert!(body.contains("call_local_runtime_error_contract"));
+    }
+
+    #[test]
+    fn refactor_llvm_runtime_error_lowering_materializes_payload() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("emit_local_runtime_error_terminal"));
+        assert!(body.contains("materialize_runtime_error_fatal_payload"));
+        assert!(body.contains("refactor_local_runtime_error_payload"));
+        assert!(body.contains("consumed_runtime_error_case"));
+        assert!(body.contains("source_ty_is_runtime_error"));
+        assert!(body.contains("copy_boundary_complete_to_handle_return_payload"));
+        assert!(!body.contains(concat!("null_", "payload")));
     }
 }

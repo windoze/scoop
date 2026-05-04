@@ -375,7 +375,7 @@
   - 2026-05-05：`ResumeUnwind` / `Abandon` 不再合并到裸 placeholder 分支；`ResumeUnwind` 对缺失 unwind payload/cleanup continuation contract fail fast，`Abandon` 只允许 contract-defined drop state 终止，防止普通 CFG 直接触达 dropped-continuation path。
   - 验证通过：`cargo test -p scoopc refactor_llvm_continuation_protocol`；`cargo test -p scoopc refactor_llvm_double_resume_runtime_error`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.scoop`；相邻回归 `cargo test -p scoopc refactor_effect_lowered_surface_resume_wrapper_completion`；`cargo test -p scoopc refactor_llvm_surface_resume_wrapper_completion`；`cargo test -p scoopc refactor_llvm_handle_dispatch_lowering`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/handle_finally_boundary.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
-## P6-T03i：闭合 runtime error、diagnostics 与 body verifier，冻结 clean body lowering 完成条件
+## [DONE] P6-T03i：闭合 runtime error、diagnostics 与 body verifier，冻结 clean body lowering 完成条件
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.9, §5.6
@@ -403,7 +403,11 @@
   - 不再有已知合法语义路径靠 placeholder `unreachable`、默认值或 legacy fallback 通过。
 - 依赖：P6-T03h
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：refactor LLVM body emitter 现在在 callable entry 初始化时运行 body verifier，检查 state graph/state block、boundary owner/resume、source-slice classification、frame/resume/completion payload binding、boundary operand/layout 与 local runtime-error contract 的一致性。
+  - 2026-05-05：`LocalRuntimeError` 不再用空 payload 调用 fatal runtime；call-boundary 本地消费 runtime-error case 会从 callee `Step` 提取实际 payload，按 published `RefactorLocalRuntimeErrorContract` 调用 `scoop_runtime_error_fatal`，普通 runtime-error boundary 仍作为 `Step_F` case 传播。
+  - 2026-05-05：补齐直接阻塞验证的 body lowering 缺口：handle arm boundary completion 回到 handle return state 前会把 boundary result 复制到 published return payload local；double resume runtime-error 选择也能消费 `Step` schema 中已发布但没有 paired runtime-error boundary 的 runtime-error case。
+  - 2026-05-05：新增 `refactor_llvm_body_verifier` 与 `refactor_llvm_runtime_error_lowering` 定向测试，并保留搜索守卫，确认 refactor backend 中没有 `null_payload`、legacy statement fallback 或已知 placeholder 文本。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_body_verifier`；`cargo test -p scoopc refactor_llvm_runtime_error_lowering`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`rg "codegen_mir_statement|build_unreachable\(\).*double|尚未支持 dynamic invoke|primary boundary.*不是 Call/Perform/Resume|null_payload" crates/scoopc/src/llvm/codegen/effect_refactor`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P6-T03R：Review clean LLVM body lowering，确认 backend 拥有 whole function protocol 且不再胶合 legacy codegen
 
