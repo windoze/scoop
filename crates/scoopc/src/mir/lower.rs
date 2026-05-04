@@ -25,7 +25,8 @@ use super::{
     HandleMetadata, HandlerArm, HandlerArmKind, Item, LocalDecl, LocalId, LocalSourceKind,
     MemberAccessMetadata, MemberTarget, MirValidationError, Operand, Param, Pattern,
     PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, SiteId, Statement,
-    StatementKind, Terminator, TerminatorKind, TopLevelRef, UnwindAction,
+    StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute, Terminator,
+    TerminatorKind, TopLevelRef, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -514,6 +515,12 @@ enum ValueOrigin {
     MemberAccess { member: MemberAccessMetadata },
     UnresolvedName { name: String },
     UnknownCallable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StoredContinuationRouteError {
+    MissingSourceLocal,
+    Ambiguous,
 }
 
 /// 一个 closure 捕获的外部局部变量在 env tuple 中的布局信息（T0711）。
@@ -1108,34 +1115,126 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    /// 降低一个赋值语句（当前仅覆盖 `local = expr`）。
+    /// 降低一个赋值语句。
     fn lower_assign_stmt(&mut self, span: Span, lhs: &hir::Expr, rhs: &hir::Expr) {
-        let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &lhs.kind else {
-            self.push_stmt(span, StatementKind::Todo("assign lhs lowering pending"));
-            return;
+        match &lhs.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                let Some(target) = self.symbol_locals.get(id).copied() else {
+                    self.push_stmt(span, StatementKind::Todo("assign lhs missing local"));
+                    return;
+                };
+
+                let value = self.lower_expr_to_local(rhs);
+                if self.current_is_terminated() {
+                    return;
+                }
+                if self.boxed_symbols.contains(id) {
+                    let tmp = self.push_temp_local(span, self.builtins.unit);
+                    self.assign(
+                        span,
+                        tmp,
+                        Rvalue::CaptureBoxSet {
+                            box_operand: Operand::Local(target),
+                            value: Operand::Local(value),
+                        },
+                    );
+                } else {
+                    self.assign(span, target, Rvalue::Use(Operand::Local(value)));
+                }
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                let receiver_local = self.lower_expr_to_local(receiver);
+                if self.current_is_terminated() {
+                    return;
+                }
+                let value_local = self.lower_expr_to_local(rhs);
+                if self.current_is_terminated() {
+                    return;
+                }
+                let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
+                let value_ty = self.body.locals[value_local.as_u32() as usize].ty;
+                self.push_stmt(
+                    span,
+                    StatementKind::StoreMember {
+                        receiver: Operand::Local(receiver_local),
+                        member: self.lower_member_access_metadata(member, receiver_ty),
+                        value: Operand::Local(value_local),
+                        value_ty,
+                        continuation_route: self.extract_stored_continuation_route(rhs),
+                    },
+                );
+            }
+            _ => {
+                self.push_stmt(span, StatementKind::Todo("assign lhs lowering pending"));
+            }
+        }
+    }
+
+    fn extract_stored_continuation_route(
+        &self,
+        expr: &hir::Expr,
+    ) -> StoredContinuationRoutePublication {
+        match self.try_extract_stored_continuation_route(expr) {
+            Ok(Some(route)) => StoredContinuationRoutePublication::Unique(route),
+            Ok(None) => StoredContinuationRoutePublication::None,
+            Err(StoredContinuationRouteError::Ambiguous) => {
+                StoredContinuationRoutePublication::Ambiguous
+            }
+            Err(StoredContinuationRouteError::MissingSourceLocal) => {
+                StoredContinuationRoutePublication::None
+            }
+        }
+    }
+
+    fn try_extract_stored_continuation_route(
+        &self,
+        expr: &hir::Expr,
+    ) -> Result<Option<StoredContinuationValueRoute>, StoredContinuationRouteError> {
+        if continuation_contract_from_type(self.types, expr.ty).is_some() {
+            let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind else {
+                return Ok(None);
+            };
+            let Some(local) = self.symbol_locals.get(id).copied() else {
+                return Err(StoredContinuationRouteError::MissingSourceLocal);
+            };
+            let source_ty = self.body.locals[local.as_u32() as usize].ty;
+            return Ok(Some(StoredContinuationValueRoute {
+                source_local: local,
+                source_ty,
+                path: Vec::new(),
+            }));
+        }
+
+        let hir::ExprKind::Call { callee, args } = &expr.kind else {
+            return Ok(None);
         };
-        let Some(target) = self.symbol_locals.get(id).copied() else {
-            self.push_stmt(span, StatementKind::Todo("assign lhs missing local"));
-            return;
+        let hir::ExprKind::UnresolvedIdent { name } = &callee.kind else {
+            return Ok(None);
         };
 
-        let value = self.lower_expr_to_local(rhs);
-        if self.current_is_terminated() {
-            return;
-        }
-        if self.boxed_symbols.contains(id) {
-            let tmp = self.push_temp_local(span, self.builtins.unit);
-            self.assign(
-                span,
-                tmp,
-                Rvalue::CaptureBoxSet {
-                    box_operand: Operand::Local(target),
-                    value: Operand::Local(value),
+        let mut found: Option<(usize, StoredContinuationValueRoute)> = None;
+        for (field_index, arg) in args.iter().enumerate() {
+            let arg_expr = match arg {
+                hir::CallArg::Positional(expr) => expr,
+                hir::CallArg::Named { value, .. } => value,
+            };
+            let Some(mut route) = self.try_extract_stored_continuation_route(arg_expr)? else {
+                continue;
+            };
+            if found.is_some() {
+                return Err(StoredContinuationRouteError::Ambiguous);
+            }
+            route.path.insert(
+                0,
+                PatternBindingStep::VariantField {
+                    variant: name.clone(),
+                    field_index,
                 },
             );
-        } else {
-            self.assign(span, target, Rvalue::Use(Operand::Local(value)));
+            found = Some((field_index, route));
         }
+
+        Ok(found.map(|(_, route)| route))
     }
 
     /// 把一个 HIR 表达式降为“产生值的 local”，并返回该 local。
@@ -3393,6 +3492,85 @@ fun entry(lhs: Num, rhs: Num): Int {
                 .values()
                 .any(|binding| binding.fqn == "Num.compareTo"),
             "typed HIR side table 应保留 fixture compareTo 站点的 direct-call binding"
+        );
+    }
+
+    #[test]
+    fn dump_mir_publishes_member_write_contract_for_escape_continuation_cell() {
+        let sess = Session::new().unwrap();
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop")
+            .canonicalize()
+            .unwrap();
+        let source = SourceFile::load(&fixture).unwrap();
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "main" => Some(fun),
+                Item::Fun(_) | Item::Todo { .. } => None,
+            })
+            .expect("expected main MIR root");
+        let body = fun.body.as_ref().expect("main should have a MIR body");
+
+        assert!(
+            body.blocks
+                .iter()
+                .flat_map(|block| block.stmts.iter())
+                .all(|stmt| !matches!(
+                    stmt.kind,
+                    StatementKind::Todo("assign lhs lowering pending")
+                )),
+            "member writes should no longer fall back to assign lhs TODO"
+        );
+
+        let mut saw_some_k_write = false;
+        let mut saw_none_write = false;
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            let StatementKind::StoreMember {
+                member,
+                continuation_route,
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            let Some(MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
+                continue;
+            };
+            if fqn != "Cell.k" {
+                continue;
+            }
+            match continuation_route {
+                StoredContinuationRoutePublication::Unique(route)
+                    if matches!(
+                        route.path.as_slice(),
+                        [PatternBindingStep::VariantField {
+                            variant,
+                            field_index: 0,
+                        }] if variant == "Some"
+                    ) =>
+                {
+                    saw_some_k_write = true;
+                }
+                StoredContinuationRoutePublication::None => {
+                    saw_none_write = true;
+                }
+                StoredContinuationRoutePublication::Ambiguous
+                | StoredContinuationRoutePublication::Unique(_) => {}
+            }
+        }
+
+        assert!(
+            saw_some_k_write,
+            "cell.k = Some(k) 应发布 wrapper path + source local 的 continuation write contract"
+        );
+        assert!(
+            saw_none_write,
+            "cell.k = none_k 应发布显式 member write contract，而不是 TODO"
         );
     }
 }

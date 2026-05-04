@@ -369,6 +369,18 @@ fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
     match &stmt.kind {
         StatementKind::Nop | StatementKind::Todo(_) => {}
         StatementKind::Assign { value, .. } => collect_rvalue_uses(value, out),
+        StatementKind::StoreMember {
+            receiver,
+            value,
+            continuation_route,
+            ..
+        } => {
+            collect_operand_use(receiver, out);
+            collect_operand_use(value, out);
+            if let super::StoredContinuationRoutePublication::Unique(route) = continuation_route {
+                out.insert(route.source_local);
+            }
+        }
     }
 }
 

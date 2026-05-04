@@ -334,6 +334,36 @@ fn analyze_body(body: &Body, params: &[Param], types: &TypeStore) -> BodySummary
                     let target_ty = body.locals[target_index].ty;
                     state[target_index] = rvalue_provenance(value, target_ty, &state, types);
                 }
+                StatementKind::StoreMember {
+                    receiver,
+                    value,
+                    continuation_route,
+                    ..
+                } => {
+                    observe_operand(
+                        receiver,
+                        OperandUsage::Escape,
+                        &state,
+                        &mut param_use_summaries,
+                    );
+                    observe_operand(
+                        value,
+                        OperandUsage::Escape,
+                        &state,
+                        &mut param_use_summaries,
+                    );
+                    if let super::StoredContinuationRoutePublication::Unique(route) =
+                        continuation_route
+                    {
+                        observe_operand(
+                            &Operand::Local(route.source_local),
+                            OperandUsage::Escape,
+                            &state,
+                            &mut param_use_summaries,
+                        );
+                    }
+                    base_outward_effect = true;
+                }
             }
         }
 
@@ -725,6 +755,7 @@ fn statement_cost(kind: &StatementKind) -> u32 {
         StatementKind::Nop => 1,
         StatementKind::Todo(_) => 3,
         StatementKind::Assign { value, .. } => 1 + rvalue_cost(value),
+        StatementKind::StoreMember { .. } => 3,
     }
 }
 

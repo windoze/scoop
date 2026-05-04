@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::effect_facts::{
     BodyEffectFacts, CallSiteEffectFacts, CaseTag, ConcreteOpKey, EffectFamilyKey,
@@ -6,10 +6,11 @@ use crate::effect_facts::{
     ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema, StepSchemaId,
 };
 use crate::mir::{
-    Body, CallArg, CallKind, LocalId, Operand, PerformArg, ResumeMetadata, Rvalue, SiteId,
-    StatementKind, TerminatorKind,
+    Body, CallArg, CallKind, LocalId, MemberAccessMetadata, MemberTarget, Operand,
+    PatternBindingStep, PerformArg, ResumeMetadata, Rvalue, SiteId, StatementKind,
+    StoredContinuationRoutePublication, TerminatorKind,
 };
-use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::EffectLoweringError;
 use super::ir::{
@@ -35,7 +36,10 @@ use super::ir::{
     LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
     ResumeInterfaceId, StateId,
 };
-use super::ir::{LateLoweredBodyVersionKey, LateLoweredBoundarySource};
+use super::ir::{
+    LateLoweredBodyVersionKey, LateLoweredBoundarySource, LateLoweredContinuationRoute,
+    LateLoweredSurfaceResumeDispatchPublication,
+};
 
 pub(crate) struct StepMaterialization {
     pub(crate) step_types: Vec<LateLoweredStepType>,
@@ -47,6 +51,7 @@ pub(crate) struct StepMaterialization {
 
 pub(crate) struct BoundaryMaterializationInputs<'a> {
     pub(crate) root_fqn: &'a str,
+    pub(crate) owner_version_key: &'a LateLoweredBodyVersionKey,
     pub(crate) body: &'a Body,
     pub(crate) body_facts: &'a BodyEffectFacts,
     pub(crate) step_type: &'a LateLoweredStepType,
@@ -104,6 +109,469 @@ struct CallBoundaryDispatchInputs<'a> {
     target_state: StateId,
     result_local: Option<LocalId>,
     types: &'a TypeStore,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum ContinuationMemberIdentityKey {
+    Value(String),
+    Fun(String),
+    ExtensionValue(String),
+    ExtensionFun(String),
+    Unresolved { name: String, receiver_ty: TypeId },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct ContinuationMemberKey {
+    receiver_local: LocalId,
+    member: ContinuationMemberIdentityKey,
+}
+
+impl ContinuationMemberKey {
+    fn from_metadata(receiver_local: LocalId, member: &MemberAccessMetadata) -> Self {
+        let member = match member.resolved.as_ref() {
+            Some(MemberTarget::Value { fqn }) => ContinuationMemberIdentityKey::Value(fqn.clone()),
+            Some(MemberTarget::Fun { fqn }) => ContinuationMemberIdentityKey::Fun(fqn.clone()),
+            Some(MemberTarget::ExtensionValue { fqn }) => {
+                ContinuationMemberIdentityKey::ExtensionValue(fqn.clone())
+            }
+            Some(MemberTarget::ExtensionFun { fqn }) => {
+                ContinuationMemberIdentityKey::ExtensionFun(fqn.clone())
+            }
+            None => ContinuationMemberIdentityKey::Unresolved {
+                name: member.name.clone(),
+                receiver_ty: member.receiver_ty,
+            },
+        };
+        Self {
+            receiver_local,
+            member,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum LocalContinuationOrigin {
+    Seed(LateLoweredContinuationRoute),
+    Copy(LocalId),
+    MemberRead(ContinuationMemberKey),
+    PatternMemberRead {
+        key: ContinuationMemberKey,
+        path: Vec<PatternBindingStep>,
+    },
+}
+
+#[derive(Default)]
+struct PublishedContinuationProvenance {
+    local_origins: HashMap<LocalId, Vec<LocalContinuationOrigin>>,
+    member_store_routes: HashMap<ContinuationMemberKey, Vec<StoredContinuationRoutePublication>>,
+}
+
+impl PublishedContinuationProvenance {
+    fn build(
+        root_fqn: &str,
+        body: &Body,
+        body_facts: &BodyEffectFacts,
+        owner_version_key: &LateLoweredBodyVersionKey,
+        continuation_object: ContinuationObjectId,
+    ) -> Result<Self, EffectLoweringError> {
+        let mut provenance = Self::default();
+
+        for (&site_id, site_facts) in body_facts.sites() {
+            let SiteEffectFacts::Handle(handle_facts) = site_facts else {
+                continue;
+            };
+            let handle_arms = lookup_handle_arms(root_fqn, body, site_id)?;
+            if handle_arms.len() != handle_facts.arm_facts().len() {
+                return Err(invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "canonical MIR handle arm 数量({}) 与 HandleSiteEffectFacts.arm_facts 数量({}) 不一致，无法为 continuation provenance 建 seed route",
+                        handle_arms.len(),
+                        handle_facts.arm_facts().len(),
+                    ),
+                ));
+            }
+            for (arm_ordinal, (arm, arm_facts)) in handle_arms
+                .iter()
+                .zip(handle_facts.arm_facts().iter())
+                .enumerate()
+            {
+                let Some(local) = arm.continuation_local else {
+                    continue;
+                };
+                push_local_origin(
+                    &mut provenance.local_origins,
+                    local,
+                    LocalContinuationOrigin::Seed(LateLoweredContinuationRoute::new(
+                        arm_facts.continuation_schema(),
+                        LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                            owner_version_key: owner_version_key.clone(),
+                            owner_continuation_object: continuation_object,
+                            site_id,
+                            arm_ordinal: arm_ordinal as u32,
+                            handled_case: arm_facts.handled_case(),
+                        },
+                    )),
+                );
+            }
+        }
+
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                match &stmt.kind {
+                    StatementKind::Assign {
+                        target,
+                        value: Rvalue::Use(Operand::Local(source)),
+                    } => {
+                        push_local_origin(
+                            &mut provenance.local_origins,
+                            *target,
+                            LocalContinuationOrigin::Copy(*source),
+                        );
+                    }
+                    StatementKind::Assign {
+                        target,
+                        value:
+                            Rvalue::MemberAccess {
+                                receiver: Operand::Local(receiver_local),
+                                member,
+                            },
+                    } => {
+                        push_local_origin(
+                            &mut provenance.local_origins,
+                            *target,
+                            LocalContinuationOrigin::MemberRead(
+                                ContinuationMemberKey::from_metadata(*receiver_local, member),
+                            ),
+                        );
+                    }
+                    StatementKind::StoreMember {
+                        receiver: Operand::Local(receiver_local),
+                        member,
+                        continuation_route,
+                        ..
+                    } => {
+                        provenance
+                            .member_store_routes
+                            .entry(ContinuationMemberKey::from_metadata(
+                                *receiver_local,
+                                member,
+                            ))
+                            .or_default()
+                            .push(continuation_route.clone());
+                    }
+                    StatementKind::Nop
+                    | StatementKind::Todo(_)
+                    | StatementKind::Assign { .. }
+                    | StatementKind::StoreMember { .. } => {}
+                }
+            }
+        }
+
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let StatementKind::Assign {
+                    target,
+                    value:
+                        Rvalue::PatternExtract {
+                            subject: Operand::Local(subject),
+                            path,
+                        },
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                let Some((key, mut prefix_path)) = member_derived_origin_for_local(
+                    *subject,
+                    &provenance.local_origins,
+                    &mut HashSet::new(),
+                ) else {
+                    continue;
+                };
+                prefix_path.extend(path.iter().cloned());
+                push_local_origin(
+                    &mut provenance.local_origins,
+                    *target,
+                    LocalContinuationOrigin::PatternMemberRead {
+                        key,
+                        path: prefix_path,
+                    },
+                );
+            }
+        }
+
+        Ok(provenance)
+    }
+
+    fn resolve_resume_local_route(
+        &self,
+        root_fqn: &str,
+        site_id: SiteId,
+        local: LocalId,
+    ) -> Result<Option<LateLoweredContinuationRoute>, EffectLoweringError> {
+        let routes = self.resolve_local_routes(
+            root_fqn,
+            site_id,
+            local,
+            &mut HashSet::new(),
+            &mut HashSet::new(),
+        )?;
+        match routes.as_slice() {
+            [] => Ok(None),
+            [route] => Ok(Some(route.clone())),
+            _ => Err(invalid_boundary_operand_contract(
+                root_fqn,
+                site_id,
+                "Resume",
+                format!(
+                    "continuation local{} 通过 published member write/read route 同时解析到多条互不兼容的 underlying continuation route",
+                    local.as_u32(),
+                ),
+            )),
+        }
+    }
+
+    fn resolve_local_routes(
+        &self,
+        root_fqn: &str,
+        site_id: SiteId,
+        local: LocalId,
+        visiting_locals: &mut HashSet<LocalId>,
+        visiting_members: &mut HashSet<(ContinuationMemberKey, Vec<PatternBindingStep>)>,
+    ) -> Result<Vec<LateLoweredContinuationRoute>, EffectLoweringError> {
+        if !visiting_locals.insert(local) {
+            return Ok(Vec::new());
+        }
+        let mut routes = Vec::new();
+        if let Some(origins) = self.local_origins.get(&local) {
+            for origin in origins {
+                match origin {
+                    LocalContinuationOrigin::Seed(route) => {
+                        push_unique_route(&mut routes, route.clone());
+                    }
+                    LocalContinuationOrigin::Copy(source) => {
+                        for route in self.resolve_local_routes(
+                            root_fqn,
+                            site_id,
+                            *source,
+                            visiting_locals,
+                            visiting_members,
+                        )? {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
+                    LocalContinuationOrigin::MemberRead(key) => {
+                        for route in self.resolve_member_path_routes(
+                            root_fqn,
+                            site_id,
+                            key,
+                            &[],
+                            visiting_locals,
+                            visiting_members,
+                        )? {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
+                    LocalContinuationOrigin::PatternMemberRead { key, path } => {
+                        for route in self.resolve_member_path_routes(
+                            root_fqn,
+                            site_id,
+                            key,
+                            path,
+                            visiting_locals,
+                            visiting_members,
+                        )? {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
+                }
+            }
+        }
+        visiting_locals.remove(&local);
+        Ok(routes)
+    }
+
+    fn resolve_member_path_routes(
+        &self,
+        root_fqn: &str,
+        site_id: SiteId,
+        key: &ContinuationMemberKey,
+        path: &[PatternBindingStep],
+        visiting_locals: &mut HashSet<LocalId>,
+        visiting_members: &mut HashSet<(ContinuationMemberKey, Vec<PatternBindingStep>)>,
+    ) -> Result<Vec<LateLoweredContinuationRoute>, EffectLoweringError> {
+        let cycle_key = (key.clone(), path.to_vec());
+        if !visiting_members.insert(cycle_key.clone()) {
+            return Ok(Vec::new());
+        }
+
+        let publications = self.member_store_routes.get(key).ok_or_else(|| {
+            invalid_boundary_operand_contract(
+                root_fqn,
+                site_id,
+                "Resume",
+                format!(
+                    "member {} 没有任何 published member write contract，无法把 readback route 接回 continuation provenance",
+                    render_continuation_member_key(key),
+                ),
+            )
+        })?;
+
+        let mut routes = Vec::new();
+        let mut saw_ambiguous_publication = false;
+        let mut saw_matching_publication = false;
+        for publication in publications {
+            match publication {
+                StoredContinuationRoutePublication::None => {}
+                StoredContinuationRoutePublication::Ambiguous => {
+                    saw_ambiguous_publication = true;
+                }
+                StoredContinuationRoutePublication::Unique(route) if route.path == path => {
+                    saw_matching_publication = true;
+                    let source_routes = self.resolve_local_routes(
+                        root_fqn,
+                        site_id,
+                        route.source_local,
+                        visiting_locals,
+                        visiting_members,
+                    )?;
+                    if source_routes.is_empty() {
+                        visiting_members.remove(&cycle_key);
+                        return Err(invalid_boundary_operand_contract(
+                            root_fqn,
+                            site_id,
+                            "Resume",
+                            format!(
+                                "member {} 的 published write path {} 指向 local{}，但该 source local 没有已发布的 continuation route",
+                                render_continuation_member_key(key),
+                                render_pattern_path(path),
+                                route.source_local.as_u32(),
+                            ),
+                        ));
+                    }
+                    for source_route in source_routes {
+                        push_unique_route(&mut routes, source_route);
+                    }
+                }
+                StoredContinuationRoutePublication::Unique(_) => {}
+            }
+        }
+
+        visiting_members.remove(&cycle_key);
+
+        if saw_ambiguous_publication {
+            return Err(invalid_boundary_operand_contract(
+                root_fqn,
+                site_id,
+                "Resume",
+                format!(
+                    "member {} 的 published member write contract 标记为 Ambiguous，无法唯一确定 readback path {} 的 continuation provenance",
+                    render_continuation_member_key(key),
+                    render_pattern_path(path),
+                ),
+            ));
+        }
+        if !saw_matching_publication || routes.is_empty() {
+            return Err(invalid_boundary_operand_contract(
+                root_fqn,
+                site_id,
+                "Resume",
+                format!(
+                    "member {} 没有与 readback path {} 对齐的 published continuation write/read provenance",
+                    render_continuation_member_key(key),
+                    render_pattern_path(path),
+                ),
+            ));
+        }
+
+        Ok(routes)
+    }
+}
+
+fn push_local_origin(
+    origins: &mut HashMap<LocalId, Vec<LocalContinuationOrigin>>,
+    local: LocalId,
+    origin: LocalContinuationOrigin,
+) {
+    let entry = origins.entry(local).or_default();
+    if !entry.contains(&origin) {
+        entry.push(origin);
+    }
+}
+
+fn push_unique_route(
+    routes: &mut Vec<LateLoweredContinuationRoute>,
+    route: LateLoweredContinuationRoute,
+) {
+    if !routes.contains(&route) {
+        routes.push(route);
+    }
+}
+
+fn member_derived_origin_for_local(
+    local: LocalId,
+    local_origins: &HashMap<LocalId, Vec<LocalContinuationOrigin>>,
+    visiting: &mut HashSet<LocalId>,
+) -> Option<(ContinuationMemberKey, Vec<PatternBindingStep>)> {
+    if !visiting.insert(local) {
+        return None;
+    }
+    let mut resolved = None;
+    for origin in local_origins.get(&local)? {
+        let next = match origin {
+            LocalContinuationOrigin::MemberRead(key) => Some((key.clone(), Vec::new())),
+            LocalContinuationOrigin::PatternMemberRead { key, path } => {
+                Some((key.clone(), path.clone()))
+            }
+            LocalContinuationOrigin::Copy(source) => {
+                member_derived_origin_for_local(*source, local_origins, visiting)
+            }
+            LocalContinuationOrigin::Seed(_) => None,
+        };
+        let Some(next) = next else {
+            continue;
+        };
+        match &resolved {
+            Some(existing) if existing != &next => {
+                visiting.remove(&local);
+                return None;
+            }
+            Some(_) => {}
+            None => resolved = Some(next),
+        }
+    }
+    visiting.remove(&local);
+    resolved
+}
+
+fn render_continuation_member_key(key: &ContinuationMemberKey) -> String {
+    let member = match &key.member {
+        ContinuationMemberIdentityKey::Value(fqn)
+        | ContinuationMemberIdentityKey::Fun(fqn)
+        | ContinuationMemberIdentityKey::ExtensionValue(fqn)
+        | ContinuationMemberIdentityKey::ExtensionFun(fqn) => fqn.clone(),
+        ContinuationMemberIdentityKey::Unresolved { name, receiver_ty } => {
+            format!("{}.{}", receiver_ty.as_u32(), name)
+        }
+    };
+    format!("local{}.{}", key.receiver_local.as_u32(), member)
+}
+
+fn render_pattern_path(path: &[PatternBindingStep]) -> String {
+    if path.is_empty() {
+        return "<identity>".to_string();
+    }
+    path.iter()
+        .map(|step| match step {
+            PatternBindingStep::TupleIndex(index) => format!("tuple[{index}]"),
+            PatternBindingStep::VariantField {
+                variant,
+                field_index,
+            } => format!("{variant}[{field_index}]"),
+        })
+        .collect::<Vec<_>>()
+        .join(" -> ")
 }
 
 pub(crate) fn materialize_step_and_resume_interfaces(
@@ -232,6 +700,7 @@ pub(crate) fn materialize_boundary_map(
 ) -> Result<BoundaryMaterialization, EffectLoweringError> {
     let BoundaryMaterializationInputs {
         root_fqn,
+        owner_version_key,
         body,
         body_facts,
         step_type,
@@ -244,6 +713,13 @@ pub(crate) fn materialize_boundary_map(
     } = inputs;
 
     let result_locals = collect_result_locals(body);
+    let continuation_provenance = PublishedContinuationProvenance::build(
+        root_fqn,
+        body,
+        body_facts,
+        owner_version_key,
+        continuation_object,
+    )?;
     let (resume_boundaries, runtime_error_boundaries) = paired_resume_boundaries(boundary_map);
     let mut entries = Vec::with_capacity(boundary_map.entries().len());
     let mut local_runtime_error_targets = Vec::new();
@@ -378,6 +854,7 @@ pub(crate) fn materialize_boundary_map(
                     boundary,
                     &facts,
                     result_local,
+                    &continuation_provenance,
                     types,
                 )?;
                 LateLoweredBoundaryLowering::Resume(LateLoweredResumeBoundaryLowering::new(
@@ -2063,6 +2540,7 @@ fn build_perform_boundary_operand_contract(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_resume_boundary_operand_contract(
     root_fqn: &str,
     body: &Body,
@@ -2070,6 +2548,7 @@ fn build_resume_boundary_operand_contract(
     boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
     facts: &ResumeSiteEffectFacts,
     result_local: LocalId,
+    continuation_provenance: &PublishedContinuationProvenance,
     types: &TypeStore,
 ) -> Result<LateLoweredResumeBoundaryOperandContract, EffectLoweringError> {
     let LateLoweredBoundarySource::Site {
@@ -2149,6 +2628,12 @@ fn build_resume_boundary_operand_contract(
                 resume.continuation_ty,
                 None,
             )?;
+            let underlying_continuation_route = match continuation_source.value() {
+                crate::effect_lowered::ir::LateLoweredOperandValueSource::Local(local) => {
+                    continuation_provenance.resolve_resume_local_route(root_fqn, site_id, *local)?
+                }
+                crate::effect_lowered::ir::LateLoweredOperandValueSource::Const(_) => None,
+            };
             let arg_sources = build_ordered_call_arg_sources(
                 root_fqn,
                 site_id,
@@ -2167,6 +2652,7 @@ fn build_resume_boundary_operand_contract(
                 ),
                 continuation_source,
                 arg_sources,
+                underlying_continuation_route,
             );
             if published.replace(contract).is_some() {
                 return Err(invalid_boundary_operand_contract(
@@ -3388,6 +3874,336 @@ mod tests {
                 .template
                 .fqn,
             "scoop.core.Raise.raise"
+        );
+    }
+
+    #[test]
+    fn refactor_boundary_lowering_publishes_member_readback_resume_route() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+        let callable = callable(&output, "main");
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+        let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
+        else {
+            panic!("main site0 应保持 HandleDispatch terminator");
+        };
+        let binder = contract.handled_arms()[0]
+            .continuation_binder()
+            .expect("Ask handle arm 应发布 continuation binder");
+
+        let resume_routes = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .filter_map(|boundary| match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                    let crate::effect_lowered::ir::LateLoweredBoundarySource::Site {
+                        site_id,
+                        kind: BoundarySiteKind::Resume,
+                    } = boundary.source()
+                    else {
+                        return None;
+                    };
+                    Some((site_id, lowering))
+                }
+                _ => None,
+            })
+            .map(|(site_id, lowering)| {
+                let route = lowering
+                    .operand_contract()
+                    .underlying_continuation_route()
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "resume site{} 应为 member readback continuation 发布 underlying route",
+                            site_id.as_u32()
+                        )
+                    });
+                (site_id, route)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            resume_routes
+                .iter()
+                .map(|(site_id, _)| site_id.as_u32())
+                .collect::<Vec<_>>(),
+            vec![25, 30, 35, 40]
+        );
+        for (_site_id, route) in resume_routes {
+            assert_eq!(route.continuation_schema(), binder.continuation_schema());
+            assert!(matches!(
+                route.publication(),
+                LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                    owner_continuation_object,
+                    site_id,
+                    arm_ordinal,
+                    handled_case,
+                    ..
+                } if *owner_continuation_object == callable.continuation_object()
+                    && site_id.as_u32() == 0
+                    && *arm_ordinal == 0
+                    && *handled_case == contract.handled_arms()[0].handled_case()
+            ));
+        }
+    }
+
+    #[test]
+    fn published_continuation_provenance_rejects_ambiguous_member_routes() {
+        let mut types = crate::ty::TypeStore::default();
+        let builtins = types.intern_builtins();
+        let span = crate::span::Span::new(0, 0);
+        let step_schema = crate::effect_facts::StepSchemaId::new(0);
+        let empty_cases = crate::effect_facts::CaseSet::new(step_schema, Vec::new());
+
+        let mut body = crate::mir::Body::new_empty();
+        let cell = body.push_local(crate::mir::LocalDecl {
+            span,
+            name: Some("cell".to_string()),
+            ty: builtins.any,
+            source: crate::mir::LocalSourceKind::SourceLocal,
+        });
+        let k0 = body.push_local(crate::mir::LocalDecl {
+            span,
+            name: Some("k0".to_string()),
+            ty: builtins.any,
+            source: crate::mir::LocalSourceKind::SourceLocal,
+        });
+        let k1 = body.push_local(crate::mir::LocalDecl {
+            span,
+            name: Some("k1".to_string()),
+            ty: builtins.any,
+            source: crate::mir::LocalSourceKind::SourceLocal,
+        });
+        let read_local = body.push_local(crate::mir::LocalDecl {
+            span,
+            name: Some("read".to_string()),
+            ty: builtins.any,
+            source: crate::mir::LocalSourceKind::CompilerTemporary,
+        });
+        let resume_local = body.push_local(crate::mir::LocalDecl {
+            span,
+            name: Some("resume".to_string()),
+            ty: builtins.any,
+            source: crate::mir::LocalSourceKind::CompilerTemporary,
+        });
+
+        let bb0 = body.push_block(crate::mir::BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: crate::mir::Terminator {
+                span,
+                kind: crate::mir::TerminatorKind::Unreachable,
+                unwind: crate::mir::UnwindAction::NoUnwind,
+            },
+        });
+        let bb1 = body.push_block(crate::mir::BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: crate::mir::Terminator {
+                span,
+                kind: crate::mir::TerminatorKind::Unreachable,
+                unwind: crate::mir::UnwindAction::NoUnwind,
+            },
+        });
+        let bb2 = body.push_block(crate::mir::BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: crate::mir::Terminator {
+                span,
+                kind: crate::mir::TerminatorKind::Unreachable,
+                unwind: crate::mir::UnwindAction::NoUnwind,
+            },
+        });
+        let bb3 = body.push_block(crate::mir::BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: crate::mir::Terminator {
+                span,
+                kind: crate::mir::TerminatorKind::Unreachable,
+                unwind: crate::mir::UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb0;
+
+        let member = crate::mir::MemberAccessMetadata {
+            name: "k".to_string(),
+            receiver_ty: builtins.any,
+            resolved: Some(crate::mir::MemberTarget::Value {
+                fqn: "Cell.k".to_string(),
+            }),
+        };
+        body.blocks[bb0.as_u32() as usize].stmts = vec![
+            crate::mir::Statement {
+                span,
+                kind: crate::mir::StatementKind::StoreMember {
+                    receiver: crate::mir::Operand::Local(cell),
+                    member: member.clone(),
+                    value: crate::mir::Operand::Local(k0),
+                    value_ty: builtins.any,
+                    continuation_route: crate::mir::StoredContinuationRoutePublication::Unique(
+                        crate::mir::StoredContinuationValueRoute {
+                            source_local: k0,
+                            source_ty: builtins.any,
+                            path: vec![crate::mir::PatternBindingStep::VariantField {
+                                variant: "Some".to_string(),
+                                field_index: 0,
+                            }],
+                        },
+                    ),
+                },
+            },
+            crate::mir::Statement {
+                span,
+                kind: crate::mir::StatementKind::StoreMember {
+                    receiver: crate::mir::Operand::Local(cell),
+                    member: member.clone(),
+                    value: crate::mir::Operand::Local(k1),
+                    value_ty: builtins.any,
+                    continuation_route: crate::mir::StoredContinuationRoutePublication::Unique(
+                        crate::mir::StoredContinuationValueRoute {
+                            source_local: k1,
+                            source_ty: builtins.any,
+                            path: vec![crate::mir::PatternBindingStep::VariantField {
+                                variant: "Some".to_string(),
+                                field_index: 0,
+                            }],
+                        },
+                    ),
+                },
+            },
+            crate::mir::Statement {
+                span,
+                kind: crate::mir::StatementKind::Assign {
+                    target: read_local,
+                    value: crate::mir::Rvalue::MemberAccess {
+                        receiver: crate::mir::Operand::Local(cell),
+                        member: member.clone(),
+                    },
+                },
+            },
+            crate::mir::Statement {
+                span,
+                kind: crate::mir::StatementKind::Assign {
+                    target: resume_local,
+                    value: crate::mir::Rvalue::PatternExtract {
+                        subject: crate::mir::Operand::Local(read_local),
+                        path: vec![crate::mir::PatternBindingStep::VariantField {
+                            variant: "Some".to_string(),
+                            field_index: 0,
+                        }],
+                    },
+                },
+            },
+        ];
+        body.blocks[bb0.as_u32() as usize].terminator = crate::mir::Terminator {
+            span,
+            kind: crate::mir::TerminatorKind::Handle {
+                site_id: SiteId::from_raw(0),
+                metadata: crate::mir::HandleMetadata {
+                    result_ty: builtins.any,
+                    body_result_ty: builtins.any,
+                    finally_result_ty: None,
+                },
+                arms: vec![
+                    crate::mir::HandlerArm {
+                        op_fqn: "sample.Ask.ask".to_string(),
+                        binder_count: 0,
+                        binder_locals: Vec::new(),
+                        continuation_local: Some(k0),
+                        handled_effect_ty: builtins.any,
+                        payload_tuple_ty: Some(builtins.unit),
+                        payload_component_tys: Vec::new(),
+                        body_ty: builtins.any,
+                        kind: crate::mir::HandlerArmKind::EscapeContinuation,
+                    },
+                    crate::mir::HandlerArm {
+                        op_fqn: "sample.Ask.ask".to_string(),
+                        binder_count: 0,
+                        binder_locals: Vec::new(),
+                        continuation_local: Some(k1),
+                        handled_effect_ty: builtins.any,
+                        payload_tuple_ty: Some(builtins.unit),
+                        payload_component_tys: Vec::new(),
+                        body_ty: builtins.any,
+                        kind: crate::mir::HandlerArmKind::EscapeContinuation,
+                    },
+                ],
+                has_finally: false,
+                body_target: bb1,
+                arm_targets: vec![bb2, bb3],
+                finally_target: None,
+                exit_target: bb1,
+            },
+            unwind: crate::mir::UnwindAction::NoUnwind,
+        };
+
+        let body_facts = crate::effect_facts::BodyEffectFacts::new(
+            std::collections::BTreeMap::new(),
+            std::collections::BTreeMap::from([(
+                SiteId::from_raw(0),
+                crate::effect_facts::SiteEffectFacts::Handle(
+                    crate::effect_facts::HandleSiteEffectFacts::new(
+                        builtins.any,
+                        crate::effect_facts::CaseSet::new(
+                            step_schema,
+                            vec![
+                                crate::effect_facts::CaseTag::new(0),
+                                crate::effect_facts::CaseTag::new(1),
+                            ],
+                        ),
+                        empty_cases.clone(),
+                        vec![
+                            crate::effect_facts::HandleArmEffectFacts::new(
+                                crate::effect_facts::CaseTag::new(0),
+                                builtins.unit,
+                                crate::effect_facts::ContinuationSchemaId::new(0),
+                                empty_cases.clone(),
+                            ),
+                            crate::effect_facts::HandleArmEffectFacts::new(
+                                crate::effect_facts::CaseTag::new(1),
+                                builtins.unit,
+                                crate::effect_facts::ContinuationSchemaId::new(1),
+                                empty_cases.clone(),
+                            ),
+                        ],
+                        empty_cases,
+                        crate::effect_facts::NestedHandleClassification::SelfContained,
+                    ),
+                ),
+            )]),
+        );
+        let owner_version_key = crate::effect_lowered::ir::LateLoweredBodyVersionKey::new(
+            crate::mir::InstanceKey {
+                template: crate::mir::TemplateKey {
+                    fqn: "synthetic.main".to_string(),
+                    source_path: PathBuf::from("<synthetic>"),
+                    decl_span: span,
+                },
+                type_args: Vec::new(),
+                eff_args: Vec::new(),
+            },
+            crate::ty::EffectRow::pure(),
+            crate::effect_facts::ImplPlan::NoOutward,
+            false,
+        );
+        let provenance = super::PublishedContinuationProvenance::build(
+            "synthetic.main",
+            &body,
+            &body_facts,
+            &owner_version_key,
+            crate::effect_lowered::ir::ContinuationObjectId::new(0),
+        )
+        .expect("synthetic provenance builder 应成功");
+
+        let err = provenance
+            .resolve_resume_local_route("synthetic.main", SiteId::from_raw(9), resume_local)
+            .expect_err("多个不兼容 source route 必须显式拒绝");
+        let message = err.to_string();
+        assert!(
+            message.contains("多条互不兼容") || message.contains("无法唯一确定"),
+            "错误消息应指出 member readback provenance 歧义: {message}"
         );
     }
 

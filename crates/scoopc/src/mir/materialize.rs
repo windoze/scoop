@@ -3488,8 +3488,31 @@ impl MirInstanceMaterializer {
         stmt: &mut Statement,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
-        if let StatementKind::Assign { value, .. } = &mut stmt.kind {
-            self.rewrite_rvalue(stmt.span, value, ctx)?;
+        match &mut stmt.kind {
+            StatementKind::Assign { value, .. } => self.rewrite_rvalue(stmt.span, value, ctx)?,
+            StatementKind::StoreMember {
+                receiver,
+                member,
+                value,
+                value_ty,
+                continuation_route,
+            } => {
+                *receiver = self.rewrite_operand(receiver.clone());
+                self.rewrite_member_access_metadata(member, ctx);
+                *value = self.rewrite_operand(value.clone());
+                *value_ty =
+                    substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
+                if let crate::mir::StoredContinuationRoutePublication::Unique(route) =
+                    continuation_route
+                {
+                    route.source_ty = substitute_type_and_effect_params(
+                        &mut self.types,
+                        route.source_ty,
+                        ctx.substitution,
+                    );
+                }
+            }
+            StatementKind::Nop | StatementKind::Todo(_) => {}
         }
         Ok(())
     }

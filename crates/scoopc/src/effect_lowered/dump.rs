@@ -923,6 +923,20 @@ fn render_resume_operand_contract(
         render_operand_source(contract.continuation_source()),
     )
     .unwrap();
+    match contract.underlying_continuation_route() {
+        Some(route) => {
+            writeln!(
+                rendered,
+                "              underlying_route: continuation_schema=k{} via {}",
+                route.continuation_schema().as_u32(),
+                render_surface_resume_dispatch_publication(route.publication()),
+            )
+            .unwrap();
+        }
+        None => {
+            writeln!(rendered, "              underlying_route: <none>").unwrap();
+        }
+    }
     writeln!(rendered, "              ordered_args:").unwrap();
     render_operand_sources(rendered, contract.arg_sources());
 }

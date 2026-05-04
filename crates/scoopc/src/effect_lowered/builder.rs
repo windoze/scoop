@@ -142,6 +142,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     })?;
                     materialize_boundary_map(BoundaryMaterializationInputs {
                         root_fqn: &root_fqn,
+                        owner_version_key: &body_version_key,
                         body,
                         body_facts,
                         step_type,

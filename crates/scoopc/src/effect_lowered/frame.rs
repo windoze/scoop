@@ -417,7 +417,10 @@ fn collect_boundary_result_info(
                     target,
                     value: Rvalue::PerformResult { .. },
                 } => Some(*target),
-                StatementKind::Nop | StatementKind::Todo(_) | StatementKind::Assign { .. } => None,
+                StatementKind::Nop
+                | StatementKind::Todo(_)
+                | StatementKind::Assign { .. }
+                | StatementKind::StoreMember { .. } => None,
             });
             if let Some(local) = local {
                 perform_result_targets.insert(site_id, local);
@@ -686,6 +689,26 @@ fn collect_statement_uses_before_def(
         StatementKind::Nop | StatementKind::Todo(_) => {}
         StatementKind::Assign { value, .. } => {
             collect_rvalue_uses(value, defs, uses_before_def, read_states, state_id)
+        }
+        StatementKind::StoreMember {
+            receiver,
+            value,
+            continuation_route,
+            ..
+        } => {
+            collect_operand_use(receiver, defs, uses_before_def, read_states, state_id);
+            collect_operand_use(value, defs, uses_before_def, read_states, state_id);
+            if let crate::mir::StoredContinuationRoutePublication::Unique(route) =
+                continuation_route
+            {
+                collect_operand_use(
+                    &Operand::Local(route.source_local),
+                    defs,
+                    uses_before_def,
+                    read_states,
+                    state_id,
+                );
+            }
         }
     }
 }

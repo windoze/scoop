@@ -545,6 +545,33 @@ impl LateLoweredSurfaceResumeDispatchPublication {
     }
 }
 
+/// 一个 continuation local 在 published handoff 中可回查到的 authoritative underlying route。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredContinuationRoute {
+    continuation_schema: ContinuationSchemaId,
+    publication: LateLoweredSurfaceResumeDispatchPublication,
+}
+
+impl LateLoweredContinuationRoute {
+    pub(crate) fn new(
+        continuation_schema: ContinuationSchemaId,
+        publication: LateLoweredSurfaceResumeDispatchPublication,
+    ) -> Self {
+        Self {
+            continuation_schema,
+            publication,
+        }
+    }
+
+    pub fn continuation_schema(&self) -> ContinuationSchemaId {
+        self.continuation_schema
+    }
+
+    pub fn publication(&self) -> &LateLoweredSurfaceResumeDispatchPublication {
+        &self.publication
+    }
+}
+
 /// `ContinuationSchemaId` 到 authoritative dispatch source inventory 的 published entry。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredSurfaceResumeDispatchInventoryEntry {
@@ -2483,6 +2510,7 @@ pub struct LateLoweredResumeBoundaryOperandContract {
     source_consumption: LateLoweredBoundarySourceConsumption,
     continuation_source: LateLoweredOperandSource,
     arg_sources: Vec<LateLoweredOperandSource>,
+    underlying_continuation_route: Option<LateLoweredContinuationRoute>,
 }
 
 impl LateLoweredResumeBoundaryOperandContract {
@@ -2490,11 +2518,13 @@ impl LateLoweredResumeBoundaryOperandContract {
         source_consumption: LateLoweredBoundarySourceConsumption,
         continuation_source: LateLoweredOperandSource,
         arg_sources: Vec<LateLoweredOperandSource>,
+        underlying_continuation_route: Option<LateLoweredContinuationRoute>,
     ) -> Self {
         Self {
             source_consumption,
             continuation_source,
             arg_sources,
+            underlying_continuation_route,
         }
     }
 
@@ -2508,6 +2538,10 @@ impl LateLoweredResumeBoundaryOperandContract {
 
     pub fn arg_sources(&self) -> &[LateLoweredOperandSource] {
         &self.arg_sources
+    }
+
+    pub fn underlying_continuation_route(&self) -> Option<&LateLoweredContinuationRoute> {
+        self.underlying_continuation_route.as_ref()
     }
 }
 

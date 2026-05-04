@@ -526,6 +526,7 @@ impl<'a> ReachabilityCollector<'a> {
             mir::StatementKind::Assign { value, .. } => {
                 self.mir_rvalue_requires_hir_compat_scan(value)
             }
+            mir::StatementKind::StoreMember { .. } => false,
             mir::StatementKind::Todo(_) => true,
         }
     }

@@ -324,13 +324,32 @@ fn analyze_statement_uses(
     facts: &mut CallableEscapeFacts,
     saw_unknown_mir: &mut bool,
 ) {
-    let StatementKind::Assign { value, .. } = &stmt.kind else {
-        if matches!(stmt.kind, StatementKind::Todo(_)) {
+    match &stmt.kind {
+        StatementKind::Assign { value, .. } => {
+            analyze_rvalue_uses(value, stmt.span, aliases, facts, saw_unknown_mir);
+        }
+        StatementKind::StoreMember {
+            receiver,
+            value,
+            continuation_route,
+            ..
+        } => {
+            mark_operand_use(receiver, OperandUse::Escaping, aliases, facts);
+            mark_operand_use(value, OperandUse::Escaping, aliases, facts);
+            if let super::StoredContinuationRoutePublication::Unique(route) = continuation_route {
+                mark_operand_use(
+                    &Operand::Local(route.source_local),
+                    OperandUse::Escaping,
+                    aliases,
+                    facts,
+                );
+            }
+        }
+        StatementKind::Nop => {}
+        StatementKind::Todo(_) => {
             *saw_unknown_mir = true;
         }
-        return;
-    };
-    analyze_rvalue_uses(value, stmt.span, aliases, facts, saw_unknown_mir);
+    }
 }
 
 fn analyze_rvalue_uses(

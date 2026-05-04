@@ -451,7 +451,7 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
 
-## P6-T02qa：发布 escaped continuation aggregate/member write-read provenance contract，禁止 P6-T02q 在 late-lowered/ABI materialization 现场从 unresolved assign-lhs TODO 或 source shape 猜 `cell.k` 回读 continuation 的底层 surface route
+## [DONE] P6-T02qa：发布 escaped continuation aggregate/member write-read provenance contract，禁止 P6-T02q 在 late-lowered/ABI materialization 现场从 unresolved assign-lhs TODO 或 source shape 猜 `cell.k` 回读 continuation 的底层 surface route
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -511,7 +511,27 @@
   - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝，而不是由 backend 现场猜测。
 - 依赖：P6-T02kR，P6-T02o，P6-T02p
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：在 `crates/scoopc/src/mir/{mod,lower,materialize}.rs` 中新增 canonical `StoreMember` statement 与 `StoredContinuationRoutePublication` contract；`lower_assign_stmt(...)` 现在会对 member assignment 显式发布 receiver/member/value source，以及 continuation payload 穿过 wrapper/aggregate 的写入路径。`effect_multi_escape_indirect_direct_while.scoop` 中的 `cell.k = Some(k)` / `cell.k = none_k` 不再落成 `assign lhs lowering pending`。
+  - 2026-05-04：在 `crates/scoopc/src/effect_lowered/{ir,materialize,dump}.rs` 中新增 `LateLoweredResumeBoundaryOperandContract::underlying_continuation_route()`，并实现 `PublishedContinuationProvenance` resolver：它会把 handle continuation binder seed、member write contract、member read、`PatternExtract(Some[0])` readback 串起来，为 resume boundary continuation local 发布 authoritative underlying route；缺失、路径不匹配、source-local 无 published route、或多条不兼容 route 时都会在 P5/P6 边界 fail fast。
+  - 2026-05-04：在 `crates/scoopc/src/llvm/codegen/effect_refactor/layout.rs` 中把该 provenance 接进 LLVM ABI/query 校验；若 resume boundary contract 引用的 underlying publication 未出现在 authoritative surface-resume dispatch inventory 中，会显式拒绝而不是留给 backend 现场猜测。
+  - 2026-05-04：补齐定向回归：
+    - `mir::lower::tests::dump_mir_publishes_member_write_contract_for_escape_continuation_cell`
+    - `effect_lowered::materialize::tests::refactor_boundary_lowering_publishes_member_readback_resume_route`
+    - `effect_lowered::materialize::tests::published_continuation_provenance_rejects_ambiguous_member_routes`
+    - `llvm::codegen::effect_refactor::layout::tests::refactor_llvm_boundary_operand_contract_rejects_missing_underlying_continuation_route_publication`
+    - `llvm::codegen::effect_refactor::layout::tests::refactor_llvm_boundary_operand_contract_resolves_perform_and_resume_sources`（扩展为覆盖 `effect_multi_escape_indirect_direct_while.scoop`）
+  - 2026-05-04：已运行验证：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc dump_mir_publishes_member_write_contract_for_escape_continuation_cell`
+    - `cargo test -p scoopc published_continuation_provenance_rejects_ambiguous_member_routes`
+    - `cargo test -p scoopc refactor_boundary_lowering_publishes_member_readback_resume_route`
+    - `cargo test -p scoopc refactor_llvm_boundary_operand_contract_`
+    - `cargo test -p scoopc refactor_effect_lowered_`
+    - `cargo test -p scoopc refactor_llvm_`
+    - `cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+    - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+    - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+  - 2026-05-04：`PLAN.md` 无需改动。
 
 ## P6-T02q：发布 resume-boundary wrapper -> underlying continuation surface route contract，禁止 P6-T03 在 backend 现场从 continuation local / source type 猜 `k.resume(...)` 实际调用的 schema
 

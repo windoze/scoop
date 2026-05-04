@@ -2263,6 +2263,28 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             lowering.operand_contract().arg_sources(),
             lowering.facts().resume_tuple_ty(),
         )?;
+        if let Some(route) = lowering.operand_contract().underlying_continuation_route() {
+            let inventory = self
+                .program
+                .surface_resume_dispatch(route.continuation_schema())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 缺少 callable `{}` resume site {} underlying continuation schema k{} 的 published surface-resume dispatch inventory",
+                        callable.root_fqn(),
+                        site_id.as_u32(),
+                        route.continuation_schema().as_u32(),
+                    ))
+                })?;
+            if !inventory.publications().contains(route.publication()) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 callable `{}` resume site {} 的 underlying continuation route 漂移：schema k{} 缺少 publication {:?}",
+                    callable.root_fqn(),
+                    site_id.as_u32(),
+                    route.continuation_schema().as_u32(),
+                    route.publication(),
+                )));
+            }
+        }
         let surface_layout = surface_resume_layouts
             .get(&lowering.facts().continuation_schema())
             .ok_or_else(|| {
@@ -4422,8 +4444,8 @@ mod tests {
         LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
         LateLoweredFrameSchema, LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
         LateLoweredHandlePendingCompletion, LateLoweredOperandValueSource, LateLoweredProgram,
-        LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredStepType, StateId,
-        SystemSlotKind,
+        LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredStateTerminator,
+        LateLoweredStepType, LateLoweredSurfaceResumeDispatchPublication, StateId, SystemSlotKind,
     };
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
@@ -5287,6 +5309,24 @@ mod tests {
             panic!("boundary 应带 site source");
         };
         site_id
+    }
+
+    fn handle_dispatch_state(
+        callable: &LateLoweredCallable,
+        site_id: SiteId,
+    ) -> &crate::effect_lowered::ir::LateLoweredState {
+        callable
+            .state_graph()
+            .states()
+            .iter()
+            .find(|state| {
+                matches!(
+                    state.terminator(),
+                    LateLoweredStateTerminator::HandleDispatch { site_id: state_site, .. }
+                        if *state_site == site_id
+                )
+            })
+            .expect("应找到指定 site 的 HandleDispatch state")
     }
 
     fn source_slice_non_boundary_dynamic_call_site(
@@ -6242,6 +6282,84 @@ mod tests {
                 assert!(layout.contract().arg_sources()[0].span().is_some());
             },
         );
+
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, _module| {
+                let query =
+                    result.expect("readback resume boundary provenance 应成功发布到 LLVM query");
+                let callable = inputs
+                    .abi_visibility_program
+                    .callable("main")
+                    .expect("main callable 应存在");
+                let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+                let LateLoweredStateTerminator::HandleDispatch { contract, .. } =
+                    handle_state.terminator()
+                else {
+                    panic!("main site0 应保持 HandleDispatch terminator");
+                };
+                let binder = contract.handled_arms()[0]
+                    .continuation_binder()
+                    .expect("Ask handle arm 应发布 continuation binder");
+
+                let routes = callable
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .filter_map(|boundary| match boundary.lowering() {
+                        Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                            Some((boundary_site_id(boundary), lowering))
+                        }
+                        _ => None,
+                    })
+                    .map(|(site_id, lowering)| {
+                        let layout = query
+                            .resume_boundary_operand_layout(
+                                callable.step_schema(),
+                                site_id,
+                                lowering.operand_contract(),
+                            )
+                            .unwrap_or_else(|err| {
+                                panic!(
+                                    "resume site{} 应可回查 boundary operand contract: {err}",
+                                    site_id.as_u32()
+                                )
+                            });
+                        let route = layout
+                            .contract()
+                            .underlying_continuation_route()
+                            .expect("member readback resume boundary 应保留 underlying route");
+                        (site_id, route)
+                    })
+                    .collect::<Vec<_>>();
+
+                assert_eq!(
+                    routes
+                        .iter()
+                        .map(|(site_id, _)| site_id.as_u32())
+                        .collect::<Vec<_>>(),
+                    vec![25, 30, 35, 40]
+                );
+                for (_site_id, route) in routes {
+                    assert_eq!(route.continuation_schema(), binder.continuation_schema());
+                    assert!(matches!(
+                        route.publication(),
+                        LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                            owner_continuation_object,
+                            site_id,
+                            arm_ordinal,
+                            handled_case,
+                            ..
+                        } if *owner_continuation_object == callable.continuation_object()
+                            && site_id.as_u32() == 0
+                            && *arm_ordinal == 0
+                            && *handled_case == contract.handled_arms()[0].handled_case()
+                    ));
+                }
+            },
+        );
     }
 
     #[test]
@@ -6399,6 +6517,105 @@ mod tests {
                 assert!(
                     message.contains("carrier source contract"),
                     "错误消息应指出缺失的是 dynamic carrier source contract: {message}"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_boundary_operand_contract_rejects_missing_underlying_continuation_route_publication()
+     {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let main = program.callable("main").expect("main callable 应存在");
+                let boundary_map = LateLoweredBoundaryMap::new(
+                    main.boundary_map()
+                        .entries()
+                        .iter()
+                        .map(|boundary| {
+                            let lowering = match boundary
+                                .lowering()
+                                .cloned()
+                                .expect("boundary 应带 lowering")
+                            {
+                                LateLoweredBoundaryLowering::Resume(lowering) => {
+                                    let route = lowering
+                                        .operand_contract()
+                                        .underlying_continuation_route()
+                                        .expect("fixture resume boundary 应带 underlying route");
+                                    let broken_contract =
+                                        crate::effect_lowered::ir::LateLoweredResumeBoundaryOperandContract::new(
+                                            lowering.operand_contract().source_consumption(),
+                                            lowering.operand_contract().continuation_source().clone(),
+                                            lowering.operand_contract().arg_sources().to_vec(),
+                                            Some(
+                                                crate::effect_lowered::ir::LateLoweredContinuationRoute::new(
+                                                    route.continuation_schema(),
+                                                    LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                                                        owner_version_key: main.body_version_key().clone(),
+                                                        owner_continuation_object: main.continuation_object(),
+                                                        site_id: SiteId::from_raw(999),
+                                                        arm_ordinal: 0,
+                                                        handled_case: CaseTag::new(1),
+                                                    },
+                                                ),
+                                            ),
+                                        );
+                                    LateLoweredBoundaryLowering::Resume(
+                                        crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering::new(
+                                            lowering.facts().clone(),
+                                            lowering.result_local(),
+                                            lowering.runtime_error_boundary(),
+                                            broken_contract,
+                                            lowering.dispatch().clone(),
+                                        ),
+                                    )
+                                }
+                                other => other,
+                            };
+                            LateLoweredBoundary::new(
+                                boundary.boundary_id(),
+                                boundary.source(),
+                                boundary.owner_state(),
+                                boundary.resume_state(),
+                            )
+                            .with_lowering(lowering)
+                        })
+                        .collect(),
+                );
+                let callables = program
+                    .callables()
+                    .iter()
+                    .map(|candidate| {
+                        if candidate.step_schema() == main.step_schema() {
+                            clone_callable_with_boundary_map(candidate, boundary_map.clone())
+                        } else {
+                            candidate.clone()
+                        }
+                    })
+                    .collect();
+                LateLoweredProgram::new(
+                    program.step_types().to_vec(),
+                    program.resume_packings().to_vec(),
+                    program.continuation_objects().to_vec(),
+                    callables,
+                )
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => {
+                        panic!("缺失 underlying continuation route publication 时必须 fail fast")
+                    }
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("underlying continuation route")
+                        || message.contains("缺少 publication"),
+                    "错误消息应指出 underlying continuation route publication 漂移: {message}"
                 );
             },
         );

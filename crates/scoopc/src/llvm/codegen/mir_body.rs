@@ -653,6 +653,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     Some(target_cg),
                 )
             }
+            crate::mir::StatementKind::StoreMember { .. } => false,
             crate::mir::StatementKind::Todo(_) => false,
         }
     }
@@ -1373,6 +1374,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_mir_rvalue(stmt.span, value, body, mir_types, slots, slot.cg_ty)?;
                 let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
                 Ok(())
+            }
+            crate::mir::StatementKind::StoreMember { .. } => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR member store contract",
+                    at: stmt.span.into(),
+                })
             }
             crate::mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR statement todo",

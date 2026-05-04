@@ -285,10 +285,9 @@ impl Body {
     pub fn for_each_site_id(&self, mut f: impl FnMut(SiteId)) {
         for block in &self.blocks {
             for stmt in &block.stmts {
-                let StatementKind::Assign { value, .. } = &stmt.kind else {
-                    continue;
-                };
-                if let Some(site_id) = value.site_id() {
+                if let StatementKind::Assign { value, .. } = &stmt.kind
+                    && let Some(site_id) = value.site_id()
+                {
                     f(site_id);
                 }
             }
@@ -402,6 +401,7 @@ impl Body {
         match &stmt.kind {
             StatementKind::Nop => Ok(()),
             StatementKind::Assign { value, .. } => self.validate_refactor_rvalue(block, value),
+            StatementKind::StoreMember { .. } => Ok(()),
             StatementKind::Todo(reason) => {
                 if is_forbidden_refactor_effect_todo(reason) {
                     return Err(MirValidationError::RefactorTodo { block, reason });
@@ -608,6 +608,23 @@ pub enum StatementKind {
         target: LocalId,
         value: Rvalue,
     },
+    /// `receiver.member = value` 的显式 member write contract。
+    ///
+    /// 说明：
+    /// - 该节点保留 member identity、写入值来源，以及 continuation 值穿过 wrapper/aggregate 时的
+    ///   published route；
+    /// - 它是供后续 effect/late-lowering/LLVM handoff 消费的 compiler-owned contract，而不是 backend-specific
+    ///   store lowering；
+    /// - `continuation_route=None` 表示该写入值不发布 continuation route；
+    /// - `continuation_route=Ambiguous` 表示 lowering 观察到了多个互不兼容的 continuation payload path，
+    ///   后续阶段必须显式拒绝而不是自行猜测。
+    StoreMember {
+        receiver: Operand,
+        member: MemberAccessMetadata,
+        value: Operand,
+        value_ty: TypeId,
+        continuation_route: StoredContinuationRoutePublication,
+    },
     /// 未实现节点占位（用于尽早落地数据结构但避免 `todo!()`/panic）。
     Todo(&'static str),
 }
@@ -790,10 +807,26 @@ pub enum Pattern {
 }
 
 /// 从一个已匹配 subject 中提取 binder 值时使用的投影路径。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PatternBindingStep {
     TupleIndex(usize),
     VariantField { variant: String, field_index: usize },
+}
+
+/// member write 中“值内 continuation payload 路径”的最小 published contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredContinuationValueRoute {
+    pub source_local: LocalId,
+    pub source_ty: TypeId,
+    pub path: Vec<PatternBindingStep>,
+}
+
+/// member write 对 continuation payload path 的 published 结论。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StoredContinuationRoutePublication {
+    None,
+    Unique(StoredContinuationValueRoute),
+    Ambiguous,
 }
 
 /// 右值（最小 rvalue 模型）。

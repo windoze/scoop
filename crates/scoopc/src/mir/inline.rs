@@ -200,7 +200,9 @@ impl InlineSnapshot {
                     }
                     direct_call = Some((*target, callee_fqn, args));
                 }
-                StatementKind::Assign { .. } | StatementKind::Todo(_) => return None,
+                StatementKind::Assign { .. }
+                | StatementKind::StoreMember { .. }
+                | StatementKind::Todo(_) => return None,
             }
         }
         let (direct_target, direct_callee_fqn, direct_args) = direct_call?;
@@ -557,6 +559,7 @@ fn statement_is_pass_publishable(kind: &StatementKind) -> bool {
     match kind {
         StatementKind::Nop => true,
         StatementKind::Assign { value, .. } => rvalue_is_pass_publishable(value),
+        StatementKind::StoreMember { .. } => false,
         StatementKind::Todo(_) => false,
     }
 }
@@ -593,6 +596,7 @@ fn statement_is_inlineable(
         StatementKind::Assign { value, .. } => {
             rvalue_is_inlineable(value, direct_call_param_provenance)
         }
+        StatementKind::StoreMember { .. } => false,
         StatementKind::Todo(_) => false,
     }
 }
@@ -688,6 +692,18 @@ fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
     match &stmt.kind {
         StatementKind::Nop | StatementKind::Todo(_) => {}
         StatementKind::Assign { value, .. } => collect_rvalue_uses(value, out),
+        StatementKind::StoreMember {
+            receiver,
+            value,
+            continuation_route,
+            ..
+        } => {
+            collect_operand_use(receiver, out);
+            collect_operand_use(value, out);
+            if let super::StoredContinuationRoutePublication::Unique(route) = continuation_route {
+                out.insert(route.source_local);
+            }
+        }
     }
 }
 
@@ -825,6 +841,7 @@ fn expand_straight_line_call(
                     },
                 });
             }
+            StatementKind::StoreMember { .. } => return None,
             StatementKind::Todo(_) => return None,
         }
     }
