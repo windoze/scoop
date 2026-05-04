@@ -21,7 +21,9 @@ use super::ir::{
     LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepCaseEmission,
     LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
     LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
-    LateLoweredSurfaceResumeDispatchSourceKind, ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredSurfaceResumeDispatchSourceKind, LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
+    ResumeInterfaceId, StateId, SystemSlotKind,
 };
 
 /// 渲染 late-lowered program 的稳定文本格式。
@@ -316,6 +318,9 @@ fn render_surface_resume_dispatch_inventory_entry(
         )
         .unwrap();
     }
+    if let Some(projection) = entry.wrapper_projection() {
+        render_surface_resume_wrapper_projection(rendered, projection);
+    }
 }
 
 fn render_surface_resume_dispatch_source_kind(
@@ -383,6 +388,79 @@ fn render_surface_resume_dispatch_publication(
             handled_case.as_u32(),
         ),
     }
+}
+
+fn render_surface_resume_wrapper_projection(
+    rendered: &mut String,
+    projection: &LateLoweredSurfaceResumeWrapperProjection,
+) {
+    writeln!(rendered, "      wrapper_projection:").unwrap();
+    writeln!(
+        rendered,
+        "        underlying_route: continuation_schema=k{} via {}",
+        projection.underlying_route().continuation_schema().as_u32(),
+        render_surface_resume_dispatch_publication(projection.underlying_route().publication()),
+    )
+    .unwrap();
+    writeln!(
+        rendered,
+        "        owner_step_schema: s{}",
+        projection.owner_step_schema().as_u32(),
+    )
+    .unwrap();
+    writeln!(
+        rendered,
+        "        wrapper_step_schema: s{}",
+        projection.wrapper_step_schema().as_u32(),
+    )
+    .unwrap();
+    render_surface_resume_wrapper_complete_projection(rendered, projection.complete());
+    writeln!(rendered, "        outward_cases:").unwrap();
+    if projection.outward_cases().is_empty() {
+        writeln!(rendered, "          <none>").unwrap();
+    } else {
+        for case in projection.outward_cases() {
+            render_surface_resume_wrapper_case_projection(rendered, case);
+        }
+    }
+}
+
+fn render_surface_resume_wrapper_complete_projection(
+    rendered: &mut String,
+    complete: &LateLoweredSurfaceResumeWrapperCompleteProjection,
+) {
+    writeln!(
+        rendered,
+        "        complete: owner_answer_ty={} -> wrapper_answer_ty={}",
+        render_type_id(complete.owner_answer_ty()),
+        render_type_id(complete.wrapper_answer_ty()),
+    )
+    .unwrap();
+}
+
+fn render_surface_resume_wrapper_case_projection(
+    rendered: &mut String,
+    projection: &LateLoweredSurfaceResumeWrapperCaseProjection,
+) {
+    writeln!(
+        rendered,
+        "          - owner c{} op={} payload_tuple_ty={} -> wrapper c{} op={} payload_tuple_ty={} cont_schema=k{} out_step_schema=s{}",
+        projection.owner_case_tag().as_u32(),
+        render_concrete_op_key(projection.owner_concrete_op_key()),
+        render_type_id(projection.owner_payload_tuple_ty()),
+        projection.wrapper_case_tag().as_u32(),
+        render_concrete_op_key(projection.wrapper_concrete_op_key()),
+        render_type_id(projection.wrapper_payload_tuple_ty()),
+        projection
+            .wrapper_continuation_contract()
+            .continuation_schema()
+            .as_u32(),
+        projection
+            .wrapper_continuation_contract()
+            .out_step_schema()
+            .as_u32(),
+    )
+    .unwrap();
 }
 
 fn render_callable(rendered: &mut String, callable: &LateLoweredCallable) {

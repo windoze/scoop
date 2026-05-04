@@ -16,7 +16,7 @@ use crate::effect_lowered::ir::{
     LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
     LateLoweredPerformBoundaryOperandContract, LateLoweredPublishedRuntimeEntry,
     LateLoweredResumeBoundaryOperandContract, LateLoweredSurfaceResumeDispatchSourceKind,
-    ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredSurfaceResumeWrapperProjection, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{InstanceKey, LocalId, SiteId};
@@ -1336,6 +1336,7 @@ pub(super) struct RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
     param_count: usize,
     resume_boundary_sites: Vec<SiteId>,
     handle_binder_routes: Vec<RefactorContinuationSurfaceResumeHandleBinderRoute>,
+    wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
 }
 
 impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
@@ -1350,6 +1351,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
         param_count: usize,
         resume_boundary_sites: Vec<SiteId>,
         handle_binder_routes: Vec<RefactorContinuationSurfaceResumeHandleBinderRoute>,
+        wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
     ) -> Self {
         Self {
             owner_version_key,
@@ -1361,6 +1363,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
             param_count,
             resume_boundary_sites,
             handle_binder_routes,
+            wrapper_projection,
         }
     }
 
@@ -1400,6 +1403,10 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
         &self,
     ) -> &[RefactorContinuationSurfaceResumeHandleBinderRoute] {
         &self.handle_binder_routes
+    }
+
+    pub(super) fn wrapper_projection(&self) -> Option<&LateLoweredSurfaceResumeWrapperProjection> {
+        self.wrapper_projection.as_ref()
     }
 }
 

@@ -1,49 +1,68 @@
-# Claude Plan
+# 本次执行计划
 
-## 约束说明
-- 不写入私有推理细节；本文件记录可审阅的执行计划、决策摘要、阻塞点与进度更新。
+说明：按安全约束，这里记录可审计的高层推理摘要与执行计划，不写出逐字内部思维。
 
-## 初始执行计划
-1. 读取 `TODO.md`，确认它仅作为索引使用。
-2. 按 `TODO.md` 给出的顺序读取对应 `TODO-Px.md`，定位第一个标题未带 `[DONE]` 的详细任务。
-3. 查看最近一次提交，判断是否存在与该任务直接相关且未完成的问题需要并入当前任务或登记为前置任务。
-4. 阅读该任务涉及的代码、测试、规范和相关文档，确认实现边界与验收条件。
-5. 直接完成该任务；若出现真实阻塞，则只引入最小必要前置任务，并同步 `TODO.md` / 对应 `TODO-Px.md`；仅当阶段计划发生变化时更新 `PLAN.md`。
-6. 运行与该任务相关的验证，包括必要测试，以及要求的无 warning 检查（至少覆盖本次改动影响范围）。
-7. 将任务在对应 `TODO-Px.md` 中标记为 `[DONE]`，补全完成记录；若索引受影响则同步更新 `TODO.md`。
-8. 提交当前任务的全部相关改动，提交信息使用任务号。
+1. 先读取 `TODO.md`，把它当作索引使用。
+2. 按 `TODO.md` 引用顺序读取对应的 `TODO-Px.md` 详细任务文件。
+3. 依据任务标题是否带有 `[DONE]`，定位第一个未完成的详细任务；若 `TODO.md` 与详细文件不一致，以详细文件为准。
+4. 检查最近一次提交信息，确认是否存在与该任务直接相关且未完成的问题；若存在，将其视为当前任务的一部分或必要前置。
+5. 阅读当前任务的详细要求、约束、依赖、验证标准，并结合代码库现状确认实现边界。
+6. 实现当前任务；若遇到阻塞当前任务且不能规避的真实缺口，先修复该缺口，或在对应 `TODO-Px.md` 中插入最小必要前置任务并同步 `TODO.md`，随后停止。
+7. 运行与当前任务直接相关的测试、构建、格式化和 lint（至少覆盖任务要求及必要回归范围），修复发现的问题，目标是无警告通过，包括 `cargo clippy --all-targets -- -D warnings`（若适用且不与任务上下文冲突）。
+8. 更新文档记录：
+   - 在对应 `TODO-Px.md` 中把当前任务标题标记为 `[DONE]`，并填写/更新完成记录。
+   - 若任务索引、标题、顺序或新增前置任务发生变化，同步更新 `TODO.md`。
+   - 仅当阶段计划本身变化时才更新 `PLAN.md`。
+9. 复查工作区，确保不回退或覆盖他人未请求的更改；若是恢复上次失败留下的同一任务未提交工作，则与本次变更一并提交。
+10. 使用清晰的 git 提交信息提交当前任务成果，然后停止，不进入下一个任务。
 
-## 进度日志
-- 已创建初始计划，下一步开始读取任务索引并定位首个未完成详细任务。
-- 已读取 `TODO.md` 与 `TODO-P6-part2.md`：当前第一个未完成详细任务为 `P6-T03`（`TODO-P6-part2.md` 第 686 行起）。
-- 已检查最新提交：`[P6-T02qb] Publish pending payload transport contract`。提交信息中未额外声明需要优先并入 `P6-T03` 的未完成问题；`P6-T03` 自身完成记录中的 blocker 也已通过 `P6-T02c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/qb` 逐步前置化处理。
+进度更新规则：
+- 定位到当前任务后，补充任务编号、目标与验证方案。
+- 开始编辑前，记录计划是否有调整。
+- 完成关键实现、测试、文档更新、提交前，各追加一次简要进度记录。
 
-## 针对 P6-T03 的细化计划
-1. 检查当前工作树状态，确认是否存在未提交改动需要在本次任务完成时一并纳入提交。
-2. 阅读当前 refactor LLVM stage、effect_refactor ABI/query、以及现有 body/codegen 入口，确认 `P6-T03` 尚未落地的缺口。
-3. 以最小改动实现 refactor LLVM body lowering：优先新增/补全 `effect_refactor/body.rs` 及其接线，确保只消费 P5/P6 已发布 handoff，而不回 legacy effect emitter 补语义。
-4. 根据实现过程中遇到的真实约束决定：
-   - 若 handoff 已足够，则直接完成 `P6-T03`；
-   - 若仍存在无法按 contract-first 落地的缺口，则在 `TODO-P6-part2.md` / `TODO.md` 中新增最小前置任务并停止。
-5. 运行任务要求的定向测试、相关 fixture、以及 `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。
-6. 更新 `TODO-P6-part2.md`（必要时同步 `TODO.md`）、刷新本文件进度日志，并提交一次原子 commit。
+## 进度记录
 
-## 当前实现判断
-- 初步阅读代码时未发现新的未跟踪 contract blocker。现状的主要缺口看起来是生产代码接线与 body emitter 本身：
-  - `crates/scoopc/src/llvm/emit.rs` 当前仍在 refactor 路径上执行 ABI materialization 后继续走 legacy surface/main body lowering；
-  - `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 仍为空。
-- 当前准备采取的实现方向：
-  1. 在 `emit.rs` 中保留并消费 `RefactorAbiQuery`，停止仅用它做 fail-fast/声明壳层。
-  2. 在 `effect_refactor/body.rs` 中实现 callable direct-entry lowering，并用 P5 state graph 驱动 CFG，而不是回 HIR/legacy effect emitter。
-  3. 先让 `Call / Perform / Resume / HandleDispatch / Return / Branch / Goto / LocalRuntimeError / ResumeUnwind / Abandon` 都按 late-lowered contract 进入同一套 state graph lowering。
-  4. 直线 source-slice 继续复用 canonical MIR statement lowering，但 boundary 语义全部以 published contract 为准；必要时补齐 `mir_body.rs` 对 `MemberAccess` / `StoreMember` 等 contract 节点的 lowering 支撑。
+### 2026-05-04 当前任务确认
 
-## 阻塞更新
-- 2026-05-04：在真正设计 `ResumeBoundaryOnly` shared surface-resume body 时确认新的未跟踪 contract blocker：当前 handoff 已发布 `wrapper schema -> underlying route`，但没有继续发布 `underlying owner step -> wrapper step` 的 authoritative projection contract。
-- 具体例子：`effect_multi_escape_indirect_direct_while.scoop` 中 shared surface schema `k5` 桥接到 handle-binder schema `k3`，再回 owner `main` 的 `StepSchema s1`；现有 handoff 只发布 caller 侧的 forward 消费（例如 `s4.c0 -> s1.c2`），没有发布 shared surface body 本身需要的 reverse/projection relation。
-- 因此已按流程新增前置任务 `P6-T02qc`，并同步更新：
-  - `TODO-P6-part2.md` 未完成链路与新任务正文；
-  - `TODO.md` 索引；
-  - `P6-T03` 依赖与完成记录。
-- 由于这是当前任务的真实前置缺口，本轮不继续实现 `P6-T03` 代码，改为提交任务分解结果并停止。
-- 已提交：`746534a4 [P6-T02qc] Track shared surface-resume projection prerequisite`。
+- 当前按 `TODO.md` 索引与完成标记核对后，第一个未完成详细任务是 `TODO-P6-part2.md` 中的 `P6-T02qc`。
+- 最新提交标题为 `[P6-T02qc] Record plan log update`，与当前任务直接相关，因此需要把当前工作区视为该任务的可能续做现场，检查是否存在未提交实现并在完成后一并提交。
+- 当前目标：发布 shared surface-resume wrapper 的 owner-step -> wrapper-step 投影 contract，使后续 `P6-T03` 不必在 shared surface body 中反向推导 wrapper 返回语义。
+- 初步验证方案：
+  - 读取 `TODO-P6-part2.md` 中 `P6-T02qc` 的详细约束与完成标准。
+  - 检查 refactor late-lowered / LLVM ABI query / surface-resume 相关实现与现有测试。
+  - 为 owner-step -> wrapper-step projection 增加 authoritative handoff/query 与 fail-fast。
+  - 运行定向单元测试、相关 build/fixture 测试，以及必要的 `cargo clippy --all-targets -- -D warnings`/格式化检查。
+
+### 2026-05-04 设计收敛
+
+- 现状确认：`P6-T02q` 已在 resume boundary operand contract 上发布 `wrapper schema -> underlying route`，但 shared surface-resume schema inventory / owner trampoline query 仍未发布 `owner step -> wrapper step` 的反向投影。
+- 实现策略调整为：
+  - 在 `crates/scoopc/src/effect_lowered/ir.rs` 的 surface-resume dispatch inventory entry 上新增可 stable dump 的 wrapper projection contract；
+  - 该 contract 从 resume boundary 已发布的 forward dispatch 中派生，但以独立结构显式发布，避免 `P6-T03` 以后再反向遍历 dispatch plan；
+  - 在 `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` / `layout.rs` 把该 contract 挂到 owner trampoline query，并对缺失、跨 site 漂移或歧义执行 fail-fast；
+  - 用 `effect_multi_escape_indirect_direct_while.scoop` 补齐 dump/query/拒绝场景测试。
+
+### 2026-05-04 实现完成
+
+- 已在 `effect_lowered` authoritative surface-resume dispatch inventory 上发布 `wrapper_projection`：
+  - 显式包含 `underlying_route`；
+  - 显式包含 `owner_step_schema -> wrapper_step_schema`；
+  - 显式包含 `complete` 与 `outward_cases` 投影。
+- 已在 stable dump 中直接展示该 contract，`dump-effect-lowered` 现在能看到 `k5` 的 `wrapper_projection` 段落。
+- 已在 LLVM owner trampoline query 上补齐消费与 fail-fast：
+  - 缺失 published projection 时拒绝；
+  - derived projection 与 published projection 漂移时拒绝；
+  - 多个 resume site 导出不同 projection 时拒绝。
+- 已补充测试：
+  - late-lowered inventory getter 测试；
+  - late-lowered stable dump 测试；
+  - LLVM query 正向发布测试；
+  - LLVM query 缺失 projection 拒绝测试。
+- 已完成验证：
+  - `cargo test -p scoopc refactor_surface_resume_dispatch_inventory_ --no-fail-fast`
+  - `cargo test -p scoopc refactor_surface_resume_dispatch_dump_exposes_shared_wrapper_projection --no-fail-fast`
+  - `cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout_ --no-fail-fast`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo fmt --all`
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`

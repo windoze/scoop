@@ -4045,6 +4045,110 @@ mod tests {
     }
 
     #[test]
+    fn refactor_surface_resume_dispatch_inventory_publishes_shared_wrapper_projection() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+        let callable = callable(&output, "main");
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+        let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
+        else {
+            panic!("main site0 应保持 HandleDispatch terminator");
+        };
+        let binder = contract.handled_arms()[0]
+            .continuation_binder()
+            .expect("Ask handle arm 应发布 continuation binder");
+        let resume_lowering = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .find_map(|boundary| match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Resume(lowering)) => Some(lowering),
+                _ => None,
+            })
+            .expect("fixture 应至少包含一个 resume boundary");
+        let wrapper_schema = resume_lowering.facts().continuation_schema();
+        let inventory_entry = output
+            .program()
+            .surface_resume_dispatch(wrapper_schema)
+            .expect("shared wrapper schema 应发布 authoritative inventory");
+        let projection = inventory_entry
+            .wrapper_projection()
+            .expect("shared wrapper schema 应发布 owner-step -> wrapper-step projection");
+        let outward = projection
+            .outward_cases()
+            .first()
+            .expect("wrapper projection 应至少包含一个 outward case");
+        let forwarded = resume_lowering
+            .dispatch()
+            .outward_cases()
+            .first()
+            .expect("resume boundary dispatch 应至少包含一个 forwarded outward case");
+
+        assert_eq!(
+            projection.underlying_route().continuation_schema(),
+            binder.continuation_schema()
+        );
+        assert!(matches!(
+            projection.underlying_route().publication(),
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_continuation_object,
+                site_id,
+                arm_ordinal,
+                handled_case,
+                ..
+            } if *owner_continuation_object == callable.continuation_object()
+                && site_id.as_u32() == 0
+                && *arm_ordinal == 0
+                && *handled_case == contract.handled_arms()[0].handled_case()
+        ));
+        assert_eq!(projection.owner_step_schema(), callable.step_schema());
+        assert_eq!(
+            projection.wrapper_step_schema(),
+            resume_lowering.facts().out_step_schema()
+        );
+        assert_eq!(
+            projection.complete().wrapper_answer_ty(),
+            resume_lowering.dispatch().complete().answer_ty()
+        );
+        assert_eq!(outward.owner_case_tag(), forwarded.emission().case_tag());
+        assert_eq!(
+            outward.owner_concrete_op_key(),
+            forwarded.emission().concrete_op_key()
+        );
+        assert_eq!(outward.wrapper_case_tag(), forwarded.input_case_tag());
+        assert_eq!(
+            outward.wrapper_concrete_op_key(),
+            forwarded.input_concrete_op_key()
+        );
+        assert_eq!(
+            outward.wrapper_continuation_contract().out_step_schema(),
+            resume_lowering.facts().out_step_schema()
+        );
+    }
+
+    #[test]
+    fn refactor_surface_resume_dispatch_dump_exposes_shared_wrapper_projection() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+        ));
+        let dump = output.program().stable_dump();
+
+        assert!(dump.contains("wrapper_projection:"));
+        assert!(dump.contains("underlying_route: continuation_schema=k3"));
+        assert!(dump.contains("owner_step_schema: s1"));
+        assert!(dump.contains("wrapper_step_schema: s4"));
+        assert!(
+            dump.contains(
+                "owner c2 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 -> wrapper c0"
+            ),
+            "shared wrapper projection 应直接暴露 owner -> wrapper 映射\n{dump}"
+        );
+    }
+
+    #[test]
     fn refactor_boundary_lowering_publishes_direct_resume_self_route() {
         let output = load_output(&load_fixture(
             "effect_facts",

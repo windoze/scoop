@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::effect_facts::{
     CallSiteEffectFacts, CaseTag, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey,
@@ -41,6 +41,20 @@ impl LateLoweredProgram {
             continuation_objects,
             surface_resume_dispatch_inventory,
             callables,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_surface_resume_dispatch_inventory(
+        &self,
+        surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
+    ) -> Self {
+        Self {
+            step_types: self.step_types.clone(),
+            resume_packings: self.resume_packings.clone(),
+            continuation_objects: self.continuation_objects.clone(),
+            surface_resume_dispatch_inventory,
+            callables: self.callables.clone(),
         }
     }
 
@@ -572,6 +586,141 @@ impl LateLoweredContinuationRoute {
     }
 }
 
+/// shared surface-resume wrapper 在 owner step 上观察到 `Complete` 时的显式投影。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredSurfaceResumeWrapperCompleteProjection {
+    owner_answer_ty: TypeId,
+    wrapper_answer_ty: TypeId,
+}
+
+impl LateLoweredSurfaceResumeWrapperCompleteProjection {
+    pub(crate) fn new(owner_answer_ty: TypeId, wrapper_answer_ty: TypeId) -> Self {
+        Self {
+            owner_answer_ty,
+            wrapper_answer_ty,
+        }
+    }
+
+    pub fn owner_answer_ty(&self) -> TypeId {
+        self.owner_answer_ty
+    }
+
+    pub fn wrapper_answer_ty(&self) -> TypeId {
+        self.wrapper_answer_ty
+    }
+}
+
+/// owner step outward case 投影回 shared wrapper step 时的显式 published mapping。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredSurfaceResumeWrapperCaseProjection {
+    owner_case_tag: CaseTag,
+    owner_concrete_op_key: ConcreteOpKey,
+    owner_payload_tuple_ty: TypeId,
+    wrapper_case_tag: CaseTag,
+    wrapper_concrete_op_key: ConcreteOpKey,
+    wrapper_payload_tuple_ty: TypeId,
+    wrapper_continuation_contract: LateLoweredContinuationContract,
+}
+
+impl LateLoweredSurfaceResumeWrapperCaseProjection {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        owner_case_tag: CaseTag,
+        owner_concrete_op_key: ConcreteOpKey,
+        owner_payload_tuple_ty: TypeId,
+        wrapper_case_tag: CaseTag,
+        wrapper_concrete_op_key: ConcreteOpKey,
+        wrapper_payload_tuple_ty: TypeId,
+        wrapper_continuation_contract: LateLoweredContinuationContract,
+    ) -> Self {
+        Self {
+            owner_case_tag,
+            owner_concrete_op_key,
+            owner_payload_tuple_ty,
+            wrapper_case_tag,
+            wrapper_concrete_op_key,
+            wrapper_payload_tuple_ty,
+            wrapper_continuation_contract,
+        }
+    }
+
+    pub fn owner_case_tag(&self) -> CaseTag {
+        self.owner_case_tag
+    }
+
+    pub fn owner_concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.owner_concrete_op_key
+    }
+
+    pub fn owner_payload_tuple_ty(&self) -> TypeId {
+        self.owner_payload_tuple_ty
+    }
+
+    pub fn wrapper_case_tag(&self) -> CaseTag {
+        self.wrapper_case_tag
+    }
+
+    pub fn wrapper_concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.wrapper_concrete_op_key
+    }
+
+    pub fn wrapper_payload_tuple_ty(&self) -> TypeId {
+        self.wrapper_payload_tuple_ty
+    }
+
+    pub fn wrapper_continuation_contract(&self) -> LateLoweredContinuationContract {
+        self.wrapper_continuation_contract
+    }
+}
+
+/// shared surface-resume wrapper 对 owner-specific lowering 返回 step 的显式投影合同。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredSurfaceResumeWrapperProjection {
+    underlying_route: LateLoweredContinuationRoute,
+    owner_step_schema: StepSchemaId,
+    wrapper_step_schema: StepSchemaId,
+    complete: LateLoweredSurfaceResumeWrapperCompleteProjection,
+    outward_cases: Vec<LateLoweredSurfaceResumeWrapperCaseProjection>,
+}
+
+impl LateLoweredSurfaceResumeWrapperProjection {
+    pub(crate) fn new(
+        underlying_route: LateLoweredContinuationRoute,
+        owner_step_schema: StepSchemaId,
+        wrapper_step_schema: StepSchemaId,
+        complete: LateLoweredSurfaceResumeWrapperCompleteProjection,
+        outward_cases: Vec<LateLoweredSurfaceResumeWrapperCaseProjection>,
+    ) -> Self {
+        Self {
+            underlying_route,
+            owner_step_schema,
+            wrapper_step_schema,
+            complete,
+            outward_cases,
+        }
+    }
+
+    pub fn underlying_route(&self) -> &LateLoweredContinuationRoute {
+        &self.underlying_route
+    }
+
+    pub fn owner_step_schema(&self) -> StepSchemaId {
+        self.owner_step_schema
+    }
+
+    pub fn wrapper_step_schema(&self) -> StepSchemaId {
+        self.wrapper_step_schema
+    }
+
+    pub fn complete(&self) -> &LateLoweredSurfaceResumeWrapperCompleteProjection {
+        &self.complete
+    }
+
+    pub fn outward_cases(&self) -> &[LateLoweredSurfaceResumeWrapperCaseProjection] {
+        &self.outward_cases
+    }
+}
+
 /// `ContinuationSchemaId` 到 authoritative dispatch source inventory 的 published entry。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredSurfaceResumeDispatchInventoryEntry {
@@ -579,6 +728,7 @@ pub struct LateLoweredSurfaceResumeDispatchInventoryEntry {
     contract: LateLoweredSurfaceResumeContract,
     source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
     publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
+    wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
 }
 
 impl LateLoweredSurfaceResumeDispatchInventoryEntry {
@@ -587,12 +737,14 @@ impl LateLoweredSurfaceResumeDispatchInventoryEntry {
         contract: LateLoweredSurfaceResumeContract,
         source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
         publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
+        wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
     ) -> Self {
         Self {
             continuation_schema,
             contract,
             source_kind,
             publications,
+            wrapper_projection,
         }
     }
 
@@ -610,6 +762,10 @@ impl LateLoweredSurfaceResumeDispatchInventoryEntry {
 
     pub fn publications(&self) -> &[LateLoweredSurfaceResumeDispatchPublication] {
         &self.publications
+    }
+
+    pub fn wrapper_projection(&self) -> Option<&LateLoweredSurfaceResumeWrapperProjection> {
+        self.wrapper_projection.as_ref()
     }
 }
 
@@ -676,6 +832,9 @@ fn build_surface_resume_dispatch_inventory(
         .collect::<BTreeMap<_, _>>();
     let mut inventory =
         BTreeMap::<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>::new();
+    let mut wrapper_projections =
+        BTreeMap::<ContinuationSchemaId, LateLoweredSurfaceResumeWrapperProjection>::new();
+    let mut conflicting_wrapper_projections = BTreeSet::<ContinuationSchemaId>::new();
 
     for object in continuation_objects {
         for surface_resume in object.surface_resumes() {
@@ -724,6 +883,23 @@ fn build_surface_resume_dispatch_inventory(
                 continue;
             };
             let facts = lowering.facts();
+            if let Some(projection) =
+                build_surface_resume_wrapper_projection(callable, lowering, &step_types_by_schema)
+            {
+                let continuation_schema = facts.continuation_schema();
+                if !conflicting_wrapper_projections.contains(&continuation_schema) {
+                    match wrapper_projections.get(&continuation_schema) {
+                        Some(existing) if existing != &projection => {
+                            wrapper_projections.remove(&continuation_schema);
+                            conflicting_wrapper_projections.insert(continuation_schema);
+                        }
+                        Some(_) => {}
+                        None => {
+                            wrapper_projections.insert(continuation_schema, projection);
+                        }
+                    }
+                }
+            }
             inventory
                 .entry(facts.continuation_schema())
                 .or_default()
@@ -775,15 +951,66 @@ fn build_surface_resume_dispatch_inventory(
         .into_iter()
         .filter_map(|(continuation_schema, entry)| {
             entry.contract.map(|contract| {
+                let wrapper_projection =
+                    if conflicting_wrapper_projections.contains(&continuation_schema) {
+                        None
+                    } else {
+                        wrapper_projections.remove(&continuation_schema)
+                    };
                 LateLoweredSurfaceResumeDispatchInventoryEntry::new(
                     continuation_schema,
                     contract,
                     entry.source_kind(),
                     entry.publications,
+                    wrapper_projection,
                 )
             })
         })
         .collect()
+}
+
+fn build_surface_resume_wrapper_projection(
+    callable: &LateLoweredCallable,
+    lowering: &LateLoweredResumeBoundaryLowering,
+    step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
+) -> Option<LateLoweredSurfaceResumeWrapperProjection> {
+    let underlying_route = lowering.operand_contract().underlying_continuation_route();
+    if underlying_route.continuation_schema() == lowering.facts().continuation_schema() {
+        return None;
+    }
+
+    let owner_step = step_types_by_schema.get(&callable.step_schema()).copied()?;
+    let wrapper_step = step_types_by_schema
+        .get(&lowering.facts().out_step_schema())
+        .copied()?;
+    let outward_cases = lowering
+        .dispatch()
+        .outward_cases()
+        .iter()
+        .map(|forwarding| {
+            let wrapper_case = wrapper_step.case(forwarding.input_case_tag())?;
+            Some(LateLoweredSurfaceResumeWrapperCaseProjection::new(
+                forwarding.emission().case_tag(),
+                forwarding.emission().concrete_op_key().clone(),
+                forwarding.emission().payload_tuple_ty(),
+                forwarding.input_case_tag(),
+                forwarding.input_concrete_op_key().clone(),
+                wrapper_case.payload_tuple_ty(),
+                wrapper_case.continuation_contract(),
+            ))
+        })
+        .collect::<Option<Vec<_>>>()?;
+
+    Some(LateLoweredSurfaceResumeWrapperProjection::new(
+        underlying_route.clone(),
+        owner_step.step_schema(),
+        wrapper_step.step_schema(),
+        LateLoweredSurfaceResumeWrapperCompleteProjection::new(
+            owner_step.complete_ty(),
+            lowering.dispatch().complete().answer_ty(),
+        ),
+        outward_cases,
+    ))
 }
 
 fn surface_resume_contract_from_continuation(

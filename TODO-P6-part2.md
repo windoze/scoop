@@ -683,7 +683,7 @@
   - 2026-05-04：LLVM ABI/query 已补齐对应发布与 fail-fast。`RefactorHandleDispatchLayout` 现在可直接按 `LateLoweredHandlePendingCompletion::PropagateOutward(case)` 查询 typed payload transport 的 frame field index；若缺失 published transport、outward emission、slot kind/ty、或 frame layout field，会在 P5/P6 handoff 物化阶段显式拒绝，而不是把歧义留给 `P6-T03` backend 现场猜测。
   - 2026-05-04：验证通过：`cargo test -p scoopc refactor_handle_dispatch_contract_ --no-fail-fast`、`cargo test -p scoopc refactor_llvm_handle_dispatch --no-fail-fast`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/handle_finally_boundary.scoop`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。
 
-## P6-T02qc：发布 shared surface-resume wrapper 的 owner-step -> wrapper-step 投影 contract，禁止 P6-T03 在 shared surface body 现场反推 inverse dispatch
+## [DONE] P6-T02qc：发布 shared surface-resume wrapper 的 owner-step -> wrapper-step 投影 contract，禁止 P6-T03 在 shared surface body 现场反推 inverse dispatch
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P6
@@ -746,6 +746,8 @@
 - 依赖：P6-T02q
 - 完成记录：
   - 2026-05-04：在真正实现 `P6-T03` shared surface-resume body 时确认新 blocker。当前 handoff 虽然已经 authoritative 地发布了 `k5 -> underlying route k3`，但并没有继续发布 `underlying owner step s1 -> wrapper step s4` 的投影 contract。`effect_multi_escape_indirect_direct_while.scoop` 中 site25/site30/site35/site40 的 `ResumeBoundaryOnly` wrapper 若继续由 `P6-T03` 落地，backend 只能通过反向推导现有 `dispatch_input_step_schema=s4` / `in c0 -> out c2` caller-side contract 来拼 shared surface body 的返回语义；这违反本阶段“不得把 effect/control contract 留给 backend 现场恢复”的约束。因此新增本前置任务，先把 wrapper projection contract 显式发布出来，再继续 `P6-T03`。
+  - 2026-05-04：已在 `crates/scoopc/src/effect_lowered/ir.rs` 的 authoritative surface-resume dispatch inventory 上新增 `wrapper_projection` contract，显式发布 `underlying_route`、`owner_step_schema -> wrapper_step_schema`、以及 `complete` / outward case 的 owner -> wrapper 投影；`dump-effect-lowered` 现可直接展示 `k5` 的 `wrapper_projection`，后续 `P6-T03` 不再需要从 forward dispatch 反推 shared surface body 返回语义。
+  - 2026-05-04：已在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 把该 contract 接到 owner trampoline query，并对缺失 published projection、derived/published 漂移、以及跨 resume site 的多候选歧义执行 fail-fast。验证通过：`cargo test -p scoopc refactor_surface_resume_dispatch_inventory_ --no-fail-fast`、`cargo test -p scoopc refactor_surface_resume_dispatch_dump_exposes_shared_wrapper_projection --no-fail-fast`、`cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout_ --no-fail-fast`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`、`cargo fmt --all`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。
 
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 

@@ -17,6 +17,8 @@ use crate::effect_lowered::ir::{
     LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface, LateLoweredStateSlice,
     LateLoweredStateTerminator, LateLoweredStepType,
     LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
@@ -1484,6 +1486,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 owner_continuation_object.as_u32(),
             )));
         }
+        let wrapper_projection =
+            self.validate_surface_resume_wrapper_projection(entry, owner_callable)?;
 
         let symbol_name = format!(
             "__scoop_refactor_surface_resume_owner_dispatch__{}__k{}",
@@ -1511,7 +1515,162 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     )
                 })
                 .collect(),
+            wrapper_projection,
         ))
+    }
+
+    fn validate_surface_resume_wrapper_projection(
+        &self,
+        entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
+        owner_callable: &LateLoweredCallable,
+    ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
+        let mut derived_candidates = Vec::<LateLoweredSurfaceResumeWrapperProjection>::new();
+
+        for boundary in owner_callable.boundary_map().entries() {
+            let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering() else {
+                continue;
+            };
+            if lowering.facts().continuation_schema() != entry.continuation_schema() {
+                continue;
+            }
+            let derived =
+                self.derive_surface_resume_wrapper_projection(entry, owner_callable, lowering)?;
+            let Some(derived) = derived else {
+                continue;
+            };
+            if !derived_candidates
+                .iter()
+                .any(|candidate| candidate == &derived)
+            {
+                derived_candidates.push(derived);
+            }
+        }
+
+        if derived_candidates.len() > 1 {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 owner-step -> wrapper-step projection contract 歧义：不同 resume boundary 发布了多个 shared surface wrapper projection",
+                entry.continuation_schema().as_u32(),
+            )));
+        }
+
+        match (entry.wrapper_projection(), derived_candidates.pop()) {
+            (Some(published), Some(derived)) => {
+                if published != &derived {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 owner-step -> wrapper-step projection contract 漂移：published={published:?}，derived={derived:?}",
+                        entry.continuation_schema().as_u32(),
+                    )));
+                }
+                Ok(Some(published.clone()))
+            }
+            (None, Some(derived)) => Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation schema k{} 已桥接到 underlying route k{}，但缺少 published owner-step -> wrapper-step projection contract：derived={derived:?}",
+                entry.continuation_schema().as_u32(),
+                derived.underlying_route().continuation_schema().as_u32(),
+            ))),
+            (Some(published), None) => Ok(Some(published.clone())),
+            (None, None) => Ok(None),
+        }
+    }
+
+    fn derive_surface_resume_wrapper_projection(
+        &self,
+        entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
+        owner_callable: &LateLoweredCallable,
+        lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
+    ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
+        let underlying_route = lowering.operand_contract().underlying_continuation_route();
+        if underlying_route.continuation_schema() == entry.continuation_schema() {
+            return Ok(None);
+        }
+
+        let owner_step = self
+            .program
+            .step_type(owner_callable.step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 owner step schema s{}",
+                    entry.continuation_schema().as_u32(),
+                    owner_callable.step_schema().as_u32(),
+                ))
+            })?;
+        let wrapper_step = self
+            .program
+            .step_type(lowering.facts().out_step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 wrapper step schema s{}",
+                    entry.continuation_schema().as_u32(),
+                    lowering.facts().out_step_schema().as_u32(),
+                ))
+            })?;
+        let underlying_inventory = self
+            .program
+            .surface_resume_dispatch(underlying_route.continuation_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 underlying route schema k{} inventory",
+                    entry.continuation_schema().as_u32(),
+                    underlying_route.continuation_schema().as_u32(),
+                ))
+            })?;
+        if underlying_inventory.contract().out_step_schema() != owner_step.step_schema() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection underlying route k{} 漂移：underlying owner step=s{}，callable owner step=s{}",
+                entry.continuation_schema().as_u32(),
+                underlying_route.continuation_schema().as_u32(),
+                underlying_inventory.contract().out_step_schema().as_u32(),
+                owner_step.step_schema().as_u32(),
+            )));
+        }
+
+        let outward_cases = lowering
+            .dispatch()
+            .outward_cases()
+            .iter()
+            .map(|forwarding| {
+                let wrapper_case = wrapper_step
+                    .case(forwarding.input_case_tag())
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 缺少 wrapper step s{} case c{}",
+                            entry.continuation_schema().as_u32(),
+                            wrapper_step.step_schema().as_u32(),
+                            forwarding.input_case_tag().as_u32(),
+                        ))
+                    })?;
+                if wrapper_case.concrete_op_key() != forwarding.input_concrete_op_key() {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 输入 case 漂移：dispatch in c{} op={}，wrapper step s{} case op={}",
+                        entry.continuation_schema().as_u32(),
+                        forwarding.input_case_tag().as_u32(),
+                        forwarding.input_concrete_op_key().instance_key().template.fqn,
+                        wrapper_step.step_schema().as_u32(),
+                        wrapper_case.concrete_op_key().instance_key().template.fqn,
+                    )));
+                }
+                Ok(LateLoweredSurfaceResumeWrapperCaseProjection::new(
+                    forwarding.emission().case_tag(),
+                    forwarding.emission().concrete_op_key().clone(),
+                    forwarding.emission().payload_tuple_ty(),
+                    forwarding.input_case_tag(),
+                    forwarding.input_concrete_op_key().clone(),
+                    wrapper_case.payload_tuple_ty(),
+                    wrapper_case.continuation_contract(),
+                ))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Some(LateLoweredSurfaceResumeWrapperProjection::new(
+            underlying_route.clone(),
+            owner_step.step_schema(),
+            wrapper_step.step_schema(),
+            LateLoweredSurfaceResumeWrapperCompleteProjection::new(
+                owner_step.complete_ty(),
+                lowering.dispatch().complete().answer_ty(),
+            ),
+            outward_cases,
+        )))
     }
 
     fn publish_callable_carrier_entry_shells(
@@ -8583,17 +8742,25 @@ fun main(): Int {
                     .abi_visibility_program
                     .callable("main")
                     .expect("main callable 应存在");
-                let resume_schema = callable
+                let resume_lowering = callable
                     .boundary_map()
                     .entries()
                     .iter()
                     .find_map(|boundary| match boundary.lowering() {
-                        Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
-                            Some(lowering.facts().continuation_schema())
-                        }
+                        Some(LateLoweredBoundaryLowering::Resume(lowering)) => Some(lowering),
                         _ => None,
                     })
-                    .expect("fixture 应至少包含一个 resume boundary schema");
+                    .expect("fixture 应至少包含一个 resume boundary");
+                let resume_schema = resume_lowering.facts().continuation_schema();
+                let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+                let LateLoweredStateTerminator::HandleDispatch { contract, .. } =
+                    handle_state.terminator()
+                else {
+                    panic!("main site0 应保持 HandleDispatch terminator");
+                };
+                let binder = contract.handled_arms()[0]
+                    .continuation_binder()
+                    .expect("Ask handle arm 应发布 continuation binder");
                 let dispatch = query
                     .surface_resume_dispatch_layout(resume_schema)
                     .expect("resume schema 的 owner dispatch contract 应可查询");
@@ -8619,12 +8786,103 @@ fun main(): Int {
                         );
                         assert_eq!(sites, vec![25, 30, 35, 40]);
                         assert!(trampoline.handle_binder_routes().is_empty());
+                        let projection = trampoline.wrapper_projection().expect(
+                            "shared wrapper schema 应发布 owner-step -> wrapper-step projection",
+                        );
+                        let outward = projection
+                            .outward_cases()
+                            .first()
+                            .expect("shared wrapper projection 应至少包含一个 outward case");
+                        assert_eq!(
+                            projection.underlying_route().continuation_schema(),
+                            binder.continuation_schema()
+                        );
+                        assert!(matches!(
+                            projection.underlying_route().publication(),
+                            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                                owner_continuation_object,
+                                site_id,
+                                arm_ordinal,
+                                handled_case,
+                                ..
+                            } if *owner_continuation_object == callable.continuation_object()
+                                && site_id.as_u32() == 0
+                                && *arm_ordinal == 0
+                                && *handled_case == contract.handled_arms()[0].handled_case()
+                        ));
+                        assert_eq!(projection.owner_step_schema(), callable.step_schema());
+                        assert_eq!(
+                            projection.wrapper_step_schema(),
+                            resume_lowering.facts().out_step_schema()
+                        );
+                        assert_eq!(
+                            outward.owner_case_tag().as_u32(),
+                            2,
+                            "fixture 应把 owner runtime-error case 投影回 wrapper c0"
+                        );
+                        assert_eq!(outward.wrapper_case_tag().as_u32(), 0);
                         assert!(module.get_function(trampoline.symbol_name()).is_some());
                     }
                     RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
                         panic!("resume-boundary-only schema 不应是 unreachable dispatch")
                     }
                 }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_surface_resume_dispatch_layout_rejects_missing_wrapper_projection_contract() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_indirect_direct_while.scoop",
+            |inputs| {
+                let program = &inputs.abi_visibility_program;
+                let callable = program.callable("main").expect("main callable 应存在");
+                let resume_schema = callable
+                    .boundary_map()
+                    .entries()
+                    .iter()
+                    .find_map(|boundary| match boundary.lowering() {
+                        Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                            Some(lowering.facts().continuation_schema())
+                        }
+                        _ => None,
+                    })
+                    .expect("fixture 应至少包含一个 resume boundary schema");
+                let inventory = program
+                    .surface_resume_dispatch_inventory()
+                    .iter()
+                    .map(|entry| {
+                        LateLoweredSurfaceResumeDispatchInventoryEntry::new(
+                            entry.continuation_schema(),
+                            entry.contract(),
+                            entry.source_kind(),
+                            entry.publications().to_vec(),
+                            if entry.continuation_schema() == resume_schema {
+                                None
+                            } else {
+                                entry.wrapper_projection().cloned()
+                            },
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                program.with_surface_resume_dispatch_inventory(inventory)
+            },
+            |_inputs, result, _module| {
+                let err = match result {
+                    Ok(_) => panic!("缺失 shared wrapper projection contract 时必须 fail fast"),
+                    Err(err) => err,
+                };
+                let message = err.to_string();
+                assert!(
+                    message.contains("owner-step -> wrapper-step projection contract"),
+                    "错误消息应指出缺失的是 shared wrapper projection contract: {message}"
+                );
+                assert!(
+                    message.contains("underlying route k3"),
+                    "错误消息应指出缺失投影所依赖的 underlying route: {message}"
+                );
             },
         );
     }
