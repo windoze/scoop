@@ -1,32 +1,33 @@
-# 当前执行计划
+# Claude Execution Plan
 
-## 目标
+## Scope
 
-- 按 `TODO.md` 索引和对应 `TODO-Px.md` 详细任务文件，找到第一个标题未带 `[DONE]` 的详细任务。
-- 只完成这一个详细任务，完成后更新任务记录、同步索引、验证并提交，然后停止。
+- Follow `TODO.md` as the index and the referenced `TODO-Px.md` files as the authoritative task details.
+- Complete exactly the first incomplete detailed task, then stop after committing the result.
+- Keep task bookkeeping synchronized between the detailed TODO file and `TODO.md`.
+- Update this file whenever the plan changes or a key step completes.
 
-## 步骤
+## Execution Plan
 
-1. 读取 `TODO.md`，确认任务索引顺序和引用的详细任务文件。
-2. 按索引顺序读取相关 `TODO-Px.md` 文件，定位第一个未完成详细任务。
-3. 检查最近提交信息，仅判断是否有与该任务直接相关的未完成事项。
-4. 阅读当前任务的详细要求、依赖、约束和验证要求。
-5. 检查相关代码与测试，确定最小正确修改范围。
-6. 实现当前任务；如遇到阻塞当前任务的规格缺口或实现边界，则新增最少必要前置任务、同步 `TODO.md`、提交并停止。
-7. 运行相关测试和必要的质量检查；若失败，修复后重测。
-8. 在对应 `TODO-Px.md` 标题前加 `[DONE]`，补全完成记录，并同步 `TODO.md` 的 `[DONE]` 状态。
-9. 更新本文件记录关键进展。
-10. 提交所有本次任务相关改动，提交信息使用任务编号和简洁说明。
-11. 停止，不继续下一个任务。
+1. Inspect `TODO.md` to determine the ordered task index and referenced detailed TODO files.
+2. Inspect the relevant `TODO-Px.md` files in index order to find the first detailed task whose heading is not prefixed with `[DONE]`.
+3. Check the latest commit message for directly relevant unfinished work only after identifying the current detailed task.
+4. Read the selected task requirements, dependencies, constraints, validation expectations, and completion-record format.
+5. Inspect the minimum relevant code and tests needed to implement that task correctly.
+6. Implement the task without workarounds or scope narrowing. If a concrete blocker prevents correct implementation, add the minimum prerequisite task in the appropriate TODO file, sync `TODO.md`, commit, and stop.
+7. Add or update focused tests/fixtures required by the task.
+8. Run the task-relevant validation commands, then broader validation if appropriate and feasible.
+9. Update the detailed TODO file by prefixing the completed task heading with `[DONE]` and filling in its completion record.
+10. Sync `TODO.md` so the index uses the same `[DONE]` marker and task metadata.
+11. Review the git diff to ensure only intended changes are included and no secrets or unrelated destructive changes are present.
+12. Commit all currently uncommitted files relevant to the completed/resumed task with a clear task-tagged message.
+13. Stop without starting the next task.
 
-## 当前状态
+## Progress Log
 
-- 已读取 `TODO.md` 与 `TODO-P6-part3.md`。
-- 当前第一个未完成详细任务：`P6-T02qh`，标题尚未带 `[DONE]`，虽然已有阻塞记录，仍必须继续完成。
-- 最新提交 `307964ba [P6-T02qga] Implement call-boundary continuation composition` 与当前任务直接相关，作为已完成前置修复纳入本任务验证背景。
-- 已确认 `P6-T02qh` 相关 handoff、ABI materialization、LLVM body emitter 与单测代码已存在，并运行指定单测与 fixture 验证通过。
-- `cargo clippy --all-targets -- -D warnings` 返回成功但暴露 macOS SDK C deprecation warning；已将 `runtime/c/scoop_stackmap.c` 中 deprecated `getsectbynamefromheader_64` 调用替换为 `getsectiondata()`，准备重新验证。
-- 已补齐 runtime API allowlist 中缺失的 `scoop_runtime_error_fatal`，使 `cargo test -p scoop_runtime` 通过。
-- 已将 `P6-T02qh` 在 `TODO-P6-part3.md` 与 `TODO.md` 中标记为 `[DONE]`，并写入完成记录。
-- 已提交本轮主要变更：`f9e99658 [P6-T02qh] Complete wrapper resume payload projection`。
-- 下一步：提交本文件的最终进度记录后停止，不继续下一个任务。
+- Initialized execution plan before reading project task files or running commands.
+- Read `TODO.md`, `TODO-P6-part2.md`, and `TODO-P6-part3.md`. The first executable incomplete detailed task is `P6-T03a` in `TODO-P6-part3.md`; `TODO-P6-part2.md` states that the old monolithic `P6-T03` was abandoned/migrated and no longer carries pending work.
+- Implemented the first pass of `P6-T03a`: added `effect_refactor/value.rs` as the effect-neutral value primitive facade, routed refactor source-slice lowering through it, removed direct use of the legacy statement fallback from `effect_refactor/body.rs`, and removed the old direct-call helper path from refactor print lowering.
+- Ran validation for the task: `cargo test -p scoopc refactor_llvm_clean_backend_boundary`, `cargo test -p scoopc refactor_llvm_value_primitive`, the requested audit `rg` command, and `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`. The audit command now has no statement/function fallback hits under `effect_refactor`; remaining `effect_op_call_sites` hits are in typed HIR/ABI test scaffolding rather than the refactor body implementation.
+- Extra non-required `cargo test -p scoopc refactor_llvm_` was run and still has existing layout/stage failures unrelated to the new value primitive boundary; the task-specific tests passed.
+- Updated `TODO-P6-part3.md` and `TODO.md` to mark `P6-T03a` as `[DONE]` and recorded implementation details plus validation commands.

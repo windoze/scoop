@@ -1636,6 +1636,62 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(super) fn codegen_mir_effect_neutral_statement(
+        &mut self,
+        stmt: &crate::mir::Statement,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        used_locals: &HashSet<crate::mir::LocalId>,
+    ) -> Result<(), LlvmEmitError> {
+        if self
+            .builder
+            .get_insert_block()
+            .is_some_and(|bb| bb.get_terminator().is_some())
+        {
+            return Ok(());
+        }
+
+        match &stmt.kind {
+            crate::mir::StatementKind::Nop => Ok(()),
+            crate::mir::StatementKind::Assign { target, value } => {
+                if !used_locals.contains(target)
+                    && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) = value
+                    && self.fun_index.contains_key(fqn)
+                {
+                    return Ok(());
+                }
+                let slot = self.mir_local_slot(stmt.span, slots, *target)?;
+                let value = self.codegen_mir_effect_neutral_rvalue(
+                    stmt.span, value, body, mir_types, slots, slot.cg_ty,
+                )?;
+                let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
+                Ok(())
+            }
+            crate::mir::StatementKind::StoreMember {
+                receiver,
+                member,
+                value,
+                value_ty,
+                continuation_route,
+            } => self.codegen_mir_store_member(
+                stmt.span,
+                receiver,
+                member,
+                value,
+                *value_ty,
+                continuation_route,
+                body,
+                mir_types,
+                slots,
+            ),
+            crate::mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive statement todo",
+                at: stmt.span.into(),
+            }),
+        }
+    }
+
     fn codegen_mir_terminator(
         &mut self,
         terminator: &crate::mir::Terminator,
@@ -1839,6 +1895,134 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | crate::mir::Rvalue::Cast { .. }
             | crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR rvalue",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn codegen_mir_effect_neutral_rvalue(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Rvalue,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match value {
+            crate::mir::Rvalue::Use(operand) => {
+                self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
+            }
+            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) => {
+                self.codegen_top_level_value_ref(span, fqn)
+            }
+            crate::mir::Rvalue::Unary { op, operand } => {
+                let operand = self.codegen_mir_operand(span, operand, slots)?;
+                self.codegen_mir_unary(span, *op, operand)
+            }
+            crate::mir::Rvalue::Binary { lhs, op, rhs } => {
+                let lhs = self.codegen_mir_operand(span, lhs, slots)?;
+                let rhs = self.codegen_mir_operand(span, rhs, slots)?;
+                self.codegen_mir_binary(span, *op, lhs, rhs)
+            }
+            crate::mir::Rvalue::Cast {
+                value,
+                op: ast::CastOp::As,
+                target_ty,
+            } => {
+                let target = self.cg_ty_of_mir_type(mir_types, *target_ty).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor value primitive cast target type",
+                        at: span.into(),
+                    },
+                )?;
+                let value = self.codegen_mir_operand_expected(span, value, slots, Some(target))?;
+                if matches!(value.ty, CgTy::Ref | CgTy::String)
+                    && matches!(target, CgTy::Ref | CgTy::String)
+                    && value.ty != target
+                {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor value primitive runtime cast",
+                        at: span.into(),
+                    });
+                }
+                self.coerce_value(span, value, target)
+            }
+            crate::mir::Rvalue::PatternMatch { subject, pattern } => {
+                self.codegen_mir_pattern_match(span, mir_types, subject, pattern, slots)
+            }
+            crate::mir::Rvalue::PatternExtract { subject, path } => {
+                self.codegen_mir_pattern_extract(span, subject, path, slots, target_cg)
+            }
+            crate::mir::Rvalue::MakeTuple { elements } => {
+                self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
+            }
+            crate::mir::Rvalue::TupleGet { tuple, index } => {
+                self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
+            }
+            crate::mir::Rvalue::CaptureBoxNew { value } => {
+                self.codegen_mir_capture_box_new(span, value, body, mir_types, target_cg, slots)
+            }
+            crate::mir::Rvalue::CaptureBoxGet { box_operand } => self.codegen_mir_capture_box_get(
+                span,
+                box_operand,
+                body,
+                mir_types,
+                target_cg,
+                slots,
+            ),
+            crate::mir::Rvalue::CaptureBoxSet { box_operand, value } => {
+                self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots)
+            }
+            crate::mir::Rvalue::MemberAccess { receiver, member } => self
+                .codegen_mir_member_access(
+                    span,
+                    receiver,
+                    member,
+                    MirBodyCodegenCtx {
+                        body,
+                        mir_types,
+                        slots,
+                    },
+                    target_cg,
+                ),
+            crate::mir::Rvalue::EnumVariant {
+                enum_ty,
+                variant_name,
+                args,
+            } => self.codegen_mir_enum_variant_ctor_call(
+                span,
+                *enum_ty,
+                variant_name,
+                args,
+                body,
+                mir_types,
+                slots,
+            ),
+            crate::mir::Rvalue::Call { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive call requires published ABI",
+                at: span.into(),
+            }),
+            crate::mir::Rvalue::MakeClosure { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive closure carrier requires published ABI",
+                at: span.into(),
+            }),
+            crate::mir::Rvalue::ClassCtor { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive class construction requires published ABI",
+                at: span.into(),
+            }),
+            crate::mir::Rvalue::PerformResult { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive boundary payload requires published contract",
+                at: span.into(),
+            }),
+            crate::mir::Rvalue::TypeCheck { .. }
+            | crate::mir::Rvalue::Cast {
+                op: ast::CastOp::AsQ,
+                ..
+            }
+            | crate::mir::Rvalue::UnresolvedName { .. }
+            | crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive rvalue",
                 at: span.into(),
             }),
         }

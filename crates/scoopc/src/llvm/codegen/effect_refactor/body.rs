@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use inkwell::AddressSpace;
 use inkwell::basic_block::BasicBlock;
-use inkwell::types::{BasicTypeEnum, StructType};
+use inkwell::types::StructType;
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue, PointerValue,
 };
@@ -21,8 +21,8 @@ use crate::effect_lowered::ir::{
     LateLoweredBoundarySourceConsumption, LateLoweredCallBoundaryContinuationComposition,
     LateLoweredCallBoundaryLowering, LateLoweredCallable, LateLoweredCompletionPayloadSource,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleStateRegion,
-    LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredResumePayloadBinding,
-    LateLoweredState, LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredOperandSource, LateLoweredResumePayloadBinding, LateLoweredState,
+    LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
 };
 use crate::llvm::LlvmEmitError;
@@ -38,6 +38,7 @@ use super::types::{
     RefactorFrameLayout, RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
     RefactorStepVariantLayout,
 };
+use super::value::RefactorValuePrimitives;
 
 const STEP_TAG_COMPLETE: u64 = 0;
 const CONT_FIELD_CAPTURED_FRAME: u32 = 1;
@@ -567,6 +568,57 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         })
     }
 
+    fn value_primitives(&mut self) -> RefactorValuePrimitives<'_, 'a, 'ctx> {
+        RefactorValuePrimitives::new(
+            &mut *self.codegen,
+            self.source_types,
+            self.body,
+            &self.slots,
+            self.abi,
+        )
+    }
+
+    fn lower_effect_neutral_statement(
+        &mut self,
+        stmt: &mir::Statement,
+    ) -> Result<(), LlvmEmitError> {
+        let codegen = &mut *self.codegen;
+        let source_types = self.source_types;
+        let body = self.body;
+        let slots = &self.slots;
+        let abi = self.abi;
+        let used_locals = &self.used_locals;
+        RefactorValuePrimitives::new(codegen, source_types, body, slots, abi)
+            .lower_effect_neutral_statement(stmt, used_locals)
+    }
+
+    fn load_local_value(
+        &mut self,
+        span: crate::span::Span,
+        local: LocalId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.value_primitives().load_local(span, local)
+    }
+
+    fn store_local_value(
+        &mut self,
+        span: crate::span::Span,
+        local: LocalId,
+        value: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.value_primitives().store_local(span, local, value)
+    }
+
+    fn store_loaded_raw_local(
+        &mut self,
+        span: crate::span::Span,
+        local: LocalId,
+        raw: BasicValueEnum<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.value_primitives()
+            .store_loaded_raw_local(span, local, raw)
+    }
+
     fn emit_direct(
         mut self,
         entry_layout: &RefactorCallableEntryLayout<'ctx>,
@@ -928,9 +980,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             })?)
         };
         for (index, param) in self.mir_fun.params.iter().enumerate() {
-            let slot = self
-                .codegen
-                .mir_local_slot(param.span, &self.slots, param.local)?;
             let param_cg = self
                 .codegen
                 .cg_ty_of_mir_type(self.source_types, param.ty)
@@ -977,10 +1026,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     self.codegen.default_value(param.span, param_cg)?
                 }
             };
-            let value = self.codegen.coerce_value(param.span, value, slot.cg_ty)?;
-            let _ = self
-                .codegen
-                .store_local_value(param.span, slot.ptr, slot.cg_ty, value)?;
+            let _ = self.store_local_value(param.span, param.local, value)?;
         }
         Ok(())
     }
@@ -1037,13 +1083,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 if self.try_lower_refactor_specialized_direct_call(stmt)? {
                     continue;
                 }
-                self.codegen.codegen_mir_statement(
-                    stmt,
-                    self.body,
-                    self.source_types,
-                    &self.slots,
-                    &self.used_locals,
-                )?;
+                self.lower_effect_neutral_statement(stmt)?;
             }
         }
         Ok(())
@@ -1066,12 +1106,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 then_state,
                 else_state,
             } => {
-                let slot =
-                    self.codegen
-                        .mir_local_slot(self.mir_fun.span, &self.slots, *cond_local)?;
                 let cond = self
-                    .codegen
-                    .load_mir_local(self.mir_fun.span, slot)?
+                    .load_local_value(self.mir_fun.span, *cond_local)?
                     .as_bool()
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "refactor state branch condition",
@@ -1154,30 +1190,25 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         if self.codegen.fun_index.contains_key(callee_fqn) {
             return Ok(false);
         }
-        if callee_fqn == "scoop.core.println" || callee_fqn == "scoop.core.__scoop_println_string" {
+        if matches!(
+            callee_fqn.as_str(),
+            "scoop.core.println"
+                | "scoop.core.__scoop_println_string"
+                | "scoop.core.println::<Int>"
+                | "scoop.core.println::<String>"
+        ) {
             return self.lower_refactor_print_statement(stmt.span, *target, args, "scoop_println");
         }
-        if callee_fqn == "scoop.core.print" || callee_fqn == "scoop.core.__scoop_print_string" {
+        if matches!(
+            callee_fqn.as_str(),
+            "scoop.core.print"
+                | "scoop.core.__scoop_print_string"
+                | "scoop.core.print::<Int>"
+                | "scoop.core.print::<String>"
+        ) {
             return self.lower_refactor_print_statement(stmt.span, *target, args, "scoop_print");
         }
-        let Some(specialized) = self.specialized_direct_callee(callee_fqn, args) else {
-            return Ok(false);
-        };
-        let value = self.codegen.codegen_mir_direct_call(
-            stmt.span,
-            specialized,
-            args,
-            self.body,
-            &self.slots,
-        )?;
-        let slot = self
-            .codegen
-            .mir_local_slot(stmt.span, &self.slots, *target)?;
-        let value = self.codegen.coerce_value(stmt.span, value, slot.cg_ty)?;
-        let _ = self
-            .codegen
-            .store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
-        Ok(true)
+        Ok(false)
     }
 
     fn lower_refactor_print_statement(
@@ -1225,32 +1256,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             &[str_ptr.into()],
             "refactor_println",
         )?;
-        let slot = self.codegen.mir_local_slot(span, &self.slots, target)?;
         let unit = self
             .codegen
-            .coerce_value(span, CgValue::unit(), slot.cg_ty)?;
-        let _ = self
-            .codegen
-            .store_local_value(span, slot.ptr, slot.cg_ty, unit)?;
+            .coerce_value(span, CgValue::unit(), CgTy::Unit)?;
+        let _ = self.store_local_value(span, target, unit)?;
         Ok(true)
-    }
-
-    fn specialized_direct_callee(
-        &self,
-        callee_fqn: &str,
-        args: &[mir::CallArg],
-    ) -> Option<&'static str> {
-        if callee_fqn != "scoop.core.println" || args.len() != 1 {
-            return None;
-        }
-        match self
-            .codegen
-            .mir_operand_cg_ty(self.body, self.source_types, &args[0].value)
-        {
-            Some(CgTy::Int(_)) => Some("scoop.core.println::<Int>"),
-            Some(CgTy::String) => Some("scoop.core.println::<String>"),
-            _ => None,
-        }
     }
 
     fn lower_suspend(
@@ -1928,19 +1938,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             };
             for binder in arm.payload_binders() {
                 let value = self.unpack_payload_field(payload, payload_ty, binder.ordinal())?;
-                let slot =
-                    self.codegen
-                        .mir_local_slot(self.mir_fun.span, &self.slots, binder.local())?;
                 if let Some(raw) = value {
-                    let cg =
-                        self.codegen
-                            .cg_value_from_loaded(self.mir_fun.span, slot.cg_ty, raw)?;
-                    let _ = self.codegen.store_local_value(
-                        self.mir_fun.span,
-                        slot.ptr,
-                        slot.cg_ty,
-                        cg,
-                    )?;
+                    let _ = self.store_loaded_raw_local(self.mir_fun.span, binder.local(), raw)?;
                 }
             }
         }
@@ -1993,18 +1992,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         binding: &LateLoweredResumePayloadBinding,
         payload: Option<BasicValueEnum<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
-        let slot = self.codegen.mir_local_slot(
-            self.mir_fun.span,
-            &self.slots,
-            binding.consumer_local(),
-        )?;
         if let Some(raw) = payload {
-            let value = self
-                .codegen
-                .cg_value_from_loaded(self.mir_fun.span, slot.cg_ty, raw)?;
             let _ =
-                self.codegen
-                    .store_local_value(self.mir_fun.span, slot.ptr, slot.cg_ty, value)?;
+                self.store_loaded_raw_local(self.mir_fun.span, binding.consumer_local(), raw)?;
         }
         if let Some(frame_slot) = binding.consumer_frame_slot() {
             self.store_local_to_frame_slot(binding.consumer_local(), frame_slot)?;
@@ -2029,25 +2019,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         source: &LateLoweredOperandSource,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let span = source.span().unwrap_or(self.mir_fun.span);
-        let expected = self
-            .codegen
-            .cg_ty_of_mir_type(self.source_types, source.source_ty())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor operand source type",
-                at: span.into(),
-            })?;
-        let operand = match source.value() {
-            LateLoweredOperandValueSource::Local(local) => mir::Operand::Local(*local),
-            LateLoweredOperandValueSource::Const(value) => mir::Operand::Const(value.clone()),
-        };
-        let value = self.codegen.codegen_mir_operand_expected(
-            span,
-            &operand,
-            &self.slots,
-            Some(expected),
-        )?;
-        self.codegen.coerce_value(span, value, expected)
+        self.value_primitives().lower_operand_source(source)
     }
 
     fn pack_sources(
@@ -2056,54 +2028,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         sources: &[LateLoweredOperandSource],
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
-        let layout = self.abi.source_value_layout(source_ty)?;
-        if layout.abi().is_elided() {
-            return Ok(None);
-        }
-        match layout.kind() {
-            RefactorSourceAbiLayoutKind::Scalar => {
-                let source = sources.first().ok_or_else(|| {
-                    frontend_error(format!("refactor ABI scalar payload `{name}` 缺少 source"))
-                })?;
-                Ok(self.lower_operand_source(source)?.value)
-            }
-            RefactorSourceAbiLayoutKind::Tuple => {
-                let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
-                    return Err(frontend_error(format!(
-                        "refactor ABI tuple payload `{name}` layout 不是 struct"
-                    )));
-                };
-                let mut aggregate = struct_ty.get_undef();
-                for (index, source) in sources.iter().enumerate() {
-                    let Some(field) = layout.field(index) else {
-                        return Err(frontend_error(format!(
-                            "refactor ABI tuple payload `{name}` source index {index} 超出 layout 字段"
-                        )));
-                    };
-                    if field.is_elided() {
-                        continue;
-                    }
-                    let raw = self.lower_operand_source(source)?.value.ok_or_else(|| {
-                        frontend_error(format!(
-                            "refactor ABI tuple payload `{name}` source index {index} 被 elide 但 field 需要值"
-                        ))
-                    })?;
-                    aggregate = self
-                        .codegen
-                        .builder
-                        .build_insert_value(
-                            aggregate,
-                            raw,
-                            field
-                                .abi_field_index()
-                                .expect("non-elided field has ABI index"),
-                            &format!("{name}_field{index}"),
-                        )?
-                        .into_struct_value();
-                }
-                Ok(Some(aggregate.into()))
-            }
-        }
+        self.value_primitives()
+            .pack_sources(source_ty, sources, name)
     }
 
     fn create_continuation_object(
@@ -2364,15 +2290,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 field_ptr,
                 "refactor_frame_slot_load",
             )?;
-            let value =
-                self.codegen
-                    .cg_value_from_loaded(self.mir_fun.span, local_slot.cg_ty, loaded)?;
-            let _ = self.codegen.store_local_value(
-                self.mir_fun.span,
-                local_slot.ptr,
-                local_slot.cg_ty,
-                value,
-            )?;
+            let _ = self.store_loaded_raw_local(self.mir_fun.span, local, loaded)?;
         }
         Ok(())
     }
@@ -2403,7 +2321,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             field_index,
             "refactor_frame_slot_store_gep",
         )?;
-        let value = self.codegen.load_mir_local(self.mir_fun.span, local_slot)?;
+        let value = self.load_local_value(self.mir_fun.span, local)?;
         if let Some(raw) = value.value {
             self.codegen.builder.build_store(field_ptr, raw)?;
         }
@@ -2422,9 +2340,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             ty: slot.cg_ty,
             value: Some(value.into()),
         };
-        let _ = self
-            .codegen
-            .store_local_value(self.mir_fun.span, slot.ptr, slot.cg_ty, cg)?;
+        let _ = self.store_local_value(self.mir_fun.span, local, cg)?;
         Ok(())
     }
 
@@ -2434,40 +2350,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         payload_ty: TypeId,
         ordinal: u32,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
-        let layout = self.abi.source_value_layout(payload_ty)?;
-        if layout.abi().is_elided() {
-            return Ok(None);
-        }
-        match layout.kind() {
-            RefactorSourceAbiLayoutKind::Scalar => Ok(payload),
-            RefactorSourceAbiLayoutKind::Tuple => {
-                let Some(field) = layout.field(ordinal as usize) else {
-                    return Err(frontend_error(format!(
-                        "refactor payload tuple t{} 缺少 ordinal {}",
-                        payload_ty.as_u32(),
-                        ordinal
-                    )));
-                };
-                if field.is_elided() {
-                    return Ok(None);
-                }
-                let Some(BasicValueEnum::StructValue(tuple)) = payload else {
-                    return Err(frontend_error(format!(
-                        "refactor payload tuple t{} 缺少 struct payload",
-                        payload_ty.as_u32()
-                    )));
-                };
-                Ok(Some(
-                    self.codegen.builder.build_extract_value(
-                        tuple,
-                        field
-                            .abi_field_index()
-                            .expect("non-elided field has ABI index"),
-                        "refactor_payload_field",
-                    )?,
-                ))
-            }
-        }
+        self.value_primitives()
+            .unpack_payload_field(payload, payload_ty, ordinal)
     }
 
     fn skipped_statement_indices_for_state(

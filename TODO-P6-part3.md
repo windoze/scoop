@@ -104,7 +104,7 @@
   - 本轮同时消除 macOS SDK 对 runtime stackmap section lookup 的 C deprecation warning：`scoop_stackmap.c` 改用 `getsectiondata()`，并补齐 `scoop_runtime_error_fatal` runtime ABI allowlist，保证相关验证无警告、无 allowlist 失败。
   - 验证通过：`cargo test -p scoopc refactor_effect_lowered_surface_resume_wrapper_completion`；`cargo test -p scoopc refactor_llvm_surface_resume_wrapper_completion`；`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo test -p scoop_runtime`；`cargo clippy --all-targets -- -D warnings`。
 
-## P6-T03a：固化 clean refactor LLVM backend 边界，抽出 effect-neutral value/expression primitive
+## [DONE] P6-T03a：固化 clean refactor LLVM backend 边界，抽出 effect-neutral value/expression primitive
 
 - 参考：
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.6
@@ -133,7 +133,17 @@
   - 后续 `P6-T03*` 只能通过 published contract + value/expression primitive lower body。
 - 依赖：P6-T02qh
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-04：完成 clean backend 边界收口。新增 `crates/scoopc/src/llvm/codegen/effect_refactor/value.rs`，作为 refactor backend 唯一允许共享的 effect-neutral value primitive facade；它覆盖 literal/local load-store/source operand lowering、scalar/tuple ABI pack/unpack、非控制流 cast、primitive op 与 canonical MIR member read/write primitive，并在模块边界明确禁止 call target、return path、boundary dispatch、continuation 语义决策。
+  - 2026-05-04：`crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 的 source-slice fallback 已改为经 `RefactorValuePrimitives` 调用 `codegen_mir_effect_neutral_statement`；`body.rs` 不再直接调用 legacy statement-level `codegen_mir_statement`，也不再用 legacy direct-call helper lowering refactor print 路径。非中立 call / closure carrier / class ctor / boundary payload / runtime-control cast 会 fail fast，交给后续 `P6-T03b+` 的 published contract 与分类任务闭合。
+  - 2026-05-04：在 `crates/scoopc/src/llvm/codegen/mir_body.rs` 抽出 `codegen_mir_effect_neutral_statement` / `codegen_mir_effect_neutral_rvalue`，把可共享的 MIR value/expression lowering 与旧 function/statement/control-flow lowering 分开；新增审计测试锁定 refactor body 不再含旧 statement/function fallback 入口。
+  - 2026-05-04：`PLAN.md` 无需改动。
+- 已运行验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc refactor_llvm_clean_backend_boundary`
+  - `cargo test -p scoopc refactor_llvm_value_primitive`
+  - `rg "codegen_mir_statement|build_unified_lowering_contract|effect_analysis_ctx|effect_op_call_sites|scoop_effect_handler_stack|scoop_effect_outcome" crates/scoopc/src/llvm/codegen/effect_refactor crates/scoopc/src/effect_refactor_pipeline`（无 statement/function fallback 命中；仅剩 typed HIR/ABI test scaffolding 中既有 `effect_op_call_sites` 查询）
+  - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+  - 额外非必需检查：`cargo test -p scoopc refactor_llvm_` 仍有既有 layout/stage 测试失败，失败点不来自本任务新增的 clean backend boundary 测试。
 
 ## P6-T03b：发布 source-slice statement classification contract，禁止 body emitter 静默 skip 或回 raw shape 猜语义
 
