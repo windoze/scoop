@@ -23,16 +23,16 @@ use crate::effect_lowered::ir::{
     LateLoweredCallable, LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
     LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredOperandValueSource,
-    LateLoweredResumePayloadBinding, LateLoweredSourceStatementClassificationKind,
-    LateLoweredState, LateLoweredStateRole, LateLoweredStateTerminator,
-    LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredResumePayloadBinding,
+    LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
+    LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
 use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::super::mir_body::MirLocalSlot;
+use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue};
 use super::super::{
     MainCodegen, RefactorCallableCarrierKind, TypeDescriptorSpec, sanitize_llvm_ident,
@@ -42,8 +42,9 @@ use super::types::{
     RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
     RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameLayout,
     RefactorHandleContinuationBinderLayout, RefactorHandlePayloadBinderLayout,
-    RefactorLocalRuntimeErrorTerminalAction, RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind,
-    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
+    RefactorLocalRuntimeErrorTerminalAction, RefactorPlainCallableLayout, RefactorSourceAbiLayout,
+    RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
+    RefactorStepVariantLayout,
 };
 use super::value::RefactorValuePrimitives;
 
@@ -146,13 +147,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         for callable in program.callables() {
             let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_callable_entries(
-                program,
-                source_types,
-                pass_view,
-                abi,
-                callable,
-            )?;
+            if callable.plain_abi().is_some() {
+                child.codegen_refactor_plain_callable_entry(
+                    source_types,
+                    pass_view,
+                    abi,
+                    callable,
+                )?;
+            } else {
+                child.codegen_refactor_callable_entries(
+                    program,
+                    source_types,
+                    pass_view,
+                    abi,
+                    callable,
+                )?;
+            }
         }
         for (kind, carrier_fqn, target) in abi.callable_carrier_target_layouts() {
             let mut child = self.fresh_child_codegen();
@@ -185,7 +195,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let callable = program
                     .callables()
                     .iter()
-                    .find(|callable| callable.step_schema() == method.out_step_schema())
+                    .find(|callable| callable.body_step_schema() == Some(method.out_step_schema()))
                     .ok_or_else(|| frontend_error(format!(
                         "refactor body lowering 缺少 resume method case c{} 的 owner step schema s{} callable",
                         method.case_tag().as_u32(),
@@ -261,6 +271,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir_main.fqn
             )));
         }
+        if callable.plain_abi().is_some() {
+            return self.codegen_refactor_plain_main_exit_code(hir_main, callable, abi);
+        }
+
         let layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
         let direct = self.refactor_function(layout.direct_entry().symbol_name())?;
         let args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
@@ -360,6 +374,290 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             phi.add_incoming(&[(&exit, bad_bb)]);
         }
         Ok(phi.as_basic_value().into_int_value())
+    }
+
+    fn codegen_refactor_plain_main_exit_code(
+        &mut self,
+        hir_main: &crate::hir::FunDecl,
+        callable: &LateLoweredCallable,
+        abi: &RefactorAbiQuery<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let layout = abi.plain_callable_layout_by_version_key(callable.body_version_key())?;
+        if layout.root_fqn() != callable.root_fqn() {
+            return Err(frontend_error(format!(
+                "refactor plain main `{}` 的 ABI layout root 漂移：layout=`{}`",
+                callable.root_fqn(),
+                layout.root_fqn(),
+            )));
+        }
+        let entry = layout.direct_entry();
+        if entry.param_count() != 0 {
+            return Err(frontend_error(format!(
+                "refactor plain main `{}` 的普通入口参数数量为 {}；Array<String> argv tuple ABI 尚未发布或入口 contract 漂移",
+                hir_main.fqn,
+                entry.param_count(),
+            )));
+        }
+        let direct = self.refactor_function(entry.symbol_name())?;
+        let call = self
+            .builder
+            .build_call(direct, &[], "refactor_plain_main")?;
+        match self.cg_ty_of(hir_main.return_ty) {
+            Some(CgTy::Unit) => Ok(self.context.i32_type().const_zero()),
+            Some(CgTy::Int(_)) => {
+                let raw = call.try_as_basic_value().basic().ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor plain main `{}` 的普通入口未返回整数值",
+                        hir_main.fqn
+                    ))
+                })?;
+                let BasicValueEnum::IntValue(value) = raw else {
+                    return Err(frontend_error(format!(
+                        "refactor plain main `{}` 的普通入口返回值不是整数",
+                        hir_main.fqn
+                    )));
+                };
+                Ok(self.builder.build_int_truncate_or_bit_cast(
+                    value,
+                    self.context.i32_type(),
+                    "refactor_plain_main_exit_i32",
+                )?)
+            }
+            _ => Err(frontend_error(format!(
+                "refactor plain main wrapper 不支持入口 `{}` 的返回类型",
+                hir_main.fqn
+            ))),
+        }
+    }
+
+    fn codegen_refactor_plain_callable_entry(
+        &mut self,
+        source_types: &'a TypeStore,
+        pass_view: &'a mir::MaterializedMirPassView<'a>,
+        abi: &RefactorAbiQuery<'ctx>,
+        callable: &'a LateLoweredCallable,
+    ) -> Result<(), LlvmEmitError> {
+        let plain = callable.plain_abi().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor plain body lowering callable `{}` 缺少 plain ABI handoff",
+                callable.root_fqn()
+            ))
+        })?;
+        let layout = abi.plain_callable_layout_by_version_key(callable.body_version_key())?;
+        validate_plain_callable_layout(callable, layout)?;
+        let function = self.refactor_function(layout.direct_entry().symbol_name())?;
+        if function.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+
+        let hir_fun = self
+            .fun_index
+            .get(callable.root_fqn())
+            .copied()
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor plain body lowering callable `{}` 缺少 HIR signature",
+                    callable.root_fqn()
+                ))
+            })?;
+        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let body = mir_fun.body.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor plain body lowering callable `{}` 缺少 canonical MIR body",
+                callable.root_fqn()
+            ))
+        })?;
+        body.validate_cfg()
+            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor plain callable cfg",
+                at: mir_fun.span.into(),
+            })?;
+        let body_slices = validate_plain_body_slices(callable.root_fqn(), plain, body)?;
+
+        self.current_source_id =
+            self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?;
+        self.function_cx.current_callable_fqn = Some(hir_fun.fqn.clone());
+        let entry = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(function)?;
+
+        let declared_return_cg = self
+            .cg_ty_of_mir_type(source_types, mir_fun.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor plain callable return type",
+                at: mir_fun.span.into(),
+            })?;
+        self.function_cx.current_fun_return_ty = Some(declared_return_cg);
+        let uses_hidden_sret = self
+            .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
+            .is_some();
+        if self.mir_fun_uses_hidden_incoming_resume_token(mir_fun) {
+            return Err(frontend_error(format!(
+                "refactor plain callable `{}` 不允许使用 legacy hidden resume token ABI",
+                callable.root_fqn()
+            )));
+        }
+        self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
+            Some(
+                function
+                    .get_nth_param(0)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "missing refactor plain llvm function sret param",
+                        at: mir_fun.span.into(),
+                    })?
+                    .into_pointer_value(),
+            )
+        } else {
+            None
+        };
+
+        let (return_bb, return_alloca) =
+            self.setup_function_return_context(mir_fun.span, function, declared_return_cg)?;
+        let mut slots = self.create_mir_local_slots(body, source_types)?;
+        self.bind_mir_params(
+            hir_fun,
+            mir_fun,
+            function,
+            u32::from(uses_hidden_sret),
+            &mut slots,
+        )?;
+        let used_locals = collect_mir_local_uses(body);
+        let llvm_blocks = body
+            .blocks
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| {
+                self.context
+                    .append_basic_block(function, &format!("plain.bb{idx}"))
+            })
+            .collect::<Vec<_>>();
+        let start_bb = llvm_blocks
+            .get(body.start.as_u32() as usize)
+            .copied()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor plain callable start block",
+                at: mir_fun.span.into(),
+            })?;
+        self.builder.build_unconditional_branch(start_bb)?;
+
+        for (idx, block) in body.blocks.iter().enumerate() {
+            self.builder.position_at_end(llvm_blocks[idx]);
+            let block_id = mir::BasicBlockId::from_raw(idx as u32);
+            let slice = body_slices.get(&block_id).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor plain body lowering callable `{}` 缺少 bb{} 的 published source slice",
+                    callable.root_fqn(),
+                    block_id.as_u32(),
+                ))
+            })?;
+            {
+                let mut values =
+                    RefactorValuePrimitives::new(self, source_types, body, &slots, abi);
+                for stmt in &block.stmts
+                    [slice.start_statement_index() as usize..slice.end_statement_index() as usize]
+                {
+                    values.lower_effect_neutral_statement(stmt, &used_locals)?;
+                }
+            }
+            self.codegen_refactor_plain_terminator(
+                &block.terminator,
+                &slots,
+                &llvm_blocks,
+                declared_return_cg,
+            )?;
+        }
+
+        self.emit_function_return_block(
+            mir_fun.span,
+            declared_return_cg,
+            return_bb,
+            return_alloca,
+        )?;
+        self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        self.function_cx.current_sret_return_ptr = None;
+        Ok(())
+    }
+
+    fn codegen_refactor_plain_terminator(
+        &mut self,
+        terminator: &mir::Terminator,
+        slots: &[MirLocalSlot<'ctx>],
+        llvm_blocks: &[BasicBlock<'ctx>],
+        declared_return_cg: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        if self
+            .builder
+            .get_insert_block()
+            .is_some_and(|bb| bb.get_terminator().is_some())
+        {
+            return Ok(());
+        }
+        match &terminator.kind {
+            mir::TerminatorKind::Return { value } => {
+                let value = match value {
+                    Some(operand) => self.codegen_mir_operand_expected(
+                        terminator.span,
+                        operand,
+                        slots,
+                        Some(declared_return_cg),
+                    )?,
+                    None => self.default_value(terminator.span, declared_return_cg)?,
+                };
+                let value = self.coerce_value(terminator.span, value, declared_return_cg)?;
+                self.finish_function_return_path(terminator.span, declared_return_cg, value)
+            }
+            mir::TerminatorKind::Goto { target } => {
+                let target_bb = llvm_blocks.get(target.as_u32() as usize).copied().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain goto target",
+                        at: terminator.span.into(),
+                    },
+                )?;
+                self.builder.build_unconditional_branch(target_bb)?;
+                Ok(())
+            }
+            mir::TerminatorKind::CondBr {
+                cond,
+                then_target,
+                else_target,
+            } => {
+                let cond = self
+                    .codegen_mir_operand(terminator.span, cond, slots)?
+                    .as_bool()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain branch condition",
+                        at: terminator.span.into(),
+                    })?;
+                let then_bb = llvm_blocks
+                    .get(then_target.as_u32() as usize)
+                    .copied()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain then target",
+                        at: terminator.span.into(),
+                    })?;
+                let else_bb = llvm_blocks
+                    .get(else_target.as_u32() as usize)
+                    .copied()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain else target",
+                        at: terminator.span.into(),
+                    })?;
+                self.builder
+                    .build_conditional_branch(cond, then_bb, else_bb)?;
+                Ok(())
+            }
+            mir::TerminatorKind::Unreachable => {
+                self.builder.build_unreachable()?;
+                Ok(())
+            }
+            mir::TerminatorKind::Perform { .. }
+            | mir::TerminatorKind::ResumeUnwind
+            | mir::TerminatorKind::Handle { .. }
+            | mir::TerminatorKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor plain callable effect/control terminator",
+                at: terminator.span.into(),
+            }),
+        }
     }
 
     fn codegen_refactor_callable_entries(
@@ -5956,6 +6254,83 @@ fn validate_callable_entry_layout(
         )));
     }
     Ok(())
+}
+
+fn validate_plain_callable_layout(
+    callable: &LateLoweredCallable,
+    layout: &RefactorPlainCallableLayout<'_>,
+) -> Result<(), LlvmEmitError> {
+    let plain = callable.plain_abi().ok_or_else(|| {
+        frontend_error(format!(
+            "refactor plain callable `{}` 缺少 plain ABI handoff",
+            callable.root_fqn()
+        ))
+    })?;
+    let entry = layout.direct_entry();
+    if layout.root_fqn() != callable.root_fqn()
+        || entry.function_ty() != plain.function_ty()
+        || entry.param_tys() != plain.param_tys()
+        || entry.return_ty() != plain.return_ty()
+    {
+        return Err(frontend_error(format!(
+            "refactor plain callable `{}` ABI contract 漂移：layout_root=`{}` function_ty=t{} return=t{} params={:?} handoff_function=t{} handoff_return=t{} handoff_params={:?}",
+            callable.root_fqn(),
+            layout.root_fqn(),
+            entry.function_ty().as_u32(),
+            entry.return_ty().as_u32(),
+            entry.param_tys(),
+            plain.function_ty().as_u32(),
+            plain.return_ty().as_u32(),
+            plain.param_tys(),
+        )));
+    }
+    Ok(())
+}
+
+fn validate_plain_body_slices(
+    root_fqn: &str,
+    plain: &LateLoweredPlainCallable,
+    body: &mir::Body,
+) -> Result<BTreeMap<mir::BasicBlockId, LateLoweredPlainBodySlice>, LlvmEmitError> {
+    if plain.body_slices().len() != body.blocks.len() {
+        return Err(frontend_error(format!(
+            "refactor plain callable `{root_fqn}` 的 body_slices 数量({}) 与 MIR block 数量({}) 不一致",
+            plain.body_slices().len(),
+            body.blocks.len(),
+        )));
+    }
+    let mut slices = BTreeMap::new();
+    for slice in plain.body_slices() {
+        let block = body
+            .blocks
+            .get(slice.block_id().as_u32() as usize)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor plain callable `{root_fqn}` 的 source slice 指向缺失 bb{}",
+                    slice.block_id().as_u32()
+                ))
+            })?;
+        if slice.start_statement_index() != 0
+            || slice.end_statement_index() as usize != block.stmts.len()
+            || !slice.includes_terminator()
+        {
+            return Err(frontend_error(format!(
+                "refactor plain callable `{root_fqn}` 的 bb{} source slice 不是完整 ordinary block：slice=[{}..{}) includes_terminator={} stmt_count={}",
+                slice.block_id().as_u32(),
+                slice.start_statement_index(),
+                slice.end_statement_index(),
+                slice.includes_terminator(),
+                block.stmts.len(),
+            )));
+        }
+        if slices.insert(slice.block_id(), *slice).is_some() {
+            return Err(frontend_error(format!(
+                "refactor plain callable `{root_fqn}` 重复发布 bb{} source slice",
+                slice.block_id().as_u32()
+            )));
+        }
+    }
+    Ok(slices)
 }
 
 fn frame_slot_local(kind: crate::effect_lowered::ir::LateLoweredFrameSlotKind) -> Option<LocalId> {

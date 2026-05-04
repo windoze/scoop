@@ -1027,9 +1027,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     for fun in &reachable {
         if let Some(program) = late_lowered_program
             && let Some(callable) = program.callable(&fun.fqn)
-            && (!callable.boundary_map().entries().is_empty()
-                || !callable.resume_state_map().entries().is_empty()
-                || !callable.resolved_outward_cases().is_empty())
+            && (callable.plain_abi().is_some() || callable.effect_step_abi().is_some())
         {
             continue;
         }

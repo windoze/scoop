@@ -407,6 +407,60 @@ pub(super) struct RefactorCallableEntryLayout<'ctx> {
     return_step_schema: StepSchemaId,
 }
 
+/// plain callable 入口使用普通函数 ABI；它不携带 `StepSchema` 或 continuation/state-machine shell。
+pub(super) struct RefactorPlainCallableEntryLayout<'ctx> {
+    symbol_name: String,
+    llvm_ty: FunctionType<'ctx>,
+    param_count: usize,
+    function_ty: TypeId,
+    param_tys: Vec<TypeId>,
+    return_ty: TypeId,
+}
+
+impl<'ctx> RefactorPlainCallableEntryLayout<'ctx> {
+    pub(super) fn new(
+        symbol_name: String,
+        llvm_ty: FunctionType<'ctx>,
+        param_count: usize,
+        function_ty: TypeId,
+        param_tys: Vec<TypeId>,
+        return_ty: TypeId,
+    ) -> Self {
+        Self {
+            symbol_name,
+            llvm_ty,
+            param_count,
+            function_ty,
+            param_tys,
+            return_ty,
+        }
+    }
+
+    pub(super) fn symbol_name(&self) -> &str {
+        &self.symbol_name
+    }
+
+    pub(super) fn llvm_ty(&self) -> FunctionType<'ctx> {
+        self.llvm_ty
+    }
+
+    pub(super) fn param_count(&self) -> usize {
+        self.param_count
+    }
+
+    pub(super) fn function_ty(&self) -> TypeId {
+        self.function_ty
+    }
+
+    pub(super) fn param_tys(&self) -> &[TypeId] {
+        &self.param_tys
+    }
+
+    pub(super) fn return_ty(&self) -> TypeId {
+        self.return_ty
+    }
+}
+
 impl<'ctx> RefactorCallableEntryLayout<'ctx> {
     pub(super) fn new(
         symbol_name: String,
@@ -1925,6 +1979,43 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
     }
 }
 
+/// 单个 plain callable version 暴露给 refactor body emitter 的普通 ABI 查询面。
+pub(super) struct RefactorPlainCallableLayout<'ctx> {
+    root_fqn: String,
+    body_version_key: LateLoweredBodyVersionKey,
+    direct_entry: RefactorPlainCallableEntryLayout<'ctx>,
+}
+
+impl<'ctx> RefactorPlainCallableLayout<'ctx> {
+    pub(super) fn new(
+        root_fqn: String,
+        body_version_key: LateLoweredBodyVersionKey,
+        direct_entry: RefactorPlainCallableEntryLayout<'ctx>,
+    ) -> Self {
+        Self {
+            root_fqn,
+            body_version_key,
+            direct_entry,
+        }
+    }
+
+    pub(super) fn root_fqn(&self) -> &str {
+        &self.root_fqn
+    }
+
+    pub(super) fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
+        &self.body_version_key
+    }
+
+    pub(super) fn surface_instance(&self) -> &InstanceKey {
+        self.body_version_key.surface_instance()
+    }
+
+    pub(super) fn direct_entry(&self) -> &RefactorPlainCallableEntryLayout<'ctx> {
+        &self.direct_entry
+    }
+}
+
 /// runtime callable carrier 对应的 canonical dynamic entry target contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RefactorCallableCarrierTargetLayout {
@@ -1979,6 +2070,8 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeDispatchLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
     callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
+    plain_callable_layouts_by_version_key:
+        HashMap<LateLoweredBodyVersionKey, RefactorPlainCallableLayout<'ctx>>,
     known_instance_callable_versions:
         HashMap<(InstanceKey, StepSchemaId), LateLoweredBodyVersionKey>,
     callable_carrier_target_layouts:
@@ -2022,6 +2115,10 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         >,
         callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
+        plain_callable_layouts_by_version_key: HashMap<
+            LateLoweredBodyVersionKey,
+            RefactorPlainCallableLayout<'ctx>,
+        >,
         known_instance_callable_versions: HashMap<
             (InstanceKey, StepSchemaId),
             LateLoweredBodyVersionKey,
@@ -2071,6 +2168,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             surface_resume_dispatch_layouts,
             callable_layouts,
             callable_layouts_by_version_key,
+            plain_callable_layouts_by_version_key,
             known_instance_callable_versions,
             callable_carrier_target_layouts,
             dynamic_invoke_layouts,
@@ -2273,6 +2371,64 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                     step_schema.as_u32()
                 ),
             })
+    }
+
+    pub(super) fn plain_callable_layout_by_version_key(
+        &self,
+        version_key: &LateLoweredBodyVersionKey,
+    ) -> Result<&RefactorPlainCallableLayout<'ctx>, LlvmEmitError> {
+        self.plain_callable_layouts_by_version_key
+            .get(version_key)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 body version key {:?} 的 plain callable layout",
+                    version_key
+                ),
+            })
+    }
+
+    pub(super) fn plain_callable_layout_by_root_fqn(
+        &self,
+        root_fqn: &str,
+    ) -> Result<&RefactorPlainCallableLayout<'ctx>, LlvmEmitError> {
+        let matches = self
+            .plain_callable_layouts_by_version_key
+            .values()
+            .filter(|layout| layout.root_fqn() == root_fqn)
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [] => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 plain callable `{root_fqn}` 的 published ordinary callable version"
+                ),
+            }),
+            [layout] => Ok(*layout),
+            _ => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 plain callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
+                ),
+            }),
+        }
+    }
+
+    pub(super) fn maybe_plain_callable_layout_by_root_fqn(
+        &self,
+        root_fqn: &str,
+    ) -> Result<Option<&RefactorPlainCallableLayout<'ctx>>, LlvmEmitError> {
+        let matches = self
+            .plain_callable_layouts_by_version_key
+            .values()
+            .filter(|layout| layout.root_fqn() == root_fqn)
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [] => Ok(None),
+            [layout] => Ok(Some(*layout)),
+            _ => Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 plain callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
+                ),
+            }),
+        }
     }
 
     pub(super) fn callable_carrier_target_layout(

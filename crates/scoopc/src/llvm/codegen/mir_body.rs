@@ -1532,7 +1532,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.cg_ty_of(elem_ty)
     }
 
-    fn bind_mir_params(
+    pub(super) fn bind_mir_params(
         &mut self,
         hir_fun: &hir::FunDecl,
         mir_fun: &crate::mir::FunDecl,

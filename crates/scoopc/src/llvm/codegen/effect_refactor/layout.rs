@@ -51,7 +51,8 @@ use super::types::{
     RefactorHandleContinuationBinderLayout, RefactorHandleDispatchLayout,
     RefactorHandlePayloadBinderLayout, RefactorHandlePendingPayloadTransportLayout,
     RefactorLocalRuntimeErrorContract, RefactorLocalRuntimeErrorTerminalAction,
-    RefactorPerformBoundaryOperandLayout, RefactorPublishedRuntimeEntryLayout,
+    RefactorPerformBoundaryOperandLayout, RefactorPlainCallableEntryLayout,
+    RefactorPlainCallableLayout, RefactorPublishedRuntimeEntryLayout,
     RefactorResumeBoundaryOperandLayout, RefactorResumeInterfaceLayout, RefactorResumeMethodLayout,
     RefactorResumePayloadBindingLayout, RefactorSourceAbiFieldLayout, RefactorSourceAbiLayout,
     RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
@@ -125,6 +126,9 @@ impl ProgramLayoutView {
         let mut callables_by_step_schema = BTreeMap::new();
         let mut callable_stems_by_step_schema = BTreeMap::new();
         for callable in program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             if callables_by_step_schema
                 .insert(callable.step_schema(), callable)
                 .is_some()
@@ -242,6 +246,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         let mut frame_layouts = BTreeMap::new();
         for callable in this.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             frame_layouts.insert(
                 callable.step_schema(),
                 this.materialize_frame_layout(callable)?,
@@ -258,10 +265,30 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         let mut callable_layouts = BTreeMap::new();
         for callable in this.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             callable_layouts.insert(
                 callable.step_schema(),
                 this.materialize_callable_layout(callable, &step_layouts)?,
             );
+        }
+        let mut plain_callable_layouts_by_version_key = HashMap::new();
+        for callable in this.program.callables() {
+            if callable.plain_abi().is_none() {
+                continue;
+            }
+            let layout = this.materialize_plain_callable_layout(callable)?;
+            if let Some(existing) = plain_callable_layouts_by_version_key
+                .insert(callable.body_version_key().clone(), layout)
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 body version key {:?} 同时发布了多个 plain callable layout（已有 `{}`，新值 `{}`）",
+                    callable.body_version_key(),
+                    existing.root_fqn(),
+                    callable.root_fqn(),
+                )));
+            }
         }
         let callable_layouts_by_version_key =
             this.materialize_callable_version_layout_index(&callable_layouts)?;
@@ -311,6 +338,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             surface_resume_dispatch_layouts,
             callable_layouts,
             callable_layouts_by_version_key,
+            plain_callable_layouts_by_version_key,
             known_instance_callable_versions,
             callable_carrier_target_layouts,
             dynamic_invoke_layouts,
@@ -703,6 +731,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         >,
     ) -> Result<(), LlvmEmitError> {
         for callable in self.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             for boundary in callable.boundary_map().entries() {
                 let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering()
                 else {
@@ -1083,6 +1114,98 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             callable.continuation_object(),
             resume_packings,
         ))
+    }
+
+    fn materialize_plain_callable_layout(
+        &mut self,
+        callable: &LateLoweredCallable,
+    ) -> Result<RefactorPlainCallableLayout<'ctx>, LlvmEmitError> {
+        let plain = callable.plain_abi().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` 没有 plain ABI handoff",
+                callable.root_fqn()
+            ))
+        })?;
+        let hir_fun = self
+            .codegen
+            .fun_index
+            .get(callable.root_fqn())
+            .copied()
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 plain callable `{}` 的 HIR signature",
+                    callable.root_fqn()
+                ))
+            })?;
+        let mir_fun = self.materialized_callable_for_plain_signature(callable.root_fqn())?;
+        if mir_fun.ty != plain.function_ty()
+            || mir_fun.return_ty != plain.return_ty()
+            || mir_fun
+                .params
+                .iter()
+                .map(|param| param.ty)
+                .collect::<Vec<_>>()
+                != plain.param_tys()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 plain callable `{}` 的 materialized MIR signature 与 P5 plain ABI handoff 漂移",
+                callable.root_fqn()
+            )));
+        }
+        let llvm_fun = self.codegen.declare_top_level_fun(hir_fun)?;
+        let symbol_name = llvm_fun
+            .get_name()
+            .to_str()
+            .map_err(|_| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 plain callable `{}` 的 LLVM symbol 非 UTF-8",
+                    callable.root_fqn()
+                ))
+            })?
+            .to_string();
+        Ok(RefactorPlainCallableLayout::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            RefactorPlainCallableEntryLayout::new(
+                symbol_name,
+                llvm_fun.get_type(),
+                llvm_fun.count_params() as usize,
+                plain.function_ty(),
+                plain.param_tys().to_vec(),
+                plain.return_ty(),
+            ),
+        ))
+    }
+
+    fn materialized_callable_for_plain_signature(
+        &self,
+        root_fqn: &str,
+    ) -> Result<&crate::mir::FunDecl, LlvmEmitError> {
+        self.pass_view
+            .callable(root_fqn)
+            .or_else(|| {
+                self.pass_view
+                    .materialized()
+                    .file
+                    .items
+                    .iter()
+                    .find_map(|item| match item {
+                        crate::mir::Item::Fun(fun) if fun.fqn == root_fqn => Some(fun),
+                        crate::mir::Item::Fun(_) | crate::mir::Item::Todo { .. } => None,
+                    })
+            })
+            .or_else(|| {
+                self.pass_view
+                    .materialized()
+                    .caller_side_pass_candidate_bodies()
+                    .iter()
+                    .find(|fun| fun.fqn == root_fqn)
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 plain callable `{root_fqn}` 的 materialized MIR signature"
+                ))
+            })
     }
 
     fn materialize_callable_version_layout_index(
@@ -1939,6 +2062,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             .program
             .callables()
             .iter()
+            .filter(|callable| callable.effect_step_abi().is_some())
             .map(|callable| callable.root_fqn())
             .collect::<BTreeSet<_>>();
         let closure_targets = published_callable_roots.clone();
@@ -2255,6 +2379,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     > {
         let mut layouts = BTreeMap::new();
         for callable in self.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             self.publish_boundary_dynamic_invoke_layouts(callable, step_layouts, &mut layouts)?;
             self.publish_source_slice_dynamic_invoke_layouts(callable, step_layouts, &mut layouts)?;
         }
@@ -2281,6 +2408,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let mut resume_layouts = BTreeMap::new();
 
         for callable in self.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             for boundary in callable.boundary_map().entries() {
                 match (boundary.source(), boundary.lowering()) {
                     (
@@ -2451,6 +2581,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
     fn validate_source_statement_classifications(&self) -> Result<(), LlvmEmitError> {
         for callable in self.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             let Some(fun) = self.pass_view.callable(callable.root_fqn()) else {
                 if callable.source_statement_classifications().is_empty() {
                     continue;
@@ -3138,6 +3271,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let mut bindings_by_state = ResumePayloadBindingLayoutsByState::new();
 
         for callable in self.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
                 frontend_error(format!(
                     "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 frame layout，无法发布 resumed local/home contract",
@@ -3389,6 +3525,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let mut layouts = CompletionPayloadBindingLayouts::new();
 
         for callable in self.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             let step_type = self.program.step_type(callable.step_schema()).ok_or_else(|| {
                 frontend_error(format!(
                     "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 Step shell，无法发布 completion payload contract",
@@ -3971,6 +4110,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     > {
         let mut contracts = BTreeMap::new();
         for callable in self.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             for boundary in callable.boundary_map().entries() {
                 let (
                     LateLoweredBoundarySource::Site {
@@ -4078,6 +4220,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     > {
         let mut layouts = BTreeMap::new();
         for callable in self.program.callables() {
+            if callable.effect_step_abi().is_none() {
+                continue;
+            }
             let handle_states = callable
                 .state_graph()
                 .states()
@@ -7305,6 +7450,52 @@ mod tests {
                 let message = err.to_string();
                 assert!(message.contains("source-slice statement"));
                 assert!(message.contains("classification"));
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_no_outward_plain_abi_layout_has_no_step_shell() {
+        with_fixture_query(
+            "effect_refactor_step_enum_no_outward.scoop",
+            |inputs, query, module| {
+                for fqn in ["fixtures.build.helper", "fixtures.build.main"] {
+                    let callable = inputs
+                        .abi_visibility_program
+                        .callable(fqn)
+                        .expect("plain callable 应存在");
+                    assert!(callable.plain_abi().is_some());
+                    assert!(callable.body_step_schema().is_none());
+
+                    let layout = query
+                        .plain_callable_layout_by_version_key(callable.body_version_key())
+                        .expect("plain callable layout 应可查询");
+                    assert_eq!(layout.root_fqn(), fqn);
+                    assert_eq!(layout.direct_entry().symbol_name(), fqn);
+                    assert!(module.get_function(fqn).is_some());
+                    assert!(
+                        query
+                            .callable_layout_by_version_key(callable.body_version_key())
+                            .is_err(),
+                        "plain callable 不应发布 effect-step callable layout"
+                    );
+                }
+
+                assert!(
+                    module
+                        .get_global("__scoop_refactor_step_case_tag__fixtures_build_main__complete")
+                        .is_none()
+                );
+                assert!(
+                    module
+                        .get_function("__scoop_refactor_direct_invoke__fixtures_build_main")
+                        .is_none()
+                );
+                assert!(
+                    module
+                        .get_function("__scoop_refactor_dynamic_invoke__fixtures_build_main")
+                        .is_none()
+                );
             },
         );
     }

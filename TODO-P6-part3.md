@@ -548,6 +548,46 @@
   - 验证通过：`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop`；`cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_resume.ll`；`cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`。
   - 额外验证通过：`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_canonical_full_O0.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_emit_obj_smoke.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_emit_asm_O2.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`；`cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`；`cargo clippy --all-targets -- -D warnings`。
 
+## P6-T05a：闭合 `NoOutward` plain callable 对本地 effect/control body 的 handoff，禁止 P6-T06 用 legacy fallback 或 complete-only `Step_F` 绕过
+
+- 来源：执行 `P6-T06` 验证时发现的前置 blocker。
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5, §4.9, §5.2, §5.4, §5.5, §5.6, §8
+  - [`TODO-P4.md`](./TODO-P4.md) P4-T06
+  - [`TODO-P5.md`](./TODO-P5.md) P5-T08
+  - 本文件 P6-T06
+  - `crates/scoopc/src/effect_lowered/{builder,ir,materialize,dump}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{layout,body,value}.rs`
+- 背景：
+  - `P4-T06` / `P5-T08` 已允许 `resolved_outward_cases = ∅` 的 callable 发布为 `Plain`，不再物化 body `Step_F` / continuation / state graph。
+  - `tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop` 的 `main` 没有 outward case，但 body 内仍包含本地 `handle` / `perform` / `Continuation.resume` 控制。
+  - 当前 P5 plain handoff 只收集 ordinary `CallSiteEffectFacts`，遇到 `Rvalue::Call(CallKind::Resume)` 时会把 `ResumeSiteEffectFacts` 当成 `Call` 而 fail；即使跳过该点，P6 plain emitter 也尚未消费 plain body 内的 `Handle` / `Perform` / `Resume` lowering contract。
+  - 因此 `P6-T06` 不能通过缩窄 NoOutward fixture、回 legacy statement/function codegen、或重新生成 complete-only `Step_F` 来继续。
+- 必须实现的内容：
+  1. 明确并发布 `Plain` callable source slice 中所有 effect/control statement 与 terminator 的 authoritative handoff，至少覆盖 ordinary call、local `Handle` / `Perform` / `Resume`、runtime-error catch、continuation capture/resume、payload/result binding、cleanup/finally 与 ordinary return 的关系。
+  2. P5 materialization/dump/verifier 必须能区分 plain ordinary call site 与 plain-local effect/control site；不得把 `ResumeSiteEffectFacts` / `PerformSiteEffectFacts` / `HandleSiteEffectFacts` 强行塞进 `LateLoweredPlainCallSite`。
+  3. P6 plain emitter 必须消费 published plain effect/control handoff lowering 本地 effect/control body，或者在 P4/P5 authoritative facts 中以 spec-correct 方式发布独立 effect-typed adapter；不得回 HIR/raw shape/legacy handler-stack 现场猜测。
+  4. 若 effect-typed dynamic surface 指向 plain body，必须通过独立 adapter contract 包装 plain return 为 `Step_F::Complete`，不能污染 plain body ABI。
+  5. 对缺失、歧义或类型漂移的 plain effect/control contract fail fast，并给出明确诊断。
+- 必须遵从的约束：
+  - 禁止用 legacy statement/function lowering、legacy handler-stack/TLS token 或旧 `EffectOutcome` 作为 correctness 前提。
+  - 禁止把本地 effect/control `NoOutward` body 退回 complete-only `Step_F` shell。
+  - 禁止只跳过 offending resume/handle statement 或削弱 `continuation_resume_surface_named_tuple_and_unit_basic.scoop`。
+  - 禁止在 P6 通过 span、名字、statement 顺序或 raw MIR shape 私下重建 contract；缺少信息必须回 P5 handoff 发布。
+- 验证：
+  - `cargo test -p scoopc refactor_effect_lowered_plain_local_effect_control`
+  - `cargo test -p scoopc refactor_llvm_plain_local_effect_control`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`
+- 完成条件：
+  - `NoOutward` plain callable 的本地 effect/control body 具有完整 published handoff，P6 不需要 legacy fallback 或 complete-only `Step_F`。
+  - `continuation_resume_surface_named_tuple_and_unit_basic.scoop` 在 refactor pipeline 下重新通过，并保持 continuation payload / Unit resume / RuntimeError catch 语义。
+  - P6-T06 可以只处理 LLVM 层 plain ABI 与 call-site 普通 dcall/icall/vcall 收口，不再被 plain-local effect/control handoff 缺口阻塞。
+- 依赖：P4-T06，P5-T08，P6-T05
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T06：把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall
 
 - 参考：
@@ -608,7 +648,7 @@
   - LLVM output 中 absolutely effectless / `NoOutward` callable 不再包含 body `Step_F`、`Complete` tag、refactor direct/dynamic invoke 或 continuation shell；
   - plain call sites 使用普通 ABI；
   - effect-typed dynamic adapter 与 true effectful callable 仍正确使用 `Step_F`。
-- 依赖：P4-T06，P5-T08，P6-T05
+- 依赖：P4-T06，P5-T08，P6-T05，P6-T05a
 - 完成记录：
   - （执行时填写）
 

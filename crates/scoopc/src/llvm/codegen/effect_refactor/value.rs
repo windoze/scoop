@@ -219,6 +219,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return Ok(value);
         }
 
+        if self
+            .abi
+            .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
+            .is_some()
+        {
+            return self
+                .codegen
+                .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots);
+        }
+
         let layout = self.abi.callable_layout_by_root_fqn(callee_fqn)?;
         let entry = layout.direct_entry();
         if entry.return_step_schema() != layout.step_schema() {
@@ -1185,6 +1195,15 @@ mod tests {
         assert!(value.contains("codegen_mir_refactor_class_ctor_call"));
         assert!(!value.contains(concat!("codegen_mir_", "class_ctor_call")));
         assert!(value.contains("mir::Rvalue::MakeClosure"));
+    }
+
+    #[test]
+    fn refactor_llvm_plain_call_lowering_uses_ordinary_direct_call() {
+        let value = include_str!("value.rs");
+
+        assert!(value.contains("maybe_plain_callable_layout_by_root_fqn"));
+        assert!(value.contains("codegen_mir_direct_call"));
+        assert!(value.contains("refactor_pure_call_step"));
     }
 
     #[test]
