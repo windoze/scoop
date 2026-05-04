@@ -548,6 +548,96 @@
   - 验证通过：`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop`；`cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_resume.ll`；`cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`。
   - 额外验证通过：`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_canonical_full_O0.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_emit_obj_smoke.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_emit_asm_O2.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`；`cargo test -p scoop build_fixtures_propagate_refactor_session_options_to_build_command`；`cargo clippy --all-targets -- -D warnings`。
 
+## P6-T06：把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5, §4.9, §5.2, §5.4, §5.5, §7.3, §8
+  - [`PLAN.md`](./PLAN.md) §0，§2/P4，§2/P5，§2/P6
+  - [`TODO-P4.md`](./TODO-P4.md) P4-T06
+  - [`TODO-P5.md`](./TODO-P5.md) P5-T08
+  - 当前实现参考：
+    - `crates/scoopc/src/llvm/codegen/effect_refactor/{layout,body,value,types}.rs`
+    - `crates/scoopc/src/llvm/codegen/{call,closure,gc,mir_body}.rs`
+    - `tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`
+- 背景：
+  - 当前 P6 ABI materializer 和 body emitter 总是给 callable 生成 `__scoop_refactor_direct_invoke__* -> Step_F` / `__scoop_refactor_dynamic_invoke__* -> Step_F`；
+  - pure direct call lowering 也通过 refactor direct entry 再抽取 `Step_F::Complete`；
+  - 这违反修正后的合同：`NoOutward` / plain callable 不应有 `Step_F`、`Complete` tag 或 state-machine shell。
+- 目标：
+  - LLVM 层面对 plain callable 使用普通函数 ABI；
+  - plain direct/static call 使用普通 dcall，plain closure/fun-value/virtual/interface call 使用普通 callable/vtable/itable ABI；
+  - 只有 `EffectStep` body 或 effect-typed adapter 使用 `invoke(args_tuple) -> Step_F`。
+
+- 必须实现的内容：
+  1. 发布并消费 plain callable LLVM ABI layout。
+     - plain callable 的 direct entry 返回源码返回类型，不返回 `Step_F`；
+     - plain callable 不生成 `Step` type/layout anchors、complete tag、continuation object、resume interface、frame object；
+     - `main` wrapper 调用 plain `main` 时直接处理 plain `Unit` / `Int` 返回值。
+  2. 调整 call lowering。
+     - known plain callee 走普通 direct call，不调用 `__scoop_refactor_direct_invoke__*`；
+     - non-boundary plain dynamic/virtual/interface call 走普通 callable/vtable/itable dispatch，不调用 refactor dynamic `invoke`；
+     - effect boundary / effect dynamic surface 继续走 published `Step_F` dispatch。
+  3. 实现 effect-typed adapter。
+     - 当 effect-typed dynamic surface 指向 plain body 时，adapter 调用 plain entry 并包装 `Step_F::Complete`；
+     - adapter 是独立 `EffectStep` publication，不能让 plain body 自身暴露 `Step_F` ABI。
+  4. 更新 fixture 与 regression。
+     - `effect_refactor_step_enum_no_outward.scoop` 应断言没有 `__scoop_refactor_step_case_tag__...__complete`、没有 `Step__fixtures_build_main`、没有 refactor direct/dynamic invoke body；
+     - 补充正向断言 plain `fixtures.build.helper` / `main` 通过普通 call 返回值；
+     - 保留 `SingleCase` / `CanonicalFull` fixtures 对 effect `Step_F` 的覆盖。
+
+- 必须遵从的约束：
+  - 禁止用 “只生成 Complete tag、无 case0” 代表 `NoOutward`；
+  - 禁止让 plain call lowering fallback 到 legacy statement/function codegen；共享代码必须是 effect-neutral primitive；
+  - 禁止削弱 effectful call boundary、runtime error、continuation、GC roots 的现有 `Step_F` 语义。
+
+- 验证：
+  1. 新增/更新单元测试，推荐命名：
+      - `refactor_llvm_no_outward_plain_abi_*`
+      - `refactor_llvm_plain_call_lowering_*`
+      - `refactor_llvm_effect_typed_adapter_wraps_plain_body_*`
+  2. 运行：
+      - `cargo test -p scoopc refactor_llvm_no_outward_plain_abi`
+      - `cargo test -p scoopc refactor_llvm_plain_call_lowering`
+      - `cargo test -p scoopc refactor_llvm_dynamic_invoke_lowering`
+      - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`
+      - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+      - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/effect_refactor_step_enum_canonical_full_O0.scoop`
+      - `cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+
+- 完成条件：
+  - LLVM output 中 absolutely effectless / `NoOutward` callable 不再包含 body `Step_F`、`Complete` tag、refactor direct/dynamic invoke 或 continuation shell；
+  - plain call sites 使用普通 ABI；
+  - effect-typed dynamic adapter 与 true effectful callable 仍正确使用 `Step_F`。
+- 依赖：P4-T06，P5-T08，P6-T05
+- 完成记录：
+  - （执行时填写）
+
+## P6-T06R：Review `NoOutward` plain ABI 修复，确认 P7 前不再存在 complete-only `Step_F` 回归
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5, §4.9, §5.2, §5.5, §8
+  - [`PLAN.md`](./PLAN.md) §0，§2/P4，§2/P5，§2/P6
+  - `TODO-P4.md` P4-T06
+  - `TODO-P5.md` P5-T08
+  - 本文件 P6-T06
+- 重点：
+  - P4 facts 是否 authoritative 地表达 plain vs effect ABI；
+  - P5 handoff 是否停止为 `NoOutward` body 发布 `Step_F` / continuation / state graph；
+  - P6 LLVM output 是否对 plain callable 使用普通 ABI；
+  - effect-typed adapter 是否与 plain body 分离；
+  - 原有 effectful `SingleCase` / `CanonicalFull` / continuation / runtime-error 路径是否未被削弱。
+- 验证：
+  - 重新运行 P4-T06、P5-T08、P6-T06 的全部定向测试与命令；
+  - 额外搜索：
+    - `rg "Complete-only|complete-only|NoOutward.*Complete|step_enum_no_outward|direct entry 未返回 Step_F|pure statement call.*Step_F" EFFECT_REFACTOR.md PLAN.md TODO-P*.md crates/scoopc/src/llvm/codegen/effect_refactor tests/fixtures/build`
+  - 要求搜索结果不存在新的 complete-only `NoOutward` 合同；若命中既有 `[DONE]` 历史任务记录，可在 review 中标明其为旧决策记录，不得为通过搜索而改写已完成任务。
+- 完成条件：
+  - review 能明确说明：`NoOutward` 已经是 plain ABI，而不是退化 `Step_F`；
+  - P7 可以在不继承 complete-only `Step_F` 设计错误的前提下继续 selector flip / full regression。
+- 依赖：P6-T06
+- 完成记录：
+  - （执行时填写）
+
 ## P6-T05R：Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression
 
 - 参考：
@@ -556,15 +646,16 @@
 - 重点：
   - refactor LLVM codegen stage 是否已独立存在，并成为 build/run/fixture 的共同入口。
   - body lowering 是否符合 clean backend 边界，不再胶合 legacy statement/function codegen。
+  - `NoOutward` 是否已保持 plain ABI，且没有 complete-only `Step_F` shell。
   - `Step_F` / frame / continuation object / resume surface / wrapper projection / call invoke / handle / runtime error / GC roots 是否闭合。
   - 定向 build/run-pass/runtime_gc 矩阵是否已建立。
   - P7 是否可以只做 selector flip + full regression。
 - 验证：
-  - 重新运行本文件 `P6-T02qh` ~ `P6-T05` 的全部定向测试与命令。
+  - 重新运行本文件 `P6-T02qh` ~ `P6-T06R` 的全部定向测试与命令。
   - 不执行 `cargo test --all` 或全量 `cargo run -p scoop -- test`；这些 broad regression 留到 P7。
 - 完成条件：
   - review 能明确说明 P6 已完成 clean refactor LLVM codegen 对接。
   - P7 可以在不重新讨论 LLVM effect backend 架构、ABI、GC/runtime 或 legacy fallback 边界的前提下进入默认主线切换。
-- 依赖：P6-T05
+- 依赖：P6-T06R
 - 完成记录：
   - （执行时填写）

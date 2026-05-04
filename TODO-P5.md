@@ -1345,3 +1345,62 @@
   - 2026-05-04：`LateLoweredResumeInterface` 继续保留，但已在类型注释、stage 注释与 `crates/scoopc/src/effect_refactor_pipeline/{effect_lowering_stage,mod}.rs` 的 handoff 注释中明确降级为 compiler-owned packing/query helper；P6 downstream 现在可以直接依赖 authoritative per-op/per-schema publication，而不必把 `ResumeInterfaceId` / effect family 当成 reverse-resume 语义主键。
   - 2026-05-04：补齐定向测试与 golden：新增 `refactor_late_lowered_ir_stable_dump_demotes_packings_but_keeps_authoritative_cases_visible`、`refactor_effect_lowered_stage_dump_prioritizes_authoritative_surface_resume_dispatch`、`refactor_effect_lowered_stage_dump_exposes_handle_and_resume_site_authoritative_sources`，并同步修正 `crates/scoop/src/commands/dump_effect_lowered.rs` 的命令侧断言；随后批量刷新 `tests/fixtures/effect_lowered/*.effectlowered`，确认 `dynamic_fallback_widening.scoop` 与 `effect_resume_if_else_branch_single_perform.scoop` 这类真实路径已能直接展示 shared-schema / handle-binder / resume-site-only authoritative contract，而不要求从 packing 分组倒推。
   - 2026-05-04：已运行验证：`cargo test -p scoopc --no-default-features refactor_late_lowered_ir`、`cargo test -p scoopc --no-default-features refactor_continuation_object`、`cargo test -p scoopc --no-default-features refactor_resume_interface_completeness`、`cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`、`cargo test -p scoop --no-default-features effect_lowered`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/dynamic_fallback_widening.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`、`cargo run -q -p scoop --no-default-features -- test --effect-pipeline refactor --fixtures tests/fixtures/effect_lowered`、`cargo fmt --all`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。`PLAN.md` 无需改动。
+
+## P5-T08：让 `NoOutward` 在 late-lowered handoff 中保持 plain callable，不物化 `Step` / continuation / state-machine 壳
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5, §4.16, §5.2, §5.4, §5.5, §7.3, §8
+  - [`PLAN.md`](./PLAN.md) §0，§2/P5，§2/P6
+  - [`TODO-P4.md`](./TODO-P4.md) P4-T06
+  - 当前实现参考：
+    - `crates/scoopc/src/effect_lowered/{ir,builder,materialize,segment,frame,dump,opt}.rs`
+    - `crates/scoopc/src/effect_refactor_pipeline/effect_lowering_stage.rs`
+- 背景：
+  - 当前 P5 对所有 callable 都发布 `LateLoweredStepType`、`LateLoweredDynamicInvokeEntry`、continuation object、state graph 与 frame schema；
+  - 这让 P6 即使看到 `ImplPlan::NoOutward`，也只能按 complete-only `Step_F` body lower；
+  - 修正后的设计要求 `NoOutward` body 保持 plain callable contract，只有 effect body 或 adapter 才进入 `Step_F` handoff。
+- 目标：
+  - 让 P5 handoff 明确区分 plain callable 与 effect-step callable；
+  - 移除 `NoOutward` body 的 synthetic state-machine / continuation / dynamic-invoke shell；
+  - 保留统一 facts 驱动，不把 plain ABI 判断退化成 code-shape fast path。
+
+- 必须实现的内容：
+  1. 扩展 late-lowered callable representation。
+     - 引入 `LateLoweredCallableAbi::Plain | EffectStep` 或等价形态；
+     - plain callable 保留 root/body/version/ordinary signature 与必要 source-slice lowering 信息；
+     - `EffectStep` callable 才携带 `StepType`、state graph、frame schema、boundary map、resume map、continuation object、resume packings。
+  2. 修改 builder/materialization。
+     - 对 `CallableAbiKind::Plain` / `ImplPlan::NoOutward` body，不调用 whole-function segmentation、frame lifting、step/resume interface materialization、continuation object materialization；
+     - 对 `EffectStep` body 继续走现有统一 state-machine transformation；
+     - 若 P4 发布 effect-typed adapter，adapter 可独立走 `EffectStep` shell，但不得改变 plain body ABI。
+  3. 调整 source-slice / call boundary handoff。
+     - plain direct call 在 P5 handoff 中应保持 ordinary call 语义，不产生 call boundary 或 callee `Step` dispatch；
+     - dynamic/virtual/interface pure call 若 surface 仍 plain，应发布 plain dispatch contract；
+     - 只有 resolved outward cases 非空或 adapter surface 为 `EffectStep` 时，才发布 `Step` dispatch contract。
+  4. 更新 dump/golden 与测试。
+     - `dump-effect-lowered` 应能显示 plain callable 不含 `Step_F` / continuation / state graph；
+     - 现有 `NoOutward` 测试应改为断言 plain handoff，而不是 entry+complete state skeleton。
+
+- 必须遵从的约束：
+  - 禁止把 `NoOutward` 保留为 “entry state + complete state + empty boundary” 的伪状态机；
+  - 禁止按源码形状判断 plain，而必须消费 P4 的 ABI/facts handoff；
+  - 禁止删除或弱化 effectful callable 的统一 state-machine transformation。
+
+- 验证：
+  1. 新增/更新单元测试，推荐命名：
+      - `refactor_effect_lowered_no_outward_plain_callable_*`
+      - `refactor_late_lowered_ir_plain_callable_has_no_step_shell_*`
+      - `refactor_source_slice_plain_call_keeps_ordinary_call_contract_*`
+  2. 运行：
+      - `cargo test -p scoopc --no-default-features refactor_effect_lowered_no_outward_plain_callable`
+      - `cargo test -p scoopc --no-default-features refactor_late_lowered_ir`
+      - `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/effect_lowered/direct_and_fun_value_call.scoop`
+
+- 完成条件：
+  - P5 handoff 中 `NoOutward` body 已是 plain callable，不再包含 body `Step_F`、continuation object、state-machine graph 或 complete-only shell；
+  - P6 可以直接根据 P5 handoff lower plain function ABI；
+  - effectful callable 的 P5 state-machine handoff 保持不退化。
+- 依赖：P4-T06，P5-T07b
+- 完成记录：
+  - （执行时填写）

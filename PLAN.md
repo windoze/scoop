@@ -32,7 +32,8 @@
 - 若某阶段同时存在“per-op/per-case 的 authoritative contract”和“按 effect family 分组的 packing/vtable/interface 层”，则 authoritative key 必须始终是前者；后者只可作为实现/查询层的 packing helper，不能在下游阶段反向充当 semantic source of truth。
 - 对任何 `needs_reentry = true` 的 effectful callable，其 `direct-style body -> state machine` 转化必须统一遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16、§5.5。
   - boundary 选择、整函数 segmentation、frame lifting、control-transfer encoding 都必须由同一算法决定；
-  - `NoOutward` 也只能被视为同一 facts + `ImplPlan` 框架下得到的退化结果，而不是 code-shape 特判通道；
+  - `NoOutward` 也只能被视为同一 facts + `ImplPlan` 框架下得到的 plain ABI 结果，而不是 code-shape 特判通道；
+  - `NoOutward` / `needs_reentry=false` 的 callable 不进入 state-machine transformation，不发布 complete-only `Step_F` 壳层；
   - 不允许因为 code shape 简单而切到“单 `perform`”“线性 body”“tail-`resume`”“仅 `handle` 内局部状态机”之类专用 lowering；
   - 若某些简单 shape 未来可以压缩，也只能作为统一 transformation 之后的优化，而不是另一条 lowering 入口。
 - P6 refactor LLVM backend 必须遵守 [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.6 的 clean backend 边界。
@@ -233,6 +234,7 @@
 - 在新路径上建立完整的 `MaterializedEffectFacts`。
 - 让后续阶段只消费 facts/schema，不再回看 HIR。
 - 把 `resolved_outward_cases`、`needs_reentry`、`impl_plan` 这些核心分析结果在 MIR 之后显式化。
+- 显式产出 callable ABI 决策：`NoOutward` 默认为 plain ABI，只有仍需 effect protocol 的 body/adapter 才发布 `StepSchema`。
 - 让 P5 仅凭 MIR + facts 就能决定整函数 state-machine transformation 的 boundary 集、per-boundary contract、以及 nested handle 是否向外传播 suspension。
 
 实现：
@@ -270,6 +272,7 @@
   - dynamic fallback -> 直接取 `cases(StepSchema(F))`
   - 超预算 -> 整 SCC / 受影响实例 widen 到 schema 全集
 - 产出 `impl_plan = NoOutward | SingleCase | CanonicalFull`。
+- 产出 `call_abi_kind = Plain | EffectStep` 或等价 handoff，禁止把 empty case set 表示成 complete-only `Step_F`。
 
 阶段输出：
 
@@ -304,6 +307,7 @@
 
 - 在新路径上把 direct-style MIR + facts 统一转换成 late-lowered representation。
 - 对所有仍需独立存在的 effectful callable，用**同一套整函数 transformation**把 `direct-style body` 改写成 state machine；不因 code shape 分叉出第二套 lowering。
+- 对 `NoOutward` / plain callable 保持普通 callable contract，不物化 state graph / frame / continuation object / `Step_F`。
 - 这一阶段开始物化：
   - `Step_F` enum
   - canonical dynamic `invoke(args_tuple) -> Step_F`
@@ -345,8 +349,8 @@
   - handler arm 结束后的续点；
   - dropped continuation 导致的“剩余计算被放弃”。
 - 物化 late-lowered 形态时，统一生成：
-  - `Step_F` variant 构造；
-  - canonical dynamic `invoke(args_tuple) -> Step_F` surface；
+  - 仅对 `EffectStep` body / adapter 生成 `Step_F` variant 构造；
+  - 仅对 effect dynamic surface 生成 canonical dynamic `invoke(args_tuple) -> Step_F` surface；
   - continuation object；
   - per-op resume method/surface contract，以及必要时保留的 internal resume-interface packing / icall boundary；
   - state graph、frame schema、boundary/resume 映射。
@@ -364,14 +368,15 @@
 阶段输出：
 
 - 一套完整的 late-lowered internal representation；
-- 它的输入是 direct-style MIR + facts，输出是 LLVM 前的 `Step` / continuation / dynamic invoke 形态；
-- 其中必须显式包含整函数 state graph、frame schema、boundary/resume mapping，以及与 `StepSchema` / `ContinuationSchema` / `ConcreteOpKey` / `CaseTag` 对齐的 authoritative contract。
+- 它的输入是 direct-style MIR + facts，输出同时覆盖 LLVM 前的 plain callable contract 与 `Step` / continuation / dynamic invoke 形态；
+- 对 `EffectStep` callable，必须显式包含整函数 state graph、frame schema、boundary/resume mapping，以及与 `StepSchema` / `ContinuationSchema` / `ConcreteOpKey` / `CaseTag` 对齐的 authoritative contract；对 plain callable，必须显式标明其无需这些 effect shell。
 
 验证：
 
 - 新增 late-lowered dump / snapshot 测试（必要时新增 `dump-effect-lowered` 或等价调试入口）；
 - 单元测试验证：
   - `Step_F` enum 形状与 `StepSchema` 一一对应
+  - `NoOutward` callable 不发布 `Step_F` / `Complete` tag，且保留 plain ABI
   - continuation object / per-op resume contract 形状正确；若保留 internal resume-interface packing，则其 method 集与 authoritative case 集一致
   - dynamic `invoke(args_tuple) -> Step_F` surface 正确
   - 简单 `single perform`/线性函数与复杂函数共用同一 late-lowering 入口，而不是走另一条专用 transformation
@@ -404,7 +409,8 @@
 实现：
 
 - 为新路径实现 LLVM lowering：
-  - `Step_F` enum lowering
+  - `Step_F` enum lowering（仅 `EffectStep` body / adapter）
+  - plain function ABI lowering（`NoOutward` direct/static/dynamic pure calls）
   - dynamic `invoke` / ordinary direct invoke
   - continuation object lowering
   - per-op resume contract lowering，以及必要时保留的 internal resume-interface / icall packing lowering
@@ -434,6 +440,7 @@
   - continuation one-shot / `RuntimeError`
   - `Unit` 零载荷 case
   - `Step_F` enum 物理形状
+  - `NoOutward` plain ABI 下没有 `Step_F` / `Complete` tag，调用点使用普通 dcall/icall/vcall
 - 新增并运行定向 run-pass / runtime_gc / effect 相关 fixture 集，覆盖：
   - direct/indirect effect call
   - continuation capture / resume
@@ -535,7 +542,8 @@
 4. `MaterializedEffectFacts` 已成为 downstream 唯一 effect contract 来源；后续阶段不再为补语义回看 HIR。
 5. `resolved_outward_cases`、`needs_reentry`、`impl_plan` 已在 facts 层闭合，并按统一 SCC/dataflow + budget 规则求解。
 6. 所有 `needs_reentry = true` 的 effectful callable 都按统一的整函数 boundary segmentation + frame lifting + explicit resume-state 算法完成 `direct-style -> state machine` 转化，不再按 code shape 分流。
-7. late-lowered `Step_F` / dynamic `invoke` / continuation object / per-op resume contracts（必要时带 internal resume-interface packing）已形成新的中后端主线。
-8. 新 LLVM codegen 已能在并行路径上端到端生成并运行 effect/continuation 程序。
-9. 新路径切为默认主线后，full regression 与 GC env 相关全集验证全部通过。
-10. 旧主线已被删除，仓库中不再保留对旧 effect/continuation 主线或 code-shape-specific lowering 的隐藏依赖。
+7. `NoOutward` / `needs_reentry=false` callable 已保持 plain ABI，不再发布 complete-only `Step_F`。
+8. late-lowered `Step_F` / dynamic `invoke` / continuation object / per-op resume contracts（必要时带 internal resume-interface packing）已形成新的中后端主线。
+9. 新 LLVM codegen 已能在并行路径上端到端生成并运行 effect/continuation 程序。
+10. 新路径切为默认主线后，full regression 与 GC env 相关全集验证全部通过。
+11. 旧主线已被删除，仓库中不再保留对旧 effect/continuation 主线或 code-shape-specific lowering 的隐藏依赖。

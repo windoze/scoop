@@ -200,6 +200,10 @@ needs_reentry(F) = !resolved_outward_cases(F).is_empty()
 
 因此，当前阶段 `needs_reentry` 更准确地说是一个“是否需要保守地进入 resumable lowering”的 flag，而不是对“是否存在真正 resumed-body re-entry path”的最精确语义描述。
 
+当 `needs_reentry(F) = false` 时，当前实例不应物化 resumable frame、continuation object、state-machine body、或 complete-only `Step_F` 壳层。它应继续使用普通函数 ABI：direct call 走普通 dcall，动态/虚调用在其 surface 仍为 pure/no-outward 时走普通 icall/vcall 并直接返回源码返回值。
+
+这不是按 code shape 的特殊快路径，而是 `resolved_outward_cases = ∅` 这一 facts 结果导出的 ABI / lowering 决策。若某个 effect-typed dynamic surface 仍必须保留 `invoke(args_tuple) -> Step_F`，应发布独立 adapter/thunk，把 plain body 的返回值包装成 `Step_F::Complete`；不能因此把 body 本身改写成 state machine。
+
 ### 3.6 `may_outward(F)`
 
 `bool may_outward` 不再是主信息源，而应降级为派生量：
@@ -218,7 +222,7 @@ may_outward(F) = !impl_ops(F).is_empty()
 - 每个 call site 只按被调函数的函数级 effect 信息做约束；
 - 不要求为某个具体 branch / 某次 resume 单独建立 path-sensitive surface type。
 
-因此，同一个具体函数实例 `F` 的 `step` 返回协议应当是固定的，不应按某个 suspend site 改变 surface type。
+因此，同一个具体函数实例 `F` 若需要 effect `step` 返回协议，该协议应当是固定的，不应按某个 suspend site 改变 surface type。
 
 ### 4.2 真正 authoritative 的 codegen 摘要是 op set，而不是 row 或 bool
 
@@ -269,9 +273,10 @@ Step_F<T> =
 
 这里的关键约束是：
 
-- 对同一个具体函数实例 `F = (symbol, type_args, allowed_row)`，`Step_F` 是固定的；
+- 对同一个需要 effectful ABI 的具体函数实例 `F = (symbol, type_args, allowed_row)`，`Step_F` 是固定的；
 - 该实例产生的 continuation 类型 `K_F` 也是固定的；
 - 某条特定 call chain 上如果能证明“只有 op 子集可达”，那只是可达 case 的收窄，不是函数类型或 continuation 类型的变化。
+- 对 `NoOutward` / plain ABI 实例，不存在 `Step_F`，因此也不存在 `Complete` tag；普通返回值就是函数 ABI 的返回值。
 
 也就是说，优化事实不能泄漏成新的 surface type。更准确的概念模型应当是：
 
@@ -288,6 +293,8 @@ Step_F<T> =
 - 分支本身按 op/case 区分；
 - `k` 的 surface 类型固定为同一个 `K_F`；
 - 不同 call chain 只会影响“哪些 case 实际可能出现”，不会改变 `Step_F` 或 `K_F` 的类型身份。
+
+这条“固定”只约束已经选择 effectful ABI 的实例或 adapter，不要求所有 absolutely effectless 函数也发布退化的 `Step_F`。
 
 #### 4.3.2 payload 和 `resume` 参数在 MIR 语义上统一 tuple 化
 
@@ -431,12 +438,12 @@ actual_outward_ops(F) ⊆ impl_ops(F) ⊆ allowed_ops(F)
 - 退化是不可避免的；
 - 在编译期拿不到更精确来源时，只能按 signature 看到的 `allowed_row` / `allowed_ops` 进行保守对接。
 
-当前方向是：动态边界的 canonical 形状不应退化成完全 erased 的 `Signal { tag, payload }` 协议，而应直接按 `allowed_ops(allowed_row)` 展开成固定的 `Step` 家族。
+当前方向是：需要 effectful ABI 的动态边界，其 canonical 形状不应退化成完全 erased 的 `Signal { tag, payload }` 协议，而应直接按 `allowed_ops(allowed_row)` 展开成固定的 `Step` 家族。
 
 进一步地，当前更倾向把它实现成：
 
 - 一个普通的 indirect call / interface call；
-- 调用目标是对应的 effectful/state-machine function entry；
+- 调用目标是对应的 effectful/state-machine function entry，或 effect-typed dynamic surface 所需的 adapter；
 - 返回值是固定的 `Step_F`；
 - 所需的 callable / interface 类型由编译器内部自动生成，不作为用户可见语法的一部分。
 
@@ -478,22 +485,23 @@ resume(resume_tuple) -> Answer / (Out + Raise<RuntimeError>)
 - 当前 callable type / `allowed_row` 对应的 `StepSchema` 全集；
 - 而不是某个 direct/call-chain 分析得出的 `actual_outward_cases` 子集。
 
-当前阶段对 dynamic callable 的实现组织也先固定为保守方案：
+当前阶段对 effectful dynamic callable 的实现组织也先固定为保守方案：
 
-- 每个 effectful callable 都生成一个 canonical dynamic entry：
+- 每个仍需 effectful ABI 的 callable / callable object surface 都生成一个 canonical dynamic entry：
 
 ```text
 invoke(args_tuple) -> Step_F
 ```
 
-- 先不额外分裂“optimized direct body”和“canonical dynamic entry”两套不同 surface；
+- 对 `NoOutward` / plain body，不生成 state-machine body 或 complete-only `Step_F`；普通 direct/static path 必须继续调用 plain entry；
+- 若 effect-typed dynamic surface 需要 `invoke(args_tuple) -> Step_F`，只生成薄 adapter 包装 plain entry 的结果为 `Complete`；
 - dynamic callable object 先采用最普通、最易理解的 closure-like 形态，例如概念上的 `env_ptr + fn_ptr`；
-- direct/static path 当前也可以直接调用这条 canonical entry，而不是急于再引入第二套更专门的入口协议。
+- direct/static path 对 effectful ABI 可以直接调用 canonical effect entry；对 plain ABI 不应绕行 `invoke`。
 
 这样做的好处是：
 
 - 语义和实现都更简单；
-- 不需要现在就设计额外 adapter/wrapper 层级；
+- adapter/wrapper 层级只在 effect-typed dynamic surface 指向 plain body 时出现，不污染普通 body ABI；
 - 因为它仍然是标准的 interface + icall 结构，后续仍保留继续做 devirtualization / inlining 的空间。
 
 但这并不意味着要尽早物化这个 ABI；见下节。
@@ -521,7 +529,7 @@ invoke(args_tuple) -> Step_F
 当前阶段在表示层上的推荐也已固定为：
 
 - 在 late lowering 之前，继续使用保留 `perform / handle / resume` 的 direct-style MIR；
-- 等 devirtualization / inlining / re-analysis 之后，再统一进入以 `Step_F` 为中心的 late-lowered 形态；
+- 等 devirtualization / inlining / re-analysis 之后，再由 facts 选择 plain callable 或以 `Step_F` 为中心的 late-lowered 形态；
 - 这是概念上的“两阶段 MIR”，但当前并不要求立刻拆成两套完全独立的 MIR 数据结构；
 - 现阶段更推荐在同一套 MIR 上保留语义节点，并通过完整的 effect facts 驱动 late lowering。
 
@@ -593,27 +601,30 @@ invoke(args_tuple) -> Step_F
 这层适合进入 callable-level effect facts。典型字段包括：
 
 - `declared_row`
-- `invoke_args_tuple_ty`
+- `call_abi_kind = Plain | EffectStep`
+- `invoke_args_tuple_ty`（仅 effect dynamic surface / adapter 需要）
 - `allowed_ops`
-- `step_schema`
+- `step_schema`（仅 `EffectStep` ABI 或 adapter 需要）
 - `resolved_outward_cases`
 - `needs_reentry`
 - `impl_plan`
 
 其中：
 
-- `step_schema` 给出该实例 canonical `Step_F` 的全部 cases/tag/type；
+- `call_abi_kind` 决定该实例 body 是 plain ABI 还是 effect `Step` ABI；
+- `step_schema` 给出 effect ABI / adapter 的 canonical `Step_F` 全部 cases/tag/type；plain body 不需要 `StepSchema`；
 - `resolved_outward_cases` 给出当前优化级别/当前预算下真正交给 lowering 使用的 case 子集；
-- `invoke_args_tuple_ty` 保证 dynamic `invoke(args_tuple) -> Step_F` surface 不必回到 HIR 重建参数形状；
+- `invoke_args_tuple_ty` 保证 effect dynamic `invoke(args_tuple) -> Step_F` surface 不必回到 HIR 重建参数形状；plain callable 使用普通参数/返回 ABI；
 - `impl_plan` 让 late lowering / codegen 直接知道当前实例选中了 `NoOutward` / `SingleCase` / `CanonicalFull` 哪一档；
 - 若分析内部还维护一个更理想的 `actual_outward_cases` 目标，它不必直接暴露为 lowering contract 的一部分。
 
 这层回答的是：
 
 - 这个具体 callable instance 的函数级 effect contract 是什么；
-- 它的动态 `invoke` surface 输入 tuple 形状是什么；
+- 它的 body ABI 是 plain 还是 effect `Step`；
+- 若需要 effect dynamic `invoke` surface，它的输入 tuple 形状是什么；
 - 在当前构建参数下，这个实例最终按什么 case 子集向外暴露；
-- 该实例 canonical `Step_F` 的 case/tag/schema 是什么；
+- 若需要 `Step_F`，其 canonical case/tag/schema 是什么；
 - 它是否需要 reentry / resumable lowering。
 
 #### 4.13.1a 推荐：effect facts 作为独立 side-table 子系统存在，而不是塞进 `InstanceSummary`
@@ -653,7 +664,7 @@ invoke(args_tuple) -> Step_F
 
 除此之外，我不建议保留任何“为了方便实现，后端偶尔回 HIR 看一眼”的特例。
 
-按这个原则，当前认为**最低必要**的一组 effect facts 至少包括：
+按这个原则，当前认为**最低必要**的一组 effect facts 至少包括（其中 `StepSchema` 只为 effect ABI / adapter 发布）：
 
 - `StepSchema`
 - `ContinuationSchema`
@@ -776,7 +787,7 @@ site 级 facts 是当前最需要稳定身份锚点的一层。典型站点包�
 具体来说：
 
 - 所有 effectful function 都必须先进入同一套 effect facts 分析、`ImplPlan` 选择、以及 late-lowering 框架；
-- 若某个实例最终被收敛到 `NoOutward`，那也应理解为这套统一框架下得到的退化结果，而不是因为它恰好长得像“简单函数”就绕开主 transformation；
+- 若某个实例最终被收敛到 `NoOutward`，它应理解为这套统一 facts / `ImplPlan` 框架下得到的 plain ABI 结果，而不是因为它恰好长得像“简单函数”就绕开主 transformation；
 - 一旦某个实例需要物化 effectful ABI / resumable machine，则其 `direct-style body -> state machine` 转化必须使用同一套通用算法；
 - 不允许长期保留诸如“单个 `perform` 快路径”“线性 body 专用 lowering”“某种特定 `handle` 形状专用 lowering”“tail-`resume` 专用 lowering”这类按 code shape 分流的第二通道；
 - 允许存在的差异只能来自已经显式化的 contract / facts / 外部输入，例如：`resolved_outward_cases`、`ImplPlan`、`StepSchema`、`ContinuationSchema`、site facts、优化级别与预算；
@@ -806,7 +817,9 @@ may_outward(F) = !impl_ops(F).is_empty()
 
 ### 5.2 `Step_F`
 
-概念上，针对具体函数实例 `F`，其动态 ABI 对应一个固定的 `Step_F`：
+`Step_F` 只属于 effectful ABI 或 effect-typed dynamic adapter。对 `NoOutward` / plain ABI body，不应发布退化的 `Step_F`，也不应生成 `Complete` tag；函数直接返回源码返回值。
+
+概念上，针对需要 effectful ABI 的具体函数实例 `F`，其动态 ABI 对应一个固定的 `Step_F`：
 
 ```text
 Step_F<T> =
@@ -846,7 +859,7 @@ Step_F<T> =
 - 可以直接复用语言/后端现有的 `enum` lowering 与优化机会；
 - 若未来对 `enum` 有额外优化，`Step_F` 也能自然受益。
 
-更结构化地说，一个函数实例 `F` 应存在一份显式 `StepSchema(F)`：
+更结构化地说，一个需要 effectful ABI 的函数实例 `F` 或 adapter 应存在一份显式 `StepSchema(F)`：
 
 ```text
 StepSchema(F) = {
@@ -861,6 +874,8 @@ StepSchema(F) = {
 ```
 
 这里的 `concrete_op_key` 应至少区分到 generic-specialized 的 concrete effect op；其底层表示可以直接复用现有 `InstanceKey`。
+
+plain body 若被某个 effect-typed dynamic surface 引用，可以拥有单独的 adapter schema；该 schema 描述 adapter 的 outward protocol，不改变 plain body 的 ABI 身份。
 
 ### 5.3 continuation
 
@@ -1255,15 +1270,18 @@ StepSchemaId
 ContinuationSchemaId
 CaseTag
 ConcreteOpKey(InstanceKey)
+CallableAbiKind = Plain | EffectStep
 ImplPlan = NoOutward | SingleCase(CaseTag) | CanonicalFull
 ```
 
 约束：
 
-- `StepSchemaId` 标识某个具体函数实例 `F` 的 canonical `StepSchema(F)`；
+- `StepSchemaId` 标识某个需要 effect ABI 的函数实例或 adapter 的 canonical `StepSchema(F)`；
 - `ContinuationSchemaId` 标识某个 continuation surface / resume contract 的规范形状；
 - `CaseTag` 只在该 schema 内部有意义；
 - `ConcreteOpKey` 表示 generic-specialized concrete effect op 的语义身份；其底层持有 `InstanceKey`；
+- `CallableAbiKind::Plain` 表示 body 使用普通函数 ABI，不发布 `Step_F` / continuation object / state-machine body；
+- `CallableAbiKind::EffectStep` 表示 body 或 adapter 使用 `Step_F` 协议；
 - `CaseTag` 不因 `impl_ops` 子集变化而重新编号。
 
 #### 5.4.2 case/schema
@@ -1295,6 +1313,7 @@ StepSchema {
 
 - `cases` 应按稳定顺序存储；
 - `continuation_obj_ty` 对同一个函数实例固定为内部 continuation 对象类型 `K_F`；
+- `StepSchema` 只为 `EffectStep` body 或 effect-typed adapter 发布；plain body 不能为了表示普通返回而发布 complete-only schema；
 - `ContinuationSchema` 负责给出源码层 `Continuation<ResumeTuple, Answer, eff Out>` 所需的完整 contract；
 - `ContinuationSchema.surface_ty` 的 effect 参数必须继续表示源码层的 residual `Out`，不能仅因为 `resume(...)` 方法类型额外带有 `+ Raise<RuntimeError>`，或因为 `out_step_schema` 为 one-shot 语义保守包含 ordinary `Raise<RuntimeError>` case，就把该 runtime-error 上界反写进 `surface_ty`；
 - `ContinuationSchema.out_step_schema` 则负责给出 internal `resume(...) -> Step_F<Answer>` 协议的 canonical step 上界；它允许在不改变 `surface_ty` 的前提下保守携带 compiler-generated one-shot runtime-error case；
@@ -1329,8 +1348,9 @@ CaseSet {
 ```text
 CallableEffectFacts {
   declared_row,
-  invoke_args_tuple_ty,
-  step_schema,
+  call_abi_kind,
+  invoke_args_tuple_ty?,
+  step_schema?,
   resolved_outward_cases,
   needs_reentry,
   impl_plan,
@@ -1340,11 +1360,14 @@ CallableEffectFacts {
 说明：
 
 - `declared_row` 保留函数类型层面的语义合同；
-- `invoke_args_tuple_ty` 让 dynamic `invoke(args_tuple)` surface 不必回 HIR 恢复参数形状；
-- `step_schema` 给出 canonical `Step_F`；
+- `call_abi_kind` 是 P5/P6 选择 plain body 还是 `Step_F` body/adapter 的 authoritative 决策；
+- `invoke_args_tuple_ty` 只在需要 effect dynamic `invoke(args_tuple)` surface 时存在；
+- `step_schema` 只在需要 canonical `Step_F` 协议时存在；
 - `resolved_outward_cases` 表示当前构建参数下真正交给 lowering 使用的 outward case 子集；
 - `needs_reentry` 在当前阶段按保守规则由 `resolved_outward_cases` 派生：只要该集合非空即为 `true`。
 - `impl_plan` 明确当前实例落在 `NoOutward` / `SingleCase` / `CanonicalFull` 哪一档。
+
+`impl_plan = NoOutward` 的默认 ABI 结果是 `CallableAbiKind::Plain`。如果为了 effect-typed dynamic value 兼容性必须保留 `invoke(args_tuple) -> Step_F` surface，应作为 adapter publication 表达，而不是把 plain body 的 `call_abi_kind` 改成 `EffectStep`。
 
 若分析内部还维护 `actual_outward_cases` 作为理想精确目标，那它可以是内部分析状态，但不必成为 lowering side table 的必填字段。
 
@@ -1505,13 +1528,16 @@ MaterializedEffectFacts {
 
 这里的目标不是“只把某个 `handle` 的内部改写成局部状态机”，而是：当 `F` 仍需独立存在并进入 effectful lowering 时，把 **整个函数实例** 视为转化对象。现有“单个 `handle` 内部状态机”更应被理解为这个统一过程中的局部子区域，而不是长期并存的另一套 lowering 语义。
 
+进入本节 transformation 的前提是 `needs_reentry(F) = true` 或 body 明确选择 `CallableAbiKind::EffectStep`。`NoOutward` / `CallableAbiKind::Plain` body 不进入本节状态机转化；它仍然可以在 facts / `ImplPlan` 框架中被统一分析，但最终 lowering 结果是普通函数 body。
+
 #### 5.5.1 转化输入与输出
 
 当前推荐把这一步固定为：
 
 - 输入是当前 materialized MIR snapshot 与 `MaterializedEffectFacts`；
 - 这一步只消费已经显式化的 facts/schema/table，不回 HIR/AST/typecheck 内部缓存补语义；
-- 输出是某个具体函数实例 `F` 的内部 state-machine 实现形态，它的 outward `Step` 协议由 `StepSchema(F)` 决定，continuation/re-entry 协议由关联的 `ContinuationSchema` 决定；
+- 对 `needs_reentry=true` 的实例，输出是某个具体函数实例 `F` 的内部 state-machine 实现形态，它的 outward `Step` 协议由 `StepSchema(F)` 决定，continuation/re-entry 协议由关联的 `ContinuationSchema` 决定；
+- 对 `needs_reentry=false` 的实例，输出是 plain callable contract，P6 应以普通函数 ABI lower 它；
 - 实现层可把它理解为“编译器生成的 state-machine object/frame + 对应 entry/step/resume dispatch 代码”，但这只是物化形态，不影响其必须由统一 transformation 产生这一点。
 
 #### 5.5.2 切分点不是只有 `perform`，而是所有 suspend/dispatch boundary
@@ -1707,7 +1733,7 @@ build matrix 通过 `cargo run -p scoop -- --effect-pipeline refactor test --fix
 
 | 覆盖点 | fixture |
 | --- | --- |
-| `NoOutward` / Complete-only `Step_F` | `tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop` |
+| `NoOutward` / plain ABI / no `Step_F` | `tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop` |
 | `SingleCase` case identity | `tests/fixtures/build/effect_refactor_step_enum_single_case.scoop` |
 | `CanonicalFull` full case layout at O0 | `tests/fixtures/build/effect_refactor_step_enum_canonical_full_O0.scoop` |
 | direct perform / handle / resume body lowering | `tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop` |
@@ -1866,7 +1892,7 @@ BodyVersionKey = (symbol, type_args, allowed_row, impl_ops, needs_reentry)
 1. `NoOutward`
    - 条件：`resolved_outward_cases = ∅`
    - 含义：当前实例 outward case 已完全消除；
-   - 结果：不进入 effectful state-machine 路径，`needs_reentry = false`。
+   - 结果：不进入 effectful state-machine 路径，`needs_reentry = false`，body ABI 为 plain；不发布 complete-only `Step_F`。
 
 2. `SingleCase(case_tag)`
    - 条件：`resolved_outward_cases` 恰好只包含 1 个 case；
@@ -1920,7 +1946,8 @@ BodyVersionKey = (symbol, type_args, allowed_row, impl_ops, needs_reentry)
 2. `surface instance materialization`
    - 按 `(symbol, type_args, allowed_row)` 形成 surface 实例。
 3. `effect analysis`
-   - 在统一管线内建立/更新 `StepSchema`；
+   - 在统一管线内建立/更新 callable ABI 决策与必要的 `StepSchema`；
+   - 对 `NoOutward` / plain callable，不为 body 发布 complete-only `StepSchema`；
    - 以 `actual_outward_cases` 为理想目标，按当前优化级别和预算产出 `resolved_outward_cases`；
    - 由 `resolved_outward_cases` 派生 `needs_reentry`。
 4. `devirtualization + inlining`
@@ -1930,9 +1957,10 @@ BodyVersionKey = (symbol, type_args, allowed_row, impl_ops, needs_reentry)
 5. `re-analysis`
    - 在 inlining / devirtualization 之后重新收敛 `resolved_outward_cases` 与 `needs_reentry`。
 6. `late effect lowering`
-   - 对剩余仍需独立存在的 effectful callable，按 `resolved_outward_cases` 选择当前阶段的三档 `ImplPlan`（`NoOutward` / `SingleCase` / `CanonicalFull`）；
-   - 用统一的“boundary segmentation + frame lifting + explicit resume-state”算法把整函数 `direct-style` body 转成状态机，而不是按某些特定 code shape 走专用 lowering；
-   - 物化 canonical `Step` ABI；
+   - 对剩余 callable，按 `resolved_outward_cases` 选择当前阶段的三档 `ImplPlan`（`NoOutward` / `SingleCase` / `CanonicalFull`）；
+   - `NoOutward` 产出 plain callable contract，不进入状态机转化；
+   - 对 `needs_reentry=true` / `EffectStep` callable，用统一的“boundary segmentation + frame lifting + explicit resume-state”算法把整函数 `direct-style` body 转成状态机，而不是按某些特定 code shape 走专用 lowering；
+   - 仅为 `EffectStep` body 或 effect-typed adapter 物化 canonical `Step` ABI；
    - 将 continuation materialize 为承载 per-op resume contract 的对象/entry 形态；若实现中保留按 effect 分组的 internal resume interface，则它只是一层可优化掉的 packing。
 7. `post-effect-object devirtualization + inlining`
    - 对新引入的 `k.op$ret(...)` 这类内部 interface call 再跑一轮 devirtualization / inlining / DCE；
@@ -1940,8 +1968,9 @@ BodyVersionKey = (symbol, type_args, allowed_row, impl_ops, needs_reentry)
    - 这一轮属于 late-lowered representation 上的窄后处理，不重新回到高层 effect 语义分析，也不重新选择 `ImplPlan`。
 8. `LLVM / backend emit`
    - refactor backend 拥有整个 function protocol，并只从 late-lowered state graph / frame schema / boundary contract / ABI query 翻译到 LLVM；
-   - direct/static 路径尽量直接命中具体实现版本；
+   - `NoOutward` / plain callable 走普通函数 ABI，direct/static path 用 plain dcall，动态/虚调用在 pure/no-outward surface 下用 plain icall/vcall；
    - 真正无法消掉的动态边界使用按 `allowed_ops(allowed_row)` 固定的 canonical `Step` 家族；
+   - effect-typed dynamic value 若指向 plain body，只能经 adapter 包装为 `Step_F::Complete`，不能把 plain body 改写成 state machine；
    - 旧 LLVM backend 只能贡献 effect-neutral value/expression primitive，不能作为 statement/function/control-flow fallback。
 
 ## 9. 明确不采用的方向
@@ -1953,7 +1982,8 @@ BodyVersionKey = (symbol, type_args, allowed_row, impl_ops, needs_reentry)
 - 依赖 ambient TLS handler stack 作为最终语义模型；
 - 跨不同 `allowed_row` 共享 surface 实现版本；
 - 预定义少数内置 effect bucket 作为主要 widening 策略；
-- 在 devirtualization / inlining 之前就尽早冻结所有高阶函数的状态机 ABI。
+- 在 devirtualization / inlining 之前就尽早冻结所有高阶函数的状态机 ABI；
+- 把 absolutely effectless / `NoOutward` 函数改写成 complete-only `Step_F` state-machine shell。
 
 ## 10. 后续计划
 

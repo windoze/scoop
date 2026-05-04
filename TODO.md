@@ -49,6 +49,7 @@
 | `P4-T05R` | `TODO-P4.md` | [DONE] Review P4 阶段退出条件，确认 P5 可以只消费 MIR + facts 完成 lowering 决策 |
 | `P4-T05a` | `TODO-P4.md` | [DONE] 把 compiler-generated continuation 的 one-shot runtime error 纳入 canonical `StepSchema` / facts handoff |
 | `P4-T05b` | `TODO-P4.md` | [DONE] 修正 `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界，避免把 one-shot runtime-error 上界并入 `Continuation` effect 参数 |
+| `P4-T06` | `TODO-P4.md` | 为 `NoOutward` 发布 plain callable ABI 合同，停止强制为 pure body 建 `StepSchema` |
 | `P5-T01` | `TODO-P5.md` | [DONE] 建立 refactor late-lowering stage 与独立 late-lowered representation 边界 |
 | `P5-T01R` | `TODO-P5.md` | [DONE] Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend |
 | `P5-T02` | `TODO-P5.md` | [DONE] 定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层 |
@@ -67,6 +68,7 @@
 | `P5-T07R` | `TODO-P5.md` | [DONE] Review P5 阶段退出条件，确认 P6 只需把 late-lowered representation 翻译到 LLVM |
 | `P5-T07a` | `TODO-P5.md` | [DONE] 修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证 |
 | `P5-T07b` | `TODO-P5.md` | [DONE] 清理 P5 late-lowered handoff 的 resume contract 主次关系，固定 per-op/per-schema authoritative 表达 |
+| `P5-T08` | `TODO-P5.md` | 让 `NoOutward` 在 late-lowered handoff 中保持 plain callable，不物化 `Step` / continuation / state-machine 壳 |
 | `P6-T01` | `TODO-P6-part1.md` | [DONE] 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
 | `P6-T01a` | `TODO-P6-part1.md` | [DONE] 为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend |
 | `P6-T01R` | `TODO-P6-part1.md` | [DONE] Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离 |
@@ -115,6 +117,8 @@
 | `P6-T04` | `TODO-P6-part3.md` | [DONE] 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |
 | `P6-T04R` | `TODO-P6-part3.md` | [DONE] Review GC/runtime 集成，确认 clean refactor path 没有 legacy runtime 语义依赖 |
 | `P6-T05` | `TODO-P6-part3.md` | [DONE] 建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract |
+| `P6-T06` | `TODO-P6-part3.md` | 把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall |
+| `P6-T06R` | `TODO-P6-part3.md` | Review `NoOutward` plain ABI 修复，确认 P7 前不再存在 complete-only `Step_F` 回归 |
 | `P6-T05R` | `TODO-P6-part3.md` | Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |
 | `P7-T01` | `TODO-P7.md` | 翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口 |
 | `P7-T01R` | `TODO-P7.md` | Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口 |

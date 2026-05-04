@@ -1022,3 +1022,61 @@
   - `resolved_outward_cases`、`needs_reentry`、`impl_plan` 与 block/site outward facts 未被本修正无端扩大。
 - 本任务未改变 P4/P5 阶段顺序或退出条件，因此 `PLAN.md` 无需改动；现已同步把 `TODO.md` 中对应索引标记为 `[DONE]`。
 - 验证通过：`cargo fmt --all`、`cargo test -p scoopc --no-default-features refactor_continuation_schema_surface_ty`、`cargo test -p scoopc --no-default-features compiler_continuation_runtime_error`、`cargo test -p scoopc --no-default-features refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts`、`cargo test -p scoopc --no-default-features refactor_callable_effect_facts_shell_uses_final_shape_and_runtime_error_case`、`cargo test -p scoopc --no-default-features refactor_effect_facts_stage_surface_ty`、`cargo test -p scoop --no-default-features dump_effect_facts`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/single_case_impl_plan.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dynamic_fallback_widening.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/dispatch_and_resume_call.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/effect_facts`、`cargo clippy -p scoop -p scoopc --all-targets --no-default-features -- -D warnings`。
+
+## P4-T06：为 `NoOutward` 发布 plain callable ABI 合同，停止强制为 pure body 建 `StepSchema`
+
+- 参考：
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5, §4.3.1, §4.9, §4.13, §5.2, §5.4, §7.3, §8
+  - [`PLAN.md`](./PLAN.md) §0，§2/P4，§2/P5，§2/P6
+  - 当前实现参考：
+    - `crates/scoopc/src/effect_facts/{facts,schema,builder,solver,dump}.rs`
+    - `crates/scoopc/src/effect_refactor_pipeline/effect_facts_stage.rs`
+- 背景：
+  - 当前 facts 结构把每个 callable 都强制建成 `invoke_args_tuple_ty + step_schema`，导致 `NoOutward` 后续被误解成 complete-only `Step_F` body；
+  - 设计已修正为：`NoOutward` / `needs_reentry=false` 的 body 默认是 plain ABI，不发布 state-machine / `Step_F` shell；
+  - 若 effect-typed dynamic surface 仍需要 `invoke(args_tuple) -> Step_F`，应作为 adapter contract 单独发布，不能污染 body ABI。
+- 目标：
+  - 在 P4 authoritative handoff 中显式区分 plain callable body 与 effect `Step` body / adapter；
+  - 让 P5 可以只凭 facts 判断哪些 callable 需要 state-machine lowering，哪些 callable 必须保持普通函数 ABI。
+
+- 必须实现的内容：
+  1. 为 callable-level facts 增加 `CallableAbiKind::Plain | EffectStep` 或等价字段。
+     - `NoOutward` / empty `resolved_outward_cases` 默认选择 `Plain`；
+     - 非空 `resolved_outward_cases` 选择 `EffectStep`；
+     - effect-typed dynamic adapter 若需要 `Step_F` surface，必须用独立 adapter publication 表达。
+  2. 解除 “每个 callable body 必有 `StepSchema`” 的硬约束。
+     - plain body 不得为了普通返回值发布 complete-only schema；
+     - `StepSchema` 只属于 `EffectStep` body 或 adapter；
+     - dump / stable formatter 应能清楚展示 plain callable 没有 body `StepSchema`。
+  3. 调整 call-site facts。
+     - known plain callee 的普通 call site 应能表达 plain result ABI，不要求 callee `StepSchema`；
+     - effect boundary / dynamic fallback 仍按 `StepSchema` / `CaseSet` 表达 outward protocol；
+     - effect-typed dynamic value 指向 plain body 时，call-site facts 必须指向 adapter contract，而不是把 callee body 当成 `EffectStep`。
+  4. 更新 solver 与 dump/golden。
+     - `resolved_outward_cases = ∅` 仍派生 `needs_reentry=false` 与 `ImplPlan::NoOutward`；
+     - 同步派生 plain ABI；
+     - `dump-effect-facts` golden 中 pure/no-outward 样本应明确显示 plain ABI 且没有 body `StepSchema`。
+
+- 必须遵从的约束：
+  - 禁止把 `NoOutward` 表示成 “只有 `Complete` case 的 `Step_F`”；
+  - 禁止让 P5/P6 为了判断 plain/effect ABI 回 HIR、span、legacy summary 或 LLVM bridge；
+  - 禁止删除 effect-typed dynamic surface 所需的 `StepSchema`，应以 adapter contract 单独表达。
+
+- 验证：
+  1. 新增/更新单元测试，推荐命名：
+      - `refactor_callable_effect_facts_no_outward_uses_plain_abi_*`
+      - `refactor_step_schema_not_published_for_plain_body_*`
+      - `refactor_call_site_facts_distinguish_plain_call_and_effect_adapter_*`
+  2. 运行：
+      - `cargo test -p scoopc --no-default-features refactor_callable_effect_facts_no_outward`
+      - `cargo test -p scoopc --no-default-features refactor_effect_solver`
+      - `cargo test -p scoop --no-default-features dump_effect_facts`
+      - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-facts tests/fixtures/effect_facts/direct_and_fun_value_call.scoop`
+
+- 完成条件：
+  - P4 handoff 已 authoritative 地表达 plain vs effect ABI；
+  - absolutely effectless / `NoOutward` body 不再发布 body `StepSchema`；
+  - P5 可以在不回高层语义的前提下跳过 plain body 的 state-machine lowering。
+- 依赖：P4-T05b
+- 完成记录：
+  - （执行时填写）
