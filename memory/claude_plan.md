@@ -66,3 +66,17 @@
   - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
   - `cargo fmt --all`
   - `cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+
+### 2026-05-04 新一轮执行（P6-T03）
+
+- 本轮先按 `TODO.md` / `TODO-P6-part2.md` 重新定位任务，确认当前第一个未完成详细任务是 `P6-T03`。
+- 已确认 `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 仍为空壳，而 `llvm/emit.rs` 当前仍对 effectful refactor body 直接 fail-fast；因此本任务不是小修，而是完整 body emitter 落地。
+- 已读取 late-lowered IR、LLVM ABI query，并运行真实 fixture 的 `dump-effect-lowered` / `dump-mir` 做 contract 核对。
+- 新确认的 blocker：当前 handoff 只发布了 `ResumePayload(boundary, case)` slot identity 与部分 `result_local`，但没有 authoritative 发布“continuation resume 的 incoming payload/answer 应写回哪个 resumed local/home”的统一 contract。
+- 若继续硬写 `P6-T03`，backend 将不得不回 canonical MIR 的 `Rvalue::PerformResult` / assign target / paired boundary shape 恢复该绑定，这违反当前阶段“只能消费 published handoff，不得回 shape 恢复语义”的约束。
+- 因此本轮计划已切换为：
+  - 在 `TODO-P6-part2.md` 中插入最小前置任务 `P6-T02qd`；
+  - 同步更新 `TODO.md` 索引与 `P6-T03` 依赖/阻塞记录；
+  - 提交这些任务文档与执行记录更新；
+  - 停止，等待下一轮按新顺序先完成 `P6-T02qd`。
+- 已完成文档同步自检：`TODO-P6-part2.md` 的未完成链路、`P6-T03` 依赖与阻塞记录，以及 `TODO.md` 索引都已更新；当前新的首个未完成详细任务是 `P6-T02qd`。

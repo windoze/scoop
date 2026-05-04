@@ -112,7 +112,7 @@
 ## 已完成前置任务参考
 
 - 已完成任务见 [`TODO-P6-part1.md`](./TODO-P6-part1.md)。
-- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
+- 当前未完成链路按 `P6-T02n -> P6-T02o -> P6-T02p -> P6-T02qa -> P6-T02q -> P6-T02qb -> P6-T02qc -> P6-T02qd -> P6-T03 -> P6-T03R -> P6-T04 -> P6-T04R -> P6-T05 -> P6-T05R` 推进。
 
 ## [DONE] P6-T02m：发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable
 
@@ -749,6 +749,78 @@
   - 2026-05-04：已在 `crates/scoopc/src/effect_lowered/ir.rs` 的 authoritative surface-resume dispatch inventory 上新增 `wrapper_projection` contract，显式发布 `underlying_route`、`owner_step_schema -> wrapper_step_schema`、以及 `complete` / outward case 的 owner -> wrapper 投影；`dump-effect-lowered` 现可直接展示 `k5` 的 `wrapper_projection`，后续 `P6-T03` 不再需要从 forward dispatch 反推 shared surface body 返回语义。
   - 2026-05-04：已在 `crates/scoopc/src/llvm/codegen/effect_refactor/{types,layout}.rs` 把该 contract 接到 owner trampoline query，并对缺失 published projection、derived/published 漂移、以及跨 resume site 的多候选歧义执行 fail-fast。验证通过：`cargo test -p scoopc refactor_surface_resume_dispatch_inventory_ --no-fail-fast`、`cargo test -p scoopc refactor_surface_resume_dispatch_dump_exposes_shared_wrapper_projection --no-fail-fast`、`cargo test -p scoopc refactor_llvm_surface_resume_dispatch_layout_ --no-fail-fast`、`cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`、`cargo fmt --all`、`cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`。
 
+## P6-T02qd：发布 continuation resume payload -> resumed local/home 注入 contract，禁止 P6-T03 在 backend 现场回 canonical MIR 恢复 `PerformResult` / boundary-result 绑定
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.3.2-§5.3.6, §5.5.2-§5.5.7, §8
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) `P6-T02o`, `P6-T02q`, `P6-T02qc`, `P6-T03`
+  - `crates/scoopc/src/effect_lowered/{frame,materialize,ir}.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/{types,body}.rs`
+- 背景：
+  - `P6-T02o` 已把 boundary operand/source contract 发布到 handoff；`P6-T02q` / `P6-T02qc` 也已经把 resume-boundary underlying route 与 shared wrapper projection 发布出来；
+  - 但当前 handoff 对“恢复 continuation 时，incoming resume payload/answer 应 authoritative 地写回哪个 resumed local/home”仍没有显式 contract：
+    - `LateLoweredFrameSlotKind::ResumePayload { boundary, case_tag }` 只发布了 boundary/case 的稳定 slot identity 与 `resume_tuple_ty`；
+    - `LateLoweredFrameSlotKind::BoundaryResult { boundary, local }` 只覆盖 boundary result local；
+    - `LateLoweredCallBoundaryLowering` / `LateLoweredResumeBoundaryLowering` 虽发布了 `result_local`，但 `Perform` continuation 以及 paired runtime-error route 仍没有统一的 resumed local/home 注入查询面；
+    - `effect_multi_escape_indirect_direct_while.scoop` 的 `fetch` / `main` 真实路径已经暴露此缺口：backend 若要实现 continuation object method / owner trampoline，只能回 canonical MIR 里的 `Rvalue::PerformResult` target、raw call assign target，或 paired boundary shape 去猜恢复点 local。
+  - 这违反了本阶段“backend 只翻译 published handoff，不得回 canonical MIR/shape 恢复 boundary 语义”的约束，因此必须先补齐该 contract，再继续 `P6-T03`。
+
+- 目标：
+  - 在进入 `P6-T03` 前，先把 continuation resume payload/answer 到 resumed local/home 的注入关系 authoritative 地发布出来；
+  - 让后续 LLVM body emitter、continuation object method、surface-resume owner trampoline 与 shared wrapper body 都能仅凭 published handoff 把恢复值写入正确 local/home，而不再回 canonical MIR 扫 `PerformResult` / assign target / paired boundary。
+
+- 必须实现的内容：
+  1. 为 resumed payload/answer consumer 发布 authoritative contract。
+     - 至少要覆盖：
+       - `Call` / `Resume` boundary 的恢复值应写回哪个 local/home；
+       - `Perform` continuation resume 的 incoming payload 应写回哪个 local/home，而不是留给 backend 现场从 `Rvalue::PerformResult` target 恢复；
+       - paired runtime-error route 若与普通 resume 共享或区别 consumer，必须显式发布，而不是由 backend 按 paired boundary 形状猜测。
+     - 可接受落点包括但不限于：
+       - `LateLoweredBoundaryLowering`
+       - `LateLoweredFrameSchema` 的补充 published table
+       - dedicated `LateLoweredResumePayloadBinding` / 等价结构
+       - `RefactorAbiQuery`
+       - 或一个等价的 compiler-owned published query；
+     - 但明确禁止把这层关系继续留给 `P6-T03` 在 body emitter / continuation method 现场扫描 canonical MIR statement/terminator 来恢复。
+  2. 覆盖所有会物化 continuation resume 的 boundary 形态。
+     - 至少包括：
+       - outward `Call`
+       - outward `Perform`
+       - outward `Resume`
+       - paired runtime-error boundary（若对应 continuation resume path）
+       - handle-binder / shared wrapper 经 underlying owner route 恢复时所需的 resumed local/home 注入。
+  3. 对缺失、歧义或漂移的 resumed-local/home contract fail fast。
+     - 至少包括：
+       - 已发布 `ResumePayload(boundary, case)` 或 continuation schema，但缺少 authoritative consumer local/home；
+       - 同一 boundary/case 同时指向多个不兼容的 consumer local/home；
+       - `P6-T03` 若只消费 published handoff，仍无法唯一决定 incoming resume payload/answer 应写回哪里。
+  4. 补充 dump / query / regression。
+     - 至少覆盖：
+       - `effect_multi_escape_indirect_direct_while.scoop` 中 `fetch` 的 `PerformResult` resume path 不再要求 backend 回 canonical MIR 恢复 target local；
+       - `effect_resume_if_else_branch_single_perform.scoop` 中 call/resume boundary 的 resumed local/home contract 可直接查询；
+       - 缺失 contract 时显式拒绝，而不是把恢复逻辑默许成 backend private cache。
+
+- 必须遵从的约束：
+  - 禁止把 `ResumePayload(boundary, case)` slot identity 本身当成“consumer local/home 已知”；slot identity 与 local/home 注入 contract 不是同一层信息；
+  - 禁止让 `P6-T03` 通过 canonical MIR `Rvalue::PerformResult`、call/resume assign target、paired boundary 遍历顺序、或当前 fixture 的 resume-state shape 去恢复 resumed local/home；
+  - 禁止只在 `effect_refactor/body.rs` 内偷偷缓存一张 backend-private `boundary/case -> local` 私表；若需要这层关系，必须先 authoritative 发布。
+
+- 验证：
+  - `cargo test -p scoopc refactor_effect_lowered_resume_payload_binding`
+  - `cargo test -p scoopc refactor_llvm_resume_payload_binding`
+  - `cargo test -p scoopc refactor_llvm_`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop`
+  - `cargo run -p scoop -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+
+- 完成条件：
+  - `P6-T03` 可以只凭 published handoff 把 continuation resume 的 incoming payload/answer 写回正确 resumed local/home；
+  - backend 不再需要回 canonical MIR 恢复 `PerformResult` / boundary-result 绑定；
+  - 缺失、歧义或漂移时会在 P5/P6 边界显式拒绝。
+- 依赖：P6-T02o，P6-T02q，P6-T02qc
+- 完成记录：
+  - 2026-05-04：开始真正实现 `P6-T03` continuation object method / owner trampoline body 时确认新的未跟踪 blocker。当前 handoff 虽已发布 `ResumePayload(boundary, case)` slot identity、`BoundaryResult(boundary, local)`、`result_local`（call/resume），以及 shared wrapper/underlying route contract；但仍没有统一发布“incoming resume payload/answer 应写回哪个 resumed local/home”的 authoritative 查询面。`effect_multi_escape_indirect_direct_while.scoop` 中 `fetch` 的 outward `Ask.ask` continuation 与 `main` 的 shared wrapper owner route 若继续由 `P6-T03` 落地，backend 只能回 canonical MIR 的 `Rvalue::PerformResult` target、raw call assign target 或 paired boundary shape 恢复该绑定，违反 contract-first 边界。因此新增本前置任务，先把 resumed local/home 注入 contract 发布清楚，再继续 `P6-T03`。
+
 ## P6-T03：按 P5 state graph / boundary contract 完成 refactor LLVM body lowering，停止在 backend 重做 state-machine transformation
 
 - 参考：
@@ -867,8 +939,9 @@
   - refactor LLVM body emitter 已只消费 P5 state graph / boundary contract；
   - 所有 boundary 与显式控制流都已在 LLVM CFG 中闭合；
   - backend 不再承担第二套高层 effect lowering 语义工作。
-- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P5-T07a，P5-T07b
+- 依赖：P6-T02R，P6-T02c，P6-T02d，P6-T02e，P6-T02f，P6-T02g，P6-T02h，P6-T02i，P6-T02j，P6-T02kR，P6-T02l，P6-T02m，P6-T02n，P6-T02o，P6-T02p，P6-T02q，P6-T02qb，P6-T02qc，P6-T02qd，P5-T07a，P5-T07b
 - 完成记录：
+  - 2026-05-04：继续真正实现 continuation object method / owner trampoline body 时确认新的 blocker。当前 handoff 已发布 boundary operand、underlying route、wrapper projection、以及 `ResumePayload(boundary, case)` / `BoundaryResult(boundary, local)` 等 slot identity；但还没有 authoritative 发布“incoming resume payload/answer 应写回哪个 resumed local/home”的统一 contract。`effect_multi_escape_indirect_direct_while.scoop` 中 `fetch` 的 outward `Ask.ask` continuation 以及 `main` 的 shared wrapper owner route 若继续由 `P6-T03` 落地，backend 只能回 canonical MIR `Rvalue::PerformResult` target、raw call assign target、或 paired boundary shape 恢复 consumer local，违反 contract-first 边界。因此新增前置任务 `P6-T02qd`，先发布 resumed local/home 注入 contract，再继续本任务。
   - 2026-05-04：继续真正实现 shared surface-resume body 时确认新的 blocker。当前 handoff 已能 authoritative 地桥接 `ResumeBoundaryOnly` wrapper schema 到 underlying route（例如 `effect_multi_escape_indirect_direct_while.scoop` 中 `k5 -> k3`），但还没有显式发布“underlying owner step -> wrapper step”的 projection contract。若继续实现 `__scoop_refactor_surface_resume__k5`，backend 只能反向推导现有 boundary dispatch（例如 `s4.c0 -> s1.c2`）来拼 wrapper body 返回语义，违反 contract-first 边界。因此新增前置任务 `P6-T02qc`，先发布 wrapper projection contract，再继续本任务。
   - 2026-05-04：继续真正落地 body emitter 时确认新的 blocker。当前 handoff 对 `HandleDispatch` cleanup/finally/pending-outward path 只发布了 `CompletionTag` / `ResumePayloadCarrier` 的 field index 与 pending completion 集合，但没有 authoritative 发布 typed case payload 如何穿过该 carrier。对 `handle_finally_boundary.scoop` / `dropped_continuation_abandons_remaining_work.scoop` 这类 path，backend 若继续实现就必须现场发明 `Any` boxing / projection 或 raw transport 规则。为此新增前置任务 `P6-T02qb`，先把 cleanup/finally pending payload carrier contract 显式发布出来，再继续本任务。
   - 2026-05-03：开始实现时发现 blocker。当前 `ResumeSiteEffectFacts` 只发布 continuation schema / out-step 语义，但 `P6-T02` 现有 ABI query 还没有把 `Continuation.resume(...)` surface lowering contract 显式发布成 LLVM-level call target / query 映射；若直接继续 `P6-T03`，backend 将不得不在现场猜测 `resume` 入口或绕回 legacy resume lowering。
