@@ -38,10 +38,10 @@ use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident
 use super::types::{
     RefactorAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
     RefactorCallableCarrierTargetLayout, RefactorCallableEntryLayout, RefactorCallableLayout,
-    RefactorClosureCarrierLayout, RefactorCompletionPayloadBindingLayout,
-    RefactorContinuationFieldKind, RefactorContinuationFieldLayout,
-    RefactorContinuationObjectLayout, RefactorContinuationSurfaceResumeBinding,
-    RefactorContinuationSurfaceResumeDispatchLayout,
+    RefactorClassInstanceFieldLayout, RefactorClassInstanceLayout, RefactorClosureCarrierLayout,
+    RefactorCompletionPayloadBindingLayout, RefactorContinuationFieldKind,
+    RefactorContinuationFieldLayout, RefactorContinuationObjectLayout,
+    RefactorContinuationSurfaceResumeBinding, RefactorContinuationSurfaceResumeDispatchLayout,
     RefactorContinuationSurfaceResumeDispatchTarget,
     RefactorContinuationSurfaceResumeHandleBinderRoute, RefactorContinuationSurfaceResumeLayout,
     RefactorContinuationSurfaceResumeMethodLookup,
@@ -327,9 +327,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             &surface_resume_layouts,
         )?;
         this.validate_source_statement_classifications()?;
+        let class_instance_layouts = this.materialize_class_instance_layouts()?;
 
         Ok(RefactorAbiQuery::new(
             this.source_value_layouts,
+            class_instance_layouts,
             step_layouts,
             frame_layouts,
             continuation_layouts,
@@ -5362,6 +5364,90 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         };
         self.source_value_layouts.insert(ty, layout.clone());
         Ok(layout)
+    }
+
+    fn materialize_class_instance_layouts(
+        &self,
+    ) -> Result<BTreeMap<TypeId, RefactorClassInstanceLayout>, LlvmEmitError> {
+        let mut layouts = BTreeMap::new();
+        for ty in self.source_types.iter_ids() {
+            let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(ty) else {
+                continue;
+            };
+            if self.type_contains_param_in_types(self.source_types, ty) {
+                continue;
+            }
+
+            let class_key =
+                crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.source_types);
+            let Some(class) = self.codegen.class_inits.get(&class_key) else {
+                continue;
+            };
+            if class
+                .fields
+                .iter()
+                .any(|field| self.type_contains_param_in_types(self.codegen.types, field.ty))
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 concrete class `{class_key}` 的 field layout 仍含未实例化类型参数"
+                )));
+            }
+
+            let fields = class
+                .fields
+                .iter()
+                .map(|field| RefactorClassInstanceFieldLayout::new(field.fqn.clone(), field.ty))
+                .collect();
+            layouts.insert(
+                ty,
+                RefactorClassInstanceLayout::new(ty, nominal.fqn.clone(), class_key, fields),
+            );
+        }
+        Ok(layouts)
+    }
+
+    fn type_contains_param_in_types(&self, types: &TypeStore, ty: TypeId) -> bool {
+        let mut stack = vec![ty];
+        while let Some(id) = stack.pop() {
+            match types.kind(id) {
+                TypeKind::Param(_) => return true,
+                TypeKind::StarProjection(star) => stack.push(star.read_ty),
+                TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                    stack.extend(nominal.args.iter().copied());
+                    if let Some(eff) = &nominal.eff {
+                        stack.extend(eff.terms.iter().copied());
+                    }
+                }
+                TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+                TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                    stack.extend(elements.iter().copied());
+                }
+                TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                    if let Some(receiver) = fun.receiver {
+                        stack.push(receiver);
+                    }
+                    stack.extend(fun.params.iter().copied());
+                    stack.push(fun.return_ty);
+                    stack.extend(fun.effects.terms.iter().copied());
+                }
+                TypeKind::Ref(RefTypeKind::Union(union)) => {
+                    stack.extend(union.variants.iter().copied());
+                }
+                TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+                | TypeKind::Value(ValueTypeKind::Unit)
+                | TypeKind::Value(ValueTypeKind::Nothing)
+                | TypeKind::Value(ValueTypeKind::Bool)
+                | TypeKind::Value(ValueTypeKind::Char)
+                | TypeKind::Value(ValueTypeKind::Float64)
+                | TypeKind::Value(ValueTypeKind::Float32)
+                | TypeKind::Value(ValueTypeKind::Int)
+                | TypeKind::Value(ValueTypeKind::UInt)
+                | TypeKind::Value(ValueTypeKind::IntN(_))
+                | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+            }
+        }
+        false
     }
 
     fn resume_surface_abi_value(

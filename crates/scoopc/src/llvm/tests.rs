@@ -4832,6 +4832,52 @@ fun main(): Int {
 }
 
 #[test]
+fn refactor_class_ctor_uses_concrete_generic_instance_layout() {
+    let source = SourceFile::new_virtual(
+        "<mem>/generic_class_instance_layout.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+class Box<T>(var value: T)
+
+fun main(): Int {
+    val box: Box<String> = Box("hi")
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let context = Context::create();
+    let module = build_minimal_main_module(&session, &source, &context).unwrap();
+    let ir = module.print_to_string().to_string();
+
+    let payload_ty = context
+        .get_struct_type("scoop.runtime.ClassPayload__a_Box_String_")
+        .expect("generic Box<String> constructor should publish a concrete class payload type");
+    let fields = payload_ty.get_field_types();
+    assert_eq!(
+        fields.len(),
+        1,
+        "Box<String> concrete payload should have the substituted value field"
+    );
+    assert!(
+        fields[0].is_pointer_type(),
+        "Box<String>.value should lower as the concrete String GC pointer field, not generic T"
+    );
+    assert!(
+        ir.contains("@__scoop_type_desc_class__a_Box_String_"),
+        "constructor allocation should use the concrete Box<String> type descriptor\n{ir}"
+    );
+    assert!(
+        !ir.contains("@__scoop_type_desc_class__a_Box ="),
+        "generic constructor must not allocate with the raw Box<T> descriptor\n{ir}"
+    );
+}
+
+#[test]
 fn thread_join_preserves_live_gc_locals_via_explicit_root_frame() {
     let source = SourceFile::new_virtual(
         "<mem>",

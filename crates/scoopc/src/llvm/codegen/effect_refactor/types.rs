@@ -158,6 +158,71 @@ impl<'ctx> RefactorSourceAbiLayout<'ctx> {
     }
 }
 
+/// 单个 concrete class instance field 在 refactor LLVM handoff 中的稳定来源。
+#[derive(Debug, Clone)]
+pub(super) struct RefactorClassInstanceFieldLayout {
+    field_fqn: String,
+    source_ty: TypeId,
+}
+
+impl RefactorClassInstanceFieldLayout {
+    pub(super) fn new(field_fqn: String, source_ty: TypeId) -> Self {
+        Self {
+            field_fqn,
+            source_ty,
+        }
+    }
+
+    pub(super) fn field_fqn(&self) -> &str {
+        &self.field_fqn
+    }
+
+    pub(super) fn source_ty(&self) -> TypeId {
+        self.source_ty
+    }
+}
+
+/// concrete class source type 到 canonical class payload/type-descriptor key 的 handoff。
+#[derive(Debug, Clone)]
+pub(super) struct RefactorClassInstanceLayout {
+    source_ty: TypeId,
+    base_fqn: String,
+    class_key: String,
+    fields: Vec<RefactorClassInstanceFieldLayout>,
+}
+
+impl RefactorClassInstanceLayout {
+    pub(super) fn new(
+        source_ty: TypeId,
+        base_fqn: String,
+        class_key: String,
+        fields: Vec<RefactorClassInstanceFieldLayout>,
+    ) -> Self {
+        Self {
+            source_ty,
+            base_fqn,
+            class_key,
+            fields,
+        }
+    }
+
+    pub(super) fn source_ty(&self) -> TypeId {
+        self.source_ty
+    }
+
+    pub(super) fn base_fqn(&self) -> &str {
+        &self.base_fqn
+    }
+
+    pub(super) fn class_key(&self) -> &str {
+        &self.class_key
+    }
+
+    pub(super) fn fields(&self) -> &[RefactorClassInstanceFieldLayout] {
+        &self.fields
+    }
+}
+
 /// `Step_F` 的单个 variant 布局。
 pub(super) struct RefactorStepVariantLayout<'ctx> {
     tag_value: u32,
@@ -2060,6 +2125,7 @@ impl RefactorCallableCarrierTargetLayout {
 /// refactor LLVM type/layout 层对下游 body emitter 暴露的稳定查询面。
 pub(crate) struct RefactorAbiQuery<'ctx> {
     source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
+    class_instance_layouts: BTreeMap<TypeId, RefactorClassInstanceLayout>,
     step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
     continuation_layouts: BTreeMap<ContinuationObjectId, RefactorContinuationObjectLayout<'ctx>>,
@@ -2098,6 +2164,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
+        class_instance_layouts: BTreeMap<TypeId, RefactorClassInstanceLayout>,
         step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
         frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
         continuation_layouts: BTreeMap<
@@ -2160,6 +2227,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
     ) -> Self {
         Self {
             source_value_layouts,
+            class_instance_layouts,
             step_layouts,
             frame_layouts,
             continuation_layouts,
@@ -2192,6 +2260,20 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "refactor LLVM ABI query 缺少 source type {} 的 ABI value lowering contract",
+                    source_ty.as_u32()
+                ),
+            })
+    }
+
+    pub(super) fn class_instance_layout(
+        &self,
+        source_ty: TypeId,
+    ) -> Result<&RefactorClassInstanceLayout, LlvmEmitError> {
+        self.class_instance_layouts
+            .get(&source_ty)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 source type {} 的 concrete class instance layout contract",
                     source_ty.as_u32()
                 ),
             })

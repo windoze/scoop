@@ -278,9 +278,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.codegen
                     .codegen_mir_make_closure(span, env, fn_ptr, env_cg, target_cg, self.slots)
             }
-            mir::Rvalue::ClassCtor { class_fqn, args } => self
-                .codegen
-                .codegen_mir_refactor_class_ctor_call(span, class_fqn, args, self.slots),
+            mir::Rvalue::ClassCtor { class_fqn, args } => {
+                let class_layout_key =
+                    self.refactor_class_ctor_layout_key(class_fqn, target_local)?;
+                self.codegen.codegen_mir_refactor_class_ctor_call(
+                    span,
+                    &class_layout_key,
+                    args,
+                    self.slots,
+                )
+            }
             _ => self.codegen.codegen_mir_effect_neutral_rvalue(
                 span,
                 value,
@@ -290,6 +297,35 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 target_cg,
             ),
         }
+    }
+
+    fn refactor_class_ctor_layout_key(
+        &self,
+        class_fqn: &str,
+        target_local: Option<LocalId>,
+    ) -> Result<String, LlvmEmitError> {
+        let Some(target_ty) = target_local
+            .and_then(|local| self.body.locals.get(local.as_u32() as usize))
+            .map(|local| local.ty)
+        else {
+            return Ok(class_fqn.to_string());
+        };
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(target_ty) else {
+            return Ok(class_fqn.to_string());
+        };
+        if nominal.fqn != class_fqn {
+            return Ok(class_fqn.to_string());
+        }
+
+        let layout = self.abi.class_instance_layout(target_ty)?;
+        if layout.base_fqn() != class_fqn {
+            return Err(frontend_error(format!(
+                "refactor class ctor `{class_fqn}` target type t{} resolved to mismatched class layout `{}`",
+                target_ty.as_u32(),
+                layout.base_fqn()
+            )));
+        }
+        Ok(layout.class_key().to_string())
     }
 
     fn maybe_build_effect_typed_plain_closure_adapter(

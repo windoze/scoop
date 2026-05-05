@@ -785,12 +785,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let Some(target_cg) = self.mir_local_cg_ty(body, mir_types, *target) else {
                     return false;
                 };
+                let target_source_ty = body
+                    .locals
+                    .get(target.as_u32() as usize)
+                    .map(|local| local.ty);
                 self.raw_materialized_mir_rvalue_is_supported(
                     stmt.span,
                     body,
                     mir_types,
                     value,
                     Some(target_cg),
+                    target_source_ty,
                 )
             }
             crate::mir::StatementKind::StoreMember {
@@ -860,6 +865,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         value: &crate::mir::Rvalue,
         target_cg: Option<CgTy>,
+        target_source_ty: Option<TypeId>,
     ) -> bool {
         match value {
             crate::mir::Rvalue::Use(operand) | crate::mir::Rvalue::Unary { operand, .. } => {
@@ -953,7 +959,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 target_cg,
             ),
             crate::mir::Rvalue::ClassCtor { class_fqn, args } => {
-                self.class_inits.contains_key(class_fqn)
+                let class_layout_key =
+                    self.mir_class_ctor_layout_key(class_fqn, mir_types, target_source_ty);
+                self.class_inits.contains_key(&class_layout_key)
                     && target_cg == Some(CgTy::Ref)
                     && args.iter().all(|arg| {
                         arg.name.is_none()
@@ -1051,7 +1059,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         member: &crate::mir::MemberAccessMetadata,
     ) -> Result<MirMemberFieldContract, LlvmEmitError> {
         let field_fqn = mir_member_value_fqn_for_codegen(span, member)?;
-        let receiver_type_id = self.mir_member_receiver_codegen_type_id(span, mir_types, member)?;
+        let receiver_type_id =
+            self.mir_member_receiver_codegen_type_id(span, body, mir_types, receiver, member)?;
         let receiver_contract_cg =
             self.cg_ty_of(receiver_type_id)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -1152,10 +1161,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn mir_member_receiver_codegen_type_id(
         &self,
         span: crate::span::Span,
+        body: &crate::mir::Body,
         mir_types: &TypeStore,
+        receiver: &crate::mir::Operand,
         member: &crate::mir::MemberAccessMetadata,
     ) -> Result<TypeId, LlvmEmitError> {
-        self.equivalent_codegen_type_id(mir_types, member.receiver_ty)
+        let receiver_source_ty = match receiver {
+            crate::mir::Operand::Local(local) => body
+                .locals
+                .get(local.as_u32() as usize)
+                .map(|local| local.ty)
+                .unwrap_or(member.receiver_ty),
+            crate::mir::Operand::Const(_) => member.receiver_ty,
+        };
+        self.equivalent_codegen_type_id(mir_types, receiver_source_ty)
+            .or_else(|| self.equivalent_codegen_type_id(mir_types, member.receiver_ty))
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR member receiver type",
                 at: span.into(),
@@ -1435,6 +1455,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.types
             .iter_ids()
             .find(|&candidate| self.types.display(candidate).to_string() == source_display)
+    }
+
+    fn mir_class_ctor_layout_key(
+        &self,
+        class_fqn: &str,
+        mir_types: &TypeStore,
+        target_source_ty: Option<TypeId>,
+    ) -> String {
+        let Some(target_source_ty) = target_source_ty else {
+            return class_fqn.to_string();
+        };
+        let Some(codegen_ty) = self.equivalent_codegen_type_id(mir_types, target_source_ty) else {
+            return class_fqn.to_string();
+        };
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(codegen_ty) else {
+            return class_fqn.to_string();
+        };
+        if nominal.fqn != class_fqn {
+            return class_fqn.to_string();
+        }
+        self.nominal_layout_key(nominal)
     }
 
     pub(super) fn equivalent_codegen_effect_row(
@@ -1783,8 +1824,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(());
                 }
                 let slot = self.mir_local_slot(stmt.span, slots, *target)?;
-                let value =
-                    self.codegen_mir_rvalue(stmt.span, value, body, mir_types, slots, slot.cg_ty)?;
+                let target_source_ty = body
+                    .locals
+                    .get(target.as_u32() as usize)
+                    .map(|local| local.ty);
+                let value = self.codegen_mir_rvalue(
+                    stmt.span,
+                    value,
+                    body,
+                    mir_types,
+                    slots,
+                    slot.cg_ty,
+                    target_source_ty,
+                )?;
                 let _ = self.store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)?;
                 Ok(())
             }
@@ -1915,6 +1967,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_mir_rvalue(
         &mut self,
         span: crate::span::Span,
@@ -1923,6 +1976,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
+        target_source_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match value {
             crate::mir::Rvalue::Use(operand) => {
@@ -2011,7 +2065,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 slots,
             ),
             crate::mir::Rvalue::ClassCtor { class_fqn, args } => {
-                self.codegen_mir_class_ctor_call(span, class_fqn, args, slots)
+                let class_layout_key =
+                    self.mir_class_ctor_layout_key(class_fqn, mir_types, target_source_ty);
+                self.codegen_mir_class_ctor_call(span, &class_layout_key, args, slots)
             }
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
@@ -2633,8 +2689,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         require_writable: bool,
     ) -> Result<MirMemberPlace<'ctx>, LlvmEmitError> {
         let field_fqn = mir_member_value_fqn_for_codegen(span, member)?;
-        let receiver_type_id =
-            self.mir_member_receiver_codegen_type_id(span, mir_ctx.mir_types, member)?;
+        let receiver_type_id = self.mir_member_receiver_codegen_type_id(
+            span,
+            mir_ctx.body,
+            mir_ctx.mir_types,
+            receiver,
+            member,
+        )?;
         if let Some((class, field_idx, field_cg)) =
             self.lookup_class_field_by_fqn(field_fqn, span, Some(receiver_type_id))?
         {
@@ -2757,6 +2818,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn codegen_mir_member_lvalue_ptr(
         &mut self,
         span: crate::span::Span,
@@ -4546,11 +4608,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_mir_refactor_class_ctor_call(
         &mut self,
         span: crate::span::Span,
-        class_fqn: &str,
+        class_layout_key: &str,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let class = self.class_init_layout(span, class_fqn)?;
+        let class = self.class_init_layout(span, class_layout_key)?;
         let selected_ctor = self.pick_class_ctor_by_target(
             span,
             &class,
@@ -4574,7 +4636,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
-        let type_desc = self.get_or_create_class_type_desc_global(span, class_fqn)?;
+        let type_desc = self.get_or_create_class_type_desc_global(span, class_layout_key)?;
         let type_desc_i8 = self.builder.build_pointer_cast(
             type_desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),

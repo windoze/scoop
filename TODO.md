@@ -125,7 +125,7 @@
 | `P7-T01R` | `TODO-P7.md` | [DONE] Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口 |
 | `P7-T02` | `TODO-P7.md` | [DONE] 更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy” |
 | `P7-T02R` | `TODO-P7.md` | [DONE] Review 默认主线假设与 hidden-fallback 守护，确认 omission/default 真正代表 refactor 主线 |
-| `P7-T02T` | `TODO-P7.md` | 发布并消费 generic class instance layout handoff，解除 `Task<T>` constructor 在 refactor LLVM 默认路径上的阻塞 |
+| `P7-T02T` | `TODO-P7.md` | [DONE] 发布并消费 generic class instance layout handoff，解除 `Task<T>` constructor 在 refactor LLVM 默认路径上的阻塞 |
 | `P7-T02S` | `TODO-P7.md` | 修复默认 build fixture 中暴露的 refactor LLVM/lowering 缺口，解除 P7-T03 full regression 阻塞 |
 | `P7-T03` | `TODO-P7.md` | 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
 | `P7-T03R` | `TODO-P7.md` | Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |

@@ -1,26 +1,57 @@
-# 当前执行计划
+# 执行计划
 
-## 执行原则
-- 先读取 `TODO.md` 作为索引，再按索引打开对应 `TODO-Px.md`，以详细任务文件为准确定第一个未完成任务。
-- 只处理第一个未完成的详细任务；完成、验证、记录并提交后立即停止。
-- 若遇到阻塞当前任务的缺失特性或规格不一致，不做绕路实现；在对应详细 TODO 文件中加入最小 prerequisite，同步 `TODO.md`，提交后停止。
-- 只在阶段级计划确实变化时更新 `PLAN.md`；常规进度仅记录在详细 TODO 与本文件中。
+## 当前目标
 
-## 步骤
-1. 检查任务索引与详细任务文件，确定当前第一个未完成任务。
-2. 阅读该任务要求、约束、依赖和验证方式，必要时查看相关代码与测试。
-3. 按任务要求做最小正确实现，不回退或覆盖无关工作区变更。
-4. 运行相关测试；若失败，修复与当前任务直接相关的问题并复测。
-5. 更新对应 `TODO-Px.md` 的任务标题为 `[DONE]` 并补齐完成记录，同时同步 `TODO.md` 中同一任务的 `[DONE]` 状态。
-6. 更新本文件记录关键完成步骤。
-7. 按要求提交本次任务的全部相关改动，然后停止。
+- 当前详细任务：`TODO-P7.md` 中的 `P7-T02T`。
+- 目标：发布并消费 generic class instance layout handoff，修复 `Task<T>` constructor 在默认 refactor LLVM path 中使用未实例化 generic declaration field layout 的问题。
+- 完成后更新 `TODO-P7.md` 与 `TODO.md`，验证并提交，然后停止。
 
-## 当前进度
-- 已写入初始计划。
-- 已根据 `TODO.md` 与 `TODO-P7.md` 确认当前第一个未完成详细任务为 `P7-T02S`：修复默认 build fixture 中暴露的 refactor LLVM/lowering 缺口。
-- 下一步查看最新提交与相关代码/fixture，确认是否存在直接关联的未完成问题，然后按任务三类缺口逐项修复并验证。
-- 已复现三类定向失败：f-string 在 MIR 中仍是 `Todo`；integer literal overflow 在 effect facts 前被包装为 frontend prepare failure；`HandleDispatch` completion source 只看 state slice 最后一条赋值。
-- 正在实施最小修复：显式 MIR f-string rvalue 与 refactor lowering、LLVM stage literal 预检查、P5 contract 层反向扫描 state slice completion source。
-- 初轮修复后：默认 `9223372036854775808.toString()` 已恢复 `scoop::llvm::invalid_literal`；f-string 已不再是当前 extern fixture 阻塞；原 task fixture 的 completion-source 错误已消失。剩余直接后续失败为 `GC.handleNew` 函数值调用 lowering、负号/窄整数字面量预检查覆盖不足、以及 task fixture 的 source-type ABI value 对类型参数 `T` 的 contract 缺口。
-- 已继续修复 `GC.handleNew/Drop`、负号/窄整数字面量、generic resume surface ABI、resume-boundary wrapper complete projection、plain local-effect closure、enum ctor、task transport、atomic 与 panic 的直接后续阻塞。
-- 当前 `task_atomic_claim_no_mutex_llvm` 停在 `scoop.core.Task<T>` generic class constructor/layout handoff：refactor class ctor 仍按未实例化 generic class field layout 取 LLVM payload，触发 `class field type`。该缺口需要新增 prerequisite 任务先固定 generic class instance layout contract；`P7-T02S` 保持未完成。
+## 执行步骤
+
+1. 读取 `TODO.md`，确认索引中的阶段文件和任务顺序。
+2. 按索引顺序读取对应 `TODO-Px.md` 文件，使用详细文件作为唯一完成状态来源。
+3. 选择第一个标题未显式带 `[DONE]` 的详细任务；若最新提交指出与该任务直接相关的未完问题，将其纳入当前任务或作为前置项处理。
+4. 阅读该任务的详细要求、约束、依赖和验证要求。
+5. 检查相关代码与测试，实施最小且符合规范的修改；不通过缩小范围、替代表达或 fixture-only hack 绕过问题。
+6. 运行与任务相关的测试；必要时运行更广泛的验证，修复发现的直接相关问题。
+7. 更新 `TODO-Px.md`：在完成任务标题前加 `[DONE]`，并填写或更新完成记录。
+8. 如该任务出现在 `TODO.md` 索引中，同步相同 `[DONE]` 标记；仅在阶段级计划变化时更新 `PLAN.md`。
+9. 更新本文件，记录关键步骤完成情况和最终验证结果。
+10. 查看 git 状态和差异，提交本次任务涉及的所有未提交变更，提交信息包含任务编号并准确描述改动。
+11. 停止，不继续下一个任务。
+
+## 约束
+
+- 若发现阻塞当前任务的缺失语言特性、规格不一致或实现边界，优先修复；若本次无法正确完成，则添加最小前置任务并同步索引后提交停止。
+- 不回退或修改与当前任务无关的既有工作区变更。
+- 所有手工文件编辑使用 `apply_patch`。
+
+## 进度
+
+- 计划已初始化。
+- 已读取 `TODO.md` 与 `TODO-P7.md`，确认第一个未完成任务为 `P7-T02T`。
+- 最新提交 `[P7-T02S] Fix refactor build blockers and add Task layout prerequisite` 与当前任务直接相关，按当前任务范围处理。
+- 已实现 generic class instance layout handoff：`RefactorAbiQuery` 发布 concrete class instance layout，refactor/pass MIR class ctor 与 member access 消费 target/receiver concrete source type 生成的 class key。
+- 已新增 `llvm::tests::refactor_class_ctor_uses_concrete_generic_instance_layout`。
+- `task_atomic_claim_no_mutex_llvm.scoop` 已越过 `Task<T>` constructor/member layout blocker，当前停在后续 `P7-T02S` 的 `source-backed literal span` blocker。
+- 已更新 `TODO-P7.md` 与 `TODO.md`，将 `P7-T02T` 标记为 `[DONE]`，并记录验证结果。
+
+## 当前任务执行细化
+
+1. 复现 `task_atomic_claim_no_mutex_llvm.scoop` 当前失败，记录具体 failing path 与诊断。
+2. 定位 refactor LLVM class constructor lowering、class layout/descriptor materialization、`InstanceKey` / concrete type args 相关代码。
+3. 找到已有 materialized type/class instance layout 数据源；若缺失，则在 P5/P6 handoff 或 ABI materializer 中补充稳定 keyed concrete field layout。
+4. 修改 class ctor lowering，使 `Task<Int>` / `Task<(Int, Any)>` 等 generic instance 使用 concrete field ABI 存储字段，而不是 raw class declaration generic field type。
+5. 确认 GC/type descriptor/field trace bitmap 继续依据 concrete field 类型生成，不擦除为 `Any`。
+6. 增加或更新定向测试覆盖 generic class ctor concrete layout。
+7. 运行任务要求验证命令，必要时补充格式化和 lint。
+8. 更新 TODO 完成记录和本计划文件，提交本任务所有变更。
+
+## 验证结果
+
+- 通过：`cargo test -p scoopc --lib refactor_class_ctor_uses_concrete_generic_instance_layout`
+- 通过：`cargo test -p scoopc --lib effect_lowered`
+- 通过：`cargo test -p scoopc --lib llvm::codegen::effect_refactor`
+- 通过：`cargo test -p scoopc --lib llvm::tests`
+- 通过：`cargo clippy --all-targets -- -D warnings`
+- 已运行：`cargo run -p scoop -- test --fixtures tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`；结果不再出现 `Task<T>` generic class layout 错误，当前推进到 `P7-T02S` 范围内的 `source-backed literal span` blocker。
