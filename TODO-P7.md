@@ -557,7 +557,7 @@
   - `LateLoweredResumeBoundaryLowering` 现在发布 `continuation_compositions`，dump 会渲染该 contract；LLVM composed resume dispatch 同时消费 call-boundary 与 resume-boundary composition，并按 published `input_step_schema` / case contract 调用 underlying surface resume，再把 owner `Step` 交回 caller boundary dispatch。ABI layout 同步修正 same-owner wrapper projection，保留 resume-boundary site inventory；只有 cross-owner wrapper 才改由 underlying owner route 驱动 owner trampoline。
   - 新增 `refactor_effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape`，覆盖跨函数成员保存 continuation 后再 resume 的 late-lowered contract。验证通过：`cargo fmt --all`；`cargo run -p scoop -- run tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`（输出 `40` / `-1` / `12`）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`；`cargo test -p scoopc --lib refactor_effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo clippy --all-targets -- -D warnings`。
 
-## P7-T02Y：修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞
+## [DONE] P7-T02Y：修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞
 
 - 参考：
   - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03h
@@ -593,7 +593,10 @@
   - 后续 `P7-T03` 可继续运行 full regression。
 - 依赖：P7-T02X
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的默认 refactor 阻塞。frame lifting 现在把 handle boundary routing 的动态 consume-to-arm 控制流纳入 state liveness；因此当 resumed body 在 nested arm 内 outward-suspend，并由外层 handle arm 消费时，该 arm 后续需要读取的 source local（例如 `cell` 参数）会被提升进 continuation frame，resume owner trampoline 不再用未恢复的空 local 执行 `cell.saved = Some(k)`。
+  - 2026-05-05：收紧 surface resume owner trampoline 的 handle consumption 范围。`handle_boundary_action` 在 surface resume entry 中只允许当前 published surface handle site 消费/pending outward case；非当前 surface route 的外层 handle 不再在 trampoline 内直接消费 `Boom.next`，而是把 Step 交回原始 resume boundary，由原函数中的 outer handle 保存组合 continuation 并返回首次 `18`，后续 `k.resume(11)` 再继续执行 inner arm tail。
+  - 新增定向覆盖：`effect_lowered::frame::tests::refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`，锁定被 routed handle arm 读取的 source local 必须进入 continuation frame。
+  - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`；`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 

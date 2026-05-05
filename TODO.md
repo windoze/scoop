@@ -131,7 +131,7 @@
 | `P7-T02V` | `TODO-P7.md` | [DONE] 修复默认 run-pass 暴露的 refactor callable-value receiver / pattern binder / FunPtr 阻塞 |
 | `P7-T02W` | `TODO-P7.md` | [DONE] 闭合 refactor class ctor / object init hidden ordinary effect handoff，解除 P7-T03 run-pass 阻塞 |
 | `P7-T02X` | `TODO-P7.md` | [DONE] 闭合 cross-call escaped continuation member provenance 与 resume-boundary continuation composition，解除 P7-T03 continuation run-pass 阻塞 |
-| `P7-T02Y` | `TODO-P7.md` | 修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞 |
+| `P7-T02Y` | `TODO-P7.md` | [DONE] 修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞 |
 | `P7-T03` | `TODO-P7.md` | 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
 | `P7-T03R` | `TODO-P7.md` | Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |
 | `P7-T04` | `TODO-P7.md` | 运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口 |

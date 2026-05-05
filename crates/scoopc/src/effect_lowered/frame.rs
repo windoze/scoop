@@ -13,8 +13,9 @@ use crate::ty::TypeStore;
 use super::EffectLoweringError;
 use super::ir::{
     BoundaryId, LateLoweredBoundaryMap, LateLoweredBoundarySource, LateLoweredContinuationCapture,
-    LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind, LateLoweredState,
-    LateLoweredStateGraph, LateLoweredStateTerminator, StateId, SystemSlotKind,
+    LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
+    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredState, LateLoweredStateGraph,
+    LateLoweredStateTerminator, StateId, SystemSlotKind,
 };
 
 pub(crate) struct FrameLiftingResult {
@@ -70,7 +71,13 @@ pub(crate) fn build_callable_frame(
         })?;
 
     let binder_info_by_local = collect_binder_info(body);
-    let analysis = analyze_state_locals(body, &state_graph, &binder_info_by_local);
+    let routing_successors = collect_handle_routing_successors(&state_graph);
+    let analysis = analyze_state_locals(
+        body,
+        &state_graph,
+        &binder_info_by_local,
+        &routing_successors,
+    );
     let boundary_owner_live_out =
         collect_boundary_owner_live_outs(&state_graph, &analysis.live_out);
     let lifted_locals = boundary_owner_live_out
@@ -347,6 +354,80 @@ fn collect_boundary_owner_live_outs(
             _ => None,
         })
         .collect()
+}
+
+fn collect_handle_routing_successors(
+    state_graph: &LateLoweredStateGraph,
+) -> BTreeMap<StateId, BTreeSet<StateId>> {
+    let mut successors = BTreeMap::<StateId, BTreeSet<StateId>>::new();
+    for state in state_graph.states() {
+        let LateLoweredStateTerminator::HandleDispatch {
+            body_state,
+            arm_states,
+            finally_state,
+            exit_state,
+            contract,
+            drop_state,
+            ..
+        } = state.terminator()
+        else {
+            continue;
+        };
+        let mut stop_states = arm_states.iter().copied().collect::<BTreeSet<_>>();
+        stop_states.insert(*exit_state);
+        if let Some(finally_state) = *finally_state {
+            stop_states.insert(finally_state);
+        }
+        if let Some(drop_state) = *drop_state {
+            stop_states.insert(drop_state);
+        }
+        let body_region_states =
+            collect_handle_body_region_states(state_graph, *body_state, &stop_states);
+        for owner_state in body_region_states {
+            successors
+                .entry(owner_state)
+                .or_default()
+                .extend(arm_states.iter().copied());
+        }
+        for routing in contract.boundary_routings() {
+            let entry = successors.entry(routing.owner_state()).or_default();
+            for case in routing.case_routings() {
+                match case.action() {
+                    LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                        arm_state, ..
+                    } => {
+                        entry.insert(arm_state);
+                    }
+                    LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { .. } => {
+                        if let Some(finally_state) = *finally_state {
+                            entry.insert(finally_state);
+                        }
+                    }
+                    LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward => {}
+                }
+            }
+        }
+    }
+    successors
+}
+
+fn collect_handle_body_region_states(
+    state_graph: &LateLoweredStateGraph,
+    body_state: StateId,
+    stop_states: &BTreeSet<StateId>,
+) -> BTreeSet<StateId> {
+    let mut visited = BTreeSet::new();
+    let mut worklist = vec![body_state];
+    while let Some(state_id) = worklist.pop() {
+        if stop_states.contains(&state_id) || !visited.insert(state_id) {
+            continue;
+        }
+        let Some(state) = state_graph.state(state_id) else {
+            continue;
+        };
+        worklist.extend(state.successors().iter().rev().copied());
+    }
+    visited
 }
 
 fn write_points_for_local(
@@ -631,13 +712,14 @@ fn analyze_state_locals(
     body: &Body,
     state_graph: &LateLoweredStateGraph,
     binder_info_by_local: &HashMap<LocalId, BinderInfo>,
+    routing_successors: &BTreeMap<StateId, BTreeSet<StateId>>,
 ) -> StateLocalAnalysis {
     let implicit_defs_by_block = collect_implicit_defs_by_block(body);
     let mut defs = BTreeMap::new();
     let mut uses_before_def = BTreeMap::new();
     let mut read_states = HashMap::<LocalId, BTreeSet<StateId>>::new();
     let mut def_states = HashMap::<LocalId, BTreeSet<StateId>>::new();
-    let predecessor_counts = collect_predecessor_counts(state_graph);
+    let predecessor_counts = collect_predecessor_counts(state_graph, routing_successors);
 
     for state in state_graph.states() {
         let mut state_defs = BTreeSet::new();
@@ -700,7 +782,7 @@ fn analyze_state_locals(
         uses_before_def.insert(state.state_id(), state_uses);
     }
 
-    let live_out = solve_live_out(state_graph, &defs, &uses_before_def);
+    let live_out = solve_live_out(state_graph, &defs, &uses_before_def, routing_successors);
     StateLocalAnalysis {
         read_states,
         def_states,
@@ -730,21 +812,36 @@ fn collect_implicit_defs_by_block(body: &Body) -> BTreeMap<BasicBlockId, Vec<Loc
     implicit_defs
 }
 
-fn collect_predecessor_counts(state_graph: &LateLoweredStateGraph) -> BTreeMap<StateId, usize> {
+fn collect_predecessor_counts(
+    state_graph: &LateLoweredStateGraph,
+    routing_successors: &BTreeMap<StateId, BTreeSet<StateId>>,
+) -> BTreeMap<StateId, usize> {
     let mut counts = BTreeMap::new();
     for state in state_graph.states() {
         counts.entry(state.state_id()).or_insert(0);
-        for successor in state.successors() {
-            *counts.entry(*successor).or_insert(0) += 1;
+        for successor in state_successors_with_routing(state, routing_successors) {
+            *counts.entry(successor).or_insert(0) += 1;
         }
     }
     counts
+}
+
+fn state_successors_with_routing(
+    state: &LateLoweredState,
+    routing_successors: &BTreeMap<StateId, BTreeSet<StateId>>,
+) -> BTreeSet<StateId> {
+    let mut successors = state.successors().iter().copied().collect::<BTreeSet<_>>();
+    if let Some(routed) = routing_successors.get(&state.state_id()) {
+        successors.extend(routed.iter().copied());
+    }
+    successors
 }
 
 fn solve_live_out(
     state_graph: &LateLoweredStateGraph,
     defs: &BTreeMap<StateId, BTreeSet<LocalId>>,
     uses_before_def: &BTreeMap<StateId, BTreeSet<LocalId>>,
+    routing_successors: &BTreeMap<StateId, BTreeSet<StateId>>,
 ) -> BTreeMap<StateId, BTreeSet<LocalId>> {
     let mut live_in = BTreeMap::<StateId, BTreeSet<LocalId>>::new();
     let mut live_out = BTreeMap::<StateId, BTreeSet<LocalId>>::new();
@@ -753,8 +850,7 @@ fn solve_live_out(
     while changed {
         changed = false;
         for state in state_graph.states().iter().rev() {
-            let out = state
-                .successors()
+            let out = state_successors_with_routing(state, routing_successors)
                 .iter()
                 .flat_map(|successor| {
                     live_in
@@ -1251,6 +1347,76 @@ fun main(): Int {
                 crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleBinder { .. }
             )),
             "穿过后续 boundary 的 handler binder 应被显式 lift\n{}",
+            output.program().stable_dump()
+        );
+    }
+
+    #[test]
+    fn refactor_frame_lifting_captures_locals_used_by_routed_handle_arm() {
+        let output = load_output(&SourceFile::new_virtual(
+            "<mem>/effect_lowered_nested_arm_replay_capture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+effect Inner {
+    fun enter(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+class Cell(var saved: Continuation<Int, Int>?)
+
+fun start(cell: Cell): Int {
+    return handle {
+        val nested: Int = handle {
+            val x: Int = Inner.enter()
+            val y: Int = Boom.next()
+            x + y
+        } with {
+            Inner.enter(), k -> {
+                val resumed: Int = try {
+                    k.resume(7)
+                } catch (e: RuntimeError) {
+                    0
+                }
+                resumed + 1
+            }
+        }
+        nested + 100
+    } with {
+        Boom.next(), k -> {
+            cell.saved = Some(k)
+            18
+        }
+    }
+}
+
+fun main() {}
+"#,
+        ));
+        let callable = callable(&output, "sample.start");
+        let pass_view = output.materialized_pass_view();
+        let mir_fun = pass_view
+            .callable("sample.start")
+            .expect("sample.start 应保留 canonical MIR body");
+        let cell_param = mir_fun
+            .params
+            .first()
+            .expect("start 应包含 cell 参数")
+            .local;
+
+        assert!(
+            callable
+                .frame_schema()
+                .slot_for_kind(
+                    crate::effect_lowered::ir::LateLoweredFrameSlotKind::SourceLocal(cell_param,)
+                )
+                .is_some(),
+            "boundary outward 被外层 handle arm 消费时，该 arm 读取的 source local 应被 lift 到 continuation frame\n{}",
             output.program().stable_dump()
         );
     }

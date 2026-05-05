@@ -5417,6 +5417,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     RefactorHandleBoundaryRuntimeAction::EmitOutward
                 }
             };
+            let action = if self
+                .surface_resume_handle_sites
+                .as_ref()
+                .is_some_and(|sites| !sites.contains(site_id))
+                && !matches!(action, RefactorHandleBoundaryRuntimeAction::EmitOutward)
+            {
+                RefactorHandleBoundaryRuntimeAction::EmitOutward
+            } else {
+                action
+            };
             let depth = self.handle_dispatch_nesting_depth(state.state_id());
             match (&matched, &action) {
                 (None, _) => matched = Some((depth, action)),
