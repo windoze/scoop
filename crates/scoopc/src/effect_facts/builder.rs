@@ -1244,7 +1244,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 return Ok(CallSiteEffectFacts::new(
                     kind,
                     CallSiteTarget::KnownInstance(target_key),
-                    invoke_args_tuple_ty,
+                    facts.invoke_args_tuple_ty(),
                     facts.step_schema(),
                     facts.resolved_outward_cases().clone(),
                     precision,
@@ -2039,7 +2039,96 @@ fn collect_callable_seeds(
             complete_ty: root_fun.return_ty,
         });
     }
+    propagate_static_callee_effect_rows(&mut seeds);
     Ok(seeds)
+}
+
+fn propagate_static_callee_effect_rows(seeds: &mut [CallableSeed]) {
+    let mut surface_rows = seeds
+        .iter()
+        .map(|seed| (seed.root_fun.fqn.clone(), seed.surface_effect_row.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut step_rows = seeds
+        .iter()
+        .map(|seed| (seed.root_fun.fqn.clone(), seed.step_effect_row.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for seed in seeds.iter() {
+            if !seed.root_fun.name.starts_with("$lambda") {
+                continue;
+            }
+            let callee_fqns = static_callee_fqns(&seed.root_fun);
+            if callee_fqns.is_empty() {
+                continue;
+            }
+
+            let mut next_surface_terms = surface_rows
+                .get(&seed.root_fun.fqn)
+                .map(|row| row.terms.clone())
+                .unwrap_or_default();
+            let mut next_step_terms = step_rows
+                .get(&seed.root_fun.fqn)
+                .map(|row| row.terms.clone())
+                .unwrap_or_default();
+            for callee_fqn in callee_fqns {
+                if let Some(row) = surface_rows.get(callee_fqn) {
+                    next_surface_terms.extend(row.terms.iter().copied());
+                }
+                if let Some(row) = step_rows.get(callee_fqn) {
+                    next_step_terms.extend(row.terms.iter().copied());
+                }
+            }
+
+            let next_surface = EffectRow::new(next_surface_terms);
+            if surface_rows.get(&seed.root_fun.fqn) != Some(&next_surface) {
+                surface_rows.insert(seed.root_fun.fqn.clone(), next_surface);
+                changed = true;
+            }
+            let next_step = EffectRow::new(next_step_terms);
+            if step_rows.get(&seed.root_fun.fqn) != Some(&next_step) {
+                step_rows.insert(seed.root_fun.fqn.clone(), next_step);
+                changed = true;
+            }
+        }
+    }
+
+    for seed in seeds.iter_mut() {
+        if let Some(row) = surface_rows.remove(&seed.root_fun.fqn) {
+            seed.surface_effect_row = row;
+        }
+        if let Some(row) = step_rows.remove(&seed.root_fun.fqn) {
+            seed.step_effect_row = row;
+        }
+    }
+}
+
+fn static_callee_fqns(fun: &MirFunDecl) -> Vec<&str> {
+    let Some(body) = &fun.body else {
+        return Vec::new();
+    };
+    let mut callees = Vec::new();
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let StatementKind::Assign { value, .. } = &stmt.kind else {
+                continue;
+            };
+            let Rvalue::Call { kind, .. } = value else {
+                continue;
+            };
+            match kind {
+                CallKind::Direct { callee_fqn } => callees.push(callee_fqn.as_str()),
+                CallKind::Closure { fn_ptr, .. } => callees.push(fn_ptr.as_str()),
+                CallKind::FunValue { .. }
+                | CallKind::Virtual { .. }
+                | CallKind::Interface { .. }
+                | CallKind::Resume { .. } => {}
+            }
+        }
+    }
+    callees
 }
 
 fn template_decl_is_effect_op(index: &Index, template: &TemplateKey) -> bool {

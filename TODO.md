@@ -133,6 +133,7 @@
 | `P7-T02X` | `TODO-P7.md` | [DONE] 闭合 cross-call escaped continuation member provenance 与 resume-boundary continuation composition，解除 P7-T03 continuation run-pass 阻塞 |
 | `P7-T02Y` | `TODO-P7.md` | [DONE] 修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞 |
 | `P7-T02Za` | `TODO-P7.md` | [DONE] 闭合 dynamic dispatch ABI schema identity drift，解除 hidden suspend virtual/interface helper 阻塞 |
+| `P7-T02Zb` | `TODO-P7.md` | 闭合 higher-order returned function-value 的 handled effect 投影，解除 `choose(mode)()` 默认 run-pass 阻塞 |
 | `P7-T02Z` | `TODO-P7.md` | 闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级 |
 | `P7-T03` | `TODO-P7.md` | 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
 | `P7-T03R` | `TODO-P7.md` | Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |

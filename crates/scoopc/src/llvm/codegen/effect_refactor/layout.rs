@@ -3238,22 +3238,26 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     "carrier",
                     carrier,
                 )?;
-                let layout = dynamic_invoke_layouts.get(&(callable.step_schema(), site_id)).ok_or_else(|| {
-                    frontend_error(format!(
-                        "refactor LLVM ABI materialization 缺少 callable `{}` call site {} 的 dynamic-invoke contract，无法校验 carrier source",
-                        callable.root_fqn(),
-                        site_id.as_u32(),
-                    ))
-                })?;
-                let source_layout = self.source_value_layout(carrier.source_ty())?;
-                if source_layout.abi().is_elided() != layout.carrier().receiver_abi().is_elided()
-                    || source_layout.abi().llvm_ty() != layout.carrier().receiver_abi().llvm_ty()
-                {
-                    return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 carrier source ABI 与 published dynamic-invoke carrier 漂移",
-                        callable.root_fqn(),
-                        site_id.as_u32(),
-                    )));
+                if lowering.facts().target_mode() != CallTargetMode::KnownInstance {
+                    let layout = dynamic_invoke_layouts.get(&(callable.step_schema(), site_id)).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 缺少 callable `{}` call site {} 的 dynamic-invoke contract，无法校验 carrier source",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                        ))
+                    })?;
+                    let source_layout = self.source_value_layout(carrier.source_ty())?;
+                    if source_layout.abi().is_elided()
+                        != layout.carrier().receiver_abi().is_elided()
+                        || source_layout.abi().llvm_ty()
+                            != layout.carrier().receiver_abi().llvm_ty()
+                    {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 carrier source ABI 与 published dynamic-invoke carrier 漂移",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                        )));
+                    }
                 }
             }
         }
@@ -6716,8 +6720,62 @@ fn same_surface_resume_wrapper_projection_shape(
             right.underlying_route(),
         ) && left.owner_step_schema() == right.owner_step_schema()
             && left.wrapper_step_schema() == right.wrapper_step_schema()
-            && left.complete() == right.complete()
+            && same_surface_resume_wrapper_complete_shape(left.complete(), right.complete())
             && left.outward_cases() == right.outward_cases())
+}
+
+fn same_surface_resume_wrapper_complete_shape(
+    left: &LateLoweredSurfaceResumeWrapperCompleteProjection,
+    right: &LateLoweredSurfaceResumeWrapperCompleteProjection,
+) -> bool {
+    left.owner_answer_ty() == right.owner_answer_ty()
+        && left.wrapper_answer_ty() == right.wrapper_answer_ty()
+        && same_surface_resume_wrapper_complete_payload_source_shape(
+            left.payload_source(),
+            right.payload_source(),
+        )
+}
+
+fn same_surface_resume_wrapper_complete_payload_source_shape(
+    left: &LateLoweredSurfaceResumeWrapperCompletePayloadSource,
+    right: &LateLoweredSurfaceResumeWrapperCompletePayloadSource,
+) -> bool {
+    match (left, right) {
+        (
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete {
+                answer_ty: left_ty,
+            },
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete {
+                answer_ty: right_ty,
+            },
+        ) => left_ty == right_ty,
+        (
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(left),
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(right),
+        ) => same_completion_payload_source_ignoring_span(left, right),
+        _ => false,
+    }
+}
+
+fn same_completion_payload_source_ignoring_span(
+    left: &LateLoweredCompletionPayloadSource,
+    right: &LateLoweredCompletionPayloadSource,
+) -> bool {
+    match (left, right) {
+        (
+            LateLoweredCompletionPayloadSource::Unit {
+                complete_ty: left_ty,
+            },
+            LateLoweredCompletionPayloadSource::Unit {
+                complete_ty: right_ty,
+            },
+        ) => left_ty == right_ty,
+        (
+            LateLoweredCompletionPayloadSource::Operand(left),
+            LateLoweredCompletionPayloadSource::Operand(right),
+        ) => left.source_ty() == right.source_ty() && left.value() == right.value(),
+        _ => false,
+    }
 }
 
 fn same_surface_resume_wrapper_underlying_route_shape(

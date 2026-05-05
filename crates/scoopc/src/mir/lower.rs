@@ -895,11 +895,12 @@ impl<'a> MirLowering<'a> {
 
     /// 把 HIR 文件降到 MIR 文件。
     fn lower_file(&mut self, file: &hir::File, member_funs: &[hir::FunDecl]) -> File {
+        let top_level_fun_return_tys = collect_top_level_fun_return_tys(file, member_funs);
         let mut items = Vec::with_capacity(file.items.len() + member_funs.len());
         for item in &file.items {
             match item {
                 hir::Item::Fun(fun) => {
-                    let (primary, nested) = self.lower_fun(fun);
+                    let (primary, nested) = self.lower_fun(fun, &top_level_fun_return_tys);
                     items.push(Item::Fun(primary));
                     items.extend(nested.into_iter().map(Item::Fun));
                 }
@@ -914,7 +915,7 @@ impl<'a> MirLowering<'a> {
         // type/object body 中可 codegen 的 member fun 在 HIR 中以 side table 形式保存；
         // dump-mir / dump-ir 需要把它们也作为真正的 generic MIR root 发射出来。
         for fun in member_funs {
-            let (primary, nested) = self.lower_fun(fun);
+            let (primary, nested) = self.lower_fun(fun, &top_level_fun_return_tys);
             items.push(Item::Fun(primary));
             items.extend(nested.into_iter().map(Item::Fun));
         }
@@ -923,16 +924,37 @@ impl<'a> MirLowering<'a> {
     }
 
     /// 把一个函数降到 MIR。
-    fn lower_fun(&mut self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
+    fn lower_fun(
+        &mut self,
+        fun: &hir::FunDecl,
+        top_level_fun_return_tys: &HashMap<String, TypeId>,
+    ) -> (FunDecl, Vec<FunDecl>) {
         FnLowering::new(
             self.builtins,
             self.types,
             self.facts,
+            top_level_fun_return_tys.clone(),
             fun.fqn.clone(),
             fun.source_path.clone(),
         )
         .lower_fun(fun)
     }
+}
+
+fn collect_top_level_fun_return_tys(
+    file: &hir::File,
+    member_funs: &[hir::FunDecl],
+) -> HashMap<String, TypeId> {
+    let mut return_tys = HashMap::new();
+    for item in &file.items {
+        if let hir::Item::Fun(fun) = item {
+            return_tys.insert(fun.fqn.clone(), fun.return_ty);
+        }
+    }
+    for fun in member_funs {
+        return_tys.insert(fun.fqn.clone(), fun.return_ty);
+    }
+    return_tys
 }
 
 /// 函数体 lowering：负责为单个函数构造 `Body`、管理 locals、并生成显式 CFG。
@@ -941,6 +963,7 @@ struct FnLowering<'a> {
     builtins: BuiltinTypes,
     types: &'a mut TypeStore,
     facts: &'a MirLoweringFacts,
+    top_level_fun_return_tys: HashMap<String, TypeId>,
     owner_fqn: String,
     source_path: std::path::PathBuf,
     body: Body,
@@ -1017,6 +1040,7 @@ impl<'a> FnLowering<'a> {
         builtins: BuiltinTypes,
         types: &'a mut TypeStore,
         facts: &'a MirLoweringFacts,
+        top_level_fun_return_tys: HashMap<String, TypeId>,
         owner_fqn: String,
         source_path: std::path::PathBuf,
     ) -> Self {
@@ -1024,6 +1048,7 @@ impl<'a> FnLowering<'a> {
             builtins,
             types,
             facts,
+            top_level_fun_return_tys,
             owner_fqn,
             source_path,
             body: Body::new_empty(),
@@ -2398,7 +2423,8 @@ impl<'a> FnLowering<'a> {
         callee: &hir::Expr,
         args: &[hir::CallArg],
     ) -> LocalId {
-        let result = self.push_temp_local(span, ty);
+        let result_ty = self.call_result_ty_from_callee(span, callee).unwrap_or(ty);
+        let result = self.push_temp_local(span, result_ty);
 
         if let Some(resume_metadata) = self
             .facts
@@ -2477,7 +2503,10 @@ impl<'a> FnLowering<'a> {
             return result;
         }
         let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
-        let callee_origin = self.value_origins.get(&callee_local).cloned();
+        let mut callee_origin = self.value_origins.get(&callee_local).cloned();
+        if callee_origin.is_none() && matches!(callee.kind, hir::ExprKind::Call { .. }) {
+            callee_origin = Some(ValueOrigin::UnknownCallable);
+        }
         let callee_can_lower = self.is_callable_value_ty(callee_ty)
             || matches!(
                 callee_origin,
@@ -2535,6 +2564,20 @@ impl<'a> FnLowering<'a> {
             self.set_terminator(self.current_bb, span, TerminatorKind::Unreachable);
         }
         result
+    }
+
+    fn call_result_ty_from_callee(&self, span: Span, callee: &hir::Expr) -> Option<TypeId> {
+        if let Some(binding) = self
+            .facts
+            .top_level_fun_call_binding(self.source_path.as_path(), span)
+            && let Some(return_ty) = self.top_level_fun_return_tys.get(&binding.fqn)
+        {
+            return Some(*return_ty);
+        }
+        match self.types.kind(callee.ty) {
+            TypeKind::Ref(RefTypeKind::Function(fun)) => Some(fun.return_ty),
+            _ => None,
+        }
     }
 
     fn lower_size_of_intrinsic_call_expr(
@@ -3342,6 +3385,7 @@ impl<'a> FnLowering<'a> {
                 self.builtins,
                 types,
                 self.facts,
+                self.top_level_fun_return_tys.clone(),
                 fqn.clone(),
                 self.source_path.clone(),
             )

@@ -644,6 +644,47 @@
   - 新增 `default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli`，覆盖默认 refactor run 下 virtual/interface hidden suspend helper 的 stdout；既有 member/object-property hidden suspend fixtures 保持通过。未引入 legacy fallback、direct-call 降级、fixture 特判或 raw schema id 偶然映射。
   - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_virtual_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_interface_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_member_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_helper_object_property_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo test -p scoop --test p7_default_pipeline default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli -- --nocapture`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02Zb：闭合 higher-order returned function-value 的 handled effect 投影，解除 `choose(mode)()` 默认 run-pass 阻塞
+
+- 参考：
+  - [`TODO-P7.md`](./TODO-P7.md) P7-T02Z / P7-T03
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02o / P6-T02p
+  - 当前阻塞 fixture：`tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`
+- 背景：
+  - 继续执行 `P7-T02Z` 的逐 fixture run-pass 验证时，已修复 closure env ABI、known-instance invoke tuple、function-value `Nothing` return covariance、以及 call-expression callee 的 MIR `FunValue` lowering；
+  - 当前 `choose(mode)()` 已不再留下 `Todo("call callee lowering pending")`，但 late lowering 仍在 `main` 的 direct call boundary 上看到 `drive` outward `Ask.ask`，报错：`无法在 main 中把 Ask.ask 从 input StepSchema s3 投影到 output StepSchema s4`；
+  - 该路径应由 `drive` 内部 `handle { choose(mode)() } with Ask.ask ...` 消费，不能泄漏到 `main`，也不能在 P6 backend 跳过投影或把未投影 case 改成 unreachable 来绕过。
+
+- 必须实现的内容：
+  1. 修复 higher-order returned function-value call 的 effect facts / solver / late-lowered handoff。
+     - `choose(mode)()` 这类 when/LUB 返回的函数值，在作为 callee 调用时必须按静态 function type 的 effect row 发布 call site cases；
+     - `drive` 内部 handle body 对 `Ask.ask` 的 handled case 必须在 solver 后被正确消费，使 `drive` 对 `main` 表现为 `NoOutward` 或等价 plain local-control boundary；
+     - 不得让 `Ask.ask` 从 `drive` outward 泄漏到 `main` 的 StepSchema。
+  2. 保留当前已修复的 MIR callable-value lowering。
+     - `choose(mode)()` 必须继续生成 `FunValue` call，而不是回到 `Todo("call callee lowering pending")`；
+     - direct top-level call result local 必须继续使用 callee return type，避免返回函数值丢失 callable type。
+  3. 保持 closure/function-value ABI contract。
+     - 不得回 legacy callable wrapper；
+     - 不得按 fixture 名字特判 `choose` / `drive`；
+     - 不得通过跳过 missing projection、缩小 fixture、或显式 legacy selector 绕过。
+  4. 增加或更新定向测试，覆盖 when/LUB 返回函数值后立即调用且 effect 被外层 handle 消费。
+
+- 验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`
+  - 回归已修复相邻 fixtures：
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`
+  - 修复后恢复 `P7-T02Z` 剩余 run-pass blocker 验证。
+
+- 完成条件：
+  - `effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop` 在默认 refactor run-pass 下输出 golden 并以 exit 10 结束；
+  - `drive` 的 handled `Ask.ask` 不再作为 outward case 泄漏到 `main`；
+  - 未引入 hidden legacy fallback、fixture 降级、backend projection skip 或 callable-value 特判。
+- 依赖：P7-T02Za
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T02Z：闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级
 
 - 参考：
@@ -681,10 +722,12 @@
   - 上述剩余 run-pass blockers 在默认 refactor 主线下通过；
   - 不存在新增 hidden legacy fallback、fixture 降级或 runtime-only workaround；
   - P7-T03 可以重新只聚焦标准 full regression 矩阵最终收口。
-- 依赖：P7-T02Za
+- 依赖：P7-T02Zb
 - 完成记录：
   - 2026-05-06：本轮完成 hidden init / top-level init ordinary effect 的一部分通用修复：`TopLevelRef` 现在可携带 hidden init `EffectRow` 与稳定 MIR site id；P4/P5/P6 会把 object value / top-level immutable value init 中的 `Raise<RuntimeError>` 发布为显式 boundary 并捕获 outcome；仅作为静态成员 namespace receiver 的 `TopLevelRef` 不再提前执行 object init，避免绕过 member hidden-effect boundary。定向通过：`object_init_raise_try_catch_basic.scoop`、`object_property_init_raise_helper_try_catch_basic.scoop`、`object_value_init_raise_helper_try_catch_basic.scoop`、`top_level_immutable_init_raise_helper_try_catch_basic.scoop`、`class_init_hidden_raise_helper_try_catch_basic.scoop`、`effect_handle_hidden_suspend_member_helper_basic.scoop`、`effect_handle_hidden_suspend_helper_object_property_basic.scoop`。
   - 2026-05-06：继续验证 hidden suspend helper 系列时，`effect_handle_hidden_suspend_virtual_helper_basic.scoop` / `effect_handle_hidden_suspend_interface_helper_basic.scoop` 暴露 dynamic dispatch ABI schema identity drift：single-candidate interface dispatch 被折叠后缺少 dynamic-invoke carrier contract，随后 body program 与 ABI program 的 raw `StepSchemaId` / owner version key 漂移导致 completion payload、dynamic-invoke、HandleDispatch 与 surface-resume owner lookup 失败。已新增 prerequisite `P7-T02Za`；本任务保持未完成。
+  - 2026-05-06：继续执行逐 fixture 30 秒 run-pass 验证，已完成多项通用修复：`Complete(Unit)` payload elision；lambda/closure 静态 callee hidden effect row 传播；`KnownInstance` closure boundary ABI 校验；`NoOutward` plain local-effect frame 在 frame-free tail 前解除 root；shared surface wrapper projection shape 忽略 payload source span；closure env direct-entry ABI 按 invoke tuple 形状区分整 tuple/展开；known-instance call facts 消费 callee authoritative invoke tuple；函数值 `Nothing` 返回协变；call-expression callee 的 MIR `FunValue` lowering 与 top-level direct call result type 修正。定向通过：`effect_escape_continuation_finally_arm_raise.scoop`、`effect_handle_hidden_suspend_local_closure_helper_basic.scoop`、`effect_handle_return_from_function_any_boxing.scoop`、`effect_handle_yield_and_step_finally.scoop`、`effect_indirect_perform_materialized_mir_closure_basic.scoop`、`effect_indirect_perform_nonresuming_closure.scoop`。
+  - 2026-05-06：当前继续阻塞在 `effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`：`choose(mode)()` 已生成 MIR `FunValue` call，但 solver/late-lowered handoff 仍把 `drive` 内部应由 handle 消费的 `Ask.ask` 暴露到 `main`，导致 `main` call boundary 无法把 `Ask.ask` 从 callee StepSchema 投影到自身 output StepSchema。已新增 prerequisite `P7-T02Zb`；本任务保持未完成。
 
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 

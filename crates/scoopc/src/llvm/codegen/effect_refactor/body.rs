@@ -1137,10 +1137,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut components = vec![None; direct_component_count.max(mir_fun.params.len())];
         let (explicit_param_start, explicit_component_start) = match kind {
             RefactorCallableCarrierKind::ClosureObject if mir_fun.name.starts_with("$lambda") => {
+                let flatten_env = mir_fun.params.first().is_some_and(|param| {
+                    mir_fun.params.len() == 1 && param.ty == direct_entry.invoke_args_tuple_ty()
+                });
                 let env_components = self.load_refactor_closure_env_components(
                     receiver.into_pointer_value(),
                     mir_fun,
                     source_types,
+                    flatten_env,
                 )?;
                 let env_component_count = env_components.len();
                 components = env_components;
@@ -1265,6 +1269,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         closure_obj_i8: PointerValue<'ctx>,
         mir_fun: &mir::FunDecl,
         source_types: &TypeStore,
+        flatten_env: bool,
     ) -> Result<Vec<Option<BasicValueEnum<'ctx>>>, LlvmEmitError> {
         let Some(env_param) = mir_fun.params.first() else {
             return Err(frontend_error(format!(
@@ -1311,35 +1316,66 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.ptr_type(self.gc_address_space()),
             "refactor_closure_env_obj",
         )?;
-        let mut components = vec![None; capture_cgs.len()];
-        for (index, capture_cg) in capture_cgs.iter().enumerate() {
-            if matches!(capture_cg, CgTy::Unit | CgTy::Never) {
-                continue;
-            }
-            let field_ty = self.llvm_basic_type_of(env_param.span, *capture_cg)?;
-            let env_field_index = (index + 1) as u32;
-            if env_field_index >= env_obj_ty.count_fields() {
+        let mut components = Vec::new();
+        let mut aggregate = if flatten_env {
+            None
+        } else {
+            let BasicTypeEnum::StructType(env_tuple_ty) =
+                self.llvm_basic_type_of(env_param.span, env_cg)?
+            else {
                 return Err(frontend_error(format!(
-                    "refactor closure env object `{}` 缺少 capture field {}（field_count={}）",
+                    "refactor closure env `{}` 的 env tuple LLVM type 不是 struct",
                     mir_fun.fqn,
-                    env_field_index,
-                    env_obj_ty.count_fields(),
                 )));
+            };
+            Some(env_tuple_ty.get_undef())
+        };
+        for (index, capture_cg) in capture_cgs.iter().enumerate() {
+            let field_ty = self.llvm_basic_type_of(env_param.span, *capture_cg)?;
+            let raw = if matches!(capture_cg, CgTy::Unit | CgTy::Never) {
+                self.zero_initializer_for_basic_type(field_ty)
+            } else {
+                let env_field_index = (index + 1) as u32;
+                if env_field_index >= env_obj_ty.count_fields() {
+                    return Err(frontend_error(format!(
+                        "refactor closure env object `{}` 缺少 capture field {}（field_count={}）",
+                        mir_fun.fqn,
+                        env_field_index,
+                        env_obj_ty.count_fields(),
+                    )));
+                }
+                let field_gep = self.builder.build_struct_gep(
+                    env_obj_ty,
+                    env_ptr,
+                    env_field_index,
+                    &format!("refactor_closure_env_field{index}_gep"),
+                )?;
+                self.builder.build_load(
+                    field_ty,
+                    field_gep,
+                    &format!("refactor_closure_env_field{index}"),
+                )?
+            };
+            if let Some(current) = aggregate.take() {
+                aggregate = Some(
+                    self.builder
+                        .build_insert_value(
+                            current,
+                            raw,
+                            index as u32,
+                            &format!("refactor_closure_env_tuple_field{index}"),
+                        )?
+                        .into_struct_value(),
+                );
+            } else {
+                components.push(Some(raw));
             }
-            let field_gep = self.builder.build_struct_gep(
-                env_obj_ty,
-                env_ptr,
-                env_field_index,
-                &format!("refactor_closure_env_field{index}_gep"),
-            )?;
-            let raw = self.builder.build_load(
-                field_ty,
-                field_gep,
-                &format!("refactor_closure_env_field{index}"),
-            )?;
-            components[index] = Some(raw);
         }
-        Ok(components)
+        if let Some(aggregate) = aggregate {
+            Ok(vec![Some(aggregate.into())])
+        } else {
+            Ok(components)
+        }
     }
 
     fn load_refactor_closure_env_ref(
@@ -3236,6 +3272,56 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         Ok(())
     }
 
+    fn clear_frame_root(&mut self) -> Result<(), LlvmEmitError> {
+        let null = self.codegen.llvm_gc_i8_ptr_type().const_null();
+        self.codegen.store_refactor_gc_root_slot(
+            self.mir_fun.span,
+            self.frame_root_slot,
+            null,
+            "refactor_frame_root",
+        )
+    }
+
+    fn release_frame_root_for_frame_free_tail(
+        &mut self,
+        resume_state: StateId,
+    ) -> Result<(), LlvmEmitError> {
+        if !matches!(self.return_mode, RefactorCallableReturnMode::Plain { .. })
+            || self.callable.needs_reentry()
+            || self.return_projection.is_some()
+            || self.surface_resume_handle_sites.is_some()
+            || !self.reachable_tail_is_frame_free(resume_state)
+        {
+            return Ok(());
+        }
+        self.clear_frame_root()
+    }
+
+    fn reachable_tail_is_frame_free(&self, start: StateId) -> bool {
+        let mut seen = BTreeSet::new();
+        let mut stack = vec![start];
+        while let Some(state_id) = stack.pop() {
+            if !seen.insert(state_id) {
+                continue;
+            }
+            let Some(state) = self.callable.state_graph().state(state_id) else {
+                return false;
+            };
+            if matches!(state.role(), LateLoweredStateRole::Cleanup) {
+                return false;
+            }
+            if matches!(
+                state.terminator(),
+                LateLoweredStateTerminator::Suspend { .. }
+                    | LateLoweredStateTerminator::HandleDispatch { .. }
+            ) {
+                return false;
+            }
+            stack.extend(state.successors().iter().copied());
+        }
+        true
+    }
+
     fn current_frame_ptr(&mut self) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let frame_gc = self
             .codegen
@@ -3801,7 +3887,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 ))
             })?)
         };
-        let lambda_env_component_count = self.lambda_env_component_count()?;
+        let lambda_env_component_count = self.lambda_env_component_count(entry_layout)?;
         for (index, param) in self.mir_fun.params.iter().enumerate() {
             let param_cg = self
                 .codegen
@@ -3815,10 +3901,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     if env_component_count == 0 {
                         self.codegen.default_value(param.span, param_cg)?
                     } else {
-                        self.bind_direct_tuple_param_from_components(
+                        self.bind_direct_param_from_component(
                             entry_layout.symbol_name(),
                             param.span,
-                            param.ty,
                             param_cg,
                             args_layout,
                             raw_arg,
@@ -3863,7 +3948,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         Ok(())
     }
 
-    fn lambda_env_component_count(&self) -> Result<Option<usize>, LlvmEmitError> {
+    fn lambda_env_component_count(
+        &self,
+        entry_layout: &RefactorCallableEntryLayout<'ctx>,
+    ) -> Result<Option<usize>, LlvmEmitError> {
         if !self.mir_fun.name.starts_with("$lambda") {
             return Ok(None);
         }
@@ -3872,7 +3960,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         };
         match self.source_types.kind(env_param.ty) {
             TypeKind::Value(ValueTypeKind::Unit) => Ok(Some(0)),
-            TypeKind::Value(ValueTypeKind::Tuple(elements)) => Ok(Some(elements.len())),
+            TypeKind::Value(ValueTypeKind::Tuple(elements))
+                if self.mir_fun.params.len() == 1
+                    && env_param.ty == entry_layout.invoke_args_tuple_ty() =>
+            {
+                Ok(Some(elements.len()))
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(_)) => Ok(Some(1)),
             _ => Err(frontend_error(format!(
                 "refactor direct entry `{}` 的 lambda env 参数不是 Unit 或 tuple",
                 self.mir_fun.fqn,
@@ -5335,6 +5429,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.restore_frame_slots_to_locals()?;
         }
         if !self.try_route_boundary_complete_to_handle_completion(boundary)? {
+            self.release_frame_root_for_frame_free_tail(boundary.resume_state())?;
             self.branch_to_state(boundary.resume_state())?;
         }
 
@@ -6816,17 +6911,20 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         payload_source: &LateLoweredCompletionPayloadSource,
         target_ty: TypeId,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let expected = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, target_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor completion payload target type",
+                at: self.mir_fun.span.into(),
+            })?;
+        if expected == CgTy::Unit {
+            return Ok(None);
+        }
         match payload_source {
             LateLoweredCompletionPayloadSource::Unit { .. } => Ok(None),
             LateLoweredCompletionPayloadSource::Operand(source) => {
                 let value = self.lower_operand_source(source)?;
-                let expected = self
-                    .codegen
-                    .cg_ty_of_mir_type(self.source_types, target_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor completion payload target type",
-                        at: source.span().unwrap_or(self.mir_fun.span).into(),
-                    })?;
                 let value = self.codegen.coerce_value(
                     source.span().unwrap_or(self.mir_fun.span),
                     value,

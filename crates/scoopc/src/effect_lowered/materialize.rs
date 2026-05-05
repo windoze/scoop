@@ -3968,6 +3968,7 @@ fn operand_source_with_expected_ty(
             let local_ty = local_decl_ty(root_fqn, site_id, kind, body, *local)?;
             if local_ty != expected_ty
                 && !local_defines_static_member_value_of_type(body, types, *local, expected_ty)
+                && !function_value_source_type_compatible(types, local_ty, expected_ty)
             {
                 return Err(invalid_boundary_operand_contract(
                     root_fqn,
@@ -3993,6 +3994,29 @@ fn operand_source_with_expected_ty(
             span,
         )),
     }
+}
+
+fn function_value_source_type_compatible(
+    types: &TypeStore,
+    local_ty: TypeId,
+    expected_ty: TypeId,
+) -> bool {
+    let (
+        TypeKind::Ref(RefTypeKind::Function(local_fun)),
+        TypeKind::Ref(RefTypeKind::Function(expected_fun)),
+    ) = (types.kind(local_ty), types.kind(expected_ty))
+    else {
+        return false;
+    };
+    local_fun.receiver == expected_fun.receiver
+        && local_fun.params == expected_fun.params
+        && local_fun.effects == expected_fun.effects
+        && local_fun.effects_closed == expected_fun.effects_closed
+        && (local_fun.return_ty == expected_fun.return_ty
+            || matches!(
+                types.kind(local_fun.return_ty),
+                TypeKind::Value(ValueTypeKind::Nothing)
+            ))
 }
 
 fn local_defines_static_member_value_of_type(
