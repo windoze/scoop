@@ -24,4 +24,6 @@
 - 已完成实现与验证：新增默认/显式 refactor 等价黑盒测试，更新诊断、CLI 测试、build fallback 守护和 P6->P7 文档说明；发现 self-contained handle build 已经支持 refactor lowering，因此将旧“应失败”测试改成“不含 legacy handler-stack/outcome”的正向守护。
 - 已运行定向验证、P7 smoke、搜索守卫与 `cargo clippy --all-targets -- -D warnings`，均通过。
 - 已将 `TODO-P7.md` 的 `P7-T02` 与 `TODO.md` 索引标记为 `[DONE]` 并填写完成记录。
-- 下一步检查工作区差异并按要求提交本次更改，然后停止。
+- 已提交本次任务更改：`aa5e5157 [P7-T02] Guard default refactor pipeline assumptions`。
+- 当前只剩测试生成的未跟踪构建目录 `crates/scoop/target/`，未纳入任务提交。
+- 本次调用到此停止，不进入下一任务。
