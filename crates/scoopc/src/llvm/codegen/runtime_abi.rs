@@ -438,6 +438,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_refactor_thread_resume_noncomplete_fatal(
+        &self,
+    ) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_REFACTOR_THREAD_RESUME_NONCOMPLETE_FATAL;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_refactor_thread_resume_noncomplete_fatal(void)`
+        let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     // --- std v3：sync（T1319b） ---
 
     pub(super) fn declare_runtime_sync_mutex_create(&self) -> FunctionValue<'ctx> {

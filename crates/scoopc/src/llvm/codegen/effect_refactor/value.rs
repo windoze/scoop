@@ -1438,13 +1438,10 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
     codegen.builder.build_return(None)?;
 
     codegen.builder.position_at_end(non_complete);
-    let fatal = codegen.declare_runtime_error_fatal();
-    let null_payload = codegen.llvm_gc_i8_ptr_type().const_null();
-    let _ = codegen.builder.build_call(
-        fatal,
-        &[null_payload.into()],
-        "refactor_thread_resume_noncomplete",
-    )?;
+    let fatal = codegen.declare_runtime_refactor_thread_resume_noncomplete_fatal();
+    let _ = codegen
+        .builder
+        .build_call(fatal, &[], "refactor_thread_resume_noncomplete")?;
     codegen.builder.build_return(None)?;
 
     if let Some(block) = restore_block {

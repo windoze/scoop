@@ -1,5 +1,5 @@
 // 目标：P6-T02 `invoke(args_tuple) -> Step_F` / `resume()` 的 `Unit` ABI 必须零载荷退化。
-// - `P6-T01b` 之后，这个 fixture 直接观察不可达 `unitWorker()` 的 ABI shell，不再依赖 reachable handle；
+// - `unitWorker()` 必须真实 outward `Ping.tick()`，避免 NoOutward/plain ABI 正确收口后退化为普通函数；
 // - `unitWorker()` 没有 source 参数，因此 dynamic/direct invoke 必须是零参函数签名；
 // - `Ping.tick(): Unit` 的 resume tuple 也是 `Unit`，因此 resume method 只保留 receiver；
 // - outward step case payload 只应留下 continuation object 指针，而不是额外 `Unit` 载荷。
@@ -14,6 +14,8 @@ effect Ping {
     fun tick(): Unit
 }
 
-fun unitWorker(): Unit / Ping {}
+fun unitWorker(): Unit / Ping {
+    Ping.tick()
+}
 
 fun main() {}

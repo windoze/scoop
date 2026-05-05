@@ -508,15 +508,20 @@ fun main(args: Array<String>): Int {
 
     #[test]
     fn refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry() {
-        let ir = emit_refactor_ir_for_source(sample_source(), "function_abi.ll");
+        let ir = emit_refactor_ir_for_source_with_entry(
+            unhandled_outward_entry_source(),
+            "function_abi.ll",
+            Some("sample.effectEntry"),
+        )
+        .unwrap();
 
         let dynamic = ir_function_body(
             &ir,
-            "define %scoop.refactor.Step__sample_main @__scoop_refactor_dynamic_invoke__sample_main(",
+            "define %scoop.refactor.Step__sample_effectEntry @__scoop_refactor_dynamic_invoke__sample_effectEntry(",
         );
         assert!(
             dynamic.contains(
-                "call %scoop.refactor.Step__sample_main @__scoop_refactor_direct_invoke__sample_main("
+                "call %scoop.refactor.Step__sample_effectEntry @__scoop_refactor_direct_invoke__sample_effectEntry("
             ),
             "dynamic entry should forward through the published refactor direct entry:\n{dynamic}"
         );
@@ -524,12 +529,12 @@ fun main(args: Array<String>): Int {
         let main = ir_function_body(&ir, "define i32 @main(");
         assert!(
             main.contains(
-                "call %scoop.refactor.Step__sample_main @__scoop_refactor_direct_invoke__sample_main("
+                "call %scoop.refactor.Step__sample_effectEntry @__scoop_refactor_direct_invoke__sample_effectEntry("
             ),
             "C main wrapper should call the refactor direct entry, not the legacy function ABI:\n{main}"
         );
         assert!(
-            !main.contains("@\"sample.main\""),
+            !main.contains("@sample.effectEntry(") && !main.contains("@\"sample.effectEntry\""),
             "refactor main wrapper must not call the legacy callable ABI:\n{main}"
         );
     }

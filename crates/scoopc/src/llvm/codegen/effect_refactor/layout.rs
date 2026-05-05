@@ -4,7 +4,7 @@ use inkwell::module::Linkage;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 
 use crate::effect_facts::{
-    CallSiteEffectFacts, CallSiteKind, CallTargetMode, ContinuationSchemaId,
+    CallSiteEffectFacts, CallSiteKind, CallTargetMode, CallableAbiKind, ContinuationSchemaId,
     MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
 };
 use crate::effect_lowered::LateLoweredProgram;
@@ -1147,12 +1147,15 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             if let Some(hir_fun) = self.codegen.fun_index.get(callable.root_fqn()).copied() {
                 let plain_symbol_override =
                     (callable.root_fqn() == "main").then_some("__scoop_refactor_plain_source_main");
-                match plain_symbol_override {
-                    Some(symbol) => self
-                        .codegen
-                        .declare_top_level_fun_with_symbol(hir_fun, symbol)?,
-                    None => self.codegen.declare_top_level_fun(hir_fun)?,
-                }
+                let symbol = plain_symbol_override.unwrap_or(hir_fun.fqn.as_str());
+                self.codegen
+                    .declare_materialized_mir_plain_fun_with_symbol(
+                        symbol,
+                        &mir_fun,
+                        plain.param_tys(),
+                        plain.return_ty(),
+                        self.source_types,
+                    )?
             } else if mir_fun.name.starts_with("$lambda") {
                 self.codegen.declare_materialized_mir_closure_fun(
                     mir_fun.span,
@@ -1160,10 +1163,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     &self.pass_view.materialized().types,
                 )?
             } else {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 plain callable `{}` 的 HIR signature",
-                    callable.root_fqn()
-                )));
+                self.codegen
+                    .declare_materialized_mir_plain_fun(&mir_fun, self.source_types)?
             };
         let symbol_name = llvm_fun
             .get_name()
@@ -3990,6 +3991,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         if facts.target_mode() == CallTargetMode::KnownInstance {
                             continue;
                         }
+                        if facts.callee_abi_kind() == CallableAbiKind::Plain {
+                            continue;
+                        }
 
                         sites.push((*site_id, kind.clone(), args.len(), facts.clone()));
                     }
@@ -6315,9 +6319,11 @@ mod tests {
         LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
         LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
         LateLoweredFrameSchema, LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
-        LateLoweredHandlePendingCompletion, LateLoweredOperandValueSource, LateLoweredProgram,
+        LateLoweredHandlePendingCompletion, LateLoweredOperandValueSource,
+        LateLoweredPlainCallable, LateLoweredPlainLocalEffectControl, LateLoweredProgram,
         LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
-        LateLoweredSourceStatementClassification, LateLoweredStateTerminator, LateLoweredStepType,
+        LateLoweredSourceStatementClassification, LateLoweredStateGraph,
+        LateLoweredStateTerminator, LateLoweredStepType,
         LateLoweredSurfaceResumeDispatchPublication, StateId, SystemSlotKind,
     };
     use crate::effect_lowered::{
@@ -6788,6 +6794,25 @@ mod tests {
         callable: &LateLoweredCallable,
         boundary_map: LateLoweredBoundaryMap,
     ) -> LateLoweredCallable {
+        if let Some(plain) = callable.plain_abi() {
+            let local = callable
+                .plain_local_effect_control()
+                .expect("plain callable 应发布 local effect/control 才能替换 boundary map");
+            return clone_plain_callable_with_local_control(
+                callable,
+                plain,
+                LateLoweredPlainLocalEffectControl::new(
+                    local.step_schema(),
+                    local.state_graph().clone(),
+                    local.frame_schema().clone(),
+                    boundary_map,
+                    local.resume_state_map().clone(),
+                    local.source_statement_classifications().to_vec(),
+                    local.continuation_object(),
+                    local.resume_packings().to_vec(),
+                ),
+            );
+        }
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
@@ -6806,8 +6831,27 @@ mod tests {
 
     fn clone_callable_with_state_graph(
         callable: &LateLoweredCallable,
-        state_graph: crate::effect_lowered::ir::LateLoweredStateGraph,
+        state_graph: LateLoweredStateGraph,
     ) -> LateLoweredCallable {
+        if let Some(plain) = callable.plain_abi() {
+            let local = callable
+                .plain_local_effect_control()
+                .expect("plain callable 应发布 local effect/control 才能替换 state graph");
+            return clone_plain_callable_with_local_control(
+                callable,
+                plain,
+                LateLoweredPlainLocalEffectControl::new(
+                    local.step_schema(),
+                    state_graph,
+                    local.frame_schema().clone(),
+                    local.boundary_map().clone(),
+                    local.resume_state_map().clone(),
+                    local.source_statement_classifications().to_vec(),
+                    local.continuation_object(),
+                    local.resume_packings().to_vec(),
+                ),
+            );
+        }
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
@@ -6828,6 +6872,25 @@ mod tests {
         callable: &LateLoweredCallable,
         frame_schema: LateLoweredFrameSchema,
     ) -> LateLoweredCallable {
+        if let Some(plain) = callable.plain_abi() {
+            let local = callable
+                .plain_local_effect_control()
+                .expect("plain callable 应发布 local effect/control 才能替换 frame schema");
+            return clone_plain_callable_with_local_control(
+                callable,
+                plain,
+                LateLoweredPlainLocalEffectControl::new(
+                    local.step_schema(),
+                    local.state_graph().clone(),
+                    frame_schema,
+                    local.boundary_map().clone(),
+                    local.resume_state_map().clone(),
+                    local.source_statement_classifications().to_vec(),
+                    local.continuation_object(),
+                    local.resume_packings().to_vec(),
+                ),
+            );
+        }
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
@@ -6844,10 +6907,49 @@ mod tests {
         .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
     }
 
+    fn clone_plain_callable_with_local_control(
+        callable: &LateLoweredCallable,
+        plain: &LateLoweredPlainCallable,
+        local: LateLoweredPlainLocalEffectControl,
+    ) -> LateLoweredCallable {
+        LateLoweredCallable::new_plain(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            callable.resolved_outward_cases().to_vec(),
+            LateLoweredPlainCallable::new(
+                plain.function_ty(),
+                plain.param_tys().to_vec(),
+                plain.return_ty(),
+                plain.body_slices().to_vec(),
+                plain.call_sites().to_vec(),
+                Some(local),
+            ),
+        )
+    }
+
     fn clone_callable_with_source_statement_classifications(
         callable: &LateLoweredCallable,
         classifications: Vec<LateLoweredSourceStatementClassification>,
     ) -> LateLoweredCallable {
+        if let Some(plain) = callable.plain_abi() {
+            let local = callable
+                .plain_local_effect_control()
+                .expect("plain callable 应发布 local effect/control 才能替换 classifications");
+            return clone_plain_callable_with_local_control(
+                callable,
+                plain,
+                LateLoweredPlainLocalEffectControl::new(
+                    local.step_schema(),
+                    local.state_graph().clone(),
+                    local.frame_schema().clone(),
+                    local.boundary_map().clone(),
+                    local.resume_state_map().clone(),
+                    classifications,
+                    local.continuation_object(),
+                    local.resume_packings().to_vec(),
+                ),
+            );
+        }
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
@@ -7456,7 +7558,7 @@ mod tests {
             .callables()
             .iter()
             .map(|candidate| {
-                if candidate.step_schema() == callable.step_schema() {
+                if candidate.body_step_schema() == Some(callable.step_schema()) {
                     clone_callable_with_interfaces(candidate, vec![ping_interface_id])
                 } else {
                     candidate.clone()
@@ -7809,7 +7911,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == callable.step_schema() {
+                        if candidate.body_step_schema() == Some(callable.step_schema()) {
                             clone_callable_with_interfaces(candidate, reversed_interfaces.clone())
                         } else {
                             candidate.clone()
@@ -8558,7 +8660,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == fetch.step_schema() {
+                        if candidate.body_step_schema() == Some(fetch.step_schema()) {
                             clone_callable_with_frame_schema(candidate, frame_schema.clone())
                         } else {
                             candidate.clone()
@@ -8644,7 +8746,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == main.step_schema() {
+                        if candidate.body_step_schema() == Some(main.step_schema()) {
                             clone_callable_with_frame_schema(candidate, frame_schema.clone())
                         } else {
                             candidate.clone()
@@ -8746,7 +8848,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == run.step_schema() {
+                        if candidate.body_step_schema() == Some(run.step_schema()) {
                             clone_callable_with_frame_schema(candidate, frame_schema.clone())
                         } else {
                             candidate.clone()
@@ -8810,7 +8912,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == run.step_schema() {
+                        if candidate.body_step_schema() == Some(run.step_schema()) {
                             clone_callable_with_frame_schema(candidate, frame_schema.clone())
                         } else {
                             candidate.clone()
@@ -8889,7 +8991,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == main.step_schema() {
+                        if candidate.body_step_schema() == Some(main.step_schema()) {
                             clone_callable_with_boundary_map(candidate, boundary_map.clone())
                         } else {
                             candidate.clone()
@@ -8973,7 +9075,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == call_value.step_schema() {
+                        if candidate.body_step_schema() == Some(call_value.step_schema()) {
                             clone_callable_with_boundary_map(candidate, boundary_map.clone())
                         } else {
                             candidate.clone()
@@ -9066,7 +9168,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == main.step_schema() {
+                        if candidate.body_step_schema() == Some(main.step_schema()) {
                             clone_callable_with_boundary_map(candidate, boundary_map.clone())
                         } else {
                             candidate.clone()
@@ -9336,7 +9438,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == helper.step_schema() {
+                        if candidate.body_step_schema() == Some(helper.step_schema()) {
                             clone_callable_with_boundary_map(
                                 candidate,
                                 rewritten_boundary_map.clone(),
@@ -9463,7 +9565,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == main.step_schema() {
+                        if candidate.body_step_schema() == Some(main.step_schema()) {
                             clone_callable_with_boundary_map(candidate, boundary_map.clone())
                         } else {
                             candidate.clone()
@@ -9780,7 +9882,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == main.step_schema() {
+                        if candidate.body_step_schema() == Some(main.step_schema()) {
                             clone_callable_with_boundary_map(candidate, boundary_map.clone())
                         } else {
                             candidate.clone()
@@ -9861,7 +9963,7 @@ mod tests {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == main.step_schema() {
+                        if candidate.body_step_schema() == Some(main.step_schema()) {
                             clone_callable_with_state_graph(candidate, state_graph.clone())
                         } else {
                             candidate.clone()
@@ -10122,7 +10224,7 @@ fun propagate_before_finally(): Int {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == callable.step_schema() {
+                        if candidate.body_step_schema() == Some(callable.step_schema()) {
                             clone_callable_with_state_graph(candidate, state_graph.clone())
                         } else {
                             candidate.clone()
@@ -10290,7 +10392,7 @@ fun propagate_before_finally(): Int {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == callable.step_schema() {
+                        if candidate.body_step_schema() == Some(callable.step_schema()) {
                             clone_callable_with_state_graph(candidate, state_graph.clone())
                         } else {
                             candidate.clone()
@@ -10467,7 +10569,7 @@ fun main(): Int {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == callable.step_schema() {
+                        if candidate.body_step_schema() == Some(callable.step_schema()) {
                             clone_callable_with_frame_schema(candidate, frame_schema.clone())
                         } else {
                             candidate.clone()
@@ -10561,7 +10663,7 @@ fun main(): Int {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == callable.step_schema() {
+                        if candidate.body_step_schema() == Some(callable.step_schema()) {
                             clone_callable_with_state_graph(candidate, state_graph.clone())
                         } else {
                             candidate.clone()
@@ -10627,7 +10729,7 @@ fun main(): Int {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == callable.step_schema() {
+                        if candidate.body_step_schema() == Some(callable.step_schema()) {
                             clone_callable_with_state_graph(candidate, state_graph.clone())
                         } else {
                             candidate.clone()
@@ -10695,7 +10797,7 @@ fun main(): Int {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.step_schema() == callable.step_schema() {
+                        if candidate.body_step_schema() == Some(callable.step_schema()) {
                             clone_callable_with_state_graph(candidate, state_graph.clone())
                         } else {
                             candidate.clone()

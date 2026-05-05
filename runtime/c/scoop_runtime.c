@@ -2625,6 +2625,11 @@ void scoop_runtime_error_fatal(const void *runtime_error) {
   exit(3);
 }
 
+// refactor thread-resume helper：native thread thunk resume 后若返回 non-Complete
+// `Step_F`，当前没有语言级 handler 可以接管该 outward case；这是 runtime
+// boundary 的显式终止路径，不能伪造成 `RuntimeError` payload。
+void scoop_refactor_thread_resume_noncomplete_fatal(void) { exit(3); }
+
 // `scoop_entry_argv_array(argc, argv): Array<String>`
 //
 // 约定：

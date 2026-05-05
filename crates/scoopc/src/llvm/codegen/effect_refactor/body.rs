@@ -500,12 +500,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
             .is_some();
-        if self.mir_fun_uses_hidden_incoming_resume_token(mir_fun) {
-            return Err(frontend_error(format!(
-                "refactor plain callable `{}` 不允许使用 legacy hidden resume token ABI",
-                callable.root_fqn()
-            )));
-        }
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 function

@@ -392,6 +392,87 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
+    pub(super) fn declare_materialized_mir_plain_fun(
+        &mut self,
+        mir_fun: &crate::mir::FunDecl,
+        mir_types: &TypeStore,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let param_tys = mir_fun
+            .params
+            .iter()
+            .map(|param| param.ty)
+            .collect::<Vec<_>>();
+        self.declare_materialized_mir_plain_fun_with_symbol(
+            &mir_fun.fqn,
+            mir_fun,
+            &param_tys,
+            mir_fun.return_ty,
+            mir_types,
+        )
+    }
+
+    pub(super) fn declare_materialized_mir_plain_fun_with_symbol(
+        &mut self,
+        llvm_name: &str,
+        mir_fun: &crate::mir::FunDecl,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+        mir_types: &TypeStore,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        if let Some(existing) = self.module.get_function(llvm_name) {
+            return Ok(existing);
+        }
+        if param_tys.len() != mir_fun.params.len() {
+            return Err(frontend_error(format!(
+                "refactor plain materialized callable `{}` 的 plain ABI 参数数量({}) 与 MIR 参数数量({}) 不一致",
+                mir_fun.fqn,
+                param_tys.len(),
+                mir_fun.params.len()
+            )));
+        }
+
+        let ret_cg = self.cg_ty_of_mir_type(mir_types, return_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR plain return type",
+                at: mir_fun.span.into(),
+            },
+        )?;
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(mir_fun.span, ret_cg)?;
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(mir_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        if let Some(result_ty) = hidden_sret_result_ty {
+            let _ = result_ty;
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        for (param, param_ty) in mir_fun.params.iter().zip(param_tys.iter().copied()) {
+            let param_ty = self.equivalent_codegen_type_id(mir_types, param_ty).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR plain param type",
+                    at: param.span.into(),
+                },
+            )?;
+            llvm_param_tys.push(
+                self.ordinary_param_abi(param.span, param_ty)?
+                    .llvm_param_ty(),
+            );
+        }
+
+        let fn_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(mir_fun.span, other)?
+                .fn_type(&llvm_param_tys, false),
+        };
+        let llvm_fun = self.module.add_function(llvm_name, fn_ty, None);
+        llvm_fun.set_call_conventions(0);
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
+        }
+        Ok(llvm_fun)
+    }
+
     fn codegen_materialized_mir_closure_fun(
         mut self,
         mir_fun: &crate::mir::FunDecl,

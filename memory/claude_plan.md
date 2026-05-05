@@ -1,28 +1,38 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Scope
-- Follow the task system exactly: read `TODO.md` as the index, then inspect referenced `TODO-Px.md` files in order.
-- Complete only the first incomplete detailed task whose heading is not prefixed with `[DONE]`.
-- If a concrete blocker prevents correct completion, add the minimum prerequisite task in the relevant detailed TODO file, sync `TODO.md`, commit, and stop.
+## 目标
 
-## Step-by-Step Plan
-1. Inspect the task index and detailed TODO files to identify the first incomplete detailed task.
-2. Check the latest commit message for any unfinished issue directly relevant to that task.
-3. Read the selected task body, constraints, dependencies, and validation requirements.
-4. Inspect only the relevant implementation, test, fixture, and documentation files needed for that task.
-5. Implement the smallest spec-correct change that satisfies the task without workarounds or fixture-only behavior.
-6. Add or update tests/fixtures required by the selected task.
-7. Run the task-specified validation and any focused checks needed for confidence; fix failures that are in scope.
-8. Mark the task `[DONE]` in its authoritative `TODO-Px.md` heading and update its completion record.
-9. Sync `TODO.md` if the completed task appears in the index or if task ordering/titles changed.
-10. Update this plan file when key steps complete or if the plan changes.
-11. Review the worktree, commit all task-related changes with a clear task-tagged message, then stop.
+完成任务索引中第一个尚未在详细 TODO 文件标题标记为 `[DONE]` 的任务，验证后提交，并在完成一个详细任务后停止。
 
-## Progress
-- Plan file initialized before inspecting the repository state.
-- Identified `P6-T06R` in `TODO-P6-part3.md` as the first incomplete detailed task. Latest commit is `P6-T06`, directly relevant but not explicitly marked as unfinished.
-- Current task is a review task: verify P4/P5/P6 NoOutward plain ABI contracts, rerun required directed validations, record findings, mark the review done if no blocking issue remains, then commit.
-- Reviewed the task bodies for `P4-T06`, `P5-T08`, and `P6-T06`, plus focused implementation areas in effect facts, late-lowered handoff, and refactor LLVM ABI/body/value lowering. No blocker has been identified before running validation.
-- Validation blocker found while running `cargo test -p scoopc --no-default-features refactor_effect_lowered_stage`: two stage dump tests fail because a plain body with local effect/control lacks an owner `StepSchema` in the P4/P5 handoff. This is directly in scope for `P6-T06R`; next step is to inspect the failing tests and repair the handoff or test setup without narrowing the validation filter.
-- Fixed the blocker by retaining an internal `local_control_step_schema` for plain callables that need local control lowering, without changing their public `Plain` ABI. The previously failing stage filter and `effect_resume_if_else_branch_single_perform.scoop` refactor run-pass now pass.
-- Completed the `P6-T06R` review validation set, marked `P6-T06R` `[DONE]` in `TODO-P6-part3.md`, synchronized `TODO.md`, reran affected stage/dump/lint checks after final formatting, and prepared the task changes for commit.
+## 执行步骤
+
+1. 读取 `TODO.md`，只把它作为全局索引使用。
+2. 按索引顺序读取对应的 `TODO-Px.md` 详细任务文件，定位第一个标题未带 `[DONE]` 的详细任务。
+3. 检查最近提交信息是否明确提到与该任务直接相关的未完成问题；若存在，将其纳入当前任务或作为必要前置任务处理。
+4. 阅读该任务的完整要求、依赖、约束、验证命令和完成记录。
+5. 检查相关代码、测试和夹具，确认需要修改的最小范围。
+6. 实现当前任务；如果发现阻塞当前任务的真实前置缺口，则更新详细 TODO 和索引、提交并停止。
+7. 运行任务要求的验证命令和相关回归测试；若失败，修复后重新验证。
+8. 在对应 `TODO-Px.md` 中给任务标题加 `[DONE]`，更新完成记录；如索引中有该任务，同步 `TODO.md` 的 `[DONE]` 状态。
+9. 按需更新本文件记录关键进度。
+10. 提交本次全部相关改动，提交信息包含任务编号和简洁说明。
+11. 停止，不继续处理下一个任务。
+
+## 当前状态
+
+- 已读取 `TODO.md` 与 `TODO-P6-part3.md`。
+- 第一个未完成详细任务确认为 `P6-T05R：Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression`。
+- 最新提交 `[P6-T06R] Review NoOutward plain ABI` 未声明与当前任务直接相关的未完成 blocker。
+- 已通过 P4/P6-T06R no-default effect-facts 验证：plain ABI facts、NoOutward 不发布 StepSchema、plain/effect adapter call-site 区分、effect solver 与 dump-effect-facts。
+- 已通过 P5 late-lowered/no-default handoff 验证：plain callable、source-slice ordinary call、lowered stage、continuation object、resume interface 与 NoOutward impl plan。
+- 已通过默认 feature 的 P6 LLVM 单元验证：composition/wrapper projection、clean body lowering、call/boundary/handle/continuation/runtime-error、GC/runtime、plain-local control、plain ABI 与 effect-typed adapter。
+- `dump-effect-lowered` fixture 命令已通过。
+- build fixture 矩阵在 `tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop` 失败：生成的 LLVM IR 未包含 fixture 期望的 `declare %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_dynamic_invoke__fixtures_build_unitWorker()`。
+- 诊断结论：fixture 的 `unitWorker(): Unit / Ping {}` 没有实际 outward case，在 `NoOutward -> Plain` 合同下正确生成普通 ABI；旧 `Step_F` shell 期望已过时。
+- 已修正 fixture，让 `unitWorker()` 真实执行 `Ping.tick()`，继续覆盖 Unit 零载荷 invoke/resume ABI 而不依赖 NoOutward 旧 shell。
+- 修正后的 Unit payload fixture 已通过。
+- 剩余 build artifact、run-pass 与 moving-GC fixture 矩阵已通过。
+- 搜索守卫发现 `value.rs` 的 cross-thread resume thunk 仍用 `scoop_runtime_error_fatal(NULL)` 处理 non-Complete step；已改为新增无参数 runtime 终止入口 `scoop_refactor_thread_resume_noncomplete_fatal()`，避免伪造 RuntimeError payload。
+- 已完成格式化、相关 runtime/LLVM validations、搜索守卫与 clippy。
+- 已在 `TODO-P6-part3.md` 与 `TODO.md` 标记 `P6-T05R` 为 `[DONE]`，并写入 review 完成记录。
+- 下一步：检查 git diff/status，提交本次所有相关改动后停止。
