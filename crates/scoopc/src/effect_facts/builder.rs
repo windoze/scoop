@@ -2399,6 +2399,7 @@ fn function_surface_contract_from_ty(
             declared_row: function.effects.clone(),
         }),
         TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal))
             if nominal.fqn == "scoop.unsafe.FunPtr" && nominal.args.len() == 1 =>
         {
             function_surface_contract_from_ty(types, nominal.args[0])

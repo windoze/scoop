@@ -54,6 +54,15 @@ fn function_type_source_args(fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
         .collect()
 }
 
+fn direct_call_dispatch_fqn(fqn: &str) -> &str {
+    if let Some((base, _)) = fqn.rsplit_once("::<") {
+        return base;
+    }
+    fqn.split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(fqn)
+}
+
 fn source_carrier_types(types: &TypeStore, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
     match types.kind(carrier_ty) {
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
@@ -135,7 +144,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let slot = self
                     .codegen
                     .mir_local_slot(stmt.span, self.slots, *target)?;
-                if let mir::Rvalue::TopLevelRef(_) = rvalue
+                if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) = rvalue
                     && self
                         .body
                         .locals
@@ -146,6 +155,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                                 TypeKind::Ref(RefTypeKind::Function(_))
                             )
                         })
+                    && (!self.codegen.top_level_immutable_values.contains_key(fqn)
+                        || !used_locals.contains(target))
                 {
                     return Ok(());
                 }
@@ -760,6 +771,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if callee_fqn == "scoop.core.panic" {
             return self.lower_refactor_panic_call(span, args);
         }
+        let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
+        if dispatch_fqn == "scoop.unsafe.invoke" {
+            let value = self.codegen.codegen_mir_funptr_invoke_call(
+                span,
+                args,
+                self.body,
+                self.source_types,
+                self.slots,
+            )?;
+            return self.codegen.coerce_value(span, value, target_cg);
+        }
         if self.codegen.extern_funs.contains_key(callee_fqn) {
             let value = self
                 .codegen
@@ -774,16 +796,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 {
                     return Ok(value);
                 }
+                if let Some(fun_ty) = self.top_level_function_value_type(callee_fqn) {
+                    return self.lower_top_level_function_value_direct_call(
+                        callee_fqn, span, args, &fun_ty,
+                    );
+                }
                 if let Some(callee_local) = self.top_level_callable_value_local(callee_fqn) {
-                    if let Some(fun_ty) = self.top_level_function_value_type(callee_fqn) {
-                        return self.codegen.codegen_mir_plain_function_value_call(
-                            span,
-                            &mir::Operand::Local(callee_local),
-                            args,
-                            &fun_ty,
-                            self.slots,
-                        );
-                    }
                     return self.codegen.codegen_mir_plain_dynamic_call(
                         span,
                         &mir::CallKind::FunValue {
@@ -2486,6 +2504,48 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return None;
         };
         Some(fun_ty.clone())
+    }
+
+    fn lower_top_level_function_value_direct_call(
+        &mut self,
+        callable_fqn: &str,
+        span: Span,
+        args: &[mir::CallArg],
+        fun_ty: &crate::ty::FunctionType,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !fun_ty.effects.is_pure() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level function-value effect-typed direct call",
+                at: span.into(),
+            });
+        }
+        let value = self
+            .codegen
+            .top_level_immutable_values
+            .get(callable_fqn)
+            .cloned()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level function-value metadata",
+                at: span.into(),
+            })?;
+        let callee = self
+            .codegen
+            .codegen_top_level_immutable_value_access(span, &value)?;
+        let callee = self.codegen.coerce_value(span, callee, CgTy::Ref)?;
+        let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level function-value value",
+                at: span.into(),
+            });
+        };
+        self.codegen
+            .codegen_mir_plain_function_value_call_from_closure_obj(
+                span,
+                closure_obj_i8,
+                args,
+                fun_ty,
+                self.slots,
+            )
     }
 
     fn unresolved_fun_value_callee_name(&self, callee: &mir::Operand) -> Option<String> {

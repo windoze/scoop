@@ -128,7 +128,7 @@
 | `P7-T02T` | `TODO-P7.md` | [DONE] 发布并消费 generic class instance layout handoff，解除 `Task<T>` constructor 在 refactor LLVM 默认路径上的阻塞 |
 | `P7-T02S` | `TODO-P7.md` | [DONE] 修复默认 build fixture 中暴露的 refactor LLVM/lowering 缺口，解除 P7-T03 full regression 阻塞 |
 | `P7-T02U` | `TODO-P7.md` | [DONE] 修复默认 run-pass 暴露的 refactor async/task resume payload ABI 阻塞 |
-| `P7-T02V` | `TODO-P7.md` | 修复默认 run-pass 暴露的 refactor callable-value receiver / pattern binder / FunPtr 阻塞 |
+| `P7-T02V` | `TODO-P7.md` | [DONE] 修复默认 run-pass 暴露的 refactor callable-value receiver / pattern binder / FunPtr 阻塞 |
 | `P7-T03` | `TODO-P7.md` | 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
 | `P7-T03R` | `TODO-P7.md` | Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |
 | `P7-T04` | `TODO-P7.md` | 运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口 |

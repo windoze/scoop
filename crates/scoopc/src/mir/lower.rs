@@ -851,6 +851,18 @@ impl<'a> FnLowering<'a> {
         matches!(self.types.kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
     }
 
+    fn is_funptr_value_ty(&self, ty: TypeId) -> bool {
+        matches!(
+            self.types.kind(ty),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.unsafe.FunPtr" && nominal.args.len() == 1
+        )
+    }
+
+    fn is_callable_value_ty(&self, ty: TypeId) -> bool {
+        self.is_function_value_ty(ty) || self.is_funptr_value_ty(ty)
+    }
+
     fn value_origin_from_operand(&self, operand: &Operand) -> Option<ValueOrigin> {
         match operand {
             Operand::Local(local) => self.value_origins.get(local).cloned(),
@@ -874,11 +886,11 @@ impl<'a> FnLowering<'a> {
                 Some(ValueOrigin::UnresolvedName { name: name.clone() })
             }
             Rvalue::Use(operand) => self.value_origin_from_operand(operand).or_else(|| {
-                self.is_function_value_ty(target_ty)
+                self.is_callable_value_ty(target_ty)
                     .then_some(ValueOrigin::UnknownCallable)
             }),
             _ => self
-                .is_function_value_ty(target_ty)
+                .is_callable_value_ty(target_ty)
                 .then_some(ValueOrigin::UnknownCallable),
         }
     }
@@ -1960,7 +1972,7 @@ impl<'a> FnLowering<'a> {
         }
         let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
         let callee_origin = self.value_origins.get(&callee_local).cloned();
-        let callee_can_lower = self.is_function_value_ty(callee_ty)
+        let callee_can_lower = self.is_callable_value_ty(callee_ty)
             || matches!(
                 callee_origin,
                 Some(

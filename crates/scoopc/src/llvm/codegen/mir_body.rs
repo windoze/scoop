@@ -1337,6 +1337,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.raw_materialized_mir_operand_is_supported(callee)
                     && self
                         .mir_operand_function_type(body, mir_types, callee)
+                        .or_else(|| self.mir_operand_funptr_function_type(body, mir_types, callee))
                         .is_some()
             }
             crate::mir::CallKind::Virtual { .. }
@@ -4035,6 +4036,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mir_closure_call(span, callee, fn_ptr, args, &fun_ty, slots)
             }
             crate::mir::CallKind::FunValue { callee } => {
+                if let Some(fun_ty) = self.mir_operand_funptr_function_type(body, mir_types, callee)
+                {
+                    return self.codegen_mir_funptr_value_call(
+                        span,
+                        callee,
+                        args,
+                        &fun_ty,
+                        !fun_ty.effects.is_pure(),
+                        (body, mir_types, slots),
+                    );
+                }
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -4086,6 +4098,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
             }
             crate::mir::CallKind::FunValue { callee } => {
+                if let Some(fun_ty) = self.mir_operand_funptr_function_type(body, mir_types, callee)
+                {
+                    if !fun_ty.effects.is_pure() {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "refactor plain FunPtr call effect-typed surface requires adapter",
+                            at: span.into(),
+                        });
+                    }
+                    return self.codegen_mir_funptr_value_call(
+                        span,
+                        callee,
+                        args,
+                        &fun_ty,
+                        false,
+                        (body, mir_types, slots),
+                    );
+                }
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -4134,6 +4163,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         };
+        self.codegen_mir_plain_function_value_call_from_closure_obj(
+            span,
+            closure_obj_i8,
+            args,
+            fun_ty,
+            slots,
+        )
+    }
+
+    pub(super) fn codegen_mir_plain_function_value_call_from_closure_obj(
+        &mut self,
+        span: crate::span::Span,
+        closure_obj_i8: PointerValue<'ctx>,
+        args: &[crate::mir::CallArg],
+        fun_ty: &crate::ty::FunctionType,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let deferred_callee = self.defer_gc_ref_pointer(
             span,
             "refactor_plain_function_value_callee",
@@ -5077,6 +5123,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn mir_operand_funptr_function_type(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        operand: &crate::mir::Operand,
+    ) -> Option<crate::ty::FunctionType> {
+        let ty = self.mir_operand_type_id(body, operand)?;
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = mir_types.kind(ty) else {
+            return None;
+        };
+        if nominal.fqn != "scoop.unsafe.FunPtr" || nominal.args.len() != 1 {
+            return None;
+        }
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = mir_types.kind(nominal.args[0]) else {
+            return None;
+        };
+        self.equivalent_codegen_function_type(mir_types, fun_ty)
+    }
+
     fn mir_closure_env_capture_element_cg_tys(&self, env_cg: CgTy) -> Option<Vec<CgTy>> {
         match env_cg {
             CgTy::Unit => Some(Vec::new()),
@@ -5868,6 +5933,248 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::unit())
     }
 
+    pub(super) fn codegen_mir_funptr_invoke_call(
+        &mut self,
+        span: crate::span::Span,
+        args: &[crate::mir::CallArg],
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some((receiver_arg, call_args)) = args.split_first() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR FunPtr invoke arity mismatch",
+                at: span.into(),
+            });
+        };
+        if receiver_arg.name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR FunPtr invoke receiver binding",
+                at: receiver_arg.span.into(),
+            });
+        }
+        let fun_ty = self
+            .mir_operand_funptr_function_type(body, mir_types, &receiver_arg.value)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR FunPtr invoke receiver type",
+                at: receiver_arg.span.into(),
+            })?;
+        self.codegen_mir_funptr_value_call(
+            span,
+            &receiver_arg.value,
+            call_args,
+            &fun_ty,
+            !fun_ty.effects.is_pure(),
+            (body, mir_types, slots),
+        )
+    }
+
+    fn codegen_mir_funptr_value_call(
+        &mut self,
+        span: crate::span::Span,
+        callee: &crate::mir::Operand,
+        args: &[crate::mir::CallArg],
+        fun_ty: &crate::ty::FunctionType,
+        call_may_suspend: bool,
+        mir_context: (&crate::mir::Body, &TypeStore, &[MirLocalSlot<'ctx>]),
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (body, mir_types, slots) = mir_context;
+        let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
+        if args.len() != expected_arity {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR FunPtr call arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let callee_cg = self.mir_operand_cg_ty(body, mir_types, callee).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR FunPtr callee type",
+                at: span.into(),
+            },
+        )?;
+        let CgTy::Int(_) = callee_cg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR FunPtr callee cg type",
+                at: span.into(),
+            });
+        };
+        let callee_value =
+            self.codegen_mir_operand_expected(span, callee, slots, Some(callee_cg))?;
+        let callee_value = self.coerce_value(span, callee_value, callee_cg)?;
+        let (funptr_addr, funptr_int_ty) =
+            callee_value
+                .as_int()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR FunPtr callee value",
+                    at: span.into(),
+                })?;
+
+        let ret_cg = self
+            .cg_ty_of(fun_ty.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR FunPtr call return type",
+                at: span.into(),
+            })?;
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            expected_arity
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
+        if let Some(result_ty) = hidden_sret_result_ty {
+            let _ = result_ty;
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if call_may_suspend {
+            llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
+        }
+        if let Some(receiver_ty) = fun_ty.receiver {
+            llvm_param_tys.push(self.llvm_param_ty(span, receiver_ty)?);
+        }
+        for ty in &fun_ty.params {
+            llvm_param_tys.push(self.llvm_param_ty(span, *ty)?);
+        }
+
+        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(span, other)?
+                .fn_type(&llvm_param_tys, false),
+        };
+
+        let fun_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let casted_addr = if funptr_int_ty.bits == self.host.word_bit_width() {
+            funptr_addr
+        } else {
+            let to = IntTy {
+                bits: self.host.word_bit_width(),
+                signed: false,
+            };
+            self.cast_int(funptr_addr, funptr_int_ty, to)?
+        };
+        let typed_fn_ptr =
+            self.builder
+                .build_int_to_ptr(casted_addr, fun_ptr_ty, "pass_mir_funptr_typed")?;
+
+        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
+            args.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(call_may_suspend),
+        );
+        let sret_result_slot = if hidden_sret_result_ty.is_some() {
+            let slot = self.create_entry_alloca(span, "pass_mir_funptr_call_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some(slot)
+        } else {
+            None
+        };
+        let incoming_resume_token = self.null_effect_resume_token();
+        if call_may_suspend {
+            llvm_args.push(incoming_resume_token.into());
+        }
+        let evaluated_args =
+            self.codegen_mir_funptr_value_args(span, fun_ty, args, mir_types, slots)?;
+        for arg in &evaluated_args {
+            llvm_args.push(arg.value);
+        }
+
+        let effect_boundary = if call_may_suspend {
+            let (ctx_slot, outcome_slot) =
+                self.prepare_current_effect_call_contract(span, "pass_mir_funptr_call")?;
+            let installed_top =
+                self.load_effect_ctx_handler_top_from_slot(span, ctx_slot, "pass_mir_funptr_call")?;
+            let saved_top =
+                self.swap_effect_handler_stack_top(span, installed_top, "pass_mir_funptr_call")?;
+            self.publish_incoming_resume_token(
+                span,
+                incoming_resume_token,
+                "pass_mir_funptr_call",
+            )?;
+            Some((outcome_slot, saved_top))
+        } else {
+            None
+        };
+
+        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
+            let call_site = cg.builder.build_indirect_call(
+                llvm_fun_ty,
+                typed_fn_ptr,
+                &llvm_args,
+                "pass_mir_call_funptr",
+            )?;
+            if let Some(result_ty) = hidden_sret_result_ty {
+                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+            }
+            call_site.set_call_convention(0);
+            Ok(call_site)
+        });
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
+        if let Some(result_ptr) = sret_result_slot {
+            self.sync_hidden_sret_result_roots(
+                span,
+                ret_cg,
+                result_ptr,
+                "pass_mir_funptr_call_sret",
+            )?;
+        }
+        let deferred_direct_result = if sret_result_slot.is_none() {
+            self.defer_direct_call_result(
+                span,
+                ret_cg,
+                call_site,
+                "pass_mir_funptr_call_direct_result",
+            )?
+        } else {
+            None
+        };
+        if let Some((outcome_slot, saved_top)) = effect_boundary {
+            self.consume_current_effect_outcome_into(span, outcome_slot, "pass_mir_funptr_call")?;
+            self.clear_incoming_resume_token(span, "pass_mir_funptr_call")?;
+            let _ = self.swap_effect_handler_stack_top(
+                span,
+                saved_top,
+                "pass_mir_funptr_call_restore",
+            )?;
+            self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
+            self.emit_ordinary_call_effect_propagation_check_from_outcome(
+                span,
+                outcome_slot,
+                "pass_mir_funptr_call_effect",
+            )?;
+        } else if call_may_suspend {
+            self.emit_ordinary_call_effect_propagation_check(span, "pass_mir_funptr_call_effect")?;
+        }
+
+        match ret_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => {
+                if let Some(result_ptr) = sret_result_slot {
+                    self.load_hidden_sret_result_from_ptr(
+                        span,
+                        ret_cg,
+                        result_ptr,
+                        "pass_mir_funptr_call_sret",
+                    )
+                } else {
+                    self.materialize_deferred_cg_value(
+                        span,
+                        "pass_mir_funptr_call_direct_result_reload",
+                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR FunPtr call deferred return value",
+                            at: span.into(),
+                        })?,
+                    )
+                }
+            }
+        }
+    }
+
     fn codegen_mir_fun_value_call(
         &mut self,
         span: crate::span::Span,
@@ -6221,6 +6528,73 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     _ => None,
                 };
                 let value = self.as_llvm_arg_value(arg_span, param_abi.cg_ty(), materialized)?;
+                Ok(EvaluatedCallArg {
+                    value,
+                    pointer_value,
+                    cleanup_spills,
+                })
+            })
+            .collect()
+    }
+
+    fn codegen_mir_funptr_value_args(
+        &mut self,
+        span: crate::span::Span,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[crate::mir::CallArg],
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        let param_names = self.callable_value_param_names(fun_ty);
+        let param_tys = self.callable_value_param_tys(fun_ty);
+        let arg_to_param = map_mir_call_args_to_param_names(&param_names, args).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR FunPtr call arg binding",
+                at: span.into(),
+            },
+        )?;
+
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; param_tys.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx];
+            let target_cg = self
+                .cg_ty_of_mir_type(mir_types, param_tys[param_idx])
+                .or_else(|| self.cg_ty_of(param_tys[param_idx]))
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR FunPtr call arg type",
+                    at: arg.span.into(),
+                })?;
+            let value =
+                self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
+            let coerced = self.coerce_value(arg.span, value, target_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("pass_mir_funptr_arg_{param_idx}"),
+                coerced,
+            )?;
+            evaluated[param_idx] = Some((arg.span, deferred));
+        }
+
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(param_idx, slot)| {
+                let (arg_span, deferred) = slot.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR FunPtr call arg binding",
+                    at: span.into(),
+                })?;
+                let (materialized, cleanup_spills) = self
+                    .materialize_deferred_cg_value_for_call_arg(
+                        arg_span,
+                        &format!("pass_mir_funptr_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                let pointer_value = match materialized.value {
+                    Some(BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                    _ => None,
+                };
+                let value = self.as_llvm_arg_value(arg_span, materialized.ty, materialized)?;
                 Ok(EvaluatedCallArg {
                     value,
                     pointer_value,
