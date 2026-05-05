@@ -1017,9 +1017,16 @@ fn remap_rvalue(
             variant_name: variant_name.clone(),
             args: remap_call_args(args, local_operands, local_map)?,
         }),
-        Rvalue::ClassCtor { class_fqn, args } => Some(Rvalue::ClassCtor {
+        Rvalue::ClassCtor {
+            class_fqn,
+            args,
+            hidden_effects,
+            ..
+        } => Some(Rvalue::ClassCtor {
+            site_id: fresh_cloned_site_id(next_site_id),
             class_fqn: class_fqn.clone(),
             args: remap_call_args(args, local_operands, local_map)?,
+            hidden_effects: hidden_effects.clone(),
         }),
         Rvalue::SizeOf { value_ty } => Some(Rvalue::SizeOf {
             value_ty: *value_ty,

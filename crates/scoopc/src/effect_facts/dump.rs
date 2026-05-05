@@ -426,6 +426,17 @@ fn render_site_facts(
                 &format!("precision: {:?}", call.precision()),
             );
         }
+        SiteEffectFacts::ClassCtor(class_ctor) => {
+            write_line(out, indent + 2, "kind: ClassCtor");
+            write_line(
+                out,
+                indent + 2,
+                &format!(
+                    "emitted_cases: {}",
+                    format_case_set(facts, types, class_ctor.emitted_cases())
+                ),
+            );
+        }
         SiteEffectFacts::Perform(perform) => {
             write_line(out, indent + 2, "kind: Perform");
             write_line(
@@ -568,6 +579,9 @@ fn infer_body_step_schema(body_facts: &BodyEffectFacts) -> Option<super::StepSch
             SiteEffectFacts::Resume(resume) if !resume.resolved_cases().is_empty() => {
                 return Some(resume.resolved_cases().schema());
             }
+            SiteEffectFacts::ClassCtor(class_ctor) if !class_ctor.emitted_cases().is_empty() => {
+                return Some(class_ctor.emitted_cases().schema());
+            }
             SiteEffectFacts::Handle(handle) if !handle.handled_cases().is_empty() => {
                 return Some(handle.handled_cases().schema());
             }
@@ -578,6 +592,7 @@ fn infer_body_step_schema(body_facts: &BodyEffectFacts) -> Option<super::StepSch
                 return Some(handle.finally_outward_cases().schema());
             }
             SiteEffectFacts::Call(_)
+            | SiteEffectFacts::ClassCtor(_)
             | SiteEffectFacts::Perform(_)
             | SiteEffectFacts::Resume(_)
             | SiteEffectFacts::Handle(_) => {}

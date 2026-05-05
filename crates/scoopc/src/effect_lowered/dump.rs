@@ -1152,6 +1152,20 @@ fn render_boundary_lowering(rendered: &mut String, lowering: &LateLoweredBoundar
             );
             render_step_dispatch_plan(rendered, lowering.dispatch());
         }
+        LateLoweredBoundaryLowering::ClassCtor(lowering) => {
+            writeln!(
+                rendered,
+                "          lowering: ClassCtor class={} result=local{} emitted={}",
+                lowering.class_fqn(),
+                lowering.result_local().as_u32(),
+                render_cases(lowering.facts().emitted_cases().tags()),
+            )
+            .unwrap();
+            render_source_consumption(rendered, lowering.source_consumption());
+            for emission in lowering.emitted_steps() {
+                render_step_case_emission(rendered, emission);
+            }
+        }
         LateLoweredBoundaryLowering::Perform(lowering) => {
             writeln!(
                 rendered,
@@ -1595,6 +1609,7 @@ fn render_boundary_source(source: LateLoweredBoundarySource) -> String {
 fn render_boundary_site_kind(kind: BoundarySiteKind) -> &'static str {
     match kind {
         BoundarySiteKind::Call => "Call",
+        BoundarySiteKind::ClassCtor => "ClassCtor",
         BoundarySiteKind::Perform => "Perform",
         BoundarySiteKind::Resume => "Resume",
         BoundarySiteKind::Handle => "Handle",

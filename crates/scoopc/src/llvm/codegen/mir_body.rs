@@ -1090,7 +1090,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 args,
                 target_cg,
             ),
-            crate::mir::Rvalue::ClassCtor { class_fqn, args } => {
+            crate::mir::Rvalue::ClassCtor {
+                class_fqn, args, ..
+            } => {
                 let class_layout_key =
                     self.mir_class_ctor_layout_key(class_fqn, mir_types, target_source_ty);
                 self.class_inits.contains_key(&class_layout_key)
@@ -2248,7 +2250,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mir_types,
                 slots,
             ),
-            crate::mir::Rvalue::ClassCtor { class_fqn, args } => {
+            crate::mir::Rvalue::ClassCtor {
+                class_fqn, args, ..
+            } => {
                 let class_layout_key =
                     self.mir_class_ctor_layout_key(class_fqn, mir_types, target_source_ty);
                 self.codegen_mir_class_ctor_call(span, &class_layout_key, args, slots)

@@ -499,6 +499,7 @@ struct ReturnContext<'ctx> {
 struct ActiveSuspendSiteEffectOutcomeCapture {
     site_id: u32,
     call_span: crate::span::Span,
+    capture_any: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1792,13 +1793,54 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     {
         let saved_capture = self.effect_cx.suspend_site_effect_outcomes.active_capture;
         self.effect_cx.suspend_site_effect_outcomes.active_capture =
-            Some(ActiveSuspendSiteEffectOutcomeCapture { site_id, call_span });
+            Some(ActiveSuspendSiteEffectOutcomeCapture {
+                site_id,
+                call_span,
+                capture_any: false,
+            });
         self.effect_cx
             .suspend_site_effect_outcomes
             .explicit_outcomes
             .remove(&site_id);
         let result = f(self);
         self.effect_cx.suspend_site_effect_outcomes.active_capture = saved_capture;
+        result
+    }
+
+    fn with_active_suspend_site_any_effect_outcome_capture<T, F>(
+        &mut self,
+        site_id: u32,
+        f: F,
+    ) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        let saved_capture = self.effect_cx.suspend_site_effect_outcomes.active_capture;
+        self.effect_cx.suspend_site_effect_outcomes.active_capture =
+            Some(ActiveSuspendSiteEffectOutcomeCapture {
+                site_id,
+                call_span: crate::span::Span::new(0, 0),
+                capture_any: true,
+            });
+        self.effect_cx
+            .suspend_site_effect_outcomes
+            .explicit_outcomes
+            .remove(&site_id);
+        let result = f(self);
+        self.effect_cx.suspend_site_effect_outcomes.active_capture = saved_capture;
+        result
+    }
+
+    fn with_ordinary_effect_propagation_suppressed<T, F>(
+        &mut self,
+        f: F,
+    ) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        let saved_return_ty = self.function_cx.current_fun_return_ty.take();
+        let result = f(self);
+        self.function_cx.current_fun_return_ty = saved_return_ty;
         result
     }
 
@@ -4208,7 +4250,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         outcome_slot: PointerValue<'ctx>,
     ) {
         if let Some(capture) = self.effect_cx.suspend_site_effect_outcomes.active_capture
-            && capture.call_span == call_span
+            && (capture.capture_any || capture.call_span == call_span)
         {
             self.effect_cx
                 .suspend_site_effect_outcomes

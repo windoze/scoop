@@ -17,12 +17,12 @@ use crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol};
 
 use super::{
     BlockEffectFacts, BodyEffectFacts, BodyEffectSolverFacts, CallSiteEffectFacts, CallSiteKind,
-    CallSiteTarget, CallableAbiKind, CallableEffectFacts, CaseSet, CaseTag, ConcreteOpKey,
-    ContinuationSchema, ContinuationSchemaId, EffectFactsError, EffectPrecision,
-    HandleArmEffectFacts, HandleSiteEffectFacts, HandleSiteSolverFacts, ImplPlan,
-    MaterializedEffectFacts, MirSnapshotBinding, NestedHandleClassification,
-    PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema,
-    StepSchemaId,
+    CallSiteTarget, CallableAbiKind, CallableEffectFacts, CaseSet, CaseTag,
+    ClassCtorSiteEffectFacts, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId,
+    EffectFactsError, EffectPrecision, HandleArmEffectFacts, HandleSiteEffectFacts,
+    HandleSiteSolverFacts, ImplPlan, MaterializedEffectFacts, MirSnapshotBinding,
+    NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
+    StepCaseFact, StepSchema, StepSchemaId,
 };
 
 /// 从 canonical materialized MIR snapshot 生成 P4 facts 容器。
@@ -631,26 +631,41 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             let StatementKind::Assign { target, value } = &stmt.kind else {
                 continue;
             };
-            let Rvalue::Call {
-                site_id,
-                kind,
-                args,
-            } = value
-            else {
-                continue;
-            };
-            self.record_block_site(block_id, *site_id);
-            match kind {
-                CallKind::Resume { resume, .. } => {
-                    let projected = self.ensure_resume_site_facts(types, *site_id, resume)?;
+            match value {
+                Rvalue::Call {
+                    site_id,
+                    kind,
+                    args,
+                } => {
+                    self.record_block_site(block_id, *site_id);
+                    match kind {
+                        CallKind::Resume { resume, .. } => {
+                            let projected =
+                                self.ensure_resume_site_facts(types, *site_id, resume)?;
+                            if !projected.is_empty() {
+                                draft.has_suspend_boundary = true;
+                            }
+                            direct.add_tags(block.is_cleanup, projected);
+                        }
+                        _ => {
+                            self.ensure_call_site_facts(types, *target, *site_id, kind, args)?;
+                        }
+                    }
+                }
+                Rvalue::ClassCtor {
+                    site_id,
+                    hidden_effects,
+                    ..
+                } => {
+                    self.record_block_site(block_id, *site_id);
+                    let projected =
+                        self.ensure_class_ctor_site_facts(types, *site_id, hidden_effects)?;
                     if !projected.is_empty() {
                         draft.has_suspend_boundary = true;
                     }
                     direct.add_tags(block.is_cleanup, projected);
                 }
-                _ => {
-                    self.ensure_call_site_facts(types, *target, *site_id, kind, args)?;
-                }
+                _ => {}
             }
         }
 
@@ -769,6 +784,45 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         let facts = self.build_call_site_effect_facts(types, result_local, kind, args)?;
         self.sites.insert(site_id, SiteEffectFacts::Call(facts));
         Ok(())
+    }
+
+    fn ensure_class_ctor_site_facts(
+        &mut self,
+        types: &mut TypeStore,
+        site_id: SiteId,
+        hidden_effects: &EffectRow,
+    ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
+        if let Some(SiteEffectFacts::ClassCtor(facts)) = self.sites.get(&site_id) {
+            return Ok(facts.emitted_cases().tags().iter().copied().collect());
+        }
+
+        let projected = self.current_cases_for_effect_row(types, hidden_effects)?;
+        let cases = self.case_set_from_tags(projected.clone());
+        self.sites.insert(
+            site_id,
+            SiteEffectFacts::ClassCtor(ClassCtorSiteEffectFacts::new(cases)),
+        );
+        Ok(projected)
+    }
+
+    fn current_cases_for_effect_row(
+        &self,
+        types: &TypeStore,
+        row: &EffectRow,
+    ) -> Result<BTreeSet<CaseTag>, EffectFactsError> {
+        let mut tags = BTreeSet::new();
+        for effect_ty in &row.terms {
+            let (effect_fqn, effect_type_args) = lower_effect_nominal_identity(types, *effect_ty)?;
+            for (op_key, case_info) in &self.current_case_index {
+                let family = op_key.effect_family();
+                if family.effect_fqn() == effect_fqn
+                    && family.type_args() == effect_type_args.as_slice()
+                {
+                    tags.insert(case_info.tag);
+                }
+            }
+        }
+        Ok(tags)
     }
 
     fn ensure_resume_site_facts(
@@ -2051,6 +2105,9 @@ fn callable_step_effect_row(
                 ..
             } = value
             else {
+                if let Rvalue::ClassCtor { hidden_effects, .. } = value {
+                    terms.extend(hidden_effects.terms.iter().copied());
+                }
                 continue;
             };
             terms.extend(resume.out_effects.terms.iter().copied());
@@ -2616,6 +2673,45 @@ fun exercise(k: scoop.core.Continuation<Unit, Unit, eff Pure>): Unit / (Flag + s
         .build()
         .unwrap();
         (materialized, facts)
+    }
+
+    #[test]
+    fn class_ctor_hidden_object_init_raise_publishes_class_ctor_site_case() {
+        let source = SourceFile::new_virtual(
+            "<mem>/class_ctor_hidden_object_init_raise.scoop",
+            r#"
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+    val x: Int = 1
+}
+
+class Box() {
+    val x: Int = BoomObject.x
+}
+
+fun helper(): Int {
+    val _box: Box = Box()
+    return 0
+}
+"#,
+        );
+        let (_materialized, facts) = build_facts_for_source(source);
+        let (helper_key, helper_facts) = callable_facts_for(&facts, "helper");
+        assert!(
+            matches!(helper_facts.impl_plan(), ImplPlan::SingleCase(_)),
+            "helper 应通过 class ctor hidden init raise 发布 single-case outward facts: {helper_facts:?}"
+        );
+        let helper_body = facts.body(helper_key).expect("helper body facts 应存在");
+        let class_ctor_site = helper_body.sites().values().find_map(|site| match site {
+            SiteEffectFacts::ClassCtor(facts) => Some(facts),
+            _ => None,
+        });
+        let class_ctor_site = class_ctor_site.expect("helper 应发布 ClassCtor site facts");
+        assert_eq!(class_ctor_site.emitted_cases().tags().len(), 1);
     }
 
     fn call_and_resume_source() -> SourceFile {
@@ -3253,6 +3349,7 @@ fun pureHelper(): Unit {}
                     Some(handle_facts)
                 }
                 SiteEffectFacts::Call(_)
+                | SiteEffectFacts::ClassCtor(_)
                 | SiteEffectFacts::Perform(_)
                 | SiteEffectFacts::Resume(_)
                 | SiteEffectFacts::Handle(_) => None,
@@ -3288,6 +3385,7 @@ fun pureHelper(): Unit {}
                     Some(handle_facts)
                 }
                 SiteEffectFacts::Call(_)
+                | SiteEffectFacts::ClassCtor(_)
                 | SiteEffectFacts::Perform(_)
                 | SiteEffectFacts::Resume(_)
                 | SiteEffectFacts::Handle(_) => None,

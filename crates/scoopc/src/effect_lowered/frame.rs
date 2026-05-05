@@ -425,6 +425,7 @@ fn collect_handle_pending_payload_slots(
                     expected: "Handle",
                     actual: match other {
                         SiteEffectFacts::Call(_) => "Call",
+                        SiteEffectFacts::ClassCtor(_) => "ClassCtor",
                         SiteEffectFacts::Perform(_) => "Perform",
                         SiteEffectFacts::Resume(_) => "Resume",
                         SiteEffectFacts::Handle(_) => unreachable!("已在上方匹配 Handle"),
@@ -559,7 +560,7 @@ fn collect_boundary_result_info(
                     defining_state: boundary.resume_state(),
                 }),
             LateLoweredBoundarySource::Site {
-                kind: super::ir::BoundarySiteKind::Handle,
+                kind: super::ir::BoundarySiteKind::ClassCtor | super::ir::BoundarySiteKind::Handle,
                 ..
             }
             | LateLoweredBoundarySource::RuntimeError { .. } => None,

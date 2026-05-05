@@ -307,7 +307,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.codegen
                     .codegen_mir_make_closure(span, env, fn_ptr, env_cg, target_cg, self.slots)
             }
-            mir::Rvalue::ClassCtor { class_fqn, args } => {
+            mir::Rvalue::ClassCtor {
+                class_fqn, args, ..
+            } => {
                 let class_layout_key =
                     self.refactor_class_ctor_layout_key(class_fqn, target_local)?;
                 self.codegen.codegen_mir_refactor_class_ctor_call(

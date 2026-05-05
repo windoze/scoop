@@ -471,6 +471,7 @@ fn local_site_cases(
 ) -> Option<CaseSet> {
     match site {
         SiteEffectFacts::Call(_) => None,
+        SiteEffectFacts::ClassCtor(facts) => Some(facts.emitted_cases().clone()),
         SiteEffectFacts::Perform(facts) => {
             Some(schema_index.singleton(current_schema, facts.emitted_case()))
         }
@@ -769,6 +770,7 @@ fn finalize_body_sites(
                         resolution.precision,
                     ))
                 }
+                SiteEffectFacts::ClassCtor(facts) => SiteEffectFacts::ClassCtor(facts.clone()),
                 SiteEffectFacts::Perform(facts) => SiteEffectFacts::Perform(facts.clone()),
                 SiteEffectFacts::Resume(facts) => SiteEffectFacts::Resume(facts.clone()),
                 SiteEffectFacts::Handle(facts) => SiteEffectFacts::Handle(facts.clone()),
@@ -956,6 +958,7 @@ fn site_cases_for_region(
         SiteEffectFacts::Call(facts) => {
             Some(schema_index.project_case_set(facts.resolved_cases(), current_schema))
         }
+        SiteEffectFacts::ClassCtor(facts) => Some(facts.emitted_cases().clone()),
         SiteEffectFacts::Perform(facts) => {
             Some(schema_index.singleton(current_schema, facts.emitted_case()))
         }
@@ -1190,6 +1193,7 @@ fn site_cases_for_block(
         SiteEffectFacts::Call(facts) => {
             Some(schema_index.project_case_set(facts.resolved_cases(), current_schema))
         }
+        SiteEffectFacts::ClassCtor(facts) => Some(facts.emitted_cases().clone()),
         SiteEffectFacts::Perform(facts) => {
             Some(schema_index.singleton(current_schema, facts.emitted_case()))
         }
@@ -1220,9 +1224,10 @@ fn body_needs_plain_local_control(sites: &BTreeMap<SiteId, SiteEffectFacts>) -> 
             matches!(call.callee_abi_kind(), CallableAbiKind::EffectStep)
                 && !call.resolved_cases().is_empty()
         }
-        SiteEffectFacts::Perform(_) | SiteEffectFacts::Resume(_) | SiteEffectFacts::Handle(_) => {
-            true
-        }
+        SiteEffectFacts::ClassCtor(_)
+        | SiteEffectFacts::Perform(_)
+        | SiteEffectFacts::Resume(_)
+        | SiteEffectFacts::Handle(_) => true,
     })
 }
 
@@ -1959,7 +1964,8 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
             .values()
             .find_map(|site| match site {
                 SiteEffectFacts::Call(call_facts) => Some(call_facts),
-                SiteEffectFacts::Perform(_)
+                SiteEffectFacts::ClassCtor(_)
+                | SiteEffectFacts::Perform(_)
                 | SiteEffectFacts::Resume(_)
                 | SiteEffectFacts::Handle(_) => None,
             })
@@ -2088,6 +2094,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
                     Some(handle_facts)
                 }
                 SiteEffectFacts::Call(_)
+                | SiteEffectFacts::ClassCtor(_)
                 | SiteEffectFacts::Perform(_)
                 | SiteEffectFacts::Resume(_)
                 | SiteEffectFacts::Handle(_) => None,
@@ -2126,6 +2133,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
                     Some(handle_facts)
                 }
                 SiteEffectFacts::Call(_)
+                | SiteEffectFacts::ClassCtor(_)
                 | SiteEffectFacts::Perform(_)
                 | SiteEffectFacts::Resume(_)
                 | SiteEffectFacts::Handle(_) => None,
@@ -2165,6 +2173,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
             .find_map(|site| match site {
                 SiteEffectFacts::Handle(handle_facts) => Some(handle_facts),
                 SiteEffectFacts::Call(_)
+                | SiteEffectFacts::ClassCtor(_)
                 | SiteEffectFacts::Perform(_)
                 | SiteEffectFacts::Resume(_) => None,
             })
@@ -2209,6 +2218,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
             .find_map(|site| match site {
                 SiteEffectFacts::Handle(handle_facts) => Some(handle_facts),
                 SiteEffectFacts::Call(_)
+                | SiteEffectFacts::ClassCtor(_)
                 | SiteEffectFacts::Perform(_)
                 | SiteEffectFacts::Resume(_) => None,
             })

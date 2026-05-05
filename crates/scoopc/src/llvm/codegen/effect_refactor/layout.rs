@@ -3599,7 +3599,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 (paired_binding.consumer_local(), lowering.resume_boundary())
             }
-            Some(LateLoweredBoundaryLowering::Handle(_)) | None => {
+            Some(LateLoweredBoundaryLowering::ClassCtor(_))
+            | Some(LateLoweredBoundaryLowering::Handle(_))
+            | None => {
                 return Err(frontend_error(format!(
                     "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 不应发布 resumed local/home contract",
                     callable.root_fqn(),
@@ -5865,6 +5867,7 @@ fn boundary_source_consumption(
         LateLoweredBoundaryLowering::Call(lowering) => {
             Some(lowering.operand_contract().source_consumption())
         }
+        LateLoweredBoundaryLowering::ClassCtor(lowering) => Some(lowering.source_consumption()),
         LateLoweredBoundaryLowering::Perform(lowering) => {
             Some(lowering.operand_contract().source_consumption())
         }
@@ -6239,6 +6242,11 @@ fn collect_expected_handle_boundary_case_tags(
             .outward_cases()
             .iter()
             .map(|forwarding| forwarding.emission().case_tag())
+            .collect(),
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::ClassCtor(lowering) => lowering
+            .emitted_steps()
+            .iter()
+            .map(|emission| emission.case_tag())
             .collect(),
         crate::effect_lowered::ir::LateLoweredBoundaryLowering::Perform(lowering) => {
             vec![lowering.emitted_step().case_tag()]

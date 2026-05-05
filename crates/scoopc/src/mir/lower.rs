@@ -52,6 +52,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_resume_sites: HashMap<hir::CallSite, ResumeMetadata>,
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
+    class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
     member_value_tys: HashMap<String, TypeId>,
@@ -68,6 +69,7 @@ impl Default for MirLoweringFacts {
             refactor_resume_sites: HashMap::new(),
             refactor_perform_sites: HashMap::new(),
             refactor_handle_sites: HashMap::new(),
+            class_ctor_hidden_effects: HashMap::new(),
             when_pat_binding_tys: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
             member_value_tys: HashMap::new(),
@@ -110,6 +112,7 @@ impl MirLoweringFacts {
             &lowered.top_level_fun_call_sites,
         )
         .with_member_value_types(lowered)
+        .with_class_ctor_hidden_effects(lowered)
     }
 
     pub(crate) fn from_refactor_typed_handoff(
@@ -135,7 +138,9 @@ impl MirLoweringFacts {
         facts
             .top_level_fun_call_sites
             .extend(lowered.top_level_fun_call_sites.clone());
-        facts = facts.with_member_value_types(lowered);
+        facts = facts
+            .with_member_value_types(lowered)
+            .with_class_ctor_hidden_effects(lowered);
 
         facts.with_refactor_typed_contracts(contracts)
     }
@@ -218,6 +223,17 @@ impl MirLoweringFacts {
             }
         }
 
+        self
+    }
+
+    fn with_class_ctor_hidden_effects(mut self, lowered: &hir::LoweredHir) -> Self {
+        let analyzer = HiddenInitEffectAnalyzer::new(lowered);
+        for (site, info) in &lowered.ctor_call_sites {
+            let effects = analyzer.class_ctor_effect_row(&info.class_fqn, info.ctor_span);
+            if !effects.is_pure() {
+                self.class_ctor_hidden_effects.insert(site.clone(), effects);
+            }
+        }
         self
     }
 
@@ -364,8 +380,330 @@ impl MirLoweringFacts {
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
 
+    fn class_ctor_hidden_effects(&self, source_path: &std::path::Path, span: Span) -> EffectRow {
+        self.class_ctor_hidden_effects
+            .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+            .cloned()
+            .unwrap_or_else(EffectRow::pure)
+    }
+
     fn when_pat_binding_ty(&self, span: Span) -> Option<TypeId> {
         self.when_pat_binding_tys.get(&span).copied()
+    }
+}
+
+struct HiddenInitEffectAnalyzer<'a> {
+    lowered: &'a hir::LoweredHir,
+}
+
+impl<'a> HiddenInitEffectAnalyzer<'a> {
+    fn new(lowered: &'a hir::LoweredHir) -> Self {
+        Self { lowered }
+    }
+
+    fn class_ctor_effect_row(&self, class_fqn: &str, ctor_span: Option<Span>) -> EffectRow {
+        let mut visiting = HashSet::new();
+        EffectRow::new(self.class_ctor_effect_terms(class_fqn, ctor_span, &mut visiting))
+    }
+
+    fn class_ctor_effect_terms(
+        &self,
+        class_fqn: &str,
+        ctor_span: Option<Span>,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(class) = self.lookup_class_init(class_fqn) else {
+            return Vec::new();
+        };
+        let key = format!("class:{}:{:?}", class.fqn, ctor_span);
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let mut terms = Vec::new();
+        if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+            terms.extend(self.class_ctor_effect_terms(super_fqn, None, visiting));
+        }
+        terms.extend(self.scan_call_args(
+            &class.super_ctor_args,
+            class.source_path.as_path(),
+            visiting,
+        ));
+
+        let selected_ctor = ctor_span
+            .and_then(|span| class.ctors.iter().find(|ctor| ctor.span == span))
+            .or_else(|| {
+                if ctor_span.is_none() && class.ctors.len() == 1 {
+                    class.ctors.first()
+                } else {
+                    None
+                }
+            });
+        if let Some(ctor) = selected_ctor {
+            for param in &ctor.params {
+                if let Some(default_value) = param.default_value.as_ref() {
+                    terms.extend(self.scan_expr(
+                        default_value,
+                        class.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+            }
+            if let Some(delegation) = ctor.delegation.as_ref() {
+                terms.extend(self.scan_call_args(
+                    &delegation.args,
+                    class.source_path.as_path(),
+                    visiting,
+                ));
+            }
+        }
+
+        for step in &class.steps {
+            match step {
+                hir::ClassInitStep::PropertyInit { init, .. } => {
+                    terms.extend(self.scan_expr(init, class.source_path.as_path(), visiting));
+                }
+                hir::ClassInitStep::InitBlock { block } => {
+                    terms.extend(self.scan_block(block, class.source_path.as_path(), visiting));
+                }
+            }
+        }
+        if let Some(ctor) = selected_ctor
+            && let Some(body) = ctor.body.as_ref()
+        {
+            terms.extend(self.scan_block(body, class.source_path.as_path(), visiting));
+        }
+
+        visiting.remove(&key);
+        terms
+    }
+
+    fn object_init_effect_terms(
+        &self,
+        object_fqn: &str,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(object_init) = self.lowered.object_inits.get(object_fqn) else {
+            return Vec::new();
+        };
+        let key = format!("object:{object_fqn}");
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let mut terms = Vec::new();
+        for step in &object_init.steps {
+            match step {
+                hir::ObjectInitStep::PropertyInit { init, .. } => {
+                    terms.extend(self.scan_expr(init, object_init.source_path.as_path(), visiting));
+                }
+                hir::ObjectInitStep::InitBlock { block } => {
+                    terms.extend(self.scan_block(
+                        block,
+                        object_init.source_path.as_path(),
+                        visiting,
+                    ));
+                }
+            }
+        }
+
+        visiting.remove(&key);
+        terms
+    }
+
+    fn lookup_class_init(&self, class_fqn: &str) -> Option<&'a hir::ClassInit> {
+        self.lowered.class_inits.get(class_fqn).or_else(|| {
+            self.lowered
+                .class_inits
+                .values()
+                .find(|class| class.fqn == class_fqn)
+        })
+    }
+
+    fn scan_block(
+        &self,
+        block: &hir::Block,
+        source_path: &std::path::Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let mut terms = Vec::new();
+        for stmt in &block.stmts {
+            terms.extend(self.scan_stmt(stmt, source_path, visiting));
+        }
+        terms
+    }
+
+    fn scan_stmt(
+        &self,
+        stmt: &hir::Stmt,
+        source_path: &std::path::Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        match &stmt.kind {
+            hir::StmtKind::Expr(expr) => self.scan_expr(expr, source_path, visiting),
+            hir::StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .map(|expr| self.scan_expr(expr, source_path, visiting))
+                .unwrap_or_default(),
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                let mut terms = self.scan_expr(lhs, source_path, visiting);
+                terms.extend(self.scan_expr(rhs, source_path, visiting));
+                terms
+            }
+            hir::StmtKind::While { cond, body } => {
+                let mut terms = self.scan_expr(cond, source_path, visiting);
+                terms.extend(self.scan_block(body, source_path, visiting));
+                terms
+            }
+            hir::StmtKind::Return { value } => value
+                .as_ref()
+                .map(|expr| self.scan_expr(expr, source_path, visiting))
+                .unwrap_or_default(),
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => Vec::new(),
+        }
+    }
+
+    fn scan_expr(
+        &self,
+        expr: &hir::Expr,
+        source_path: &std::path::Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Closure(_)
+            | hir::ExprKind::Todo(_) => Vec::new(),
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.object_init_effect_terms(fqn, visiting)
+            }
+            hir::ExprKind::VarRef(_) => Vec::new(),
+            hir::ExprKind::Block(block) => self.scan_block(block, source_path, visiting),
+            hir::ExprKind::Unary { expr, .. }
+            | hir::ExprKind::Cast { expr, .. }
+            | hir::ExprKind::TypeCheck { expr, .. } => self.scan_expr(expr, source_path, visiting),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                let mut terms = self.scan_expr(lhs, source_path, visiting);
+                terms.extend(self.scan_expr(rhs, source_path, visiting));
+                terms
+            }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                let mut terms = self.scan_expr(cond, source_path, visiting);
+                terms.extend(self.scan_expr(then_branch, source_path, visiting));
+                if let Some(else_branch) = else_branch.as_deref() {
+                    terms.extend(self.scan_expr(else_branch, source_path, visiting));
+                }
+                terms
+            }
+            hir::ExprKind::When { subject, arms } => {
+                let mut terms = self.scan_expr(subject, source_path, visiting);
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        terms.extend(self.scan_expr(guard, source_path, visiting));
+                    }
+                    terms.extend(self.scan_expr(&arm.body, source_path, visiting));
+                }
+                terms
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                let mut terms = self.scan_expr(receiver, source_path, visiting);
+                if let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref()
+                    && let Some((owner_fqn, _)) = fqn.rsplit_once('.')
+                {
+                    terms.extend(self.object_init_effect_terms(owner_fqn, visiting));
+                }
+                terms
+            }
+            hir::ExprKind::StructLit { fields, .. } => {
+                let mut terms = Vec::new();
+                for field in fields {
+                    terms.extend(self.scan_expr(&field.value, source_path, visiting));
+                }
+                terms
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                let mut terms = Vec::new();
+                for element in elements {
+                    terms.extend(self.scan_expr(element, source_path, visiting));
+                }
+                terms
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                let mut terms = Vec::new();
+                for part in parts {
+                    if let hir::InterpolatedStringPart::Expr { expr } = part {
+                        terms.extend(self.scan_expr(expr, source_path, visiting));
+                    }
+                }
+                terms
+            }
+            hir::ExprKind::Call { callee, args } => {
+                let mut terms = self.scan_expr(callee, source_path, visiting);
+                terms.extend(self.scan_call_args(args, source_path, visiting));
+                if let Some(info) = self
+                    .lowered
+                    .ctor_call_sites
+                    .get(&hir::CallSite::new(source_path.to_path_buf(), expr.span))
+                {
+                    terms.extend(self.class_ctor_effect_terms(
+                        &info.class_fqn,
+                        info.ctor_span,
+                        visiting,
+                    ));
+                } else if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) =
+                    self.lowered.types.kind(callee.ty)
+                {
+                    terms.extend(fun_ty.effects.terms.iter().copied());
+                }
+                terms
+            }
+            hir::ExprKind::Perform {
+                effect_ty, args, ..
+            } => {
+                let mut terms = self.scan_call_args(args, source_path, visiting);
+                terms.push(*effect_ty);
+                terms
+            }
+            hir::ExprKind::Handle(handle) => {
+                let mut terms = self.scan_block(&handle.body, source_path, visiting);
+                for arm in &handle.arms {
+                    terms.extend(self.scan_expr(&arm.body, source_path, visiting));
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    terms.extend(self.scan_block(finally, source_path, visiting));
+                }
+                terms
+            }
+        }
+    }
+
+    fn scan_call_args(
+        &self,
+        args: &[hir::CallArg],
+        source_path: &std::path::Path,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let mut terms = Vec::new();
+        for arg in args {
+            match arg {
+                hir::CallArg::Positional(expr) => {
+                    terms.extend(self.scan_expr(expr, source_path, visiting));
+                }
+                hir::CallArg::Named { value, .. } => {
+                    terms.extend(self.scan_expr(value, source_path, visiting));
+                }
+            }
+        }
+        terms
     }
 }
 
@@ -642,6 +980,7 @@ impl<'a> FnLowering<'a> {
                     );
                 }
             }
+            self.assign_deferred_class_ctor_site_ids();
             Some(std::mem::replace(&mut self.body, Body::new_empty()))
         } else {
             None
@@ -686,6 +1025,28 @@ impl<'a> FnLowering<'a> {
             .checked_add(1)
             .expect("too many MIR site ids in one body");
         site_id
+    }
+
+    fn assign_deferred_class_ctor_site_ids(&mut self) {
+        for block in &mut self.body.blocks {
+            for stmt in &mut block.stmts {
+                let StatementKind::Assign {
+                    value: Rvalue::ClassCtor { site_id, .. },
+                    ..
+                } = &mut stmt.kind
+                else {
+                    continue;
+                };
+                if site_id.as_u32() != u32::MAX {
+                    continue;
+                }
+                *site_id = SiteId::from_raw(self.next_site_id);
+                self.next_site_id = self
+                    .next_site_id
+                    .checked_add(1)
+                    .expect("too many MIR site ids in one body");
+            }
+        }
     }
 
     /// 在当前 basic block 末尾追加一条语句。
@@ -1955,12 +2316,18 @@ impl<'a> FnLowering<'a> {
             let Some(args) = self.lower_call_args(args) else {
                 return result;
             };
+            let site_id = SiteId::from_raw(u32::MAX);
+            let hidden_effects = self
+                .facts
+                .class_ctor_hidden_effects(self.source_path.as_path(), span);
             self.assign(
                 span,
                 result,
                 Rvalue::ClassCtor {
+                    site_id,
                     class_fqn: callee_fqn,
                     args,
+                    hidden_effects,
                 },
             );
             return result;

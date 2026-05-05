@@ -32,7 +32,7 @@ use crate::effect_lowered::ir::{
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
-use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue};
@@ -1984,6 +1984,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         )?;
                     }
                 }
+                LateLoweredBoundaryLowering::ClassCtor(lowering) => {
+                    let _source = boundary_site(boundary, "ClassCtor")?;
+                    self.verify_local_exists(lowering.result_local(), "class ctor result local")?;
+                    for emission in lowering.emitted_steps() {
+                        self.verify_step_case_payload_contract(
+                            emission.case_tag(),
+                            emission.payload_tuple_ty(),
+                        )?;
+                    }
+                }
                 LateLoweredBoundaryLowering::Perform(lowering) => {
                     let source = boundary_site(boundary, "Perform")?;
                     self.abi.perform_boundary_operand_layout(
@@ -3557,6 +3567,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     Some(lowering),
                 )
             }
+            LateLoweredBoundaryLowering::ClassCtor(lowering) => {
+                self.lower_class_ctor_boundary(boundary, lowering)
+            }
             LateLoweredBoundaryLowering::Perform(lowering) => {
                 let source = boundary_site(boundary, "Perform")?;
                 let _ = self.abi.perform_boundary_operand_layout(
@@ -3663,6 +3676,207 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 self.lower_handle_boundary(boundary, lowering)
             }
         }
+    }
+
+    fn lower_class_ctor_boundary(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+        lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
+    ) -> Result<(), LlvmEmitError> {
+        let site_id = boundary_site(boundary, "ClassCtor")?;
+        let (span, args) = self.class_ctor_boundary_statement(lowering, site_id)?;
+        let args = args.to_vec();
+        let class_layout_key =
+            self.class_ctor_layout_key(lowering.class_fqn(), lowering.result_local())?;
+        let slots = self.slots.clone();
+        let result = self
+            .codegen
+            .with_active_suspend_site_any_effect_outcome_capture(site_id.as_u32(), |cg| {
+                cg.with_ordinary_effect_propagation_suppressed(|cg| {
+                    cg.codegen_mir_refactor_class_ctor_call(span, &class_layout_key, &args, &slots)
+                })
+            })?;
+        let outcome_slot = self
+            .codegen
+            .take_suspend_site_explicit_effect_outcome(site_id.as_u32());
+        let Some(outcome_slot) = outcome_slot else {
+            let _ = self.store_local_value(span, lowering.result_local(), result)?;
+            return self.branch_to_state(boundary.resume_state());
+        };
+
+        let active_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "class_ctor_hidden_effect_active");
+        let inactive_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "class_ctor_hidden_effect_inactive");
+        let is_propagating = self.codegen.effect_outcome_is_propagating(
+            span,
+            outcome_slot,
+            "class_ctor_hidden_effect",
+        )?;
+        self.codegen
+            .builder
+            .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
+
+        self.codegen.builder.position_at_end(active_bb);
+        let emission = match lowering.emitted_steps() {
+            [single] => single,
+            [] => {
+                return Err(frontend_error(format!(
+                    "refactor class ctor boundary bd{} 缺少 hidden effect emission",
+                    boundary.boundary_id().as_u32()
+                )));
+            }
+            many => {
+                return Err(frontend_error(format!(
+                    "refactor class ctor boundary bd{} 发布了 {} 个 hidden effect emission；当前 runtime outcome lowering 需要唯一 ordinary effect case",
+                    boundary.boundary_id().as_u32(),
+                    many.len()
+                )));
+            }
+        };
+        let payload =
+            self.lower_class_ctor_outcome_payload(outcome_slot, emission.payload_tuple_ty())?;
+        self.emit_or_consume_outward_case(
+            boundary,
+            emission.case_tag(),
+            payload,
+            emission.payload_tuple_ty(),
+            None,
+            None,
+        )?;
+
+        self.codegen.builder.position_at_end(inactive_bb);
+        let _ = self.store_local_value(span, lowering.result_local(), result)?;
+        self.branch_to_state(boundary.resume_state())
+    }
+
+    fn class_ctor_boundary_statement(
+        &self,
+        lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
+        site_id: SiteId,
+    ) -> Result<(crate::span::Span, &[mir::CallArg]), LlvmEmitError> {
+        let Some(statement_index) = lowering.source_consumption().statement_index() else {
+            return Err(frontend_error(format!(
+                "refactor class ctor boundary site{} source consumption 不是 statement anchor",
+                site_id.as_u32()
+            )));
+        };
+        let source_slice = lowering.source_consumption().source_slice();
+        let block = self
+            .body
+            .blocks
+            .get(source_slice.block_id().as_u32() as usize)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor class ctor boundary site{} source block bb{} 不存在",
+                    site_id.as_u32(),
+                    source_slice.block_id().as_u32()
+                ))
+            })?;
+        let stmt = block.stmts.get(statement_index as usize).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor class ctor boundary site{} source statement {} 不存在",
+                site_id.as_u32(),
+                statement_index
+            ))
+        })?;
+        let mir::StatementKind::Assign {
+            value:
+                mir::Rvalue::ClassCtor {
+                    site_id: stmt_site,
+                    args,
+                    ..
+                },
+            ..
+        } = &stmt.kind
+        else {
+            return Err(frontend_error(format!(
+                "refactor class ctor boundary site{} source anchor 不是 ClassCtor statement",
+                site_id.as_u32()
+            )));
+        };
+        if *stmt_site != site_id {
+            return Err(frontend_error(format!(
+                "refactor class ctor boundary source site 漂移：anchor=site{} expected=site{}",
+                stmt_site.as_u32(),
+                site_id.as_u32()
+            )));
+        }
+        Ok((stmt.span, args))
+    }
+
+    fn class_ctor_layout_key(
+        &self,
+        class_fqn: &str,
+        result_local: LocalId,
+    ) -> Result<String, LlvmEmitError> {
+        let Some(target_ty) = self
+            .body
+            .locals
+            .get(result_local.as_u32() as usize)
+            .map(|local| local.ty)
+        else {
+            return Ok(class_fqn.to_string());
+        };
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(target_ty) else {
+            return Ok(class_fqn.to_string());
+        };
+        if nominal.fqn != class_fqn {
+            return Ok(class_fqn.to_string());
+        }
+        let layout = self.abi.class_instance_layout(target_ty)?;
+        if layout.base_fqn() != class_fqn {
+            return Err(frontend_error(format!(
+                "refactor class ctor boundary `{class_fqn}` result local{} resolved to mismatched layout `{}`",
+                result_local.as_u32(),
+                layout.base_fqn()
+            )));
+        }
+        Ok(layout.class_key().to_string())
+    }
+
+    fn lower_class_ctor_outcome_payload(
+        &mut self,
+        outcome_slot: PointerValue<'ctx>,
+        payload_ty: TypeId,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let layout = self.abi.source_value_layout(payload_ty)?;
+        if layout.abi().is_elided() {
+            return Ok(None);
+        }
+        let payload_cg = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, payload_ty)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor class ctor hidden effect payload t{} 缺少 codegen type",
+                    payload_ty.as_u32()
+                ))
+            })?;
+        let transport = self.codegen.effect_outcome_payload_transport(
+            self.mir_fun.span,
+            outcome_slot,
+            "class_ctor_hidden_effect_payload",
+        )?;
+        let decoded = self.codegen.decode_effect_transport_value(
+            self.mir_fun.span,
+            transport.word,
+            transport.gc_ref,
+            payload_cg,
+        )?;
+        decoded
+            .value
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor class ctor hidden effect payload t{} decoded to elided value despite non-elided ABI",
+                    payload_ty.as_u32()
+                ))
+            })
+            .map(Some)
     }
 
     fn should_use_task_transport_dynamic_resume(
@@ -6791,6 +7005,7 @@ fn boundary_source_consumption(
         LateLoweredBoundaryLowering::Call(lowering) => {
             Some(lowering.operand_contract().source_consumption())
         }
+        LateLoweredBoundaryLowering::ClassCtor(lowering) => Some(lowering.source_consumption()),
         LateLoweredBoundaryLowering::Perform(lowering) => {
             Some(lowering.operand_contract().source_consumption())
         }
@@ -6856,6 +7071,7 @@ fn pending_completion_resume_state(
 fn boundary_complete_result_local(boundary: &LateLoweredBoundary) -> Option<LocalId> {
     match boundary.lowering()? {
         LateLoweredBoundaryLowering::Call(lowering) => Some(lowering.result_local()),
+        LateLoweredBoundaryLowering::ClassCtor(lowering) => Some(lowering.result_local()),
         LateLoweredBoundaryLowering::Resume(lowering) => Some(lowering.result_local()),
         LateLoweredBoundaryLowering::Perform(_)
         | LateLoweredBoundaryLowering::RuntimeError(_)

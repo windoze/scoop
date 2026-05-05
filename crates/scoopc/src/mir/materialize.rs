@@ -3637,10 +3637,21 @@ impl MirInstanceMaterializer {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
             }
-            Rvalue::ClassCtor { args, .. } => {
+            Rvalue::ClassCtor {
+                args,
+                hidden_effects,
+                ..
+            } => {
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
+                hidden_effects.terms = hidden_effects
+                    .terms
+                    .iter()
+                    .map(|ty| {
+                        substitute_type_and_effect_params(&mut self.types, *ty, ctx.substitution)
+                    })
+                    .collect();
             }
             Rvalue::MakeTuple { elements } => {
                 for element in elements.iter_mut() {

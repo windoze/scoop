@@ -2,8 +2,8 @@ use super::*;
 
 #[derive(Clone, Copy)]
 pub(in crate::llvm::codegen) struct ValueTransport<'ctx> {
-    pub(super) word: IntValue<'ctx>,
-    pub(super) gc_ref: PointerValue<'ctx>,
+    pub(in crate::llvm::codegen) word: IntValue<'ctx>,
+    pub(in crate::llvm::codegen) gc_ref: PointerValue<'ctx>,
 }
 
 #[derive(Clone, Copy)]
@@ -301,6 +301,56 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value();
         let _ = at;
         Ok(resume_token)
+    }
+
+    pub(in crate::llvm::codegen) fn effect_outcome_payload_transport(
+        &mut self,
+        at: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<ValueTransport<'ctx>, LlvmEmitError> {
+        let signal_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_outcome_struct_type(),
+            outcome_slot,
+            3,
+            &format!("{label}_effect_outcome_signal_ptr"),
+        )?;
+        let payload_ptr = self.builder.build_struct_gep(
+            self.llvm_effect_signal_struct_type(),
+            signal_ptr,
+            2,
+            &format!("{label}_effect_signal_payload_ptr"),
+        )?;
+        let word_ptr = self.builder.build_struct_gep(
+            self.llvm_value_transport_struct_type(),
+            payload_ptr,
+            0,
+            &format!("{label}_payload_word_ptr"),
+        )?;
+        let gc_ref_ptr = self.builder.build_struct_gep(
+            self.llvm_value_transport_struct_type(),
+            payload_ptr,
+            1,
+            &format!("{label}_payload_gc_ref_ptr"),
+        )?;
+        let word = self
+            .builder
+            .build_load(
+                self.context.i64_type(),
+                word_ptr,
+                &format!("{label}_payload_word"),
+            )?
+            .into_int_value();
+        let gc_ref = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                gc_ref_ptr,
+                &format!("{label}_payload_gc_ref"),
+            )?
+            .into_pointer_value();
+        let _ = at;
+        Ok(self.build_value_transport(word, gc_ref))
     }
 
     pub(in crate::llvm::codegen) fn null_effect_resume_token(&self) -> PointerValue<'ctx> {

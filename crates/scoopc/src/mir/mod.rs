@@ -889,8 +889,10 @@ pub enum Rvalue {
     },
     /// Class constructor call after typed HIR has identified the nominal result class.
     ClassCtor {
+        site_id: SiteId,
         class_fqn: String,
         args: Vec<CallArg>,
+        hidden_effects: EffectRow,
     },
     /// 一个显式普通调用节点。
     ///
@@ -1116,7 +1118,7 @@ impl TerminatorKind {
 impl Rvalue {
     pub fn site_id(&self) -> Option<SiteId> {
         match self {
-            Rvalue::Call { site_id, .. } => Some(*site_id),
+            Rvalue::Call { site_id, .. } | Rvalue::ClassCtor { site_id, .. } => Some(*site_id),
             Rvalue::Use(_)
             | Rvalue::TopLevelRef(_)
             | Rvalue::UnresolvedName { .. }
@@ -1126,7 +1128,6 @@ impl Rvalue {
             | Rvalue::Cast { .. }
             | Rvalue::MemberAccess { .. }
             | Rvalue::EnumVariant { .. }
-            | Rvalue::ClassCtor { .. }
             | Rvalue::MakeTuple { .. }
             | Rvalue::StructLit { .. }
             | Rvalue::SizeOf { .. }

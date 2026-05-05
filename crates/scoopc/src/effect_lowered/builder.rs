@@ -527,6 +527,7 @@ fn build_plain_local_effect_control(
 fn plain_body_has_local_effect_control(body_facts: &crate::effect_facts::BodyEffectFacts) -> bool {
     body_facts.sites().values().any(|site| match site {
         SiteEffectFacts::Call(facts) => !facts.resolved_cases().is_empty(),
+        SiteEffectFacts::ClassCtor(facts) => !facts.emitted_cases().is_empty(),
         SiteEffectFacts::Perform(_) | SiteEffectFacts::Resume(_) | SiteEffectFacts::Handle(_) => {
             true
         }
@@ -545,6 +546,11 @@ fn discover_plain_local_effect_control_step_schema(
     let mut candidates = BTreeSet::new();
     for site in body_facts.sites().values() {
         match site {
+            SiteEffectFacts::ClassCtor(facts) => {
+                if !facts.emitted_cases().is_empty() {
+                    candidates.insert(facts.emitted_cases().schema());
+                }
+            }
             SiteEffectFacts::Perform(facts) => {
                 push_continuation_owner_step_schema(
                     root_fqn,

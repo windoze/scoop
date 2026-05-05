@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::effect_facts::{
-    CallSiteEffectFacts, CallableAbiKind, CaseTag, ConcreteOpKey, ContinuationSchemaId,
-    EffectFamilyKey, HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts,
+    CallSiteEffectFacts, CallableAbiKind, CaseTag, ClassCtorSiteEffectFacts, ConcreteOpKey,
+    ContinuationSchemaId, EffectFamilyKey, HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts,
     ResumeSiteEffectFacts, StepSchemaId,
 };
 use crate::mir::{BasicBlockId, ConstValue, InstanceKey, LocalId, SiteId};
@@ -3222,6 +3222,7 @@ impl LateLoweredStateGraph {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BoundarySiteKind {
     Call,
+    ClassCtor,
     Perform,
     Resume,
     Handle,
@@ -3697,6 +3698,53 @@ impl LateLoweredCallBoundaryLowering {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LateLoweredClassCtorBoundaryLowering {
+    facts: ClassCtorSiteEffectFacts,
+    result_local: LocalId,
+    class_fqn: String,
+    source_consumption: LateLoweredBoundarySourceConsumption,
+    emitted_steps: Vec<LateLoweredStepCaseEmission>,
+}
+
+impl LateLoweredClassCtorBoundaryLowering {
+    pub(crate) fn new(
+        facts: ClassCtorSiteEffectFacts,
+        result_local: LocalId,
+        class_fqn: String,
+        source_consumption: LateLoweredBoundarySourceConsumption,
+        emitted_steps: Vec<LateLoweredStepCaseEmission>,
+    ) -> Self {
+        Self {
+            facts,
+            result_local,
+            class_fqn,
+            source_consumption,
+            emitted_steps,
+        }
+    }
+
+    pub fn facts(&self) -> &ClassCtorSiteEffectFacts {
+        &self.facts
+    }
+
+    pub fn result_local(&self) -> LocalId {
+        self.result_local
+    }
+
+    pub fn class_fqn(&self) -> &str {
+        &self.class_fqn
+    }
+
+    pub fn source_consumption(&self) -> LateLoweredBoundarySourceConsumption {
+        self.source_consumption
+    }
+
+    pub fn emitted_steps(&self) -> &[LateLoweredStepCaseEmission] {
+        &self.emitted_steps
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredPerformBoundaryLowering {
     facts: PerformSiteEffectFacts,
     operand_contract: Box<LateLoweredPerformBoundaryOperandContract>,
@@ -3839,6 +3887,7 @@ impl LateLoweredHandleBoundaryLowering {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LateLoweredBoundaryLowering {
     Call(LateLoweredCallBoundaryLowering),
+    ClassCtor(LateLoweredClassCtorBoundaryLowering),
     Perform(LateLoweredPerformBoundaryLowering),
     Resume(LateLoweredResumeBoundaryLowering),
     RuntimeError(LateLoweredRuntimeErrorBoundaryLowering),

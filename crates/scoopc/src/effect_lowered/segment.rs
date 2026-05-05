@@ -590,12 +590,14 @@ fn collect_selected_boundaries(
             let StatementKind::Assign { value, .. } = &stmt.kind else {
                 continue;
             };
-            let Rvalue::Call { site_id, .. } = value else {
-                continue;
+            let (site_id, is_class_ctor) = match value {
+                Rvalue::Call { site_id, .. } => (*site_id, false),
+                Rvalue::ClassCtor { site_id, .. } => (*site_id, true),
+                _ => continue,
             };
             let site =
                 body_facts
-                    .site(*site_id)
+                    .site(site_id)
                     .ok_or_else(|| EffectLoweringError::MissingSiteFacts {
                         root_fqn: root_fqn.to_string(),
                         site_id: site_id.as_u32(),
@@ -606,7 +608,29 @@ fn collect_selected_boundaries(
             };
             let resume_cursor = StateCursor::after_statement(block_id, statement_index as u32);
             match site {
+                SiteEffectFacts::ClassCtor(class_ctor_facts) if is_class_ctor => {
+                    if class_ctor_facts.emitted_cases().is_empty() {
+                        continue;
+                    }
+                    push_selected_boundary(
+                        &mut selected,
+                        anchor,
+                        LateLoweredBoundarySource::Site {
+                            site_id,
+                            kind: BoundarySiteKind::ClassCtor,
+                        },
+                        resume_cursor,
+                    );
+                }
                 SiteEffectFacts::Call(call_facts) => {
+                    if is_class_ctor {
+                        return Err(EffectLoweringError::UnexpectedSiteFactsKind {
+                            root_fqn: root_fqn.to_string(),
+                            site_id: site_id.as_u32(),
+                            expected: "ClassCtor",
+                            actual: site_facts_kind(site),
+                        });
+                    }
                     if call_facts.resolved_cases().is_empty() {
                         continue;
                     }
@@ -614,7 +638,7 @@ fn collect_selected_boundaries(
                         &mut selected,
                         anchor,
                         LateLoweredBoundarySource::Site {
-                            site_id: *site_id,
+                            site_id,
                             kind: BoundarySiteKind::Call,
                         },
                         resume_cursor,
@@ -625,7 +649,7 @@ fn collect_selected_boundaries(
                         &mut selected,
                         anchor,
                         LateLoweredBoundarySource::Site {
-                            site_id: *site_id,
+                            site_id,
                             kind: BoundarySiteKind::Resume,
                         },
                         resume_cursor,
@@ -634,7 +658,7 @@ fn collect_selected_boundaries(
                         &mut selected,
                         anchor,
                         LateLoweredBoundarySource::RuntimeError {
-                            origin_site: *site_id,
+                            origin_site: site_id,
                         },
                         resume_cursor,
                     );
@@ -643,7 +667,11 @@ fn collect_selected_boundaries(
                     return Err(EffectLoweringError::UnexpectedSiteFactsKind {
                         root_fqn: root_fqn.to_string(),
                         site_id: site_id.as_u32(),
-                        expected: "Call or Resume",
+                        expected: if is_class_ctor {
+                            "ClassCtor"
+                        } else {
+                            "Call or Resume"
+                        },
                         actual: site_facts_kind(other),
                     });
                 }
@@ -806,6 +834,7 @@ fn push_selected_boundary(
 fn site_facts_kind(site: &SiteEffectFacts) -> &'static str {
     match site {
         SiteEffectFacts::Call(_) => "Call",
+        SiteEffectFacts::ClassCtor(_) => "ClassCtor",
         SiteEffectFacts::Perform(_) => "Perform",
         SiteEffectFacts::Resume(_) => "Resume",
         SiteEffectFacts::Handle(_) => "Handle",

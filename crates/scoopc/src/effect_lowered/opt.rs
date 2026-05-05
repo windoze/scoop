@@ -692,6 +692,15 @@ fn rewrite_boundary_lowering(
                 lowering.consumed_runtime_error_case().cloned(),
             ))
         }
+        LateLoweredBoundaryLowering::ClassCtor(lowering) => LateLoweredBoundaryLowering::ClassCtor(
+            crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering::new(
+                lowering.facts().clone(),
+                lowering.result_local(),
+                lowering.class_fqn().to_string(),
+                lowering.source_consumption(),
+                lowering.emitted_steps().to_vec(),
+            ),
+        ),
         LateLoweredBoundaryLowering::Perform(lowering) => {
             LateLoweredBoundaryLowering::Perform(LateLoweredPerformBoundaryLowering::new(
                 lowering.facts().clone(),

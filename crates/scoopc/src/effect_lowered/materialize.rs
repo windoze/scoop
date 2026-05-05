@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::effect_facts::{
-    BodyEffectFacts, CallSiteEffectFacts, CaseTag, ConcreteOpKey, EffectFamilyKey,
-    HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts, PerformSiteEffectFacts,
-    ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema, StepSchemaId,
+    BodyEffectFacts, CallSiteEffectFacts, CaseTag, ClassCtorSiteEffectFacts, ConcreteOpKey,
+    EffectFamilyKey, HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts,
+    PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema,
+    StepSchemaId,
 };
 use crate::mir::{
     BasicBlockId, Body, CallArg, CallKind, LocalId, MemberAccessMetadata, MemberTarget, Operand,
@@ -17,13 +18,13 @@ use super::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBoundary,
     LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySourceConsumption,
     LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
-    LateLoweredCallBoundaryOperandContract, LateLoweredCompleteStepDispatch,
-    LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
-    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationCapture,
-    LateLoweredContinuationContract, LateLoweredContinuationMethod, LateLoweredContinuationObject,
-    LateLoweredContinuationResumeBody, LateLoweredContinuationSurfaceResume,
-    LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema, LateLoweredFrameSlotKind,
-    LateLoweredHandleArmDispatch, LateLoweredHandleBoundaryCaseRouting,
+    LateLoweredCallBoundaryOperandContract, LateLoweredClassCtorBoundaryLowering,
+    LateLoweredCompleteStepDispatch, LateLoweredCompletionPayloadBinding,
+    LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
+    LateLoweredContinuationCapture, LateLoweredContinuationContract, LateLoweredContinuationMethod,
+    LateLoweredContinuationObject, LateLoweredContinuationResumeBody,
+    LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
+    LateLoweredFrameSlotKind, LateLoweredHandleArmDispatch, LateLoweredHandleBoundaryCaseRouting,
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandleBoundaryLowering,
     LateLoweredHandleBoundaryRouting, LateLoweredHandleContinuationBinder,
     LateLoweredHandleDispatchCarrierContract, LateLoweredHandleDispatchContract,
@@ -805,6 +806,46 @@ pub(crate) fn materialize_boundary_map(
                     call_dispatch.dispatch,
                     call_dispatch.continuation_compositions,
                     consumed_runtime_error_case,
+                ))
+            }
+            LateLoweredBoundarySource::Site {
+                site_id,
+                kind: BoundarySiteKind::ClassCtor,
+            } => {
+                let facts = clone_class_ctor_site_facts(root_fqn, body_facts, site_id)?;
+                let result_local = *result_locals.call_results.get(&site_id).ok_or_else(|| {
+                    EffectLoweringError::MissingBoundaryResultLocal {
+                        root_fqn: root_fqn.to_string(),
+                        site_id: site_id.as_u32(),
+                        kind: "ClassCtor",
+                    }
+                })?;
+                let (class_fqn, source_consumption) = build_class_ctor_boundary_source_contract(
+                    root_fqn,
+                    body,
+                    state_graph,
+                    boundary,
+                    result_local,
+                )?;
+                let emitted_steps = facts
+                    .emitted_cases()
+                    .tags()
+                    .iter()
+                    .map(|case_tag| {
+                        build_current_step_emission(
+                            root_fqn,
+                            step_type,
+                            *case_tag,
+                            continuation_object,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                LateLoweredBoundaryLowering::ClassCtor(LateLoweredClassCtorBoundaryLowering::new(
+                    facts,
+                    result_local,
+                    class_fqn,
+                    source_consumption,
+                    emitted_steps,
                 ))
             }
             LateLoweredBoundarySource::Site {
@@ -2023,6 +2064,11 @@ fn collect_handle_boundary_case_tags(
             .iter()
             .map(|forwarding| forwarding.emission().case_tag())
             .collect(),
+        LateLoweredBoundaryLowering::ClassCtor(lowering) => lowering
+            .emitted_steps()
+            .iter()
+            .map(LateLoweredStepCaseEmission::case_tag)
+            .collect(),
         LateLoweredBoundaryLowering::Perform(lowering) => vec![lowering.emitted_step().case_tag()],
         LateLoweredBoundaryLowering::Resume(lowering) => lowering
             .dispatch()
@@ -2599,6 +2645,7 @@ fn boundary_source_consumption(
         LateLoweredBoundaryLowering::Call(lowering) => {
             Some(lowering.operand_contract().source_consumption())
         }
+        LateLoweredBoundaryLowering::ClassCtor(lowering) => Some(lowering.source_consumption()),
         LateLoweredBoundaryLowering::Perform(lowering) => {
             Some(lowering.operand_contract().source_consumption())
         }
@@ -3628,6 +3675,94 @@ fn build_call_boundary_operand_contract(
     })
 }
 
+fn build_class_ctor_boundary_source_contract(
+    root_fqn: &str,
+    body: &Body,
+    state_graph: &LateLoweredStateGraph,
+    boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
+    result_local: LocalId,
+) -> Result<(String, LateLoweredBoundarySourceConsumption), EffectLoweringError> {
+    let LateLoweredBoundarySource::Site {
+        site_id,
+        kind: BoundarySiteKind::ClassCtor,
+    } = boundary.source()
+    else {
+        unreachable!("ClassCtor boundary helper 只能消费 ClassCtor site source");
+    };
+    let owner_state = state_graph.state(boundary.owner_state()).ok_or_else(|| {
+        invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "ClassCtor",
+            format!("缺少 owner state st{}", boundary.owner_state().as_u32()),
+        )
+    })?;
+    let mut published = None;
+    for &source_slice in owner_state.source_slices() {
+        validate_source_slice_bounds(root_fqn, site_id, "ClassCtor", body, source_slice)?;
+        let block = &body.blocks[source_slice.block_id().as_u32() as usize];
+        let start = source_slice.start_statement_index() as usize;
+        let end = source_slice.end_statement_index() as usize;
+        for (offset, stmt) in block.stmts[start..end].iter().enumerate() {
+            let StatementKind::Assign {
+                target,
+                value:
+                    Rvalue::ClassCtor {
+                        site_id: stmt_site_id,
+                        class_fqn,
+                        ..
+                    },
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            if *stmt_site_id != site_id {
+                continue;
+            }
+            if *target != result_local {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    "ClassCtor",
+                    format!(
+                        "statement anchor 写入 local{}，但 boundary lowering 发布的 result local 为 local{}",
+                        target.as_u32(),
+                        result_local.as_u32(),
+                    ),
+                ));
+            }
+            let statement_index = source_slice.start_statement_index() + offset as u32;
+            let consumption = LateLoweredBoundarySourceConsumption::statement(
+                source_slice,
+                statement_index,
+                statement_index.saturating_add(1) == source_slice.end_statement_index(),
+            );
+            if published
+                .replace((class_fqn.clone(), consumption))
+                .is_some()
+            {
+                return Err(invalid_boundary_operand_contract(
+                    root_fqn,
+                    site_id,
+                    "ClassCtor",
+                    "owner state source_slices 中匹配到了多个 statement anchor",
+                ));
+            }
+        }
+    }
+    published.ok_or_else(|| {
+        invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            "ClassCtor",
+            format!(
+                "在 owner state st{} 的 source_slices 中找不到 class ctor statement anchor",
+                boundary.owner_state().as_u32(),
+            ),
+        )
+    })
+}
+
 fn build_perform_boundary_operand_contract(
     root_fqn: &str,
     body: &Body,
@@ -3859,14 +3994,13 @@ fn collect_result_locals(body: &Body) -> BoundaryResultLocals {
     let mut call_results = HashMap::new();
     for block in &body.blocks {
         for stmt in &block.stmts {
-            let StatementKind::Assign {
+            if let StatementKind::Assign {
                 target,
-                value: Rvalue::Call { site_id, .. },
+                value: Rvalue::Call { site_id, .. } | Rvalue::ClassCtor { site_id, .. },
             } = &stmt.kind
-            else {
-                continue;
-            };
-            call_results.insert(*site_id, *target);
+            {
+                call_results.insert(*site_id, *target);
+            }
         }
     }
     BoundaryResultLocals { call_results }
@@ -3911,6 +4045,28 @@ fn clone_call_site_facts(
             root_fqn: root_fqn.to_string(),
             site_id: site_id.as_u32(),
             expected: "Call",
+            actual: site_facts_kind(other),
+        }),
+    }
+}
+
+fn clone_class_ctor_site_facts(
+    root_fqn: &str,
+    body_facts: &BodyEffectFacts,
+    site_id: SiteId,
+) -> Result<ClassCtorSiteEffectFacts, EffectLoweringError> {
+    let site = body_facts
+        .site(site_id)
+        .ok_or_else(|| EffectLoweringError::MissingSiteFacts {
+            root_fqn: root_fqn.to_string(),
+            site_id: site_id.as_u32(),
+        })?;
+    match site {
+        SiteEffectFacts::ClassCtor(facts) => Ok(facts.clone()),
+        other => Err(EffectLoweringError::UnexpectedSiteFactsKind {
+            root_fqn: root_fqn.to_string(),
+            site_id: site_id.as_u32(),
+            expected: "ClassCtor",
             actual: site_facts_kind(other),
         }),
     }
@@ -3985,6 +4141,7 @@ fn clone_handle_site_facts(
 fn site_facts_kind(site: &SiteEffectFacts) -> &'static str {
     match site {
         SiteEffectFacts::Call(_) => "Call",
+        SiteEffectFacts::ClassCtor(_) => "ClassCtor",
         SiteEffectFacts::Perform(_) => "Perform",
         SiteEffectFacts::Resume(_) => "Resume",
         SiteEffectFacts::Handle(_) => "Handle",

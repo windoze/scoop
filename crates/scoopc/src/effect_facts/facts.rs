@@ -312,6 +312,22 @@ pub struct PerformSiteEffectFacts {
     captured_cont_schema: ContinuationSchemaId,
 }
 
+/// `Rvalue::ClassCtor` site 发布的 hidden init outward cases。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassCtorSiteEffectFacts {
+    emitted_cases: CaseSet,
+}
+
+impl ClassCtorSiteEffectFacts {
+    pub fn new(emitted_cases: CaseSet) -> Self {
+        Self { emitted_cases }
+    }
+
+    pub fn emitted_cases(&self) -> &CaseSet {
+        &self.emitted_cases
+    }
+}
+
 impl PerformSiteEffectFacts {
     pub fn new(
         emitted_case: CaseTag,
@@ -493,6 +509,7 @@ impl HandleSiteEffectFacts {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SiteEffectFacts {
     Call(CallSiteEffectFacts),
+    ClassCtor(ClassCtorSiteEffectFacts),
     Perform(PerformSiteEffectFacts),
     Resume(ResumeSiteEffectFacts),
     Handle(HandleSiteEffectFacts),

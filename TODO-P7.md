@@ -462,7 +462,7 @@
   - 2026-05-05：修复 top-level callable value direct-call 的 closure 来源。refactor lowering 现在对 `topNamed(...)` / `topPatternF(...)` 直接从 authoritative top-level immutable value 读取 closure object，而不是扫描并复用可能被跳过的 callee temp；同时只物化后续确实作为值使用的 top-level function-value ref，避免把 ordinary direct-call callee 临时重新带入 source slice。
   - 2026-05-05：验证通过：`cargo fmt --all`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/receiver_function_value_call_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_direct_named_call_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_receiver_call_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`；补充 baseline `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo clippy --all-targets -- -D warnings`。额外 broad guard `cargo test -p scoop --test p7_default_pipeline` 当前仍在 `default_refactor_runs_async_await_task_resume_payload_cli` 暴露 `async_await_minimal_int_basic.scoop` 的 `HandleDispatch` completion payload source 失败，属于后续 `P7-T03` full regression 范围，不作为本任务的 callable-value / `FunPtr` 完成条件。
 
-## P7-T02W：闭合 refactor class ctor / object init hidden ordinary effect handoff，解除 P7-T03 run-pass 阻塞
+## [DONE] P7-T02W：闭合 refactor class ctor / object init hidden ordinary effect handoff，解除 P7-T03 run-pass 阻塞
 
 - 参考：
   - [`TODO-P4.md`](./TODO-P4.md) P4-T03 / P4-T04
@@ -506,7 +506,11 @@
   - 未引入 hidden legacy fallback、fixture 降级或 runtime-only workaround。
 - 依赖：P7-T02V
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：完成 class ctor / object init hidden ordinary effect handoff 修复。MIR `Rvalue::ClassCtor` 现在发布稳定 `SiteId` 与 hidden init effect row，site id 在函数体其它 call/handle/resume site 分配完成后补齐，避免扰动既有 site 编号；hidden effect row 由 HIR class/object init side table 在 MIR handoff 阶段汇总，覆盖 class property initializer / init block / ctor default 与 delegation 参数 / super ctor args 中触达的 object init `Raise<RuntimeError>`。
+  - P4 facts 新增 `ClassCtorSiteEffectFacts`，`helper()` 中 `Box()` class ctor site 现在贡献 `Raise<RuntimeError>` outward case，solver 将 `helper` 从误判的 `NoOutward/Plain` 修正为 effect-step single-case callable；`main` 中 `helper()` call site 随后由 P4 solver 发布为 effect-step call，并被外层 `HandleDispatch` 视为 self-contained handled body case。
+  - P5/P6 handoff 新增 class-ctor boundary source / lowering。late lowering 会为 class ctor statement anchor 发布 `ClassCtor` boundary、source classification 与 step emission；refactor LLVM body emitter 消费该 boundary，执行 ctor/init lowering并捕获 object init ordinary outcome，将 `RuntimeError` payload 作为 canonical Step case 交给外层 handle routing，不再依赖 helper 被误判为 plain 后的 TLS 传播早退路径。
+  - 新增定向单测 `effect_facts::builder::tests::class_ctor_hidden_object_init_raise_publishes_class_ctor_site_case`，覆盖 class ctor 触发 object init raise 时 P4 发布 `ClassCtor` site facts 且 helper outward case 为 single-case。
+  - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo test -p scoopc --lib class_ctor_hidden_object_init_raise_publishes_class_ctor_site_case`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_secondary_ctor_delegation_this_and_super_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_super_ctor_args_eval_order_basic.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 
