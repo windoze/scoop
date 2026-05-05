@@ -204,7 +204,15 @@ impl ContinuationMemberKey {
 enum LocalContinuationOrigin {
     Seed(LateLoweredContinuationRoute),
     Copy(LocalId),
+    AggregateElement {
+        source: LocalId,
+        path: Vec<PatternBindingStep>,
+    },
     MemberRead(ContinuationMemberKey),
+    PatternExtract {
+        subject: LocalId,
+        path: Vec<PatternBindingStep>,
+    },
     PatternMemberRead {
         key: ContinuationMemberKey,
         path: Vec<PatternBindingStep>,
@@ -306,6 +314,48 @@ impl PublishedContinuationProvenance {
                     StatementKind::Assign {
                         target,
                         value:
+                            Rvalue::EnumVariant {
+                                variant_name, args, ..
+                            },
+                    } => {
+                        for (field_index, arg) in args.iter().enumerate() {
+                            let Operand::Local(source) = &arg.value else {
+                                continue;
+                            };
+                            push_local_origin(
+                                &mut provenance.local_origins,
+                                *target,
+                                LocalContinuationOrigin::AggregateElement {
+                                    source: *source,
+                                    path: vec![PatternBindingStep::VariantField {
+                                        variant: variant_name.clone(),
+                                        field_index,
+                                    }],
+                                },
+                            );
+                        }
+                    }
+                    StatementKind::Assign {
+                        target,
+                        value: Rvalue::MakeTuple { elements },
+                    } => {
+                        for (field_index, element) in elements.iter().enumerate() {
+                            let Operand::Local(source) = element else {
+                                continue;
+                            };
+                            push_local_origin(
+                                &mut provenance.local_origins,
+                                *target,
+                                LocalContinuationOrigin::AggregateElement {
+                                    source: *source,
+                                    path: vec![PatternBindingStep::TupleIndex(field_index)],
+                                },
+                            );
+                        }
+                    }
+                    StatementKind::Assign {
+                        target,
+                        value:
                             Rvalue::MemberAccess {
                                 receiver: Operand::Local(receiver_local),
                                 member,
@@ -361,6 +411,14 @@ impl PublishedContinuationProvenance {
                 else {
                     continue;
                 };
+                push_local_origin(
+                    &mut provenance.local_origins,
+                    *target,
+                    LocalContinuationOrigin::PatternExtract {
+                        subject: *subject,
+                        path: path.clone(),
+                    },
+                );
                 let Some((key, mut prefix_path)) = member_derived_origin_for_local(
                     *subject,
                     &provenance.local_origins,
@@ -481,6 +539,7 @@ impl PublishedContinuationProvenance {
                             push_unique_route(&mut routes, route);
                         }
                     }
+                    LocalContinuationOrigin::AggregateElement { .. } => {}
                     LocalContinuationOrigin::MemberRead(key) => {
                         for route in self.resolve_member_path_routes(
                             root_fqn,
@@ -493,12 +552,139 @@ impl PublishedContinuationProvenance {
                             push_unique_route(&mut routes, route);
                         }
                     }
+                    LocalContinuationOrigin::PatternExtract { subject, path } => {
+                        for route in self.resolve_local_pattern_routes(
+                            root_fqn,
+                            site_id,
+                            *subject,
+                            path,
+                            visiting_locals,
+                            visiting_members,
+                        )? {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
                     LocalContinuationOrigin::PatternMemberRead { key, path } => {
                         for route in self.resolve_member_path_routes(
                             root_fqn,
                             site_id,
                             key,
                             path,
+                            visiting_locals,
+                            visiting_members,
+                        )? {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
+                }
+            }
+        }
+        visiting_locals.remove(&local);
+        Ok(routes)
+    }
+
+    fn resolve_local_pattern_routes(
+        &self,
+        root_fqn: &str,
+        site_id: SiteId,
+        local: LocalId,
+        path: &[PatternBindingStep],
+        visiting_locals: &mut HashSet<LocalId>,
+        visiting_members: &mut HashSet<(ContinuationMemberKey, Vec<PatternBindingStep>)>,
+    ) -> Result<Vec<LateLoweredContinuationRoute>, EffectLoweringError> {
+        if !visiting_locals.insert(local) {
+            return Ok(Vec::new());
+        }
+        let mut routes = Vec::new();
+        if let Some(origins) = self.local_origins.get(&local) {
+            for origin in origins {
+                match origin {
+                    LocalContinuationOrigin::Seed(route) if path.is_empty() => {
+                        push_unique_route(&mut routes, route.clone());
+                    }
+                    LocalContinuationOrigin::Seed(_) => {}
+                    LocalContinuationOrigin::Copy(source) => {
+                        for route in self.resolve_local_pattern_routes(
+                            root_fqn,
+                            site_id,
+                            *source,
+                            path,
+                            visiting_locals,
+                            visiting_members,
+                        )? {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
+                    LocalContinuationOrigin::AggregateElement {
+                        source,
+                        path: element_path,
+                    } => {
+                        let Some(remaining_path) = path.strip_prefix(element_path.as_slice())
+                        else {
+                            continue;
+                        };
+                        let source_routes = if remaining_path.is_empty() {
+                            self.resolve_local_routes(
+                                root_fqn,
+                                site_id,
+                                *source,
+                                visiting_locals,
+                                visiting_members,
+                            )?
+                        } else {
+                            self.resolve_local_pattern_routes(
+                                root_fqn,
+                                site_id,
+                                *source,
+                                remaining_path,
+                                visiting_locals,
+                                visiting_members,
+                            )?
+                        };
+                        for route in source_routes {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
+                    LocalContinuationOrigin::MemberRead(key) => {
+                        for route in self.resolve_member_path_routes(
+                            root_fqn,
+                            site_id,
+                            key,
+                            path,
+                            visiting_locals,
+                            visiting_members,
+                        )? {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
+                    LocalContinuationOrigin::PatternExtract {
+                        subject,
+                        path: prefix_path,
+                    } => {
+                        let mut combined_path = prefix_path.clone();
+                        combined_path.extend_from_slice(path);
+                        for route in self.resolve_local_pattern_routes(
+                            root_fqn,
+                            site_id,
+                            *subject,
+                            &combined_path,
+                            visiting_locals,
+                            visiting_members,
+                        )? {
+                            push_unique_route(&mut routes, route);
+                        }
+                    }
+                    LocalContinuationOrigin::PatternMemberRead {
+                        key,
+                        path: prefix_path,
+                    } => {
+                        let mut combined_path = prefix_path.clone();
+                        combined_path.extend_from_slice(path);
+                        for route in self.resolve_member_path_routes(
+                            root_fqn,
+                            site_id,
+                            key,
+                            &combined_path,
                             visiting_locals,
                             visiting_members,
                         )? {
@@ -725,7 +911,9 @@ fn member_derived_origin_for_local(
             LocalContinuationOrigin::Copy(source) => {
                 member_derived_origin_for_local(*source, local_origins, visiting)
             }
-            LocalContinuationOrigin::Seed(_) => None,
+            LocalContinuationOrigin::Seed(_)
+            | LocalContinuationOrigin::AggregateElement { .. }
+            | LocalContinuationOrigin::PatternExtract { .. } => None,
         };
         let Some(next) = next else {
             continue;
@@ -5071,7 +5259,7 @@ mod tests {
             .expect("resume-site-only schema 应发布 dispatch inventory");
         assert_eq!(
             resume_entry.source_kind(),
-            LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
+            LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
         );
         assert!(resume_entry.publications().iter().any(|publication| {
             matches!(
@@ -5548,6 +5736,55 @@ mod tests {
     }
 
     #[test]
+    fn refactor_boundary_lowering_publishes_local_option_continuation_readback_route() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "continuation_resume_continuation.scoop",
+        ));
+        let callable = callable(&output, "main");
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+        let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
+        else {
+            panic!("main site0 应保持 Outer.getK HandleDispatch terminator");
+        };
+        let binder = contract.handled_arms()[0]
+            .continuation_binder()
+            .expect("Outer.getK arm 应发布 continuation binder");
+        let route = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .find_map(|boundary| match boundary.source() {
+                crate::effect_lowered::ir::LateLoweredBoundarySource::Site {
+                    site_id,
+                    kind: BoundarySiteKind::Resume,
+                } if site_id.as_u32() == 15 => match boundary.lowering() {
+                    Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                        Some(lowering.operand_contract().underlying_continuation_route())
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("ok.resume(ik) 应发布 resume boundary route");
+
+        assert_eq!(route.continuation_schema(), binder.continuation_schema());
+        assert!(matches!(
+            route.publication(),
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_continuation_object,
+                site_id,
+                arm_ordinal,
+                handled_case,
+                ..
+            } if *owner_continuation_object == callable.continuation_object()
+                && site_id.as_u32() == 0
+                && *arm_ordinal == 0
+                && *handled_case == contract.handled_arms()[0].handled_case()
+        ));
+    }
+
+    #[test]
     fn refactor_surface_resume_dispatch_inventory_publishes_shared_wrapper_projection() {
         let output = load_output(&load_fixture(
             "run-pass",
@@ -5629,6 +5866,60 @@ mod tests {
             outward.wrapper_continuation_contract().out_step_schema(),
             resume_lowering.facts().out_step_schema()
         );
+    }
+
+    #[test]
+    fn refactor_surface_resume_dispatch_inventory_publishes_wrapper_outward_continuation_schema() {
+        let output = load_output(&load_fixture(
+            "build",
+            "effect_refactor_direct_handle_resume_emit_llvm.scoop",
+        ));
+        let callable = callable(&output, "fixtures.build.main");
+        let resume_lowering = callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .find_map(|boundary| match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Resume(lowering)) => Some(lowering),
+                _ => None,
+            })
+            .expect("fixture 应包含 resume boundary");
+        let projection = output
+            .program()
+            .surface_resume_dispatch(resume_lowering.facts().continuation_schema())
+            .and_then(|entry| entry.wrapper_projection())
+            .expect("resume wrapper schema 应发布 owner-step -> wrapper-step projection");
+        let outward = projection
+            .outward_cases()
+            .first()
+            .expect("wrapper projection 应发布 outward case continuation contract");
+        let contract = outward.wrapper_continuation_contract();
+        let entry = output
+            .program()
+            .surface_resume_dispatch(contract.continuation_schema())
+            .expect("wrapper outward continuation schema 应发布 surface-resume inventory");
+
+        assert_eq!(
+            entry.contract().resume_tuple_ty(),
+            contract.resume_tuple_ty()
+        );
+        assert_eq!(entry.contract().answer_ty(), contract.answer_ty());
+        assert_eq!(
+            entry.contract().out_step_schema(),
+            contract.out_step_schema()
+        );
+        assert_eq!(entry.wrapper_projection(), Some(projection));
+        assert_eq!(
+            entry.source_kind(),
+            LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
+        );
+        assert!(entry.publications().iter().any(|publication| matches!(
+            publication,
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                owner_continuation_object,
+                ..
+            } if *owner_continuation_object == callable.continuation_object()
+        )));
     }
 
     #[test]
@@ -5758,15 +6049,6 @@ mod tests {
                 _ => None,
             })
             .expect("fixture 应包含 resume boundary");
-        assert_eq!(
-            resume_lowering
-                .operand_contract()
-                .underlying_continuation_route()
-                .continuation_schema(),
-            resume_lowering.facts().continuation_schema(),
-            "fixture 应覆盖 same-schema resume-boundary route"
-        );
-
         let projection = output
             .program()
             .surface_resume_dispatch(resume_lowering.facts().continuation_schema())

@@ -187,15 +187,17 @@ File {
                                                             ClosureExpr {
                                                                 span: 133..143,
                                                                 id: C0,
-                                                                captures: [
-                                                                    Capture {
+                                                                captures: [],
+                                                                params: [
+                                                                    Param {
+                                                                        span: 133..133,
                                                                         id: S4,
                                                                         name: "it",
-                                                                        decl_span: 133..133,
-                                                                        mutable: false,
+                                                                        ty: TypeId(
+                                                                            5,
+                                                                        ),
                                                                     },
                                                                 ],
-                                                                params: [],
                                                                 body: Expr {
                                                                     span: 135..141,
                                                                     ty: TypeId(
@@ -242,15 +244,17 @@ File {
                                                             ClosureExpr {
                                                                 span: 144..154,
                                                                 id: C1,
-                                                                captures: [
-                                                                    Capture {
+                                                                captures: [],
+                                                                params: [
+                                                                    Param {
+                                                                        span: 144..144,
                                                                         id: S5,
                                                                         name: "it",
-                                                                        decl_span: 144..144,
-                                                                        mutable: false,
+                                                                        ty: TypeId(
+                                                                            5,
+                                                                        ),
                                                                     },
                                                                 ],
-                                                                params: [],
                                                                 body: Expr {
                                                                     span: 146..152,
                                                                     ty: TypeId(
@@ -380,15 +384,17 @@ File {
                                                                                     ClosureExpr {
                                                                                         span: 190..200,
                                                                                         id: C2,
-                                                                                        captures: [
-                                                                                            Capture {
+                                                                                        captures: [],
+                                                                                        params: [
+                                                                                            Param {
+                                                                                                span: 190..190,
                                                                                                 id: S6,
                                                                                                 name: "it",
-                                                                                                decl_span: 190..190,
-                                                                                                mutable: false,
+                                                                                                ty: TypeId(
+                                                                                                    5,
+                                                                                                ),
                                                                                             },
                                                                                         ],
-                                                                                        params: [],
                                                                                         body: Expr {
                                                                                             span: 192..198,
                                                                                             ty: TypeId(
@@ -435,15 +441,17 @@ File {
                                                                                     ClosureExpr {
                                                                                         span: 201..211,
                                                                                         id: C3,
-                                                                                        captures: [
-                                                                                            Capture {
+                                                                                        captures: [],
+                                                                                        params: [
+                                                                                            Param {
+                                                                                                span: 201..201,
                                                                                                 id: S7,
                                                                                                 name: "it",
-                                                                                                decl_span: 201..201,
-                                                                                                mutable: false,
+                                                                                                ty: TypeId(
+                                                                                                    5,
+                                                                                                ),
                                                                                             },
                                                                                         ],
-                                                                                        params: [],
                                                                                         body: Expr {
                                                                                             span: 203..209,
                                                                                             ty: TypeId(

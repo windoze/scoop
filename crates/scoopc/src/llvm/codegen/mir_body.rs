@@ -1121,6 +1121,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(target_cg) = target_cg else {
             return false;
         };
+        if self
+            .mir_member_resolved_top_level_value_fqn(member)
+            .is_some()
+        {
+            return true;
+        }
         if !self.raw_materialized_mir_operand_is_supported(receiver) {
             return false;
         }
@@ -1208,15 +1214,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
+        if let Some((_object, prop)) = self.lookup_object_property_by_fqn(field_fqn) {
+            let field_cg = self
+                .cg_ty_of(prop.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR object property type",
+                    at: span.into(),
+                })?;
+            return Ok(MirMemberFieldContract {
+                field_cg,
+                writable: prop.mutable,
+            });
+        }
+
         if let Some((class, field_idx, field_cg)) =
             self.lookup_class_field_by_fqn(field_fqn, span, Some(receiver_type_id))?
+            && receiver_cg == CgTy::Ref
         {
-            if receiver_cg != CgTy::Ref {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR class member receiver type",
-                    at: span.into(),
-                });
-            }
             let field =
                 class
                     .fields
@@ -1243,11 +1257,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     writable: matches!(receiver, crate::mir::Operand::Local(_)) && !packed,
                 })
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member field target",
-                at: span.into(),
-            }),
+            _ => Err(frontend_error(format!(
+                "pass MIR member field target `{field_fqn}` receiver_ty=t{} receiver_cg={} contract_cg={}",
+                receiver_type_id.as_u32(),
+                self.describe_cg_ty(receiver_cg),
+                self.describe_cg_ty(receiver_contract_cg),
+            ))),
         }
+    }
+
+    fn mir_member_resolved_top_level_value_fqn<'m>(
+        &self,
+        member: &'m crate::mir::MemberAccessMetadata,
+    ) -> Option<&'m str> {
+        let Some(crate::mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
+            return None;
+        };
+        (self.lookup_object_property_by_fqn(fqn).is_some()
+            || self.top_level_consts.contains_key(fqn)
+            || self.top_level_immutable_values.contains_key(fqn)
+            || self.top_level_vars.contains_key(fqn))
+        .then_some(fqn.as_str())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2752,6 +2782,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_ctx: MirBodyCodegenCtx<'_, 'ctx>,
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let Some(fqn) = self.mir_member_resolved_top_level_value_fqn(member) {
+            let value = if self.lookup_object_property_by_fqn(fqn).is_some() {
+                self.codegen_object_property_access(span, fqn)?
+            } else {
+                self.codegen_top_level_value_ref(span, fqn)?
+            };
+            return self.coerce_value(span, value, target_cg);
+        }
         let place = self.codegen_mir_member_place(span, receiver, member, mir_ctx, false)?;
         let same_layout = self.cg_ty_layout_equivalent(place.field_cg, target_cg);
         if !same_layout {
@@ -2908,48 +2946,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "pass MIR class member receiver operand type",
                     at: span.into(),
                 })?;
-            if receiver_cg != CgTy::Ref {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR class member receiver type drift",
-                    at: span.into(),
-                });
-            }
-            let field =
-                class
-                    .fields
-                    .get(field_idx as usize)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+            if receiver_cg == CgTy::Ref {
+                let field = class.fields.get(field_idx as usize).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "pass MIR class member field index",
                         at: span.into(),
-                    })?;
-            if require_writable && !field.mutable {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR immutable class member store",
-                    at: span.into(),
+                    },
+                )?;
+                if require_writable && !field.mutable {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR immutable class member store",
+                        at: span.into(),
+                    });
+                }
+                let receiver_value = self.codegen_mir_operand_expected(
+                    span,
+                    receiver,
+                    mir_ctx.slots,
+                    Some(CgTy::Ref),
+                )?;
+                let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
+                let Some(raw) = receiver_value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR class member receiver value",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR class member receiver type",
+                        at: span.into(),
+                    });
+                };
+                let ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
+                return Ok(MirMemberPlace {
+                    ptr,
+                    field_cg,
+                    writable: field.mutable,
+                    packed_alignment: None,
                 });
             }
-            let receiver_value =
-                self.codegen_mir_operand_expected(span, receiver, mir_ctx.slots, Some(CgTy::Ref))?;
-            let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
-            let Some(raw) = receiver_value.value else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR class member receiver value",
-                    at: span.into(),
-                });
-            };
-            let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR class member receiver type",
-                    at: span.into(),
-                });
-            };
-            let ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
-            return Ok(MirMemberPlace {
-                ptr,
-                field_cg,
-                writable: field.mutable,
-                packed_alignment: None,
-            });
         }
 
         let receiver_cg =
@@ -2959,10 +2995,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?;
         let CgTy::Struct(struct_ty) = receiver_cg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member field target",
-                at: span.into(),
-            });
+            return Err(frontend_error(format!(
+                "pass MIR member field target `{field_fqn}` receiver_ty=t{} receiver_cg={}",
+                receiver_type_id.as_u32(),
+                self.describe_cg_ty(receiver_cg),
+            )));
         };
         let (field_idx, field_cg) = self.lookup_struct_field(struct_ty, field_fqn, span)?;
         let crate::mir::Operand::Local(local) = receiver else {

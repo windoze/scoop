@@ -319,6 +319,19 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     self.slots,
                 )
             }
+            mir::Rvalue::MemberAccess { member, .. }
+                if let Some(mir::MemberTarget::Value { fqn }) = &member.resolved
+                    && (self.codegen.lookup_object_property_by_fqn(fqn).is_some()
+                        || self.codegen.top_level_consts.contains_key(fqn)
+                        || self.codegen.top_level_immutable_values.contains_key(fqn)
+                        || self.codegen.top_level_vars.contains_key(fqn)) =>
+            {
+                if self.codegen.lookup_object_property_by_fqn(fqn).is_some() {
+                    self.codegen.codegen_object_property_access(span, fqn)
+                } else {
+                    self.codegen.codegen_top_level_value_ref(span, fqn)
+                }
+            }
             _ => self.codegen.codegen_mir_effect_neutral_rvalue(
                 span,
                 value,
@@ -765,6 +778,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return self.lower_refactor_panic_call(span, args);
         }
         let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
+        if let Some(value) = self.lower_refactor_sync_intrinsic(span, dispatch_fqn, args)? {
+            return Ok(value);
+        }
+        if let Some(value) = self.lower_refactor_thread_intrinsic(span, dispatch_fqn, args)? {
+            return Ok(value);
+        }
         if dispatch_fqn == "scoop.unsafe.invoke" {
             let value = self.codegen.codegen_mir_funptr_invoke_call(
                 span,
@@ -881,6 +900,448 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             ))
         })?;
         self.extract_refactor_pure_call_complete(span, layout.step_schema(), step, target_cg)
+    }
+
+    fn lower_refactor_thread_intrinsic(
+        &mut self,
+        span: Span,
+        dispatch_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        match dispatch_fqn {
+            "scoop.thread.threadSpawn" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let block = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let closure_ty = self.codegen.llvm_closure_object_type();
+                let closure_ptr_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
+                let closure_ptr = self.codegen.builder.build_pointer_cast(
+                    block,
+                    closure_ptr_ty,
+                    "refactor_thread_block_ptr",
+                )?;
+                let i8_ptr_ty = self.codegen.llvm_i8_ptr_type();
+                let env_gep = self.codegen.builder.build_struct_gep(
+                    closure_ty,
+                    closure_ptr,
+                    1,
+                    "refactor_thread_env_gep",
+                )?;
+                let fn_gep = self.codegen.builder.build_struct_gep(
+                    closure_ty,
+                    closure_ptr,
+                    2,
+                    "refactor_thread_fn_gep",
+                )?;
+                let env_ptr = self
+                    .codegen
+                    .builder
+                    .build_load(i8_ptr_ty, env_gep, "refactor_thread_env")?
+                    .into_pointer_value();
+                let fn_ptr_raw = self
+                    .codegen
+                    .builder
+                    .build_load(i8_ptr_ty, fn_gep, "refactor_thread_fn_raw")?
+                    .into_pointer_value();
+                let start_fn_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
+                let start_fn_ptr = self.codegen.builder.build_pointer_cast(
+                    fn_ptr_raw,
+                    start_fn_ptr_ty,
+                    "refactor_thread_fn_typed",
+                )?;
+                let rt = self.codegen.declare_runtime_thread_spawn();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[env_ptr.into(), start_fn_ptr.into()],
+                    "thread_spawn",
+                )?;
+                Ok(Some(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(self.sync_ref_return_value(span, dispatch_fqn, call)?.into()),
+                }))
+            }
+            "scoop.thread.join" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let thread = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let rt = self.codegen.declare_runtime_thread_join();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[thread.into()],
+                    "thread_join",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.thread.sleepMillis" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let word = IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: true,
+                };
+                let value = self.codegen.codegen_mir_operand_expected(
+                    args[0].span,
+                    &args[0].value,
+                    self.slots,
+                    Some(CgTy::Int(word)),
+                )?;
+                let value = self
+                    .codegen
+                    .coerce_value(args[0].span, value, CgTy::Int(word))?;
+                let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor thread.sleepMillis value",
+                    at: args[0].span.into(),
+                })?;
+                let ms = self.codegen.cast_int(
+                    raw,
+                    from,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                )?;
+                let rt = self.codegen.declare_runtime_thread_sleep_millis();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[ms.into()],
+                    "thread_sleep_millis",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.thread.currentId" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                let rt = self.codegen.declare_runtime_thread_current_id();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[],
+                    "thread_current_id",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor thread.currentId return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(id) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor thread.currentId return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::int(
+                    id,
+                    IntTy {
+                        bits: 64,
+                        signed: false,
+                    },
+                )))
+            }
+            "scoop.thread.yield" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                let rt = self.codegen.declare_runtime_thread_yield();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[],
+                    "thread_yield",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn lower_refactor_sync_intrinsic(
+        &mut self,
+        span: Span,
+        dispatch_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        match dispatch_fqn {
+            "scoop.sync.mutexCreate" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                let rt = self.codegen.declare_runtime_sync_mutex_create();
+                let call = self
+                    .codegen
+                    .builder
+                    .build_call(rt, &[], "sync_mutex_create")?;
+                Ok(Some(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(self.sync_ref_return_value(span, dispatch_fqn, call)?.into()),
+                }))
+            }
+            "scoop.sync.lock" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let recv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let rt = self.codegen.declare_runtime_sync_mutex_lock();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[recv.into()],
+                    "sync_mutex_lock",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.sync.unlock" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let recv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let rt = self.codegen.declare_runtime_sync_mutex_unlock();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[recv.into()],
+                    "sync_mutex_unlock",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.sync.condVarCreate" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                let rt = self.codegen.declare_runtime_sync_condvar_create();
+                let call = self
+                    .codegen
+                    .builder
+                    .build_call(rt, &[], "sync_condvar_create")?;
+                Ok(Some(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(self.sync_ref_return_value(span, dispatch_fqn, call)?.into()),
+                }))
+            }
+            "scoop.sync.wait" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 2)?;
+                let cv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let mutex = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[1])?;
+                let rt = self.codegen.declare_runtime_sync_condvar_wait();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[cv.into(), mutex.into()],
+                    "sync_condvar_wait",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.sync.notifyOne" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let cv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let rt = self.codegen.declare_runtime_sync_condvar_notify_one();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[cv.into()],
+                    "sync_condvar_notify_one",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.sync.notifyAll" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let cv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let rt = self.codegen.declare_runtime_sync_condvar_notify_all();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[cv.into()],
+                    "sync_condvar_notify_all",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.sync.onceCreate" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                let rt = self.codegen.declare_runtime_sync_once_create();
+                let call = self
+                    .codegen
+                    .builder
+                    .build_call(rt, &[], "sync_once_create")?;
+                Ok(Some(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(self.sync_ref_return_value(span, dispatch_fqn, call)?.into()),
+                }))
+            }
+            "scoop.sync.isDone" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let once = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let rt = self.codegen.declare_runtime_sync_once_is_done();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[once.into()],
+                    "sync_once_is_done",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor sync.Once.isDone return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(done) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor sync.Once.isDone return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::bool(done)))
+            }
+            "scoop.sync.run" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 2)?;
+                let once = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let deferred_once = self.codegen.defer_gc_ref_pointer(
+                    args[0].span,
+                    "refactor_sync_once_run_receiver",
+                    once,
+                )?;
+                let block = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[1])?;
+                let closure_ty = self.codegen.llvm_closure_object_type();
+                let closure_ptr_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
+                let closure_ptr = self.codegen.builder.build_pointer_cast(
+                    block,
+                    closure_ptr_ty,
+                    "refactor_once_block_ptr",
+                )?;
+                let i8_ptr_ty = self.codegen.llvm_i8_ptr_type();
+                let env_gep = self.codegen.builder.build_struct_gep(
+                    closure_ty,
+                    closure_ptr,
+                    1,
+                    "refactor_once_env_gep",
+                )?;
+                let fn_gep = self.codegen.builder.build_struct_gep(
+                    closure_ty,
+                    closure_ptr,
+                    2,
+                    "refactor_once_fn_gep",
+                )?;
+                let env_ptr = self
+                    .codegen
+                    .builder
+                    .build_load(i8_ptr_ty, env_gep, "refactor_once_env")?
+                    .into_pointer_value();
+                let fn_ptr_raw = self
+                    .codegen
+                    .builder
+                    .build_load(i8_ptr_ty, fn_gep, "refactor_once_fn_raw")?
+                    .into_pointer_value();
+                let init_fn_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
+                let init_fn_ptr = self.codegen.builder.build_pointer_cast(
+                    fn_ptr_raw,
+                    init_fn_ptr_ty,
+                    "refactor_once_fn_typed",
+                )?;
+                let once = self.codegen.reload_deferred_gc_ref_without_clearing(
+                    args[0].span,
+                    "refactor_sync_once_run_receiver_reload",
+                    &deferred_once,
+                )?;
+                let rt = self.codegen.declare_runtime_sync_once_run();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[once.into(), env_ptr.into(), init_fn_ptr.into()],
+                    "sync_once_run",
+                )?;
+                self.codegen.clear_deferred_cg_value_root_homes(
+                    args[0].span,
+                    "refactor_sync_once_run_receiver_drop",
+                    &deferred_once,
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.sync.destroy" => {
+                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                let recv_ty = self.operand_source_ty(&args[0].value).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor sync.destroy receiver source type",
+                        at: args[0].span.into(),
+                    },
+                )?;
+                let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(recv_ty)
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor sync.destroy receiver nominal type",
+                        at: args[0].span.into(),
+                    });
+                };
+                let recv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let rt = match nominal.fqn.as_str() {
+                    "scoop.sync.Mutex" => self.codegen.declare_runtime_sync_mutex_destroy(),
+                    "scoop.sync.CondVar" => self.codegen.declare_runtime_sync_condvar_destroy(),
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "refactor sync.destroy receiver nominal",
+                            at: args[0].span.into(),
+                        });
+                    }
+                };
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[recv.into()],
+                    "sync_destroy",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn expect_refactor_sync_arity(
+        &self,
+        span: Span,
+        dispatch_fqn: &str,
+        args: &[mir::CallArg],
+        expected: usize,
+    ) -> Result<(), LlvmEmitError> {
+        if args.len() != expected || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor sync intrinsic arg contract",
+                at: span.into(),
+            });
+        }
+        let _ = dispatch_fqn;
+        Ok(())
+    }
+
+    fn lower_refactor_sync_ref_arg(
+        &mut self,
+        dispatch_fqn: &str,
+        arg: &mir::CallArg,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(CgTy::Ref),
+        )?;
+        let value = self.codegen.coerce_value(arg.span, value, CgTy::Ref)?;
+        let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor sync intrinsic ref arg",
+                at: arg.span.into(),
+            });
+        };
+        let _ = dispatch_fqn;
+        Ok(ptr)
+    }
+
+    fn sync_ref_return_value(
+        &self,
+        span: Span,
+        dispatch_fqn: &str,
+        call: CallSiteValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor sync intrinsic return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor sync intrinsic return type",
+                at: span.into(),
+            });
+        };
+        let _ = dispatch_fqn;
+        Ok(ptr)
     }
 
     fn lower_refactor_thread_spawn_join_resume_u64(
@@ -2046,9 +2507,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let field_fqn = Self::atomic_member_value_fqn(span, member)?;
         let receiver_type_id =
             self.atomic_member_receiver_codegen_type_id(span, receiver, member)?;
+        let receiver_cg =
+            self.codegen
+                .cg_ty_of(receiver_type_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt member receiver type",
+                    at: span.into(),
+                })?;
         if let Some((class, field_idx, field_cg)) =
             self.codegen
                 .lookup_class_field_by_fqn(field_fqn, span, Some(receiver_type_id))?
+            && receiver_cg == CgTy::Ref
         {
             let field =
                 class
@@ -2089,13 +2558,6 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return Ok((ptr, field_cg));
         }
 
-        let receiver_cg =
-            self.codegen
-                .cg_ty_of(receiver_type_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt member receiver type",
-                    at: span.into(),
-                })?;
         let CgTy::Struct(struct_ty) = receiver_cg else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor atomicInt member field target",

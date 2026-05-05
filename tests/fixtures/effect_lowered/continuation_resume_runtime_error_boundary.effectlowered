@@ -11,7 +11,7 @@ LateLoweredProgram
   step_type_count: 2
   resume_packing_interface_count: 2
   continuation_object_count: 1
-  surface_resume_dispatch_count: 3
+  surface_resume_dispatch_count: 4
   callable_count: 2
   step_types:
     - step_schema: s0
@@ -61,6 +61,17 @@ LateLoweredProgram
         - surface_case ko0 case=c1 reachability=Reachable
         - internal_method ko0 case=c1 packed_by=ri1 reachability=Reachable
     - continuation_schema: k2 source=ResumeBoundaryOnly resume_tuple_ty=t5 answer_ty=t2 out_step_schema=s2
+      publications:
+        - resume_boundary instance=sample.helper allowed_row=(t218 + t460) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+      wrapper_projection:
+        underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t218 + t460) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+        owner_step_schema: s0
+        wrapper_step_schema: s2
+        complete: owner_answer_ty=t2 -> wrapper_answer_ty=t2 payload=owner_complete:t2
+        outward_cases:
+          - owner c0 op=sample.Boom.next payload_tuple_ty=t2 -> wrapper c0 op=sample.Boom.next payload_tuple_ty=t2 cont_schema=k2 out_step_schema=s2
+          - owner c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 -> wrapper c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 cont_schema=k3 out_step_schema=s2
+    - continuation_schema: k3 source=ResumeBoundaryOnly resume_tuple_ty=t3 answer_ty=t2 out_step_schema=s2
       publications:
         - resume_boundary instance=sample.helper allowed_row=(t218 + t460) impl_plan=CanonicalFull needs_reentry=true ko0 site0
       wrapper_projection:
@@ -138,6 +149,9 @@ LateLoweredProgram
               underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t218 + t460) impl_plan=CanonicalFull needs_reentry=true ko0 site0
               ordered_args:
                 - local2:t5
+            continuation_compositions:
+              - in c0 -> out c0 callee=k2 caller=k0 resume=st2 result=local1 frame=fs0 result_ty=t2
+              - in c1 -> out c1 callee=k3 caller=k1 resume=st2 result=local1 frame=fs0 result_ty=t2
             dispatch_input_step_schema: s2
             complete: answer_ty=t2 target=st2 result=local1
             outward_cases:

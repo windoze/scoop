@@ -250,6 +250,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "scoop.core.Bool" => Ok(CgTy::Bool),
             "scoop.core.Any" => Ok(CgTy::Ref),
             "scoop.core.String" => Ok(CgTy::String),
+            "scoop.core.TypeKind" => Ok(CgTy::Int(IntTy {
+                bits: 32,
+                signed: false,
+            })),
             "scoop.core.Char" => Ok(CgTy::Int(IntTy {
                 bits: 32,
                 signed: false,
@@ -290,6 +294,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }));
                 }
 
+                if self.class_inits.contains_key(other) || self.object_inits.contains_key(other) {
+                    return Ok(CgTy::Ref);
+                }
+                if let Some((base, _)) = other.split_once('<')
+                    && self.class_inits.contains_key(base)
+                {
+                    return Ok(CgTy::Ref);
+                }
+
                 // 用户定义的 nominal 值类型（struct/enum）：通过 TypeStore 反查 TypeId，再复用 `cg_ty_of`。
                 //
                 // 说明：
@@ -312,9 +325,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(cg);
                 }
 
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "struct field type",
-                    at: at.into(),
+                Err(LlvmEmitError::Frontend {
+                    message: format!("struct field type `{other}` is not lowerable"),
                 })
             }
         }
@@ -328,6 +340,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgTy, LlvmEmitError> {
         if let Some(ty) = ty
             && let Some(cg) = self.cg_ty_of(ty)
+        {
+            return Ok(cg);
+        }
+        if ty.is_none()
+            && let Some(ty_fqn) = ty_fqn
+            && let Ok(cg) = self.cg_ty_of_type_fqn(at, Some(ty_fqn))
         {
             return Ok(cg);
         }

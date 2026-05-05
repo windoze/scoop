@@ -549,6 +549,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 body,
                 function,
                 None,
+                None,
                 RefactorHandleCompletionMode::ContinueToExit,
             )?;
             if let Some(hir_fun) = hir_fun {
@@ -780,6 +781,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mir_fun,
                 body,
                 direct_fun,
+                None,
                 None,
                 RefactorHandleCompletionMode::ContinueToExit,
             )?
@@ -1249,6 +1251,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             body,
             function,
             None,
+            None,
             RefactorHandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_method(case_tag, resume_tuple_ty)?;
@@ -1376,6 +1379,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
+        let mut surface_handle_sites = target
+            .handle_binder_routes()
+            .iter()
+            .map(|route| route.site_id())
+            .collect::<BTreeSet<_>>();
+        if let Some(projection) = target.wrapper_projection()
+            && let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                site_id,
+                ..
+            } = projection.underlying_route().publication()
+        {
+            surface_handle_sites.insert(*site_id);
+        }
+        let surface_handle_sites =
+            (!surface_handle_sites.is_empty()).then_some(surface_handle_sites);
         RefactorCallableEmitter::new(
             self,
             program,
@@ -1387,6 +1405,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             body,
             function,
             target.wrapper_projection(),
+            surface_handle_sites,
             RefactorHandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_entry(surface.resume_tuple_ty())?;
@@ -1433,6 +1452,7 @@ struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     state_blocks: BTreeMap<StateId, BasicBlock<'ctx>>,
     return_projection:
         Option<&'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection>,
+    surface_resume_handle_sites: Option<BTreeSet<SiteId>>,
     handle_completion_mode: RefactorHandleCompletionMode,
     return_mode: RefactorCallableReturnMode,
 }
@@ -1458,6 +1478,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         return_projection: Option<
             &'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
         >,
+        surface_resume_handle_sites: Option<BTreeSet<SiteId>>,
         handle_completion_mode: RefactorHandleCompletionMode,
     ) -> Result<Self, LlvmEmitError> {
         if let Some(callable_layout) = callable
@@ -1538,6 +1559,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             frame_root_slot,
             state_blocks,
             return_projection,
+            surface_resume_handle_sites,
             handle_completion_mode,
             return_mode: RefactorCallableReturnMode::Step,
         };
@@ -4209,6 +4231,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             body,
             function,
             None,
+            None,
             RefactorHandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_entry(transport_ty)?;
@@ -5077,11 +5100,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         let mut matched_payload_source = None;
         for candidate in self.callable.state_graph().states() {
-            let LateLoweredStateTerminator::HandleDispatch { contract, .. } =
-                candidate.terminator()
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id, contract, ..
+            } = candidate.terminator()
             else {
                 continue;
             };
+            if let Some(surface_handle_sites) = &self.surface_resume_handle_sites
+                && !surface_handle_sites.contains(site_id)
+            {
+                continue;
+            }
             if contract.needs_completion_state() {
                 continue;
             }
@@ -5153,18 +5182,42 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     self.lower_completion_payload(source)?
                 }
             };
+            let payload = self.complete_payload_or_default(wrapper_layout, payload)?;
             let projected = self
                 .codegen
                 .refactor_build_step_complete(wrapper_layout, payload)?;
             self.codegen.builder.build_return(Some(&projected))?;
         } else {
             let payload = self.lower_completion_payload(&owner_payload_source)?;
+            let payload = self.complete_payload_or_default(self.step_layout, payload)?;
             let step = self
                 .codegen
                 .refactor_build_step_complete(self.step_layout, payload)?;
             self.codegen.builder.build_return(Some(&step))?;
         }
         Ok(true)
+    }
+
+    fn complete_payload_or_default(
+        &mut self,
+        step_layout: &RefactorStepLayout<'ctx>,
+        payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        if payload.is_some() || step_layout.complete_variant().payload_is_elided() {
+            return Ok(payload);
+        }
+        let payload_ty = step_layout.complete_variant().payload_source_ty();
+        let payload_cg =
+            self.codegen
+                .cg_ty_of(payload_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor default Complete payload type",
+                    at: self.mir_fun.span.into(),
+                })?;
+        Ok(self
+            .codegen
+            .default_value(self.mir_fun.span, payload_cg)?
+            .value)
     }
 
     fn try_route_handle_completion_goto(
@@ -5273,7 +5326,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         boundary_id: BoundaryId,
         case_tag: CaseTag,
     ) -> Result<Option<RefactorHandleBoundaryRuntimeAction>, LlvmEmitError> {
-        let mut matched = None;
+        let mut matched = None::<(usize, RefactorHandleBoundaryRuntimeAction)>;
         for state in self.callable.state_graph().states() {
             let LateLoweredStateTerminator::HandleDispatch {
                 site_id, contract, ..
@@ -5364,12 +5417,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     RefactorHandleBoundaryRuntimeAction::EmitOutward
                 }
             };
+            let depth = self.handle_dispatch_nesting_depth(state.state_id());
             match (&matched, &action) {
-                (None, _) => matched = Some(action),
-                (Some(RefactorHandleBoundaryRuntimeAction::EmitOutward), _) => {
-                    matched = Some(action)
+                (None, _) => matched = Some((depth, action)),
+                (Some((_, RefactorHandleBoundaryRuntimeAction::EmitOutward)), _)
+                    if !matches!(action, RefactorHandleBoundaryRuntimeAction::EmitOutward) =>
+                {
+                    matched = Some((depth, action))
                 }
                 (_, RefactorHandleBoundaryRuntimeAction::EmitOutward) => {}
+                (Some((matched_depth, _)), _) if depth > *matched_depth => {
+                    matched = Some((depth, action))
+                }
+                (Some((matched_depth, _)), _) if depth < *matched_depth => {}
                 (Some(_), _) => {
                     return Err(frontend_error(format!(
                         "refactor boundary bd{} case c{} 命中多个 HandleDispatch routing contract",
@@ -5379,7 +5439,26 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 }
             }
         }
-        Ok(matched)
+        Ok(matched.map(|(_, action)| action))
+    }
+
+    fn handle_dispatch_nesting_depth(&self, dispatch_state: StateId) -> usize {
+        self.callable
+            .state_graph()
+            .states()
+            .iter()
+            .filter(|state| state.state_id() != dispatch_state)
+            .filter_map(|state| match state.terminator() {
+                LateLoweredStateTerminator::HandleDispatch { contract, .. } => Some(contract),
+                _ => None,
+            })
+            .filter(|contract| {
+                !matches!(
+                    contract.state_region(dispatch_state),
+                    LateLoweredHandleStateRegion::OutsideHandle
+                )
+            })
+            .count()
     }
 
     fn handle_finally_runtime(

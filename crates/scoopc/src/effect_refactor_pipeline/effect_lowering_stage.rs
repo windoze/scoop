@@ -463,7 +463,7 @@ fun leaf(): Unit / Ping {
         for needle in [
             "continuation_schema: k0 source=HandleContinuationBinderOnly",
             "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site0 arm#0 handled_case=c0",
-            "continuation_schema: k3 source=ResumeBoundaryOnly",
+            "continuation_schema: k3 source=OwnerTrampolineMixed",
             "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site9",
         ] {
             assert!(

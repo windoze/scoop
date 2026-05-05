@@ -1287,7 +1287,9 @@ impl SurfaceResumeDispatchInventoryAccumulator {
                 self.has_handle_binder = true;
             }
         }
-        self.publications.push(publication);
+        if !self.publications.contains(&publication) {
+            self.publications.push(publication);
+        }
     }
 
     fn source_kind(&self) -> LateLoweredSurfaceResumeDispatchSourceKind {
@@ -1370,27 +1372,21 @@ fn build_surface_resume_dispatch_inventory(
                 continue;
             };
             let facts = lowering.facts();
-            if let Some(projection) =
-                build_surface_resume_wrapper_projection(callable, lowering, &step_types_by_schema)
-            {
-                let continuation_schema = facts.continuation_schema();
-                if !conflicting_wrapper_projections.contains(&continuation_schema) {
-                    match wrapper_projections.get(&continuation_schema) {
-                        Some(existing)
-                            if !same_surface_resume_wrapper_projection_shape(
-                                existing,
-                                &projection,
-                            ) =>
-                        {
-                            wrapper_projections.remove(&continuation_schema);
-                            conflicting_wrapper_projections.insert(continuation_schema);
-                        }
-                        Some(_) => {}
-                        None => {
-                            wrapper_projections.insert(continuation_schema, projection);
-                        }
-                    }
-                }
+            let projection =
+                build_surface_resume_wrapper_projection(callable, lowering, &step_types_by_schema);
+            if let Some(projection) = &projection {
+                register_surface_resume_wrapper_projection(
+                    &mut wrapper_projections,
+                    &mut conflicting_wrapper_projections,
+                    facts.continuation_schema(),
+                    projection.clone(),
+                );
+                register_surface_resume_wrapper_underlying_publication(
+                    &mut inventory,
+                    facts.continuation_schema(),
+                    surface_resume_contract_from_resume_facts(facts),
+                    projection,
+                );
             }
             inventory
                 .entry(facts.continuation_schema())
@@ -1403,6 +1399,36 @@ fn build_surface_resume_dispatch_inventory(
                         site_id,
                     },
                 );
+            if let Some(projection) = &projection {
+                for projected_case in projection.outward_cases() {
+                    let contract = projected_case.wrapper_continuation_contract();
+                    if contract.continuation_schema() != facts.continuation_schema() {
+                        inventory
+                            .entry(contract.continuation_schema())
+                            .or_default()
+                            .register(
+                                Some(surface_resume_contract_from_continuation(contract)),
+                                LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                                    owner_version_key: callable.body_version_key().clone(),
+                                    owner_continuation_object: callable.continuation_object(),
+                                    site_id,
+                                },
+                            );
+                    }
+                    register_surface_resume_wrapper_projection(
+                        &mut wrapper_projections,
+                        &mut conflicting_wrapper_projections,
+                        contract.continuation_schema(),
+                        projection.clone(),
+                    );
+                    register_surface_resume_wrapper_underlying_publication(
+                        &mut inventory,
+                        contract.continuation_schema(),
+                        surface_resume_contract_from_continuation(contract),
+                        projection,
+                    );
+                }
+            }
         }
 
         let owner_step = step_types_by_schema.get(&callable.step_schema()).copied();
@@ -1459,6 +1485,47 @@ fn build_surface_resume_dispatch_inventory(
             })
         })
         .collect()
+}
+
+fn register_surface_resume_wrapper_projection(
+    wrapper_projections: &mut BTreeMap<
+        ContinuationSchemaId,
+        LateLoweredSurfaceResumeWrapperProjection,
+    >,
+    conflicting_wrapper_projections: &mut BTreeSet<ContinuationSchemaId>,
+    continuation_schema: ContinuationSchemaId,
+    projection: LateLoweredSurfaceResumeWrapperProjection,
+) {
+    if conflicting_wrapper_projections.contains(&continuation_schema) {
+        return;
+    }
+    match wrapper_projections.get(&continuation_schema) {
+        Some(existing) if !same_surface_resume_wrapper_projection_shape(existing, &projection) => {
+            wrapper_projections.remove(&continuation_schema);
+            conflicting_wrapper_projections.insert(continuation_schema);
+        }
+        Some(_) => {}
+        None => {
+            wrapper_projections.insert(continuation_schema, projection);
+        }
+    }
+}
+
+fn register_surface_resume_wrapper_underlying_publication(
+    inventory: &mut BTreeMap<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>,
+    continuation_schema: ContinuationSchemaId,
+    contract: LateLoweredSurfaceResumeContract,
+    projection: &LateLoweredSurfaceResumeWrapperProjection,
+) {
+    if matches!(
+        projection.underlying_route().publication(),
+        LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder { .. }
+    ) {
+        inventory.entry(continuation_schema).or_default().register(
+            Some(contract),
+            projection.underlying_route().publication().clone(),
+        );
+    }
 }
 
 fn build_surface_resume_wrapper_projection(
@@ -1544,22 +1611,41 @@ fn same_surface_resume_wrapper_projection_shape(
     right: &LateLoweredSurfaceResumeWrapperProjection,
 ) -> bool {
     left == right
-        || (left.underlying_route().continuation_schema()
-            == right.underlying_route().continuation_schema()
-            && matches!(
-                (
-                    left.underlying_route().publication(),
-                    right.underlying_route().publication()
-                ),
-                (
-                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
-                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. }
-                )
-            )
-            && left.owner_step_schema() == right.owner_step_schema()
+        || (same_surface_resume_wrapper_underlying_route_shape(
+            left.underlying_route(),
+            right.underlying_route(),
+        ) && left.owner_step_schema() == right.owner_step_schema()
             && left.wrapper_step_schema() == right.wrapper_step_schema()
             && left.complete() == right.complete()
             && left.outward_cases() == right.outward_cases())
+}
+
+fn same_surface_resume_wrapper_underlying_route_shape(
+    left: &LateLoweredContinuationRoute,
+    right: &LateLoweredContinuationRoute,
+) -> bool {
+    if left.continuation_schema() != right.continuation_schema() {
+        return false;
+    }
+    match (left.publication(), right.publication()) {
+        (
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+        ) => true,
+        (
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_version_key: left_owner,
+                owner_continuation_object: left_object,
+                ..
+            },
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_version_key: right_owner,
+                owner_continuation_object: right_object,
+                ..
+            },
+        ) => left_owner == right_owner && left_object == right_object,
+        _ => false,
+    }
 }
 
 fn build_surface_resume_wrapper_complete_payload_source(

@@ -2864,6 +2864,21 @@ impl<'a> HirLowering<'a> {
             })
             .into_iter()
             .collect();
+        if lam.params.is_empty()
+            && lam.arrow_span.is_none()
+            && receiver_this_decl_span.is_none()
+            && let Some(param_ty) = typechecked_fun_ty
+                .as_ref()
+                .and_then(|(_, fun_ty)| (fun_ty.params.len() == 1).then(|| fun_ty.params[0]))
+        {
+            let decl_span = ast::synthetic_lambda_implicit_it_decl_span(span);
+            params.push(Param {
+                span: decl_span,
+                id: self.intern_local_symbol(decl_span, false),
+                name: "it".to_string(),
+                ty: param_ty,
+            });
+        }
         params.extend(lam.params.iter().enumerate().map(|(idx, p)| {
             let name = p.name.text(self.source).to_string();
             let ty =

@@ -7,9 +7,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         prop_fqn: &str,
     ) -> Option<(&hir::ObjectInit, &hir::ObjectProperty)> {
         let (owner, name) = prop_fqn.rsplit_once('.')?;
-        let obj = self.object_inits.get(owner)?;
-        let prop = obj.properties.get(name)?;
-        Some((obj, prop))
+        if let Some(obj) = self.object_inits.get(owner)
+            && let Some(prop) = obj.properties.get(name)
+        {
+            return Some((obj, prop));
+        }
+        self.object_inits.values().find_map(|obj| {
+            (obj.fqn.ends_with(owner))
+                .then(|| obj.properties.get(name).map(|prop| (obj, prop)))
+                .flatten()
+        })
     }
 
     pub(in crate::llvm::codegen) fn codegen_object_property_access(

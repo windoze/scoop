@@ -14,7 +14,7 @@ LateLoweredProgram
   step_type_count: 4
   resume_packing_interface_count: 3
   continuation_object_count: 2
-  surface_resume_dispatch_count: 5
+  surface_resume_dispatch_count: 7
   callable_count: 5
   step_types:
     - step_schema: s3
@@ -108,6 +108,27 @@ LateLoweredProgram
         outward_cases:
           - owner c0 op=fixtures.mir.Boom.next payload_tuple_ty=t2 -> wrapper c0 op=fixtures.mir.Boom.next payload_tuple_ty=t2 cont_schema=k3 out_step_schema=s5
           - owner c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 -> wrapper c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 cont_schema=k4 out_step_schema=s5
+    - continuation_schema: k4 source=ResumeBoundaryOnly resume_tuple_ty=t3 answer_ty=t2 out_step_schema=s5
+      publications:
+        - resume_boundary instance=fixtures.mir.resumeBoom allowed_row=(t218 + t466) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+      wrapper_projection:
+        underlying_route: continuation_schema=k3 via resume_boundary instance=fixtures.mir.resumeBoom allowed_row=(t218 + t466) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+        owner_step_schema: s3
+        wrapper_step_schema: s5
+        complete: owner_answer_ty=t2 -> wrapper_answer_ty=t2 payload=owner_complete:t2
+        outward_cases:
+          - owner c0 op=fixtures.mir.Boom.next payload_tuple_ty=t2 -> wrapper c0 op=fixtures.mir.Boom.next payload_tuple_ty=t2 cont_schema=k3 out_step_schema=s5
+          - owner c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 -> wrapper c1 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 cont_schema=k4 out_step_schema=s5
+    - continuation_schema: k5 source=ResumeBoundaryOnly resume_tuple_ty=t3 answer_ty=t2 out_step_schema=s6
+      publications:
+        - resume_boundary instance=fixtures.mir.resumeOnce allowed_row=(t218) impl_plan=SingleCase(c0) needs_reentry=true ko1 site0
+      wrapper_projection:
+        underlying_route: continuation_schema=k6 via resume_boundary instance=fixtures.mir.resumeOnce allowed_row=(t218) impl_plan=SingleCase(c0) needs_reentry=true ko1 site0
+        owner_step_schema: s4
+        wrapper_step_schema: s6
+        complete: owner_answer_ty=t2 -> wrapper_answer_ty=t2 payload=owner_complete:t2
+        outward_cases:
+          - owner c0 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 -> wrapper c0 op=scoop.core.Raise.raise<t217> payload_tuple_ty=t217 cont_schema=k5 out_step_schema=s6
     - continuation_schema: k6 source=ResumeBoundaryOnly resume_tuple_ty=t5 answer_ty=t2 out_step_schema=s6
       publications:
         - resume_boundary instance=fixtures.mir.resumeOnce allowed_row=(t218) impl_plan=SingleCase(c0) needs_reentry=true ko1 site0
@@ -223,6 +244,9 @@ LateLoweredProgram
               underlying_route: continuation_schema=k3 via resume_boundary instance=fixtures.mir.resumeBoom allowed_row=(t218 + t466) impl_plan=CanonicalFull needs_reentry=true ko0 site0
               ordered_args:
                 - local2:t5
+            continuation_compositions:
+              - in c0 -> out c0 callee=k3 caller=k0 resume=st2 result=local1 frame=fs0 result_ty=t2
+              - in c1 -> out c1 callee=k4 caller=k1 resume=st2 result=local1 frame=fs0 result_ty=t2
             dispatch_input_step_schema: s5
             complete: answer_ty=t2 target=st2 result=local1
             outward_cases:
@@ -289,6 +313,8 @@ LateLoweredProgram
               underlying_route: continuation_schema=k6 via resume_boundary instance=fixtures.mir.resumeOnce allowed_row=(t218) impl_plan=SingleCase(c0) needs_reentry=true ko1 site0
               ordered_args:
                 - local2:t5
+            continuation_compositions:
+              - in c0 -> out c0 callee=k5 caller=k2 resume=st2 result=local1 frame=fs0 result_ty=t2
             dispatch_input_step_schema: s6
             complete: answer_ty=t2 target=st2 result=local1
             outward_cases:

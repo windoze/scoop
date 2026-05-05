@@ -6582,22 +6582,41 @@ fn same_surface_resume_wrapper_projection_shape(
     right: &LateLoweredSurfaceResumeWrapperProjection,
 ) -> bool {
     left == right
-        || (left.underlying_route().continuation_schema()
-            == right.underlying_route().continuation_schema()
-            && matches!(
-                (
-                    left.underlying_route().publication(),
-                    right.underlying_route().publication()
-                ),
-                (
-                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
-                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. }
-                )
-            )
-            && left.owner_step_schema() == right.owner_step_schema()
+        || (same_surface_resume_wrapper_underlying_route_shape(
+            left.underlying_route(),
+            right.underlying_route(),
+        ) && left.owner_step_schema() == right.owner_step_schema()
             && left.wrapper_step_schema() == right.wrapper_step_schema()
             && left.complete() == right.complete()
             && left.outward_cases() == right.outward_cases())
+}
+
+fn same_surface_resume_wrapper_underlying_route_shape(
+    left: &crate::effect_lowered::ir::LateLoweredContinuationRoute,
+    right: &crate::effect_lowered::ir::LateLoweredContinuationRoute,
+) -> bool {
+    if left.continuation_schema() != right.continuation_schema() {
+        return false;
+    }
+    match (left.publication(), right.publication()) {
+        (
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+        ) => true,
+        (
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_version_key: left_owner,
+                owner_continuation_object: left_object,
+                ..
+            },
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_version_key: right_owner,
+                owner_continuation_object: right_object,
+                ..
+            },
+        ) => left_owner == right_owner && left_object == right_object,
+        _ => false,
+    }
 }
 
 fn render_case_tags(tags: &BTreeSet<crate::effect_facts::CaseTag>) -> String {
@@ -11129,7 +11148,7 @@ fun main(): Int {
                         );
                         assert_eq!(
                             surface_layout.dispatch_source_kind(),
-                            crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
+                            crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
                         );
                         checked_resume_site = true;
                     }
@@ -11358,7 +11377,7 @@ fun main(): Int {
 
                 assert_eq!(
                     dispatch.source_kind(),
-                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
+                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
                 );
                 assert!(dispatch.method_targets().is_empty());
                 match dispatch.target() {
@@ -11376,7 +11395,7 @@ fun main(): Int {
                             callable.continuation_object()
                         );
                         assert_eq!(sites, vec![25, 30, 35, 40]);
-                        assert!(trampoline.handle_binder_routes().is_empty());
+                        assert!(!trampoline.handle_binder_routes().is_empty());
                         let projection = trampoline.wrapper_projection().expect(
                             "shared wrapper schema 应发布 owner-step -> wrapper-step projection",
                         );

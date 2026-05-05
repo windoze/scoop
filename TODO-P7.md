@@ -557,6 +557,44 @@
   - `LateLoweredResumeBoundaryLowering` 现在发布 `continuation_compositions`，dump 会渲染该 contract；LLVM composed resume dispatch 同时消费 call-boundary 与 resume-boundary composition，并按 published `input_step_schema` / case contract 调用 underlying surface resume，再把 owner `Step` 交回 caller boundary dispatch。ABI layout 同步修正 same-owner wrapper projection，保留 resume-boundary site inventory；只有 cross-owner wrapper 才改由 underlying owner route 驱动 owner trampoline。
   - 新增 `refactor_effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape`，覆盖跨函数成员保存 continuation 后再 resume 的 late-lowered contract。验证通过：`cargo fmt --all`；`cargo run -p scoop -- run tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`（输出 `40` / `-1` / `12`）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`；`cargo test -p scoopc --lib refactor_effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02Y：修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞
+
+- 参考：
+  - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03h
+  - [`TODO-P7.md`](./TODO-P7.md) P7-T03
+  - 当前阻塞 fixture：`tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`
+- 背景：
+  - 继续执行 `P7-T03` 的默认 `cargo run -p scoop -- test` 时，full regression 推进到 nested escaped-continuation replay 场景；
+  - 当前程序输出到 `boom_arm` 后以 exit status 1 退出，未继续输出 `after_start`，也未在后续 `k.resume(11)` 后穿过 inner arm-local `try { k.resume(...) } catch ...` 执行 `inner_arm_after_resume` 和 arm tail `resumed + 1`；
+  - 该 fixture 要求 non-tail escape arm 的 segmented-body replay 在 inner continuation outward-suspend 后，由 outer continuation resume 正确回到 inner arm 的剩余 source slice，而不是把 inner result 当成整个 arm result 或把 handled completion 提前返回。
+
+- 必须实现的内容：
+  1. 修复 refactor late-lowered / LLVM continuation replay 对 nested handle-in-arm 的 continuation composition。
+     - inner `Inner.enter` handler arm 中的 `try { k.resume(7) } catch ...` 不是 tail；当 resumed body outward-suspends at `Boom.next()` 时，后续 outer `k.resume(11)` 必须继续执行 `inner_arm_after_resume`、打印 resumed 值，并执行 `resumed + 1`。
+     - 不得把 arm-local handle exit 当作整个 outer continuation completion，也不得跳过 arm tail。
+  2. 保持已有 cross-call/member-stored continuation composition 语义。
+     - 不得回退 P7-T02X 的 cross-call member provenance / resume-boundary composition；
+     - 不得依赖 case tag 偶然相等或按 fixture 名字特判。
+  3. 保持 runtime-error ordinary effect 与 one-shot continuation 语义。
+     - `try/catch` 仍必须捕获 runtime error case；
+     - 不得引入 double-resume 或 dropped-continuation 行为回归。
+  4. 增加或更新定向测试，覆盖 nested handle inside escape arm 的 non-tail replay。
+
+- 验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`
+  - `cargo test -p scoopc --lib effect_lowered`
+  - `cargo test -p scoopc --lib llvm::codegen::effect_refactor`
+  - 修复后恢复执行 `P7-T03` 的完整标准矩阵。
+
+- 完成条件：
+  - `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop` 在默认 refactor run-pass 下完整输出 golden：`outer_body` / `inner_body` / `inner_arm_before_resume` / `after_inner` / `7` / `boom_arm` / `after_start` / `18` / `after_boom` / `11` / `inner_arm_after_resume` / `18` / `after_nested` / `19` / `after_resume` / `119` / `done`；
+  - nested escaped continuation replay 不依赖 hidden legacy fallback、fixture 降级或 source-shape 特判；
+  - 后续 `P7-T03` 可继续运行 full regression。
+- 依赖：P7-T02X
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 
 - 参考：
@@ -613,12 +651,13 @@
   - `cargo test --all`、`scoop test`、`spec-fixtures check`、`clippy -D warnings` 在默认 refactor 主线下全部通过；
   - 回归修复没有通过恢复 legacy 默认值或 hidden fallback 达成；
   - 后续只剩 GC env 全开验证与 P7->P8 handoff 收口。
-- 依赖：P7-T02X
+- 依赖：P7-T02Y
 - 完成记录：
   - 2026-05-05：首轮执行已通过 `cargo test --all`，并修复/同步了多个默认 full-regression 前置回归：refactor MIR/LLVM struct literal lowering、unsafe atomic load 与 nested member lvalue、`sizeOf` MIR intrinsic、array builder/Array size/get/set 与 `toInt` compiler intrinsic、过期 effect-facts/effect-lowered/HIR/MIR/mir_refactor generated snapshots、重复的 `effect_lowered_src` 未实现 phase，以及 `sysroot/task.scoop` 中 `__task_join<T>` 的显式不可达收口。当前标准 `scoop test` 继续阻塞在 `async_await_minimal_int_basic.scoop` 的 task/continuation resume payload 运行期语义，已新增 prerequisite `P7-T02U`；本任务保持未完成。
   - 2026-05-05：本轮恢复 P7-T03 后，`cargo test --all` 首轮先失败在 `build_refactor_task_atomic_fixture_lowers_o0_without_legacy_mutex`，已修复 fatal `scoop.core.panic` 在 refactor path 中被误发布为 DynamicFallback effect boundary、以及 `Nothing` handle arm completion source 的不可达路径处理；随后 `cargo test --all` 通过。`cargo run -p scoop -- test` 继续暴露并已修复默认 run-pass 中的 Char/Int/String/Float `hash()` refactor intrinsic、Char `print` / `toString` runtime 路由、MIR f-string stale part type、以及 class ctor named/default/delegation 参数映射和初始化执行问题；定向通过：`char_runtime_textual_basic.scoop`、`stdlib_hash_basic.scoop`、`class_ctor_arg_eval_scope_shadow_free_basic.scoop`、`class_ctor_named_default_and_delegation_basic.scoop`、`class_secondary_ctor_delegation_this_and_super_basic.scoop`、`class_init_super_ctor_args_eval_order_basic.scoop`。
   - 2026-05-05：当前 `cargo run -p scoop -- test` 阻塞在 `class_init_hidden_raise_helper_try_catch_basic.scoop`：class ctor / object init 内 hidden `Raise<RuntimeError>` 没有进入 refactor facts / boundary lowering，`helper` 和 `main` 被误判为 `NoOutward` plain callable，外层 `try/catch` 无法捕获该 ordinary runtime error。已新增 prerequisite `P7-T02W`，本任务保持未完成。
   - 2026-05-05：本轮继续恢复 `P7-T03`，`cargo test --all` 已通过；`cargo run -p scoop -- test` 先后暴露并已部分修复 pure class ctor 误保留 complete-only Step schema、GC debug/runtime intrinsics 在 refactor effect/control body 中被误判为 effectful DynamicFallback、以及 class ctor hidden-effect active 分支未清理失败构造对象临时 root 的问题。随后 full fixture 推进到 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`；当前剩余 blocker 是 cross-call escaped continuation member provenance 与 resume-boundary continuation composition 未闭合，已新增 prerequisite `P7-T02X`，本任务保持未完成。
+  - 2026-05-05：本轮继续恢复 `P7-T03`，已修复多个默认 refactor full-regression 缺口：wrapper outward continuation schema surface inventory、effect-lowered golden 同步、nested handle routing 选择、local aggregate/Option continuation provenance、same-owner wrapper projection合并、refactor sync/thread runtime intrinsics、object property access/support、struct field vs class field member/atomic lvalue、metadata `TypeKind` lowering、隐式 `it` lambda HIR lowering，并同步相关 HIR/effect-lowered golden。定向验证通过：`effect_refactor_direct_handle_resume_emit_llvm.scoop`、`continuation_resume_runtime_error_boundary.scoop`、`dispatch_and_resume_call.scoop`、`continuation_resume_answer_replay_basic.scoop`、`continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`delegated_property_lazy_init_once_basic.scoop`、`std_sync_basic.scoop`、`delegated_property_lazy_thread_safety_publication_multi_init.scoop`、`unsafe_atomic_int_field_lvalue_llvm.scoop`、`delegated_property_map_backed_basic.scoop`、`delegated_property_observable_raise_does_not_poison_mutex.scoop`、`do_block_multiple_trailing_lambda_boundary.scoop`。当前 `cargo run -p scoop -- test` 阻塞在 `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`：nested escaped-continuation replay 在 inner arm-local handle 后未继续执行 arm tail，已新增 prerequisite `P7-T02Y`；本任务保持未完成。
 
 ## P7-T03R：Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底
 

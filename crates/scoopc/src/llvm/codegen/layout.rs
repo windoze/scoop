@@ -126,6 +126,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !self.class_inits.contains_key(&lookup_key) {
             // Fallback to base FQN for non-generic classes.
             if !self.class_inits.contains_key(owner_fqn) {
+                let class_keys = self.class_inits.keys().cloned().collect::<Vec<_>>();
+                for class_key in class_keys {
+                    if let Some(field) =
+                        self.lookup_class_field_by_fqn_inner(field_fqn, at, &class_key)?
+                    {
+                        return Ok(Some(field));
+                    }
+                }
                 return Ok(None);
             }
             return self.lookup_class_field_by_fqn_inner(field_fqn, at, owner_fqn);
@@ -140,7 +148,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         class_key: &str,
     ) -> Result<Option<(hir::ClassInit, u32, CgTy)>, LlvmEmitError> {
         let class = self.class_init_layout(at, class_key)?;
-        let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
+        let field_idx = class.field_indices.get(field_fqn).copied().or_else(|| {
+            let (_, field_name) = field_fqn.rsplit_once('.')?;
+            class
+                .fields
+                .iter()
+                .position(|field| field.name == field_name || field.fqn == field_fqn)
+                .map(|idx| idx as u32)
+        });
+        let Some(field_idx) = field_idx else {
             return Ok(None);
         };
         let field =
