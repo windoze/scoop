@@ -755,7 +755,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
                         kind: crate::mir::CallKind::FunValue { .. },
                         ..
                     } => true,
-                    crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) => {
+                    crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                         self.object_inits.contains_key(fqn)
                             || self.top_level_consts.contains_key(fqn)
                             || self.top_level_immutable_values.contains_key(fqn)

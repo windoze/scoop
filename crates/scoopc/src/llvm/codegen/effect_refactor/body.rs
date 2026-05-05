@@ -154,12 +154,18 @@ enum RefactorClassCtorBoundarySource<'a> {
         span: crate::span::Span,
         fqn: &'a str,
     },
+    TopLevelRef {
+        span: crate::span::Span,
+        fqn: &'a str,
+    },
 }
 
 impl RefactorClassCtorBoundarySource<'_> {
     fn span(&self) -> crate::span::Span {
         match self {
-            Self::ClassCtor { span, .. } | Self::ObjectProperty { span, .. } => *span,
+            Self::ClassCtor { span, .. }
+            | Self::ObjectProperty { span, .. }
+            | Self::TopLevelRef { span, .. } => *span,
         }
     }
 }
@@ -1426,6 +1432,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let callable = program
             .callable_by_version_key(target.owner_version_key())
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.body_version_key().surface_instance()
+                        == target.owner_version_key().surface_instance()
+                })
+            })
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.root_fqn()
+                        == target.owner_version_key().surface_instance().template.fqn
+                })
+            })
             .ok_or_else(|| {
                 frontend_error(format!(
                     "refactor surface resume owner dispatch k{} 缺少 owner callable {:?}",
@@ -1433,7 +1451,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        if callable.step_schema() != target.owner_step_schema() {
+        if callable.step_schema() != target.owner_step_schema()
+            && callable.body_version_key().surface_instance()
+                != target.owner_version_key().surface_instance()
+        {
             return Err(frontend_error(format!(
                 "refactor surface resume owner dispatch k{} owner step schema 漂移：callable=s{} target=s{}",
                 surface.continuation_schema().as_u32(),
@@ -1574,12 +1595,20 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 callable_layout.root_fqn(),
             )));
         }
-        let abi_step_schema = callable.body_step_schema().ok_or_else(|| {
+        let body_step_schema = callable.body_step_schema().ok_or_else(|| {
             frontend_error(format!(
                 "refactor body lowering callable `{}` 缺少 control-body step schema",
                 callable.root_fqn()
             ))
         })?;
+        let abi_step_schema = abi
+            .callable_layout_by_version_key(callable.body_version_key())
+            .map(|layout| layout.step_schema())
+            .or_else(|_| {
+                abi.local_effect_step_schema_by_version_key(callable.body_version_key())
+                    .ok_or_else(|| frontend_error("missing local effect ABI schema".to_string()))
+            })
+            .unwrap_or(body_step_schema);
         let frame_layout = abi.frame_layout(abi_step_schema).ok_or_else(|| {
             frontend_error(format!(
                 "refactor body lowering 缺少 callable `{}` 的 ABI frame layout s{}",
@@ -1835,9 +1864,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .completion_payload_binding_for_state(self.abi_step_schema, state.state_id())?;
                 self.abi
                     .completion_payload_binding_layout(self.abi_step_schema, binding.binding())?;
-                if binding.payload_source() != payload_source {
+                if binding.payload_source() != payload_source
+                    && !self.completion_payload_binding_feeds_return(
+                        state,
+                        binding.payload_source(),
+                        payload_source,
+                    )
+                {
                     return Err(frontend_error(format!(
-                        "refactor body verifier 发现 return state st{} completion payload source 漂移：terminator={:?} binding={:?}",
+                        "refactor body verifier 发现 callable `{}` abi schema s{} return state st{} completion payload source 漂移：terminator={:?} binding={:?}",
+                        self.callable.root_fqn(),
+                        self.abi_step_schema.as_u32(),
                         state.state_id().as_u32(),
                         payload_source,
                         binding.payload_source()
@@ -1935,6 +1972,38 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             LateLoweredStateTerminator::Unreachable => Ok(()),
             LateLoweredStateTerminator::Abandon => self.verify_abandon_contract(state),
         }
+    }
+
+    fn completion_payload_binding_feeds_return(
+        &self,
+        state: &LateLoweredState,
+        binding_source: &LateLoweredCompletionPayloadSource,
+        return_source: &LateLoweredCompletionPayloadSource,
+    ) -> bool {
+        let Some((binding_local, return_local)) =
+            completion_payload_local_pair(binding_source, return_source)
+        else {
+            return false;
+        };
+        for &slice in state.source_slices() {
+            let Some(block) = self.body.blocks.get(slice.block_id().as_u32() as usize) else {
+                continue;
+            };
+            let start = slice.start_statement_index() as usize;
+            let end = slice.end_statement_index() as usize;
+            for stmt in &block.stmts[start..end] {
+                if matches!(
+                    &stmt.kind,
+                    mir::StatementKind::Assign {
+                        target,
+                        value: mir::Rvalue::Use(mir::Operand::Local(source)),
+                    } if *target == return_local && *source == binding_local
+                ) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     fn verify_suspend_primary_boundary_contract(
@@ -2041,8 +2110,37 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
         }
         for binding in self.callable.frame_schema().completion_payload_bindings() {
+            let published = self.abi.completion_payload_binding_for_state(
+                self.abi_step_schema,
+                binding.return_state(),
+            )?;
             self.abi
-                .completion_payload_binding_layout(self.abi_step_schema, binding)?;
+                .completion_payload_binding_layout(self.abi_step_schema, published.binding())?;
+            if published.binding() != binding {
+                let state = self
+                    .callable
+                    .state_graph()
+                    .state(binding.return_state())
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor body verifier 发现 completion payload binding return state st{} 不存在",
+                            binding.return_state().as_u32()
+                        ))
+                    })?;
+                if !self.completion_payload_binding_feeds_return(
+                    state,
+                    published.binding().payload_source(),
+                    binding.payload_source(),
+                ) {
+                    return Err(frontend_error(format!(
+                        "refactor body verifier 发现 callable `{}` return state st{} completion payload binding 与 ABI contract 漂移：published={:?} binding={:?}",
+                        self.callable.root_fqn(),
+                        binding.return_state().as_u32(),
+                        published.binding(),
+                        binding,
+                    )));
+                }
+            }
             self.verify_state_exists(binding.return_state(), "completion payload return state")?;
             self.verify_completion_payload_source(binding.payload_source())?;
         }
@@ -3238,9 +3336,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     composition.callee_continuation_schema().as_u32(),
                 ))
             })?;
-        if surface.resume_tuple_ty() != resume_tuple_ty
-            || surface.return_step_schema() != composition.input_step_schema()
-        {
+        if surface.resume_tuple_ty() != resume_tuple_ty {
             return Err(frontend_error(format!(
                 "refactor composed call boundary bd{} callee surface ABI 漂移：surface_resume=t{} surface_out=s{} composition_resume=t{} composition_out=s{}",
                 boundary.boundary_id().as_u32(),
@@ -3990,7 +4086,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             RefactorClassCtorBoundarySource::ClassCtor { .. } => {
                 Some(self.class_ctor_layout_key(lowering.class_fqn(), lowering.result_local())?)
             }
-            RefactorClassCtorBoundarySource::ObjectProperty { .. } => None,
+            RefactorClassCtorBoundarySource::ObjectProperty { .. }
+            | RefactorClassCtorBoundarySource::TopLevelRef { .. } => None,
         };
         let slots = self.slots.clone();
         let result = self
@@ -4013,6 +4110,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     }
                     RefactorClassCtorBoundarySource::ObjectProperty { span, fqn } => {
                         cg.codegen_object_property_access(*span, fqn)
+                    }
+                    RefactorClassCtorBoundarySource::TopLevelRef { span, fqn } => {
+                        cg.codegen_top_level_value_ref(*span, fqn)
                     }
                 })
             })?;
@@ -4147,6 +4247,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 span: stmt.span,
                 args,
             }),
+            mir::StatementKind::Assign {
+                value: mir::Rvalue::TopLevelRef(top_level),
+                ..
+            } if top_level.site_id == Some(site_id) && !top_level.hidden_effects.is_pure() => {
+                Ok(RefactorClassCtorBoundarySource::TopLevelRef {
+                    span: stmt.span,
+                    fqn: &top_level.fqn,
+                })
+            }
             mir::StatementKind::Assign {
                 value:
                     mir::Rvalue::MemberAccess {
@@ -7658,6 +7767,28 @@ fn completion_payload_source_is_local(
         LateLoweredCompletionPayloadSource::Operand(operand)
             if matches!(operand.value(), LateLoweredOperandValueSource::Local(source_local) if *source_local == local)
     )
+}
+
+fn completion_payload_local_pair(
+    binding_source: &LateLoweredCompletionPayloadSource,
+    return_source: &LateLoweredCompletionPayloadSource,
+) -> Option<(LocalId, LocalId)> {
+    let LateLoweredCompletionPayloadSource::Operand(binding_operand) = binding_source else {
+        return None;
+    };
+    let LateLoweredCompletionPayloadSource::Operand(return_operand) = return_source else {
+        return None;
+    };
+    if binding_operand.source_ty() != return_operand.source_ty() {
+        return None;
+    }
+    let LateLoweredOperandValueSource::Local(binding_local) = binding_operand.value() else {
+        return None;
+    };
+    let LateLoweredOperandValueSource::Local(return_local) = return_operand.value() else {
+        return None;
+    };
+    Some((*binding_local, *return_local))
 }
 
 fn validate_callable_entry_layout(

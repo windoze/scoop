@@ -54,6 +54,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
     object_member_hidden_effects: HashMap<String, EffectRow>,
+    top_level_ref_hidden_effects: HashMap<String, EffectRow>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
     member_value_tys: HashMap<String, TypeId>,
@@ -73,6 +74,7 @@ impl Default for MirLoweringFacts {
             refactor_handle_sites: HashMap::new(),
             class_ctor_hidden_effects: HashMap::new(),
             object_member_hidden_effects: HashMap::new(),
+            top_level_ref_hidden_effects: HashMap::new(),
             when_pat_binding_tys: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
             member_value_tys: HashMap::new(),
@@ -264,9 +266,18 @@ impl MirLoweringFacts {
             if effects.is_pure() {
                 continue;
             }
+            self.top_level_ref_hidden_effects
+                .insert(object.fqn.clone(), effects.clone());
             for property_name in object.properties.keys() {
                 self.object_member_hidden_effects
                     .insert(format!("{}.{}", object.fqn, property_name), effects.clone());
+            }
+        }
+        for value in lowered.top_level_immutable_values.values() {
+            let effects = analyzer.top_level_immutable_value_effect_row(&value.fqn);
+            if !effects.is_pure() {
+                self.top_level_ref_hidden_effects
+                    .insert(value.fqn.clone(), effects);
             }
         }
         self
@@ -433,6 +444,13 @@ impl MirLoweringFacts {
             .unwrap_or_else(EffectRow::pure)
     }
 
+    fn top_level_ref_hidden_effects(&self, fqn: &str) -> EffectRow {
+        self.top_level_ref_hidden_effects
+            .get(fqn)
+            .cloned()
+            .unwrap_or_else(EffectRow::pure)
+    }
+
     fn when_pat_binding_ty(&self, span: Span) -> Option<TypeId> {
         self.when_pat_binding_tys.get(&span).copied()
     }
@@ -455,6 +473,11 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
     fn object_init_effect_row(&self, object_fqn: &str) -> EffectRow {
         let mut visiting = HashSet::new();
         EffectRow::new(self.object_init_effect_terms(object_fqn, &mut visiting))
+    }
+
+    fn top_level_immutable_value_effect_row(&self, value_fqn: &str) -> EffectRow {
+        let mut visiting = HashSet::new();
+        EffectRow::new(self.top_level_immutable_value_effect_terms(value_fqn, &mut visiting))
     }
 
     fn class_ctor_effect_terms(
@@ -562,6 +585,28 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
         terms
     }
 
+    fn top_level_immutable_value_effect_terms(
+        &self,
+        value_fqn: &str,
+        visiting: &mut HashSet<String>,
+    ) -> Vec<TypeId> {
+        let Some(value) = self.lowered.top_level_immutable_values.get(value_fqn) else {
+            return Vec::new();
+        };
+        let key = format!("top-level-val:{value_fqn}");
+        if !visiting.insert(key.clone()) {
+            return Vec::new();
+        }
+
+        let terms = value
+            .init
+            .as_ref()
+            .map(|init| self.scan_expr(init, value.source_path.as_path(), visiting))
+            .unwrap_or_default();
+        visiting.remove(&key);
+        terms
+    }
+
     fn lookup_class_init(&self, class_fqn: &str) -> Option<&'a hir::ClassInit> {
         self.lowered.class_inits.get(class_fqn).or_else(|| {
             self.lowered
@@ -631,7 +676,9 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => Vec::new(),
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.object_init_effect_terms(fqn, visiting)
+                let mut terms = self.object_init_effect_terms(fqn, visiting);
+                terms.extend(self.top_level_immutable_value_effect_terms(fqn, visiting));
+                terms
             }
             hir::ExprKind::VarRef(_) => Vec::new(),
             hir::ExprKind::Block(block) => self.scan_block(block, source_path, visiting),
@@ -1288,7 +1335,7 @@ impl<'a> FnLowering<'a> {
             Rvalue::MakeClosure { fn_ptr, .. } => Some(ValueOrigin::Closure {
                 fn_ptr: fn_ptr.clone(),
             }),
-            Rvalue::TopLevelRef(TopLevelRef { fqn }) => {
+            Rvalue::TopLevelRef(TopLevelRef { fqn, .. }) => {
                 Some(ValueOrigin::TopLevelRef { fqn: fqn.clone() })
             }
             Rvalue::MemberAccess { member, .. } => Some(ValueOrigin::MemberAccess {
@@ -3228,10 +3275,16 @@ impl<'a> FnLowering<'a> {
                     unreachable!("matched above");
                 };
                 let tmp = self.push_temp_local(span, ty);
+                let hidden_effects = self.facts.top_level_ref_hidden_effects(fqn);
+                let site_id = (!hidden_effects.is_pure()).then(|| self.fresh_site_id());
                 self.assign(
                     span,
                     tmp,
-                    Rvalue::TopLevelRef(TopLevelRef { fqn: fqn.clone() }),
+                    Rvalue::TopLevelRef(TopLevelRef {
+                        fqn: fqn.clone(),
+                        site_id,
+                        hidden_effects,
+                    }),
                 );
                 tmp
             }

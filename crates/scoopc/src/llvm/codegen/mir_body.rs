@@ -994,7 +994,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::StatementKind::Nop => true,
             crate::mir::StatementKind::Assign { target, value } => {
                 if !used_locals.contains(target)
-                    && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) = value
+                    && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) =
+                        value
                     && self.fun_index.contains_key(fqn)
                 {
                     return true;
@@ -1092,7 +1093,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) | crate::mir::Rvalue::Unary { operand, .. } => {
                 self.raw_materialized_mir_operand_is_supported(operand)
             }
-            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) => {
+            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 self.object_inits.contains_key(fqn)
                     || self.top_level_consts.contains_key(fqn)
                     || self.top_level_immutable_values.contains_key(fqn)
@@ -2195,7 +2196,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::StatementKind::Nop => Ok(()),
             crate::mir::StatementKind::Assign { target, value } => {
                 if !used_locals.contains(target)
-                    && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) = value
+                    && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) =
+                        value
                     && self.fun_index.contains_key(fqn)
                 {
                     return Ok(());
@@ -2364,7 +2366,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) => {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
-            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) => {
+            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 self.codegen_top_level_value_ref(span, fqn)
             }
             crate::mir::Rvalue::Unary { op, operand } => {
@@ -2485,7 +2487,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) => {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
-            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }) => {
+            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 self.codegen_top_level_value_ref(span, fqn)
             }
             crate::mir::Rvalue::Unary { op, operand } => {

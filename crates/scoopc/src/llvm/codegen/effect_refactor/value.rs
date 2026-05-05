@@ -196,7 +196,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 value: rvalue,
             } => {
                 if !used_locals.contains(target)
-                    && let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) = rvalue
+                    && let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) = rvalue
                     && self.is_unused_callee_ref(fqn)
                 {
                     return Ok(());
@@ -248,7 +248,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let slot = self
                     .codegen
                     .mir_local_slot(stmt.span, self.slots, *target)?;
-                if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) = rvalue
+                if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) = rvalue
                     && self
                         .body
                         .locals
@@ -264,7 +264,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 {
                     return Ok(());
                 }
-                if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) = rvalue
+                if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) = rvalue
                     && !self.codegen.object_inits.contains_key(fqn)
                     && !self.codegen.top_level_consts.contains_key(fqn)
                     && !self.codegen.top_level_immutable_values.contains_key(fqn)
@@ -278,6 +278,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     return Ok(());
                 }
                 if matches!(rvalue, mir::Rvalue::Todo("missing expr"))
+                    && self.local_is_only_static_member_namespace_receiver(*target)
+                {
+                    return Ok(());
+                }
+                if matches!(rvalue, mir::Rvalue::TopLevelRef(_))
                     && self.local_is_only_static_member_namespace_receiver(*target)
                 {
                     return Ok(());

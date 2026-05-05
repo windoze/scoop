@@ -665,6 +665,26 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                     }
                     direct.add_tags(block.is_cleanup, projected);
                 }
+                Rvalue::TopLevelRef(top_level)
+                    if top_level.site_id.is_some()
+                        && !top_level.hidden_effects.is_pure()
+                        && !top_level_ref_is_only_hidden_member_namespace_receiver(
+                            self.body(),
+                            *target,
+                        ) =>
+                {
+                    let site_id = top_level.site_id.expect("checked above");
+                    self.record_block_site(block_id, site_id);
+                    let projected = self.ensure_class_ctor_site_facts(
+                        types,
+                        site_id,
+                        &top_level.hidden_effects,
+                    )?;
+                    if !projected.is_empty() {
+                        draft.has_suspend_boundary = true;
+                    }
+                    direct.add_tags(block.is_cleanup, projected);
+                }
                 Rvalue::MemberAccess {
                     site_id: Some(site_id),
                     member,
@@ -1338,34 +1358,6 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
     ) -> Result<CallSiteEffectFacts, EffectFactsError> {
         let candidate_keys =
             self.resolve_candidate_keys(candidate_fqns, explicit_arg_count, receiver_ty.is_some());
-        if let [single] = candidate_keys.as_slice() {
-            return self
-                .build_direct_like_call_site(
-                    types,
-                    kind,
-                    candidate_fqns
-                        .first()
-                        .map(String::as_str)
-                        .unwrap_or(fallback_fqn),
-                    explicit_arg_count,
-                    invoke_args_tuple_ty,
-                    result_ty,
-                    receiver_ty,
-                )
-                .map(|facts| match facts.target() {
-                    CallSiteTarget::KnownInstance(_) => facts,
-                    _ => CallSiteEffectFacts::new_with_abi(
-                        kind,
-                        CallSiteTarget::KnownInstance(single.clone()),
-                        facts.callee_abi_kind(),
-                        facts.invoke_args_tuple_ty(),
-                        facts.callee_step_schema(),
-                        facts.resolved_cases().clone(),
-                        facts.precision(),
-                    ),
-                });
-        }
-
         if !candidate_keys.is_empty() {
             let declared_row =
                 self.union_candidate_rows(types, candidate_fqns, explicit_arg_count, receiver_ty)?;
@@ -2126,6 +2118,133 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
     )
 }
 
+fn top_level_ref_is_only_hidden_member_namespace_receiver(
+    body: &MirBody,
+    local: crate::mir::LocalId,
+) -> bool {
+    let mut saw_hidden_member = false;
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let StatementKind::Assign { target, value } = &stmt.kind else {
+                continue;
+            };
+            if *target == local {
+                continue;
+            }
+            if let Rvalue::MemberAccess {
+                receiver: Operand::Local(receiver),
+                member,
+                ..
+            } = value
+                && *receiver == local
+                && !member.hidden_effects.is_pure()
+                && matches!(
+                    member.resolved,
+                    Some(crate::mir::MemberTarget::Value { .. })
+                )
+            {
+                saw_hidden_member = true;
+                continue;
+            }
+            if rvalue_mentions_local_for_hidden_namespace(value, local) {
+                return false;
+            }
+        }
+    }
+    saw_hidden_member
+}
+
+fn operand_mentions_local_for_hidden_namespace(
+    operand: &Operand,
+    local: crate::mir::LocalId,
+) -> bool {
+    matches!(operand, Operand::Local(found) if *found == local)
+}
+
+fn call_args_mention_local_for_hidden_namespace(
+    args: &[CallArg],
+    local: crate::mir::LocalId,
+) -> bool {
+    args.iter()
+        .any(|arg| operand_mentions_local_for_hidden_namespace(&arg.value, local))
+}
+
+fn call_kind_mentions_local_for_hidden_namespace(
+    kind: &CallKind,
+    local: crate::mir::LocalId,
+) -> bool {
+    match kind {
+        CallKind::Direct { .. } => false,
+        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+            operand_mentions_local_for_hidden_namespace(callee, local)
+        }
+        CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
+            operand_mentions_local_for_hidden_namespace(receiver, local)
+        }
+        CallKind::Resume { continuation, .. } => {
+            operand_mentions_local_for_hidden_namespace(continuation, local)
+        }
+    }
+}
+
+fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir::LocalId) -> bool {
+    match value {
+        Rvalue::Use(operand)
+        | Rvalue::Unary { operand, .. }
+        | Rvalue::TypeCheck { value: operand, .. }
+        | Rvalue::Cast { value: operand, .. }
+        | Rvalue::TupleGet { tuple: operand, .. }
+        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxGet {
+            box_operand: operand,
+        }
+        | Rvalue::PatternMatch {
+            subject: operand, ..
+        }
+        | Rvalue::PatternExtract {
+            subject: operand, ..
+        }
+        | Rvalue::MakeClosure { env: operand, .. } => {
+            operand_mentions_local_for_hidden_namespace(operand, local)
+        }
+        Rvalue::Binary { lhs, rhs, .. } => {
+            operand_mentions_local_for_hidden_namespace(lhs, local)
+                || operand_mentions_local_for_hidden_namespace(rhs, local)
+        }
+        Rvalue::MemberAccess { receiver, .. } => {
+            operand_mentions_local_for_hidden_namespace(receiver, local)
+        }
+        Rvalue::EnumVariant { args, .. } | Rvalue::ClassCtor { args, .. } => {
+            call_args_mention_local_for_hidden_namespace(args, local)
+        }
+        Rvalue::Call { kind, args, .. } => {
+            call_kind_mentions_local_for_hidden_namespace(kind, local)
+                || call_args_mention_local_for_hidden_namespace(args, local)
+        }
+        Rvalue::MakeTuple { elements } => elements
+            .iter()
+            .any(|operand| operand_mentions_local_for_hidden_namespace(operand, local)),
+        Rvalue::StructLit { fields } => fields
+            .iter()
+            .any(|field| operand_mentions_local_for_hidden_namespace(&field.value, local)),
+        Rvalue::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
+            crate::mir::InterpolatedStringPart::Text { .. } => false,
+            crate::mir::InterpolatedStringPart::Expr { value, .. } => {
+                operand_mentions_local_for_hidden_namespace(value, local)
+            }
+        }),
+        Rvalue::CaptureBoxSet { box_operand, value } => {
+            operand_mentions_local_for_hidden_namespace(box_operand, local)
+                || operand_mentions_local_for_hidden_namespace(value, local)
+        }
+        Rvalue::TopLevelRef(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::SizeOf { .. }
+        | Rvalue::PerformResult { .. }
+        | Rvalue::Todo(_) => false,
+    }
+}
+
 /// site-level facts 需要给本地 `perform` / `resume` / `handle` 产生稳定 case tag，即使 callable 的
 /// surface `declared_row` 因本地 `handle` 吸收而是 `Pure`。
 fn callable_step_effect_row(
@@ -2150,6 +2269,8 @@ fn callable_step_effect_row(
             else {
                 if let Rvalue::ClassCtor { hidden_effects, .. } = value {
                     terms.extend(hidden_effects.terms.iter().copied());
+                } else if let Rvalue::TopLevelRef(top_level) = value {
+                    terms.extend(top_level.hidden_effects.terms.iter().copied());
                 } else if let Rvalue::MemberAccess { member, .. } = value {
                     terms.extend(member.hidden_effects.terms.iter().copied());
                 }

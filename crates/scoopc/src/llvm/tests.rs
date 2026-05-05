@@ -6385,7 +6385,7 @@ fn mir_fun_contains_top_level_ref(fun: &crate::mir::FunDecl, expected: &str) -> 
     body.blocks.iter().any(|block| {
         block.stmts.iter().any(|stmt| {
             let crate::mir::StatementKind::Assign {
-                value: crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn }),
+                value: crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }),
                 ..
             } = &stmt.kind
             else {

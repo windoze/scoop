@@ -2962,7 +2962,7 @@ impl MirInstanceMaterializer {
                     self.scan_reachable_non_generic_fun(&reachable_closure, out)?;
                 }
             }
-            Rvalue::TopLevelRef(TopLevelRef { fqn }) => {
+            Rvalue::TopLevelRef(TopLevelRef { fqn, .. }) => {
                 self.reachable_request_call_sites
                     .insert((scan.template_source_path.to_path_buf(), scan.span));
                 if let Some(binding) =
@@ -3601,6 +3601,14 @@ impl MirInstanceMaterializer {
                 ) {
                     top.fqn = rewritten;
                 }
+                top.hidden_effects.terms = top
+                    .hidden_effects
+                    .terms
+                    .iter()
+                    .map(|ty| {
+                        substitute_type_and_effect_params(&mut self.types, *ty, ctx.substitution)
+                    })
+                    .collect();
             }
             Rvalue::UnresolvedName { .. } => {}
             Rvalue::Unary { operand, .. } => *operand = self.rewrite_operand(operand.clone()),

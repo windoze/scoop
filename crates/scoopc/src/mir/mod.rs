@@ -646,6 +646,8 @@ pub enum Operand {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TopLevelRef {
     pub fqn: String,
+    pub site_id: Option<SiteId>,
+    pub hidden_effects: EffectRow,
 }
 
 /// 成员访问在 MIR 上保留的最小语言级 metadata。
@@ -1127,8 +1129,8 @@ impl Rvalue {
     pub fn site_id(&self) -> Option<SiteId> {
         match self {
             Rvalue::Call { site_id, .. } | Rvalue::ClassCtor { site_id, .. } => Some(*site_id),
+            Rvalue::TopLevelRef(top_level) => top_level.site_id,
             Rvalue::Use(_)
-            | Rvalue::TopLevelRef(_)
             | Rvalue::UnresolvedName { .. }
             | Rvalue::Unary { .. }
             | Rvalue::Binary { .. }

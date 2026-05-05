@@ -489,7 +489,7 @@ impl<'a> ReachabilityCollector<'a> {
                         kind: mir::CallKind::FunValue { .. },
                         ..
                     } => true,
-                    mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) => {
+                    mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) => {
                         self.object_inits.contains_key(fqn)
                             || self.top_level_consts.contains_key(fqn)
                             || self.top_level_immutable_values.contains_key(fqn)
@@ -654,7 +654,7 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::UnresolvedName { .. }
             | mir::Rvalue::SizeOf { .. }
             | mir::Rvalue::Todo(_) => {}
-            mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) => {
+            mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) => {
                 self.scan_top_level_value_ref(fqn)
             }
             mir::Rvalue::Binary { lhs, rhs, .. } => {

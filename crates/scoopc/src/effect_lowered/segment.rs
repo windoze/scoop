@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::effect_facts::{BodyEffectFacts, NestedHandleClassification, SiteEffectFacts};
 use crate::mir::{
-    BasicBlockId, Body, LocalId, Operand, Rvalue, SiteId, StatementKind, Terminator,
-    TerminatorKind, UnwindAction,
+    BasicBlockId, Body, CallArg, CallKind, LocalId, Operand, Rvalue, SiteId, StatementKind,
+    Terminator, TerminatorKind, UnwindAction,
 };
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
 
@@ -584,6 +584,121 @@ fn operand_local(operand: &Operand) -> Option<LocalId> {
     }
 }
 
+fn top_level_ref_is_only_hidden_member_namespace_receiver(body: &Body, local: LocalId) -> bool {
+    let mut saw_hidden_member = false;
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let StatementKind::Assign { target, value } = &stmt.kind else {
+                continue;
+            };
+            if *target == local {
+                continue;
+            }
+            if let Rvalue::MemberAccess {
+                receiver: Operand::Local(receiver),
+                member,
+                ..
+            } = value
+                && *receiver == local
+                && !member.hidden_effects.is_pure()
+                && matches!(
+                    member.resolved,
+                    Some(crate::mir::MemberTarget::Value { .. })
+                )
+            {
+                saw_hidden_member = true;
+                continue;
+            }
+            if rvalue_mentions_local_for_hidden_namespace(value, local) {
+                return false;
+            }
+        }
+    }
+    saw_hidden_member
+}
+
+fn operand_mentions_local_for_hidden_namespace(operand: &Operand, local: LocalId) -> bool {
+    matches!(operand, Operand::Local(found) if *found == local)
+}
+
+fn call_args_mention_local_for_hidden_namespace(args: &[CallArg], local: LocalId) -> bool {
+    args.iter()
+        .any(|arg| operand_mentions_local_for_hidden_namespace(&arg.value, local))
+}
+
+fn call_kind_mentions_local_for_hidden_namespace(kind: &CallKind, local: LocalId) -> bool {
+    match kind {
+        CallKind::Direct { .. } => false,
+        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+            operand_mentions_local_for_hidden_namespace(callee, local)
+        }
+        CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
+            operand_mentions_local_for_hidden_namespace(receiver, local)
+        }
+        CallKind::Resume { continuation, .. } => {
+            operand_mentions_local_for_hidden_namespace(continuation, local)
+        }
+    }
+}
+
+fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: LocalId) -> bool {
+    match value {
+        Rvalue::Use(operand)
+        | Rvalue::Unary { operand, .. }
+        | Rvalue::TypeCheck { value: operand, .. }
+        | Rvalue::Cast { value: operand, .. }
+        | Rvalue::TupleGet { tuple: operand, .. }
+        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxGet {
+            box_operand: operand,
+        }
+        | Rvalue::PatternMatch {
+            subject: operand, ..
+        }
+        | Rvalue::PatternExtract {
+            subject: operand, ..
+        }
+        | Rvalue::MakeClosure { env: operand, .. } => {
+            operand_mentions_local_for_hidden_namespace(operand, local)
+        }
+        Rvalue::Binary { lhs, rhs, .. } => {
+            operand_mentions_local_for_hidden_namespace(lhs, local)
+                || operand_mentions_local_for_hidden_namespace(rhs, local)
+        }
+        Rvalue::MemberAccess { receiver, .. } => {
+            operand_mentions_local_for_hidden_namespace(receiver, local)
+        }
+        Rvalue::EnumVariant { args, .. } | Rvalue::ClassCtor { args, .. } => {
+            call_args_mention_local_for_hidden_namespace(args, local)
+        }
+        Rvalue::Call { kind, args, .. } => {
+            call_kind_mentions_local_for_hidden_namespace(kind, local)
+                || call_args_mention_local_for_hidden_namespace(args, local)
+        }
+        Rvalue::MakeTuple { elements } => elements
+            .iter()
+            .any(|operand| operand_mentions_local_for_hidden_namespace(operand, local)),
+        Rvalue::StructLit { fields } => fields
+            .iter()
+            .any(|field| operand_mentions_local_for_hidden_namespace(&field.value, local)),
+        Rvalue::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
+            crate::mir::InterpolatedStringPart::Text { .. } => false,
+            crate::mir::InterpolatedStringPart::Expr { value, .. } => {
+                operand_mentions_local_for_hidden_namespace(value, local)
+            }
+        }),
+        Rvalue::CaptureBoxSet { box_operand, value } => {
+            operand_mentions_local_for_hidden_namespace(box_operand, local)
+                || operand_mentions_local_for_hidden_namespace(value, local)
+        }
+        Rvalue::TopLevelRef(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::SizeOf { .. }
+        | Rvalue::PerformResult { .. }
+        | Rvalue::Todo(_) => false,
+    }
+}
+
 fn collect_selected_boundaries(
     root_fqn: &str,
     body: &Body,
@@ -595,12 +710,21 @@ fn collect_selected_boundaries(
     for (block_index, block) in body.blocks.iter().enumerate() {
         let block_id = BasicBlockId::from_raw(block_index as u32);
         for (statement_index, stmt) in block.stmts.iter().enumerate() {
-            let StatementKind::Assign { value, .. } = &stmt.kind else {
+            let StatementKind::Assign { target, value } = &stmt.kind else {
                 continue;
             };
             let (site_id, is_class_ctor) = match value {
                 Rvalue::Call { site_id, .. } => (*site_id, false),
                 Rvalue::ClassCtor { site_id, .. } => (*site_id, true),
+                Rvalue::TopLevelRef(top_level)
+                    if top_level.site_id.is_some()
+                        && !top_level.hidden_effects.is_pure()
+                        && !top_level_ref_is_only_hidden_member_namespace_receiver(
+                            body, *target,
+                        ) =>
+                {
+                    (top_level.site_id.expect("checked above"), true)
+                }
                 Rvalue::MemberAccess {
                     site_id: Some(site_id),
                     member,

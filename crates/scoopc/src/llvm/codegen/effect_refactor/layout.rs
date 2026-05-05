@@ -292,6 +292,17 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         }
         let callable_layouts_by_version_key =
             this.materialize_callable_version_layout_index(&callable_layouts)?;
+        let mut plain_local_effect_step_schemas_by_version_key = HashMap::new();
+        for callable in this.program.callables() {
+            let Some(local) = callable
+                .plain_abi()
+                .and_then(|plain| plain.local_effect_control())
+            else {
+                continue;
+            };
+            plain_local_effect_step_schemas_by_version_key
+                .insert(callable.body_version_key().clone(), local.step_schema());
+        }
         let known_instance_callable_versions =
             this.materialize_known_instance_callable_versions(&callable_layouts)?;
 
@@ -340,6 +351,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             surface_resume_dispatch_layouts,
             callable_layouts,
             callable_layouts_by_version_key,
+            plain_local_effect_step_schemas_by_version_key,
             plain_callable_layouts_by_version_key,
             known_instance_callable_versions,
             callable_carrier_target_layouts,

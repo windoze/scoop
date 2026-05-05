@@ -598,6 +598,48 @@
   - 新增定向覆盖：`effect_lowered::frame::tests::refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`，锁定被 routed handle arm 读取的 source local 必须进入 continuation frame。
   - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`；`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02Za：闭合 dynamic dispatch ABI schema identity drift，解除 hidden suspend virtual/interface helper 阻塞
+
+- 参考：
+  - [`TODO-P7.md`](./TODO-P7.md) P7-T02Z
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02p / P6-T02o
+  - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03e / P6-T03h
+- 背景：
+  - 执行 `P7-T02Z` 时，hidden init / top-level init ordinary effect 已能通过 `TopLevelRef` hidden-effect boundary 发布并被外层 handle/catch 捕获；
+  - 继续验证 hidden suspend helper 系列时，`effect_handle_hidden_suspend_virtual_helper_basic.scoop` 与 `effect_handle_hidden_suspend_interface_helper_basic.scoop` 暴露 dynamic dispatch lowering 的 ABI/schema identity drift；
+  - 具体表现包括：单一 interface candidate 被过早折叠为 `KnownInstance` 后缺少 dynamic-invoke carrier contract；body program 与 ABI program 对同一 callable/surface wrapper 的 `StepSchemaId` / owner version key 不一致，导致 completion payload binding、dynamic-invoke return schema、HandleDispatch contract 与 surface-resume owner trampoline 查询漂移。
+
+- 必须实现的内容：
+  1. 保持 `Virtual` / `Interface` dispatch 的 canonical dynamic dispatch contract。
+     - 即使候选集合只有一个，也不得把 source-level dynamic dispatch 降级成普通 direct call；
+     - receiver carrier、vtable/itable slot、ordered args、dynamic invoke return `Step` 必须由 P5/P6 handoff 明确发布并消费。
+  2. 修复 body program 与 ABI program 间的 schema identity 映射。
+     - P6 body emitter 不得把当前 body program 的 raw `StepSchemaId` 直接拿去查询 ABI program contract；
+     - callable body version、plain local-effect control、synthetic call-surface schema、surface-resume wrapper projection 都必须通过 authoritative version key / ABI query 映射到 ABI program schema；
+     - 禁止用 site id、root fqn、case tag 偶然相等作为长期替代 identity。
+  3. 修复 continuation composition / surface resume owner trampoline 的 owner lookup。
+     - `CanonicalFull` / `SingleCase` / wrapper projection 之间的 owner callable、owner step、wrapper step 必须有稳定 handoff；
+     - 不能因为 O0/O2 或 body/ABI program schema id 不同而找不到 owner callable 或误查其它 callable 的 frame/completion payload contract。
+  4. 保持 completion payload / resume payload binding contract 精确。
+     - `boundary result local -> source local -> return` 的显式注入可以作为合法 alias，但必须由 source-slice classification 或等价 handoff 支撑；
+     - 不得用宽松跳过 verifier、按 fixture 名字特判、或忽略 frame slot drift 来通过。
+  5. 增加或更新定向测试，覆盖 virtual/interface hidden suspend helper 在默认 refactor run-pass 下通过。
+
+- 验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_virtual_helper_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_interface_helper_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_member_helper_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_helper_object_property_basic.scoop`
+  - 修复后恢复 `P7-T02Z` 的剩余 run-pass blocker 验证。
+
+- 完成条件：
+  - virtual/interface hidden suspend helper fixtures 在默认 refactor run-pass 下输出 golden 并 exit 0；
+  - dynamic dispatch 不依赖 legacy fallback、direct-call 降级、fixture 特判或 raw schema id 偶然一致；
+  - `P7-T02Z` 可以继续处理剩余 run-pass 阻塞。
+- 依赖：P7-T02Y
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T02Z：闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级
 
 - 参考：
@@ -635,9 +677,10 @@
   - 上述剩余 run-pass blockers 在默认 refactor 主线下通过；
   - 不存在新增 hidden legacy fallback、fixture 降级或 runtime-only workaround；
   - P7-T03 可以重新只聚焦标准 full regression 矩阵最终收口。
-- 依赖：P7-T02Y
+- 依赖：P7-T02Za
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-06：本轮完成 hidden init / top-level init ordinary effect 的一部分通用修复：`TopLevelRef` 现在可携带 hidden init `EffectRow` 与稳定 MIR site id；P4/P5/P6 会把 object value / top-level immutable value init 中的 `Raise<RuntimeError>` 发布为显式 boundary 并捕获 outcome；仅作为静态成员 namespace receiver 的 `TopLevelRef` 不再提前执行 object init，避免绕过 member hidden-effect boundary。定向通过：`object_init_raise_try_catch_basic.scoop`、`object_property_init_raise_helper_try_catch_basic.scoop`、`object_value_init_raise_helper_try_catch_basic.scoop`、`top_level_immutable_init_raise_helper_try_catch_basic.scoop`、`class_init_hidden_raise_helper_try_catch_basic.scoop`、`effect_handle_hidden_suspend_member_helper_basic.scoop`、`effect_handle_hidden_suspend_helper_object_property_basic.scoop`。
+  - 2026-05-06：继续验证 hidden suspend helper 系列时，`effect_handle_hidden_suspend_virtual_helper_basic.scoop` / `effect_handle_hidden_suspend_interface_helper_basic.scoop` 暴露 dynamic dispatch ABI schema identity drift：single-candidate interface dispatch 被折叠后缺少 dynamic-invoke carrier contract，随后 body program 与 ABI program 的 raw `StepSchemaId` / owner version key 漂移导致 completion payload、dynamic-invoke、HandleDispatch 与 surface-resume owner lookup 失败。已新增 prerequisite `P7-T02Za`；本任务保持未完成。
 
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 

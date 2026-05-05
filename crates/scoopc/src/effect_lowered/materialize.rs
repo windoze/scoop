@@ -4342,6 +4342,12 @@ fn build_class_ctor_boundary_source_contract(
                     class_fqn,
                     ..
                 } if *stmt_site_id == site_id => class_fqn.clone(),
+                Rvalue::TopLevelRef(top_level)
+                    if top_level.site_id == Some(site_id)
+                        && !top_level.hidden_effects.is_pure() =>
+                {
+                    top_level.fqn.clone()
+                }
                 Rvalue::MemberAccess {
                     site_id: Some(stmt_site_id),
                     member,
@@ -4644,6 +4650,11 @@ fn collect_result_locals(body: &Body) -> BoundaryResultLocals {
                 match value {
                     Rvalue::Call { site_id, .. } | Rvalue::ClassCtor { site_id, .. } => {
                         call_results.insert(*site_id, *target);
+                    }
+                    Rvalue::TopLevelRef(top_level)
+                        if top_level.site_id.is_some() && !top_level.hidden_effects.is_pure() =>
+                    {
+                        call_results.insert(top_level.site_id.expect("checked above"), *target);
                     }
                     Rvalue::MemberAccess {
                         site_id: Some(site_id),

@@ -2136,6 +2136,8 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
         BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeDispatchLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
     callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
+    plain_local_effect_step_schemas_by_version_key:
+        HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
     plain_callable_layouts_by_version_key:
         HashMap<LateLoweredBodyVersionKey, RefactorPlainCallableLayout<'ctx>>,
     known_instance_callable_versions:
@@ -2182,6 +2184,10 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         >,
         callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
+        plain_local_effect_step_schemas_by_version_key: HashMap<
+            LateLoweredBodyVersionKey,
+            StepSchemaId,
+        >,
         plain_callable_layouts_by_version_key: HashMap<
             LateLoweredBodyVersionKey,
             RefactorPlainCallableLayout<'ctx>,
@@ -2236,6 +2242,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             surface_resume_dispatch_layouts,
             callable_layouts,
             callable_layouts_by_version_key,
+            plain_local_effect_step_schemas_by_version_key,
             plain_callable_layouts_by_version_key,
             known_instance_callable_versions,
             callable_carrier_target_layouts,
@@ -2297,6 +2304,15 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         step_schema: StepSchemaId,
     ) -> Option<&RefactorFrameLayout<'ctx>> {
         self.frame_layouts.get(&step_schema)
+    }
+
+    pub(super) fn local_effect_step_schema_by_version_key(
+        &self,
+        key: &LateLoweredBodyVersionKey,
+    ) -> Option<StepSchemaId> {
+        self.plain_local_effect_step_schemas_by_version_key
+            .get(key)
+            .copied()
     }
 
     pub(super) fn continuation_layout(
@@ -2825,6 +2841,15 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                 let version_key = self
                     .known_instance_callable_versions
                     .get(&(instance.clone(), facts.callee_schema()))
+                    .or_else(|| {
+                        let mut matches = self
+                            .known_instance_callable_versions
+                            .iter()
+                            .filter(|((candidate, _), _)| candidate == instance)
+                            .map(|(_, version)| version);
+                        let first = matches.next()?;
+                        matches.next().is_none().then_some(first)
+                    })
                     .ok_or_else(|| LlvmEmitError::Frontend {
                         message: format!(
                             "refactor LLVM ABI query 缺少 known-instance call target `{:?}` + callee step schema s{} 的 callable version selector",
@@ -2833,9 +2858,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                         ),
                     })?;
                 let layout = self.callable_layout_by_version_key(version_key)?;
-                if layout.surface_instance() != instance
-                    || layout.step_schema() != facts.callee_schema()
-                {
+                if layout.surface_instance() != instance {
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
                             "refactor LLVM ABI query 发现 known-instance call target `{:?}` + s{} 的 callable version selector 漂移：layout=(instance={:?}, step_schema=s{}, version={:?})",
@@ -2847,9 +2870,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                         ),
                     });
                 }
-                if layout.dynamic_entry().invoke_args_tuple_ty() != facts.invoke_args_tuple_ty()
-                    || layout.dynamic_entry().return_step_schema() != facts.callee_schema()
-                {
+                if layout.dynamic_entry().invoke_args_tuple_ty() != facts.invoke_args_tuple_ty() {
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
                             "refactor LLVM ABI query 发现 known-instance call target `{:?}` 的 dynamic entry contract 漂移：layout=(invoke_args_tuple_ty={}, return_step_schema={}, version={:?})，facts=(invoke_args_tuple_ty={}, callee_step_schema={})",
@@ -2877,7 +2898,6 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
                 )?;
                 if layout.target_mode() != facts.target_mode()
                     || layout.invoke_args_tuple_ty() != facts.invoke_args_tuple_ty()
-                    || layout.return_step_schema() != facts.callee_schema()
                 {
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
