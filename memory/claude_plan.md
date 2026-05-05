@@ -1,53 +1,39 @@
-# 执行计划
+# 当前执行计划
 
-## 约束与工作原则
+## 范围
+- 本次只处理 `TODO.md` 索引中对应的第一个未完成详细任务。
+- 完成该任务后更新任务记录、运行相关验证、提交 Git，然后停止。
 
-- 先读取 `TODO.md` 作为索引，再按索引顺序读取对应的 `TODO-Px.md` 详细任务文件。
-- 只执行第一个未在详细任务标题中标记 `[DONE]` 的任务，完成后停止。
-- 如果发现当前任务被具体实现缺口阻塞，不绕过问题；在对应 `TODO-Px.md` 中插入最小必要前置任务，同步 `TODO.md`，提交后停止。
-- 完成任务时同步更新详细 TODO 与索引 TODO 的 `[DONE]` 状态和完成记录。
-- 按仓库规范运行相关测试；若可行，补充更高覆盖的验证。
-- 最终提交本次所有相关改动，不推进下一个任务。
-
-## 初始执行步骤
-
-1. 检查当前工作区状态，确认是否已有未提交改动需要保留。
-2. 读取 `TODO.md`，确认索引列出的阶段文件和任务顺序。
-3. 按索引顺序读取相关 `TODO-Px.md` 文件，定位第一个标题未带 `[DONE]` 的详细任务。
-4. 阅读该任务的完整要求、依赖、约束、验证要求和完成记录。
-5. 根据任务范围检查相关代码、测试和规格文件，识别实现位置和验证路径。
-6. 实现当前任务所需的最小正确变更，不引入规避性实现。
-7. 添加或更新必要测试、fixture 或文档。
-8. 运行任务要求的验证命令和相关回归测试，修复发现的问题。
-9. 更新 `TODO-Px.md` 的任务标题与完成记录，并同步 `TODO.md` 索引。
-10. 必要时更新本计划文件以记录关键进展或计划调整。
-11. 复查 diff，提交所有相关改动，提交信息使用任务编号和简明描述。
+## 步骤
+1. 读取 `TODO.md`，按索引顺序定位需要检查的详细任务文件。
+2. 读取对应的 `TODO-Px.md` 文件，按详细文件中的顺序找出第一个标题未标记 `[DONE]` 的任务。
+3. 检查最新提交是否明确提到与该任务直接相关的未完成问题；如有，将其纳入当前任务或作为前置任务记录。
+4. 阅读当前任务的要求、依赖、验证方式和完成记录，确认是否可以直接实现。
+5. 如果发现必须先修复的具体阻塞项，则在对应 `TODO-Px.md` 中插入最小前置任务，同步 `TODO.md`，提交并停止。
+6. 若无阻塞，按任务要求进行最小正确实现，避免绕过规格或弱化测试。
+7. 运行与改动相关的测试；必要时运行更广泛的验证，修复由当前任务引入或暴露且阻塞当前任务的问题。
+8. 将详细任务标题加上 `[DONE]`，更新完成记录；如索引项存在，同步 `TODO.md` 的 `[DONE]` 状态。
+9. 更新本文件记录关键进展与验证结果。
+10. 审查工作区变更，提交所有本次任务相关改动，并在提交后停止。
 
 ## 当前状态
-
-- 已读取 `TODO.md` 与 `TODO-P7.md`。
-- 当前首个未完成详细任务：`P7-T02U`（修复默认 run-pass 暴露的 refactor async/task resume payload ABI 阻塞）。
-- 最近提交提到 async prerequisite，和本任务直接相关；将作为当前任务上下文处理。
-- 下一步：复现 `tests/fixtures/run-pass/async_await_minimal_int_basic.scoop` 的默认 refactor 失败，并定位 resume payload ABI / 注入路径缺口。
-
-## P7-T02U 执行计划
-
-1. 运行任务指定的最小 run-pass/run 命令，记录当前失败输出。
-2. 阅读 async/task fixture、sysroot task/async helper，以及 refactor late-lowering / LLVM ABI materialization 中 resume payload 相关实现。
-3. 定位 generic `Async.await<T>`、`Task<T>`、surface resume wrapper、boundary result local 之间 payload ABI 和注入路径的断点。
-4. 实现最小正确修复：shared surface payload 可 erased，concrete task/continuation/boundary result 必须恢复实际 `T`。
-5. 添加或更新定向测试，覆盖默认 refactor run-pass 的最小 async/await happy path。
-6. 运行 `P7-T02U` 指定验证；如修复导致更早阶段测试受影响，补跑相关 Rust 单测或 fixture。
-7. 更新 `TODO-P7.md` 与 `TODO.md` 的 `[DONE]` 状态和完成记录。
-8. 复查 diff 并提交，提交信息使用 `[P7-T02U] ...`。
-
-## P7-T02U 进展
-
-- 已复现失败：默认 `scoop test` fixture 失败，默认 `scoop run` 只输出 `before` 后 exit 1；显式 legacy 可输出完整结果。
-- `dump-effect-lowered` 和 emitted LLVM 显示 `main.$lambda1`、`__task_drive_waiting::<Int>` 等 resume entry 中 `resume_plain_dispatch` 的 switch 没有任何 resume state case。
-- 直接原因：`resume_payload_binding_accepts_tuple` 只接受 incoming resume tuple 的 codegen 类型与 consumer local 完全一致；async/task transport 路径中 incoming `(Int, Any)` / erased surface payload 与 concrete resumed local 不一致，导致合法 resume binding 被跳过。
-- 已实现修复：当 `Continuation.resume` 的 published underlying route 只能落到 self resume-boundary 且 payload 是 task transport `(Int, Any)` 时，refactor LLVM lowering 现在按 continuation object type descriptor 动态选择可接收 task transport 的 owner resume adapter；adapter 用 concrete owner frame/resume binding 恢复真实 resumed local，并把 owner `Step` 通过当前 boundary dispatch plan 消费。
-- 已实现修复：resume payload 注入现在可将 `(Int, Any)` transport 解码到 concrete consumer local/home，例如 `Int` await result，而不是要求 ABI 类型完全一致。
-- 已新增定向测试：`default_refactor_runs_async_await_task_resume_payload_cli` 覆盖默认 refactor `run async_await_minimal_int_basic.scoop` 输出完整 async/await happy path。
-- 已验证通过：`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`；`cargo test -p scoop --test p7_default_pipeline`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop`；`cargo check --all`；`cargo clippy --all-targets -- -D warnings`。
-- 下一步：更新 `TODO-P7.md` / `TODO.md` 完成记录，然后复查并提交。
+- 已读取 `TODO.md` 与 `TODO-P7.md`，第一个未完成详细任务是 `P7-T03`：在默认 refactor 主线下运行标准 full regression，并修复所有默认路径回归。
+- 最新提交为 `[P7-T02U] Fix async task resume payload ABI`，它是 `P7-T03` 上次记录的直接阻塞项修复；本轮继续完成 `P7-T03`，不切换到后续任务。
+- 已运行 `cargo test --all`，首轮失败：`scoopc --lib` 中 3 个 effect-lowered 单测缺少 `tests/fixtures/effect_lowered_src/*.scoop` fixture，6 个 HIR lowering golden 与当前输出不一致。
+- 已修正测试入口：effect-lowered 单测改为读取正式 `effect_lowered` phase fixture；HIR golden 单测改为通过 refactor typed HIR dump helper 生成当前默认路径输出，和 fixture harness 保持一致。
+- 定向验证通过：`cargo test -p scoopc --lib effect_lowered && cargo test -p scoopc --lib hir_fixture`。
+- 已运行 `cargo fmt --all`，并重跑 `cargo test --all` 通过。
+- 已运行 `cargo run -p scoop -- test`，当前失败在 `tests/fixtures/run-pass/async_await_string_basic.scoop`，默认 run-pass 退出码为 1。
+- 已定位并修复 `async_await_string_basic.scoop`：resume packing method 现在消费 authoritative continuation method reachability；unreachable packing method 只生成 unreachable shell，不再用 owner body 构造错误的 Step completion payload。
+- 已单独运行 `cargo run -p scoop -- run tests/fixtures/run-pass/async_await_string_basic.scoop`，输出 `body/awaited/hello`。
+- `async_await_string_basic.scoop` fixture harness 已通过；完整 `cargo run -p scoop -- test` 继续失败在 `tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`。
+- 已修复 `async_fun_task_runtime_basic.scoop`：async fun body 的显式 tail `return value` 现在在 task step closure 内规范化为 ready-value tail，非 tail return 规范化为 `return __task_step_ready(value)`，避免以原始 `Int` 从 `__TaskStepResult<Int>` closure 返回。
+- 已单独运行 `cargo run -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`，输出 `base/fetch/40/done/42`。
+- 相关定向验证通过：`cargo test -p scoopc --lib lower_typed_single_source_file_routes_async_step_payload_through_transport_carrier` 与 `async_fun_task_runtime_basic.scoop` fixture harness。
+- 完整 `cargo run -p scoop -- test` 继续失败在 `tests/fixtures/run-pass/bool_to_string_print_basic.scoop`，退出码为 1。
+- 已修复 `bool_to_string_print_basic.scoop`：effect-facts surface contract 现在能处理 flattened extension direct-call 形状，value primitive 支持 direct `scoop.core.toString(...)` 与 plain source-slice `String.concat` callable carrier。
+- 已单独运行 `cargo run -p scoop -- run tests/fixtures/run-pass/bool_to_string_print_basic.scoop`，输出与 golden 对齐。
+- `bool_to_string_print_basic.scoop` fixture harness 已通过；完整 `cargo run -p scoop -- test` 继续失败在 `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`。
+- 已单独定位 `callable_value_pattern_binder_receiver_named_args_basic.scoop`：它需要同时闭合 receiver function value、top-level callable value direct call、pattern binder function value、top-level `FunPtr` direct call、以及 GC-sensitive string receiver arg 求值期间的 callable carrier rooting。当前可执行程序仍会挂起，阻塞 P7-T03 full regression。
+- 已按 roadblock 规则新增前置任务 `P7-T02V`，并将 `P7-T03` 依赖改为 `P7-T02V`；`TODO.md` 已同步插入索引项。
+- 下一步审查工作区，提交本次阻塞记录与已完成的局部修复，然后停止。

@@ -9,7 +9,7 @@
 
 use std::collections::HashSet;
 
-use inkwell::types::{BasicTypeEnum, FunctionType};
+use inkwell::types::{BasicType, BasicTypeEnum, FunctionType};
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallSiteValue, FunctionValue, IntValue,
     PointerValue,
@@ -23,7 +23,7 @@ use crate::span::Span;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::mir_body::MirLocalSlot;
-use super::super::types::{CgTy, CgValue};
+use super::super::types::{CgTy, CgValue, IntTy};
 use super::super::{MainCodegen, sanitize_llvm_ident};
 use super::types::{
     RefactorAbiQuery, RefactorCallableEntryLayout, RefactorContinuationSurfaceResumeLayout,
@@ -110,6 +110,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         mir::MemberTarget::Fun { fqn } | mir::MemberTarget::ExtensionFun { fqn },
                     ) = &member.resolved
                     && self.is_unused_callee_ref(fqn)
+                {
+                    return Ok(());
+                }
+                if self.is_builtin_string_member_callee_statement(*target, rvalue, "concat")
+                    || self.is_builtin_string_member_callee_statement(*target, rvalue, "length")
                 {
                     return Ok(());
                 }
@@ -638,6 +643,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return self.codegen.coerce_value(span, string, target_cg);
         }
         if let mir::CallKind::FunValue { callee } = kind
+            && let Some(value) = self.lower_refactor_string_concat_call(span, callee, args)?
+        {
+            return self.codegen.coerce_value(span, value, target_cg);
+        }
+        if let mir::CallKind::FunValue { callee } = kind
+            && let Some(value) = self.lower_refactor_string_length_call(span, callee, args)?
+        {
+            return self.codegen.coerce_value(span, value, target_cg);
+        }
+        if let mir::CallKind::FunValue { callee } = kind
             && let Some(callee_fqn) = self.resolved_fun_value_callee_fqn(callee)
         {
             match callee_fqn {
@@ -720,6 +735,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_refactor_to_int_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
+        if callee_fqn == "scoop.core.toString" {
+            return self.lower_refactor_core_to_string_call(span, args, target_cg);
+        }
         if callee_fqn == "scoop.thread.yield" {
             if !args.is_empty() {
                 return Err(LlvmEmitError::UnsupportedMainBody {
@@ -748,16 +766,40 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots)?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        let sig_fun = self
-            .codegen
-            .fun_index
-            .get(callee_fqn)
-            .copied()
-            .ok_or_else(|| {
-                frontend_error(format!(
+        let sig_fun = match self.codegen.fun_index.get(callee_fqn).copied() {
+            Some(sig_fun) => sig_fun,
+            None => {
+                if let Some(value) =
+                    self.lower_top_level_funptr_direct_call(callee_fqn, span, args)?
+                {
+                    return Ok(value);
+                }
+                if let Some(callee_local) = self.top_level_callable_value_local(callee_fqn) {
+                    if let Some(fun_ty) = self.top_level_function_value_type(callee_fqn) {
+                        return self.codegen.codegen_mir_plain_function_value_call(
+                            span,
+                            &mir::Operand::Local(callee_local),
+                            args,
+                            &fun_ty,
+                            self.slots,
+                        );
+                    }
+                    return self.codegen.codegen_mir_plain_dynamic_call(
+                        span,
+                        &mir::CallKind::FunValue {
+                            callee: mir::Operand::Local(callee_local),
+                        },
+                        args,
+                        self.body,
+                        self.source_types,
+                        self.slots,
+                    );
+                }
+                return Err(frontend_error(format!(
                     "refactor pure statement call 缺少 callee `{callee_fqn}` 的 callable signature"
-                ))
-            })?;
+                )));
+            }
+        };
         if sig_fun.body.is_none() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor pure statement declaration-only direct call",
@@ -2187,6 +2229,265 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         None
     }
 
+    fn is_builtin_string_member_callee_statement(
+        &self,
+        target: LocalId,
+        value: &mir::Rvalue,
+        member_name: &str,
+    ) -> bool {
+        let mir::Rvalue::MemberAccess { member, .. } = value else {
+            return false;
+        };
+        if member.name != member_name
+            || self
+                .codegen
+                .cg_ty_of_mir_type(self.source_types, member.receiver_ty)
+                != Some(CgTy::String)
+        {
+            return false;
+        }
+        self.body.blocks.iter().any(|block| {
+            block.stmts.iter().any(|candidate| {
+                matches!(
+                    &candidate.kind,
+                    mir::StatementKind::Assign {
+                        value: mir::Rvalue::Call {
+                            kind: mir::CallKind::FunValue { callee: mir::Operand::Local(local) },
+                            ..
+                        },
+                        ..
+                    } if *local == target
+                )
+            })
+        })
+    }
+
+    fn string_concat_receiver(&self, callee: &mir::Operand) -> Option<mir::Operand> {
+        self.string_member_receiver(callee, "concat")
+    }
+
+    fn string_member_receiver(
+        &self,
+        callee: &mir::Operand,
+        member_name: &str,
+    ) -> Option<mir::Operand> {
+        let mir::Operand::Local(callee_local) = callee else {
+            return None;
+        };
+        self.body.blocks.iter().find_map(|block| {
+            block.stmts.iter().find_map(|stmt| {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    return None;
+                };
+                if target != callee_local {
+                    return None;
+                }
+                let mir::Rvalue::MemberAccess { receiver, member } = value else {
+                    return None;
+                };
+                (member.name == member_name
+                    && self
+                        .codegen
+                        .cg_ty_of_mir_type(self.source_types, member.receiver_ty)
+                        == Some(CgTy::String))
+                .then_some(receiver.clone())
+            })
+        })
+    }
+
+    fn top_level_callable_value_local(&self, callable_fqn: &str) -> Option<LocalId> {
+        self.body.blocks.iter().find_map(|block| {
+            block.stmts.iter().find_map(|stmt| {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    return None;
+                };
+                let mir::Rvalue::TopLevelRef(top_level) = value else {
+                    return None;
+                };
+                (top_level.fqn == callable_fqn).then_some(*target)
+            })
+        })
+    }
+
+    fn lower_top_level_funptr_direct_call(
+        &mut self,
+        callable_fqn: &str,
+        span: Span,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(fun_ty) = self.top_level_funptr_function_type(callable_fqn) else {
+            return Ok(None);
+        };
+        if !fun_ty.effects.is_pure() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level FunPtr effect-typed direct call",
+                at: span.into(),
+            });
+        }
+        let value = self
+            .codegen
+            .top_level_immutable_values
+            .get(callable_fqn)
+            .cloned()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level FunPtr value metadata",
+                at: span.into(),
+            })?;
+        let funptr = self
+            .codegen
+            .codegen_top_level_immutable_value_access(span, &value)?;
+        let Some(BasicValueEnum::IntValue(funptr_addr)) = funptr.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level FunPtr value",
+                at: span.into(),
+            });
+        };
+
+        let mut source_arg_tys = Vec::new();
+        if let Some(receiver_ty) = fun_ty.receiver {
+            source_arg_tys.push(("receiver".to_string(), receiver_ty));
+        }
+        source_arg_tys.extend(
+            fun_ty
+                .params
+                .iter()
+                .enumerate()
+                .map(|(index, ty)| (format!("a{index}"), *ty)),
+        );
+        if args.len() != source_arg_tys.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level FunPtr direct call arity",
+                at: span.into(),
+            });
+        }
+        let mut ordered_args = vec![None; source_arg_tys.len()];
+        let mut next_positional = 0usize;
+        for arg in args {
+            let index = if let Some(name) = &arg.name {
+                source_arg_tys
+                    .iter()
+                    .position(|(param_name, _)| param_name == name)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor top-level FunPtr named arg",
+                        at: arg.span.into(),
+                    })?
+            } else {
+                let index = next_positional;
+                next_positional += 1;
+                index
+            };
+            if index >= ordered_args.len() || ordered_args[index].replace(arg).is_some() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor top-level FunPtr arg mapping",
+                    at: arg.span.into(),
+                });
+            }
+        }
+
+        let mut llvm_param_tys = Vec::with_capacity(source_arg_tys.len());
+        let mut llvm_args =
+            Vec::<BasicMetadataValueEnum<'ctx>>::with_capacity(source_arg_tys.len());
+        for (index, (_, source_ty)) in source_arg_tys.iter().enumerate() {
+            let param_cg =
+                self.codegen
+                    .cg_ty_of(*source_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor top-level FunPtr param type",
+                        at: span.into(),
+                    })?;
+            llvm_param_tys.push(self.codegen.llvm_basic_type_of(span, param_cg)?.into());
+            let arg = ordered_args[index].ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level FunPtr missing arg",
+                at: span.into(),
+            })?;
+            let value = self.codegen.codegen_mir_operand_expected(
+                arg.span,
+                &arg.value,
+                self.slots,
+                Some(param_cg),
+            )?;
+            let value = self.codegen.coerce_value(arg.span, value, param_cg)?;
+            let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor top-level FunPtr arg value",
+                at: arg.span.into(),
+            })?;
+            llvm_args.push(raw.into());
+        }
+
+        let ret_cg =
+            self.codegen
+                .cg_ty_of(fun_ty.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor top-level FunPtr return type",
+                    at: span.into(),
+                })?;
+        let llvm_fun_ty = match ret_cg {
+            CgTy::Unit | CgTy::Never => self
+                .codegen
+                .context
+                .void_type()
+                .fn_type(&llvm_param_tys, false),
+            other => self
+                .codegen
+                .llvm_basic_type_of(span, other)?
+                .fn_type(&llvm_param_tys, false),
+        };
+        let fun_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
+        let typed_fn_ptr = self.codegen.builder.build_int_to_ptr(
+            funptr_addr,
+            fun_ptr_ty,
+            "refactor_top_level_funptr_typed",
+        )?;
+        let call_site = self.codegen.builder.build_indirect_call(
+            llvm_fun_ty,
+            typed_fn_ptr,
+            &llvm_args,
+            "refactor_top_level_funptr_call",
+        )?;
+        match ret_cg {
+            CgTy::Unit => Ok(Some(CgValue::unit())),
+            CgTy::Never => Ok(Some(CgValue::never())),
+            _ => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor top-level FunPtr return value",
+                        at: span.into(),
+                    },
+                )?;
+                Ok(Some(self.codegen.cg_value_from_loaded(span, ret_cg, raw)?))
+            }
+        }
+    }
+
+    fn top_level_funptr_function_type(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<crate::ty::FunctionType> {
+        let value = self.codegen.top_level_immutable_values.get(callable_fqn)?;
+        match self.codegen.types.kind(value.ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.unsafe.FunPtr" && nominal.args.len() == 1 =>
+            {
+                let TypeKind::Ref(RefTypeKind::Function(fun_ty)) =
+                    self.codegen.types.kind(nominal.args[0])
+                else {
+                    return None;
+                };
+                Some(fun_ty.clone())
+            }
+            _ => None,
+        }
+    }
+
+    fn top_level_function_value_type(&self, callable_fqn: &str) -> Option<crate::ty::FunctionType> {
+        let value = self.codegen.top_level_immutable_values.get(callable_fqn)?;
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.codegen.types.kind(value.ty) else {
+            return None;
+        };
+        Some(fun_ty.clone())
+    }
+
     fn unresolved_fun_value_callee_name(&self, callee: &mir::Operand) -> Option<String> {
         let mir::Operand::Local(callee_local) = callee else {
             return None;
@@ -2252,6 +2553,155 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "refactor_core_print",
         )?;
         Ok(Some(CgValue::unit()))
+    }
+
+    fn lower_refactor_string_concat_call(
+        &mut self,
+        span: Span,
+        callee: &mir::Operand,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(receiver) = self.string_concat_receiver(callee) else {
+            return Ok(None);
+        };
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive String.concat args",
+                at: span.into(),
+            });
+        }
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            span,
+            &receiver,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            span,
+            receiver,
+            "refactor value primitive String.concat receiver value",
+        )?;
+        let arg = &args[0];
+        let arg_value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let arg_ptr = self.string_like_pointer(
+            arg.span,
+            arg_value,
+            "refactor value primitive String.concat arg value",
+        )?;
+        let runtime = self.codegen.declare_runtime_string_concat();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into(), arg_ptr.into()],
+            "refactor_value_string_concat",
+        )?;
+        self.string_result_from_runtime_call(span, call, "String.concat")
+            .map(Some)
+    }
+
+    fn lower_refactor_string_length_call(
+        &mut self,
+        span: Span,
+        callee: &mir::Operand,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(receiver) = self.string_member_receiver(callee, "length") else {
+            return Ok(None);
+        };
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive String.length args",
+                at: span.into(),
+            });
+        }
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            span,
+            &receiver,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            span,
+            receiver,
+            "refactor value primitive String.length receiver value",
+        )?;
+        let runtime = self.codegen.declare_runtime_string_length();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into()],
+            "refactor_value_string_length",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor value primitive String.length return value",
+                at: span.into(),
+            })?;
+        Ok(Some(self.codegen.cg_value_from_loaded(
+            span,
+            CgTy::Int(IntTy {
+                bits: self.codegen.host.word_bit_width(),
+                signed: true,
+            }),
+            raw,
+        )?))
+    }
+
+    fn string_like_pointer(
+        &mut self,
+        span: Span,
+        value: CgValue<'ctx>,
+        kind: &'static str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let value = match value.ty {
+            CgTy::String | CgTy::Ref => value,
+            _ => self.codegen.coerce_value(span, value, CgTy::String)?,
+        };
+        let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            });
+        };
+        Ok(ptr)
+    }
+
+    fn lower_refactor_core_to_string_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core toString arg contract",
+                at: span.into(),
+            });
+        }
+        let arg = &args[0];
+        let arg_cg = self
+            .codegen
+            .mir_operand_cg_ty(self.body, self.source_types, &arg.value)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core toString arg type",
+                at: arg.span.into(),
+            })?;
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(arg_cg),
+        )?;
+        let value = self.codegen.coerce_value(arg.span, value, arg_cg)?;
+        let string = self.refactor_core_print_to_string(arg.span, value)?;
+        self.codegen.coerce_value(span, string, target_cg)
     }
 
     fn refactor_core_print_to_string(

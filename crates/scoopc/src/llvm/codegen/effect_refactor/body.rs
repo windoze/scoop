@@ -21,13 +21,14 @@ use crate::effect_lowered::ir::{
     LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
     LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
     LateLoweredCallable, LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
-    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
-    LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredOperandValueSource,
-    LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredResumePayloadBinding,
-    LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
-    LateLoweredStateTerminator, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
+    LateLoweredContinuationResumeBody, LateLoweredHandleBoundaryCaseRoutingAction,
+    LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion, LateLoweredOperandSource,
+    LateLoweredOperandValueSource, LateLoweredPlainBodySlice, LateLoweredPlainCallable,
+    LateLoweredResumePayloadBinding, LateLoweredSourceStatementClassificationKind,
+    LateLoweredState, LateLoweredStateRole, LateLoweredStateTerminator,
+    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
     LateLoweredSurfaceResumeDispatchPublication,
-    LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
+    LateLoweredSurfaceResumeWrapperCompletePayloadSource, ResumeInterfaceId, StateId,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
@@ -207,9 +208,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         method.case_tag().as_u32()
                     ))
                 })?;
+                if !resume_packing_method_is_reachable(
+                    program,
+                    interface.interface_id(),
+                    method.case_tag(),
+                ) {
+                    let mut child = self.fresh_child_codegen();
+                    child.codegen_refactor_unreachable_resume_method(
+                        method_layout.symbol_name(),
+                        method_layout.llvm_ty(),
+                    )?;
+                    continue;
+                }
                 let callable = program
-                    .callables()
-                    .iter()
+                .callables()
+                .iter()
                     .find(|callable| callable.body_step_schema() == Some(method.out_step_schema()))
                     .ok_or_else(|| frontend_error(format!(
                         "refactor body lowering 缺少 resume method case c{} 的 owner step schema s{} callable",
@@ -1240,6 +1253,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?
         .emit_resume_method(case_tag, resume_tuple_ty)?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        Ok(())
+    }
+
+    fn codegen_refactor_unreachable_resume_method(
+        &mut self,
+        symbol_name: &str,
+        fn_ty: inkwell::types::FunctionType<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let function = self
+            .module
+            .get_function(symbol_name)
+            .unwrap_or_else(|| self.module.add_function(symbol_name, fn_ty, None));
+        if function.count_basic_blocks() == 0 {
+            let entry = self.context.append_basic_block(function, "entry");
+            self.builder.position_at_end(entry);
+            self.builder.build_unreachable()?;
+        }
         Ok(())
     }
 
@@ -6559,6 +6589,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     variant.payload_anchor_name()
                 ))
             })?;
+            let expected_payload_ty = variant
+                .payload_ty()
+                .get_field_type_at_index(next_field)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor Step variant tag {} ({}) 缺少 payload field#{} layout",
+                        tag,
+                        variant.payload_anchor_name(),
+                        next_field
+                    ))
+                })?;
+            if payload.get_type() != expected_payload_ty {
+                return Err(frontend_error(format!(
+                    "refactor Step variant tag {} ({}) payload field#{} type drift: expected {:?}, got {:?}",
+                    tag,
+                    variant.payload_anchor_name(),
+                    next_field,
+                    expected_payload_ty,
+                    payload.get_type()
+                )));
+            }
             payload_value = self
                 .builder
                 .build_insert_value(
@@ -6703,6 +6754,24 @@ fn refactor_mir_callable<'a>(
                 "refactor body lowering 缺少 callable `{fqn}` 的 materialized MIR body"
             ))
         })
+}
+
+fn resume_packing_method_is_reachable(
+    program: &LateLoweredProgram,
+    interface_id: ResumeInterfaceId,
+    case_tag: CaseTag,
+) -> bool {
+    program.continuation_objects().iter().any(|object| {
+        object.implemented_packings().contains(&interface_id)
+            && object.methods().iter().any(|method| {
+                method.packing_interface_id() == interface_id
+                    && method.case_tag() == case_tag
+                    && matches!(
+                        method.body(),
+                        LateLoweredContinuationResumeBody::ResumeCapturedState { .. }
+                    )
+            })
+    })
 }
 
 fn boundary_site(boundary: &LateLoweredBoundary, expected: &str) -> Result<SiteId, LlvmEmitError> {

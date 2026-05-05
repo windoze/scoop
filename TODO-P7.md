@@ -417,6 +417,48 @@
   - 新增 `default_refactor_runs_async_await_task_resume_payload_cli`，覆盖默认 refactor `run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop` 的完整 stdout：`before` / `after` / `41` / `done` / `42`。
   - 验证通过：`cargo fmt --all`；`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`；`cargo test -p scoop --test p7_default_pipeline default_refactor_runs_async_await_task_resume_payload_cli -- --nocapture`；`cargo test -p scoop --test p7_default_pipeline`；`cargo test -p scoopc --lib refactor_llvm_continuation_protocol`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop`；`cargo check --all`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02V：修复默认 run-pass 暴露的 refactor callable-value receiver / pattern binder / FunPtr 阻塞
+
+- 参考：
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02g / P6-T02o
+  - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03e / P6-T03i
+  - [`TODO-P7.md`](./TODO-P7.md) P7-T03
+- 背景：
+  - 继续执行 P7-T03 的默认 `cargo run -p scoop -- test` 时，run-pass 阶段已推进到 callable-value 相关 fixture；
+  - `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop` 当前仍会在默认 refactor 生成的可执行程序中挂起，超过单 fixture 1 分钟限制；
+  - 该 fixture 同时覆盖顶层 callable value、顶层 pattern binder、局部 destructuring binder、`when` pattern binder、receiver function value named args 与 top-level `FunPtr` direct call，不能通过显式 legacy、跳过、缩小 fixture 或改弱调用形状绕过。
+
+- 必须实现的内容：
+  1. 闭合 receiver function value lowering。
+     - receiver lambda 的 `this` 必须在 HIR/MIR/closure codegen 中作为真实 callable 参数发布和消费；
+     - 不得把 `this` 留成 `Todo("unbound local ref")`，也不得只在局部 lambda 形状特判。
+  2. 闭合 top-level callable value direct-call handoff。
+     - 顶层 `val f: (...) -> ... = { ... }` 和顶层 pattern binder 产出的 function value 必须能作为 direct-call source 正确进入 refactor effect-facts 与 value lowering；
+     - callable carrier fallback 只能用于已发布的 plain callable/legacy HIR closure alias，不能隐藏 effectful callable 的 step contract。
+  3. 闭合 `FunPtr` top-level direct call。
+     - 顶层 `FunPtr<F>` direct call 的 surface effect row、named arg mapping、receiver 参数顺序与 native indirect call ABI 必须与局部 `FunPtr` 调用一致；
+     - effectful `FunPtr` 仍必须通过显式 effect contract，不得被当作 pure 普通函数调用。
+  4. 闭合 callable-value receiver/pattern binder 的 GC root 与 runtime 行为。
+     - 从 enum/tuple/pattern binder 取出的 closure/function value 在后续 GC-sensitive receiver/string arg 求值期间必须保持 rooted；
+     - 不得依赖 fixture 中“没有 GC”或禁用 root 检查。
+  5. 保持 `String.length` / `String.concat` / direct `toString` 等 builtin member/function-value 形状走 refactor-owned lowering，不回 legacy statement lowering。
+
+- 验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/receiver_function_value_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_direct_named_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_receiver_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`
+  - 修复后恢复执行 P7-T03 的完整标准矩阵。
+
+- 完成条件：
+  - 上述 callable-value / receiver / pattern binder / FunPtr fixtures 在省略 selector 的默认 refactor 路径下通过；
+  - 单个 fixture 不再挂起超过 1 分钟；
+  - 未引入 hidden legacy fallback、fixture 降级或 callable-value 特判。
+- 依赖：P7-T02U
+- 完成记录：
+  - 2026-05-05：执行 P7-T03 时暴露该阻塞项，已完成部分前置修复：effect-lowered 单测 phase 引用同步到正式 `effect_lowered`；HIR golden 单测改为消费默认 refactor typed HIR；async string / async fun 显式 return / bool toString / plain `String.concat` / receiver lambda `this` 参数等缺口已有局部修复与定向验证。当前仍阻塞在 `callable_value_pattern_binder_receiver_named_args_basic.scoop` 默认 refactor 可执行程序挂起，需要本任务继续闭合 callable-value receiver/pattern binder/FunPtr 的完整 runtime contract；本任务保持未完成。
+
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 
 - 参考：
@@ -473,7 +515,7 @@
   - `cargo test --all`、`scoop test`、`spec-fixtures check`、`clippy -D warnings` 在默认 refactor 主线下全部通过；
   - 回归修复没有通过恢复 legacy 默认值或 hidden fallback 达成；
   - 后续只剩 GC env 全开验证与 P7->P8 handoff 收口。
-- 依赖：P7-T02U
+- 依赖：P7-T02V
 - 完成记录：
   - 2026-05-05：首轮执行已通过 `cargo test --all`，并修复/同步了多个默认 full-regression 前置回归：refactor MIR/LLVM struct literal lowering、unsafe atomic load 与 nested member lvalue、`sizeOf` MIR intrinsic、array builder/Array size/get/set 与 `toInt` compiler intrinsic、过期 effect-facts/effect-lowered/HIR/MIR/mir_refactor generated snapshots、重复的 `effect_lowered_src` 未实现 phase，以及 `sysroot/task.scoop` 中 `__task_join<T>` 的显式不可达收口。当前标准 `scoop test` 继续阻塞在 `async_await_minimal_int_basic.scoop` 的 task/continuation resume payload 运行期语义，已新增 prerequisite `P7-T02U`；本任务保持未完成。
 

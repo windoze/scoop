@@ -1450,7 +1450,7 @@ mod tests {
     fn refactor_late_opt_preserves_dedicated_drop_state_paths() {
         let session = refactor_session();
         let source = load_fixture(
-            "effect_lowered_src",
+            "effect_lowered",
             "dropped_continuation_abandons_remaining_work.scoop",
         );
         let output = load_effect_lowered_stage_output_for_dump(&session, &source)

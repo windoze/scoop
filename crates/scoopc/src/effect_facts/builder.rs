@@ -177,26 +177,48 @@ impl EffectFactsTypeContext {
         explicit_arg_count: usize,
         has_receiver: bool,
     ) -> Option<&FunOverload> {
-        let overloads = &self.index.by_fqn.get(fqn)?.fun;
-        let mut exact = overloads.iter().filter(|overload| {
-            overload.sig.params.len() == explicit_arg_count
-                && overload.sig.receiver.is_some() == has_receiver
-        });
-        if let Some(first) = exact.next() {
-            return exact.next().is_none().then_some(first);
+        let mut matches = self.matching_fun_overloads(fqn, explicit_arg_count, has_receiver);
+        let first = matches.pop()?;
+        matches.is_empty().then_some(first)
+    }
+
+    fn matching_fun_overloads(
+        &self,
+        fqn: &str,
+        explicit_arg_count: usize,
+        has_receiver: bool,
+    ) -> Vec<&FunOverload> {
+        let Some(entry) = self.index.by_fqn.get(fqn) else {
+            return Vec::new();
+        };
+        let overloads = &entry.fun;
+        let exact = overloads
+            .iter()
+            .filter(|overload| {
+                overload.sig.params.len() == explicit_arg_count
+                    && overload.sig.receiver.is_some() == has_receiver
+            })
+            .collect::<Vec<_>>();
+        if !exact.is_empty() {
+            return exact;
         }
 
         if !has_receiver {
-            return None;
+            return overloads
+                .iter()
+                .filter(|overload| {
+                    overload.sig.receiver.is_some()
+                        && overload.sig.params.len().saturating_add(1) == explicit_arg_count
+                })
+                .collect();
         }
 
         // class/interface member fun 在索引里不一定把 owner 记作显式 receiver；对 declaration-only
         // member fallback surface contract，允许按 owner-qualified FQN + 参数个数直接匹配。
-        let mut relaxed = overloads
+        overloads
             .iter()
-            .filter(|overload| overload.sig.params.len() == explicit_arg_count);
-        let first = relaxed.next()?;
-        relaxed.next().is_none().then_some(first)
+            .filter(|overload| overload.sig.params.len() == explicit_arg_count)
+            .collect()
     }
 
     fn surface_callable_contract(
@@ -206,28 +228,38 @@ impl EffectFactsTypeContext {
         explicit_arg_count: usize,
         has_receiver: bool,
     ) -> Option<SurfaceCallableContract> {
-        let overload = self.select_fun_overload(fqn, explicit_arg_count, has_receiver)?;
-        let decl_source = self.env.source(&overload.symbol.decl_file)?;
-        let file_ctx = self.env.file_type_context(&overload.symbol.decl_file)?;
         let builtins = types.intern_builtins();
-        let mut lower = TypeLowering::new_with_ctx(
-            decl_source,
-            &self.index,
-            &self.env,
-            types,
-            builtins,
-            file_ctx.pkg_prefix.clone(),
-            file_ctx.imports.clone(),
-        );
-        let declared_row = lower
-            .lower_effect_row_expr_in_decl_file_with_scopes(
-                &overload.symbol.decl_file,
-                std::iter::empty::<(String, TypeId)>(),
-                std::iter::empty::<(String, EffectRow)>(),
-                overload.sig.effects.as_ref(),
-            )
-            .ok()?;
-        Some(SurfaceCallableContract { declared_row })
+        let mut terms = Vec::new();
+        let mut saw_match = false;
+        for overload in self.matching_fun_overloads(fqn, explicit_arg_count, has_receiver) {
+            saw_match = true;
+            let decl_source = self.env.source(&overload.symbol.decl_file)?;
+            let file_ctx = self.env.file_type_context(&overload.symbol.decl_file)?;
+            let mut lower = TypeLowering::new_with_ctx(
+                decl_source,
+                &self.index,
+                &self.env,
+                types,
+                builtins,
+                file_ctx.pkg_prefix.clone(),
+                file_ctx.imports.clone(),
+            );
+            let declared_row = lower
+                .lower_effect_row_expr_in_decl_file_with_scopes(
+                    &overload.symbol.decl_file,
+                    std::iter::empty::<(String, TypeId)>(),
+                    std::iter::empty::<(String, EffectRow)>(),
+                    overload.sig.effects.as_ref(),
+                )
+                .ok()?;
+            terms.extend(declared_row.terms);
+        }
+        if !saw_match {
+            return None;
+        }
+        Some(SurfaceCallableContract {
+            declared_row: EffectRow::new(terms),
+        })
     }
 }
 
@@ -1134,6 +1166,11 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
 
             let declared_row = if let Some(raw_fun) = self.raw_fun_by_fqn.get(callable_fqn) {
                 declared_effect_row(raw_fun, types)
+            } else if let Some(contract) = self.callable_value_surface_contract(types, callable_fqn)
+            {
+                contract.declared_row
+            } else if self.callable_value_reference_exists(callable_fqn) {
+                return Ok(self.dynamic_callable_value_fallback(kind, invoke_args_tuple_ty));
             } else {
                 self.type_ctx
                     .surface_callable_contract(
@@ -1176,6 +1213,10 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
 
         let declared_row = if let Some(raw_fun) = self.raw_fun_by_fqn.get(callable_fqn) {
             declared_effect_row(raw_fun, types)
+        } else if let Some(contract) = self.callable_value_surface_contract(types, callable_fqn) {
+            contract.declared_row
+        } else if self.callable_value_reference_exists(callable_fqn) {
+            return Ok(self.dynamic_callable_value_fallback(kind, invoke_args_tuple_ty));
         } else {
             self.type_ctx
                 .surface_callable_contract(
@@ -1338,6 +1379,57 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             });
         }
         Ok(EffectRow::new(terms))
+    }
+
+    fn callable_value_surface_contract(
+        &self,
+        types: &TypeStore,
+        callable_fqn: &str,
+    ) -> Option<SurfaceCallableContract> {
+        self.body().blocks.iter().find_map(|block| {
+            block.stmts.iter().find_map(|stmt| {
+                let StatementKind::Assign { target, value } = &stmt.kind else {
+                    return None;
+                };
+                let Rvalue::TopLevelRef(top_level) = value else {
+                    return None;
+                };
+                if top_level.fqn != callable_fqn {
+                    return None;
+                }
+                let local_ty = self.body().locals.get(target.as_u32() as usize)?.ty;
+                function_surface_contract_from_ty(types, local_ty)
+            })
+        })
+    }
+
+    fn callable_value_reference_exists(&self, callable_fqn: &str) -> bool {
+        self.body().blocks.iter().any(|block| {
+            block.stmts.iter().any(|stmt| {
+                matches!(
+                    &stmt.kind,
+                    StatementKind::Assign {
+                        value: Rvalue::TopLevelRef(top_level),
+                        ..
+                    } if top_level.fqn == callable_fqn
+                )
+            })
+        })
+    }
+
+    fn dynamic_callable_value_fallback(
+        &self,
+        kind: CallSiteKind,
+        invoke_args_tuple_ty: TypeId,
+    ) -> CallSiteEffectFacts {
+        CallSiteEffectFacts::new(
+            kind,
+            CallSiteTarget::DynamicFallback,
+            invoke_args_tuple_ty,
+            self.callable_step_schema,
+            self.schema_pool.full_case_set(self.callable_step_schema),
+            EffectPrecision::SignatureFallback,
+        )
     }
 
     fn known_callable_key(
@@ -2302,12 +2394,17 @@ fn function_surface_contract_from_ty(
     types: &TypeStore,
     ty: TypeId,
 ) -> Option<SurfaceCallableContract> {
-    let TypeKind::Ref(RefTypeKind::Function(function)) = types.kind(ty) else {
-        return None;
-    };
-    Some(SurfaceCallableContract {
-        declared_row: function.effects.clone(),
-    })
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Function(function)) => Some(SurfaceCallableContract {
+            declared_row: function.effects.clone(),
+        }),
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            if nominal.fqn == "scoop.unsafe.FunPtr" && nominal.args.len() == 1 =>
+        {
+            function_surface_contract_from_ty(types, nominal.args[0])
+        }
+        _ => None,
+    }
 }
 
 fn synthetic_continuation_object_ty(

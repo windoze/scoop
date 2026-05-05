@@ -873,6 +873,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(Some(symbol));
         }
+        if matches!(kind, RefactorCallableCarrierKind::ClosureObject)
+            && is_legacy_hir_closure_carrier_alias(callable_fqn)
+        {
+            return Ok(None);
+        }
         if self.refactor_callable_carrier_contract_enabled() {
             if self
                 .shared_caches
@@ -7937,6 +7942,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         inst.set_alignment(aligned)?;
         Ok(())
     }
+}
+
+fn is_legacy_hir_closure_carrier_alias(callable_fqn: &str) -> bool {
+    callable_fqn
+        .strip_prefix("scoop.lambda$")
+        .is_some_and(|suffix| !suffix.is_empty() && suffix.chars().all(|ch| ch.is_ascii_digit()))
 }
 
 fn string_literal_parse_reason(err: StringLiteralParseError) -> &'static str {

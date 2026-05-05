@@ -423,15 +423,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
     ) -> Result<ClosureParamBindings, LlvmEmitError> {
         let mut captures = closure.captures.clone();
+        let mut explicit_params = closure.params.clone();
         let receiver = if let Some(receiver_ty) = fun_ty.receiver {
-            let Some(receiver_idx) = captures.iter().position(|c| c.name == "this") else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "receiver lambda missing this binder",
-                    at: at.into(),
-                });
-            };
-            let receiver_capture = captures.remove(receiver_idx);
-            Some((receiver_capture.id, "this".to_string(), receiver_ty))
+            if let Some(receiver_idx) = explicit_params.iter().position(|p| p.name == "this") {
+                let receiver_param = explicit_params.remove(receiver_idx);
+                Some((receiver_param.id, "this".to_string(), receiver_ty))
+            } else {
+                let Some(receiver_idx) = captures.iter().position(|c| c.name == "this") else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "receiver lambda missing this binder",
+                        at: at.into(),
+                    });
+                };
+                let receiver_capture = captures.remove(receiver_idx);
+                Some((receiver_capture.id, "this".to_string(), receiver_ty))
+            }
         } else {
             None
         };
@@ -441,9 +447,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 说明：
         // - receiver function type 的 receiver 不出现在 lambda params 列表里；
         // - 因此这里始终只按“非 receiver 形参”做显式 params / 隐式 `it` 绑定。
-        if closure.params.len() == fun_ty.params.len() {
-            let params = closure
-                .params
+        if explicit_params.len() == fun_ty.params.len() {
+            let params = explicit_params
                 .iter()
                 .zip(fun_ty.params.iter())
                 .map(|(p, ty)| (p.id, p.name.clone(), *ty))
@@ -456,7 +461,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // 隐式 `it`：`{ body }` + expected `(T) -> R`
-        if closure.params.is_empty() && fun_ty.params.len() == 1 {
+        if explicit_params.is_empty() && fun_ty.params.len() == 1 {
             let Some(it_idx) = captures.iter().position(|c| c.name == "it") else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "implicit it lambda missing it binder",

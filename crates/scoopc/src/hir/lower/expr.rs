@@ -2845,35 +2845,43 @@ impl<'a> HirLowering<'a> {
             Some((ty, fun_ty.clone()))
         });
 
-        let params: Vec<Param> = lam
-            .params
-            .iter()
-            .enumerate()
-            .map(|(idx, p)| {
-                let name = p.name.text(self.source).to_string();
-                let ty =
-                    p.ty.as_ref()
-                        .map(|t| self.lower_type_ref(t))
-                        .or_else(|| {
-                            typechecked_fun_ty
-                                .as_ref()
-                                .and_then(|(_, fun_ty)| fun_ty.params.get(idx).copied())
-                        })
-                        .unwrap_or(self.builtins.any);
-                Param {
-                    span: p.name.span,
-                    id: self.intern_local_symbol(p.name.span, false),
-                    name,
-                    ty,
-                }
-            })
-            .collect();
-
         let receiver_this_decl_span = typechecked_fun_ty.as_ref().and_then(|(_, fun_ty)| {
             fun_ty
                 .receiver
                 .map(|_| ast::synthetic_lambda_receiver_this_decl_span(span))
         });
+        let mut params: Vec<Param> = receiver_this_decl_span
+            .and_then(|decl_span| {
+                typechecked_fun_ty
+                    .as_ref()
+                    .and_then(|(_, fun_ty)| fun_ty.receiver.map(|ty| (decl_span, ty)))
+            })
+            .map(|(decl_span, ty)| Param {
+                span: decl_span,
+                id: self.intern_local_symbol(decl_span, false),
+                name: "this".to_string(),
+                ty,
+            })
+            .into_iter()
+            .collect();
+        params.extend(lam.params.iter().enumerate().map(|(idx, p)| {
+            let name = p.name.text(self.source).to_string();
+            let ty =
+                p.ty.as_ref()
+                    .map(|t| self.lower_type_ref(t))
+                    .or_else(|| {
+                        typechecked_fun_ty
+                            .as_ref()
+                            .and_then(|(_, fun_ty)| fun_ty.params.get(idx).copied())
+                    })
+                    .unwrap_or(self.builtins.any);
+            Param {
+                span: p.name.span,
+                id: self.intern_local_symbol(p.name.span, false),
+                name,
+                ty,
+            }
+        }));
         let body = Box::new(match receiver_this_decl_span {
             Some(receiver_this_decl_span) => self
                 .with_lambda_this_decl_span(Some(receiver_this_decl_span), |this| {

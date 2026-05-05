@@ -1179,7 +1179,7 @@ fun main(): Int {
     #[test]
     fn refactor_dropped_continuation_uses_dedicated_drop_state_instead_of_cleanup() {
         let output = load_output(&load_fixture(
-            "effect_lowered_src",
+            "effect_lowered",
             "dropped_continuation_abandons_remaining_work.scoop",
         ));
         let callable = callable(&output, "sample.helper");
@@ -1215,7 +1215,7 @@ fun main(): Int {
     #[test]
     fn refactor_runtime_error_boundary_stays_inside_explicit_suspend_contract() {
         let output = load_output(&load_fixture(
-            "effect_lowered_src",
+            "effect_lowered",
             "continuation_resume_runtime_error_boundary.scoop",
         ));
         let callable = callable(&output, "sample.helper");

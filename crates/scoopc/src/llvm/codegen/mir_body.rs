@@ -4117,7 +4117,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn codegen_mir_plain_function_value_call(
+    pub(super) fn codegen_mir_plain_function_value_call(
         &mut self,
         span: crate::span::Span,
         callee: &crate::mir::Operand,
@@ -4134,6 +4134,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         };
+        let deferred_callee = self.defer_gc_ref_pointer(
+            span,
+            "refactor_plain_function_value_callee",
+            closure_obj_i8,
+        )?;
+        let closure_obj_i8 = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "refactor_plain_function_value_callee_reload",
+            &deferred_callee,
+        )?;
         self.codegen_mir_function_value_call_from_closure_obj(
             span,
             closure_obj_i8,
