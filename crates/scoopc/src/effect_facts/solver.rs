@@ -1224,10 +1224,10 @@ fn body_needs_plain_local_control(sites: &BTreeMap<SiteId, SiteEffectFacts>) -> 
             matches!(call.callee_abi_kind(), CallableAbiKind::EffectStep)
                 && !call.resolved_cases().is_empty()
         }
-        SiteEffectFacts::ClassCtor(_)
-        | SiteEffectFacts::Perform(_)
-        | SiteEffectFacts::Resume(_)
-        | SiteEffectFacts::Handle(_) => true,
+        SiteEffectFacts::ClassCtor(class_ctor) => !class_ctor.emitted_cases().is_empty(),
+        SiteEffectFacts::Perform(_) | SiteEffectFacts::Resume(_) | SiteEffectFacts::Handle(_) => {
+            true
+        }
     })
 }
 

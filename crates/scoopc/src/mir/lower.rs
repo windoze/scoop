@@ -56,6 +56,7 @@ pub(crate) struct MirLoweringFacts {
     when_pat_binding_tys: HashMap<Span, TypeId>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
     member_value_tys: HashMap<String, TypeId>,
+    continuation_identity_return_funs: HashMap<String, usize>,
 }
 
 impl Default for MirLoweringFacts {
@@ -73,6 +74,7 @@ impl Default for MirLoweringFacts {
             when_pat_binding_tys: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
             member_value_tys: HashMap::new(),
+            continuation_identity_return_funs: HashMap::new(),
         }
     }
 }
@@ -112,6 +114,7 @@ impl MirLoweringFacts {
             &lowered.top_level_fun_call_sites,
         )
         .with_member_value_types(lowered)
+        .with_continuation_identity_return_funs(lowered)
         .with_class_ctor_hidden_effects(lowered)
     }
 
@@ -140,6 +143,7 @@ impl MirLoweringFacts {
             .extend(lowered.top_level_fun_call_sites.clone());
         facts = facts
             .with_member_value_types(lowered)
+            .with_continuation_identity_return_funs(lowered)
             .with_class_ctor_hidden_effects(lowered);
 
         facts.with_refactor_typed_contracts(contracts)
@@ -220,6 +224,25 @@ impl MirLoweringFacts {
             for property in object.properties.values() {
                 self.member_value_tys
                     .insert(format!("{}.{}", object.fqn, property.name), property.ty);
+            }
+        }
+
+        self
+    }
+
+    fn with_continuation_identity_return_funs(mut self, lowered: &hir::LoweredHir) -> Self {
+        for item in &lowered.file.items {
+            if let hir::Item::Fun(fun) = item
+                && let Some(param_index) = continuation_identity_return_param(&lowered.types, fun)
+            {
+                self.continuation_identity_return_funs
+                    .insert(fun.fqn.clone(), param_index);
+            }
+        }
+        for fun in &lowered.member_funs {
+            if let Some(param_index) = continuation_identity_return_param(&lowered.types, fun) {
+                self.continuation_identity_return_funs
+                    .insert(fun.fqn.clone(), param_index);
             }
         }
 
@@ -339,6 +362,10 @@ impl MirLoweringFacts {
     ) -> Option<&ast::TopLevelFunCallBinding> {
         self.top_level_fun_call_sites
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
+    }
+
+    fn continuation_identity_return_param(&self, fqn: &str) -> Option<usize> {
+        self.continuation_identity_return_funs.get(fqn).copied()
     }
 
     fn legacy_resume_site_matches(&self, span: Span) -> bool {
@@ -1608,18 +1635,36 @@ impl<'a> FnLowering<'a> {
         expr: &hir::Expr,
     ) -> Result<Option<StoredContinuationValueRoute>, StoredContinuationRouteError> {
         if continuation_contract_from_type(self.types, expr.ty).is_some() {
-            let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind else {
-                return Ok(None);
-            };
-            let Some(local) = self.symbol_locals.get(id).copied() else {
-                return Err(StoredContinuationRouteError::MissingSourceLocal);
-            };
-            let source_ty = self.body.locals[local.as_u32() as usize].ty;
-            return Ok(Some(StoredContinuationValueRoute {
-                source_local: local,
-                source_ty,
-                path: Vec::new(),
-            }));
+            match &expr.kind {
+                hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                    let Some(local) = self.symbol_locals.get(id).copied() else {
+                        return Err(StoredContinuationRouteError::MissingSourceLocal);
+                    };
+                    let source_ty = self.body.locals[local.as_u32() as usize].ty;
+                    return Ok(Some(StoredContinuationValueRoute {
+                        source_local: local,
+                        source_ty,
+                        path: Vec::new(),
+                    }));
+                }
+                hir::ExprKind::Call { args, .. } => {
+                    if let Some(binding) = self
+                        .facts
+                        .top_level_fun_call_binding(self.source_path.as_path(), expr.span)
+                        && let Some(param_index) =
+                            self.facts.continuation_identity_return_param(&binding.fqn)
+                        && let Some(arg) = args.get(param_index)
+                    {
+                        let arg_expr = match arg {
+                            hir::CallArg::Positional(value) => value,
+                            hir::CallArg::Named { value, .. } => value,
+                        };
+                        return self.try_extract_stored_continuation_route(arg_expr);
+                    }
+                    return Ok(None);
+                }
+                _ => return Ok(None),
+            }
         }
 
         let hir::ExprKind::Call { callee, args } = &expr.kind else {
@@ -3614,6 +3659,27 @@ fn payload_tuple_ty_from_components(
         [] => Some(unit_ty),
         [single] => Some(*single),
         _ => Some(types.ty_tuple(components.to_vec())),
+    }
+}
+
+fn continuation_identity_return_param(types: &TypeStore, fun: &hir::FunDecl) -> Option<usize> {
+    continuation_contract_from_type(types, fun.return_ty)?;
+    let returned = block_identity_return_expr(fun.body.as_ref()?)?;
+    let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &returned.kind else {
+        return None;
+    };
+    let param_index = fun.params.iter().position(|param| param.id == *id)?;
+    continuation_contract_from_type(types, fun.params[param_index].ty)?;
+    Some(param_index)
+}
+
+fn block_identity_return_expr(block: &hir::Block) -> Option<&hir::Expr> {
+    let [stmt] = block.stmts.as_slice() else {
+        return None;
+    };
+    match &stmt.kind {
+        hir::StmtKind::Return { value: Some(value) } | hir::StmtKind::Expr(value) => Some(value),
+        _ => None,
     }
 }
 

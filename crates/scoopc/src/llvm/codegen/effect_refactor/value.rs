@@ -716,21 +716,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             return Ok(value);
         }
-        if callee_fqn == "scoop.core.__scoop_gc_collect" {
-            if !args.is_empty() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor gc collect arity mismatch",
-                    at: span.into(),
-                });
-            }
-            let runtime = self.codegen.declare_runtime_gc_collect_safepoint();
-            let _ = self.codegen.build_call_preserving_gc_local_roots(
-                span,
-                runtime,
-                &[],
-                "refactor_gc_collect_safepoint",
-            )?;
-            return Ok(CgValue::unit());
+        if let Some(value) = self.lower_refactor_gc_debug_intrinsic(span, callee_fqn, args)? {
+            return Ok(value);
         }
         if let Some(value) = self.lower_refactor_task_transport_intrinsic(
             span,
@@ -3047,10 +3034,162 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 "scoop.core.__scoop_print_string"
                     | "scoop.core.__scoop_println_string"
                     | "scoop.core.__scoop_gc_collect"
+                    | "scoop.core.__scoop_gc_debug_heap_object_count"
+                    | "scoop.core.__scoop_gc_debug_alloc_garbage"
+                    | "scoop.core.__scoop_stackmap_statepoint_smoke"
                     | "scoop.core.GC.handleNew"
                     | "scoop.core.GC.handleDrop"
                     | "scoop.core.__scoop_thread_spawn_join_resume_u64"
             )
+    }
+
+    fn lower_refactor_gc_debug_intrinsic(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        match callee_fqn {
+            "scoop.core.__scoop_gc_collect" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor gc collect arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let runtime = self.codegen.declare_runtime_gc_collect_safepoint();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[],
+                    "refactor_gc_collect_safepoint",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.core.__scoop_gc_debug_heap_object_count" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor gc heap object count arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let runtime = self.codegen.declare_runtime_gc_debug_heap_object_count();
+                let call = self.codegen.builder.build_call(
+                    runtime,
+                    &[],
+                    "refactor_gc_debug_heap_object_count",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor gc heap object count return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(raw_int) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor gc heap object count return type",
+                        at: span.into(),
+                    });
+                };
+                let from = IntTy {
+                    bits: 64,
+                    signed: false,
+                };
+                let to = IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: true,
+                };
+                let casted = self.codegen.cast_int(raw_int, from, to)?;
+                Ok(Some(CgValue::int(casted, to)))
+            }
+            "scoop.core.__scoop_gc_debug_alloc_garbage" => {
+                if args.len() != 1 || args[0].name.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor gc debug alloc garbage arg contract",
+                        at: span.into(),
+                    });
+                }
+                let value_word = IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: true,
+                };
+                let value = self.codegen.codegen_mir_operand_expected(
+                    args[0].span,
+                    &args[0].value,
+                    self.slots,
+                    Some(CgTy::Int(value_word)),
+                )?;
+                let value =
+                    self.codegen
+                        .coerce_value(args[0].span, value, CgTy::Int(value_word))?;
+                let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor gc debug alloc garbage count value",
+                    at: args[0].span.into(),
+                })?;
+                let to = IntTy {
+                    bits: 64,
+                    signed: true,
+                };
+                let count_i64 = self.codegen.cast_int(raw, from, to)?;
+                let runtime = self.codegen.declare_runtime_gc_debug_alloc_garbage();
+                let _ = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[count_i64.into()],
+                    "refactor_gc_debug_alloc_garbage",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.core.__scoop_stackmap_statepoint_smoke" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor stackmap statepoint smoke arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let current_fun = self
+                    .codegen
+                    .builder
+                    .get_insert_block()
+                    .and_then(|bb| bb.get_parent())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor stackmap statepoint smoke caller function",
+                        at: span.into(),
+                    })?;
+                current_fun.set_gc("statepoint-example");
+
+                let runtime = self.codegen.declare_runtime_stackmap_statepoint_smoke();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[],
+                    "refactor_stackmap_statepoint_smoke",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor stackmap statepoint smoke return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(raw_int) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor stackmap statepoint smoke return type",
+                        at: span.into(),
+                    });
+                };
+                let from = IntTy {
+                    bits: 64,
+                    signed: true,
+                };
+                let to = IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: true,
+                };
+                let casted = self.codegen.cast_int(raw_int, from, to)?;
+                Ok(Some(CgValue::int(casted, to)))
+            }
+            _ => Ok(None),
+        }
     }
 
     fn pack_refactor_call_args(

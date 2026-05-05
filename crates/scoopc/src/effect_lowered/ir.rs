@@ -1467,10 +1467,19 @@ fn build_surface_resume_wrapper_projection(
     step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
 ) -> Option<LateLoweredSurfaceResumeWrapperProjection> {
     let underlying_route = lowering.operand_contract().underlying_continuation_route();
-    let owner_step = step_types_by_schema.get(&callable.step_schema()).copied()?;
     let wrapper_step = step_types_by_schema
         .get(&lowering.facts().out_step_schema())
         .copied()?;
+    let owner_step_schema =
+        if underlying_route.continuation_schema() == lowering.facts().continuation_schema() {
+            callable.step_schema()
+        } else {
+            continuation_owner_step_schema(
+                step_types_by_schema,
+                underlying_route.continuation_schema(),
+            )?
+        };
+    let owner_step = step_types_by_schema.get(&owner_step_schema).copied()?;
     if underlying_route.continuation_schema() == lowering.facts().continuation_schema()
         && owner_step.step_schema() == wrapper_step.step_schema()
     {
@@ -1482,10 +1491,14 @@ fn build_surface_resume_wrapper_projection(
         .iter()
         .map(|forwarding| {
             let wrapper_case = wrapper_step.case(forwarding.input_case_tag())?;
+            let owner_case = owner_step
+                .cases()
+                .iter()
+                .find(|case| case.concrete_op_key() == forwarding.input_concrete_op_key())?;
             Some(LateLoweredSurfaceResumeWrapperCaseProjection::new(
-                forwarding.emission().case_tag(),
-                forwarding.emission().concrete_op_key().clone(),
-                forwarding.emission().payload_tuple_ty(),
+                owner_case.case_tag(),
+                owner_case.concrete_op_key().clone(),
+                owner_case.payload_tuple_ty(),
                 forwarding.input_case_tag(),
                 forwarding.input_concrete_op_key().clone(),
                 wrapper_case.payload_tuple_ty(),
@@ -1511,6 +1524,19 @@ fn build_surface_resume_wrapper_projection(
         ),
         outward_cases,
     ))
+}
+
+fn continuation_owner_step_schema(
+    step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
+    continuation_schema: ContinuationSchemaId,
+) -> Option<StepSchemaId> {
+    step_types_by_schema.values().find_map(|step_type| {
+        step_type
+            .cases()
+            .iter()
+            .any(|case| case.continuation_schema() == continuation_schema)
+            .then_some(step_type.step_schema())
+    })
 }
 
 fn same_surface_resume_wrapper_projection_shape(

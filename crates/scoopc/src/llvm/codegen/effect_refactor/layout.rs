@@ -1544,8 +1544,42 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         }
         let mut resume_boundary_sites = BTreeSet::new();
         let mut handle_binder_routes = BTreeSet::new();
+        let underlying_wrapper_route = entry.wrapper_projection().and_then(|projection| {
+            (projection.underlying_route().continuation_schema() != entry.continuation_schema())
+                .then_some(projection.underlying_route())
+        });
+
+        if let Some(route) = underlying_wrapper_route {
+            match route.publication() {
+                LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                    owner_version_key: published_owner,
+                    owner_continuation_object: published_object,
+                    site_id,
+                } => {
+                    owner_version_key = Some(published_owner.clone());
+                    owner_continuation_object = Some(*published_object);
+                    resume_boundary_sites.insert(*site_id);
+                }
+                LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                    owner_version_key: published_owner,
+                    owner_continuation_object: published_object,
+                    site_id,
+                    arm_ordinal,
+                    handled_case,
+                } => {
+                    owner_version_key = Some(published_owner.clone());
+                    owner_continuation_object = Some(*published_object);
+                    handle_binder_routes.insert((*site_id, *arm_ordinal, *handled_case));
+                }
+                LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. }
+                | LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. } => {}
+            }
+        }
 
         for publication in entry.publications() {
+            if underlying_wrapper_route.is_some() {
+                continue;
+            }
             match publication {
                 LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
                     owner_version_key: published_owner,
@@ -1629,32 +1663,41 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 entry.continuation_schema().as_u32(),
             ))
         })?;
-        match entry.source_kind() {
-            crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
-                if resume_boundary_sites.is_empty() =>
-            {
+        if underlying_wrapper_route.is_some() {
+            if resume_boundary_sites.is_empty() && handle_binder_routes.is_empty() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 ResumeBoundaryOnly，但 owner trampoline contract 缺少 resume boundary site",
+                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 cross-owner wrapper projection 缺少 underlying owner route",
                     entry.continuation_schema().as_u32(),
                 )));
             }
-            crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly
-                if handle_binder_routes.is_empty() =>
-            {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 HandleContinuationBinderOnly，但 owner trampoline contract 缺少 handle binder route",
-                    entry.continuation_schema().as_u32(),
-                )));
+        } else {
+            match entry.source_kind() {
+                crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
+                    if resume_boundary_sites.is_empty() =>
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 ResumeBoundaryOnly，但 owner trampoline contract 缺少 resume boundary site",
+                        entry.continuation_schema().as_u32(),
+                    )));
+                }
+                crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly
+                    if handle_binder_routes.is_empty() =>
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 HandleContinuationBinderOnly，但 owner trampoline contract 缺少 handle binder route",
+                        entry.continuation_schema().as_u32(),
+                    )));
+                }
+                crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
+                    if resume_boundary_sites.is_empty() || handle_binder_routes.is_empty() =>
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 OwnerTrampolineMixed，但 owner trampoline contract 未同时覆盖 resume boundary 与 handle binder route",
+                        entry.continuation_schema().as_u32(),
+                    )));
+                }
+                _ => {}
             }
-            crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
-                if resume_boundary_sites.is_empty() || handle_binder_routes.is_empty() =>
-            {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 OwnerTrampolineMixed，但 owner trampoline contract 未同时覆盖 resume boundary 与 handle binder route",
-                    entry.continuation_schema().as_u32(),
-                )));
-            }
-            _ => {}
         }
 
         let owner_callable = self
@@ -1800,7 +1843,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
     ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
         let underlying_route = lowering.operand_contract().underlying_continuation_route();
-        let owner_step = self
+        let callable_owner_step = self
             .program
             .step_type(owner_callable.step_schema())
             .ok_or_else(|| {
@@ -1821,7 +1864,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?;
         if underlying_route.continuation_schema() == entry.continuation_schema()
-            && owner_step.step_schema() == wrapper_step.step_schema()
+            && callable_owner_step.step_schema() == wrapper_step.step_schema()
         {
             return Ok(None);
         }
@@ -1835,17 +1878,19 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     underlying_route.continuation_schema().as_u32(),
                 ))
             })?;
-        if underlying_route.continuation_schema() != entry.continuation_schema()
-            && underlying_inventory.contract().out_step_schema() != owner_step.step_schema()
-        {
-            return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection underlying route k{} 漂移：underlying owner step=s{}，callable owner step=s{}",
+        let owner_step_schema =
+            if underlying_route.continuation_schema() == entry.continuation_schema() {
+                callable_owner_step.step_schema()
+            } else {
+                underlying_inventory.contract().out_step_schema()
+            };
+        let owner_step = self.program.step_type(owner_step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 continuation schema k{} wrapper projection underlying owner step schema s{}",
                 entry.continuation_schema().as_u32(),
-                underlying_route.continuation_schema().as_u32(),
-                underlying_inventory.contract().out_step_schema().as_u32(),
-                owner_step.step_schema().as_u32(),
-            )));
-        }
+                owner_step_schema.as_u32(),
+            ))
+        })?;
 
         let outward_cases = lowering
             .dispatch()
@@ -1872,10 +1917,22 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         wrapper_case.concrete_op_key().instance_key().template.fqn,
                     )));
                 }
+                let owner_case = owner_step
+                    .cases()
+                    .iter()
+                    .find(|case| case.concrete_op_key() == forwarding.input_concrete_op_key())
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 缺少 owner step s{} op={} case",
+                            entry.continuation_schema().as_u32(),
+                            owner_step.step_schema().as_u32(),
+                            forwarding.input_concrete_op_key().instance_key().template.fqn,
+                        ))
+                    })?;
                 Ok(LateLoweredSurfaceResumeWrapperCaseProjection::new(
-                    forwarding.emission().case_tag(),
-                    forwarding.emission().concrete_op_key().clone(),
-                    forwarding.emission().payload_tuple_ty(),
+                    owner_case.case_tag(),
+                    owner_case.concrete_op_key().clone(),
+                    owner_case.payload_tuple_ty(),
                     forwarding.input_case_tag(),
                     forwarding.input_concrete_op_key().clone(),
                     wrapper_case.payload_tuple_ty(),
@@ -4569,8 +4626,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     )));
                 }
 
-                let expected_pending_outward =
-                    collect_handle_contract_pending_outward_cases(contract);
+                let expected_pending_outward = if finally_state.is_some() {
+                    collect_handle_contract_pending_outward_cases(contract)
+                } else {
+                    BTreeSet::new()
+                };
                 let published_pending_outward = contract
                     .pending_completions()
                     .iter()
@@ -4943,7 +5003,15 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         BTreeMap<LateLoweredHandlePendingCompletion, RefactorHandlePendingPayloadTransportLayout>,
         LlvmEmitError,
     > {
-        let expected_pending_cases = collect_handle_contract_pending_outward_cases(contract);
+        let expected_pending_cases = contract
+            .pending_completions()
+            .iter()
+            .filter_map(|pending| match pending {
+                LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) => Some(*case_tag),
+                LateLoweredHandlePendingCompletion::ContinueToExit
+                | LateLoweredHandlePendingCompletion::ReturnFromFunction => None,
+            })
+            .collect::<BTreeSet<_>>();
         let mut published_pending_cases = BTreeSet::new();
         let mut layouts = BTreeMap::new();
 

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 use crate::effect_facts::{
     CallableAbiKind, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
@@ -18,7 +18,8 @@ use super::ir::{
     LateLoweredResumeStateMap, LateLoweredStateGraph,
 };
 use super::materialize::{
-    BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs, StepMaterialization,
+    BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs,
+    ContinuationRouteOwnerPlan, StepMaterialization, build_cross_callable_continuation_provenance,
     materialize_boundary_map, materialize_completion_payload_bindings,
     materialize_continuation_object, materialize_dynamic_invoke_entry,
     materialize_resume_payload_bindings, materialize_source_statement_classifications,
@@ -58,6 +59,14 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             resume_packing_ids_by_group,
         } = materialize_step_and_resume_interfaces(effect_facts)?;
 
+        let continuation_route_owner_plans =
+            plan_continuation_route_owners(&pass_view, effect_facts);
+        let cross_callable_continuation_provenance = build_cross_callable_continuation_provenance(
+            &pass_view,
+            effect_facts,
+            &continuation_route_owner_plans,
+        )?;
+
         let mut continuation_objects = Vec::with_capacity(effect_facts.callable_facts().len());
         let mut callables = Vec::with_capacity(effect_facts.callable_facts().len());
 
@@ -96,6 +105,9 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     resume_packing_ids_by_group: &resume_packing_ids_by_group,
                     continuation_object_id: ContinuationObjectId::new(
                         continuation_objects.len() as u32
+                    ),
+                    cross_callable_continuation_provenance: Some(
+                        &cross_callable_continuation_provenance,
                     ),
                     types,
                 })?;
@@ -200,6 +212,9 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                         continuation_object: continuation_object_id,
                         step_types: &step_types,
                         types,
+                        cross_callable_continuation_provenance: Some(
+                            &cross_callable_continuation_provenance,
+                        ),
                     })?
                 }
                 None => super::materialize::BoundaryMaterialization {
@@ -283,6 +298,45 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     })
 }
 
+fn plan_continuation_route_owners(
+    pass_view: &MaterializedMirPassView<'_>,
+    effect_facts: &MaterializedEffectFacts,
+) -> HashMap<String, ContinuationRouteOwnerPlan> {
+    let mut plans = HashMap::new();
+    let mut next_object_id = 0u32;
+
+    for family in pass_view.instances() {
+        let Some(callable_facts) = effect_facts.callable_facts().get(family.key()) else {
+            continue;
+        };
+        let body_version_key = LateLoweredBodyVersionKey::new(
+            family.key().clone(),
+            callable_facts.declared_row().clone(),
+            callable_facts.impl_plan(),
+            callable_facts.needs_reentry(),
+        );
+        let needs_continuation_object = match callable_facts.call_abi_kind() {
+            CallableAbiKind::EffectStep => true,
+            CallableAbiKind::Plain => effect_facts
+                .body(family.key())
+                .is_some_and(plain_body_has_local_effect_control),
+        };
+        if !needs_continuation_object {
+            continue;
+        }
+        plans.insert(
+            family.root_fqn().to_string(),
+            ContinuationRouteOwnerPlan::new(
+                body_version_key,
+                ContinuationObjectId::new(next_object_id),
+            ),
+        );
+        next_object_id = next_object_id.saturating_add(1);
+    }
+
+    plans
+}
+
 struct PlainCallableBuildInputs<'a> {
     root_fqn: &'a str,
     body_version_key: &'a LateLoweredBodyVersionKey,
@@ -299,6 +353,8 @@ struct PlainCallableBuildInputs<'a> {
         crate::effect_lowered::ir::ResumeInterfaceId,
     >,
     continuation_object_id: ContinuationObjectId,
+    cross_callable_continuation_provenance:
+        Option<&'a super::materialize::CrossCallableContinuationProvenance>,
     types: &'a TypeStore,
 }
 
@@ -320,6 +376,7 @@ fn build_plain_callable_abi(
         resume_packing_ids_by_step,
         resume_packing_ids_by_group,
         continuation_object_id,
+        cross_callable_continuation_provenance,
         types,
     } = inputs;
     let body_slices = fun.body.as_ref().map(plain_body_slices).unwrap_or_default();
@@ -344,6 +401,7 @@ fn build_plain_callable_abi(
                 resume_packing_ids_by_step,
                 resume_packing_ids_by_group,
                 continuation_object_id,
+                cross_callable_continuation_provenance,
                 types,
                 return_ty: fun.return_ty,
             })?,
@@ -385,6 +443,8 @@ struct PlainLocalEffectControlBuildInputs<'a> {
         crate::effect_lowered::ir::ResumeInterfaceId,
     >,
     continuation_object_id: ContinuationObjectId,
+    cross_callable_continuation_provenance:
+        Option<&'a super::materialize::CrossCallableContinuationProvenance>,
     types: &'a TypeStore,
     return_ty: crate::ty::TypeId,
 }
@@ -407,6 +467,7 @@ fn build_plain_local_effect_control(
         resume_packing_ids_by_step,
         resume_packing_ids_by_group,
         continuation_object_id,
+        cross_callable_continuation_provenance,
         types,
         return_ty,
     } = inputs;
@@ -471,6 +532,7 @@ fn build_plain_local_effect_control(
         continuation_object: continuation_object_id,
         step_types,
         types,
+        cross_callable_continuation_provenance,
     })?;
     let state_graph = boundary_map.state_graph;
     let boundary_map = boundary_map.boundary_map;

@@ -4572,12 +4572,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 }
                 None => None,
             };
+            let continuation_for_binder = if call_lowering.is_some() {
+                composition.map(|_| callee_continuation)
+            } else {
+                Some(callee_continuation)
+            };
             self.emit_or_consume_outward_case(
                 boundary,
                 output_case,
                 payload,
                 payload_ty,
-                composition.map(|_| callee_continuation),
+                continuation_for_binder,
                 composition,
             )?;
         }
@@ -4701,7 +4706,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         callee_continuation: Option<PointerValue<'ctx>>,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<(), LlvmEmitError> {
-        if callee_continuation.is_some() != composition.is_some() {
+        if composition.is_some() && callee_continuation.is_none() {
             return Err(frontend_error(format!(
                 "refactor boundary bd{} case c{} 的 callee continuation 与 composition contract 不一致",
                 boundary.boundary_id().as_u32(),
@@ -4712,11 +4717,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         match self.handle_boundary_action(boundary.boundary_id(), case_tag)? {
             Some(RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action)) => {
                 if let Some(binder) = action.continuation_binder {
-                    let continuation = self.create_continuation_object(
-                        boundary.resume_state(),
-                        callee_continuation,
-                        composition,
-                    )?;
+                    let continuation = if composition.is_some() {
+                        self.create_continuation_object(
+                            boundary.resume_state(),
+                            callee_continuation,
+                            composition,
+                        )?
+                    } else if let Some(callee_continuation) = callee_continuation {
+                        callee_continuation
+                    } else {
+                        self.create_continuation_object(boundary.resume_state(), None, None)?
+                    };
                     self.store_gc_ref_to_binder(binder, continuation)?;
                 }
                 self.store_case_payload_to_arm_binders(
@@ -5314,12 +5325,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     RefactorHandleBoundaryRuntimeAction::EmitOutward
                 }
             };
-            if matched.replace(action).is_some() {
-                return Err(frontend_error(format!(
-                    "refactor boundary bd{} case c{} 命中多个 HandleDispatch routing contract",
-                    boundary_id.as_u32(),
-                    case_tag.as_u32()
-                )));
+            match (&matched, &action) {
+                (None, _) => matched = Some(action),
+                (Some(RefactorHandleBoundaryRuntimeAction::EmitOutward), _) => {
+                    matched = Some(action)
+                }
+                (_, RefactorHandleBoundaryRuntimeAction::EmitOutward) => {}
+                (Some(_), _) => {
+                    return Err(frontend_error(format!(
+                        "refactor boundary bd{} case c{} 命中多个 HandleDispatch routing contract",
+                        boundary_id.as_u32(),
+                        case_tag.as_u32()
+                    )));
+                }
             }
         }
         Ok(matched)

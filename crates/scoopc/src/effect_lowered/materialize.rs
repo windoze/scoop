@@ -7,9 +7,10 @@ use crate::effect_facts::{
     StepSchemaId,
 };
 use crate::mir::{
-    BasicBlockId, Body, CallArg, CallKind, LocalId, MemberAccessMetadata, MemberTarget, Operand,
-    PatternBindingStep, PerformArg, ResumeMetadata, Rvalue, SiteId, StatementKind,
-    StoredContinuationRoutePublication, TerminatorKind,
+    BasicBlockId, Body, CallArg, CallKind, LocalId, MaterializedMirPassView, MemberAccessMetadata,
+    MemberTarget, Operand, PatternBindingStep, PerformArg, ResumeMetadata, Rvalue, SiteId,
+    StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute,
+    TerminatorKind,
 };
 use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
@@ -66,6 +67,48 @@ pub(crate) struct BoundaryMaterializationInputs<'a> {
     pub(crate) continuation_object: ContinuationObjectId,
     pub(crate) step_types: &'a [LateLoweredStepType],
     pub(crate) types: &'a TypeStore,
+    pub(crate) cross_callable_continuation_provenance:
+        Option<&'a CrossCallableContinuationProvenance>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ContinuationRouteOwnerPlan {
+    owner_version_key: LateLoweredBodyVersionKey,
+    continuation_object: ContinuationObjectId,
+}
+
+impl ContinuationRouteOwnerPlan {
+    pub(crate) fn new(
+        owner_version_key: LateLoweredBodyVersionKey,
+        continuation_object: ContinuationObjectId,
+    ) -> Self {
+        Self {
+            owner_version_key,
+            continuation_object,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CrossCallableContinuationProvenance {
+    member_routes_by_callee: HashMap<String, Vec<CrossCallableContinuationMemberRoute>>,
+}
+
+impl CrossCallableContinuationProvenance {
+    fn routes_for_callee(&self, callee_fqn: &str) -> &[CrossCallableContinuationMemberRoute] {
+        self.member_routes_by_callee
+            .get(callee_fqn)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CrossCallableContinuationMemberRoute {
+    param_index: usize,
+    member: ContinuationMemberIdentityKey,
+    path: Vec<PatternBindingStep>,
+    route: LateLoweredContinuationRoute,
 }
 
 pub(crate) struct ContinuationObjectMaterializationInputs<'a> {
@@ -171,7 +214,28 @@ enum LocalContinuationOrigin {
 #[derive(Default)]
 struct PublishedContinuationProvenance {
     local_origins: HashMap<LocalId, Vec<LocalContinuationOrigin>>,
-    member_store_routes: HashMap<ContinuationMemberKey, Vec<StoredContinuationRoutePublication>>,
+    member_store_routes: HashMap<ContinuationMemberKey, Vec<PublishedMemberStoreRoute>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PublishedMemberStoreRoute {
+    None,
+    Ambiguous,
+    Unique(StoredContinuationValueRoute),
+    Resolved {
+        path: Vec<PatternBindingStep>,
+        route: LateLoweredContinuationRoute,
+    },
+}
+
+impl PublishedMemberStoreRoute {
+    fn from_mir(publication: StoredContinuationRoutePublication) -> Self {
+        match publication {
+            StoredContinuationRoutePublication::None => Self::None,
+            StoredContinuationRoutePublication::Ambiguous => Self::Ambiguous,
+            StoredContinuationRoutePublication::Unique(route) => Self::Unique(route),
+        }
+    }
 }
 
 impl PublishedContinuationProvenance {
@@ -181,6 +245,7 @@ impl PublishedContinuationProvenance {
         body_facts: &BodyEffectFacts,
         owner_version_key: &LateLoweredBodyVersionKey,
         continuation_object: ContinuationObjectId,
+        cross_callable: Option<&CrossCallableContinuationProvenance>,
     ) -> Result<Self, EffectLoweringError> {
         let mut provenance = Self::default();
 
@@ -267,7 +332,9 @@ impl PublishedContinuationProvenance {
                                 member,
                             ))
                             .or_default()
-                            .push(continuation_route.clone());
+                            .push(PublishedMemberStoreRoute::from_mir(
+                                continuation_route.clone(),
+                            ));
                     }
                     StatementKind::Nop
                     | StatementKind::Todo(_)
@@ -275,6 +342,10 @@ impl PublishedContinuationProvenance {
                     | StatementKind::StoreMember { .. } => {}
                 }
             }
+        }
+
+        if let Some(cross_callable) = cross_callable {
+            provenance.add_cross_callable_member_routes(body, cross_callable);
         }
 
         for block in &body.blocks {
@@ -310,6 +381,47 @@ impl PublishedContinuationProvenance {
         }
 
         Ok(provenance)
+    }
+
+    fn add_cross_callable_member_routes(
+        &mut self,
+        body: &Body,
+        cross_callable: &CrossCallableContinuationProvenance,
+    ) {
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let StatementKind::Assign {
+                    value:
+                        Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            args,
+                            ..
+                        },
+                    ..
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                for route in cross_callable.routes_for_callee(callee_fqn) {
+                    let Some(arg) = args.get(route.param_index) else {
+                        continue;
+                    };
+                    let Operand::Local(receiver_local) = &arg.value else {
+                        continue;
+                    };
+                    let key = ContinuationMemberKey {
+                        receiver_local: *receiver_local,
+                        member: route.member.clone(),
+                    };
+                    self.member_store_routes.entry(key).or_default().push(
+                        PublishedMemberStoreRoute::Resolved {
+                            path: route.path.clone(),
+                            route: route.route.clone(),
+                        },
+                    );
+                }
+            }
+        }
     }
 
     fn resolve_resume_local_route(
@@ -431,11 +543,11 @@ impl PublishedContinuationProvenance {
         let mut saw_matching_publication = false;
         for publication in publications {
             match publication {
-                StoredContinuationRoutePublication::None => {}
-                StoredContinuationRoutePublication::Ambiguous => {
+                PublishedMemberStoreRoute::None => {}
+                PublishedMemberStoreRoute::Ambiguous => {
                     saw_ambiguous_publication = true;
                 }
-                StoredContinuationRoutePublication::Unique(route) if route.path == path => {
+                PublishedMemberStoreRoute::Unique(route) if route.path == path => {
                     saw_matching_publication = true;
                     let source_routes = self.resolve_local_routes(
                         root_fqn,
@@ -462,7 +574,15 @@ impl PublishedContinuationProvenance {
                         push_unique_route(&mut routes, source_route);
                     }
                 }
-                StoredContinuationRoutePublication::Unique(_) => {}
+                PublishedMemberStoreRoute::Resolved {
+                    path: route_path,
+                    route,
+                } if route_path == path => {
+                    saw_matching_publication = true;
+                    push_unique_route(&mut routes, route.clone());
+                }
+                PublishedMemberStoreRoute::Unique(_)
+                | PublishedMemberStoreRoute::Resolved { .. } => {}
             }
         }
 
@@ -495,6 +615,76 @@ impl PublishedContinuationProvenance {
 
         Ok(routes)
     }
+}
+
+pub(crate) fn build_cross_callable_continuation_provenance(
+    pass_view: &MaterializedMirPassView<'_>,
+    effect_facts: &MaterializedEffectFacts,
+    owner_plans: &HashMap<String, ContinuationRouteOwnerPlan>,
+) -> Result<CrossCallableContinuationProvenance, EffectLoweringError> {
+    let mut member_routes_by_callee: HashMap<String, Vec<CrossCallableContinuationMemberRoute>> =
+        HashMap::new();
+
+    for family in pass_view.instances() {
+        let root_fqn = family.root_fqn();
+        let Some(fun) = family.root_body() else {
+            continue;
+        };
+        let Some(body) = fun.body.as_ref() else {
+            continue;
+        };
+        let Some(body_facts) = effect_facts.body(family.key()) else {
+            continue;
+        };
+        let Some(owner_plan) = owner_plans.get(root_fqn) else {
+            continue;
+        };
+        let provenance = PublishedContinuationProvenance::build(
+            root_fqn,
+            body,
+            body_facts,
+            &owner_plan.owner_version_key,
+            owner_plan.continuation_object,
+            None,
+        )?;
+
+        for (key, publications) in &provenance.member_store_routes {
+            let Some(param_index) = fun
+                .params
+                .iter()
+                .position(|param| param.local == key.receiver_local)
+            else {
+                continue;
+            };
+            for publication in publications {
+                let PublishedMemberStoreRoute::Unique(route) = publication else {
+                    continue;
+                };
+                let source_routes = provenance.resolve_local_routes(
+                    root_fqn,
+                    SiteId::from_raw(u32::MAX),
+                    route.source_local,
+                    &mut HashSet::new(),
+                    &mut HashSet::new(),
+                )?;
+                for source_route in source_routes {
+                    member_routes_by_callee
+                        .entry(root_fqn.to_string())
+                        .or_default()
+                        .push(CrossCallableContinuationMemberRoute {
+                            param_index,
+                            member: key.member.clone(),
+                            path: route.path.clone(),
+                            route: source_route,
+                        });
+                }
+            }
+        }
+    }
+
+    Ok(CrossCallableContinuationProvenance {
+        member_routes_by_callee,
+    })
 }
 
 fn push_local_origin(
@@ -718,6 +908,7 @@ pub(crate) fn materialize_boundary_map(
         continuation_object,
         step_types,
         types,
+        cross_callable_continuation_provenance,
     } = inputs;
 
     let result_locals = collect_result_locals(body);
@@ -727,6 +918,7 @@ pub(crate) fn materialize_boundary_map(
         body_facts,
         owner_version_key,
         continuation_object,
+        cross_callable_continuation_provenance,
     )?;
     let (resume_boundaries, runtime_error_boundaries) = paired_resume_boundaries(boundary_map);
     let mut entries = Vec::with_capacity(boundary_map.entries().len());
@@ -6174,6 +6366,7 @@ mod tests {
             &body_facts,
             &owner_version_key,
             crate::effect_lowered::ir::ContinuationObjectId::new(0),
+            None,
         )
         .expect("synthetic provenance builder 应成功");
 
