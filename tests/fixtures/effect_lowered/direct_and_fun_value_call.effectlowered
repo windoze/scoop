@@ -33,6 +33,7 @@ LateLoweredProgram
         - bb0 stmts[0..1] + term
       plain_call_sites:
         - site0 FunValue target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=t5 callee_step_schema=<none> resolved_cases=[] anchor=bb0 stmt0 dispatch=PlainCall
+      plain_local_effect_control: <none>
       effect_step_handoff: <none>
     - root: a.id
       body_version_key: instance=a.id allowed_row=Pure impl_plan=NoOutward needs_reentry=false
@@ -43,6 +44,7 @@ LateLoweredProgram
         - bb0 stmts[0..0] + term
       plain_call_sites:
         <none>
+      plain_local_effect_control: <none>
       effect_step_handoff: <none>
     - root: a.main
       body_version_key: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
@@ -53,6 +55,7 @@ LateLoweredProgram
         - bb0 stmts[0..5] + term
       plain_call_sites:
         <none>
+      plain_local_effect_control: <none>
       effect_step_handoff: <none>
     - root: a.main.$lambda0
       body_version_key: instance=a.main.$lambda0 allowed_row=Pure impl_plan=NoOutward needs_reentry=false
@@ -63,4 +66,5 @@ LateLoweredProgram
         - bb0 stmts[0..1] + term
       plain_call_sites:
         <none>
+      plain_local_effect_control: <none>
       effect_step_handoff: <none>

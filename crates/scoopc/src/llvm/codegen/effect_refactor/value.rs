@@ -10,7 +10,10 @@
 use std::collections::HashSet;
 
 use inkwell::types::{BasicTypeEnum, FunctionType};
-use inkwell::values::{BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FunctionValue};
+use inkwell::values::{
+    BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallSiteValue, FunctionValue, IntValue,
+    PointerValue,
+};
 use inkwell::{AddressSpace, AtomicOrdering, IntPredicate};
 
 use crate::effect_lowered::ir::{LateLoweredOperandSource, LateLoweredOperandValueSource};
@@ -709,6 +712,30 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         )? {
             return Ok(value);
         }
+        if let Some(value) =
+            self.lower_refactor_array_intrinsic(span, callee_fqn, args, target_cg)?
+        {
+            return Ok(value);
+        }
+        if let Some(value) = self.lower_refactor_to_int_intrinsic(span, callee_fqn, args)? {
+            return Ok(value);
+        }
+        if callee_fqn == "scoop.thread.yield" {
+            if !args.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor thread.yield arg contract",
+                    at: span.into(),
+                });
+            }
+            let rt = self.codegen.declare_runtime_thread_yield();
+            let _ =
+                self.codegen
+                    .build_call_preserving_gc_local_roots(span, rt, &[], "thread_yield")?;
+            return Ok(CgValue::unit());
+        }
+        if let Some(value) = self.lower_refactor_array_builder_intrinsic(span, callee_fqn, args)? {
+            return Ok(value);
+        }
         if let Some(value) = self.lower_refactor_atomic_int_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
@@ -921,6 +948,46 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             signed: true,
         };
         match callee_fqn {
+            "scoop.unsafe.__atomicIntLoad" => {
+                if args.len() != 1 || args[0].name.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntLoad arg contract",
+                        at: span.into(),
+                    });
+                }
+                let (ptr, int_ty) =
+                    self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, false)?;
+                if int_ty != atomic_word {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntLoad target width",
+                        at: args[0].span.into(),
+                    });
+                }
+                let loaded = self.codegen.builder.build_load(
+                    self.codegen.int_type(atomic_word),
+                    ptr,
+                    "atomic_int_load",
+                )?;
+                let inst =
+                    loaded
+                        .as_instruction_value()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "refactor atomicIntLoad load instruction",
+                            at: args[0].span.into(),
+                        })?;
+                inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
+                    .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntLoad set ordering",
+                        at: args[0].span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(raw) = loaded else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntLoad return type",
+                        at: args[0].span.into(),
+                    });
+                };
+                Ok(Some(CgValue::int(raw, atomic_word)))
+            }
             "scoop.unsafe.__atomicIntStore" => {
                 if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -928,7 +995,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         at: span.into(),
                     });
                 }
-                let (ptr, int_ty) = self.atomic_int_lvalue_ptr(&args[0].value, args[0].span)?;
+                let (ptr, int_ty) =
+                    self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, true)?;
                 if int_ty != atomic_word {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "refactor atomicIntStore target width",
@@ -964,7 +1032,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         at: span.into(),
                     });
                 }
-                let (ptr, int_ty) = self.atomic_int_lvalue_ptr(&args[0].value, args[0].span)?;
+                let (ptr, int_ty) =
+                    self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, true)?;
                 if int_ty != atomic_word {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "refactor atomicIntCompareExchange target width",
@@ -994,6 +1063,684 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(CgValue::bool(ok)))
             }
             _ => Ok(None),
+        }
+    }
+
+    fn lower_refactor_array_builder_intrinsic(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        match callee_fqn {
+            "scoop.core.__scoop_array_builder_new" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_new arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let rt = self.codegen.declare_runtime_array_builder_new();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[],
+                    "array_builder_new",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_new return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_new return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(ptr.into()),
+                }))
+            }
+            "scoop.core.__scoop_array_builder_push"
+            | "scoop.core.__scoop_array_builder_push_string" => {
+                if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_push arg contract",
+                        at: span.into(),
+                    });
+                }
+                let builder_arg = &args[0];
+                let value_arg = &args[1];
+                let builder_v = self.codegen.codegen_mir_operand_expected(
+                    builder_arg.span,
+                    &builder_arg.value,
+                    self.slots,
+                    Some(CgTy::Ref),
+                )?;
+                let builder_v =
+                    self.codegen
+                        .coerce_value(builder_arg.span, builder_v, CgTy::Ref)?;
+                let Some(builder_raw) = builder_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_push builder value",
+                        at: builder_arg.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(builder_ptr) = builder_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_push builder type",
+                        at: builder_arg.span.into(),
+                    });
+                };
+                let deferred_builder = self.codegen.defer_gc_ref_pointer(
+                    builder_arg.span,
+                    "array_builder_push_builder",
+                    builder_ptr,
+                )?;
+
+                let value_cg = self
+                    .codegen
+                    .mir_operand_cg_ty(self.body, self.source_types, &value_arg.value)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_push value type",
+                        at: value_arg.span.into(),
+                    })?;
+                let value_v = self.codegen.codegen_mir_operand_expected(
+                    value_arg.span,
+                    &value_arg.value,
+                    self.slots,
+                    Some(value_cg),
+                )?;
+                let value_v = self
+                    .codegen
+                    .coerce_value(value_arg.span, value_v, value_cg)?;
+                let builder_ptr = self.codegen.reload_deferred_gc_ref_without_clearing(
+                    builder_arg.span,
+                    "array_builder_push_builder_reload",
+                    &deferred_builder,
+                )?;
+                match value_v.ty {
+                    CgTy::Ref | CgTy::String => {
+                        let value_v =
+                            self.codegen
+                                .coerce_value(value_arg.span, value_v, CgTy::Ref)?;
+                        let Some(raw) = value_v.value else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor array_builder_push ref value",
+                                at: value_arg.span.into(),
+                            });
+                        };
+                        let BasicValueEnum::PointerValue(ptr) = raw else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor array_builder_push ref type",
+                                at: value_arg.span.into(),
+                            });
+                        };
+                        let rt = self.codegen.declare_runtime_array_builder_push_ref();
+                        let _ = self.codegen.build_call_preserving_gc_local_roots(
+                            value_arg.span,
+                            rt,
+                            &[builder_ptr.into(), ptr.into()],
+                            "array_builder_push_ref",
+                        )?;
+                    }
+                    _ => {
+                        let word = self.codegen.coerce_u64_word(value_arg.span, value_v)?;
+                        let rt = self.codegen.declare_runtime_array_builder_push_u64();
+                        let _ = self.codegen.build_call_preserving_gc_local_roots(
+                            value_arg.span,
+                            rt,
+                            &[builder_ptr.into(), word.into()],
+                            "array_builder_push_u64",
+                        )?;
+                    }
+                }
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.core.__scoop_array_builder_build_array"
+            | "scoop.core.__scoop_array_builder_build_mutable_array"
+            | "scoop.core.__scoop_array_builder_build_array_string" => {
+                if args.len() != 1 || args[0].name.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_build arg contract",
+                        at: span.into(),
+                    });
+                }
+                let builder_arg = &args[0];
+                let builder_v = self.codegen.codegen_mir_operand_expected(
+                    builder_arg.span,
+                    &builder_arg.value,
+                    self.slots,
+                    Some(CgTy::Ref),
+                )?;
+                let builder_v =
+                    self.codegen
+                        .coerce_value(builder_arg.span, builder_v, CgTy::Ref)?;
+                let Some(builder_raw) = builder_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_build builder value",
+                        at: builder_arg.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(builder_ptr) = builder_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_build builder type",
+                        at: builder_arg.span.into(),
+                    });
+                };
+                let deferred_builder = self.codegen.defer_gc_ref_pointer(
+                    builder_arg.span,
+                    "array_builder_build_builder",
+                    builder_ptr,
+                )?;
+                let builder_ptr = self.codegen.reload_deferred_gc_ref_without_clearing(
+                    builder_arg.span,
+                    "array_builder_build_builder_reload",
+                    &deferred_builder,
+                )?;
+                let rt = match callee_fqn {
+                    "scoop.core.__scoop_array_builder_build_array"
+                    | "scoop.core.__scoop_array_builder_build_array_string" => {
+                        self.codegen.declare_runtime_array_builder_build_array()
+                    }
+                    "scoop.core.__scoop_array_builder_build_mutable_array" => self
+                        .codegen
+                        .declare_runtime_array_builder_build_mutable_array(),
+                    _ => unreachable!("match arms cover array builder build intrinsics"),
+                };
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    builder_arg.span,
+                    rt,
+                    &[builder_ptr.into()],
+                    "array_builder_build",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_build return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_build return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(ptr.into()),
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn lower_refactor_array_intrinsic(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let base = refactor_intrinsic_base_fqn(callee_fqn);
+        let value_word = super::super::types::IntTy {
+            bits: self.codegen.host.word_bit_width(),
+            signed: true,
+        };
+        let from_u64 = super::super::types::IntTy {
+            bits: 64,
+            signed: false,
+        };
+        match base {
+            "scoop.core.size" => {
+                if args.len() != 1 || args[0].name.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Array.size arg contract",
+                        at: span.into(),
+                    });
+                }
+                let arr_ptr = self.refactor_array_receiver_ptr(&args[0])?;
+                let rt = self.codegen.declare_runtime_array_len();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    args[0].span,
+                    rt,
+                    &[arr_ptr.into()],
+                    "array_len",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Array.size return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(len_u64) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Array.size return type",
+                        at: span.into(),
+                    });
+                };
+                let len_word = self.codegen.cast_int(len_u64, from_u64, value_word)?;
+                Ok(Some(CgValue::int(len_word, value_word)))
+            }
+            "scoop.core.get" => {
+                if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Array.get arg contract",
+                        at: span.into(),
+                    });
+                }
+                let arr_ptr = self.refactor_array_receiver_ptr(&args[0])?;
+                let index = self.refactor_array_index_value(&args[1], value_word)?;
+                let elem_cg = self
+                    .refactor_array_element_cg_ty(&args[0].value)
+                    .or_else(|| refactor_array_expected_element_cg(target_cg))
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Array.get element type",
+                        at: span.into(),
+                    })?;
+                match elem_cg {
+                    CgTy::Ref | CgTy::String => {
+                        let rt = self.codegen.declare_runtime_array_get_ref();
+                        let call = self.codegen.build_call_preserving_gc_local_roots(
+                            span,
+                            rt,
+                            &[arr_ptr.into(), index.into()],
+                            "array_get_ref",
+                        )?;
+                        let raw = call.try_as_basic_value().basic().ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor Array.get return value",
+                                at: span.into(),
+                            },
+                        )?;
+                        let BasicValueEnum::PointerValue(ptr) = raw else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor Array.get return type",
+                                at: span.into(),
+                            });
+                        };
+                        if elem_cg == CgTy::String {
+                            let str_ty = self.codegen.llvm_scoop_string_ptr_type();
+                            let ptr = self.codegen.builder.build_pointer_cast(
+                                ptr,
+                                str_ty,
+                                "ref_to_str",
+                            )?;
+                            Ok(Some(CgValue {
+                                ty: CgTy::String,
+                                value: Some(ptr.into()),
+                            }))
+                        } else {
+                            Ok(Some(CgValue {
+                                ty: CgTy::Ref,
+                                value: Some(ptr.into()),
+                            }))
+                        }
+                    }
+                    _ => {
+                        let rt = self.codegen.declare_runtime_array_get_u64();
+                        let call = self.codegen.build_call_preserving_gc_local_roots(
+                            span,
+                            rt,
+                            &[arr_ptr.into(), index.into()],
+                            "array_get_u64",
+                        )?;
+                        let raw = call.try_as_basic_value().basic().ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor Array.get return value",
+                                at: span.into(),
+                            },
+                        )?;
+                        let BasicValueEnum::IntValue(word_u64) = raw else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor Array.get return type",
+                                at: span.into(),
+                            });
+                        };
+                        self.decode_refactor_u64_word(span, word_u64, elem_cg)
+                            .map(Some)
+                    }
+                }
+            }
+            "scoop.core.set" => {
+                if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor MutableArray.set arg contract",
+                        at: span.into(),
+                    });
+                }
+                let arr_ptr = self.refactor_array_receiver_ptr(&args[0])?;
+                let index = self.refactor_array_index_value(&args[1], value_word)?;
+                let elem_cg = self.refactor_array_element_cg_ty(&args[0].value);
+                match elem_cg {
+                    Some(CgTy::Ref) | Some(CgTy::String) => {
+                        let elem_cg = elem_cg.unwrap();
+                        let value = self.codegen.codegen_mir_operand_expected(
+                            args[2].span,
+                            &args[2].value,
+                            self.slots,
+                            Some(elem_cg),
+                        )?;
+                        let value = self.codegen.coerce_value(args[2].span, value, elem_cg)?;
+                        let value = self.codegen.coerce_value(args[2].span, value, CgTy::Ref)?;
+                        let Some(raw) = value.value else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor MutableArray.set ref value",
+                                at: args[2].span.into(),
+                            });
+                        };
+                        let BasicValueEnum::PointerValue(ptr) = raw else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor MutableArray.set ref type",
+                                at: args[2].span.into(),
+                            });
+                        };
+                        let rt = self.codegen.declare_runtime_array_set_ref();
+                        let _ = self.codegen.build_call_preserving_gc_local_roots(
+                            args[2].span,
+                            rt,
+                            &[arr_ptr.into(), index.into(), ptr.into()],
+                            "array_set_ref",
+                        )?;
+                    }
+                    _ => {
+                        let value_cg = elem_cg
+                            .or_else(|| {
+                                self.codegen.mir_operand_cg_ty(
+                                    self.body,
+                                    self.source_types,
+                                    &args[2].value,
+                                )
+                            })
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor MutableArray.set value type",
+                                at: args[2].span.into(),
+                            })?;
+                        let value = self.codegen.codegen_mir_operand_expected(
+                            args[2].span,
+                            &args[2].value,
+                            self.slots,
+                            Some(value_cg),
+                        )?;
+                        let value = self.codegen.coerce_value(args[2].span, value, value_cg)?;
+                        let word = self.codegen.coerce_u64_word(args[2].span, value)?;
+                        let rt = self.codegen.declare_runtime_array_set_u64();
+                        let _ = self.codegen.build_call_preserving_gc_local_roots(
+                            args[2].span,
+                            rt,
+                            &[arr_ptr.into(), index.into(), word.into()],
+                            "array_set_u64",
+                        )?;
+                    }
+                }
+                Ok(Some(CgValue::unit()))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn lower_refactor_to_int_intrinsic(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        if refactor_intrinsic_base_fqn(callee_fqn) != "scoop.core.toInt" {
+            return Ok(None);
+        }
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor toInt arg contract",
+                at: span.into(),
+            });
+        }
+        let arg = &args[0];
+        let value_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
+        let value_cg = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, value_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor toInt receiver type",
+                at: arg.span.into(),
+            })?;
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(value_cg),
+        )?;
+        let value = self.codegen.coerce_value(arg.span, value, value_cg)?;
+        let int_ty = CgTy::Int(super::super::types::IntTy {
+            bits: self.codegen.host.word_bit_width(),
+            signed: true,
+        });
+        match self.source_types.kind(value_ty) {
+            TypeKind::Value(ValueTypeKind::Char) => {
+                return self.codegen.coerce_value(arg.span, value, int_ty).map(Some);
+            }
+            TypeKind::Ref(RefTypeKind::String) => {
+                let value = self.codegen.coerce_value(arg.span, value, CgTy::String)?;
+                let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor String.toInt receiver value",
+                        at: arg.span.into(),
+                    });
+                };
+                let rt = self.codegen.declare_runtime_string_to_int();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[ptr.into()],
+                    "rt_string_to_int",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor String.toInt return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(int64_val) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor String.toInt return type",
+                        at: span.into(),
+                    });
+                };
+                let runtime_int = CgValue::int(
+                    int64_val,
+                    super::super::types::IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                );
+                return self
+                    .codegen
+                    .coerce_value(span, runtime_int, int_ty)
+                    .map(Some);
+            }
+            _ => {}
+        }
+        match value.ty {
+            CgTy::Float64 | CgTy::Float32 => {
+                let Some(BasicValueEnum::FloatValue(float_val)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Float.toInt receiver value",
+                        at: arg.span.into(),
+                    });
+                };
+                let rt = match value.ty {
+                    CgTy::Float64 => self.codegen.declare_runtime_float64_to_int(),
+                    CgTy::Float32 => self.codegen.declare_runtime_float32_to_int(),
+                    _ => unreachable!("filtered by match"),
+                };
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[float_val.into()],
+                    "rt_float_to_int",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Float.toInt return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(int64_val) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Float.toInt return type",
+                        at: span.into(),
+                    });
+                };
+                let runtime_int = CgValue::int(
+                    int64_val,
+                    super::super::types::IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                );
+                self.codegen
+                    .coerce_value(span, runtime_int, int_ty)
+                    .map(Some)
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor toInt unsupported receiver type",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn refactor_array_receiver_ptr(
+        &mut self,
+        arg: &mir::CallArg,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(CgTy::Ref),
+        )?;
+        let value = self.codegen.coerce_value(arg.span, value, CgTy::Ref)?;
+        let Some(raw) = value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor array receiver value",
+                at: arg.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor array receiver type",
+                at: arg.span.into(),
+            });
+        };
+        Ok(ptr)
+    }
+
+    fn refactor_array_index_value(
+        &mut self,
+        arg: &mir::CallArg,
+        value_word: super::super::types::IntTy,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(CgTy::Int(value_word)),
+        )?;
+        let value = self
+            .codegen
+            .coerce_value(arg.span, value, CgTy::Int(value_word))?;
+        let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "refactor array index value",
+            at: arg.span.into(),
+        })?;
+        self.codegen.cast_int(
+            raw,
+            from,
+            super::super::types::IntTy {
+                bits: 64,
+                signed: true,
+            },
+        )
+    }
+
+    fn refactor_array_element_cg_ty(&self, receiver: &mir::Operand) -> Option<CgTy> {
+        let receiver_ty = self.operand_source_ty(receiver)?;
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(receiver_ty)
+        else {
+            return None;
+        };
+        if !matches!(
+            nominal.fqn.as_str(),
+            "scoop.core.Array"
+                | "scoop.core.MutableArray"
+                | "scoop.core.List"
+                | "scoop.core.MutableList"
+        ) {
+            return None;
+        }
+        let elem_ty = *nominal.args.first()?;
+        self.codegen.cg_ty_of_mir_type(self.source_types, elem_ty)
+    }
+
+    fn decode_refactor_u64_word(
+        &mut self,
+        span: Span,
+        word_u64: IntValue<'ctx>,
+        to: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let from_u64 = super::super::types::IntTy {
+            bits: 64,
+            signed: false,
+        };
+        match to {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            CgTy::Bool => {
+                let is_true = self.codegen.builder.build_int_compare(
+                    IntPredicate::NE,
+                    word_u64,
+                    self.codegen.context.i64_type().const_zero(),
+                    "u64_to_bool",
+                )?;
+                Ok(CgValue::bool(is_true))
+            }
+            CgTy::Float64 => {
+                let raw = self
+                    .codegen
+                    .builder
+                    .build_bit_cast(word_u64, self.codegen.context.f64_type(), "u64_to_f64_bits")?
+                    .into_float_value();
+                Ok(CgValue::float(raw, CgTy::Float64))
+            }
+            CgTy::Float32 => {
+                let bits32 = self.codegen.builder.build_int_truncate(
+                    word_u64,
+                    self.codegen.context.i32_type(),
+                    "u64_to_f32_bits",
+                )?;
+                let raw = self
+                    .codegen
+                    .builder
+                    .build_bit_cast(bits32, self.codegen.context.f32_type(), "i32_to_f32_bits")?
+                    .into_float_value();
+                Ok(CgValue::float(raw, CgTy::Float32))
+            }
+            CgTy::Int(int_ty) => {
+                let decoded = self.codegen.cast_int(word_u64, from_u64, int_ty)?;
+                Ok(CgValue::int(decoded, int_ty))
+            }
+            CgTy::Ref | CgTy::String => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor decode u64 word to gc pointer",
+                at: span.into(),
+            }),
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor decode u64 word to composite value",
+                    at: span.into(),
+                })
+            }
         }
     }
 
@@ -1058,6 +1805,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         &mut self,
         operand: &mir::Operand,
         span: Span,
+        require_writable: bool,
     ) -> Result<
         (
             inkwell::values::PointerValue<'ctx>,
@@ -1071,39 +1819,216 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 at: span.into(),
             });
         };
-        for block in &self.body.blocks {
-            for stmt in &block.stmts {
-                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
-                    continue;
-                };
-                if target != local {
-                    continue;
-                }
-                let mir::Rvalue::MemberAccess { receiver, member } = value else {
-                    continue;
-                };
-                let (ptr, field_cg) = self.codegen.codegen_mir_member_lvalue_ptr(
-                    stmt.span,
-                    receiver,
-                    member,
-                    self.body,
-                    self.source_types,
-                    self.slots,
-                    true,
-                )?;
-                let CgTy::Int(int_ty) = field_cg else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicInt target type",
-                        at: span.into(),
-                    });
-                };
-                return Ok((ptr, int_ty));
-            }
+        if let Some((ptr, field_cg)) =
+            self.atomic_member_place_for_local(*local, span, require_writable)?
+        {
+            let CgTy::Int(int_ty) = field_cg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt target type",
+                    at: span.into(),
+                });
+            };
+            return Ok((ptr, int_ty));
+        }
+        let slot = self.codegen.mir_local_slot(span, self.slots, *local)?;
+        if let CgTy::Int(int_ty) = slot.cg_ty {
+            return Ok((slot.ptr, int_ty));
         }
         Err(LlvmEmitError::UnsupportedMainBody {
             kind: "refactor atomicInt target place",
             at: span.into(),
         })
+    }
+
+    fn atomic_member_place_for_local(
+        &mut self,
+        local: LocalId,
+        _span: Span,
+        require_writable: bool,
+    ) -> Result<Option<(PointerValue<'ctx>, CgTy)>, LlvmEmitError> {
+        let mut found: Option<(Span, mir::Operand, mir::MemberAccessMetadata)> = None;
+        for block in &self.body.blocks {
+            for stmt in &block.stmts {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if *target != local {
+                    continue;
+                }
+                let mir::Rvalue::MemberAccess { receiver, member } = value else {
+                    continue;
+                };
+                found = Some((stmt.span, receiver.clone(), member.clone()));
+                break;
+            }
+            if found.is_some() {
+                break;
+            }
+        }
+        let Some((stmt_span, receiver, member)) = found else {
+            return Ok(None);
+        };
+        self.atomic_member_place(stmt_span, &receiver, &member, require_writable)
+            .map(Some)
+    }
+
+    fn atomic_member_place(
+        &mut self,
+        span: Span,
+        receiver: &mir::Operand,
+        member: &mir::MemberAccessMetadata,
+        require_writable: bool,
+    ) -> Result<(PointerValue<'ctx>, CgTy), LlvmEmitError> {
+        let field_fqn = Self::atomic_member_value_fqn(span, member)?;
+        let receiver_type_id =
+            self.atomic_member_receiver_codegen_type_id(span, receiver, member)?;
+        if let Some((class, field_idx, field_cg)) =
+            self.codegen
+                .lookup_class_field_by_fqn(field_fqn, span, Some(receiver_type_id))?
+        {
+            let field =
+                class
+                    .fields
+                    .get(field_idx as usize)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicInt class field index",
+                        at: span.into(),
+                    })?;
+            if require_writable && !field.mutable {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt immutable class field",
+                    at: span.into(),
+                });
+            }
+            let receiver_value = self.codegen.codegen_mir_operand_expected(
+                span,
+                receiver,
+                self.slots,
+                Some(CgTy::Ref),
+            )?;
+            let receiver_value = self.codegen.coerce_value(span, receiver_value, CgTy::Ref)?;
+            let Some(raw) = receiver_value.value else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt class receiver value",
+                    at: span.into(),
+                });
+            };
+            let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt class receiver type",
+                    at: span.into(),
+                });
+            };
+            let ptr = self
+                .codegen
+                .codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
+            return Ok((ptr, field_cg));
+        }
+
+        let receiver_cg =
+            self.codegen
+                .cg_ty_of(receiver_type_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt member receiver type",
+                    at: span.into(),
+                })?;
+        let CgTy::Struct(struct_ty) = receiver_cg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor atomicInt member field target",
+                at: span.into(),
+            });
+        };
+        let (field_idx, field_cg) = self
+            .codegen
+            .lookup_struct_field(struct_ty, field_fqn, span)?;
+        let base_ptr =
+            self.atomic_struct_receiver_ptr(span, receiver, struct_ty, require_writable)?;
+        let llvm_struct_ty = self.codegen.llvm_struct_type(span, struct_ty)?;
+        let ptr = self.codegen.builder.build_struct_gep(
+            llvm_struct_ty,
+            base_ptr,
+            field_idx,
+            "atomic_int_field_gep",
+        )?;
+        Ok((ptr, field_cg))
+    }
+
+    fn atomic_struct_receiver_ptr(
+        &mut self,
+        span: Span,
+        receiver: &mir::Operand,
+        struct_ty: TypeId,
+        require_writable: bool,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let mir::Operand::Local(local) = receiver else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor atomicInt struct receiver place",
+                at: span.into(),
+            });
+        };
+        if let Some((ptr, cg_ty)) =
+            self.atomic_member_place_for_local(*local, span, require_writable)?
+        {
+            if cg_ty != CgTy::Struct(struct_ty) {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt struct receiver type drift",
+                    at: span.into(),
+                });
+            }
+            return Ok(ptr);
+        }
+        let slot = self.codegen.mir_local_slot(span, self.slots, *local)?;
+        if slot.cg_ty != CgTy::Struct(struct_ty) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor atomicInt struct receiver slot type",
+                at: span.into(),
+            });
+        }
+        Ok(slot.ptr)
+    }
+
+    fn atomic_member_receiver_codegen_type_id(
+        &self,
+        span: Span,
+        receiver: &mir::Operand,
+        member: &mir::MemberAccessMetadata,
+    ) -> Result<TypeId, LlvmEmitError> {
+        let receiver_source_ty = match receiver {
+            mir::Operand::Local(local) => self
+                .body
+                .locals
+                .get(local.as_u32() as usize)
+                .map(|local| local.ty)
+                .unwrap_or(member.receiver_ty),
+            mir::Operand::Const(_) => member.receiver_ty,
+        };
+        self.codegen
+            .equivalent_codegen_type_id(self.source_types, receiver_source_ty)
+            .or_else(|| {
+                self.codegen
+                    .equivalent_codegen_type_id(self.source_types, member.receiver_ty)
+            })
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor atomicInt member receiver type",
+                at: span.into(),
+            })
+    }
+
+    fn atomic_member_value_fqn<'m>(
+        span: Span,
+        member: &'m mir::MemberAccessMetadata,
+    ) -> Result<&'m str, LlvmEmitError> {
+        match member.resolved.as_ref() {
+            Some(mir::MemberTarget::Value { fqn }) => Ok(fqn.as_str()),
+            Some(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor atomicInt member target is not value",
+                at: span.into(),
+            }),
+            None => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor atomicInt member target unresolved",
+                at: span.into(),
+            }),
+        }
     }
 
     fn lower_refactor_task_transport_intrinsic(
@@ -1669,7 +2594,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         value: CgValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let slot = self.codegen.mir_local_slot(span, self.slots, local)?;
-        let value = self.codegen.coerce_value(span, value, slot.cg_ty)?;
+        let value =
+            self.codegen
+                .coerce_value(span, value, slot.cg_ty)
+                .map_err(|err| match err {
+                    LlvmEmitError::Frontend { message } => frontend_error(format!(
+                        "refactor store local{} coercion failed at {:?}: {message}",
+                        local.as_u32(),
+                        span
+                    )),
+                    other => other,
+                })?;
         self.codegen
             .store_local_value(span, slot.ptr, slot.cg_ty, value)
     }
@@ -2022,6 +2957,28 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
 
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
+}
+
+fn refactor_intrinsic_base_fqn(fqn: &str) -> &str {
+    fqn.split("::<")
+        .next()
+        .unwrap_or(fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(fqn)
+}
+
+fn refactor_array_expected_element_cg(target_cg: CgTy) -> Option<CgTy> {
+    match target_cg {
+        CgTy::Unit
+        | CgTy::Bool
+        | CgTy::Float64
+        | CgTy::Float32
+        | CgTy::Int(_)
+        | CgTy::String
+        | CgTy::Ref => Some(target_cg),
+        CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) | CgTy::Never => None,
+    }
 }
 
 #[cfg(test)]

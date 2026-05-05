@@ -378,6 +378,42 @@
   - 新增定向覆盖：`llvm::tests::task_step_o0_build_fixture_uses_concrete_task_state_member_layout` 覆盖单文件 O0 refactor lowering；`commands::build::tests::build_refactor_task_atomic_fixture_lowers_o0_without_legacy_mutex` 覆盖真实 build frontend + refactor LLVM stage + ABI visibility handoff 下的 O0 task atomic fixture。
   - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo test -p scoop build_refactor_task_atomic_fixture_lowers_o0_without_legacy_mutex -- --nocapture`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_default_int_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_neg_int8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_uint8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02U：修复默认 run-pass 暴露的 refactor async/task resume payload ABI 阻塞
+
+- 参考：
+  - [`TODO-P5.md`](./TODO-P5.md) P5-T05 / P5-T07b
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02qg / P6-T02qd
+  - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03h / P6-T04
+- 背景：
+  - 执行 P7-T03 的默认 `cargo run -p scoop -- test` 时，前置回归已修复到 run-pass 阶段；
+  - `tests/fixtures/run-pass/async_await_minimal_int_basic.scoop` 当前可完成 LLVM frontend prepare 并开始运行，但只输出 `before` 后以 exit status 1 退出；
+  - 之前的直接 blocker 包括 generic `Async.await<T>` resume payload frame slot 在 P6 ABI materialization 中遇到裸 `T`，已确认这类 resume payload 不能按普通 source-value ABI 处理；
+  - 将 `ResumePayload` frame slot 改为 surface resume ABI 后，程序仍未完成 async await happy path，说明 task/continuation resume payload 注入、task drive 或 dropped/runtime-error 交界仍有 refactor 默认路径语义缺口。
+
+- 必须实现的内容：
+  1. 修复 `Async.await<T>` / `Task<T>` 默认 refactor run-pass 的 resume payload ABI 与 payload 注入路径。
+     - generic effect operation 的 shared surface resume payload 可以使用 erased ABI；
+     - 但 concrete task body / continuation resume / boundary result local 必须按实际 `T` 还原，不得把 `T` 当作 `Unit`、`Any` 或 fixture 特判；
+     - `async { 41 }`、`await t`、`__task_join(task)` 必须真实恢复并返回 `Int`。
+  2. 保持 P5/P6 已发布的 continuation composition、surface resume wrapper projection、resume payload binding 与 dropped continuation 语义。
+     - 不得回 legacy effect backend；
+     - 不得跳过 runtime-error ordinary effect case；
+     - 不得通过改弱 fixture 或显式 `legacy` selector 绕过。
+  3. 若需要调整 sysroot task helper 以显式闭合不可达路径，必须保持语义等价且不隐藏真实 resume/drive 错误。
+  4. 增加或更新定向测试/fixture，覆盖最小 async/await happy path在默认 refactor run-pass 下完成。
+
+- 验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`
+  - 修复后恢复执行 P7-T03 的完整标准矩阵。
+
+- 完成条件：
+  - `async_await_minimal_int_basic.scoop` 在省略 selector 的默认 refactor 路径下输出完整 expected stdout 并 exit 0；
+  - 修复没有引入 hidden legacy fallback、fixture 降级或 task/continuation 特判。
+- 依赖：P7-T02S
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 
 - 参考：
@@ -434,9 +470,9 @@
   - `cargo test --all`、`scoop test`、`spec-fixtures check`、`clippy -D warnings` 在默认 refactor 主线下全部通过；
   - 回归修复没有通过恢复 legacy 默认值或 hidden fallback 达成；
   - 后续只剩 GC env 全开验证与 P7->P8 handoff 收口。
-- 依赖：P7-T02S
+- 依赖：P7-T02U
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：首轮执行已通过 `cargo test --all`，并修复/同步了多个默认 full-regression 前置回归：refactor MIR/LLVM struct literal lowering、unsafe atomic load 与 nested member lvalue、`sizeOf` MIR intrinsic、array builder/Array size/get/set 与 `toInt` compiler intrinsic、过期 effect-facts/effect-lowered/HIR/MIR/mir_refactor generated snapshots、重复的 `effect_lowered_src` 未实现 phase，以及 `sysroot/task.scoop` 中 `__task_join<T>` 的显式不可达收口。当前标准 `scoop test` 继续阻塞在 `async_await_minimal_int_basic.scoop` 的 task/continuation resume payload 运行期语义，已新增 prerequisite `P7-T02U`；本任务保持未完成。
 
 ## P7-T03R：Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底
 

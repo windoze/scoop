@@ -23,6 +23,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 112..113,
@@ -32,6 +33,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 76..77,
@@ -41,6 +43,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 64..78,
@@ -50,6 +53,7 @@ File {
                                 ty: TypeId(
                                     3,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 83..84,
@@ -59,6 +63,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 118..119,
@@ -68,6 +73,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                         ],
                         blocks: [
@@ -230,7 +236,11 @@ File {
                                 terminator: Terminator {
                                     span: 36..125,
                                     kind: Return {
-                                        value: None,
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
                                     },
                                     unwind: NoUnwind,
                                 },

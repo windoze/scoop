@@ -2292,7 +2292,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(str_ptr)
     }
 
-    fn store_size_bytes_of_basic_type(&self, ty: BasicTypeEnum<'ctx>) -> u64 {
+    pub(in crate::llvm::codegen) fn store_size_bytes_of_basic_type(
+        &self,
+        ty: BasicTypeEnum<'ctx>,
+    ) -> u64 {
         match ty {
             BasicTypeEnum::ArrayType(t) => self.target_data.get_store_size(&t),
             BasicTypeEnum::FloatType(t) => self.target_data.get_store_size(&t),

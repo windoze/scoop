@@ -10,7 +10,7 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Block {
@@ -47,11 +47,11 @@ File {
                                                                 Expr {
                                                                     span: 64..78,
                                                                     ty: TypeId(
-                                                                        0,
+                                                                        3,
                                                                     ),
                                                                     kind: Perform {
                                                                         effect_ty: TypeId(
-                                                                            0,
+                                                                            11,
                                                                         ),
                                                                         op: EffectOpRef {
                                                                             span: 70..75,
@@ -111,7 +111,7 @@ File {
                                                                     id: S0,
                                                                     name: "e",
                                                                     ty: TypeId(
-                                                                        0,
+                                                                        5,
                                                                     ),
                                                                 },
                                                             ],

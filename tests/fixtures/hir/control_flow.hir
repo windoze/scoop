@@ -2,7 +2,7 @@ File {
     items: [
         Fun(
             FunDecl {
-                span: 11..168,
+                span: 11..185,
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
@@ -10,23 +10,23 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Block {
-                        span: 22..168,
+                        span: 27..185,
                         ty: TypeId(
                             2,
                         ),
                         stmts: [
                             Stmt {
-                                span: 26..40,
+                                span: 31..45,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Val(
                                     ValDecl {
-                                        span: 26..40,
+                                        span: 31..45,
                                         id: Some(
                                             S0,
                                         ),
@@ -39,7 +39,7 @@ File {
                                         ),
                                         init: Some(
                                             Expr {
-                                                span: 39..40,
+                                                span: 44..45,
                                                 ty: TypeId(
                                                     5,
                                                 ),
@@ -52,27 +52,27 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 43..48,
+                                span: 48..53,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Assign {
                                     lhs: Expr {
-                                        span: 43..44,
+                                        span: 48..49,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: VarRef(
                                             Local {
                                                 id: S0,
                                                 name: "x",
-                                                decl_span: 30..31,
+                                                decl_span: 35..36,
                                             },
                                         ),
                                     },
-                                    eq_span: 45..46,
+                                    eq_span: 50..51,
                                     rhs: Expr {
-                                        span: 47..48,
+                                        span: 52..53,
                                         ty: TypeId(
                                             5,
                                         ),
@@ -83,19 +83,19 @@ File {
                                 },
                             },
                             Stmt {
-                                span: 52..78,
+                                span: 57..83,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 52..78,
+                                        span: 57..83,
                                         ty: TypeId(
                                             0,
                                         ),
                                         kind: If {
                                             cond: Expr {
-                                                span: 56..60,
+                                                span: 61..65,
                                                 ty: TypeId(
                                                     4,
                                                 ),
@@ -106,33 +106,33 @@ File {
                                                 ),
                                             },
                                             then_branch: Expr {
-                                                span: 62..67,
+                                                span: 67..72,
                                                 ty: TypeId(
-                                                    0,
+                                                    5,
                                                 ),
                                                 kind: Block(
                                                     Block {
-                                                        span: 62..67,
+                                                        span: 67..72,
                                                         ty: TypeId(
-                                                            0,
+                                                            5,
                                                         ),
                                                         stmts: [
                                                             Stmt {
-                                                                span: 64..65,
+                                                                span: 69..70,
                                                                 ty: TypeId(
                                                                     2,
                                                                 ),
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 64..65,
+                                                                        span: 69..70,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            5,
                                                                         ),
                                                                         kind: VarRef(
                                                                             Local {
                                                                                 id: S0,
                                                                                 name: "x",
-                                                                                decl_span: 30..31,
+                                                                                decl_span: 35..36,
                                                                             },
                                                                         ),
                                                                     },
@@ -144,25 +144,25 @@ File {
                                             },
                                             else_branch: Some(
                                                 Expr {
-                                                    span: 73..78,
+                                                    span: 78..83,
                                                     ty: TypeId(
                                                         5,
                                                     ),
                                                     kind: Block(
                                                         Block {
-                                                            span: 73..78,
+                                                            span: 78..83,
                                                             ty: TypeId(
                                                                 5,
                                                             ),
                                                             stmts: [
                                                                 Stmt {
-                                                                    span: 75..76,
+                                                                    span: 80..81,
                                                                     ty: TypeId(
                                                                         2,
                                                                     ),
                                                                     kind: Expr(
                                                                         Expr {
-                                                                            span: 75..76,
+                                                                            span: 80..81,
                                                                             ty: TypeId(
                                                                                 5,
                                                                             ),
@@ -182,40 +182,40 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 82..131,
+                                span: 87..136,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 82..131,
+                                        span: 87..136,
                                         ty: TypeId(
                                             0,
                                         ),
                                         kind: When {
                                             subject: Expr {
-                                                span: 88..89,
+                                                span: 93..94,
                                                 ty: TypeId(
-                                                    0,
+                                                    5,
                                                 ),
                                                 kind: VarRef(
                                                     Local {
                                                         id: S0,
                                                         name: "x",
-                                                        decl_span: 30..31,
+                                                        decl_span: 35..36,
                                                     },
                                                 ),
                                             },
                                             arms: [
                                                 WhenArm {
-                                                    span: 97..112,
+                                                    span: 102..117,
                                                     pat: IntLit {
-                                                        span: 97..98,
+                                                        span: 102..103,
                                                         raw: "0",
                                                     },
                                                     guard: Some(
                                                         Expr {
-                                                            span: 102..106,
+                                                            span: 107..111,
                                                             ty: TypeId(
                                                                 4,
                                                             ),
@@ -226,9 +226,9 @@ File {
                                                             ),
                                                         },
                                                     ),
-                                                    arrow_span: 107..109,
+                                                    arrow_span: 112..114,
                                                     body: Expr {
-                                                        span: 110..112,
+                                                        span: 115..117,
                                                         ty: TypeId(
                                                             5,
                                                         ),
@@ -238,14 +238,14 @@ File {
                                                     },
                                                 },
                                                 WhenArm {
-                                                    span: 117..127,
+                                                    span: 122..132,
                                                     pat: Else {
-                                                        span: 117..121,
+                                                        span: 122..126,
                                                     },
                                                     guard: None,
-                                                    arrow_span: 122..124,
+                                                    arrow_span: 127..129,
                                                     body: Expr {
-                                                        span: 125..127,
+                                                        span: 130..132,
                                                         ty: TypeId(
                                                             5,
                                                         ),
@@ -260,13 +260,13 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 135..166,
+                                span: 140..171,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: While {
                                     cond: Expr {
-                                        span: 142..146,
+                                        span: 147..151,
                                         ty: TypeId(
                                             4,
                                         ),
@@ -277,28 +277,28 @@ File {
                                         ),
                                     },
                                     body: Block {
-                                        span: 148..166,
+                                        span: 153..171,
                                         ty: TypeId(
                                             2,
                                         ),
                                         stmts: [
                                             Stmt {
-                                                span: 154..162,
+                                                span: 159..167,
                                                 ty: TypeId(
                                                     3,
                                                 ),
                                                 kind: Return {
                                                     value: Some(
                                                         Expr {
-                                                            span: 161..162,
+                                                            span: 166..167,
                                                             ty: TypeId(
-                                                                0,
+                                                                5,
                                                             ),
                                                             kind: VarRef(
                                                                 Local {
                                                                     id: S0,
                                                                     name: "x",
-                                                                    decl_span: 30..31,
+                                                                    decl_span: 35..36,
                                                                 },
                                                             ),
                                                         },
@@ -307,6 +307,29 @@ File {
                                             },
                                         ],
                                     },
+                                },
+                            },
+                            Stmt {
+                                span: 175..183,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 182..183,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: VarRef(
+                                                Local {
+                                                    id: S0,
+                                                    name: "x",
+                                                    decl_span: 35..36,
+                                                },
+                                            ),
+                                        },
+                                    ),
                                 },
                             },
                         ],

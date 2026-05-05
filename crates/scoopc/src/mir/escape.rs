@@ -403,6 +403,11 @@ fn analyze_rvalue_uses(
                 mark_operand_use(element, OperandUse::Escaping, aliases, facts);
             }
         }
+        Rvalue::StructLit { fields } => {
+            for field in fields {
+                mark_operand_use(&field.value, OperandUse::Escaping, aliases, facts);
+            }
+        }
         Rvalue::InterpolatedString { parts, .. } => {
             for part in parts {
                 if let super::InterpolatedStringPart::Expr { value, .. } = part {
@@ -417,7 +422,10 @@ fn analyze_rvalue_uses(
         Rvalue::MakeClosure { env, .. } => {
             mark_operand_use(env, OperandUse::Escaping, aliases, facts);
         }
-        Rvalue::TopLevelRef(_) | Rvalue::UnresolvedName { .. } | Rvalue::PerformResult { .. } => {}
+        Rvalue::TopLevelRef(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::SizeOf { .. }
+        | Rvalue::PerformResult { .. } => {}
         Rvalue::Todo(reason) => {
             if !is_structural_handle_result_todo(reason) {
                 *saw_unknown_mir = true;

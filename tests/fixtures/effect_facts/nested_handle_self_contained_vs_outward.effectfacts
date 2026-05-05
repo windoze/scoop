@@ -22,6 +22,7 @@ step_schemas:
     cases:
       - case#0: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=continuation_schema#3
       - case#1: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=continuation_schema#4
+      - case#2: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#5
 continuation_schemas:
   continuation_schema#0:
     resume_tuple_ty: Int
@@ -48,10 +49,16 @@ continuation_schemas:
     answer_ty: Int
     out_step_schema: step_schema#1
     surface_ty: scoop.core.Continuation<Unit, Int, eff (sample.Inner + sample.Outer)>
+  continuation_schema#5:
+    resume_tuple_ty: Nothing
+    answer_ty: Int
+    out_step_schema: step_schema#1
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff (sample.Inner + sample.Outer)>
 callable_facts:
   sample.nested_may_suspend_outward:
     instance_key: sample.nested_may_suspend_outward
     declared_row: Pure
+    call_abi_kind: EffectStep
     invoke_args_tuple_ty: Unit
     step_schema: step_schema#0
     resolved_outward_cases: [case#1=sample.Outer.again]
@@ -60,8 +67,9 @@ callable_facts:
   sample.nested_self_contained:
     instance_key: sample.nested_self_contained
     declared_row: Pure
-    invoke_args_tuple_ty: Unit
-    step_schema: step_schema#1
+    call_abi_kind: Plain
+    invoke_args_tuple_ty: <none>
+    step_schema: <none>
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward

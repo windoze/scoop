@@ -1,16 +1,16 @@
 File {
     items: [
         Todo {
-            span: 32..192,
+            span: 32..194,
             kind: "type",
         },
         Todo {
-            span: 194..232,
+            span: 196..236,
             kind: "type",
         },
         Fun(
             FunDecl {
-                span: 234..298,
+                span: 238..307,
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
@@ -18,23 +18,23 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Block {
-                        span: 245..298,
+                        span: 254..307,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         stmts: [
                             Stmt {
-                                span: 249..263,
+                                span: 258..272,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Val(
                                     ValDecl {
-                                        span: 249..263,
+                                        span: 258..272,
                                         id: Some(
                                             S0,
                                         ),
@@ -47,13 +47,13 @@ File {
                                         ),
                                         init: Some(
                                             Expr {
-                                                span: 260..263,
+                                                span: 269..272,
                                                 ty: TypeId(
-                                                    0,
+                                                    11,
                                                 ),
                                                 kind: Call {
                                                     callee: Expr {
-                                                        span: 260..261,
+                                                        span: 269..270,
                                                         ty: TypeId(
                                                             0,
                                                         ),
@@ -69,13 +69,13 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 266..282,
+                                span: 275..291,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Val(
                                     ValDecl {
-                                        span: 266..282,
+                                        span: 275..291,
                                         id: Some(
                                             S3,
                                         ),
@@ -88,38 +88,38 @@ File {
                                         ),
                                         init: Some(
                                             Expr {
-                                                span: 279..282,
+                                                span: 288..291,
                                                 ty: TypeId(
                                                     0,
                                                 ),
                                                 kind: Call {
                                                     callee: Expr {
-                                                        span: 281..282,
+                                                        span: 290..291,
                                                         ty: TypeId(
                                                             0,
                                                         ),
                                                         kind: MemberAccess {
                                                             receiver: Expr {
-                                                                span: 281..282,
+                                                                span: 290..291,
                                                                 ty: TypeId(
                                                                     0,
                                                                 ),
                                                                 kind: MemberAccess {
                                                                     receiver: Expr {
-                                                                        span: 279..280,
+                                                                        span: 288..289,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            11,
                                                                         ),
                                                                         kind: VarRef(
                                                                             Local {
                                                                                 id: S0,
                                                                                 name: "c",
-                                                                                decl_span: 253..254,
+                                                                                decl_span: 262..263,
                                                                             },
                                                                         ),
                                                                     },
                                                                     member: MemberAccess {
-                                                                        span: 281..282,
+                                                                        span: 290..291,
                                                                         name: "p$delegate",
                                                                         resolved: Some(
                                                                             Value {
@@ -131,7 +131,7 @@ File {
                                                                 },
                                                             },
                                                             member: MemberAccess {
-                                                                span: 281..282,
+                                                                span: 290..291,
                                                                 name: "getValue",
                                                                 resolved: None,
                                                             },
@@ -140,22 +140,22 @@ File {
                                                     args: [
                                                         Positional(
                                                             Expr {
-                                                                span: 279..280,
+                                                                span: 288..289,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    11,
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
                                                                         id: S0,
                                                                         name: "c",
-                                                                        decl_span: 253..254,
+                                                                        decl_span: 262..263,
                                                                     },
                                                                 ),
                                                             },
                                                         ),
                                                         Positional(
                                                             Expr {
-                                                                span: 281..282,
+                                                                span: 290..291,
                                                                 ty: TypeId(
                                                                     12,
                                                                 ),
@@ -175,44 +175,44 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 285..292,
+                                span: 294..301,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 285..292,
+                                        span: 294..301,
                                         ty: TypeId(
                                             2,
                                         ),
                                         kind: Call {
                                             callee: Expr {
-                                                span: 287..288,
+                                                span: 296..297,
                                                 ty: TypeId(
                                                     0,
                                                 ),
                                                 kind: MemberAccess {
                                                     receiver: Expr {
-                                                        span: 287..288,
+                                                        span: 296..297,
                                                         ty: TypeId(
                                                             0,
                                                         ),
                                                         kind: MemberAccess {
                                                             receiver: Expr {
-                                                                span: 285..286,
+                                                                span: 294..295,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    11,
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
                                                                         id: S0,
                                                                         name: "c",
-                                                                        decl_span: 253..254,
+                                                                        decl_span: 262..263,
                                                                     },
                                                                 ),
                                                             },
                                                             member: MemberAccess {
-                                                                span: 287..288,
+                                                                span: 296..297,
                                                                 name: "p$delegate",
                                                                 resolved: Some(
                                                                     Value {
@@ -224,7 +224,7 @@ File {
                                                         },
                                                     },
                                                     member: MemberAccess {
-                                                        span: 287..288,
+                                                        span: 296..297,
                                                         name: "setValue",
                                                         resolved: None,
                                                     },
@@ -233,22 +233,22 @@ File {
                                             args: [
                                                 Positional(
                                                     Expr {
-                                                        span: 285..286,
+                                                        span: 294..295,
                                                         ty: TypeId(
-                                                            0,
+                                                            11,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
                                                                 id: S0,
                                                                 name: "c",
-                                                                decl_span: 253..254,
+                                                                decl_span: 262..263,
                                                             },
                                                         ),
                                                     },
                                                 ),
                                                 Positional(
                                                     Expr {
-                                                        span: 287..288,
+                                                        span: 296..297,
                                                         ty: TypeId(
                                                             12,
                                                         ),
@@ -262,7 +262,7 @@ File {
                                                 ),
                                                 Positional(
                                                     Expr {
-                                                        span: 291..292,
+                                                        span: 300..301,
                                                         ty: TypeId(
                                                             5,
                                                         ),
@@ -277,21 +277,21 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 295..296,
+                                span: 304..305,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 295..296,
+                                        span: 304..305,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: VarRef(
                                             Local {
                                                 id: S3,
                                                 name: "x",
-                                                decl_span: 270..271,
+                                                decl_span: 279..280,
                                             },
                                         ),
                                     },

@@ -1092,6 +1092,16 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         result_ty: TypeId,
         receiver_ty: Option<TypeId>,
     ) -> Result<CallSiteEffectFacts, EffectFactsError> {
+        if is_plain_compiler_intrinsic(callable_fqn) {
+            return Ok(CallSiteEffectFacts::new_plain(
+                kind,
+                CallSiteTarget::DynamicFallback,
+                invoke_args_tuple_ty,
+                CaseSet::new(self.callable_step_schema, Vec::new()),
+                EffectPrecision::Precise,
+            ));
+        }
+
         if let Some(target_key) =
             self.known_callable_key(callable_fqn, explicit_arg_count, receiver_ty.is_some())
         {
@@ -1900,6 +1910,30 @@ fn declared_effect_row(fun: &MirFunDecl, types: &TypeStore) -> EffectRow {
         TypeKind::Ref(RefTypeKind::Function(function)) => function.effects.clone(),
         _ => EffectRow::pure(),
     }
+}
+
+fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
+    let base = callable_fqn
+        .split("::<")
+        .next()
+        .unwrap_or(callable_fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(callable_fqn);
+    matches!(
+        base,
+        "scoop.core.__scoop_array_builder_new"
+            | "scoop.core.__scoop_array_builder_push"
+            | "scoop.core.__scoop_array_builder_push_string"
+            | "scoop.core.__scoop_array_builder_build_array"
+            | "scoop.core.__scoop_array_builder_build_mutable_array"
+            | "scoop.core.__scoop_array_builder_build_array_string"
+            | "scoop.core.size"
+            | "scoop.core.get"
+            | "scoop.core.set"
+            | "scoop.core.toInt"
+            | "scoop.thread.yield"
+    )
 }
 
 /// site-level facts 需要给本地 `perform` / `resume` / `handle` 产生稳定 case tag，即使 callable 的

@@ -23,6 +23,17 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 112..113,
+                                name: Some(
+                                    "e",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 76..77,
@@ -32,6 +43,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 64..78,
@@ -41,6 +53,7 @@ File {
                                 ty: TypeId(
                                     3,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 83..84,
@@ -50,6 +63,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 118..119,
@@ -59,30 +73,51 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                         ],
                         blocks: [
                             BasicBlock {
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 51..123,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: Todo(
-                                                "handle result pending",
-                                            ),
-                                        },
-                                    },
-                                ],
+                                stmts: [],
                                 terminator: Terminator {
                                     span: 51..123,
                                     kind: Handle {
                                         site_id: site0,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                5,
+                                            ),
+                                            finally_result_ty: None,
+                                        },
                                         arms: [
                                             HandlerArm {
                                                 op_fqn: "scoop.core.Raise.raise",
                                                 binder_count: 1,
+                                                binder_locals: [
+                                                    l1,
+                                                ],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    11,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ],
+                                                body_ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: NonResuming,
                                             },
                                         ],
                                         has_finally: false,
@@ -91,6 +126,7 @@ File {
                                             bb2,
                                         ],
                                         finally_target: None,
+                                        exit_target: bb3,
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -101,7 +137,7 @@ File {
                                     Statement {
                                         span: 76..77,
                                         kind: Assign {
-                                            target: l1,
+                                            target: l2,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -112,7 +148,7 @@ File {
                                     Statement {
                                         span: 64..78,
                                         kind: Assign {
-                                            target: l2,
+                                            target: l3,
                                             value: PerformResult {
                                                 op_fqn: "scoop.core.Raise.raise",
                                                 effect_ty: TypeId(
@@ -131,7 +167,19 @@ File {
                                             effect_ty: TypeId(
                                                 11,
                                             ),
-                                            payload_tuple_ty: None,
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ),
+                                            payload_component_tys: [
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ],
+                                            arg_mapping: [
+                                                0,
+                                            ],
                                         },
                                         args: [
                                             PerformArg {
@@ -139,14 +187,13 @@ File {
                                                 source_arg_index: 0,
                                                 name: None,
                                                 value: Local(
-                                                    l1,
+                                                    l2,
                                                 ),
                                             },
                                         ],
+                                        resume_target: bb4,
                                     },
-                                    unwind: Todo(
-                                        "perform unwind pending",
-                                    ),
+                                    unwind: Propagate,
                                 },
                             },
                             BasicBlock {
@@ -155,7 +202,7 @@ File {
                                     Statement {
                                         span: 118..119,
                                         kind: Assign {
-                                            target: l4,
+                                            target: l5,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -163,12 +210,38 @@ File {
                                             ),
                                         },
                                     },
+                                    Statement {
+                                        span: 100..119,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l5,
+                                                ),
+                                            ),
+                                        },
+                                    },
                                 ],
                                 terminator: Terminator {
                                     span: 100..119,
-                                    kind: Todo(
-                                        "handle arm exit pending",
-                                    ),
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 36..125,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },
@@ -178,7 +251,7 @@ File {
                                     Statement {
                                         span: 83..84,
                                         kind: Assign {
-                                            target: l3,
+                                            target: l4,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -186,12 +259,23 @@ File {
                                             ),
                                         },
                                     },
+                                    Statement {
+                                        span: 58..88,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l4,
+                                                ),
+                                            ),
+                                        },
+                                    },
                                 ],
                                 terminator: Terminator {
                                     span: 58..88,
-                                    kind: Todo(
-                                        "handle body exit pending",
-                                    ),
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
                                     unwind: NoUnwind,
                                 },
                             },

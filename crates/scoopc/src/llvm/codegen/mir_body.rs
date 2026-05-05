@@ -1008,6 +1008,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.raw_materialized_mir_operand_is_supported(lhs)
                     && self.raw_materialized_mir_operand_is_supported(rhs)
             }
+            crate::mir::Rvalue::SizeOf { value_ty } => self
+                .cg_ty_of_mir_type(mir_types, *value_ty)
+                .is_some_and(|cg_ty| self.llvm_basic_type_of(span, cg_ty).is_ok()),
             crate::mir::Rvalue::Call { kind, args, .. } => {
                 self.raw_materialized_mir_call_kind_is_supported(body, mir_types, kind)
                     && args
@@ -1033,6 +1036,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::Rvalue::MakeTuple { elements } => self
                 .raw_materialized_mir_make_tuple_is_supported(body, mir_types, elements, target_cg),
+            crate::mir::Rvalue::StructLit { fields } => self
+                .raw_materialized_mir_make_struct_is_supported(body, mir_types, fields, target_cg),
             crate::mir::Rvalue::InterpolatedString { parts, .. } => self
                 .raw_materialized_mir_interpolated_string_is_supported(
                     body, mir_types, parts, target_cg,
@@ -1476,6 +1481,51 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         self.cg_ty_of(*elem_ty)
                             .is_some_and(|expected| cg == expected)
                     })
+        })
+    }
+
+    fn raw_materialized_mir_make_struct_is_supported(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        fields: &[crate::mir::StructLitField],
+        target_cg: Option<CgTy>,
+    ) -> bool {
+        let Some(CgTy::Struct(struct_ty)) = target_cg else {
+            return false;
+        };
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+            return false;
+        };
+        let layout_key = self.nominal_layout_key(nominal);
+        let Some(layout) = self.struct_layouts.get(&layout_key) else {
+            return false;
+        };
+        if layout.fields.len() != fields.len() {
+            return false;
+        }
+
+        layout.fields.iter().all(|layout_field| {
+            let mut matches = fields
+                .iter()
+                .filter(|field| field.name == layout_field.name);
+            let Some(init) = matches.next() else {
+                return false;
+            };
+            if matches.next().is_some()
+                || !self.raw_materialized_mir_operand_is_supported(&init.value)
+            {
+                return false;
+            }
+            let Ok(field_cg) = self.cg_ty_of_layout_field(
+                layout_field.span,
+                layout_field.ty,
+                layout_field.ty_fqn.as_deref(),
+            ) else {
+                return false;
+            };
+            self.mir_operand_cg_ty(body, mir_types, &init.value)
+                .is_some_and(|cg| cg == field_cg)
         })
     }
 
@@ -2133,6 +2183,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::MakeTuple { elements } => {
                 self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
             }
+            crate::mir::Rvalue::SizeOf { value_ty } => {
+                self.codegen_mir_size_of(span, mir_types, *value_ty)
+            }
+            crate::mir::Rvalue::StructLit { fields } => {
+                self.codegen_mir_make_struct(span, fields, target_cg, slots)
+            }
             crate::mir::Rvalue::InterpolatedString { raw, parts } => {
                 self.codegen_mir_interpolated_string(span, *raw, parts, body, mir_types, slots)
             }
@@ -2264,6 +2320,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::Rvalue::MakeTuple { elements } => {
                 self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
+            }
+            crate::mir::Rvalue::SizeOf { value_ty } => {
+                self.codegen_mir_size_of(span, mir_types, *value_ty)
+            }
+            crate::mir::Rvalue::StructLit { fields } => {
+                self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
             crate::mir::Rvalue::InterpolatedString { raw, parts } => {
                 self.codegen_mir_interpolated_string(span, *raw, parts, body, mir_types, slots)
@@ -2951,31 +3013,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             writable: matches!(receiver, crate::mir::Operand::Local(_)),
             packed_alignment,
         })
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn codegen_mir_member_lvalue_ptr(
-        &mut self,
-        span: crate::span::Span,
-        receiver: &crate::mir::Operand,
-        member: &crate::mir::MemberAccessMetadata,
-        body: &crate::mir::Body,
-        mir_types: &TypeStore,
-        slots: &[MirLocalSlot<'ctx>],
-        require_writable: bool,
-    ) -> Result<(PointerValue<'ctx>, CgTy), LlvmEmitError> {
-        let place = self.codegen_mir_member_place(
-            span,
-            receiver,
-            member,
-            MirBodyCodegenCtx {
-                body,
-                mir_types,
-                slots,
-            },
-            require_writable,
-        )?;
-        Ok((place.ptr, place.field_cg))
     }
 
     fn codegen_mir_effect_instance_key(
@@ -5156,6 +5193,143 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn codegen_mir_size_of(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        value_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let arg_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR sizeOf arg type",
+                at: span.into(),
+            },
+        )?;
+        let llvm_ty = self.llvm_basic_type_of(span, arg_cg)?;
+        let bytes = self.store_size_bytes_of_basic_type(llvm_ty);
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let raw = self.int_type(value_word).const_int(bytes, false);
+        Ok(CgValue::int(raw, value_word))
+    }
+
+    fn codegen_mir_make_struct(
+        &mut self,
+        span: crate::span::Span,
+        fields: &[crate::mir::StructLitField],
+        target_cg: CgTy,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let CgTy::Struct(struct_ty) = target_cg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR struct literal target type",
+                at: span.into(),
+            });
+        };
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR struct literal type",
+                at: span.into(),
+            });
+        };
+        let layout_key = self.nominal_layout_key(nominal);
+        let layout =
+            self.struct_layouts
+                .get(&layout_key)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR struct literal layout",
+                    at: span.into(),
+                })?;
+        if layout.fields.len() != fields.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR struct literal field count",
+                at: span.into(),
+            });
+        }
+
+        let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
+        let mut deferred_fields: Vec<(u32, String, crate::span::Span, DeferredCgValue<'ctx>)> =
+            Vec::with_capacity(layout.fields.len());
+
+        for (idx, layout_field) in layout.fields.iter().enumerate() {
+            let mut matches = fields
+                .iter()
+                .filter(|field| field.name == layout_field.name);
+            let Some(init) = matches.next() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR struct literal missing field",
+                    at: span.into(),
+                });
+            };
+            if matches.next().is_some() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR struct literal duplicate field",
+                    at: init.span.into(),
+                });
+            }
+
+            let field_cg = self.cg_ty_of_layout_field(
+                init.span,
+                layout_field.ty,
+                layout_field.ty_fqn.as_deref(),
+            )?;
+            let value =
+                self.codegen_mir_operand_expected(init.span, &init.value, slots, Some(field_cg))?;
+            let coerced = if field_cg == CgTy::Unit {
+                CgValue::unit()
+            } else if value.ty != field_cg {
+                self.coerce_value(init.span, value, field_cg)?
+            } else {
+                value
+            };
+            let deferred = self.defer_gc_sensitive_cg_value(
+                init.span,
+                &format!("pass_mir_struct_field_{idx}"),
+                coerced,
+            )?;
+            let llvm_idx = self
+                .shared_caches
+                .pack_field_indices
+                .borrow()
+                .get(&layout_key)
+                .map_or(idx as u32, |indices| indices[idx]);
+            deferred_fields.push((llvm_idx, layout_field.name.clone(), init.span, deferred));
+        }
+
+        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        for (idx, (llvm_idx, field_name, field_span, deferred)) in
+            deferred_fields.into_iter().enumerate()
+        {
+            let materialized = self.materialize_deferred_cg_value(
+                field_span,
+                &format!("pass_mir_struct_field_reload_{idx}"),
+                deferred,
+            )?;
+            let raw: BasicValueEnum<'ctx> = match materialized.ty {
+                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+                _ => materialized
+                    .value
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR struct literal field value",
+                        at: field_span.into(),
+                    })?,
+            };
+            agg = self.builder.build_insert_value(
+                agg,
+                raw,
+                llvm_idx,
+                &format!("pass_mir_struct_insert_{field_name}"),
+            )?;
+        }
+
+        Ok(CgValue {
+            ty: target_cg,
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
     fn codegen_mir_tuple_get(
         &mut self,
         span: crate::span::Span,
@@ -6681,6 +6855,11 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
                 collect_mir_operand_use(element, out);
             }
         }
+        crate::mir::Rvalue::StructLit { fields } => {
+            for field in fields {
+                collect_mir_operand_use(&field.value, out);
+            }
+        }
         crate::mir::Rvalue::InterpolatedString { parts, .. } => {
             for part in parts {
                 if let crate::mir::InterpolatedStringPart::Expr { value, .. } = part {
@@ -6695,6 +6874,7 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
         crate::mir::Rvalue::MakeClosure { env, .. } => collect_mir_operand_use(env, out),
         crate::mir::Rvalue::TopLevelRef(_)
         | crate::mir::Rvalue::UnresolvedName { .. }
+        | crate::mir::Rvalue::SizeOf { .. }
         | crate::mir::Rvalue::PerformResult { .. }
         | crate::mir::Rvalue::Todo(_) => {}
     }

@@ -740,6 +740,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
                     crate::mir::Rvalue::PatternMatch { .. }
                     | crate::mir::Rvalue::PatternExtract { .. } => true,
                     crate::mir::Rvalue::MakeTuple { .. }
+                    | crate::mir::Rvalue::StructLit { .. }
                     | crate::mir::Rvalue::TupleGet { .. }
                     | crate::mir::Rvalue::MakeClosure { .. }
                     | crate::mir::Rvalue::CaptureBoxNew { .. }
@@ -759,6 +760,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
                             || self.top_level_immutable_values.contains_key(fqn)
                             || self.top_level_vars.contains_key(fqn)
                     }
+                    crate::mir::Rvalue::SizeOf { .. } => true,
                     _ => false,
                 }
             })
@@ -7516,14 +7518,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     Ok(coerced)
                 } else {
                     Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "value coercion",
+                        kind: "value coercion pointer-like enum",
                         at: at.into(),
                     })
                 }
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value coercion",
-                at: at.into(),
+            (from, to) => Err(LlvmEmitError::Frontend {
+                message: format!("unsupported value coercion from {from:?} to {to:?}"),
             }),
         }
     }

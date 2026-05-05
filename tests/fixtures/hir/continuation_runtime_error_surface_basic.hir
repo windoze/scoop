@@ -29,7 +29,7 @@ File {
                     Block {
                         span: 175..194,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         stmts: [
                             Stmt {
@@ -41,7 +41,7 @@ File {
                                     Expr {
                                         span: 181..192,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: Call {
                                             callee: Expr {
@@ -61,7 +61,7 @@ File {
                                                     Expr {
                                                         span: 181..182,
                                                         ty: TypeId(
-                                                            0,
+                                                            11,
                                                         ),
                                                         kind: VarRef(
                                                             Local {

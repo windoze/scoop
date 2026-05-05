@@ -684,6 +684,14 @@ pub enum InterpolatedStringPart {
     },
 }
 
+/// struct literal 在 MIR 上保留的 ANF 字段初始化项。
+#[derive(Debug, Clone)]
+pub struct StructLitField {
+    pub span: Span,
+    pub name: String,
+    pub value: Operand,
+}
+
 /// `perform` payload 在 MIR 上的一个已排序参数槽位。
 ///
 /// 说明：
@@ -896,6 +904,14 @@ pub enum Rvalue {
     /// 创建一个 tuple 值（最小 aggregate，用于 env struct 等场景）。
     MakeTuple {
         elements: Vec<Operand>,
+    },
+    /// 创建一个 struct 值。字段值已按源码求值顺序先 lower 为 operand。
+    StructLit {
+        fields: Vec<StructLitField>,
+    },
+    /// 编译期 `sizeOf(value)` intrinsic；`value` 本身不求值，只消费静态类型。
+    SizeOf {
+        value_ty: TypeId,
     },
     /// 运行期插值字符串构造。表达式片段已按 ANF 先求值为 operand。
     InterpolatedString {
@@ -1112,6 +1128,8 @@ impl Rvalue {
             | Rvalue::EnumVariant { .. }
             | Rvalue::ClassCtor { .. }
             | Rvalue::MakeTuple { .. }
+            | Rvalue::StructLit { .. }
+            | Rvalue::SizeOf { .. }
             | Rvalue::InterpolatedString { .. }
             | Rvalue::TupleGet { .. }
             | Rvalue::CaptureBoxNew { .. }

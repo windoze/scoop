@@ -2771,12 +2771,14 @@ fn classify_effect_neutral_rvalue(value: &Rvalue) -> LateLoweredSourceStatementC
         | Rvalue::Binary { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
+        | Rvalue::SizeOf { .. }
         | Rvalue::MemberAccess { .. }
         | Rvalue::EnumVariant { .. }
         | Rvalue::ClassCtor { .. }
         | Rvalue::Call { .. }
         | Rvalue::MakeClosure { .. }
         | Rvalue::MakeTuple { .. }
+        | Rvalue::StructLit { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }

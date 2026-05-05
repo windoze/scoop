@@ -28,6 +28,7 @@ callable_facts:
   sample.leaf:
     instance_key: sample.leaf
     declared_row: sample.Ping
+    call_abi_kind: EffectStep
     invoke_args_tuple_ty: Unit
     step_schema: step_schema#0
     resolved_outward_cases: [case#0=sample.Ping.hit]

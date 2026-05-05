@@ -68,6 +68,7 @@ LateLoweredProgram
         - bb0 stmts[0..0] + term
       plain_call_sites:
         <none>
+      plain_local_effect_control: <none>
       effect_step_handoff: <none>
     - root: sample.helper
       body_version_key: instance=sample.helper allowed_row=(t460) impl_plan=SingleCase(c1) needs_reentry=true
@@ -200,4 +201,5 @@ LateLoweredProgram
         - bb0 stmts[0..1] + term
       plain_call_sites:
         <none>
+      plain_local_effect_control: <none>
       effect_step_handoff: <none>

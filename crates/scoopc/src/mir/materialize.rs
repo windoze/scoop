@@ -3616,6 +3616,10 @@ impl MirInstanceMaterializer {
                     ctx.substitution,
                 );
             }
+            Rvalue::SizeOf { value_ty } => {
+                *value_ty =
+                    substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
+            }
             Rvalue::MemberAccess { receiver, member } => {
                 *receiver = self.rewrite_operand(receiver.clone());
                 self.rewrite_member_access_metadata(member, ctx);
@@ -3641,6 +3645,11 @@ impl MirInstanceMaterializer {
             Rvalue::MakeTuple { elements } => {
                 for element in elements.iter_mut() {
                     *element = self.rewrite_operand(element.clone());
+                }
+            }
+            Rvalue::StructLit { fields } => {
+                for field in fields.iter_mut() {
+                    field.value = self.rewrite_operand(field.value.clone());
                 }
             }
             Rvalue::InterpolatedString { parts, .. } => {

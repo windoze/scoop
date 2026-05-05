@@ -32,6 +32,7 @@ File {
                                 ty: TypeId(
                                     10,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 40..96,
@@ -41,6 +42,7 @@ File {
                                 ty: TypeId(
                                     0,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 57..78,
@@ -50,6 +52,7 @@ File {
                                 ty: TypeId(
                                     4,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 62..63,
@@ -59,6 +62,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 68..73,
@@ -68,6 +72,7 @@ File {
                                 ty: TypeId(
                                     4,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 72..73,
@@ -77,6 +82,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 91..92,
@@ -86,6 +92,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                         ],
                         blocks: [
@@ -133,7 +140,11 @@ File {
                                 terminator: Terminator {
                                     span: 11..98,
                                     kind: Return {
-                                        value: None,
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
                                     },
                                     unwind: NoUnwind,
                                 },

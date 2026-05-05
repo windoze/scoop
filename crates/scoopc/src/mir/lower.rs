@@ -1301,8 +1301,8 @@ impl<'a> FnLowering<'a> {
             }
             hir::ExprKind::Literal(lit) => self.lower_literal(expr.span, expr.ty, lit),
             hir::ExprKind::VarRef(v) => self.lower_var_ref(expr.span, expr.ty, v),
-            hir::ExprKind::StructLit { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "struct literal lowering pending")
+            hir::ExprKind::StructLit { fields, .. } => {
+                self.lower_struct_lit_expr(expr.span, expr.ty, fields)
             }
             hir::ExprKind::TupleLit { elements } => {
                 self.lower_tuple_lit_expr(expr.span, expr.ty, elements)
@@ -1396,6 +1396,29 @@ impl<'a> FnLowering<'a> {
             lowered.push(Operand::Local(local));
         }
         self.assign(span, result, Rvalue::MakeTuple { elements: lowered });
+        result
+    }
+
+    fn lower_struct_lit_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        fields: &[hir::StructLitField],
+    ) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+        let mut lowered = Vec::with_capacity(fields.len());
+        for field in fields {
+            let local = self.lower_expr_to_local(&field.value);
+            if self.current_is_terminated() {
+                return result;
+            }
+            lowered.push(crate::mir::StructLitField {
+                span: field.value.span,
+                name: field.name.clone(),
+                value: Operand::Local(local),
+            });
+        }
+        self.assign(span, result, Rvalue::StructLit { fields: lowered });
         result
     }
 
@@ -1885,6 +1908,10 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
+        if self.lower_size_of_intrinsic_call_expr(span, result, args) {
+            return result;
+        }
+
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind
             && matches!(
                 self.types.kind(ty),
@@ -1983,6 +2010,33 @@ impl<'a> FnLowering<'a> {
             },
         );
         result
+    }
+
+    fn lower_size_of_intrinsic_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        args: &[hir::CallArg],
+    ) -> bool {
+        let Some(binding) = self
+            .facts
+            .top_level_fun_call_binding(self.source_path.as_path(), span)
+        else {
+            return false;
+        };
+        if binding.fqn != "scoop.core.sizeOf" || !binding.is_intrinsic {
+            return false;
+        }
+        let [hir::CallArg::Positional(value)] = args else {
+            self.assign(
+                span,
+                result,
+                Rvalue::Todo("sizeOf intrinsic requires one positional arg"),
+            );
+            return true;
+        };
+        self.assign(span, result, Rvalue::SizeOf { value_ty: value.ty });
+        true
     }
 
     fn lower_resume_call_expr(

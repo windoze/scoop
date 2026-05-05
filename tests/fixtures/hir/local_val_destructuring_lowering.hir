@@ -27,13 +27,13 @@ File {
                     },
                 ],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Block {
                         span: 171..337,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         stmts: [
                             Stmt {
@@ -103,13 +103,13 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            12,
                                         ),
                                         init: Some(
                                             Expr {
                                                 span: 224..228,
                                                 ty: TypeId(
-                                                    0,
+                                                    12,
                                                 ),
                                                 kind: VarRef(
                                                     Local {
@@ -139,7 +139,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         init: Some(
                                             Expr {
@@ -151,7 +151,7 @@ File {
                                                     receiver: Expr {
                                                         span: 215..221,
                                                         ty: TypeId(
-                                                            0,
+                                                            12,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
@@ -188,7 +188,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         init: Some(
                                             Expr {
@@ -200,7 +200,7 @@ File {
                                                     receiver: Expr {
                                                         span: 215..221,
                                                         ty: TypeId(
-                                                            0,
+                                                            12,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
@@ -258,7 +258,7 @@ File {
                                                             value: Expr {
                                                                 span: 264..265,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    5,
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
@@ -277,7 +277,7 @@ File {
                                                             value: Expr {
                                                                 span: 270..271,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    5,
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
@@ -311,13 +311,13 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            13,
                                         ),
                                         init: Some(
                                             Expr {
                                                 span: 299..304,
                                                 ty: TypeId(
-                                                    0,
+                                                    13,
                                                 ),
                                                 kind: VarRef(
                                                     Local {
@@ -347,7 +347,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         init: Some(
                                             Expr {
@@ -359,7 +359,7 @@ File {
                                                     receiver: Expr {
                                                         span: 282..296,
                                                         ty: TypeId(
-                                                            0,
+                                                            13,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
@@ -401,7 +401,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         init: Some(
                                             Expr {
@@ -413,7 +413,7 @@ File {
                                                     receiver: Expr {
                                                         span: 282..296,
                                                         ty: TypeId(
-                                                            0,
+                                                            13,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
@@ -455,13 +455,13 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            10,
                                         ),
                                         init: Some(
                                             Expr {
                                                 span: 324..329,
                                                 ty: TypeId(
-                                                    0,
+                                                    10,
                                                 ),
                                                 kind: VarRef(
                                                     Local {
@@ -490,7 +490,7 @@ File {
                                             subject: Expr {
                                                 span: 314..321,
                                                 ty: TypeId(
-                                                    0,
+                                                    10,
                                                 ),
                                                 kind: VarRef(
                                                     Local {
@@ -598,19 +598,19 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         init: Some(
                                             Expr {
                                                 span: 314..321,
                                                 ty: TypeId(
-                                                    0,
+                                                    5,
                                                 ),
                                                 kind: When {
                                                     subject: Expr {
                                                         span: 314..321,
                                                         ty: TypeId(
-                                                            0,
+                                                            10,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
@@ -640,7 +640,7 @@ File {
                                                             body: Expr {
                                                                 span: 319..320,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    5,
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
@@ -719,7 +719,7 @@ File {
                                     Expr {
                                         span: 334..335,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: VarRef(
                                             Local {

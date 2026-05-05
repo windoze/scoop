@@ -41,6 +41,7 @@ callable_facts:
   sample.callValue:
     instance_key: sample.callValue
     declared_row: (sample.Alpha + sample.Beta)
+    call_abi_kind: EffectStep
     invoke_args_tuple_ty: () -> Unit / (sample.Alpha + sample.Beta)
     step_schema: step_schema#0
     resolved_outward_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
@@ -60,6 +61,7 @@ body_facts:
         call_kind: FunValue
         target_mode: DynamicFallback
         target: DynamicFallback
+        callee_abi_kind: EffectStep
         invoke_args_tuple_ty: Unit
         callee_schema: step_schema#1
         resolved_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]

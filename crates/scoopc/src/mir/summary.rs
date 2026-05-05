@@ -491,6 +491,16 @@ fn observe_rvalue(
                 observe_operand(element, OperandUsage::Escape, state, param_use_summaries);
             }
         }
+        Rvalue::StructLit { fields } => {
+            for field in fields {
+                observe_operand(
+                    &field.value,
+                    OperandUsage::Escape,
+                    state,
+                    param_use_summaries,
+                );
+            }
+        }
         Rvalue::InterpolatedString { parts, .. } => {
             for part in parts {
                 if let super::InterpolatedStringPart::Expr { value, .. } = part {
@@ -510,6 +520,7 @@ fn observe_rvalue(
             *may_allocate_closure = true;
             observe_operand(env, OperandUsage::Escape, state, param_use_summaries);
         }
+        Rvalue::SizeOf { .. } => {}
         Rvalue::Todo(_) => *base_outward_effect = true,
     }
 }
@@ -631,10 +642,12 @@ fn rvalue_provenance(
         | Rvalue::Binary { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
+        | Rvalue::SizeOf { .. }
         | Rvalue::EnumVariant { .. }
         | Rvalue::ClassCtor { .. }
         | Rvalue::Call { .. }
         | Rvalue::MakeTuple { .. }
+        | Rvalue::StructLit { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
@@ -784,6 +797,7 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         Rvalue::Use(_)
         | Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
+        | Rvalue::SizeOf { .. }
         | Rvalue::PerformResult { .. } => 1,
         Rvalue::Unary { .. }
         | Rvalue::TypeCheck { .. }
@@ -797,6 +811,7 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         Rvalue::EnumVariant { args, .. } => 2 + args.len() as u32,
         Rvalue::ClassCtor { args, .. } => 4 + args.len() as u32,
         Rvalue::MakeTuple { elements } => 2 + elements.len() as u32,
+        Rvalue::StructLit { fields } => 2 + fields.len() as u32,
         Rvalue::InterpolatedString { parts, .. } => 3 + parts.len() as u32,
         Rvalue::CaptureBoxNew { .. } | Rvalue::CaptureBoxSet { .. } => 4,
         Rvalue::MakeClosure { .. } => 5,

@@ -150,4 +150,5 @@ fun <T> __task_join(task: Task<T>): T {
             }
         }
     }
+    return panic("task join loop exited unexpectedly")
 }

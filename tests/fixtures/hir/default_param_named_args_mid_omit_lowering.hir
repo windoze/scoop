@@ -54,7 +54,7 @@ File {
                                         Expr {
                                             span: 95..96,
                                             ty: TypeId(
-                                                0,
+                                                5,
                                             ),
                                             kind: VarRef(
                                                 Local {
@@ -89,13 +89,13 @@ File {
                     Expr {
                         span: 113..128,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         kind: Block(
                             Block {
                                 span: 113..128,
                                 ty: TypeId(
-                                    0,
+                                    5,
                                 ),
                                 stmts: [
                                     Stmt {
@@ -197,13 +197,13 @@ File {
                                     Stmt {
                                         span: 113..128,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: Expr(
                                             Expr {
                                                 span: 113..128,
                                                 ty: TypeId(
-                                                    0,
+                                                    5,
                                                 ),
                                                 kind: Call {
                                                     callee: Expr {

@@ -12,6 +12,7 @@ step_schemas:
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_perform.scoop:36..125::a.main
     cases:
       - case#0: op=scoop.core.Raise.raise<Int> payload_tuple_ty=Int continuation_schema=continuation_schema#0
+      - case#1: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#0
 continuation_schemas:
   continuation_schema#0:
     resume_tuple_ty: Nothing
@@ -22,8 +23,9 @@ callable_facts:
   a.main:
     instance_key: a.main
     declared_row: Pure
-    invoke_args_tuple_ty: Unit
-    step_schema: step_schema#0
+    call_abi_kind: Plain
+    invoke_args_tuple_ty: <none>
+    step_schema: <none>
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward

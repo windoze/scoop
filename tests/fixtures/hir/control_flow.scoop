@@ -1,6 +1,6 @@
 package a
 
-fun main() {
+fun main(): Int {
   var x: Int = 0
   x = 1
 
@@ -14,5 +14,6 @@ fun main() {
   while (true) {
     return x
   }
-}
 
+  return x
+}

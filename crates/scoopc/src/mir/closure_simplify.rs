@@ -427,6 +427,11 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                 collect_operand_use(element, out);
             }
         }
+        Rvalue::StructLit { fields } => {
+            for field in fields {
+                collect_operand_use(&field.value, out);
+            }
+        }
         Rvalue::InterpolatedString { parts, .. } => {
             for part in parts {
                 if let super::InterpolatedStringPart::Expr { value, .. } = part {
@@ -441,6 +446,7 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         Rvalue::MakeClosure { env, .. } => collect_operand_use(env, out),
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
+        | Rvalue::SizeOf { .. }
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => {}
     }

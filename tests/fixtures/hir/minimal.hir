@@ -123,13 +123,13 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Block {
                         span: 150..178,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         stmts: [
                             Stmt {
@@ -173,7 +173,7 @@ File {
                                     Expr {
                                         span: 171..176,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: Call {
                                             callee: Expr {
@@ -193,7 +193,7 @@ File {
                                                     Expr {
                                                         span: 174..175,
                                                         ty: TypeId(
-                                                            0,
+                                                            5,
                                                         ),
                                                         kind: VarRef(
                                                             Local {

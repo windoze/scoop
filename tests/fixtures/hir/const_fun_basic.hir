@@ -47,13 +47,13 @@ File {
                                         Expr {
                                             span: 57..62,
                                             ty: TypeId(
-                                                0,
+                                                5,
                                             ),
                                             kind: Binary {
                                                 lhs: Expr {
                                                     span: 57..58,
                                                     ty: TypeId(
-                                                        0,
+                                                        5,
                                                     ),
                                                     kind: VarRef(
                                                         Local {
@@ -68,7 +68,7 @@ File {
                                                 rhs: Expr {
                                                     span: 61..62,
                                                     ty: TypeId(
-                                                        0,
+                                                        5,
                                                     ),
                                                     kind: VarRef(
                                                         Local {
@@ -117,7 +117,7 @@ File {
                                         Expr {
                                             span: 93..102,
                                             ty: TypeId(
-                                                0,
+                                                5,
                                             ),
                                             kind: Call {
                                                 callee: Expr {

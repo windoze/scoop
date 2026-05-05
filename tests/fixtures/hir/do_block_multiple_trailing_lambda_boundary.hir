@@ -54,7 +54,7 @@ File {
                                         Expr {
                                             span: 94..101,
                                             ty: TypeId(
-                                                0,
+                                                5,
                                             ),
                                             kind: Call {
                                                 callee: Expr {
@@ -75,7 +75,7 @@ File {
                                                         Expr {
                                                             span: 96..100,
                                                             ty: TypeId(
-                                                                0,
+                                                                5,
                                                             ),
                                                             kind: Call {
                                                                 callee: Expr {
@@ -96,7 +96,7 @@ File {
                                                                         Expr {
                                                                             span: 98..99,
                                                                             ty: TypeId(
-                                                                                0,
+                                                                                5,
                                                                             ),
                                                                             kind: VarRef(
                                                                                 Local {
@@ -132,13 +132,13 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Block {
                         span: 116..219,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         stmts: [
                             Stmt {
@@ -150,7 +150,7 @@ File {
                                     Expr {
                                         span: 122..154,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: Call {
                                             callee: Expr {
@@ -181,7 +181,7 @@ File {
                                                     Expr {
                                                         span: 133..143,
                                                         ty: TypeId(
-                                                            0,
+                                                            10,
                                                         ),
                                                         kind: Closure(
                                                             ClosureExpr {
@@ -199,13 +199,13 @@ File {
                                                                 body: Expr {
                                                                     span: 135..141,
                                                                     ty: TypeId(
-                                                                        0,
+                                                                        5,
                                                                     ),
                                                                     kind: Binary {
                                                                         lhs: Expr {
                                                                             span: 135..137,
                                                                             ty: TypeId(
-                                                                                0,
+                                                                                5,
                                                                             ),
                                                                             kind: VarRef(
                                                                                 Local {
@@ -236,7 +236,7 @@ File {
                                                     Expr {
                                                         span: 144..154,
                                                         ty: TypeId(
-                                                            0,
+                                                            10,
                                                         ),
                                                         kind: Closure(
                                                             ClosureExpr {
@@ -254,13 +254,13 @@ File {
                                                                 body: Expr {
                                                                     span: 146..152,
                                                                     ty: TypeId(
-                                                                        0,
+                                                                        5,
                                                                     ),
                                                                     kind: Binary {
                                                                         lhs: Expr {
                                                                             span: 146..148,
                                                                             ty: TypeId(
-                                                                                0,
+                                                                                5,
                                                                             ),
                                                                             kind: VarRef(
                                                                                 Local {
@@ -301,13 +301,13 @@ File {
                                     Expr {
                                         span: 159..217,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: Block(
                                             Block {
                                                 span: 162..217,
                                                 ty: TypeId(
-                                                    0,
+                                                    5,
                                                 ),
                                                 stmts: [
                                                     Stmt {
@@ -319,7 +319,7 @@ File {
                                                             Expr {
                                                                 span: 172..211,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    5,
                                                                 ),
                                                                 kind: Call {
                                                                     callee: Expr {
@@ -374,7 +374,7 @@ File {
                                                                             Expr {
                                                                                 span: 190..200,
                                                                                 ty: TypeId(
-                                                                                    0,
+                                                                                    10,
                                                                                 ),
                                                                                 kind: Closure(
                                                                                     ClosureExpr {
@@ -392,13 +392,13 @@ File {
                                                                                         body: Expr {
                                                                                             span: 192..198,
                                                                                             ty: TypeId(
-                                                                                                0,
+                                                                                                5,
                                                                                             ),
                                                                                             kind: Binary {
                                                                                                 lhs: Expr {
                                                                                                     span: 192..194,
                                                                                                     ty: TypeId(
-                                                                                                        0,
+                                                                                                        5,
                                                                                                     ),
                                                                                                     kind: VarRef(
                                                                                                         Local {
@@ -429,7 +429,7 @@ File {
                                                                             Expr {
                                                                                 span: 201..211,
                                                                                 ty: TypeId(
-                                                                                    0,
+                                                                                    10,
                                                                                 ),
                                                                                 kind: Closure(
                                                                                     ClosureExpr {
@@ -447,13 +447,13 @@ File {
                                                                                         body: Expr {
                                                                                             span: 203..209,
                                                                                             ty: TypeId(
-                                                                                                0,
+                                                                                                5,
                                                                                             ),
                                                                                             kind: Binary {
                                                                                                 lhs: Expr {
                                                                                                     span: 203..205,
                                                                                                     ty: TypeId(
-                                                                                                        0,
+                                                                                                        5,
                                                                                                     ),
                                                                                                     kind: VarRef(
                                                                                                         Local {

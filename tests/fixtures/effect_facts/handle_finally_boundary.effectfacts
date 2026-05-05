@@ -15,24 +15,14 @@ step_schemas:
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:95..241::fixtures.mir_refactor.body_completes
     cases:
       - case#0: op=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=continuation_schema#0
-  step_schema#1:
-    invoke_args_tuple_ty: Unit
-    complete_ty: Unit
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:77..93::fixtures.mir_refactor.cleanup
-    cases:
-      <none>
+      - case#1: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#1
   step_schema#2:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:243..413::fixtures.mir_refactor.handled_raise
     cases:
-      - case#0: op=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=continuation_schema#1
-  step_schema#3:
-    invoke_args_tuple_ty: Unit
-    complete_ty: Int
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:415..480::fixtures.mir_refactor.main
-    cases:
-      <none>
+      - case#0: op=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=continuation_schema#2
+      - case#1: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#3
 continuation_schemas:
   continuation_schema#0:
     resume_tuple_ty: Int
@@ -40,40 +30,54 @@ continuation_schemas:
     out_step_schema: step_schema#0
     surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_refactor.Step>
   continuation_schema#1:
+    resume_tuple_ty: Nothing
+    answer_ty: Int
+    out_step_schema: step_schema#0
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_refactor.Step>
+  continuation_schema#2:
     resume_tuple_ty: Int
     answer_ty: Int
     out_step_schema: step_schema#2
     surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_refactor.Step>
+  continuation_schema#3:
+    resume_tuple_ty: Nothing
+    answer_ty: Int
+    out_step_schema: step_schema#2
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_refactor.Step>
 callable_facts:
   fixtures.mir_refactor.body_completes:
     instance_key: fixtures.mir_refactor.body_completes
     declared_row: Pure
-    invoke_args_tuple_ty: Unit
-    step_schema: step_schema#0
+    call_abi_kind: Plain
+    invoke_args_tuple_ty: <none>
+    step_schema: <none>
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward
   fixtures.mir_refactor.cleanup:
     instance_key: fixtures.mir_refactor.cleanup
     declared_row: Pure
-    invoke_args_tuple_ty: Unit
-    step_schema: step_schema#1
+    call_abi_kind: Plain
+    invoke_args_tuple_ty: <none>
+    step_schema: <none>
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward
   fixtures.mir_refactor.handled_raise:
     instance_key: fixtures.mir_refactor.handled_raise
     declared_row: Pure
-    invoke_args_tuple_ty: Unit
-    step_schema: step_schema#2
+    call_abi_kind: Plain
+    invoke_args_tuple_ty: <none>
+    step_schema: <none>
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward
   fixtures.mir_refactor.main:
     instance_key: fixtures.mir_refactor.main
     declared_row: Pure
-    invoke_args_tuple_ty: Unit
-    step_schema: step_schema#3
+    call_abi_kind: Plain
+    invoke_args_tuple_ty: <none>
+    step_schema: <none>
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward
@@ -120,8 +124,9 @@ body_facts:
         call_kind: Direct
         target_mode: KnownInstance
         target: KnownInstance(fixtures.mir_refactor.cleanup)
+        callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
-        callee_schema: step_schema#1
+        callee_schema: <none>
         resolved_cases: []
         precision: Precise
   fixtures.mir_refactor.cleanup:
@@ -184,19 +189,20 @@ body_facts:
         finally_outward_cases: []
         nested_handle_classification: SelfContained
         arm_facts:
-          - handled_case: case#0=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=continuation_schema#1 arm_outward_cases=[]
+          - handled_case: case#0=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=continuation_schema#2 arm_outward_cases=[]
       site1:
         kind: Perform
         emitted_case: case#0=fixtures.mir_refactor.Step.next
         payload_tuple_ty: Int
-        captured_cont_schema: continuation_schema#1
+        captured_cont_schema: continuation_schema#2
       site2:
         kind: Call
         call_kind: Direct
         target_mode: KnownInstance
         target: KnownInstance(fixtures.mir_refactor.cleanup)
+        callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
-        callee_schema: step_schema#1
+        callee_schema: <none>
         resolved_cases: []
         precision: Precise
       site3:
@@ -204,8 +210,9 @@ body_facts:
         call_kind: Direct
         target_mode: KnownInstance
         target: KnownInstance(fixtures.mir_refactor.cleanup)
+        callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
-        callee_schema: step_schema#1
+        callee_schema: <none>
         resolved_cases: []
         precision: Precise
   fixtures.mir_refactor.main:
@@ -221,8 +228,9 @@ body_facts:
         call_kind: Direct
         target_mode: KnownInstance
         target: KnownInstance(fixtures.mir_refactor.body_completes)
+        callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
-        callee_schema: step_schema#0
+        callee_schema: <none>
         resolved_cases: []
         precision: Precise
       site1:
@@ -230,7 +238,8 @@ body_facts:
         call_kind: Direct
         target_mode: KnownInstance
         target: KnownInstance(fixtures.mir_refactor.handled_raise)
+        callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
-        callee_schema: step_schema#2
+        callee_schema: <none>
         resolved_cases: []
         precision: Precise

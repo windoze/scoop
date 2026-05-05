@@ -21,8 +21,9 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    18,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 34..35,
@@ -32,6 +33,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 38..78,
@@ -41,6 +43,7 @@ File {
                                 ty: TypeId(
                                     11,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 57..78,
@@ -48,8 +51,9 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    19,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 57..78,
@@ -59,6 +63,7 @@ File {
                                 ty: TypeId(
                                     10,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 81..121,
@@ -68,6 +73,7 @@ File {
                                 ty: TypeId(
                                     11,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 100..121,
@@ -75,8 +81,9 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    19,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 100..121,
@@ -86,6 +93,7 @@ File {
                                 ty: TypeId(
                                     10,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 128..129,
@@ -95,6 +103,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 124..129,
@@ -104,6 +113,7 @@ File {
                                 ty: TypeId(
                                     2,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 132..135,
@@ -113,6 +123,7 @@ File {
                                 ty: TypeId(
                                     0,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 138..141,
@@ -122,6 +133,7 @@ File {
                                 ty: TypeId(
                                     0,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 144..145,
@@ -131,6 +143,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                         ],
                         blocks: [
@@ -303,7 +316,11 @@ File {
                                 terminator: Terminator {
                                     span: 11..147,
                                     kind: Return {
-                                        value: None,
+                                        value: Some(
+                                            Local(
+                                                l12,
+                                            ),
+                                        ),
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -327,7 +344,7 @@ File {
                         span: 57..78,
                         name: "$env",
                         ty: TypeId(
-                            21,
+                            19,
                         ),
                         local: l0,
                     },
@@ -344,8 +361,9 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    19,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 30..31,
@@ -353,8 +371,9 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    18,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 67..68,
@@ -364,6 +383,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 63..68,
@@ -373,6 +393,7 @@ File {
                                 ty: TypeId(
                                     2,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 73..74,
@@ -382,6 +403,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                         ],
                         blocks: [
@@ -468,7 +490,7 @@ File {
                         span: 100..121,
                         name: "$env",
                         ty: TypeId(
-                            21,
+                            19,
                         ),
                         local: l0,
                     },
@@ -485,8 +507,9 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    19,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 30..31,
@@ -494,8 +517,9 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    18,
                                 ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 110..111,
@@ -505,6 +529,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 106..111,
@@ -514,6 +539,7 @@ File {
                                 ty: TypeId(
                                     2,
                                 ),
+                                source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 116..117,
@@ -523,6 +549,7 @@ File {
                                 ty: TypeId(
                                     5,
                                 ),
+                                source: CompilerTemporary,
                             },
                         ],
                         blocks: [

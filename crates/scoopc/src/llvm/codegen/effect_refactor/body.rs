@@ -661,7 +661,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?,
                     None => self.default_value(terminator.span, declared_return_cg)?,
                 };
-                let value = self.coerce_value(terminator.span, value, declared_return_cg)?;
+                let value = self
+                    .coerce_value(terminator.span, value, declared_return_cg)
+                    .map_err(|err| match err {
+                        LlvmEmitError::Frontend { message } => frontend_error(format!(
+                            "refactor plain return coercion failed at {:?}: {message}",
+                            terminator.span
+                        )),
+                        other => other,
+                    })?;
                 self.finish_function_return_path(terminator.span, declared_return_cg, value)
             }
             mir::TerminatorKind::Goto { target } => {

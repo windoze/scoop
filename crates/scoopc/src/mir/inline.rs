@@ -11,7 +11,8 @@ use std::collections::{HashMap, HashSet};
 use super::{
     Body, CallArg, CallKind, FunDecl, InstanceKey, InstanceSummary, LocalDecl, LocalId,
     MaterializedMir, Operand, ParamUseSummary, ResultProvenance, ResultProvenanceSource, Rvalue,
-    SiteId, Statement, StatementKind, TerminatorKind, UnwindAction, summarize_pass_rewritten_fun,
+    SiteId, Statement, StatementKind, StructLitField, TerminatorKind, UnwindAction,
+    summarize_pass_rewritten_fun,
 };
 
 const INLINE_SIZE_THRESHOLD: u32 = 16;
@@ -290,10 +291,12 @@ impl BlockCallableProvenance {
             | Rvalue::Binary { .. }
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
+            | Rvalue::SizeOf { .. }
             | Rvalue::EnumVariant { .. }
             | Rvalue::ClassCtor { .. }
             | Rvalue::Call { .. }
             | Rvalue::MakeTuple { .. }
+            | Rvalue::StructLit { .. }
             | Rvalue::InterpolatedString { .. }
             | Rvalue::TupleGet { .. }
             | Rvalue::CaptureBoxNew { .. }
@@ -569,14 +572,17 @@ fn statement_is_pass_publishable(kind: &StatementKind) -> bool {
 
 fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
     match value {
-        Rvalue::Use(_) | Rvalue::TopLevelRef(_) | Rvalue::Unary { .. } | Rvalue::Binary { .. } => {
-            true
-        }
+        Rvalue::Use(_)
+        | Rvalue::TopLevelRef(_)
+        | Rvalue::Unary { .. }
+        | Rvalue::Binary { .. }
+        | Rvalue::SizeOf { .. } => true,
         Rvalue::Call { kind, .. } => {
             matches!(kind, CallKind::Direct { .. } | CallKind::Closure { .. })
         }
         Rvalue::EnumVariant { .. } | Rvalue::ClassCtor { .. } => true,
         Rvalue::MakeTuple { .. }
+        | Rvalue::StructLit { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::MakeClosure { .. } => true,
@@ -613,9 +619,11 @@ fn rvalue_is_inlineable(
     direct_call_param_provenance: &HashMap<LocalId, CallableProvenance>,
 ) -> bool {
     match value {
-        Rvalue::Use(_) | Rvalue::TopLevelRef(_) | Rvalue::Unary { .. } | Rvalue::Binary { .. } => {
-            true
-        }
+        Rvalue::Use(_)
+        | Rvalue::TopLevelRef(_)
+        | Rvalue::Unary { .. }
+        | Rvalue::Binary { .. }
+        | Rvalue::SizeOf { .. } => true,
         Rvalue::Call { kind, .. } => call_kind_is_inlineable(kind, direct_call_param_provenance),
         Rvalue::EnumVariant { .. } | Rvalue::ClassCtor { .. } => true,
         Rvalue::UnresolvedName { .. }
@@ -623,6 +631,7 @@ fn rvalue_is_inlineable(
         | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
         | Rvalue::MakeTuple { .. }
+        | Rvalue::StructLit { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
@@ -759,6 +768,11 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                 collect_operand_use(element, out);
             }
         }
+        Rvalue::StructLit { fields } => {
+            for field in fields {
+                collect_operand_use(&field.value, out);
+            }
+        }
         Rvalue::InterpolatedString { parts, .. } => {
             for part in parts {
                 if let super::InterpolatedStringPart::Expr { value, .. } = part {
@@ -773,6 +787,7 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         Rvalue::MakeClosure { env, .. } => collect_operand_use(env, out),
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
+        | Rvalue::SizeOf { .. }
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => {}
     }
@@ -1006,11 +1021,22 @@ fn remap_rvalue(
             class_fqn: class_fqn.clone(),
             args: remap_call_args(args, local_operands, local_map)?,
         }),
+        Rvalue::SizeOf { value_ty } => Some(Rvalue::SizeOf {
+            value_ty: *value_ty,
+        }),
+        Rvalue::StructLit { fields } => Some(Rvalue::StructLit {
+            fields: remap_struct_lit_fields(fields, local_operands, local_map)?,
+        }),
+        Rvalue::MakeTuple { elements } => Some(Rvalue::MakeTuple {
+            elements: elements
+                .iter()
+                .map(|element| remap_operand(element, local_operands, local_map))
+                .collect::<Option<Vec<_>>>()?,
+        }),
         Rvalue::UnresolvedName { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
-        | Rvalue::MakeTuple { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
@@ -1022,6 +1048,23 @@ fn remap_rvalue(
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => None,
     }
+}
+
+fn remap_struct_lit_fields(
+    fields: &[StructLitField],
+    local_operands: &HashMap<LocalId, Operand>,
+    local_map: &HashMap<LocalId, LocalId>,
+) -> Option<Vec<StructLitField>> {
+    fields
+        .iter()
+        .map(|field| {
+            Some(StructLitField {
+                span: field.span,
+                name: field.name.clone(),
+                value: remap_operand(&field.value, local_operands, local_map)?,
+            })
+        })
+        .collect()
 }
 
 fn fresh_cloned_site_id(next_site_id: &mut u32) -> SiteId {

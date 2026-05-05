@@ -1,12 +1,12 @@
 File {
     items: [
         Todo {
-            span: 32..84,
+            span: 32..82,
             kind: "type",
         },
         Fun(
             FunDecl {
-                span: 86..150,
+                span: 84..153,
                 fqn: "a.use",
                 name: "use",
                 ty: TypeId(
@@ -14,7 +14,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 94..95,
+                        span: 92..93,
                         id: S0,
                         name: "p",
                         ty: TypeId(
@@ -23,23 +23,23 @@ File {
                     },
                 ],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Block {
-                        span: 104..150,
+                        span: 107..153,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         stmts: [
                             Stmt {
-                                span: 108..124,
+                                span: 111..127,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Val(
                                     ValDecl {
-                                        span: 108..124,
+                                        span: 111..127,
                                         id: Some(
                                             S2,
                                         ),
@@ -52,26 +52,26 @@ File {
                                         ),
                                         init: Some(
                                             Expr {
-                                                span: 121..124,
+                                                span: 124..127,
                                                 ty: TypeId(
                                                     0,
                                                 ),
                                                 kind: MemberAccess {
                                                     receiver: Expr {
-                                                        span: 121..122,
+                                                        span: 124..125,
                                                         ty: TypeId(
-                                                            0,
+                                                            10,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
                                                                 id: S0,
                                                                 name: "p",
-                                                                decl_span: 94..95,
+                                                                decl_span: 92..93,
                                                             },
                                                         ),
                                                     },
                                                     member: MemberAccess {
-                                                        span: 123..124,
+                                                        span: 126..127,
                                                         name: "x",
                                                         resolved: Some(
                                                             Value {
@@ -87,32 +87,32 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 127..134,
+                                span: 130..137,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Assign {
                                     lhs: Expr {
-                                        span: 127..130,
+                                        span: 130..133,
                                         ty: TypeId(
                                             0,
                                         ),
                                         kind: MemberAccess {
                                             receiver: Expr {
-                                                span: 127..128,
+                                                span: 130..131,
                                                 ty: TypeId(
-                                                    0,
+                                                    10,
                                                 ),
                                                 kind: VarRef(
                                                     Local {
                                                         id: S0,
                                                         name: "p",
-                                                        decl_span: 94..95,
+                                                        decl_span: 92..93,
                                                     },
                                                 ),
                                             },
                                             member: MemberAccess {
-                                                span: 129..130,
+                                                span: 132..133,
                                                 name: "x",
                                                 resolved: Some(
                                                     Value {
@@ -123,9 +123,9 @@ File {
                                             },
                                         },
                                     },
-                                    eq_span: 131..132,
+                                    eq_span: 134..135,
                                     rhs: Expr {
-                                        span: 133..134,
+                                        span: 136..137,
                                         ty: TypeId(
                                             5,
                                         ),
@@ -136,69 +136,66 @@ File {
                                 },
                             },
                             Stmt {
-                                span: 137..144,
+                                span: 140..147,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 137..144,
+                                        span: 140..147,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: Call {
                                             callee: Expr {
-                                                span: 137..142,
+                                                span: 140..145,
                                                 ty: TypeId(
                                                     0,
                                                 ),
-                                                kind: MemberAccess {
-                                                    receiver: Expr {
-                                                        span: 137..138,
+                                                kind: VarRef(
+                                                    TopLevel {
+                                                        id: S3,
+                                                        fqn: "a.Point.inc",
+                                                    },
+                                                ),
+                                            },
+                                            args: [
+                                                Positional(
+                                                    Expr {
+                                                        span: 140..141,
                                                         ty: TypeId(
-                                                            0,
+                                                            10,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
                                                                 id: S0,
                                                                 name: "p",
-                                                                decl_span: 94..95,
+                                                                decl_span: 92..93,
                                                             },
                                                         ),
                                                     },
-                                                    member: MemberAccess {
-                                                        span: 139..142,
-                                                        name: "inc",
-                                                        resolved: Some(
-                                                            Fun {
-                                                                id: S3,
-                                                                fqn: "a.Point.inc",
-                                                            },
-                                                        ),
-                                                    },
-                                                },
-                                            },
-                                            args: [],
+                                                ),
+                                            ],
                                         },
                                     },
                                 ),
                             },
                             Stmt {
-                                span: 147..148,
+                                span: 150..151,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 147..148,
+                                        span: 150..151,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: VarRef(
                                             Local {
                                                 id: S2,
                                                 name: "y",
-                                                decl_span: 112..113,
+                                                decl_span: 115..116,
                                             },
                                         ),
                                     },

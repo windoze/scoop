@@ -74,7 +74,7 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    2,
                 ),
                 body: Some(
                     Block {
@@ -628,7 +628,7 @@ File {
                                     Expr {
                                         span: 222..240,
                                         ty: TypeId(
-                                            0,
+                                            2,
                                         ),
                                         kind: Call {
                                             callee: Expr {
@@ -877,7 +877,7 @@ File {
                                     Expr {
                                         span: 243..272,
                                         ty: TypeId(
-                                            0,
+                                            2,
                                         ),
                                         kind: Call {
                                             callee: Expr {

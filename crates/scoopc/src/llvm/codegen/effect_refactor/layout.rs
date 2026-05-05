@@ -840,7 +840,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
         for slot in callable.frame_schema().slots() {
             let field_index = llvm_fields.len() as u32;
-            let slot_abi = self.abi_value(slot.ty())?;
+            let slot_abi = match slot.kind() {
+                LateLoweredFrameSlotKind::ResumePayload { .. } => {
+                    self.resume_surface_abi_value(slot.ty())?
+                }
+                _ => self.abi_value(slot.ty())?,
+            };
             llvm_fields.push(slot_abi.llvm_ty());
             fields.push(RefactorFrameFieldLayout::new(
                 field_index,
@@ -2492,11 +2497,17 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 self.codegen.context.struct_type(&[], false).into(),
                 true,
             )),
-            [single] => self.abi_value_from_types(types, *single),
+            [single] => self
+                .abi_value_from_types(types, *single)
+                .map_err(|err| self.wrap_tuple_abi_error(types, components, 0, *single, err)),
             _ => {
                 let mut fields = Vec::with_capacity(components.len());
-                for component in components {
-                    let llvm_ty = self.llvm_abi_type_of_types(types, *component)?;
+                for (index, component) in components.iter().copied().enumerate() {
+                    let llvm_ty = self
+                        .llvm_abi_type_of_types(types, component)
+                        .map_err(|err| {
+                            self.wrap_tuple_abi_error(types, components, index, component, err)
+                        })?;
                     if self.codegen.target_data.get_store_size(&llvm_ty) == 0 {
                         continue;
                     }
@@ -2508,6 +2519,31 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     self.codegen.target_data.get_store_size(&llvm_ty) == 0,
                 ))
             }
+        }
+    }
+
+    fn wrap_tuple_abi_error(
+        &self,
+        types: &TypeStore,
+        components: &[TypeId],
+        index: usize,
+        component: TypeId,
+        err: LlvmEmitError,
+    ) -> LlvmEmitError {
+        match err {
+            LlvmEmitError::Frontend { message } => {
+                let component_list = components
+                    .iter()
+                    .map(|ty| types.display(*ty).to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                frontend_error(format!(
+                    "refactor LLVM tuple ABI component #{index} `{}`（t{}）lowering failed in ({component_list}): {message}",
+                    types.display(component),
+                    component.as_u32()
+                ))
+            }
+            other => other,
         }
     }
 
@@ -5596,8 +5632,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 self.llvm_nominal_value_type_from_layout(nominal)
             }
             TypeKind::Param(_) => Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 遇到尚未实例化的类型参数 `{}`",
-                types.display(ty)
+                "refactor LLVM ABI materialization 遇到尚未实例化的类型参数 `{}`（t{}）",
+                types.display(ty),
+                ty.as_u32()
             ))),
         }
     }

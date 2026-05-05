@@ -475,6 +475,7 @@ impl<'a> ReachabilityCollector<'a> {
                 match value {
                     mir::Rvalue::PatternMatch { .. } | mir::Rvalue::PatternExtract { .. } => true,
                     mir::Rvalue::MakeTuple { .. }
+                    | mir::Rvalue::StructLit { .. }
                     | mir::Rvalue::TupleGet { .. }
                     | mir::Rvalue::MakeClosure { .. }
                     | mir::Rvalue::CaptureBoxNew { .. }
@@ -494,6 +495,7 @@ impl<'a> ReachabilityCollector<'a> {
                             || self.top_level_immutable_values.contains_key(fqn)
                             || self.top_level_vars.contains_key(fqn)
                     }
+                    mir::Rvalue::SizeOf { .. } => true,
                     _ => false,
                 }
             })
@@ -537,7 +539,9 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::TopLevelRef(_)
             | mir::Rvalue::Unary { .. }
             | mir::Rvalue::Binary { .. }
+            | mir::Rvalue::SizeOf { .. }
             | mir::Rvalue::MakeTuple { .. }
+            | mir::Rvalue::StructLit { .. }
             | mir::Rvalue::InterpolatedString { .. }
             | mir::Rvalue::TupleGet { .. }
             | mir::Rvalue::MakeClosure { .. }
@@ -647,6 +651,7 @@ impl<'a> ReachabilityCollector<'a> {
             }
             mir::Rvalue::PerformResult { .. }
             | mir::Rvalue::UnresolvedName { .. }
+            | mir::Rvalue::SizeOf { .. }
             | mir::Rvalue::Todo(_) => {}
             mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) => {
                 self.scan_top_level_value_ref(fqn)
@@ -677,6 +682,11 @@ impl<'a> ReachabilityCollector<'a> {
             mir::Rvalue::MakeTuple { elements } => {
                 for element in elements {
                     self.scan_mir_operand(element);
+                }
+            }
+            mir::Rvalue::StructLit { fields } => {
+                for field in fields {
+                    self.scan_mir_operand(&field.value);
                 }
             }
             mir::Rvalue::InterpolatedString { parts, .. } => {

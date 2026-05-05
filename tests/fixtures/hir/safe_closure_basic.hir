@@ -10,13 +10,13 @@ File {
                 ),
                 params: [],
                 return_ty: TypeId(
-                    0,
+                    5,
                 ),
                 body: Some(
                     Block {
                         span: 41..83,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         stmts: [
                             Stmt {
@@ -35,13 +35,13 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            11,
+                                            10,
                                         ),
                                         init: Some(
                                             Expr {
                                                 span: 64..75,
                                                 ty: TypeId(
-                                                    0,
+                                                    10,
                                                 ),
                                                 kind: Closure(
                                                     ClosureExpr {
@@ -75,13 +75,13 @@ File {
                                     Expr {
                                         span: 78..81,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: Call {
                                             callee: Expr {
                                                 span: 78..79,
                                                 ty: TypeId(
-                                                    0,
+                                                    10,
                                                 ),
                                                 kind: VarRef(
                                                     Local {

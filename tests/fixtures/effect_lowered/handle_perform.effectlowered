@@ -8,9 +8,9 @@ snapshot_binding:
 post_opt_program:
 LateLoweredProgram
   step_type_count: 1
-  resume_packing_interface_count: 0
-  continuation_object_count: 0
-  surface_resume_dispatch_count: 0
+  resume_packing_interface_count: 2
+  continuation_object_count: 1
+  surface_resume_dispatch_count: 1
   callable_count: 1
   step_types:
     - step_schema: s0
@@ -21,11 +21,44 @@ LateLoweredProgram
         - Case(c0) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t5>
         - Case(c1) payload_tuple_ty=t217 continuation_schema=k0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t217>
   continuation_objects:
-    <none>
+    - continuation_object: ko0
+      owner_version: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
+      continuation_obj_ty: t468
+      implemented_packings: [ri0, ri1]
+      captures:
+        - FrameSlot(slot0)
+        - FrameSlot(slot1)
+        - FrameSlot(slot2)
+        - FrameSlot(slot3)
+        - FrameSlot(slot4)
+        - FrameSlot(slot5)
+        - FrameSlot(slot6)
+        - FrameSlot(slot7)
+        - State(st5)
+      authoritative_surface_resumes:
+        - case=c0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t5> => Unreachable
+        - case=c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+      authoritative_internal_methods:
+        - case=c0 packed_by=ri0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t5> => Unreachable
+        - case=c1 packed_by=ri1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
   authoritative_surface_resume_dispatch_inventory:
-    <none>
+    - continuation_schema: k0 source=Unreachable resume_tuple_ty=t3 answer_ty=t5 out_step_schema=s0
+      publications:
+        - surface_case ko0 case=c0 reachability=Unreachable
+        - surface_case ko0 case=c1 reachability=Unreachable
+        - internal_method ko0 case=c0 packed_by=ri0 reachability=Unreachable
+        - internal_method ko0 case=c1 packed_by=ri1 reachability=Unreachable
   resume_packing_interfaces:
-    <none>
+    - resume_packing_interface: ri0
+      packing_effect_family: scoop.core.Raise<t5>
+      authoritative_step_schema: s0
+      packed_methods:
+        - case: c0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t5>
+    - resume_packing_interface: ri1
+      packing_effect_family: scoop.core.Raise<t217>
+      authoritative_step_schema: s0
+      packed_methods:
+        - case: c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t469 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t217>
   callables:
     - root: a.main
       body_version_key: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
@@ -40,4 +73,101 @@ LateLoweredProgram
         - bb4 stmts[0..2] + term
       plain_call_sites:
         <none>
+      plain_local_effect_control: s0 ko0
+      state_graph:
+        entry_state: st0
+        complete_state: st1
+        cleanup_state: <none>
+        drop_state: st6
+        states:
+          - st0 Entry term=Handle(site0 body=st2 arms=[st3] finally=<none> exit=st4 boundaries=[] drop=st6) successors=[st2, st3]
+            handle_contract:
+              carriers: state=StateTag completion=CompletionTag payload=ResumePayloadCarrier
+              body_complete_target: st4
+              arm_complete_target: st4
+              finally_complete_target: <none>
+              body_completion_payload: local0:t5
+              abandon_target: st6
+              body_outward_cases: []
+              finally_outward_cases: []
+              handled_arms:
+                - handled=c0 ordinal=0 -> st3 payload_tuple_ty=t5 outward=[]
+                  payload_binders:
+                    - #0 local1 slot=<none>
+                  continuation_binder: <none>
+                  completion_payload: local0:t5
+              pending_completions:
+                <none>
+              pending_payload_transports:
+                <none>
+              state_regions:
+                - st0 => dispatch
+                - st2 => body
+                - st3 => arm(c0, ordinal=0)
+                - st4 => exit
+                - st5 => body
+              boundary_routings:
+                - bd0 owner=st2 region=body resume=st5
+                  case_routings:
+                    - c0 => consume_to_arm(st3, ordinal=0, resume=st5)
+              outward_emissions:
+                <none>
+            source_slices:
+              - bb0 stmts[0..0] + term
+                statement_classification:
+                  <none>
+          - st1 Complete term=Unreachable successors=[]
+            source_slices:
+              <synthetic>
+          - st2 Segment term=Suspend(boundaries=[bd0], resume=st5, local_runtime_error=[], cleanup=<none>, drop=st6) successors=[st5]
+            source_slices:
+              - bb1 stmts[0..2] + term
+                statement_classification:
+                  - stmt0: effect-neutral-value
+                  - stmt1: resume-payload-injection bd0 resume=st5 local3
+          - st3 Segment term=Goto(st4) successors=[st4]
+            source_slices:
+              - bb2 stmts[0..2] + term
+                statement_classification:
+                  - stmt0: effect-neutral-value
+                  - stmt1: effect-neutral-value
+          - st4 Segment term=Return(local0:t5 -> st1) successors=[st1]
+            source_slices:
+              - bb3 stmts[0..0] + term
+                statement_classification:
+                  <none>
+          - st5 Resume term=Goto(st4) successors=[st4]
+            source_slices:
+              - bb4 stmts[0..2] + term
+                statement_classification:
+                  - stmt0: effect-neutral-value
+                  - stmt1: effect-neutral-value
+          - st6 Drop term=Abandon successors=[]
+            source_slices:
+              <synthetic>
+      frame_schema:
+        slots:
+          - slot0 BoundaryResult(bd0, local3) ty=t3 writes=[st5] reads=[]
+          - slot1 ResumePayload(bd0, c0) ty=t3 writes=[st5] reads=[st5]
+          - slot2 ResumePayload(bd0, c1) ty=t3 writes=[st5] reads=[st5]
+          - slot3 StateTag ty=t5 writes=[] reads=[]
+          - slot4 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot5 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot6 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot7 CompletionTag ty=t5 writes=[] reads=[]
+        resume_payload_bindings:
+          - bd0 resume=st5 local3 home=slot0
+        completion_payload_bindings:
+          - return=st4 complete=st1 payload=local0:t5 home=<none>
+      boundary_map:
+        - bd0 Perform(site1) owner=st2 resume=st5
+          lowering: Perform emitted_case=c0 captured_cont_schema=k0 payload_tuple_ty=t5
+            operand_contract:
+              anchor: terminator slice=bb1 stmts[0..2] + term
+              payload_sources:
+                - local2:t5
+            emit: c0 op=scoop.core.Raise.raise<t5> payload_tuple_ty=t5 ko0 cont_schema=k0 out_step_schema=s0
+      resume_state_map:
+        - bd0 -> st5
+      resume_packing_interfaces: [ri0, ri1]
       effect_step_handoff: <none>

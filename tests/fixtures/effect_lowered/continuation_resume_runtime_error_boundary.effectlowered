@@ -160,4 +160,5 @@ LateLoweredProgram
         - bb0 stmts[0..1] + term
       plain_call_sites:
         <none>
+      plain_local_effect_control: <none>
       effect_step_handoff: <none>
