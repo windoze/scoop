@@ -35,4 +35,5 @@
 - 搜索守卫发现 `value.rs` 的 cross-thread resume thunk 仍用 `scoop_runtime_error_fatal(NULL)` 处理 non-Complete step；已改为新增无参数 runtime 终止入口 `scoop_refactor_thread_resume_noncomplete_fatal()`，避免伪造 RuntimeError payload。
 - 已完成格式化、相关 runtime/LLVM validations、搜索守卫与 clippy。
 - 已在 `TODO-P6-part3.md` 与 `TODO.md` 标记 `P6-T05R` 为 `[DONE]`，并写入 review 完成记录。
-- 下一步：检查 git diff/status，提交本次所有相关改动后停止。
+- 已提交本次任务改动：`480c7723 [P6-T05R] Review P6 LLVM exit criteria`。
+- 当前任务已完成；停止，不继续处理下一个任务。
