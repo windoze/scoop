@@ -768,7 +768,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if *target != local_id {
                     continue;
                 }
-                let crate::mir::Rvalue::MemberAccess { receiver, member } = value else {
+                let crate::mir::Rvalue::MemberAccess {
+                    receiver, member, ..
+                } = value
+                else {
                     continue;
                 };
                 if !matches!(
@@ -777,9 +780,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ) {
                     continue;
                 }
-                let field = self.raw_materialized_mir_member_field_contract(
+                let Ok(field) = self.raw_materialized_mir_member_field_contract(
                     stmt.span, body, mir_types, receiver, member,
-                )?;
+                ) else {
+                    continue;
+                };
                 if let Some(previous) = member_field_cg {
                     if !self.cg_ty_layout_equivalent(previous, field.field_cg) {
                         return Err(LlvmEmitError::UnsupportedMainBody {
@@ -799,7 +804,92 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(field_cg);
         }
+        if let Some(assigned_cg) = self.mir_local_assignment_cg_ty(body, mir_types, local_id)
+            && matches!(local.source, crate::mir::LocalSourceKind::CompilerTemporary)
+            && (matches!(local_cg, CgTy::Ref)
+                || matches!(assigned_cg, CgTy::Enum(_))
+                || self.mir_type_contains_param(mir_types, local.ty)
+                || self.cg_ty_layout_equivalent(local_cg, assigned_cg))
+        {
+            return Ok(assigned_cg);
+        }
         Ok(local_cg)
+    }
+
+    fn mir_local_assignment_cg_ty(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        local_id: crate::mir::LocalId,
+    ) -> Option<CgTy> {
+        let mut inferred = None;
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if *target != local_id {
+                    continue;
+                }
+                let candidate = match value {
+                    crate::mir::Rvalue::Use(operand) => {
+                        self.mir_operand_cg_ty(body, mir_types, operand)?
+                    }
+                    crate::mir::Rvalue::Unary { operand, .. } => {
+                        self.mir_operand_cg_ty(body, mir_types, operand)?
+                    }
+                    crate::mir::Rvalue::Binary { lhs, .. } => {
+                        self.mir_operand_cg_ty(body, mir_types, lhs)?
+                    }
+                    crate::mir::Rvalue::Call { kind, .. } => {
+                        self.mir_call_result_cg_ty(body, mir_types, kind)?
+                    }
+                    crate::mir::Rvalue::MemberAccess { member, .. } => {
+                        self.mir_member_resolved_static_value_cg_ty(member)?
+                    }
+                    crate::mir::Rvalue::TupleGet { tuple, index } => {
+                        self.mir_tuple_get_result_cg_ty(body, mir_types, tuple, *index)?
+                    }
+                    _ => continue,
+                };
+                match inferred {
+                    Some(existing) if !self.cg_ty_layout_equivalent(existing, candidate) => {
+                        return None;
+                    }
+                    Some(_) => {}
+                    None => inferred = Some(candidate),
+                }
+            }
+        }
+        inferred
+    }
+
+    fn mir_call_result_cg_ty(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        kind: &crate::mir::CallKind,
+    ) -> Option<CgTy> {
+        match kind {
+            crate::mir::CallKind::Direct { callee_fqn } => {
+                if self.class_inits.contains_key(callee_fqn) {
+                    return Some(CgTy::Ref);
+                }
+                let fun = self.fun_index.get(callee_fqn).copied()?;
+                self.cg_ty_of(fun.return_ty)
+            }
+            crate::mir::CallKind::Closure { callee, .. }
+            | crate::mir::CallKind::FunValue { callee } => {
+                let fun_ty = self
+                    .mir_operand_funptr_function_type(body, mir_types, callee)
+                    .or_else(|| self.mir_operand_function_type(body, mir_types, callee))?;
+                self.cg_ty_of_mir_type(mir_types, fun_ty.return_ty)
+            }
+            crate::mir::CallKind::Resume { resume, .. } => {
+                self.cg_ty_of_mir_type(mir_types, resume.answer_ty)
+            }
+            crate::mir::CallKind::Virtual { .. } | crate::mir::CallKind::Interface { .. } => None,
+        }
     }
 
     fn cg_ty_layout_equivalent(&self, lhs: CgTy, rhs: CgTy) -> bool {
@@ -942,6 +1032,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     continuation_route,
                 },
             ),
+            crate::mir::StatementKind::StoreTopLevelVar { fqn, value, .. } => {
+                self.top_level_vars.contains_key(fqn)
+                    && self.raw_materialized_mir_operand_is_supported(value)
+            }
             crate::mir::StatementKind::Todo(_) => false,
         }
     }
@@ -1073,10 +1167,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     && self
                         .raw_materialized_mir_effect_instance_ty_is_supported(mir_types, *effect_ty)
             }
-            crate::mir::Rvalue::MemberAccess { receiver, member } => self
-                .raw_materialized_mir_member_access_is_supported(
-                    span, body, mir_types, receiver, member, target_cg,
-                ),
+            crate::mir::Rvalue::MemberAccess {
+                receiver, member, ..
+            } => self.raw_materialized_mir_member_access_is_supported(
+                span, body, mir_types, receiver, member, target_cg,
+            ),
             crate::mir::Rvalue::EnumVariant {
                 enum_ty,
                 variant_name,
@@ -1266,6 +1361,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn mir_tuple_get_result_cg_ty(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        tuple: &crate::mir::Operand,
+        index: usize,
+    ) -> Option<CgTy> {
+        let tuple_ty = self.mir_operand_type_id(body, tuple)?;
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = mir_types.kind(tuple_ty) else {
+            return None;
+        };
+        let element_ty = *elements.get(index)?;
+        self.cg_ty_of_mir_type(mir_types, element_ty)
+    }
+
     fn mir_member_resolved_top_level_value_fqn<'m>(
         &self,
         member: &'m crate::mir::MemberAccessMetadata,
@@ -1276,8 +1386,61 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         (self.lookup_object_property_by_fqn(fqn).is_some()
             || self.top_level_consts.contains_key(fqn)
             || self.top_level_immutable_values.contains_key(fqn)
-            || self.top_level_vars.contains_key(fqn))
+            || self.top_level_vars.contains_key(fqn)
+            || self.mir_member_resolved_enum_unit_variant_fqn(fqn))
         .then_some(fqn.as_str())
+    }
+
+    fn mir_member_resolved_static_value_cg_ty(
+        &self,
+        member: &crate::mir::MemberAccessMetadata,
+    ) -> Option<CgTy> {
+        let crate::mir::MemberTarget::Value { fqn } = member.resolved.as_ref()? else {
+            return None;
+        };
+        if let Some((_object, prop)) = self.lookup_object_property_by_fqn(fqn) {
+            return self.cg_ty_of(prop.ty);
+        }
+        if let Some(value) = self.top_level_consts.get(fqn) {
+            return self.cg_ty_of(value.ty);
+        }
+        if let Some(value) = self.top_level_immutable_values.get(fqn) {
+            return self.cg_ty_of(value.ty);
+        }
+        if let Some(value) = self.top_level_vars.get(fqn) {
+            return self.cg_ty_of(value.ty);
+        }
+        let (owner_fqn, variant_name) = fqn.rsplit_once('.')?;
+        let layout = self.enum_layouts.get(owner_fqn)?;
+        layout
+            .variants
+            .iter()
+            .find(|variant| variant.name == variant_name && variant.fields.is_empty())?;
+        self.types
+            .iter_ids()
+            .find(|id| {
+                matches!(
+                    self.types.kind(*id),
+                    TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                        if nominal.fqn == owner_fqn && nominal.args.is_empty() && nominal.eff.is_none()
+                )
+            })
+            .map(CgTy::Enum)
+    }
+
+    fn mir_member_resolved_enum_unit_variant_fqn(&self, fqn: &str) -> bool {
+        let Some((owner_fqn, variant_name)) = fqn.rsplit_once('.') else {
+            return false;
+        };
+        self.enum_layouts
+            .get(owner_fqn)
+            .and_then(|layout| {
+                layout
+                    .variants
+                    .iter()
+                    .find(|variant| variant.name == variant_name)
+            })
+            .is_some_and(|variant| variant.fields.is_empty())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1647,11 +1810,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: u32::from(*bits),
                 signed: false,
             })),
-            TypeKind::Value(
-                ValueTypeKind::Option(_) | ValueTypeKind::Tuple(_) | ValueTypeKind::Nominal(_),
-            ) => self
+            TypeKind::Value(ValueTypeKind::Option(_) | ValueTypeKind::Tuple(_)) => self
                 .equivalent_codegen_type_id(mir_types, ty)
                 .and_then(|codegen_ty| self.cg_ty_of(codegen_ty)),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                self.builtin_nominal_cg_ty(&nominal.fqn).or_else(|| {
+                    self.equivalent_codegen_type_id(mir_types, ty)
+                        .and_then(|codegen_ty| self.cg_ty_of(codegen_ty))
+                })
+            }
             TypeKind::Param(_) => None,
         }
     }
@@ -2067,6 +2234,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mir_types,
                 slots,
             ),
+            crate::mir::StatementKind::StoreTopLevelVar {
+                fqn,
+                value,
+                value_ty,
+            } => self.codegen_mir_store_top_level_var(stmt.span, fqn, value, *value_ty, slots),
             crate::mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR statement todo",
                 at: stmt.span.into(),
@@ -2255,18 +2427,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.codegen_mir_effect_instance_key(span, mir_types, *effect_ty)?;
                 self.default_value(span, target_cg)
             }
-            crate::mir::Rvalue::MemberAccess { receiver, member } => self
-                .codegen_mir_member_access(
-                    span,
-                    receiver,
-                    member,
-                    MirBodyCodegenCtx {
-                        body,
-                        mir_types,
-                        slots,
-                    },
-                    target_cg,
-                ),
+            crate::mir::Rvalue::MemberAccess {
+                receiver, member, ..
+            } => self.codegen_mir_member_access(
+                span,
+                receiver,
+                member,
+                MirBodyCodegenCtx {
+                    body,
+                    mir_types,
+                    slots,
+                },
+                target_cg,
+            ),
             crate::mir::Rvalue::EnumVariant {
                 enum_ty,
                 variant_name,
@@ -2382,18 +2555,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::CaptureBoxSet { box_operand, value } => {
                 self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots)
             }
-            crate::mir::Rvalue::MemberAccess { receiver, member } => self
-                .codegen_mir_member_access(
-                    span,
-                    receiver,
-                    member,
-                    MirBodyCodegenCtx {
-                        body,
-                        mir_types,
-                        slots,
-                    },
-                    target_cg,
-                ),
+            crate::mir::Rvalue::MemberAccess {
+                receiver, member, ..
+            } => self.codegen_mir_member_access(
+                span,
+                receiver,
+                member,
+                MirBodyCodegenCtx {
+                    body,
+                    mir_types,
+                    slots,
+                },
+                target_cg,
+            ),
             crate::mir::Rvalue::EnumVariant {
                 enum_ty,
                 variant_name,
@@ -2481,12 +2655,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty,
                 } => {
                     let source_ty = self.mir_operand_type_id(body, value).unwrap_or(*ty);
-                    let value_cg = self.cg_ty_of_mir_type(mir_types, source_ty).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "MIR interpolated string expr type",
-                            at: (*expr_span).into(),
-                        },
-                    )?;
+                    let value_cg = match value {
+                        crate::mir::Operand::Local(local) => {
+                            self.mir_local_slot(*expr_span, slots, *local)?.cg_ty
+                        }
+                        crate::mir::Operand::Const(_) => self
+                            .cg_ty_of_mir_type(mir_types, source_ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "MIR interpolated string expr type",
+                                at: (*expr_span).into(),
+                            })?,
+                    };
                     let v = self.codegen_mir_operand_expected(
                         *expr_span,
                         value,
@@ -2785,6 +2964,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(fqn) = self.mir_member_resolved_top_level_value_fqn(member) {
             let value = if self.lookup_object_property_by_fqn(fqn).is_some() {
                 self.codegen_object_property_access(span, fqn)?
+            } else if let Some(value) =
+                self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
+            {
+                value
             } else {
                 self.codegen_top_level_value_ref(span, fqn)?
             };
@@ -2918,6 +3101,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let value = self.codegen_mir_operand_expected(span, value, slots, Some(place.field_cg))?;
         let stored = self.coerce_value(span, value, place.field_cg)?;
         let _ = self.store_local_value(span, place.ptr, place.field_cg, stored)?;
+        Ok(())
+    }
+
+    pub(super) fn codegen_mir_store_top_level_var(
+        &mut self,
+        span: crate::span::Span,
+        fqn: &str,
+        value: &crate::mir::Operand,
+        _value_ty: TypeId,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        let var = self
+            .top_level_vars
+            .get(fqn)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR top-level var store target",
+                at: span.into(),
+            })?;
+        let target_cg = self
+            .cg_ty_of(var.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR top-level var store target type",
+                at: span.into(),
+            })?;
+        let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
+        let stored = self.coerce_value(span, raw, target_cg)?;
+        let global = self.declare_top_level_var_global(var)?;
+        let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
         Ok(())
     }
 
@@ -4498,6 +4709,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _body: &crate::mir::Body,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let Some(value) = self.codegen_mir_sysroot_effect_intrinsic(span, fqn, args, slots)? {
+            return Ok(value);
+        }
         let is_extern = self.extern_funs.contains_key(fqn);
         let sig_fun = self
             .fun_index
@@ -4643,6 +4857,288 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
+    }
+
+    fn codegen_mir_sysroot_effect_intrinsic(
+        &mut self,
+        span: crate::span::Span,
+        fqn: &str,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let word_ty = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let op_tag_ty = IntTy {
+            bits: 32,
+            signed: false,
+        };
+        let slot_word_ty = IntTy {
+            bits: 64,
+            signed: false,
+        };
+
+        match fqn {
+            "scoop.core.__scoop_effect_is_active" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 0)?;
+                let rt = self.declare_runtime_effect_is_active();
+                let call =
+                    self.build_call_preserving_gc_local_roots(span, rt, &[], "effect_is_active")?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect is_active return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(active_i32) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect is_active return type",
+                        at: span.into(),
+                    });
+                };
+                let active_word = self.cast_int(active_i32, op_tag_ty, word_ty)?;
+                Ok(Some(CgValue::int(active_word, word_ty)))
+            }
+            "scoop.core.__scoop_effect_set_active" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 0)?;
+                let rt = self.declare_runtime_effect_set_active();
+                let _ = self.builder.build_call(rt, &[], "effect_set_active")?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.core.__scoop_effect_clear" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 0)?;
+                let rt = self.declare_runtime_effect_clear();
+                let _ = self.builder.build_call(rt, &[], "effect_clear")?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.core.__scoop_effect_slot_write" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 3)?;
+                let op_tag_word = self.codegen_mir_effect_intrinsic_word_arg(
+                    span,
+                    &args[0],
+                    slots,
+                    "effect slot_write op_tag",
+                )?;
+                let effect_instance_key_word = self.codegen_mir_effect_intrinsic_word_arg(
+                    span,
+                    &args[1],
+                    slots,
+                    "effect slot_write effect_instance_key",
+                )?;
+                let value_word = self.codegen_mir_effect_intrinsic_word_arg(
+                    span,
+                    &args[2],
+                    slots,
+                    "effect slot_write value",
+                )?;
+                let op_tag = self.cast_int(op_tag_word, word_ty, op_tag_ty)?;
+                let effect_instance_key =
+                    self.cast_int(effect_instance_key_word, word_ty, op_tag_ty)?;
+                let value = self.cast_int(value_word, word_ty, slot_word_ty)?;
+                let rt = self.declare_runtime_effect_perform_slot_write_u64();
+                let _ = self.builder.build_call(
+                    rt,
+                    &[op_tag.into(), effect_instance_key.into(), value.into()],
+                    "effect_slot_write_u64",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.core.__scoop_effect_slot_write2" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 4)?;
+                let op_tag_word = self.codegen_mir_effect_intrinsic_word_arg(
+                    span,
+                    &args[0],
+                    slots,
+                    "effect slot_write2 op_tag",
+                )?;
+                let effect_instance_key_word = self.codegen_mir_effect_intrinsic_word_arg(
+                    span,
+                    &args[1],
+                    slots,
+                    "effect slot_write2 effect_instance_key",
+                )?;
+                let word0_raw = self.codegen_mir_effect_intrinsic_word_arg(
+                    span,
+                    &args[2],
+                    slots,
+                    "effect slot_write2 word0",
+                )?;
+                let word1_raw = self.codegen_mir_effect_intrinsic_word_arg(
+                    span,
+                    &args[3],
+                    slots,
+                    "effect slot_write2 word1",
+                )?;
+                let op_tag = self.cast_int(op_tag_word, word_ty, op_tag_ty)?;
+                let effect_instance_key =
+                    self.cast_int(effect_instance_key_word, word_ty, op_tag_ty)?;
+                let word0 = self.cast_int(word0_raw, word_ty, slot_word_ty)?;
+                let word1 = self.cast_int(word1_raw, word_ty, slot_word_ty)?;
+                let rt = self.declare_runtime_effect_perform_slot_write_u64_2();
+                let _ = self.builder.build_call(
+                    rt,
+                    &[
+                        op_tag.into(),
+                        effect_instance_key.into(),
+                        word0.into(),
+                        word1.into(),
+                    ],
+                    "effect_slot_write_u64_2",
+                )?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.core.__scoop_effect_slot_read_effect_instance_key" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 0)?;
+                let rt = self.declare_runtime_effect_perform_slot_read_effect_instance_key();
+                let raw = self
+                    .builder
+                    .build_call(rt, &[], "effect_slot_read_effect_instance_key")?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_effect_instance_key return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(value) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_effect_instance_key return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::int(
+                    self.cast_int(value, op_tag_ty, word_ty)?,
+                    word_ty,
+                )))
+            }
+            "scoop.core.__scoop_effect_slot_read_op_tag" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 0)?;
+                let rt = self.declare_runtime_effect_perform_slot_read_op_tag();
+                let raw = self
+                    .builder
+                    .build_call(rt, &[], "effect_slot_read_op_tag")?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_op_tag return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(value) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_op_tag return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::int(
+                    self.cast_int(value, op_tag_ty, word_ty)?,
+                    word_ty,
+                )))
+            }
+            "scoop.core.__scoop_effect_slot_read_len_words" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 0)?;
+                let rt = self.declare_runtime_effect_perform_slot_read_len_words();
+                let raw = self
+                    .builder
+                    .build_call(rt, &[], "effect_slot_read_len_words")?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_len_words return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(value) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_len_words return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::int(
+                    self.cast_int(value, op_tag_ty, word_ty)?,
+                    word_ty,
+                )))
+            }
+            "scoop.core.__scoop_effect_slot_read_value" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 0)?;
+                let rt = self.declare_runtime_effect_perform_slot_read_u64();
+                let raw = self
+                    .builder
+                    .build_call(rt, &[], "effect_slot_read_u64")?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_value return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(value) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_value return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::int(
+                    self.cast_int(value, slot_word_ty, word_ty)?,
+                    word_ty,
+                )))
+            }
+            "scoop.core.__scoop_effect_slot_read_word" => {
+                ensure_mir_effect_intrinsic_arity(span, fqn, args, 1)?;
+                let index_word = self.codegen_mir_effect_intrinsic_word_arg(
+                    span,
+                    &args[0],
+                    slots,
+                    "effect slot_read_word index",
+                )?;
+                let index = self.cast_int(index_word, word_ty, op_tag_ty)?;
+                let rt = self.declare_runtime_effect_perform_slot_read_u64_at();
+                let raw = self
+                    .builder
+                    .build_call(rt, &[index.into()], "effect_slot_read_u64_at")?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_word return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(value) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_word return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::int(
+                    self.cast_int(value, slot_word_ty, word_ty)?,
+                    word_ty,
+                )))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn codegen_mir_effect_intrinsic_word_arg(
+        &mut self,
+        span: crate::span::Span,
+        arg: &crate::mir::CallArg,
+        slots: &[MirLocalSlot<'ctx>],
+        kind: &'static str,
+    ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
+        if arg.name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: arg.span.into(),
+            });
+        }
+        let word_ty = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let value =
+            self.codegen_mir_operand_expected(span, &arg.value, slots, Some(CgTy::Int(word_ty)))?;
+        let value = self.coerce_value(arg.span, value, CgTy::Int(word_ty))?;
+        let (raw, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind,
+            at: arg.span.into(),
+        })?;
+        Ok(raw)
     }
 
     pub(super) fn codegen_mir_class_ctor_call(
@@ -6843,113 +7339,113 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         rhs: CgValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if let (Some((l, l_ty)), Some((r, r_ty))) = (lhs.as_int(), rhs.as_int()) {
-            if l_ty.bits != r_ty.bits {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR int width mismatch",
-                    at: span.into(),
-                });
-            }
+            let target_ty = self.pass_mir_binary_int_target_ty(op, l_ty, r_ty);
+            let l = self.cast_int(l, l_ty, target_ty)?;
+            let r = self.cast_int(r, r_ty, target_ty)?;
             let value = match op {
                 ast::BinaryOp::Add => {
                     return Ok(CgValue::int(
                         self.builder.build_int_add(l, r, "pass_mir_iadd")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Sub => {
                     return Ok(CgValue::int(
                         self.builder.build_int_sub(l, r, "pass_mir_isub")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Mul => {
                     return Ok(CgValue::int(
                         self.builder.build_int_mul(l, r, "pass_mir_imul")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
-                ast::BinaryOp::Div if l_ty.signed => {
+                ast::BinaryOp::Div if target_ty.signed => {
                     return Ok(CgValue::int(
                         self.builder.build_int_signed_div(l, r, "pass_mir_sdiv")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Div => {
                     return Ok(CgValue::int(
                         self.builder.build_int_unsigned_div(l, r, "pass_mir_udiv")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
-                ast::BinaryOp::Rem if l_ty.signed => {
+                ast::BinaryOp::Rem if target_ty.signed => {
                     return Ok(CgValue::int(
                         self.builder.build_int_signed_rem(l, r, "pass_mir_srem")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Rem => {
                     return Ok(CgValue::int(
                         self.builder.build_int_unsigned_rem(l, r, "pass_mir_urem")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Shl => {
+                    let r = self.mask_shift_count(target_ty, r)?;
                     return Ok(CgValue::int(
                         self.builder.build_left_shift(l, r, "pass_mir_shl")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
-                ast::BinaryOp::Shr if l_ty.signed => {
+                ast::BinaryOp::Shr if target_ty.signed => {
+                    let r = self.mask_shift_count(target_ty, r)?;
                     return Ok(CgValue::int(
                         self.builder
                             .build_right_shift(l, r, true, "pass_mir_ashr")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Shr => {
+                    let r = self.mask_shift_count(target_ty, r)?;
                     return Ok(CgValue::int(
                         self.builder
                             .build_right_shift(l, r, false, "pass_mir_lshr")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::BitAnd => {
                     return Ok(CgValue::int(
                         self.builder.build_and(l, r, "pass_mir_iand")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::BitXor => {
                     return Ok(CgValue::int(
                         self.builder.build_xor(l, r, "pass_mir_ixor")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::BitOr => {
                     return Ok(CgValue::int(
                         self.builder.build_or(l, r, "pass_mir_ior")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Lt => self.builder.build_int_compare(
-                    int_predicate(l_ty, IntCompareKind::Lt),
+                    int_predicate(target_ty, IntCompareKind::Lt),
                     l,
                     r,
                     "pass_mir_ilt",
                 )?,
                 ast::BinaryOp::Le => self.builder.build_int_compare(
-                    int_predicate(l_ty, IntCompareKind::Le),
+                    int_predicate(target_ty, IntCompareKind::Le),
                     l,
                     r,
                     "pass_mir_ile",
                 )?,
                 ast::BinaryOp::Gt => self.builder.build_int_compare(
-                    int_predicate(l_ty, IntCompareKind::Gt),
+                    int_predicate(target_ty, IntCompareKind::Gt),
                     l,
                     r,
                     "pass_mir_igt",
                 )?,
                 ast::BinaryOp::Ge => self.builder.build_int_compare(
-                    int_predicate(l_ty, IntCompareKind::Ge),
+                    int_predicate(target_ty, IntCompareKind::Ge),
                     l,
                     r,
                     "pass_mir_ige",
@@ -6999,41 +7495,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let (Some((l, l_ty)), Some((r, r_ty))) = (lhs.as_float(), rhs.as_float()) {
-            if l_ty != r_ty {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR float width mismatch",
-                    at: span.into(),
-                });
-            }
+            let target_ty = if l_ty == CgTy::Float64 || r_ty == CgTy::Float64 {
+                CgTy::Float64
+            } else {
+                CgTy::Float32
+            };
+            let l = self.cast_float(l, l_ty, target_ty)?;
+            let r = self.cast_float(r, r_ty, target_ty)?;
             let value = match op {
                 ast::BinaryOp::Add => {
                     return Ok(CgValue::float(
                         self.builder.build_float_add(l, r, "pass_mir_fadd")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Sub => {
                     return Ok(CgValue::float(
                         self.builder.build_float_sub(l, r, "pass_mir_fsub")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Mul => {
                     return Ok(CgValue::float(
                         self.builder.build_float_mul(l, r, "pass_mir_fmul")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Div => {
                     return Ok(CgValue::float(
                         self.builder.build_float_div(l, r, "pass_mir_fdiv")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Rem => {
                     return Ok(CgValue::float(
                         self.builder.build_float_rem(l, r, "pass_mir_frem")?,
-                        l_ty,
+                        target_ty,
                     ));
                 }
                 ast::BinaryOp::Lt => {
@@ -7070,10 +7567,69 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(CgValue::bool(value));
         }
 
+        if matches!(op, ast::BinaryOp::Eq | ast::BinaryOp::Ne)
+            && lhs.ty == CgTy::String
+            && rhs.ty == CgTy::String
+        {
+            let Some(BasicValueEnum::PointerValue(lhs_ptr)) = lhs.value else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR string equality lhs",
+                    at: span.into(),
+                });
+            };
+            let Some(BasicValueEnum::PointerValue(rhs_ptr)) = rhs.value else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR string equality rhs",
+                    at: span.into(),
+                });
+            };
+            let runtime = self.declare_runtime_string_equals();
+            let call = self.builder.build_call(
+                runtime,
+                &[lhs_ptr.into(), rhs_ptr.into()],
+                "pass_mir_string_eq",
+            )?;
+            let raw =
+                call.try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR string equality return value",
+                        at: span.into(),
+                    })?;
+            let BasicValueEnum::IntValue(eq_i64) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR string equality return type",
+                    at: span.into(),
+                });
+            };
+            let mut is_eq = self.builder.build_int_compare(
+                IntPredicate::NE,
+                eq_i64,
+                self.context.i64_type().const_zero(),
+                "pass_mir_string_eq_bool",
+            )?;
+            if op == ast::BinaryOp::Ne {
+                is_eq = self.builder.build_not(is_eq, "pass_mir_string_ne_bool")?;
+            }
+            return Ok(CgValue::bool(is_eq));
+        }
+
         Err(LlvmEmitError::UnsupportedMainBody {
             kind: "pass MIR binary operands",
             at: span.into(),
         })
+    }
+
+    fn pass_mir_binary_int_target_ty(&self, op: ast::BinaryOp, lhs: IntTy, rhs: IntTy) -> IntTy {
+        if matches!(op, ast::BinaryOp::Shl | ast::BinaryOp::Shr) {
+            return lhs;
+        }
+        let word_bits = self.host.word_bit_width();
+        if lhs.bits == word_bits && rhs.bits != word_bits {
+            rhs
+        } else {
+            lhs
+        }
     }
 
     pub(super) fn mir_local_slot(
@@ -7153,6 +7709,24 @@ fn mir_store_member_continuation_route_is_lowerable(
         crate::mir::StoredContinuationRoutePublication::None
         | crate::mir::StoredContinuationRoutePublication::Unique(_) => Ok(()),
     }
+}
+
+fn ensure_mir_effect_intrinsic_arity(
+    span: crate::span::Span,
+    fqn: &str,
+    args: &[crate::mir::CallArg],
+    expected: usize,
+) -> Result<(), LlvmEmitError> {
+    if args.len() == expected {
+        return Ok(());
+    }
+    Err(LlvmEmitError::Frontend {
+        message: format!(
+            "MIR effect intrinsic `{fqn}` arity mismatch: expected {expected}, got {} at {:?}",
+            args.len(),
+            span,
+        ),
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -7254,6 +7828,9 @@ pub(super) fn collect_mir_local_uses(body: &crate::mir::Body) -> HashSet<crate::
                     receiver, value, ..
                 } => {
                     collect_mir_operand_use(receiver, &mut out);
+                    collect_mir_operand_use(value, &mut out);
+                }
+                crate::mir::StatementKind::StoreTopLevelVar { value, .. } => {
                     collect_mir_operand_use(value, &mut out);
                 }
                 crate::mir::StatementKind::Nop | crate::mir::StatementKind::Todo(_) => {}
@@ -7398,6 +7975,7 @@ mod tests {
             name: "count".to_string(),
             receiver_ty: builtins.int,
             resolved: None,
+            hidden_effects: crate::ty::EffectRow::pure(),
         };
 
         let result =

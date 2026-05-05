@@ -160,6 +160,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                         })?;
                         let segmentation = build_callable_segmentation(
                             &root_fqn,
+                            self.types,
                             body,
                             body_facts,
                             step_schema.complete_ty(),
@@ -501,7 +502,7 @@ fn build_plain_local_effect_control(
             step_schema: step_schema_id.as_u32(),
         })?;
     let segmentation =
-        build_callable_segmentation(root_fqn, body, body_facts, step_schema.complete_ty())?;
+        build_callable_segmentation(root_fqn, types, body, body_facts, step_schema.complete_ty())?;
     let local_case_tags = step_schema
         .cases()
         .iter()

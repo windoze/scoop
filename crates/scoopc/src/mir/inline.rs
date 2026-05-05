@@ -203,6 +203,7 @@ impl InlineSnapshot {
                 }
                 StatementKind::Assign { .. }
                 | StatementKind::StoreMember { .. }
+                | StatementKind::StoreTopLevelVar { .. }
                 | StatementKind::Todo(_) => return None,
             }
         }
@@ -565,7 +566,7 @@ fn statement_is_pass_publishable(kind: &StatementKind) -> bool {
     match kind {
         StatementKind::Nop => true,
         StatementKind::Assign { value, .. } => rvalue_is_pass_publishable(value),
-        StatementKind::StoreMember { .. } => false,
+        StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => false,
         StatementKind::Todo(_) => false,
     }
 }
@@ -609,7 +610,7 @@ fn statement_is_inlineable(
         StatementKind::Assign { value, .. } => {
             rvalue_is_inlineable(value, direct_call_param_provenance)
         }
-        StatementKind::StoreMember { .. } => false,
+        StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => false,
         StatementKind::Todo(_) => false,
     }
 }
@@ -722,6 +723,7 @@ fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
                 out.insert(route.source_local);
             }
         }
+        StatementKind::StoreTopLevelVar { value, .. } => collect_operand_use(value, out),
     }
 }
 
@@ -882,7 +884,9 @@ fn expand_straight_line_call(
                     },
                 });
             }
-            StatementKind::StoreMember { .. } => return None,
+            StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => {
+                return None;
+            }
             StatementKind::Todo(_) => return None,
         }
     }

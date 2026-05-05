@@ -598,6 +598,47 @@
   - 新增定向覆盖：`effect_lowered::frame::tests::refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`，锁定被 routed handle arm 读取的 source local 必须进入 continuation frame。
   - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`；`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02Z：闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级
+
+- 参考：
+  - [`TODO-P7.md`](./TODO-P7.md) P7-T03
+  - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03g / P6-T03h / P6-T04
+- 背景：
+  - 恢复执行 P7-T03 时，已完成一批共享 refactor/MIR/LLVM 修复并重新跑通 `cargo test --all`；
+  - 逐个 30 秒 timeout 跑 `tests/fixtures/run-pass/*.scoop` 后，仍有一组默认 refactor run-pass 阻塞，不能通过恢复 legacy 默认、跳过 fixture、改弱 golden 或局部特判绕过。
+
+- 必须实现的内容：
+  1. 修复 hidden object/top-level init ordinary effect 在默认 refactor 路径下的真实传播。
+     - 覆盖 `object_init_raise_try_catch_basic.scoop`、`object_property_init_raise_helper_try_catch_basic.scoop`、`object_value_init_raise_helper_try_catch_basic.scoop`、`top_level_immutable_init_raise_helper_try_catch_basic.scoop` 以及 hidden suspend helper 系列；
+     - object/property/top-level init 内的 `Raise<RuntimeError>` 必须由 published facts / late-lowered boundary / LLVM outcome contract 进入外层 `try/catch` 或 `handle`，不得只靠 legacy TLS side effect。
+  2. 修复 remaining dynamic member / intrinsic callable-value lowering。
+     - 覆盖 String byte/trim/slice/builder 方法、safe member access + extension、operator overload compare/direct matrix、custom iterator/member dispatch、`GC.pin` / `GC.unpin` 等 member-function callee shape；
+     - callable member refs 必须通过 canonical direct/dynamic callable contract 或 explicit intrinsic lowering，不得保留 `Todo` / unresolved member backend guessing。
+  3. 修复 runtime type-check/cast 与 parameterized interface/class matching 的 refactor frame/layout gap。
+     - 覆盖 `type_check_cast_is_as_asq_basic.scoop`、`type_check_cast_generic_class_instantiation_basic.scoop`、`type_check_cast_parameterized_interface_runtime_match_basic.scoop`；
+     - 不得通过禁用 `as` failure 的 ordinary `Raise<RuntimeError>` 或绕过 type descriptor/itable parent-chain 检查来通过。
+  4. 修复 remaining effect/continuation/GC/task run-pass semantic regressions。
+     - 覆盖剩余 effect indirect perform、multi escape/resume/finally、GC continuation/task/manual task fixtures；
+     - 保持 P6 已固定的 Step / continuation / one-shot / runtime-error / GC root contracts，不得新增 legacy fallback 或 case-tag 偶然映射。
+  5. 保留本轮已完成的通用修复，并补充必要定向测试。
+     - 已完成修复包括：builtin nominal scalar ABI、compiler temporary slot inference、static enum unit-variant member access、effect runtime slot intrinsics、masked MIR shifts、mixed float comparison、Float abs/isNaN/isInfinite direct lowering、f-string stale `Any` part handling、tuple-get slot inference、top-level mutable var MIR store、handle return payload source fallback、completion payload coercion。
+
+- 验证：
+  - 对每个 run-pass fixture 继续使用单 fixture 30 秒 timeout；
+  - 修复后先重跑上一轮剩余失败清单，再恢复执行 P7-T03 标准矩阵；
+  - 至少运行：
+    - `cargo test --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/<fixed-fixture>.scoop`（逐个，30 秒 timeout）
+    - 修复完成后继续 `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 上述剩余 run-pass blockers 在默认 refactor 主线下通过；
+  - 不存在新增 hidden legacy fallback、fixture 降级或 runtime-only workaround；
+  - P7-T03 可以重新只聚焦标准 full regression 矩阵最终收口。
+- 依赖：P7-T02Y
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 
 - 参考：
@@ -654,13 +695,14 @@
   - `cargo test --all`、`scoop test`、`spec-fixtures check`、`clippy -D warnings` 在默认 refactor 主线下全部通过；
   - 回归修复没有通过恢复 legacy 默认值或 hidden fallback 达成；
   - 后续只剩 GC env 全开验证与 P7->P8 handoff 收口。
-- 依赖：P7-T02Y
+- 依赖：P7-T02Z
 - 完成记录：
   - 2026-05-05：首轮执行已通过 `cargo test --all`，并修复/同步了多个默认 full-regression 前置回归：refactor MIR/LLVM struct literal lowering、unsafe atomic load 与 nested member lvalue、`sizeOf` MIR intrinsic、array builder/Array size/get/set 与 `toInt` compiler intrinsic、过期 effect-facts/effect-lowered/HIR/MIR/mir_refactor generated snapshots、重复的 `effect_lowered_src` 未实现 phase，以及 `sysroot/task.scoop` 中 `__task_join<T>` 的显式不可达收口。当前标准 `scoop test` 继续阻塞在 `async_await_minimal_int_basic.scoop` 的 task/continuation resume payload 运行期语义，已新增 prerequisite `P7-T02U`；本任务保持未完成。
   - 2026-05-05：本轮恢复 P7-T03 后，`cargo test --all` 首轮先失败在 `build_refactor_task_atomic_fixture_lowers_o0_without_legacy_mutex`，已修复 fatal `scoop.core.panic` 在 refactor path 中被误发布为 DynamicFallback effect boundary、以及 `Nothing` handle arm completion source 的不可达路径处理；随后 `cargo test --all` 通过。`cargo run -p scoop -- test` 继续暴露并已修复默认 run-pass 中的 Char/Int/String/Float `hash()` refactor intrinsic、Char `print` / `toString` runtime 路由、MIR f-string stale part type、以及 class ctor named/default/delegation 参数映射和初始化执行问题；定向通过：`char_runtime_textual_basic.scoop`、`stdlib_hash_basic.scoop`、`class_ctor_arg_eval_scope_shadow_free_basic.scoop`、`class_ctor_named_default_and_delegation_basic.scoop`、`class_secondary_ctor_delegation_this_and_super_basic.scoop`、`class_init_super_ctor_args_eval_order_basic.scoop`。
   - 2026-05-05：当前 `cargo run -p scoop -- test` 阻塞在 `class_init_hidden_raise_helper_try_catch_basic.scoop`：class ctor / object init 内 hidden `Raise<RuntimeError>` 没有进入 refactor facts / boundary lowering，`helper` 和 `main` 被误判为 `NoOutward` plain callable，外层 `try/catch` 无法捕获该 ordinary runtime error。已新增 prerequisite `P7-T02W`，本任务保持未完成。
   - 2026-05-05：本轮继续恢复 `P7-T03`，`cargo test --all` 已通过；`cargo run -p scoop -- test` 先后暴露并已部分修复 pure class ctor 误保留 complete-only Step schema、GC debug/runtime intrinsics 在 refactor effect/control body 中被误判为 effectful DynamicFallback、以及 class ctor hidden-effect active 分支未清理失败构造对象临时 root 的问题。随后 full fixture 推进到 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`；当前剩余 blocker 是 cross-call escaped continuation member provenance 与 resume-boundary continuation composition 未闭合，已新增 prerequisite `P7-T02X`，本任务保持未完成。
   - 2026-05-05：本轮继续恢复 `P7-T03`，已修复多个默认 refactor full-regression 缺口：wrapper outward continuation schema surface inventory、effect-lowered golden 同步、nested handle routing 选择、local aggregate/Option continuation provenance、same-owner wrapper projection合并、refactor sync/thread runtime intrinsics、object property access/support、struct field vs class field member/atomic lvalue、metadata `TypeKind` lowering、隐式 `it` lambda HIR lowering，并同步相关 HIR/effect-lowered golden。定向验证通过：`effect_refactor_direct_handle_resume_emit_llvm.scoop`、`continuation_resume_runtime_error_boundary.scoop`、`dispatch_and_resume_call.scoop`、`continuation_resume_answer_replay_basic.scoop`、`continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`delegated_property_lazy_init_once_basic.scoop`、`std_sync_basic.scoop`、`delegated_property_lazy_thread_safety_publication_multi_init.scoop`、`unsafe_atomic_int_field_lvalue_llvm.scoop`、`delegated_property_map_backed_basic.scoop`、`delegated_property_observable_raise_does_not_poison_mutex.scoop`、`do_block_multiple_trailing_lambda_boundary.scoop`。当前 `cargo run -p scoop -- test` 阻塞在 `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`：nested escaped-continuation replay 在 inner arm-local handle 后未继续执行 arm tail，已新增 prerequisite `P7-T02Y`；本任务保持未完成。
+  - 2026-05-06：恢复 P7-T03 后完成一批通用默认-refactor 修复：builtin nominal scalar ABI 映射；compiler-temporary slot 从 concrete rvalue/field/call/tuple-get 推断；static enum unit variant member access；effect runtime slot intrinsics plain lowering；masked MIR shifts；mixed-width float comparison；Float `abs/isNaN/isInfinite` direct lowering；f-string stale `Any` part handling；perform payload source在 raw `Any` 与 emitted concrete payload 间的 contract 对齐；top-level mutable var MIR `StoreTopLevelVar`；handle body completion payload return fallback；completion payload coercion。验证通过：`cargo test --all`；多个定向 run-pass fixture，包括 `fun_call_add_basic.scoop`、`var_assign_basic.scoop`、`enum_value_only_when_basic.scoop`、`extension_property_getter_basic.scoop`、`effect_runtime_slot_abi_basic.scoop`、`int_bitops_shift.scoop`、`string_equality_basic.scoop`、`float_literal_runtime_basic.scoop`、`float_literal_other_contexts_basic.scoop`、`with_update_tuple_nested_single_eval_basic.scoop`、`enum_function_payload_basic.scoop`、`enum_function_payload_boxed_multi_field_basic.scoop`、`enum_variant_non_scalar_payload_basic.scoop`、`entry_main_args_int_exit_basic.scoop`、`effect_handle_return_from_function_basic.scoop`、`effect_handle_return_from_function_finally.scoop`、`effect_handle_return_from_function_nested_handle.scoop`、`top_level_var_threadlocal_global_counter_basic.scoop`、`stdlib_math_basic.scoop`。剩余 run-pass 阻塞已收敛为新 prerequisite `P7-T02Z`；本任务保持未完成。
 
 ## P7-T03R：Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底
 

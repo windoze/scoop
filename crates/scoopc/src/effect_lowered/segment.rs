@@ -5,7 +5,7 @@ use crate::mir::{
     BasicBlockId, Body, LocalId, Operand, Rvalue, SiteId, StatementKind, Terminator,
     TerminatorKind, UnwindAction,
 };
-use crate::ty::TypeId;
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use super::EffectLoweringError;
 use super::ir::{
@@ -24,11 +24,12 @@ pub(crate) struct LateLoweredSegmentation {
 
 pub(crate) fn build_callable_segmentation(
     root_fqn: &str,
+    types: &TypeStore,
     body: &Body,
     body_facts: &BodyEffectFacts,
     complete_ty: TypeId,
 ) -> Result<LateLoweredSegmentation, EffectLoweringError> {
-    SegmentationBuilder::new(root_fqn, body, body_facts, complete_ty)?.build()
+    SegmentationBuilder::new(root_fqn, types, body, body_facts, complete_ty)?.build()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -126,6 +127,7 @@ enum StateBlueprintTerminator {
 
 struct SegmentationBuilder<'a> {
     root_fqn: &'a str,
+    types: &'a TypeStore,
     body: &'a Body,
     complete_ty: TypeId,
     selected_boundaries: BTreeMap<BoundaryAnchor, SelectedBoundary>,
@@ -142,6 +144,7 @@ struct SegmentationBuilder<'a> {
 impl<'a> SegmentationBuilder<'a> {
     fn new(
         root_fqn: &'a str,
+        types: &'a TypeStore,
         body: &'a Body,
         body_facts: &BodyEffectFacts,
         complete_ty: TypeId,
@@ -156,6 +159,7 @@ impl<'a> SegmentationBuilder<'a> {
         pending.push_back(entry_cursor);
         Ok(Self {
             root_fqn,
+            types,
             body,
             complete_ty,
             selected_boundaries,
@@ -436,7 +440,7 @@ impl<'a> SegmentationBuilder<'a> {
                         root_fqn: self.root_fqn.to_string(),
                         detail: format!("return payload 引用了不存在的 local{}", local.as_u32()),
                     })?;
-                if local_ty != self.complete_ty {
+                if local_ty != self.complete_ty && !is_any_type(self.types, self.complete_ty) {
                     return Err(EffectLoweringError::InvalidCompletionPayloadContract {
                         root_fqn: self.root_fqn.to_string(),
                         detail: format!(
@@ -485,6 +489,10 @@ impl<'a> SegmentationBuilder<'a> {
             .get(&cursor)
             .expect("every built state should already have a stable state id")
     }
+}
+
+fn is_any_type(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Any))
 }
 
 fn finalize_blueprint_terminator(
@@ -593,6 +601,11 @@ fn collect_selected_boundaries(
             let (site_id, is_class_ctor) = match value {
                 Rvalue::Call { site_id, .. } => (*site_id, false),
                 Rvalue::ClassCtor { site_id, .. } => (*site_id, true),
+                Rvalue::MemberAccess {
+                    site_id: Some(site_id),
+                    member,
+                    ..
+                } if !member.hidden_effects.is_pure() => (*site_id, true),
                 _ => continue,
             };
             let site =
@@ -1317,9 +1330,14 @@ fun main(): Int {
             .body(family.key())
             .expect("sample.callValue 应有 P4 body facts");
 
-        let segmentation =
-            build_callable_segmentation("sample.callValue", body, body_facts, root_fun.return_ty)
-                .expect("segmentation builder 应直接消费 canonical body + body facts");
+        let segmentation = build_callable_segmentation(
+            "sample.callValue",
+            effect_lowered_output.types(),
+            body,
+            body_facts,
+            root_fun.return_ty,
+        )
+        .expect("segmentation builder 应直接消费 canonical body + body facts");
         assert_eq!(segmentation.boundary_map.entries().len(), 1);
         assert_eq!(segmentation.resume_state_map.entries().len(), 1);
     }

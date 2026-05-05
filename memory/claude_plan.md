@@ -1,47 +1,45 @@
-# 当前执行计划
+# Claude Execution Plan
 
-## 推理摘要
+## Scope
 
-- 目标是严格按 `TODO.md` 索引和对应 `TODO-Px.md` 详情文件找到第一个未完成任务。
-- 完成且只完成一个详细任务；任务完成必须在详细文件标题中加 `[DONE]`，并同步 `TODO.md` 索引。
-- 若当前任务被真实实现缺口阻塞，不做绕路实现；改为在对应详细 TODO 中插入最小必要前置任务，同步索引，提交后停止。
-- 不把 `PLAN.md` 当作日常日志；只有阶段级计划或依赖结构变化时才更新。
-- 最终需要提交本次变更；不继续处理下一个任务。
+- Complete exactly the first incomplete detailed task from the TODO index and then stop.
+- Use `TODO-Px.md` files as the source of truth for task completion state.
+- Keep `TODO.md` synchronized with any task title/status changes.
+- Do not update `PLAN.md` unless phase-level sequencing or completion criteria actually change.
 
-## 步骤计划
+## Steps
 
-1. 读取 `TODO.md`，确认索引顺序和引用的详细任务文件。
-2. 按索引顺序读取对应 `TODO-Px.md`，定位第一个标题未带 `[DONE]` 的详细任务。
-3. 读取该任务要求、约束、依赖和验证命令；检查最新提交是否提到与该任务直接相关的未完成问题。
-4. 检查当前工作树状态，区分已有改动和本次将修改的文件，避免回退用户改动。
-5. 基于任务要求检查相关代码、测试和夹具，确认最小正确实现路径。
-6. 实现当前任务；若发现阻塞性实现缺口，改为添加最小前置任务并同步索引后停止。
-7. 运行相关测试；必要时修复失败并重新验证。
-8. 更新对应 `TODO-Px.md` 的任务标题为 `[DONE]` 并填写完成记录；同步 `TODO.md` 中同一任务的 `[DONE]` 状态。
-9. 如执行计划发生关键变化或关键步骤完成，更新本文件。
-10. 运行最终必要验证，检查工作树差异。
-11. 按要求提交所有相关未提交文件，并停止，不进入下一任务。
+1. Read `TODO.md` as the global index.
+2. Read the referenced `TODO-Px.md` files in task order.
+3. Select the first detailed task whose heading is not prefixed with `[DONE]`.
+4. Inspect only the code and tests needed for that task.
+5. Implement the task without workarounds or spec deviations.
+6. Add or update focused tests/fixtures required by the task.
+7. Run the relevant validation commands, and fix failures that are in scope.
+8. Mark the task `[DONE]` in its detailed `TODO-Px.md` file and update its completion record.
+9. Sync `TODO.md` if task titles, ordering, or completion markers changed.
+10. Commit all task-related changes with a descriptive task-tagged message.
+11. Stop without starting the next task.
 
-## 当前任务
+## Progress
 
-- 已定位第一个未完成详细任务：`TODO-P7.md` 的 `P7-T02Y`。
-- 任务目标：修复 `tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop` 在默认 refactor 路径下 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞。
-- 初始验证目标：复现 `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop` 和 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop` 的失败。
-- 实现方向：从 late-lowered / LLVM continuation replay 与 handle-in-arm continuation composition 入手，保留 `P7-T02X` 的 cross-call provenance 与 resume-boundary composition 语义，不引入 fixture 特判或 legacy fallback。
-
-## 关键发现
-
-- 失败已复现：默认运行只输出到 `boom_arm`。
-- 直接构建后用 lldb 观察到崩溃发生在 `__scoop_refactor_surface_resume_owner_dispatch__start__k5` 内的 GC write barrier。
-- 根因是首次 `k.resume(7)` 的 resume owner trampoline 进入外层 `Boom` arm 时，需要读取 `cell` 参数执行 `cell.saved = Some(k)`，但 frame lifting 没有把该参数纳入 continuation frame；resume entry 恢复后 `cell` 为空，导致写屏障访问无效对象。
-- 修复方向调整为：在 `effect_lowered/frame.rs` 的 liveness 中加入 handle boundary routing 的动态控制流边，确保 boundary outward 被 handle arm 消费时，该 arm 后续所需 locals 会被提升进 frame。
-- 已补 frame-liveness 后程序继续运行，但语义仍错误：首次 `k.resume(7)` 在 owner trampoline 内被外层 `Boom` handle 直接消费并继续执行 inner arm tail，导致 `after_start` 输出 `119` 而不是先返回 `18`。
-- 追加修复方向：在 surface resume owner trampoline 中，`handle_boundary_action` 只能让当前 surface route 发布的 handle site 消费/pending；其它 handle 对该 outward case 必须继续 outward，交还给原始 resume boundary 组合 continuation。
-
-## 完成记录
-
-- 已实现 `P7-T02Y`：frame liveness 纳入 handle routing 动态边；surface resume owner trampoline 限制非当前 surface route 的 handle consumption。
-- 目标程序已输出 golden 序列，并且 fixture harness 通过。
-- 已更新 `TODO-P7.md` 标题为 `[DONE] P7-T02Y` 并填写完成记录；已同步 `TODO.md` 索引。
-- 已通过验证：`cargo fmt --all`、`cargo test -p scoopc --lib refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`、`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`、`cargo test -p scoopc --lib effect_lowered`、`cargo test -p scoopc --lib llvm::codegen::effect_refactor`、`cargo clippy --all-targets -- -D warnings`。
-- 下一步：检查 diff/status 后提交本任务变更并停止。
+- Plan initialized before task discovery.
+- First incomplete detailed task identified: `P7-T03` in `TODO-P7.md`.
+- Current task requirement: run the default-refactor standard full regression matrix, fix any default-path regressions, then mark `P7-T03` complete and commit.
+- Latest commit checked: `538b59db [P7-T02Y] Fix nested continuation replay`; no directly relevant unfinished issue was recorded in the commit message.
+- Worktree already contains uncommitted changes in compiler/refactor implementation files plus `memory/claude_plan.md`; inspect diffs before editing so task work does not overwrite unrelated changes.
+- Validation progress: `cargo test --all` passed on the current worktree.
+- Next validation step: run `cargo run -p scoop -- test` under the default refactor pipeline and fix any fixture regression it exposes.
+- 2026-05-06 resume: continuing the same first incomplete task, `P7-T03`; `TODO.md` and `TODO-P7.md` agree that `P7-T03` is the first heading without `[DONE]`.
+- User note: some run-pass fixtures may hang, so run run-pass fixtures individually with a small timeout (30 seconds) when isolating or rechecking fixture failures.
+- Immediate plan: inspect the existing uncommitted diff from the interrupted P7-T03 work, run targeted validation from the recorded next step, fix any default-refactor regressions without legacy fallback, then rerun the required matrix and commit all resumed-task changes.
+- `cargo test --all` passed on 2026-05-06 with the resumed worktree.
+- Next: run `tests/fixtures/run-pass/*.scoop` one file at a time with a 30s timeout to identify any remaining hanging or failing default-refactor fixtures before attempting broader `scoop test` coverage.
+- First individual run-pass sweep completed without timeouts but exposed many shared default-refactor failures. Root cause identified from `fun_call_add_basic.scoop` / `var_assign_basic.scoop`: materialized MIR can carry builtin scalar sysroot nominal types such as `scoop.core.Int32`, and MIR codegen was treating them as ordinary structs; if-expression compiler temporaries typed as `Any` also boxed branch ints before returning `Int`.
+- Implemented builtin nominal scalar ABI mapping plus compiler-temporary slot inference for concrete assigned values; `fun_call_add_basic.scoop` and `var_assign_basic.scoop` now pass through `scoop test --fixtures`.
+- Additional shared fixes: static enum unit-variant member access (`EnumName.Variant`) now lowers as an enum constant instead of an instance field; direct-call result temporaries can infer callee return ABI; effect runtime slot intrinsics are treated as plain compiler intrinsics and lowered through the refactor MIR direct-call path. Targeted fixtures now passing: `enum_value_only_when_basic.scoop`, `extension_property_getter_basic.scoop`, `effect_runtime_slot_abi_basic.scoop`.
+- More shared fixes landed while reducing the prior failure set: pass-MIR shifts now mask shift counts like the legacy expression path; string equality, mixed-width float comparisons, Float `abs/isNaN/isInfinite`, f-string parts with stale `Any` expression types, tuple-get result locals, static enum payload sources, and pure function-value calls inside effect-step source slices now lower through generic contracts. Targeted fixtures now passing include `int_bitops_shift.scoop`, `string_equality_basic.scoop`, `float_literal_runtime_basic.scoop`, `float_literal_other_contexts_basic.scoop`, `with_update_tuple_nested_single_eval_basic.scoop`, `enum_function_payload_basic.scoop`, `enum_function_payload_boxed_multi_field_basic.scoop`, and `enum_variant_non_scalar_payload_basic.scoop`.
+- Handle/function-return contract progress: non-Unit handle body completion can use enclosing-function `Return` payloads when there is no normal handle-body completion, while normal completion remains preferred when both paths exist; targeted `effect_handle_return_from_function_basic.scoop`, `effect_handle_return_from_function_finally.scoop`, and `effect_handle_return_from_function_nested_handle.scoop` now pass.
+- Added a first-class MIR `StoreTopLevelVar` statement and threaded it through MIR analyses/materialization/refactor codegen, so top-level mutable variable writes no longer remain `Todo`. `top_level_var_threadlocal_global_counter_basic.scoop` now passes. `cargo check -p scoopc` passes after these broad MIR shape updates.
+- `cargo test --all` passed after the accumulated fixes.
+- Remaining default-refactor run-pass blockers are still substantial and independent enough to require an explicit prerequisite before P7-T03 can honestly run the full standard matrix. Added `P7-T02Z` in `TODO-P7.md` and synced `TODO.md`; P7-T03 now depends on that prerequisite and remains incomplete.

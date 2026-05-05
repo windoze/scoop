@@ -364,6 +364,15 @@ fn analyze_body(body: &Body, params: &[Param], types: &TypeStore) -> BodySummary
                     }
                     base_outward_effect = true;
                 }
+                StatementKind::StoreTopLevelVar { value, .. } => {
+                    observe_operand(
+                        value,
+                        OperandUsage::Escape,
+                        &state,
+                        &mut param_use_summaries,
+                    );
+                    base_outward_effect = true;
+                }
             }
         }
 
@@ -788,7 +797,7 @@ fn statement_cost(kind: &StatementKind) -> u32 {
         StatementKind::Nop => 1,
         StatementKind::Todo(_) => 3,
         StatementKind::Assign { value, .. } => 1 + rvalue_cost(value),
-        StatementKind::StoreMember { .. } => 3,
+        StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => 3,
     }
 }
 

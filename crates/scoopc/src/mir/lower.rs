@@ -53,6 +53,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
+    object_member_hidden_effects: HashMap<String, EffectRow>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
     member_value_tys: HashMap<String, TypeId>,
@@ -71,6 +72,7 @@ impl Default for MirLoweringFacts {
             refactor_perform_sites: HashMap::new(),
             refactor_handle_sites: HashMap::new(),
             class_ctor_hidden_effects: HashMap::new(),
+            object_member_hidden_effects: HashMap::new(),
             when_pat_binding_tys: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
             member_value_tys: HashMap::new(),
@@ -257,6 +259,16 @@ impl MirLoweringFacts {
                 self.class_ctor_hidden_effects.insert(site.clone(), effects);
             }
         }
+        for object in lowered.object_inits.values() {
+            let effects = analyzer.object_init_effect_row(&object.fqn);
+            if effects.is_pure() {
+                continue;
+            }
+            for property_name in object.properties.keys() {
+                self.object_member_hidden_effects
+                    .insert(format!("{}.{}", object.fqn, property_name), effects.clone());
+            }
+        }
         self
     }
 
@@ -414,6 +426,13 @@ impl MirLoweringFacts {
             .unwrap_or_else(EffectRow::pure)
     }
 
+    fn object_member_hidden_effects(&self, fqn: &str) -> EffectRow {
+        self.object_member_hidden_effects
+            .get(fqn)
+            .cloned()
+            .unwrap_or_else(EffectRow::pure)
+    }
+
     fn when_pat_binding_ty(&self, span: Span) -> Option<TypeId> {
         self.when_pat_binding_tys.get(&span).copied()
     }
@@ -431,6 +450,11 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
     fn class_ctor_effect_row(&self, class_fqn: &str, ctor_span: Option<Span>) -> EffectRow {
         let mut visiting = HashSet::new();
         EffectRow::new(self.class_ctor_effect_terms(class_fqn, ctor_span, &mut visiting))
+    }
+
+    fn object_init_effect_row(&self, object_fqn: &str) -> EffectRow {
+        let mut visiting = HashSet::new();
+        EffectRow::new(self.object_init_effect_terms(object_fqn, &mut visiting))
     }
 
     fn class_ctor_effect_terms(
@@ -1586,6 +1610,21 @@ impl<'a> FnLowering<'a> {
                     self.assign(span, target, Rvalue::Use(Operand::Local(value)));
                 }
             }
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                let value_local = self.lower_expr_to_local(rhs);
+                if self.current_is_terminated() {
+                    return;
+                }
+                let value_ty = self.body.locals[value_local.as_u32() as usize].ty;
+                self.push_stmt(
+                    span,
+                    StatementKind::StoreTopLevelVar {
+                        fqn: fqn.clone(),
+                        value: Operand::Local(value_local),
+                        value_ty,
+                    },
+                );
+            }
             hir::ExprKind::MemberAccess { receiver, member } => {
                 let receiver_local = self.lower_expr_to_local(receiver);
                 if self.current_is_terminated() {
@@ -2112,12 +2151,15 @@ impl<'a> FnLowering<'a> {
                 },
             );
         } else {
+            let member = self.lower_member_access_metadata(member, receiver_ty);
+            let site_id = (!member.hidden_effects.is_pure()).then(|| self.fresh_site_id());
             self.assign(
                 span,
                 result,
                 Rvalue::MemberAccess {
+                    site_id,
                     receiver: Operand::Local(receiver_local),
-                    member: self.lower_member_access_metadata(member, receiver_ty),
+                    member,
                 },
             );
         }
@@ -2161,10 +2203,15 @@ impl<'a> FnLowering<'a> {
                 MemberTarget::ExtensionFun { fqn: fqn.clone() }
             }
         });
+        let hidden_effects = match &resolved {
+            Some(MemberTarget::Value { fqn }) => self.facts.object_member_hidden_effects(fqn),
+            _ => EffectRow::pure(),
+        };
         MemberAccessMetadata {
             name: member.name.clone(),
             receiver_ty,
             resolved,
+            hidden_effects,
         }
     }
 

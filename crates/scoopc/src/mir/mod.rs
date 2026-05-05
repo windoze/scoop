@@ -401,7 +401,7 @@ impl Body {
         match &stmt.kind {
             StatementKind::Nop => Ok(()),
             StatementKind::Assign { value, .. } => self.validate_refactor_rvalue(block, value),
-            StatementKind::StoreMember { .. } => Ok(()),
+            StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => Ok(()),
             StatementKind::Todo(reason) => {
                 if is_forbidden_refactor_effect_todo(reason) {
                     return Err(MirValidationError::RefactorTodo { block, reason });
@@ -625,6 +625,12 @@ pub enum StatementKind {
         value_ty: TypeId,
         continuation_route: StoredContinuationRoutePublication,
     },
+    /// `top.level.var = value` 的显式写入 contract。
+    StoreTopLevelVar {
+        fqn: String,
+        value: Operand,
+        value_ty: TypeId,
+    },
     /// 未实现节点占位（用于尽早落地数据结构但避免 `todo!()`/panic）。
     Todo(&'static str),
 }
@@ -648,6 +654,7 @@ pub struct MemberAccessMetadata {
     pub name: String,
     pub receiver_ty: TypeId,
     pub resolved: Option<MemberTarget>,
+    pub hidden_effects: EffectRow,
 }
 
 /// 已解析成员在 MIR 上的稳定目标种类。
@@ -878,6 +885,7 @@ pub enum Rvalue {
         target_ty: TypeId,
     },
     MemberAccess {
+        site_id: Option<SiteId>,
         receiver: Operand,
         member: MemberAccessMetadata,
     },

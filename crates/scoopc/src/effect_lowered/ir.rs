@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::effect_facts::{
-    CallSiteEffectFacts, CallableAbiKind, CaseTag, ClassCtorSiteEffectFacts, ConcreteOpKey,
-    ContinuationSchemaId, EffectFamilyKey, HandleSiteEffectFacts, ImplPlan, PerformSiteEffectFacts,
-    ResumeSiteEffectFacts, StepSchemaId,
+    CallSiteEffectFacts, CallSiteKind, CallableAbiKind, CaseTag, ClassCtorSiteEffectFacts,
+    ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey, HandleSiteEffectFacts, ImplPlan,
+    PerformSiteEffectFacts, ResumeSiteEffectFacts, StepSchemaId,
 };
 use crate::mir::{BasicBlockId, ConstValue, InstanceKey, LocalId, SiteId};
 use crate::span::Span;
@@ -1316,6 +1316,24 @@ fn build_surface_resume_dispatch_inventory(
         .iter()
         .map(|step_type| (step_type.step_schema(), step_type))
         .collect::<BTreeMap<_, _>>();
+    let carrier_target_step_schemas = callables
+        .iter()
+        .flat_map(|callable| {
+            callable
+                .plain_abi()
+                .into_iter()
+                .flat_map(LateLoweredPlainCallable::call_sites)
+        })
+        .filter_map(|site| {
+            let facts = site.facts();
+            matches!(
+                facts.kind(),
+                CallSiteKind::Closure | CallSiteKind::Virtual | CallSiteKind::Interface
+            )
+            .then(|| facts.callee_step_schema())
+            .flatten()
+        })
+        .collect::<BTreeSet<_>>();
     let mut inventory =
         BTreeMap::<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>::new();
     let mut wrapper_projections =
@@ -1381,11 +1399,15 @@ fn build_surface_resume_dispatch_inventory(
                     facts.continuation_schema(),
                     projection.clone(),
                 );
-                register_surface_resume_wrapper_underlying_publication(
+                register_surface_resume_wrapper_underlying_publications(
                     &mut inventory,
                     facts.continuation_schema(),
                     surface_resume_contract_from_resume_facts(facts),
                     projection,
+                    callables,
+                    lowering
+                        .operand_contract()
+                        .underlying_route_is_compatible_set(),
                 );
             }
             inventory
@@ -1421,11 +1443,15 @@ fn build_surface_resume_dispatch_inventory(
                         contract.continuation_schema(),
                         projection.clone(),
                     );
-                    register_surface_resume_wrapper_underlying_publication(
+                    register_surface_resume_wrapper_underlying_publications(
                         &mut inventory,
                         contract.continuation_schema(),
                         surface_resume_contract_from_continuation(contract),
                         projection,
+                        callables,
+                        lowering
+                            .operand_contract()
+                            .underlying_route_is_compatible_set(),
                     );
                 }
             }
@@ -1463,6 +1489,38 @@ fn build_surface_resume_dispatch_inventory(
                     );
             }
         }
+
+        for boundary in callable.boundary_map().entries() {
+            match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Call(lowering)) => {
+                    for composition in lowering.continuation_compositions() {
+                        register_call_boundary_callee_wrapper_projection(
+                            &mut inventory,
+                            &mut wrapper_projections,
+                            &mut conflicting_wrapper_projections,
+                            composition,
+                            &step_types_by_schema,
+                            continuation_objects,
+                            &carrier_target_step_schemas,
+                        );
+                    }
+                }
+                Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                    for composition in lowering.continuation_compositions() {
+                        register_call_boundary_callee_wrapper_projection(
+                            &mut inventory,
+                            &mut wrapper_projections,
+                            &mut conflicting_wrapper_projections,
+                            composition,
+                            &step_types_by_schema,
+                            continuation_objects,
+                            &carrier_target_step_schemas,
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     inventory
@@ -1485,6 +1543,156 @@ fn build_surface_resume_dispatch_inventory(
             })
         })
         .collect()
+}
+
+fn register_call_boundary_callee_wrapper_projection(
+    inventory: &mut BTreeMap<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>,
+    wrapper_projections: &mut BTreeMap<
+        ContinuationSchemaId,
+        LateLoweredSurfaceResumeWrapperProjection,
+    >,
+    conflicting_wrapper_projections: &mut BTreeSet<ContinuationSchemaId>,
+    composition: &LateLoweredCallBoundaryContinuationComposition,
+    step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
+    continuation_objects: &[LateLoweredContinuationObject],
+    carrier_target_step_schemas: &BTreeSet<StepSchemaId>,
+) {
+    let wrapper_contract = composition.callee_continuation_contract();
+    let Some(wrapper_step) = step_types_by_schema
+        .get(&composition.input_step_schema())
+        .copied()
+    else {
+        return;
+    };
+    let Some(wrapper_case) = wrapper_step.case(composition.input_case_tag()) else {
+        return;
+    };
+    if wrapper_case.continuation_contract() != wrapper_contract {
+        return;
+    }
+    if inventory
+        .get(&wrapper_contract.continuation_schema())
+        .is_some_and(|entry| entry.has_object_source)
+    {
+        return;
+    }
+
+    let mut candidates = Vec::new();
+    for object in continuation_objects {
+        for method in object.methods() {
+            if method.reachability() != LateLoweredContinuationMethodReachability::Reachable
+                || method.resume_tuple_ty() != wrapper_contract.resume_tuple_ty()
+                || method.answer_ty() != wrapper_contract.answer_ty()
+                || method.surface_ty() != wrapper_contract.surface_ty()
+                || method.concrete_op_key() != wrapper_case.concrete_op_key()
+            {
+                continue;
+            }
+            if carrier_target_step_schemas.is_empty() {
+                if method.out_step_schema()
+                    == composition.caller_continuation_contract().out_step_schema()
+                {
+                    continue;
+                }
+            } else if !carrier_target_step_schemas.contains(&method.out_step_schema()) {
+                continue;
+            }
+            let Some(projection) = build_call_boundary_callee_wrapper_projection(
+                wrapper_contract,
+                wrapper_step,
+                object,
+                method,
+                step_types_by_schema,
+            ) else {
+                continue;
+            };
+            candidates.push((
+                LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+                    object_id: object.object_id(),
+                    packing_interface_id: method.packing_interface_id(),
+                    case_tag: method.case_tag(),
+                    reachability: method.reachability(),
+                },
+                projection,
+            ));
+        }
+    }
+    if candidates.len() != 1 {
+        return;
+    }
+    let (publication, projection) = candidates
+        .pop()
+        .expect("candidate length was checked before pop");
+    inventory
+        .entry(wrapper_contract.continuation_schema())
+        .or_default()
+        .register(
+            Some(surface_resume_contract_from_continuation(wrapper_contract)),
+            publication,
+        );
+    register_surface_resume_wrapper_projection(
+        wrapper_projections,
+        conflicting_wrapper_projections,
+        wrapper_contract.continuation_schema(),
+        projection,
+    );
+}
+
+fn build_call_boundary_callee_wrapper_projection(
+    wrapper_contract: LateLoweredContinuationContract,
+    wrapper_step: &LateLoweredStepType,
+    object: &LateLoweredContinuationObject,
+    method: &LateLoweredContinuationMethod,
+    step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
+) -> Option<LateLoweredSurfaceResumeWrapperProjection> {
+    let owner_step = step_types_by_schema
+        .get(&method.out_step_schema())
+        .copied()?;
+    if owner_step.complete_ty() != wrapper_step.complete_ty()
+        || owner_step.complete_ty() != wrapper_contract.answer_ty()
+    {
+        return None;
+    }
+
+    let mut outward_cases = Vec::new();
+    for wrapper_case in wrapper_step.cases() {
+        let owner_case = owner_step
+            .cases()
+            .iter()
+            .find(|case| case.concrete_op_key() == wrapper_case.concrete_op_key())?;
+        if owner_case.payload_tuple_ty() != wrapper_case.payload_tuple_ty() {
+            return None;
+        }
+        outward_cases.push(LateLoweredSurfaceResumeWrapperCaseProjection::new(
+            owner_case.case_tag(),
+            owner_case.concrete_op_key().clone(),
+            owner_case.payload_tuple_ty(),
+            wrapper_case.case_tag(),
+            wrapper_case.concrete_op_key().clone(),
+            wrapper_case.payload_tuple_ty(),
+            wrapper_case.continuation_contract(),
+        ));
+    }
+
+    let publication = LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+        object_id: object.object_id(),
+        packing_interface_id: method.packing_interface_id(),
+        case_tag: method.case_tag(),
+        reachability: method.reachability(),
+    };
+    Some(LateLoweredSurfaceResumeWrapperProjection::new(
+        LateLoweredContinuationRoute::new(method.continuation_schema(), publication),
+        owner_step.step_schema(),
+        wrapper_step.step_schema(),
+        LateLoweredSurfaceResumeWrapperCompleteProjection::new(
+            method.answer_ty(),
+            wrapper_contract.answer_ty(),
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::owner_complete(
+                method.answer_ty(),
+            ),
+        ),
+        outward_cases,
+    ))
 }
 
 fn register_surface_resume_wrapper_projection(
@@ -1511,18 +1719,72 @@ fn register_surface_resume_wrapper_projection(
     }
 }
 
-fn register_surface_resume_wrapper_underlying_publication(
+fn register_surface_resume_wrapper_underlying_publications(
     inventory: &mut BTreeMap<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>,
     continuation_schema: ContinuationSchemaId,
-    contract: LateLoweredSurfaceResumeContract,
+    surface_contract: LateLoweredSurfaceResumeContract,
     projection: &LateLoweredSurfaceResumeWrapperProjection,
+    callables: &[LateLoweredCallable],
+    expand_compatible_handle_binders: bool,
 ) {
-    if matches!(
-        projection.underlying_route().publication(),
-        LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder { .. }
-    ) {
+    let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+        owner_version_key,
+        owner_continuation_object,
+        ..
+    } = projection.underlying_route().publication()
+    else {
+        return;
+    };
+
+    if !expand_compatible_handle_binders {
         inventory.entry(continuation_schema).or_default().register(
-            Some(contract),
+            Some(surface_contract),
+            projection.underlying_route().publication().clone(),
+        );
+        return;
+    }
+
+    let mut registered = false;
+    for callable in callables {
+        if callable.body_version_key() != owner_version_key
+            || callable.continuation_object() != *owner_continuation_object
+        {
+            continue;
+        }
+        for state in callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id, contract, ..
+            } = state.terminator()
+            else {
+                continue;
+            };
+            for arm in contract.handled_arms() {
+                let Some(binder) = arm.continuation_binder() else {
+                    continue;
+                };
+                if binder.continuation_schema()
+                    != projection.underlying_route().continuation_schema()
+                {
+                    continue;
+                }
+                inventory.entry(continuation_schema).or_default().register(
+                    Some(surface_contract),
+                    LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                        owner_version_key: callable.body_version_key().clone(),
+                        owner_continuation_object: callable.continuation_object(),
+                        site_id: *site_id,
+                        arm_ordinal: arm.arm_ordinal(),
+                        handled_case: arm.handled_case(),
+                    },
+                );
+                registered = true;
+            }
+        }
+    }
+
+    if !registered {
+        inventory.entry(continuation_schema).or_default().register(
+            Some(surface_contract),
             projection.underlying_route().publication().clone(),
         );
     }
@@ -3712,6 +3974,7 @@ pub struct LateLoweredResumeBoundaryOperandContract {
     continuation_source: LateLoweredOperandSource,
     arg_sources: Vec<LateLoweredOperandSource>,
     underlying_continuation_route: LateLoweredContinuationRoute,
+    underlying_route_is_compatible_set: bool,
 }
 
 impl LateLoweredResumeBoundaryOperandContract {
@@ -3720,12 +3983,14 @@ impl LateLoweredResumeBoundaryOperandContract {
         continuation_source: LateLoweredOperandSource,
         arg_sources: Vec<LateLoweredOperandSource>,
         underlying_continuation_route: LateLoweredContinuationRoute,
+        underlying_route_is_compatible_set: bool,
     ) -> Self {
         Self {
             source_consumption,
             continuation_source,
             arg_sources,
             underlying_continuation_route,
+            underlying_route_is_compatible_set,
         }
     }
 
@@ -3743,6 +4008,10 @@ impl LateLoweredResumeBoundaryOperandContract {
 
     pub fn underlying_continuation_route(&self) -> &LateLoweredContinuationRoute {
         &self.underlying_continuation_route
+    }
+
+    pub fn underlying_route_is_compatible_set(&self) -> bool {
+        self.underlying_route_is_compatible_set
     }
 }
 

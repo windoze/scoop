@@ -225,6 +225,12 @@ struct PublishedContinuationProvenance {
     member_store_routes: HashMap<ContinuationMemberKey, Vec<PublishedMemberStoreRoute>>,
 }
 
+#[derive(Debug, Clone)]
+struct ResolvedResumeLocalRoute {
+    route: Option<LateLoweredContinuationRoute>,
+    compatible_route_set: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum PublishedMemberStoreRoute {
     None,
@@ -359,6 +365,7 @@ impl PublishedContinuationProvenance {
                             Rvalue::MemberAccess {
                                 receiver: Operand::Local(receiver_local),
                                 member,
+                                ..
                             },
                     } => {
                         push_local_origin(
@@ -389,7 +396,8 @@ impl PublishedContinuationProvenance {
                     StatementKind::Nop
                     | StatementKind::Todo(_)
                     | StatementKind::Assign { .. }
-                    | StatementKind::StoreMember { .. } => {}
+                    | StatementKind::StoreMember { .. }
+                    | StatementKind::StoreTopLevelVar { .. } => {}
                 }
             }
         }
@@ -487,7 +495,7 @@ impl PublishedContinuationProvenance {
         root_fqn: &str,
         site_id: SiteId,
         local: LocalId,
-    ) -> Result<Option<LateLoweredContinuationRoute>, EffectLoweringError> {
+    ) -> Result<ResolvedResumeLocalRoute, EffectLoweringError> {
         let routes = self.resolve_local_routes(
             root_fqn,
             site_id,
@@ -496,8 +504,18 @@ impl PublishedContinuationProvenance {
             &mut HashSet::new(),
         )?;
         match routes.as_slice() {
-            [] => Ok(None),
-            [route] => Ok(Some(route.clone())),
+            [] => Ok(ResolvedResumeLocalRoute {
+                route: None,
+                compatible_route_set: false,
+            }),
+            [route] => Ok(ResolvedResumeLocalRoute {
+                route: Some(route.clone()),
+                compatible_route_set: false,
+            }),
+            routes if routes_share_dynamic_resume_shape(routes) => Ok(ResolvedResumeLocalRoute {
+                route: routes.first().cloned(),
+                compatible_route_set: true,
+            }),
             _ => Err(invalid_boundary_operand_contract(
                 root_fqn,
                 site_id,
@@ -893,6 +911,44 @@ fn push_unique_route(
     }
 }
 
+fn routes_share_dynamic_resume_shape(routes: &[LateLoweredContinuationRoute]) -> bool {
+    let Some(first) = routes.first() else {
+        return false;
+    };
+    routes
+        .iter()
+        .skip(1)
+        .all(|route| same_dynamic_resume_route_shape(first, route))
+}
+
+fn same_dynamic_resume_route_shape(
+    left: &LateLoweredContinuationRoute,
+    right: &LateLoweredContinuationRoute,
+) -> bool {
+    if left.continuation_schema() != right.continuation_schema() {
+        return false;
+    }
+    match (left.publication(), right.publication()) {
+        (
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+        ) => true,
+        (
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_version_key: left_owner,
+                owner_continuation_object: left_object,
+                ..
+            },
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_version_key: right_owner,
+                owner_continuation_object: right_object,
+                ..
+            },
+        ) => left_owner == right_owner && left_object == right_object,
+        _ => false,
+    }
+}
+
 fn member_derived_origin_for_local(
     local: LocalId,
     local_origins: &HashMap<LocalId, Vec<LocalContinuationOrigin>>,
@@ -1233,19 +1289,24 @@ pub(crate) fn materialize_boundary_map(
                 kind: BoundarySiteKind::Perform,
             } => {
                 let facts = clone_perform_site_facts(root_fqn, body_facts, site_id)?;
-                let operand_contract = build_perform_boundary_operand_contract(
-                    root_fqn,
-                    body,
-                    state_graph,
-                    boundary,
-                    &facts,
-                    types,
-                )?;
                 let emitted_step = build_current_step_emission(
                     root_fqn,
                     step_type,
                     facts.emitted_case(),
                     continuation_object,
+                )?;
+                let operand_payload_ty = if is_any_type(types, facts.payload_tuple_ty()) {
+                    emitted_step.payload_tuple_ty()
+                } else {
+                    facts.payload_tuple_ty()
+                };
+                let operand_contract = build_perform_boundary_operand_contract(
+                    root_fqn,
+                    body,
+                    state_graph,
+                    boundary,
+                    operand_payload_ty,
+                    types,
                 )?;
                 LateLoweredBoundaryLowering::Perform(LateLoweredPerformBoundaryLowering::new(
                     facts,
@@ -1912,6 +1973,7 @@ fn handle_body_completion_payload_source(
     }
 
     let mut published = None;
+    let mut return_fallback = None;
     for entry in state_regions {
         if entry.region() != LateLoweredHandleStateRegion::Body {
             continue;
@@ -1926,22 +1988,39 @@ fn handle_body_completion_payload_source(
                 ),
             )
         })?;
-        if !matches!(
-            state.terminator(),
-            LateLoweredStateTerminator::Goto { target } if *target == body_complete_target
-        ) {
-            continue;
-        }
-        let candidate = handle_completion_payload_source_from_state(
-            root_fqn,
-            site_id,
-            body,
-            types,
-            state_graph,
-            state.state_id(),
-            result_ty,
-            "handle body completion payload source",
-        )?;
+        let candidate = match state.terminator() {
+            LateLoweredStateTerminator::Goto { target } if *target == body_complete_target => {
+                handle_completion_payload_source_from_state(
+                    root_fqn,
+                    site_id,
+                    body,
+                    types,
+                    state_graph,
+                    state.state_id(),
+                    result_ty,
+                    "handle body completion payload source",
+                )?
+            }
+            LateLoweredStateTerminator::Return { payload_source, .. } => {
+                let candidate = payload_source.clone();
+                if let Some(existing) = &return_fallback {
+                    if !same_completion_payload_source_ignoring_span(existing, &candidate) {
+                        return Err(invalid_handle_dispatch_contract(
+                            root_fqn,
+                            site_id,
+                            format!(
+                                "handle body return fallback payload source 歧义：已发布 {:?}，又发现 {:?}",
+                                existing, candidate
+                            ),
+                        ));
+                    }
+                    continue;
+                }
+                return_fallback = Some(candidate);
+                continue;
+            }
+            _ => continue,
+        };
         if let Some(existing) = &published {
             if !same_completion_payload_source_ignoring_span(existing, &candidate) {
                 return Err(invalid_handle_dispatch_contract(
@@ -1958,16 +2037,18 @@ fn handle_body_completion_payload_source(
         published = Some(candidate);
     }
 
-    published.ok_or_else(|| {
-        invalid_handle_dispatch_contract(
-            root_fqn,
-            site_id,
-            format!(
-                "non-Unit handle body 缺少指向 st{} 的 completion payload source",
-                body_complete_target.as_u32()
-            ),
-        )
-    })
+    if let Some(source) = published.or(return_fallback) {
+        return Ok(source);
+    }
+
+    Err(invalid_handle_dispatch_contract(
+        root_fqn,
+        site_id,
+        format!(
+            "non-Unit handle body 缺少指向 st{} 的 completion payload source",
+            body_complete_target.as_u32()
+        ),
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2035,7 +2116,7 @@ fn handle_completion_payload_source_from_state(
                     format!("{context} 引用了不存在的 local{}", target.as_u32()),
                 )
             })?;
-            if local.ty != complete_ty {
+            if local.ty != complete_ty && !is_any_type(types, complete_ty) {
                 skipped_type_mismatches.push(format!(
                     "local{}:t{}",
                     target.as_u32(),
@@ -2968,6 +3049,7 @@ pub(crate) fn materialize_source_statement_classifications(
                 let stmt = &block.stmts[stmt_index as usize];
                 let kind = classify_source_statement(
                     state.state_id(),
+                    body,
                     source_slice,
                     stmt_index,
                     stmt,
@@ -3078,6 +3160,7 @@ fn collect_handle_binder_locals(
 #[allow(clippy::too_many_arguments)]
 fn classify_source_statement(
     state_id: StateId,
+    body: &Body,
     source_slice: LateLoweredStateSlice,
     stmt_index: u32,
     stmt: &crate::mir::Statement,
@@ -3124,7 +3207,7 @@ fn classify_source_statement(
         };
     }
 
-    classify_effect_neutral_source_statement(stmt)
+    classify_effect_neutral_source_statement(body, stmt)
 }
 
 fn resume_payload_injection_binding(
@@ -3196,14 +3279,22 @@ fn handle_binder_statement(
 }
 
 fn classify_effect_neutral_source_statement(
+    body: &Body,
     stmt: &crate::mir::Statement,
 ) -> LateLoweredSourceStatementClassificationKind {
     match &stmt.kind {
         StatementKind::Nop => LateLoweredSourceStatementClassificationKind::ElidedUnreachable,
-        StatementKind::StoreMember { .. } => {
+        StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => {
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
         }
-        StatementKind::Assign { value, .. } => classify_effect_neutral_rvalue(value),
+        StatementKind::Assign { target, value } => {
+            if matches!(value, Rvalue::Todo("missing expr"))
+                && local_is_only_value_member_namespace_receiver(body, *target)
+            {
+                return LateLoweredSourceStatementClassificationKind::EffectNeutralValue;
+            }
+            classify_effect_neutral_rvalue(value)
+        }
         StatementKind::Todo(reason) => {
             LateLoweredSourceStatementClassificationKind::Unsupported { reason }
         }
@@ -3249,6 +3340,108 @@ fn classify_effect_neutral_rvalue(value: &Rvalue) -> LateLoweredSourceStatementC
     }
 }
 
+fn local_is_only_value_member_namespace_receiver(body: &Body, local: LocalId) -> bool {
+    let mut saw_value_member = false;
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let StatementKind::Assign { target, value } = &stmt.kind else {
+                continue;
+            };
+            if *target == local {
+                continue;
+            }
+            if let Rvalue::MemberAccess {
+                receiver: Operand::Local(receiver),
+                member,
+                ..
+            } = value
+                && *receiver == local
+                && matches!(member.resolved, Some(MemberTarget::Value { .. }))
+            {
+                saw_value_member = true;
+                continue;
+            }
+            if rvalue_mentions_local(value, local) {
+                return false;
+            }
+        }
+    }
+    saw_value_member
+}
+
+fn operand_mentions_local(operand: &Operand, local: LocalId) -> bool {
+    matches!(operand, Operand::Local(found) if *found == local)
+}
+
+fn call_args_mention_local(args: &[CallArg], local: LocalId) -> bool {
+    args.iter()
+        .any(|arg| operand_mentions_local(&arg.value, local))
+}
+
+fn call_kind_mentions_local(kind: &CallKind, local: LocalId) -> bool {
+    match kind {
+        CallKind::Direct { .. } => false,
+        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+            operand_mentions_local(callee, local)
+        }
+        CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
+            operand_mentions_local(receiver, local)
+        }
+        CallKind::Resume { continuation, .. } => operand_mentions_local(continuation, local),
+    }
+}
+
+fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
+    match value {
+        Rvalue::Use(operand)
+        | Rvalue::Unary { operand, .. }
+        | Rvalue::TypeCheck { value: operand, .. }
+        | Rvalue::Cast { value: operand, .. }
+        | Rvalue::TupleGet { tuple: operand, .. }
+        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxGet {
+            box_operand: operand,
+        }
+        | Rvalue::PatternMatch {
+            subject: operand, ..
+        }
+        | Rvalue::PatternExtract {
+            subject: operand, ..
+        }
+        | Rvalue::MakeClosure { env: operand, .. } => operand_mentions_local(operand, local),
+        Rvalue::Binary { lhs, rhs, .. } => {
+            operand_mentions_local(lhs, local) || operand_mentions_local(rhs, local)
+        }
+        Rvalue::MemberAccess { receiver, .. } => operand_mentions_local(receiver, local),
+        Rvalue::EnumVariant { args, .. } | Rvalue::ClassCtor { args, .. } => {
+            call_args_mention_local(args, local)
+        }
+        Rvalue::Call { kind, args, .. } => {
+            call_kind_mentions_local(kind, local) || call_args_mention_local(args, local)
+        }
+        Rvalue::MakeTuple { elements } => elements
+            .iter()
+            .any(|operand| operand_mentions_local(operand, local)),
+        Rvalue::StructLit { fields } => fields
+            .iter()
+            .any(|field| operand_mentions_local(&field.value, local)),
+        Rvalue::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
+            crate::mir::InterpolatedStringPart::Text { .. } => false,
+            crate::mir::InterpolatedStringPart::Expr { value, .. } => {
+                operand_mentions_local(value, local)
+            }
+        }),
+        Rvalue::CaptureBoxSet { box_operand, value } => {
+            operand_mentions_local(box_operand, local) || operand_mentions_local(value, local)
+        }
+        Rvalue::TopLevelRef(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::SizeOf { .. }
+        | Rvalue::PerformResult { .. }
+        | Rvalue::Todo(_) => false,
+    }
+}
+
 fn invalid_source_slice_classification_contract(
     root_fqn: &str,
     detail: String,
@@ -3261,6 +3454,10 @@ fn invalid_source_slice_classification_contract(
 
 fn is_unit_type(types: &TypeStore, ty: TypeId) -> bool {
     matches!(types.kind(ty), TypeKind::Value(ValueTypeKind::Unit))
+}
+
+fn is_any_type(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Any))
 }
 
 fn build_resume_payload_binding_from_result_local(
@@ -3760,6 +3957,7 @@ fn operand_source_with_expected_ty(
     site_id: SiteId,
     kind: &'static str,
     body: &Body,
+    types: &TypeStore,
     operand: &Operand,
     expected_ty: crate::ty::TypeId,
     span: Option<crate::span::Span>,
@@ -3767,7 +3965,9 @@ fn operand_source_with_expected_ty(
     match operand {
         Operand::Local(local) => {
             let local_ty = local_decl_ty(root_fqn, site_id, kind, body, *local)?;
-            if local_ty != expected_ty {
+            if local_ty != expected_ty
+                && !local_defines_static_member_value_of_type(body, types, *local, expected_ty)
+            {
                 return Err(invalid_boundary_operand_contract(
                     root_fqn,
                     site_id,
@@ -3792,6 +3992,39 @@ fn operand_source_with_expected_ty(
             span,
         )),
     }
+}
+
+fn local_defines_static_member_value_of_type(
+    body: &Body,
+    types: &TypeStore,
+    local: LocalId,
+    expected_ty: TypeId,
+) -> bool {
+    let expected_fqn = match types.kind(expected_ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
+        _ => return false,
+    };
+    body.blocks
+        .iter()
+        .flat_map(|block| &block.stmts)
+        .any(|stmt| {
+            let StatementKind::Assign {
+                target,
+                value: Rvalue::MemberAccess { member, .. },
+            } = &stmt.kind
+            else {
+                return false;
+            };
+            if *target != local {
+                return false;
+            }
+            let Some(MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
+                return false;
+            };
+            fqn.strip_prefix(expected_fqn)
+                .is_some_and(|suffix| suffix.starts_with('.'))
+        })
 }
 
 fn operand_source_with_inferred_ty(
@@ -3850,6 +4083,7 @@ fn build_ordered_call_arg_sources(
                 site_id,
                 kind,
                 body,
+                types,
                 &arg.value,
                 expected_ty,
                 Some(arg.span),
@@ -3891,6 +4125,7 @@ fn build_ordered_perform_payload_sources(
                 site_id,
                 "Perform",
                 body,
+                types,
                 &arg.value,
                 expected_ty,
                 Some(arg.span),
@@ -4098,21 +4333,33 @@ fn build_class_ctor_boundary_source_contract(
         let start = source_slice.start_statement_index() as usize;
         let end = source_slice.end_statement_index() as usize;
         for (offset, stmt) in block.stmts[start..end].iter().enumerate() {
-            let StatementKind::Assign {
-                target,
-                value:
-                    Rvalue::ClassCtor {
-                        site_id: stmt_site_id,
-                        class_fqn,
-                        ..
-                    },
-            } = &stmt.kind
-            else {
+            let StatementKind::Assign { target, value } = &stmt.kind else {
                 continue;
             };
-            if *stmt_site_id != site_id {
-                continue;
-            }
+            let source_fqn = match value {
+                Rvalue::ClassCtor {
+                    site_id: stmt_site_id,
+                    class_fqn,
+                    ..
+                } if *stmt_site_id == site_id => class_fqn.clone(),
+                Rvalue::MemberAccess {
+                    site_id: Some(stmt_site_id),
+                    member,
+                    ..
+                } if *stmt_site_id == site_id && !member.hidden_effects.is_pure() => {
+                    let Some(crate::mir::MemberTarget::Value { fqn }) = member.resolved.as_ref()
+                    else {
+                        return Err(invalid_boundary_operand_contract(
+                            root_fqn,
+                            site_id,
+                            "ClassCtor",
+                            "hidden member init boundary source 不是 resolved value member",
+                        ));
+                    };
+                    fqn.clone()
+                }
+                _ => continue,
+            };
             if *target != result_local {
                 return Err(invalid_boundary_operand_contract(
                     root_fqn,
@@ -4131,10 +4378,7 @@ fn build_class_ctor_boundary_source_contract(
                 statement_index,
                 statement_index.saturating_add(1) == source_slice.end_statement_index(),
             );
-            if published
-                .replace((class_fqn.clone(), consumption))
-                .is_some()
-            {
+            if published.replace((source_fqn, consumption)).is_some() {
                 return Err(invalid_boundary_operand_contract(
                     root_fqn,
                     site_id,
@@ -4162,7 +4406,7 @@ fn build_perform_boundary_operand_contract(
     body: &Body,
     state_graph: &LateLoweredStateGraph,
     boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
-    facts: &PerformSiteEffectFacts,
+    payload_tuple_ty: crate::ty::TypeId,
     types: &TypeStore,
 ) -> Result<LateLoweredPerformBoundaryOperandContract, EffectLoweringError> {
     let LateLoweredBoundarySource::Site {
@@ -4203,7 +4447,7 @@ fn build_perform_boundary_operand_contract(
             site_id,
             body,
             args,
-            facts.payload_tuple_ty(),
+            payload_tuple_ty,
             types,
         )?;
         let contract = LateLoweredPerformBoundaryOperandContract::new(
@@ -4318,29 +4562,36 @@ fn build_resume_boundary_operand_contract(
                 site_id,
                 "Resume",
                 body,
+                types,
                 continuation,
                 resume.continuation_ty,
                 None,
             )?;
-            let underlying_continuation_route = match continuation_source.value() {
+            let resolved_continuation_route = match continuation_source.value() {
                 crate::effect_lowered::ir::LateLoweredOperandValueSource::Local(local) => {
                     continuation_provenance.resolve_resume_local_route(root_fqn, site_id, *local)?
                 }
-                crate::effect_lowered::ir::LateLoweredOperandValueSource::Const(_) => None,
-            }
+                crate::effect_lowered::ir::LateLoweredOperandValueSource::Const(_) => {
+                    ResolvedResumeLocalRoute {
+                        route: None,
+                        compatible_route_set: false,
+                    }
+                }
+            };
             // Even when there is no deeper binder/member provenance to follow, the boundary must
             // still publish an authoritative self-route so later LLVM lowering never falls back to
             // source-type guesses for `k.resume(...)`.
-            .unwrap_or_else(|| {
-                LateLoweredContinuationRoute::new(
-                    facts.continuation_schema(),
-                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
-                        owner_version_key: owner_version_key.clone(),
-                        owner_continuation_object: continuation_object,
-                        site_id,
-                    },
-                )
-            });
+            let underlying_continuation_route =
+                resolved_continuation_route.route.unwrap_or_else(|| {
+                    LateLoweredContinuationRoute::new(
+                        facts.continuation_schema(),
+                        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                            owner_version_key: owner_version_key.clone(),
+                            owner_continuation_object: continuation_object,
+                            site_id,
+                        },
+                    )
+                });
             let arg_sources = build_ordered_call_arg_sources(
                 root_fqn,
                 site_id,
@@ -4360,6 +4611,7 @@ fn build_resume_boundary_operand_contract(
                 continuation_source,
                 arg_sources,
                 underlying_continuation_route,
+                resolved_continuation_route.compatible_route_set,
             );
             if published.replace(contract).is_some() {
                 return Err(invalid_boundary_operand_contract(
@@ -4388,12 +4640,20 @@ fn collect_result_locals(body: &Body) -> BoundaryResultLocals {
     let mut call_results = HashMap::new();
     for block in &body.blocks {
         for stmt in &block.stmts {
-            if let StatementKind::Assign {
-                target,
-                value: Rvalue::Call { site_id, .. } | Rvalue::ClassCtor { site_id, .. },
-            } = &stmt.kind
-            {
-                call_results.insert(*site_id, *target);
+            if let StatementKind::Assign { target, value } = &stmt.kind {
+                match value {
+                    Rvalue::Call { site_id, .. } | Rvalue::ClassCtor { site_id, .. } => {
+                        call_results.insert(*site_id, *target);
+                    }
+                    Rvalue::MemberAccess {
+                        site_id: Some(site_id),
+                        member,
+                        ..
+                    } if !member.hidden_effects.is_pure() => {
+                        call_results.insert(*site_id, *target);
+                    }
+                    _ => {}
+                }
             }
         }
     }
@@ -6628,6 +6888,7 @@ mod tests {
             resolved: Some(crate::mir::MemberTarget::Value {
                 fqn: "Cell.k".to_string(),
             }),
+            hidden_effects: crate::ty::EffectRow::pure(),
         };
         body.blocks[bb0.as_u32() as usize].stmts = vec![
             crate::mir::Statement {
@@ -6673,6 +6934,7 @@ mod tests {
                 kind: crate::mir::StatementKind::Assign {
                     target: read_local,
                     value: crate::mir::Rvalue::MemberAccess {
+                        site_id: None,
                         receiver: crate::mir::Operand::Local(cell),
                         member: member.clone(),
                     },

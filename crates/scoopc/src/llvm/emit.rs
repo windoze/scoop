@@ -845,14 +845,6 @@ fn build_main_module_from_codegen_entry<'ctx>(
             ),
         });
     }
-    if late_lowered_program.is_some()
-        && matches!(selected_main.arg_shape, EntryMainArgShape::ArrayString)
-    {
-        return Err(LlvmEmitError::Frontend {
-            message: "refactor LLVM main wrapper 尚未发布 Array<String> argv tuple ABI".to_string(),
-        });
-    }
-
     let builder = context.create_builder();
 
     let fun_index: HashMap<String, &hir::FunDecl> = lowered
@@ -1009,6 +1001,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
             .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
         declare.codegen_refactor_program_bodies(
             program,
+            abi_program,
             late_lowered_types,
             primary_pass_view,
             abi_types,

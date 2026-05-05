@@ -1438,18 +1438,32 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 expected_object.as_u32(),
             ))
         })?;
-        let bindings = continuation_layout
-            .surface_resume_bindings(entry.continuation_schema())
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 continuation object ko{} 缺少 object-side surface-resume binding",
-                    entry.continuation_schema().as_u32(),
-                    expected_object.as_u32(),
-                ))
-            })?;
-
         let mut method_targets = Vec::with_capacity(candidates.len());
         for (object_id, interface_id, case_tag) in candidates {
+            let (binding_schema, expected_return_step_schema) =
+                match entry.wrapper_projection().and_then(|projection| {
+                    let route = projection.underlying_route();
+                    match route.publication() {
+                        LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+                            object_id: route_object,
+                            packing_interface_id: route_interface,
+                            case_tag: route_case,
+                            reachability: LateLoweredContinuationMethodReachability::Reachable,
+                        } if *route_object == object_id
+                            && *route_interface == interface_id
+                            && *route_case == case_tag =>
+                        {
+                            Some((route.continuation_schema(), projection.owner_step_schema()))
+                        }
+                        _ => None,
+                    }
+                }) {
+                    Some(route) => route,
+                    None => (
+                        entry.continuation_schema(),
+                        surface_layout.return_step_schema(),
+                    ),
+                };
             let packing_field_index = continuation_layout
                 .field_index_for_packing(interface_id)
                 .ok_or_else(|| {
@@ -1461,18 +1475,30 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         case_tag.as_u32(),
                     ))
                 })?;
+            let bindings = continuation_layout
+                .surface_resume_bindings(binding_schema)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 continuation object ko{} 缺少 object-side surface-resume binding k{}",
+                        entry.continuation_schema().as_u32(),
+                        expected_object.as_u32(),
+                        binding_schema.as_u32(),
+                    ))
+                })?;
             if !bindings.iter().any(|binding| {
                 binding.case_tag() == case_tag
-                    && binding.return_step_schema() == surface_layout.return_step_schema()
+                    && binding.return_step_schema() == expected_return_step_schema
                     && binding.reachability()
                         == LateLoweredContinuationMethodReachability::Reachable
             }) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 internal method target ko{} ri{}::c{} 缺少匹配的 reachable object-side surface-resume binding",
+                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 internal method target ko{} ri{}::c{} 缺少匹配的 reachable object-side surface-resume binding k{} -> s{}",
                     entry.continuation_schema().as_u32(),
                     object_id.as_u32(),
                     interface_id.as_u32(),
                     case_tag.as_u32(),
+                    binding_schema.as_u32(),
+                    expected_return_step_schema.as_u32(),
                 )));
             }
 
@@ -1491,13 +1517,13 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     case_tag.as_u32(),
                 ))
             })?;
-            if method_layout.return_step_schema() != surface_layout.return_step_schema()
+            if method_layout.return_step_schema() != expected_return_step_schema
                 || method_layout.param_count() != surface_layout.param_count()
                 || method_layout.resume_payload_abi().is_elided()
                     != surface_layout.resume_payload_abi().is_elided()
             {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume method lookup contract 漂移：surface=(out_step_schema=s{}, param_count={}, payload_elided={})，method target ko{} ri{}::c{}=(out_step_schema=s{}, param_count={}, payload_elided={})",
+                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume method lookup contract 漂移：surface=(out_step_schema=s{}, param_count={}, payload_elided={})，method target ko{} ri{}::c{}=(out_step_schema=s{}, expected_out=s{}, param_count={}, payload_elided={})",
                     entry.continuation_schema().as_u32(),
                     surface_layout.return_step_schema().as_u32(),
                     surface_layout.param_count(),
@@ -1506,6 +1532,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     interface_id.as_u32(),
                     case_tag.as_u32(),
                     method_layout.return_step_schema().as_u32(),
+                    expected_return_step_schema.as_u32(),
                     method_layout.param_count(),
                     method_layout.resume_payload_abi().is_elided(),
                 )));
@@ -3405,7 +3432,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             "perform",
             "payload sources",
             lowering.operand_contract().payload_sources(),
-            lowering.facts().payload_tuple_ty(),
+            if refactor_layout_type_is_any(self.source_types, lowering.facts().payload_tuple_ty()) {
+                lowering.emitted_step().payload_tuple_ty()
+            } else {
+                lowering.facts().payload_tuple_ty()
+            },
         )
     }
 
@@ -6508,6 +6539,10 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
+fn refactor_layout_type_is_any(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Any))
+}
+
 fn expected_source_types_for_carrier(
     types: &TypeStore,
     carrier_ty: TypeId,
@@ -9370,6 +9405,9 @@ mod tests {
                                                     handled_case: CaseTag::new(1),
                                                 },
                                             ),
+                                            lowering
+                                                .operand_contract()
+                                                .underlying_route_is_compatible_set(),
                                         );
                                     LateLoweredBoundaryLowering::Resume(
                                         crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering::new(

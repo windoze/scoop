@@ -608,7 +608,8 @@ fn collect_boundary_result_info(
                 StatementKind::Nop
                 | StatementKind::Todo(_)
                 | StatementKind::Assign { .. }
-                | StatementKind::StoreMember { .. } => None,
+                | StatementKind::StoreMember { .. }
+                | StatementKind::StoreTopLevelVar { .. } => None,
             });
             if let Some(local) = local {
                 perform_result_targets.insert(site_id, local);
@@ -912,6 +913,9 @@ fn collect_statement_uses_before_def(
                     state_id,
                 );
             }
+        }
+        StatementKind::StoreTopLevelVar { value, .. } => {
+            collect_operand_use(value, defs, uses_before_def, read_states, state_id);
         }
     }
 }

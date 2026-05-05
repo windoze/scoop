@@ -2366,6 +2366,12 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             })
     }
 
+    pub(super) fn surface_resume_dispatch_layouts(
+        &self,
+    ) -> impl Iterator<Item = &RefactorContinuationSurfaceResumeDispatchLayout<'ctx>> {
+        self.surface_resume_dispatch_layouts.values()
+    }
+
     pub(super) fn surface_resume_method_layout(
         &self,
         lookup: RefactorContinuationSurfaceResumeMethodLookup,

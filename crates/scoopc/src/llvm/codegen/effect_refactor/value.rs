@@ -63,11 +63,98 @@ fn direct_call_dispatch_fqn(fqn: &str) -> &str {
         .unwrap_or(fqn)
 }
 
+fn is_refactor_effect_runtime_intrinsic(fqn: &str) -> bool {
+    matches!(
+        direct_call_dispatch_fqn(fqn),
+        "scoop.core.__scoop_effect_is_active"
+            | "scoop.core.__scoop_effect_set_active"
+            | "scoop.core.__scoop_effect_clear"
+            | "scoop.core.__scoop_effect_slot_write"
+            | "scoop.core.__scoop_effect_slot_write2"
+            | "scoop.core.__scoop_effect_slot_read_effect_instance_key"
+            | "scoop.core.__scoop_effect_slot_read_op_tag"
+            | "scoop.core.__scoop_effect_slot_read_len_words"
+            | "scoop.core.__scoop_effect_slot_read_value"
+            | "scoop.core.__scoop_effect_slot_read_word"
+    )
+}
+
 fn source_carrier_types(types: &TypeStore, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
     match types.kind(carrier_ty) {
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
         TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
         _ => Some(vec![carrier_ty]),
+    }
+}
+
+fn operand_mentions_local(operand: &mir::Operand, local: LocalId) -> bool {
+    matches!(operand, mir::Operand::Local(found) if *found == local)
+}
+
+fn call_args_mention_local(args: &[mir::CallArg], local: LocalId) -> bool {
+    args.iter()
+        .any(|arg| operand_mentions_local(&arg.value, local))
+}
+
+fn call_kind_mentions_local(kind: &mir::CallKind, local: LocalId) -> bool {
+    match kind {
+        mir::CallKind::Direct { .. } => false,
+        mir::CallKind::Closure { callee, .. } | mir::CallKind::FunValue { callee } => {
+            operand_mentions_local(callee, local)
+        }
+        mir::CallKind::Virtual { receiver, .. } | mir::CallKind::Interface { receiver, .. } => {
+            operand_mentions_local(receiver, local)
+        }
+        mir::CallKind::Resume { continuation, .. } => operand_mentions_local(continuation, local),
+    }
+}
+
+fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
+    match value {
+        mir::Rvalue::Use(operand)
+        | mir::Rvalue::Unary { operand, .. }
+        | mir::Rvalue::TypeCheck { value: operand, .. }
+        | mir::Rvalue::Cast { value: operand, .. }
+        | mir::Rvalue::TupleGet { tuple: operand, .. }
+        | mir::Rvalue::CaptureBoxNew { value: operand }
+        | mir::Rvalue::CaptureBoxGet {
+            box_operand: operand,
+        }
+        | mir::Rvalue::PatternMatch {
+            subject: operand, ..
+        }
+        | mir::Rvalue::PatternExtract {
+            subject: operand, ..
+        }
+        | mir::Rvalue::MakeClosure { env: operand, .. } => operand_mentions_local(operand, local),
+        mir::Rvalue::Binary { lhs, rhs, .. } => {
+            operand_mentions_local(lhs, local) || operand_mentions_local(rhs, local)
+        }
+        mir::Rvalue::MemberAccess { receiver, .. } => operand_mentions_local(receiver, local),
+        mir::Rvalue::EnumVariant { args, .. } | mir::Rvalue::ClassCtor { args, .. } => {
+            call_args_mention_local(args, local)
+        }
+        mir::Rvalue::Call { kind, args, .. } => {
+            call_kind_mentions_local(kind, local) || call_args_mention_local(args, local)
+        }
+        mir::Rvalue::MakeTuple { elements } => elements
+            .iter()
+            .any(|operand| operand_mentions_local(operand, local)),
+        mir::Rvalue::StructLit { fields } => fields
+            .iter()
+            .any(|field| operand_mentions_local(&field.value, local)),
+        mir::Rvalue::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
+            mir::InterpolatedStringPart::Text { .. } => false,
+            mir::InterpolatedStringPart::Expr { value, .. } => operand_mentions_local(value, local),
+        }),
+        mir::Rvalue::CaptureBoxSet { box_operand, value } => {
+            operand_mentions_local(box_operand, local) || operand_mentions_local(value, local)
+        }
+        mir::Rvalue::TopLevelRef(_)
+        | mir::Rvalue::UnresolvedName { .. }
+        | mir::Rvalue::SizeOf { .. }
+        | mir::Rvalue::PerformResult { .. }
+        | mir::Rvalue::Todo(_) => false,
     }
 }
 
@@ -118,7 +205,24 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     && let Some(
                         mir::MemberTarget::Fun { fqn } | mir::MemberTarget::ExtensionFun { fqn },
                     ) = &member.resolved
-                    && self.is_unused_callee_ref(fqn)
+                {
+                    let _ = fqn;
+                    return Ok(());
+                }
+                if let mir::Rvalue::MemberAccess { member, .. } = rvalue
+                    && member.resolved.is_none()
+                    && matches!(
+                        member.name.as_str(),
+                        "compareTo"
+                            | "byteLength"
+                            | "byteAt"
+                            | "unsafeSliceBytes"
+                            | "charAt"
+                            | "isEmpty"
+                            | "replace"
+                            | "repeat"
+                            | "trimIndent"
+                    )
                 {
                     return Ok(());
                 }
@@ -173,6 +277,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 {
                     return Ok(());
                 }
+                if matches!(rvalue, mir::Rvalue::Todo("missing expr"))
+                    && self.local_is_only_static_member_namespace_receiver(*target)
+                {
+                    return Ok(());
+                }
                 let value = self
                     .lower_effect_neutral_rvalue(stmt.span, rvalue, slot.cg_ty, Some(*target))
                     .map_err(|err| match err {
@@ -223,6 +332,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.source_types,
                 self.slots,
             ),
+            mir::StatementKind::StoreTopLevelVar {
+                fqn,
+                value,
+                value_ty,
+            } => self
+                .codegen
+                .codegen_mir_store_top_level_var(stmt.span, fqn, value, *value_ty, self.slots),
             mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor pure statement todo",
                 at: stmt.span.into(),
@@ -324,10 +440,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     && (self.codegen.lookup_object_property_by_fqn(fqn).is_some()
                         || self.codegen.top_level_consts.contains_key(fqn)
                         || self.codegen.top_level_immutable_values.contains_key(fqn)
-                        || self.codegen.top_level_vars.contains_key(fqn)) =>
+                        || self.codegen.top_level_vars.contains_key(fqn)
+                        || self.static_enum_unit_variant_value(fqn)) =>
             {
                 if self.codegen.lookup_object_property_by_fqn(fqn).is_some() {
                     self.codegen.codegen_object_property_access(span, fqn)
+                } else if let Some(value) = self
+                    .codegen
+                    .try_codegen_qualified_enum_unit_variant_value(span, fqn)?
+                {
+                    Ok(value)
                 } else {
                     self.codegen.codegen_top_level_value_ref(span, fqn)
                 }
@@ -341,6 +463,62 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 target_cg,
             ),
         }
+    }
+
+    fn local_is_only_static_member_namespace_receiver(&self, local: LocalId) -> bool {
+        let mut saw_static_member = false;
+        for block in &self.body.blocks {
+            for stmt in &block.stmts {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if *target == local {
+                    continue;
+                }
+                if let mir::Rvalue::MemberAccess {
+                    receiver: mir::Operand::Local(receiver),
+                    member,
+                    ..
+                } = value
+                    && *receiver == local
+                    && self.static_member_value(member)
+                {
+                    saw_static_member = true;
+                    continue;
+                }
+                if rvalue_mentions_local(value, local) {
+                    return false;
+                }
+            }
+        }
+        saw_static_member
+    }
+
+    fn static_member_value(&self, member: &mir::MemberAccessMetadata) -> bool {
+        let Some(mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
+            return false;
+        };
+        self.codegen.lookup_object_property_by_fqn(fqn).is_some()
+            || self.codegen.top_level_consts.contains_key(fqn)
+            || self.codegen.top_level_immutable_values.contains_key(fqn)
+            || self.codegen.top_level_vars.contains_key(fqn)
+            || self.static_enum_unit_variant_value(fqn)
+    }
+
+    fn static_enum_unit_variant_value(&self, fqn: &str) -> bool {
+        let Some((owner_fqn, variant_name)) = fqn.rsplit_once('.') else {
+            return false;
+        };
+        self.codegen
+            .enum_layouts
+            .get(owner_fqn)
+            .and_then(|layout| {
+                layout
+                    .variants
+                    .iter()
+                    .find(|variant| variant.name == variant_name)
+            })
+            .is_some_and(|variant| variant.fields.is_empty())
     }
 
     fn refactor_class_ctor_layout_key(
@@ -732,6 +910,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_refactor_gc_debug_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
+        if is_refactor_effect_runtime_intrinsic(callee_fqn) {
+            let value = self
+                .codegen
+                .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots)?;
+            return self.codegen.coerce_value(span, value, target_cg);
+        }
         if let Some(value) = self.lower_refactor_task_transport_intrinsic(
             span,
             callee_fqn,
@@ -754,6 +938,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
         if callee_fqn == "scoop.core.toString" {
             return self.lower_refactor_core_to_string_call(span, args, target_cg);
+        }
+        if matches!(
+            callee_fqn.as_str(),
+            "scoop.core.abs" | "scoop.core.isNaN" | "scoop.core.isInfinite"
+        ) && let Some(value) =
+            self.maybe_lower_refactor_float_ext_call(span, callee_fqn, args, target_cg)?
+        {
+            return Ok(value);
         }
         if callee_fqn == "scoop.thread.yield" {
             if !args.is_empty() {
@@ -2480,7 +2672,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 if *target != local {
                     continue;
                 }
-                let mir::Rvalue::MemberAccess { receiver, member } = value else {
+                let mir::Rvalue::MemberAccess {
+                    receiver, member, ..
+                } = value
+                else {
                     continue;
                 };
                 found = Some((stmt.span, receiver.clone(), member.clone()));
@@ -2866,7 +3061,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 if target != callee_local {
                     return None;
                 }
-                let mir::Rvalue::MemberAccess { receiver, member } = value else {
+                let mir::Rvalue::MemberAccess {
+                    receiver, member, ..
+                } = value
+                else {
                     return None;
                 };
                 (member.name == member_name
@@ -3330,6 +3528,55 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let value = self.codegen.coerce_value(arg.span, value, arg_cg)?;
         let string = self.refactor_core_print_to_string(arg.span, value, arg_ty)?;
         self.codegen.coerce_value(span, string, target_cg)
+    }
+
+    fn maybe_lower_refactor_float_ext_call(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let [arg] = args else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor Float extension intrinsic arity",
+                at: span.into(),
+            });
+        };
+        if arg.name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor Float extension intrinsic named arg",
+                at: arg.span.into(),
+            });
+        }
+        let arg_cg = self
+            .codegen
+            .mir_operand_cg_ty(self.body, self.source_types, &arg.value)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor Float extension intrinsic arg type",
+                at: arg.span.into(),
+            })?;
+        if !matches!(arg_cg, CgTy::Float64 | CgTy::Float32) {
+            return Ok(None);
+        }
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(arg_cg),
+        )?;
+        let value = self.codegen.coerce_value(arg.span, value, arg_cg)?;
+        let lowered = match callee_fqn {
+            "scoop.core.abs" => self.codegen.codegen_float_abs_value(arg.span, value)?,
+            "scoop.core.isNaN" => self.codegen.codegen_float_is_nan_value(arg.span, value)?,
+            "scoop.core.isInfinite" => self
+                .codegen
+                .codegen_float_is_infinite_value(arg.span, value)?,
+            _ => unreachable!("filtered by caller"),
+        };
+        self.codegen
+            .coerce_value(span, lowered, target_cg)
+            .map(Some)
     }
 
     fn refactor_core_print_to_string(

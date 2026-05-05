@@ -126,8 +126,10 @@ enum RefactorHandleGotoRuntimeAction {
 
 #[derive(Clone, Copy)]
 struct RefactorHandleOutwardCompletionRuntime {
+    boundary_id: BoundaryId,
     completion_tag_value: u32,
     case_tag: CaseTag,
+    payload_tuple_ty: TypeId,
     resume_state: StateId,
     payload_transport: Option<RefactorHandlePendingPayloadRuntime>,
 }
@@ -139,7 +141,27 @@ struct RefactorHandleFinallyRuntime {
     exit_state: StateId,
     continue_to_exit_tag: u32,
     return_from_function_tag: u32,
+    return_payload_source: Option<LateLoweredCompletionPayloadSource>,
     propagate_outward: Vec<RefactorHandleOutwardCompletionRuntime>,
+}
+
+enum RefactorClassCtorBoundarySource<'a> {
+    ClassCtor {
+        span: crate::span::Span,
+        args: &'a [mir::CallArg],
+    },
+    ObjectProperty {
+        span: crate::span::Span,
+        fqn: &'a str,
+    },
+}
+
+impl RefactorClassCtorBoundarySource<'_> {
+    fn span(&self) -> crate::span::Span {
+        match self {
+            Self::ClassCtor { span, .. } | Self::ObjectProperty { span, .. } => *span,
+        }
+    }
 }
 
 struct TaskTransportResumeCandidate<'a, 'ctx> {
@@ -154,6 +176,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(crate) fn codegen_refactor_program_bodies(
         &mut self,
         program: &'a LateLoweredProgram,
+        abi_program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi_source_types: &'a TypeStore,
@@ -267,6 +290,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut child = self.fresh_child_codegen();
             child.codegen_refactor_surface_resume(program, abi, surface)?;
         }
+        for entry in abi_program.surface_resume_dispatch_inventory() {
+            let surface = abi
+                .surface_resume_layout(entry.continuation_schema())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor body lowering 缺少 ABI continuation schema k{} 的 surface-resume layout",
+                        entry.continuation_schema().as_u32()
+                    ))
+                })?;
+            let dispatch = abi.surface_resume_dispatch_layout(entry.continuation_schema())?;
+            if let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(target) =
+                dispatch.target()
+            {
+                let mut child = self.fresh_child_codegen();
+                child.codegen_refactor_surface_resume_owner_trampoline(
+                    abi_program,
+                    abi_source_types,
+                    abi_pass_view,
+                    abi,
+                    surface,
+                    target,
+                )?;
+            }
+            let mut child = self.fresh_child_codegen();
+            child.codegen_refactor_surface_resume(abi_program, abi, surface)?;
+        }
         Ok(())
     }
 
@@ -278,11 +327,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &LateLoweredProgram,
         abi: &RefactorAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        if entry_argv_array.is_some() {
-            return Err(frontend_error(
-                "refactor LLVM main wrapper 尚未发布 Array<String> argv tuple ABI".to_string(),
-            ));
-        }
         let mut entry_callables = program
             .callables()
             .iter()
@@ -300,7 +344,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
         if callable.plain_abi().is_some() {
-            return self.codegen_refactor_plain_main_exit_code(hir_main, callable, abi);
+            return self.codegen_refactor_plain_main_exit_code(
+                hir_main,
+                entry_argv_array,
+                callable,
+                abi,
+            );
+        }
+        if entry_argv_array.is_some() {
+            return Err(frontend_error(
+                "refactor LLVM effect-step main wrapper 尚未发布 Array<String> argv Step ABI"
+                    .to_string(),
+            ));
         }
 
         let layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
@@ -407,6 +462,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_refactor_plain_main_exit_code(
         &mut self,
         hir_main: &crate::hir::FunDecl,
+        entry_argv_array: Option<PointerValue<'ctx>>,
         callable: &LateLoweredCallable,
         abi: &RefactorAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
@@ -419,17 +475,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
         let entry = layout.direct_entry();
-        if entry.param_count() != 0 {
-            return Err(frontend_error(format!(
-                "refactor plain main `{}` 的普通入口参数数量为 {}；Array<String> argv tuple ABI 尚未发布或入口 contract 漂移",
-                hir_main.fqn,
-                entry.param_count(),
-            )));
-        }
+        let args = match (hir_main.params.as_slice(), entry_argv_array) {
+            ([], None) if entry.param_count() == 0 => Vec::new(),
+            ([_param], Some(argv_array)) if entry.param_count() == 1 => vec![argv_array.into()],
+            ([], Some(_)) => {
+                return Err(frontend_error(format!(
+                    "refactor plain main `{}` 没有 source argv 参数，但 wrapper 收到了 argv array",
+                    hir_main.fqn,
+                )));
+            }
+            ([_], None) => {
+                return Err(frontend_error(format!(
+                    "refactor plain main `{}` 需要 argv array，但 wrapper 未收到入口 argv",
+                    hir_main.fqn,
+                )));
+            }
+            _ => {
+                return Err(frontend_error(format!(
+                    "refactor plain main `{}` argv ABI 漂移：source_params={} direct_params={}",
+                    hir_main.fqn,
+                    hir_main.params.len(),
+                    entry.param_count(),
+                )));
+            }
+        };
         let direct = self.refactor_function(entry.symbol_name())?;
         let call = self
             .builder
-            .build_call(direct, &[], "refactor_plain_main")?;
+            .build_call(direct, &args, "refactor_plain_main")?;
         match self.cg_ty_of(hir_main.return_ty) {
             Some(CgTy::Unit) => Ok(self.context.i32_type().const_zero()),
             Some(CgTy::Int(_)) => {
@@ -890,28 +963,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         abi: &RefactorAbiQuery<'ctx>,
         direct_entry: &RefactorCallableEntryLayout<'ctx>,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
-        let mut components = vec![None; mir_fun.params.len()];
+        let direct_args_layout = abi.source_value_layout(direct_entry.invoke_args_tuple_ty())?;
+        let direct_component_count = refactor_source_layout_component_count(direct_args_layout);
         let receiver = function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
                 "refactor carrier shell `{}` 缺少 receiver/carrier 参数",
                 carrier_fqn
             ))
         })?;
-        let explicit_start = match kind {
+        let mut components = vec![None; direct_component_count.max(mir_fun.params.len())];
+        let (explicit_param_start, explicit_component_start) = match kind {
             RefactorCallableCarrierKind::ClosureObject if mir_fun.name.starts_with("$lambda") => {
-                if components.is_empty() {
-                    return Err(frontend_error(format!(
-                        "refactor closure carrier `{carrier_fqn}` 指向 lambda，但 direct entry 没有 env 参数"
-                    )));
-                }
-                components[0] = self.load_refactor_closure_env_payload(
+                let env_components = self.load_refactor_closure_env_components(
                     receiver.into_pointer_value(),
                     mir_fun,
                     source_types,
                 )?;
-                1
+                let env_component_count = env_components.len();
+                components = env_components;
+                components.resize(direct_component_count.max(env_component_count), None);
+                (1, env_component_count)
             }
-            RefactorCallableCarrierKind::ClosureObject => 0,
+            RefactorCallableCarrierKind::ClosureObject => (0, 0),
             RefactorCallableCarrierKind::ClassVtable
             | RefactorCallableCarrierKind::InterfaceItable => {
                 if components.is_empty() {
@@ -920,17 +993,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )));
                 }
                 components[0] = Some(receiver);
-                1
+                (1, 1)
             }
         };
         self.unpack_refactor_carrier_explicit_args(
             function,
             mir_fun,
-            explicit_start,
+            explicit_param_start,
+            explicit_component_start,
             source_types,
             &mut components,
         )?;
-        let direct_args_layout = abi.source_value_layout(direct_entry.invoke_args_tuple_ty())?;
         self.build_refactor_source_payload_from_components(
             direct_args_layout,
             &components,
@@ -942,21 +1015,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         function: FunctionValue<'ctx>,
         mir_fun: &mir::FunDecl,
-        explicit_start: usize,
+        explicit_param_start: usize,
+        explicit_component_start: usize,
         source_types: &TypeStore,
         components: &mut [Option<BasicValueEnum<'ctx>>],
     ) -> Result<(), LlvmEmitError> {
-        if explicit_start > mir_fun.params.len() {
+        if explicit_param_start > mir_fun.params.len() {
             return Err(frontend_error(format!(
                 "refactor carrier shell `{}` explicit arg 起点越界：start={} params={}",
                 mir_fun.fqn,
-                explicit_start,
+                explicit_param_start,
                 mir_fun.params.len(),
             )));
         }
-        let explicit_params = &mir_fun.params[explicit_start..];
+        let explicit_params = &mir_fun.params[explicit_param_start..];
         if explicit_params.is_empty() {
             return Ok(());
+        }
+        let needed_components = explicit_component_start + explicit_params.len();
+        if needed_components > components.len() {
+            return Err(frontend_error(format!(
+                "refactor carrier shell `{}` explicit arg component range 越界：start={} count={} components={}",
+                mir_fun.fqn,
+                explicit_component_start,
+                explicit_params.len(),
+                components.len(),
+            )));
         }
         let elided = explicit_params
             .iter()
@@ -972,7 +1056,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ))
         })?;
         if explicit_params.len() == 1 {
-            components[explicit_start] = Some(raw);
+            components[explicit_component_start] = Some(raw);
             return Ok(());
         }
         let BasicValueEnum::StructValue(tuple) = raw else {
@@ -991,7 +1075,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 abi_field,
                 &format!("refactor_carrier_arg{offset}"),
             )?;
-            components[explicit_start + offset] = Some(raw_field);
+            components[explicit_component_start + offset] = Some(raw_field);
             abi_field += 1;
         }
         Ok(())
@@ -1013,12 +1097,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(self.target_data.get_store_size(&llvm_ty) == 0)
     }
 
-    fn load_refactor_closure_env_payload(
+    fn load_refactor_closure_env_components(
         &mut self,
         closure_obj_i8: PointerValue<'ctx>,
         mir_fun: &mir::FunDecl,
         source_types: &TypeStore,
-    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+    ) -> Result<Vec<Option<BasicValueEnum<'ctx>>>, LlvmEmitError> {
         let Some(env_param) = mir_fun.params.first() else {
             return Err(frontend_error(format!(
                 "refactor closure carrier `{}` 缺少 lambda env 参数",
@@ -1032,7 +1116,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
         if env_cg == CgTy::Unit {
-            return Ok(None);
+            return Ok(Vec::new());
         }
         let CgTy::Tuple(tuple_ty) = env_cg else {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1064,15 +1148,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.ptr_type(self.gc_address_space()),
             "refactor_closure_env_obj",
         )?;
-        let BasicTypeEnum::StructType(tuple_struct_ty) =
-            self.llvm_basic_type_of(env_param.span, env_cg)?
-        else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor closure env tuple LLVM type",
-                at: env_param.span.into(),
-            });
-        };
-        let mut tuple = tuple_struct_ty.get_undef();
+        let mut components = vec![None; capture_cgs.len()];
         for (index, capture_cg) in capture_cgs.iter().enumerate() {
             if matches!(capture_cg, CgTy::Unit | CgTy::Never) {
                 continue;
@@ -1098,12 +1174,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 field_gep,
                 &format!("refactor_closure_env_field{index}"),
             )?;
-            tuple = self
-                .builder
-                .build_insert_value(tuple, raw, index as u32, "refactor_closure_env_tuple")?
-                .into_struct_value();
+            components[index] = Some(raw);
         }
-        Ok(Some(tuple.into()))
+        Ok(components)
     }
 
     fn load_refactor_closure_env_ref(
@@ -1394,6 +1467,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let surface_handle_sites =
             (!surface_handle_sites.is_empty()).then_some(surface_handle_sites);
+        if abi.frame_layout(target.owner_step_schema()).is_none()
+            && target.resume_boundary_sites().is_empty()
+            && target.handle_binder_routes().is_empty()
+            && target.wrapper_projection().is_none()
+        {
+            self.builder.build_unreachable()?;
+            return Ok(());
+        }
         RefactorCallableEmitter::new(
             self,
             program,
@@ -2406,15 +2487,29 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.store_local_value(stmt.span, *target, value)?;
             return Ok(true);
         }
-        let layout = self
+        let Some(layout) = self
             .abi
             .dynamic_invoke_layout(self.abi_step_schema, *site_id)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor source-slice dynamic call site {} 缺少 published dynamic-invoke contract",
-                    site_id.as_u32()
-                ))
-            })?;
+        else {
+            let value = self
+                .codegen
+                .codegen_mir_plain_dynamic_call(
+                    stmt.span,
+                    kind,
+                    args,
+                    self.body,
+                    self.source_types,
+                    &self.slots,
+                )
+                .map_err(|err| {
+                    frontend_error(format!(
+                        "refactor source-slice dynamic call site {} 缺少 published dynamic-invoke contract，且 plain callable lowering 失败: {err}",
+                        site_id.as_u32(),
+                    ))
+                })?;
+            self.store_local_value(stmt.span, *target, value)?;
+            return Ok(true);
+        };
         let args_payload = self.pack_call_args_for_invoke(
             stmt.span,
             layout.invoke_args_tuple_ty(),
@@ -2503,7 +2598,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 if target != callee_local {
                     return None;
                 }
-                let mir::Rvalue::MemberAccess { receiver, member } = value else {
+                let mir::Rvalue::MemberAccess {
+                    receiver, member, ..
+                } = value
+                else {
                     return None;
                 };
                 (member.name == "concat"
@@ -3257,6 +3355,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 ))
             })?)
         };
+        let lambda_env_component_count = self.lambda_env_component_count()?;
         for (index, param) in self.mir_fun.params.iter().enumerate() {
             let param_cg = self
                 .codegen
@@ -3265,61 +3364,199 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     kind: "refactor direct param type",
                     at: param.span.into(),
                 })?;
-            let value = match args_layout.kind() {
-                RefactorSourceAbiLayoutKind::Scalar
-                    if index == 0 && !args_layout.abi().is_elided() =>
-                {
-                    let raw = raw_arg.ok_or_else(|| {
-                        frontend_error("refactor direct scalar arg ABI 缺少 raw 参数".to_string())
-                    })?;
-                    self.codegen
-                        .cg_value_from_loaded(param.span, param_cg, raw)?
-                }
-                RefactorSourceAbiLayoutKind::Tuple => {
-                    if let Some(field) = args_layout.field(index) {
-                        if field.is_elided() {
-                            self.codegen.default_value(param.span, param_cg)?
-                        } else {
-                            let tuple = raw_arg.ok_or_else(|| {
-                                frontend_error(
-                                    "refactor direct args tuple ABI 缺少 raw 参数".to_string(),
-                                )
-                            })?;
-                            let struct_value = tuple.into_struct_value();
-                            let raw = self.codegen.builder.build_extract_value(
-                                struct_value,
-                                field
-                                    .abi_field_index()
-                                    .expect("non-elided field has ABI index"),
-                                "refactor_arg_field",
-                            )?;
-                            self.codegen
-                                .cg_value_from_loaded(param.span, param_cg, raw)?
-                        }
+            let value = if let Some(env_component_count) = lambda_env_component_count {
+                if index == 0 {
+                    if env_component_count == 0 {
+                        self.codegen.default_value(param.span, param_cg)?
                     } else {
-                        return Err(frontend_error(format!(
-                            "refactor direct entry `{}` args tuple ABI 缺少 param#{} 的 field；不能用默认值掩盖 contract 漂移",
+                        self.bind_direct_tuple_param_from_components(
                             entry_layout.symbol_name(),
-                            index
-                        )));
+                            param.span,
+                            param.ty,
+                            param_cg,
+                            args_layout,
+                            raw_arg,
+                            0,
+                        )?
                     }
-                }
-                RefactorSourceAbiLayoutKind::Scalar
-                    if index == 0 && args_layout.abi().is_elided() =>
-                {
-                    self.codegen.default_value(param.span, param_cg)?
-                }
-                RefactorSourceAbiLayoutKind::Scalar => {
-                    return Err(frontend_error(format!(
-                        "refactor direct entry `{}` scalar args ABI 不能绑定 param#{}；不能用默认值掩盖 contract 漂移",
+                } else {
+                    self.bind_direct_param_from_component(
                         entry_layout.symbol_name(),
-                        index
-                    )));
+                        param.span,
+                        param_cg,
+                        args_layout,
+                        raw_arg,
+                        env_component_count + index - 1,
+                    )?
                 }
+            } else if self.mir_fun.params.len() == 1
+                && param.ty == entry_layout.invoke_args_tuple_ty()
+                && matches!(param_cg, CgTy::Tuple(_))
+            {
+                self.bind_direct_tuple_param_from_components(
+                    entry_layout.symbol_name(),
+                    param.span,
+                    param.ty,
+                    param_cg,
+                    args_layout,
+                    raw_arg,
+                    0,
+                )?
+            } else {
+                self.bind_direct_param_from_component(
+                    entry_layout.symbol_name(),
+                    param.span,
+                    param_cg,
+                    args_layout,
+                    raw_arg,
+                    index,
+                )?
             };
             let _ = self.store_local_value(param.span, param.local, value)?;
         }
         Ok(())
+    }
+
+    fn lambda_env_component_count(&self) -> Result<Option<usize>, LlvmEmitError> {
+        if !self.mir_fun.name.starts_with("$lambda") {
+            return Ok(None);
+        }
+        let Some(env_param) = self.mir_fun.params.first() else {
+            return Ok(None);
+        };
+        match self.source_types.kind(env_param.ty) {
+            TypeKind::Value(ValueTypeKind::Unit) => Ok(Some(0)),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => Ok(Some(elements.len())),
+            _ => Err(frontend_error(format!(
+                "refactor direct entry `{}` 的 lambda env 参数不是 Unit 或 tuple",
+                self.mir_fun.fqn,
+            ))),
+        }
+    }
+
+    fn bind_direct_param_from_component(
+        &mut self,
+        entry_symbol: &str,
+        span: crate::span::Span,
+        param_cg: CgTy,
+        args_layout: &RefactorSourceAbiLayout<'ctx>,
+        raw_arg: Option<BasicValueEnum<'ctx>>,
+        source_index: usize,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match self.extract_direct_arg_component(entry_symbol, args_layout, raw_arg, source_index)? {
+            Some(raw) => self.codegen.cg_value_from_loaded(span, param_cg, raw),
+            None => self.codegen.default_value(span, param_cg),
+        }
+    }
+
+    fn bind_direct_tuple_param_from_components(
+        &mut self,
+        entry_symbol: &str,
+        span: crate::span::Span,
+        tuple_ty: TypeId,
+        tuple_cg: CgTy,
+        args_layout: &RefactorSourceAbiLayout<'ctx>,
+        raw_arg: Option<BasicValueEnum<'ctx>>,
+        source_start: usize,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.source_types.kind(tuple_ty)
+        else {
+            return Err(frontend_error(format!(
+                "refactor direct entry `{entry_symbol}` 不能从 components 组装非 tuple 参数 t{}",
+                tuple_ty.as_u32(),
+            )));
+        };
+        let BasicTypeEnum::StructType(tuple_struct_ty) =
+            self.codegen.llvm_basic_type_of(span, tuple_cg)?
+        else {
+            return Err(frontend_error(format!(
+                "refactor direct entry `{entry_symbol}` tuple 参数 t{} 的 LLVM type 不是 struct",
+                tuple_ty.as_u32(),
+            )));
+        };
+        let mut aggregate = tuple_struct_ty.get_undef();
+        for (offset, elem_ty) in elements.iter().enumerate() {
+            let elem_cg = self
+                .codegen
+                .cg_ty_of_mir_type(self.source_types, *elem_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor direct tuple param element type",
+                    at: span.into(),
+                })?;
+            let raw = match self.extract_direct_arg_component(
+                entry_symbol,
+                args_layout,
+                raw_arg,
+                source_start + offset,
+            )? {
+                Some(raw) => raw,
+                None => {
+                    let llvm_ty = self.codegen.llvm_basic_type_of(span, elem_cg)?;
+                    self.codegen.zero_initializer_for_basic_type(llvm_ty)
+                }
+            };
+            aggregate = self
+                .codegen
+                .builder
+                .build_insert_value(
+                    aggregate,
+                    raw,
+                    offset as u32,
+                    &format!("refactor_direct_tuple_param{source_start}_{offset}"),
+                )?
+                .into_struct_value();
+        }
+        self.codegen
+            .cg_value_from_loaded(span, tuple_cg, aggregate.into())
+    }
+
+    fn extract_direct_arg_component(
+        &mut self,
+        entry_symbol: &str,
+        args_layout: &RefactorSourceAbiLayout<'ctx>,
+        raw_arg: Option<BasicValueEnum<'ctx>>,
+        source_index: usize,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        match args_layout.kind() {
+            RefactorSourceAbiLayoutKind::Scalar if source_index == 0 => {
+                if args_layout.abi().is_elided() {
+                    Ok(None)
+                } else {
+                    raw_arg.map(Some).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor direct entry `{entry_symbol}` scalar args ABI 缺少 raw 参数"
+                        ))
+                    })
+                }
+            }
+            RefactorSourceAbiLayoutKind::Scalar => Err(frontend_error(format!(
+                "refactor direct entry `{entry_symbol}` scalar args ABI 不能绑定 source component {source_index}；不能用默认值掩盖 contract 漂移"
+            ))),
+            RefactorSourceAbiLayoutKind::Tuple => {
+                let field = args_layout.field(source_index).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor direct entry `{entry_symbol}` args tuple ABI 缺少 source component {source_index} 的 field；不能用默认值掩盖 contract 漂移"
+                    ))
+                })?;
+                if field.is_elided() {
+                    return Ok(None);
+                }
+                let tuple = raw_arg.ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor direct entry `{entry_symbol}` args tuple ABI 缺少 raw 参数"
+                    ))
+                })?;
+                let struct_value = tuple.into_struct_value();
+                let raw = self.codegen.builder.build_extract_value(
+                    struct_value,
+                    field
+                        .abi_field_index()
+                        .expect("non-elided field has ABI index"),
+                    &format!("refactor_arg_field{source_index}"),
+                )?;
+                Ok(Some(raw))
+            }
+        }
     }
 
     fn lower_state_source_slices(&mut self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
@@ -3419,7 +3656,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .abi
                     .completion_payload_binding_layout(self.abi_step_schema, binding.binding())?;
                 let payload_source = binding.payload_source();
-                let payload = self.lower_completion_payload(payload_source).map_err(|err| {
+                let payload = self
+                    .lower_completion_payload_as(
+                        payload_source,
+                        self.step_layout.complete_variant().payload_source_ty(),
+                    )
+                    .map_err(|err| {
                     frontend_error(format!(
                         "refactor return state st{} completion payload {:?} lowering failed: {err}",
                         state.state_id().as_u32(),
@@ -3684,6 +3926,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     lowering.operand_contract().arg_sources(),
                     "refactor_resume_args",
                 )?;
+                self.sync_frame_slots_from_locals()?;
                 if self.should_use_task_transport_dynamic_resume(source, surface, lowering)?
                     && self.lower_task_transport_dynamic_resume_boundary(
                         boundary,
@@ -3742,23 +3985,42 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
     ) -> Result<(), LlvmEmitError> {
         let site_id = boundary_site(boundary, "ClassCtor")?;
-        let (span, args) = self.class_ctor_boundary_statement(lowering, site_id)?;
-        let args = args.to_vec();
-        let class_layout_key =
-            self.class_ctor_layout_key(lowering.class_fqn(), lowering.result_local())?;
+        let source = self.class_ctor_boundary_statement(lowering, site_id)?;
+        let class_layout_key = match &source {
+            RefactorClassCtorBoundarySource::ClassCtor { .. } => {
+                Some(self.class_ctor_layout_key(lowering.class_fqn(), lowering.result_local())?)
+            }
+            RefactorClassCtorBoundarySource::ObjectProperty { .. } => None,
+        };
         let slots = self.slots.clone();
         let result = self
             .codegen
             .with_active_suspend_site_any_effect_outcome_capture(site_id.as_u32(), |cg| {
-                cg.with_ordinary_effect_propagation_suppressed(|cg| {
-                    cg.codegen_mir_refactor_class_ctor_call(span, &class_layout_key, &args, &slots)
+                cg.with_ordinary_effect_propagation_suppressed(|cg| match &source {
+                    RefactorClassCtorBoundarySource::ClassCtor { span, args } => {
+                        let args = args.to_vec();
+                        let class_layout_key = class_layout_key.as_ref().ok_or_else(|| {
+                            frontend_error(
+                                "refactor class ctor boundary 缺少 class layout key".to_string(),
+                            )
+                        })?;
+                        cg.codegen_mir_refactor_class_ctor_call(
+                            *span,
+                            class_layout_key,
+                            &args,
+                            &slots,
+                        )
+                    }
+                    RefactorClassCtorBoundarySource::ObjectProperty { span, fqn } => {
+                        cg.codegen_object_property_access(*span, fqn)
+                    }
                 })
             })?;
         let outcome_slot = self
             .codegen
             .take_suspend_site_explicit_effect_outcome(site_id.as_u32());
         let Some(outcome_slot) = outcome_slot else {
-            let _ = self.store_local_value(span, lowering.result_local(), result)?;
+            let _ = self.store_local_value(source.span(), lowering.result_local(), result)?;
             return self.branch_to_state(boundary.resume_state());
         };
 
@@ -3771,7 +4033,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .context
             .append_basic_block(self.function, "class_ctor_hidden_effect_inactive");
         let is_propagating = self.codegen.effect_outcome_is_propagating(
-            span,
+            source.span(),
             outcome_slot,
             "class_ctor_hidden_effect",
         )?;
@@ -3808,63 +4070,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )?;
 
         self.codegen.builder.position_at_end(inactive_bb);
-        let _ = self.store_local_value(span, lowering.result_local(), result)?;
+        let _ = self.store_local_value(source.span(), lowering.result_local(), result)?;
         self.branch_to_state(boundary.resume_state())
-    }
-
-    fn class_ctor_boundary_statement(
-        &self,
-        lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
-        site_id: SiteId,
-    ) -> Result<(crate::span::Span, &[mir::CallArg]), LlvmEmitError> {
-        let Some(statement_index) = lowering.source_consumption().statement_index() else {
-            return Err(frontend_error(format!(
-                "refactor class ctor boundary site{} source consumption 不是 statement anchor",
-                site_id.as_u32()
-            )));
-        };
-        let source_slice = lowering.source_consumption().source_slice();
-        let block = self
-            .body
-            .blocks
-            .get(source_slice.block_id().as_u32() as usize)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor class ctor boundary site{} source block bb{} 不存在",
-                    site_id.as_u32(),
-                    source_slice.block_id().as_u32()
-                ))
-            })?;
-        let stmt = block.stmts.get(statement_index as usize).ok_or_else(|| {
-            frontend_error(format!(
-                "refactor class ctor boundary site{} source statement {} 不存在",
-                site_id.as_u32(),
-                statement_index
-            ))
-        })?;
-        let mir::StatementKind::Assign {
-            value:
-                mir::Rvalue::ClassCtor {
-                    site_id: stmt_site,
-                    args,
-                    ..
-                },
-            ..
-        } = &stmt.kind
-        else {
-            return Err(frontend_error(format!(
-                "refactor class ctor boundary site{} source anchor 不是 ClassCtor statement",
-                site_id.as_u32()
-            )));
-        };
-        if *stmt_site != site_id {
-            return Err(frontend_error(format!(
-                "refactor class ctor boundary source site 漂移：anchor=site{} expected=site{}",
-                stmt_site.as_u32(),
-                site_id.as_u32()
-            )));
-        }
-        Ok((stmt.span, args))
     }
 
     fn class_ctor_layout_key(
@@ -3895,6 +4102,76 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             )));
         }
         Ok(layout.class_key().to_string())
+    }
+
+    fn class_ctor_boundary_statement(
+        &self,
+        lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
+        site_id: SiteId,
+    ) -> Result<RefactorClassCtorBoundarySource<'a>, LlvmEmitError> {
+        let Some(statement_index) = lowering.source_consumption().statement_index() else {
+            return Err(frontend_error(format!(
+                "refactor class ctor boundary site{} source consumption 不是 statement anchor",
+                site_id.as_u32()
+            )));
+        };
+        let source_slice = lowering.source_consumption().source_slice();
+        let block = self
+            .body
+            .blocks
+            .get(source_slice.block_id().as_u32() as usize)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor class ctor boundary site{} source block bb{} 不存在",
+                    site_id.as_u32(),
+                    source_slice.block_id().as_u32()
+                ))
+            })?;
+        let stmt = block.stmts.get(statement_index as usize).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor class ctor boundary site{} source statement {} 不存在",
+                site_id.as_u32(),
+                statement_index
+            ))
+        })?;
+        match &stmt.kind {
+            mir::StatementKind::Assign {
+                value:
+                    mir::Rvalue::ClassCtor {
+                        site_id: stmt_site,
+                        args,
+                        ..
+                    },
+                ..
+            } if *stmt_site == site_id => Ok(RefactorClassCtorBoundarySource::ClassCtor {
+                span: stmt.span,
+                args,
+            }),
+            mir::StatementKind::Assign {
+                value:
+                    mir::Rvalue::MemberAccess {
+                        site_id: Some(stmt_site),
+                        member,
+                        ..
+                    },
+                ..
+            } if *stmt_site == site_id && !member.hidden_effects.is_pure() => {
+                let Some(mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
+                    return Err(frontend_error(format!(
+                        "refactor class ctor boundary site{} hidden member source 不是 resolved value member",
+                        site_id.as_u32()
+                    )));
+                };
+                Ok(RefactorClassCtorBoundarySource::ObjectProperty {
+                    span: stmt.span,
+                    fqn,
+                })
+            }
+            _ => Err(frontend_error(format!(
+                "refactor class ctor boundary site{} source anchor 不是 ClassCtor/hidden member statement",
+                site_id.as_u32()
+            ))),
+        }
     }
 
     fn lower_class_ctor_outcome_payload(
@@ -4591,6 +4868,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             "refactor_boundary_complete_payload",
         )?;
         self.store_boundary_result(boundary.boundary_id(), payload, boundary.resume_state())?;
+        if matches!(
+            boundary.lowering(),
+            Some(LateLoweredBoundaryLowering::Resume(_))
+        ) {
+            self.restore_frame_slots_to_locals()?;
+        }
         if !self.try_route_boundary_complete_to_handle_completion(boundary)? {
             self.branch_to_state(boundary.resume_state())?;
         }
@@ -4834,6 +5117,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 self.callable.root_fqn()
             )));
         }
+        self.sync_frame_slots_from_locals()?;
         if let Some(projection) = self.return_projection {
             self.project_owner_step_to_wrapper(projection, step)
         } else {
@@ -5086,6 +5370,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let projected = self
             .codegen
             .refactor_build_step_complete(wrapper_layout, payload)?;
+        self.sync_frame_slots_from_locals()?;
         self.codegen.builder.build_return(Some(&projected))?;
         Ok(true)
     }
@@ -5106,12 +5391,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             else {
                 continue;
             };
+            let is_surface_resume_handle = self
+                .surface_resume_handle_sites
+                .as_ref()
+                .is_some_and(|sites| sites.contains(site_id));
             if let Some(surface_handle_sites) = &self.surface_resume_handle_sites
                 && !surface_handle_sites.contains(site_id)
             {
                 continue;
             }
-            if contract.needs_completion_state() {
+            if contract.needs_completion_state() && !is_surface_resume_handle {
                 continue;
             }
             let payload_source = match contract.state_region(state.state_id()) {
@@ -5175,24 +5464,34 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     ))
                 })?;
             let payload = match projection.complete().payload_source() {
-                LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { .. } => {
-                    self.lower_completion_payload(&owner_payload_source)?
-                }
+                LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { .. } => self
+                    .lower_completion_payload_as(
+                        &owner_payload_source,
+                        wrapper_layout.complete_variant().payload_source_ty(),
+                    )?,
                 LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(source) => {
-                    self.lower_completion_payload(source)?
+                    self.lower_completion_payload_as(
+                        source,
+                        wrapper_layout.complete_variant().payload_source_ty(),
+                    )?
                 }
             };
             let payload = self.complete_payload_or_default(wrapper_layout, payload)?;
             let projected = self
                 .codegen
                 .refactor_build_step_complete(wrapper_layout, payload)?;
+            self.sync_frame_slots_from_locals()?;
             self.codegen.builder.build_return(Some(&projected))?;
         } else {
-            let payload = self.lower_completion_payload(&owner_payload_source)?;
+            let payload = self.lower_completion_payload_as(
+                &owner_payload_source,
+                self.step_layout.complete_variant().payload_source_ty(),
+            )?;
             let payload = self.complete_payload_or_default(self.step_layout, payload)?;
             let step = self
                 .codegen
                 .refactor_build_step_complete(self.step_layout, payload)?;
+            self.sync_frame_slots_from_locals()?;
             self.codegen.builder.build_return(Some(&step))?;
         }
         Ok(true)
@@ -5499,12 +5798,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     site_id.as_u32()
                 ))
             })?;
+        let return_payload_source = handle_finally_return_payload_source(contract)?;
         let mut propagate_outward = Vec::new();
         for completion in contract.pending_completions() {
             let LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) = completion else {
                 continue;
             };
-            let _ = contract.outward_emission(*case_tag).ok_or_else(|| {
+            let emission = contract.outward_emission(*case_tag).ok_or_else(|| {
                 frontend_error(format!(
                     "refactor HandleDispatch site{} pending outward c{} 缺少 outward emission",
                     site_id.as_u32(),
@@ -5520,9 +5820,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         completion
                     ))
                 })?;
+            let boundary_id = self.handle_boundary_for_site(site_id)?.boundary_id();
             propagate_outward.push(RefactorHandleOutwardCompletionRuntime {
+                boundary_id,
                 completion_tag_value,
                 case_tag: *case_tag,
+                payload_tuple_ty: emission.payload_tuple_ty(),
                 resume_state,
                 payload_transport: layout.pending_payload_transport_layout(*completion).map(
                     |transport| RefactorHandlePendingPayloadRuntime {
@@ -5539,6 +5842,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             exit_state,
             continue_to_exit_tag,
             return_from_function_tag,
+            return_payload_source,
             propagate_outward,
         })
     }
@@ -5579,30 +5883,30 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let tag = self.load_handle_completion_tag(finally.completion_tag_field_index)?;
         let function = self.function;
-        let continue_bb = self.codegen.context.append_basic_block(
-            function,
-            &format!("handle{}_continue_exit", finally.site_id.as_u32()),
-        );
-        let return_bb = self.codegen.context.append_basic_block(
-            function,
-            &format!("handle{}_return_function", finally.site_id.as_u32()),
-        );
         let invalid_bb = self.codegen.context.append_basic_block(
             function,
             &format!("handle{}_invalid_completion", finally.site_id.as_u32()),
         );
-        let mut cases = vec![
-            (
-                tag.get_type()
-                    .const_int(u64::from(finally.continue_to_exit_tag), false),
-                continue_bb,
+        let (normal_tag, normal_bb) = match self.handle_completion_mode {
+            RefactorHandleCompletionMode::ContinueToExit => (
+                finally.continue_to_exit_tag,
+                self.codegen.context.append_basic_block(
+                    function,
+                    &format!("handle{}_continue_exit", finally.site_id.as_u32()),
+                ),
             ),
-            (
-                tag.get_type()
-                    .const_int(u64::from(finally.return_from_function_tag), false),
-                return_bb,
+            RefactorHandleCompletionMode::ReturnFromFunction => (
+                finally.return_from_function_tag,
+                self.codegen.context.append_basic_block(
+                    function,
+                    &format!("handle{}_return_function", finally.site_id.as_u32()),
+                ),
             ),
-        ];
+        };
+        let mut cases = vec![(
+            tag.get_type().const_int(u64::from(normal_tag), false),
+            normal_bb,
+        )];
         let mut outward_blocks = Vec::new();
         for outward in &finally.propagate_outward {
             let bb = self.codegen.context.append_basic_block(
@@ -5622,31 +5926,55 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         self.codegen.builder.build_switch(tag, invalid_bb, &cases)?;
 
-        self.codegen.builder.position_at_end(continue_bb);
-        self.branch_to_state(finally.exit_state)?;
-
-        self.codegen.builder.position_at_end(return_bb);
-        let step = self.build_complete_step_for_return_state(finally.exit_state)?;
-        self.return_step(step)?;
+        self.codegen.builder.position_at_end(normal_bb);
+        match self.handle_completion_mode {
+            RefactorHandleCompletionMode::ContinueToExit => {
+                self.branch_to_state(finally.exit_state)?;
+            }
+            RefactorHandleCompletionMode::ReturnFromFunction => {
+                let payload_source = finally.return_payload_source.as_ref().ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor HandleDispatch site{} ReturnFromFunction 缺少 finally completion payload source",
+                        finally.site_id.as_u32(),
+                    ))
+                })?;
+                let step = self.build_complete_step_from_payload_source(payload_source)?;
+                self.return_step(step)?;
+            }
+        }
 
         for (outward, bb) in outward_blocks {
             self.codegen.builder.position_at_end(bb);
             let payload = self.load_handle_pending_payload(outward.payload_transport)?;
-            let case_layout = self.step_layout.case_layout(outward.case_tag).ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor HandleDispatch site{} pending outward c{} 缺少 owner Step case layout",
+            let boundary = self
+                .callable
+                .boundary_map()
+                .boundary(outward.boundary_id)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor HandleDispatch site{} pending outward c{} 引用了不存在的 handle boundary bd{}",
+                        finally.site_id.as_u32(),
+                        outward.case_tag.as_u32(),
+                        outward.boundary_id.as_u32(),
+                    ))
+                })?;
+            let Some(LateLoweredBoundaryLowering::Handle(_)) = boundary.lowering() else {
+                return Err(frontend_error(format!(
+                    "refactor HandleDispatch site{} pending outward c{} 的 boundary bd{} 不是 Handle lowering",
                     finally.site_id.as_u32(),
-                    outward.case_tag.as_u32()
-                ))
-            })?;
+                    outward.case_tag.as_u32(),
+                    outward.boundary_id.as_u32(),
+                )));
+            };
             let continuation = self.create_continuation_object(outward.resume_state, None, None)?;
-            let step = self.codegen.refactor_build_step_case(
-                self.step_layout,
-                case_layout,
+            self.emit_or_consume_outward_case(
+                boundary,
+                outward.case_tag,
                 payload,
-                continuation,
+                outward.payload_tuple_ty,
+                Some(continuation),
+                None,
             )?;
-            self.return_step(step)?;
         }
 
         self.codegen.builder.position_at_end(invalid_bb);
@@ -5654,18 +5982,56 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         Ok(())
     }
 
-    fn build_complete_step_for_return_state(
+    fn handle_boundary_for_site(
+        &self,
+        site_id: SiteId,
+    ) -> Result<&'a LateLoweredBoundary, LlvmEmitError> {
+        let mut found = None;
+        for boundary in self.callable.boundary_map().entries() {
+            let LateLoweredBoundarySource::Site {
+                site_id: boundary_site_id,
+                kind: BoundarySiteKind::Handle,
+            } = boundary.source()
+            else {
+                continue;
+            };
+            if boundary_site_id != site_id {
+                continue;
+            }
+            let Some(LateLoweredBoundaryLowering::Handle(_)) = boundary.lowering() else {
+                return Err(frontend_error(format!(
+                    "refactor HandleDispatch site{} 对应 boundary bd{} 不是 Handle lowering",
+                    site_id.as_u32(),
+                    boundary.boundary_id().as_u32(),
+                )));
+            };
+            if found.replace(boundary).is_some() {
+                return Err(frontend_error(format!(
+                    "refactor HandleDispatch site{} 命中多个 Handle boundary",
+                    site_id.as_u32(),
+                )));
+            }
+        }
+        found.ok_or_else(|| {
+            frontend_error(format!(
+                "refactor HandleDispatch site{} 缺少对应 Handle boundary",
+                site_id.as_u32(),
+            ))
+        })
+    }
+
+    fn build_complete_step_from_payload_source(
         &mut self,
-        return_state: StateId,
+        payload_source: &LateLoweredCompletionPayloadSource,
     ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
-        let binding = self
-            .abi
-            .completion_payload_binding_for_state(self.abi_step_schema, return_state)?;
-        let payload = self.lower_completion_payload(binding.payload_source())?;
+        let payload = self.lower_completion_payload_as(
+            payload_source,
+            self.step_layout.complete_variant().payload_source_ty(),
+        )?;
         if payload.is_none() && !self.step_layout.complete_variant().payload_is_elided() {
             return Err(frontend_error(format!(
-                "refactor HandleDispatch return state st{} produced no payload for non-elided Complete layout {}",
-                return_state.as_u32(),
+                "refactor HandleDispatch completion payload {:?} produced no payload for non-elided Complete layout {}",
+                payload_source,
                 self.step_layout.complete_variant().payload_anchor_name()
             )));
         }
@@ -5977,6 +6343,38 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 if value.value.is_none() {
                     return Err(frontend_error(format!(
                         "refactor completion payload source {:?} lowered to no runtime value",
+                        source
+                    )));
+                }
+                Ok(value.value)
+            }
+        }
+    }
+
+    fn lower_completion_payload_as(
+        &mut self,
+        payload_source: &LateLoweredCompletionPayloadSource,
+        target_ty: TypeId,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        match payload_source {
+            LateLoweredCompletionPayloadSource::Unit { .. } => Ok(None),
+            LateLoweredCompletionPayloadSource::Operand(source) => {
+                let value = self.lower_operand_source(source)?;
+                let expected = self
+                    .codegen
+                    .cg_ty_of_mir_type(self.source_types, target_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor completion payload target type",
+                        at: source.span().unwrap_or(self.mir_fun.span).into(),
+                    })?;
+                let value = self.codegen.coerce_value(
+                    source.span().unwrap_or(self.mir_fun.span),
+                    value,
+                    expected,
+                )?;
+                if value.value.is_none() {
+                    return Err(frontend_error(format!(
+                        "refactor completion payload source {:?} coerced to no runtime value",
                         source
                     )));
                 }
@@ -7177,6 +7575,32 @@ fn handle_finally_state(
     }
 }
 
+fn handle_finally_return_payload_source(
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+) -> Result<Option<LateLoweredCompletionPayloadSource>, LlvmEmitError> {
+    if !contract.needs_completion_state() {
+        return Ok(None);
+    }
+    if let Some(source) = contract.body_completion_payload_source().cloned() {
+        return Ok(Some(source));
+    }
+    let mut published = None;
+    for arm in contract.handled_arms() {
+        let candidate = arm.completion_payload_source();
+        match &published {
+            Some(existing) if same_completion_payload_source_ignoring_span(existing, candidate) => {
+            }
+            Some(existing) => {
+                return Err(frontend_error(format!(
+                    "refactor HandleDispatch finally ReturnFromFunction completion payload source 歧义：body/previous={existing:?} arm={candidate:?}"
+                )));
+            }
+            None => published = Some(candidate.clone()),
+        }
+    }
+    Ok(published)
+}
+
 fn pending_completion_resume_state(
     contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
     completion: LateLoweredHandlePendingCompletion,
@@ -7374,6 +7798,21 @@ fn same_completion_payload_source_ignoring_span(
             LateLoweredCompletionPayloadSource::Operand(right),
         ) => left.source_ty() == right.source_ty() && left.value() == right.value(),
         _ => false,
+    }
+}
+
+fn refactor_source_layout_component_count(layout: &RefactorSourceAbiLayout<'_>) -> usize {
+    if layout.abi().is_elided() {
+        return 0;
+    }
+    match layout.kind() {
+        RefactorSourceAbiLayoutKind::Scalar => 1,
+        RefactorSourceAbiLayoutKind::Tuple => layout
+            .fields()
+            .iter()
+            .map(|field| field.source_index() as usize + 1)
+            .max()
+            .unwrap_or(0),
     }
 }
 

@@ -3512,6 +3512,13 @@ impl MirInstanceMaterializer {
                     );
                 }
             }
+            StatementKind::StoreTopLevelVar {
+                value, value_ty, ..
+            } => {
+                *value = self.rewrite_operand(value.clone());
+                *value_ty =
+                    substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
+            }
             StatementKind::Nop | StatementKind::Todo(_) => {}
         }
         Ok(())
@@ -3620,7 +3627,9 @@ impl MirInstanceMaterializer {
                 *value_ty =
                     substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
             }
-            Rvalue::MemberAccess { receiver, member } => {
+            Rvalue::MemberAccess {
+                receiver, member, ..
+            } => {
                 *receiver = self.rewrite_operand(receiver.clone());
                 self.rewrite_member_access_metadata(member, ctx);
             }
@@ -4050,6 +4059,12 @@ impl MirInstanceMaterializer {
             member.receiver_ty,
             ctx.substitution,
         );
+        member.hidden_effects.terms = member
+            .hidden_effects
+            .terms
+            .iter()
+            .map(|ty| substitute_type_and_effect_params(&mut self.types, *ty, ctx.substitution))
+            .collect();
         if let Some(target) = &mut member.resolved {
             match target {
                 MemberTarget::Fun { fqn } | MemberTarget::ExtensionFun { fqn } => {

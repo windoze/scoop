@@ -381,6 +381,7 @@ fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
                 out.insert(route.source_local);
             }
         }
+        StatementKind::StoreTopLevelVar { value, .. } => collect_operand_use(value, out),
     }
 }
 

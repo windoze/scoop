@@ -7553,6 +7553,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(boxed.into()),
                 })
             }
+            (CgTy::Enum(enum_ty), CgTy::Ref) => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum -> ref coercion value",
+                        at: at.into(),
+                    });
+                };
+                let boxed = self.codegen_box_enum_to_ref(at, enum_ty, raw)?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(boxed.into()),
+                })
+            }
             (CgTy::Tuple(from), CgTy::Tuple(to)) if from == to => Ok(value),
             (CgTy::Struct(from), CgTy::Struct(to)) if from == to => Ok(value),
             (CgTy::Enum(from), CgTy::Enum(to)) if from == to => Ok(value),
@@ -7757,6 +7770,99 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self.builder.build_store(payload_ptr, value)?;
 
         Ok(raw_ptr)
+    }
+
+    fn codegen_box_enum_to_ref(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        value: BasicValueEnum<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let payload_ty = self.llvm_basic_type_of(at, CgTy::Enum(enum_ty))?;
+        let object_ty = self.llvm_boxed_enum_type(enum_ty, payload_ty);
+        let object_size = self.target_data.get_store_size(&object_ty);
+        let size_v = self.context.i64_type().const_int(object_size, false);
+        let desc = self.get_or_create_boxed_enum_type_desc_global(at, enum_ty, object_ty)?;
+        let desc_i8 = self.builder.build_pointer_cast(
+            desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "boxed_enum_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.build_call_preserving_gc_local_roots(
+            at,
+            rt_alloc,
+            &[desc_i8.into(), size_v.into()],
+            "rt_alloc_box_enum",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed enum box return value",
+                at: at.into(),
+            })?;
+        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed enum box return type",
+                at: at.into(),
+            });
+        };
+        let obj_ptr = self.builder.build_pointer_cast(
+            raw_ptr,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "boxed_enum_ptr",
+        )?;
+        let payload_ptr =
+            self.builder
+                .build_struct_gep(object_ty, obj_ptr, 1, "boxed_enum_payload_gep")?;
+        let _ = self.builder.build_store(payload_ptr, value)?;
+        Ok(raw_ptr)
+    }
+
+    fn llvm_boxed_enum_type(
+        &self,
+        enum_ty: TypeId,
+        payload_ty: BasicTypeEnum<'ctx>,
+    ) -> StructType<'ctx> {
+        let name = format!(
+            "scoop.runtime.BoxedEnum__{}",
+            sanitize_llvm_ident(&self.types.display(enum_ty).to_string()),
+        );
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return existing;
+        }
+        let ty = self.context.opaque_struct_type(&name);
+        let header_ty = self.llvm_gc_object_header_type();
+        ty.set_body(&[header_ty.into(), payload_ty], false);
+        ty
+    }
+
+    fn get_or_create_boxed_enum_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        object_ty: StructType<'ctx>,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let name = sanitize_llvm_ident(&self.types.display(enum_ty).to_string());
+        let global_name = format!("__scoop_type_desc_runtime__boxed_enum__{name}");
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&object_ty, 1)
+            .unwrap_or(0);
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at,
+            global_name: &global_name,
+            canonical_name: &format!("scoop.runtime.BoxedEnum<{}>", self.types.display(enum_ty)),
+            obj_ty: object_ty,
+            trace_start_offset_bytes,
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
     }
 
     fn cast_int(

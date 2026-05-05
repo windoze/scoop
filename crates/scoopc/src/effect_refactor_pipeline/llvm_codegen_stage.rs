@@ -1059,18 +1059,18 @@ fun main(args: Array<String>): Int {
     }
 
     #[test]
-    fn refactor_llvm_main_wrapper_rejects_array_string_argv_until_abi_is_published() {
-        let err = emit_refactor_ir_for_source_with_entry(
+    fn refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry() {
+        let ir = emit_refactor_ir_for_source_with_entry(
             array_string_main_source(),
             "main_argv.ll",
             None,
         )
-        .expect_err("refactor argv ABI should fail fast until published");
-        let message = err.to_string();
+        .expect("refactor argv ABI should lower through the plain entry ABI");
+        let main = ir_function_body(&ir, "define i32 @main(");
 
         assert!(
-            message.contains("Array<String> argv tuple ABI"),
-            "diagnostic should name the missing argv ABI contract: {message}"
+            main.contains("@scoop_entry_argv_array") && main.contains("@sample.main"),
+            "main wrapper should build argv array and pass it to the refactor plain entry:\n{main}"
         );
     }
 

@@ -15,6 +15,59 @@ use super::types::{CgEnumRepr, CgEnumVariant, CgTy, IntTy};
 use super::{LlvmEmitError, MainCodegen, TypeDescriptorSpec, sanitize_llvm_ident};
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(super) fn builtin_nominal_cg_ty(&self, fqn: &str) -> Option<CgTy> {
+        match fqn {
+            "scoop.core.Bool" => Some(CgTy::Bool),
+            "scoop.core.Char" => Some(CgTy::Int(IntTy {
+                bits: 32,
+                signed: false,
+            })),
+            "scoop.core.Float64" | "scoop.core.Double" => Some(CgTy::Float64),
+            "scoop.core.Float32" => Some(CgTy::Float32),
+            "scoop.core.Int" => Some(CgTy::Int(IntTy {
+                bits: self.host.word_bit_width(),
+                signed: true,
+            })),
+            "scoop.core.UInt" | "scoop.core.UIntPtr" => Some(CgTy::Int(IntTy {
+                bits: self.host.word_bit_width(),
+                signed: false,
+            })),
+            "scoop.core.Int8" => Some(CgTy::Int(IntTy {
+                bits: 8,
+                signed: true,
+            })),
+            "scoop.core.Int16" | "scoop.core.Short" => Some(CgTy::Int(IntTy {
+                bits: 16,
+                signed: true,
+            })),
+            "scoop.core.Int32" => Some(CgTy::Int(IntTy {
+                bits: 32,
+                signed: true,
+            })),
+            "scoop.core.Int64" | "scoop.core.Long" => Some(CgTy::Int(IntTy {
+                bits: 64,
+                signed: true,
+            })),
+            "scoop.core.UInt8" | "scoop.core.Byte" => Some(CgTy::Int(IntTy {
+                bits: 8,
+                signed: false,
+            })),
+            "scoop.core.UInt16" | "scoop.core.UShort" => Some(CgTy::Int(IntTy {
+                bits: 16,
+                signed: false,
+            })),
+            "scoop.core.UInt32" => Some(CgTy::Int(IntTy {
+                bits: 32,
+                signed: false,
+            })),
+            "scoop.core.UInt64" | "scoop.core.ULong" => Some(CgTy::Int(IntTy {
+                bits: 64,
+                signed: false,
+            })),
+            _ => None,
+        }
+    }
+
     /// 返回名义类型在 struct_layouts/enum_layouts 中的查找 key（T0124）。
     ///
     /// 对于无 type args 的类型返回 base FQN；对于参数化类型返回 mangled FQN。
@@ -77,6 +130,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Option(_)) => Some(CgTy::Enum(ty)),
             TypeKind::Value(ValueTypeKind::Tuple(_)) => Some(CgTy::Tuple(ty)),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                if let Some(cg_ty) = self.builtin_nominal_cg_ty(&nominal.fqn) {
+                    return Some(cg_ty);
+                }
                 // T1027：internal atomics（`__AtomicInt`）——值类型、与底层整数相同布局。
                 //
                 // 说明：

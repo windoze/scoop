@@ -345,6 +345,9 @@ fn analyze_statement_uses(
                 );
             }
         }
+        StatementKind::StoreTopLevelVar { value, .. } => {
+            mark_operand_use(value, OperandUse::Escaping, aliases, facts);
+        }
         StatementKind::Nop => {}
         StatementKind::Todo(_) => {
             *saw_unknown_mir = true;

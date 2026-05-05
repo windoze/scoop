@@ -665,6 +665,19 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                     }
                     direct.add_tags(block.is_cleanup, projected);
                 }
+                Rvalue::MemberAccess {
+                    site_id: Some(site_id),
+                    member,
+                    ..
+                } if !member.hidden_effects.is_pure() => {
+                    self.record_block_site(block_id, *site_id);
+                    let projected =
+                        self.ensure_class_ctor_site_facts(types, *site_id, &member.hidden_effects)?;
+                    if !projected.is_empty() {
+                        draft.has_suspend_boundary = true;
+                    }
+                    direct.add_tags(block.is_cleanup, projected);
+                }
                 _ => {}
             }
         }
@@ -2078,6 +2091,17 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.core.__scoop_gc_debug_heap_object_count"
             | "scoop.core.__scoop_gc_debug_alloc_garbage"
             | "scoop.core.__scoop_stackmap_statepoint_smoke"
+            | "scoop.core.__scoop_thread_spawn_join_resume_u64"
+            | "scoop.core.__scoop_effect_is_active"
+            | "scoop.core.__scoop_effect_set_active"
+            | "scoop.core.__scoop_effect_clear"
+            | "scoop.core.__scoop_effect_slot_write"
+            | "scoop.core.__scoop_effect_slot_write2"
+            | "scoop.core.__scoop_effect_slot_read_effect_instance_key"
+            | "scoop.core.__scoop_effect_slot_read_op_tag"
+            | "scoop.core.__scoop_effect_slot_read_len_words"
+            | "scoop.core.__scoop_effect_slot_read_value"
+            | "scoop.core.__scoop_effect_slot_read_word"
             | "scoop.core.size"
             | "scoop.core.get"
             | "scoop.core.set"
@@ -2126,6 +2150,8 @@ fn callable_step_effect_row(
             else {
                 if let Rvalue::ClassCtor { hidden_effects, .. } = value {
                     terms.extend(hidden_effects.terms.iter().copied());
+                } else if let Rvalue::MemberAccess { member, .. } = value {
+                    terms.extend(member.hidden_effects.terms.iter().copied());
                 }
                 continue;
             };
