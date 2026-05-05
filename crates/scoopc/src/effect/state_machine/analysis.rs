@@ -8951,7 +8951,7 @@ fn ordinary_callee_resume_slot_type(
 mod plan_tests {
     use crate::parser::parse_file;
     use crate::resolve::Index;
-    use crate::session::Session;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::typecheck;
 
@@ -8976,7 +8976,7 @@ fun demo(k: Continuation<Int, Int>): Int {
 "#;
         let lowered = lower_typed_single_source(source_text);
         let source = SourceFile::new_virtual("<mem>", source_text);
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let materialized = crate::mir::materialize_for_dump(&session, &source)
             .expect("materialized MIR should be available");
         let pass_view = materialized.pass_view();
@@ -9038,7 +9038,7 @@ fun demo(k: Continuation<Int, Int>): Int {
 "#;
         let lowered = lower_typed_single_source(source_text);
         let source = SourceFile::new_virtual("<mem>", source_text);
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let materialized = crate::mir::materialize_for_dump(&session, &source)
             .expect("materialized MIR should be available");
         let pass_view = materialized.pass_view();
@@ -9652,7 +9652,7 @@ fun demo(): Int / (Boom) {
     }
 
     fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let source = SourceFile::new_virtual("<mem>", source_text);
         let mut ast = parse_file(&source).expect("parse");
 
@@ -9722,6 +9722,10 @@ fun demo(): Int / (Boom) {
             &typecheck_types,
         )
         .expect("lower")
+    }
+
+    fn legacy_session() -> Session {
+        Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).expect("session")
     }
 
     fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {

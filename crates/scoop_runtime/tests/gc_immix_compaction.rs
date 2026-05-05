@@ -100,8 +100,8 @@ mod immix {
             assert!(!a.is_null());
 
             // type descriptor：从 payload 起始扫描 1 个指针槽位（bit0）。
-            let bitmap: [u64; 1] = [0b1];
-            let desc = ScoopTypeDescriptor {
+            let bitmap = Box::leak(Box::new([0b1u64]));
+            let desc = Box::leak(Box::new(ScoopTypeDescriptor {
                 abi_version: 0,
                 flags: 0,
                 size_bytes: a_size,
@@ -116,11 +116,11 @@ mod immix {
                 parent_type_desc: ptr::null(),
                 itable: ptr::null(),
                 vtable: ptr::null(),
-            };
+            }));
 
             // 写入 A 的 type_desc，并把 payload[0] 设置为 B。
             let a_hdr = &mut *(a as *mut ScoopGcObjectHeader);
-            a_hdr.type_desc = (&desc as *const ScoopTypeDescriptor).cast::<c_void>();
+            a_hdr.type_desc = (desc as *const ScoopTypeDescriptor).cast::<c_void>();
 
             let a_payload = (a as *mut u8).add(header_size as usize) as *mut *mut c_void;
             a_payload.write(b);
@@ -226,8 +226,8 @@ mod immix {
             let a = scoop_alloc(a_size);
             assert!(!a.is_null());
 
-            let bitmap: [u64; 1] = [0b1];
-            let desc = ScoopTypeDescriptor {
+            let bitmap = Box::leak(Box::new([0b1u64]));
+            let desc = Box::leak(Box::new(ScoopTypeDescriptor {
                 abi_version: 0,
                 flags: 0,
                 size_bytes: a_size,
@@ -242,9 +242,9 @@ mod immix {
                 parent_type_desc: ptr::null(),
                 itable: ptr::null(),
                 vtable: ptr::null(),
-            };
+            }));
             let a_hdr = &mut *(a as *mut ScoopGcObjectHeader);
-            a_hdr.type_desc = (&desc as *const ScoopTypeDescriptor).cast::<c_void>();
+            a_hdr.type_desc = (desc as *const ScoopTypeDescriptor).cast::<c_void>();
             let a_payload = (a as *mut u8).add(header_size as usize) as *mut *mut c_void;
             a_payload.write(b);
 

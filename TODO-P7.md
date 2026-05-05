@@ -289,6 +289,51 @@
   - 搜索结论：指定全仓搜索 `rg -e "--effect-pipeline refactor|--effect-pipeline legacy|fallback.*legacy|retry.*legacy|default.*legacy" . --glob '!target/**'` 命中主要来自历史 TODO/完成记录、P6 handoff 文档、当前 P7 任务说明、显式 compare/rollback 测试、诊断和 hidden-fallback 守护文本；限定实现范围 `crates tools tests` 后仅剩 `dump-effect-facts` / `dump-effect-lowered` legacy unsupported 诊断、`mir_refactor` fixture 诊断、以及 `build.rs` hidden-fallback 断言文本，未发现 hidden fallback 实现路径。
   - 验证通过：`cargo fmt --all`；`cargo test -p scoop --no-default-features cli`；`cargo test -p scoop --no-default-features dump_effect`；`cargo test -p scoop --test p7_default_pipeline`；`cargo test -p scoop legacy_frames`；`cargo test -p scoop no_hidden_legacy_fallback`；`cargo run -p scoop -- dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_default_build.ll`；`cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_explicit_refactor_build.ll`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo run -p scoop -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；上述 `rg` 搜索；`rg -e "--effect-pipeline refactor|--effect-pipeline legacy|fallback.*legacy|retry.*legacy|default.*legacy" crates tools tests --glob '!target/**'`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02S：修复默认 build fixture 中暴露的 refactor LLVM/lowering 缺口，解除 P7-T03 full regression 阻塞
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P7
+  - [`TODO-P5.md`](./TODO-P5.md) P5-T04 / P5-T05 / P5-T07b
+  - [`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02qg / P6-T02j
+- 背景：
+  - P7-T03 运行默认 `cargo run -p scoop -- test` 时，build fixture 阶段暴露出多个默认 refactor 阻塞，不能通过显式 `legacy`、跳过、缩小覆盖或改弱 fixture 形状绕过；
+  - `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop` 需要 refactor pure/body lowering 支持当前 fixture 形状中的 interpolated string、`@Extern` native enter/leave、`GC.handleNew` / `GC.handleDrop` 普通 runtime ABI，并保持 no-statepoint writeback 断言；
+  - `tests/fixtures/build/int_literal_default_int_overflow_fail.scoop`、`int_literal_neg_int8_overflow_fail.scoop`、`int_literal_uint8_overflow_fail.scoop` 需要 refactor 默认路径在 `.toString()` / narrow integer target 场景下保留 `scoop::llvm::invalid_literal` 诊断，而不是先在 effect facts / frontend wrapper 处失败；
+  - `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 需要 `scoop.core.__task_drive_waiting::<(Int, Any)>` 的 handle site2 正确发布 `HandleDispatch` contract，当前错误为 non-`Unit` handle arm completion payload source state st8 缺少 completion payload source。
+
+- 必须实现的内容：
+  1. 修复 refactor pure/body lowering 对上述 extern/native/GC handle/interpolated-string fixture 形状的支持。
+     - `@Extern` 调用必须继续通过 `scoop_enter_native` / `scoop_leave_native` 暴露 roots；
+     - `GC.handleNew` / `GC.handleDrop` 必须走普通 managed runtime ABI，不得回 legacy backend；
+     - 不得删除 fixture 中用于保持 root live 的表达式形状。
+  2. 修复 refactor 默认路径中的 invalid integer literal 诊断传播。
+     - `.toString()` surface、负号、`Int8` / `UInt8` 等 narrow target 必须仍产生 `scoop::llvm::invalid_literal`；
+     - 不得用更宽整数类型或删除 `.toString()` 来规避。
+  3. 修复 late-lowered `HandleDispatch` 对 non-`Unit` handle arm completion payload source 的发现/发布。
+     - 必须覆盖 sysroot task drive 形状中 arm completion payload 经中间 local / tuple / enum carrier 传播的路径；
+     - 不得只特判 `__task_drive_waiting` 名字或 fixture 路径。
+  4. 保持 P5/P6 已固定的 completion payload / pending payload / handle dispatch contract。
+     - 禁止重新发明 body/arm/finally 返回协议；
+     - 禁止回 raw MIR/HIR 在 P6 backend 现场猜 completion 值。
+  5. 增加或更新定向测试，覆盖上述缺口。
+  6. 确认相关 build fixtures 在省略 selector 的默认 refactor 路径下通过，并继续检查原有 IR 子串。
+
+- 验证：
+  - `cargo test -p scoopc --lib effect_lowered llvm::codegen::effect_refactor llvm::tests`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_default_int_overflow_fail.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_neg_int8_overflow_fail.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_uint8_overflow_fail.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`
+  - 修复后恢复执行 P7-T03 的完整标准矩阵。
+
+- 完成条件：
+  - 上述 build fixture 在默认 refactor 主线下保持原 fixture 形状通过；
+  - 未引入 hidden legacy fallback 或 fixture 降级。
+- 依赖：P7-T02R
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 
 - 参考：
@@ -345,7 +390,7 @@
   - `cargo test --all`、`scoop test`、`spec-fixtures check`、`clippy -D warnings` 在默认 refactor 主线下全部通过；
   - 回归修复没有通过恢复 legacy 默认值或 hidden fallback 达成；
   - 后续只剩 GC env 全开验证与 P7->P8 handoff 收口。
-- 依赖：P7-T02R
+- 依赖：P7-T02S
 - 完成记录：
   - （执行时填写）
 

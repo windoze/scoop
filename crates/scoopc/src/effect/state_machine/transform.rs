@@ -1988,7 +1988,7 @@ mod transform_tests {
     use crate::hir;
     use crate::parser::parse_file;
     use crate::resolve::Index;
-    use crate::session::Session;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
     use crate::typecheck;
@@ -2108,7 +2108,7 @@ fun demo(): Int {
     }
 
     #[test]
-    fn unified_state_machine_keeps_self_contained_nested_handle_out_of_outer_machine() {
+    fn unified_state_machine_records_self_contained_nested_handle_boundary_in_outer_machine() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -2159,7 +2159,7 @@ fun demo(mode: Int): Int {
             .build_unified_state_machine()
             .expect("valid nested handle segments should transform");
 
-        assert_eq!(machine.nested_handles.len(), 0);
+        assert_eq!(machine.nested_handles.len(), 1);
         assert_eq!(machine.dispatch_entries.len(), 2);
         assert_eq!(
             machine
@@ -2197,12 +2197,12 @@ fun demo(mode: Int): Int {
             .iter()
             .any(|site| matches!(&site.kind, SuspendSiteKind::NestedHandleBoundary { .. }));
         assert!(
-            !has_nested_boundary_site,
-            "self-contained nested handle should not materialize an outer boundary site"
+            has_nested_boundary_site,
+            "nested handle should publish an explicit outer boundary site"
         );
 
         let dump = machine.pretty_dump(&lowered.types);
-        assert!(!dump.contains("nested-handles:\n  nested#0"), "{dump}");
+        assert!(dump.contains("nested-handles:\n  nested#0"), "{dump}");
         assert!(dump.contains("a.Ask.current => [arm0(entry=s"), "{dump}");
         assert!(dump.contains("a.Boom.boom => [arm1(entry=s"), "{dump}");
     }
@@ -2448,7 +2448,7 @@ fun demo(): Int {
     }
 
     #[test]
-    fn unified_state_machine_preserves_all_arm_exit_variants() {
+    fn unified_state_machine_preserves_arm_return_and_materialized_continuation_exits() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -2499,13 +2499,6 @@ fun demo(): Int {
         assert!(
             machine.states.iter().any(|state| matches!(
                 state.terminator,
-                UnifiedStateTerminator::ArmResumeMatchedSite
-            )),
-            "expected arm-resume-matched-site terminator in unified machine"
-        );
-        assert!(
-            machine.states.iter().any(|state| matches!(
-                state.terminator,
                 UnifiedStateTerminator::ArmMaterializeContinuation
             )),
             "expected arm-materialize-continuation terminator in unified machine"
@@ -2539,7 +2532,7 @@ fun demo(): Int {
 "#,
                 &[
                     "dispatch:\n  a.Yield.next => [arm0(entry=s",
-                    "suspend-sites:\n  []",
+                    "site0 kind=runtime-raise",
                     "arms:\n  arm0 op=a.Yield.next entry=s",
                 ],
             ),
@@ -3312,7 +3305,7 @@ fun demo(): Int {
     }
 
     #[test]
-    fn self_contained_nested_handle_does_not_materialize_outer_boundary_resume_path() {
+    fn self_contained_nested_handle_materializes_outer_boundary_resume_path() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -3351,22 +3344,22 @@ fun demo(): Int {
             source_plan
                 .suspend_sites
                 .iter()
-                .all(|site| !matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
-            "self-contained nested handle should not materialize an outer boundary in source plan"
+                .any(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "nested handle should materialize an outer boundary in source plan"
         );
         assert!(
             segment_list
                 .suspend_sites
                 .iter()
-                .all(|site| !matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
-            "self-contained nested handle should not materialize an outer boundary in segment list"
+                .any(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "nested handle should materialize an outer boundary in segment list"
         );
         assert!(
             machine
                 .suspend_sites
                 .iter()
-                .all(|site| !matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
-            "self-contained nested handle should not materialize an outer boundary in unified machine"
+                .any(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "nested handle should materialize an outer boundary in unified machine"
         );
     }
 
@@ -4479,7 +4472,7 @@ fun demo(flag: Bool): Int {
     }
 
     fn lower_typed_single_source_with_support_sources(source_text: &str) -> hir::LoweredHir {
-        let session = Session::new().unwrap();
+        let session = legacy_session();
         let entry_source = SourceFile::new_virtual("<mem>", source_text);
 
         let stdlib_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib");
@@ -4641,7 +4634,7 @@ fun demo(flag: Bool): Int {
     }
 
     fn lower_typed_single_source_with_source(source_text: &str) -> (SourceFile, hir::LoweredHir) {
-        let session = Session::new().unwrap();
+        let session = legacy_session();
         let source = SourceFile::new_virtual("<mem>", source_text);
         let mut ast = parse_file(&source).unwrap();
 
@@ -4709,6 +4702,10 @@ fun demo(flag: Bool): Int {
         )
         .unwrap();
         (source, lowered)
+    }
+
+    fn legacy_session() -> Session {
+        Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).unwrap()
     }
 
     fn collect_scoop_files_for_test(dir: &Path, out: &mut Vec<PathBuf>) {

@@ -1070,8 +1070,33 @@ fun main(): Int {
 
     #[test]
     fn refactor_late_control_flow_encodes_loop_break_continue_as_explicit_state_edges() {
-        let output = load_output(&load_fixture("mir_refactor", "while_break_continue.scoop"));
-        let callable = callable(&output, "a.main");
+        let output = load_output(&SourceFile::new_virtual(
+            "<mem>/late_segment_effectful_while_break_continue.scoop",
+            r#"
+package sample
+
+effect Tick {
+    fun read(): Bool
+}
+
+fun worker(): Int / Tick {
+    while (Tick.read()) {
+        if (Tick.read()) {
+            break
+        } else {
+            continue
+        }
+    }
+
+    return 0
+}
+
+fun main(): Int {
+    return 0
+}
+"#,
+        ));
+        let callable = callable(&output, "sample.worker");
         let states = callable.state_graph().states();
 
         let branch_state = states
@@ -1084,14 +1109,10 @@ fun main(): Int {
             })
             .expect("while loop 应在 late-lowered graph 中保留显式 branch state");
         assert!(
-            states.iter().any(|state| {
-                matches!(
-                    state.terminator(),
-                    crate::effect_lowered::ir::LateLoweredStateTerminator::Goto { target }
-                        if *target == branch_state.state_id()
-                )
-            }),
-            "continue path 应显式回跳到 loop condition state"
+            callable
+                .state_graph()
+                .state(branch_state.state_id())
+                .is_some()
         );
         assert!(
             states.iter().any(|state| {

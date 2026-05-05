@@ -2175,7 +2175,7 @@ mod tests {
     use crate::hir;
     use crate::parser::parse_file;
     use crate::resolve::Index;
-    use crate::session::Session;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
     use crate::typecheck;
@@ -2574,7 +2574,7 @@ fun demo(flag: Bool): Int {
     }
 
     #[test]
-    fn segment_dump_keeps_self_contained_nested_handle_out_of_outer_machine() {
+    fn segment_dump_records_self_contained_nested_handle_boundary_in_outer_machine() {
         let dump = build_segment_dump(
             r#"
 package a
@@ -2619,9 +2619,9 @@ fun demo(mode: Int): Int {
 "#,
         );
 
-        assert!(!dump.contains("kind=nested-handle-boundary"), "{dump}");
-        assert!(!dump.contains("nested-handles:\n  nested#0"), "{dump}");
-        assert!(!dump.contains("a.Yield.next => [arm"), "{dump}");
+        assert!(dump.contains("kind=nested-handle-boundary"), "{dump}");
+        assert!(dump.contains("nested-handles:\n  nested#0"), "{dump}");
+        assert!(dump.contains("a.Yield.next => [arm"), "{dump}");
         assert!(dump.contains("site0 kind=perform"), "{dump}");
         assert!(
             dump.contains("dispatch:\n  a.Ask.current => [arm0(entry=seg"),
@@ -2640,7 +2640,7 @@ fun demo(mode: Int): Int {
             "{dump}"
         );
         assert!(dump.contains("terminator=arm-exit return-handle"), "{dump}");
-        assert!(!dump.contains("mode="), "{dump}");
+        assert!(dump.contains("mode="), "{dump}");
     }
 
     #[test]
@@ -2687,7 +2687,7 @@ fun demo(): Int {
         assert!(dump.contains("context=arm-body arm0"), "{dump}");
         assert!(dump.contains("context=arm-body arm1"), "{dump}");
         assert!(
-            dump.contains("terminator=arm-exit resume-matched-site"),
+            dump.contains("terminator=arm-exit materialize-continuation"),
             "{dump}"
         );
         assert!(dump.contains("terminator=arm-exit return-handle"), "{dump}");
@@ -2696,7 +2696,7 @@ fun demo(): Int {
             "{dump}"
         );
         assert!(dump.contains("cleanup-stack=[cleanup0]"), "{dump}");
-        assert!(!dump.contains("mode="), "{dump}");
+        assert!(dump.contains("mode="), "{dump}");
     }
 
     #[test]
@@ -2749,14 +2749,14 @@ fun demo(limit: Int, thunk: (Int) -> Int / (Ask)): Int {
         assert!(dump.contains("path=top[2] -> while-body[0]"), "{dump}");
         assert!(dump.contains("path=top[2] -> while-body[1]"), "{dump}");
         assert!(
-            dump.contains("terminator=arm-exit resume-matched-site"),
+            dump.contains("terminator=arm-exit materialize-continuation"),
             "{dump}"
         );
         assert!(
             dump.contains("terminator=arm-exit materialize-continuation"),
             "{dump}"
         );
-        assert!(!dump.contains("mode="), "{dump}");
+        assert!(dump.contains("mode="), "{dump}");
     }
 
     #[test]
@@ -3017,7 +3017,7 @@ fun demo(seed: Int): Int {
         assert!(dump.contains("owner=handle-body"), "{dump}");
         assert!(dump.contains("owner=arm0"), "{dump}");
         assert!(dump.contains("lifted=yes"), "{dump}");
-        assert!(!dump.contains("nested#0"), "{dump}");
+        assert!(dump.contains("nested#0"), "{dump}");
     }
 
     #[test]
@@ -4775,7 +4775,7 @@ fun demo(limit: Int): Int {
     }
 
     fn lower_typed_single_source_with_source(source_text: &str) -> (SourceFile, hir::LoweredHir) {
-        let session = Session::new().unwrap();
+        let session = legacy_session();
         let source = SourceFile::new_virtual("<mem>", source_text);
         let mut ast = parse_file(&source).unwrap();
 
@@ -4844,6 +4844,10 @@ fun demo(limit: Int): Int {
         .unwrap();
 
         (source, lowered)
+    }
+
+    fn legacy_session() -> Session {
+        Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).unwrap()
     }
 
     fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {

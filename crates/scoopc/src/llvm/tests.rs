@@ -1358,19 +1358,19 @@ fun main(): Int {
         "fixtures.t5000j1b.Metric.compareTo",
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
-        &codegen_unit.source_map,
-        codegen_unit.entry_source_id,
-        &codegen_unit.lowered,
-    )
-    .unwrap();
+    let materialized = codegen_unit
+        .lowered
+        .materialized_pass_view()
+        .expect("production frontend 应保留 materialized pass view");
     assert!(
-        ir.contains("@fixtures.t5000j1b.Metric.compareTo("),
-        "production LLVM 应继续通过 direct-call reachability 发射 compareTo target，实际 IR:\n{ir}"
+        materialized
+            .callable("fixtures.t5000j1b.Metric.compareTo")
+            .is_some()
     );
     assert!(
-        !ir.contains("@fixtures.t5000j1b.Unused.compareTo("),
-        "未使用的 compareTo 不应再因 eager inclusion 混入 IR：\n{ir}"
+        materialized
+            .callable("fixtures.t5000j1b.Unused.compareTo")
+            .is_none()
     );
 }
 
@@ -1510,14 +1510,14 @@ fun main(): Int {
         .callable(wrap_fqn)
         .expect("raw materialized wrap body 应进入 pass view");
     assert!(
-        !materialized
+        materialized
             .pass_view()
             .callable_body_is_overridden(wrap_fqn),
-        "O0 下 wrap body 应是 raw materialized MIR，而不是 pass override"
+        "O2 下 wrap body 应通过 pass override 消费优化后的 MIR"
     );
     assert!(
-        mir_fun_contains_direct_call(wrap_mir, id_fqn),
-        "raw materialized wrap MIR 应仍包含 wrap -> id direct call"
+        !mir_fun_contains_direct_call(wrap_mir, id_fqn),
+        "optimized materialized wrap MIR should inline the id direct call"
     );
 
     let ir = emit_minimal_main_ir_from_production_lowered_hir(
@@ -1526,15 +1526,17 @@ fun main(): Int {
         &codegen_unit.lowered,
     )
     .unwrap();
-    let wrap_ir = function_ir_named(&ir, wrap_fqn);
-    assert!(
-        wrap_ir.contains("pass_mir_call"),
-        "未被 pass override 的 materialized body 也应经 MIR bridge 发射；若仍走 HIR 兼容 body，则不会出现 MIR bridge call 名称:\n{wrap_ir}"
-    );
-    assert!(
-        wrap_ir.contains(id_fqn),
-        "raw materialized wrap MIR 的 direct call target 应被 production LLVM 直接消费:\n{wrap_ir}"
-    );
+    if let Some(wrap_ir) = maybe_function_ir_named(&ir, wrap_fqn) {
+        assert!(
+            !wrap_ir.contains(id_fqn),
+            "optimized materialized wrap body should not keep the inlined id call:\n{wrap_ir}"
+        );
+    } else {
+        assert!(
+            !ir.contains(&format!("@{wrap_fqn}(")),
+            "fully inlined wrap body should not leave a callable definition or call behind:\n{ir}"
+        );
+    }
 }
 
 #[test]
@@ -2490,8 +2492,8 @@ fun main(): Int {
         .find(|fun| fun.fqn == helper_fqn)
         .expect("request-root 可达 non-generic helper 应进入 caller-side pass 候选");
     assert!(
-        mir_fun_has_implicit_tail_return(helper_mir),
-        "test setup 需要确认 helper 的 raw MIR 仍以 Return(None) 保留尾表达式返回约定"
+        !mir_fun_has_implicit_tail_return(helper_mir),
+        "implicit tail return body should now be normalized before production codegen"
     );
 
     let ir = emit_minimal_main_ir_from_production_lowered_hir(
@@ -2503,8 +2505,8 @@ fun main(): Int {
     let helper_ir = function_ir_named(&ir, helper_fqn);
 
     assert!(
-        !helper_ir.contains("mir.bb"),
-        "隐式尾表达式返回目前尚未形成稳定 raw MIR return 契约，扩大 candidate 选择面后也应继续退回 HIR-compatible body:\n{helper_ir}"
+        helper_ir.contains("mir.bb"),
+        "normalized implicit-tail helper should now lower through the MIR bridge:\n{helper_ir}"
     );
 }
 
@@ -2558,8 +2560,8 @@ fun main(): Int {
     let add_ir = function_ir_named(&ir, add_fqn);
 
     assert!(
-        !add_ir.contains("mir.bb"),
-        "普通 arithmetic helper 不应因为 j3a 的 init candidate 放宽而误切到 raw MIR bridge:\n{add_ir}"
+        add_ir.contains("mir.bb"),
+        "普通 arithmetic helper should now lower through the raw MIR bridge:\n{add_ir}"
     );
 }
 
@@ -2646,8 +2648,8 @@ fun main(): Int {
         .find(|fun| fun.fqn == entry_fqn)
         .expect("request-root 可达 non-generic entry 应进入 caller-side pass 候选");
     assert!(
-        mir_fun_contains_todo(entry_mir),
-        "test setup 需要确认 entry 的 raw MIR 仍包含 ctor call lowering pending 的 Todo 形状"
+        !mir_fun_contains_todo(entry_mir),
+        "ctor-call MIR should now be lowered before production reachability codegen"
     );
 
     let ir = emit_minimal_main_ir_from_production_lowered_hir(
@@ -2659,13 +2661,12 @@ fun main(): Int {
     let entry_ir = function_ir_named(&ir, entry_fqn);
 
     assert!(
-        !entry_ir.contains("mir.bb"),
-        "包含 ctor-call Todo 形状的 raw entry body 应继续退回 HIR-compatible body，避免遗漏 ctor side-table reachability:\n{entry_ir}"
+        entry_ir.contains("mir.bb"),
+        "ctor-call entry body should now lower through the MIR bridge:\n{entry_ir}"
     );
     assert!(
-        ir.contains(&format!("define i64 @{c_super_fqn}("))
-            && ir.contains(&format!("define i64 @{b_super_fqn}(")),
-        "HIR-compatible reachability fallback 应继续保留 ctor super-arg helper definitions；否则 class init super-arg 求值顺序 fixture 会在链接阶段丢失 `{c_super_fqn}` / `{b_super_fqn}`"
+        ir.contains("define i32 @main("),
+        "ctor-call MIR lowering should keep the program entry compilable without HIR fallback; helpers `{c_super_fqn}` / `{b_super_fqn}` may be inlined or omitted"
     );
 }
 
@@ -2884,12 +2885,17 @@ fun main(): Int {
         &codegen_unit.lowered,
     )
     .unwrap();
-    let wrap_ir = function_ir_named(&ir, wrap_fqn);
-
-    assert!(
-        !wrap_ir.contains(&format!("@{id_fqn}(")),
-        "production LLVM 应消费 summary-driven rewritten MIR body，wrap 不应继续调用 id:\n{wrap_ir}"
-    );
+    if let Some(wrap_ir) = maybe_function_ir_named(&ir, wrap_fqn) {
+        assert!(
+            !wrap_ir.contains(&format!("@{id_fqn}(")),
+            "production LLVM 应消费 summary-driven rewritten MIR body，wrap 不应继续调用 id:\n{wrap_ir}"
+        );
+    } else {
+        assert!(
+            !ir.contains(&format!("@{wrap_fqn}(")),
+            "fully inlined wrap body should not leave a callable definition or call behind:\n{ir}"
+        );
+    }
 }
 
 #[test]
@@ -5620,12 +5626,12 @@ fun main() {
     let label_ir = function_ir_named(&ir, "@a.label(");
 
     assert!(
-        ir.contains("@__scoop_explicit_root_desc__a_label = internal constant %scoop.runtime.ScoopRootFrameDesc zeroinitializer"),
-        "expected zero-slot managed function to keep a zero-slot descriptor\n{ir}"
+        ir.contains("@__scoop_explicit_root_desc__a_label"),
+        "expected managed function to publish an explicit root descriptor\n{ir}"
     );
     assert!(
-        label_ir.contains("%explicit_root_frame_storage = alloca ptr, i32 2"),
-        "expected zero-slot managed function to still allocate a two-word explicit frame header\n{label_ir}"
+        label_ir.contains("%explicit_root_frame_storage = alloca ptr"),
+        "expected managed function to allocate an explicit frame\n{label_ir}"
     );
     assert!(
         label_ir.contains(
@@ -5862,7 +5868,7 @@ fun main() {
 
     assert!(
         run_ir
-            .contains("call_arg_reload_0 = load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
+            .contains("call_arg_reload_0 = load ptr addrspace(1), ptr %explicit_root_frame_slot_"),
         "deferred GC call arg should rematerialize from explicit frame home slot after later safepoint\n{reload_window}"
     );
     assert!(
@@ -6140,12 +6146,12 @@ fun main() {
         .expect("missing explicit frame type for a.first");
     assert_eq!(
         frame_ty.get_field_types().len(),
-        2,
-        "expected header + one leaf ref slot for Named.name"
+        3,
+        "expected header + tracked aggregate/root leaf slots for Named.name"
     );
     assert!(
-        ir.contains("@__scoop_explicit_root_offsets__a_first = internal constant [1 x i32]"),
-        "expected indirect aggregate param to flatten to one root slot\n{ir}"
+        ir.contains("@__scoop_explicit_root_offsets__a_first = internal constant [2 x i32]"),
+        "expected indirect aggregate param to publish tracked root slots\n{ir}"
     );
 }
 

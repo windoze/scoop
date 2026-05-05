@@ -102,17 +102,26 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 {
                     return Ok(());
                 }
+                if let mir::Rvalue::MemberAccess { member, .. } = rvalue
+                    && let Some(
+                        mir::MemberTarget::Fun { fqn } | mir::MemberTarget::ExtensionFun { fqn },
+                    ) = &member.resolved
+                    && self.is_unused_callee_ref(fqn)
+                {
+                    return Ok(());
+                }
                 let slot = self
                     .codegen
                     .mir_local_slot(stmt.span, self.slots, *target)?;
                 let value = self
                     .lower_effect_neutral_rvalue(stmt.span, rvalue, slot.cg_ty, Some(*target))
-                    .map_err(|err| {
-                        frontend_error(format!(
-                            "refactor pure assignment local{} rvalue {:?} lowering failed: {err}",
+                    .map_err(|err| match err {
+                        LlvmEmitError::InvalidLiteral { .. } => err,
+                        other => frontend_error(format!(
+                            "refactor pure assignment local{} rvalue {:?} lowering failed: {other}",
                             target.as_u32(),
                             rvalue,
-                        ))
+                        )),
                     })?;
                 let _ = self
                     .codegen
@@ -158,6 +167,21 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         target_cg: super::super::types::CgTy,
         target_local: Option<LocalId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let mir::Rvalue::Unary {
+            op: crate::ast::UnaryOp::Neg,
+            ..
+        } = value
+            && let CgTy::Int(int_ty) = target_cg
+            && let Some(bits) = self
+                .codegen
+                .int_literal_bits_from_source_span_if_present(span, int_ty)?
+        {
+            return Ok(CgValue::int(
+                self.codegen.int_type(int_ty).const_int(bits, false),
+                int_ty,
+            ));
+        }
+
         match value {
             mir::Rvalue::Call { kind, args, .. } => {
                 self.lower_refactor_pure_direct_call(span, kind, args, target_cg)
@@ -519,11 +543,27 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             return Ok(value);
         }
+        if callee_fqn == "scoop.core.__scoop_gc_collect" {
+            if !args.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor gc collect arity mismatch",
+                    at: span.into(),
+                });
+            }
+            let runtime = self.codegen.declare_runtime_gc_collect_safepoint();
+            let _ = self.codegen.build_call_preserving_gc_local_roots(
+                span,
+                runtime,
+                &[],
+                "refactor_gc_collect_safepoint",
+            )?;
+            return Ok(CgValue::unit());
+        }
         if self.codegen.extern_funs.contains_key(callee_fqn) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor pure statement extern/runtime helper call requires published native ABI",
-                at: span.into(),
-            });
+            let value = self
+                .codegen
+                .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots)?;
+            return self.codegen.coerce_value(span, value, target_cg);
         }
         let sig_fun = self
             .codegen
@@ -905,6 +945,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 fqn,
                 "scoop.core.__scoop_print_string"
                     | "scoop.core.__scoop_println_string"
+                    | "scoop.core.__scoop_gc_collect"
+                    | "scoop.core.GC.handleNew"
+                    | "scoop.core.GC.handleDrop"
                     | "scoop.core.__scoop_thread_spawn_join_resume_u64"
             )
     }

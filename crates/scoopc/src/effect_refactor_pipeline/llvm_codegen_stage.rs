@@ -714,7 +714,7 @@ fun main(args: Array<String>): Int {
     }
 
     #[test]
-    fn refactor_llvm_codegen_stage_rejects_unmigrated_effect_lowering() {
+    fn refactor_llvm_codegen_stage_lowers_effectful_handle_body() {
         let _guard = test_lock();
         let temp = make_temp_dir();
         let out = temp.path().join("effect.ll");
@@ -722,7 +722,7 @@ fun main(args: Array<String>): Int {
         reset_test_stage_run_count();
         let (session, source_map, entry_source_id, lowered) =
             effectful_emit_args(EffectPipelineMode::Refactor);
-        let err = effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+        effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
             &session,
             &source_map,
             entry_source_id,
@@ -733,27 +733,12 @@ fun main(args: Array<String>): Int {
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
         )
-        .expect_err("effectful refactor LLVM path 应在 stage 边界 fail fast");
+        .expect("effectful refactor LLVM path 应由 clean stage lowering 成功生成 IR");
 
         assert_eq!(test_stage_run_count(), 1);
-        match err {
-            LlvmEmitError::RefactorEffectLoweringUnsupported {
-                entry,
-                callable,
-                unsupported_paths,
-            } => {
-                assert_eq!(entry, "sample.main");
-                assert_eq!(callable, "sample.main");
-                assert!(
-                    unsupported_paths.contains("perform boundary lowering"),
-                    "诊断应明确指出 perform lowering 尚未迁移：{unsupported_paths}"
-                );
-                assert!(
-                    unsupported_paths.contains("resume-state lowering"),
-                    "诊断应明确指出 resume-state lowering 尚未迁移：{unsupported_paths}"
-                );
-            }
-            other => panic!("unexpected error: {other:?}"),
-        }
+        let ir = std::fs::read_to_string(out).unwrap();
+        assert!(ir.contains("scoop.refactor.Step"));
+        assert!(!ir.contains("scoop_effect_handler_stack"));
+        assert!(!ir.contains("scoop_effect_outcome"));
     }
 }

@@ -321,7 +321,9 @@ fn observe_build_emit_llvm_cli(mode: &str, fixture: &Path, output: &Path) -> Par
 
 #[cfg(feature = "llvm")]
 #[test]
-fn build_emit_llvm_cli_parity_matches_legacy_and_refactor() {
+fn build_emit_llvm_cli_legacy_and_refactor_both_succeed_after_backend_split() {
+    // P6 起，refactor LLVM 后端会物化 Step/continuation ABI，legacy 则保留旧
+    // handler-frame 形状；这里守护两条显式入口仍可用，而不再要求 IR 字节级 parity。
     let fixture =
         workspace_path("tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop");
     let dir = tempdir().unwrap();
@@ -338,12 +340,22 @@ fn build_emit_llvm_cli_parity_matches_legacy_and_refactor() {
         legacy.stderr, refactor.stderr,
         "build --emit-llvm stderr 不一致"
     );
-    assert_eq!(
-        legacy.stdout, refactor.stdout,
-        "build --emit-llvm 产物不一致"
-    );
     assert!(
         legacy.stdout.contains("define i32 @main("),
-        "LLVM smoke 产物应包含 main 定义"
+        "legacy LLVM smoke 产物应包含 main 定义"
+    );
+    assert!(
+        refactor.stdout.contains("define i32 @main("),
+        "refactor LLVM smoke 产物应包含 main 定义"
+    );
+    assert!(
+        legacy
+            .stdout
+            .contains("scoop.runtime.ScoopEffectHandlerFrame"),
+        "legacy LLVM smoke 产物应保留旧 handler-frame 入口形状"
+    );
+    assert!(
+        refactor.stdout.contains("scoop.refactor.Step"),
+        "refactor LLVM smoke 产物应包含 Step ABI 形状"
     );
 }

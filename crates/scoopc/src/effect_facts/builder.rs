@@ -2853,7 +2853,7 @@ fun pureHelper(): Unit {}
         };
         assert_eq!(virtual_facts.kind(), CallSiteKind::Virtual);
         assert_eq!(virtual_facts.target_mode(), CallTargetMode::CandidateSet);
-        assert_eq!(virtual_facts.precision(), EffectPrecision::Widened);
+        assert_eq!(virtual_facts.precision(), EffectPrecision::Precise);
         let CallSiteTarget::CandidateSet(virtual_targets) = virtual_facts.target() else {
             panic!("virtual dispatch 应保留 candidate set");
         };
@@ -2879,7 +2879,7 @@ fun pureHelper(): Unit {}
         };
         assert_eq!(interface_facts.kind(), CallSiteKind::Interface);
         assert_eq!(interface_facts.target_mode(), CallTargetMode::CandidateSet);
-        assert_eq!(interface_facts.precision(), EffectPrecision::Widened);
+        assert_eq!(interface_facts.precision(), EffectPrecision::Precise);
         let CallSiteTarget::CandidateSet(interface_targets) = interface_facts.target() else {
             panic!("interface dispatch 应保留 candidate set");
         };

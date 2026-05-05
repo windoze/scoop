@@ -13,6 +13,8 @@ effect Ping {
     fun pong(): Unit
 }
 
-fun continuationCarrier(): Unit / Ping {}
+fun continuationCarrier(): Unit / Ping {
+    Ping.hit()
+}
 
 fun main() {}

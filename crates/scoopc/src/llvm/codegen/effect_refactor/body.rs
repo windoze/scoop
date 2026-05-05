@@ -6657,7 +6657,7 @@ mod tests {
         let value = include_str!("value.rs");
 
         assert!(value.contains("extern_funs.contains_key"));
-        assert!(value.contains("requires published native ABI"));
+        assert!(value.contains("codegen_mir_direct_call"));
         assert!(body.contains("RefactorContinuationSurfaceResumeLayout"));
         assert!(body.contains("RefactorDynamicInvokeLayout"));
         assert!(!body.contains(concat!("emit_extern_", "native_call")));

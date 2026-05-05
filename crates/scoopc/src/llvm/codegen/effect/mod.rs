@@ -46,6 +46,20 @@ pub(super) struct ContinuationResumeResultSlots<'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn split_continuation_resume_call<'expr>(
+        callee: &'expr hir::Expr,
+        args: &'expr [hir::CallArg],
+    ) -> Option<(&'expr hir::Expr, &'expr [hir::CallArg])> {
+        if let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind {
+            return Some((receiver, args));
+        }
+
+        match args.split_first()? {
+            (hir::CallArg::Positional(receiver), payload_args) => Some((receiver, payload_args)),
+            (hir::CallArg::Named { value, .. }, payload_args) => Some((value, payload_args)),
+        }
+    }
+
     fn clear_continuation_resume_receiver_local_if_any(
         &mut self,
         receiver: &hir::Expr,
@@ -1097,7 +1111,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_continuation_resume_builtin_discard_answer(span, callee, args);
         }
 
-        let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind else {
+        let Some((receiver, payload_args)) = Self::split_continuation_resume_call(callee, args)
+        else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "Continuation.resume callee shape",
                 at: callee.span.into(),
@@ -1175,9 +1190,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `Continuation.resume(...)` 的 authoritative payload / answer type 都来自
         // receiver 的 `Continuation<Resume, Answer, eff E>` 实参。
         let payload = if let Some(payload_ty) = payload_ty {
-            self.codegen_continuation_resume_payload_value(span, payload_ty, args)?
+            self.codegen_continuation_resume_payload_value(span, payload_ty, payload_args)?
         } else {
-            self.codegen_continuation_resume_legacy_payload_value(None, args)?
+            self.codegen_continuation_resume_legacy_payload_value(None, payload_args)?
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "Continuation.resume payload type",
                     at: receiver.span.into(),
@@ -1264,7 +1279,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(CgValue::unit());
         }
 
-        let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind else {
+        let Some((receiver, payload_args)) = Self::split_continuation_resume_call(callee, args)
+        else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "Continuation.resume callee shape",
                 at: callee.span.into(),
@@ -1291,9 +1307,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => None,
         };
         let payload = if let Some(payload_ty) = payload_ty {
-            self.codegen_continuation_resume_payload_value(span, payload_ty, args)?
+            self.codegen_continuation_resume_payload_value(span, payload_ty, payload_args)?
         } else {
-            self.codegen_continuation_resume_legacy_payload_value(None, args)?
+            self.codegen_continuation_resume_legacy_payload_value(None, payload_args)?
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "Continuation.resume payload type",
                     at: receiver.span.into(),

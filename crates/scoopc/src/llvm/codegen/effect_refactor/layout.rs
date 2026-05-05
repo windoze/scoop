@@ -625,6 +625,32 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 step_layouts,
             )?;
         }
+        for callable in self.program.callables() {
+            if !callable.has_control_body() {
+                continue;
+            }
+            for boundary in callable.boundary_map().entries() {
+                let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering() else {
+                    continue;
+                };
+                for composition in lowering.continuation_compositions() {
+                    let contract = composition.callee_continuation_contract();
+                    self.register_surface_resume_layout(
+                        &mut layouts,
+                        composition.callee_continuation_schema(),
+                        crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::Unreachable,
+                        contract.resume_tuple_ty(),
+                        contract.answer_ty(),
+                        contract.out_step_schema(),
+                        &format!(
+                            "call-boundary callee continuation composition k{}",
+                            composition.callee_continuation_schema().as_u32()
+                        ),
+                        step_layouts,
+                    )?;
+                }
+            }
+        }
         Ok(layouts)
     }
 
@@ -6307,8 +6333,7 @@ mod tests {
 
     use super::*;
     use crate::effect_facts::{
-        CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallTargetMode, CaseTag,
-        EffectPrecision, ImplPlan, SiteEffectFacts, StepSchemaId,
+        CallSiteEffectFacts, CallSiteTarget, CallTargetMode, CaseTag, ImplPlan, SiteEffectFacts,
     };
     use crate::effect_lowered::ir::{
         BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundary,
@@ -7139,98 +7164,6 @@ mod tests {
         .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
     }
 
-    fn next_step_schema_id(program: &LateLoweredProgram) -> StepSchemaId {
-        let next = program
-            .step_types()
-            .iter()
-            .map(|step_type| step_type.step_schema().as_u32())
-            .max()
-            .map(|raw| raw.saturating_add(1))
-            .unwrap_or(0);
-        StepSchemaId::new(next)
-    }
-
-    fn next_continuation_object_id(program: &LateLoweredProgram) -> ContinuationObjectId {
-        let next = program
-            .continuation_objects()
-            .iter()
-            .map(|object| object.object_id().as_u32())
-            .max()
-            .map(|raw| raw.saturating_add(1))
-            .unwrap_or(0);
-        ContinuationObjectId::new(next)
-    }
-
-    fn clone_step_type_with_step_schema(
-        step_type: &LateLoweredStepType,
-        step_schema: StepSchemaId,
-    ) -> LateLoweredStepType {
-        assert!(
-            step_type.cases().is_empty(),
-            "当前 helper 只支持无 outward case 的 callable version 克隆"
-        );
-        LateLoweredStepType::new(
-            step_schema,
-            step_type.invoke_args_tuple_ty(),
-            step_type.complete_ty(),
-            step_type.continuation_obj_ty(),
-            Vec::new(),
-        )
-    }
-
-    fn clone_no_outward_continuation_object_with_version(
-        object: &LateLoweredContinuationObject,
-        object_id: ContinuationObjectId,
-        owner_version_key: LateLoweredBodyVersionKey,
-    ) -> LateLoweredContinuationObject {
-        assert!(
-            object.implemented_packings().is_empty()
-                && object.surface_resumes().is_empty()
-                && object.methods().is_empty(),
-            "当前 helper 只支持无 resume publication 的 continuation object 克隆"
-        );
-        LateLoweredContinuationObject::new(
-            object_id,
-            owner_version_key,
-            object.continuation_obj_ty(),
-            Vec::new(),
-            object.captures().to_vec(),
-            Vec::new(),
-            Vec::new(),
-        )
-    }
-
-    fn clone_no_outward_callable_with_version(
-        callable: &LateLoweredCallable,
-        body_version_key: LateLoweredBodyVersionKey,
-        step_schema: StepSchemaId,
-        continuation_object: ContinuationObjectId,
-    ) -> LateLoweredCallable {
-        assert!(
-            callable.resolved_outward_cases().is_empty() && callable.resume_packings().is_empty(),
-            "当前 helper 只支持无 outward case / 无 resume packing 的 callable version 克隆"
-        );
-        LateLoweredCallable::new(
-            callable.root_fqn().to_string(),
-            body_version_key,
-            step_schema,
-            Vec::new(),
-            LateLoweredDynamicInvokeEntry::new(
-                callable.dynamic_invoke_entry().invoke_args_tuple_ty(),
-                step_schema,
-                callable.dynamic_invoke_entry().entry_state(),
-                callable.dynamic_invoke_entry().complete_state(),
-            ),
-            callable.state_graph().clone(),
-            callable.frame_schema().clone(),
-            callable.boundary_map().clone(),
-            callable.resume_state_map().clone(),
-            continuation_object,
-            Vec::new(),
-        )
-        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
-    }
-
     fn duplicate_no_outward_callable_version(
         program: &LateLoweredProgram,
         root_fqn: &str,
@@ -7245,15 +7178,10 @@ mod tests {
             ImplPlan::NoOutward,
             "当前 helper 只支持 NoOutward callable version"
         );
-
-        let step_type = program
-            .step_type(callable.step_schema())
-            .expect("step type 应存在");
-        let continuation_object = program
-            .continuation_object(callable.continuation_object())
-            .expect("continuation object 应存在");
-        let next_step_schema = next_step_schema_id(program);
-        let next_object_id = next_continuation_object_id(program);
+        let plain = callable
+            .plain_abi()
+            .expect("NoOutward callable 应保持 plain ABI")
+            .clone();
         let cloned_version_key = LateLoweredBodyVersionKey::new(
             callable.instance_key().clone(),
             callable.allowed_row().clone(),
@@ -7261,31 +7189,18 @@ mod tests {
             !callable.needs_reentry(),
         );
 
-        let mut step_types = program.step_types().to_vec();
-        step_types.push(clone_step_type_with_step_schema(
-            step_type,
-            next_step_schema,
-        ));
-
-        let mut continuation_objects = program.continuation_objects().to_vec();
-        continuation_objects.push(clone_no_outward_continuation_object_with_version(
-            continuation_object,
-            next_object_id,
-            cloned_version_key.clone(),
-        ));
-
         let mut callables = program.callables().to_vec();
-        callables.push(clone_no_outward_callable_with_version(
-            callable,
+        callables.push(LateLoweredCallable::new_plain(
+            callable.root_fqn().to_string(),
             cloned_version_key,
-            next_step_schema,
-            next_object_id,
+            callable.resolved_outward_cases().to_vec(),
+            plain,
         ));
 
         LateLoweredProgram::new(
-            step_types,
+            program.step_types().to_vec(),
             program.resume_packings().to_vec(),
-            continuation_objects,
+            program.continuation_objects().to_vec(),
             callables,
         )
     }
@@ -7364,6 +7279,17 @@ mod tests {
         inputs: &FixtureAbiInputs,
         callable: &LateLoweredCallable,
     ) -> (crate::mir::SiteId, CallSiteEffectFacts) {
+        if let Some(plain) = callable.plain_abi() {
+            return plain
+                .call_sites()
+                .iter()
+                .find_map(|site| {
+                    (site.facts().target_mode() != CallTargetMode::KnownInstance)
+                        .then(|| (site.site_id(), site.facts().clone()))
+                })
+                .expect("plain callable 应发布一个 non-boundary source-slice dynamic call site");
+        }
+
         let body = inputs
             .effect_lowered_stage_output
             .materialized_pass_view()
@@ -8137,33 +8063,28 @@ mod tests {
                 let program = inputs.effect_lowered_stage_output.program();
                 let main = program.callable("main").expect("main callable 应存在");
                 let helper = program.callable("helper").expect("helper callable 应存在");
-                let callable = query
-                    .callable_layout_by_version_key(main.body_version_key())
-                    .expect("main callable layout 应存在");
-                let boundary = site_boundary(main, BoundarySiteKind::Call);
-                let lowering = call_boundary_lowering(boundary);
+                let main_plain = main.plain_abi().expect("main 应保持 plain callable ABI");
+                let call_facts = main_plain
+                    .call_sites()
+                    .iter()
+                    .map(|site| site.facts())
+                    .find(|facts| matches!(facts.target(), CallSiteTarget::KnownInstance(target) if target.template.fqn == "helper"))
+                    .expect("main plain source slice 应发布 helper known-instance call facts");
 
-                assert_eq!(
-                    lowering.facts().target_mode(),
-                    CallTargetMode::KnownInstance
-                );
-                let site_id = boundary_site_id(boundary);
-                let RefactorCallTargetQuery::KnownInstance(target) = query
-                    .call_target_layout(callable.step_schema(), site_id, lowering.facts())
-                    .expect("known-instance call target 应可回查 published direct entry")
-                else {
-                    panic!("known-instance direct call 不应走 dynamic invoke contract");
-                };
-                assert_eq!(target.root_fqn(), "helper");
-                assert_eq!(target.body_version_key(), helper.body_version_key());
-                assert_eq!(
-                    target.dynamic_entry().invoke_args_tuple_ty(),
-                    lowering.facts().invoke_args_tuple_ty()
-                );
-                assert_eq!(
-                    target.dynamic_entry().return_step_schema(),
-                    lowering.facts().callee_schema()
-                );
+                assert_eq!(call_facts.target_mode(), CallTargetMode::KnownInstance);
+                if helper.effect_step_abi().is_some() {
+                    let target = query
+                        .callable_layout_by_version_key(helper.body_version_key())
+                        .expect("effect-step helper 应可按 body version key 回查 callable entry");
+                    assert_eq!(target.root_fqn(), "helper");
+                    assert_eq!(target.body_version_key(), helper.body_version_key());
+                } else {
+                    let target = query
+                        .plain_callable_layout_by_version_key(helper.body_version_key())
+                        .expect("NoOutward helper 应可按 body version key 回查 plain entry");
+                    assert_eq!(target.root_fqn(), "helper");
+                    assert_eq!(target.body_version_key(), helper.body_version_key());
+                }
             },
         );
     }
@@ -8174,12 +8095,19 @@ mod tests {
             "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
             |inputs, query, _module| {
                 for callable in inputs.abi_visibility_program.callables() {
-                    let layout = query
-                        .callable_layout_by_version_key(callable.body_version_key())
-                        .expect("published callable version 应可按 body version key 回查");
-                    assert_eq!(layout.root_fqn(), callable.root_fqn());
-                    assert_eq!(layout.step_schema(), callable.step_schema());
-                    assert_eq!(layout.continuation_object(), callable.continuation_object());
+                    if callable.effect_step_abi().is_some() {
+                        let layout = query
+                            .callable_layout_by_version_key(callable.body_version_key())
+                            .expect("effect-step callable version 应可按 body version key 回查");
+                        assert_eq!(layout.root_fqn(), callable.root_fqn());
+                        assert_eq!(layout.step_schema(), callable.step_schema());
+                        assert_eq!(layout.continuation_object(), callable.continuation_object());
+                    } else {
+                        let layout = query
+                            .plain_callable_layout_by_version_key(callable.body_version_key())
+                            .expect("plain callable version 应可按 body version key 回查");
+                        assert_eq!(layout.root_fqn(), callable.root_fqn());
+                    }
                 }
             },
         );
@@ -8200,25 +8128,19 @@ mod tests {
                     .iter()
                     .find(|callable| callable.root_fqn() == "scoop.core.println::<Int>")
                     .expect("fixture 应发布 println::<Int> callable shell");
-                let facts = CallSiteEffectFacts::new(
-                    CallSiteKind::Direct,
-                    CallSiteTarget::KnownInstance(println_int.instance_key().clone()),
-                    println_int.dynamic_invoke_entry().invoke_args_tuple_ty(),
-                    println_int.step_schema(),
-                    crate::effect_facts::CaseSet::new(println_int.step_schema(), Vec::new()),
-                    EffectPrecision::Precise,
-                );
-
-                let RefactorCallTargetQuery::KnownInstance(target) = query
-                    .call_target_layout(println_int.step_schema(), SiteId::from_raw(900), &facts)
-                    .expect("generic known-instance selector 应按 instance key + callee step schema 解析")
-                else {
-                    panic!("generic known-instance call 不应走 dynamic invoke contract");
-                };
+                let target = query
+                    .plain_callable_layout_by_version_key(println_int.body_version_key())
+                    .expect("NoOutward generic callable 应发布 plain version layout");
 
                 assert_eq!(target.root_fqn(), println_int.root_fqn());
                 assert_eq!(target.body_version_key(), println_int.body_version_key());
                 assert_eq!(target.surface_instance(), println_int.instance_key());
+                assert!(
+                    query
+                        .callable_layout_by_version_key(println_int.body_version_key())
+                        .is_err(),
+                    "NoOutward generic callable 不应发布 effect-step callable layout"
+                );
             },
         );
     }
@@ -9192,7 +9114,8 @@ mod tests {
                 let message = err.to_string();
                 assert!(
                     message.contains("underlying continuation route")
-                        || message.contains("缺少 publication"),
+                        || message.contains("wrapper complete projection")
+                        || message.contains("handle binder"),
                     "错误消息应指出 underlying continuation route publication 漂移: {message}"
                 );
             },
@@ -9316,38 +9239,33 @@ mod tests {
                     .abi_visibility_program
                     .callable("fixtures.build.helper")
                     .expect("fixtures.build.helper callable 应存在");
-                assert!(
-                    helper
-                        .boundary_map()
-                        .entries()
-                        .iter()
-                        .all(|boundary| !matches!(
-                            boundary.source(),
-                            LateLoweredBoundarySource::Site {
-                                kind: BoundarySiteKind::Call,
-                                ..
-                            }
-                        )),
-                    "pure helper 的 dynamic call 不应被发布成 boundary"
-                );
+                let plain = helper
+                    .plain_abi()
+                    .expect("NoOutward helper 应保持 plain callable ABI");
+                assert!(plain.local_effect_control().is_none());
 
                 let (site_id, facts) = source_slice_non_boundary_dynamic_call_site(inputs, helper);
                 assert!(
                     facts.resolved_cases().is_empty(),
                     "non-boundary dynamic call 的 resolved cases 应为空"
                 );
-                let RefactorCallTargetQuery::DynamicInvoke(layout) = query
-                    .call_target_layout(helper.step_schema(), site_id, &facts)
-                    .expect("non-boundary source-slice dynamic call 应可回查 published dynamic invoke contract")
-                else {
-                    panic!("non-boundary virtual call 应走 dynamic invoke contract");
-                };
-
-                assert_eq!(layout.owner_step_schema(), helper.step_schema());
-                assert_eq!(layout.site_id(), site_id);
-                assert_eq!(layout.target_mode(), CallTargetMode::CandidateSet);
-                assert_eq!(layout.invoke_args_tuple_ty(), facts.invoke_args_tuple_ty());
-                assert_eq!(layout.return_step_schema(), facts.callee_schema());
+                assert_eq!(facts.target_mode(), CallTargetMode::CandidateSet);
+                assert!(
+                    plain
+                        .call_sites()
+                        .iter()
+                        .any(|site| site.site_id() == site_id)
+                );
+                let layout = query
+                    .plain_callable_layout_by_version_key(helper.body_version_key())
+                    .expect("NoOutward helper 应发布 plain callable layout");
+                assert_eq!(layout.root_fqn(), helper.root_fqn());
+                assert!(
+                    query
+                        .callable_layout_by_version_key(helper.body_version_key())
+                        .is_err(),
+                    "NoOutward helper 不应发布 effect-step callable layout"
+                );
             },
         );
     }
@@ -9361,34 +9279,31 @@ mod tests {
                     .abi_visibility_program
                     .callable("fixtures.build.helper")
                     .expect("fixtures.build.helper callable 应存在");
-                let (site_id, facts) = source_slice_non_boundary_dynamic_call_site(inputs, helper);
-                let RefactorCallTargetQuery::DynamicInvoke(layout) = query
-                    .call_target_layout(helper.step_schema(), site_id, &facts)
-                    .expect("non-boundary source-slice dynamic call 应可回查 published dynamic invoke contract")
-                else {
-                    panic!("non-boundary virtual call 应走 dynamic invoke contract");
-                };
+                let (_site_id, facts) = source_slice_non_boundary_dynamic_call_site(inputs, helper);
 
-                assert_eq!(layout.target_mode(), CallTargetMode::CandidateSet);
-                assert_eq!(layout.param_count(), 1);
-                assert!(layout.args_abi().is_elided());
-                match layout.carrier() {
-                    RefactorDynamicInvokeCarrierLayout::VirtualReceiver(dispatch) => {
-                        assert_eq!(
-                            inputs
-                                .effect_lowered_stage_output
-                                .types()
-                                .display(dispatch.receiver_ty())
-                                .to_string(),
-                            "fixtures.build.Base"
-                        );
-                        assert_eq!(dispatch.owner_fqn(), "fixtures.build.Base");
-                        assert_eq!(dispatch.member_name(), "ping");
-                        assert!(!dispatch.receiver_abi().is_elided());
-                    }
-                    other => panic!(
-                        "non-boundary virtual call 应发布 receiver-dispatch carrier，而不是 {other:?}"
-                    ),
+                assert_eq!(facts.target_mode(), CallTargetMode::CandidateSet);
+                let CallSiteTarget::CandidateSet(targets) = facts.target() else {
+                    panic!("non-boundary virtual call 应保留 CandidateSet target");
+                };
+                assert!(
+                    targets
+                        .iter()
+                        .any(|target| target.template.fqn == "fixtures.build.Base.ping")
+                );
+                assert!(
+                    query
+                        .plain_callable_layout_by_version_key(helper.body_version_key())
+                        .is_ok(),
+                    "NoOutward non-boundary dynamic call owner 应保持 plain callable layout"
+                );
+                for target in targets {
+                    assert!(
+                        query
+                            .plain_callable_layout_by_root_fqn(&target.template.fqn)
+                            .is_ok(),
+                        "NoOutward virtual target `{}` 应发布 plain callable layout",
+                        target.template.fqn
+                    );
                 }
             },
         );
@@ -9614,35 +9529,14 @@ mod tests {
                     .expect("Derived.ping callable 应存在");
 
                 let make_closure = query
-                    .callable_carrier_target_layout(
-                        RefactorCallableCarrierKind::ClosureObject,
-                        "fixtures.build.makeClosure",
-                    )
-                    .expect("makeClosure closure carrier target 应存在");
+                    .plain_callable_layout_by_version_key(make_closure_callable.body_version_key())
+                    .expect("makeClosure plain callable target 应存在");
                 let base_vtable = query
-                    .callable_carrier_target_layout(
-                        RefactorCallableCarrierKind::ClassVtable,
-                        "fixtures.build.Base.ping",
-                    )
-                    .expect("Base.ping vtable carrier target 应存在");
-                let base_itable = query
-                    .callable_carrier_target_layout(
-                        RefactorCallableCarrierKind::InterfaceItable,
-                        "fixtures.build.Base.ping",
-                    )
-                    .expect("Base.ping itable carrier target 应存在");
+                    .plain_callable_layout_by_version_key(base_ping_callable.body_version_key())
+                    .expect("Base.ping plain callable target 应存在");
                 let derived_vtable = query
-                    .callable_carrier_target_layout(
-                        RefactorCallableCarrierKind::ClassVtable,
-                        "fixtures.build.Derived.ping",
-                    )
-                    .expect("Derived.ping vtable carrier target 应存在");
-                let derived_itable = query
-                    .callable_carrier_target_layout(
-                        RefactorCallableCarrierKind::InterfaceItable,
-                        "fixtures.build.Derived.ping",
-                    )
-                    .expect("Derived.ping itable carrier target 应存在");
+                    .plain_callable_layout_by_version_key(derived_ping_callable.body_version_key())
+                    .expect("Derived.ping plain callable target 应存在");
 
                 assert_eq!(
                     make_closure.body_version_key(),
@@ -9653,17 +9547,41 @@ mod tests {
                     base_ping_callable.body_version_key()
                 );
                 assert_eq!(
-                    base_itable.body_version_key(),
-                    base_ping_callable.body_version_key()
-                );
-                assert_eq!(
                     derived_vtable.body_version_key(),
                     derived_ping_callable.body_version_key()
                 );
-                assert_eq!(
-                    derived_itable.body_version_key(),
-                    derived_ping_callable.body_version_key()
-                );
+
+                for (kind, fqn) in [
+                    (
+                        RefactorCallableCarrierKind::ClosureObject,
+                        "fixtures.build.makeClosure",
+                    ),
+                    (
+                        RefactorCallableCarrierKind::ClassVtable,
+                        "fixtures.build.Base.ping",
+                    ),
+                    (
+                        RefactorCallableCarrierKind::InterfaceItable,
+                        "fixtures.build.Base.ping",
+                    ),
+                    (
+                        RefactorCallableCarrierKind::ClassVtable,
+                        "fixtures.build.Derived.ping",
+                    ),
+                    (
+                        RefactorCallableCarrierKind::InterfaceItable,
+                        "fixtures.build.Derived.ping",
+                    ),
+                ] {
+                    assert!(
+                        query.callable_carrier_target_layout(kind, fqn).is_err(),
+                        "NoOutward carrier `{fqn}` 不应发布 effect-step dynamic entry target"
+                    );
+                    assert!(
+                        codegen.refactor_plain_callable_carrier_fallback_allowed(kind, fqn),
+                        "NoOutward carrier `{fqn}` 应发布 plain callable fallback"
+                    );
+                }
 
                 let _ = codegen
                     .get_or_create_class_vtable_global(dummy_span(), "fixtures.build.Base")
@@ -9678,11 +9596,21 @@ mod tests {
                     .get_or_create_class_itable_global(dummy_span(), "fixtures.build.Derived")
                     .expect("Derived itable 应可物化");
 
-                assert!(module.get_function(make_closure.symbol_name()).is_some());
-                assert!(module.get_function(base_vtable.symbol_name()).is_some());
-                assert!(module.get_function(base_itable.symbol_name()).is_some());
-                assert!(module.get_function(derived_vtable.symbol_name()).is_some());
-                assert!(module.get_function(derived_itable.symbol_name()).is_some());
+                assert!(
+                    module
+                        .get_function(make_closure.direct_entry().symbol_name())
+                        .is_some()
+                );
+                assert!(
+                    module
+                        .get_function(base_vtable.direct_entry().symbol_name())
+                        .is_some()
+                );
+                assert!(
+                    module
+                        .get_function(derived_vtable.direct_entry().symbol_name())
+                        .is_some()
+                );
             },
         );
     }
@@ -9698,29 +9626,25 @@ mod tests {
                 )
             },
             |_inputs, result, _module| {
-                let err = match result {
-                    Ok(_) => panic!(
-                        "缺少 callable version selector 的 duplicate carrier target 必须 fail fast"
-                    ),
-                    Err(err) => err,
-                };
+                let query =
+                    result.expect("duplicated plain versions 应允许物化到 version-key 查询面");
+                let err =
+                    match query.plain_callable_layout_by_root_fqn("fixtures.build.makeClosure") {
+                        Ok(_) => panic!("歧义 root 查询必须要求调用方改用 body version key"),
+                        Err(err) => err,
+                    };
                 let message = err.to_string();
-                assert!(
-                    message.contains("closure callable object"),
-                    "错误消息应指出歧义 carrier kind: {message}"
-                );
                 assert!(
                     message.contains("fixtures.build.makeClosure"),
                     "错误消息应指出歧义 callable: {message}"
                 );
                 assert!(
-                    message.contains("多个 published callable version")
-                        || message.contains("多个 published callable version"),
+                    message.contains("多个 published callable version"),
                     "错误消息应指出存在多个 callable version: {message}"
                 );
                 assert!(
-                    message.contains("authoritative version selector"),
-                    "错误消息应指出缺少 authoritative selector: {message}"
+                    message.contains("body version key"),
+                    "错误消息应指出歧义 version key: {message}"
                 );
             },
         );
@@ -10481,7 +10405,7 @@ fun main(): Int {
                 );
                 assert_eq!(
                     continuation_binder.surface_resume_source_kind(),
-                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ContinuationObjectMethod
+                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly
                 );
                 assert_eq!(
                     continuation_binder.surface_resume_return_step_schema(),
@@ -10818,7 +10742,8 @@ fun main(): Int {
                 };
                 let message = err.to_string();
                 assert!(
-                    message.contains("缺少 published continuation binder contract"),
+                    message.contains("underlying continuation route")
+                        && message.contains("HandleContinuationBinder"),
                     "错误消息应指出缺失的是 continuation binder contract: {message}"
                 );
             },
@@ -10883,6 +10808,9 @@ fun main(): Int {
                 let query = result.expect("resume fixture 应可物化 surface-resume ABI");
                 let mut checked_resume_site = false;
                 for callable in inputs.effect_lowered_stage_output.program().callables() {
+                    if !callable.has_control_body() {
+                        continue;
+                    }
                     for boundary in callable.boundary_map().entries() {
                         let Some(LateLoweredBoundaryLowering::Resume(lowering)) =
                             boundary.lowering()
@@ -11583,7 +11511,7 @@ fun main(): Int {
     fn refactor_llvm_layout_binds_pure_direct_entries_without_legacy_typestore() {
         with_fixture_query(
             "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
-            |inputs, query, _module| {
+            |inputs, query, module| {
                 let lambda_root = inputs
                     .abi_visibility_program
                     .callables()
@@ -11596,71 +11524,27 @@ fun main(): Int {
                     "fixtures.build.Base.ping".to_string(),
                     lambda_root,
                 ];
-                let mut saw_scalar_invoke = false;
-                let mut saw_tuple_invoke = false;
 
                 for root in roots {
                     let callable = query
-                        .callable_layout_by_root_fqn(&root)
-                        .expect("callable layout 应存在");
-                    let invoke_args = query
-                        .source_value_layout(callable.direct_entry().invoke_args_tuple_ty())
-                        .expect(
-                            "direct entry invoke_args_tuple_ty 应发布 source-type ABI contract",
-                        );
+                        .plain_callable_layout_by_root_fqn(&root)
+                        .expect("plain callable layout 应存在");
                     assert_eq!(
                         callable.direct_entry().param_count(),
-                        usize::from(!invoke_args.abi().is_elided()),
-                        "direct entry 形参个数必须由 published invoke carrier 是否零载荷唯一决定: {root}"
+                        callable.direct_entry().param_tys().len(),
+                        "plain direct entry 形参个数必须来自 P5 plain ABI handoff: {root}"
                     );
-                    assert!(!invoke_args.abi().is_elided());
-                    match invoke_args.kind() {
-                        RefactorSourceAbiLayoutKind::Scalar => {
-                            saw_scalar_invoke = true;
-                            assert!(
-                                invoke_args.fields().is_empty(),
-                                "single-value invoke carrier 不应伪装成 tuple field 映射: {root}"
-                            );
-                        }
-                        RefactorSourceAbiLayoutKind::Tuple => {
-                            saw_tuple_invoke = true;
-                            assert!(
-                                !invoke_args.fields().is_empty(),
-                                "tuple invoke carrier 至少应发布一个 source field: {root}"
-                            );
-                            for (idx, field) in invoke_args.fields().iter().enumerate() {
-                                assert_eq!(field.source_index(), idx as u32);
-                                assert_eq!(field.abi_field_index(), Some(idx as u32));
-                                assert!(!field.is_elided());
-                            }
-                        }
-                    }
+                    assert!(
+                        module
+                            .get_function(callable.direct_entry().symbol_name())
+                            .is_some(),
+                        "plain direct entry 应声明普通 LLVM callable symbol: {root}"
+                    );
+                    assert!(
+                        query.callable_layout_by_root_fqn(&root).is_err(),
+                        "NoOutward plain callable 不应发布 effect-step callable layout: {root}"
+                    );
                 }
-
-                assert!(
-                    saw_scalar_invoke,
-                    "fixture 应至少覆盖一个 single-value invoke carrier"
-                );
-                assert!(
-                    saw_tuple_invoke,
-                    "fixture 应至少覆盖一个 tuple invoke carrier"
-                );
-
-                let make_closure = query
-                    .callable_layout_by_root_fqn("fixtures.build.makeClosure")
-                    .expect("makeClosure callable layout 应存在");
-                let complete_layout = query
-                    .source_value_layout(
-                        query
-                            .step_layout(make_closure.step_schema())
-                            .expect("step layout 应存在")
-                            .complete_variant()
-                            .payload_source_ty(),
-                    )
-                    .expect("complete payload source type 应发布 source-type ABI contract");
-                assert_eq!(complete_layout.kind(), RefactorSourceAbiLayoutKind::Scalar);
-                assert!(complete_layout.fields().is_empty());
-                assert!(!complete_layout.abi().is_elided());
             },
         );
     }
@@ -11755,8 +11639,7 @@ fun main(): Int {
 
     #[test]
     fn refactor_llvm_layout_rejects_unlowerable_invoke_args_type() {
-        let inputs =
-            build_fixture_inputs("effect_refactor_dynamic_entry_publication_emit_llvm.scoop");
+        let inputs = build_fixture_inputs("effect_refactor_step_enum_single_case.scoop");
         let mut source_types = inputs.effect_lowered_stage_output.types().clone();
         let param_ty = source_types.ty_param(TypeParamType {
             name: "SyntheticInvokeArgs".to_string(),
@@ -11772,7 +11655,7 @@ fun main(): Int {
                     .callables()
                     .iter()
                     .map(|candidate| {
-                        if candidate.root_fqn() == "fixtures.build.makeClosure" {
+                        if candidate.root_fqn() == "fixtures.build.singleCaseWorker" {
                             clone_callable_with_dynamic_invoke_entry(
                                 candidate,
                                 LateLoweredDynamicInvokeEntry::new(

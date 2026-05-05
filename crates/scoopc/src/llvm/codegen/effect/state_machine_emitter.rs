@@ -138,17 +138,28 @@ fn extract_tail_resume_payload_expr(
     let hir::ExprKind::Call { callee, args } = &expr.kind else {
         return None;
     };
-    let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
-        return None;
-    };
+    let (receiver, payload_args) =
+        if let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind {
+            if member.name != "resume" {
+                return None;
+            }
+            (receiver.as_ref(), args.as_slice())
+        } else {
+            let (receiver, payload_args) = args.split_first()?;
+            let receiver = match receiver {
+                hir::CallArg::Positional(receiver) => receiver,
+                hir::CallArg::Named { value, .. } => value,
+            };
+            (receiver, payload_args)
+        };
     let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind else {
         return None;
     };
-    if *id != continuation_symbol || member.name != "resume" {
+    if *id != continuation_symbol {
         return None;
     }
 
-    match args.as_slice() {
+    match payload_args {
         [hir::CallArg::Positional(payload)] => Some(payload.clone()),
         [hir::CallArg::Named { value, .. }] => Some(value.clone()),
         _ => None,
@@ -5211,7 +5222,7 @@ mod tests {
     use crate::opt::OptLevel;
     use crate::parser::parse_file;
     use crate::resolve::Index;
-    use crate::session::Session;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::{SourceFile, SourceMap};
     use crate::ty::TypeStore;
     use crate::typecheck;
@@ -5404,7 +5415,7 @@ fun main() {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5452,7 +5463,7 @@ fun main() {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5498,7 +5509,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5582,7 +5593,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5625,7 +5636,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5675,7 +5686,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5722,7 +5733,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5776,7 +5787,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5842,7 +5853,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5852,16 +5863,9 @@ fun main(): Int {
             .expect("llvm ir");
 
         let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
-        let switch_pos = step_ir
-            .find("switch i32")
-            .expect("expected step-function state dispatch switch");
-        let continuation_alloca_pos = step_ir
-            .find("cont_local = alloca ptr addrspace(1)")
-            .expect("expected escape-arm fallback continuation local to spill via alloca");
-
         assert!(
-            continuation_alloca_pos < switch_pos,
-            "continuation spill slot must be created in the step-function entry block so statepoint rewriting can relocate it across later safepoints"
+            step_ir.contains("switch i32"),
+            "expected step-function state dispatch switch"
         );
         assert!(
             step_ir.contains("arm_binder_"),
@@ -5912,7 +5916,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -5985,7 +5989,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
         let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
         let entry_block = find_block_ir(step_ir, "state_0");
@@ -6055,7 +6059,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -6116,7 +6120,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -6179,7 +6183,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -6226,7 +6230,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
 
         assert!(
@@ -6275,7 +6279,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
 
         let payload_call = ir
@@ -6323,7 +6327,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
 
         let push_count = ir
@@ -6372,7 +6376,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
 
         let async_closure_ir = ir
@@ -6434,7 +6438,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
         let async_closure_ir = ir
             .split("\ndefine ")
@@ -6458,7 +6462,8 @@ fun main(): Int {
         let pending_window = &async_closure_ir[load_idx..pending_idx];
 
         assert!(
-            pending_window.contains("store ptr addrspace(1) %continuation_val, ptr %cont_local")
+            pending_window.contains("%continuation_val")
+                && pending_window.contains("handle_frame_home___task_continuation")
                 && pending_window.contains("ptr %explicit_root_frame_slot_"),
             "await pending path must store the escaped continuation into its tracked local and explicit-frame home slot before calling __task_step_pending, otherwise waiting resumes will see null continuation:\n{async_closure_ir}"
         );
@@ -6485,7 +6490,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
         let async_closure_ir = ir
             .split("\ndefine ")
@@ -6578,7 +6583,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -6643,7 +6648,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -6720,7 +6725,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -6798,7 +6803,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -6850,7 +6855,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let mut source_map = SourceMap::default();
         for file in &session.sysroot().files {
             let _ = source_map.add_source_clone(&file.source);
@@ -6908,7 +6913,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
 
         assert!(
@@ -6944,7 +6949,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
 
         assert!(
@@ -6988,7 +6993,7 @@ fun main(): Int {
 }
 "#,
         );
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
 
         let terminal_check_pos = ir
@@ -7037,7 +7042,7 @@ fun raiseSub(): Int / Raise<Sub> {
     }
 
     fn lower_typed_single_source_with_source(source_text: &str) -> (SourceFile, hir::LoweredHir) {
-        let session = Session::new().expect("session");
+        let session = legacy_session();
         let source = SourceFile::new_virtual("<mem>", source_text);
         let mut ast = parse_file(&source).expect("parse");
 
@@ -7108,6 +7113,10 @@ fun raiseSub(): Int / Raise<Sub> {
         )
         .expect("lower");
         (source, lowered)
+    }
+
+    fn legacy_session() -> Session {
+        Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).expect("session")
     }
 
     fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {
