@@ -512,7 +512,7 @@
   - 新增定向单测 `effect_facts::builder::tests::class_ctor_hidden_object_init_raise_publishes_class_ctor_site_case`，覆盖 class ctor 触发 object init raise 时 P4 发布 `ClassCtor` site facts 且 helper outward case 为 single-case。
   - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo test -p scoopc --lib class_ctor_hidden_object_init_raise_publishes_class_ctor_site_case`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_secondary_ctor_delegation_this_and_super_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_super_ctor_args_eval_order_basic.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
-## P7-T02X：闭合 cross-call escaped continuation member provenance 与 resume-boundary continuation composition，解除 P7-T03 continuation run-pass 阻塞
+## [DONE] P7-T02X：闭合 cross-call escaped continuation member provenance 与 resume-boundary continuation composition，解除 P7-T03 continuation run-pass 阻塞
 
 - 参考：
   - [`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02qa / P6-T02q / P6-T02qd
@@ -553,7 +553,9 @@
   - 后续 `P7-T03` 可继续运行 full regression。
 - 依赖：P7-T02W
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：完成 cross-call escaped continuation member provenance 与 resume-boundary continuation composition 收口。`continuation_escape_binder_resume_effect_row_runtime_basic.scoop` 中 `cell.saved = Some(acceptBoom(k))` 的 readback route 已由 late-lowered provenance 接回 `start` 的 Ask handle binder；本轮补齐 resume-boundary outward case 的 continuation composition handoff，使 `k.resume(5)` 触发的 `Boom.next` handler binder 持有“caller resume state + underlying callee continuation”的组合 continuation，而不是直接丢给 underlying continuation 或只保留 caller state。
+  - `LateLoweredResumeBoundaryLowering` 现在发布 `continuation_compositions`，dump 会渲染该 contract；LLVM composed resume dispatch 同时消费 call-boundary 与 resume-boundary composition，并按 published `input_step_schema` / case contract 调用 underlying surface resume，再把 owner `Step` 交回 caller boundary dispatch。ABI layout 同步修正 same-owner wrapper projection，保留 resume-boundary site inventory；只有 cross-owner wrapper 才改由 underlying owner route 驱动 owner trampoline。
+  - 新增 `refactor_effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape`，覆盖跨函数成员保存 continuation 后再 resume 的 late-lowered contract。验证通过：`cargo fmt --all`；`cargo run -p scoop -- run tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`（输出 `40` / `-1` / `12`）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`；`cargo test -p scoopc --lib refactor_effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 

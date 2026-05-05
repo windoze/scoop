@@ -1189,6 +1189,10 @@ fn render_boundary_lowering(rendered: &mut String, lowering: &LateLoweredBoundar
             )
             .unwrap();
             render_resume_operand_contract(rendered, lowering.operand_contract());
+            render_call_boundary_continuation_compositions(
+                rendered,
+                lowering.continuation_compositions(),
+            );
             render_step_dispatch_plan(rendered, lowering.dispatch());
         }
         LateLoweredBoundaryLowering::RuntimeError(lowering) => {

@@ -1437,6 +1437,12 @@ struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     return_mode: RefactorCallableReturnMode,
 }
 
+struct ComposedBoundaryDispatchContext<'a> {
+    call_lowering: Option<&'a LateLoweredCallBoundaryLowering>,
+    dispatch: &'a LateLoweredStepDispatchPlan,
+    continuation_compositions: &'a [LateLoweredCallBoundaryContinuationComposition],
+}
+
 impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -2966,30 +2972,50 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         resume_tuple_ty: TypeId,
         payload: Option<BasicValueEnum<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
-        let composition_entries = self
-            .callable
-            .boundary_map()
-            .entries()
-            .iter()
-            .filter_map(|boundary| {
-                let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering() else {
-                    return None;
-                };
-                Some(
-                    lowering
-                        .continuation_compositions()
-                        .iter()
-                        .filter(|composition| {
-                            composition.caller_continuation_contract().resume_tuple_ty()
-                                == resume_tuple_ty
-                        })
-                        .map(|composition| {
-                            (boundary.clone(), lowering.clone(), composition.clone())
-                        }),
-                )
-            })
-            .flatten()
-            .collect::<Vec<_>>();
+        let mut composition_entries = Vec::new();
+        for boundary in self.callable.boundary_map().entries() {
+            match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Call(lowering)) => {
+                    for composition in
+                        lowering
+                            .continuation_compositions()
+                            .iter()
+                            .filter(|composition| {
+                                composition.caller_continuation_contract().resume_tuple_ty()
+                                    == resume_tuple_ty
+                            })
+                    {
+                        composition_entries.push((
+                            boundary.clone(),
+                            Some(lowering.clone()),
+                            lowering.dispatch().clone(),
+                            lowering.continuation_compositions().to_vec(),
+                            composition.clone(),
+                        ));
+                    }
+                }
+                Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                    for composition in
+                        lowering
+                            .continuation_compositions()
+                            .iter()
+                            .filter(|composition| {
+                                composition.caller_continuation_contract().resume_tuple_ty()
+                                    == resume_tuple_ty
+                            })
+                    {
+                        composition_entries.push((
+                            boundary.clone(),
+                            None,
+                            lowering.dispatch().clone(),
+                            lowering.continuation_compositions().to_vec(),
+                            composition.clone(),
+                        ));
+                    }
+                }
+                _ => {}
+            }
+        }
         if composition_entries.is_empty() {
             self.codegen.builder.build_unreachable()?;
             return Ok(());
@@ -3000,7 +3026,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .append_basic_block(self.function, "resume_composed_invalid_state");
         let mut cases = Vec::with_capacity(composition_entries.len());
         let mut seen_states = BTreeMap::new();
-        for (boundary, lowering, composition) in composition_entries {
+        for (boundary, call_lowering, dispatch, compositions, composition) in composition_entries {
             if let Some(existing) = seen_states.insert(
                 composition.caller_resume_state(),
                 composition.input_case_tag(),
@@ -3028,23 +3054,30 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .const_int(composition.caller_resume_state().as_u32() as u64, false),
                 bb,
                 boundary,
-                lowering,
+                call_lowering,
+                dispatch,
+                compositions,
                 composition,
             ));
         }
         let switch_cases = cases
             .iter()
-            .map(|(tag, bb, _, _, _)| (*tag, *bb))
+            .map(|(tag, bb, _, _, _, _, _)| (*tag, *bb))
             .collect::<Vec<_>>();
         self.codegen
             .builder
             .build_switch(resume_state_tag, invalid_bb, &switch_cases)?;
 
-        for (_, bb, boundary, lowering, composition) in cases {
+        for (_, bb, boundary, call_lowering, dispatch, compositions, composition) in cases {
             self.codegen.builder.position_at_end(bb);
+            let dispatch_context = ComposedBoundaryDispatchContext {
+                call_lowering: call_lowering.as_ref(),
+                dispatch: &dispatch,
+                continuation_compositions: &compositions,
+            };
             self.resume_composed_call_boundary_case(
                 &boundary,
-                &lowering,
+                dispatch_context,
                 &composition,
                 callee_continuation,
                 resume_tuple_ty,
@@ -3060,7 +3093,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     fn resume_composed_call_boundary_case(
         &mut self,
         boundary: &LateLoweredBoundary,
-        lowering: &LateLoweredCallBoundaryLowering,
+        dispatch_context: ComposedBoundaryDispatchContext<'_>,
         composition: &LateLoweredCallBoundaryContinuationComposition,
         callee_continuation: PointerValue<'ctx>,
         resume_tuple_ty: TypeId,
@@ -3126,8 +3159,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             boundary,
             surface.return_step_schema(),
             step,
-            lowering.dispatch(),
-            Some(lowering),
+            dispatch_context.dispatch,
+            dispatch_context.call_lowering,
+            Some(dispatch_context.continuation_compositions),
         )
     }
 
@@ -3565,6 +3599,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     step,
                     lowering.dispatch(),
                     Some(lowering),
+                    Some(lowering.continuation_compositions()),
                 )
             }
             LateLoweredBoundaryLowering::ClassCtor(lowering) => {
@@ -3667,6 +3702,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     step,
                     lowering.dispatch(),
                     None,
+                    Some(lowering.continuation_compositions()),
                 )
             }
             LateLoweredBoundaryLowering::RuntimeError(lowering) => {
@@ -3984,6 +4020,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 candidate.callable.step_schema(),
                 owner_step,
                 &candidate.dispatch_plan,
+                None,
                 None,
             )?;
             check_bb = next_bb;
@@ -4421,6 +4458,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         step: BasicValueEnum<'ctx>,
         dispatch: &crate::effect_lowered::ir::LateLoweredStepDispatchPlan,
         call_lowering: Option<&LateLoweredCallBoundaryLowering>,
+        continuation_compositions: Option<&[LateLoweredCallBoundaryContinuationComposition]>,
     ) -> Result<(), LlvmEmitError> {
         let input_layout = self.abi.step_layout(input_step_schema).ok_or_else(|| {
             frontend_error(format!(
@@ -4548,20 +4586,21 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 case_layout,
                 "refactor_boundary_case_payload",
             )?;
-            let composition = match call_lowering {
-                Some(lowering) => {
-                    let composition = lowering
-                        .continuation_composition_for_input_case(input_case)
+            let composition = match continuation_compositions {
+                Some(compositions) => {
+                    let composition = compositions
+                        .iter()
+                        .find(|composition| composition.input_case_tag() == input_case)
                         .ok_or_else(|| {
                             frontend_error(format!(
-                                "refactor call boundary bd{} case c{} 缺少 continuation composition contract",
+                                "refactor boundary bd{} case c{} 缺少 continuation composition contract",
                                 boundary.boundary_id().as_u32(),
                                 input_case.as_u32(),
                             ))
                         })?;
                     if composition.output_case_tag() != output_case {
                         return Err(frontend_error(format!(
-                            "refactor call boundary bd{} case c{} continuation composition 输出 case 漂移：composition=c{} dispatch=c{}",
+                            "refactor boundary bd{} case c{} continuation composition 输出 case 漂移：composition=c{} dispatch=c{}",
                             boundary.boundary_id().as_u32(),
                             input_case.as_u32(),
                             composition.output_case_tag().as_u32(),
@@ -4572,7 +4611,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 }
                 None => None,
             };
-            let continuation_for_binder = if call_lowering.is_some() {
+            let continuation_for_binder = if continuation_compositions.is_some() {
                 composition.map(|_| callee_continuation)
             } else {
                 Some(callee_continuation)

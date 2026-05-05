@@ -3810,6 +3810,7 @@ pub struct LateLoweredResumeBoundaryLowering {
     runtime_error_boundary: BoundaryId,
     operand_contract: Box<LateLoweredResumeBoundaryOperandContract>,
     dispatch: LateLoweredStepDispatchPlan,
+    continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
 }
 
 impl LateLoweredResumeBoundaryLowering {
@@ -3819,6 +3820,7 @@ impl LateLoweredResumeBoundaryLowering {
         runtime_error_boundary: BoundaryId,
         operand_contract: LateLoweredResumeBoundaryOperandContract,
         dispatch: LateLoweredStepDispatchPlan,
+        continuation_compositions: Vec<LateLoweredCallBoundaryContinuationComposition>,
     ) -> Self {
         Self {
             facts,
@@ -3826,6 +3828,7 @@ impl LateLoweredResumeBoundaryLowering {
             runtime_error_boundary,
             operand_contract: Box::new(operand_contract),
             dispatch,
+            continuation_compositions,
         }
     }
 
@@ -3847,6 +3850,19 @@ impl LateLoweredResumeBoundaryLowering {
 
     pub fn dispatch(&self) -> &LateLoweredStepDispatchPlan {
         &self.dispatch
+    }
+
+    pub fn continuation_compositions(&self) -> &[LateLoweredCallBoundaryContinuationComposition] {
+        &self.continuation_compositions
+    }
+
+    pub fn continuation_composition_for_input_case(
+        &self,
+        input_case_tag: CaseTag,
+    ) -> Option<&LateLoweredCallBoundaryContinuationComposition> {
+        self.continuation_compositions
+            .iter()
+            .find(|composition| composition.input_case_tag() == input_case_tag)
     }
 }
 

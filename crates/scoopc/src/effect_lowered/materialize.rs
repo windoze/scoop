@@ -1094,6 +1094,19 @@ pub(crate) fn materialize_boundary_map(
                     boundary.resume_state(),
                     Some(result_local),
                 )?;
+                let result_frame_slot =
+                    published_boundary_result_slot(frame_schema, boundary.boundary_id()).and_then(
+                        |(slot_local, slot_id)| (slot_local == result_local).then_some(slot_id),
+                    );
+                let continuation_compositions = build_boundary_continuation_compositions(
+                    root_fqn,
+                    boundary.boundary_id(),
+                    input_step,
+                    &dispatch,
+                    boundary.resume_state(),
+                    result_local,
+                    result_frame_slot,
+                )?;
                 let operand_contract = build_resume_boundary_operand_contract(
                     root_fqn,
                     owner_version_key,
@@ -1112,6 +1125,7 @@ pub(crate) fn materialize_boundary_map(
                     runtime_error_boundary,
                     operand_contract,
                     dispatch,
+                    continuation_compositions,
                 ))
             }
             LateLoweredBoundarySource::RuntimeError { origin_site } => {
@@ -4502,6 +4516,42 @@ fn build_call_boundary_dispatch_plan(
     })
 }
 
+fn build_boundary_continuation_compositions(
+    root_fqn: &str,
+    boundary_id: BoundaryId,
+    input_step: &LateLoweredStepType,
+    dispatch: &LateLoweredStepDispatchPlan,
+    target_state: StateId,
+    caller_result_local: LocalId,
+    caller_result_frame_slot: Option<crate::effect_lowered::ir::FrameSlotId>,
+) -> Result<Vec<LateLoweredCallBoundaryContinuationComposition>, EffectLoweringError> {
+    dispatch
+        .outward_cases()
+        .iter()
+        .map(|forwarding| {
+            let input_case = input_step
+                .case(forwarding.input_case_tag())
+                .ok_or_else(|| EffectLoweringError::MissingInputStepCase {
+                    root_fqn: root_fqn.to_string(),
+                    step_schema: input_step.step_schema().as_u32(),
+                    case_tag: forwarding.input_case_tag().as_u32(),
+                })?;
+            Ok(LateLoweredCallBoundaryContinuationComposition::new(
+                boundary_id,
+                input_step.step_schema(),
+                input_case.case_tag(),
+                forwarding.emission().case_tag(),
+                input_case.continuation_contract(),
+                forwarding.emission().continuation_contract(),
+                target_state,
+                caller_result_local,
+                caller_result_frame_slot,
+                input_step.complete_ty(),
+            ))
+        })
+        .collect()
+}
+
 fn local_runtime_error_terminal_action() -> LateLoweredLocalRuntimeErrorTerminalAction {
     LateLoweredLocalRuntimeErrorTerminalAction::RuntimeFatal {
         runtime_entry: LateLoweredPublishedRuntimeEntry::RuntimeErrorFatal,
@@ -5974,6 +6024,97 @@ mod tests {
         assert!(
             rendered.contains("continuation_compositions:"),
             "dump-effect-lowered 应渲染 call-boundary continuation composition handoff"
+        );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "continuation_escape_binder_resume_effect_row_runtime_basic.scoop",
+        ));
+
+        let main = callable(&output, "main");
+        let (boundary, lowering) = main
+            .boundary_map()
+            .entries()
+            .iter()
+            .find_map(|boundary| {
+                let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering()
+                else {
+                    return None;
+                };
+                let route = lowering.operand_contract().underlying_continuation_route();
+                matches!(
+                    route.publication(),
+                    LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                        owner_version_key,
+                        ..
+                    } if owner_version_key.surface_instance().template.fqn == "start"
+                )
+                .then_some((boundary, lowering))
+            })
+            .expect("main 的 saved continuation resume boundary 应接回 start 的 binder route");
+        let input_step = output
+            .program()
+            .step_type(lowering.dispatch().input_step_schema())
+            .expect("resume boundary input step schema 应可回查");
+        let result_binding = main
+            .frame_schema()
+            .resume_payload_binding(boundary.boundary_id())
+            .expect("resume boundary 应发布 caller result home binding");
+
+        assert_eq!(result_binding.resume_state(), boundary.resume_state());
+        assert_eq!(result_binding.consumer_local(), lowering.result_local());
+        assert_eq!(
+            lowering.continuation_compositions().len(),
+            lowering.dispatch().outward_cases().len(),
+            "每个 resume-boundary outward forwarding 都必须有 composition contract"
+        );
+
+        for composition in lowering.continuation_compositions() {
+            assert_eq!(composition.boundary_id(), boundary.boundary_id());
+            assert_eq!(composition.input_step_schema(), input_step.step_schema());
+            assert_eq!(composition.caller_resume_state(), boundary.resume_state());
+            assert_eq!(
+                composition.caller_result_local(),
+                result_binding.consumer_local()
+            );
+            assert_eq!(
+                composition.caller_result_frame_slot(),
+                result_binding.consumer_frame_slot()
+            );
+            assert_eq!(composition.caller_result_ty(), input_step.complete_ty());
+
+            let input_case = input_step
+                .case(composition.input_case_tag())
+                .expect("composition input case 应存在于 resume wrapper Step_F");
+            let forwarding = lowering
+                .dispatch()
+                .outward_cases()
+                .iter()
+                .find(|forwarding| forwarding.input_case_tag() == composition.input_case_tag())
+                .expect("composition 应对应一个 resume dispatch forwarding");
+
+            assert_eq!(
+                composition.callee_continuation_contract(),
+                input_case.continuation_contract()
+            );
+            assert_eq!(
+                composition.output_case_tag(),
+                forwarding.emission().case_tag()
+            );
+            assert_eq!(
+                composition.caller_continuation_contract(),
+                forwarding.emission().continuation_contract()
+            );
+        }
+
+        let rendered = crate::effect_lowered::render_late_lowered_program(output.program());
+        assert!(
+            rendered.contains("lowering: Resume")
+                && rendered.contains("continuation_compositions:"),
+            "dump-effect-lowered 应渲染 resume-boundary continuation composition handoff"
         );
     }
 

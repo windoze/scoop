@@ -1545,8 +1545,24 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let mut resume_boundary_sites = BTreeSet::new();
         let mut handle_binder_routes = BTreeSet::new();
         let underlying_wrapper_route = entry.wrapper_projection().and_then(|projection| {
-            (projection.underlying_route().continuation_schema() != entry.continuation_schema())
-                .then_some(projection.underlying_route())
+            let route = projection.underlying_route();
+            if route.continuation_schema() == entry.continuation_schema() {
+                return None;
+            }
+            let route_owner = surface_resume_publication_owner_identity(route.publication())?;
+            let mut saw_owner_publication = false;
+            for publication in entry.publications() {
+                let Some(publication_owner) =
+                    surface_resume_publication_owner_identity(publication)
+                else {
+                    continue;
+                };
+                saw_owner_publication = true;
+                if publication_owner != route_owner {
+                    return Some(route);
+                }
+            }
+            (!saw_owner_publication).then_some(route)
         });
 
         if let Some(route) = underlying_wrapper_route {
@@ -6542,6 +6558,25 @@ fn render_resume_packing_ids(interface_ids: &[ResumeInterfaceId]) -> String {
     )
 }
 
+fn surface_resume_publication_owner_identity(
+    publication: &LateLoweredSurfaceResumeDispatchPublication,
+) -> Option<(&LateLoweredBodyVersionKey, ContinuationObjectId)> {
+    match publication {
+        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+            owner_version_key,
+            owner_continuation_object,
+            ..
+        }
+        | LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+            owner_version_key,
+            owner_continuation_object,
+            ..
+        } => Some((owner_version_key, *owner_continuation_object)),
+        LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. }
+        | LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. } => None,
+    }
+}
+
 fn same_surface_resume_wrapper_projection_shape(
     left: &LateLoweredSurfaceResumeWrapperProjection,
     right: &LateLoweredSurfaceResumeWrapperProjection,
@@ -9324,6 +9359,7 @@ mod tests {
                                             lowering.runtime_error_boundary(),
                                             broken_contract,
                                             lowering.dispatch().clone(),
+                                            lowering.continuation_compositions().to_vec(),
                                         ),
                                     )
                                 }
