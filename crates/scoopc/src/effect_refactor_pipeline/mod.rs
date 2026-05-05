@@ -1,9 +1,9 @@
 //! effect-refactor 并行主线的顶层 dispatcher 壳层。
 //!
-//! P0 约束：
-//! - 新旧主线只允许在这里分流；
-//! - `refactor` 路径当前仍可在阶段边界整体委托给 legacy 实现；
-//! - 低层业务模块不应自行读取 pipeline mode。
+//! P7 状态：省略 selector 时由 session 默认进入 `refactor`，显式 `legacy` 仅保留为短期
+//! compare/rollback 入口，P8 将删除该显式旧主线入口。
+//!
+//! 边界约束：新旧主线只允许在这里分流；低层业务模块不应自行读取 pipeline mode。
 
 mod ast_stage;
 mod effect_facts_stage;

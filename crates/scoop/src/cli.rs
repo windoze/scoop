@@ -11,12 +11,12 @@ use scoopc::session::{EffectPipelineMode, ParseEffectPipelineModeError};
 #[derive(Debug, Parser)]
 #[command(name = "scoop", version, about = "Scoop compiler + tooling")]
 pub struct Args {
-    /// 显式选择 effect 主线；缺省保持 legacy。
+    /// 显式选择 effect 主线；缺省进入 refactor，legacy 仅作短期 compare/rollback 入口。
     #[arg(
         long = "effect-pipeline",
         global = true,
         value_name = "MODE",
-        default_value_t = EffectPipelineMode::Legacy,
+        default_value_t = EffectPipelineMode::Refactor,
         value_parser = parse_effect_pipeline_mode,
     )]
     pub effect_pipeline: EffectPipelineMode,
@@ -226,16 +226,16 @@ mod tests {
     use scoopc::session::EffectPipelineMode;
 
     #[test]
-    fn test_effect_pipeline_defaults_to_legacy() {
+    fn default_effect_pipeline_is_refactor_for_scoop_cli() {
         let args =
             Args::try_parse_from(["scoop", "dump-hir", "tests/fixtures/parse/minimal.scoop"])
                 .unwrap();
 
-        assert_eq!(args.effect_pipeline, EffectPipelineMode::Legacy);
+        assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
     }
 
     #[test]
-    fn test_effect_pipeline_parses_legacy() {
+    fn explicit_legacy_pipeline_still_available_for_scoop_cli() {
         let args = Args::try_parse_from([
             "scoop",
             "--effect-pipeline",
@@ -249,7 +249,7 @@ mod tests {
     }
 
     #[test]
-    fn test_effect_pipeline_parses_refactor() {
+    fn explicit_refactor_pipeline_still_available_for_scoop_cli() {
         let args = Args::try_parse_from([
             "scoop",
             "--effect-pipeline",

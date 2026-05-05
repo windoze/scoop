@@ -107,9 +107,9 @@ pub(crate) fn current_scoop_exe_path() -> std::io::Result<PathBuf> {
 }
 
 fn append_effect_pipeline_selector(cmd: &mut Command, session_options: SessionOptions) {
-    if session_options.effect_pipeline == EffectPipelineMode::Refactor {
+    if session_options.effect_pipeline == EffectPipelineMode::Legacy {
         cmd.arg("--effect-pipeline")
-            .arg(EffectPipelineMode::Refactor.as_str());
+            .arg(EffectPipelineMode::Legacy.as_str());
     }
 }
 
@@ -3201,7 +3201,7 @@ mod tests {
     }
 
     #[test]
-    fn run_pass_cone_effect_pipeline_refactor_command_includes_selector() {
+    fn run_pass_cone_default_refactor_pipeline_omits_selector() {
         let exp = super::expectations::FixtureExpectation::from_source(
             "// EXPECT: pass\n// ARGS: --release\n",
         );
@@ -3215,12 +3215,13 @@ mod tests {
         );
 
         let args = command_args(&cmd);
-        assert_eq!(args[0..3], ["--effect-pipeline", "refactor", "run"]);
+        assert_eq!(args.first().map(String::as_str), Some("run"));
+        assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
         assert!(args.iter().any(|arg| arg == "--release"));
     }
 
     #[test]
-    fn run_pass_cone_effect_pipeline_legacy_command_does_not_insert_refactor_selector() {
+    fn run_pass_cone_explicit_legacy_pipeline_includes_selector() {
         let exp = super::expectations::FixtureExpectation::from_source("// EXPECT: pass\n");
         let cmd = build_run_pass_cone_run_command(
             Path::new("scoop"),
@@ -3232,8 +3233,7 @@ mod tests {
         );
 
         let args = command_args(&cmd);
-        assert_eq!(args.first().map(String::as_str), Some("run"));
-        assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
+        assert_eq!(args[0..3], ["--effect-pipeline", "legacy", "run"]);
     }
 
     #[test]

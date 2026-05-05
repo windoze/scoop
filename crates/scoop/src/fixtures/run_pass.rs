@@ -1029,7 +1029,7 @@ mod tests {
     }
 
     #[test]
-    fn run_pass_effect_pipeline_refactor_command_includes_selector() {
+    fn run_pass_default_refactor_pipeline_omits_selector() {
         let exp = FixtureExpectation::from_source("// ARGS: --program-arg\n");
         let cmd = build_run_mode_command(
             PathBuf::from("scoop"),
@@ -1041,12 +1041,13 @@ mod tests {
         );
 
         let args = command_args(&cmd);
-        assert_eq!(args[0..3], ["--effect-pipeline", "refactor", "run"]);
+        assert_eq!(args.first().map(String::as_str), Some("run"));
+        assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
         assert!(args.iter().any(|arg| arg == "--program-arg"));
     }
 
     #[test]
-    fn run_pass_effect_pipeline_legacy_command_does_not_insert_refactor_selector() {
+    fn run_pass_explicit_legacy_pipeline_includes_selector() {
         let exp = FixtureExpectation::from_source("");
         let cmd = build_run_mode_command(
             PathBuf::from("scoop"),
@@ -1058,12 +1059,11 @@ mod tests {
         );
 
         let args = command_args(&cmd);
-        assert_eq!(args.first().map(String::as_str), Some("run"));
-        assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
+        assert_eq!(args[0..3], ["--effect-pipeline", "legacy", "run"]);
     }
 
     #[test]
-    fn run_pass_effect_pipeline_dump_stackmaps_command_includes_selector() {
+    fn run_pass_default_refactor_dump_stackmaps_command_omits_selector() {
         let cmd = build_dump_stackmaps_command(
             PathBuf::from("scoop"),
             Path::new("/tmp/a.out"),
@@ -1071,15 +1071,8 @@ mod tests {
         );
 
         let args = command_args(&cmd);
-        assert_eq!(
-            args[0..4],
-            [
-                "--effect-pipeline",
-                "refactor",
-                "dump-stackmaps",
-                "--verify-roots"
-            ]
-        );
+        assert_eq!(args[0..2], ["dump-stackmaps", "--verify-roots"]);
+        assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
     }
 
     #[cfg(unix)]

@@ -60,7 +60,7 @@
 - 若 P0-P6 落地的实际模块名与 TODO 推荐路径不同，P7 实施时允许使用等价位置；
   - 但必须在完成记录中写清楚实际映射，避免 P8 删除时漏清理。
 
-## P7-T01：翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口
+## [DONE] P7-T01：翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P7
@@ -133,7 +133,9 @@
   - 后续任务可以在“默认就是 refactor”的前提下修回归，而不是继续围绕显式 refactor 参数工作。
 - 依赖：`TODO-P6.md` 最后一项 review 完成
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：完成默认 selector 翻转。实际映射：`crates/scoopc/src/session/mod.rs` 将 `EffectPipelineMode::Refactor` 设为 `Default`，因此 `Session::new()`、`Session::with_sysroot(...)` 与 `SessionOptions::default()` 均在省略 selector 时进入 refactor；`crates/scoop/src/cli.rs` 与 `crates/scoopc/src/driver_cli.rs` 的 CLI omission 默认值同步改为 refactor；`crates/scoop/src/fixtures/mod.rs` / `crates/scoop/src/fixtures/run_pass.rs` 的 fixture 子进程 selector 传播改为只在显式 legacy 时追加 `--effect-pipeline legacy`，默认/显式 refactor 语义通过 omission 进入 refactor。显式 `--effect-pipeline legacy` 与 `--effect-pipeline refactor` 均继续可解析并传入 session/dispatcher；未新增 refactor 失败后回 legacy 的 fallback。
+  - 同步更新 CLI/help/driver/dispatcher 注释，说明默认已是 refactor、legacy 仅为短期 compare/rollback 入口，P8 将删除 legacy selector 分支。
+  - 验证通过：`cargo fmt --all`；`cargo test -p scoop --no-default-features cli`；`cargo test -p scoopc --no-default-features session`；`cargo test -p scoopc --no-default-features driver_cli`；`cargo test -p scoop --no-default-features default_refactor_pipeline`；`cargo test -p scoop --no-default-features explicit_legacy_pipeline`；`cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`；`cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`；`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_default.ll`；`cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_legacy.ll`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T01R：Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口
 

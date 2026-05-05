@@ -14,7 +14,7 @@ pub const USAGE: &str = "\
   scoopc [--effect-pipeline <legacy|refactor>] --emit-obj  <input.scoop> [-o <out.o>]
 
 说明：
-  - `--effect-pipeline` 缺省为 `legacy`；`refactor` 预留给并行新主线。
+  - `--effect-pipeline` 缺省为 `refactor`；`legacy` 仅保留为短期 compare/rollback 入口。
   - 该二进制需要启用 `scoopc` 的 `llvm` feature（需要 LLVM 21.1 + `llvm-config`）。
   - 当前只 codegen 入口 `fun main` 的一小部分表达式子集；其它顶层声明会被忽略。
 ";
@@ -42,7 +42,7 @@ where
     let mut emit_obj = false;
     let mut output: Option<PathBuf> = None;
     let mut input: Option<PathBuf> = None;
-    let mut effect_pipeline = EffectPipelineMode::Legacy;
+    let mut effect_pipeline = EffectPipelineMode::Refactor;
 
     let mut args = args.into_iter().map(Into::into);
     while let Some(arg) = args.next() {
@@ -111,19 +111,19 @@ mod tests {
     use crate::session::EffectPipelineMode;
 
     #[test]
-    fn parse_args_defaults_effect_pipeline_to_legacy() {
+    fn default_effect_pipeline_is_refactor_for_scoopc_cli() {
         let cli = parse_args(["--emit-llvm", "input.scoop"]).unwrap().unwrap();
 
         assert_eq!(cli.emit_mode, EmitMode::LlvmIr);
         assert_eq!(cli.input, PathBuf::from("input.scoop"));
         assert_eq!(
             cli.session_options.effect_pipeline,
-            EffectPipelineMode::Legacy
+            EffectPipelineMode::Refactor
         );
     }
 
     #[test]
-    fn parse_args_accepts_legacy_effect_pipeline() {
+    fn explicit_legacy_pipeline_still_available_for_scoopc_cli() {
         let cli = parse_args(["--effect-pipeline", "legacy", "--emit-obj", "input.scoop"])
             .unwrap()
             .unwrap();
@@ -136,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_args_accepts_refactor_effect_pipeline() {
+    fn explicit_refactor_pipeline_still_available_for_scoopc_cli() {
         let cli = parse_args([
             "--effect-pipeline",
             "refactor",

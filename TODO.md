@@ -121,7 +121,7 @@
 | `P6-T06` | `TODO-P6-part3.md` | [DONE] 把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall |
 | `P6-T06R` | `TODO-P6-part3.md` | [DONE] Review `NoOutward` plain ABI 修复，确认 P7 前不再存在 complete-only `Step_F` 回归 |
 | `P6-T05R` | `TODO-P6-part3.md` | [DONE] Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |
-| `P7-T01` | `TODO-P7.md` | 翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口 |
+| `P7-T01` | `TODO-P7.md` | [DONE] 翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口 |
 | `P7-T01R` | `TODO-P7.md` | Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口 |
 | `P7-T02` | `TODO-P7.md` | 更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy” |
 | `P7-T02R` | `TODO-P7.md` | Review 默认主线假设与 hidden-fallback 守护，确认 omission/default 真正代表 refactor 主线 |

@@ -4,7 +4,7 @@
 //! - 把“加载 sysroot / 读取源文件 / 驱动前端各阶段”的入口集中在一个地方
 //! - 确保任何编译流程默认都包含 sysroot，从而让名字解析/类型检查在同一环境下工作
 //!
-//! 当前阶段：只实现 sysroot 注入 + 顶层符号索引的构建入口。
+//! P7 起，省略 selector 时默认进入 refactor 主线；显式 legacy 仅保留为短期 compare/rollback 入口。
 
 use std::fmt;
 use std::str::FromStr;
@@ -27,8 +27,8 @@ pub struct ParseEffectPipelineModeError {
 /// 顶层 effect 主线选择。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EffectPipelineMode {
-    #[default]
     Legacy,
+    #[default]
     Refactor,
 }
 
@@ -173,13 +173,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn session_new_defaults_to_legacy_pipeline() {
+    fn default_effect_pipeline_is_refactor_for_session_new() {
         let sess = Session::new().unwrap();
-        assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Legacy);
+        assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Refactor);
     }
 
     #[test]
-    fn session_with_options_can_select_refactor_pipeline() {
+    fn explicit_legacy_pipeline_still_available_for_session_options() {
+        let sess = Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).unwrap();
+        assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Legacy);
+        assert_eq!(sess.options().effect_pipeline, EffectPipelineMode::Legacy);
+    }
+
+    #[test]
+    fn explicit_refactor_pipeline_still_available_for_session_options() {
         let sess =
             Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
         assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Refactor);

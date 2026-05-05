@@ -1,39 +1,47 @@
-# 当前执行计划
+# Claude Execution Plan
 
-## 目标
+## Scope
 
-完成任务索引中第一个尚未在详细 TODO 文件标题标记为 `[DONE]` 的任务，验证后提交，并在完成一个详细任务后停止。
+- Work through exactly one detailed TODO task in repository order.
+- Treat `TODO.md` as the index and `TODO-Px.md` files as the source of truth.
+- Stop after completing the first incomplete detailed task, or after recording and committing a concrete prerequisite/blocker if the task cannot be completed as written.
 
-## 执行步骤
+## Constraints
 
-1. 读取 `TODO.md`，只把它作为全局索引使用。
-2. 按索引顺序读取对应的 `TODO-Px.md` 详细任务文件，定位第一个标题未带 `[DONE]` 的详细任务。
-3. 检查最近提交信息是否明确提到与该任务直接相关的未完成问题；若存在，将其纳入当前任务或作为必要前置任务处理。
-4. 阅读该任务的完整要求、依赖、约束、验证命令和完成记录。
-5. 检查相关代码、测试和夹具，确认需要修改的最小范围。
-6. 实现当前任务；如果发现阻塞当前任务的真实前置缺口，则更新详细 TODO 和索引、提交并停止。
-7. 运行任务要求的验证命令和相关回归测试；若失败，修复后重新验证。
-8. 在对应 `TODO-Px.md` 中给任务标题加 `[DONE]`，更新完成记录；如索引中有该任务，同步 `TODO.md` 的 `[DONE]` 状态。
-9. 按需更新本文件记录关键进度。
-10. 提交本次全部相关改动，提交信息包含任务编号和简洁说明。
-11. 停止，不继续处理下一个任务。
+- Do not use workarounds, weakened fixtures, or spec deviations.
+- Do not change `PLAN.md` unless phase-level sequencing, dependencies, assumptions, or completion criteria actually change.
+- Keep `TODO.md` synchronized with the detailed TODO file if task completion markers, task ids, titles, ordering, or dependencies change.
+- Mark a task complete only by prefixing its detailed heading with `[DONE]` and updating its completion record.
+- Commit the completed task or blocker/prerequisite update before stopping.
 
-## 当前状态
+## Step-By-Step Plan
 
-- 已读取 `TODO.md` 与 `TODO-P6-part3.md`。
-- 第一个未完成详细任务确认为 `P6-T05R：Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression`。
-- 最新提交 `[P6-T06R] Review NoOutward plain ABI` 未声明与当前任务直接相关的未完成 blocker。
-- 已通过 P4/P6-T06R no-default effect-facts 验证：plain ABI facts、NoOutward 不发布 StepSchema、plain/effect adapter call-site 区分、effect solver 与 dump-effect-facts。
-- 已通过 P5 late-lowered/no-default handoff 验证：plain callable、source-slice ordinary call、lowered stage、continuation object、resume interface 与 NoOutward impl plan。
-- 已通过默认 feature 的 P6 LLVM 单元验证：composition/wrapper projection、clean body lowering、call/boundary/handle/continuation/runtime-error、GC/runtime、plain-local control、plain ABI 与 effect-typed adapter。
-- `dump-effect-lowered` fixture 命令已通过。
-- build fixture 矩阵在 `tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop` 失败：生成的 LLVM IR 未包含 fixture 期望的 `declare %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_dynamic_invoke__fixtures_build_unitWorker()`。
-- 诊断结论：fixture 的 `unitWorker(): Unit / Ping {}` 没有实际 outward case，在 `NoOutward -> Plain` 合同下正确生成普通 ABI；旧 `Step_F` shell 期望已过时。
-- 已修正 fixture，让 `unitWorker()` 真实执行 `Ping.tick()`，继续覆盖 Unit 零载荷 invoke/resume ABI 而不依赖 NoOutward 旧 shell。
-- 修正后的 Unit payload fixture 已通过。
-- 剩余 build artifact、run-pass 与 moving-GC fixture 矩阵已通过。
-- 搜索守卫发现 `value.rs` 的 cross-thread resume thunk 仍用 `scoop_runtime_error_fatal(NULL)` 处理 non-Complete step；已改为新增无参数 runtime 终止入口 `scoop_refactor_thread_resume_noncomplete_fatal()`，避免伪造 RuntimeError payload。
-- 已完成格式化、相关 runtime/LLVM validations、搜索守卫与 clippy。
-- 已在 `TODO-P6-part3.md` 与 `TODO.md` 标记 `P6-T05R` 为 `[DONE]`，并写入 review 完成记录。
-- 已提交本次任务改动：`480c7723 [P6-T05R] Review P6 LLVM exit criteria`。
-- 当前任务已完成；停止，不继续处理下一个任务。
+1. Read `TODO.md` to determine the indexed task order and referenced detailed files.
+2. Inspect the detailed `TODO-Px.md` files in order until the first task heading without `[DONE]` is found.
+3. Check the latest commit message for a directly relevant unfinished issue before implementing the selected task.
+4. Read the selected task requirements, dependencies, constraints, and validation instructions.
+5. Inspect only the relevant source, fixture, and test files needed to implement that task correctly.
+6. Implement the smallest spec-correct change that satisfies the task.
+7. Add or update tests/fixtures required by the task.
+8. Run the relevant validation commands first, then broader checks if practical and required by the task.
+9. Fix any issues introduced by the implementation; if a concrete prerequisite blocks spec-correct completion, update the relevant TODO files instead and stop after committing that bookkeeping change.
+10. Update the detailed TODO completion record and prefix the completed task heading with `[DONE]`; synchronize `TODO.md` if needed.
+11. Commit all uncommitted files that belong to this task with a descriptive task-tagged message.
+12. Stop without starting the next task.
+
+## Progress Log
+
+- Initialized execution plan before repository inspection.
+- Selected first incomplete detailed task: `P7-T01` in `TODO-P7.md`.
+- Latest commit is `[P6-T05R] Record final plan status`; it does not state an unfinished issue directly blocking `P7-T01`.
+- Current implementation target: flip omission/default selector behavior to `refactor` while preserving explicit `legacy` and `refactor` CLI modes.
+- Relevant implementation points found: `crates/scoopc/src/session/mod.rs`, `crates/scoopc/src/driver_cli.rs`, `crates/scoop/src/cli.rs`, and fixture subprocess selector helpers in `crates/scoop/src/fixtures/**`.
+- Required edit: make `Refactor` the true default everywhere, and invert fixture subprocess propagation so only explicit `legacy` must be passed after the default flip.
+- Implemented default flip in session, `scoop` CLI, `scoopc` driver CLI, and fixture subprocess selector propagation; updated targeted tests and dispatcher/session comments.
+- Next step: run formatting, targeted no-default-features tests, then required smoke commands for default and explicit legacy paths.
+- Verification progress: `cargo fmt --all`, targeted `scoop`/`scoopc` no-default-features tests, fixture helper tests, and required default/legacy dump/build/test smoke commands have passed.
+- Next step: run clippy before marking `P7-T01` complete.
+- `cargo clippy --all-targets -- -D warnings` passed.
+- Next step: mark `P7-T01` complete in `TODO-P7.md`, sync `TODO.md`, then commit the task changes.
+- Marked `P7-T01` as `[DONE]` in `TODO-P7.md`, added completion record, and synchronized the `TODO.md` index.
+- Next step: review git diff/status and create the required task commit.
