@@ -462,6 +462,52 @@
   - 2026-05-05：修复 top-level callable value direct-call 的 closure 来源。refactor lowering 现在对 `topNamed(...)` / `topPatternF(...)` 直接从 authoritative top-level immutable value 读取 closure object，而不是扫描并复用可能被跳过的 callee temp；同时只物化后续确实作为值使用的 top-level function-value ref，避免把 ordinary direct-call callee 临时重新带入 source slice。
   - 2026-05-05：验证通过：`cargo fmt --all`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/receiver_function_value_call_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_direct_named_call_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_receiver_call_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`；补充 baseline `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo clippy --all-targets -- -D warnings`。额外 broad guard `cargo test -p scoop --test p7_default_pipeline` 当前仍在 `default_refactor_runs_async_await_task_resume_payload_cli` 暴露 `async_await_minimal_int_basic.scoop` 的 `HandleDispatch` completion payload source 失败，属于后续 `P7-T03` full regression 范围，不作为本任务的 callable-value / `FunPtr` 完成条件。
 
+## P7-T02W：闭合 refactor class ctor / object init hidden ordinary effect handoff，解除 P7-T03 run-pass 阻塞
+
+- 参考：
+  - [`TODO-P4.md`](./TODO-P4.md) P4-T03 / P4-T04
+  - [`TODO-P5.md`](./TODO-P5.md) P5-T03 / P5-T05
+  - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03f / P6-T03g / P6-T04
+  - 当前阻塞 fixture：`tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`
+- 背景：
+  - 继续执行 P7-T03 的默认 `cargo run -p scoop -- test` 时，run-pass 已推进到 class ctor / object init hidden ordinary effect 场景；
+  - `helper()` 中的 `Box()` class ctor 触发 `BoomObject` init，object init 内执行 `Raise.raise(RuntimeError.NullAssertionFailed)`；
+  - 当前 refactor facts 仍把 `helper` 与 `main` 标为 `NoOutward` / `Plain`，`main` 中对 `helper()` 的 call site 也没有 boundary，因此 hidden runtime error 只激活旧 ordinary effect 状态，却没有通过 refactor `HandleDispatch` 被外层 `try/catch` 消费；
+  - 直接现象是程序只输出 `main_before_call` / `helper_before_ctor` / `boom.init`，没有进入 `caught` 分支。
+
+- 必须实现的内容：
+  1. 为 class ctor / object init / class init step 中的 hidden ordinary effects 发布 refactor facts handoff。
+     - `Rvalue::ClassCtor`、class header `super(...)`、secondary ctor `this(...)` / `super(...)` delegation、property initializer、`init` block、object init 中的 ordinary `Raise<RuntimeError>` 必须能贡献到 caller body facts；
+     - `helper()` 这类表面 declared `Pure` 但 class/object init 内 hidden raise 的函数，必须在 facts/solver 中暴露真实 outward case，而不是继续被归为 `NoOutward` plain callable；
+     - 不得靠 runtime TLS side effect、process exit、或 HIR-only hidden channel 绕过 P4 facts。
+  2. 为 class ctor boundary 发布 late-lowered / LLVM lowering contract。
+     - 若 class ctor / object init 可能向外传播 ordinary runtime error，caller 的 class ctor statement 必须有显式 boundary 或等价 published lowering contract；
+     - 外层 `try/catch` 的 `HandleDispatch` 必须能消费该 outward case，并恢复到 catch arm；
+     - 禁止在 P6 body emitter 现场扫描 HIR class init 或按 fixture 名字猜测。
+  3. 收口当前临时暴露的 HIR helper 依赖。
+     - 本轮 P7-T03 已为 refactor class ctor named/default/delegation 接通了参数映射和初始化执行，并让 class ctor HIR 初始化表达式中不在 refactor pass-view 内的纯 helper 可按需生成普通 HIR body；
+     - 本任务必须将这类 helper reachability / callable body 发布纳入 canonical refactor handoff，或以等价方式证明它不是 hidden legacy fallback；
+     - 不得把该路径作为长期 workaround 保留到 P7-T03 完成记录之外。
+  4. 保持已有 class ctor run-pass 语义。
+     - `class_ctor_named_default_and_delegation_basic.scoop`、`class_secondary_ctor_delegation_this_and_super_basic.scoop`、`class_init_super_ctor_args_eval_order_basic.scoop` 必须继续通过；
+     - named/default args 的源码求值顺序与默认参数求值顺序不得退化。
+  5. 增加或更新定向测试，覆盖 hidden class/object init ordinary effect 经 helper 被外层 try/catch 捕获。
+
+- 验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_secondary_ctor_delegation_this_and_super_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_super_ctor_args_eval_order_basic.scoop`
+  - 修复后恢复执行 P7-T03 的完整标准矩阵。
+
+- 完成条件：
+  - hidden `Raise<RuntimeError>` 从 class ctor / object init 经普通 helper 传播到外层 `try/catch`，并在默认 refactor run-pass 下匹配 golden；
+  - refactor facts / late-lowered / LLVM handoff 不再把该路径误判为 `NoOutward` plain callable；
+  - 未引入 hidden legacy fallback、fixture 降级或 runtime-only workaround。
+- 依赖：P7-T02V
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 
 - 参考：
@@ -518,9 +564,11 @@
   - `cargo test --all`、`scoop test`、`spec-fixtures check`、`clippy -D warnings` 在默认 refactor 主线下全部通过；
   - 回归修复没有通过恢复 legacy 默认值或 hidden fallback 达成；
   - 后续只剩 GC env 全开验证与 P7->P8 handoff 收口。
-- 依赖：P7-T02V
+- 依赖：P7-T02W
 - 完成记录：
   - 2026-05-05：首轮执行已通过 `cargo test --all`，并修复/同步了多个默认 full-regression 前置回归：refactor MIR/LLVM struct literal lowering、unsafe atomic load 与 nested member lvalue、`sizeOf` MIR intrinsic、array builder/Array size/get/set 与 `toInt` compiler intrinsic、过期 effect-facts/effect-lowered/HIR/MIR/mir_refactor generated snapshots、重复的 `effect_lowered_src` 未实现 phase，以及 `sysroot/task.scoop` 中 `__task_join<T>` 的显式不可达收口。当前标准 `scoop test` 继续阻塞在 `async_await_minimal_int_basic.scoop` 的 task/continuation resume payload 运行期语义，已新增 prerequisite `P7-T02U`；本任务保持未完成。
+  - 2026-05-05：本轮恢复 P7-T03 后，`cargo test --all` 首轮先失败在 `build_refactor_task_atomic_fixture_lowers_o0_without_legacy_mutex`，已修复 fatal `scoop.core.panic` 在 refactor path 中被误发布为 DynamicFallback effect boundary、以及 `Nothing` handle arm completion source 的不可达路径处理；随后 `cargo test --all` 通过。`cargo run -p scoop -- test` 继续暴露并已修复默认 run-pass 中的 Char/Int/String/Float `hash()` refactor intrinsic、Char `print` / `toString` runtime 路由、MIR f-string stale part type、以及 class ctor named/default/delegation 参数映射和初始化执行问题；定向通过：`char_runtime_textual_basic.scoop`、`stdlib_hash_basic.scoop`、`class_ctor_arg_eval_scope_shadow_free_basic.scoop`、`class_ctor_named_default_and_delegation_basic.scoop`、`class_secondary_ctor_delegation_this_and_super_basic.scoop`、`class_init_super_ctor_args_eval_order_basic.scoop`。
+  - 2026-05-05：当前 `cargo run -p scoop -- test` 阻塞在 `class_init_hidden_raise_helper_try_catch_basic.scoop`：class ctor / object init 内 hidden `Raise<RuntimeError>` 没有进入 refactor facts / boundary lowering，`helper` 和 `main` 被误判为 `NoOutward` plain callable，外层 `try/catch` 无法捕获该 ordinary runtime error。已新增 prerequisite `P7-T02W`，本任务保持未完成。
 
 ## P7-T03R：Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底
 

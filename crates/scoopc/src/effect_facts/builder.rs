@@ -2024,6 +2024,7 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.core.get"
             | "scoop.core.set"
             | "scoop.core.toInt"
+            | "scoop.core.panic"
             | "scoop.thread.yield"
     )
 }

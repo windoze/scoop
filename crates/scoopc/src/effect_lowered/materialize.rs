@@ -1381,7 +1381,10 @@ fn handle_arm_completion_payload_source(
     body_ty: TypeId,
 ) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
     let arm_complete_target = finally_state.unwrap_or(exit_state);
-    if matches!(types.kind(body_ty), TypeKind::Value(ValueTypeKind::Unit)) {
+    if matches!(
+        types.kind(body_ty),
+        TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Nothing)
+    ) {
         return Ok(LateLoweredCompletionPayloadSource::unit(body_ty));
     }
 
@@ -1466,7 +1469,10 @@ fn handle_body_completion_payload_source(
     body_complete_target: StateId,
     result_ty: TypeId,
 ) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
-    if matches!(types.kind(result_ty), TypeKind::Value(ValueTypeKind::Unit)) {
+    if matches!(
+        types.kind(result_ty),
+        TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Nothing)
+    ) {
         return Ok(LateLoweredCompletionPayloadSource::unit(result_ty));
     }
 
@@ -1542,7 +1548,7 @@ fn handle_completion_payload_source_from_state(
 ) -> Result<LateLoweredCompletionPayloadSource, EffectLoweringError> {
     if matches!(
         types.kind(complete_ty),
-        TypeKind::Value(ValueTypeKind::Unit)
+        TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Nothing)
     ) {
         return Ok(LateLoweredCompletionPayloadSource::unit(complete_ty));
     }

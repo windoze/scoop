@@ -1,5 +1,6 @@
 //! Class constructor selection and initialization lowering split out of `codegen/mod.rs`.
 
+use super::mir_body::MirLocalSlot;
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -321,6 +322,172 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         Ok(Some(matching[0]))
+    }
+
+    pub(in crate::llvm::codegen) fn pick_class_ctor_for_mir_args<'b>(
+        &self,
+        at: crate::span::Span,
+        class: &'b hir::ClassInit,
+        args: &[crate::mir::CallArg],
+        kind: &'static str,
+    ) -> Result<(Option<&'b hir::ClassCtor>, Vec<Option<usize>>), LlvmEmitError> {
+        if class.ctors.is_empty() {
+            return if args.is_empty() {
+                Ok((None, Vec::new()))
+            } else {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                })
+            };
+        }
+
+        let mut matching = Vec::new();
+        for ctor in &class.ctors {
+            if let Some(mapping) = map_mir_class_ctor_args_to_params(&ctor.params, args) {
+                matching.push((ctor, mapping));
+            }
+        }
+        if matching.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            });
+        }
+        let (ctor, mapping) = matching.remove(0);
+        Ok((Some(ctor), mapping))
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_eval_args(
+        &mut self,
+        at: crate::span::Span,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        mapping: &[Option<usize>],
+        ctor_params: &[hir::ClassCtorParam],
+        kind: &'static str,
+    ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
+        if mapping.len() != ctor_params.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            });
+        }
+
+        let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
+            let slot = arg_to_param
+                .get_mut(arg_idx)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                })?;
+            if slot.is_some() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                });
+            }
+            *slot = Some(param_idx);
+        }
+        if arg_to_param.iter().any(|slot| slot.is_none()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            });
+        }
+
+        let mut param_values: Vec<Option<CgValue<'ctx>>> = vec![None; ctor_params.len()];
+        let mut explicit_values: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; ctor_params.len()];
+
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx].ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            })?;
+            let param = &ctor_params[param_idx];
+            let param_cg = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor param type",
+                    at: arg.span.into(),
+                })?;
+            let v =
+                self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
+            let v = self.coerce_value(arg.span, v, param_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("refactor_class_ctor_arg_{param_idx}"),
+                v,
+            )?;
+            explicit_values[param_idx] = Some((arg.span, deferred));
+        }
+
+        self.function_cx.env.push_scope();
+
+        let result = (|| {
+            for (param_idx, param) in ctor_params.iter().enumerate() {
+                let Some((expr_span, explicit)) = explicit_values[param_idx].clone() else {
+                    continue;
+                };
+                let explicit = self.materialize_deferred_cg_value(
+                    expr_span,
+                    &format!("refactor_class_ctor_arg_reload_{param_idx}"),
+                    explicit,
+                )?;
+                let stored =
+                    self.bind_class_ctor_call_param_value(at, kind, param, expr_span, explicit)?;
+                param_values[param_idx] = Some(stored);
+            }
+
+            for (param_idx, param) in ctor_params.iter().enumerate() {
+                if param_values[param_idx].is_some() {
+                    continue;
+                }
+                let default_value =
+                    param
+                        .default_value
+                        .as_ref()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind,
+                            at: at.into(),
+                        })?;
+                let param_cg =
+                    self.cg_ty_of(param.ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class ctor param type",
+                            at: default_value.span.into(),
+                        })?;
+                let v = match &default_value.kind {
+                    hir::ExprKind::Closure(closure) => {
+                        self.codegen_closure_expr(default_value.span, closure, param.ty)?
+                    }
+                    _ => self.codegen_expr_in_expected_context(default_value, Some(param_cg))?,
+                };
+                let v = self.coerce_value(default_value.span, v, param_cg)?;
+                let stored =
+                    self.bind_class_ctor_call_param_value(at, kind, param, default_value.span, v)?;
+                param_values[param_idx] = Some(stored);
+            }
+
+            param_values
+                .into_iter()
+                .map(|value| {
+                    value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind,
+                        at: at.into(),
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })();
+
+        self.clear_gc_locals_in_current_scope(at, "refactor_class_ctor_arg_scope_drop")?;
+        self.function_cx.env.pop_scope();
+        result
     }
 
     fn codegen_class_ctor_eval_args(
@@ -917,4 +1084,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(self.llvm_gc_i8_ptr_type(), this_slot, "class_ctor_this_obj")?
             .into_pointer_value())
     }
+}
+
+fn map_mir_class_ctor_args_to_params(
+    params: &[hir::ClassCtorParam],
+    args: &[crate::mir::CallArg],
+) -> Option<Vec<Option<usize>>> {
+    if args.len() > params.len() {
+        return None;
+    }
+
+    let mut mapping = vec![None; params.len()];
+    let mut next_positional = 0usize;
+    for (arg_idx, arg) in args.iter().enumerate() {
+        let param_idx = if let Some(name) = arg.name.as_deref() {
+            params.iter().position(|param| param.name == name)?
+        } else {
+            while next_positional < mapping.len() && mapping[next_positional].is_some() {
+                next_positional += 1;
+            }
+            let idx = next_positional;
+            next_positional += 1;
+            idx
+        };
+        let slot = mapping.get_mut(param_idx)?;
+        if slot.is_some() {
+            return None;
+        }
+        *slot = Some(arg_idx);
+    }
+
+    for (param_idx, param) in params.iter().enumerate() {
+        if mapping[param_idx].is_none() && param.default_value.is_none() {
+            return None;
+        }
+    }
+
+    Some(mapping)
 }

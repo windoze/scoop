@@ -2409,7 +2409,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         raw: bool,
         parts: &[crate::mir::InterpolatedStringPart],
-        _body: &crate::mir::Body,
+        body: &crate::mir::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -2446,7 +2446,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value,
                     ty,
                 } => {
-                    let value_cg = self.cg_ty_of_mir_type(mir_types, *ty).ok_or(
+                    let source_ty = self.mir_operand_type_id(body, value).unwrap_or(*ty);
+                    let value_cg = self.cg_ty_of_mir_type(mir_types, source_ty).ok_or(
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "MIR interpolated string expr type",
                             at: (*expr_span).into(),
@@ -2459,7 +2460,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         Some(value_cg),
                     )?;
                     let v = self.coerce_value(*expr_span, v, value_cg)?;
-                    self.codegen_mir_interpolated_expr_segment(*expr_span, *ty, v, mir_types)?
+                    self.codegen_mir_interpolated_expr_segment(*expr_span, source_ty, v, mir_types)?
                 }
             };
             total_len = self
@@ -4841,25 +4842,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let class = self.class_init_layout(span, class_layout_key)?;
-        let selected_ctor = self.pick_class_ctor_by_target(
+        let (selected_ctor, arg_mapping) = self.pick_class_ctor_for_mir_args(
             span,
             &class,
-            None,
-            args.len(),
-            None,
+            args,
             "refactor class ctor overload mismatch/ambiguous",
         )?;
         let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
             Some(ctor) => ctor.params.as_slice(),
             None => &[][..],
         };
-        if ctor_params.len() != args.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor class ctor arg/param len mismatch",
-                at: span.into(),
-            });
-        }
-        self.verify_refactor_class_init_contract(span, &class, selected_ctor)?;
 
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
@@ -4915,77 +4907,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
         }
 
-        for (param, arg) in ctor_params.iter().zip(args) {
-            if arg.name.is_some() || param.has_default {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor class ctor named/default arg",
-                    at: arg.span.into(),
-                });
-            }
-            let param_cg = self
-                .cg_ty_of(param.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor class ctor param type",
-                    at: arg.span.into(),
-                })?;
-            let value =
-                self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
-            let value = self.coerce_value(arg.span, value, param_cg)?;
-            if param.is_property {
-                let field_fqn = param.property_field_fqn.as_ref().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor class ctor property field fqn",
-                        at: param.decl_span.into(),
-                    },
-                )?;
-                let field_idx = *class.field_indices.get(field_fqn).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor class ctor property field index",
-                        at: param.decl_span.into(),
-                    },
-                )?;
-                let field_ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
-                let _ = self.store_local_value(arg.span, field_ptr, param_cg, value)?;
-            }
-        }
+        let deferred_obj = self.defer_gc_sensitive_cg_value(
+            span,
+            "refactor_class_ctor_obj_root",
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(obj_ptr.into()),
+            },
+        )?;
+
+        let evaluated_args = self.codegen_mir_class_ctor_eval_args(
+            span,
+            args,
+            slots,
+            &arg_mapping,
+            ctor_params,
+            "refactor class ctor arg eval",
+        )?;
+
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "refactor_class_ctor_obj_before_invoke",
+            &deferred_obj,
+        )?;
+
+        self.codegen_class_ctor_invoke(
+            span,
+            span,
+            &class,
+            selected_ctor,
+            evaluated_args.as_slice(),
+            current_obj,
+        )?;
+        self.emit_ordinary_call_effect_propagation_check(span, "refactor_class_ctor_call_effect")?;
+
+        let current_obj = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "refactor_class_ctor_obj_return",
+            &deferred_obj,
+        )?;
 
         Ok(CgValue {
             ty: CgTy::Ref,
-            value: Some(obj_ptr.into()),
+            value: Some(current_obj.into()),
         })
-    }
-
-    fn verify_refactor_class_init_contract(
-        &mut self,
-        span: crate::span::Span,
-        class: &hir::ClassInit,
-        selected_ctor: Option<&hir::ClassCtor>,
-    ) -> Result<(), LlvmEmitError> {
-        if !class.steps.is_empty()
-            || !class.super_ctor_args.is_empty()
-            || selected_ctor.is_some_and(|ctor| ctor.delegation.is_some() || ctor.body.is_some())
-        {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor non-trivial class ctor requires published ctor ABI",
-                at: span.into(),
-            });
-        }
-        if let Some(super_fqn) = &class.super_class_fqn {
-            let super_class = self.class_init_layout(span, super_fqn)?;
-            let super_ctor = self.pick_class_ctor_by_target(
-                span,
-                &super_class,
-                super_class
-                    .super_ctor_call
-                    .as_ref()
-                    .and_then(|call| call.ctor_span),
-                super_class.super_ctor_args.len(),
-                None,
-                "refactor super class ctor overload mismatch/ambiguous",
-            )?;
-            self.verify_refactor_class_init_contract(span, &super_class, super_ctor)?;
-        }
-        Ok(())
     }
 
     fn codegen_bound_mir_call_args(

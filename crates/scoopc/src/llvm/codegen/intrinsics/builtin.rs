@@ -1804,7 +1804,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_i64_hash_value(x)
     }
 
-    fn codegen_i64_hash_value(
+    pub(in crate::llvm::codegen) fn codegen_i64_hash_value(
         &mut self,
         x: IntValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {

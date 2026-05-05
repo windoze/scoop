@@ -2010,6 +2010,10 @@ impl<'a> FnLowering<'a> {
                 }
             }
         };
+        let terminates_current_block = matches!(
+            &kind,
+            CallKind::Direct { callee_fqn } if callee_fqn == "scoop.core.panic"
+        );
 
         let site_id = self.fresh_site_id();
         self.assign(
@@ -2021,6 +2025,9 @@ impl<'a> FnLowering<'a> {
                 args,
             },
         );
+        if terminates_current_block {
+            self.set_terminator(self.current_bb, span, TerminatorKind::Unreachable);
+        }
         result
     }
 

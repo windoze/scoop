@@ -636,6 +636,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     at: span.into(),
                 });
             }
+            let receiver_ty = self.required_operand_source_ty(receiver, span)?;
             let receiver_cg = self
                 .codegen
                 .mir_operand_cg_ty(self.body, self.source_types, receiver)
@@ -650,7 +651,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Some(receiver_cg),
             )?;
             let value = self.codegen.coerce_value(span, value, receiver_cg)?;
-            let string = self.refactor_core_print_to_string(span, value)?;
+            let string = self.refactor_core_print_to_string(span, value, receiver_ty)?;
             return self.codegen.coerce_value(span, string, target_cg);
         }
         if let mir::CallKind::FunValue { callee } = kind
@@ -744,6 +745,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return Ok(value);
         }
         if let Some(value) = self.lower_refactor_to_int_intrinsic(span, callee_fqn, args)? {
+            return Ok(value);
+        }
+        if let Some(value) = self.lower_refactor_hash_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
         if callee_fqn == "scoop.core.toString" {
@@ -1671,6 +1675,117 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
+    fn lower_refactor_hash_intrinsic(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        if refactor_intrinsic_base_fqn(callee_fqn) != "scoop.core.hash" {
+            return Ok(None);
+        }
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor hash arg contract",
+                at: span.into(),
+            });
+        }
+
+        let arg = &args[0];
+        let value_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
+        let value_cg = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, value_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor hash receiver type",
+                at: arg.span.into(),
+            })?;
+        let value = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(value_cg),
+        )?;
+        let value = self.codegen.coerce_value(arg.span, value, value_cg)?;
+
+        let i64_ty = self.codegen.context.i64_type();
+        match self.source_types.kind(value_ty) {
+            TypeKind::Value(ValueTypeKind::Char) => {
+                let Some(BasicValueEnum::IntValue(codepoint)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Char.hash receiver value",
+                        at: arg.span.into(),
+                    });
+                };
+                let widened = self.codegen.builder.build_int_z_extend(
+                    codepoint,
+                    i64_ty,
+                    "refactor_char_hash_zext",
+                )?;
+                self.codegen.codegen_i64_hash_value(widened).map(Some)
+            }
+            TypeKind::Ref(RefTypeKind::String) => {
+                let value = self.codegen.coerce_value(arg.span, value, CgTy::String)?;
+                let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor String.hash receiver value",
+                        at: arg.span.into(),
+                    });
+                };
+                let rt = self.codegen.declare_runtime_string_hash();
+                let call = self.codegen.build_call_preserving_gc_local_roots(
+                    span,
+                    rt,
+                    &[ptr.into()],
+                    "refactor_rt_string_hash",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor String.hash return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(hash) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor String.hash return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::int(
+                    hash,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                )))
+            }
+            _ => match value.ty {
+                CgTy::Int(_) => {
+                    let int64 = CgTy::Int(IntTy {
+                        bits: 64,
+                        signed: true,
+                    });
+                    let value = self.codegen.coerce_value(arg.span, value, int64)?;
+                    let Some(BasicValueEnum::IntValue(raw)) = value.value else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "refactor Int.hash receiver value",
+                            at: arg.span.into(),
+                        });
+                    };
+                    self.codegen.codegen_i64_hash_value(raw).map(Some)
+                }
+                CgTy::Float64 | CgTy::Float32 => self
+                    .codegen
+                    .codegen_float_hash_value(arg.span, value)
+                    .map(Some),
+                _ => Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor hash unsupported receiver type",
+                    at: span.into(),
+                }),
+            },
+        }
+    }
+
     fn refactor_array_receiver_ptr(
         &mut self,
         arg: &mir::CallArg,
@@ -2584,6 +2699,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             });
         }
         let arg = &args[0];
+        let arg_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
         let arg_cg = self
             .codegen
             .mir_operand_cg_ty(self.body, self.source_types, &arg.value)
@@ -2598,7 +2714,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             Some(arg_cg),
         )?;
         let value = self.codegen.coerce_value(arg.span, value, arg_cg)?;
-        let string = self.refactor_core_print_to_string(arg.span, value)?;
+        let string = self.refactor_core_print_to_string(arg.span, value, arg_ty)?;
         let Some(BasicValueEnum::PointerValue(str_ptr)) = string.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor core print string value",
@@ -2746,6 +2862,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             });
         }
         let arg = &args[0];
+        let arg_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
         let arg_cg = self
             .codegen
             .mir_operand_cg_ty(self.body, self.source_types, &arg.value)
@@ -2760,7 +2877,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             Some(arg_cg),
         )?;
         let value = self.codegen.coerce_value(arg.span, value, arg_cg)?;
-        let string = self.refactor_core_print_to_string(arg.span, value)?;
+        let string = self.refactor_core_print_to_string(arg.span, value, arg_ty)?;
         self.codegen.coerce_value(span, string, target_cg)
     }
 
@@ -2768,7 +2885,27 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         &mut self,
         span: Span,
         value: CgValue<'ctx>,
+        source_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if matches!(
+            self.source_types.kind(source_ty),
+            TypeKind::Value(ValueTypeKind::Char)
+        ) {
+            let Some(BasicValueEnum::IntValue(codepoint)) = value.value else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor core print Char value",
+                    at: span.into(),
+                });
+            };
+            let runtime = self.codegen.declare_runtime_char_to_string();
+            let call = self.codegen.build_call_preserving_gc_local_roots(
+                span,
+                runtime,
+                &[codepoint.into()],
+                "refactor_core_print_char_to_string",
+            )?;
+            return self.string_result_from_runtime_call(span, call, "Char");
+        }
         match value.ty {
             CgTy::String => Ok(value),
             CgTy::Bool => {

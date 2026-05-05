@@ -718,6 +718,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None => self.declare_top_level_fun(sig_fun)?,
             }
         };
+        if !is_extern
+            && !explicit_effect_call
+            && llvm_fun.count_basic_blocks() == 0
+            && sig_fun.body.is_some()
+            && self
+                .materialized_pass_view()
+                .is_some_and(|pass_view| pass_view.callable(fqn).is_none())
+        {
+            let restore_block = self.builder.get_insert_block();
+            self.fresh_child_codegen()
+                .codegen_top_level_fun(sig_fun, llvm_fun)?;
+            if let Some(block) = restore_block {
+                self.builder.position_at_end(block);
+            }
+        }
 
         let call_site_result = if is_extern {
             self.emit_extern_native_call(span, fqn, llvm_fun, &llvm_args)
