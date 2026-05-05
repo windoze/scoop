@@ -172,7 +172,7 @@
   - 搜索确认没有遗漏的默认 legacy 构造点、自动 fallback 或 retry legacy：`default.*legacy|legacy.*default|fallback.*legacy|retry.*legacy` 在 `crates/**` 与 `tools/scoop_tools` 无命中。显式 legacy 命中均为短期 compare/rollback 入口、dispatcher legacy 分支或对应测试；未发现 helper 在 omission 情况下强制 legacy。
   - 验证通过：`rg "Legacy|Refactor|effect[-_]pipeline|Session::new\(|default.*legacy|default.*refactor" crates/scoop crates/scoopc tools/scoop_tools`；`cargo test -p scoop --no-default-features cli`；`cargo test -p scoopc --no-default-features session`；`cargo test -p scoopc --no-default-features driver_cli`；`cargo test -p scoop --no-default-features default_refactor_pipeline`；`cargo test -p scoop --no-default-features explicit_legacy_pipeline`；`cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`；`cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`；`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_default.ll`；`cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_legacy.ll`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`。
 
-## P7-T02：更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy”
+## [DONE] P7-T02：更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy”
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P7
@@ -246,7 +246,13 @@
   - 没有隐藏 legacy fallback 或默认值残留。
 - 依赖：P7-T01R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：完成默认主线假设清理与守护。`crates/scoop/src/cli.rs` 中仅用于表达“新路径”的 `dump-effect-facts` / `dump-effect-lowered` parse 测试已改为省略 selector，显式 `refactor` parse 测试仅保留为 selector 存活性覆盖；`dump-effect-facts` / `dump-effect-lowered` legacy unsupported 诊断改为提示“省略 selector 使用默认 refactor，或显式使用 `--effect-pipeline refactor`”；`mir_refactor` fixture 诊断改为说明默认或显式 refactor 均可，显式 legacy 不支持。
+  - 新增 `crates/scoop/tests/p7_default_pipeline.rs` 黑盒守护：默认路径与显式 `--effect-pipeline refactor` 在 `dump-mir`、`build --emit-llvm`、`run`、`test --fixtures` 四个代表入口上退出状态/stdout/stderr（以及 LLVM IR 产物）一致；默认 `scoop test` 可在不传 selector 时运行 refactor-only build fixture `effect_refactor_no_legacy_handler_stack_calls.scoop`，证明 fixture harness 不会因省略 selector 落回 legacy。
+  - 更新 `crates/scoop/src/commands/build.rs` 的 build 守护：reachable self-contained handle 样本现在已能由 refactor lowering 正常产出 IR，测试改为正向断言 refactor/default build 输出包含 refactor-owned symbol 且不含 `scoop_effect_handler_stack` / `scoop_effect_outcome`，避免继续把已闭合路径当作“应失败”边界。
+  - 更新 `EFFECT_REFACTOR.md` P6 -> P7 handoff 说明：P6 中的显式 refactor 命令是默认翻转前的历史 handoff 示例；P7 之后当前 smoke/regression 默认应省略 selector，显式 `refactor` 只用于 default-vs-explicit 等价检查，显式 `legacy` 只用于 P8 前短期 compare/rollback smoke。
+  - 显式 `refactor` 保留项：CLI/scoopc/session 的存活性 parse 覆盖、`P7` default-vs-explicit 等价测试、legacy unsupported 诊断中的显式替代说明、P6 历史 handoff 记录。显式 `legacy` 保留项：CLI/session 存活性覆盖、dispatcher legacy 分支、P7/P8 前 compare/rollback smoke、legacy unsupported 诊断和历史完成记录；未发现正常默认路径仍依赖显式 `legacy`。
+  - 搜索结论：执行 `rg -e "--effect-pipeline refactor|--effect-pipeline legacy|default.*legacy|fallback.*legacy" . --glob '!target/**'`。命中主要来自历史 TODO/完成记录、P6 handoff 文档、当前 P7 任务说明、显式 compare/rollback 测试、以及本次新增的守护测试/诊断；实现代码中未发现省略 selector 时默认 legacy、refactor 失败后 retry legacy、或 fixture/helper hidden fallback 的路径。
+  - 验证通过：`cargo fmt --all`；`cargo test -p scoop --no-default-features cli`；`cargo test -p scoop --no-default-features dump_effect`；`cargo test -p scoop --test p7_default_pipeline`；`cargo test -p scoop legacy_frames`；`cargo test -p scoop no_hidden_legacy_fallback`；`cargo run -p scoop -- dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_default_build.ll`；`cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_explicit_refactor_build.ll`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo run -p scoop -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；上述 `rg` 搜索；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T02R：Review 默认主线假设与 hidden-fallback 守护，确认 omission/default 真正代表 refactor 主线
 

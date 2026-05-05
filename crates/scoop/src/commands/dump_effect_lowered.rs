@@ -1,7 +1,7 @@
 //! `scoop dump-effect-lowered` 子命令。
 //!
 //! 该命令是 P5 late-lowering stage 的用户可见 dump 入口：
-//! - refactor 路径必须显式进入 late-lowering stage，并输出稳定的 post-opt late-lowered 文本；
+//! - 默认 refactor 路径进入 late-lowering stage，并输出稳定的 post-opt late-lowered 文本；
 //! - legacy 路径当前没有等价实现，因此返回稳定、可测试的不支持诊断；
 //! - fixture runner 复用这里的同一 helper，避免 CLI 与 golden 各自拼接不同文本。
 
@@ -15,7 +15,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error, Diagnostic)]
 #[error(
-    "legacy effect pipeline 暂不支持 `dump-effect-lowered`；请使用 `--effect-pipeline refactor`"
+    "legacy effect pipeline 暂不支持 `dump-effect-lowered`；请省略 selector 使用默认 refactor，或显式使用 `--effect-pipeline refactor`"
 )]
 #[diagnostic(code(scoop::commands::dump_effect_lowered_legacy_unsupported))]
 struct DumpEffectLoweredLegacyUnsupported;
@@ -127,7 +127,7 @@ fun handled(): Int {
         let rendered = err.to_string();
 
         assert!(rendered.contains("legacy effect pipeline 暂不支持 `dump-effect-lowered`"));
-        assert!(rendered.contains("--effect-pipeline refactor"));
+        assert!(rendered.contains("默认 refactor"));
     }
 
     #[test]

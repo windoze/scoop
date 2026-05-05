@@ -1228,8 +1228,6 @@ mod tests {
 
     #[cfg(feature = "llvm")]
     use scoopc::effect_refactor_pipeline::LlvmArtifactKind;
-    #[cfg(feature = "llvm")]
-    use scoopc::llvm::LlvmEmitError;
     use scoopc::opt::OptLevel;
     use tempfile::tempdir;
 
@@ -1239,6 +1237,34 @@ mod tests {
 
         scoopc::session::Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor))
             .unwrap()
+    }
+
+    #[cfg(feature = "llvm")]
+    fn write_reachable_legacy_effect_fixture(input: &std::path::Path) {
+        std::fs::write(
+            input,
+            r#"
+package fixtures.reachable_legacy
+
+effect Ping {
+    fun hit(): Unit
+}
+
+fun hiddenWorker(): Unit / Ping {
+    Ping.hit()
+}
+
+fun main(): Int {
+    return handle {
+        hiddenWorker()
+        0
+    } with {
+        Ping.hit(), _k -> 0
+    }
+}
+"#,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -2004,35 +2030,12 @@ fun main(): Int {
 
     #[cfg(feature = "llvm")]
     #[test]
-    fn refactor_build_rejects_reachable_self_contained_legacy_effect_body_lowering() {
+    fn refactor_build_lowers_reachable_self_contained_effect_body_without_legacy_frames() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");
-        let out = dir.path().join("reject.ll");
+        let out = dir.path().join("refactor.ll");
 
-        std::fs::write(
-            &input,
-            r#"
-package fixtures.reachable_legacy
-
-effect Ping {
-    fun hit(): Unit
-}
-
-fun hiddenWorker(): Unit / Ping {
-    Ping.hit()
-}
-
-fun main(): Int {
-    return handle {
-        hiddenWorker()
-        0
-    } with {
-        Ping.hit(), _k -> 0
-    }
-}
-"#,
-        )
-        .unwrap();
+        write_reachable_legacy_effect_fixture(&input);
 
         let session = refactor_session();
         let build_input = super::load_build_input(&input, None).unwrap();
@@ -2043,7 +2046,7 @@ fun main(): Int {
                 .unwrap();
         let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
 
-        let err = scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+        scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
             &session,
             &source_map,
             entry_source_id,
@@ -2054,24 +2057,47 @@ fun main(): Int {
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
         )
-        .expect_err("reachable self-contained handle 不应再静默落入 legacy effect frame lowering");
+        .expect("reachable self-contained handle 应由 refactor lowering 正常生成 IR");
 
-        match err {
-            LlvmEmitError::RefactorEffectLoweringUnsupported {
-                entry,
-                callable,
-                unsupported_paths,
-            } => {
-                assert_eq!(entry, "fixtures.reachable_legacy.main");
-                assert_eq!(callable, "fixtures.reachable_legacy.main");
-                assert!(
-                    unsupported_paths.contains("call boundary lowering")
-                        || unsupported_paths
-                            .contains("legacy effect-frame / handler-stack body lowering"),
-                    "诊断应明确指出当前 reachable effect lowering 尚未迁移，不能回落到 legacy backend：{unsupported_paths}"
-                );
-            }
-            other => panic!("unexpected error: {other:?}"),
-        }
+        let ir = std::fs::read_to_string(&out).unwrap();
+        assert!(
+            ir.contains("__scoop_refactor"),
+            "refactor IR 应包含 canonical refactor symbol，而不是空壳输出：\n{ir}"
+        );
+        assert!(
+            !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),
+            "refactor IR 不应回落到 legacy handler-stack/outcome runtime：\n{ir}"
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn no_hidden_legacy_fallback_for_default_refactor_build_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("main.scoop");
+        let out = dir.path().join("default_refactor.ll");
+
+        write_reachable_legacy_effect_fixture(&input);
+
+        super::run(
+            input,
+            Some(out.clone()),
+            super::BuildOptions {
+                emit: super::BuildEmit::LlvmIr,
+                opt_level: Some(OptLevel::O0),
+                ..super::BuildOptions::default()
+            },
+        )
+        .expect("default refactor build should lower without hidden legacy fallback");
+        let ir = std::fs::read_to_string(&out).unwrap();
+
+        assert!(
+            ir.contains("__scoop_refactor"),
+            "default build should emit refactor-owned symbols:\n{ir}"
+        );
+        assert!(
+            !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),
+            "default build must not retry or embed legacy handler-stack/outcome lowering:\n{ir}"
+        );
     }
 }

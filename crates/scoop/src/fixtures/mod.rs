@@ -781,7 +781,9 @@ struct MirGoldenMismatch {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("`mir_refactor` fixtures 只能通过 `--effect-pipeline refactor` 运行（fixture: {fixture}）")]
+#[error(
+    "`mir_refactor` fixtures 需要 refactor effect pipeline（默认或显式 `--effect-pipeline refactor`）；显式 legacy 不支持（fixture: {fixture}）"
+)]
 #[diagnostic(code(scoop::fixtures::mir_refactor_requires_refactor_pipeline))]
 struct MirRefactorRequiresRefactorPipeline {
     fixture: String,

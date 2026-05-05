@@ -263,11 +263,9 @@ mod tests {
     }
 
     #[test]
-    fn test_effect_pipeline_parses_refactor_dump_effect_facts() {
+    fn default_pipeline_parses_dump_effect_facts() {
         let args = Args::try_parse_from([
             "scoop",
-            "--effect-pipeline",
-            "refactor",
             "dump-effect-facts",
             "tests/fixtures/mir_refactor/handle_perform.scoop",
         ])
@@ -286,11 +284,9 @@ mod tests {
     }
 
     #[test]
-    fn test_effect_pipeline_parses_refactor_dump_effect_lowered() {
+    fn default_pipeline_parses_dump_effect_lowered() {
         let args = Args::try_parse_from([
             "scoop",
-            "--effect-pipeline",
-            "refactor",
             "dump-effect-lowered",
             "tests/fixtures/effect_lowered/handle_perform.scoop",
         ])

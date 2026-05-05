@@ -1757,6 +1757,8 @@ run-pass / runtime_gc matrix 继续使用真实 CLI path，不引入测试专用
 
 `scoop build` is the single CLI owner for refactor LLVM artifact generation. `scoop run` calls executable `build`; build fixtures call `commands::build::run`; `--emit-llvm` / `--emit-obj` / `--emit-asm` all enter `effect_refactor_pipeline::emit_production_llvm_artifact_to_file` through the same build helper. This is the P6 -> P7 handoff boundary: P7 may change selector defaults and widen regression scope, but not add another lowering route.
 
+P7 flips omission-based CLI/session defaults to refactor. The P6 commands above are historical handoff examples that used an explicit selector before the default flip; current default smoke and regression commands should omit `--effect-pipeline`. Explicit `--effect-pipeline refactor` is retained only for default-vs-explicit equivalence checks, and explicit `--effect-pipeline legacy` is retained only for short-term compare/rollback smoke until P8 deletes the legacy selector path.
+
 ## 6. 计算 `actual_outward_cases` 与 `resolved_outward_cases`
 
 在语义/理想分析层面，真正希望得到的精确结果仍然是：

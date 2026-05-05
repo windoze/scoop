@@ -1,36 +1,27 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Scope
+## 范围
+- 只处理 `TODO.md` 索引指向的第一个未完成详细任务。
+- 以对应 `TODO-Px.md` 详细文件为准；如索引与详细文件不一致，同步索引。
+- 不做开放式历史问题扫查；只处理阻塞当前任务或与当前任务直接相关的问题。
 
-Complete exactly the first incomplete detailed task referenced by `TODO.md`, then stop after committing the completed work.
+## 步骤
+1. 读取 `TODO.md`，按索引顺序定位需要检查的详细 `TODO-Px.md` 文件。
+2. 在详细任务文件中找到第一个标题未带 `[DONE]` 的任务。
+3. 阅读该任务要求、约束、依赖和验证方式，并检查最近提交是否指出与该任务直接相关的未完成问题。
+4. 实现该任务；如发现必须先修复的具体阻塞项，则在对应详细 TODO 中加入最小前置任务并同步索引后停止。
+5. 运行相关测试和必要的格式/检查命令，修复由当前任务引入或阻塞当前任务的问题。
+6. 在详细 `TODO-Px.md` 中将完成的任务标题标记为 `[DONE]` 并更新完成记录；必要时同步 `TODO.md`。
+7. 更新本计划文件记录关键进展。
+8. 按要求提交本次所有相关更改，然后停止，不进入下一任务。
 
-## Reasoning Summary
-
-The detailed `TODO-Px.md` files are the source of truth for task completion state. I will first use `TODO.md` only as an index, then inspect the referenced detailed TODO files in order. A task is complete only if its detailed heading is explicitly prefixed with `[DONE]`; completion notes alone are not sufficient.
-
-I will avoid broad historical triage. Existing issues are in scope only if they block the selected task, invalidate its specified behavior, or are direct regressions introduced while completing it. If a blocker prevents spec-correct implementation, I will add the minimum prerequisite task in the appropriate detailed TODO file, sync `TODO.md`, commit that bookkeeping, and stop.
-
-## Step-by-Step Plan
-
-1. Read `TODO.md` as the task index.
-2. Inspect the referenced `TODO-Px.md` files in order to identify the first detailed task whose heading is not prefixed with `[DONE]`.
-3. Read the selected task body, dependencies, constraints, validation requirements, and completion record.
-4. Inspect the relevant code and tests for that task only.
-5. Implement the smallest spec-correct change that fully satisfies the selected task.
-6. Add or update tests/fixtures required by the selected task.
-7. Run the task-specific validation commands, then broader relevant checks if needed.
-8. If validation exposes a blocker directly relevant to the task, fix it; if it cannot be fixed within the current task without a new prerequisite, update the TODO files accordingly, commit, and stop.
-9. Mark the selected task heading as `[DONE]` in the authoritative `TODO-Px.md` file and update its completion record.
-10. Sync `TODO.md` so the index matches any completed, added, removed, renamed, or reordered tasks.
-11. Update this plan file with key progress and final validation results.
-12. Commit all relevant changes with a clear task-tagged commit message.
-13. Stop without starting the next task.
-
-## Progress Log
-
-- Initial plan written before repository inspection.
-- Selected first incomplete task: `P7-T01R` in `TODO-P7.md`.
-- Task type: review selector default flip, verifying omission defaults to refactor and explicit legacy remains the only temporary rollback/compare entry.
-- Initial review findings: `SessionOptions::default()` resolves to refactor, `scoop` and `scoopc` CLI omission both parse as refactor, and explicit legacy remains routed through session options. No latest-commit blocker was identified; latest commit is `[P7-T01] Default effect pipeline to refactor`.
-- Validation completed successfully: P7-T01 selector tests, smoke commands, required `rg` search, `cargo fmt --all`, and `cargo clippy --all-targets -- -D warnings` all passed.
-- Task bookkeeping completed: `P7-T01R` marked `[DONE]` in `TODO-P7.md`, and `TODO.md` synchronized.
+## 当前状态
+- 已读取 `TODO.md` 与 `TODO-P7.md`。
+- 第一个未完成详细任务是 `P7-T02`：更新默认主线切换后的 driver/fixture/test/docs 假设，并增加默认路径等价与 hidden fallback 守护。
+- 最近提交为 `[P7-T01R] Review selector default flip`，与本任务的前置 review 对齐，没有发现需要先插入的新前置项。
+- 已盘点 selector 用法：实现代码中没有 `default legacy` / `fallback legacy` / `retry legacy` 命中；仍需清理的主要是少量诊断与测试中“必须显式 `--effect-pipeline refactor`”的表达。
+- 编辑计划：更新相关诊断和 CLI parse 测试；新增默认路径与显式 refactor 的黑盒等价测试，覆盖 `dump-mir`、`build --emit-llvm`、`run`、`test --fixtures`；新增默认 build 失败不自动回 legacy 的守护测试；补充设计文档中 P7 后默认命令应省略 selector 的说明。
+- 已完成实现与验证：新增默认/显式 refactor 等价黑盒测试，更新诊断、CLI 测试、build fallback 守护和 P6->P7 文档说明；发现 self-contained handle build 已经支持 refactor lowering，因此将旧“应失败”测试改成“不含 legacy handler-stack/outcome”的正向守护。
+- 已运行定向验证、P7 smoke、搜索守卫与 `cargo clippy --all-targets -- -D warnings`，均通过。
+- 已将 `TODO-P7.md` 的 `P7-T02` 与 `TODO.md` 索引标记为 `[DONE]` 并填写完成记录。
+- 下一步检查工作区差异并按要求提交本次更改，然后停止。
