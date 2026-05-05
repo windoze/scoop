@@ -137,7 +137,7 @@
   - 同步更新 CLI/help/driver/dispatcher 注释，说明默认已是 refactor、legacy 仅为短期 compare/rollback 入口，P8 将删除 legacy selector 分支。
   - 验证通过：`cargo fmt --all`；`cargo test -p scoop --no-default-features cli`；`cargo test -p scoopc --no-default-features session`；`cargo test -p scoopc --no-default-features driver_cli`；`cargo test -p scoop --no-default-features default_refactor_pipeline`；`cargo test -p scoop --no-default-features explicit_legacy_pipeline`；`cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`；`cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`；`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_default.ll`；`cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_legacy.ll`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
-## P7-T01R：Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口
+## [DONE] P7-T01R：Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0，§2/P7
@@ -168,7 +168,9 @@
   - 可进入 P7-T02。
 - 依赖：P7-T01
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：完成 selector 默认值翻转 review。确认实际默认来源集中在 `crates/scoopc/src/session/mod.rs` 的 `EffectPipelineMode::Refactor` default，`Session::new()`、`Session::with_sysroot(...)` 与 `SessionOptions::default()` 在 omission 情况下均进入 refactor；`crates/scoop/src/cli.rs` 与 `crates/scoopc/src/driver_cli.rs` 的 CLI omission 默认值也均为 refactor。`scoop` commands 通过 `SessionOptions::new(effect_pipeline)` 统一传递 selector，`scoop test` / run-pass / run_pass_cone 子进程只在显式 legacy session 下追加 `--effect-pipeline legacy`，默认 refactor 通过 omission 传播。
+  - 搜索确认没有遗漏的默认 legacy 构造点、自动 fallback 或 retry legacy：`default.*legacy|legacy.*default|fallback.*legacy|retry.*legacy` 在 `crates/**` 与 `tools/scoop_tools` 无命中。显式 legacy 命中均为短期 compare/rollback 入口、dispatcher legacy 分支或对应测试；未发现 helper 在 omission 情况下强制 legacy。
+  - 验证通过：`rg "Legacy|Refactor|effect[-_]pipeline|Session::new\(|default.*legacy|default.*refactor" crates/scoop crates/scoopc tools/scoop_tools`；`cargo test -p scoop --no-default-features cli`；`cargo test -p scoopc --no-default-features session`；`cargo test -p scoopc --no-default-features driver_cli`；`cargo test -p scoop --no-default-features default_refactor_pipeline`；`cargo test -p scoop --no-default-features explicit_legacy_pipeline`；`cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`；`cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`；`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_default.ll`；`cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_legacy.ll`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo fmt --all`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T02：更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy”
 
