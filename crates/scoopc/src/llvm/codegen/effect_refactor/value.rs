@@ -2014,10 +2014,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             })
     }
 
-    fn atomic_member_value_fqn<'m>(
+    fn atomic_member_value_fqn(
         span: Span,
-        member: &'m mir::MemberAccessMetadata,
-    ) -> Result<&'m str, LlvmEmitError> {
+        member: &mir::MemberAccessMetadata,
+    ) -> Result<&str, LlvmEmitError> {
         match member.resolved.as_ref() {
             Some(mir::MemberTarget::Value { fqn }) => Ok(fqn.as_str()),
             Some(_) => Err(LlvmEmitError::UnsupportedMainBody {

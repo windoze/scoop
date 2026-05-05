@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use inkwell::AddressSpace;
 use inkwell::basic_block::BasicBlock;
-use inkwell::types::{BasicTypeEnum, StructType};
+use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValueEnum, FunctionValue, GlobalValue, IntValue, PointerValue,
 };
@@ -25,7 +25,8 @@ use crate::effect_lowered::ir::{
     LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredOperandValueSource,
     LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredResumePayloadBinding,
     LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
-    LateLoweredStateTerminator, LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredStateTerminator, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
+    LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, StateId,
 };
 use crate::llvm::LlvmEmitError;
@@ -138,6 +139,13 @@ struct RefactorHandleFinallyRuntime {
     continue_to_exit_tag: u32,
     return_from_function_tag: u32,
     propagate_outward: Vec<RefactorHandleOutwardCompletionRuntime>,
+}
+
+struct TaskTransportResumeCandidate<'a, 'ctx> {
+    callable: &'a LateLoweredCallable,
+    adapter: FunctionValue<'ctx>,
+    type_desc_i8: PointerValue<'ctx>,
+    dispatch_plan: LateLoweredStepDispatchPlan,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -521,6 +529,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self,
                 program,
                 source_types,
+                pass_view,
                 abi,
                 callable,
                 mir_fun,
@@ -752,6 +761,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self,
                 program,
                 source_types,
+                pass_view,
                 abi,
                 callable,
                 mir_fun,
@@ -1219,6 +1229,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self,
             program,
             source_types,
+            pass_view,
             abi,
             callable,
             mir_fun,
@@ -1339,6 +1350,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self,
             program,
             source_types,
+            pass_view,
             abi,
             callable,
             mir_fun,
@@ -1374,7 +1386,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
 struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     codegen: &'cg mut MainCodegen<'a, 'ctx>,
+    program: &'a LateLoweredProgram,
     source_types: &'a TypeStore,
+    pass_view: &'a mir::MaterializedMirPassView<'a>,
     abi: &'cg RefactorAbiQuery<'ctx>,
     callable: &'a LateLoweredCallable,
     mir_fun: &'a mir::FunDecl,
@@ -1397,8 +1411,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
     fn new(
         codegen: &'cg mut MainCodegen<'a, 'ctx>,
-        _program: &'a LateLoweredProgram,
+        program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
+        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &'cg RefactorAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
         mir_fun: &'a mir::FunDecl,
@@ -1471,7 +1486,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         let emitter = Self {
             codegen,
+            program,
             source_types,
+            pass_view,
             abi,
             callable,
             mir_fun,
@@ -3090,7 +3107,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             &self.slots,
             binding.consumer_local(),
         )?;
-        Ok(slot.cg_ty == resume_cg)
+        Ok(slot.cg_ty == resume_cg || self.is_task_transport_tuple_ty(resume_tuple_ty)?)
+    }
+
+    fn is_task_transport_tuple_ty(&self, ty: TypeId) -> Result<bool, LlvmEmitError> {
+        let Some(codegen_ty) = self
+            .codegen
+            .equivalent_codegen_type_id(self.source_types, ty)
+        else {
+            return Ok(false);
+        };
+        Ok(self.codegen.is_task_transport_tuple_ty(codegen_ty))
     }
 
     fn emit_states(&mut self) -> Result<(), LlvmEmitError> {
@@ -3557,6 +3584,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     lowering.operand_contract().arg_sources(),
                     "refactor_resume_args",
                 )?;
+                if self.should_use_task_transport_dynamic_resume(source, surface, lowering)?
+                    && self.lower_task_transport_dynamic_resume_boundary(
+                        boundary,
+                        lowering,
+                        surface,
+                        cont_ptr,
+                        args_payload,
+                    )?
+                {
+                    return Ok(());
+                }
                 let callee = self.codegen.refactor_function(surface.symbol_name())?;
                 let mut args = vec![cont_ptr.into()];
                 if !surface.resume_payload_abi().is_elided() {
@@ -3595,6 +3633,333 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 self.lower_handle_boundary(boundary, lowering)
             }
         }
+    }
+
+    fn should_use_task_transport_dynamic_resume(
+        &mut self,
+        site_id: SiteId,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
+    ) -> Result<bool, LlvmEmitError> {
+        // Task continuations are stored in heap state and later resumed from sysroot helpers, so
+        // their concrete owner route is recovered from the continuation object descriptor.
+        if !self.is_task_transport_tuple_ty(surface.resume_tuple_ty())? {
+            return Ok(false);
+        }
+        let route = lowering.operand_contract().underlying_continuation_route();
+        Ok(matches!(
+            route.publication(),
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                owner_version_key,
+                site_id: route_site,
+                ..
+            } if owner_version_key == self.callable.body_version_key() && *route_site == site_id
+        ))
+    }
+
+    fn lower_task_transport_dynamic_resume_boundary(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+        lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        args_payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<bool, LlvmEmitError> {
+        let payload = args_payload.ok_or_else(|| {
+            frontend_error(format!(
+                "refactor task transport resume bd{} 需要 non-elided payload",
+                boundary.boundary_id().as_u32()
+            ))
+        })?;
+        let candidates =
+            self.task_transport_resume_candidates(lowering, surface.resume_tuple_ty())?;
+        if candidates.is_empty() {
+            return Ok(false);
+        }
+
+        let current_desc = self.load_gc_object_type_desc(cont_ptr, "task_resume_cont_desc")?;
+        let word_ty = self.codegen.context.i64_type();
+        let current_desc_int = self.codegen.builder.build_ptr_to_int(
+            current_desc,
+            word_ty,
+            "task_resume_cont_desc_int",
+        )?;
+        let first_check = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "task_resume_check0");
+        self.codegen
+            .builder
+            .build_unconditional_branch(first_check)?;
+
+        let mut check_bb = first_check;
+        for (index, candidate) in candidates.into_iter().enumerate() {
+            let next_bb = self
+                .codegen
+                .context
+                .append_basic_block(self.function, &format!("task_resume_check{}", index + 1));
+            let hit_bb = self.codegen.context.append_basic_block(
+                self.function,
+                &format!(
+                    "task_resume_hit_s{}",
+                    candidate.callable.step_schema().as_u32()
+                ),
+            );
+            self.codegen.builder.position_at_end(check_bb);
+            let target_desc_int = self.codegen.builder.build_ptr_to_int(
+                candidate.type_desc_i8,
+                word_ty,
+                "task_resume_target_desc_int",
+            )?;
+            let is_match = self.codegen.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                current_desc_int,
+                target_desc_int,
+                "task_resume_desc_match",
+            )?;
+            self.codegen
+                .builder
+                .build_conditional_branch(is_match, hit_bb, next_bb)?;
+
+            self.codegen.builder.position_at_end(hit_bb);
+            let args = vec![cont_ptr.into(), payload.into()];
+            let call = self.codegen.build_call_preserving_gc_local_roots(
+                self.mir_fun.span,
+                candidate.adapter,
+                &args,
+                "refactor_task_transport_resume",
+            )?;
+            let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor task transport resume adapter `{}` 未返回 Step_F",
+                    candidate.adapter.get_name().to_str().unwrap_or("<invalid>")
+                ))
+            })?;
+            self.dispatch_boundary_step(
+                boundary,
+                candidate.callable.step_schema(),
+                owner_step,
+                &candidate.dispatch_plan,
+                None,
+            )?;
+            check_bb = next_bb;
+        }
+
+        self.codegen.builder.position_at_end(check_bb);
+        self.codegen.builder.build_unreachable()?;
+        Ok(true)
+    }
+
+    fn task_transport_resume_candidates(
+        &mut self,
+        lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
+        transport_ty: TypeId,
+    ) -> Result<Vec<TaskTransportResumeCandidate<'a, 'ctx>>, LlvmEmitError> {
+        let mut candidates = Vec::new();
+        for callable in self.program.callables() {
+            if !callable.has_control_body()
+                || callable.frame_schema().resume_payload_bindings().is_empty()
+            {
+                continue;
+            }
+            let Some(dispatch_plan) = self
+                .task_transport_owner_dispatch_plan(callable.step_schema(), lowering.dispatch())?
+            else {
+                continue;
+            };
+            if !self.callable_accepts_task_transport_resume(callable, transport_ty)? {
+                continue;
+            }
+            let continuation_layout = self
+                .abi
+                .continuation_layout(callable.continuation_object())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor task transport resume 缺少 callable `{}` continuation layout",
+                        callable.root_fqn()
+                    ))
+                })?;
+            let type_desc = self.codegen.get_or_create_refactor_gc_type_descriptor(
+                self.mir_fun.span,
+                continuation_layout.llvm_ty(),
+                continuation_layout.layout_anchor_name(),
+            )?;
+            let type_desc_i8 = self.codegen.builder.build_pointer_cast(
+                type_desc.as_pointer_value(),
+                self.codegen.llvm_i8_ptr_type(),
+                "task_resume_candidate_type_desc",
+            )?;
+            let adapter = self.ensure_task_transport_resume_adapter(callable, transport_ty)?;
+            candidates.push(TaskTransportResumeCandidate {
+                callable,
+                adapter,
+                type_desc_i8,
+                dispatch_plan,
+            });
+        }
+        Ok(candidates)
+    }
+
+    fn callable_accepts_task_transport_resume(
+        &mut self,
+        callable: &LateLoweredCallable,
+        transport_ty: TypeId,
+    ) -> Result<bool, LlvmEmitError> {
+        for binding in callable.frame_schema().resume_payload_bindings() {
+            let Some(mir_fun) = refactor_mir_callable(self.pass_view, callable.root_fqn()).ok()
+            else {
+                continue;
+            };
+            let Some(body) = mir_fun.body.as_ref() else {
+                continue;
+            };
+            let local_ty = body.locals[binding.consumer_local().as_u32() as usize].ty;
+            if local_ty != transport_ty || self.is_task_transport_tuple_ty(local_ty)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn task_transport_owner_dispatch_plan(
+        &self,
+        owner_step_schema: StepSchemaId,
+        wrapper_dispatch: &LateLoweredStepDispatchPlan,
+    ) -> Result<Option<LateLoweredStepDispatchPlan>, LlvmEmitError> {
+        let owner_step = self.program.step_type(owner_step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor task transport resume 缺少 owner step schema s{}",
+                owner_step_schema.as_u32()
+            ))
+        })?;
+        if owner_step.complete_ty() != wrapper_dispatch.complete().answer_ty() {
+            return Ok(None);
+        }
+        let wrapper_step = self
+            .program
+            .step_type(wrapper_dispatch.input_step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor task transport resume 缺少 wrapper step schema s{}",
+                    wrapper_dispatch.input_step_schema().as_u32()
+                ))
+            })?;
+        let mut outward_cases = Vec::new();
+        for wrapper_forwarding in wrapper_dispatch.outward_cases() {
+            let Some(wrapper_case) = wrapper_step.case(wrapper_forwarding.input_case_tag()) else {
+                return Ok(None);
+            };
+            let Some(owner_case) = owner_step.cases().iter().find(|candidate| {
+                candidate.concrete_op_key() == wrapper_case.concrete_op_key()
+                    && candidate.payload_tuple_ty() == wrapper_case.payload_tuple_ty()
+            }) else {
+                return Ok(None);
+            };
+            outward_cases.push(LateLoweredStepCaseForwarding::new(
+                owner_case.case_tag(),
+                owner_case.concrete_op_key().clone(),
+                wrapper_forwarding.emission().clone(),
+            ));
+        }
+        Ok(Some(LateLoweredStepDispatchPlan::new(
+            owner_step_schema,
+            wrapper_dispatch.complete().clone(),
+            outward_cases,
+        )))
+    }
+
+    fn ensure_task_transport_resume_adapter(
+        &mut self,
+        callable: &'a LateLoweredCallable,
+        transport_ty: TypeId,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let step_layout = self
+            .abi
+            .step_layout(callable.step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor task transport resume 缺少 callable `{}` step layout s{}",
+                    callable.root_fqn(),
+                    callable.step_schema().as_u32()
+                ))
+            })?;
+        let payload_layout = self.abi.source_value_layout(transport_ty)?;
+        let payload_abi = *payload_layout.abi();
+        let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
+            vec![self.codegen.llvm_gc_i8_ptr_type().into()];
+        if !payload_abi.is_elided() {
+            params.push(payload_abi.llvm_ty().into());
+        }
+        let fn_ty = step_layout.llvm_ty().fn_type(&params, false);
+        let symbol_name = format!(
+            "__scoop_refactor_task_transport_resume__s{}",
+            callable.step_schema().as_u32()
+        );
+        let function = self
+            .codegen
+            .module
+            .get_function(&symbol_name)
+            .unwrap_or_else(|| self.codegen.module.add_function(&symbol_name, fn_ty, None));
+        if function.count_basic_blocks() > 0 {
+            return Ok(function);
+        }
+
+        let saved_block = self.codegen.builder.get_insert_block();
+        let mut child = self.codegen.fresh_child_codegen();
+        let mir_fun = refactor_mir_callable(self.pass_view, callable.root_fqn())?;
+        let body = mir_fun.body.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor task transport resume adapter `{}` owner `{}` 缺少 canonical MIR body",
+                symbol_name,
+                callable.root_fqn()
+            ))
+        })?;
+        let entry = child.context.append_basic_block(function, "entry");
+        child.builder.position_at_end(entry);
+        child.begin_function_explicit_frame_layout(function)?;
+        RefactorCallableEmitter::new(
+            &mut child,
+            self.program,
+            self.source_types,
+            self.pass_view,
+            self.abi,
+            callable,
+            mir_fun,
+            body,
+            function,
+            None,
+            RefactorHandleCompletionMode::ReturnFromFunction,
+        )?
+        .emit_resume_entry(transport_ty)?;
+        child.finish_function_explicit_frame_layout(mir_fun.span)?;
+        if let Some(block) = saved_block {
+            self.codegen.builder.position_at_end(block);
+        }
+        Ok(function)
+    }
+
+    fn load_gc_object_type_desc(
+        &mut self,
+        obj: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let header_ty = self.codegen.llvm_gc_object_header_type();
+        let header_ptr_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
+        let header_ptr =
+            self.codegen
+                .builder
+                .build_pointer_cast(obj, header_ptr_ty, &format!("{name}_hdr"))?;
+        let type_desc_ptr = self.codegen.builder.build_struct_gep(
+            header_ty,
+            header_ptr,
+            1,
+            &format!("{name}_gep"),
+        )?;
+        Ok(self
+            .codegen
+            .builder
+            .build_load(self.codegen.llvm_i8_ptr_type(), type_desc_ptr, name)?
+            .into_pointer_value())
     }
 
     fn lower_runtime_error_boundary(
@@ -5131,8 +5496,68 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         resume_tuple_ty: TypeId,
         payload: Option<BasicValueEnum<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
-        self.store_payload_to_binding(&binding, payload)?;
-        let _ = resume_tuple_ty;
+        self.store_resume_payload_to_binding(&binding, resume_tuple_ty, payload)?;
+        Ok(())
+    }
+
+    fn store_resume_payload_to_binding(
+        &mut self,
+        binding: &LateLoweredResumePayloadBinding,
+        resume_tuple_ty: TypeId,
+        payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        if let Some(raw) = payload {
+            if self.is_task_transport_tuple_ty(resume_tuple_ty)? {
+                let resume_cg = self
+                    .codegen
+                    .cg_ty_of_mir_type(self.source_types, resume_tuple_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor task transport resume payload type",
+                        at: self.mir_fun.span.into(),
+                    })?;
+                let slot = self.codegen.mir_local_slot(
+                    self.mir_fun.span,
+                    &self.slots,
+                    binding.consumer_local(),
+                )?;
+                if slot.cg_ty == resume_cg {
+                    let value =
+                        self.codegen
+                            .cg_value_from_loaded(self.mir_fun.span, slot.cg_ty, raw)?;
+                    self.codegen.store_local_value(
+                        self.mir_fun.span,
+                        slot.ptr,
+                        slot.cg_ty,
+                        value,
+                    )?;
+                } else {
+                    let transport =
+                        self.codegen
+                            .cg_value_from_loaded(self.mir_fun.span, resume_cg, raw)?;
+                    let (word, gc_ref) = self
+                        .codegen
+                        .split_task_transport_tuple_value(self.mir_fun.span, transport)?;
+                    let decoded = self.codegen.decode_effect_transport_value(
+                        self.mir_fun.span,
+                        word,
+                        gc_ref,
+                        slot.cg_ty,
+                    )?;
+                    self.codegen.store_local_value(
+                        self.mir_fun.span,
+                        slot.ptr,
+                        slot.cg_ty,
+                        decoded,
+                    )?;
+                }
+            } else {
+                let _ =
+                    self.store_loaded_raw_local(self.mir_fun.span, binding.consumer_local(), raw)?;
+            }
+        }
+        if let Some(frame_slot) = binding.consumer_frame_slot() {
+            self.store_local_to_frame_slot(binding.consumer_local(), frame_slot)?;
+        }
         Ok(())
     }
 

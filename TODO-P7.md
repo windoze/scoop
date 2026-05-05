@@ -378,7 +378,7 @@
   - 新增定向覆盖：`llvm::tests::task_step_o0_build_fixture_uses_concrete_task_state_member_layout` 覆盖单文件 O0 refactor lowering；`commands::build::tests::build_refactor_task_atomic_fixture_lowers_o0_without_legacy_mutex` 覆盖真实 build frontend + refactor LLVM stage + ABI visibility handoff 下的 O0 task atomic fixture。
   - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo test -p scoop build_refactor_task_atomic_fixture_lowers_o0_without_legacy_mutex -- --nocapture`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_default_int_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_neg_int8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_uint8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`；`cargo clippy --all-targets -- -D warnings`。
 
-## P7-T02U：修复默认 run-pass 暴露的 refactor async/task resume payload ABI 阻塞
+## [DONE] P7-T02U：修复默认 run-pass 暴露的 refactor async/task resume payload ABI 阻塞
 
 - 参考：
   - [`TODO-P5.md`](./TODO-P5.md) P5-T05 / P5-T07b
@@ -412,7 +412,10 @@
   - 修复没有引入 hidden legacy fallback、fixture 降级或 task/continuation 特判。
 - 依赖：P7-T02S
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：修复默认 refactor run-pass 的 async/task resume payload ABI 阻塞。refactor LLVM resume lowering 现在在 task transport `(Int, Any)` resume site 遇到 self-route fallback 时，会按 continuation object type descriptor 动态选择可接收 task transport 的 owner resume adapter；adapter 使用真实 continuation owner 的 frame/resume binding 恢复 concrete resumed local/home，再由当前 resume boundary 的 dispatch plan 消费 owner `Step`，避免把 `__task_drive_waiting` 的 wrapper resume payload 误写成 resume call answer。
+  - resume payload 注入现在支持将 task transport 解码到 concrete consumer local，例如 `Async.await<Int>` 的 resumed local `Int`，同时保留普通 identity payload store；没有回 legacy backend、没有修改 fixture 形状、没有把 `T` 擦成 `Unit` / `Any`。
+  - 新增 `default_refactor_runs_async_await_task_resume_payload_cli`，覆盖默认 refactor `run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop` 的完整 stdout：`before` / `after` / `41` / `done` / `42`。
+  - 验证通过：`cargo fmt --all`；`cargo run -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`；`cargo test -p scoop --test p7_default_pipeline default_refactor_runs_async_await_task_resume_payload_cli -- --nocapture`；`cargo test -p scoop --test p7_default_pipeline`；`cargo test -p scoopc --lib refactor_llvm_continuation_protocol`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop`；`cargo check --all`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 

@@ -124,6 +124,26 @@ fn default_pipeline_matches_explicit_refactor_run_cli() {
 }
 
 #[test]
+fn default_refactor_runs_async_await_task_resume_payload_cli() {
+    let fixture = workspace_path("tests/fixtures/run-pass/async_await_minimal_int_basic.scoop");
+
+    let output = run_scoop([
+        OsStr::new("run"),
+        OsStr::new("--no-incremental"),
+        fixture.as_os_str(),
+    ]);
+
+    assert!(
+        output.status.success(),
+        "default refactor async/await run should complete: {output:?}"
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "before\nafter\n41\ndone\n42\n"
+    );
+}
+
+#[test]
 fn default_pipeline_matches_explicit_refactor_test_fixtures_cli() {
     let fixture = workspace_path("tests/fixtures/build/emit_llvm_basic.scoop");
 
