@@ -124,7 +124,7 @@
 | `P7-T01` | `TODO-P7.md` | [DONE] 翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口 |
 | `P7-T01R` | `TODO-P7.md` | [DONE] Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口 |
 | `P7-T02` | `TODO-P7.md` | [DONE] 更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy” |
-| `P7-T02R` | `TODO-P7.md` | Review 默认主线假设与 hidden-fallback 守护，确认 omission/default 真正代表 refactor 主线 |
+| `P7-T02R` | `TODO-P7.md` | [DONE] Review 默认主线假设与 hidden-fallback 守护，确认 omission/default 真正代表 refactor 主线 |
 | `P7-T03` | `TODO-P7.md` | 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
 | `P7-T03R` | `TODO-P7.md` | Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |
 | `P7-T04` | `TODO-P7.md` | 运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口 |
